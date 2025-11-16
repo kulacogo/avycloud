@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Product, DatasheetChange, ProductImage } from '../types';
-import { saveProduct, syncToBaseLinker, generateImages } from '../api/client';
-import { EditIcon, SaveIcon, SyncIcon, GenerateIcon } from './icons/Icons';
+import { saveProduct, syncToBaseLinker, generateImages, downloadSkuLabel } from '../api/client';
+import { EditIcon, SaveIcon, SyncIcon, GenerateIcon, PrintIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import ImageGallery from './ImageGallery';
 import AttributeTable from './AttributeTable';
@@ -23,6 +23,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
   const [isDirty, setIsDirty] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [autoGenDone, setAutoGenDone] = useState(false);
+  const [isPrintingLabel, setIsPrintingLabel] = useState(false);
 
   useEffect(() => {
     setLocalProduct(product);
@@ -43,7 +44,26 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
     setIsSaving(true);
     const result = await saveProduct(localProduct);
     if (result.ok && result.data) {
-      const updatedProduct = { ...localProduct, ops: { ...localProduct.ops, revision: result.data.revision, last_saved_iso: new Date().toISOString() } };
+      const assignedSku = result.data.sku || localProduct.identification.sku || localProduct.details.identifiers?.sku || null;
+      const updatedProduct: Product = {
+        ...localProduct,
+        identification: {
+            ...localProduct.identification,
+            sku: assignedSku || localProduct.identification.sku,
+        },
+        details: {
+            ...localProduct.details,
+            identifiers: {
+                ...(localProduct.details.identifiers || {}),
+                sku: assignedSku || localProduct.details.identifiers?.sku || undefined,
+            },
+        },
+        ops: {
+          ...localProduct.ops,
+          revision: result.data.revision,
+          last_saved_iso: new Date().toISOString(),
+        },
+      };
       onUpdate(updatedProduct);
       setIsEditing(false);
       setIsDirty(false);
@@ -52,6 +72,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
       showNotification('error', result.error?.message || 'Failed to save product.');
     }
     setIsSaving(false);
+  };
+  const handlePrintLabel = async () => {
+    if (!localProduct?.id) return;
+    setIsPrintingLabel(true);
+    const result = await downloadSkuLabel(localProduct.id);
+    if (!result.ok) {
+      showNotification('error', result.error?.message || 'Konnte Etikett nicht laden.');
+    } else {
+      showNotification('success', 'Etikett geöffnet.');
+    }
+    setIsPrintingLabel(false);
   };
 
   const applyAssistantChange = (change: DatasheetChange) => {
@@ -186,7 +217,22 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
                 {' · '}
                 <span className="text-sky-400">{localProduct.identification.category}</span>
               </p>
-              <p id="p-barcodes" className="text-xs text-slate-500 mt-2">
+              <div className="flex items-center space-x-2 text-xs text-slate-500 mt-2">
+                <span>
+                  SKU: {localProduct.identification.sku || localProduct.details.identifiers?.sku || 'wird beim Speichern vergeben'}
+                </span>
+                <button
+                  id="btn-print-label"
+                  onClick={handlePrintLabel}
+                  disabled={!localProduct.identification.sku || isPrintingLabel}
+                  className="flex items-center px-2 py-1 bg-slate-700 text-white rounded hover:bg-slate-600 disabled:opacity-40"
+                  title="Label drucken (57x25 mm)"
+                >
+                  <PrintIcon />
+                  <span className="ml-1">Label</span>
+                </button>
+              </div>
+              <p id="p-barcodes" className="text-xs text-slate-500 mt-1">
                 Barcodes: {localProduct.identification.barcodes?.join(', ') || 'N/A'}
               </p>
             </div>

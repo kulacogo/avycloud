@@ -218,7 +218,7 @@ export const identifyProductApi = async (
 // --- The rest of the functions remain as mocks for now ---
 // In a real application, these would also be implemented on the backend.
 
-export const saveProduct = async (product: Product): Promise<{ ok: boolean; data?: { id: string; revision: number }; error?: { code: number; message: string } }> => {
+export const saveProduct = async (product: Product): Promise<{ ok: boolean; data?: { id: string; revision: number; sku?: string | null }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   
   try {
@@ -320,6 +320,41 @@ export const generateImages = async (productId: string): Promise<{ ok: boolean; 
     
   } catch (error) {
     console.error('Failed to generate images:', error);
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const downloadSkuLabel = async (productId: string): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/label`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const result = await parseResponse(response);
+      return {
+        ok: false,
+        error: {
+          code: response.status,
+          message: result?.error?.message || response.statusText || 'Failed to download label.',
+        },
+      };
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'product-label.pdf';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    return { ok: true };
+  } catch (error) {
+    console.error('Failed to download label:', error);
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };
   }

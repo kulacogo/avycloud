@@ -57,6 +57,7 @@ export interface Identification {
   brand: string;
   category: string;
   confidence: number; // 0.0 to 1.0
+  sku?: string;
 }
 
 export interface Ops {

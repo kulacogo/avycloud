@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { saveProduct, getProduct, getAllProducts, deleteProduct, updateProductSyncStatus } = require('./lib/firestore');
 const { uploadBase64Image, deleteProductImages, uploadJobFile } = require('./lib/storage');
 const { createJob, getJob } = require('./lib/jobs');
+const { ensureProductSku } = require('./lib/sku');
 const {
   runProductIdentification,
   BARCODE_LIMIT_ERROR,
@@ -17,6 +18,7 @@ const {
 const { runProductChat } = require('./services/product-chat');
 const { getSecretValue } = require('./lib/secret-values');
 const { enqueueJob, resumePendingJobs } = require('./services/job-runner');
+const { generateSkuLabel } = require('./services/label-printer');
 
 // --- Configuration ---
 const PORT = process.env.PORT || 8080;
@@ -497,6 +499,57 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
+app.get('/api/products/:id/label', async (req, res) => {
+  try {
+    const product = await getProduct(req.params.id);
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 404,
+          message: 'Product not found',
+        },
+      });
+    }
+
+    const sku =
+      product.identification?.sku ||
+      product.details?.identifiers?.sku ||
+      product.details?.identifiers?.ean ||
+      null;
+
+    if (!sku) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Product has no SKU assigned yet.',
+        },
+      });
+    }
+
+    const buffer = await generateSkuLabel({
+      sku,
+      title: product.identification?.name || '',
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${sku}.pdf"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(buffer);
+  } catch (error) {
+    console.error('Failed to generate label:', error);
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to generate SKU label',
+        details: error.message,
+      },
+    });
+  }
+});
+
 // Save product
 app.post('/api/save', async (req, res) => {
   try {
@@ -512,6 +565,9 @@ app.post('/api/save', async (req, res) => {
       });
     }
     
+    // Ensure SKU is present before persisting
+    const assignedSku = ensureProductSku(product);
+
     // Process and upload images to Cloud Storage
     if (product.details && product.details.images) {
       const processedImages = [];
@@ -547,9 +603,12 @@ app.post('/api/save', async (req, res) => {
     // Save to Firestore
     const result = await saveProduct(product);
     
-    res.json({ 
-      ok: true, 
-      data: result 
+    res.json({
+      ok: true,
+      data: {
+        ...result,
+        sku: product.identification?.sku || assignedSku || null,
+      },
     });
   } catch (error) {
     console.error('Error saving product:', error);

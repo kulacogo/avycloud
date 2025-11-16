@@ -6,10 +6,16 @@ interface ProductInputProps {
   onIdentify: (images: File[], barcodes: string, model?: string) => void;
 }
 
-const MODEL_OPTIONS = [
-  { value: 'gpt-5.1', label: 'GPT-5.1 (Standard)' },
-  { value: 'gpt-5-mini', label: 'GPT-5 Mini (experimentell)' },
-] as const;
+const MINI_ENABLED = import.meta.env.VITE_ENABLE_GPT5_MINI === 'true';
+
+const MODEL_OPTIONS = (
+  MINI_ENABLED
+    ? [
+        { value: 'gpt-5.1', label: 'GPT-5.1 (Standard)' },
+        { value: 'gpt-5-mini', label: 'GPT-5 Mini (experimentell)' },
+      ]
+    : [{ value: 'gpt-5.1', label: 'GPT-5.1 (Standard)' }]
+) as const;
 
 const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const [images, setImages] = useState<File[]>([]);
@@ -171,7 +177,9 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             ))}
           </select>
           <p className="text-sm text-slate-500 mt-1">
-            GPT-5.1 liefert die höchste Datenqualität. GPT-5&nbsp;Mini ist schneller und günstiger, befindet sich aber noch im Test.
+            {MINI_ENABLED
+              ? 'GPT-5.1 liefert die höchste Datenqualität. GPT-5 Mini ist schneller und günstiger, befindet sich aber noch im Test.'
+              : 'GPT-5.1 liefert die höchste Datenqualität. Weitere Modelle sind deaktiviert, um maximale Stabilität sicherzustellen.'}
           </p>
         </div>
 

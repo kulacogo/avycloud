@@ -10,6 +10,49 @@ function collection() {
   return firestore.collection(JOBS_COLLECTION);
 }
 
+function isSpecialFirestoreValue(value) {
+  if (!value) return false;
+  if (value instanceof Timestamp || value instanceof FieldValue) {
+    return true;
+  }
+  const ctorName = value?.constructor?.name;
+  return ctorName === 'FieldValue';
+}
+
+function sanitizeValue(value) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null || typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
+    return value;
+  }
+
+  if (isSpecialFirestoreValue(value)) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    const cleaned = value
+      .map((item) => sanitizeValue(item))
+      .filter((item) => item !== undefined);
+    return cleaned;
+  }
+
+  if (typeof value === 'object') {
+    const cleaned = {};
+    for (const [key, nested] of Object.entries(value)) {
+      const sanitized = sanitizeValue(nested);
+      if (sanitized !== undefined) {
+        cleaned[key] = sanitized;
+      }
+    }
+    return cleaned;
+  }
+
+  return value;
+}
+
 function serializeJob(snapshot) {
   if (!snapshot.exists) return null;
   const data = snapshot.data();
@@ -32,8 +75,9 @@ async function createJob(payload, jobId = null) {
     ...payload,
   };
   const docRef = jobId ? collection().doc(jobId) : collection().doc();
-  await docRef.set(base);
-  return { id: docRef.id, ...base };
+  const sanitized = sanitizeValue(base);
+  await docRef.set(sanitized);
+  return { id: docRef.id, ...sanitized };
 }
 
 async function getJob(jobId) {
@@ -42,12 +86,11 @@ async function getJob(jobId) {
 }
 
 async function updateJob(jobId, data) {
-  await collection()
-    .doc(jobId)
-    .update({
-      ...data,
-      updatedAt: Timestamp.now(),
-    });
+  const payload = sanitizeValue({
+    ...data,
+    updatedAt: Timestamp.now(),
+  });
+  await collection().doc(jobId).update(payload);
 }
 
 async function claimJob(jobId) {
