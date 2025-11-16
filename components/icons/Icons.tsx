@@ -26,3 +26,13 @@ export const TableIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin=
 export const PlusCircleIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></Icon>;
 export const SheetIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75c0-.231-.035-.454-.1-.664M6.75 7.5h1.5v.75h-1.5V7.5zm-1.5 0h.008v.008H5.25V7.5z" /></Icon>;
 export const PrintIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M6 9V4.5A1.5 1.5 0 017.5 3h9A1.5 1.5 0 0118 4.5V9m-12 0h12m-12 0a2.25 2.25 0 00-2.25 2.25V15h3v3.75c0 .414.336.75.75.75h7.5a.75.75 0 00.75-.75V15h3v-3.75A2.25 2.25 0 0018 9M9 15h6" /></Icon>;
+export const WarehouseIcon = () => (
+  <Icon>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 10l9-7 9 7v10.5a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 20.5V10z"
+    />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7 13h3v7H7zM14 13h3v7h-3z" />
+  </Icon>
+);

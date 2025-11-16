@@ -9,12 +9,12 @@ function escapeHtml(str = '') {
     .replace(/'/g, '&#39;');
 }
 
-async function buildLabelHtml({ sku, title }) {
-  if (!sku) {
-    throw new Error('SKU is required for label generation');
+async function buildLabelHtml({ code, title, label = 'SKU' }) {
+  if (!code) {
+    throw new Error('Code is required for label generation');
   }
   const sanitizedTitle = escapeHtml(title || '');
-  const qrDataUrl = await QRCode.toDataURL(sku, {
+  const qrDataUrl = await QRCode.toDataURL(code, {
     errorCorrectionLevel: 'H',
     margin: 0,
     scale: 8,
@@ -24,7 +24,7 @@ async function buildLabelHtml({ sku, title }) {
 <html lang="de">
   <head>
     <meta charset="utf-8" />
-    <title>${escapeHtml(sku)} Label</title>
+    <title>${escapeHtml(code)} Label</title>
     <style>
       @page {
         size: 57mm 25mm;
@@ -87,12 +87,12 @@ async function buildLabelHtml({ sku, title }) {
   <body>
     <div class="label">
       <div class="info">
-        <div class="sku-label">SKU</div>
-        <div class="sku-value">${escapeHtml(sku)}</div>
-        <div class="title">${sanitizedTitle}</div>
+        <div class="sku-label">${escapeHtml(label)}</div>
+        <div class="sku-value">${escapeHtml(code)}</div>
+        ${sanitizedTitle ? `<div class="title">${sanitizedTitle}</div>` : ''}
       </div>
       <div class="qr">
-        <img src="${qrDataUrl}" alt="${escapeHtml(sku)} QR Code" />
+        <img src="${qrDataUrl}" alt="${escapeHtml(code)} QR Code" />
       </div>
     </div>
   </body>

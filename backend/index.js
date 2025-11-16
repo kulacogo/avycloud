@@ -18,6 +18,14 @@ const {
 const { runProductChat } = require('./services/product-chat');
 const { getSecretValue } = require('./lib/secret-values');
 const { enqueueJob, resumePendingJobs } = require('./services/job-runner');
+const {
+  createWarehouseLayout,
+  listWarehouseZones,
+  getBinsForZone,
+  getBinByCode,
+  assignProductToBin,
+  removeProductFromBin,
+} = require('./lib/warehouse');
 const { buildLabelHtml } = require('./services/label-printer');
 
 // --- Configuration ---
@@ -529,8 +537,9 @@ app.get('/api/products/:id/label', async (req, res) => {
     }
 
     const html = await buildLabelHtml({
-      sku,
+      code: sku,
       title: product.identification?.name || '',
+      label: 'SKU',
     });
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -545,6 +554,136 @@ app.get('/api/products/:id/label', async (req, res) => {
         message: 'Failed to generate SKU label',
         details: error.message,
       },
+    });
+  }
+});
+
+// Warehouse APIs
+app.get('/api/warehouse/zones', async (req, res) => {
+  try {
+    const zones = await listWarehouseZones();
+    res.json({ ok: true, data: zones });
+  } catch (error) {
+    console.error('Failed to load warehouse zones:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Laden der Lagerzonen', details: error.message },
+    });
+  }
+});
+
+app.post('/api/warehouse/layouts', async (req, res) => {
+  try {
+    const { zone, etage, gangs, regale, ebenen } = req.body || {};
+    if (!zone || !etage || !gangs || !regale || !ebenen) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Zone, Etage, Gänge, Regale und Ebenen sind erforderlich.' },
+      });
+    }
+    const layout = await createWarehouseLayout({
+      zone: String(zone).toUpperCase(),
+      etage: String(etage).toUpperCase(),
+      gangRange: gangs,
+      regalRange: regale,
+      ebeneRange: ebenen,
+    });
+    res.json({ ok: true, data: layout });
+  } catch (error) {
+    console.error('Failed to create warehouse layout:', error);
+    res.status(400).json({
+      ok: false,
+      error: { code: 400, message: error.message || 'Fehler beim Anlegen der Lagerstruktur.' },
+    });
+  }
+});
+
+app.get('/api/warehouse/zones/:zone/:etage', async (req, res) => {
+  try {
+    const zone = req.params.zone.toUpperCase();
+    const etage = req.params.etage.toUpperCase();
+    const bins = await getBinsForZone(zone, etage);
+    res.json({ ok: true, data: bins });
+  } catch (error) {
+    console.error('Failed to load bins:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Laden der Bins', details: error.message },
+    });
+  }
+});
+
+app.get('/api/warehouse/bins/:code', async (req, res) => {
+  try {
+    const code = req.params.code.toUpperCase();
+    const bin = await getBinByCode(code);
+    if (!bin) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'BIN nicht gefunden.' } });
+    }
+    res.json({ ok: true, data: bin });
+  } catch (error) {
+    console.error('Failed to load bin:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Laden des BINs', details: error.message },
+    });
+  }
+});
+
+app.post('/api/warehouse/bins/:code/assign', async (req, res) => {
+  try {
+    const code = req.params.code.toUpperCase();
+    const { productId, quantity = 1 } = req.body || {};
+    if (!productId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'productId ist erforderlich.' } });
+    }
+    const bin = await assignProductToBin(code, productId, Number(quantity));
+    const updatedProduct = await getProduct(productId);
+    res.json({ ok: true, data: { bin, product: updatedProduct } });
+  } catch (error) {
+    console.error('Failed to assign product to bin:', error);
+    res.status(400).json({
+      ok: false,
+      error: { code: 400, message: error.message || 'Fehler bei der Einlagerung.' },
+    });
+  }
+});
+
+app.delete('/api/warehouse/bins/:code/products/:productId', async (req, res) => {
+  try {
+    const code = req.params.code.toUpperCase();
+    const { productId } = req.params;
+    await removeProductFromBin(code, productId);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Failed to remove product from bin:', error);
+    res.status(400).json({
+      ok: false,
+      error: { code: 400, message: error.message || 'Fehler beim Entfernen des Produkts.' },
+    });
+  }
+});
+
+app.get('/api/warehouse/bins/:code/label', async (req, res) => {
+  try {
+    const code = req.params.code.toUpperCase();
+    const bin = await getBinByCode(code);
+    if (!bin) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'BIN nicht gefunden.' } });
+    }
+    const html = await buildLabelHtml({
+      code,
+      title: `${bin.zone} ${bin.etage} Gang ${bin.gang} Regal ${bin.regal} Ebene ${bin.ebene}`,
+      label: 'BIN',
+    });
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(html);
+  } catch (error) {
+    console.error('Failed to generate bin label:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Erstellen des BIN-Labels', details: error.message },
     });
   }
 });

@@ -72,12 +72,30 @@ export interface Notes {
   warnings?: string[];
 }
 
+export interface ProductStorageLocation {
+  binCode: string;
+  zone: 'X' | 'XS' | 'S' | 'M' | 'L' | 'XL';
+  etage: 'GA' | 'UG' | 'EG';
+  gang: number;
+  regal: number;
+  ebene: string;
+  quantity: number;
+  assigned_at: string;
+}
+
+export interface InventoryInfo {
+  quantity: number;
+  unit?: string;
+}
+
 export interface Product {
   id: string; // Not in original schema, but needed for React keys and state management. Usually EAN or a generated hash.
   identification: Identification;
   details: Details;
   ops: Ops;
   notes?: Notes;
+  inventory?: InventoryInfo;
+  storage?: ProductStorageLocation | null;
 }
 
 export interface ProductBundle {
@@ -115,4 +133,43 @@ export interface SerpInsight {
     snippet?: string;
   }>;
   error?: string | null;
+}
+
+export type WarehouseZoneCode = 'X' | 'XS' | 'S' | 'M' | 'L' | 'XL';
+export type WarehouseEtageCode = 'GA' | 'UG' | 'EG';
+
+export interface WarehouseLayout {
+  id: string;
+  zone: WarehouseZoneCode;
+  etage: WarehouseEtageCode;
+  gangs: number[];
+  regale: number[];
+  ebenen: string[];
+  binCount: number;
+  createdAt: string;
+  totalProducts?: number;
+}
+
+export interface BinProductEntry {
+  productId: string;
+  name: string;
+  sku?: string;
+  quantity: number;
+  firstStoredAt?: string | null;
+  lastUpdatedAt?: string | null;
+  image?: string | null;
+}
+
+export interface WarehouseBin {
+  code: string;
+  zone: WarehouseZoneCode;
+  etage: WarehouseEtageCode;
+  gang: number;
+  regal: number;
+  ebene: string;
+  productCount: number;
+  products: BinProductEntry[];
+  createdAt: string;
+  firstStoredAt?: string | null;
+  lastStoredAt?: string | null;
 }

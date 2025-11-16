@@ -24,6 +24,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [autoGenDone, setAutoGenDone] = useState(false);
   const [isPrintingLabel, setIsPrintingLabel] = useState(false);
+  const [binCodeInput, setBinCodeInput] = useState(product.storage?.binCode || '');
+  const [binQuantity, setBinQuantity] = useState<number>(product.inventory?.quantity || 1);
+  const [isAssigningBin, setIsAssigningBin] = useState(false);
 
   useEffect(() => {
     setLocalProduct(product);
@@ -31,6 +34,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
     // New products should be marked as dirty so they can be saved immediately
     setIsDirty(!product.ops?.last_saved_iso);
     setAutoGenDone(false);
+    setBinCodeInput(product.storage?.binCode || '');
+    setBinQuantity(product.inventory?.quantity || 1);
   }, [product]);
 
   const showNotification = (type: 'success' | 'error', message: string) => {
@@ -83,6 +88,36 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
       showNotification('success', 'Etikett geöffnet.');
     }
     setIsPrintingLabel(false);
+  };
+
+  const handleAssignBin = async () => {
+    if (!binCodeInput) {
+      showNotification('error', 'Bitte einen BIN-Code angeben.');
+      return;
+    }
+    setIsAssigningBin(true);
+    const result = await assignProductToBinApi(binCodeInput.toUpperCase(), localProduct.id, Number(binQuantity) || 1);
+    if (result.ok && result.data?.product) {
+      setLocalProduct(result.data.product);
+      onUpdate(result.data.product);
+      showNotification('success', 'Produkt wurde eingelagert.');
+    } else {
+      showNotification('error', result.error?.message || 'Einlagerung fehlgeschlagen.');
+    }
+    setIsAssigningBin(false);
+  };
+
+  const handleRemoveBin = async () => {
+    if (!localProduct.storage?.binCode) return;
+    const response = await removeProductFromBinApi(localProduct.storage.binCode, localProduct.id);
+    if (!response.ok) {
+      showNotification('error', response.error?.message || 'Entfernen fehlgeschlagen.');
+      return;
+    }
+    const updated = { ...localProduct, storage: null };
+    setLocalProduct(updated);
+    onUpdate(updated);
+    showNotification('success', 'Produkt aus BIN entfernt.');
   };
 
   const applyAssistantChange = (change: DatasheetChange) => {
@@ -211,15 +246,30 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
         <header className="p-6 bg-slate-800 rounded-lg shadow-lg">
           <div className="flex justify-between items-start">
             <div>
-              <input id="p-name" value={localProduct.identification.name} onChange={e => handleFieldChange('identification.name', e.target.value)} readOnly={!isEditing} className={`text-3xl font-bold bg-transparent w-full outline-none break-words ${isEditing ? 'border-b border-sky-500' : ''}`} style={{wordBreak: 'break-word'}} />
+              <input
+                id="p-name"
+                value={localProduct.identification.name}
+                onChange={(e) => handleFieldChange('identification.name', e.target.value)}
+                readOnly={!isEditing}
+                className={`text-3xl font-bold bg-transparent w-full outline-none break-words ${
+                  isEditing ? 'border-b border-sky-500' : ''
+                }`}
+                style={{ wordBreak: 'break-word' }}
+              />
               <p id="p-brand-cat" className="text-slate-400 mt-1">
-                <input value={localProduct.identification.brand} onChange={e => handleFieldChange('identification.brand', e.target.value)} readOnly={!isEditing} className={`bg-transparent inline-block outline-none ${isEditing ? 'border-b border-sky-500' : ''}`} />
+                <input
+                  value={localProduct.identification.brand}
+                  onChange={(e) => handleFieldChange('identification.brand', e.target.value)}
+                  readOnly={!isEditing}
+                  className={`bg-transparent inline-block outline-none ${isEditing ? 'border-b border-sky-500' : ''}`}
+                />
                 {' · '}
                 <span className="text-sky-400">{localProduct.identification.category}</span>
               </p>
-              <div className="flex items-center space-x-2 text-xs text-slate-500 mt-2">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-2">
                 <span>
-                  SKU: {localProduct.identification.sku || localProduct.details.identifiers?.sku || 'wird beim Speichern vergeben'}
+                  SKU:{' '}
+                  {localProduct.identification.sku || localProduct.details.identifiers?.sku || 'wird beim Speichern vergeben'}
                 </span>
                 <button
                   id="btn-print-label"
@@ -231,6 +281,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
                   <PrintIcon />
                   <span className="ml-1">Label</span>
                 </button>
+                {localProduct.storage?.binCode && (
+                  <span className="text-emerald-300">
+                    BIN {localProduct.storage.binCode} · Menge {localProduct.storage.quantity}
+                  </span>
+                )}
               </div>
               <p id="p-barcodes" className="text-xs text-slate-500 mt-1">
                 Barcodes: {localProduct.identification.barcodes?.join(', ') || 'N/A'}
@@ -381,6 +436,57 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
               setIsDirty(true);
             }}
           />
+        </section>
+
+        <section id="storage" className="p-6 bg-slate-800 rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-4 text-white">Lagerplatz</h3>
+          {localProduct.storage ? (
+            <p className="text-slate-300 text-sm mb-3">
+              Eingelagert in <span className="font-semibold">{localProduct.storage.binCode}</span> (Zone{' '}
+              {localProduct.storage.zone}, Etage {localProduct.storage.etage}, Gang {localProduct.storage.gang}, Regal{' '}
+              {localProduct.storage.regal}, Ebene {localProduct.storage.ebene}) – Menge {localProduct.storage.quantity}
+            </p>
+          ) : (
+            <p className="text-slate-400 text-sm mb-3">Aktuell keinem BIN zugeordnet.</p>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">BIN-Code</label>
+              <input
+                value={binCodeInput}
+                onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
+                placeholder="z.B. XGA0101A"
+                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Menge</label>
+              <input
+                type="number"
+                min={1}
+                value={binQuantity}
+                onChange={(e) => setBinQuantity(Number(e.target.value))}
+                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3 mt-4">
+            <button
+              onClick={handleAssignBin}
+              disabled={isAssigningBin}
+              className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-500 disabled:opacity-40"
+            >
+              {isAssigningBin ? 'Übernehme...' : 'In BIN einlagern'}
+            </button>
+            {localProduct.storage?.binCode && (
+              <button
+                onClick={handleRemoveBin}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
+              >
+                BIN-Zuordnung entfernen
+              </button>
+            )}
+          </div>
         </section>
         
         <div className="p-6 bg-slate-800 rounded-lg shadow-lg">

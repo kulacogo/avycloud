@@ -1,5 +1,13 @@
 
-import { Product, ProductBundle, DatasheetChange, ImageSuggestionGroup, SerpInsight } from '../types';
+import {
+  Product,
+  ProductBundle,
+  DatasheetChange,
+  ImageSuggestionGroup,
+  SerpInsight,
+  WarehouseLayout,
+  WarehouseBin,
+} from '../types';
 
 // Backend URL configuration - single source of truth
 // Use import.meta.env for Vite compatibility
@@ -338,6 +346,117 @@ export const openSkuLabelWindow = (productId: string): { ok: boolean; error?: { 
     return { ok: true };
   } catch (error: any) {
     console.error('Failed to open label window:', error);
+    return { ok: false, error: { code: 0, message: error?.message || 'Unbekannter Fehler' } };
+  }
+};
+
+export const fetchWarehouseZones = async (): Promise<WarehouseLayout[]> => {
+  const response = await fetch(`${BACKEND_URL}/api/warehouse/zones`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Failed to load zones');
+  }
+  return result?.data || [];
+};
+
+export const createWarehouseLayoutApi = async (payload: {
+  zone: string;
+  etage: string;
+  gangs: string;
+  regale: string;
+  ebenen: string;
+}): Promise<{ ok: boolean; data?: any; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/warehouse/layouts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Failed to create layout' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const fetchWarehouseBins = async (zone: string, etage: string): Promise<WarehouseBin[]> => {
+  const response = await fetch(`${BACKEND_URL}/api/warehouse/zones/${encodeURIComponent(zone)}/${encodeURIComponent(etage)}`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Failed to load bins');
+  }
+  return result?.data || [];
+};
+
+export const fetchWarehouseBinDetail = async (code: string): Promise<WarehouseBin> => {
+  const response = await fetch(`${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(code)}`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Failed to load bin detail');
+  }
+  return result?.data;
+};
+
+export const assignProductToBinApi = async (
+  code: string,
+  productId: string,
+  quantity: number
+): Promise<{ ok: boolean; data?: { bin: WarehouseBin; product: Product }; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(code)}/assign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId, quantity }),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Failed to assign product' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const removeProductFromBinApi = async (
+  code: string,
+  productId: string
+): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(
+      `${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(code)}/products/${encodeURIComponent(productId)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    if (!response.ok) {
+      const result = await parseResponse(response);
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Failed to remove from bin' } };
+    }
+    return { ok: true };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const openBinLabelWindow = (code: string): { ok: boolean; error?: { code: number; message: string } } => {
+  try {
+    const url = `${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(code)}/label`;
+    const win = window.open(url, '_blank', 'noopener');
+    if (!win) {
+      return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
+    }
+    return { ok: true };
+  } catch (error: any) {
     return { ok: false, error: { code: 0, message: error?.message || 'Unbekannter Fehler' } };
   }
 };

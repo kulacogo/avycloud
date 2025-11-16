@@ -5,12 +5,13 @@ import { useGemini } from './hooks/useGemini';
 import ProductInput from './components/ProductInput';
 import ProductSheet from './components/ProductSheet';
 import AdminTable from './components/AdminTable';
+import WarehouseView from './components/WarehouseView';
 import { Header } from './components/Header';
 import { Spinner } from './components/Spinner';
 
 const BACKEND_URL = 'https://product-hub-backend-79205549235.europe-west3.run.app';
 
-type View = 'input' | 'sheet' | 'admin';
+type View = 'input' | 'sheet' | 'admin' | 'warehouse';
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>('input');
@@ -105,6 +106,8 @@ const App: React.FC = () => {
         );
       case 'admin':
         return <AdminTable products={products} onSelectProduct={handleSelectProduct} onUpdateProducts={setProducts} />;
+      case 'warehouse':
+        return <WarehouseView products={products} onProductUpdate={handleUpdateProduct} />;
       case 'input':
       default:
         return <ProductInput onIdentify={handleIdentification} />;
