@@ -15,3 +15,11 @@ if (container) {
 } else {
   console.error('Failed to find the root element');
 }
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/service-worker.js')
+      .catch((err) => console.error('Service worker registration failed:', err));
+  });
+}
