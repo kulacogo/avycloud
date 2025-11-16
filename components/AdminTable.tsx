@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Product, SyncStatus } from '../types';
-import { refreshPrice, syncToBaseLinker, deleteProduct } from '../api/client';
-import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon } from './icons/Icons';
+import { refreshPrice, syncToBaseLinker, deleteProduct, openSkuLabelWindow } from '../api/client';
+import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon } from './icons/Icons';
 
 interface AdminTableProps {
   products: Product[];
@@ -176,6 +176,31 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
     onUpdateProducts(remaining);
   };
 
+  const handleBatchLabelPrint = () => {
+    if (selectedIds.size === 0) return;
+    const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+    const missingSku = selectedProducts.filter(
+      (p) => !p.identification.sku && !p.details?.identifiers?.sku
+    );
+    if (missingSku.length > 0) {
+      alert(
+        `Die folgenden Produkte haben noch keine SKU und können nicht gedruckt werden:\n${missingSku
+          .map((p) => `• ${p.identification.name}`)
+          .join('\n')}`
+      );
+      return;
+    }
+
+    selectedProducts.forEach((product, index) => {
+      setTimeout(() => {
+        const result = openSkuLabelWindow(product.id);
+        if (!result.ok) {
+          alert(result.error?.message || `Konnte Label für ${product.identification.name} nicht öffnen.`);
+        }
+      }, index * 200);
+    });
+  };
+
   const handleExportCsv = () => {
     const headers = ['ID', 'Name', 'Brand', 'Category', 'EAN', 'Price', 'Currency', 'Sync Status'];
     const rows = filteredAndSortedProducts.map(p => [
@@ -226,6 +251,14 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
         <button id="table-sync-selected" onClick={handleBatchSync} disabled={selectedIds.size === 0} className="flex items-center px-3 py-1.5 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed"><SyncIcon className="w-4 h-4 mr-1.5" /> Sync ausgewählte</button>
         <button id="table-price-refresh" onClick={handleBatchPriceRefresh} disabled={selectedIds.size === 0} className="flex items-center px-3 py-1.5 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed"><RefreshIcon className="w-4 h-4 mr-1.5" /> Price Refresh</button>
         <button id="table-export-csv" onClick={handleExportCsv} className="flex items-center px-3 py-1.5 text-sm bg-slate-600 text-white rounded-md"><ExportIcon className="w-4 h-4 mr-1.5" /> Export CSV</button>
+        <button
+          id="table-print-labels"
+          onClick={handleBatchLabelPrint}
+          disabled={selectedIds.size === 0}
+          className="flex items-center px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed"
+        >
+          <PrintIcon className="w-4 h-4 mr-1.5" /> Print Label
+        </button>
         <button id="table-delete-selected" onClick={handleBatchDelete} disabled={selectedIds.size === 0} className="flex items-center px-3 py-1.5 text-sm bg-red-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed">Delete selected</button>
       </div>
 
