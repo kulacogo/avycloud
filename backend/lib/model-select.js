@@ -1,7 +1,11 @@
 const MODEL_MAP = {
-  mini: 'gpt-5.1-mini',
-  nano: 'gpt-5.1-mini', // legacy alias
-  'gpt-5.1-mini': 'gpt-5.1-mini',
+  mini: 'gpt-5-mini',
+  nano: 'gpt-5-nano',
+  'gpt-5-mini': 'gpt-5-mini',
+  'gpt-5-nano': 'gpt-5-nano',
+  // legacy aliases previously used in the UI
+  'gpt-5.1-mini': 'gpt-5-mini',
+  'gpt-5.1-nano': 'gpt-5-nano',
   'gpt-5.1': 'gpt-5.1',
   standard: 'gpt-5.1',
   default: null,
