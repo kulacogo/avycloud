@@ -8,7 +8,7 @@ interface ProductInputProps {
 
 const MODEL_OPTIONS = [
   { value: 'gpt-5.1', label: 'GPT-5.1 (Standard)' },
-  { value: 'nano', label: 'GPT-5.1 Nano (experimentell)' },
+  { value: 'gpt-5.1-mini', label: 'GPT-5.1 Mini (experimentell)' },
 ] as const;
 
 const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
@@ -171,7 +171,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             ))}
           </select>
           <p className="text-sm text-slate-500 mt-1">
-            GPT-5.1 liefert die höchste Datenqualität. GPT-5.1&nbsp;Nano ist schneller und günstiger, befindet sich aber noch im Test.
+            GPT-5.1 liefert die höchste Datenqualität. GPT-5.1&nbsp;Mini ist schneller und günstiger, befindet sich aber noch im Test.
           </p>
         </div>
 
