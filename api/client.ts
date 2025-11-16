@@ -325,38 +325,20 @@ export const generateImages = async (productId: string): Promise<{ ok: boolean; 
   }
 };
 
-export const downloadSkuLabel = async (productId: string): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
-  let response: Response | undefined;
+export const openSkuLabelWindow = (productId: string): { ok: boolean; error?: { code: number; message: string } } => {
   try {
-    response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/label`, {
-      method: 'GET',
-    });
-
-    if (!response.ok) {
-      const result = await parseResponse(response);
+    const url = `${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/label`;
+    const win = window.open(url, '_blank', 'noopener');
+    if (!win) {
       return {
         ok: false,
-        error: {
-          code: response.status,
-          message: result?.error?.message || response.statusText || 'Failed to download label.',
-        },
+        error: { code: 0, message: 'Popup wurde blockiert. Bitte Popups erlauben.' },
       };
     }
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'product-label.pdf';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
     return { ok: true };
-  } catch (error) {
-    console.error('Failed to download label:', error);
-    const errorInfo = extractErrorInfo(error, response);
-    return { ok: false, error: errorInfo };
+  } catch (error: any) {
+    console.error('Failed to open label window:', error);
+    return { ok: false, error: { code: 0, message: error?.message || 'Unbekannter Fehler' } };
   }
 };
 

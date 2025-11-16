@@ -1,73 +1,105 @@
-const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 
-const LABEL_WIDTH_MM = 57;
-const LABEL_HEIGHT_MM = 25;
-const MM_TO_PT = 72 / 25.4;
-const LABEL_WIDTH_PT = LABEL_WIDTH_MM * MM_TO_PT;
-const LABEL_HEIGHT_PT = LABEL_HEIGHT_MM * MM_TO_PT;
-
-function mmToPt(mm) {
-  return mm * MM_TO_PT;
+function escapeHtml(str = '') {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-async function generateSkuLabel({ sku, title }) {
+async function buildLabelHtml({ sku, title }) {
   if (!sku) {
     throw new Error('SKU is required for label generation');
   }
-
-  const doc = new PDFDocument({
-    size: [LABEL_WIDTH_PT, LABEL_HEIGHT_PT],
-    margins: { top: mmToPt(2), bottom: mmToPt(2), left: mmToPt(4), right: mmToPt(4) },
-    info: {
-      Title: `Label ${sku}`,
-    },
+  const sanitizedTitle = escapeHtml(title || '');
+  const qrDataUrl = await QRCode.toDataURL(sku, {
+    errorCorrectionLevel: 'H',
+    margin: 0,
+    scale: 8,
   });
 
-  const chunks = [];
-  return new Promise((resolve, reject) => {
-    doc.on('data', (chunk) => chunks.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
-
-    doc.rect(0, 0, LABEL_WIDTH_PT, LABEL_HEIGHT_PT).strokeOpacity(0.2).stroke();
-
-    doc.fontSize(8).font('Helvetica-Bold').text('SKU', mmToPt(2), mmToPt(2));
-    doc.fontSize(14).font('Helvetica-Bold').text(sku, mmToPt(2), mmToPt(6), {
-      width: LABEL_WIDTH_PT - mmToPt(26),
-    });
-
-    if (title) {
-      doc.fontSize(7).font('Helvetica').text(title, mmToPt(2), mmToPt(14), {
-        width: LABEL_WIDTH_PT - mmToPt(26),
-        height: mmToPt(10),
-      });
-    }
-
-    const qrSizePt = mmToPt(20);
-    QRCode.toBuffer(
-      sku,
-      {
-        errorCorrectionLevel: 'H',
-        margin: 0,
-        width: Math.round(qrSizePt),
-      },
-      (err, buffer) => {
-        if (err) {
-          doc.end();
-          return reject(err);
-        }
-        doc.image(buffer, LABEL_WIDTH_PT - qrSizePt - mmToPt(2), mmToPt(2), {
-          width: qrSizePt,
-          height: qrSizePt,
-        });
-        doc.end();
+  return `<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(sku)} Label</title>
+    <style>
+      @page {
+        size: 57mm 25mm;
+        margin: 0;
       }
-    );
-  });
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        -webkit-print-color-adjust: exact;
+      }
+      .label {
+        width: 57mm;
+        height: 25mm;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 2mm 4mm;
+        box-sizing: border-box;
+      }
+      .qr {
+        width: 22mm;
+        height: 22mm;
+      }
+      .qr img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .info {
+        flex: 1;
+        padding-right: 4mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .sku-label {
+        font-size: 3mm;
+        letter-spacing: 0.3mm;
+        text-transform: uppercase;
+      }
+      .sku-value {
+        font-size: 6.2mm;
+        font-weight: 700;
+        margin: 1mm 0 2mm;
+      }
+      .title {
+        font-size: 3mm;
+        line-height: 1.2;
+        max-height: 7.5mm;
+        overflow: hidden;
+      }
+    </style>
+    <script>
+      window.addEventListener('load', () => {
+        window.print();
+        window.onafterprint = () => window.close();
+      });
+    </script>
+  </head>
+  <body>
+    <div class="label">
+      <div class="info">
+        <div class="sku-label">SKU</div>
+        <div class="sku-value">${escapeHtml(sku)}</div>
+        <div class="title">${sanitizedTitle}</div>
+      </div>
+      <div class="qr">
+        <img src="${qrDataUrl}" alt="${escapeHtml(sku)} QR Code" />
+      </div>
+    </div>
+  </body>
+</html>`;
 }
 
 module.exports = {
-  generateSkuLabel,
+  buildLabelHtml,
 };
 

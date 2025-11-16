@@ -18,7 +18,7 @@ const {
 const { runProductChat } = require('./services/product-chat');
 const { getSecretValue } = require('./lib/secret-values');
 const { enqueueJob, resumePendingJobs } = require('./services/job-runner');
-const { generateSkuLabel } = require('./services/label-printer');
+const { buildLabelHtml } = require('./services/label-printer');
 
 // --- Configuration ---
 const PORT = process.env.PORT || 8080;
@@ -528,15 +528,14 @@ app.get('/api/products/:id/label', async (req, res) => {
       });
     }
 
-    const buffer = await generateSkuLabel({
+    const html = await buildLabelHtml({
       sku,
       title: product.identification?.name || '',
     });
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${sku}.pdf"`);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
-    return res.send(buffer);
+    return res.send(html);
   } catch (error) {
     console.error('Failed to generate label:', error);
     return res.status(500).json({

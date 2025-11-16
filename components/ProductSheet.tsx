@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Product, DatasheetChange, ProductImage } from '../types';
-import { saveProduct, syncToBaseLinker, generateImages, downloadSkuLabel } from '../api/client';
+import { saveProduct, syncToBaseLinker, generateImages, openSkuLabelWindow } from '../api/client';
 import { EditIcon, SaveIcon, SyncIcon, GenerateIcon, PrintIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import ImageGallery from './ImageGallery';
@@ -76,7 +76,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
   const handlePrintLabel = async () => {
     if (!localProduct?.id) return;
     setIsPrintingLabel(true);
-    const result = await downloadSkuLabel(localProduct.id);
+    const result = openSkuLabelWindow(localProduct.id);
     if (!result.ok) {
       showNotification('error', result.error?.message || 'Konnte Etikett nicht laden.');
     } else {
