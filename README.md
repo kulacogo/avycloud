@@ -44,3 +44,36 @@ gcloud run deploy product-hub-backend \
    - `Error processing identification request: ...`
 
 So siehst du exakt, was das Modell zurückgibt und warum das Parsing ggf. scheitert.
+
+---
+
+## CI/CD Automatisierung
+
+### Cloud Run (Backend)
+
+1. **GitHub-Trigger autorisieren**  
+   - Cloud Console → Cloud Build → *Triggers* → *Create Trigger* → Quelle **GitHub** → Repo `kulacogo/avycloud`.
+2. **Trigger-Konfiguration**  
+   - Branch: `main`  
+   - Build-Config: `backend/cloudbuild.yaml`
+3. **CLI (optional)**  
+   ```sh
+   gcloud beta builds triggers create github \
+     --name="avycloud-backend" \
+     --repo-owner=kulacogo \
+     --repo-name=avycloud \
+     --branch-pattern="^main$" \
+     --build-config=backend/cloudbuild.yaml
+   ```
+4. Der Build verwendet `backend/cloudbuild.yaml`, baut das Docker-Image und deployt nach Cloud Run. Der Cloud-Build-Service-Account muss `Cloud Run Admin` + `Service Account User` besitzen.
+
+### Firebase Hosting (Frontend)
+
+1. **GitHub Secret setzen**  
+   - In GitHub → Repo → *Settings* → *Secrets and variables* → *Actions*  
+   - Secret `FIREBASE_SERVICE_ACCOUNT` hinzufügen (JSON eines Firebase-Service-Accounts mit Hosting-Deploy-Rechten).  
+2. **Workflow aktiv**  
+   - `.github/workflows/firebase-hosting.yml` führt bei jedem Push auf `main` aus: `npm ci`, `npm run build`, anschließendes Hosting-Deploy über `FirebaseExtended/action-hosting-deploy@v0`.  
+   - Standard-Projekt: `avycloud`. Für Preview-Channels `channelId` anpassen.
+
+Damit laufen Backend-Deployments automatisch über Cloud Build + Cloud Run, Frontend-Deployments über GitHub Actions + Firebase Hosting. Nur die einmalige Trigger-/Secret-Konfiguration ist manuell nötig.
