@@ -1,7 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { Product, DatasheetChange, ProductImage } from '../types';
-import { saveProduct, syncToBaseLinker, generateImages, openSkuLabelWindow } from '../api/client';
+import {
+  saveProduct,
+  syncToBaseLinker,
+  generateImages,
+  openSkuLabelWindow,
+  assignProductToBinApi,
+  removeProductFromBinApi,
+} from '../api/client';
 import { EditIcon, SaveIcon, SyncIcon, GenerateIcon, PrintIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import ImageGallery from './ImageGallery';
@@ -100,6 +107,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
     if (result.ok && result.data?.product) {
       setLocalProduct(result.data.product);
       onUpdate(result.data.product);
+      setBinCodeInput(result.data.product.storage?.binCode || '');
+      setBinQuantity(result.data.product.storage?.quantity || 1);
       showNotification('success', 'Produkt wurde eingelagert.');
     } else {
       showNotification('error', result.error?.message || 'Einlagerung fehlgeschlagen.');
@@ -117,6 +126,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
     const updated = { ...localProduct, storage: null };
     setLocalProduct(updated);
     onUpdate(updated);
+    setBinCodeInput('');
+    setBinQuantity(1);
     showNotification('success', 'Produkt aus BIN entfernt.');
   };
 

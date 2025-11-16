@@ -350,6 +350,22 @@ export const openSkuLabelWindow = (productId: string): { ok: boolean; error?: { 
   }
 };
 
+export const openProductLabelBatchWindow = (productIds: string[]): { ok: boolean; error?: { code: number; message: string } } => {
+  if (!productIds.length) {
+    return { ok: false, error: { code: 0, message: 'Keine Produkte ausgewählt.' } };
+  }
+  try {
+    const url = `${BACKEND_URL}/api/products/labels?ids=${encodeURIComponent(productIds.join(','))}`;
+    const win = window.open(url, '_blank', 'noopener');
+    if (!win) {
+      return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
+    }
+    return { ok: true };
+  } catch (error: any) {
+    return { ok: false, error: { code: 0, message: error?.message || 'Unbekannter Fehler' } };
+  }
+};
+
 export const fetchWarehouseZones = async (): Promise<WarehouseLayout[]> => {
   const response = await fetch(`${BACKEND_URL}/api/warehouse/zones`);
   const result = await parseResponse(response);

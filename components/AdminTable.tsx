@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Product, SyncStatus } from '../types';
-import { refreshPrice, syncToBaseLinker, deleteProduct, openSkuLabelWindow } from '../api/client';
+import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon } from './icons/Icons';
 
 interface AdminTableProps {
@@ -178,7 +178,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
 
   const handleBatchLabelPrint = () => {
     if (selectedIds.size === 0) return;
-    const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+    const selectedProducts = filteredAndSortedProducts.filter((p) => selectedIds.has(p.id));
     const missingSku = selectedProducts.filter(
       (p) => !p.identification.sku && !p.details?.identifiers?.sku
     );
@@ -190,15 +190,11 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       );
       return;
     }
-
-    selectedProducts.forEach((product, index) => {
-      setTimeout(() => {
-        const result = openSkuLabelWindow(product.id);
-        if (!result.ok) {
-          alert(result.error?.message || `Konnte Label für ${product.identification.name} nicht öffnen.`);
-        }
-      }, index * 200);
-    });
+    const orderedIds = selectedProducts.map((p) => p.id);
+    const result = openProductLabelBatchWindow(orderedIds);
+    if (!result.ok) {
+      alert(result.error?.message || 'Konnte Label-Ansicht nicht öffnen.');
+    }
   };
 
   const handleExportCsv = () => {
