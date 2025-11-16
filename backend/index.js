@@ -480,6 +480,7 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
+// Batch product labels (must be defined before /:id routes)
 // Get single product
 app.get('/api/products/:id', async (req, res) => {
   try {
@@ -503,6 +504,75 @@ app.get('/api/products/:id', async (req, res) => {
         message: 'Failed to load product',
         details: error.message
       }
+    });
+  }
+});
+
+// Batch product labels (needs to be defined before /:id routes)
+app.get('/api/products/labels', async (req, res) => {
+  try {
+    const idsParam = req.query.ids;
+    if (!idsParam) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Es wurden keine Produkt-IDs angegeben.' },
+      });
+    }
+    const ids = Array.isArray(idsParam)
+      ? idsParam
+      : String(idsParam)
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean);
+    if (!ids.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Es wurden keine gültigen Produkt-IDs angegeben.' },
+      });
+    }
+
+    const labels = [];
+    const missing = [];
+    for (const id of ids) {
+      const product = await getProduct(id);
+      if (!product) {
+        missing.push(`Produkt ${id} wurde nicht gefunden`);
+        continue;
+      }
+      const sku =
+        product.identification?.sku || product.details?.identifiers?.sku || product.details?.identifiers?.ean;
+      if (!sku) {
+        missing.push(`${product.identification?.name || id} (keine SKU)`);
+        continue;
+      }
+      const skuLine = sku.startsWith('SKU-') ? sku : `SKU-${sku}`;
+      const name = (product.identification?.name || '').trim() || skuLine;
+      labels.push({
+        code: skuLine,
+        skuLine,
+        description: name,
+      });
+    }
+
+    if (!labels.length) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: missing.length ? missing.join(', ') : 'Keine druckbaren Labels vorhanden.',
+        },
+      });
+    }
+
+    const html = await buildProductLabelsHtml(labels);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(html);
+  } catch (error) {
+    console.error('Failed to build product labels:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Labeldruck fehlgeschlagen', details: error.message },
     });
   }
 });
@@ -537,17 +607,12 @@ app.get('/api/products/:id/label', async (req, res) => {
     }
 
     const skuLine = sku.startsWith('SKU-') ? sku : `SKU-${sku}`;
-    const descriptionSource = product.details?.short_description?.trim();
-    const description =
-      descriptionSource && descriptionSource !== product.identification?.name
-        ? `${product.identification?.name}\n${descriptionSource}`
-        : product.identification?.name || '';
 
     const html = await buildProductLabelsHtml([
       {
         code: skuLine,
         skuLine,
-        description,
+        description: product.identification?.name || skuLine,
       },
     ]);
 
@@ -563,76 +628,6 @@ app.get('/api/products/:id/label', async (req, res) => {
         message: 'Failed to generate SKU label',
         details: error.message,
       },
-    });
-  }
-});
-
-app.get('/api/products/labels', async (req, res) => {
-  try {
-    const idsParam = req.query.ids;
-    if (!idsParam) {
-      return res.status(400).json({
-        ok: false,
-        error: { code: 400, message: 'Es wurden keine Produkt-IDs angegeben.' },
-      });
-    }
-    const ids = Array.isArray(idsParam)
-      ? idsParam
-      : String(idsParam)
-          .split(',')
-          .map((id) => id.trim())
-          .filter(Boolean);
-    if (!ids.length) {
-      return res.status(400).json({
-        ok: false,
-        error: { code: 400, message: 'Es wurden keine gültigen Produkt-IDs angegeben.' },
-      });
-    }
-
-    const labels = [];
-    const missingSkus = [];
-    for (const id of ids) {
-      const product = await getProduct(id);
-      if (!product) {
-        missingSkus.push(`Produkt ${id} nicht gefunden.`);
-        continue;
-      }
-      const sku =
-        product.identification?.sku || product.details?.identifiers?.sku || product.details?.identifiers?.ean;
-      if (!sku) {
-        missingSkus.push(`${product.identification?.name || id} (keine SKU)`);
-        continue;
-      }
-      const skuLine = sku.startsWith('SKU-') ? sku : `SKU-${sku}`;
-      const name = (product.identification?.name || '').trim();
-      const extra = (product.details?.short_description || '').trim();
-      const description = extra && extra !== name ? `${name}\n${extra}` : name || skuLine;
-      labels.push({
-        code: skuLine,
-        skuLine,
-        description,
-      });
-    }
-
-    if (!labels.length) {
-      return res.status(400).json({
-        ok: false,
-        error: {
-          code: 400,
-          message: missingSkus.length ? `Keine druckbaren Labels: ${missingSkus.join(', ')}` : 'Keine gültigen Produkte.',
-        },
-      });
-    }
-
-    const html = await buildProductLabelsHtml(labels);
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-store');
-    res.send(html);
-  } catch (error) {
-    console.error('Failed to build product labels:', error);
-    res.status(500).json({
-      ok: false,
-      error: { code: 500, message: 'Labeldruck fehlgeschlagen', details: error.message },
     });
   }
 });
