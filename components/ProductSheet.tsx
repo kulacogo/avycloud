@@ -255,8 +255,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
       
       <div className="lg:col-span-2 space-y-8">
         <header className="p-6 bg-slate-800 rounded-lg shadow-lg">
-          <div className="flex justify-between items-start">
-            <div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex-1 min-w-0">
               <input
                 id="p-name"
                 value={localProduct.identification.name}
@@ -286,7 +286,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
                   id="btn-print-label"
                   onClick={handlePrintLabel}
                   disabled={!localProduct.identification.sku || isPrintingLabel}
-                  className="flex items-center px-2 py-1 bg-slate-700 text-white rounded hover:bg-slate-600 disabled:opacity-40"
+                  className="flex items-center px-3 py-1.5 bg-slate-700 text-white rounded-full hover:bg-slate-600 disabled:opacity-40"
                   title="Label drucken (57x25 mm)"
                 >
                   <PrintIcon />
@@ -302,11 +302,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
                 Barcodes: {localProduct.identification.barcodes?.join(', ') || 'N/A'}
               </p>
             </div>
-            <div className="actions flex space-x-2">
+            <div className="actions flex flex-col sm:flex-row flex-wrap gap-3 w-full sm:w-auto justify-end">
               <button
                 id="btn-edit"
                 onClick={() => setIsEditing(v => !v)}
-                className={`flex items-center px-4 py-2 font-semibold rounded-lg transition-colors ${isEditing ? 'bg-slate-600 text-white hover:bg-slate-500' : 'bg-sky-600 text-white hover:bg-sky-500'}`}
+                className={`flex items-center justify-center px-4 py-2 font-semibold rounded-lg transition-colors w-full sm:w-auto ${
+                  isEditing ? 'bg-slate-600 text-white hover:bg-slate-500' : 'bg-sky-600 text-white hover:bg-sky-500'
+                }`}
               >
                 <EditIcon /><span className="ml-2">{isEditing ? 'Editing...' : 'Edit'}</span>
               </button>
@@ -314,7 +316,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
                 id="btn-save"
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex items-center px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-500 transition-colors disabled:bg-green-800 disabled:cursor-not-allowed"
+                className="flex items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-500 transition-colors disabled:bg-green-800 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 <SaveIcon /><span className="ml-2">{isSaving ? 'Saving...' : 'Save'}</span>
               </button>

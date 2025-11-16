@@ -244,18 +244,18 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
-        <button id="table-sync-selected" onClick={handleBatchSync} disabled={selectedIds.size === 0} className="flex items-center px-3 py-1.5 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed"><SyncIcon className="w-4 h-4 mr-1.5" /> Sync ausgewählte</button>
-        <button id="table-price-refresh" onClick={handleBatchPriceRefresh} disabled={selectedIds.size === 0} className="flex items-center px-3 py-1.5 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed"><RefreshIcon className="w-4 h-4 mr-1.5" /> Price Refresh</button>
-        <button id="table-export-csv" onClick={handleExportCsv} className="flex items-center px-3 py-1.5 text-sm bg-slate-600 text-white rounded-md"><ExportIcon className="w-4 h-4 mr-1.5" /> Export CSV</button>
+        <button id="table-sync-selected" onClick={handleBatchSync} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"><SyncIcon className="w-4 h-4 mr-1.5" /> Sync ausgewählte</button>
+        <button id="table-price-refresh" onClick={handleBatchPriceRefresh} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"><RefreshIcon className="w-4 h-4 mr-1.5" /> Price Refresh</button>
+        <button id="table-export-csv" onClick={handleExportCsv} className="flex items-center justify-center px-3 py-2 text-sm bg-slate-600 text-white rounded-md w-full sm:w-auto"><ExportIcon className="w-4 h-4 mr-1.5" /> Export CSV</button>
         <button
           id="table-print-labels"
           onClick={handleBatchLabelPrint}
           disabled={selectedIds.size === 0}
-          className="flex items-center px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed"
+          className="flex items-center justify-center px-3 py-2 text-sm bg-emerald-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"
         >
           <PrintIcon className="w-4 h-4 mr-1.5" /> Print Label
         </button>
-        <button id="table-delete-selected" onClick={handleBatchDelete} disabled={selectedIds.size === 0} className="flex items-center px-3 py-1.5 text-sm bg-red-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed">Delete selected</button>
+        <button id="table-delete-selected" onClick={handleBatchDelete} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-red-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto">Delete selected</button>
       </div>
 
       <div className="overflow-x-auto">

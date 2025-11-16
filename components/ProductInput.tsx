@@ -1,6 +1,8 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { UploadIcon, BarcodeIcon, CameraIcon } from './icons/Icons';
+import brandLogoLight from '../avystock_brand_logo.png';
+import brandLogoDark from '../avystock_brand_logo_darkmode.png';
 
 interface ProductInputProps {
   onIdentify: (images: File[], barcodes: string, model?: string) => void;
@@ -133,11 +135,21 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl">
-      <h2 className="text-3xl font-bold text-center text-white mb-2">Identify a New Product</h2>
-      <p className="text-center text-slate-400 mb-8">
-        Upload images, use your camera, or enter barcodes to get started.
-      </p>
+    <div className="max-w-4xl mx-auto p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-4">
+      <div className="flex flex-col items-center gap-3">
+        <picture>
+          <source srcSet={brandLogoDark} media="(prefers-color-scheme: dark)" />
+          <img
+            src={brandLogoLight}
+            alt="avystock"
+            className="h-10 sm:h-12 w-auto"
+            draggable={false}
+          />
+        </picture>
+        <p className="text-center text-slate-400 text-sm sm:text-base">
+          Lade Produktbilder hoch, nutze die Kamera oder tippe Barcodes ein, um die Analyse zu starten.
+        </p>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div>
@@ -146,24 +158,24 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-lg transition-colors ${
+            className={`relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-2xl transition-colors ${
               isDragging ? 'border-sky-400 bg-slate-700' : 'border-slate-600 bg-slate-900/50'
             }`}
           >
             <UploadIcon className="w-12 h-12 text-slate-500 mb-4" />
             <p className="text-slate-400">Drag & drop files here, or</p>
-            <div className="mt-4 flex space-x-4">
+            <div className="mt-4 flex flex-col sm:flex-row gap-3 w-full">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg hover:bg-slate-500 transition-colors"
+                className="w-full sm:w-auto px-4 py-3 bg-slate-600 text-white font-semibold rounded-xl hover:bg-slate-500 transition-colors flex items-center justify-center"
               >
                 Browse Files
               </button>
               <button
                 type="button"
                 onClick={handleCameraButtonClick}
-                className="flex items-center px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg hover:bg-slate-500 transition-colors"
+                className="w-full sm:w-auto flex items-center justify-center px-4 py-3 bg-slate-600 text-white font-semibold rounded-xl hover:bg-slate-500 transition-colors"
               >
                 <CameraIcon className="w-5 h-5 mr-2" />
                 {isCameraOn ? 'Close Camera' : 'Use Camera'}
@@ -189,7 +201,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
           {cameraError && <p className="mt-2 text-sm text-red-400">{cameraError}</p>}
           {isCameraOn && !isIOSDevice && (
             <div className="mt-4 relative">
-              <video ref={videoRef} className="w-full rounded-lg" />
+              <video ref={videoRef} className="w-full rounded-2xl" />
               <button
                 type="button"
                 onClick={captureImage}
@@ -262,7 +274,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
         <div className="text-center">
           <button
             type="submit"
-            className="w-full sm:w-auto px-12 py-4 bg-sky-600 text-white text-lg font-bold rounded-lg hover:bg-sky-500 transition-transform transform hover:scale-105 disabled:bg-slate-500 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto px-12 py-4 bg-sky-600 text-white text-lg font-bold rounded-xl hover:bg-sky-500 transition-transform transform hover:scale-105 disabled:bg-slate-500 disabled:cursor-not-allowed"
           >
             Identify Product
           </button>
