@@ -2,6 +2,8 @@
 import React from 'react';
 import { TableIcon, PlusCircleIcon, WarehouseIcon } from './icons/Icons';
 import appIcon from '../avystock_app_icon.png';
+import brandLogoLight from '../avystock_brand_logo.png';
+import brandLogoDark from '../avystock_brand_logo_darkmode.png';
 
 interface HeaderProps {
   currentView: 'input' | 'sheet' | 'admin' | 'warehouse';
@@ -40,10 +42,19 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView }) => {
           <div className="flex items-center gap-3">
             <img
               src={appIcon}
-              alt="avystock"
+              alt="avystock icon"
               className="h-10 w-auto sm:h-12 drop-shadow-lg"
+              draggable={false}
             />
-            <span className="text-lg tracking-widest uppercase text-slate-200">avystock</span>
+            <picture>
+              <source srcSet={brandLogoDark} media="(prefers-color-scheme: dark)" />
+              <img
+                src={brandLogoLight}
+                alt="avystock"
+                className="h-8 sm:h-10 w-auto"
+                draggable={false}
+              />
+            </picture>
             <span className="sr-only">Avystock Product Intelligence Hub</span>
           </div>
           <nav className="flex items-center gap-3" aria-label="Hauptnavigation">

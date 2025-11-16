@@ -1,23 +1,10 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { UploadIcon, BarcodeIcon, CameraIcon } from './icons/Icons';
-import brandLogoLight from '../avystock_brand_logo.png';
-import brandLogoDark from '../avystock_brand_logo_darkmode.png';
 
 interface ProductInputProps {
   onIdentify: (images: File[], barcodes: string, model?: string) => void;
 }
-
-const MINI_ENABLED = import.meta.env.VITE_ENABLE_GPT5_MINI === 'true';
-
-const MODEL_OPTIONS = (
-  MINI_ENABLED
-    ? [
-        { value: 'gpt-5.1', label: 'GPT-5.1 (Standard)' },
-        { value: 'gpt-5-mini', label: 'GPT-5 Mini (experimentell)' },
-      ]
-    : [{ value: 'gpt-5.1', label: 'GPT-5.1 (Standard)' }]
-) as const;
 
 const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 const supportsBrowserCamera =
@@ -32,7 +19,6 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [model, setModel] = useState<typeof MODEL_OPTIONS[number]['value']>('gpt-5.1');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -69,7 +55,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
       alert('Please provide at least one image or barcode.');
       return;
     }
-    onIdentify(images, barcodes, model);
+    onIdentify(images, barcodes, 'gpt-5.1');
   };
 
   const toggleCamera = async () => {
@@ -136,24 +122,12 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-4">
-      <div className="flex flex-col items-center gap-3">
-        <picture>
-          <source srcSet={brandLogoDark} media="(prefers-color-scheme: dark)" />
-          <img
-            src={brandLogoLight}
-            alt="avystock"
-            className="h-10 sm:h-12 w-auto"
-            draggable={false}
-          />
-        </picture>
-        <p className="text-center text-slate-400 text-sm sm:text-base">
-          Lade Produktbilder hoch, nutze die Kamera oder tippe Barcodes ein, um die Analyse zu starten.
-        </p>
-      </div>
-
       <form onSubmit={handleSubmit} className="space-y-8">
         <div>
-          <label className="block text-lg font-medium text-slate-300 mb-2">Product Images</label>
+          <div className="flex items-center mb-2 text-slate-200" aria-label="Product Images">
+            <CameraIcon className="w-8 h-8" />
+            <span className="sr-only">Product Images</span>
+          </div>
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -236,10 +210,10 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
         </div>
 
         <div>
-          <label htmlFor="barcodes" className="flex items-center text-lg font-medium text-slate-300 mb-2">
-            <BarcodeIcon className="w-6 h-6 mr-2 text-slate-400" />
-            Barcodes (EAN/GTIN/UPC)
-          </label>
+          <div className="flex items-center mb-2 text-slate-200" aria-label="Barcodes (EAN/GTIN/UPC)">
+            <BarcodeIcon className="w-8 h-8" />
+            <span className="sr-only">Barcodes (EAN/GTIN/UPC)</span>
+          </div>
           <textarea
             id="barcodes"
             value={barcodes}
@@ -249,26 +223,6 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             rows={3}
           />
           <p className="text-sm text-slate-500 mt-1">Enter barcodes separated by commas or new lines.</p>
-        </div>
-
-        <div>
-          <label className="block text-lg font-medium text-slate-300 mb-2">Model</label>
-          <select
-            value={model}
-            onChange={(e) => setModel(e.target.value as typeof MODEL_OPTIONS[number]['value'])}
-            className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition text-white"
-          >
-            {MODEL_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <p className="text-sm text-slate-500 mt-1">
-            {MINI_ENABLED
-              ? 'GPT-5.1 liefert die höchste Datenqualität. GPT-5 Mini ist schneller und günstiger, befindet sich aber noch im Test.'
-              : 'GPT-5.1 liefert die höchste Datenqualität. Weitere Modelle sind deaktiviert, um maximale Stabilität sicherzustellen.'}
-          </p>
         </div>
 
         <div className="text-center">
