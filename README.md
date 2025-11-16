@@ -77,3 +77,10 @@ So siehst du exakt, was das Modell zurückgibt und warum das Parsing ggf. scheit
    - Standard-Projekt: `avycloud`. Für Preview-Channels `channelId` anpassen.
 
 Damit laufen Backend-Deployments automatisch über Cloud Build + Cloud Run, Frontend-Deployments über GitHub Actions + Firebase Hosting. Nur die einmalige Trigger-/Secret-Konfiguration ist manuell nötig.
+
+### Asynchrone Identifikation (Queue)
+
+- Uploads gehen jetzt an `POST /api/jobs`. Jeder Job landet in der Firestore-Collection `identificationJobs`, die Worker verarbeiten mit begrenzter Parallelität (Default 3).
+- Der Frontend-Client pollt `GET /api/jobs/:id`, bis `status = done` und erhält dann das komplette `ProductBundle`.
+- Bei Fehlern (Timeout/Modell-Error) bleibt der Job `pending` (Retry bis `ID_JOB_MAX_ATTEMPTS`, default 3) oder wird `failed`.
+- Wartende Jobs können bei Bedarf über `resumePendingJobs()` (wird beim Start automatisch ausgeführt) erneut in die Queue gestellt werden.

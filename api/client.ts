@@ -29,6 +29,9 @@ const BACKEND_URL = (() => {
   return envUrl || 'https://product-hub-backend-79205549235.europe-west3.run.app';
 })();
 
+const JOB_POLL_INTERVAL_MS = 2000;
+const JOB_TIMEOUT_MS = 10 * 60 * 1000;
+
 // Helper function to safely parse JSON responses
 const parseResponse = async (response: Response): Promise<any> => {
   const contentType = response.headers.get('content-type');
@@ -94,40 +97,82 @@ const extractErrorInfo = (error: any, response?: Response): { code: number; mess
   return { code: 503, message };
 };
 
+const wait = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    function onAbort() {
+      clearTimeout(timeout);
+      reject(new DOMException('Aborted', 'AbortError'));
+    }
+
+    if (signal) {
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
+  });
+
+const fetchJobStatus = async (jobId: string, signal?: AbortSignal) => {
+  const response = await fetch(`${BACKEND_URL}/api/jobs/${jobId}`, {
+    method: 'GET',
+    signal,
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || `Failed to load job status (${response.status})`);
+  }
+  return result?.data;
+};
+
+const waitForJobResult = async (jobId: string, signal?: AbortSignal) => {
+  const deadline = Date.now() + JOB_TIMEOUT_MS;
+  while (true) {
+    const job = await fetchJobStatus(jobId, signal);
+    if (!job) {
+      throw new Error('Job not found');
+    }
+    if (job.status === 'done') {
+      return job.result as ProductBundle;
+    }
+    if (job.status === 'failed') {
+      throw new Error(job.error?.message || 'Produktidentifikation fehlgeschlagen.');
+    }
+    if (Date.now() > deadline) {
+      throw new Error('Produktidentifikation hat das Zeitlimit überschritten.');
+    }
+    await wait(JOB_POLL_INTERVAL_MS, signal);
+  }
+};
+
 // This function now makes a REAL API call to the live backend server.
 export const identifyProductApi = async (
-  images: File[], 
+  images: File[],
   barcodes: string,
   options?: { model?: string; signal?: AbortSignal }
 ): Promise<{ ok: boolean; data?: ProductBundle; error?: { code: number; message: string } }> => {
-  
   const formData = new FormData();
   formData.append('barcodes', barcodes);
   images.forEach((image) => {
     formData.append('images', image, image.name);
   });
+  if (options?.model) {
+    formData.append('model', options.model);
+  }
 
-  const model = options?.model;
-  const signal = options?.signal;
-  const query = model ? `?model=${encodeURIComponent(model)}` : '';
+  let response: Response | undefined;
 
-  let response: Response;
-  
   try {
-    response = await fetch(`${BACKEND_URL}/api/identify${query}`, {
+    response = await fetch(`${BACKEND_URL}/api/jobs`, {
       method: 'POST',
       body: formData,
-      signal,
-      // Note: Do not set 'Content-Type' header manually for FormData.
-      // The browser will set it automatically with the correct boundary.
+      signal: options?.signal,
     });
   } catch (error: any) {
-    // Check if it was aborted
     if (error?.name === 'AbortError') {
       return { ok: false, error: { code: 499, message: 'Request cancelled by user' } };
     }
-    
-    // Network error - couldn't reach the server
     console.error('Network error:', error);
     const errorInfo = extractErrorInfo(error);
     return { ok: false, error: errorInfo };
@@ -139,109 +184,32 @@ export const identifyProductApi = async (
     if (!response.ok) {
       throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
     }
-    
-    // Check if the backend returned an error even with 200 status
-    if (result?.ok === false || result?.error) {
-      const error = result.error || { code: 500, message: 'Backend returned error without details' };
-      return { ok: false, error };
-    }
-    
-    // The backend response is already in the format { ok: true, data: ... }
-    // Handle different response formats from backend
-    const data = result?.data;
-    
-    // Check if we have any data at all
-    if (!data) {
-      return { 
-        ok: false, 
-        error: { 
-          code: 502,
-          message: 'Backend returned empty or invalid data. The server might be experiencing issues.'
-        }
-      };
-    }
-    
-    // If data has a 'products' array, it's the new format
-    if (data && data.products && Array.isArray(data.products)) {
-      return { ok: true, data: data };
-    }
-    
-    // If data is a single product (old format), wrap it in the expected structure
-    if (data && (data.id || data.ean || data.name)) {
-      // Convert single product to expected format
-      const product = {
-        id: data.id || data.ean || Date.now().toString(),
-        identification: {
-          method: data.identification?.method || (images.length > 0 ? (barcodes ? 'hybrid' : 'image') : 'barcode'),
-          barcodes: data.barcodes || (data.ean ? [data.ean] : []),
-          name: data.name || '',
-          brand: data.brand || '',
-          category: data.category || '',
-          confidence: data.confidence || 0.9
-        },
-        details: {
-          short_description: data.description || '',
-          key_features: data.key_features || [],
-          attributes: data.attributes || {
-            ...(data.net_content && { 'Inhalt': data.net_content }),
-            ...(data.ingredients && { 'Zutaten': data.ingredients }),
-            ...(data.allergens && { 'Allergene': data.allergens }),
-            ...(data.storage_instructions && { 'Lagerung': data.storage_instructions }),
-            ...(data.country_of_origin && { 'Herkunft': data.country_of_origin }),
-            ...(data.packaging && typeof data.packaging === 'object' && { 
-              'Verpackung': `${data.packaging.type || ''} ${data.packaging.size || ''}`.trim() 
-            }),
-            ...(data.nutrition_facts && Object.entries(data.nutrition_facts).reduce((acc, [key, value]) => {
-              if (key !== 'portion_size') {
-                acc[`Nährwerte (${key})`] = value;
-              }
-              return acc;
-            }, {} as Record<string, any>))
-          },
-          identifiers: {
-            ean: data.ean || data.gtin || '',
-            gtin: data.gtin || data.ean || ''
-          },
-          images: (data.images || []).map((img: any) => ({
-            source: img.source || 'web',
-            variant: img.variant || 'front',
-            url_or_base64: img.url_or_base64 || img.url || img
-          })),
-          pricing: {
-            lowest_price: data.lowest_price || { amount: 0, currency: 'EUR', sources: [] },
-            price_confidence: data.lowest_price?.confidence || 0
-          }
-        },
-        ops: data.ops || {
-          sync_status: 'pending',
-          revision: 1
-        }
-      };
-      
-      return { 
-        ok: true, 
-        data: {
-          products: [product],
-          rendering: {
-            format: "html",
-            datasheet_page: "",
-            admin_table_page: ""
-          }
-        }
-      };
-    }
-    
-    // If no valid data format is recognized, return error
-    return { 
-      ok: false, 
-      error: { 
-        code: 502,
-        message: 'Backend returned unrecognized data format. Expected either products array or single product.'
-      }
-    };
 
+    const jobId = result?.jobId;
+    if (!jobId) {
+      return {
+        ok: false,
+        error: {
+          code: 502,
+          message: 'Backend returned invalid job response.',
+        },
+      };
+    }
+
+    const bundle = await waitForJobResult(jobId, options?.signal);
+    if (!bundle || !bundle.products) {
+      return {
+        ok: false,
+        error: {
+          code: 502,
+          message: 'Job finished without valid product data.',
+        },
+      };
+    }
+
+    return { ok: true, data: bundle };
   } catch (error) {
-    console.error('Failed to fetch from backend API:', error);
+    console.error('Failed to process job:', error);
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };
   }

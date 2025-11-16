@@ -1,127 +1,139 @@
 const { Storage } = require('@google-cloud/storage');
 const crypto = require('crypto');
 
-// Initialize Cloud Storage
 const storage = new Storage({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud'
+  projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
 });
 
-// Bucket name
 const BUCKET_NAME = process.env.STORAGE_BUCKET || 'avycloud-product-images';
-
-// Get or create bucket
 let bucket;
 
 async function initializeBucket() {
   try {
     bucket = storage.bucket(BUCKET_NAME);
     const [exists] = await bucket.exists();
-    
     if (!exists) {
       console.log(`Creating bucket ${BUCKET_NAME}...`);
       await storage.createBucket(BUCKET_NAME, {
-        location: 'europe-west3', // Lowercase region ID
-        storageClass: 'STANDARD'
+        location: 'europe-west3',
+        storageClass: 'STANDARD',
       });
-      
-      // Make bucket publicly readable
       await bucket.makePublic();
     }
-    
     console.log(`Using Cloud Storage bucket: ${BUCKET_NAME}`);
   } catch (error) {
     console.error('Failed to initialize bucket:', error);
-    bucket = storage.bucket(BUCKET_NAME); // Use bucket anyway
+    bucket = storage.bucket(BUCKET_NAME);
   }
 }
 
-// Initialize on module load
+async function ensureBucket() {
+  if (!bucket) {
+    await initializeBucket();
+  }
+}
+
 initializeBucket();
 
-/**
- * Upload an image to Cloud Storage
- */
 async function uploadImage(imageBuffer, mimeType, productId, variant = 'main') {
-  try {
-    if (!bucket) {
-      await initializeBucket();
-    }
-    
-    // Generate unique filename
-    const hash = crypto.createHash('md5').update(imageBuffer).digest('hex');
-    const extension = mimeType.split('/')[1] || 'jpg';
-    const filename = `products/${productId}/${variant}_${hash}.${extension}`;
-    
-    const file = bucket.file(filename);
-    
-    // Upload the image
-    await file.save(imageBuffer, {
-      metadata: {
-        contentType: mimeType,
-        cacheControl: 'public, max-age=31536000', // 1 year cache
-      },
-      public: true,
-      validation: false
-    });
-    
-    // Get public URL
-    const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${filename}`;
-    
-    console.log(`Image uploaded: ${publicUrl}`);
-    return publicUrl;
-  } catch (error) {
-    console.error('Failed to upload image:', error);
-    throw new Error(`Failed to upload image: ${error.message}`);
-  }
+  await ensureBucket();
+
+  const hash = crypto.createHash('md5').update(imageBuffer).digest('hex');
+  const extension = mimeType?.split('/')?.[1] || 'jpg';
+  const filename = `products/${productId}/${variant}_${hash}.${extension}`;
+  const file = bucket.file(filename);
+
+  await file.save(imageBuffer, {
+    metadata: {
+      contentType: mimeType,
+      cacheControl: 'public, max-age=31536000',
+    },
+    public: true,
+    validation: false,
+  });
+
+  const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${filename}`;
+  console.log(`Image uploaded: ${publicUrl}`);
+  return publicUrl;
 }
 
-/**
- * Upload base64 image to Cloud Storage
- */
 async function uploadBase64Image(base64Data, productId, variant = 'main') {
-  try {
-    // Extract MIME type and data
-    const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-    if (!matches || matches.length !== 3) {
-      throw new Error('Invalid base64 image data');
-    }
-    
-    const mimeType = matches[1];
-    const imageData = matches[2];
-    const imageBuffer = Buffer.from(imageData, 'base64');
-    
-    return await uploadImage(imageBuffer, mimeType, productId, variant);
-  } catch (error) {
-    console.error('Failed to upload base64 image:', error);
-    throw new Error(`Failed to upload base64 image: ${error.message}`);
+  const matches = base64Data.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+  if (!matches || matches.length !== 3) {
+    throw new Error('Invalid base64 image data');
   }
+
+  const mimeType = matches[1];
+  const imageBuffer = Buffer.from(matches[2], 'base64');
+  return uploadImage(imageBuffer, mimeType, productId, variant);
 }
 
-/**
- * Delete all images for a product
- */
 async function deleteProductImages(productId) {
   try {
-    if (!bucket) {
-      await initializeBucket();
-    }
-    
-    const [files] = await bucket.getFiles({
-      prefix: `products/${productId}/`
-    });
-    
+    await ensureBucket();
+    const [files] = await bucket.getFiles({ prefix: `products/${productId}/` });
     if (files.length > 0) {
-      await Promise.all(files.map(file => file.delete()));
+      await Promise.all(files.map((file) => file.delete()));
       console.log(`Deleted ${files.length} images for product ${productId}`);
     }
   } catch (error) {
     console.error('Failed to delete product images:', error);
-    // Don't throw - this is not critical
   }
+}
+
+function sanitizeFilename(name = '') {
+  return name.toString().replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
+}
+
+async function uploadJobFile(buffer, mimeType, jobId, originalName = 'upload.bin') {
+  await ensureBucket();
+
+  const extensionFromMime =
+    typeof mimeType === 'string' && mimeType.includes('/') ? mimeType.split('/')[1] : null;
+  const extension =
+    extensionFromMime ||
+    (originalName && originalName.includes('.') ? originalName.split('.').pop() : 'bin');
+
+  const filename = `jobs/${jobId}/${Date.now()}_${crypto
+    .randomUUID()
+    .slice(0, 8)}_${sanitizeFilename(originalName)}.${extension}`;
+
+  const file = bucket.file(filename);
+  await file.save(buffer, {
+    metadata: {
+      contentType: mimeType || 'application/octet-stream',
+      cacheControl: 'private, max-age=0',
+    },
+    public: false,
+    validation: false,
+  });
+
+  return {
+    path: filename,
+    mimeType: mimeType || 'application/octet-stream',
+    originalName,
+    size: buffer.length,
+  };
+}
+
+async function downloadFile(filePath) {
+  await ensureBucket();
+  const file = bucket.file(filePath);
+  const [data] = await file.download();
+  const [metadata] = await file.getMetadata();
+
+  return {
+    buffer: data,
+    contentType: metadata.contentType || 'application/octet-stream',
+    size: data.length,
+    metadata,
+  };
 }
 
 module.exports = {
   uploadImage,
   uploadBase64Image,
-  deleteProductImages
+  deleteProductImages,
+  uploadJobFile,
+  downloadFile,
 };

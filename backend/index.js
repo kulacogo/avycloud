@@ -2,8 +2,10 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
+const crypto = require('crypto');
 const { saveProduct, getProduct, getAllProducts, deleteProduct, updateProductSyncStatus } = require('./lib/firestore');
-const { uploadBase64Image, deleteProductImages } = require('./lib/storage');
+const { uploadBase64Image, deleteProductImages, uploadJobFile } = require('./lib/storage');
+const { createJob, getJob } = require('./lib/jobs');
 const {
   runProductIdentification,
   BARCODE_LIMIT_ERROR,
@@ -14,6 +16,7 @@ const {
 } = require('./services/enrichment');
 const { runProductChat } = require('./services/product-chat');
 const { getSecretValue } = require('./lib/secret-values');
+const { enqueueJob, resumePendingJobs } = require('./services/job-runner');
 
 // --- Configuration ---
 const PORT = process.env.PORT || 8080;
@@ -45,6 +48,10 @@ const upload = multer({
     fileSize: MAX_IMAGE_FILE_SIZE,
     files: MAX_IMAGE_FILES,
   },
+});
+
+resumePendingJobs().catch((error) => {
+  console.error('Failed to resume pending identification jobs:', error);
 });
 
 async function resolveGeminiApiKey() {
@@ -205,6 +212,110 @@ app.use(express.json({ limit: '1mb' }));
 
 app.get('/', (req, res) => {
   res.status(200).send('Product Intelligence Backend is running.');
+});
+
+app.post('/api/jobs', upload.array('images'), async (req, res) => {
+  try {
+    const files = req.files || [];
+    const barcodes = req.body?.barcodes || '';
+    if (files.length === 0 && (!barcodes || !barcodes.trim())) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Bitte mindestens ein Bild oder einen Barcode bereitstellen.',
+        },
+      });
+    }
+
+    const locale = req.body?.locale || 'de-DE';
+    const model = req.body?.model || null;
+    const jobId = crypto.randomUUID();
+
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        uploadJobFile(file.buffer, file.mimetype, jobId, file.originalname)
+      )
+    );
+
+    await createJob(
+      {
+        payload: {
+          files: uploadedFiles,
+          barcodes,
+          locale,
+          model,
+        },
+      },
+      jobId
+    );
+
+    enqueueJob(jobId);
+
+    res.json({
+      ok: true,
+      jobId,
+    });
+  } catch (error) {
+    console.error('Error creating job:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to create identification job',
+        details: error.message,
+      },
+    });
+  }
+});
+
+app.get('/api/jobs/:id', async (req, res) => {
+  try {
+    const job = await getJob(req.params.id);
+    if (!job) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 404,
+          message: 'Job not found',
+        },
+      });
+    }
+
+    const response = {
+      id: job.id,
+      status: job.status,
+      attempts: job.attempts,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      startedAt: job.startedAt,
+      finishedAt: job.finishedAt,
+      model: job.payload?.model || null,
+    };
+
+    if (job.status === 'done') {
+      response.result = job.result;
+      response.serpTrace = job.serpTrace;
+    }
+    if (job.status === 'failed') {
+      response.error = job.error;
+    }
+
+    res.json({
+      ok: true,
+      data: response,
+    });
+  } catch (error) {
+    console.error('Failed to load job:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to load job',
+        details: error.message,
+      },
+    });
+  }
 });
 
 app.post('/api/identify', upload.array('images'), async (req, res) => {
