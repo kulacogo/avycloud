@@ -15,23 +15,25 @@ function normalize(input) {
   return typeof input === 'string' ? input.trim().toLowerCase() : '';
 }
 
-function resolveModel(preferred, envKey, fallback = 'gpt-5.1') {
-  const envValue = process.env[envKey] || fallback;
-  const normalized = normalize(preferred);
-  if (!normalized || normalized === 'default' || normalized === 'auto') {
-    return envValue;
+function mapModel(input, fallback) {
+  const normalized = normalize(input);
+  if (!normalized) return fallback;
+  if (normalized === 'default' || normalized === 'auto') {
+    return fallback;
   }
-
   if (MODEL_MAP[normalized]) {
     return MODEL_MAP[normalized];
   }
-
-  // Allow callers to pass full model IDs like "gpt-5.1-mini"
-  if (preferred && preferred.startsWith('gpt-5')) {
-    return preferred;
+  if (input && input.startsWith('gpt-5')) {
+    return input;
   }
+  return fallback;
+}
 
-  return envValue;
+function resolveModel(preferred, envKey, fallback = 'gpt-5.1') {
+  const envRaw = process.env[envKey];
+  const defaultModel = mapModel(envRaw, fallback);
+  return mapModel(preferred, defaultModel);
 }
 
 module.exports = {
