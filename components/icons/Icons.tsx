@@ -22,12 +22,20 @@ export const RefreshIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...p
 export const ExportIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></Icon>;
 export const SearchIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></Icon>;
 export const LogoIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props} stroke="none" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5-10-5-10 5zM12 13.5l-10-5V12l10 5 10-5V8.5l-10 5z"/></Icon>;
-export const TableIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125h17.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h.008v.008h-.008v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.375 4.5h17.25m-17.25 0a1.125 1.125 0 01-1.125 1.125v1.5c0 .621.504-1.125 1.125 1.125h17.25c.621 0 1.125.504 1.125 1.125v-1.5c0-.621-.504-1.125-1.125-1.125m-17.25 0h.008v.008h-.008V4.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></Icon>;
-export const PlusCircleIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></Icon>;
+export const TableIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125h17.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h.008v.008h-.008v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.375 4.5h17.25m-17.25 0a1.125 1.125 0 01-1.125 1.125v1.5c0 .621.504-1.125 1.125 1.125h17.25c.621 0 1.125.504 1.125 1.125v-1.5c0-.621-.504-1.125-1.125-1.125m-17.25 0h.008v.008h-.008V4.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+  </Icon>
+);
+export const PlusCircleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </Icon>
+);
 export const SheetIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75c0-.231-.035-.454-.1-.664M6.75 7.5h1.5v.75h-1.5V7.5zm-1.5 0h.008v.008H5.25V7.5z" /></Icon>;
 export const PrintIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M6 9V4.5A1.5 1.5 0 017.5 3h9A1.5 1.5 0 0118 4.5V9m-12 0h12m-12 0a2.25 2.25 0 00-2.25 2.25V15h3v3.75c0 .414.336.75.75.75h7.5a.75.75 0 00.75-.75V15h3v-3.75A2.25 2.25 0 0018 9M9 15h6" /></Icon>;
-export const WarehouseIcon = () => (
-  <Icon>
+export const WarehouseIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
