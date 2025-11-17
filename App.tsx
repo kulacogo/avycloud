@@ -16,6 +16,93 @@ type View = 'input' | 'sheet' | 'admin' | 'warehouse';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const ALLOWED_VIEWS: View[] = ['input', 'sheet', 'admin', 'warehouse'];
 
+const sanitizeIdentifier = (value?: string | null) => {
+  if (!value) return null;
+  const cleaned = value.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  return cleaned || null;
+};
+
+const collectIdentityKeys = (product?: Product | null) => {
+  const keys = new Set<string>();
+  if (!product) return keys;
+  const add = (value?: string | null) => {
+    const normalized = sanitizeIdentifier(value);
+    if (normalized) {
+      keys.add(normalized);
+    }
+  };
+
+  add(product.id);
+  add(product.identification?.sku);
+  add(product.details?.identifiers?.sku);
+  add(product.details?.identifiers?.ean);
+  add(product.details?.identifiers?.gtin);
+  add(product.details?.identifiers?.upc);
+
+  product.identification?.barcodes?.forEach(add);
+
+  if (product.identification?.brand && product.identification?.name) {
+    add(`${product.identification.brand}::${product.identification.name}`);
+  } else if (product.identification?.name) {
+    add(product.identification.name);
+  }
+
+  return keys;
+};
+
+const ensureInventoryQuantity = (product: Product, minQuantity = 1): Product => {
+  const nextQuantity = Math.max(product.inventory?.quantity ?? 0, minQuantity);
+  return {
+    ...product,
+    inventory: {
+      ...(product.inventory ?? {}),
+      quantity: nextQuantity,
+    },
+  };
+};
+
+const mergeIdentifiedProducts = (incoming: Product[], existing: Product[]) => {
+  if (!incoming.length) {
+    return { list: existing, focus: null };
+  }
+  const updated = [...existing];
+  let focus: Product | null = null;
+
+  incoming.forEach((candidate) => {
+    const normalizedIncoming = ensureInventoryQuantity(candidate, 1);
+    const incomingKeys = collectIdentityKeys(normalizedIncoming);
+    const matchIndex = updated.findIndex((item) => {
+      if (!item) return false;
+      const existingKeys = collectIdentityKeys(item);
+      for (const key of incomingKeys) {
+        if (existingKeys.has(key)) {
+          return true;
+        }
+      }
+      return false;
+    });
+
+    if (matchIndex >= 0) {
+      const matched = updated[matchIndex];
+      const nextQuantity = (matched.inventory?.quantity ?? 0) + 1;
+      const merged: Product = {
+        ...matched,
+        inventory: {
+          ...(matched.inventory ?? {}),
+          quantity: nextQuantity,
+        },
+      };
+      updated[matchIndex] = merged;
+      focus = merged;
+    } else {
+      updated.unshift(normalizedIncoming);
+      focus = normalizedIncoming;
+    }
+  });
+
+  return { list: updated, focus };
+};
+
 const readInitialView = (): View => {
   if (typeof window === 'undefined') return 'input';
   const stored = window.localStorage.getItem(VIEW_STORAGE_KEY) as View | null;
@@ -54,13 +141,17 @@ const App: React.FC = () => {
   const handleIdentification = useCallback(async (images: File[], barcodes: string, model?: string) => {
     const result: ProductBundle | null = await identifyProducts(images, barcodes, model);
     if (result && result.products.length > 0) {
-      // Add newly identified products to the list, avoiding duplicates by ID
+      let focusProduct: Product | null = null;
       setProducts(prev => {
-        const existingIds = new Set(prev.map(p => p.id));
-        const newProducts = result.products.filter(p => !existingIds.has(p.id));
-        return [...newProducts, ...prev];
+        const merged = mergeIdentifiedProducts(result.products, prev);
+        focusProduct = merged.focus;
+        return merged.list;
       });
-      setCurrentProduct(result.products[0]);
+      if (focusProduct) {
+        setCurrentProduct(focusProduct);
+      } else {
+        setCurrentProduct(result.products[0]);
+      }
       setView('sheet');
     }
     // Error is handled by the hook and displayed via the `error` state
