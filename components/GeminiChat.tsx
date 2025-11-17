@@ -37,7 +37,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [serpInsights, setSerpInsights] = useState<SerpInsight[]>([]);
-  const chatLogRef = useRef<HTMLDivElement>(null);
+  const bottomAnchorRef = useRef<HTMLDivElement>(null);
 
   const renderContent = (text: string) => {
     const trimmed = text.trim();
@@ -72,10 +72,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   };
 
   useEffect(() => {
-    if (chatLogRef.current) {
-      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
+    if (bottomAnchorRef.current) {
+      bottomAnchorRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'end',
+      });
     }
-  }, [messages, pendingChanges, pendingImages]);
+  }, [messages, pendingChanges, pendingImages, serpInsights]);
 
   const handleSend = async (predefinedMessage?: string) => {
     const messageText = predefinedMessage || input;
@@ -149,109 +152,115 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         <h3 className="ml-2 text-lg font-semibold text-white">GPT-5.1 Assistant</h3>
       </header>
 
-      <div id="chat-log" ref={chatLogRef} className="flex-1 p-4 space-y-4 overflow-y-auto">
-        {messages.map((msg, index) => (
-          <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className={`max-w-xs lg:max-w-sm px-4 py-2 rounded-lg whitespace-pre-wrap break-words ${
-                msg.role === 'user' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-200'
-              }`}
-            >
-              {renderContent(msg.text)}
-            </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="max-w-xs lg:max-w-sm px-4 py-2 rounded-lg bg-slate-700 text-slate-200 flex items-center">
-              <Spinner className="w-5 h-5 mr-2" /> Thinking...
-            </div>
-          </div>
-        )}
-      </div>
-
-      {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
-        <div className="p-4 border-t border-slate-700 space-y-4 max-h-[45vh] overflow-y-auto">
-          {pendingChanges.length > 0 && (
-            <section>
-              <h4 className="text-sm font-semibold text-slate-200 mb-2">Vorgeschlagene Änderungen</h4>
-              <ul className="space-y-2">
-                {pendingChanges.map(item => (
-                  <li key={item.id} className="p-3 bg-slate-700 rounded-lg text-sm text-slate-200">
-                    <p className="font-semibold mb-1">{item.change.summary || 'Änderung aus dem Chat'}</p>
-                    <button
-                      onClick={() => applyChange(item.id)}
-                      className="mt-2 px-3 py-1 text-xs bg-sky-600 text-white rounded hover:bg-sky-500"
-                    >
-                      Anwenden
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {pendingImages.length > 0 && (
-            <section>
-              <h4 className="text-sm font-semibold text-slate-200 mb-2">Bild-Vorschläge</h4>
-              <div className="grid grid-cols-2 gap-3">
-                {pendingImages.map(item => (
-                  <div key={item.id} className="bg-slate-700 rounded-lg p-2 text-xs text-slate-200">
-                    <img
-                      src={resolveImageSrc(item.image.url_or_base64)}
-                      alt="Vorschlag"
-                      className="w-full h-24 object-cover rounded mb-2"
-                      referrerPolicy="no-referrer"
-                      loading="lazy"
-                      decoding="async"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/200x200?text=Bild';
-                      }}
-                    />
-                    {item.rationale && <p className="mb-1 text-slate-400">{item.rationale}</p>}
-                    <button
-                      onClick={() => applyImage(item.id)}
-                      className="px-2 py-1 text-xs bg-sky-600 text-white rounded hover:bg-sky-500 w-full"
-                    >
-                      Hinzufügen
-                    </button>
-                  </div>
-                ))}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-4">
+          <div id="chat-log" className="space-y-4">
+            {messages.map((msg, index) => (
+              <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`max-w-xs lg:max-w-sm px-4 py-2 rounded-lg whitespace-pre-wrap break-words ${
+                    msg.role === 'user' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-200'
+                  }`}
+                >
+                  {renderContent(msg.text)}
+                </div>
               </div>
-            </section>
+            ))}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="max-w-xs lg:max-w-sm px-4 py-2 rounded-lg bg-slate-700 text-slate-200 flex items-center">
+                  <Spinner className="w-5 h-5 mr-2" /> Thinking...
+                </div>
+              </div>
+            )}
+          </div>
+
+          {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
+            <div className="border-t border-slate-700 space-y-4 pt-4">
+              {pendingChanges.length > 0 && (
+                <section>
+                  <h4 className="text-sm font-semibold text-slate-200 mb-2">Vorgeschlagene Änderungen</h4>
+                  <ul className="space-y-2">
+                    {pendingChanges.map(item => (
+                      <li key={item.id} className="p-3 bg-slate-700 rounded-lg text-sm text-slate-200">
+                        <p className="font-semibold mb-1">{item.change.summary || 'Änderung aus dem Chat'}</p>
+                        <button
+                          onClick={() => applyChange(item.id)}
+                          className="mt-2 px-3 py-1 text-xs bg-sky-600 text-white rounded hover:bg-sky-500"
+                        >
+                          Anwenden
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {pendingImages.length > 0 && (
+                <section>
+                  <h4 className="text-sm font-semibold text-slate-200 mb-2">Bild-Vorschläge</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {pendingImages.map(item => (
+                      <div key={item.id} className="bg-slate-700 rounded-lg p-2 text-xs text-slate-200">
+                        <img
+                          src={resolveImageSrc(item.image.url_or_base64)}
+                          alt="Vorschlag"
+                          className="w-full h-24 object-cover rounded mb-2"
+                          referrerPolicy="no-referrer"
+                          loading="lazy"
+                          decoding="async"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/200x200?text=Bild';
+                          }}
+                        />
+                        {item.rationale && <p className="mb-1 text-slate-400">{item.rationale}</p>}
+                        <button
+                          onClick={() => applyImage(item.id)}
+                          className="px-2 py-1 text-xs bg-sky-600 text-white rounded hover:bg-sky-500 w-full"
+                        >
+                          Hinzufügen
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {serpInsights.length > 0 && (
+                <section>
+                  <h4 className="text-sm font-semibold text-slate-200 mb-2">SerpAPI Nachweise</h4>
+                  <ul className="space-y-2 text-xs text-slate-300">
+                    {serpInsights.map((entry, idx) => (
+                      <li key={`${entry.engine}-${idx}`} className="p-2 bg-slate-700 rounded">
+                        <p className="font-semibold text-slate-100">{entry.engine}</p>
+                        <p className="text-slate-400 break-words">{entry.query}</p>
+                        {entry.error && <p className="text-red-400 mt-1">{entry.error}</p>}
+                        {!entry.error &&
+                          entry.summary?.slice(0, 2).map((item, i) => (
+                            <div key={i} className="mt-1">
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sky-400 underline"
+                              >
+                                {item.title || item.url}
+                              </a>
+                              {item.price && <span className="ml-1 text-slate-300">{String(item.price)}</span>}
+                              {item.source && <span className="ml-1 text-slate-400">({item.source})</span>}
+                            </div>
+                          ))}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
           )}
 
-          {serpInsights.length > 0 && (
-            <section>
-              <h4 className="text-sm font-semibold text-slate-200 mb-2">SerpAPI Nachweise</h4>
-              <ul className="space-y-2 text-xs text-slate-300">
-                {serpInsights.map((entry, idx) => (
-                  <li key={`${entry.engine}-${idx}`} className="p-2 bg-slate-700 rounded">
-                    <p className="font-semibold text-slate-100">{entry.engine}</p>
-                    <p className="text-slate-400 break-words">{entry.query}</p>
-                    {entry.error && <p className="text-red-400 mt-1">{entry.error}</p>}
-                    {!entry.error &&
-                      entry.summary?.slice(0, 2).map((item, i) => (
-                        <div key={i} className="mt-1">
-                          <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sky-400 underline"
-                          >
-                            {item.title || item.url}
-                          </a>
-                          {item.price && <span className="ml-1 text-slate-300">{String(item.price)}</span>}
-                          {item.source && <span className="ml-1 text-slate-400">({item.source})</span>}
-                        </div>
-                      ))}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <div ref={bottomAnchorRef} />
         </div>
-      )}
+      </div>
 
       <div className="p-4 border-t border-slate-700">
         <div className="flex flex-wrap gap-2 mb-3">
