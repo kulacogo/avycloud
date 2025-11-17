@@ -51,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView }) => {
               <img
                 src={brandLogoLight}
                 alt="avystock"
-                className="h-10 sm:h-12 w-auto"
+                className="h-14 sm:h-16 w-auto"
                 draggable={false}
               />
             </picture>
