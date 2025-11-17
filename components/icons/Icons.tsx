@@ -76,3 +76,13 @@ export const WarehouseIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M7 13h3v7H7zM14 13h3v7h-3z" />
   </Icon>
 );
+export const SunIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 5.25V3m0 18v-2.25m6.364-9.114l1.59-.918m-15.908.918l-1.59-.918M18.75 12h2.25M3 12h2.25m12.364 5.864l1.59.918m-15.908-.918l-1.59.918M16.5 12a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+  </Icon>
+);
+export const MoonIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" />
+  </Icon>
+);

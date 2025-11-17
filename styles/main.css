@@ -2,13 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: dark;
+  --page-bg: #0f172a;
+  --surface-primary: #1e293b;
+  --surface-secondary: #1f2937;
+  --text-color: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border-color: #1f2a37;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --page-bg: #f8fafc;
+  --surface-primary: #ffffff;
+  --surface-secondary: #f1f5f9;
+  --text-color: #0f172a;
+  --text-muted: #475569;
+  --border-color: #d2d9e5;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: var(--surface-secondary);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -21,10 +41,60 @@
 }
 
 body {
-  background-color: #0f172a;
-  color: #e2e8f0;
+  background-color: var(--page-bg);
+  color: var(--text-color);
   min-height: 100vh;
   margin: 0;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+[data-theme='light'] .bg-slate-900,
+[data-theme='light'] .bg-slate-900\/80,
+[data-theme='light'] .bg-slate-900\/70,
+[data-theme='light'] .bg-slate-800,
+[data-theme='light'] .bg-slate-800\/80,
+[data-theme='light'] .bg-slate-800\/70,
+[data-theme='light'] .bg-slate-700,
+[data-theme='light'] .bg-slate-700\/80,
+[data-theme='light'] .bg-slate-700\/50,
+[data-theme='light'] .bg-slate-600,
+[data-theme='light'] .bg-slate-600\/80,
+[data-theme='light'] .bg-slate-600\/70 {
+  background-color: var(--surface-primary) !important;
+  color: var(--text-color) !important;
+}
+
+[data-theme='light'] .bg-slate-800\/70,
+[data-theme='light'] .bg-slate-800\/50,
+[data-theme='light'] .bg-slate-700\/30 {
+  background-color: var(--surface-secondary) !important;
+}
+
+[data-theme='light'] .text-white,
+[data-theme='light'] .text-slate-100,
+[data-theme='light'] .text-slate-200 {
+  color: var(--text-color) !important;
+}
+
+[data-theme='light'] .text-slate-300,
+[data-theme='light'] .text-slate-400,
+[data-theme='light'] .text-slate-500 {
+  color: var(--text-muted) !important;
+}
+
+[data-theme='light'] .border-slate-700,
+[data-theme='light'] .border-slate-600,
+[data-theme='light'] .border-slate-500,
+[data-theme='light'] .border-white\/5 {
+  border-color: var(--border-color) !important;
+}
+
+[data-theme='light'] input,
+[data-theme='light'] textarea,
+[data-theme='light'] select {
+  background-color: var(--surface-secondary);
+  color: var(--text-color);
+  border-color: var(--border-color);
 }
 
 .safe-area-header {

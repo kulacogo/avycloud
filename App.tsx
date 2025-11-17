@@ -14,7 +14,9 @@ const BACKEND_URL = 'https://product-hub-backend-79205549235.europe-west3.run.ap
 
 type View = 'input' | 'sheet' | 'admin' | 'warehouse';
 const VIEW_STORAGE_KEY = 'avystock:view';
+const THEME_STORAGE_KEY = 'avystock:theme';
 const ALLOWED_VIEWS: View[] = ['input', 'sheet', 'admin', 'warehouse'];
+type Theme = 'light' | 'dark';
 
 const sanitizeIdentifier = (value?: string | null) => {
   if (!value) return null;
@@ -112,12 +114,25 @@ const readInitialView = (): View => {
   return 'input';
 };
 
+const readInitialTheme = (): Theme => {
+  if (typeof window === 'undefined') {
+    return 'dark';
+  }
+  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === 'light' || stored === 'dark') {
+    return stored;
+  }
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return prefersDark ? 'dark' : 'light';
+};
+
 const App: React.FC = () => {
   const [view, setView] = useState<View>(() => readInitialView());
   const [products, setProducts] = useState<Product[]>([]);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const { identifyProducts, isLoading, error, cancelRequest, status } = useGemini();
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
   
   // Load products from Firestore on mount
   useEffect(() => {
@@ -180,6 +195,34 @@ const App: React.FC = () => {
     }
   }, [view]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    root.dataset.theme = theme;
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // ignore storage issues (private mode, etc.)
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.localStorage.getItem(THEME_STORAGE_KEY)) return;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const listener = (event: MediaQueryListEvent) => {
+      setTheme(event.matches ? 'dark' : 'light');
+    };
+    media.addEventListener('change', listener);
+    return () => {
+      media.removeEventListener('change', listener);
+    };
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
+
   const renderView = () => {
     if (error) {
         return (
@@ -215,7 +258,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 font-sans flex flex-col">
-      <Header currentView={view} setView={setView} />
+      <Header currentView={view} setView={setView} theme={theme} onToggleTheme={toggleTheme} />
       <main className="flex-1 w-full max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8 safe-area-content">
         <ProcessStatusBar status={status} onCancel={cancelRequest} />
         {renderView()}
