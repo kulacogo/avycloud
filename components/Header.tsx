@@ -2,9 +2,7 @@
 import React from 'react';
 import { TableIcon, PlusCircleIcon, WarehouseIcon } from './icons/Icons';
 
-const appIcon = new URL('../avystock_app_icon.png', import.meta.url).href;
-const brandLogoLight = new URL('../avystock_brand_logo.png', import.meta.url).href;
-const brandLogoDark = new URL('../avystock_brand_logo_darkmode.png', import.meta.url).href;
+const uiLogo = '/ui_logo.png';
 
 interface HeaderProps {
   currentView: 'input' | 'sheet' | 'admin' | 'warehouse';
@@ -38,24 +36,15 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView }) => {
 
   return (
     <header className="safe-area-header bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-white/5">
-      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5 sm:py-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <img
-              src={appIcon}
-              alt="avystock icon"
-              className="h-11 w-auto sm:h-12 drop-shadow-lg"
+              src={uiLogo}
+              alt="avystock"
+              className="h-14 sm:h-16 w-auto drop-shadow-lg"
               draggable={false}
             />
-            <picture>
-              <source srcSet={brandLogoDark} media="(prefers-color-scheme: dark)" />
-              <img
-                src={brandLogoLight}
-                alt="avystock"
-                className="h-28 sm:h-32 w-auto"
-                draggable={false}
-                />
-            </picture>
             <span className="sr-only">Avystock Product Intelligence Hub</span>
           </div>
           <nav className="flex items-center gap-3" aria-label="Hauptnavigation">
