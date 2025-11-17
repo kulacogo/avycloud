@@ -51,10 +51,9 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView }) => {
               <img
                 src={brandLogoLight}
                 alt="avystock"
-                className="h-20 sm:h-24 w-auto"
+                className="h-24 sm:h-28 w-auto"
                 draggable={false}
-              />
-            </picture>
+                />
             <span className="sr-only">Avystock Product Intelligence Hub</span>
           </div>
           <nav className="flex items-center gap-3" aria-label="Hauptnavigation">
