@@ -7,6 +7,7 @@ import {
   SerpInsight,
   WarehouseLayout,
   WarehouseBin,
+  IdentifyPhase,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -39,6 +40,21 @@ const BACKEND_URL = (() => {
 
 const JOB_POLL_INTERVAL_MS = 2000;
 const JOB_TIMEOUT_MS = 10 * 60 * 1000;
+
+interface IdentifyApiOptions {
+  model?: string;
+  signal?: AbortSignal;
+  onStatus?: (phase: IdentifyPhase) => void;
+}
+
+const createStatusReporter = (listener?: (phase: IdentifyPhase) => void) => {
+  let lastPhase: IdentifyPhase | null = null;
+  return (phase: IdentifyPhase) => {
+    if (!listener || lastPhase === phase) return;
+    lastPhase = phase;
+    listener(phase);
+  };
+};
 
 // Helper function to safely parse JSON responses
 const parseResponse = async (response: Response): Promise<any> => {
@@ -134,7 +150,11 @@ const fetchJobStatus = async (jobId: string, signal?: AbortSignal) => {
   return result?.data;
 };
 
-const waitForJobResult = async (jobId: string, signal?: AbortSignal) => {
+const waitForJobResult = async (
+  jobId: string,
+  signal?: AbortSignal,
+  reportStatus?: (phase: IdentifyPhase) => void
+) => {
   const deadline = Date.now() + JOB_TIMEOUT_MS;
   while (true) {
     const job = await fetchJobStatus(jobId, signal);
@@ -147,6 +167,17 @@ const waitForJobResult = async (jobId: string, signal?: AbortSignal) => {
     if (job.status === 'failed') {
       throw new Error(job.error?.message || 'Produktidentifikation fehlgeschlagen.');
     }
+    if (job.status === 'processing') {
+      reportStatus?.('processing');
+    } else {
+      reportStatus?.('queued');
+    }
+
+    const stage = job.stage || job.progress?.stage || job.state;
+    if (typeof stage === 'string' && stage.toLowerCase().includes('enrich')) {
+      reportStatus?.('enriching');
+    }
+
     if (Date.now() > deadline) {
       throw new Error('Produktidentifikation hat das Zeitlimit überschritten.');
     }
@@ -158,7 +189,7 @@ const waitForJobResult = async (jobId: string, signal?: AbortSignal) => {
 export const identifyProductApi = async (
   images: File[],
   barcodes: string,
-  options?: { model?: string; signal?: AbortSignal }
+  options?: IdentifyApiOptions
 ): Promise<{ ok: boolean; data?: ProductBundle; error?: { code: number; message: string } }> => {
   const formData = new FormData();
   formData.append('barcodes', barcodes);
@@ -170,6 +201,8 @@ export const identifyProductApi = async (
   }
 
   let response: Response | undefined;
+  const reportStatus = createStatusReporter(options?.onStatus);
+  reportStatus('upload');
 
   try {
     response = await fetch(`${BACKEND_URL}/api/jobs`, {
@@ -204,7 +237,9 @@ export const identifyProductApi = async (
       };
     }
 
-    const bundle = await waitForJobResult(jobId, options?.signal);
+    reportStatus('queued');
+
+    const bundle = await waitForJobResult(jobId, options?.signal, reportStatus);
     if (!bundle || !bundle.products) {
       return {
         ok: false,

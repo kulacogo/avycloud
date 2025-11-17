@@ -173,3 +173,21 @@ export interface WarehouseBin {
   firstStoredAt?: string | null;
   lastStoredAt?: string | null;
 }
+
+export type IdentifyPhase =
+  | 'idle'
+  | 'upload'
+  | 'queued'
+  | 'processing'
+  | 'enriching'
+  | 'complete'
+  | 'error'
+  | 'cancelled';
+
+export interface IdentifyStatus {
+  phase: IdentifyPhase;
+  message: string;
+  model?: string;
+  startedAt?: string;
+  updatedAt?: string;
+}

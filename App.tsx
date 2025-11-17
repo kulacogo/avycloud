@@ -8,6 +8,7 @@ import AdminTable from './components/AdminTable';
 import WarehouseView from './components/WarehouseView';
 import { Header } from './components/Header';
 import { Spinner } from './components/Spinner';
+import { ProcessStatusBar } from './components/ProcessStatusBar';
 
 const BACKEND_URL = 'https://product-hub-backend-79205549235.europe-west3.run.app';
 
@@ -17,7 +18,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<View>('input');
   const [products, setProducts] = useState<Product[]>([]);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
-  const { identifyProducts, isLoading, error } = useGemini();
+  const { identifyProducts, isLoading, error, cancelRequest, status } = useGemini();
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   
   // Load products from Firestore on mount
@@ -74,10 +75,13 @@ const App: React.FC = () => {
   const renderView = () => {
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] bg-slate-900">
-                <Spinner />
-                <p className="mt-4 text-lg text-slate-300">AI is analyzing your product...</p>
-                <p className="text-sm text-slate-400">This may take a moment.</p>
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] bg-slate-900 text-center px-4">
+                <Spinner className="w-10 h-10" />
+                <p className="mt-4 text-lg text-slate-100">{status.message || 'AI analysiert dein Produkt …'}</p>
+                <p className="text-sm text-slate-400">
+                  {status.model ? `Genutztes Modell: ${status.model}` : 'Modell wird vorbereitet …'}
+                </p>
+                <p className="text-xs text-slate-500 mt-4">Bitte Tab geöffnet lassen.</p>
             </div>
         );
     }
@@ -118,6 +122,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-900 text-slate-200 font-sans flex flex-col">
       <Header currentView={view} setView={setView} />
       <main className="flex-1 w-full max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8 safe-area-content">
+        <ProcessStatusBar status={status} onCancel={cancelRequest} />
         {renderView()}
       </main>
     </div>

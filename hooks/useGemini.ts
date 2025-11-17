@@ -1,15 +1,48 @@
 
-import { useState, useCallback, useRef } from 'react';
-import { ProductBundle } from '../types';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { ProductBundle, IdentifyPhase, IdentifyStatus } from '../types';
 import { MAX_IDENTIFY_FILES, MAX_IDENTIFY_FILE_BYTES, MAX_IDENTIFY_TOTAL_BYTES } from '../constants';
 import { identifyProductApi } from '../api/client';
+
+const IDLE_STATUS: IdentifyStatus = {
+  phase: 'idle',
+  message: 'Bereit für neue Produkterkennung.',
+};
 
 export const useGemini = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<IdentifyStatus>(IDLE_STATUS);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const statusResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleStatusReset = useCallback(() => {
+    if (statusResetRef.current) {
+      clearTimeout(statusResetRef.current);
+    }
+    statusResetRef.current = setTimeout(() => {
+      setStatus(IDLE_STATUS);
+      statusResetRef.current = null;
+    }, 5000);
+  }, []);
 
   const identifyProducts = useCallback(async (images: File[], barcodes: string, model?: string): Promise<ProductBundle | null> => {
+    const baseModel = model || 'gpt-5.1';
+    const applyPhase = (phase: IdentifyPhase, message: string) => {
+      setStatus(prev => ({
+        phase,
+        message,
+        model: baseModel,
+        startedAt: phase === 'upload' || prev.phase === 'idle' ? new Date().toISOString() : prev.startedAt,
+        updatedAt: new Date().toISOString(),
+      }));
+    };
+
+    if (statusResetRef.current) {
+      clearTimeout(statusResetRef.current);
+      statusResetRef.current = null;
+    }
+
     const totalBytes = images.reduce((acc, file) => acc + file.size, 0);
     if (images.length > MAX_IDENTIFY_FILES) {
       setError(`Maximal ${MAX_IDENTIFY_FILES} Bilder pro Anfrage erlaubt. Bitte reduziere deine Auswahl.`);
@@ -34,11 +67,30 @@ export const useGemini = () => {
 
     setIsLoading(true);
     setError(null);
+    applyPhase('upload', 'Übertrage Bilder und Barcodes …');
 
     try {
       const result = await identifyProductApi(images, barcodes, {
         model,
         signal: controller.signal,
+        onStatus: (phase) => {
+          switch (phase) {
+            case 'upload':
+              applyPhase('upload', 'Übertrage Bilder und Barcodes …');
+              break;
+            case 'queued':
+              applyPhase('queued', 'Job erstellt. Warte auf verfügbare AI-Ressourcen …');
+              break;
+            case 'processing':
+              applyPhase('processing', 'AI identifiziert das Produkt …');
+              break;
+            case 'enriching':
+              applyPhase('enriching', 'Produktdaten werden angereichert …');
+              break;
+            default:
+              break;
+          }
+        },
       });
 
       if (!result.ok || !result.data) {
@@ -53,6 +105,8 @@ export const useGemini = () => {
 
       setIsLoading(false);
       abortControllerRef.current = null;
+      applyPhase('complete', 'Produktdaten erfolgreich aktualisiert.');
+      scheduleStatusReset();
       return productBundle;
 
     } catch (e: any) {
@@ -61,6 +115,8 @@ export const useGemini = () => {
         console.error("API Error:", e);
         const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during product identification.";
         setError(`Failed to process request: ${errorMessage}`);
+        applyPhase('error', errorMessage);
+        scheduleStatusReset();
       }
       
       setIsLoading(false);
@@ -75,8 +131,23 @@ export const useGemini = () => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsLoading(false);
+      setStatus(prev => ({
+        ...prev,
+        phase: 'cancelled',
+        message: 'Vorgang wurde abgebrochen.',
+        updatedAt: new Date().toISOString(),
+      }));
+      scheduleStatusReset();
     }
+  }, [scheduleStatusReset]);
+
+  useEffect(() => {
+    return () => {
+      if (statusResetRef.current) {
+        clearTimeout(statusResetRef.current);
+      }
+    };
   }, []);
 
-  return { identifyProducts, isLoading, error, cancelRequest };
+  return { identifyProducts, isLoading, error, cancelRequest, status };
 };
