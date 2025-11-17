@@ -10,10 +10,13 @@ const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(
 const supportsBrowserCamera =
   typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
+type ModelOption = 'gpt-5.1' | 'gpt-5-mini';
+
 const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const [images, setImages] = useState<File[]>([]);
   const [barcodes, setBarcodes] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  const [model, setModel] = useState<ModelOption>('gpt-5.1');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -55,7 +58,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
       alert('Please provide at least one image or barcode.');
       return;
     }
-    onIdentify(images, barcodes, 'gpt-5.1');
+    onIdentify(images, barcodes, model);
   };
 
   const toggleCamera = async () => {
@@ -99,7 +102,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
 
   const handleCaptureFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      setImages(prev => [...prev, ...Array.from(event.target.files)]);
+      setImages(prev => [...prev, ...Array.from(event.target.files!)]);
     }
     event.target.value = '';
   };
@@ -223,6 +226,29 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             rows={3}
           />
           <p className="text-sm text-slate-500 mt-1">Enter barcodes separated by commas or new lines.</p>
+        </div>
+
+        <div>
+          <div className="flex items-center mb-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+            <span>AI Model</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {(['gpt-5.1', 'gpt-5-mini'] as ModelOption[]).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setModel(option)}
+                aria-pressed={model === option}
+                className={`w-full px-4 py-2 rounded-xl border text-sm font-semibold transition-all ${
+                  model === option
+                    ? 'bg-sky-600 border-sky-500 text-white shadow-lg shadow-sky-900/40'
+                    : 'bg-slate-700/80 border-slate-600 text-slate-200 hover:bg-slate-600'
+                }`}
+              >
+                {option === 'gpt-5.1' ? 'GPT-5.1' : 'GPT-5 mini'}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="text-center">
