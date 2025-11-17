@@ -13,9 +13,20 @@ import { ProcessStatusBar } from './components/ProcessStatusBar';
 const BACKEND_URL = 'https://product-hub-backend-79205549235.europe-west3.run.app';
 
 type View = 'input' | 'sheet' | 'admin' | 'warehouse';
+const VIEW_STORAGE_KEY = 'avystock:view';
+const ALLOWED_VIEWS: View[] = ['input', 'sheet', 'admin', 'warehouse'];
+
+const readInitialView = (): View => {
+  if (typeof window === 'undefined') return 'input';
+  const stored = window.localStorage.getItem(VIEW_STORAGE_KEY) as View | null;
+  if (stored && ALLOWED_VIEWS.includes(stored)) {
+    return stored;
+  }
+  return 'input';
+};
 
 const App: React.FC = () => {
-  const [view, setView] = useState<View>('input');
+  const [view, setView] = useState<View>(() => readInitialView());
   const [products, setProducts] = useState<Product[]>([]);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const { identifyProducts, isLoading, error, cancelRequest, status } = useGemini();
@@ -72,20 +83,13 @@ const App: React.FC = () => {
     }
   };
 
-  const renderView = () => {
-    if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] bg-slate-900 text-center px-4">
-                <Spinner className="w-10 h-10" />
-                <p className="mt-4 text-lg text-slate-100">{status.message || 'AI analysiert dein Produkt …'}</p>
-                <p className="text-sm text-slate-400">
-                  {status.model ? `Genutztes Modell: ${status.model}` : 'Modell wird vorbereitet …'}
-                </p>
-                <p className="text-xs text-slate-500 mt-4">Bitte Tab geöffnet lassen.</p>
-            </div>
-        );
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, view);
     }
+  }, [view]);
 
+  const renderView = () => {
     if (error) {
         return (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] bg-slate-900 text-center p-4">
@@ -125,6 +129,15 @@ const App: React.FC = () => {
         <ProcessStatusBar status={status} onCancel={cancelRequest} />
         {renderView()}
       </main>
+      {isLoading && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
+          <Spinner className="w-6 h-6 text-sky-300" />
+          <div className="text-sm text-slate-100">
+            <p className="font-semibold">AI arbeitet im Hintergrund …</p>
+            <p className="text-slate-400 text-xs">Uploads abgeschlossen? Dann kannst du andere Bereiche nutzen.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

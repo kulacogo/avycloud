@@ -67,7 +67,7 @@ export const useGemini = () => {
 
     setIsLoading(true);
     setError(null);
-    applyPhase('upload', 'Übertrage Bilder und Barcodes …');
+    applyPhase('upload', 'Übertrage Bilder und Barcodes … bitte Tab geöffnet lassen.');
 
     try {
       const result = await identifyProductApi(images, barcodes, {
@@ -76,16 +76,16 @@ export const useGemini = () => {
         onStatus: (phase) => {
           switch (phase) {
             case 'upload':
-              applyPhase('upload', 'Übertrage Bilder und Barcodes …');
+              applyPhase('upload', 'Übertrage Bilder und Barcodes … bitte Tab geöffnet lassen.');
               break;
             case 'queued':
-              applyPhase('queued', 'Job erstellt. Warte auf verfügbare AI-Ressourcen …');
+              applyPhase('queued', 'Upload abgeschlossen. Du kannst weiterarbeiten – Job ist auf dem Server in der Warteschlange …');
               break;
             case 'processing':
-              applyPhase('processing', 'AI identifiziert das Produkt …');
+              applyPhase('processing', 'AI identifiziert das Produkt im Hintergrund. Du kannst andere Module öffnen …');
               break;
             case 'enriching':
-              applyPhase('enriching', 'Produktdaten werden angereichert …');
+              applyPhase('enriching', 'Produktdaten werden angereichert – du kannst währenddessen weiterarbeiten …');
               break;
             default:
               break;

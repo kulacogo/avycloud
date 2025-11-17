@@ -20,6 +20,18 @@ const SyncStatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
   return <span className={`${baseClasses} ${statusMap[status]}`}>{status}</span>;
 };
 
+const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full ${
+        saved ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-200'
+      }`}
+    >
+      {saved ? 'Gespeichert' : 'Nicht gespeichert'}
+    </span>
+  );
+};
+
 const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUpdateProducts }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<SyncStatus | 'all'>('all');
@@ -269,6 +281,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
               <th className="p-3">EAN/GTIN/SKU</th>
               <SortableHeader sortKey="details.pricing.lowest_price.amount">lowest_price.amount</SortableHeader>
               <SortableHeader sortKey="ops.sync_status">Sync-Status</SortableHeader>
+              <th className="p-3">Speicherstatus</th>
               <SortableHeader sortKey="ops.last_saved_iso">last_saved_iso</SortableHeader>
               <SortableHeader sortKey="ops.last_synced_iso">last_synced_iso</SortableHeader>
               <SortableHeader sortKey="ops.revision">revision</SortableHeader>
@@ -288,6 +301,9 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                 <td className="p-3 text-slate-400 font-mono text-sm">{p.details.identifiers.ean || p.details.identifiers.sku || p.id}</td>
                 <td className="p-3 text-slate-300">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: p.details.pricing.lowest_price.currency }).format(p.details.pricing.lowest_price.amount)}</td>
                 <td className="p-3"><SyncStatusBadge status={p.ops.sync_status} /></td>
+                <td className="p-3">
+                  <SaveStatusBadge saved={Boolean(p.ops?.last_saved_iso)} />
+                </td>
                 <td className="p-3 text-slate-400 text-sm">{p.ops.last_saved_iso ? new Date(p.ops.last_saved_iso).toLocaleString('de-DE') : 'N/A'}</td>
                 <td className="p-3 text-slate-400 text-sm">{p.ops.last_synced_iso ? new Date(p.ops.last_synced_iso).toLocaleString('de-DE') : 'N/A'}</td>
                 <td className="p-3 text-center text-slate-400 text-sm">{p.ops.revision}</td>
