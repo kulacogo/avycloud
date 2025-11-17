@@ -19,6 +19,7 @@ const ALLOWED_ENGINES = [
   'walmart',
   'home_depot',
   'naver',
+  'amazon',
 ];
 
 let cachedKey = null;
@@ -63,6 +64,10 @@ function buildDefaultParams(engine) {
     case 'ebay':
       return {
         ebay_domain: process.env.SERPAPI_EBAY_DOMAIN || 'ebay.de',
+      };
+    case 'amazon':
+      return {
+        amazon_domain: process.env.SERPAPI_AMAZON_DOMAIN || 'amazon.de',
       };
     default:
       return {};
@@ -187,6 +192,12 @@ function summarizeSerpEntries(engine, data, limit = 5) {
     fill(data.organic_results);
   } else if (engine === 'ebay' && Array.isArray(data.shopping_results)) {
     fill(data.shopping_results);
+  } else if (engine === 'amazon') {
+    if (Array.isArray(data.images_results)) {
+      fill(data.images_results);
+    } else if (Array.isArray(data.organic_results)) {
+      fill(data.organic_results);
+    }
   } else if (Array.isArray(data.organic_results)) {
     fill(data.organic_results);
   }
@@ -211,5 +222,9 @@ module.exports = {
   callSerpApi,
   summarizeSerpEntries,
   ALLOWED_ENGINES,
+  extractImageMeta,
+  isLowResImage,
+  MIN_IMAGE_WIDTH,
+  MIN_IMAGE_HEIGHT,
 };
 

@@ -1,6 +1,7 @@
 const { getOpenAIClient } = require('../lib/openai-client');
 const { serpapiToolDefinition, executeSerpapiToolCall } = require('./toolkit');
 const { resolveModel } = require('../lib/model-select');
+const { fetchMarketingImages } = require('../lib/marketing-images');
 
 const MAX_CHAT_ITERATIONS = 5;
 
@@ -191,6 +192,24 @@ async function runProductChat(product, userMessage, { modelOverride = null } = {
   const datasheetChanges = [];
   const imageSuggestions = [];
   const serpTrace = [];
+  const existingImageKeys = new Set(
+    (product?.details?.images || [])
+      .map((img) => normalizeImageKey(img?.url_or_base64 || img?.url))
+      .filter(Boolean)
+  );
+  const existingImageUrls = (product?.details?.images || [])
+    .map((img) => (typeof img?.url_or_base64 === 'string' ? img.url_or_base64 : null))
+    .filter(Boolean);
+
+  function normalizeImageKey(url = '') {
+    if (!url || typeof url !== 'string') return null;
+    try {
+      const parsed = new URL(url);
+      return `${parsed.hostname}${parsed.pathname}`.toLowerCase();
+    } catch {
+      return url.trim().toLowerCase() || null;
+    }
+  }
 
   for (let iteration = 0; iteration < MAX_CHAT_ITERATIONS; iteration++) {
     const response = await client.responses.create({
@@ -235,14 +254,62 @@ async function runProductChat(product, userMessage, { modelOverride = null } = {
         toolResult = { acknowledged: true, applied_fields: Object.keys(sanitized) };
       } else if (toolCall.name === 'suggest_product_images') {
         const args = JSON.parse(toolCall.arguments || '{}');
-        const sanitized = sanitizeImageSuggestions(args);
-        if (sanitized.length) {
+        const chatImages = sanitizeImageSuggestions(args).filter((img) => {
+          const key = normalizeImageKey(img.url_or_base64);
+          if (!key || existingImageKeys.has(key)) {
+            return false;
+          }
+          existingImageKeys.add(key);
+          existingImageUrls.push(img.url_or_base64);
+          return true;
+        });
+
+        let marketingImages = [];
+        try {
+          const { images: fetchedImages, trace } = await fetchMarketingImages({
+            brand: product?.identification?.brand,
+            name: product?.identification?.name,
+            exclude: existingImageUrls,
+            limit: 8,
+          });
+          if (trace?.length) {
+            trace.forEach((entry) => {
+              serpTrace.push({
+                engine: entry.engine,
+                query: entry.query,
+                summary: entry.images.slice(0, 5),
+                error: null,
+              });
+            });
+          }
+          marketingImages = fetchedImages
+            .map((img) => ({
+              url_or_base64: img.url,
+              source: img.source || 'web',
+              variant: 'marketing',
+              notes: img.title || 'Marketing Bild',
+            }))
+            .filter((img) => {
+              const key = normalizeImageKey(img.url_or_base64);
+              if (!key || existingImageKeys.has(key)) {
+                return false;
+              }
+              existingImageKeys.add(key);
+              existingImageUrls.push(img.url_or_base64);
+              return true;
+            });
+        } catch (error) {
+          console.warn('Failed to fetch marketing images for chat:', error.message);
+        }
+
+        const combined = [...marketingImages, ...chatImages];
+        if (combined.length) {
           imageSuggestions.push({
             rationale: args.rationale || '',
-            images: sanitized,
+            images: combined,
           });
         }
-        toolResult = { acknowledged: true, count: sanitized.length };
+        toolResult = { acknowledged: true, count: combined.length };
       } else {
         toolResult = { error: `Unknown tool ${toolCall.name}` };
       }

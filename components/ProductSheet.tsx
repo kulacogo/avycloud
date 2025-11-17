@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Product, DatasheetChange, ProductImage } from '../types';
 import {
   saveProduct,
@@ -34,6 +34,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
   const [binCodeInput, setBinCodeInput] = useState(product.storage?.binCode || '');
   const [binQuantity, setBinQuantity] = useState<number>(product.inventory?.quantity || 1);
   const [isAssigningBin, setIsAssigningBin] = useState(false);
+  const [newImageUrl, setNewImageUrl] = useState('');
 
   useEffect(() => {
     setLocalProduct(product);
@@ -43,7 +44,81 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
     setAutoGenDone(false);
     setBinCodeInput(product.storage?.binCode || '');
     setBinQuantity(product.inventory?.quantity || 1);
+    setNewImageUrl('');
   }, [product]);
+
+  const updateImages = useCallback((mutator: (images: ProductImage[]) => ProductImage[]) => {
+    setLocalProduct(prev => {
+      const currentImages = prev.details?.images || [];
+      const nextImages = mutator([...currentImages]);
+      return {
+        ...prev,
+        details: {
+          ...prev.details,
+          images: nextImages,
+        },
+      };
+    });
+    setIsDirty(true);
+  }, []);
+
+  const handleReorderImages = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      updateImages((images) => {
+        const boundedFrom = Math.max(0, Math.min(images.length - 1, fromIndex));
+        const boundedTo = Math.max(0, Math.min(images.length - 1, toIndex));
+        if (boundedFrom === boundedTo) return images;
+        const [moved] = images.splice(boundedFrom, 1);
+        images.splice(boundedTo, 0, moved);
+        return images;
+      });
+    },
+    [updateImages]
+  );
+
+  const handleDeleteImage = useCallback(
+    (index: number) => {
+      updateImages((images) => {
+        images.splice(index, 1);
+        return images;
+      });
+    },
+    [updateImages]
+  );
+
+  const handleAddImageFromUrl = useCallback(() => {
+    const url = newImageUrl.trim();
+    if (!url) return;
+    updateImages((images) => [
+      ...images,
+      { source: 'web', variant: 'other', url_or_base64: url, notes: 'Manuell hinzugefügt' },
+    ]);
+    setNewImageUrl('');
+  }, [newImageUrl, updateImages]);
+
+  const fileToBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+
+  const handleUploadImage = useCallback(
+    async (file: File | null) => {
+      if (!file) return;
+      try {
+        const base64 = await fileToBase64(file);
+        updateImages((images) => [
+          ...images,
+          { source: 'upload', variant: 'other', url_or_base64: base64, notes: file.name || 'Upload' },
+        ]);
+      } catch (error) {
+        console.error('Failed to read image file', error);
+      }
+    },
+    [updateImages]
+  );
 
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
@@ -333,57 +408,54 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
             <ImageGallery
               images={localProduct.details.images}
               isEditing={isEditing}
-              onDeleteImage={(idx) => {
-                if (!isEditing) return;
-                setLocalProduct(prev => {
-                  const next = { ...prev, details: { ...prev.details, images: [...prev.details.images] } };
-                  next.details.images.splice(idx, 1);
-                  return next;
-                });
-                setIsDirty(true);
-              }}
+              onDeleteImage={isEditing ? handleDeleteImage : undefined}
+              onReorder={isEditing ? handleReorderImages : undefined}
             />
             {isEditing && (
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Bild-URL einfügen (http...)"
-                  className="flex-1 bg-slate-700 border border-slate-600 rounded-lg p-2 text-slate-200"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const url = (e.currentTarget as HTMLInputElement).value.trim();
-                      if (!url) return;
-                      setLocalProduct(prev => ({
-                        ...prev,
-                        details: { ...prev.details, images: [...prev.details.images, { source: 'web', variant: 'other', url_or_base64: url, notes: 'Manuell hinzugefügt' }] }
-                      }));
-                      (e.currentTarget as HTMLInputElement).value = '';
-                      setIsDirty(true);
-                    }
-                  }}
-                />
-                <label className="px-3 py-2 bg-slate-700 text-slate-200 rounded-lg border border-slate-600 cursor-pointer">
-                  Upload
+              <div className="mt-4 space-y-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        const base64 = reader.result as string;
-                        setLocalProduct(prev => ({
-                          ...prev,
-                          details: { ...prev.details, images: [...prev.details.images, { source: 'upload', variant: 'other', url_or_base64: base64, notes: file.name || 'Upload' }] }
-                        }));
-                        setIsDirty(true);
-                      };
-                      reader.readAsDataURL(file);
+                    type="text"
+                    placeholder="Bild-URL einfügen (https://...)"
+                    className="flex-1 bg-slate-700 border border-slate-600 rounded-lg p-2 text-slate-200"
+                    value={newImageUrl}
+                    onChange={(e) => setNewImageUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddImageFromUrl();
+                      }
                     }}
                   />
-                </label>
+                  <button
+                    type="button"
+                    onClick={handleAddImageFromUrl}
+                    className="px-4 py-2 bg-slate-600 rounded-lg text-white font-semibold hover:bg-slate-500 transition-colors disabled:opacity-50"
+                    disabled={!newImageUrl.trim()}
+                  >
+                    URL hinzufügen
+                  </button>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <label className="px-4 py-2 bg-slate-700 text-slate-200 rounded-lg border border-slate-600 cursor-pointer w-full sm:w-auto text-center">
+                    Datei hochladen
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        handleUploadImage(file);
+                        if (e.target) {
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </label>
+                  <p className="text-xs text-slate-400 text-center sm:text-left">
+                    Unterstützt JPG, PNG oder WebP · optimale Breite ≥ 1200px
+                  </p>
+                </div>
               </div>
             )}
           </div>

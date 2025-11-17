@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Product, DatasheetChange, ProductImage, SerpInsight } from '../types';
 import { chatWithAssistant, buildImageProxyUrl } from '../api/client';
 import { SendIcon, SparklesIcon } from './icons/Icons';
@@ -38,6 +38,30 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [serpInsights, setSerpInsights] = useState<SerpInsight[]>([]);
   const bottomAnchorRef = useRef<HTMLDivElement>(null);
+  const suggestionKeysRef = useRef<Set<string>>(new Set());
+
+  const normalizeImageKey = (value?: string | null) => {
+    if (!value) return null;
+    try {
+      const parsed = new URL(value);
+      return `${parsed.hostname}${parsed.pathname}`.toLowerCase();
+    } catch {
+      return value.trim().toLowerCase() || null;
+    }
+  };
+
+  const productImageKeys = useMemo(() => {
+    const keys = new Set<string>();
+    (product?.details?.images || []).forEach((img) => {
+      const key = normalizeImageKey(img?.url_or_base64);
+      if (key) keys.add(key);
+    });
+    return keys;
+  }, [product]);
+
+  useEffect(() => {
+    suggestionKeysRef.current = new Set(productImageKeys);
+  }, [productImageKeys]);
 
   const renderContent = (text: string) => {
     const trimmed = text.trim();
@@ -105,11 +129,20 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       }
 
       if (result.data.imageSuggestions?.length) {
+        const dedupe = new Set(suggestionKeysRef.current);
         const flattened: PendingImage[] = [];
         result.data.imageSuggestions.forEach(group => {
-          group.images.forEach(img => flattened.push({ id: uid(), image: img, rationale: group.rationale }));
+          group.images.forEach(img => {
+            const key = normalizeImageKey(img?.url_or_base64);
+            if (!key || dedupe.has(key)) {
+              return;
+            }
+            dedupe.add(key);
+            flattened.push({ id: uid(), image: img, rationale: group.rationale });
+          });
         });
         if (flattened.length) {
+          suggestionKeysRef.current = dedupe;
           setPendingImages(prev => [...prev, ...flattened]);
         }
       }
@@ -201,7 +234,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   <h4 className="text-sm font-semibold text-slate-200 mb-2">Bild-Vorschläge</h4>
                   <div className="grid grid-cols-2 gap-3">
                     {pendingImages.map(item => (
-                      <div key={item.id} className="bg-slate-700 rounded-lg p-2 text-xs text-slate-200">
+                  <div key={item.id} className="bg-slate-700 rounded-lg p-2 text-xs text-slate-200">
                         <img
                           src={resolveImageSrc(item.image.url_or_base64)}
                           alt="Vorschlag"
@@ -213,7 +246,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                             (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/200x200?text=Bild';
                           }}
                         />
-                        {item.rationale && <p className="mb-1 text-slate-400">{item.rationale}</p>}
+                    {item.image.source && (
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
+                        {item.image.source}
+                      </p>
+                    )}
                         <button
                           onClick={() => applyImage(item.id)}
                           className="px-2 py-1 text-xs bg-sky-600 text-white rounded hover:bg-sky-500 w-full"

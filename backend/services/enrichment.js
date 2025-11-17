@@ -5,6 +5,7 @@ const { getOpenAIClient } = require('../lib/openai-client');
 const { uploadImage } = require('../lib/storage');
 const { serpapiToolDefinition, executeSerpapiToolCall } = require('./toolkit');
 const { resolveModel } = require('../lib/model-select');
+const { fetchMarketingImages } = require('../lib/marketing-images');
 
 const MAX_TOOL_ITERATIONS = 8;
 const MAX_BARCODE_COUNT = 10000;
@@ -173,6 +174,76 @@ function normalizeBundle(bundle) {
   return bundle;
 }
 
+function normalizeImageKey(url = '') {
+  if (!url || typeof url !== 'string') return null;
+  try {
+    const parsed = new URL(url);
+    return `${parsed.hostname}${parsed.pathname}`.toLowerCase();
+  } catch {
+    return url.trim().toLowerCase() || null;
+  }
+}
+
+async function enrichProductImages(products = [], serpTrace = []) {
+  if (!Array.isArray(products) || !products.length) return;
+
+  for (const product of products) {
+    const name = product?.identification?.name?.trim();
+    if (!name) continue;
+    const brand = product?.identification?.brand?.trim() || '';
+    const existingImages = Array.isArray(product?.details?.images) ? product.details.images : [];
+    const existingUrls = existingImages
+      .map((img) => img?.url_or_base64 || img?.url)
+      .filter((url) => typeof url === 'string' && url.startsWith('http'));
+
+    try {
+      const { images, trace } = await fetchMarketingImages({
+        brand,
+        name,
+        exclude: existingUrls,
+      });
+
+      if (trace?.length) {
+        trace.forEach((entry) => {
+          serpTrace.push({
+            engine: entry.engine,
+            query: entry.query,
+            summary: entry.images.slice(0, 5),
+            error: null,
+          });
+        });
+      }
+
+      if (!images.length) continue;
+      const seenKeys = new Set(
+        existingUrls
+          .map((url) => normalizeImageKey(url))
+          .filter(Boolean)
+      );
+
+      const mapped = images
+        .map((img) => ({
+          source: img.source || 'web',
+          variant: 'marketing',
+          url_or_base64: img.url,
+          notes: img.title || 'Marketing Bild',
+        }))
+        .filter((img) => {
+          const key = normalizeImageKey(img.url_or_base64);
+          if (!key || seenKeys.has(key)) return false;
+          seenKeys.add(key);
+          return true;
+        });
+
+      if (!mapped.length) continue;
+      product.details = product.details || {};
+      product.details.images = [...(product.details.images || []), ...mapped];
+    } catch (error) {
+      console.warn('Failed to fetch marketing images:', error.message);
+    }
+  }
+}
+
 async function runProductIdentification({ files = [], barcodes = '', locale = 'de-DE', modelOverride = null }) {
   if ((!files || files.length === 0) && !barcodes) {
     throw new Error('Bitte mindestens ein Bild oder einen Barcode bereitstellen.');
@@ -240,6 +311,7 @@ async function runProductIdentification({ files = [], barcodes = '', locale = 'd
       const bundle = parseModelJson(response);
       ensureSchema(bundle);
       normalizeBundle(bundle);
+      await enrichProductImages(bundle.products, serpTrace);
       assertSerpUsage(serpTrace);
       return {
         bundle,
