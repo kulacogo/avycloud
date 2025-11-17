@@ -10,6 +10,8 @@ const {
 const QUALITY_MIN_WIDTH = parseInt(process.env.MARKETING_IMAGE_MIN_WIDTH || `${MIN_IMAGE_WIDTH}`, 10);
 const QUALITY_MIN_HEIGHT = parseInt(process.env.MARKETING_IMAGE_MIN_HEIGHT || `${MIN_IMAGE_HEIGHT}`, 10);
 const DEFAULT_IMAGE_LIMIT = parseInt(process.env.MARKETING_IMAGE_LIMIT || '12', 10);
+const IMAGE_PROBE_TIMEOUT_MS = parseInt(process.env.MARKETING_IMAGE_PROBE_TIMEOUT_MS || '5000', 10);
+const IMAGE_PROBE_USER_AGENT = process.env.MARKETING_IMAGE_USER_AGENT || 'avystock-image-probe/1.0';
 
 function normalizeUrlKey(url = '') {
   if (!url || typeof url !== 'string') return null;
@@ -40,6 +42,7 @@ function mapEntryToImage(entry, fallbackSource) {
     height: meta.height || null,
     source: entry.source || fallbackSource,
     title: entry.title || entry.snippet || '',
+    preview: entry.thumbnail || entry.image || null,
   };
 }
 
@@ -69,6 +72,73 @@ async function querySerpImages(engine, params, limit, queryLabel) {
   }
 
   return { images, trace };
+}
+
+function buildReferer(url) {
+  try {
+    const target = new URL(url);
+    return `${target.protocol}//${target.host}/`;
+  } catch {
+    return undefined;
+  }
+}
+
+async function probeImageUrl(url, method = 'HEAD') {
+  try {
+    const target = new URL(url);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), IMAGE_PROBE_TIMEOUT_MS);
+    const headers = {
+      'User-Agent': IMAGE_PROBE_USER_AGENT,
+      Accept: 'image/*,*/*;q=0.8',
+    };
+    const referer = buildReferer(url);
+    if (referer) {
+      headers.Referer = referer;
+    }
+    if (method === 'GET') {
+      headers.Range = 'bytes=0-1023';
+    }
+
+    const response = await fetch(target.toString(), {
+      method,
+      redirect: 'follow',
+      signal: controller.signal,
+      headers,
+    });
+    clearTimeout(timer);
+    if (!response.ok) {
+      return false;
+    }
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.startsWith('image/')) {
+      return false;
+    }
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function verifyAccessibleUrl(url) {
+  if (!url) return null;
+  if (await probeImageUrl(url, 'HEAD')) return url;
+  if (await probeImageUrl(url, 'GET')) return url;
+  return null;
+}
+
+async function pickAccessibleUrl(candidate) {
+  const primary = await verifyAccessibleUrl(candidate.url);
+  if (primary) {
+    return primary;
+  }
+  if (candidate.preview) {
+    const fallback = await verifyAccessibleUrl(candidate.preview);
+    if (fallback) {
+      return fallback;
+    }
+  }
+  return null;
 }
 
 async function fetchMarketingImages({ brand, name, limit = DEFAULT_IMAGE_LIMIT, exclude = [] }) {
@@ -102,12 +172,15 @@ async function fetchMarketingImages({ brand, name, limit = DEFAULT_IMAGE_LIMIT, 
       ijn: collected.length > 0 ? 1 : 0,
     };
     const { images, trace: engineTrace } = await querySerpImages('google_images', params, desired - collected.length, query);
-    images.forEach((img) => {
-      const key = normalizeUrlKey(img.url);
-      if (!key || seen.has(key)) return;
+    for (const img of images) {
+      if (collected.length >= desired) break;
+      const accessibleUrl = await pickAccessibleUrl(img);
+      if (!accessibleUrl) continue;
+      const key = normalizeUrlKey(accessibleUrl);
+      if (!key || seen.has(key)) continue;
       seen.add(key);
-      collected.push(img);
-    });
+      collected.push({ ...img, url: accessibleUrl });
+    }
     trace.push(...engineTrace);
   }
 
@@ -119,12 +192,15 @@ async function fetchMarketingImages({ brand, name, limit = DEFAULT_IMAGE_LIMIT, 
       desired - collected.length,
       amazonQuery
     );
-    images.forEach((img) => {
-      const key = normalizeUrlKey(img.url);
-      if (!key || seen.has(key)) return;
+    for (const img of images) {
+      if (collected.length >= desired) break;
+      const accessibleUrl = await pickAccessibleUrl(img);
+      if (!accessibleUrl) continue;
+      const key = normalizeUrlKey(accessibleUrl);
+      if (!key || seen.has(key)) continue;
       seen.add(key);
-      collected.push(img);
-    });
+      collected.push({ ...img, url: accessibleUrl });
+    }
     trace.push(...engineTrace);
   }
 
