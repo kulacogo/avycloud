@@ -257,16 +257,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
         <header className="p-6 bg-slate-800 rounded-lg shadow-lg">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1 min-w-0">
-              <input
-                id="p-name"
-                value={localProduct.identification.name}
-                onChange={(e) => handleFieldChange('identification.name', e.target.value)}
-                readOnly={!isEditing}
-                className={`text-3xl font-bold bg-transparent w-full outline-none break-words ${
-                  isEditing ? 'border-b border-sky-500' : ''
-                }`}
-                style={{ wordBreak: 'break-word' }}
-              />
+              {isEditing ? (
+                <textarea
+                  id="p-name"
+                  value={localProduct.identification.name}
+                  onChange={(e) => handleFieldChange('identification.name', e.target.value)}
+                  className="w-full text-3xl font-bold bg-transparent outline-none border-b border-sky-500 resize-y min-h-[3.5rem] leading-tight"
+                  rows={2}
+                  style={{ wordBreak: 'break-word' }}
+                />
+              ) : (
+                <h1 className="text-3xl font-bold break-words" style={{ wordBreak: 'break-word' }}>
+                  {localProduct.identification.name}
+                </h1>
+              )}
               <p id="p-brand-cat" className="text-slate-400 mt-1">
                 <input
                   value={localProduct.identification.brand}

@@ -20,3 +20,14 @@ declare module '*.svg' {
   export default src;
 }
 
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_BACKEND_URL?: string;
+    readonly VITE_USE_PRODUCTION_BACKEND?: string;
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
+

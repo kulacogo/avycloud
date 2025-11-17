@@ -31,6 +31,8 @@ const { buildProductLabelsHtml, buildBinLabelHtml } = require('./services/label-
 // --- Configuration ---
 const PORT = process.env.PORT || 8080;
 const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'avycloud'; // Auto-detect from Cloud Run or fallback
+const IMAGE_PROXY_TIMEOUT_MS = parseInt(process.env.IMAGE_PROXY_TIMEOUT_MS || '10000', 10);
+const IMAGE_PROXY_MAX_BYTES = parseInt(process.env.IMAGE_PROXY_MAX_BYTES || `${5 * 1024 * 1024}`, 10); // 5 MB by default
 
 // --- Initialization ---
 const app = express();
@@ -325,6 +327,117 @@ app.get('/api/jobs/:id', async (req, res) => {
         details: error.message,
       },
     });
+  }
+});
+
+app.get('/api/image-proxy', async (req, res) => {
+  const sourceUrl = req.query?.url;
+  if (!sourceUrl || typeof sourceUrl !== 'string') {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: 400,
+        message: 'Missing url query parameter.',
+      },
+    });
+  }
+
+  let target;
+  try {
+    target = new URL(sourceUrl);
+  } catch (error) {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: 400,
+        message: 'Invalid image URL.',
+      },
+    });
+  }
+
+  if (!['http:', 'https:'].includes(target.protocol)) {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: 400,
+        message: 'Only http/https protocols are supported.',
+      },
+    });
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), IMAGE_PROXY_TIMEOUT_MS);
+
+  try {
+    const upstream = await fetch(target.toString(), {
+      method: 'GET',
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'avystock-image-proxy/1.0',
+        'Accept': 'image/*,*/*;q=0.8',
+        'Referer': '',
+      },
+    });
+
+    const contentLengthHeader = upstream.headers.get('content-length');
+    if (!upstream.ok) {
+      return res.status(502).json({
+        ok: false,
+        error: {
+          code: upstream.status,
+          message: `Upstream image request failed (${upstream.status}).`,
+        },
+      });
+    }
+
+    if (contentLengthHeader && Number(contentLengthHeader) > IMAGE_PROXY_MAX_BYTES) {
+      return res.status(413).json({
+        ok: false,
+        error: {
+          code: 413,
+          message: 'Remote image exceeds proxy size limit.',
+        },
+      });
+    }
+
+    const arrayBuffer = await upstream.arrayBuffer();
+    const body = Buffer.from(arrayBuffer);
+    if (body.length > IMAGE_PROXY_MAX_BYTES) {
+      return res.status(413).json({
+        ok: false,
+        error: {
+          code: 413,
+          message: 'Remote image exceeds proxy size limit.',
+        },
+      });
+    }
+
+    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400, immutable');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    return res.status(200).send(body);
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      return res.status(504).json({
+        ok: false,
+        error: {
+          code: 504,
+          message: 'Image proxy request timed out.',
+        },
+      });
+    }
+    console.error('Image proxy failed:', error);
+    return res.status(502).json({
+      ok: false,
+      error: {
+        code: 502,
+        message: 'Failed to fetch upstream image.',
+      },
+    });
+  } finally {
+    clearTimeout(timeout);
   }
 });
 

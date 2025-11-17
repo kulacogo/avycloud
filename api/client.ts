@@ -41,6 +41,21 @@ const BACKEND_URL = (() => {
 const JOB_POLL_INTERVAL_MS = 2000;
 const JOB_TIMEOUT_MS = 10 * 60 * 1000;
 
+export const buildImageProxyUrl = (sourceUrl?: string | null) => {
+  if (!sourceUrl) return '';
+  if (!/^https?:\/\//i.test(sourceUrl)) {
+    return sourceUrl;
+  }
+  try {
+    const proxy = new URL(`${BACKEND_URL}/api/image-proxy`);
+    proxy.searchParams.set('url', sourceUrl);
+    return proxy.toString();
+  } catch (error) {
+    console.warn('Failed to build image proxy url', error);
+    return sourceUrl;
+  }
+};
+
 interface IdentifyApiOptions {
   model?: string;
   signal?: AbortSignal;

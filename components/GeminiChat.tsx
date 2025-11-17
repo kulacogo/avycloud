@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Product, DatasheetChange, ProductImage, SerpInsight } from '../types';
-import { chatWithAssistant } from '../api/client';
+import { chatWithAssistant, buildImageProxyUrl } from '../api/client';
 import { SendIcon, SparklesIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 
@@ -64,6 +64,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       }
       return <span key={idx}>{part}</span>;
     });
+  };
+
+  const resolveImageSrc = (value: string) => {
+    if (!value) return '';
+    return buildImageProxyUrl(value);
   };
 
   useEffect(() => {
@@ -193,9 +198,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                 {pendingImages.map(item => (
                   <div key={item.id} className="bg-slate-700 rounded-lg p-2 text-xs text-slate-200">
                     <img
-                      src={item.image.url_or_base64}
+                      src={resolveImageSrc(item.image.url_or_base64)}
                       alt="Vorschlag"
                       className="w-full h-24 object-cover rounded mb-2"
+                      referrerPolicy="no-referrer"
+                      loading="lazy"
+                      decoding="async"
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/200x200?text=Bild';
                       }}
