@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Product, SyncStatus } from '../types';
 import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon } from './icons/Icons';
+import { normalizeSyncStatus } from '../utils/product';
 
 interface AdminTableProps {
   products: Product[];
@@ -43,11 +44,12 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
 
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = products.filter(p => {
+      const normalizedStatus = normalizeSyncStatus(p.ops.sync_status, p.ops.last_synced_iso);
       const matchesSearch =
         p.identification.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.identification.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.id.includes(searchTerm);
-      const matchesStatus = filterStatus === 'all' || p.ops.sync_status === filterStatus;
+      const matchesStatus = filterStatus === 'all' || normalizedStatus === filterStatus;
       const matchesCategory = filterCategory === 'all' || p.identification.category === filterCategory;
       return matchesSearch && matchesStatus && matchesCategory;
     });
@@ -300,7 +302,9 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                 <td className="p-3 text-slate-300">{p.identification.category}</td>
                 <td className="p-3 text-slate-400 font-mono text-sm">{p.details.identifiers.ean || p.details.identifiers.sku || p.id}</td>
                 <td className="p-3 text-slate-300">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: p.details.pricing.lowest_price.currency }).format(p.details.pricing.lowest_price.amount)}</td>
-                <td className="p-3"><SyncStatusBadge status={p.ops.sync_status} /></td>
+                <td className="p-3">
+                  <SyncStatusBadge status={normalizeSyncStatus(p.ops.sync_status, p.ops.last_synced_iso)} />
+                </td>
                 <td className="p-3">
                   <SaveStatusBadge saved={Boolean(p.ops?.last_saved_iso)} />
                 </td>

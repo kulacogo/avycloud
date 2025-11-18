@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Product, WarehouseLayout } from '../types';
 import { fetchWarehouseZones } from '../api/client';
 import { WarehouseIcon, TableIcon, SyncIcon } from './icons/Icons';
+import { getProductQuantity, normalizeSyncStatus } from '../utils/product';
 
 interface DashboardProps {
   products: Product[];
@@ -82,13 +83,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
 
     const topProductList = products
       .map((product) => {
-        const quantity =
-          product.inventory?.quantity ??
-          product.storage?.quantity ??
-          0;
+        const quantity = getProductQuantity(product);
         const price = product.details?.pricing?.lowest_price;
         const itemValue = quantity * (price?.amount ?? 0);
-        const currency = price?.currency || 'EUR';
+        const currency = (price?.currency || 'EUR').toUpperCase();
 
         qty += quantity;
         const prev = valueMap.get(currency) ?? 0;
@@ -97,10 +95,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
         const category = product.identification?.category || 'Unbekannt';
         categoryMap.set(category, (categoryMap.get(category) ?? 0) + 1);
 
-        const syncStatus = product.ops?.sync_status ?? 'pending';
-        const statusKey =
-          syncStatus === 'synced' || syncStatus === 'failed' ? syncStatus : 'pending';
-        syncBuckets[statusKey] += 1;
+        const syncStatus = normalizeSyncStatus(
+          product.ops?.sync_status ?? 'pending',
+          product.ops?.last_synced_iso
+        );
+        syncBuckets[syncStatus] += 1;
 
         return {
           id: product.id,
@@ -115,7 +114,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
 
     const mostCommonCurrency =
       [...valueMap.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'EUR';
-    const combinedValue = valueMap.get(mostCommonCurrency) ?? 0;
+    const combinedValue = [...valueMap.values()].reduce((sum, value) => sum + value, 0);
 
     const topCategoryList = [...categoryMap.entries()]
       .sort((a, b) => b[1] - a[1])
