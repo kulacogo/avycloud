@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Product, ProductBundle } from './types';
+import { Product, ProductBundle, WarehouseBin } from './types';
 import { useGemini } from './hooks/useGemini';
 import ProductInput from './components/ProductInput';
 import ProductSheet from './components/ProductSheet';
@@ -10,13 +10,14 @@ import { Header } from './components/Header';
 import { Spinner } from './components/Spinner';
 import { ProcessStatusBar } from './components/ProcessStatusBar';
 import Dashboard from './components/Dashboard';
+import OperationsView from './components/OperationsView';
 
 const BACKEND_URL = 'https://product-hub-backend-79205549235.europe-west3.run.app';
 
-type View = 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse';
+type View = 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const THEME_STORAGE_KEY = 'avystock:theme';
-const ALLOWED_VIEWS: View[] = ['dashboard', 'input', 'sheet', 'inventory', 'warehouse'];
+const ALLOWED_VIEWS: View[] = ['dashboard', 'input', 'sheet', 'inventory', 'warehouse', 'operations'];
 type Theme = 'light' | 'dark';
 
 const sanitizeIdentifier = (value?: string | null) => {
@@ -139,8 +140,8 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const { identifyProducts, isLoading, error, cancelRequest, status } = useGemini();
-  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
+  const [warehouseRefresh, setWarehouseRefresh] = useState<WarehouseBin | null>(null);
   
   // Load products from Firestore on mount
   useEffect(() => {
@@ -157,7 +158,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Failed to load products:', error);
     } finally {
-      setIsLoadingProducts(false);
+      // noop
     }
   };
 
@@ -187,6 +188,10 @@ const App: React.FC = () => {
     if (currentProduct?.id === updatedProduct.id) {
       setCurrentProduct(updatedProduct);
     }
+  };
+
+  const handleBinStockChanged = (bin: WarehouseBin) => {
+    setWarehouseRefresh(bin);
   };
   
   const handleSelectProduct = (productId: string) => {
@@ -257,7 +262,21 @@ const App: React.FC = () => {
       case 'inventory':
         return <AdminTable products={products} onSelectProduct={handleSelectProduct} onUpdateProducts={setProducts} />;
       case 'warehouse':
-        return <WarehouseView products={products} onProductUpdate={handleUpdateProduct} />;
+        return (
+          <WarehouseView
+            onProductUpdate={handleUpdateProduct}
+            refreshBin={warehouseRefresh}
+            onRefreshBinConsumed={() => setWarehouseRefresh(null)}
+          />
+        );
+      case 'operations':
+        return (
+          <OperationsView
+            products={products}
+            onProductUpdate={handleUpdateProduct}
+            onStockChanged={handleBinStockChanged}
+          />
+        );
       case 'dashboard':
         return <Dashboard products={products} onSelectProduct={handleSelectProduct} />;
       case 'input':

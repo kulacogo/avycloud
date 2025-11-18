@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchWarehouseZones,
   createWarehouseLayoutApi,
@@ -7,19 +7,18 @@ import {
   removeProductFromBinApi,
   openBinLabelWindow,
 } from '../api/client';
-import { Product, WarehouseBin, WarehouseLayout } from '../types';
+import { WarehouseBin, WarehouseLayout } from '../types';
 import { PrintIcon } from './icons/Icons';
-import { StockWorkflows } from './StockWorkflows';
 
 const ZONE_OPTIONS: Array<'X' | 'XS' | 'S' | 'M' | 'L' | 'XL'> = ['X', 'XS', 'S', 'M', 'L', 'XL'];
 const ETAGE_OPTIONS: Array<'GA' | 'UG' | 'EG'> = ['GA', 'UG', 'EG'];
 
 interface WarehouseViewProps {
-  products: Product[];
-  onProductUpdate: (product: Product) => void;
+  refreshBin?: WarehouseBin | null;
+  onRefreshBinConsumed?: () => void;
 }
 
-const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate }) => {
+const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinConsumed }) => {
   const [zones, setZones] = useState<WarehouseLayout[]>([]);
   const [selectedZone, setSelectedZone] = useState<WarehouseLayout | null>(null);
   const [bins, setBins] = useState<WarehouseBin[]>([]);
@@ -37,11 +36,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
     ebenen: 'A-E',
   });
 
-  useEffect(() => {
-    loadZones();
-  }, []);
-
-  const loadZones = async () => {
+  const loadZones = useCallback(async () => {
     try {
       const data = await fetchWarehouseZones();
       setZones(data);
@@ -51,15 +46,13 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
     } catch (error: any) {
       setStatusMessage(error?.message || 'Fehler beim Laden der Lagerzonen.');
     }
-  };
-
-  useEffect(() => {
-    if (selectedZone) {
-      loadBins(selectedZone.zone, selectedZone.etage);
-    }
   }, [selectedZone]);
 
-  const loadBins = async (zone: string, etage: string, preserveBinCode?: string) => {
+  useEffect(() => {
+    loadZones();
+  }, [loadZones]);
+
+  const loadBins = useCallback(async (zone: string, etage: string, preserveBinCode?: string) => {
     setIsLoadingBins(true);
     try {
       const data = await fetchWarehouseBins(zone, etage);
@@ -94,7 +87,23 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
     } finally {
       setIsLoadingBins(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (selectedZone) {
+      loadBins(selectedZone.zone, selectedZone.etage);
+    }
+  }, [selectedZone, loadBins]);
+
+  useEffect(() => {
+    if (!refreshBin) return;
+    const zoneMatch = zones.find((zone) => zone.zone === refreshBin.zone && zone.etage === refreshBin.etage);
+    if (zoneMatch) {
+      setSelectedZone(zoneMatch);
+      loadBins(refreshBin.zone, refreshBin.etage, refreshBin.code);
+    }
+    onRefreshBinConsumed?.();
+  }, [refreshBin, zones, loadBins, onRefreshBinConsumed]);
 
   const binsByGang = useMemo(() => {
     const map = new Map<number, WarehouseBin[]>();
@@ -155,12 +164,6 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
     await loadBins(selectedZone!.zone, selectedZone!.etage, selectedBin.code);
   };
 
-  const handleStockChange = async (binCode: string) => {
-    if (selectedZone) {
-      await loadBins(selectedZone.zone, selectedZone.etage, binCode);
-    }
-  };
-
   const selectedGangBins = selectedGang != null ? binsByGang.get(selectedGang) || [] : [];
 
   return (
@@ -169,7 +172,13 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
         <div className="bg-slate-700 text-slate-100 px-4 py-2 rounded-md shadow">{statusMessage}</div>
       )}
 
-      <StockWorkflows products={products} onProductUpdate={onProductUpdate} onStockChanged={handleStockChange} />
+      <div className="bg-slate-800 rounded-lg p-4 shadow border border-slate-700">
+        <h3 className="text-lg font-semibold text-white mb-2">Operative Workflows</h3>
+        <p className="text-sm text-slate-400">
+          Einlagerung (Stow) und Kommissionierung (Pick) findest du jetzt im Bereich <span className="text-white font-semibold">Operationen</span>. Wechsel dort,
+          um Artikel zu buchen.
+        </p>
+      </div>
 
       <div className="bg-slate-800 rounded-lg p-4 shadow">
         <h3 className="text-xl font-semibold text-white mb-3">Neue Lagerstruktur anlegen</h3>

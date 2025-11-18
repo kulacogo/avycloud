@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface HeaderProps {
-  currentView: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse';
+  currentView: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
   setView: (view: HeaderProps['currentView']) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -13,7 +13,30 @@ const LOGOS = {
   dark: '/avystock_brand_logo_darkmode.png',
 } as const;
 
-const NAV_ICONS = [
+const OperationsGlyph = (
+  <svg width="24" height="24" viewBox="0 0 24 24" className="w-6 h-6" aria-hidden="true">
+    <path
+      d="M4 5.5h5M4 11.5h9M4 17.5h13"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={1.8}
+    />
+    <circle cx="17" cy="5.5" r="1.5" fill="currentColor" />
+    <circle cx="13" cy="11.5" r="1.5" fill="currentColor" />
+    <circle cx="9" cy="17.5" r="1.5" fill="currentColor" />
+  </svg>
+);
+
+type NavIconConfig = {
+  view: HeaderProps['currentView'];
+  label: string;
+  light?: string;
+  dark?: string;
+  iconNode?: React.ReactNode;
+};
+
+const NAV_ICONS: NavIconConfig[] = [
   {
     view: 'dashboard' as const,
     label: 'Dashboard',
@@ -38,6 +61,11 @@ const NAV_ICONS = [
     light: '/storage_3134365.png',
     dark: '/storage_darkmode.png',
   },
+  {
+    view: 'operations' as const,
+    label: 'Operationen',
+    iconNode: OperationsGlyph,
+  },
 ] as const;
 
 const TOGGLE_ICONS = {
@@ -50,10 +78,12 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     view,
     label,
     iconSrc,
+    iconNode,
   }: {
     view: HeaderProps['currentView'];
     label: string;
-    iconSrc: string;
+    iconSrc?: string;
+    iconNode?: React.ReactNode;
   }) => (
     <button
       onClick={() => setView(view)}
@@ -66,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
       aria-label={label}
       title={label}
     >
-      <img src={iconSrc} alt="" className="w-6 h-6" draggable={false} />
+      {iconSrc ? <img src={iconSrc} alt="" className="w-6 h-6" draggable={false} /> : <span className="text-current">{iconNode}</span>}
     </button>
   );
 
@@ -91,7 +121,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 key={nav.view}
                 view={nav.view}
                 label={nav.label}
-                iconSrc={theme === 'dark' ? nav.dark : nav.light}
+                iconSrc={nav.dark && nav.light ? (theme === 'dark' ? nav.dark : nav.light) : undefined}
+                iconNode={nav.iconNode}
               />
             ))}
           </nav>

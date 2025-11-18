@@ -8,9 +8,11 @@ function escapeHtml(str = '') {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+// End of Selection
+```
 
 const LABEL_WIDTH_MM = 57;
-const LABEL_HEIGHT_MM = 25;
+const LABEL_HEIGHT_MM = 24;
 
 async function buildProductLabelsHtml(items) {
   if (!items || !items.length) {
