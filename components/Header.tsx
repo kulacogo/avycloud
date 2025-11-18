@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
             <img
               src={logoSrc}
               alt="avystock"
-              className="h-14 sm:h-16 w-auto drop-shadow-lg"
+              className="h-16 sm:h-20 lg:h-24 w-auto drop-shadow-lg"
               draggable={false}
             />
             <span className="sr-only">Avystock Product Intelligence Hub</span>

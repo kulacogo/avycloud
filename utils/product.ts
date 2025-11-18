@@ -11,6 +11,8 @@ export const normalizeSyncStatus = (
 };
 
 export const getProductQuantity = (product: Product): number => {
-  return product.inventory?.quantity ?? product.storage?.quantity ?? 0;
+  const inventoryQty = product.inventory?.quantity ?? 0;
+  const storageQty = product.storage?.quantity ?? 0;
+  return inventoryQty + storageQty;
 };
 
