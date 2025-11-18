@@ -256,21 +256,30 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
   const handleSync = async () => {
     setIsSyncing(true);
     const result = await syncToBaseLinker(localProduct);
-    if (result.ok && result.results && result.results.length > 0) {
-      const syncResult = result.results[0];
-      if (syncResult.status === 'synced') {
-        const updatedProduct = { ...localProduct, ops: { ...localProduct.ops, sync_status: 'synced' as const, last_synced_iso: new Date().toISOString() } };
-        onUpdate(updatedProduct);
-        showNotification('success', 'Sync with BaseLinker successful!');
-      } else {
-        const updatedProduct = { ...localProduct, ops: { ...localProduct.ops, sync_status: 'failed' as const } };
-        onUpdate(updatedProduct);
-        showNotification('error', syncResult.message || 'Sync failed.');
-      }
-    } else {
-      const updatedProduct = { ...localProduct, ops: { ...localProduct.ops, sync_status: 'failed' as const } };
+    const syncResult = result.results?.find((entry) => entry.id === localProduct.id);
+
+    if (syncResult?.status === 'synced') {
+      const updatedProduct = {
+        ...localProduct,
+        ops: {
+          ...localProduct.ops,
+          sync_status: 'synced' as const,
+          last_synced_iso: new Date().toISOString(),
+        },
+      };
       onUpdate(updatedProduct);
-      showNotification('error', result.error?.message || 'Sync failed.');
+      showNotification('success', 'Sync mit BaseLinker erfolgreich.');
+    } else {
+      const updatedProduct = {
+        ...localProduct,
+        ops: {
+          ...localProduct.ops,
+          sync_status: 'failed' as const,
+        },
+      };
+      onUpdate(updatedProduct);
+      const errorMessage = syncResult?.message || result.error?.message || 'Sync fehlgeschlagen.';
+      showNotification('error', errorMessage);
     }
     setIsSyncing(false);
   };

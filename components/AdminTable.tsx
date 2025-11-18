@@ -120,7 +120,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       // Sync all selected products
       const result = await syncToBaseLinker(selectedProducts);
       
-      if (result.ok && result.results) {
+      if (result.results && result.results.length > 0) {
         // Update products based on sync results
         const finalProducts = products.map(p => {
           const syncResult = result.results?.find(r => r.id === p.id);
@@ -138,10 +138,17 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
         
         onUpdateProducts(finalProducts);
         
-        // Show result summary
         const successCount = result.results.filter(r => r.status === 'synced').length;
-        const failCount = result.results.filter(r => r.status === 'failed').length;
-        alert(`Sync complete!\n✓ ${successCount} products synced\n✗ ${failCount} failed`);
+        const failedEntries = result.results.filter(r => r.status === 'failed');
+        const failCount = failedEntries.length;
+        const failureSummary = failedEntries.map(entry => `${entry.id}: ${entry.message || 'fehlgeschlagen'}`).join('\n');
+        const baseSummary = `Sync abgeschlossen.\n✓ ${successCount} Produkte synchronisiert\n✗ ${failCount} fehlgeschlagen`;
+        
+        if (failCount > 0) {
+          alert(`${baseSummary}\n\nDetails:\n${failureSummary}`);
+        } else {
+          alert(baseSummary);
+        }
       } else {
         // Revert to original state on error
         onUpdateProducts(products);

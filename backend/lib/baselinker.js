@@ -113,10 +113,29 @@ async function makeBaseLinkerRequest(method, parameters, maxRetries = 3) {
  * @param {object} product - Local product object
  * @param {string} inventoryId - BaseLinker inventory ID
  */
+function parseQuantity(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return 0;
+}
+
 function mapToBaseLinkerProduct(product, inventoryId) {
   // Extract all attributes as text parameters for BaseLinker
   const textFields = {};
   const attributes = product.details?.attributes || {};
+  const inventoryKey = inventoryId ? String(inventoryId) : '1';
+  const inventoryQuantity =
+    parseQuantity(product.inventory?.quantity) ||
+    parseQuantity(product.storage?.quantity) ||
+    parseQuantity(product.details?.attributes?.stock) ||
+    0;
   
   // Map attributes to BaseLinker text fields (text_field_1 through text_field_xxx)
   let fieldIndex = 1;
@@ -174,9 +193,13 @@ function mapToBaseLinkerProduct(product, inventoryId) {
         },
         
         // Stock levels per warehouse (use numeric warehouse key "1")
-        stock: {
-          '1': parseInt(product.details?.attributes?.stock) || 0
-        },
+        stock: inventoryKey
+          ? {
+              [inventoryKey]: Math.max(0, inventoryQuantity),
+            }
+          : {
+              '1': Math.max(0, inventoryQuantity),
+            },
         
         // Tax rate (German standard VAT)
         tax_rate: 19,
@@ -231,6 +254,11 @@ async function syncProductToBaseLinker(product) {
         message: 'Successfully synced to BaseLinker'
       };
     } else {
+      console.error('BaseLinker sync failed', {
+        productId: product.id,
+        code: result.error?.code,
+        message: result.error?.message,
+      });
       return {
         id: product.id,
         status: 'failed',

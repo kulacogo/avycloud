@@ -554,6 +554,7 @@ app.post('/api/sync-baselinker', async (req, res) => {
     
     // Check if all succeeded
     const allSucceeded = results.every(r => r.status === 'synced');
+        const failedResults = results.filter(r => r.status === 'failed');
     
     try {
       await Promise.all(
@@ -570,11 +571,22 @@ app.post('/api/sync-baselinker', async (req, res) => {
     } catch (statusError) {
       console.error('Error while updating sync status metadata:', statusError);
     }
+    
+        const responsePayload = {
+          ok: allSucceeded,
+          results,
+        };
 
-    res.status(200).json({
-      ok: allSucceeded,
-      results: results
-    });
+        if (failedResults.length) {
+          responsePayload.error = {
+            code: 502,
+            message: failedResults
+              .map((entry) => `${entry.id}: ${entry.message || 'Sync fehlgeschlagen'}`)
+              .join(' | '),
+          };
+        }
+
+        res.status(200).json(responsePayload);
     
   } catch (error) {
     console.error('Error in sync-baselinker endpoint:', error);
