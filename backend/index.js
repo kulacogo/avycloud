@@ -28,7 +28,8 @@ const {
   bookStockIn,
   bookStockOut,
 } = require('./lib/warehouse');
-const { buildProductLabelsHtml, buildBinLabelHtml } = require('./services/label-printer');
+const { buildProductLabelsHtml, buildBinLabelHtml, buildBinLabelsHtml } = require('./services/label-printer');
+const { scanToBuffer } = require('./services/scanner');
 
 // --- Configuration ---
 const PORT = process.env.PORT || 8080;
@@ -943,7 +944,6 @@ app.get('/api/warehouse/bins/:code/label', async (req, res) => {
     }
     const html = await buildBinLabelHtml({
       code,
-      title: `${bin.zone} ${bin.etage} Gang ${bin.gang} Regal ${bin.regal} Ebene ${bin.ebene}`,
     });
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
@@ -953,6 +953,69 @@ app.get('/api/warehouse/bins/:code/label', async (req, res) => {
     res.status(500).json({
       ok: false,
       error: { code: 500, message: 'Fehler beim Erstellen des BIN-Labels', details: error.message },
+    });
+  }
+});
+
+app.get('/api/warehouse/bins/labels', async (req, res) => {
+  try {
+    const { codes: rawCodes, zone, etage, gang, regal } = req.query || {};
+    let codes = [];
+    if (rawCodes) {
+      codes = String(rawCodes)
+        .split(',')
+        .map((code) => code.trim().toUpperCase())
+        .filter(Boolean);
+    } else if (zone && etage) {
+      const zoneCode = String(zone).toUpperCase();
+      const etageCode = String(etage).toUpperCase();
+      const binsForZone = await getBinsForZone(zoneCode, etageCode);
+      const filtered = binsForZone.filter((bin) => {
+        if (gang && Number(gang) !== bin.gang) return false;
+        if (regal && Number(regal) !== bin.regal) return false;
+        return true;
+      });
+      codes = filtered.map((bin) => bin.code);
+    }
+
+    if (!codes.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Keine BIN-Codes gefunden. Bitte Codes oder Zone/Etage angeben.' },
+      });
+    }
+
+    const uniqueCodes = [...new Set(codes)];
+    const html = await buildBinLabelsHtml(uniqueCodes);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(html);
+  } catch (error) {
+    console.error('Failed to generate batch bin labels:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Erstellen der BIN-Labels', details: error.message },
+    });
+  }
+});
+
+app.post('/api/scanner/capture', async (req, res) => {
+  try {
+    const buffer = await scanToBuffer();
+    const mimeType = process.env.SCAN_MIME_TYPE || 'image/png';
+    res.json({
+      ok: true,
+      data: {
+        mimeType,
+        base64: buffer.toString('base64'),
+        capturedAt: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Scanner capture failed:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Scanner konnte nicht gestartet werden.', details: error.message },
     });
   }
 });

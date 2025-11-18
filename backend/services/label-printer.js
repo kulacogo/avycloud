@@ -128,18 +128,31 @@ async function buildProductLabelsHtml(items) {
 </html>`;
 }
 
-async function buildBinLabelHtml({ code, title }) {
-  if (!code) throw new Error('Code is required for label generation');
+async function renderSingleBinLabel(code) {
+  const normalized = escapeHtml(code);
   const qrDataUrl = await QRCode.toDataURL(code, {
     errorCorrectionLevel: 'H',
     margin: 0,
     scale: 8,
   });
+  return `
+    <div class="label">
+      <div class="qr"><img src="${qrDataUrl}" alt="${normalized}" /></div>
+      <div class="text">${normalized}</div>
+    </div>
+  `;
+}
+
+async function buildBinLabelsHtml(codes = []) {
+  if (!codes || !codes.length) {
+    throw new Error('Mindestens ein BIN-Code ist erforderlich.');
+  }
+  const labels = await Promise.all(codes.map((code) => renderSingleBinLabel(code)));
   return `<!DOCTYPE html>
 <html lang="de">
   <head>
     <meta charset="utf-8" />
-    <title>${escapeHtml(code)} Label</title>
+    <title>BIN Labels</title>
     <style>
       @page {
         size: ${LABEL_WIDTH_MM}mm ${LABEL_HEIGHT_MM}mm;
@@ -149,6 +162,7 @@ async function buildBinLabelHtml({ code, title }) {
         margin: 0;
         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
         -webkit-print-color-adjust: exact;
+        background: #ffffff;
       }
       .label {
         width: ${LABEL_WIDTH_MM}mm;
@@ -180,22 +194,27 @@ async function buildBinLabelHtml({ code, title }) {
     </style>
     <script>
       window.addEventListener('load', () => {
-        window.print();
-        window.onafterprint = () => window.close();
+        setTimeout(() => {
+          window.print();
+          window.onafterprint = () => window.close();
+        }, 150);
       });
     </script>
   </head>
   <body>
-    <div class="label">
-      <div class="qr"><img src="${qrDataUrl}" alt="${escapeHtml(code)}" /></div>
-      <div class="text">${escapeHtml(code)}</div>
-    </div>
+    ${labels.join('')}
   </body>
 </html>`;
+}
+
+async function buildBinLabelHtml({ code }) {
+  if (!code) throw new Error('Code is required for label generation');
+  return buildBinLabelsHtml([code]);
 }
 
 module.exports = {
   buildProductLabelsHtml,
   buildBinLabelHtml,
+  buildBinLabelsHtml,
 };
 

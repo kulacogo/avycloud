@@ -6,6 +6,7 @@ import {
   fetchWarehouseBinDetail,
   removeProductFromBinApi,
   openBinLabelWindow,
+  openBinLabelsBatchWindow,
 } from '../api/client';
 import { WarehouseBin, WarehouseLayout } from '../types';
 import { PrintIcon } from './icons/Icons';
@@ -28,6 +29,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
   const [binDetail, setBinDetail] = useState<any>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isLoadingBins, setIsLoadingBins] = useState(false);
+  const [selectedBinCodes, setSelectedBinCodes] = useState<Set<string>>(new Set());
   const [layoutForm, setLayoutForm] = useState({
     zone: 'X',
     etage: 'GA',
@@ -57,6 +59,20 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     try {
       const data = await fetchWarehouseBins(zone, etage);
       setBins(data);
+      setSelectedBinCodes((prev) => {
+        if (!prev.size) return prev;
+        const allowed = new Set(data.map((bin) => bin.code));
+        const next = new Set<string>();
+        prev.forEach((code) => {
+          if (allowed.has(code)) {
+            next.add(code);
+          }
+        });
+        if (next.size === prev.size) {
+          return prev;
+        }
+        return next;
+      });
       if (data.length > 0) {
         setSelectedGang(data[0].gang);
         setSelectedRegal(data[0].regal);
@@ -132,6 +148,61 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     }));
   }, [selectedGang, binsByGang]);
 
+  const selectedCount = selectedBinCodes.size;
+
+  const toggleBinSelection = useCallback((code: string) => {
+    setSelectedBinCodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) {
+        next.delete(code);
+      } else {
+        next.add(code);
+      }
+      return next;
+    });
+  }, []);
+
+  const applySelection = useCallback((codes: string[], mode: 'add' | 'set' = 'add') => {
+    setSelectedBinCodes((prev) => {
+      const next = mode === 'set' ? new Set<string>() : new Set(prev);
+      codes.forEach((code) => next.add(code));
+      return next;
+    });
+  }, []);
+
+  const selectAllInZone = useCallback(() => {
+    applySelection(bins.map((bin) => bin.code), 'set');
+    setStatusMessage(`Alle ${bins.length} Bins ausgewählt.`);
+  }, [bins, applySelection]);
+
+  const selectCurrentGang = useCallback(() => {
+    if (selectedGang == null) return;
+    const gangBins = bins.filter((bin) => bin.gang === selectedGang).map((bin) => bin.code);
+    applySelection(gangBins);
+    setStatusMessage(`Gang ${selectedGang}: ${gangBins.length} Bins markiert.`);
+  }, [bins, selectedGang, applySelection]);
+
+  const selectCurrentRegal = useCallback(() => {
+    if (selectedGang == null || selectedRegal == null) return;
+    const regalBins = bins
+      .filter((bin) => bin.gang === selectedGang && bin.regal === selectedRegal)
+      .map((bin) => bin.code);
+    applySelection(regalBins);
+    setStatusMessage(`Regal ${selectedRegal} in Gang ${selectedGang}: ${regalBins.length} Bins markiert.`);
+  }, [bins, selectedGang, selectedRegal, applySelection]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedBinCodes(new Set());
+  }, []);
+
+  const handlePrintSelectedBins = useCallback(() => {
+    if (!selectedCount) {
+      setStatusMessage('Keine Bins ausgewählt.');
+      return;
+    }
+    openBinLabelsBatchWindow({ codes: Array.from(selectedBinCodes) });
+  }, [selectedBinCodes, selectedCount]);
+
   const handleCreateLayout = async () => {
     setStatusMessage(null);
     const response = await createWarehouseLayoutApi(layoutForm);
@@ -178,6 +249,54 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           Einlagerung (Stow) und Kommissionierung (Pick) findest du jetzt im Bereich <span className="text-white font-semibold">Operationen</span>. Wechsel dort,
           um Artikel zu buchen.
         </p>
+      </div>
+
+      <div className="bg-slate-800 rounded-lg p-4 shadow border border-slate-700 space-y-3">
+        <h3 className="text-lg font-semibold text-white">BIN-Auswahl & Druck</h3>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={selectAllInZone}
+            className="px-3 py-1.5 rounded-lg bg-slate-700 text-sm text-white hover:bg-slate-600"
+          >
+            Zone markieren
+          </button>
+          <button
+            type="button"
+            onClick={selectCurrentGang}
+            disabled={selectedGang == null}
+            className="px-3 py-1.5 rounded-lg text-sm text-white disabled:opacity-40 bg-slate-700 hover:bg-slate-600"
+          >
+            Gang markieren
+          </button>
+          <button
+            type="button"
+            onClick={selectCurrentRegal}
+            disabled={selectedGang == null || selectedRegal == null}
+            className="px-3 py-1.5 rounded-lg text-sm text-white disabled:opacity-40 bg-slate-700 hover:bg-slate-600"
+          >
+            Regal markieren
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="px-3 py-1.5 rounded-lg bg-slate-700 text-sm text-white hover:bg-slate-600"
+          >
+            Auswahl leeren
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-slate-300">Ausgewählte Bins: {selectedCount}</span>
+          <button
+            type="button"
+            onClick={handlePrintSelectedBins}
+            disabled={!selectedCount}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-40"
+          >
+            <PrintIcon className="w-4 h-4" />
+            BIN Labels drucken
+          </button>
+        </div>
       </div>
 
       <div className="bg-slate-800 rounded-lg p-4 shadow">
@@ -327,18 +446,36 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                         Regal {regal}
                       </button>
                       <div className="grid grid-cols-5 gap-2 p-3">
-                        {binList.map((bin) => (
-                          <button
-                            key={bin.code}
-                            onClick={() => handleSelectBin(bin)}
-                            className={`px-2 py-2 rounded text-xs ${
-                              selectedBin?.code === bin.code ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-200'
-                            }`}
-                          >
-                            <div className="font-semibold">{bin.ebene}</div>
-                            <div>{bin.productCount} Stk</div>
-                          </button>
-                        ))}
+                        {binList.map((bin) => {
+                          const isActive = selectedBin?.code === bin.code;
+                          const isMarked = selectedBinCodes.has(bin.code);
+                          return (
+                            <div key={bin.code} className="relative">
+                              <button
+                                onClick={() => handleSelectBin(bin)}
+                                className={`w-full px-2 py-2 rounded text-xs transition ${
+                                  isActive ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-200'
+                                } ${isMarked ? 'ring-2 ring-emerald-400' : ''}`}
+                              >
+                                <div className="font-semibold">{bin.ebene}</div>
+                                <div>{bin.productCount} Stk</div>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  toggleBinSelection(bin.code);
+                                }}
+                                className={`absolute -top-2 -right-2 w-6 h-6 rounded-full text-xs font-bold ${
+                                  isMarked ? 'bg-emerald-500 text-white' : 'bg-slate-600 text-white'
+                                }`}
+                                title={isMarked ? 'Aus Auswahl entfernen' : 'Zur Auswahl hinzufügen'}
+                              >
+                                {isMarked ? '✓' : '+'}
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}

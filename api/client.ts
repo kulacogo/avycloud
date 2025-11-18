@@ -577,6 +577,41 @@ export const openBinLabelWindow = (code: string): { ok: boolean; error?: { code:
   }
 };
 
+export const openBinLabelsBatchWindow = (options: {
+  codes?: string[];
+  zone?: string;
+  etage?: string;
+  gang?: number;
+  regal?: number;
+}): { ok: boolean; error?: { code: number; message: string } } => {
+  try {
+    const params = new URLSearchParams();
+    if (options.codes?.length) {
+      params.set('codes', options.codes.join(','));
+    } else {
+      if (!options.zone || !options.etage) {
+        return { ok: false, error: { code: 400, message: 'Zone und Etage sind erforderlich.' } };
+      }
+      params.set('zone', options.zone);
+      params.set('etage', options.etage);
+      if (typeof options.gang === 'number') {
+        params.set('gang', String(options.gang));
+      }
+      if (typeof options.regal === 'number') {
+        params.set('regal', String(options.regal));
+      }
+    }
+    const url = `${BACKEND_URL}/api/warehouse/bins/labels?${params.toString()}`;
+    const win = window.open(url, '_blank', 'noopener');
+    if (!win) {
+      return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
+    }
+    return { ok: true };
+  } catch (error: any) {
+    return { ok: false, error: { code: 0, message: error?.message || 'Unbekannter Fehler' } };
+  }
+};
+
 export const refreshPrice = async (productId: string): Promise<{ ok: boolean; data?: any; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   
@@ -644,6 +679,23 @@ export const chatWithAssistant = async (
     
   } catch (error) {
     console.error('Failed to chat with Gemini:', error);
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const scanDocument = async (): Promise<{ ok: boolean; data?: { mimeType: string; base64: string; capturedAt: string }; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/scanner/capture`, {
+      method: 'POST',
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Scanner-Aufnahme fehlgeschlagen.' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };
   }

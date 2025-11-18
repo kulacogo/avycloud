@@ -1,7 +1,13 @@
 import React, { useMemo, useRef, useState } from 'react';
 import type { BrowserMultiFormatReader } from '@zxing/browser';
 import { Product, WarehouseBin } from '../types';
-import { fetchWarehouseBinDetail, stockInProduct, stockOutProduct, buildImageProxyUrl } from '../api/client';
+import {
+  fetchWarehouseBinDetail,
+  stockInProduct,
+  stockOutProduct,
+  buildImageProxyUrl,
+  scanDocument,
+} from '../api/client';
 import { ScannerOverlay } from './ScannerOverlay';
 import { WarehouseIcon, SyncIcon, CameraIcon } from './icons/Icons';
 
@@ -51,6 +57,9 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isScanningDoc, setIsScanningDoc] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<{ base64: string; mimeType: string; capturedAt: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fallbackReaderRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -174,6 +183,25 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         fileInputRef.current.value = '';
       }
       setIsFallbackDecoding(false);
+    }
+  };
+
+  const handleTriggerScan = async () => {
+    setIsScanningDoc(true);
+    setScanError(null);
+    try {
+      const result = await scanDocument();
+      if (!result.ok || !result.data) {
+        setScanError(result.error?.message || 'Scanner-Abruf fehlgeschlagen.');
+        setScanResult(null);
+      } else {
+        setScanResult(result.data);
+      }
+    } catch (error: any) {
+      setScanError(error?.message || 'Scanner-Abruf fehlgeschlagen.');
+      setScanResult(null);
+    } finally {
+      setIsScanningDoc(false);
     }
   };
 
@@ -498,6 +526,39 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         className="hidden"
         onChange={handleFallbackFileChange}
       />
+
+      <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg space-y-3">
+        <h3 className="text-lg font-semibold text-white">Stationärer Scanner (SANE)</h3>
+        <p className="text-sm text-slate-400">
+          Verbundene Scanner werden über <code className="font-mono">scanimage</code> aus dem SANE-Projekt angesteuert. Der Server muss Zugriff auf das Gerät haben.
+        </p>
+        <button
+          type="button"
+          onClick={handleTriggerScan}
+          disabled={isScanningDoc}
+          className="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-40"
+        >
+          {isScanningDoc ? 'Scanner läuft …' : 'Dokument scannen'}
+        </button>
+        {scanError && <p className="text-sm text-rose-300">{scanError}</p>}
+        {scanResult && (
+          <div className="space-y-2">
+            <p className="text-xs text-slate-400">Erfasst am {new Date(scanResult.capturedAt).toLocaleString('de-DE')}</p>
+            <img
+              src={`data:${scanResult.mimeType};base64,${scanResult.base64}`}
+              alt="Scanvorschau"
+              className="w-full max-w-md rounded-lg border border-slate-600"
+            />
+            <a
+              href={`data:${scanResult.mimeType};base64,${scanResult.base64}`}
+              download={`scan-${scanResult.capturedAt}.png`}
+              className="inline-flex items-center px-3 py-1.5 text-sm rounded-lg bg-slate-700 text-white"
+            >
+              Download
+            </a>
+          </div>
+        )}
+      </div>
     </section>
   );
 };
