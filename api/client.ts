@@ -514,6 +514,56 @@ export const removeProductFromBinApi = async (
   }
 };
 
+export const stockInProduct = async (payload: {
+  sku?: string;
+  productId?: string;
+  barcode?: string;
+  binCode: string;
+  quantity: number;
+}): Promise<{ ok: boolean; data?: { bin: WarehouseBin; product: Product }; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/warehouse/stock-in`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Stow fehlgeschlagen' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const stockOutProduct = async (payload: {
+  sku?: string;
+  productId?: string;
+  barcode?: string;
+  binCode: string;
+  quantity: number;
+}): Promise<{ ok: boolean; data?: { bin: WarehouseBin; product: Product }; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/warehouse/stock-out`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Kommissionierung fehlgeschlagen' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
 export const openBinLabelWindow = (code: string): { ok: boolean; error?: { code: number; message: string } } => {
   try {
     const url = `${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(code)}/label`;

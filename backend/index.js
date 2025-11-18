@@ -25,6 +25,8 @@ const {
   getBinByCode,
   assignProductToBin,
   removeProductFromBin,
+  bookStockIn,
+  bookStockOut,
 } = require('./lib/warehouse');
 const { buildProductLabelsHtml, buildBinLabelHtml } = require('./services/label-printer');
 
@@ -874,6 +876,60 @@ app.delete('/api/warehouse/bins/:code/products/:productId', async (req, res) => 
     res.status(400).json({
       ok: false,
       error: { code: 400, message: error.message || 'Fehler beim Entfernen des Produkts.' },
+    });
+  }
+});
+
+app.post('/api/warehouse/stock-in', async (req, res) => {
+  try {
+    const { sku, productId, barcode, binCode, quantity } = req.body || {};
+    if (!binCode) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Bin-Code ist erforderlich.' } });
+    }
+    const amount = Number(quantity);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Menge muss größer als 0 sein.' } });
+    }
+    const result = await bookStockIn({
+      sku,
+      productId,
+      barcode,
+      binCode: binCode.toUpperCase(),
+      quantity: amount,
+    });
+    res.json({ ok: true, data: result });
+  } catch (error) {
+    console.error('Stow workflow failed:', error);
+    res.status(400).json({
+      ok: false,
+      error: { code: 400, message: error.message || 'Einlagerung fehlgeschlagen.' },
+    });
+  }
+});
+
+app.post('/api/warehouse/stock-out', async (req, res) => {
+  try {
+    const { sku, productId, barcode, binCode, quantity } = req.body || {};
+    if (!binCode) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Bin-Code ist erforderlich.' } });
+    }
+    const amount = Number(quantity);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Menge muss größer als 0 sein.' } });
+    }
+    const result = await bookStockOut({
+      sku,
+      productId,
+      barcode,
+      binCode: binCode.toUpperCase(),
+      quantity: amount,
+    });
+    res.json({ ok: true, data: result });
+  } catch (error) {
+    console.error('Pick workflow failed:', error);
+    res.status(400).json({
+      ok: false,
+      error: { code: 400, message: error.message || 'Auslagerung fehlgeschlagen.' },
     });
   }
 });

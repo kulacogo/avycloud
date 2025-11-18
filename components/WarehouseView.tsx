@@ -4,12 +4,12 @@ import {
   createWarehouseLayoutApi,
   fetchWarehouseBins,
   fetchWarehouseBinDetail,
-  assignProductToBinApi,
   removeProductFromBinApi,
   openBinLabelWindow,
 } from '../api/client';
 import { Product, WarehouseBin, WarehouseLayout } from '../types';
 import { PrintIcon } from './icons/Icons';
+import { StockWorkflows } from './StockWorkflows';
 
 const ZONE_OPTIONS: Array<'X' | 'XS' | 'S' | 'M' | 'L' | 'XL'> = ['X', 'XS', 'S', 'M', 'L', 'XL'];
 const ETAGE_OPTIONS: Array<'GA' | 'UG' | 'EG'> = ['GA', 'UG', 'EG'];
@@ -36,7 +36,6 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
     regale: '1-4',
     ebenen: 'A-E',
   });
-  const [assignment, setAssignment] = useState({ productId: '', quantity: 1 });
 
   useEffect(() => {
     loadZones();
@@ -60,7 +59,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
     }
   }, [selectedZone]);
 
-  const loadBins = async (zone: string, etage: string) => {
+  const loadBins = async (zone: string, etage: string, preserveBinCode?: string) => {
     setIsLoadingBins(true);
     try {
       const data = await fetchWarehouseBins(zone, etage);
@@ -72,8 +71,24 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
         setSelectedGang(null);
         setSelectedRegal(null);
       }
-      setSelectedBin(null);
-      setBinDetail(null);
+      if (preserveBinCode) {
+        const preserved = data.find((bin) => bin.code === preserveBinCode);
+        if (preserved) {
+          setSelectedBin(preserved);
+          try {
+            const detail = await fetchWarehouseBinDetail(preserved.code);
+            setBinDetail(detail);
+          } catch (error) {
+            console.error('Failed to refresh bin detail:', error);
+          }
+        } else {
+          setSelectedBin(null);
+          setBinDetail(null);
+        }
+      } else {
+        setSelectedBin(null);
+        setBinDetail(null);
+      }
     } catch (error: any) {
       setStatusMessage(error?.message || 'Fehler beim Laden der Bins.');
     } finally {
@@ -129,28 +144,6 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
     }
   };
 
-  const handleAssignProduct = async () => {
-    if (!selectedBin || !assignment.productId) {
-      setStatusMessage('Bitte ein Produkt auswählen.');
-      return;
-    }
-    const result = await assignProductToBinApi(selectedBin.code, assignment.productId, assignment.quantity);
-    if (!result.ok) {
-      setStatusMessage(result.error?.message || 'Einlagerung fehlgeschlagen.');
-      return;
-    }
-    setStatusMessage('Produkt wurde eingelagert.');
-    if (result.data?.bin) {
-      setBins((prev) =>
-        prev.map((b) => (b.code === result.data!.bin.code ? { ...b, productCount: result.data!.bin.productCount } : b))
-      );
-      setBinDetail(result.data.bin);
-    }
-    if (result.data?.product) {
-      onProductUpdate(result.data.product);
-    }
-  };
-
   const handleRemoveProduct = async (productId: string) => {
     if (!selectedBin) return;
     const response = await removeProductFromBinApi(selectedBin.code, productId);
@@ -159,8 +152,13 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
       return;
     }
     setStatusMessage('Produkt entfernt.');
-    loadBins(selectedZone!.zone, selectedZone!.etage);
-    setBinDetail(await fetchWarehouseBinDetail(selectedBin.code));
+    await loadBins(selectedZone!.zone, selectedZone!.etage, selectedBin.code);
+  };
+
+  const handleStockChange = async (binCode: string) => {
+    if (selectedZone) {
+      await loadBins(selectedZone.zone, selectedZone.etage, binCode);
+    }
   };
 
   const selectedGangBins = selectedGang != null ? binsByGang.get(selectedGang) || [] : [];
@@ -170,6 +168,8 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
       {statusMessage && (
         <div className="bg-slate-700 text-slate-100 px-4 py-2 rounded-md shadow">{statusMessage}</div>
       )}
+
+      <StockWorkflows products={products} onProductUpdate={onProductUpdate} onStockChanged={handleStockChange} />
 
       <div className="bg-slate-800 rounded-lg p-4 shadow">
         <h3 className="text-xl font-semibold text-white mb-3">Neue Lagerstruktur anlegen</h3>
@@ -375,36 +375,6 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ products, onProductUpdate
                       )}
                     </div>
 
-                    <div className="border-t border-slate-600 pt-3">
-                      <h5 className="text-white font-semibold mb-2">Produkt einlagern</h5>
-                      <div className="space-y-2">
-                        <select
-                          value={assignment.productId}
-                          onChange={(e) => setAssignment((prev) => ({ ...prev, productId: e.target.value }))}
-                          className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm"
-                        >
-                          <option value="">Produkt wählen...</option>
-                          {products.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.identification.name} ({p.details.identifiers?.sku || p.id})
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="number"
-                          min={1}
-                          value={assignment.quantity}
-                          onChange={(e) => setAssignment((prev) => ({ ...prev, quantity: Number(e.target.value) }))}
-                          className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm"
-                        />
-                        <button
-                          onClick={handleAssignProduct}
-                          className="w-full px-3 py-2 bg-sky-600 text-white rounded hover:bg-sky-500"
-                        >
-                          Einlagern
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 ) : (
                   <div className="text-slate-400">Bitte einen BIN auswählen.</div>

@@ -20,6 +20,21 @@ declare module '*.svg' {
   export default src;
 }
 
+interface BarcodeDetectorOptions {
+  formats?: string[];
+}
+
+interface BarcodeDetection {
+  rawValue: string;
+  format: string;
+}
+
+declare class BarcodeDetector {
+  constructor(options?: BarcodeDetectorOptions);
+  detect(source: CanvasImageSource | ImageBitmap | ImageData | HTMLVideoElement | HTMLImageElement | HTMLCanvasElement): Promise<BarcodeDetection[]>;
+  static getSupportedFormats(): Promise<string[]>;
+}
+
 declare global {
   interface ImportMetaEnv {
     readonly VITE_BACKEND_URL?: string;

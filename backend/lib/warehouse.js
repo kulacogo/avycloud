@@ -18,6 +18,44 @@ const zonesCollection = firestore.collection('warehouseZones');
 const binsCollection = firestore.collection('warehouseBins');
 const productsCollection = firestore.collection('products');
 
+async function findProductDocument({ productId, sku, barcode }) {
+  if (productId) {
+    const ref = productsCollection.doc(productId);
+    const snap = await ref.get();
+    if (!snap.exists) throw new Error('Produkt nicht gefunden.');
+    return { ref, data: snap.data() };
+  }
+
+  const queries = [];
+  if (sku) {
+    const normalizedSku = sku.trim();
+    queries.push({ field: 'identification.sku', op: '==', value: normalizedSku });
+    queries.push({ field: 'details.identifiers.sku', op: '==', value: normalizedSku });
+  }
+  if (barcode) {
+    const normalizedBarcode = barcode.trim();
+    queries.push({ field: 'details.identifiers.ean', op: '==', value: normalizedBarcode });
+    queries.push({ field: 'details.identifiers.gtin', op: '==', value: normalizedBarcode });
+    queries.push({ field: 'details.identifiers.upc', op: '==', value: normalizedBarcode });
+    queries.push({ field: 'identification.barcodes', op: 'array-contains', value: normalizedBarcode });
+  }
+
+  for (const query of queries) {
+    let snap;
+    if (query.op === 'array-contains') {
+      snap = await productsCollection.where(query.field, 'array-contains', query.value).limit(1).get();
+    } else {
+      snap = await productsCollection.where(query.field, '==', query.value).limit(1).get();
+    }
+    if (!snap.empty) {
+      const doc = snap.docs[0];
+      return { ref: doc.ref, data: doc.data() };
+    }
+  }
+
+  throw new Error('Kein Produkt mit dieser Kennung gefunden.');
+}
+
 const buildBinCode = (zone, etage, gang, regal, ebene) => {
   const gangCode = String(gang).padStart(2, '0');
   const regalCode = String(regal).padStart(2, '0');
@@ -224,6 +262,10 @@ async function removeProductFromBin(binCode, productId, options = {}) {
     if (!options.skipProductUpdate) {
       tx.update(productRef, {
         storage: null,
+        inventory: {
+          ...(product?.inventory || {}),
+          quantity: 0,
+        },
       });
     }
   });
@@ -299,6 +341,215 @@ async function assignProductToBin(binCode, productId, quantity) {
   return getBinByCode(binCode);
 }
 
+function cloneProductsArray(binData) {
+  return Array.isArray(binData.products) ? binData.products.map((entry) => ({ ...entry })) : [];
+}
+
+function calculateBinProductCount(products) {
+  return products.reduce((sum, item) => sum + (item.quantity || 0), 0);
+}
+
+async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
+  if (!binCode) throw new Error('Bin-Code fehlt.');
+  if (!quantity || quantity <= 0) throw new Error('Menge muss größer als 0 sein.');
+
+  const { ref: productRef } = await findProductDocument({ productId, sku, barcode });
+  const binRef = binsCollection.doc(binCode);
+  const now = Timestamp.now();
+  let updatedProduct = null;
+  let updatedBin = null;
+
+  await firestore.runTransaction(async (tx) => {
+    const [productSnap, binSnap] = await Promise.all([tx.get(productRef), tx.get(binRef)]);
+    if (!productSnap.exists) throw new Error('Produkt nicht gefunden.');
+    if (!binSnap.exists) throw new Error('BIN nicht gefunden.');
+
+    const productData = productSnap.data();
+    const binData = binSnap.data();
+    const products = cloneProductsArray(binData);
+    const resolvedProductId = productData.id || productRef.id;
+    const nowIso = now.toDate().toISOString();
+
+    let previousBinRef = null;
+    let previousBinData = null;
+    if (productData.storage?.binCode && productData.storage.binCode !== binCode) {
+      previousBinRef = binsCollection.doc(productData.storage.binCode);
+      previousBinData = await tx.get(previousBinRef);
+    }
+
+    if (previousBinRef && previousBinData?.exists) {
+      const oldData = previousBinData.data();
+      const oldProducts = cloneProductsArray(oldData).filter((entry) => entry.productId !== productData.id);
+      tx.update(previousBinRef, {
+        products: oldProducts,
+        productCount: calculateBinProductCount(oldProducts),
+        lastStoredAt: now,
+      });
+    }
+
+    let entry = products.find((p) => p.productId === resolvedProductId);
+    if (entry && productData.storage?.binCode !== binCode) {
+      entry.quantity = quantity;
+      entry.firstStoredAt = entry.firstStoredAt || nowIso;
+      entry.lastUpdatedAt = nowIso;
+    } else if (entry) {
+      entry.quantity = (entry.quantity || 0) + quantity;
+      entry.lastUpdatedAt = nowIso;
+    } else {
+      entry = {
+        productId: resolvedProductId,
+        name: productData.identification?.name || resolvedProductId,
+        sku: productData.details?.identifiers?.sku || resolvedProductId,
+        quantity,
+        firstStoredAt: nowIso,
+        lastUpdatedAt: nowIso,
+        image: productData.details?.images?.[0]?.url_or_base64 || null,
+      };
+      products.push(entry);
+    }
+
+    const productCount = calculateBinProductCount(products);
+    tx.update(binRef, {
+      products,
+      productCount,
+      firstStoredAt: binData.firstStoredAt || now,
+      lastStoredAt: now,
+    });
+
+    const storageQuantity = entry.quantity;
+    const storagePayload = {
+      binCode,
+      zone: binData.zone,
+      etage: binData.etage,
+      gang: binData.gang,
+      regal: binData.regal,
+      ebene: binData.ebene,
+      quantity: storageQuantity,
+      assigned_at: productData.storage?.assigned_at || nowIso,
+    };
+
+    tx.update(productRef, {
+      storage: storagePayload,
+      inventory: {
+        ...(productData.inventory || {}),
+        quantity: storageQuantity,
+      },
+    });
+
+    updatedProduct = {
+      ...productData,
+      id: resolvedProductId,
+      storage: storagePayload,
+      inventory: {
+        ...(productData.inventory || {}),
+        quantity: storageQuantity,
+      },
+    };
+
+    updatedBin = {
+      code: binCode,
+      ...binData,
+      products,
+      productCount,
+      firstStoredAt: (binData.firstStoredAt || now).toDate ? (binData.firstStoredAt || now).toDate().toISOString() : binData.firstStoredAt,
+      lastStoredAt: nowIso,
+    };
+  });
+
+  return { product: updatedProduct, bin: updatedBin };
+}
+
+async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
+  if (!binCode) throw new Error('Bin-Code fehlt.');
+  if (!quantity || quantity <= 0) throw new Error('Menge muss größer als 0 sein.');
+
+  const { ref: productRef } = await findProductDocument({ productId, sku, barcode });
+  const binRef = binsCollection.doc(binCode);
+  const now = Timestamp.now();
+  let updatedProduct = null;
+  let updatedBin = null;
+
+  await firestore.runTransaction(async (tx) => {
+    const [productSnap, binSnap] = await Promise.all([tx.get(productRef), tx.get(binRef)]);
+    if (!productSnap.exists) throw new Error('Produkt nicht gefunden.');
+    if (!binSnap.exists) throw new Error('BIN nicht gefunden.');
+
+    const productData = productSnap.data();
+    const binData = binSnap.data();
+    const products = cloneProductsArray(binData);
+    const resolvedProductId = productData.id || productRef.id;
+    const entry = products.find((p) => p.productId === resolvedProductId);
+    if (!entry) throw new Error('Produkt befindet sich nicht in diesem BIN.');
+
+    if (entry.quantity < quantity) {
+      throw new Error('Nicht genügend Bestand im BIN.');
+    }
+
+    entry.quantity -= quantity;
+    entry.lastUpdatedAt = now.toDate().toISOString();
+
+    let newProducts = products;
+    let storagePayload = null;
+    if (entry.quantity <= 0) {
+      newProducts = products.filter((p) => p.productId !== productData.id);
+      tx.update(productRef, {
+        storage: null,
+        inventory: { ...(productData.inventory || {}), quantity: 0 },
+      });
+      updatedProduct = {
+        ...productData,
+        id: resolvedProductId,
+        storage: null,
+        inventory: { ...(productData.inventory || {}), quantity: 0 },
+      };
+    } else {
+      storagePayload = {
+        binCode,
+        zone: binData.zone,
+        etage: binData.etage,
+        gang: binData.gang,
+        regal: binData.regal,
+        ebene: binData.ebene,
+        quantity: entry.quantity,
+        assigned_at: productData.storage?.assigned_at || now.toDate().toISOString(),
+      };
+      tx.update(productRef, {
+        storage: storagePayload,
+        inventory: {
+          ...(productData.inventory || {}),
+          quantity: entry.quantity,
+        },
+      });
+      updatedProduct = {
+        ...productData,
+        id: resolvedProductId,
+        storage: storagePayload,
+        inventory: {
+          ...(productData.inventory || {}),
+          quantity: entry.quantity,
+        },
+      };
+    }
+
+    const productCount = calculateBinProductCount(newProducts);
+    tx.update(binRef, {
+      products: newProducts,
+      productCount,
+      lastStoredAt: now,
+    });
+
+    updatedBin = {
+      code: binCode,
+      ...binData,
+      products: newProducts,
+      productCount,
+      lastStoredAt: now.toDate().toISOString(),
+    };
+  });
+
+  return { product: updatedProduct, bin: updatedBin };
+}
+
 module.exports = {
   createWarehouseLayout,
   listWarehouseZones,
@@ -309,5 +560,7 @@ module.exports = {
   buildBinCode,
   parseNumericSelection,
   parseLetterSelection,
+  bookStockIn,
+  bookStockOut,
 };
 

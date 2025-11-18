@@ -60,6 +60,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
     };
   }, []);
 
+  const stockedProducts = useMemo(() => products.filter((p) => (p.storage?.quantity || 0) > 0), [products]);
+
   const {
     totalProducts,
     unsavedCount,
@@ -73,15 +75,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
     topProducts,
     recentProducts,
   } = useMemo(() => {
-    const total = products.length;
-    const unsaved = products.filter((p) => !p.ops?.last_saved_iso).length;
+    const total = stockedProducts.length;
+    const unsaved = stockedProducts.filter((p) => !p.ops?.last_saved_iso).length;
     const savedPct = total === 0 ? 0 : Math.round(((total - unsaved) / total) * 100);
     const syncBuckets = { synced: 0, pending: 0, failed: 0 };
     let qty = 0;
     const valueMap = new Map<string, number>();
     const categoryMap = new Map<string, number>();
 
-    const topProductList = products
+    const topProductList = stockedProducts
       .map((product) => {
         const quantity = getProductQuantity(product);
         const price = product.details?.pricing?.lowest_price;
@@ -125,7 +127,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
         percent: total === 0 ? 0 : Math.round((count / total) * 100),
       }));
 
-    const recentList = [...products]
+    const recentList = [...stockedProducts]
       .filter((p) => p.ops?.last_saved_iso)
       .sort((a, b) => {
         const aDate = a.ops?.last_saved_iso ? new Date(a.ops.last_saved_iso).getTime() : 0;
@@ -153,12 +155,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
       topProducts: topProductList.slice(0, 5),
       recentProducts: recentList,
     };
-  }, [products]);
+  }, [stockedProducts]);
 
   const warehouseStats = useMemo(() => {
     const totalBins = zones.reduce((sum, zone) => sum + (zone.binCount || 0), 0);
     const occupiedBins = new Set(
-      products.map((p) => p.storage?.binCode).filter(Boolean) as string[]
+      stockedProducts.map((p) => p.storage?.binCode).filter(Boolean) as string[]
     ).size;
     const fillPercent =
       totalBins === 0 ? 0 : Math.min(100, Math.round((occupiedBins / totalBins) * 100));
@@ -170,7 +172,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
         .sort((a, b) => (b.totalProducts || 0) - (a.totalProducts || 0))
         .slice(0, 2),
     };
-  }, [zones, products]);
+  }, [zones, stockedProducts]);
 
   const warehouseMeterLabel = warehouseStats.totalBins
     ? `${warehouseStats.occupiedBins} / ${warehouseStats.totalBins} belegte Bins`
@@ -187,7 +189,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <DashboardCard
-          label="Produkte gesamt"
+          label="Produkte im Bestand"
           value={totalProducts.toString()}
           sublabel={`${unsavedCount} ohne Speichernachweis`}
         />
