@@ -1,12 +1,12 @@
 
 import React from 'react';
-import { TableIcon, PlusCircleIcon, WarehouseIcon, SunIcon, MoonIcon } from './icons/Icons';
+import { TableIcon, PlusCircleIcon, WarehouseIcon, SunIcon, MoonIcon, DashboardIcon } from './icons/Icons';
 
 const uiLogo = '/ui_logo.png';
 
 interface HeaderProps {
-  currentView: 'input' | 'sheet' | 'admin' | 'warehouse';
-  setView: (view: 'input' | 'sheet' | 'admin' | 'warehouse') => void;
+  currentView: 'input' | 'sheet' | 'admin' | 'warehouse' | 'dashboard';
+  setView: (view: 'input' | 'sheet' | 'admin' | 'warehouse' | 'dashboard') => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
 }
@@ -17,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     icon,
     label,
   }: {
-    view: 'input' | 'admin' | 'warehouse';
+    view: 'input' | 'admin' | 'warehouse' | 'dashboard';
     icon: React.ReactNode;
     label: string;
   }) => (
@@ -53,6 +53,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
             <nav className="flex items-center gap-3" aria-label="Hauptnavigation">
               <NavButton view="input" icon={<PlusCircleIcon className="w-7 h-7" />} label="New Product" />
               <NavButton view="admin" icon={<TableIcon className="w-7 h-7" />} label="Admin" />
+              <NavButton view="dashboard" icon={<DashboardIcon className="w-7 h-7" />} label="Dashboard" />
               <NavButton view="warehouse" icon={<WarehouseIcon className="w-7 h-7" />} label="Lager" />
             </nav>
             <button

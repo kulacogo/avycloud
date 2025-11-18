@@ -86,3 +86,12 @@ export const MoonIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" />
   </Icon>
 );
+export const DashboardIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3.75 3v18m16.5 0V3m-13.5 0v7.5m4.5-7.5v4.5m4.5-4.5v10.5m-9 0V21m4.5-6v6m4.5-1.5V21"
+    />
+  </Icon>
+);

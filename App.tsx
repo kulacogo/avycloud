@@ -9,13 +9,14 @@ import WarehouseView from './components/WarehouseView';
 import { Header } from './components/Header';
 import { Spinner } from './components/Spinner';
 import { ProcessStatusBar } from './components/ProcessStatusBar';
+import Dashboard from './components/Dashboard';
 
 const BACKEND_URL = 'https://product-hub-backend-79205549235.europe-west3.run.app';
 
-type View = 'input' | 'sheet' | 'admin' | 'warehouse';
+type View = 'input' | 'sheet' | 'admin' | 'warehouse' | 'dashboard';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const THEME_STORAGE_KEY = 'avystock:theme';
-const ALLOWED_VIEWS: View[] = ['input', 'sheet', 'admin', 'warehouse'];
+const ALLOWED_VIEWS: View[] = ['input', 'sheet', 'admin', 'warehouse', 'dashboard'];
 type Theme = 'light' | 'dark';
 
 const sanitizeIdentifier = (value?: string | null) => {
@@ -250,6 +251,8 @@ const App: React.FC = () => {
         return <AdminTable products={products} onSelectProduct={handleSelectProduct} onUpdateProducts={setProducts} />;
       case 'warehouse':
         return <WarehouseView products={products} onProductUpdate={handleUpdateProduct} />;
+      case 'dashboard':
+        return <Dashboard products={products} onSelectProduct={handleSelectProduct} />;
       case 'input':
       default:
         return <ProductInput onIdentify={handleIdentification} />;
