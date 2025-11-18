@@ -82,7 +82,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
 
     const topProductList = products
       .map((product) => {
-        const quantity = product.inventory?.quantity ?? 0;
+        const quantity =
+          product.inventory?.quantity ??
+          product.storage?.quantity ??
+          0;
         const price = product.details?.pricing?.lowest_price;
         const itemValue = quantity * (price?.amount ?? 0);
         const currency = price?.currency || 'EUR';
@@ -95,9 +98,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
         categoryMap.set(category, (categoryMap.get(category) ?? 0) + 1);
 
         const syncStatus = product.ops?.sync_status ?? 'pending';
-        if (syncStatus in syncBuckets) {
-          syncBuckets[syncStatus as keyof typeof syncBuckets] += 1;
-        }
+        const statusKey =
+          syncStatus === 'synced' || syncStatus === 'failed' ? syncStatus : 'pending';
+        syncBuckets[statusKey] += 1;
 
         return {
           id: product.id,

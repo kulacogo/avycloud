@@ -555,6 +555,22 @@ app.post('/api/sync-baselinker', async (req, res) => {
     // Check if all succeeded
     const allSucceeded = results.every(r => r.status === 'synced');
     
+    try {
+      await Promise.all(
+        results.map((result) =>
+          updateProductSyncStatus(
+            result.id,
+            result.status,
+            result.status === 'synced' ? new Date().toISOString() : null
+          ).catch((error) => {
+            console.error(`Failed to update sync status for ${result.id}:`, error);
+          })
+        )
+      );
+    } catch (statusError) {
+      console.error('Error while updating sync status metadata:', statusError);
+    }
+
     res.status(200).json({
       ok: allSucceeded,
       results: results
