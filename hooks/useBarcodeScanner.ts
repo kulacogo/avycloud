@@ -12,7 +12,9 @@ export const useBarcodeScanner = (defaultOptions?: UseBarcodeScannerOptions) => 
   const detectorRef = useRef<BarcodeDetector | null>(null);
   const onDetectedRef = useRef<((value: string) => void) | undefined>(defaultOptions?.onDetected);
 
-  const [isSupported, setIsSupported] = useState<boolean>(() => typeof BarcodeDetector !== 'undefined');
+  const getDetectorSupport = () => typeof window !== 'undefined' && 'BarcodeDetector' in window;
+
+  const [isSupported, setIsSupported] = useState<boolean>(() => getDetectorSupport());
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,13 +68,14 @@ export const useBarcodeScanner = (defaultOptions?: UseBarcodeScannerOptions) => 
       };
       onDetectedRef.current = mergedOptions.onDetected || defaultOptions?.onDetected;
 
-      if (typeof BarcodeDetector === 'undefined') {
+      const DetectorCtor = typeof window !== 'undefined' ? (window as any).BarcodeDetector : undefined;
+      if (!DetectorCtor) {
         setIsSupported(false);
         setError('BarcodeDetector wird von diesem Gerät nicht unterstützt.');
         return false;
       }
       try {
-        detectorRef.current = new BarcodeDetector({ formats: mergedOptions.formats });
+        detectorRef.current = new DetectorCtor({ formats: mergedOptions.formats });
       } catch (err) {
         console.warn('BarcodeDetector init failed:', err);
         setIsSupported(false);

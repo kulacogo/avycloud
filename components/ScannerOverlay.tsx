@@ -6,9 +6,20 @@ interface ScannerOverlayProps {
   title: string;
   onClose: () => void;
   onDetected: (value: string) => void;
+  fallbackHint?: string;
+  fallbackBusy?: boolean;
+  onFallbackCapture?: () => void;
 }
 
-export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ open, title, onClose, onDetected }) => {
+export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
+  open,
+  title,
+  onClose,
+  onDetected,
+  fallbackHint,
+  fallbackBusy = false,
+  onFallbackCapture,
+}) => {
   const { videoRef, isSupported, isScanning, error, startScanning, stopScanning } = useBarcodeScanner();
 
   useEffect(() => {
@@ -39,22 +50,36 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ open, title, onC
             Schließen
           </button>
         </div>
-        <div className="p-5 space-y-3 text-center">
-          {!isSupported && (
-            <p className="text-slate-300 text-sm">
-              Dieses Gerät unterstützt die Barcode-Erkennung im Browser nicht. Bitte Wert manuell eingeben.
-            </p>
-          )}
-          {isSupported && (
+        <div className="p-5 space-y-4 text-center">
+          {isSupported ? (
             <div className="relative bg-black rounded-xl overflow-hidden min-h-[240px]">
               <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
               <div className="absolute inset-0 border-2 border-sky-500/70 rounded-xl pointer-events-none" />
             </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-slate-300 text-sm">
+                Dieses Gerät unterstützt die Barcode-Erkennung per Live-Scanner nicht. Verwende bitte die Kameraaufnahme, um den Code zu erfassen.
+              </p>
+              {onFallbackCapture && (
+                <button
+                  type="button"
+                  onClick={onFallbackCapture}
+                  className="px-4 py-2 rounded-xl bg-sky-600 text-white font-semibold hover:bg-sky-500 disabled:opacity-60"
+                  disabled={fallbackBusy}
+                >
+                  {fallbackBusy ? 'Bild wird ausgewertet …' : 'Foto aufnehmen'}
+                </button>
+              )}
+              {fallbackHint && <p className="text-xs text-slate-400">{fallbackHint}</p>}
+            </div>
           )}
           {error && <p className="text-rose-300 text-sm">{error}</p>}
-          <p className="text-xs text-slate-400">
-            {isScanning ? 'Scanner aktiv … bitte Code zentrieren.' : 'Scanner wird gestartet …'}
-          </p>
+          {isSupported && (
+            <p className="text-xs text-slate-400">
+              {isScanning ? 'Scanner aktiv … bitte Code zentrieren.' : 'Scanner wird gestartet …'}
+            </p>
+          )}
         </div>
       </div>
     </div>

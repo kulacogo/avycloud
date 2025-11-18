@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import type { BrowserMultiFormatReader } from '@zxing/browser';
 import { Product, WarehouseBin } from '../types';
 import { fetchWarehouseBinDetail, stockInProduct, stockOutProduct, buildImageProxyUrl } from '../api/client';
 import { ScannerOverlay } from './ScannerOverlay';
@@ -50,6 +51,10 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fallbackReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const [isFallbackDecoding, setIsFallbackDecoding] = useState(false);
 
   const matchedStowProduct = useMemo(() => {
     if (!stowSku.trim()) return null;
@@ -121,6 +126,55 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         break;
     }
     setScannerTarget(null);
+  };
+
+  const loadFallbackReader = async () => {
+    if (fallbackReaderRef.current) {
+      return fallbackReaderRef.current;
+    }
+    const module = await import('@zxing/browser');
+    fallbackReaderRef.current = new module.BrowserMultiFormatReader();
+    return fallbackReaderRef.current;
+  };
+
+  const handleFallbackCapture = () => {
+    setErrorMessage(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleFallbackFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setIsFallbackDecoding(true);
+    setStatusMessage('Analysiere Foto …');
+    setErrorMessage(null);
+    try {
+      const reader = await loadFallbackReader();
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.src = url;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Bild konnte nicht geladen werden.'));
+      });
+      const result = await reader.decodeFromImageElement(img);
+      const value = (result?.getText?.() ?? (result as any)?.text ?? '').trim();
+      if (value) {
+        handleScannerResult(value);
+        setStatusMessage('Code erkannt und übernommen.');
+      } else {
+        setErrorMessage('Kein gültiger Code erkannt. Bitte erneut versuchen.');
+      }
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Fallback decode failed:', error);
+      setErrorMessage('Der Code konnte nicht gelesen werden. Bitte erneut versuchen.');
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      setIsFallbackDecoding(false);
+    }
   };
 
   const loadBinDetail = async (code: string) => {
@@ -432,6 +486,17 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         title="Code scannen"
         onDetected={handleScannerResult}
         onClose={() => setScannerTarget(null)}
+        onFallbackCapture={handleFallbackCapture}
+        fallbackBusy={isFallbackDecoding}
+        fallbackHint="iOS-Chrome unterstützt keinen Live-Scanner. Nimm ein Foto auf, wir lesen den Code daraus."
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFallbackFileChange}
       />
     </section>
   );

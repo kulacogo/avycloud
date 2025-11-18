@@ -107,12 +107,14 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5 sm:py-2 pr-16">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <img
-              src={logoSrc}
-              alt="avystock"
-              className="h-16 sm:h-20 lg:h-24 w-auto drop-shadow-lg"
-              draggable={false}
-            />
+            <div className="h-12 sm:h-14 lg:h-16 w-auto">
+              <img
+                src={logoSrc}
+                alt="avystock"
+                className="h-full w-auto object-contain drop-shadow-lg"
+                draggable={false}
+              />
+            </div>
             <span className="sr-only">Avystock Product Intelligence Hub</span>
           </div>
           <nav className="flex items-center gap-3" aria-label="Hauptnavigation">

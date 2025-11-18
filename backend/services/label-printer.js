@@ -72,11 +72,11 @@ async function buildProductLabelsHtml(items) {
         height: 100%;
         align-items: center;
         justify-content: flex-start;
-        gap: 3mm;
+        gap: 2.5mm;
       }
       .qr {
-        flex: 0 0 19mm;
-        height: 19mm;
+        flex: 0 0 20mm;
+        height: 20mm;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -91,22 +91,26 @@ async function buildProductLabelsHtml(items) {
         display: flex;
         flex-direction: column;
         justify-content: center;
+        gap: 0.6mm;
         overflow: hidden;
+        height: 100%;
       }
       .sku {
-        font-size: 5.2mm;
+        font-size: 4.6mm;
         font-weight: 700;
         line-height: 1.05;
-        margin-bottom: 1.5mm;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        white-space: normal;
+        word-break: break-all;
       }
       .desc {
-        font-size: 3.2mm;
+        font-size: 2.6mm;
         line-height: 1.1;
-        max-height: 12mm;
+        color: #111;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
         overflow: hidden;
+        word-break: break-word;
       }
     </style>
     <script>
@@ -151,30 +155,27 @@ async function buildBinLabelHtml({ code, title }) {
         height: ${LABEL_HEIGHT_MM}mm;
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-start;
+        gap: 3mm;
         padding: 2mm 3mm;
         box-sizing: border-box;
       }
       .qr {
-        width: 19mm;
-        height: 19mm;
+        width: 20mm;
+        height: 20mm;
       }
       .qr img {
         width: 100%;
         height: 100%;
       }
       .text {
-        font-size: 5.2mm;
-        font-weight: 600;
-        text-align: right;
-        line-height: 1.1;
+        font-size: 6mm;
+        font-weight: 700;
+        text-align: left;
+        line-height: 1.05;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-      }
-      .text .sub {
-        font-size: 3.1mm;
-        font-weight: 500;
       }
     </style>
     <script>
@@ -187,10 +188,7 @@ async function buildBinLabelHtml({ code, title }) {
   <body>
     <div class="label">
       <div class="qr"><img src="${qrDataUrl}" alt="${escapeHtml(code)}" /></div>
-      <div class="text">
-        <div>${escapeHtml(code)}</div>
-        ${title ? `<div class="sub">${escapeHtml(title)}</div>` : ''}
-      </div>
+      <div class="text">${escapeHtml(code)}</div>
     </div>
   </body>
 </html>`;
