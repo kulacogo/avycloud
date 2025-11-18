@@ -13,10 +13,10 @@ import Dashboard from './components/Dashboard';
 
 const BACKEND_URL = 'https://product-hub-backend-79205549235.europe-west3.run.app';
 
-type View = 'input' | 'sheet' | 'admin' | 'warehouse' | 'dashboard';
+type View = 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const THEME_STORAGE_KEY = 'avystock:theme';
-const ALLOWED_VIEWS: View[] = ['input', 'sheet', 'admin', 'warehouse', 'dashboard'];
+const ALLOWED_VIEWS: View[] = ['dashboard', 'input', 'sheet', 'inventory', 'warehouse'];
 type Theme = 'light' | 'dark';
 
 const sanitizeIdentifier = (value?: string | null) => {
@@ -106,13 +106,20 @@ const mergeIdentifiedProducts = (incoming: Product[], existing: Product[]) => {
   return { list: updated, focus };
 };
 
+const VIEW_MIGRATIONS: Partial<Record<string, View>> = {
+  admin: 'inventory',
+};
+
 const readInitialView = (): View => {
-  if (typeof window === 'undefined') return 'input';
-  const stored = window.localStorage.getItem(VIEW_STORAGE_KEY) as View | null;
-  if (stored && ALLOWED_VIEWS.includes(stored)) {
-    return stored;
+  if (typeof window === 'undefined') return 'dashboard';
+  const stored = window.localStorage.getItem(VIEW_STORAGE_KEY) as View | string | null;
+  if (stored) {
+    const migrated = VIEW_MIGRATIONS[stored] || stored;
+    if (ALLOWED_VIEWS.includes(migrated as View)) {
+      return migrated as View;
+    }
   }
-  return 'input';
+  return 'dashboard';
 };
 
 const readInitialTheme = (): Theme => {
@@ -247,7 +254,7 @@ const App: React.FC = () => {
         ) : (
           <div className="text-center p-8 text-slate-400">No product selected. Go to 'New' to identify one or 'Admin' to select an existing one.</div>
         );
-      case 'admin':
+      case 'inventory':
         return <AdminTable products={products} onSelectProduct={handleSelectProduct} onUpdateProducts={setProducts} />;
       case 'warehouse':
         return <WarehouseView products={products} onProductUpdate={handleUpdateProduct} />;

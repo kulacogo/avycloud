@@ -609,34 +609,6 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// Batch product labels (must be defined before /:id routes)
-// Get single product
-app.get('/api/products/:id', async (req, res) => {
-  try {
-    const product = await getProduct(req.params.id);
-    if (!product) {
-      return res.status(404).json({
-        ok: false,
-        error: {
-          code: 404,
-          message: 'Product not found'
-        }
-      });
-    }
-    res.json({ ok: true, product });
-  } catch (error) {
-    console.error('Error getting product:', error);
-    res.status(500).json({
-      ok: false,
-      error: {
-        code: 500,
-        message: 'Failed to load product',
-        details: error.message
-      }
-    });
-  }
-});
-
 // Batch product labels (needs to be defined before /:id routes)
 app.get('/api/products/labels', async (req, res) => {
   try {
@@ -702,6 +674,33 @@ app.get('/api/products/labels', async (req, res) => {
     res.status(500).json({
       ok: false,
       error: { code: 500, message: 'Labeldruck fehlgeschlagen', details: error.message },
+    });
+  }
+});
+
+// Get single product
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const product = await getProduct(req.params.id);
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 404,
+          message: 'Product not found'
+        }
+      });
+    }
+    res.json({ ok: true, product });
+  } catch (error) {
+    console.error('Error getting product:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to load product',
+        details: error.message
+      }
     });
   }
 });

@@ -237,8 +237,8 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
   return (
     <section id="admin-table" className="p-6 bg-slate-800 rounded-lg shadow-lg">
       <header className="mb-6">
-        <h2 className="text-2xl font-bold text-white">Produkte</h2>
-        <p className="text-slate-400">Manage and perform batch operations on your product inventory.</p>
+        <h2 className="text-2xl font-bold text-white">Inventar</h2>
+        <p className="text-slate-400">Behalte den Überblick über alle Bestände und führe Sammelaktionen aus.</p>
       </header>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
