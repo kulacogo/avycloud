@@ -12,6 +12,7 @@
     "@zxing/browser": "^0.1.4",
     "@google/generative-ai": "^0.1.0",
     "framer-motion": "^10.16.4",
+    "html5-qrcode": "^2.3.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

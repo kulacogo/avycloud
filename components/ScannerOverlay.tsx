@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
 
 interface ScannerOverlayProps {
@@ -21,17 +21,88 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
   onFallbackCapture,
 }) => {
   const { videoRef, isSupported, isScanning, error, startScanning, stopScanning } = useBarcodeScanner();
+  const [html5Status, setHtml5Status] = useState<'idle' | 'starting' | 'active' | 'error'>('idle');
+  const [html5Error, setHtml5Error] = useState<string | null>(null);
+  const html5InstanceRef = useRef<any>(null);
+  const [html5Id] = useState(() => `html5qr-${Math.random().toString(36).slice(2, 10)}`);
 
   useEffect(() => {
     if (open) {
-      startScanning({ onDetected }).catch(() => {});
+      if (isSupported) {
+        startScanning({ onDetected }).catch(() => {});
+      } else {
+        startHtml5Scanner();
+      }
     } else {
       stopScanning();
+      stopHtml5Scanner();
     }
     return () => {
       stopScanning();
+      stopHtml5Scanner();
     };
-  }, [open, onDetected, startScanning, stopScanning]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, onDetected, isSupported, startScanning, stopScanning]);
+
+  const stopHtml5Scanner = useCallback(async () => {
+    if (!html5InstanceRef.current) return;
+    try {
+      await html5InstanceRef.current.stop();
+      await html5InstanceRef.current.clear();
+    } catch (err) {
+      console.warn('html5-qrcode stop failed', err);
+    } finally {
+      html5InstanceRef.current = null;
+      setHtml5Status('idle');
+    }
+  }, []);
+
+  const startHtml5Scanner = useCallback(async () => {
+    if (typeof window === 'undefined' || isSupported) return;
+    if (html5InstanceRef.current) {
+      setHtml5Status('active');
+      return;
+    }
+    setHtml5Status('starting');
+    setHtml5Error(null);
+    try {
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
+      const instance = new Html5Qrcode(html5Id, {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.AZTEC,
+          Html5QrcodeSupportedFormats.DATA_MATRIX,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.UPC_A,
+        ],
+      });
+      html5InstanceRef.current = instance;
+      await instance.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 240, height: 240 },
+        },
+        (decodedText: string) => {
+          if (decodedText) {
+            onDetected(decodedText);
+            stopHtml5Scanner();
+            onClose();
+          }
+        },
+        () => {
+          // ignore decode errors
+        }
+      );
+      setHtml5Status('active');
+    } catch (err: any) {
+      console.error('html5-qrcode failed', err);
+      setHtml5Status('error');
+      setHtml5Error(err?.message || 'Kamera konnte nicht gestartet werden.');
+    }
+  }, [html5Id, isSupported, onClose, onDetected, stopHtml5Scanner]);
 
   if (!open) {
     return null;
@@ -57,9 +128,24 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
               <div className="absolute inset-0 border-2 border-sky-500/70 rounded-xl pointer-events-none" />
             </div>
           ) : (
-            <div className="space-y-3">
-              <p className="text-slate-300 text-sm">
-                Dieses Gerät unterstützt die Barcode-Erkennung per Live-Scanner nicht. Verwende bitte die Kameraaufnahme, um den Code zu erfassen.
+            <div className="space-y-4">
+              <div className="relative bg-slate-900 rounded-xl overflow-hidden min-h-[260px] flex items-center justify-center">
+                <div id={html5Id} className="w-full h-full" />
+                {html5Status === 'starting' && (
+                  <div className="absolute inset-0 flex items-center justify-center text-slate-300 text-sm bg-slate-900/80">
+                    Kamera wird initialisiert …
+                  </div>
+                )}
+                {html5Status === 'error' && (
+                  <div className="absolute inset-0 flex items-center justify-center text-rose-300 text-sm bg-slate-900/80 px-4 text-center">
+                    {html5Error || 'Scanner nicht verfügbar.'}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-slate-400">
+                {html5Status === 'active'
+                  ? 'Richte den Code auf den Rahmen aus, er wird automatisch übernommen.'
+                  : 'Falls der Live-Scanner nicht startet, kannst du alternativ ein Foto aufnehmen.'}
               </p>
               {onFallbackCapture && (
                 <button
