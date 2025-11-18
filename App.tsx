@@ -262,13 +262,7 @@ const App: React.FC = () => {
       case 'inventory':
         return <AdminTable products={products} onSelectProduct={handleSelectProduct} onUpdateProducts={setProducts} />;
       case 'warehouse':
-        return (
-          <WarehouseView
-            onProductUpdate={handleUpdateProduct}
-            refreshBin={warehouseRefresh}
-            onRefreshBinConsumed={() => setWarehouseRefresh(null)}
-          />
-        );
+        return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
       case 'operations':
         return (
           <OperationsView
