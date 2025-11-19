@@ -356,6 +356,12 @@ async function syncProductToBaseLinker(product) {
     }
 
     const payload = mapToBaseLinkerProduct(product, baseInventoryId, validation.normalized);
+    console.log('BaseLinker payload preview', {
+      productId: product.id,
+      name: payload.products?.[0]?.name,
+      sku: payload.products?.[0]?.sku,
+      price: payload.products?.[0]?.prices?.['1'],
+    });
     
     console.log('Syncing product to BaseLinker:', product.id);
     const result = await makeBaseLinkerRequest('addInventoryProduct', payload);
