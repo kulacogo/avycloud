@@ -256,31 +256,8 @@ function validateProductForBaseLinker(product) {
 }
 
 function mapToBaseLinkerProduct(product, inventoryId, normalized = {}) {
-  // Extract all attributes as text parameters for BaseLinker
-  const textFields = {};
-  const attributes = product.details?.attributes || {};
-  const inventoryKey = inventoryId ? String(inventoryId) : '1';
   const inventoryQuantity =
     normalized.inventoryQuantity ?? resolveInventoryQuantity(product);
-  
-  // Map attributes to BaseLinker text fields (text_field_1 through text_field_xxx)
-  let fieldIndex = 1;
-  for (const [key, value] of Object.entries(attributes)) {
-    if (fieldIndex <= 30) { // BaseLinker typically supports up to 30 custom text fields
-      textFields[`text_field_${fieldIndex}`] = `${key}: ${value}`;
-      fieldIndex++;
-    }
-  }
-  
-  // Map key features to additional text fields
-  if (product.details?.key_features) {
-    product.details.key_features.forEach((feature, index) => {
-      if (fieldIndex <= 30) {
-        textFields[`text_field_${fieldIndex}`] = feature;
-        fieldIndex++;
-      }
-    });
-  }
 
   const resolvedName = normalized.name ?? resolveProductName(product);
   if (!resolvedName) {
@@ -291,75 +268,59 @@ function mapToBaseLinkerProduct(product, inventoryId, normalized = {}) {
     normalized.priceAmount ?? resolvePriceAmount(product) ?? 0;
 
   const resolvedBaseId = resolveBaseLinkerId(product);
+  const identifiers = product.details?.identifiers || {};
+  const ean =
+    identifiers.ean ||
+    identifiers.gtin ||
+    (product.identification?.barcodes &&
+      product.identification.barcodes.length > 0
+      ? product.identification.barcodes[0]
+      : null);
+
+  const attributeEntries = Object.entries(product.details?.attributes || {}).reduce(
+    (acc, [key, value]) => {
+      acc[key] = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      return acc;
+    },
+    {}
+  );
+
+  const attributesPayload = {
+    ...attributeEntries,
+  };
+  if (product.identification?.brand) {
+    attributesPayload.brand = product.identification.brand;
+  }
+  if (product.identification?.category) {
+    attributesPayload.category = product.identification.category;
+  }
+  const keyFeatures = (product.details?.key_features || []).join('; ');
+  if (keyFeatures) {
+    attributesPayload.key_features = keyFeatures;
+  }
+  const unsureNotes = (product.notes?.unsure || []).join('; ');
+  if (unsureNotes) {
+    attributesPayload.notes_unsure = unsureNotes;
+  }
+
+  const imageUrls = (product.details?.images || [])
+    .map((img) => img.url_or_base64)
+    .filter((url) => typeof url === 'string' && url.startsWith('http'));
 
   const payload = {
     inventory_id: inventoryId,
-    products: [
-      {
-        // Product ID - BaseLinker expects numeric product_id
-        product_id: resolvedBaseId,
-        
-        // Basic identifiers
-        ean: product.details?.identifiers?.ean || 
-             product.details?.identifiers?.gtin ||
-             (product.identification?.barcodes && product.identification.barcodes.length > 0 ? product.identification.barcodes[0] : ''),
-        
-        sku: resolvedSku,
-        
-        // Product information
-        name: resolvedName,
-        manufacturer: product.identification?.brand || '',
-        
-        // Descriptions - BaseLinker supports both short and long descriptions
-        description: product.details?.short_description || '',
-        description_extra1: product.details?.key_features ? product.details.key_features.join('\n') : '',
-        
-        // Category and taxonomy
-        category_id: 0, // Would need to map to BaseLinker category structure
-        
-        // Physical attributes
-        weight: parseFloat(product.details?.attributes?.weight) || 0,
-        height: parseFloat(product.details?.attributes?.height) || 0,
-        width: parseFloat(product.details?.attributes?.width) || 0,
-        length: parseFloat(product.details?.attributes?.length) || 0,
-        
-        // Pricing - BaseLinker uses price groups
-        prices: {
-          '1': priceAmount // Default price group
-        },
-        
-        // Stock levels per warehouse (use numeric warehouse key "1")
-        stock: inventoryKey
-          ? {
-              [inventoryKey]: Math.max(0, inventoryQuantity),
-            }
-          : {
-              '1': Math.max(0, inventoryQuantity),
-            },
-        
-        // Tax rate (German standard VAT)
-        tax_rate: 19,
-        
-        // Images - limit to 3 as requested
-        images: (product.details?.images || [])
-          .filter(img => img.url_or_base64 && img.url_or_base64.startsWith('http'))
-          .slice(0, 3) // Maximum 3 images
-          .map(img => img.url_or_base64),
-        
-        // All custom text fields from attributes
-        ...textFields,
-        
-        // Additional BaseLinker fields
-        is_bundle: false,
-        bundle_products: [],
-        
-        // Links to external sources
-        links: product.details?.pricing?.lowest_price?.sources?.map(source => ({
-          url: source.url,
-          name: source.name
-        })) || []
-      }
-    ]
+    product: {
+      product_id: resolvedBaseId,
+      product_sku: resolvedSku,
+      product_ean: ean || undefined,
+      product_name: resolvedName,
+      product_description: product.details?.short_description || resolvedName,
+      product_active: 1,
+      price: priceAmount,
+      stock: Math.max(0, inventoryQuantity),
+      attributes: Object.keys(attributesPayload).length ? attributesPayload : undefined,
+      images: imageUrls.slice(0, 5),
+    },
   };
   
   return payload;
@@ -393,12 +354,13 @@ async function syncProductToBaseLinker(product) {
     }
 
     const payload = mapToBaseLinkerProduct(product, baseInventoryId, validation.normalized);
+    const previewProduct = payload.product;
     console.log('BaseLinker payload preview', {
       productId: product.id,
-      name: payload.products?.[0]?.name,
-      sku: payload.products?.[0]?.sku,
-      baseId: payload.products?.[0]?.product_id,
-      price: payload.products?.[0]?.prices?.['1'],
+      name: previewProduct?.product_name,
+      sku: previewProduct?.product_sku,
+      baseId: previewProduct?.product_id,
+      price: previewProduct?.price,
     });
     
     console.log('Syncing product to BaseLinker:', product.id);
