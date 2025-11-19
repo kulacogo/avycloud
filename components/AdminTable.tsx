@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Product, SyncStatus } from '../types';
 import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon } from './icons/Icons';
-import { normalizeSyncStatus } from '../utils/product';
+import { normalizeSyncStatus, getStableNumericId } from '../utils/product';
 
 interface AdminTableProps {
   products: Product[];
@@ -220,8 +220,8 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
 
   const handleExportCsv = () => {
     const headers = ['ID', 'ProductKey', 'Name', 'Brand', 'Category', 'EAN', 'Price', 'Currency', 'Sync Status'];
-    const rows = filteredAndSortedProducts.map((p, index) => [
-      index + 1,
+    const rows = filteredAndSortedProducts.map((p) => [
+      getStableNumericId(p),
       p.id,
       `"${p.identification.name}"`,
       `"${p.identification.brand}"`,

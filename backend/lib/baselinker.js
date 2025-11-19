@@ -156,6 +156,41 @@ function resolveInventoryQuantity(product) {
   );
 }
 
+function sanitizeNumeric(value) {
+  if (!value) return null;
+  const digits = String(value).replace(/\D+/g, '');
+  if (digits.length >= 6) {
+    return digits;
+  }
+  return null;
+}
+
+function hashStringToDigits(input = '') {
+  const MODULO = 1_000_000_000_000; // 12 digits
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 131 + input.charCodeAt(i)) % MODULO;
+  }
+  return (hash || 1).toString().padStart(12, '0');
+}
+
+function resolveBaseLinkerId(product) {
+  const identifiers = product?.details?.identifiers || {};
+  const preferred = [
+    identifiers.ean,
+    identifiers.gtin,
+    product.id,
+  ];
+
+  for (const candidate of preferred) {
+    const numeric = sanitizeNumeric(candidate);
+    if (numeric) {
+      return numeric;
+    }
+  }
+  return hashStringToDigits(product?.id || product?.identification?.name || 'product');
+}
+
 function resolveSku(product) {
   const candidates = [
     product?.details?.identifiers?.sku,
@@ -255,12 +290,14 @@ function mapToBaseLinkerProduct(product, inventoryId, normalized = {}) {
   const priceAmount =
     normalized.priceAmount ?? resolvePriceAmount(product) ?? 0;
 
+  const resolvedBaseId = resolveBaseLinkerId(product);
+
   const payload = {
     inventory_id: inventoryId,
     products: [
       {
         // Product ID - use EAN/GTIN as ID if available, otherwise use our ID
-        id: product.details?.identifiers?.ean || product.details?.identifiers?.gtin || product.id,
+        id: resolvedBaseId,
         
         // Basic identifiers
         ean: product.details?.identifiers?.ean || 
@@ -360,6 +397,7 @@ async function syncProductToBaseLinker(product) {
       productId: product.id,
       name: payload.products?.[0]?.name,
       sku: payload.products?.[0]?.sku,
+      baseId: payload.products?.[0]?.id,
       price: payload.products?.[0]?.prices?.['1'],
     });
     
