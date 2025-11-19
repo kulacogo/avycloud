@@ -309,7 +309,7 @@ function mapToBaseLinkerProduct(product, inventoryId, payloadOptions = {}, norma
     images[String(idx + 1)] = `url:${url}`;
   });
 
-  const stockKey = payloadOptions.stockKey || `bl_${inventoryId}`;
+  const stockKey = payloadOptions.stockKey || 'bl_109940';
   const priceKey = payloadOptions.priceGroupId || '1';
 
   const payload = {
