@@ -5,6 +5,7 @@ const { updateProductSyncStatus } = require('./firestore');
 let activeRequests = 0;
 const MAX_CONCURRENT_REQUESTS = 5;
 const requestQueue = [];
+const manufacturerCache = new Map();
 
 /**
  * Simple rate limiter
@@ -255,7 +256,7 @@ function validateProductForBaseLinker(product) {
   };
 }
 
-function mapToBaseLinkerProduct(product, inventoryId, normalized = {}) {
+function mapToBaseLinkerProduct(product, inventoryId, payloadOptions = {}, normalized = {}) {
   const inventoryQuantity =
     normalized.inventoryQuantity ?? resolveInventoryQuantity(product);
 
@@ -267,7 +268,6 @@ function mapToBaseLinkerProduct(product, inventoryId, normalized = {}) {
   const priceAmount =
     normalized.priceAmount ?? resolvePriceAmount(product) ?? 0;
 
-  const resolvedBaseId = resolveBaseLinkerId(product);
   const identifiers = product.details?.identifiers || {};
   const ean =
     identifiers.ean ||
@@ -275,7 +275,7 @@ function mapToBaseLinkerProduct(product, inventoryId, normalized = {}) {
     (product.identification?.barcodes &&
       product.identification.barcodes.length > 0
       ? product.identification.barcodes[0]
-      : null);
+      : '');
 
   const attributeEntries = Object.entries(product.details?.attributes || {}).reduce(
     (acc, [key, value]) => {
@@ -285,44 +285,70 @@ function mapToBaseLinkerProduct(product, inventoryId, normalized = {}) {
     {}
   );
 
-  const attributesPayload = {
-    ...attributeEntries,
+  const features = {};
+  (product.details?.key_features || []).forEach((feature, index) => {
+    features[`feature_${index + 1}`] = feature;
+  });
+
+  const textFields = {
+    name: resolvedName,
+    description: product.details?.short_description || resolvedName,
   };
-  if (product.identification?.brand) {
-    attributesPayload.brand = product.identification.brand;
-  }
-  if (product.identification?.category) {
-    attributesPayload.category = product.identification.category;
-  }
-  const keyFeatures = (product.details?.key_features || []).join('; ');
-  if (keyFeatures) {
-    attributesPayload.key_features = keyFeatures;
-  }
-  const unsureNotes = (product.notes?.unsure || []).join('; ');
-  if (unsureNotes) {
-    attributesPayload.notes_unsure = unsureNotes;
+
+  if (Object.keys(features).length) {
+    textFields.features = features;
   }
 
   const imageUrls = (product.details?.images || [])
     .map((img) => img.url_or_base64)
-    .filter((url) => typeof url === 'string' && url.startsWith('http'));
+    .filter((url) => typeof url === 'string' && url.startsWith('http'))
+    .slice(0, 5);
+
+  const images = {};
+  imageUrls.forEach((url, idx) => {
+    images[String(idx + 1)] = `url:${url}`;
+  });
+
+  const stockKey = payloadOptions.stockKey || `bl_${inventoryId}`;
+  const priceKey = payloadOptions.priceGroupId || '1';
 
   const payload = {
     inventory_id: inventoryId,
-    product: {
-      product_id: resolvedBaseId,
-      product_sku: resolvedSku,
-      product_ean: ean || undefined,
-      product_name: resolvedName,
-      product_description: product.details?.short_description || resolvedName,
-      product_active: 1,
-      price: priceAmount,
-      stock: Math.max(0, inventoryQuantity),
-      attributes: Object.keys(attributesPayload).length ? attributesPayload : undefined,
-      images: imageUrls.slice(0, 5),
+    manufacturer_id: payloadOptions.manufacturerId || undefined,
+    is_bundle: false,
+    ean,
+    asin: '',
+    ean_additional: [],
+    sku: resolvedSku,
+    tags: [],
+    tax_rate: 19,
+    weight: parseFloat(product.details?.attributes?.weight) || 0,
+    height: parseFloat(product.details?.attributes?.height) || 0,
+    width: parseFloat(product.details?.attributes?.width) || 0,
+    length: parseFloat(product.details?.attributes?.length) || 0,
+    star: 0,
+    category_id: 0,
+    text_fields: textFields,
+    stock: {
+      [stockKey]: Math.max(0, inventoryQuantity),
     },
+    prices: {
+      [priceKey]: priceAmount,
+    },
+    locations: product.storage?.binCode
+      ? { [stockKey]: product.storage.binCode }
+      : undefined,
+    images: Object.keys(images).length ? images : undefined,
+    links: {},
+    average_cost: 0,
+    average_landed_cost: 0,
+    suppliers: [],
   };
-  
+
+  if (Object.keys(attributeEntries).length) {
+    payload.attributes = attributeEntries;
+  }
+
   return payload;
 }
 
@@ -331,6 +357,47 @@ function mapToBaseLinkerProduct(product, inventoryId, normalized = {}) {
  */
 function isValidEAN(code) {
   return /^[0-9]{8,13}$/.test(code);
+}
+
+/**
+ * Syncs a single product to BaseLinker
+ */
+async function ensureManufacturerId(name, inventoryId) {
+  if (!name) return null;
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const cacheKey = `${inventoryId}:${trimmed.toLowerCase()}`;
+  if (manufacturerCache.has(cacheKey)) {
+    return manufacturerCache.get(cacheKey);
+  }
+
+  const searchResult = await makeBaseLinkerRequest('getInventoryManufacturers', {
+    inventory_id: inventoryId,
+  });
+  if (searchResult.ok && Array.isArray(searchResult.data?.manufacturers)) {
+    const match = searchResult.data.manufacturers.find(
+      (entry) => entry?.name?.trim()?.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (match?.manufacturer_id) {
+      manufacturerCache.set(cacheKey, match.manufacturer_id);
+      return match.manufacturer_id;
+    }
+  }
+
+  const createResult = await makeBaseLinkerRequest('addInventoryManufacturer', {
+    inventory_id: inventoryId,
+    name: trimmed,
+  });
+
+  const createdId =
+    createResult.ok && (createResult.data?.manufacturer_id || createResult.data?.id)
+      ? createResult.data.manufacturer_id || createResult.data.id
+      : null;
+
+  if (createdId) {
+    manufacturerCache.set(cacheKey, createdId);
+  }
+  return createdId;
 }
 
 /**
@@ -353,14 +420,22 @@ async function syncProductToBaseLinker(product) {
       };
     }
 
-    const payload = mapToBaseLinkerProduct(product, baseInventoryId, validation.normalized);
-    const previewProduct = payload.product;
+    const manufacturerId = await ensureManufacturerId(
+      product.identification?.brand,
+      baseInventoryId
+    );
+
+    const payload = mapToBaseLinkerProduct(
+      product,
+      baseInventoryId,
+      { manufacturerId },
+      validation.normalized
+    );
     console.log('BaseLinker payload preview', {
       productId: product.id,
-      name: previewProduct?.product_name,
-      sku: previewProduct?.product_sku,
-      baseId: previewProduct?.product_id,
-      price: previewProduct?.price,
+      name: payload.text_fields?.name,
+      sku: payload.sku,
+      price: payload.prices ? Object.values(payload.prices)[0] : undefined,
     });
     
     console.log('Syncing product to BaseLinker:', product.id);
