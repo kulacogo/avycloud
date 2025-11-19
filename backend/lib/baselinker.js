@@ -147,16 +147,86 @@ function parseQuantity(value) {
   return 0;
 }
 
-function mapToBaseLinkerProduct(product, inventoryId) {
+function resolveInventoryQuantity(product) {
+  return (
+    parseQuantity(product.inventory?.quantity) ||
+    parseQuantity(product.storage?.quantity) ||
+    parseQuantity(product.details?.attributes?.stock) ||
+    0
+  );
+}
+
+function resolveSku(product) {
+  const candidates = [
+    product?.details?.identifiers?.sku,
+    product?.details?.identifiers?.mpn,
+    product?.details?.identifiers?.ean,
+    product?.details?.identifiers?.gtin,
+    product?.id,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') continue;
+    const trimmed = candidate.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  return null;
+}
+
+function resolvePriceAmount(product) {
+  const value = product?.details?.pricing?.lowest_price?.amount;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
+function validateProductForBaseLinker(product) {
+  const errors = [];
+  const name = resolveProductName(product);
+  if (!name) {
+    errors.push('Produktname fehlt');
+  }
+
+  const sku = resolveSku(product);
+  if (!sku) {
+    errors.push('SKU fehlt');
+  }
+
+  const priceAmount = resolvePriceAmount(product);
+  if (priceAmount === null) {
+    errors.push('Preis fehlt');
+  }
+
+  const inventoryQuantity = resolveInventoryQuantity(product);
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    normalized: {
+      name,
+      sku,
+      priceAmount: priceAmount ?? 0,
+      inventoryQuantity: Math.max(0, inventoryQuantity ?? 0),
+    },
+  };
+}
+
+function mapToBaseLinkerProduct(product, inventoryId, normalized = {}) {
   // Extract all attributes as text parameters for BaseLinker
   const textFields = {};
   const attributes = product.details?.attributes || {};
   const inventoryKey = inventoryId ? String(inventoryId) : '1';
   const inventoryQuantity =
-    parseQuantity(product.inventory?.quantity) ||
-    parseQuantity(product.storage?.quantity) ||
-    parseQuantity(product.details?.attributes?.stock) ||
-    0;
+    normalized.inventoryQuantity ?? resolveInventoryQuantity(product);
   
   // Map attributes to BaseLinker text fields (text_field_1 through text_field_xxx)
   let fieldIndex = 1;
@@ -177,10 +247,13 @@ function mapToBaseLinkerProduct(product, inventoryId) {
     });
   }
 
-  const resolvedName = resolveProductName(product);
+  const resolvedName = normalized.name ?? resolveProductName(product);
   if (!resolvedName) {
     throw new Error(`Produkt ${product.id} hat keinen Namen und kann nicht mit BaseLinker synchronisiert werden.`);
   }
+  const resolvedSku = normalized.sku ?? resolveSku(product) ?? product.id;
+  const priceAmount =
+    normalized.priceAmount ?? resolvePriceAmount(product) ?? 0;
 
   const payload = {
     inventory_id: inventoryId,
@@ -194,7 +267,7 @@ function mapToBaseLinkerProduct(product, inventoryId) {
              product.details?.identifiers?.gtin ||
              (product.identification?.barcodes && product.identification.barcodes.length > 0 ? product.identification.barcodes[0] : ''),
         
-        sku: product.details?.identifiers?.sku || product.details?.identifiers?.mpn || product.id,
+        sku: resolvedSku,
         
         // Product information
         name: resolvedName,
@@ -215,7 +288,7 @@ function mapToBaseLinkerProduct(product, inventoryId) {
         
         // Pricing - BaseLinker uses price groups
         prices: {
-          '1': product.details?.pricing?.lowest_price?.amount || 0 // Default price group
+          '1': priceAmount // Default price group
         },
         
         // Stock levels per warehouse (use numeric warehouse key "1")
@@ -268,7 +341,21 @@ function isValidEAN(code) {
 async function syncProductToBaseLinker(product) {
   try {
     const { baseInventoryId } = await getSecrets();
-    const payload = mapToBaseLinkerProduct(product, baseInventoryId);
+    const validation = validateProductForBaseLinker(product);
+    if (!validation.isValid) {
+      const message = validation.errors.join(' | ');
+      console.warn('Skipping BaseLinker sync due to validation errors', {
+        productId: product.id,
+        errors: validation.errors,
+      });
+      return {
+        id: product.id,
+        status: 'failed',
+        message,
+      };
+    }
+
+    const payload = mapToBaseLinkerProduct(product, baseInventoryId, validation.normalized);
     
     console.log('Syncing product to BaseLinker:', product.id);
     const result = await makeBaseLinkerRequest('addInventoryProduct', payload);
