@@ -296,8 +296,8 @@ function mapToBaseLinkerProduct(product, inventoryId, normalized = {}) {
     inventory_id: inventoryId,
     products: [
       {
-        // Product ID - use EAN/GTIN as ID if available, otherwise use our ID
-        id: resolvedBaseId,
+        // Product ID - BaseLinker expects numeric product_id
+        product_id: resolvedBaseId,
         
         // Basic identifiers
         ean: product.details?.identifiers?.ean || 
@@ -397,7 +397,7 @@ async function syncProductToBaseLinker(product) {
       productId: product.id,
       name: payload.products?.[0]?.name,
       sku: payload.products?.[0]?.sku,
-      baseId: payload.products?.[0]?.id,
+      baseId: payload.products?.[0]?.product_id,
       price: payload.products?.[0]?.prices?.['1'],
     });
     
