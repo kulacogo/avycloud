@@ -219,9 +219,13 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
   };
 
   const handleExportCsv = () => {
-    const headers = ['ID', 'Name', 'Brand', 'Category', 'EAN', 'Price', 'Currency', 'Sync Status'];
-    const rows = filteredAndSortedProducts.map(p => [
-      p.id, `"${p.identification.name}"`, `"${p.identification.brand}"`, p.identification.category,
+    const headers = ['ID', 'ProductKey', 'Name', 'Brand', 'Category', 'EAN', 'Price', 'Currency', 'Sync Status'];
+    const rows = filteredAndSortedProducts.map((p, index) => [
+      index + 1,
+      p.id,
+      `"${p.identification.name}"`,
+      `"${p.identification.brand}"`,
+      p.identification.category,
       p.details.identifiers.ean || '', p.details.pricing.lowest_price.amount, p.details.pricing.lowest_price.currency, p.ops.sync_status
     ].join(','));
     const csvContent = `data:text/csv;charset=utf-8,${headers.join(',')}\n${rows.join('\n')}`;
@@ -283,7 +287,19 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
         <table id="grid" className="w-full text-left">
           <thead className="bg-slate-700/50">
             <tr>
-              <th className="p-3 w-12"><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size > 0 && selectedIds.size === filteredAndSortedProducts.length && filteredAndSortedProducts.length > 0} className="bg-slate-600 border-slate-500" /></th>
+              <th className="p-3 w-12">
+                <input
+                  type="checkbox"
+                  name="select-all-products"
+                  onChange={handleSelectAll}
+                  checked={
+                    selectedIds.size > 0 &&
+                    selectedIds.size === filteredAndSortedProducts.length &&
+                    filteredAndSortedProducts.length > 0
+                  }
+                  className="bg-slate-600 border-slate-500"
+                />
+              </th>
               <th className="p-3 w-20">Thumbnail</th>
               <SortableHeader sortKey="identification.name">Name/Brand</SortableHeader>
               <SortableHeader sortKey="identification.category">Kategorie</SortableHeader>
@@ -300,7 +316,15 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
           <tbody>
             {filteredAndSortedProducts.map(p => (
               <tr key={p.id} className="border-b border-slate-700 hover:bg-slate-700/50">
-                <td className="p-3"><input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => handleSelectOne(p.id)} className="bg-slate-600 border-slate-500" /></td>
+                <td className="p-3">
+                  <input
+                    type="checkbox"
+                    name={`select-product-${p.id}`}
+                    checked={selectedIds.has(p.id)}
+                    onChange={() => handleSelectOne(p.id)}
+                    className="bg-slate-600 border-slate-500"
+                  />
+                </td>
                 <td className="p-3"><img src={p.details.images[0]?.url_or_base64} alt={p.identification.name} className="w-12 h-12 object-cover rounded-md" /></td>
                 <td className="p-3">
                   <a href="#" onClick={(e) => { e.preventDefault(); onSelectProduct(p.id); }} className="font-medium text-sky-400 hover:underline">{p.identification.name}</a>
