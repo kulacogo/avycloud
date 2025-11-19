@@ -113,6 +113,27 @@ async function makeBaseLinkerRequest(method, parameters, maxRetries = 3) {
  * @param {object} product - Local product object
  * @param {string} inventoryId - BaseLinker inventory ID
  */
+function resolveProductName(product) {
+  const candidates = [
+    product?.identification?.name,
+    product?.details?.short_description,
+    product?.details?.identifiers?.sku,
+    product?.details?.identifiers?.ean,
+    product?.id,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') {
+      continue;
+    }
+    const trimmed = candidate.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  return null;
+}
+
 function parseQuantity(value) {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -156,6 +177,11 @@ function mapToBaseLinkerProduct(product, inventoryId) {
     });
   }
 
+  const resolvedName = resolveProductName(product);
+  if (!resolvedName) {
+    throw new Error(`Produkt ${product.id} hat keinen Namen und kann nicht mit BaseLinker synchronisiert werden.`);
+  }
+
   const payload = {
     inventory_id: inventoryId,
     products: [
@@ -171,7 +197,7 @@ function mapToBaseLinkerProduct(product, inventoryId) {
         sku: product.details?.identifiers?.sku || product.details?.identifiers?.mpn || product.id,
         
         // Product information
-        name: product.identification?.name || '',
+        name: resolvedName,
         manufacturer: product.identification?.brand || '',
         
         // Descriptions - BaseLinker supports both short and long descriptions
