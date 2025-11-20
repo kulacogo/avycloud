@@ -216,7 +216,7 @@ async function runProductChat(product, userMessage, { modelOverride = null } = {
       model: targetModel,
       input: inputMessages,
       tools: [serpapiToolDefinition, updateDatasheetTool, suggestImagesTool],
-      reasoning: { effort: 'none' },
+      reasoning: { effort: 'low' },
       text: { verbosity: 'medium' },
     });
 
