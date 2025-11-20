@@ -278,6 +278,31 @@ function buildTextFields(product, name) {
 
   if (Object.keys(features).length) {
     textFields.features = features;
+    textFields['features|de|ebay_9800'] = {
+      Produktart: product?.identification?.category || '',
+      Marke: product?.identification?.brand || '',
+      Modell: product?.details?.attributes?.model
+        || product?.identification?.model
+        || product?.details?.identifiers?.mpn
+        || '',
+      Farbe: product?.details?.attributes?.color
+        || product?.details?.attributes?.colour
+        || '',
+      Laufzeit: product?.details?.attributes?.battery_life
+        || product?.details?.attributes?.runtime
+        || '',
+    };
+
+    // remove empty entries from ebay fields
+    Object.keys(textFields['features|de|ebay_9800']).forEach((key) => {
+      if (!textFields['features|de|ebay_9800'][key]) {
+        delete textFields['features|de|ebay_9800'][key];
+      }
+    });
+
+    if (!Object.keys(textFields['features|de|ebay_9800']).length) {
+      delete textFields['features|de|ebay_9800'];
+    }
   }
 
   return textFields;
