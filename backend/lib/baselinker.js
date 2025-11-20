@@ -223,7 +223,7 @@ async function ensureCategoryId(categoryPath, inventoryId) {
     const created = await callBaseLinker('addInventoryCategory', {
       inventory_id: inventoryId,
       name: level,
-      parent_id: parentId || undefined,
+      parent_id: parentId ?? 0,
     });
 
     parentId = Number(created.category_id);
