@@ -235,6 +235,25 @@ function pickQuantity(product) {
   return 0;
 }
 
+function buildEbay9800Fields(product) {
+  const fields = {};
+  const add = (key, value) => {
+    if (!value) return;
+    fields[key] = String(value);
+  };
+
+  add('Produktart', product?.identification?.category);
+  add('Marke', product?.identification?.brand);
+  add('Modell',
+    product?.details?.attributes?.model ||
+    product?.details?.identifiers?.mpn ||
+    product?.identification?.model);
+  add('Farbe', product?.details?.attributes?.color || product?.details?.attributes?.colour);
+  add('Laufzeit', product?.details?.attributes?.battery_life || product?.details?.attributes?.runtime);
+
+  return Object.keys(fields).length ? fields : null;
+}
+
 function buildTextFields(product, name) {
   const features = {};
 
@@ -299,6 +318,7 @@ function buildPayload(product, inventoryId, meta, manufacturerId, price, quantit
   const ean = pickEan(product);
   const textFields = buildTextFields(product, name);
   const images = buildImages(product);
+  const ebayFields = buildEbay9800Fields(product);
   const stockKey = meta.warehouseKey || `inventory_${inventoryId}`;
   const priceKey = meta.priceGroupKey || '1';
   const binCode = product?.storage?.binCode;
@@ -328,6 +348,9 @@ function buildPayload(product, inventoryId, meta, manufacturerId, price, quantit
 
   if (binCode) {
     payload.locations = { [stockKey]: binCode };
+  }
+  if (ebayFields) {
+    payload['text_fields|de|ebay_9800'] = ebayFields;
   }
   if (Object.keys(images).length) {
     payload.images = images;
