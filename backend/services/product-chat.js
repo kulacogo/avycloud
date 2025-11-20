@@ -177,7 +177,7 @@ function sanitizeDatasheetChange(entry) {
 
 async function runProductChat(product, userMessage, { modelOverride = null } = {}) {
   const client = await getOpenAIClient();
-  const targetModel = resolveModel(modelOverride, 'CHAT_MODEL', 'gpt-5.1');
+  const targetModel = resolveModel(modelOverride, 'CHAT_MODEL', 'gpt-5-mini-2025-08-07');
   const inputMessages = [
     {
       role: 'system',

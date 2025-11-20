@@ -124,6 +124,7 @@ module.exports = {
   getProduct,
   getAllProducts,
   deleteProduct,
-  updateProductSyncStatus
+  updateProductSyncStatus,
+  firestore,
 };
 

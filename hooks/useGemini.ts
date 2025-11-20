@@ -27,7 +27,7 @@ export const useGemini = () => {
   }, []);
 
   const identifyProducts = useCallback(async (images: File[], barcodes: string, model?: string): Promise<ProductBundle | null> => {
-    const baseModel = model || 'gpt-5.1';
+    const baseModel = model || 'gpt-5-mini-2025-08-07';
     const applyPhase = (phase: IdentifyPhase, message: string) => {
       setStatus(prev => ({
         phase,

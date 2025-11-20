@@ -12,6 +12,7 @@ const LOGOS = {
   light: '/avystock_brand_logo.png',
   dark: '/avystock_brand_logo_darkmode.png',
 } as const;
+const MOBILE_LOGO = '/app-icon-512.png';
 
 const OperationsGlyph = (
   <svg width="24" height="24" viewBox="0 0 24 24" className="w-6 h-6" aria-hidden="true">
@@ -103,11 +104,19 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   const logoSrc = theme === 'dark' ? LOGOS.dark : LOGOS.light;
 
   return (
-    <header className="safe-area-header bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-white/5 relative">
-      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5 sm:py-2 pr-16">
-        <div className="flex items-center justify-between gap-3">
+    <header className="safe-area-header bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-white/5">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-12 sm:h-14 lg:h-16 w-auto">
+            <div className="h-12 w-12 rounded-2xl overflow-hidden shadow-lg sm:hidden">
+              <img
+                src={MOBILE_LOGO}
+                alt="Avystock"
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
+            </div>
+            <div className="hidden sm:block h-12 sm:h-14 lg:h-16 w-auto">
               <img
                 src={logoSrc}
                 alt="avystock"
@@ -117,33 +126,40 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
             </div>
             <span className="sr-only">Avystock Product Intelligence Hub</span>
           </div>
-          <nav className="flex items-center gap-3" aria-label="Hauptnavigation">
-            {NAV_ICONS.map((nav) => (
-              <NavButton
-                key={nav.view}
-                view={nav.view}
-                label={nav.label}
-                iconSrc={nav.dark && nav.light ? (theme === 'dark' ? nav.dark : nav.light) : undefined}
-                iconNode={nav.iconNode}
+
+          <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
+            <nav
+              className="flex items-center gap-2 overflow-x-auto sm:overflow-visible w-full sm:w-auto pb-1 sm:pb-0"
+              aria-label="Hauptnavigation"
+            >
+              {NAV_ICONS.map((nav) => (
+                <NavButton
+                  key={nav.view}
+                  view={nav.view}
+                  label={nav.label}
+                  iconSrc={nav.dark && nav.light ? (theme === 'dark' ? nav.dark : nav.light) : undefined}
+                  iconNode={nav.iconNode}
+                />
+              ))}
+            </nav>
+
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className="flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
+              aria-label={theme === 'dark' ? 'Wechsel zu hellem Modus' : 'Wechsel zu dunklem Modus'}
+              title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            >
+              <img
+                src={theme === 'dark' ? TOGGLE_ICONS.dark : TOGGLE_ICONS.light}
+                alt=""
+                className="w-6 h-6"
+                draggable={false}
               />
-            ))}
-          </nav>
+            </button>
+          </div>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={onToggleTheme}
-        className="absolute right-4 top-2 sm:top-3 rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
-        aria-label={theme === 'dark' ? 'Wechsel zu hellem Modus' : 'Wechsel zu dunklem Modus'}
-        title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-      >
-        <img
-          src={theme === 'dark' ? TOGGLE_ICONS.dark : TOGGLE_ICONS.light}
-          alt=""
-          className="w-6 h-6"
-          draggable={false}
-        />
-      </button>
     </header>
   );
 };

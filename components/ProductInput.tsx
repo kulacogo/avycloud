@@ -10,13 +10,13 @@ const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(
 const supportsBrowserCamera =
   typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
-type ModelOption = 'gpt-5.1' | 'gpt-5-mini';
+type ModelOption = 'gpt-5-mini-2025-08-07' | 'gpt-5-mini';
 
 const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const [images, setImages] = useState<File[]>([]);
   const [barcodes, setBarcodes] = useState('');
   const [isDragging, setIsDragging] = useState(false);
-  const [model, setModel] = useState<ModelOption>('gpt-5.1');
+  const [model, setModel] = useState<ModelOption>('gpt-5-mini-2025-08-07');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -233,7 +233,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             <span>AI Model</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {(['gpt-5.1', 'gpt-5-mini'] as ModelOption[]).map((option) => (
+            {(['gpt-5-mini-2025-08-07', 'gpt-5-mini'] as ModelOption[]).map((option) => (
               <button
                 key={option}
                 type="button"
@@ -245,7 +245,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                     : 'bg-slate-700/80 border-slate-600 text-slate-200 hover:bg-slate-600'
                 }`}
               >
-                {option === 'gpt-5.1' ? 'GPT-5.1' : 'GPT-5 mini'}
+                {option === 'gpt-5-mini-2025-08-07' ? 'GPT-5 mini (2025-08-07)' : 'GPT-5 mini'}
               </button>
             ))}
           </div>

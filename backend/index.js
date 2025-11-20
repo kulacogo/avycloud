@@ -5,6 +5,7 @@ const multer = require('multer');
 const crypto = require('crypto');
 const { saveProduct, getProduct, getAllProducts, deleteProduct, updateProductSyncStatus } = require('./lib/firestore');
 const { uploadBase64Image, deleteProductImages, uploadJobFile } = require('./lib/storage');
+const { recordManualProductImage } = require('./lib/product-images');
 const { createJob, getJob } = require('./lib/jobs');
 const { ensureProductSku } = require('./lib/sku');
 const {
@@ -1050,6 +1051,16 @@ app.post('/api/save', async (req, res) => {
           try {
             const variant = image.variant || `image_${i}`;
             const publicUrl = await uploadBase64Image(image.url_or_base64, product.id, variant);
+            const manualUpload = !image.source || image.source === 'upload' || image.source === 'uploaded';
+            if (manualUpload) {
+              await recordManualProductImage({
+                productId: product.id,
+                publicUrl,
+                source: image.source || 'upload',
+                variant,
+                notes: image.notes || null,
+              });
+            }
             
             processedImages.push({
               ...image,

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
 import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon } from './icons/Icons';
@@ -9,6 +9,7 @@ interface AdminTableProps {
   products: Product[];
   onSelectProduct: (productId: string) => void;
   onUpdateProducts: (products: Product[]) => void;
+  focusProductId?: string | null;
 }
 
 const SyncStatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
@@ -33,12 +34,13 @@ const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
   );
 };
 
-const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUpdateProducts }) => {
+const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUpdateProducts, focusProductId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<SyncStatus | 'all'>('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'ops.last_saved_iso', direction: 'desc' });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
   const categories = useMemo(() => ['all', ...new Set(products.map(p => p.identification.category))], [products]);
 
@@ -238,8 +240,26 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
     document.body.removeChild(link);
   };
 
-  const SortableHeader: React.FC<{ sortKey: string, children: React.ReactNode }> = ({ sortKey, children }) => (
-    <th className="p-3 cursor-pointer" onClick={() => requestSort(sortKey)}>
+  useEffect(() => {
+    if (!focusProductId) return;
+    const row = rowRefs.current[focusProductId];
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.add('ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-slate-800');
+    const timeout = window.setTimeout(() => {
+      row.classList.remove('ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-slate-800');
+    }, 2000);
+    return () => {
+      window.clearTimeout(timeout);
+      row.classList.remove('ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-slate-800');
+    };
+  }, [focusProductId, filteredAndSortedProducts]);
+
+  const SortableHeader: React.FC<{ sortKey: string; children: React.ReactNode }> = ({ sortKey, children }) => (
+    <th
+      className="p-3 cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap"
+      onClick={() => requestSort(sortKey)}
+    >
       {children}
       {sortConfig?.key === sortKey && (sortConfig.direction === 'asc' ? ' ▲' : ' ▼')}
     </th>
@@ -284,10 +304,10 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       </div>
 
       <div className="overflow-x-auto">
-        <table id="grid" className="w-full text-left">
+        <table id="grid" className="w-full text-left min-w-[1040px]">
           <thead className="bg-slate-700/50">
             <tr>
-              <th className="p-3 w-12">
+              <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-slate-300">
                 <input
                   type="checkbox"
                   name="select-all-products"
@@ -300,22 +320,37 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                   className="bg-slate-600 border-slate-500"
                 />
               </th>
-              <th className="p-3 w-20">Thumbnail</th>
-              <SortableHeader sortKey="identification.name">Name/Brand</SortableHeader>
+              <th className="p-3 w-20 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
+                Thumbnail
+              </th>
+              <SortableHeader sortKey="identification.name">Name / Brand</SortableHeader>
               <SortableHeader sortKey="identification.category">Kategorie</SortableHeader>
-              <th className="p-3">EAN/GTIN/SKU</th>
-              <SortableHeader sortKey="details.pricing.lowest_price.amount">lowest_price.amount</SortableHeader>
+              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
+                EAN / GTIN / SKU
+              </th>
+              <SortableHeader sortKey="details.pricing.lowest_price.amount">Niedrigster Preis</SortableHeader>
               <SortableHeader sortKey="ops.sync_status">Sync-Status</SortableHeader>
-              <th className="p-3">Speicherstatus</th>
-              <SortableHeader sortKey="ops.last_saved_iso">last_saved_iso</SortableHeader>
-              <SortableHeader sortKey="ops.last_synced_iso">last_synced_iso</SortableHeader>
-              <SortableHeader sortKey="ops.revision">revision</SortableHeader>
-              <th className="p-3">Actions</th>
+              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
+                Speicherstatus
+              </th>
+              <SortableHeader sortKey="ops.last_saved_iso">Zuletzt gespeichert</SortableHeader>
+              <SortableHeader sortKey="ops.last_synced_iso">Zuletzt synchronisiert</SortableHeader>
+              <SortableHeader sortKey="ops.revision">Revision</SortableHeader>
+              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
+                Aktionen
+              </th>
             </tr>
           </thead>
           <tbody>
             {filteredAndSortedProducts.map(p => (
-              <tr key={p.id} className="border-b border-slate-700 hover:bg-slate-700/50">
+              <tr
+                key={p.id}
+                ref={(el) => {
+                  rowRefs.current[p.id] = el;
+                }}
+                data-product-row={p.id}
+                className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors"
+              >
                 <td className="p-3">
                   <input
                     type="checkbox"

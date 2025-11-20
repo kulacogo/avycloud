@@ -275,7 +275,10 @@ function pickEan(product) {
   ];
   for (const entry of candidates) {
     if (entry && typeof entry === 'string' && entry.trim().length > 0) {
-      return entry.trim();
+      const sanitized = entry.replace(/\D+/g, '');
+      if (sanitized.length >= 8 && sanitized.length <= 14) {
+        return sanitized;
+      }
     }
   }
   return '';

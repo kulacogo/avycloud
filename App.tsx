@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Product, ProductBundle, WarehouseBin } from './types';
 import { useGemini } from './hooks/useGemini';
 import ProductInput from './components/ProductInput';
@@ -138,10 +138,15 @@ const readInitialTheme = (): Theme => {
 const App: React.FC = () => {
   const [view, setView] = useState<View>(() => readInitialView());
   const [products, setProducts] = useState<Product[]>([]);
+  const productsRef = useRef<Product[]>([]);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const { identifyProducts, isLoading, error, cancelRequest, status } = useGemini();
   const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
   const [warehouseRefresh, setWarehouseRefresh] = useState<WarehouseBin | null>(null);
+  const [inventoryFocusId, setInventoryFocusId] = useState<string | null>(null);
+  const historyReadyRef = useRef(false);
+  const skipNextHistoryPushRef = useRef(false);
+  const lastHistoryStateRef = useRef<{ view: View; productId: string | null } | null>(null);
   
   // Load products from Firestore on mount
   useEffect(() => {
@@ -161,6 +166,10 @@ const App: React.FC = () => {
       // noop
     }
   };
+
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
 
   const handleIdentification = useCallback(async (images: File[], barcodes: string, model?: string) => {
     const result: ProductBundle | null = await identifyProducts(images, barcodes, model);
@@ -198,6 +207,7 @@ const App: React.FC = () => {
     const product = products.find(p => p.id === productId);
     if (product) {
       setCurrentProduct(product);
+      setInventoryFocusId(product.id);
       setView('sheet');
     }
   };
@@ -232,6 +242,57 @@ const App: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const initialState = { view, productId: view === 'sheet' ? currentProduct?.id ?? null : null };
+    window.history.replaceState(initialState, '', window.location.href);
+    lastHistoryStateRef.current = initialState;
+    historyReadyRef.current = true;
+
+    const handlePopState = (event: PopStateEvent) => {
+      const state = (event.state || {}) as { view?: View; productId?: string | null };
+      const nextView = state.view && ALLOWED_VIEWS.includes(state.view) ? (state.view as View) : 'dashboard';
+      const productId = state.productId ?? null;
+      if (productId) {
+        const product = productsRef.current.find((p) => p.id === productId) || null;
+        setCurrentProduct(product);
+        if (product) {
+          setInventoryFocusId(product.id);
+        }
+      } else {
+        setCurrentProduct(null);
+      }
+      skipNextHistoryPushRef.current = true;
+      setView(nextView);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !historyReadyRef.current) return;
+    const state = {
+      view,
+      productId: view === 'sheet' ? currentProduct?.id ?? null : null,
+    };
+    const prevState = lastHistoryStateRef.current;
+    if (prevState && prevState.view === state.view && prevState.productId === state.productId) {
+      return;
+    }
+    if (skipNextHistoryPushRef.current) {
+      skipNextHistoryPushRef.current = false;
+      window.history.replaceState(state, '', window.location.href);
+      lastHistoryStateRef.current = state;
+      return;
+    }
+    window.history.pushState(state, '', window.location.href);
+    lastHistoryStateRef.current = state;
+  }, [view, currentProduct?.id]);
+
   const toggleTheme = useCallback(() => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   }, []);
@@ -260,7 +321,14 @@ const App: React.FC = () => {
           <div className="text-center p-8 text-slate-400">No product selected. Go to 'New' to identify one or 'Admin' to select an existing one.</div>
         );
       case 'inventory':
-        return <AdminTable products={products} onSelectProduct={handleSelectProduct} onUpdateProducts={setProducts} />;
+        return (
+          <AdminTable
+            products={products}
+            onSelectProduct={handleSelectProduct}
+            onUpdateProducts={setProducts}
+            focusProductId={inventoryFocusId}
+          />
+        );
       case 'warehouse':
         return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
       case 'operations':

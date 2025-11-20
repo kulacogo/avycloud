@@ -1,21 +1,16 @@
-const MODEL_MAP = {
-  mini: 'gpt-5-mini',
-  nano: 'gpt-5-nano',
-  'gpt-5-mini': 'gpt-5-mini',
-  'gpt-5-nano': 'gpt-5-nano',
-  // legacy aliases previously used in the UI
-  'gpt-5.1-mini': 'gpt-5-mini',
-  'gpt-5.1-nano': 'gpt-5-nano',
-  'gpt-5.1': 'gpt-5.1',
-  standard: 'gpt-5.1',
+const ALLOWED_MODELS = new Set(['gpt-5-mini-2025-08-07', 'gpt-5-mini']);
+
+const MODEL_ALIASES = {
+  mini: 'gpt-5-mini-2025-08-07',
+  nano: 'gpt-5-mini',
+  standard: 'gpt-5-mini-2025-08-07',
   default: null,
+  'gpt-5-mini': 'gpt-5-mini',
+  'gpt-5-mini-2025-08-07': 'gpt-5-mini-2025-08-07',
+  'gpt-5.1': 'gpt-5-mini-2025-08-07',
+  'gpt-5.1-mini': 'gpt-5-mini-2025-08-07',
+  'gpt-5.1-nano': 'gpt-5-mini',
 };
-
-const SMALL_MODELS_ALLOWED = process.env.ALLOW_GPT5_SMALL === 'true';
-
-function isSmallModel(model) {
-  return model === 'gpt-5-mini' || model === 'gpt-5-nano';
-}
 
 function normalize(input) {
   return typeof input === 'string' ? input.trim().toLowerCase() : '';
@@ -26,38 +21,28 @@ function normalizeModel(input) {
   if (!normalized || normalized === 'default' || normalized === 'auto') {
     return null;
   }
-  if (MODEL_MAP[normalized]) {
-    return MODEL_MAP[normalized];
+  if (MODEL_ALIASES[normalized]) {
+    return MODEL_ALIASES[normalized];
   }
-  if (input && input.startsWith('gpt-5')) {
+  if (input && ALLOWED_MODELS.has(input)) {
     return input;
   }
   return null;
 }
 
-function enforceAvailability(model, fallback) {
-  if (!model) return fallback;
-  if (!SMALL_MODELS_ALLOWED && isSmallModel(model)) {
-    return fallback;
-  }
-  return model;
-}
-
-function resolveModel(preferred, envKey, fallback = 'gpt-5.1') {
-  const absoluteFallback = fallback || 'gpt-5.1';
+function resolveModel(preferred, envKey, fallback = 'gpt-5-mini-2025-08-07') {
+  const absoluteFallback = fallback || 'gpt-5-mini-2025-08-07';
   const envRaw = process.env[envKey];
-  const preferredModel = normalizeModel(preferred);
-  const envModel = normalizeModel(envRaw);
-  const chain = [preferredModel, envModel, normalizeModel(absoluteFallback), 'gpt-5.1'];
+  const chain = [preferred, envRaw, absoluteFallback, 'gpt-5-mini'];
 
   for (const candidate of chain) {
-    const enforced = enforceAvailability(candidate, null);
-    if (enforced) {
-      return enforced;
+    const normalized = normalizeModel(candidate);
+    if (normalized && ALLOWED_MODELS.has(normalized)) {
+      return normalized;
     }
   }
 
-  return 'gpt-5.1';
+  return 'gpt-5-mini-2025-08-07';
 }
 
 module.exports = {
