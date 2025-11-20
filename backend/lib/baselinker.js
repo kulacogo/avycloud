@@ -104,6 +104,7 @@ async function getInventoryMeta(inventoryId) {
  * Manufacturer cache/lookup
  */
 const manufacturerCache = new Map();
+const categoryCache = new Map();
 
 async function listManufacturers(inventoryId) {
   const manufacturers = [];
@@ -153,6 +154,83 @@ async function ensureManufacturerId(name, inventoryId) {
 
   manufacturerCache.set(key, created.manufacturer_id);
   return created.manufacturer_id;
+}
+
+async function listCategories(inventoryId, parentId = 0) {
+  const cacheKey = `list:${inventoryId}:${parentId}`;
+  if (categoryCache.has(cacheKey)) {
+    return categoryCache.get(cacheKey);
+  }
+
+  const categories = [];
+  let page = 1;
+  const PAGE_LIMIT = 200;
+
+  while (page <= PAGE_LIMIT) {
+    const res = await callBaseLinker('getInventoryCategories', {
+      inventory_id: inventoryId,
+      parent_id: parentId || 0,
+      page,
+    });
+
+    if (!Array.isArray(res.categories) || res.categories.length === 0) {
+      break;
+    }
+
+    categories.push(...res.categories);
+
+    if (res.categories.length < 100) break;
+    page += 1;
+  }
+
+  categoryCache.set(cacheKey, categories);
+  return categories;
+}
+
+async function ensureCategoryId(categoryPath, inventoryId) {
+  if (!categoryPath) {
+    return 0;
+  }
+
+  const levels = categoryPath
+    .split('>')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  if (!levels.length) {
+    return 0;
+  }
+
+  let parentId = 0;
+  for (const level of levels) {
+    const cacheKey = `${inventoryId}:${parentId}:${level.toLowerCase()}`;
+    if (categoryCache.has(cacheKey)) {
+      parentId = categoryCache.get(cacheKey);
+      continue;
+    }
+
+    const siblings = await listCategories(inventoryId, parentId);
+    const existing = siblings.find(
+      (cat) => String(cat.name || '').toLowerCase() === level.toLowerCase(),
+    );
+
+    if (existing) {
+      parentId = Number(existing.category_id);
+      categoryCache.set(cacheKey, parentId);
+      continue;
+    }
+
+    const created = await callBaseLinker('addInventoryCategory', {
+      inventory_id: inventoryId,
+      name: level,
+      parent_id: parentId || undefined,
+    });
+
+    parentId = Number(created.category_id);
+    categoryCache.set(cacheKey, parentId);
+  }
+
+  return parentId;
 }
 
 /**
@@ -337,7 +415,7 @@ function validateProduct(product) {
   };
 }
 
-function buildPayload(product, inventoryId, meta, manufacturerId, price, quantity) {
+function buildPayload(product, inventoryId, meta, manufacturerId, categoryId, price, quantity) {
   const name = pickProductName(product);
   const sku = pickSku(product);
   const ean = pickEan(product);
@@ -358,6 +436,7 @@ function buildPayload(product, inventoryId, meta, manufacturerId, price, quantit
     tags: [],
     tax_rate: 19,
     manufacturer_id: manufacturerId || undefined,
+    category_id: categoryId || 0,
     text_fields: textFields,
     stock: {
       [stockKey]: Math.max(0, quantity),
@@ -433,12 +512,15 @@ async function syncProductToBaseLinker(product) {
       baseInventoryId,
     );
 
+    const categoryId = await ensureCategoryId(product?.identification?.category, baseInventoryId);
+
     const quantity = pickQuantity(product);
     const payload = buildPayload(
       product,
       baseInventoryId,
       meta,
       manufacturerId,
+      categoryId,
       validation.normalizedPrice,
       quantity,
     );
