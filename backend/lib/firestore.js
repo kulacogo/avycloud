@@ -96,7 +96,7 @@ async function deleteProduct(productId) {
 /**
  * Update product sync status
  */
-async function updateProductSyncStatus(productId, status, lastSyncedIso = null) {
+async function updateProductSyncStatus(productId, status, lastSyncedIso = null, baseProductId = undefined) {
   try {
     const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
     const updateData = {
@@ -105,6 +105,10 @@ async function updateProductSyncStatus(productId, status, lastSyncedIso = null) 
     
     if (lastSyncedIso) {
       updateData['ops.last_synced_iso'] = lastSyncedIso;
+    }
+    
+    if (baseProductId !== undefined) {
+      updateData['ops.base_product_id'] = baseProductId;
     }
     
     await docRef.update(updateData);

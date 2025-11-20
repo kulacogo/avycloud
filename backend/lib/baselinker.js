@@ -454,8 +454,15 @@ async function syncProductToBaseLinker(product) {
       throw new Error(result.error_message || 'BaseLinker returned error');
     }
 
+    const baseProductId = result.product_id || existing?.product_id || null;
+
     try {
-      await updateProductSyncStatus(product.id, 'synced', new Date().toISOString());
+      await updateProductSyncStatus(
+        product.id,
+        'synced',
+        new Date().toISOString(),
+        baseProductId
+      );
     } catch (updateError) {
       console.warn('updateProductSyncStatus failed:', updateError.message);
     }
