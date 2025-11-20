@@ -11,6 +11,8 @@ async function recordManualProductImage({
   source = 'upload',
   variant = null,
   notes = null,
+  width = null,
+  height = null,
 }) {
   if (!productId || !publicUrl) {
     console.warn('recordManualProductImage called without productId/publicUrl');
@@ -32,6 +34,8 @@ async function recordManualProductImage({
       source,
       variant,
       notes,
+      width,
+      height,
       created_at: FieldValue.serverTimestamp(),
     });
   } catch (error) {

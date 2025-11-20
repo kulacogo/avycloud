@@ -183,7 +183,7 @@ Requirements:
       const mimeType = imagePart.inlineData.mimeType || 'image/png';
       
       // Upload to Cloud Storage
-      const imageUrl = await uploadBase64Image(
+      const { url: imageUrl } = await uploadBase64Image(
         `data:${mimeType};base64,${base64Image}`, 
         product.id, 
         `generated_${variants[i].replace(/\s+/g, '_')}_${Date.now()}`
@@ -1050,22 +1050,27 @@ app.post('/api/save', async (req, res) => {
         if (image.url_or_base64 && image.url_or_base64.startsWith('data:')) {
           try {
             const variant = image.variant || `image_${i}`;
-            const publicUrl = await uploadBase64Image(image.url_or_base64, product.id, variant);
+            const uploadResult = await uploadBase64Image(image.url_or_base64, product.id, variant);
             const manualUpload = !image.source || image.source === 'upload' || image.source === 'uploaded';
             if (manualUpload) {
               await recordManualProductImage({
                 productId: product.id,
-                publicUrl,
+                publicUrl: uploadResult.url,
                 source: image.source || 'upload',
                 variant,
                 notes: image.notes || null,
+                width: uploadResult.width,
+                height: uploadResult.height,
               });
             }
             
             processedImages.push({
               ...image,
-              url_or_base64: publicUrl,
-              source: image.source || 'uploaded'
+              url_or_base64: uploadResult.url,
+              source: image.source || 'uploaded',
+              width: uploadResult.width ?? image.width ?? null,
+              height: uploadResult.height ?? image.height ?? null,
+              mimeType: uploadResult.mimeType || image.mimeType || null,
             });
           } catch (error) {
             console.error('Failed to upload image:', error);
@@ -1103,7 +1108,6 @@ app.post('/api/save', async (req, res) => {
     });
   }
 });
-
 // Delete product
 app.delete('/api/products/:id', async (req, res) => {
   try {

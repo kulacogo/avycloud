@@ -2,6 +2,8 @@ const fetch = require('node-fetch');
 const { getSecrets } = require('./secrets');
 const { updateProductSyncStatus } = require('./firestore');
 
+const MIN_IMAGE_EDGE_BASELINKER = parseInt(process.env.BASELINKER_IMAGE_MIN_EDGE || '600', 10);
+
 /**
  * BaseLinker API – request limiter (100 RPM ⇒ max 5 parallel calls)
  */
@@ -319,17 +321,34 @@ function pickQuantity(product) {
 function buildEbay9800Fields(product) {
   const fields = {};
   const add = (key, value) => {
-    if (!value) return;
-    fields[key] = String(value);
+    if (value === undefined || value === null) return;
+    const stringified = typeof value === 'number' ? value.toString() : String(value).trim();
+    if (!stringified) return;
+    fields[key] = stringified;
   };
+
+  const manufacturerNumber =
+    product?.details?.identifiers?.mpn ||
+    product?.details?.attributes?.mpn ||
+    product?.details?.attributes?.manufacturer_number ||
+    product?.identification?.sku;
+
+  const model =
+    product?.details?.attributes?.model ||
+    product?.details?.identifiers?.mpn ||
+    product?.identification?.model;
+
+  const color =
+    product?.details?.attributes?.color ||
+    product?.details?.attributes?.colour ||
+    product?.details?.attributes?.farbe;
 
   add('Produktart', product?.identification?.category);
   add('Marke', product?.identification?.brand);
-  add('Modell',
-    product?.details?.attributes?.model ||
-    product?.details?.identifiers?.mpn ||
-    product?.identification?.model);
-  add('Farbe', product?.details?.attributes?.color || product?.details?.attributes?.colour);
+  add('Modell', model);
+  add('Farbe', color);
+  add('Herstellernummer', manufacturerNumber);
+  add('EAN', product?.details?.identifiers?.ean || product?.details?.identifiers?.gtin);
   add('Laufzeit', product?.details?.attributes?.battery_life || product?.details?.attributes?.runtime);
 
   return Object.keys(fields).length ? fields : null;
@@ -359,31 +378,11 @@ function buildTextFields(product, name) {
 
   if (Object.keys(features).length) {
     textFields.features = features;
-    textFields['features|de|ebay_9800'] = {
-      Produktart: product?.identification?.category || '',
-      Marke: product?.identification?.brand || '',
-      Modell: product?.details?.attributes?.model
-        || product?.identification?.model
-        || product?.details?.identifiers?.mpn
-        || '',
-      Farbe: product?.details?.attributes?.color
-        || product?.details?.attributes?.colour
-        || '',
-      Laufzeit: product?.details?.attributes?.battery_life
-        || product?.details?.attributes?.runtime
-        || '',
-    };
+  }
 
-    // remove empty entries from ebay fields
-    Object.keys(textFields['features|de|ebay_9800']).forEach((key) => {
-      if (!textFields['features|de|ebay_9800'][key]) {
-        delete textFields['features|de|ebay_9800'][key];
-      }
-    });
-
-    if (!Object.keys(textFields['features|de|ebay_9800']).length) {
-      delete textFields['features|de|ebay_9800'];
-    }
+  const ebayFields = buildEbay9800Fields(product);
+  if (ebayFields) {
+    textFields['features|de|ebay_9800'] = ebayFields;
   }
 
   return textFields;
@@ -391,13 +390,19 @@ function buildTextFields(product, name) {
 
 function buildImages(product) {
   const images = {};
-  const urls = (product?.details?.images || [])
-    .map((img) => img?.url_or_base64)
-    .filter((url) => typeof url === 'string' && url.startsWith('http'))
+  const candidates = (product?.details?.images || [])
+    .filter((img) => typeof img?.url_or_base64 === 'string' && img.url_or_base64.startsWith('http'))
+    .filter((img) => {
+      const width = Number(img?.width) || 0;
+      const height = Number(img?.height) || 0;
+      if (!width && !height) return true; // allow unknowns (legacy)
+      const longest = Math.max(width, height);
+      return longest >= MIN_IMAGE_EDGE_BASELINKER;
+    })
     .slice(0, 10);
 
-  urls.forEach((url, index) => {
-    images[String(index)] = `url:${url}`;
+  candidates.forEach((img, index) => {
+    images[String(index)] = `url:${img.url_or_base64}`;
   });
 
   return images;
@@ -424,7 +429,6 @@ function buildPayload(product, inventoryId, meta, manufacturerId, categoryId, pr
   const ean = pickEan(product);
   const textFields = buildTextFields(product, name);
   const images = buildImages(product);
-  const ebayFields = buildEbay9800Fields(product);
   const stockKey = meta.warehouseKey || `inventory_${inventoryId}`;
   const priceKey = meta.priceGroupKey || '1';
   const binCode = product?.storage?.binCode;
@@ -455,9 +459,6 @@ function buildPayload(product, inventoryId, meta, manufacturerId, categoryId, pr
 
   if (binCode) {
     payload.locations = { [stockKey]: binCode };
-  }
-  if (ebayFields) {
-    payload['text_fields|de|ebay_9800'] = ebayFields;
   }
   if (Object.keys(images).length) {
     payload.images = images;

@@ -31,6 +31,9 @@ export interface ProductImage {
   variant?: ImageVariant | null;
   url_or_base64: string;
   notes?: string;
+  width?: number | null;
+  height?: number | null;
+  mimeType?: string | null;
 }
 
 export interface Identifiers {

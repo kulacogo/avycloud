@@ -62,7 +62,7 @@ async function prepareImages(files = []) {
       });
 
       try {
-        const publicUrl = await uploadImage(
+        const { url: publicUrl, width, height } = await uploadImage(
           file.buffer,
           file.mimetype,
           'uploads',
@@ -72,6 +72,8 @@ async function prepareImages(files = []) {
           filename: file.originalname,
           mimeType: file.mimetype,
           url: publicUrl,
+          width,
+          height,
           size: file.size,
         });
       } catch (error) {
@@ -405,6 +407,8 @@ async function enrichProductImages(products = [], serpTrace = []) {
           source: img.source || 'web',
           variant: 'marketing',
           url_or_base64: img.url,
+          width: img.width || null,
+          height: img.height || null,
           notes: img.title || 'Marketing Bild',
         }))
         .filter((img) => {
