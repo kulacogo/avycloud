@@ -74,79 +74,111 @@ const TOGGLE_ICONS = {
   dark: '/toggle_darkmode.png',
 } as const;
 
+const safeBottomStyle: React.CSSProperties = {
+  paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)',
+};
+
 export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onToggleTheme }) => {
-  const NavButton = ({
-    view,
-    label,
-    iconSrc,
-    iconNode,
-  }: {
-    view: HeaderProps['currentView'];
-    label: string;
-    iconSrc?: string;
-    iconNode?: React.ReactNode;
-  }) => (
+  const logoSrc = theme === 'dark' ? LOGOS.dark : LOGOS.light;
+
+  const renderNavIcon = (nav: NavIconConfig) => {
+    if (nav.iconNode) return nav.iconNode;
+    if (nav.dark && nav.light) {
+      return (
+        <img
+          src={theme === 'dark' ? nav.dark : nav.light}
+          alt=""
+          className="w-6 h-6"
+          draggable={false}
+        />
+      );
+    }
+    return null;
+  };
+
+  const DesktopNavButton = ({ nav }: { nav: NavIconConfig }) => (
     <button
-      onClick={() => setView(view)}
-      className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center transition-all ${
-        currentView === view
+      onClick={() => setView(nav.view)}
+      className={`hidden sm:inline-flex w-11 h-11 sm:w-12 sm:h-12 rounded-2xl items-center justify-center transition-all ${
+        currentView === nav.view
           ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40'
           : 'bg-slate-800/70 text-slate-300 hover:bg-slate-700 hover:text-white'
       }`}
-      aria-current={currentView === view ? 'page' : undefined}
-      aria-label={label}
-      title={label}
+      aria-current={currentView === nav.view ? 'page' : undefined}
+      aria-label={nav.label}
+      title={nav.label}
     >
-      {iconSrc ? <img src={iconSrc} alt="" className="w-6 h-6" draggable={false} /> : <span className="text-current">{iconNode}</span>}
+      {renderNavIcon(nav)}
     </button>
   );
 
-  const logoSrc = theme === 'dark' ? LOGOS.dark : LOGOS.light;
+  const MobileNavButton = ({ nav }: { nav: NavIconConfig }) => {
+    const isActive = currentView === nav.view;
+    return (
+      <button
+        onClick={() => setView(nav.view)}
+        className={`flex flex-col items-center justify-center flex-1 rounded-2xl py-2 gap-1 ${
+          isActive ? 'text-white' : 'text-slate-300'
+        }`}
+      >
+        <span
+          className={`w-11 h-11 rounded-2xl flex items-center justify-center ${
+            isActive ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40' : 'bg-slate-800 text-slate-200'
+          }`}
+        >
+          {renderNavIcon(nav)}
+        </span>
+        <span className="text-[10px] font-semibold tracking-wide">{nav.label}</span>
+      </button>
+    );
+  };
 
   return (
-    <header className="safe-area-header bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-white/5">
-      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl overflow-hidden shadow-lg sm:hidden">
-              <img
-                src={MOBILE_LOGO}
-                alt="Avystock"
-                className="h-full w-full object-cover"
-                draggable={false}
-              />
-            </div>
-            <div className="hidden sm:block h-12 sm:h-14 lg:h-16 w-auto">
-              <img
-                src={logoSrc}
-                alt="avystock"
-                className="h-full w-auto object-contain drop-shadow-lg"
-                draggable={false}
-              />
-            </div>
-            <span className="sr-only">Avystock Product Intelligence Hub</span>
-          </div>
-
-          <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
-            <nav
-              className="flex items-center gap-2 overflow-x-auto sm:overflow-visible w-full sm:w-auto pb-1 sm:pb-0"
-              aria-label="Hauptnavigation"
-            >
-              {NAV_ICONS.map((nav) => (
-                <NavButton
-                  key={nav.view}
-                  view={nav.view}
-                  label={nav.label}
-                  iconSrc={nav.dark && nav.light ? (theme === 'dark' ? nav.dark : nav.light) : undefined}
-                  iconNode={nav.iconNode}
+    <>
+      <header className="safe-area-header bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-white/5">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-11 w-11 rounded-2xl overflow-hidden shadow-lg sm:hidden bg-white/80">
+                <img src={MOBILE_LOGO} alt="Avystock" className="h-full w-full object-cover" draggable={false} />
+              </div>
+              <div className="hidden sm:block h-12 sm:h-14 lg:h-16 w-auto">
+                <img
+                  src={logoSrc}
+                  alt="avystock"
+                  className="h-full w-auto object-contain drop-shadow-lg"
+                  draggable={false}
                 />
+              </div>
+              <div className="sm:hidden flex flex-col leading-tight">
+                <p className="text-base font-semibold text-white tracking-wide">avystock</p>
+                <p className="text-[11px] uppercase text-slate-400 tracking-[0.3em]">Product Hub</p>
+              </div>
+              <span className="sr-only">Avystock Product Intelligence Hub</span>
+            </div>
+            <div className="hidden sm:flex items-center gap-3">
+              {NAV_ICONS.map((nav) => (
+                <DesktopNavButton key={nav.view} nav={nav} />
               ))}
-            </nav>
-
+              <button
+                type="button"
+                onClick={onToggleTheme}
+                className="rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
+                aria-label={theme === 'dark' ? 'Wechsel zu hellem Modus' : 'Wechsel zu dunklem Modus'}
+                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              >
+                <img
+                  src={theme === 'dark' ? TOGGLE_ICONS.dark : TOGGLE_ICONS.light}
+                  alt=""
+                  className="w-6 h-6"
+                  draggable={false}
+                />
+              </button>
+            </div>
             <button
               type="button"
               onClick={onToggleTheme}
-              className="flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
+              className="sm:hidden rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
               aria-label={theme === 'dark' ? 'Wechsel zu hellem Modus' : 'Wechsel zu dunklem Modus'}
               title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
             >
@@ -159,7 +191,18 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
             </button>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+      <nav
+        className="sm:hidden fixed bottom-0 left-0 right-0 z-50 px-4"
+        style={safeBottomStyle}
+        aria-label="Mobile Navigation"
+      >
+        <div className="bg-slate-900/95 border border-white/10 rounded-[32px] shadow-2xl shadow-black/40 px-3 py-2 flex gap-1">
+          {NAV_ICONS.map((nav) => (
+            <MobileNavButton key={nav.view} nav={nav} />
+          ))}
+        </div>
+      </nav>
+    </>
   );
 };
