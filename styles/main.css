@@ -103,8 +103,8 @@ body {
 }
 
 .safe-area-content {
-  padding-bottom: calc(constant(safe-area-inset-bottom) + 2.5rem);
-  padding-bottom: calc(env(safe-area-inset-bottom) + 2.5rem);
+  padding-bottom: calc(constant(safe-area-inset-bottom) + 5rem);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
 }
 
 .safe-area-bottom {

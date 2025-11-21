@@ -124,7 +124,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-4">
+    <div className="max-w-4xl mx-auto p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-4 pb-16 sm:pb-8 safe-area-bottom">
       <form onSubmit={handleSubmit} className="space-y-8">
         <div>
           <div className="flex items-center mb-2 text-slate-200" aria-label="Product Images">
@@ -251,7 +251,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
           </div>
         </div>
 
-        <div className="text-center">
+        <div className="text-center pt-2">
           <button
             type="submit"
             className="w-full sm:w-auto px-12 py-4 bg-sky-600 text-white text-lg font-bold rounded-xl hover:bg-sky-500 transition-transform transform hover:scale-105 disabled:bg-slate-500 disabled:cursor-not-allowed"

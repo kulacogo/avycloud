@@ -346,12 +346,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
                   id="p-name"
                   value={localProduct.identification.name}
                   onChange={(e) => handleFieldChange('identification.name', e.target.value)}
-                  className="w-full text-3xl font-bold bg-transparent outline-none border-b border-sky-500 resize-y min-h-[3.5rem] leading-tight"
+                  className="w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none border-b border-sky-500 resize-y min-h-[3.5rem] leading-tight"
                   rows={2}
                   style={{ wordBreak: 'break-word' }}
                 />
               ) : (
-                <h1 className="text-3xl font-bold break-words" style={{ wordBreak: 'break-word' }}>
+                <h1 className="text-2xl sm:text-3xl font-bold break-words leading-tight" style={{ wordBreak: 'break-word' }}>
                   {localProduct.identification.name}
                 </h1>
               )}

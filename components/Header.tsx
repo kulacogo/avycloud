@@ -75,7 +75,8 @@ const TOGGLE_ICONS = {
 } as const;
 
 const safeBottomStyle: React.CSSProperties = {
-  paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)',
+  paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)',
+  bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.25rem)',
 };
 
 export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onToggleTheme }) => {
@@ -117,18 +118,19 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     return (
       <button
         onClick={() => setView(nav.view)}
-        className={`flex flex-col items-center justify-center flex-1 rounded-2xl py-2 gap-1 ${
+        className={`flex items-center justify-center flex-1 rounded-2xl py-2 ${
           isActive ? 'text-white' : 'text-slate-300'
         }`}
+        aria-label={nav.label}
+        title={nav.label}
       >
         <span
-          className={`w-11 h-11 rounded-2xl flex items-center justify-center ${
+          className={`w-12 h-12 rounded-3xl flex items-center justify-center ${
             isActive ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40' : 'bg-slate-800 text-slate-200'
           }`}
         >
           {renderNavIcon(nav)}
         </span>
-        <span className="text-[10px] font-semibold tracking-wide">{nav.label}</span>
       </button>
     );
   };
@@ -192,12 +194,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
           </div>
         </div>
       </header>
-      <nav
-        className="sm:hidden fixed bottom-0 left-0 right-0 z-50 px-4"
-        style={safeBottomStyle}
-        aria-label="Mobile Navigation"
-      >
-        <div className="bg-slate-900/95 border border-white/10 rounded-[32px] shadow-2xl shadow-black/40 px-3 py-2 flex gap-1">
+      <nav className="sm:hidden fixed left-0 right-0 z-50 px-4 pointer-events-none" style={safeBottomStyle} aria-label="Mobile Navigation">
+        <div className="bg-slate-900/95 border border-white/10 rounded-[32px] shadow-2xl shadow-black/40 px-3 py-2 flex gap-1 pointer-events-auto">
           {NAV_ICONS.map((nav) => (
             <MobileNavButton key={nav.view} nav={nav} />
           ))}

@@ -2,7 +2,10 @@ const fetch = require('node-fetch');
 const { getSecrets } = require('./secrets');
 const { updateProductSyncStatus } = require('./firestore');
 
-const MIN_IMAGE_EDGE_BASELINKER = parseInt(process.env.BASELINKER_IMAGE_MIN_EDGE || '600', 10);
+const MIN_IMAGE_EDGE_BASELINKER = parseInt(
+  process.env.BASELINKER_IMAGE_MIN_EDGE || '600',
+  10
+);
 
 /**
  * BaseLinker API – request limiter (100 RPM ⇒ max 5 parallel calls)
@@ -27,10 +30,13 @@ function releaseSlot() {
 function backoffDelay(attempt) {
   const base = 500; // 0.5s
   const max = 8000; // 8s
-  const delay = Math.min(base * (2 ** attempt), max);
+  const delay = Math.min(base * 2 ** attempt, max);
   return delay + Math.random() * 250;
 }
 
+/**
+ * Low-level BaseLinker API caller with retry + rate limit
+ */
 async function callBaseLinker(method, parameters = {}, retries = 4) {
   const { baseApiToken } = await getSecrets();
 
@@ -50,19 +56,28 @@ async function callBaseLinker(method, parameters = {}, retries = 4) {
       });
 
       const payload = await response.json();
+
       if (payload.status === 'SUCCESS') {
         return payload;
       }
 
       if (response.status === 429 || payload.error_code === 'RATE_LIMIT') {
-        await new Promise((resolve) => setTimeout(resolve, backoffDelay(attempt)));
+        await new Promise((resolve) =>
+          setTimeout(resolve, backoffDelay(attempt))
+        );
         continue;
       }
 
-      throw new Error(`${payload.error_code || 'BL_ERROR'}: ${payload.error_message || 'Unknown BaseLinker error'}`);
+      throw new Error(
+        `${payload.error_code || 'BL_ERROR'}: ${
+          payload.error_message || 'Unknown BaseLinker error'
+        }`
+      );
     } catch (error) {
       if (attempt < retries) {
-        await new Promise((resolve) => setTimeout(resolve, backoffDelay(attempt)));
+        await new Promise((resolve) =>
+          setTimeout(resolve, backoffDelay(attempt))
+        );
         continue;
       }
       throw error;
@@ -70,6 +85,7 @@ async function callBaseLinker(method, parameters = {}, retries = 4) {
       releaseSlot();
     }
   }
+
   throw new Error('BaseLinker request failed after retries');
 }
 
@@ -84,18 +100,30 @@ async function getInventoryMeta(inventoryId) {
   }
 
   const response = await callBaseLinker('getInventories');
-  const inventories = Array.isArray(response.inventories) ? response.inventories : [];
-  const match = inventories.find((entry) => String(entry.inventory_id || entry.id) === String(inventoryId))
-    || inventories[0];
+  const inventories = Array.isArray(response.inventories)
+    ? response.inventories
+    : [];
+  const match =
+    inventories.find(
+      (entry) =>
+        String(entry.inventory_id || entry.id) === String(inventoryId)
+    ) || inventories[0];
 
   if (!match) {
-    throw new Error('getInventories returned no entries – cannot determine warehouse/price group');
+    throw new Error(
+      'getInventories returned no entries – cannot determine warehouse/price group'
+    );
   }
 
   const meta = {
     inventoryId: String(inventoryId),
-    warehouseKey: match.default_warehouse ? String(match.default_warehouse) : null,
-    priceGroupKey: match.default_price_group != null ? String(match.default_price_group) : '1',
+    warehouseKey: match.default_warehouse
+      ? String(match.default_warehouse)
+      : null,
+    priceGroupKey:
+      match.default_price_group != null
+        ? String(match.default_price_group)
+        : '1',
   };
 
   inventoryMetaCache = meta;
@@ -103,11 +131,14 @@ async function getInventoryMeta(inventoryId) {
 }
 
 /**
- * Manufacturer cache/lookup
+ * Manufacturer + category caches
  */
 const manufacturerCache = new Map();
 const categoryCache = new Map();
 
+/**
+ * Manufacturers
+ */
 async function listManufacturers(inventoryId) {
   const manufacturers = [];
   let page = 1;
@@ -139,7 +170,9 @@ async function ensureManufacturerId(name, inventoryId) {
   }
 
   const existing = await listManufacturers(inventoryId);
-  const match = existing.find((entry) => entry.name?.toLowerCase() === name.toLowerCase());
+  const match = existing.find(
+    (entry) => entry.name?.toLowerCase() === name.toLowerCase()
+  );
   if (match?.manufacturer_id) {
     manufacturerCache.set(key, match.manufacturer_id);
     return match.manufacturer_id;
@@ -158,6 +191,9 @@ async function ensureManufacturerId(name, inventoryId) {
   return created.manufacturer_id;
 }
 
+/**
+ * Kategorien
+ */
 async function listCategories(inventoryId, parentId = 0) {
   const cacheKey = `list:${inventoryId}:${parentId}`;
   if (categoryCache.has(cacheKey)) {
@@ -213,7 +249,7 @@ async function ensureCategoryId(categoryPath, inventoryId) {
 
     const siblings = await listCategories(inventoryId, parentId);
     const existing = siblings.find(
-      (cat) => String(cat.name || '').toLowerCase() === level.toLowerCase(),
+      (cat) => String(cat.name || '').toLowerCase() === level.toLowerCase()
     );
 
     if (existing) {
@@ -236,7 +272,7 @@ async function ensureCategoryId(categoryPath, inventoryId) {
 }
 
 /**
- * Helpers for mapping product data
+ * Helpers für Produktdaten
  */
 function pickProductName(product) {
   const candidates = [
@@ -273,7 +309,9 @@ function pickEan(product) {
   const candidates = [
     product?.details?.identifiers?.ean,
     product?.details?.identifiers?.gtin,
-    Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes[0] : null,
+    Array.isArray(product?.identification?.barcodes)
+      ? product.identification.barcodes[0]
+      : null,
   ];
   for (const entry of candidates) {
     if (entry && typeof entry === 'string' && entry.trim().length > 0) {
@@ -318,57 +356,110 @@ function pickQuantity(product) {
   return 0;
 }
 
-function buildEbay9800Fields(product) {
+/**
+ * eBay-spezifische Felder, basierend auf Features/Attributen
+ */
+function buildEbay9800Fields(product, featuresFromTextFields = {}) {
   const fields = {};
   const add = (key, value) => {
     if (value === undefined || value === null) return;
-    const stringified = typeof value === 'number' ? value.toString() : String(value).trim();
+    const stringified =
+      typeof value === 'number' ? value.toString() : String(value).trim();
     if (!stringified) return;
     fields[key] = stringified;
   };
 
-  const manufacturerNumber =
-    product?.details?.identifiers?.mpn ||
-    product?.details?.attributes?.mpn ||
-    product?.details?.attributes?.manufacturer_number ||
-    product?.identification?.sku;
+  const attrs = product?.details?.attributes || {};
+  const f = featuresFromTextFields;
 
-  const model =
-    product?.details?.attributes?.model ||
-    product?.details?.identifiers?.mpn ||
-    product?.identification?.model;
+  // Marke
+  add(
+    'Marke',
+    f.Marke ||
+      f.marke ||
+      attrs.Marke ||
+      attrs.marke ||
+      product?.identification?.brand
+  );
 
-  const color =
-    product?.details?.attributes?.color ||
-    product?.details?.attributes?.colour ||
-    product?.details?.attributes?.farbe;
+  // Modell
+  add(
+    'Modell',
+    f.Modell ||
+      f.modell ||
+      attrs.Modell ||
+      attrs.modell ||
+      attrs.model ||
+      product?.details?.identifiers?.mpn
+  );
 
-  add('Produktart', product?.identification?.category);
-  add('Marke', product?.identification?.brand);
-  add('Modell', model);
-  add('Farbe', color);
-  add('Herstellernummer', manufacturerNumber);
-  add('EAN', product?.details?.identifiers?.ean || product?.details?.identifiers?.gtin);
-  add('Laufzeit', product?.details?.attributes?.battery_life || product?.details?.attributes?.runtime);
+  // Farbe
+  add(
+    'Farbe',
+    f.Farbe ||
+      f.farbe ||
+      attrs.Farbe ||
+      attrs.farbe ||
+      attrs.color ||
+      attrs.colour
+  );
 
-  return Object.keys(fields).length ? fields : null;
+  // Produkttyp
+  add(
+    'Produkttyp',
+    f.Produkttyp ||
+      f.produkttyp ||
+      attrs.Produkttyp ||
+      attrs.produkttyp ||
+      attrs.product_type
+  );
+
+  // EAN
+  add(
+    'EAN',
+    f.EAN ||
+      f.ean ||
+      product?.details?.identifiers?.ean ||
+      product?.details?.identifiers?.gtin
+  );
+
+  // Herstellernummer
+  add(
+    'Herstellernummer',
+    attrs.mpn ||
+      attrs.Manufacturernummer ||
+      product?.details?.identifiers?.mpn ||
+      product?.details?.attributes?.manufacturer_number ||
+      product?.details?.identifiers?.sku ||
+      product?.identification?.sku
+  );
+
+  return fields;
 }
 
+/**
+ * text_fields für BaseLinker: Name, Beschreibung, Features
+ * KEINE Feature_1… mehr, nur sinnvolle Parameternamen.
+ */
 function buildTextFields(product, name) {
   const features = {};
 
-  if (Array.isArray(product?.details?.key_features)) {
-    product.details.key_features.forEach((feature, index) => {
-      if (!feature) return;
-      features[`Feature_${index + 1}`] = String(feature);
-    });
-  }
+  const addFeature = (key, value) => {
+    if (!key || value === undefined || value === null) return;
+    const trimmed =
+      typeof value === 'number' ? value.toString() : String(value).trim();
+    if (!trimmed) return;
+    features[key] = trimmed;
+  };
 
+  // Attribute → direkt als sprechende Parameternamen übernehmen
   const attributes = product?.details?.attributes || {};
-  Object.entries(attributes).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
-    const normalizedValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-    features[key] = normalizedValue;
+  Object.entries(attributes).forEach(([rawKey, rawVal]) => {
+    if (rawVal === undefined || rawVal === null) return;
+    const key = String(rawKey).trim();
+    const value =
+      typeof rawVal === 'object' ? JSON.stringify(rawVal) : rawVal;
+    addFeature(key, value);
   });
 
   const textFields = {
@@ -380,22 +471,30 @@ function buildTextFields(product, name) {
     textFields.features = features;
   }
 
-  const ebayFields = buildEbay9800Fields(product);
-  if (ebayFields) {
+  // eBay Item-Specifics aus denselben Daten ableiten
+  const ebayFields = buildEbay9800Fields(product, features);
+  if (ebayFields && Object.keys(ebayFields).length) {
     textFields['features|de|ebay_9800'] = ebayFields;
   }
 
   return textFields;
 }
 
+/**
+ * Bilder → nur self-hosted URLs, Mindestkante filterbar
+ */
 function buildImages(product) {
   const images = {};
   const candidates = (product?.details?.images || [])
-    .filter((img) => typeof img?.url_or_base64 === 'string' && img.url_or_base64.startsWith('http'))
+    .filter(
+      (img) =>
+        typeof img?.url_or_base64 === 'string' &&
+        img.url_or_base64.startsWith('http')
+    )
     .filter((img) => {
       const width = Number(img?.width) || 0;
       const height = Number(img?.height) || 0;
-      if (!width && !height) return true; // allow unknowns (legacy)
+      if (!width && !height) return true; // unknown size → zulassen
       const longest = Math.max(width, height);
       return longest >= MIN_IMAGE_EDGE_BASELINKER;
     })
@@ -408,6 +507,9 @@ function buildImages(product) {
   return images;
 }
 
+/**
+ * Minimal-Validierung vor Sync
+ */
 function validateProduct(product) {
   const errors = [];
   if (!pickProductName(product)) errors.push('Produktname fehlt');
@@ -423,7 +525,18 @@ function validateProduct(product) {
   };
 }
 
-function buildPayload(product, inventoryId, meta, manufacturerId, categoryId, price, quantity) {
+/**
+ * Payload für addInventoryProduct
+ */
+function buildPayload(
+  product,
+  inventoryId,
+  meta,
+  manufacturerId,
+  categoryId,
+  price,
+  quantity
+) {
   const name = pickProductName(product);
   const sku = pickSku(product);
   const ean = pickEan(product);
@@ -467,6 +580,9 @@ function buildPayload(product, inventoryId, meta, manufacturerId, categoryId, pr
   return payload;
 }
 
+/**
+ * Existierendes Produkt anhand SKU oder EAN finden
+ */
 async function findProductBySkuOrEan(inventoryId, sku, ean) {
   let page = 1;
   const MAX_PAGES = 200;
@@ -481,7 +597,12 @@ async function findProductBySkuOrEan(inventoryId, sku, ean) {
     const match = products.find((entry) => {
       const entrySku = entry?.sku || entry?.product_sku;
       const entryEan = entry?.ean || entry?.product_ean;
-      if (sku && entrySku && entrySku.trim().toLowerCase() === sku.trim().toLowerCase()) return true;
+      if (
+        sku &&
+        entrySku &&
+        entrySku.trim().toLowerCase() === sku.trim().toLowerCase()
+      )
+        return true;
       if (ean && entryEan && entryEan.trim() === ean.trim()) return true;
       return false;
     });
@@ -494,6 +615,9 @@ async function findProductBySkuOrEan(inventoryId, sku, ean) {
   return null;
 }
 
+/**
+ * Einzelnes Produkt synchronisieren
+ */
 async function syncProductToBaseLinker(product) {
   try {
     const { baseInventoryId } = await getSecrets();
@@ -508,15 +632,20 @@ async function syncProductToBaseLinker(product) {
 
     const meta = await getInventoryMeta(baseInventoryId);
     if (!meta.warehouseKey) {
-      throw new Error('BaseLinker inventory has no default warehouse (stock key)');
+      throw new Error(
+        'BaseLinker inventory has no default warehouse (stock key)'
+      );
     }
 
     const manufacturerId = await ensureManufacturerId(
       product?.identification?.brand,
-      baseInventoryId,
+      baseInventoryId
     );
 
-    const categoryId = await ensureCategoryId(product?.identification?.category, baseInventoryId);
+    const categoryId = await ensureCategoryId(
+      product?.identification?.category,
+      baseInventoryId
+    );
 
     const quantity = pickQuantity(product);
     const payload = buildPayload(
@@ -526,10 +655,14 @@ async function syncProductToBaseLinker(product) {
       manufacturerId,
       categoryId,
       validation.normalizedPrice,
-      quantity,
+      quantity
     );
 
-    const existing = await findProductBySkuOrEan(baseInventoryId, payload.sku, payload.ean);
+    const existing = await findProductBySkuOrEan(
+      baseInventoryId,
+      payload.sku,
+      payload.ean
+    );
     const requestPayload = {
       ...payload,
       product_id: existing?.product_id || 0,
@@ -550,7 +683,10 @@ async function syncProductToBaseLinker(product) {
         baseProductId
       );
     } catch (updateError) {
-      console.warn('updateProductSyncStatus failed:', updateError.message);
+      console.warn(
+        'updateProductSyncStatus failed (non-blocking):',
+        updateError.message
+      );
     }
 
     return {
@@ -568,6 +704,9 @@ async function syncProductToBaseLinker(product) {
   }
 }
 
+/**
+ * Mehrere Produkte synchronisieren
+ */
 async function syncProductsToBaseLinker(products) {
   const results = [];
   for (const product of products) {
@@ -582,4 +721,3 @@ module.exports = {
   syncProductsToBaseLinker,
   callBaseLinker,
 };
-
