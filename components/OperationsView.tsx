@@ -1,47 +1,3 @@
-  useEffect(() => {
-    let cancelled = false;
-    const loadOrders = async () => {
-      setOrdersLoading(true);
-      try {
-        const data = await fetchOrdersApi();
-        if (!cancelled) {
-          setOrders(data);
-          setOrdersError(null);
-        }
-      } catch (error: any) {
-        if (!cancelled) {
-          setOrdersError(error?.message || 'Aufträge konnten nicht geladen werden.');
-        }
-      } finally {
-        if (!cancelled) {
-          setOrdersLoading(false);
-        }
-      }
-    };
-    loadOrders();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    if (!autoOrderSync) {
-      if (autoSyncIntervalRef.current) {
-        window.clearInterval(autoSyncIntervalRef.current);
-        autoSyncIntervalRef.current = null;
-      }
-      return undefined;
-    }
-    const id = window.setInterval(() => {
-      handleSyncOrders(false);
-    }, 60000);
-    autoSyncIntervalRef.current = id;
-    return () => {
-      window.clearInterval(id);
-      autoSyncIntervalRef.current = null;
-    };
-  }, [autoOrderSync]);
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { BrowserMultiFormatReader } from '@zxing/browser';
 import { Product, WarehouseBin, Order } from '../types';
@@ -348,6 +304,51 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       setCompletingOrderId(null);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadOrders = async () => {
+      setOrdersLoading(true);
+      try {
+        const data = await fetchOrdersApi();
+        if (!cancelled) {
+          setOrders(data);
+          setOrdersError(null);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setOrdersError(error?.message || 'Aufträge konnten nicht geladen werden.');
+        }
+      } finally {
+        if (!cancelled) {
+          setOrdersLoading(false);
+        }
+      }
+    };
+    loadOrders();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    if (!autoOrderSync) {
+      if (autoSyncIntervalRef.current) {
+        window.clearInterval(autoSyncIntervalRef.current);
+        autoSyncIntervalRef.current = null;
+      }
+      return undefined;
+    }
+    const id = window.setInterval(() => {
+      handleSyncOrders(false);
+    }, 60000);
+    autoSyncIntervalRef.current = id;
+    return () => {
+      window.clearInterval(id);
+      autoSyncIntervalRef.current = null;
+    };
+  }, [autoOrderSync]);
 
   const handleStow = async (resetAfter = false) => {
     if (!stowBin || (!matchedStowProduct && !stowSku)) {
