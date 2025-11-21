@@ -13,11 +13,11 @@ const LABEL_HEIGHT_MM = 25;
 
 function getBinFontMetrics(code = '') {
   const length = String(code || '').trim().length;
-  if (length <= 6) return { fontSize: 6.3, letterSpacing: 0.45 };
-  if (length <= 8) return { fontSize: 5.6, letterSpacing: 0.4 };
-  if (length <= 10) return { fontSize: 5, letterSpacing: 0.32 };
-  if (length <= 12) return { fontSize: 4.4, letterSpacing: 0.28 };
-  return { fontSize: 4, letterSpacing: 0.25 };
+  if (length <= 6) return { fontSize: 6.2, letterSpacing: 0.35 };
+  if (length <= 8) return { fontSize: 5.4, letterSpacing: 0.28 };
+  if (length <= 10) return { fontSize: 4.8, letterSpacing: 0.22 };
+  if (length <= 12) return { fontSize: 4.2, letterSpacing: 0.18 };
+  return { fontSize: 3.8, letterSpacing: 0.14 };
 }
 
 async function buildProductLabelsHtml(items) {
@@ -205,10 +205,10 @@ async function buildBinLabelsHtml(codes = []) {
         font-size: 6mm;
         font-weight: 700;
         text-align: left;
-        line-height: 1.1;
-        white-space: normal;
-        word-break: break-word;
-        overflow-wrap: anywhere;
+        line-height: 1.05;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     </style>
     <script>
