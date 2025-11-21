@@ -3,6 +3,53 @@ const { getSecrets } = require('../lib/secrets');
 const { saveOrders, getOrderById, updateOrder } = require('../lib/firestore');
 
 const DEFAULT_ORDER_LOOKBACK_DAYS = parseInt(process.env.ORDER_SYNC_LOOKBACK_DAYS || '7', 10);
+const ORDER_STATUS_ID_CACHE = {
+  new: null,
+  picked: null,
+};
+
+function normalizeStatusName(value) {
+  return (value || '').trim().toLowerCase();
+}
+
+async function resolveOrderStatusIdByName(cacheKey, envNameKey, fallbackLabel) {
+  if (ORDER_STATUS_ID_CACHE[cacheKey]) {
+    return ORDER_STATUS_ID_CACHE[cacheKey];
+  }
+
+  const targetLabel = (process.env[envNameKey] || fallbackLabel || '').trim();
+  if (!targetLabel) {
+    return null;
+  }
+
+  try {
+    const response = await callBaseLinker('getOrderStatusList');
+    const statuses = Array.isArray(response?.statuses) ? response.statuses : [];
+    const normalizedTarget = normalizeStatusName(targetLabel);
+    const match =
+      statuses.find(
+        (status) => normalizeStatusName(status?.name) === normalizedTarget
+      ) ||
+      statuses.find((status) =>
+        normalizeStatusName(status?.name).includes(normalizedTarget)
+      );
+
+    if (match?.id != null) {
+      ORDER_STATUS_ID_CACHE[cacheKey] = String(match.id);
+      console.info(
+        `Resolved BaseLinker status "${targetLabel}" to ID ${ORDER_STATUS_ID_CACHE[cacheKey]}`
+      );
+      return ORDER_STATUS_ID_CACHE[cacheKey];
+    }
+  } catch (error) {
+    console.error(
+      `Failed to resolve BaseLinker status "${targetLabel}" via getOrderStatusList:`,
+      error.message
+    );
+  }
+
+  return null;
+}
 
 function mapBaseLinkerOrder(entry) {
   const createdAt = entry?.date_add ? new Date(Number(entry.date_add) * 1000).toISOString() : new Date().toISOString();
@@ -47,9 +94,19 @@ function mapBaseLinkerOrder(entry) {
 }
 
 async function syncNewOrders() {
-  const { baseOrderStatusNew } = await getSecrets();
+  const secrets = await getSecrets();
+  let baseOrderStatusNew = secrets.baseOrderStatusNew;
   if (!baseOrderStatusNew) {
-    throw new Error('BASE_ORDER_STATUS_NEW secret or env variable is required to sync orders.');
+    baseOrderStatusNew = await resolveOrderStatusIdByName(
+      'new',
+      'BASE_ORDER_STATUS_NEW_NAME',
+      'Neue Bestellung'
+    );
+  } else {
+    ORDER_STATUS_ID_CACHE.new = String(baseOrderStatusNew);
+  }
+  if (!baseOrderStatusNew) {
+    throw new Error('BASE_ORDER_STATUS_NEW secret, env variable, or fallback name is required to sync orders.');
   }
 
   const dateFrom = Math.floor(Date.now() / 1000) - DEFAULT_ORDER_LOOKBACK_DAYS * 24 * 60 * 60;
@@ -69,9 +126,20 @@ async function markOrderAsPicked(orderId) {
     throw new Error('Order ID is required');
   }
 
-  const { baseOrderStatusPicked } = await getSecrets();
+  const secrets = await getSecrets();
+  let baseOrderStatusPicked = secrets.baseOrderStatusPicked;
   if (!baseOrderStatusPicked) {
-    throw new Error('BASE_ORDER_STATUS_PICKED secret or env variable is required to mark orders as picked.');
+    baseOrderStatusPicked = await resolveOrderStatusIdByName(
+      'picked',
+      'BASE_ORDER_STATUS_PICKED_NAME',
+      'Kommissioniert'
+    );
+  } else {
+    ORDER_STATUS_ID_CACHE.picked = String(baseOrderStatusPicked);
+  }
+
+  if (!baseOrderStatusPicked) {
+    throw new Error('BASE_ORDER_STATUS_PICKED secret, env variable, or fallback name is required to mark orders as picked.');
   }
 
   const order = await getOrderById(orderId);
