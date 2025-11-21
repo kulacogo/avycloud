@@ -43,11 +43,38 @@ async function getSecrets() {
     // Extract the payload data
     const baseApiToken = tokenResponse[0].payload.data.toString('utf8');
     const baseInventoryId = inventoryResponse[0].payload.data.toString('utf8');
+
+    let baseOrderStatusNew = process.env.BASE_ORDER_STATUS_NEW || null;
+    let baseOrderStatusPicked = process.env.BASE_ORDER_STATUS_PICKED || null;
+
+    if (!baseOrderStatusNew) {
+      try {
+        const [statusNewResponse] = await client.accessSecretVersion({
+          name: `projects/${projectId}/secrets/BASE_ORDER_STATUS_NEW/versions/latest`,
+        });
+        baseOrderStatusNew = statusNewResponse.payload.data.toString('utf8').trim();
+      } catch (error) {
+        console.warn('Optional secret BASE_ORDER_STATUS_NEW not found; falling back to env variable.');
+      }
+    }
+
+    if (!baseOrderStatusPicked) {
+      try {
+        const [statusPickedResponse] = await client.accessSecretVersion({
+          name: `projects/${projectId}/secrets/BASE_ORDER_STATUS_PICKED/versions/latest`,
+        });
+        baseOrderStatusPicked = statusPickedResponse.payload.data.toString('utf8').trim();
+      } catch (error) {
+        console.warn('Optional secret BASE_ORDER_STATUS_PICKED not found; falling back to env variable.');
+      }
+    }
     
     // Cache the results
     cachedSecrets = {
       baseApiToken,
       baseInventoryId,
+      baseOrderStatusNew,
+      baseOrderStatusPicked,
     };
 
     console.log('Secrets loaded successfully from Secret Manager');

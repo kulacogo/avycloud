@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Product, WarehouseLayout } from '../types';
-import { fetchWarehouseZones } from '../api/client';
+import { Product, WarehouseLayout, Order } from '../types';
+import { fetchWarehouseZones, fetchOrders as fetchOrdersApi } from '../api/client';
 import { WarehouseIcon, TableIcon, SyncIcon } from './icons/Icons';
 import { getProductQuantity, normalizeSyncStatus } from '../utils/product';
 
@@ -33,6 +33,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
   const [zones, setZones] = useState<WarehouseLayout[]>([]);
   const [zonesError, setZonesError] = useState<string | null>(null);
   const [isLoadingZones, setIsLoadingZones] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,7 +63,81 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadOrders = async () => {
+      setOrdersLoading(true);
+      try {
+        const data = await fetchOrdersApi();
+        if (!cancelled) {
+          setOrders(data);
+          setOrdersError(null);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setOrdersError(error?.message || 'Aufträge konnten nicht geladen werden.');
+        }
+      } finally {
+        if (!cancelled) {
+          setOrdersLoading(false);
+        }
+      }
+    };
+    loadOrders();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const stockedProducts = useMemo(() => products.filter((p) => (p.storage?.quantity || 0) > 0), [products]);
+
+  const orderMetrics = useMemo(() => {
+    const total = orders.length;
+    const open = orders.filter((order) => order.status !== 'picked').length;
+    const picked = total - open;
+
+    const template: Array<{ key: string; date: Date; count: number }> = [];
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    for (let i = 6; i >= 0; i -= 1) {
+      const day = new Date(base);
+      day.setDate(base.getDate() - i);
+      template.push({
+        key: day.toISOString().slice(0, 10),
+        date: day,
+        count: 0,
+      });
+    }
+
+    const templateMap = new Map(template.map((entry) => [entry.key, entry]));
+
+    orders.forEach((order) => {
+      if (!order.createdAt) return;
+      const date = new Date(order.createdAt);
+      date.setHours(0, 0, 0, 0);
+      const key = date.toISOString().slice(0, 10);
+      const bucket = templateMap.get(key);
+      if (bucket) {
+        bucket.count += 1;
+      }
+    });
+
+    const chart = template.map((entry) => ({
+      key: entry.key,
+      label: entry.date.toLocaleDateString('de-DE', { weekday: 'short' }),
+      count: entry.count,
+    }));
+
+    const maxChartCount = Math.max(1, ...chart.map((entry) => entry.count));
+
+    return {
+      total,
+      open,
+      picked,
+      chart,
+      maxChartCount,
+    };
+  }, [orders]);
 
   const {
     totalProducts,
@@ -215,6 +292,63 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
           value={`${savedPercentage}%`}
           sublabel={`${totalProducts - unsavedCount} gespeichert`}
         />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-inner shadow-black/20 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm uppercase tracking-wide text-slate-400">Auftragsstatus</p>
+              <h2 className="text-xl font-semibold text-white">Kommissionierung</h2>
+            </div>
+            <SyncIcon className="w-6 h-6 text-slate-400" />
+          </div>
+          {ordersError && <p className="text-sm text-rose-300">{ordersError}</p>}
+          {ordersLoading ? (
+            <p className="text-sm text-slate-400">Lade Auftragszahlen …</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-slate-400">Offen</p>
+                <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.open}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-widest text-slate-400">Kommissioniert</p>
+                <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.picked}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-widest text-slate-400">Gesamt</p>
+                <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.total}</p>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-inner shadow-black/20 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm uppercase tracking-wide text-slate-400">Auftragsvolumen</p>
+              <h2 className="text-xl font-semibold text-white">Letzte 7 Tage</h2>
+            </div>
+          </div>
+          {ordersLoading ? (
+            <p className="text-sm text-slate-400">Synchronisiere Diagramm …</p>
+          ) : (
+            <div className="grid grid-cols-7 gap-3">
+              {orderMetrics.chart.map((day) => (
+                <div key={day.key} className="flex flex-col items-center gap-2">
+                  <div className="w-full h-24 bg-slate-900 rounded-full overflow-hidden flex items-end">
+                    <span
+                      className="w-full bg-sky-500 rounded-full transition-all"
+                      style={{ height: `${(day.count / orderMetrics.maxChartCount) * 100 || 4}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-400">{day.label}</span>
+                  <span className="text-xs font-semibold text-white">{day.count}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

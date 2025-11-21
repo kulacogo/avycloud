@@ -8,6 +8,7 @@ import {
   WarehouseLayout,
   WarehouseBin,
   IdentifyPhase,
+  Order,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -380,6 +381,36 @@ export const generateImages = async (productId: string): Promise<{ ok: boolean; 
     console.error('Failed to generate images:', error);
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };
+  }
+};
+
+export const fetchOrders = async (limit = 50): Promise<Order[]> => {
+  const response = await fetch(`${BACKEND_URL}/api/orders?limit=${limit}`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Aufträge konnten nicht geladen werden.');
+  }
+  return result?.data || [];
+};
+
+export const syncOrders = async (): Promise<Order[]> => {
+  const response = await fetch(`${BACKEND_URL}/api/orders/sync`, {
+    method: 'POST',
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Auftragssync fehlgeschlagen.');
+  }
+  return result?.data || [];
+};
+
+export const completeOrder = async (orderId: string): Promise<void> => {
+  const response = await fetch(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/complete`, {
+    method: 'POST',
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Auftragsstatus konnte nicht aktualisiert werden.');
   }
 };
 

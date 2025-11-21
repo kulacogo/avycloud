@@ -1,12 +1,59 @@
-import React, { useMemo, useRef, useState } from 'react';
+  useEffect(() => {
+    let cancelled = false;
+    const loadOrders = async () => {
+      setOrdersLoading(true);
+      try {
+        const data = await fetchOrdersApi();
+        if (!cancelled) {
+          setOrders(data);
+          setOrdersError(null);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setOrdersError(error?.message || 'Aufträge konnten nicht geladen werden.');
+        }
+      } finally {
+        if (!cancelled) {
+          setOrdersLoading(false);
+        }
+      }
+    };
+    loadOrders();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    if (!autoOrderSync) {
+      if (autoSyncIntervalRef.current) {
+        window.clearInterval(autoSyncIntervalRef.current);
+        autoSyncIntervalRef.current = null;
+      }
+      return undefined;
+    }
+    const id = window.setInterval(() => {
+      handleSyncOrders(false);
+    }, 60000);
+    autoSyncIntervalRef.current = id;
+    return () => {
+      window.clearInterval(id);
+      autoSyncIntervalRef.current = null;
+    };
+  }, [autoOrderSync]);
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { BrowserMultiFormatReader } from '@zxing/browser';
-import { Product, WarehouseBin } from '../types';
+import { Product, WarehouseBin, Order } from '../types';
 import {
   fetchWarehouseBinDetail,
   stockInProduct,
   stockOutProduct,
   buildImageProxyUrl,
   scanDocument,
+  fetchOrders as fetchOrdersApi,
+  syncOrders as syncOrdersApi,
+  completeOrder as completeOrderApi,
 } from '../api/client';
 import { ScannerOverlay } from './ScannerOverlay';
 import { WarehouseIcon, SyncIcon, CameraIcon } from './icons/Icons';
@@ -53,6 +100,19 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const [pickQuantity, setPickQuantity] = useState(1);
   const [pickBinDetail, setPickBinDetail] = useState<WarehouseBin | null>(null);
   const [isLoadingBin, setIsLoadingBin] = useState(false);
+
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [orderStatusMessage, setOrderStatusMessage] = useState<string | null>(null);
+  const [orderErrorMessage, setOrderErrorMessage] = useState<string | null>(null);
+  const [isSyncingOrders, setIsSyncingOrders] = useState(false);
+  const [completingOrderId, setCompletingOrderId] = useState<string | null>(null);
+  const [autoOrderSync, setAutoOrderSync] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('avystock:autoOrderSync') === 'true';
+  });
+  const autoSyncIntervalRef = useRef<number | null>(null);
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -115,6 +175,28 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       }) || null
     );
   }, [products, pickSku, pickBinDetail]);
+
+  const openOrders = useMemo(() => orders.filter((order) => order.status !== 'picked'), [orders]);
+
+  const orderSummary = useMemo(() => {
+    const total = orders.length;
+    const open = openOrders.length;
+    const pickedToday = orders.filter((order) => {
+      if (!order.pickedAt) return false;
+      const pickedDate = new Date(order.pickedAt).toDateString();
+      return pickedDate === new Date().toDateString();
+    }).length;
+    return { total, open, pickedToday };
+  }, [orders, openOrders]);
+
+  const formatOrderDate = (iso?: string | null) => {
+    if (!iso) return '--';
+    try {
+      return new Date(iso).toLocaleString('de-DE');
+    } catch {
+      return iso;
+    }
+  };
 
   const handleScannerResult = (value: string) => {
     switch (scannerTarget) {
@@ -219,6 +301,54 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     }
   };
 
+  const handleSyncOrders = async (showToast = true) => {
+    try {
+      setIsSyncingOrders(true);
+      setOrderErrorMessage(null);
+      const data = await syncOrdersApi();
+      setOrders(data);
+      if (showToast) {
+        setOrderStatusMessage(`Aufträge aktualisiert (${data.length})`);
+        window.setTimeout(() => setOrderStatusMessage(null), 4000);
+      }
+    } catch (error: any) {
+      setOrderErrorMessage(error?.message || 'Auftragssync fehlgeschlagen.');
+    } finally {
+      setIsSyncingOrders(false);
+    }
+  };
+
+  const handleAutoSyncToggle = () => {
+    setAutoOrderSync((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('avystock:autoOrderSync', next ? 'true' : 'false');
+      }
+      return next;
+    });
+  };
+
+  const handleMarkOrderComplete = async (orderId: string) => {
+    try {
+      setCompletingOrderId(orderId);
+      setOrderErrorMessage(null);
+      await completeOrderApi(orderId);
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderId
+            ? { ...order, status: 'picked', statusLabel: 'Kommissioniert', pickedAt: new Date().toISOString() }
+            : order
+        )
+      );
+      setOrderStatusMessage('Auftrag als kommissioniert markiert.');
+      window.setTimeout(() => setOrderStatusMessage(null), 4000);
+    } catch (error: any) {
+      setOrderErrorMessage(error?.message || 'Auftrag konnte nicht aktualisiert werden.');
+    } finally {
+      setCompletingOrderId(null);
+    }
+  };
+
   const handleStow = async (resetAfter = false) => {
     if (!stowBin || (!matchedStowProduct && !stowSku)) {
       setErrorMessage('Bitte SKU und BIN auswählen.');
@@ -284,6 +414,103 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
   return (
     <section className="space-y-6">
+      <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg space-y-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-widest text-slate-400">BaseLinker</p>
+            <h2 className="text-xl font-semibold text-white">Neue Aufträge</h2>
+            <p className="text-sm text-slate-400">Synchronisiere offene Bestellungen für die Kommissionierung.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-500 bg-slate-900 text-sky-500 focus:ring-sky-500"
+                checked={autoOrderSync}
+                onChange={handleAutoSyncToggle}
+              />
+              Auto
+            </label>
+            <button
+              type="button"
+              onClick={() => handleSyncOrders(true)}
+              disabled={isSyncingOrders}
+              className="inline-flex items-center gap-2 rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {isSyncingOrders ? 'Sync läuft …' : 'Aufträge synchronisieren'}
+            </button>
+          </div>
+        </div>
+        {orderStatusMessage && <div className="text-sm text-emerald-300 bg-emerald-900/30 px-3 py-2 rounded">{orderStatusMessage}</div>}
+        {(ordersError || orderErrorMessage) && (
+          <div className="text-sm text-rose-300 bg-rose-900/30 px-3 py-2 rounded">{ordersError || orderErrorMessage}</div>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
+            <p className="text-xs uppercase tracking-widest text-slate-400">Offene Aufträge</p>
+            <p className="text-2xl font-semibold text-white mt-1">{orderSummary.open}</p>
+          </div>
+          <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
+            <p className="text-xs uppercase tracking-widest text-slate-400">Gesamt</p>
+            <p className="text-2xl font-semibold text-white mt-1">{orderSummary.total}</p>
+          </div>
+          <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
+            <p className="text-xs uppercase tracking-widest text-slate-400">Heute kommissioniert</p>
+            <p className="text-2xl font-semibold text-white mt-1">{orderSummary.pickedToday}</p>
+          </div>
+        </div>
+        <div className="bg-slate-900/40 rounded-2xl p-4 border border-slate-700">
+          {ordersLoading ? (
+            <p className="text-slate-400 text-sm">Lade Aufträge …</p>
+          ) : openOrders.length === 0 ? (
+            <p className="text-slate-400 text-sm">Keine offenen Aufträge vorhanden.</p>
+          ) : (
+            <ul className="space-y-3">
+              {openOrders.slice(0, 5).map((order) => (
+                <li key={order.id} className="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {order.customer?.name || 'Unbekannter Kunde'}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {order.items.length} Positionen · {formatOrderDate(order.createdAt)}
+                      </p>
+                      {typeof order.totalAmount === 'number' && (
+                        <p className="text-xs text-slate-500">
+                          {order.currency || 'EUR'} {order.totalAmount.toFixed(2)}
+                        </p>
+                      )}
+                      <div className="mt-2 text-xs text-slate-300 space-y-1">
+                        {order.items.slice(0, 3).map((item) => (
+                          <p key={item.id}>
+                            {item.quantity}× {item.name}
+                          </p>
+                        ))}
+                        {order.items.length > 3 && (
+                          <p className="text-slate-500">+ {order.items.length - 3} weitere Positionen</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">{order.statusLabel}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleMarkOrderComplete(order.id)}
+                        disabled={completingOrderId === order.id}
+                        className="px-3 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold disabled:opacity-50"
+                      >
+                        {completingOrderId === order.id ? 'Aktualisiere …' : 'Kommissioniert'}
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
       <header className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg">
         <div className="flex items-center gap-3 mb-4">
           <div className="rounded-2xl bg-sky-900/40 p-3 text-sky-300">

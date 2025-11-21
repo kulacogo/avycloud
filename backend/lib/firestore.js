@@ -7,6 +7,7 @@ const firestore = new Firestore({
 
 // Collection name
 const PRODUCTS_COLLECTION = 'products';
+const ORDERS_COLLECTION = 'orders';
 
 /**
  * Save a product to Firestore
@@ -119,12 +120,72 @@ async function updateProductSyncStatus(productId, status, lastSyncedIso = null, 
   }
 }
 
+async function saveOrders(orders = []) {
+  if (!Array.isArray(orders) || orders.length === 0) {
+    return [];
+  }
+
+  const batch = firestore.batch();
+  const now = new Date().toISOString();
+
+  orders.forEach((order) => {
+    if (!order?.id) return;
+    const docRef = firestore.collection(ORDERS_COLLECTION).doc(order.id);
+    batch.set(
+      docRef,
+      {
+        ...order,
+        createdAt: order.createdAt || now,
+        updatedAt: order.updatedAt || now,
+      },
+      { merge: true }
+    );
+  });
+
+  await batch.commit();
+  return orders;
+}
+
+async function listOrders(limit = 50) {
+  const snapshot = await firestore
+    .collection(ORDERS_COLLECTION)
+    .orderBy('createdAt', 'desc')
+    .limit(limit)
+    .get();
+
+  return snapshot.docs.map((doc) => doc.data());
+}
+
+async function getOrderById(orderId) {
+  if (!orderId) return null;
+  const doc = await firestore.collection(ORDERS_COLLECTION).doc(orderId).get();
+  return doc.exists ? doc.data() : null;
+}
+
+async function updateOrder(orderId, updates = {}) {
+  if (!orderId) {
+    throw new Error('Order ID is required');
+  }
+  const docRef = firestore.collection(ORDERS_COLLECTION).doc(orderId);
+  await docRef.set(
+    {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+}
+
 module.exports = {
   saveProduct,
   getProduct,
   getAllProducts,
   deleteProduct,
   updateProductSyncStatus,
+  saveOrders,
+  listOrders,
+  getOrderById,
+  updateOrder,
   firestore,
 };
 

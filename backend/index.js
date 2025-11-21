@@ -3,7 +3,14 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const crypto = require('crypto');
-const { saveProduct, getProduct, getAllProducts, deleteProduct, updateProductSyncStatus } = require('./lib/firestore');
+const {
+  saveProduct,
+  getProduct,
+  getAllProducts,
+  deleteProduct,
+  updateProductSyncStatus,
+  listOrders,
+} = require('./lib/firestore');
 const { uploadBase64Image, deleteProductImages, uploadJobFile } = require('./lib/storage');
 const { recordManualProductImage } = require('./lib/product-images');
 const { createJob, getJob } = require('./lib/jobs');
@@ -31,6 +38,7 @@ const {
 } = require('./lib/warehouse');
 const { buildProductLabelsHtml, buildBinLabelHtml, buildBinLabelsHtml } = require('./services/label-printer');
 const { scanToBuffer } = require('./services/scanner');
+const { syncNewOrders, markOrderAsPicked } = require('./services/order-sync');
 
 // --- Configuration ---
 const PORT = process.env.PORT || 8080;
@@ -1174,6 +1182,59 @@ app.post('/api/chat', async (req, res) => {
       error: {
         code: 500,
         message: 'Failed to process chat request',
+        details: error.message,
+      },
+    });
+  }
+});
+
+app.get('/api/orders', async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const orders = await listOrders(limit);
+    res.json({ ok: true, data: orders });
+  } catch (error) {
+    console.error('Failed to load orders:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Aufträge konnten nicht geladen werden.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+app.post('/api/orders/sync', async (req, res) => {
+  try {
+    const orders = await syncNewOrders();
+    res.json({ ok: true, data: orders });
+  } catch (error) {
+    console.error('Failed to sync orders:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Auftragssync fehlgeschlagen.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+app.post('/api/orders/:orderId/complete', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    await markOrderAsPicked(orderId);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Failed to complete order:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Auftragsstatus konnte nicht aktualisiert werden.',
         details: error.message,
       },
     });

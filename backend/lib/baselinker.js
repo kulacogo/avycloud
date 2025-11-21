@@ -580,5 +580,6 @@ async function syncProductsToBaseLinker(products) {
 module.exports = {
   syncProductToBaseLinker,
   syncProductsToBaseLinker,
+  callBaseLinker,
 };
 

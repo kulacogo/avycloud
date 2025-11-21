@@ -178,6 +178,43 @@ export interface WarehouseBin {
   lastStoredAt?: string | null;
 }
 
+export type OrderStatus = 'new' | 'picking' | 'picked';
+
+export interface OrderItem {
+  id: string;
+  productId?: string | null;
+  name: string;
+  sku?: string | null;
+  quantity: number;
+  ean?: string | null;
+  priceBrutto?: number;
+  currency?: string;
+}
+
+export interface OrderCustomer {
+  name?: string | null;
+  city?: string | null;
+  country?: string | null;
+}
+
+export interface Order {
+  id: string;
+  baselinkerId: string;
+  number?: string | null;
+  source: 'baselinker';
+  status: OrderStatus;
+  statusLabel: string;
+  statusId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  pickedAt?: string | null;
+  currency?: string;
+  totalAmount?: number;
+  customer: OrderCustomer;
+  items: OrderItem[];
+  notes?: string | null;
+}
+
 export type IdentifyPhase =
   | 'idle'
   | 'upload'
