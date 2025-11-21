@@ -608,13 +608,13 @@ export const openBinLabelWindow = (code: string): { ok: boolean; error?: { code:
   }
 };
 
-export const openBinLabelsBatchWindow = async (options: {
+export const openBinLabelsBatchWindow = (options: {
   codes?: string[];
   zone?: string;
   etage?: string;
   gang?: number;
   regal?: number;
-}): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
+}): { ok: boolean; error?: { code: number; message: string } } => {
   const normalizedCodes = options.codes
     ?.map((code) => code?.trim().toUpperCase())
     .filter((code): code is string => Boolean(code));
@@ -623,50 +623,50 @@ export const openBinLabelsBatchWindow = async (options: {
     return { ok: false, error: { code: 400, message: 'Bitte Bins auswählen oder Zone & Etage angeben.' } };
   }
 
-  const payload = normalizedCodes?.length
-    ? { codes: normalizedCodes }
-    : {
-        zone: options.zone,
-        etage: options.etage,
-        ...(typeof options.gang === 'number' ? { gang: options.gang } : {}),
-        ...(typeof options.regal === 'number' ? { regal: options.regal } : {}),
-      };
-
-  const previewWindow = window.open('', '_blank', 'noopener');
-  if (!previewWindow) {
+  const targetName = `bin-labels-${Date.now()}`;
+  const popup = window.open('', targetName, 'noopener');
+  if (!popup) {
     return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
   }
-  previewWindow.document.write('<p style="font-family:system-ui;padding:16px;">Bereite BIN-Labels vor...</p>');
 
-  try {
-    const response = await fetch(`${BACKEND_URL}/api/warehouse/bins/labels`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'text/html',
-      },
-      body: JSON.stringify(payload),
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `${BACKEND_URL}/api/warehouse/bins/labels`;
+  form.target = targetName;
+  form.style.display = 'none';
+
+  if (normalizedCodes?.length) {
+    normalizedCodes.forEach((code) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'codes[]';
+      input.value = code;
+      form.appendChild(input);
     });
-    const text = await response.text();
-    if (!response.ok) {
-      previewWindow.close();
-      let message = 'BIN-Labels konnten nicht erstellt werden.';
-      try {
-        const parsed = JSON.parse(text);
-        message = parsed?.error?.message || message;
-      } catch {
-        // ignore parse errors
-      }
-      return { ok: false, error: { code: response.status, message } };
-    }
-    previewWindow.document.open();
-    previewWindow.document.write(text);
-    previewWindow.document.close();
-    return { ok: true };
-  } catch (error: any) {
-    previewWindow.close();
-    return { ok: false, error: { code: 0, message: error?.message || 'Unbekannter Fehler' } };
+  } else {
+    const mapping: Record<string, string | number | undefined> = {
+      zone: options.zone,
+      etage: options.etage,
+      gang: options.gang,
+      regal: options.regal,
+    };
+    Object.entries(mapping).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = String(value);
+      form.appendChild(input);
+    });
   }
+
+  document.body.appendChild(form);
+  form.submit();
+  window.setTimeout(() => {
+    form.remove();
+  }, 0);
+
+  return { ok: true };
 };
 
 export const refreshPrice = async (productId: string): Promise<{ ok: boolean; data?: any; error?: { code: number; message: string } }> => {

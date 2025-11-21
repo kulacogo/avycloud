@@ -10,14 +10,23 @@ function escapeHtml(str = '') {
 }
 const LABEL_WIDTH_MM = 57;
 const LABEL_HEIGHT_MM = 25;
+const QR_SIZE_MM = 20;
+const LABEL_PADDING_MM = 3;
+const LABEL_GAP_MM = 3;
+const TEXT_AREA_WIDTH_MM = LABEL_WIDTH_MM - QR_SIZE_MM - LABEL_GAP_MM - LABEL_PADDING_MM * 2;
+const MIN_FONT_SIZE_MM = 3.2;
+const MAX_FONT_SIZE_MM = 6.3;
 
 function getBinFontMetrics(code = '') {
-  const length = String(code || '').trim().length;
-  if (length <= 6) return { fontSize: 6.2, letterSpacing: 0.35 };
-  if (length <= 8) return { fontSize: 5.4, letterSpacing: 0.28 };
-  if (length <= 10) return { fontSize: 4.8, letterSpacing: 0.22 };
-  if (length <= 12) return { fontSize: 4.2, letterSpacing: 0.18 };
-  return { fontSize: 3.8, letterSpacing: 0.14 };
+  const clean = String(code || '').trim();
+  const length = Math.max(clean.length, 1);
+  const charWidth = TEXT_AREA_WIDTH_MM / length;
+  const fontSize = Math.max(
+    Math.min(MAX_FONT_SIZE_MM, Number((charWidth * 0.92).toFixed(2))),
+    MIN_FONT_SIZE_MM
+  );
+  const letterSpacing = Math.max(Number((fontSize * 0.12).toFixed(3)), 0.05);
+  return { fontSize, letterSpacing };
 }
 
 async function buildProductLabelsHtml(items) {
@@ -193,8 +202,8 @@ async function buildBinLabelsHtml(codes = []) {
         page-break-after: auto;
       }
       .qr {
-        width: 20mm;
-        height: 20mm;
+        width: ${QR_SIZE_MM}mm;
+        height: ${QR_SIZE_MM}mm;
       }
       .qr img {
         width: 100%;
@@ -204,11 +213,11 @@ async function buildBinLabelsHtml(codes = []) {
         flex: 1;
         font-size: 6mm;
         font-weight: 700;
+        font-family: 'SFMono-Regular', 'Roboto Mono', 'Fira Mono', 'Menlo', monospace;
         text-align: left;
         line-height: 1.05;
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        overflow: visible;
       }
     </style>
     <script>
