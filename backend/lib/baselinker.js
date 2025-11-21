@@ -39,7 +39,7 @@ function backoffDelay(attempt) {
  */
 async function callBaseLinker(method, parameters = {}, retries = 4) {
   const { baseApiToken } = await getSecrets();
-
+  
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     await acquireSlot();
     try {
@@ -65,7 +65,7 @@ async function callBaseLinker(method, parameters = {}, retries = 4) {
         await new Promise((resolve) =>
           setTimeout(resolve, backoffDelay(attempt))
         );
-        continue;
+          continue;
       }
 
       throw new Error(
@@ -305,25 +305,6 @@ function pickSku(product) {
   return null;
 }
 
-function pickEan(product) {
-  const candidates = [
-    product?.details?.identifiers?.ean,
-    product?.details?.identifiers?.gtin,
-    Array.isArray(product?.identification?.barcodes)
-      ? product.identification.barcodes[0]
-      : null,
-  ];
-  for (const entry of candidates) {
-    if (entry && typeof entry === 'string' && entry.trim().length > 0) {
-      const sanitized = entry.replace(/\D+/g, '');
-      if (sanitized.length >= 8 && sanitized.length <= 14) {
-        return sanitized;
-      }
-    }
-  }
-  return '';
-}
-
 function pickPrice(product) {
   const priceCandidates = [
     product?.details?.pricing?.lowest_price?.amount,
@@ -332,7 +313,7 @@ function pickPrice(product) {
   ];
   for (const value of priceCandidates) {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string') {
+  if (typeof value === 'string') {
       const numeric = Number(value);
       if (Number.isFinite(numeric)) return numeric;
     }
@@ -412,15 +393,6 @@ function buildEbay9800Fields(product, featuresFromTextFields = {}) {
       attrs.Produkttyp ||
       attrs.produkttyp ||
       attrs.product_type
-  );
-
-  // EAN
-  add(
-    'EAN',
-    f.EAN ||
-      f.ean ||
-      product?.details?.identifiers?.ean ||
-      product?.details?.identifiers?.gtin
   );
 
   // Herstellernummer
@@ -539,7 +511,6 @@ function buildPayload(
 ) {
   const name = pickProductName(product);
   const sku = pickSku(product);
-  const ean = pickEan(product);
   const textFields = buildTextFields(product, name);
   const images = buildImages(product);
   const stockKey = meta.warehouseKey || `inventory_${inventoryId}`;
@@ -550,9 +521,7 @@ function buildPayload(
     inventory_id: inventoryId,
     is_bundle: false,
     sku,
-    ean,
     asin: '',
-    ean_additional: [],
     tags: [],
     tax_rate: 19,
     manufacturer_id: manufacturerId || undefined,
@@ -561,7 +530,7 @@ function buildPayload(
     stock: {
       [stockKey]: Math.max(0, quantity),
     },
-    prices: {
+        prices: {
       [priceKey]: price,
     },
     links: {},
@@ -576,14 +545,14 @@ function buildPayload(
   if (Object.keys(images).length) {
     payload.images = images;
   }
-
+  
   return payload;
 }
 
 /**
- * Existierendes Produkt anhand SKU oder EAN finden
+ * Existierendes Produkt anhand SKU finden
  */
-async function findProductBySkuOrEan(inventoryId, sku, ean) {
+async function findProductBySku(inventoryId, sku) {
   let page = 1;
   const MAX_PAGES = 200;
 
@@ -594,17 +563,10 @@ async function findProductBySkuOrEan(inventoryId, sku, ean) {
     });
 
     const products = Array.isArray(res.products) ? res.products : [];
+    const normalizedSku = sku?.trim().toLowerCase();
     const match = products.find((entry) => {
-      const entrySku = entry?.sku || entry?.product_sku;
-      const entryEan = entry?.ean || entry?.product_ean;
-      if (
-        sku &&
-        entrySku &&
-        entrySku.trim().toLowerCase() === sku.trim().toLowerCase()
-      )
-        return true;
-      if (ean && entryEan && entryEan.trim() === ean.trim()) return true;
-      return false;
+      const entrySku = (entry?.sku || entry?.product_sku || '').trim().toLowerCase();
+      return Boolean(normalizedSku && entrySku && entrySku === normalizedSku);
     });
 
     if (match) return match;
@@ -658,11 +620,7 @@ async function syncProductToBaseLinker(product) {
       quantity
     );
 
-    const existing = await findProductBySkuOrEan(
-      baseInventoryId,
-      payload.sku,
-      payload.ean
-    );
+    const existing = await findProductBySku(baseInventoryId, payload.sku);
     const requestPayload = {
       ...payload,
       product_id: existing?.product_id || 0,

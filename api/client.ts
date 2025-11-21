@@ -632,7 +632,7 @@ export const openBinLabelsBatchWindow = (options: {
 
   const form = document.createElement('form');
   form.method = 'POST';
-  form.action = `${BACKEND_URL}/api/warehouse/bins/labels`;
+  form.action = `${BACKEND_URL}/api/warehouse/bins/labels.pdf`;
   form.target = targetName;
   form.style.display = 'none';
 

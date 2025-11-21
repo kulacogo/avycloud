@@ -36,7 +36,7 @@ const {
   bookStockIn,
   bookStockOut,
 } = require('./lib/warehouse');
-const { buildProductLabelsHtml, buildBinLabelHtml, buildBinLabelsHtml } = require('./services/label-printer');
+const { buildProductLabelsHtml, buildBinLabelHtml, buildBinLabelsHtml, buildBinLabelsPdf } = require('./services/label-printer');
 const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked } = require('./services/order-sync');
 
@@ -45,6 +45,10 @@ const PORT = process.env.PORT || 8080;
 const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'avycloud'; // Auto-detect from Cloud Run or fallback
 const IMAGE_PROXY_TIMEOUT_MS = parseInt(process.env.IMAGE_PROXY_TIMEOUT_MS || '10000', 10);
 const IMAGE_PROXY_MAX_BYTES = parseInt(process.env.IMAGE_PROXY_MAX_BYTES || `${5 * 1024 * 1024}`, 10); // 5 MB by default
+const REQUEST_BODY_LIMIT =
+  process.env.API_REQUEST_BODY_LIMIT ||
+  process.env.REQUEST_BODY_LIMIT ||
+  '25mb';
 
 // --- Initialization ---
 const app = express();
@@ -230,8 +234,8 @@ app.use((err, req, res, next) => {
   }
   return next(err);
 });
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 
 // --- API Endpoints ---
 
@@ -993,6 +997,21 @@ async function sendBinLabelHtml(res, codes) {
   return res.send(html);
 }
 
+async function sendBinLabelsPdf(res, codes) {
+  if (!codes.length) {
+    return res.status(400).json({
+      ok: false,
+      error: { code: 400, message: 'Keine BIN-Codes gefunden. Bitte Codes oder Zone/Etage angeben.' },
+    });
+  }
+  const uniqueCodes = [...new Set(codes)];
+  const pdfBuffer = await buildBinLabelsPdf(uniqueCodes);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Disposition', 'inline; filename="bin-labels.pdf"');
+  return res.send(pdfBuffer);
+}
+
 app.get('/api/warehouse/bins/:code/label', async (req, res) => {
   try {
     const code = String(req.params.code || '').trim().toUpperCase();
@@ -1052,6 +1071,46 @@ app.post('/api/warehouse/bins/labels', async (req, res) => {
     res.status(500).json({
       ok: false,
       error: { code: 500, message: 'Fehler beim Erstellen der BIN-Labels', details: error.message },
+    });
+  }
+});
+
+app.get('/api/warehouse/bins/labels.pdf', async (req, res) => {
+  try {
+    const codes = await resolveBinCodes({
+      codesInput: req.query.codes,
+      zone: req.query.zone,
+      etage: req.query.etage,
+      gang: req.query.gang,
+      regal: req.query.regal,
+    });
+    await sendBinLabelsPdf(res, codes);
+  } catch (error) {
+    console.error('Failed to generate batch bin labels PDF:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Erstellen der BIN-Labels (PDF)', details: error.message },
+    });
+  }
+});
+
+app.post('/api/warehouse/bins/labels.pdf', async (req, res) => {
+  try {
+    const { zone, etage, gang, regal } = req.body || {};
+    const bodyCodes = req.body?.codes ?? req.body?.['codes[]'];
+    const resolvedCodes = await resolveBinCodes({
+      codesInput: bodyCodes,
+      zone,
+      etage,
+      gang,
+      regal,
+    });
+    await sendBinLabelsPdf(res, resolvedCodes);
+  } catch (error) {
+    console.error('Failed to generate batch bin labels PDF (POST):', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Erstellen der BIN-Labels (PDF)', details: error.message },
     });
   }
 });

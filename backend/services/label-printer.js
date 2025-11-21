@@ -1,4 +1,5 @@
 const QRCode = require('qrcode');
+const PDFDocument = require('pdfkit');
 
 function escapeHtml(str = '') {
   return String(str)
@@ -16,6 +17,8 @@ const LABEL_GAP_MM = 3;
 const TEXT_AREA_WIDTH_MM = LABEL_WIDTH_MM - QR_SIZE_MM - LABEL_GAP_MM - LABEL_PADDING_MM * 2;
 const MIN_FONT_SIZE_MM = 3.2;
 const MAX_FONT_SIZE_MM = 6.3;
+
+const mmToPoints = (mm) => (mm / 25.4) * 72;
 
 function getBinFontMetrics(code = '') {
   const clean = String(code || '').trim();
@@ -240,9 +243,67 @@ async function buildBinLabelHtml({ code }) {
   return buildBinLabelsHtml([code]);
 }
 
+async function buildBinLabelsPdf(codes = []) {
+  if (!codes || !codes.length) {
+    throw new Error('Mindestens ein BIN-Code ist erforderlich.');
+  }
+
+  const doc = new PDFDocument({
+    size: [mmToPoints(LABEL_WIDTH_MM), mmToPoints(LABEL_HEIGHT_MM)],
+    margins: {
+      top: mmToPoints(LABEL_PADDING_MM),
+      bottom: mmToPoints(LABEL_PADDING_MM),
+      left: mmToPoints(LABEL_PADDING_MM),
+      right: mmToPoints(LABEL_PADDING_MM),
+    },
+  });
+
+  const chunks = [];
+  doc.on('data', (chunk) => chunks.push(chunk));
+
+  for (let index = 0; index < codes.length; index += 1) {
+    const code = codes[index];
+    if (index > 0) {
+      doc.addPage();
+    }
+    const qrDataUrl = await QRCode.toDataURL(code, {
+      errorCorrectionLevel: 'H',
+      margin: 0,
+      scale: 8,
+    });
+    const base64 = qrDataUrl.replace(/^data:image\/png;base64,/, '');
+    const qrBuffer = Buffer.from(base64, 'base64');
+
+    const { fontSize, letterSpacing } = getBinFontMetrics(code);
+
+    doc.image(qrBuffer, 0, 0, { fit: [mmToPoints(QR_SIZE_MM), mmToPoints(QR_SIZE_MM)] });
+
+    const textX = mmToPoints(QR_SIZE_MM + LABEL_GAP_MM);
+    const textY = mmToPoints(6);
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(mmToPoints(fontSize))
+      .text(String(code).trim(), textX, textY, {
+        width: mmToPoints(TEXT_AREA_WIDTH_MM),
+        align: 'left',
+        characterSpacing: mmToPoints(letterSpacing),
+      });
+  }
+
+  doc.end();
+
+  await new Promise((resolve, reject) => {
+    doc.once('end', resolve);
+    doc.once('error', reject);
+  });
+
+  return Buffer.concat(chunks);
+}
+
 module.exports = {
   buildProductLabelsHtml,
   buildBinLabelHtml,
   buildBinLabelsHtml,
+  buildBinLabelsPdf,
 };
 
