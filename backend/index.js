@@ -1037,9 +1037,10 @@ app.get('/api/warehouse/bins/labels', async (req, res) => {
 
 app.post('/api/warehouse/bins/labels', async (req, res) => {
   try {
-    const { codes, zone, etage, gang, regal } = req.body || {};
+    const { zone, etage, gang, regal } = req.body || {};
+    const bodyCodes = req.body?.codes ?? req.body?.['codes[]'];
     const resolvedCodes = await resolveBinCodes({
-      codesInput: codes,
+      codesInput: bodyCodes,
       zone,
       etage,
       gang,

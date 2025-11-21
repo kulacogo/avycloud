@@ -624,10 +624,11 @@ export const openBinLabelsBatchWindow = (options: {
   }
 
   const targetName = `bin-labels-${Date.now()}`;
-  const popup = window.open('', targetName, 'noopener');
+  const popup = window.open('about:blank', targetName, 'noopener');
   if (!popup) {
     return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
   }
+  popup.document.write('<p style="font-family:system-ui;padding:16px;">Bereite BIN-Labels vor...</p>');
 
   const form = document.createElement('form');
   form.method = 'POST';
@@ -639,7 +640,7 @@ export const openBinLabelsBatchWindow = (options: {
     normalizedCodes.forEach((code) => {
       const input = document.createElement('input');
       input.type = 'hidden';
-      input.name = 'codes[]';
+      input.name = 'codes';
       input.value = code;
       form.appendChild(input);
     });
