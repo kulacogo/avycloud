@@ -75,8 +75,8 @@ const TOGGLE_ICONS = {
 } as const;
 
 const safeBottomStyle: React.CSSProperties = {
-  paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)',
-  bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.25rem)',
+  paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.5rem)',
+  bottom: 'max(calc(env(safe-area-inset-bottom, 0px) - 0.75rem), 0.5rem)',
 };
 
 export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onToggleTheme }) => {
