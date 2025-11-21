@@ -944,16 +944,65 @@ app.post('/api/warehouse/stock-out', async (req, res) => {
   }
 });
 
+function normalizeCodeList(input) {
+  if (!input) return [];
+  const values = Array.isArray(input) ? input : [input];
+  return values
+    .flatMap((entry) =>
+      String(entry || '')
+        .split(/[,\s]+/)
+        .map((code) => code.trim().toUpperCase())
+    )
+    .filter(Boolean);
+}
+
+async function resolveBinCodes({ codesInput, zone, etage, gang, regal }) {
+  const directCodes = normalizeCodeList(codesInput);
+  if (directCodes.length) {
+    return directCodes;
+  }
+  if (zone && etage) {
+    const zoneCode = String(zone).toUpperCase();
+    const etageCode = String(etage).toUpperCase();
+    const binsForZone = await getBinsForZone(zoneCode, etageCode);
+    const gangNumber = gang != null ? Number(gang) : undefined;
+    const regalNumber = regal != null ? Number(regal) : undefined;
+    return binsForZone
+      .filter((bin) => {
+        if (Number.isFinite(gangNumber) && bin.gang !== gangNumber) return false;
+        if (Number.isFinite(regalNumber) && bin.regal !== regalNumber) return false;
+        return true;
+      })
+      .map((bin) => bin.code);
+  }
+  return [];
+}
+
+async function sendBinLabelHtml(res, codes) {
+  if (!codes.length) {
+    return res.status(400).json({
+      ok: false,
+      error: { code: 400, message: 'Keine BIN-Codes gefunden. Bitte Codes oder Zone/Etage angeben.' },
+    });
+  }
+  const uniqueCodes = [...new Set(codes)];
+  const html = await buildBinLabelsHtml(uniqueCodes);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  return res.send(html);
+}
+
 app.get('/api/warehouse/bins/:code/label', async (req, res) => {
   try {
-    const code = req.params.code.toUpperCase();
+    const code = String(req.params.code || '').trim().toUpperCase();
+    if (!code) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'BIN-Code ist erforderlich.' } });
+    }
     const bin = await getBinByCode(code);
     if (!bin) {
-      return res.status(404).json({ ok: false, error: { code: 404, message: 'BIN nicht gefunden.' } });
+      console.warn(`BIN ${code} nicht gefunden – Label wird trotzdem erzeugt.`);
     }
-    const html = await buildBinLabelHtml({
-      code,
-    });
+    const html = await buildBinLabelHtml({ code });
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
     res.send(html);
@@ -968,39 +1017,36 @@ app.get('/api/warehouse/bins/:code/label', async (req, res) => {
 
 app.get('/api/warehouse/bins/labels', async (req, res) => {
   try {
-    const { codes: rawCodes, zone, etage, gang, regal } = req.query || {};
-    let codes = [];
-    if (rawCodes) {
-      codes = String(rawCodes)
-        .split(',')
-        .map((code) => code.trim().toUpperCase())
-        .filter(Boolean);
-    } else if (zone && etage) {
-      const zoneCode = String(zone).toUpperCase();
-      const etageCode = String(etage).toUpperCase();
-      const binsForZone = await getBinsForZone(zoneCode, etageCode);
-      const filtered = binsForZone.filter((bin) => {
-        if (gang && Number(gang) !== bin.gang) return false;
-        if (regal && Number(regal) !== bin.regal) return false;
-        return true;
-      });
-      codes = filtered.map((bin) => bin.code);
-    }
-
-    if (!codes.length) {
-      return res.status(400).json({
-        ok: false,
-        error: { code: 400, message: 'Keine BIN-Codes gefunden. Bitte Codes oder Zone/Etage angeben.' },
-      });
-    }
-
-    const uniqueCodes = [...new Set(codes)];
-    const html = await buildBinLabelsHtml(uniqueCodes);
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-store');
-    res.send(html);
+    const codes = await resolveBinCodes({
+      codesInput: req.query.codes,
+      zone: req.query.zone,
+      etage: req.query.etage,
+      gang: req.query.gang,
+      regal: req.query.regal,
+    });
+    await sendBinLabelHtml(res, codes);
   } catch (error) {
     console.error('Failed to generate batch bin labels:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Erstellen der BIN-Labels', details: error.message },
+    });
+  }
+});
+
+app.post('/api/warehouse/bins/labels', async (req, res) => {
+  try {
+    const { codes, zone, etage, gang, regal } = req.body || {};
+    const resolvedCodes = await resolveBinCodes({
+      codesInput: codes,
+      zone,
+      etage,
+      gang,
+      regal,
+    });
+    await sendBinLabelHtml(res, resolvedCodes);
+  } catch (error) {
+    console.error('Failed to generate batch bin labels (POST):', error);
     res.status(500).json({
       ok: false,
       error: { code: 500, message: 'Fehler beim Erstellen der BIN-Labels', details: error.message },

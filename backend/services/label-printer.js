@@ -11,6 +11,15 @@ function escapeHtml(str = '') {
 const LABEL_WIDTH_MM = 57;
 const LABEL_HEIGHT_MM = 25;
 
+function getBinFontMetrics(code = '') {
+  const length = String(code || '').trim().length;
+  if (length <= 6) return { fontSize: 6.3, letterSpacing: 0.45 };
+  if (length <= 8) return { fontSize: 5.6, letterSpacing: 0.4 };
+  if (length <= 10) return { fontSize: 5, letterSpacing: 0.32 };
+  if (length <= 12) return { fontSize: 4.4, letterSpacing: 0.28 };
+  return { fontSize: 4, letterSpacing: 0.25 };
+}
+
 async function buildProductLabelsHtml(items) {
   if (!items || !items.length) {
     throw new Error('Keine Produkte für Etiketten angegeben.');
@@ -129,7 +138,12 @@ async function buildProductLabelsHtml(items) {
 }
 
 async function renderSingleBinLabel(code) {
-  const normalized = escapeHtml(code);
+  const raw = String(code || '').trim();
+  if (!raw) {
+    throw new Error('BIN-Code darf nicht leer sein.');
+  }
+  const normalized = escapeHtml(raw);
+  const { fontSize, letterSpacing } = getBinFontMetrics(raw);
   const qrDataUrl = await QRCode.toDataURL(code, {
     errorCorrectionLevel: 'H',
     margin: 0,
@@ -138,7 +152,7 @@ async function renderSingleBinLabel(code) {
   return `
     <div class="label">
       <div class="qr"><img src="${qrDataUrl}" alt="${normalized}" /></div>
-      <div class="text">${normalized}</div>
+      <div class="text" data-length="${raw.length}" style="font-size:${fontSize}mm;letter-spacing:${letterSpacing}mm;">${normalized}</div>
     </div>
   `;
 }
@@ -173,6 +187,10 @@ async function buildBinLabelsHtml(codes = []) {
         gap: 3mm;
         padding: 2mm 3mm;
         box-sizing: border-box;
+        page-break-after: always;
+      }
+      .label:last-child {
+        page-break-after: auto;
       }
       .qr {
         width: 20mm;
@@ -183,13 +201,14 @@ async function buildBinLabelsHtml(codes = []) {
         height: 100%;
       }
       .text {
+        flex: 1;
         font-size: 6mm;
         font-weight: 700;
         text-align: left;
-        line-height: 1.05;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        line-height: 1.1;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
       }
     </style>
     <script>

@@ -200,7 +200,15 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
       setStatusMessage('Keine Bins ausgewählt.');
       return;
     }
-    openBinLabelsBatchWindow({ codes: Array.from(selectedBinCodes) });
+    const codes = Array.from(selectedBinCodes);
+    (async () => {
+      const result = await openBinLabelsBatchWindow({ codes });
+      if (!result.ok) {
+        setStatusMessage(result.error?.message || 'BIN-Labels konnten nicht erstellt werden.');
+        return;
+      }
+      setStatusMessage(`BIN-Labeldruck für ${codes.length} Bins gestartet.`);
+    })();
   }, [selectedBinCodes, selectedCount]);
 
   const handleCreateLayout = async () => {

@@ -608,37 +608,63 @@ export const openBinLabelWindow = (code: string): { ok: boolean; error?: { code:
   }
 };
 
-export const openBinLabelsBatchWindow = (options: {
+export const openBinLabelsBatchWindow = async (options: {
   codes?: string[];
   zone?: string;
   etage?: string;
   gang?: number;
   regal?: number;
-}): { ok: boolean; error?: { code: number; message: string } } => {
+}): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
+  const normalizedCodes = options.codes
+    ?.map((code) => code?.trim().toUpperCase())
+    .filter((code): code is string => Boolean(code));
+
+  if ((!normalizedCodes || !normalizedCodes.length) && (!options.zone || !options.etage)) {
+    return { ok: false, error: { code: 400, message: 'Bitte Bins auswählen oder Zone & Etage angeben.' } };
+  }
+
+  const payload = normalizedCodes?.length
+    ? { codes: normalizedCodes }
+    : {
+        zone: options.zone,
+        etage: options.etage,
+        ...(typeof options.gang === 'number' ? { gang: options.gang } : {}),
+        ...(typeof options.regal === 'number' ? { regal: options.regal } : {}),
+      };
+
+  const previewWindow = window.open('', '_blank', 'noopener');
+  if (!previewWindow) {
+    return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
+  }
+  previewWindow.document.write('<p style="font-family:system-ui;padding:16px;">Bereite BIN-Labels vor...</p>');
+
   try {
-    const params = new URLSearchParams();
-    if (options.codes?.length) {
-      params.set('codes', options.codes.join(','));
-    } else {
-      if (!options.zone || !options.etage) {
-        return { ok: false, error: { code: 400, message: 'Zone und Etage sind erforderlich.' } };
+    const response = await fetch(`${BACKEND_URL}/api/warehouse/bins/labels`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/html',
+      },
+      body: JSON.stringify(payload),
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      previewWindow.close();
+      let message = 'BIN-Labels konnten nicht erstellt werden.';
+      try {
+        const parsed = JSON.parse(text);
+        message = parsed?.error?.message || message;
+      } catch {
+        // ignore parse errors
       }
-      params.set('zone', options.zone);
-      params.set('etage', options.etage);
-      if (typeof options.gang === 'number') {
-        params.set('gang', String(options.gang));
-      }
-      if (typeof options.regal === 'number') {
-        params.set('regal', String(options.regal));
-      }
+      return { ok: false, error: { code: response.status, message } };
     }
-    const url = `${BACKEND_URL}/api/warehouse/bins/labels?${params.toString()}`;
-    const win = window.open(url, '_blank', 'noopener');
-    if (!win) {
-      return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
-    }
+    previewWindow.document.open();
+    previewWindow.document.write(text);
+    previewWindow.document.close();
     return { ok: true };
   } catch (error: any) {
+    previewWindow.close();
     return { ok: false, error: { code: 0, message: error?.message || 'Unbekannter Fehler' } };
   }
 };
