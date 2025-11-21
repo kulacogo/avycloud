@@ -194,7 +194,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
           </div>
         </div>
       </header>
-      <nav className="sm:hidden fixed left-0 right-0 z-50 px-4 pointer-events-none" style={safeBottomStyle} aria-label="Mobile Navigation">
+      <nav className="sm:hidden fixed left-0 right-0 bottom-4 z-50 px-4 pointer-events-none" style={safeBottomStyle} aria-label="Mobile Navigation">
         <div className="bg-slate-900/95 border border-white/10 rounded-[32px] shadow-2xl shadow-black/40 px-3 py-2 flex gap-1 pointer-events-auto">
           {NAV_ICONS.map((nav) => (
             <MobileNavButton key={nav.view} nav={nav} />
