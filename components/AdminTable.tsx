@@ -5,6 +5,31 @@ import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWin
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId } from '../utils/product';
 
+const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
+type ColumnId =
+  | 'thumbnail'
+  | 'nameBrand'
+  | 'category'
+  | 'identifiers'
+  | 'price'
+  | 'inventory'
+  | 'storage'
+  | 'lastSold'
+  | 'syncStatus'
+  | 'saveStatus'
+  | 'lastSaved'
+  | 'lastSynced'
+  | 'revision';
+
+interface ColumnDefinition {
+  id: ColumnId;
+  label: string;
+  sortKey?: string;
+  defaultVisible?: boolean;
+  widthClass?: string;
+  render: (args: { product: Product; onSelectProduct: (id: string) => void }) => React.ReactNode;
+}
+
 interface AdminTableProps {
   products: Product[];
   onSelectProduct: (productId: string) => void;
@@ -40,9 +65,221 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
   const [filterCategory, setFilterCategory] = useState('all');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'ops.last_saved_iso', direction: 'desc' });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isColumnPanelOpen, setIsColumnPanelOpen] = useState(false);
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
   const categories = useMemo(() => ['all', ...new Set(products.map(p => p.identification.category))], [products]);
+
+  const columnDefinitions: ColumnDefinition[] = useMemo(() => {
+    const baseRenderers: ColumnDefinition[] = [
+      {
+        id: 'thumbnail',
+        label: 'Thumbnail',
+        defaultVisible: true,
+        widthClass: 'w-20',
+        render: ({ product }) => (
+          <img
+            src={product.details.images[0]?.url_or_base64}
+            alt={product.identification.name}
+            className="w-12 h-12 object-cover rounded-md"
+          />
+        ),
+      },
+      {
+        id: 'nameBrand',
+        label: 'Name / Brand',
+        sortKey: 'identification.name',
+        defaultVisible: true,
+        render: ({ product, onSelectProduct: handleSelect }) => (
+          <div>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                handleSelect(product.id);
+              }}
+              className="font-medium text-sky-400 hover:underline"
+            >
+              {product.identification.name}
+            </a>
+            <div className="text-sm text-slate-400">{product.identification.brand}</div>
+          </div>
+        ),
+      },
+      {
+        id: 'category',
+        label: 'Kategorie',
+        sortKey: 'identification.category',
+        defaultVisible: true,
+        render: ({ product }) => <span className="text-slate-300">{product.identification.category}</span>,
+      },
+      {
+        id: 'identifiers',
+        label: 'EAN / GTIN / SKU',
+        defaultVisible: true,
+        render: ({ product }) => (
+          <div className="text-slate-400 font-mono text-sm">
+            {product.details.identifiers.ean ||
+              product.details.identifiers.gtin ||
+              product.details.identifiers.sku ||
+              product.identification.sku ||
+              '—'}
+          </div>
+        ),
+      },
+      {
+        id: 'price',
+        label: 'Niedrigster Preis',
+        sortKey: 'details.pricing.lowest_price.amount',
+        defaultVisible: true,
+        render: ({ product }) =>
+          new Intl.NumberFormat('de-DE', {
+            style: 'currency',
+            currency: product.details.pricing.lowest_price.currency,
+          }).format(product.details.pricing.lowest_price.amount),
+      },
+      {
+        id: 'inventory',
+        label: 'Bestand',
+        sortKey: 'inventory.quantity',
+        defaultVisible: true,
+        render: ({ product }) => (
+          <span className="font-semibold text-slate-100">{product.inventory?.quantity ?? 0}</span>
+        ),
+      },
+      {
+        id: 'storage',
+        label: 'Lagerplatz',
+        defaultVisible: false,
+        render: ({ product }) =>
+          product.storage ? (
+            <div className="flex flex-col text-sm text-slate-300">
+              <span className="font-mono text-base text-white">{product.storage.binCode}</span>
+              <span className="text-slate-400">
+                Zone {product.storage.zone} · Gang {product.storage.gang} · Regal {product.storage.regal} · Ebene {product.storage.ebene}
+              </span>
+            </div>
+          ) : (
+            <span className="text-slate-500">Kein BIN zugewiesen</span>
+          ),
+      },
+      {
+        id: 'lastSold',
+        label: 'Zuletzt verkauft',
+        sortKey: 'details.attributes.lastSoldAt',
+        defaultVisible: false,
+        render: ({ product }) => {
+          const attrs = product.details?.attributes || {};
+          const raw =
+            (attrs.lastSoldAt as string) ||
+            (attrs.last_sold_at as string) ||
+            (attrs.lastSold as string) ||
+            null;
+          if (!raw) return <span className="text-slate-500">Keine Daten</span>;
+          const date = new Date(raw);
+          if (Number.isNaN(date.getTime())) return <span className="text-slate-500">Unbekannt</span>;
+          return <span className="text-slate-300 text-sm">{date.toLocaleString('de-DE')}</span>;
+        },
+      },
+      {
+        id: 'syncStatus',
+        label: 'Sync-Status',
+        sortKey: 'ops.sync_status',
+        defaultVisible: true,
+        render: ({ product }) => (
+          <SyncStatusBadge status={normalizeSyncStatus(product.ops.sync_status, product.ops.last_synced_iso)} />
+        ),
+      },
+      {
+        id: 'saveStatus',
+        label: 'Speicherstatus',
+        defaultVisible: true,
+        render: ({ product }) => <SaveStatusBadge saved={Boolean(product.ops?.last_saved_iso)} />,
+      },
+      {
+        id: 'lastSaved',
+        label: 'Zuletzt gespeichert',
+        sortKey: 'ops.last_saved_iso',
+        defaultVisible: true,
+        render: ({ product }) => (
+          <span className="text-slate-400 text-sm">
+            {product.ops.last_saved_iso ? new Date(product.ops.last_saved_iso).toLocaleString('de-DE') : 'N/A'}
+          </span>
+        ),
+      },
+      {
+        id: 'lastSynced',
+        label: 'Zuletzt synchronisiert',
+        sortKey: 'ops.last_synced_iso',
+        defaultVisible: true,
+        render: ({ product }) => (
+          <span className="text-slate-400 text-sm">
+            {product.ops.last_synced_iso ? new Date(product.ops.last_synced_iso).toLocaleString('de-DE') : 'N/A'}
+          </span>
+        ),
+      },
+      {
+        id: 'revision',
+        label: 'Revision',
+        sortKey: 'ops.revision',
+        defaultVisible: false,
+        widthClass: 'text-center',
+        render: ({ product }) => <span className="text-slate-200 text-sm">{product.ops.revision}</span>,
+      },
+    ];
+    return baseRenderers;
+  }, [onSelectProduct]);
+
+  const defaultColumnOrder = useMemo(
+    () => columnDefinitions.filter((col) => col.defaultVisible !== false).map((col) => col.id),
+    [columnDefinitions]
+  );
+
+  const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(() => {
+    if (typeof window === 'undefined') return defaultColumnOrder;
+    try {
+      const stored = window.localStorage.getItem(COLUMN_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as ColumnId[];
+        const valid = parsed.filter((id) => columnDefinitions.some((col) => col.id === id));
+        if (valid.length > 0) {
+          return valid;
+        }
+      }
+    } catch (error) {
+      console.warn('Konnte gespeicherte Spalten nicht laden:', error);
+    }
+    return defaultColumnOrder;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleColumns));
+    } catch (error) {
+      console.warn('Konnte Spaltenkonfiguration nicht speichern:', error);
+    }
+  }, [visibleColumns]);
+
+  const toggleColumnVisibility = (id: ColumnId) => {
+    setVisibleColumns((prev) => {
+      if (prev.includes(id)) {
+        if (prev.length === 1) return prev; // mindestens eine Spalte
+        return prev.filter((columnId) => columnId !== id);
+      }
+      return [...prev, id];
+    });
+  };
+
+  const resetColumns = () => {
+    setVisibleColumns(defaultColumnOrder);
+  };
+
+  const visibleColumnDefinitions = useMemo(() => {
+    return columnDefinitions
+      .filter((col) => visibleColumns.includes(col.id))
+      .sort((a, b) => visibleColumns.indexOf(a.id) - visibleColumns.indexOf(b.id));
+  }, [columnDefinitions, visibleColumns]);
 
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = products.filter(p => {
@@ -255,15 +492,28 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
     };
   }, [focusProductId, filteredAndSortedProducts]);
 
-  const SortableHeader: React.FC<{ sortKey: string; children: React.ReactNode }> = ({ sortKey, children }) => (
-    <th
-      className="p-3 cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap"
-      onClick={() => requestSort(sortKey)}
-    >
-      {children}
-      {sortConfig?.key === sortKey && (sortConfig.direction === 'asc' ? ' ▲' : ' ▼')}
-    </th>
-  );
+  const SortableHeader: React.FC<{ sortKey?: string; children: React.ReactNode; widthClass?: string }> = ({
+    sortKey,
+    children,
+    widthClass,
+  }) => {
+    if (!sortKey) {
+      return (
+        <th className={`p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap ${widthClass || ''}`}>
+          {children}
+        </th>
+      );
+    }
+    return (
+      <th
+        className={`p-3 cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap ${widthClass || ''}`}
+        onClick={() => requestSort(sortKey)}
+      >
+        {children}
+        {sortConfig?.key === sortKey && (sortConfig.direction === 'asc' ? ' ▲' : ' ▼')}
+      </th>
+    );
+  };
 
   return (
     <section id="admin-table" className="p-6 bg-slate-800 rounded-lg shadow-lg">
@@ -301,6 +551,43 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
           <PrintIcon className="w-4 h-4 mr-1.5" /> Print Label
         </button>
         <button id="table-delete-selected" onClick={handleBatchDelete} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-red-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto">Delete selected</button>
+        <div className="relative w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setIsColumnPanelOpen((prev) => !prev)}
+            className="w-full flex items-center justify-center px-3 py-2 text-sm bg-slate-700 text-white rounded-md border border-slate-600"
+          >
+            Spalten anpassen
+          </button>
+          {isColumnPanelOpen && (
+            <div className="absolute z-20 mt-2 w-64 rounded-lg border border-slate-600 bg-slate-800 shadow-xl p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-white">Sichtbare Spalten</p>
+                <button
+                  type="button"
+                  className="text-xs text-sky-400 hover:underline"
+                  onClick={resetColumns}
+                >
+                  Zurücksetzen
+                </button>
+              </div>
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {columnDefinitions.map((column) => (
+                  <label key={column.id} className="flex items-center gap-2 text-sm text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.includes(column.id)}
+                      onChange={() => toggleColumnVisibility(column.id)}
+                      disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
+                      className="bg-slate-600 border-slate-500"
+                    />
+                    {column.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -320,22 +607,12 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                   className="bg-slate-600 border-slate-500"
                 />
               </th>
-              <th className="p-3 w-20 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
-                Thumbnail
-              </th>
-              <SortableHeader sortKey="identification.name">Name / Brand</SortableHeader>
-              <SortableHeader sortKey="identification.category">Kategorie</SortableHeader>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
-                EAN / GTIN / SKU
-              </th>
-              <SortableHeader sortKey="details.pricing.lowest_price.amount">Niedrigster Preis</SortableHeader>
-              <SortableHeader sortKey="ops.sync_status">Sync-Status</SortableHeader>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
-                Speicherstatus
-              </th>
-              <SortableHeader sortKey="ops.last_saved_iso">Zuletzt gespeichert</SortableHeader>
-              <SortableHeader sortKey="ops.last_synced_iso">Zuletzt synchronisiert</SortableHeader>
-              <SortableHeader sortKey="ops.revision">Revision</SortableHeader>
+              <th className="p-3 w-20 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap" aria-label="Select products" />
+              {visibleColumnDefinitions.map((column) => (
+                <SortableHeader key={column.id} sortKey={column.sortKey} widthClass={column.widthClass}>
+                  {column.label}
+                </SortableHeader>
+              ))}
               <th className="p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
                 Aktionen
               </th>
@@ -360,23 +637,11 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                     className="bg-slate-600 border-slate-500"
                   />
                 </td>
-                <td className="p-3"><img src={p.details.images[0]?.url_or_base64} alt={p.identification.name} className="w-12 h-12 object-cover rounded-md" /></td>
-                <td className="p-3">
-                  <a href="#" onClick={(e) => { e.preventDefault(); onSelectProduct(p.id); }} className="font-medium text-sky-400 hover:underline">{p.identification.name}</a>
-                  <div className="text-sm text-slate-400">{p.identification.brand}</div>
-                </td>
-                <td className="p-3 text-slate-300">{p.identification.category}</td>
-                <td className="p-3 text-slate-400 font-mono text-sm">{p.details.identifiers.ean || p.details.identifiers.sku || p.id}</td>
-                <td className="p-3 text-slate-300">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: p.details.pricing.lowest_price.currency }).format(p.details.pricing.lowest_price.amount)}</td>
-                <td className="p-3">
-                  <SyncStatusBadge status={normalizeSyncStatus(p.ops.sync_status, p.ops.last_synced_iso)} />
-                </td>
-                <td className="p-3">
-                  <SaveStatusBadge saved={Boolean(p.ops?.last_saved_iso)} />
-                </td>
-                <td className="p-3 text-slate-400 text-sm">{p.ops.last_saved_iso ? new Date(p.ops.last_saved_iso).toLocaleString('de-DE') : 'N/A'}</td>
-                <td className="p-3 text-slate-400 text-sm">{p.ops.last_synced_iso ? new Date(p.ops.last_synced_iso).toLocaleString('de-DE') : 'N/A'}</td>
-                <td className="p-3 text-center text-slate-400 text-sm">{p.ops.revision}</td>
+                {visibleColumnDefinitions.map((column) => (
+                  <td key={`${p.id}-${column.id}`} className="p-3">
+                    {column.render({ product: p, onSelectProduct })}
+                  </td>
+                ))}
                 <td className="p-3">
                   <button
                     className="px-2 py-1 text-xs bg-red-600 text-white rounded-md"
