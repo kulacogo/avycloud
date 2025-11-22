@@ -64,6 +64,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const [orderErrorMessage, setOrderErrorMessage] = useState<string | null>(null);
   const [isSyncingOrders, setIsSyncingOrders] = useState(false);
   const [completingOrderId, setCompletingOrderId] = useState<string | null>(null);
+  const [showAllOpenOrders, setShowAllOpenOrders] = useState(false);
   const [autoOrderSync, setAutoOrderSync] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('avystock:autoOrderSync') === 'true';
@@ -133,6 +134,16 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   }, [products, pickSku, pickBinDetail]);
 
   const openOrders = useMemo(() => orders.filter((order) => order.status !== 'picked'), [orders]);
+  const visibleOrders = useMemo(
+    () => (showAllOpenOrders ? openOrders : openOrders.slice(0, 5)),
+    [openOrders, showAllOpenOrders]
+  );
+
+  useEffect(() => {
+    if (openOrders.length <= 5 && showAllOpenOrders) {
+      setShowAllOpenOrders(false);
+    }
+  }, [openOrders.length, showAllOpenOrders]);
 
   const orderSummary = useMemo(() => {
     const total = orders.length;
@@ -341,7 +352,9 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       return undefined;
     }
     const id = window.setInterval(() => {
-      handleSyncOrders(false);
+      if (document.visibilityState === 'visible') {
+        handleSyncOrders(false);
+      }
     }, 60000);
     autoSyncIntervalRef.current = id;
     return () => {
@@ -466,48 +479,61 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           ) : openOrders.length === 0 ? (
             <p className="text-slate-400 text-sm">Keine offenen Aufträge vorhanden.</p>
           ) : (
-            <ul className="space-y-3">
-              {openOrders.slice(0, 5).map((order) => (
-                <li key={order.id} className="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-white">
-                        {order.customer?.name || 'Unbekannter Kunde'}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {order.items.length} Positionen · {formatOrderDate(order.createdAt)}
-                      </p>
-                      {typeof order.totalAmount === 'number' && (
-                        <p className="text-xs text-slate-500">
-                          {order.currency || 'EUR'} {order.totalAmount.toFixed(2)}
+            <div className="space-y-3">
+              <ul className="space-y-3">
+                {visibleOrders.map((order) => (
+                  <li key={order.id} className="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {order.customer?.name || 'Unbekannter Kunde'}
                         </p>
-                      )}
-                      <div className="mt-2 text-xs text-slate-300 space-y-1">
-                        {order.items.slice(0, 3).map((item) => (
-                          <p key={item.id}>
-                            {item.quantity}× {item.name}
+                        <p className="text-xs text-slate-400">
+                          {order.items.length} Positionen · {formatOrderDate(order.createdAt)}
+                        </p>
+                        {typeof order.totalAmount === 'number' && (
+                          <p className="text-xs text-slate-500">
+                            {order.currency || 'EUR'} {order.totalAmount.toFixed(2)}
                           </p>
-                        ))}
-                        {order.items.length > 3 && (
-                          <p className="text-slate-500">+ {order.items.length - 3} weitere Positionen</p>
                         )}
+                        <div className="mt-2 text-xs text-slate-300 space-y-1">
+                          {order.items.slice(0, 3).map((item) => (
+                            <p key={item.id}>
+                              {item.quantity}× {item.name}
+                            </p>
+                          ))}
+                          {order.items.length > 3 && (
+                            <p className="text-slate-500">+ {order.items.length - 3} weitere Positionen</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">{order.statusLabel}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleMarkOrderComplete(order.id)}
+                          disabled={completingOrderId === order.id}
+                          className="px-3 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold disabled:opacity-50"
+                        >
+                          {completingOrderId === order.id ? 'Aktualisiere …' : 'Kommissioniert'}
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">{order.statusLabel}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleMarkOrderComplete(order.id)}
-                        disabled={completingOrderId === order.id}
-                        className="px-3 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold disabled:opacity-50"
-                      >
-                        {completingOrderId === order.id ? 'Aktualisiere …' : 'Kommissioniert'}
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+              {openOrders.length > 5 && (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllOpenOrders((prev) => !prev)}
+                    className="text-sm text-sky-300 hover:text-sky-200 underline-offset-4 underline"
+                  >
+                    {showAllOpenOrders ? 'Weniger anzeigen' : `Alle anzeigen (${openOrders.length})`}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -792,4 +818,3 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 };
 
 export default OperationsView;
-

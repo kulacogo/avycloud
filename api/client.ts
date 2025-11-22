@@ -201,6 +201,25 @@ const waitForJobResult = async (
   }
 };
 
+export const fetchProducts = async (): Promise<Product[]> => {
+  const response = await fetch(`${BACKEND_URL}/api/products`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Produkte konnten nicht geladen werden.');
+  }
+  // Backend may return { products } or { data: [...] }
+  if (Array.isArray(result?.products)) {
+    return result.products;
+  }
+  if (Array.isArray(result?.data?.products)) {
+    return result.data.products;
+  }
+  if (Array.isArray(result?.data)) {
+    return result.data;
+  }
+  return [];
+};
+
 // This function now makes a REAL API call to the live backend server.
 export const identifyProductApi = async (
   images: File[],

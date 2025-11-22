@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Product, ProductBundle, WarehouseBin } from './types';
-import { useGemini } from './hooks/useGemini';
+import { useIdentification } from './hooks/useIdentification';
 import ProductInput from './components/ProductInput';
 import ProductSheet from './components/ProductSheet';
 import AdminTable from './components/AdminTable';
@@ -11,8 +11,7 @@ import { Spinner } from './components/Spinner';
 import { ProcessStatusBar } from './components/ProcessStatusBar';
 import Dashboard from './components/Dashboard';
 import OperationsView from './components/OperationsView';
-
-const BACKEND_URL = 'https://product-hub-backend-79205549235.europe-west3.run.app';
+import { fetchProducts } from './api/client';
 
 type View = 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
 const VIEW_STORAGE_KEY = 'avystock:view';
@@ -138,9 +137,11 @@ const readInitialTheme = (): Theme => {
 const App: React.FC = () => {
   const [view, setView] = useState<View>(() => readInitialView());
   const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState<boolean>(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
   const productsRef = useRef<Product[]>([]);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
-  const { identifyProducts, isLoading, error, cancelRequest, status } = useGemini();
+  const { identifyProducts, isLoading, error, cancelRequest, status } = useIdentification();
   const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
   const [warehouseRefresh, setWarehouseRefresh] = useState<WarehouseBin | null>(null);
   const [inventoryFocusId, setInventoryFocusId] = useState<string | null>(null);
@@ -148,22 +149,22 @@ const App: React.FC = () => {
   const skipNextHistoryPushRef = useRef(false);
   const lastHistoryStateRef = useRef<{ view: View; productId: string | null } | null>(null);
   
-  // Load products from Firestore on mount
+  // Load products from backend on mount
   useEffect(() => {
-    loadProductsFromFirestore();
+    loadProducts();
   }, []);
   
-  const loadProductsFromFirestore = async () => {
+  const loadProducts = async () => {
+    setProductsLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/products`);
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.products || []);
-      }
-    } catch (error) {
+      const list = await fetchProducts();
+      setProducts(list);
+      setProductsError(null);
+    } catch (error: any) {
       console.error('Failed to load products:', error);
+      setProductsError(error?.message || 'Produkte konnten nicht geladen werden.');
     } finally {
-      // noop
+      setProductsLoading(false);
     }
   };
 
@@ -347,12 +348,38 @@ const App: React.FC = () => {
     }
   };
 
+  const renderLoadState = () => {
+    if (productsLoading && products.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-[calc(100vh-10rem)] text-slate-200">
+          <div className="bg-slate-800/80 border border-slate-700 rounded-2xl px-6 py-5 shadow-xl text-center space-y-2">
+            <p className="text-lg font-semibold">Produkte werden geladen …</p>
+            <p className="text-sm text-slate-400">Einen Moment bitte.</p>
+          </div>
+        </div>
+      );
+    }
+    return renderView();
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 font-sans flex flex-col">
       <Header currentView={view} setView={setView} theme={theme} onToggleTheme={toggleTheme} />
       <main className="flex-1 w-full max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8 safe-area-content pb-36 sm:pb-8">
+        {productsError && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-rose-800 bg-rose-900/50 px-4 py-3 text-sm text-rose-50">
+            <span>{productsError}</span>
+            <button
+              type="button"
+              onClick={loadProducts}
+              className="inline-flex items-center rounded-lg bg-rose-700 px-3 py-1.5 font-semibold text-white hover:bg-rose-600 transition-colors"
+            >
+              Erneut laden
+            </button>
+          </div>
+        )}
         <ProcessStatusBar status={status} onCancel={cancelRequest} />
-        {renderView()}
+        {renderLoadState()}
       </main>
       {isLoading && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">

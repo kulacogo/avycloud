@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UploadIcon, BarcodeIcon, CameraIcon } from './icons/Icons';
 
 interface ProductInputProps {
@@ -14,6 +14,7 @@ type ModelOption = 'gpt-5-mini-2025-08-07' | 'gpt-5-mini';
 
 const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const [images, setImages] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [barcodes, setBarcodes] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [model, setModel] = useState<ModelOption>('gpt-5-mini-2025-08-07');
@@ -27,6 +28,19 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
     if (event.target.files) {
       setImages(prev => [...prev, ...Array.from(event.target.files!)]);
     }
+  };
+
+  useEffect(() => {
+    const urls = images.map(file => URL.createObjectURL(file));
+    setPreviews(urls);
+    return () => {
+      urls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [images]);
+
+  const MODEL_LABELS: Record<ModelOption, string> = {
+    'gpt-5-mini-2025-08-07': 'Backend Default (Aug 07 build)',
+    'gpt-5-mini': 'Backend Fallback',
   };
 
   const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
@@ -198,7 +212,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {images.map((file, index) => (
                 <div key={index} className="relative group">
-                  <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-24 object-cover rounded-md" />
+                  <img src={previews[index]} alt={file.name} className="w-full h-24 object-cover rounded-md" />
                   <button
                     type="button"
                     onClick={() => removeImage(index)}
@@ -230,7 +244,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
 
         <div>
           <div className="flex items-center mb-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
-            <span>AI Model</span>
+            <span>Modell (Server)</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {(['gpt-5-mini-2025-08-07', 'gpt-5-mini'] as ModelOption[]).map((option) => (
@@ -245,7 +259,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                     : 'bg-slate-700/80 border-slate-600 text-slate-200 hover:bg-slate-600'
                 }`}
               >
-                {option === 'gpt-5-mini-2025-08-07' ? 'GPT-5 mini (2025-08-07)' : 'GPT-5 mini'}
+                {MODEL_LABELS[option]}
               </button>
             ))}
           </div>

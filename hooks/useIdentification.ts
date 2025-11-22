@@ -9,7 +9,7 @@ const IDLE_STATUS: IdentifyStatus = {
   message: 'Bereit für neue Produkterkennung.',
 };
 
-export const useGemini = () => {
+export const useIdentification = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<IdentifyStatus>(IDLE_STATUS);
