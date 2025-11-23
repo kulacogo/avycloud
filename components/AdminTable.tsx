@@ -21,6 +21,14 @@ type ColumnId =
   | 'lastSynced'
   | 'revision';
 
+type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
+const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
+  standard: ['thumbnail', 'nameBrand', 'identifiers', 'inventory', 'storage', 'syncStatus', 'lastSaved'],
+  warehouse: ['nameBrand', 'identifiers', 'inventory', 'storage', 'syncStatus', 'saveStatus'],
+  pricing: ['nameBrand', 'price', 'identifiers', 'syncStatus', 'lastSynced'],
+  minimal: ['nameBrand', 'identifiers', 'inventory', 'syncStatus'],
+};
+
 interface ColumnDefinition {
   id: ColumnId;
   label: string;
@@ -66,6 +74,8 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'ops.last_saved_iso', direction: 'desc' });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isColumnPanelOpen, setIsColumnPanelOpen] = useState(false);
+  // track a simple preset to make column selection easier
+  const [columnPreset, setColumnPreset] = useState<ColumnPreset>('standard');
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
   const categories = useMemo(() => ['all', ...new Set(products.map(p => p.identification.category))], [products]);
@@ -78,11 +88,17 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
         defaultVisible: true,
         widthClass: 'w-20',
         render: ({ product }) => (
-          <img
-            src={product.details.images[0]?.url_or_base64}
-            alt={product.identification.name}
-            className="w-12 h-12 object-cover rounded-md"
-          />
+          <div className="w-12 h-12 rounded-md overflow-hidden bg-slate-700 flex items-center justify-center text-xs text-slate-400">
+            {product.details.images[0]?.url_or_base64 ? (
+              <img
+                src={product.details.images[0]?.url_or_base64}
+                alt={product.identification.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              '—'
+            )}
+          </div>
         ),
       },
       {
@@ -115,15 +131,14 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       },
       {
         id: 'identifiers',
-        label: 'EAN / GTIN / SKU',
+        label: 'SKU / EAN',
         defaultVisible: true,
         render: ({ product }) => (
-          <div className="text-slate-400 font-mono text-sm">
-            {product.details.identifiers.ean ||
-              product.details.identifiers.gtin ||
-              product.details.identifiers.sku ||
-              product.identification.sku ||
-              '—'}
+          <div className="text-slate-300 text-sm space-y-0.5 font-mono leading-tight">
+            <div>{product.details.identifiers.sku || product.identification.sku || '—'}</div>
+            <div className="text-slate-500">
+              {product.details.identifiers.ean || product.details.identifiers.gtin || '—'}
+            </div>
           </div>
         ),
       },
@@ -133,10 +148,12 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
         sortKey: 'details.pricing.lowest_price.amount',
         defaultVisible: true,
         render: ({ product }) =>
-          new Intl.NumberFormat('de-DE', {
-            style: 'currency',
-            currency: product.details.pricing.lowest_price.currency,
-          }).format(product.details.pricing.lowest_price.amount),
+          product.details.pricing?.lowest_price?.amount
+            ? new Intl.NumberFormat('de-DE', {
+                style: 'currency',
+                currency: product.details.pricing.lowest_price.currency || 'EUR',
+              }).format(product.details.pricing.lowest_price.amount)
+            : '—',
       },
       {
         id: 'inventory',
@@ -230,27 +247,26 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
     return baseRenderers;
   }, [onSelectProduct]);
 
-  const defaultColumnOrder = useMemo(
-    () => columnDefinitions.filter((col) => col.defaultVisible !== false).map((col) => col.id),
-    [columnDefinitions]
-  );
-
-  const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(() => {
-    if (typeof window === 'undefined') return defaultColumnOrder;
-    try {
-      const stored = window.localStorage.getItem(COLUMN_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as ColumnId[];
-        const valid = parsed.filter((id) => columnDefinitions.some((col) => col.id === id));
-        if (valid.length > 0) {
-          return valid;
+  const resolveInitialColumns = (): ColumnId[] => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(COLUMN_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as ColumnId[];
+          const valid = parsed.filter((id) => columnDefinitions.some((col) => col.id === id));
+          if (valid.length > 0) {
+            return valid;
+          }
         }
+      } catch (error) {
+        console.warn('Konnte gespeicherte Spalten nicht laden:', error);
       }
-    } catch (error) {
-      console.warn('Konnte gespeicherte Spalten nicht laden:', error);
     }
-    return defaultColumnOrder;
-  });
+    const mobileDefault = typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)').matches : false;
+    return mobileDefault ? COLUMN_PRESETS.minimal : COLUMN_PRESETS.standard;
+  };
+
+  const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(() => resolveInitialColumns());
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -259,6 +275,17 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
     } catch (error) {
       console.warn('Konnte Spaltenkonfiguration nicht speichern:', error);
     }
+  }, [visibleColumns]);
+
+  useEffect(() => {
+    const match = (preset: ColumnPreset) =>
+      COLUMN_PRESETS[preset].length === visibleColumns.length &&
+      COLUMN_PRESETS[preset].every((id) => visibleColumns.includes(id));
+    if (match('standard')) setColumnPreset('standard');
+    else if (match('warehouse')) setColumnPreset('warehouse');
+    else if (match('pricing')) setColumnPreset('pricing');
+    else if (match('minimal')) setColumnPreset('minimal');
+    else setColumnPreset('standard');
   }, [visibleColumns]);
 
   const toggleColumnVisibility = (id: ColumnId) => {
@@ -272,7 +299,8 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
   };
 
   const resetColumns = () => {
-    setVisibleColumns(defaultColumnOrder);
+    setVisibleColumns(COLUMN_PRESETS.standard);
+    setColumnPreset('standard');
   };
 
   const visibleColumnDefinitions = useMemo(() => {
@@ -284,10 +312,22 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = products.filter(p => {
       const normalizedStatus = normalizeSyncStatus(p.ops.sync_status, p.ops.last_synced_iso);
+      const term = searchTerm.toLowerCase().trim();
+      const identifiers = [
+        p.details.identifiers?.sku,
+        p.identification?.sku,
+        p.details.identifiers?.ean,
+        p.details.identifiers?.gtin,
+        p.details.identifiers?.upc,
+        p.id,
+      ]
+        .filter(Boolean)
+        .map((v) => String(v).toLowerCase());
       const matchesSearch =
-        p.identification.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.identification.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.id.includes(searchTerm);
+        term === '' ||
+        p.identification.name.toLowerCase().includes(term) ||
+        p.identification.brand.toLowerCase().includes(term) ||
+        identifiers.some((idVal) => idVal.includes(term));
       const matchesStatus = filterStatus === 'all' || normalizedStatus === filterStatus;
       const matchesCategory = filterCategory === 'all' || p.identification.category === filterCategory;
       return matchesSearch && matchesStatus && matchesCategory;
@@ -551,6 +591,31 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
           <PrintIcon className="w-4 h-4 mr-1.5" /> Print Label
         </button>
         <button id="table-delete-selected" onClick={handleBatchDelete} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-red-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto">Delete selected</button>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          {(['standard', 'warehouse', 'pricing', 'minimal'] as ColumnPreset[]).map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => {
+                setVisibleColumns(COLUMN_PRESETS[preset]);
+                setColumnPreset(preset);
+              }}
+              className={`px-3 py-2 text-sm rounded-md border ${
+                columnPreset === preset
+                  ? 'border-sky-500 bg-sky-600 text-white'
+                  : 'border-slate-600 bg-slate-700 text-slate-100 hover:border-slate-500'
+              }`}
+            >
+              {preset === 'standard'
+                ? 'Standard'
+                : preset === 'warehouse'
+                ? 'Lager'
+                : preset === 'pricing'
+                ? 'Pricing'
+                : 'Minimal'}
+            </button>
+          ))}
+        </div>
         <div className="relative w-full sm:w-auto">
           <button
             type="button"
@@ -591,7 +656,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       </div>
 
       <div className="overflow-x-auto">
-        <table id="grid" className="w-full text-left min-w-[1040px]">
+        <table id="grid" className="w-full text-left min-w-[900px]">
           <thead className="bg-slate-700/50">
             <tr>
               <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-slate-300">
