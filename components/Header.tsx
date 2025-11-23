@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useI18n } from '../i18n';
 
 interface HeaderProps {
   currentView: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
@@ -40,31 +41,31 @@ type NavIconConfig = {
 const NAV_ICONS: NavIconConfig[] = [
   {
     view: 'dashboard' as const,
-    label: 'Dashboard',
+    label: 'nav.dashboard',
     light: '/home_1828871.png',
     dark: '/home_darkmode.png',
   },
   {
     view: 'input' as const,
-    label: 'New Product',
+    label: 'nav.input',
     light: '/plus_1828926.png',
     dark: '/plus_darkmode.png',
   },
   {
     view: 'inventory' as const,
-    label: 'Inventar',
+    label: 'nav.inventory',
     light: '/wireframe_1932412.png',
     dark: '/wireframe_darkmode.png',
   },
   {
     view: 'warehouse' as const,
-    label: 'Lager',
+    label: 'nav.warehouse',
     light: '/storage_3134365.png',
     dark: '/storage_darkmode.png',
   },
   {
     view: 'operations' as const,
-    label: 'Operationen',
+    label: 'nav.operations',
     iconNode: OperationsGlyph,
   },
 ] as const;
@@ -80,6 +81,7 @@ const safeBottomStyle: React.CSSProperties = {
 };
 
 export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onToggleTheme }) => {
+  const { t, locale, setLocale } = useI18n();
   const logoSrc = theme === 'dark' ? LOGOS.dark : LOGOS.light;
 
   const renderNavIcon = (nav: NavIconConfig) => {
@@ -106,8 +108,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
           : 'bg-slate-800/70 text-slate-300 hover:bg-slate-700 hover:text-white'
       }`}
       aria-current={currentView === nav.view ? 'page' : undefined}
-      aria-label={nav.label}
-      title={nav.label}
+      aria-label={t(nav.label)}
+      title={t(nav.label)}
     >
       {renderNavIcon(nav)}
     </button>
@@ -121,8 +123,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
         className={`flex items-center justify-center flex-1 rounded-2xl py-2 ${
           isActive ? 'text-white' : 'text-slate-300'
         }`}
-        aria-label={nav.label}
-        title={nav.label}
+        aria-label={t(nav.label)}
+        title={t(nav.label)}
       >
         <span
           className={`w-12 h-12 rounded-3xl flex items-center justify-center ${
@@ -162,6 +164,16 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               {NAV_ICONS.map((nav) => (
                 <DesktopNavButton key={nav.view} nav={nav} />
               ))}
+              <select
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as any)}
+                className="rounded-2xl bg-slate-800/80 border border-white/10 px-3 py-2 text-sm text-slate-100"
+                aria-label={t('lang.label')}
+              >
+                <option value="de">Deutsch</option>
+                <option value="en">English</option>
+                <option value="tr">Türkçe</option>
+              </select>
               <button
                 type="button"
                 onClick={onToggleTheme}

@@ -13,11 +13,13 @@ import {
 } from '../api/client';
 import { ScannerOverlay } from './ScannerOverlay';
 import { WarehouseIcon, SyncIcon, CameraIcon } from './icons/Icons';
+import { useI18n } from '../i18n';
 
 interface OperationsViewProps {
   products: Product[];
   onProductUpdate: (product: Product) => void;
   onStockChanged?: (bin: WarehouseBin) => void;
+  onSwitchView?: (view: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations') => void;
 }
 
 type WorkflowMode = 'stow' | 'pick';
@@ -25,25 +27,26 @@ type ScannerTarget = 'stowSku' | 'stowBin' | 'pickBin' | 'pickSku';
 
 const WORKFLOW_CARDS: Array<{
   mode: WorkflowMode;
-  title: string;
-  subtitle: string;
+  titleKey: string;
+  subtitleKey: string;
   icon: React.ReactNode;
 }> = [
   {
     mode: 'stow',
-    title: 'Einlagern (Stow)',
-    subtitle: 'Produkte scannen und Lagerplatz zuweisen',
+    titleKey: 'ops.mode.stow',
+    subtitleKey: 'Produkte scannen und Lagerplatz zuweisen',
     icon: <WarehouseIcon className="w-8 h-8" />,
   },
   {
     mode: 'pick',
-    title: 'Kommissionierung (Pick)',
-    subtitle: 'Bin zuerst scannen, Menge entnehmen',
+    titleKey: 'ops.mode.pick',
+    subtitleKey: 'Bin zuerst scannen, Menge entnehmen',
     icon: <SyncIcon className="w-8 h-8" />,
   },
 ];
 
-export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProductUpdate, onStockChanged }) => {
+export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProductUpdate, onStockChanged, onSwitchView }) => {
+  const { t } = useI18n();
   const [workflow, setWorkflow] = useState<WorkflowMode>('stow');
   const [scannerTarget, setScannerTarget] = useState<ScannerTarget | null>(null);
 
@@ -81,6 +84,10 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fallbackReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const [isFallbackDecoding, setIsFallbackDecoding] = useState(false);
+  const stowSkuRef = useRef<HTMLInputElement | null>(null);
+  const stowBinRef = useRef<HTMLInputElement | null>(null);
+  const pickBinRef = useRef<HTMLInputElement | null>(null);
+  const pickSkuRef = useRef<HTMLInputElement | null>(null);
 
   const matchedStowProduct = useMemo(() => {
     if (!stowSku.trim()) return null;
@@ -363,6 +370,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     };
   }, [autoOrderSync]);
 
+  useEffect(() => {
+    if (workflow === 'stow') {
+      stowSkuRef.current?.focus();
+    } else if (workflow === 'pick') {
+      pickBinRef.current?.focus();
+    }
+  }, [workflow]);
+
   const handleStow = async (resetAfter = false) => {
     if (!stowBin || (!matchedStowProduct && !stowSku)) {
       setErrorMessage('Bitte SKU und BIN auswählen.');
@@ -432,8 +447,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-widest text-slate-400">BaseLinker</p>
-            <h2 className="text-xl font-semibold text-white">Neue Aufträge</h2>
-            <p className="text-sm text-slate-400">Synchronisiere offene Bestellungen für die Kommissionierung.</p>
+            <h2 className="text-xl font-semibold text-white">{t('ops.orders.section')}</h2>
+            <p className="text-sm text-slate-400">Offene Bestellungen für die Kommissionierung.</p>
           </div>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
@@ -443,7 +458,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 checked={autoOrderSync}
                 onChange={handleAutoSyncToggle}
               />
-              Auto
+              {t('ops.orders.auto')}
             </label>
             <button
               type="button"
@@ -451,7 +466,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               disabled={isSyncingOrders}
               className="inline-flex items-center gap-2 rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {isSyncingOrders ? 'Sync läuft …' : 'Aufträge synchronisieren'}
+              {isSyncingOrders ? 'Sync läuft …' : t('ops.orders.sync')}
             </button>
           </div>
         </div>
@@ -461,23 +476,23 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
-            <p className="text-xs uppercase tracking-widest text-slate-400">Offene Aufträge</p>
+            <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.open')}</p>
             <p className="text-2xl font-semibold text-white mt-1">{orderSummary.open}</p>
           </div>
           <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
-            <p className="text-xs uppercase tracking-widest text-slate-400">Gesamt</p>
+            <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.total')}</p>
             <p className="text-2xl font-semibold text-white mt-1">{orderSummary.total}</p>
           </div>
           <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
-            <p className="text-xs uppercase tracking-widest text-slate-400">Heute kommissioniert</p>
+            <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.today')}</p>
             <p className="text-2xl font-semibold text-white mt-1">{orderSummary.pickedToday}</p>
           </div>
         </div>
         <div className="bg-slate-900/40 rounded-2xl p-4 border border-slate-700">
           {ordersLoading ? (
-            <p className="text-slate-400 text-sm">Lade Aufträge …</p>
+            <p className="text-slate-400 text-sm">{t('ops.orders.loading')}</p>
           ) : openOrders.length === 0 ? (
-            <p className="text-slate-400 text-sm">Keine offenen Aufträge vorhanden.</p>
+            <p className="text-slate-400 text-sm">{t('ops.orders.none')}</p>
           ) : (
             <div className="space-y-3">
               <ul className="space-y-3">
@@ -529,7 +544,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     onClick={() => setShowAllOpenOrders((prev) => !prev)}
                     className="text-sm text-sky-300 hover:text-sky-200 underline-offset-4 underline"
                   >
-                    {showAllOpenOrders ? 'Weniger anzeigen' : `Alle anzeigen (${openOrders.length})`}
+                    {showAllOpenOrders ? t('ops.orders.less') : `${t('ops.orders.more')} (${openOrders.length})`}
                   </button>
                 </div>
               )}
@@ -544,8 +559,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             <WarehouseIcon className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-white">Operationen</h1>
-            <p className="text-sm text-slate-400">Arbeite konzentriert im Einlagerungs- oder Kommissionierungsprozess.</p>
+            <h1 className="text-2xl font-semibold text-white">{t('ops.title')}</h1>
+            <p className="text-sm text-slate-400">{t('ops.subtitle')}</p>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -562,12 +577,35 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               >
                 <span className={`p-3 rounded-2xl ${active ? 'bg-sky-600/30 text-white' : 'bg-slate-800 text-slate-200'}`}>{card.icon}</span>
                 <div>
-                  <p className="font-semibold">{card.title}</p>
-                  <p className="text-xs text-slate-400">{card.subtitle}</p>
+                  <p className="font-semibold">{t(card.titleKey)}</p>
+                  <p className="text-xs text-slate-400">{card.subtitleKey}</p>
                 </div>
               </button>
             );
           })}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onSwitchView?.('input')}
+            className="rounded-full border border-slate-600 px-4 py-2 text-sm text-slate-100 hover:border-slate-400"
+          >
+            {t('ops.mode.identify')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setWorkflow('stow')}
+            className={`rounded-full px-4 py-2 text-sm ${workflow === 'stow' ? 'bg-emerald-600 text-white' : 'border border-slate-600 text-slate-100 hover:border-slate-400'}`}
+          >
+            {t('ops.mode.stow')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setWorkflow('pick')}
+            className={`rounded-full px-4 py-2 text-sm ${workflow === 'pick' ? 'bg-amber-600 text-white' : 'border border-slate-600 text-slate-100 hover:border-slate-400'}`}
+          >
+            {t('ops.mode.pick')}
+          </button>
         </div>
       </header>
 
@@ -575,7 +613,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm uppercase tracking-widest text-slate-400">Aktiver Workflow</p>
-            <h2 className="text-xl font-semibold text-white">{workflow === 'stow' ? 'Einlagern' : 'Kommissionierung'}</h2>
+            <h2 className="text-xl font-semibold text-white">{workflow === 'stow' ? t('ops.mode.stow') : t('ops.mode.pick')}</h2>
           </div>
           <button
             type="button"
@@ -583,7 +621,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             onClick={() => setScannerTarget(workflow === 'stow' ? 'stowSku' : 'pickBin')}
           >
             <CameraIcon className="w-4 h-4" />
-            {workflow === 'stow' ? 'Produkt scannen' : 'Bin scannen'}
+            {workflow === 'stow' ? t('ops.actions.scan.product') : t('ops.actions.scan.bin')}
           </button>
         </div>
 
@@ -591,15 +629,24 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         {errorMessage && <div className="text-sm text-rose-300 bg-rose-900/30 px-3 py-2 rounded">{errorMessage}</div>}
 
         {workflow === 'stow' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div
+            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleStow(false);
+              }
+            }}
+          >
             <div className="space-y-2">
-              <label className="text-xs text-slate-400 uppercase tracking-wide">Artikel / SKU</label>
+              <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.stow.product')}</label>
               <div className="flex gap-2">
                 <input
                   value={stowSku}
+                  ref={stowSkuRef}
                   onChange={(e) => setStowSku(e.target.value)}
                   className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                  placeholder="SKU oder Barcode scannen"
+                  placeholder={t('ops.stow.product')}
                 />
                 <button type="button" onClick={() => setScannerTarget('stowSku')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
                   Scan
@@ -618,13 +665,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs text-slate-400 uppercase tracking-wide">BIN-Code</label>
+              <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.stow.bin')}</label>
               <div className="flex gap-2">
                 <input
                   value={stowBin}
+                  ref={stowBinRef}
                   onChange={(e) => setStowBin(e.target.value.toUpperCase())}
                   className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white uppercase"
-                  placeholder="z.B. XGA0101A"
+                  placeholder="XGA0101A"
                 />
                 <button type="button" onClick={() => setScannerTarget('stowBin')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
                   Scan
@@ -633,7 +681,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs text-slate-400 uppercase tracking-wide">Menge</label>
+              <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.stow.quantity')}</label>
               <input
                 type="number"
                 min={1}
@@ -650,7 +698,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 disabled={isSubmitting || !stowSku || !stowBin}
                 className="px-4 py-2 rounded-xl bg-sky-600 text-white disabled:opacity-50"
               >
-                Einlagern
+                {t('ops.stow.submit')}
               </button>
               <button
                 type="button"
@@ -658,21 +706,30 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 disabled={isSubmitting || !stowSku || !stowBin}
                 className="px-4 py-2 rounded-xl bg-slate-700 text-white disabled:opacity-50"
               >
-                Einlagern & Neuer Scan
+                {t('ops.stow.submit.next')}
               </button>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div
+            className="space-y-4"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handlePick();
+              }
+            }}
+          >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-xs text-slate-400 uppercase tracking-wide">BIN-Code</label>
+                <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.pick.bin')}</label>
                 <div className="flex gap-2">
                   <input
                     value={pickBin}
+                    ref={pickBinRef}
                     onChange={(e) => setPickBin(e.target.value.toUpperCase())}
                     className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white uppercase"
-                    placeholder="z.B. XGA0101A"
+                    placeholder="XGA0101A"
                   />
                   <button
                     type="button"
@@ -692,13 +749,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 {isLoadingBin && <p className="text-xs text-slate-400 mt-1">Lade Bin …</p>}
               </div>
               <div>
-                <label className="text-xs text-slate-400 uppercase tracking-wide">Artikel / SKU</label>
+                <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.pick.product')}</label>
                 <div className="flex gap-2">
                   <input
                     value={pickSku}
+                    ref={pickSkuRef}
                     onChange={(e) => setPickSku(e.target.value)}
                     className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                    placeholder="SKU im Bin scannen"
+                    placeholder={t('ops.pick.product')}
                   />
                   <button type="button" onClick={() => setScannerTarget('pickSku')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
                     Scan
@@ -706,7 +764,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 </div>
               </div>
               <div>
-                <label className="text-xs text-slate-400 uppercase tracking-wide">Menge</label>
+                <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.pick.quantity')}</label>
                 <input
                   type="number"
                   min={1}
@@ -757,7 +815,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               disabled={isSubmitting || !pickBin || !pickSku}
               className="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-50"
             >
-              Kommissionierung buchen
+              {t('ops.pick.submit')}
             </button>
           </div>
         )}

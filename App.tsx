@@ -12,6 +12,7 @@ import { ProcessStatusBar } from './components/ProcessStatusBar';
 import Dashboard from './components/Dashboard';
 import OperationsView from './components/OperationsView';
 import { fetchProducts } from './api/client';
+import { useI18n } from './i18n';
 
 type View = 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
 const VIEW_STORAGE_KEY = 'avystock:view';
@@ -135,6 +136,7 @@ const readInitialTheme = (): Theme => {
 };
 
 const App: React.FC = () => {
+  const { t } = useI18n();
   const [view, setView] = useState<View>(() => readInitialView());
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState<boolean>(false);
@@ -162,7 +164,7 @@ const App: React.FC = () => {
       setProductsError(null);
     } catch (error: any) {
       console.error('Failed to load products:', error);
-      setProductsError(error?.message || 'Produkte konnten nicht geladen werden.');
+      setProductsError(error?.message || t('error.products'));
     } finally {
       setProductsLoading(false);
     }
@@ -338,6 +340,7 @@ const App: React.FC = () => {
             products={products}
             onProductUpdate={handleUpdateProduct}
             onStockChanged={handleBinStockChanged}
+            onSwitchView={setView}
           />
         );
       case 'dashboard':
@@ -353,8 +356,8 @@ const App: React.FC = () => {
       return (
         <div className="flex items-center justify-center h-[calc(100vh-10rem)] text-slate-200">
           <div className="bg-slate-800/80 border border-slate-700 rounded-2xl px-6 py-5 shadow-xl text-center space-y-2">
-            <p className="text-lg font-semibold">Produkte werden geladen …</p>
-            <p className="text-sm text-slate-400">Einen Moment bitte.</p>
+            <p className="text-lg font-semibold">{t('status.loading.products')}</p>
+            <p className="text-sm text-slate-400">{t('status.loading.hint')}</p>
           </div>
         </div>
       );
@@ -374,7 +377,7 @@ const App: React.FC = () => {
               onClick={loadProducts}
               className="inline-flex items-center rounded-lg bg-rose-700 px-3 py-1.5 font-semibold text-white hover:bg-rose-600 transition-colors"
             >
-              Erneut laden
+              {t('error.reload')}
             </button>
           </div>
         )}
