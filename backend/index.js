@@ -35,6 +35,7 @@ const {
   removeProductFromBin,
   bookStockIn,
   bookStockOut,
+  listBinsForProduct,
 } = require('./lib/warehouse');
 const { buildProductLabelsHtml, buildBinLabelHtml, buildBinLabelsHtml, buildBinLabelsPdf } = require('./services/label-printer');
 const { scanToBuffer } = require('./services/scanner');
@@ -857,6 +858,19 @@ app.get('/api/warehouse/bins/:code', async (req, res) => {
     res.status(500).json({
       ok: false,
       error: { code: 500, message: 'Fehler beim Laden des BINs', details: error.message },
+    });
+  }
+});
+
+app.get('/api/products/:id/bins', async (req, res) => {
+  try {
+    const bins = await listBinsForProduct(req.params.id);
+    res.json({ ok: true, data: bins });
+  } catch (error) {
+    console.error('Failed to load product bins:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Laden der BINs für dieses Produkt.', details: error.message },
     });
   }
 });

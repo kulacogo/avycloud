@@ -8,6 +8,7 @@ import {
   openSkuLabelWindow,
   assignProductToBinApi,
   removeProductFromBinApi,
+  fetchProductBins,
 } from '../api/client';
 import { EditIcon, SaveIcon, SyncIcon, GenerateIcon, PrintIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
@@ -35,6 +36,28 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
   const [binQuantity, setBinQuantity] = useState<number>(product.inventory?.quantity || 1);
   const [isAssigningBin, setIsAssigningBin] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState('');
+  const [productBins, setProductBins] = useState<
+    Array<{ code: string; quantity: number; zone: string; etage: string; gang: number; regal: number; ebene: string }>
+  >([]);
+  const [binsLoading, setBinsLoading] = useState(false);
+  const [binsError, setBinsError] = useState<string | null>(null);
+
+  const loadProductBins = useCallback(
+    async (productId: string) => {
+      setBinsLoading(true);
+      setBinsError(null);
+      try {
+        const bins = await fetchProductBins(productId);
+        setProductBins(bins);
+      } catch (error: any) {
+        setBinsError(error?.message || 'BINs konnten nicht geladen werden.');
+        setProductBins([]);
+      } finally {
+        setBinsLoading(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     setLocalProduct(product);
@@ -45,7 +68,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
     setBinCodeInput(product.storage?.binCode || '');
     setBinQuantity(product.inventory?.quantity || 1);
     setNewImageUrl('');
-  }, [product]);
+    loadProductBins(product.id);
+  }, [product, loadProductBins]);
 
   const updateImages = useCallback((mutator: (images: ProductImage[]) => ProductImage[]) => {
     setLocalProduct(prev => {
@@ -184,6 +208,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
       onUpdate(result.data.product);
       setBinCodeInput(result.data.product.storage?.binCode || '');
       setBinQuantity(result.data.product.storage?.quantity || 1);
+      loadProductBins(result.data.product.id);
       showNotification('success', 'Produkt wurde eingelagert.');
     } else {
       showNotification('error', result.error?.message || 'Einlagerung fehlgeschlagen.');
@@ -203,6 +228,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
     onUpdate(updated);
     setBinCodeInput('');
     setBinQuantity(1);
+    loadProductBins(localProduct.id);
     showNotification('success', 'Produkt aus BIN entfernt.');
   };
 
@@ -538,12 +564,24 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
 
         <section id="storage" className="p-6 bg-slate-800 rounded-lg shadow-lg">
           <h3 className="text-xl font-semibold mb-4 text-white">Lagerplatz</h3>
-          {localProduct.storage ? (
-            <p className="text-slate-300 text-sm mb-3">
-              Eingelagert in <span className="font-semibold">{localProduct.storage.binCode}</span> (Zone{' '}
-              {localProduct.storage.zone}, Etage {localProduct.storage.etage}, Gang {localProduct.storage.gang}, Regal{' '}
-              {localProduct.storage.regal}, Ebene {localProduct.storage.ebene}) – Menge {localProduct.storage.quantity}
-            </p>
+          {binsLoading ? (
+            <p className="text-slate-400 text-sm mb-3">Lade BINs …</p>
+          ) : binsError ? (
+            <p className="text-rose-300 text-sm mb-3">{binsError}</p>
+          ) : productBins.length ? (
+            <div className="mb-4 space-y-2">
+              {productBins.map((bin) => (
+                <div key={bin.code} className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-semibold text-white">{bin.code}</div>
+                    <div className="text-xs text-slate-400">
+                      Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
+                    </div>
+                    <div className="text-xs text-slate-300">Menge {bin.quantity}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <p className="text-slate-400 text-sm mb-3">Aktuell keinem BIN zugeordnet.</p>
           )}

@@ -541,6 +541,42 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
   return { product: updatedProduct, bin: updatedBin };
 }
 
+async function listBinsForProduct(productIdOrSku) {
+  if (!productIdOrSku) throw new Error('Produkt-ID oder SKU fehlt.');
+  const snapshot = await binsCollection.get();
+  const matches = [];
+
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+    const products = Array.isArray(data.products) ? data.products : [];
+    const hit = products.find(
+      (p) =>
+        p?.productId === productIdOrSku ||
+        p?.sku === productIdOrSku ||
+        p?.productId === String(productIdOrSku) ||
+        p?.sku === String(productIdOrSku)
+    );
+    if (hit) {
+      matches.push({
+        code: data.code,
+        zone: data.zone,
+        etage: data.etage,
+        gang: data.gang,
+        regal: data.regal,
+        ebene: data.ebene,
+        quantity: hit.quantity || 0,
+        productId: hit.productId,
+        sku: hit.sku,
+        name: hit.name,
+        firstStoredAt: hit.firstStoredAt || data.firstStoredAt || null,
+        lastUpdatedAt: hit.lastUpdatedAt || data.lastStoredAt || null,
+      });
+    }
+  });
+
+  return matches;
+}
+
 module.exports = {
   createWarehouseLayout,
   listWarehouseZones,
@@ -553,4 +589,5 @@ module.exports = {
   parseLetterSelection,
   bookStockIn,
   bookStockOut,
+  listBinsForProduct,
 };
