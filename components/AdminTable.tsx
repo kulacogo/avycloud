@@ -660,7 +660,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       </div>
 
       <div className="overflow-x-auto">
-        <table id="grid" className="w-full text-left min-w-[900px]">
+        <table id="grid" className="w-full text-left min-w-[1000px]">
           <thead className="bg-slate-700/50">
             <tr>
               <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-slate-300">
@@ -676,12 +676,17 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                   className="bg-slate-600 border-slate-500"
                 />
               </th>
-              <th className="p-3 w-20 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap" aria-label={t('table.thumbnail')} />
-              {visibleColumnDefinitions.map((column) => (
-                <SortableHeader key={column.id} sortKey={column.sortKey} widthClass={column.widthClass}>
-                  {column.label}
-                </SortableHeader>
-              ))}
+              <th className="p-3 w-20 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap" aria-label={t('table.thumbnail')}>
+                {t('table.thumbnail')}
+              </th>
+              {visibleColumnDefinitions.map((column) => {
+                const isThumbnail = column.id === 'thumbnail';
+                return (
+                  <SortableHeader key={column.id} sortKey={column.sortKey} widthClass={column.widthClass}>
+                    {column.label}
+                  </SortableHeader>
+                );
+              })}
               <th className="p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
                 {t('table.actions.label')}
               </th>
@@ -707,7 +712,11 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                   />
                 </td>
                 {visibleColumnDefinitions.map((column) => (
-                  <td key={`${p.id}-${column.id}`} className="p-3">
+                  <td
+                    key={`${p.id}-${column.id}`}
+                    className="p-3 align-top"
+                    style={column.id === 'thumbnail' ? { width: '80px' } : undefined}
+                  >
                     {column.render({ product: p, onSelectProduct })}
                   </td>
                 ))}
