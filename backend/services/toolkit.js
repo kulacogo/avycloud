@@ -5,7 +5,7 @@ const serpapiToolDefinition = {
   name: 'serpapi_web_search',
   description:
     'Greift auf SerpAPI zu (Google, Bing, Amazon, eBay, DuckDuckGo, Lens/Reverse-Image etc.), um Produktdaten, Preise, Bilder und Kategorien in Echtzeit abzurufen.',
-  strict: true,
+  strict: false,
   parameters: {
     type: 'object',
     properties: {
