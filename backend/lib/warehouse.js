@@ -246,13 +246,18 @@ async function removeProductFromBin(binCode, productId, options = {}) {
   const binRef = binsCollection.doc(binCode);
   const productRef = productsCollection.doc(productId);
   await firestore.runTransaction(async (tx) => {
-    const binSnap = await tx.get(binRef);
+    const [binSnap, productSnap] = await Promise.all([tx.get(binRef), tx.get(productRef)]);
     if (!binSnap.exists) {
       throw new Error('BIN nicht gefunden.');
     }
+    if (!productSnap.exists) {
+      throw new Error('Produkt nicht gefunden.');
+    }
+
     const binData = binSnap.data();
     const products = Array.isArray(binData.products) ? [...binData.products] : [];
     const updatedProducts = products.filter((p) => p.productId !== productId);
+    const removedEntry = products.find((p) => p.productId === productId);
     const productCount = updatedProducts.reduce((sum, item) => sum + (item.quantity || 0), 0);
     tx.update(binRef, {
       products: updatedProducts,
@@ -260,11 +265,17 @@ async function removeProductFromBin(binCode, productId, options = {}) {
       lastStoredAt: Timestamp.now(),
     });
     if (!options.skipProductUpdate) {
+      const productData = productSnap.data();
+      const shouldClearStorage = productData?.storage?.binCode === binCode;
+      const remainingQuantity = Math.max(
+        0,
+        (productData?.inventory?.quantity || 0) - (removedEntry?.quantity || 0)
+      );
       tx.update(productRef, {
-        storage: null,
+        storage: shouldClearStorage ? null : productData.storage || null,
         inventory: {
-          ...(product?.inventory || {}),
-          quantity: 0,
+          ...(productData?.inventory || {}),
+          quantity: remainingQuantity,
         },
       });
     }
