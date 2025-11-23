@@ -55,11 +55,11 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
   const [stowSku, setStowSku] = useState('');
   const [stowBin, setStowBin] = useState('');
-  const [stowQuantity, setStowQuantity] = useState(1);
+  const [stowQuantity, setStowQuantity] = useState<number | ''>('');
 
   const [pickBin, setPickBin] = useState('');
   const [pickSku, setPickSku] = useState('');
-  const [pickQuantity, setPickQuantity] = useState(1);
+  const [pickQuantity, setPickQuantity] = useState<number | ''>('');
   const [pickBinDetail, setPickBinDetail] = useState<WarehouseBin | null>(null);
   const [isLoadingBin, setIsLoadingBin] = useState(false);
 
@@ -716,7 +716,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 type="number"
                 min={1}
                 value={stowQuantity}
-                onChange={(e) => setStowQuantity(Math.max(1, Number(e.target.value)))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    setStowQuantity('');
+                  } else {
+                    setStowQuantity(Math.max(1, Number(val)));
+                  }
+                }}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
               />
             </div>
@@ -725,7 +732,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               <button
                 type="button"
                 onClick={() => handleStow(false)}
-                disabled={isSubmitting || !stowSku || !stowBin}
+                disabled={isSubmitting || !stowSku || !stowBin || !stowQuantity}
                 className="px-4 py-2 rounded-xl bg-sky-600 text-white disabled:opacity-50"
               >
                 {t('ops.stow.submit')}
@@ -733,7 +740,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               <button
                 type="button"
                 onClick={() => handleStow(true)}
-                disabled={isSubmitting || !stowSku || !stowBin}
+                disabled={isSubmitting || !stowSku || !stowBin || !stowQuantity}
                 className="px-4 py-2 rounded-xl bg-slate-700 text-white disabled:opacity-50"
               >
                 {t('ops.stow.submit.next')}
@@ -796,12 +803,19 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               <div>
                 <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.pick.quantity')}</label>
                 <input
-                  type="number"
-                  min={1}
-                  value={pickQuantity}
-                  onChange={(e) => setPickQuantity(Math.max(1, Number(e.target.value)))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                />
+                type="number"
+                min={1}
+                value={pickQuantity}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    setPickQuantity('');
+                  } else {
+                    setPickQuantity(Math.max(1, Number(val)));
+                  }
+                }}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+              />
               </div>
             </div>
 
@@ -842,7 +856,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             <button
               type="button"
               onClick={handlePick}
-              disabled={isSubmitting || !pickBin || !pickSku}
+              disabled={isSubmitting || !pickBin || !pickSku || !pickQuantity}
               className="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-50"
             >
               {t('ops.pick.submit')}

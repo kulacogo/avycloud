@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useI18n } from '../i18n';
+import { RefreshIcon } from './icons/Icons';
 
 interface HeaderProps {
   currentView: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
@@ -86,6 +87,22 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
   );
   const logoSrc = theme === 'dark' ? LOGOS.dark : LOGOS.light;
+  const handleHardRefresh = React.useCallback(async () => {
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((reg) => reg.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch (error) {
+      console.warn('Hard refresh fallback:', (error as any)?.message);
+    } finally {
+      window.location.reload();
+    }
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -183,6 +200,15 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               {navIcons.map((nav) => (
                 <DesktopNavButton key={nav.view} nav={nav} />
               ))}
+              <button
+                type="button"
+                onClick={handleHardRefresh}
+                className="rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
+                aria-label={t('actions.refresh')}
+                title={t('actions.refresh')}
+              >
+                <RefreshIcon className="w-6 h-6" />
+              </button>
               <select
                 value={locale}
                 onChange={(e) => setLocale(e.target.value as any)}
@@ -221,6 +247,15 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 className="w-6 h-6"
                 draggable={false}
               />
+            </button>
+            <button
+              type="button"
+              onClick={handleHardRefresh}
+              className="sm:hidden rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
+              aria-label={t('actions.refresh')}
+              title={t('actions.refresh')}
+            >
+              <RefreshIcon className="w-6 h-6 text-slate-100" />
             </button>
           </div>
         </div>

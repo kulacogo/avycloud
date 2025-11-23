@@ -98,6 +98,7 @@ const messages: Record<Locale, Dict> = {
     'table.columns.edit': 'Spalten anpassen',
     'table.columns.visible': 'Sichtbare Spalten',
     'table.columns.reset': 'Zurücksetzen',
+    'actions.refresh': 'Neu laden',
   },
   en: {
     'nav.dashboard': 'Dashboard',
@@ -184,6 +185,7 @@ const messages: Record<Locale, Dict> = {
     'table.columns.edit': 'Edit columns',
     'table.columns.visible': 'Visible columns',
     'table.columns.reset': 'Reset',
+    'actions.refresh': 'Hard refresh',
   },
   tr: {
     'nav.dashboard': 'Panel',
@@ -270,6 +272,7 @@ const messages: Record<Locale, Dict> = {
     'table.columns.edit': 'Sütunları düzenle',
     'table.columns.visible': 'Görünen sütunlar',
     'table.columns.reset': 'Sıfırla',
+    'actions.refresh': 'Yeniden yükle',
   },
 };
 

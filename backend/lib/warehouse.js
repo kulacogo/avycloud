@@ -370,23 +370,6 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
     const resolvedProductId = productData.id || productRef.id;
     const nowIso = now.toDate().toISOString();
 
-    let previousBinRef = null;
-    let previousBinData = null;
-    if (productData.storage?.binCode && productData.storage.binCode !== binCode) {
-      previousBinRef = binsCollection.doc(productData.storage.binCode);
-      previousBinData = await tx.get(previousBinRef);
-    }
-
-    if (previousBinRef && previousBinData?.exists) {
-      const oldData = previousBinData.data();
-      const oldProducts = cloneProductsArray(oldData).filter((entry) => entry.productId !== productData.id);
-      tx.update(previousBinRef, {
-        products: oldProducts,
-        productCount: calculateBinProductCount(oldProducts),
-        lastStoredAt: now,
-      });
-    }
-
     let entry = products.find((p) => p.productId === resolvedProductId);
     if (entry && productData.storage?.binCode !== binCode) {
       entry.quantity = quantity;
@@ -417,22 +400,30 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
     });
 
     const storageQuantity = entry.quantity;
-    const storagePayload = {
-      binCode,
-      zone: binData.zone,
-      etage: binData.etage,
-      gang: binData.gang,
-      regal: binData.regal,
-      ebene: binData.ebene,
-      quantity: storageQuantity,
-      assigned_at: productData.storage?.assigned_at || nowIso,
-    };
+    const inventoryQuantity =
+      productData.storage?.binCode && productData.storage.binCode !== binCode
+        ? (productData.inventory?.quantity || 0) + quantity
+        : storageQuantity;
+    // Keep existing storage if Produkt liegt bereits in anderem BIN, um den ersten Standort nicht zu überschreiben
+    const storagePayload =
+      productData.storage && productData.storage.binCode && productData.storage.binCode !== binCode
+        ? productData.storage
+        : {
+            binCode,
+            zone: binData.zone,
+            etage: binData.etage,
+            gang: binData.gang,
+            regal: binData.regal,
+            ebene: binData.ebene,
+            quantity: storageQuantity,
+            assigned_at: productData.storage?.assigned_at || nowIso,
+          };
 
     tx.update(productRef, {
       storage: storagePayload,
       inventory: {
         ...(productData.inventory || {}),
-        quantity: storageQuantity,
+        quantity: inventoryQuantity,
       },
     });
 
@@ -442,7 +433,7 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
       storage: storagePayload,
       inventory: {
         ...(productData.inventory || {}),
-        quantity: storageQuantity,
+        quantity: inventoryQuantity,
       },
     };
 
@@ -563,4 +554,3 @@ module.exports = {
   bookStockIn,
   bookStockOut,
 };
-
