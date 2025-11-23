@@ -49,7 +49,7 @@ const IMAGE_PROXY_MAX_BYTES = parseInt(process.env.IMAGE_PROXY_MAX_BYTES || `${5
 const REQUEST_BODY_LIMIT =
   process.env.API_REQUEST_BODY_LIMIT ||
   process.env.REQUEST_BODY_LIMIT ||
-  '25mb';
+  '50mb';
 
 // --- Initialization ---
 const app = express();
@@ -495,7 +495,9 @@ app.post('/api/identify', upload.array('images'), async (req, res) => {
         ok: false,
         error: {
           code: 413,
-          message: `Bildupload überschreitet das 25 MB-Gesamtkontingent (Konfiguration: ${MAX_IMAGE_FILES} Dateien à ca. ${Math.floor(
+          message: `Bildupload überschreitet das ${Math.floor(
+            MAX_IMAGE_PAYLOAD_BYTES / (1024 * 1024)
+          )} MB-Gesamtkontingent (Konfiguration: ${MAX_IMAGE_FILES} Dateien à ca. ${Math.floor(
             MAX_IMAGE_FILE_SIZE / (1024 * 1024)
           )} MB).`,
         },
