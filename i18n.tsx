@@ -99,6 +99,7 @@ const messages: Record<Locale, Dict> = {
     'table.columns.visible': 'Sichtbare Spalten',
     'table.columns.reset': 'Zurücksetzen',
     'actions.refresh': 'Neu laden',
+    'table.noBin': 'Kein BIN zugewiesen',
   },
   en: {
     'nav.dashboard': 'Dashboard',
@@ -186,6 +187,7 @@ const messages: Record<Locale, Dict> = {
     'table.columns.visible': 'Visible columns',
     'table.columns.reset': 'Reset',
     'actions.refresh': 'Hard refresh',
+    'table.noBin': 'No BIN assigned',
   },
   tr: {
     'nav.dashboard': 'Panel',
@@ -273,6 +275,7 @@ const messages: Record<Locale, Dict> = {
     'table.columns.visible': 'Görünen sütunlar',
     'table.columns.reset': 'Sıfırla',
     'actions.refresh': 'Yeniden yükle',
+    'table.noBin': 'BIN atanmadı',
   },
 };
 

@@ -163,7 +163,9 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
         sortKey: 'inventory.quantity',
         defaultVisible: true,
         render: ({ product }) => (
-          <span className="font-semibold text-slate-100 text-center block">{product.inventory?.quantity ?? 0}</span>
+          <div className="flex flex-col leading-tight">
+            <span className="font-semibold text-slate-100 text-center block">{product.inventory?.quantity ?? 0}</span>
+          </div>
         ),
       },
       {
@@ -179,7 +181,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
               </span>
             </div>
           ) : (
-            <span className="text-slate-500">Kein BIN zugewiesen</span>
+            <span className="text-slate-500">{t('table.noBin')}</span>
           ),
       },
       {
