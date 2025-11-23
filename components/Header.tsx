@@ -265,6 +265,16 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
           {navIcons.map((nav) => (
             <MobileNavButton key={nav.view} nav={nav} />
           ))}
+          <select
+            value={locale}
+            onChange={(e) => setLocale(e.target.value as any)}
+            className="flex-1 rounded-2xl bg-slate-800 text-slate-200 text-sm px-2"
+            aria-label={t('lang.label')}
+          >
+            <option value="de">DE</option>
+            <option value="en">EN</option>
+            <option value="tr">TR</option>
+          </select>
         </div>
       </nav>
     </>
