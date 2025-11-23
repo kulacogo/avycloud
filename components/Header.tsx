@@ -82,7 +82,26 @@ const safeBottomStyle: React.CSSProperties = {
 
 export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onToggleTheme }) => {
   const { t, locale, setLocale } = useI18n();
+  const [isMobile, setIsMobile] = React.useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
+  );
   const logoSrc = theme === 'dark' ? LOGOS.dark : LOGOS.light;
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 768px)');
+    const handler = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const navIcons = React.useMemo(() => {
+    if (!isMobile) return NAV_ICONS;
+    const ops = NAV_ICONS.find((n) => n.view === 'operations');
+    const input = NAV_ICONS.find((n) => n.view === 'input');
+    const rest = NAV_ICONS.filter((n) => n.view !== 'operations' && n.view !== 'input');
+    return [ops, input, ...rest].filter(Boolean) as typeof NAV_ICONS;
+  }, [isMobile]);
 
   const renderNavIcon = (nav: NavIconConfig) => {
     if (nav.iconNode) return nav.iconNode;
@@ -161,7 +180,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <span className="sr-only">Avystock Product Intelligence Hub</span>
             </div>
             <div className="hidden sm:flex items-center gap-3">
-              {NAV_ICONS.map((nav) => (
+              {navIcons.map((nav) => (
                 <DesktopNavButton key={nav.view} nav={nav} />
               ))}
               <select
@@ -208,7 +227,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
       </header>
       <nav className="sm:hidden fixed left-0 right-0 bottom-4 z-50 px-4 pointer-events-none" style={safeBottomStyle} aria-label="Mobile Navigation">
         <div className="bg-slate-900/95 border border-white/10 rounded-[32px] shadow-2xl shadow-black/40 px-3 py-2 flex gap-1 pointer-events-auto">
-          {NAV_ICONS.map((nav) => (
+          {navIcons.map((nav) => (
             <MobileNavButton key={nav.view} nav={nav} />
           ))}
         </div>

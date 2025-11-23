@@ -34,19 +34,22 @@ const WORKFLOW_CARDS: Array<{
   {
     mode: 'stow',
     titleKey: 'ops.mode.stow',
-    subtitleKey: 'Produkte scannen und Lagerplatz zuweisen',
+    subtitleKey: 'ops.mode.stow.subtitle',
     icon: <WarehouseIcon className="w-8 h-8" />,
   },
   {
     mode: 'pick',
     titleKey: 'ops.mode.pick',
-    subtitleKey: 'Bin zuerst scannen, Menge entnehmen',
+    subtitleKey: 'ops.mode.pick.subtitle',
     icon: <SyncIcon className="w-8 h-8" />,
   },
 ];
 
 export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProductUpdate, onStockChanged, onSwitchView }) => {
   const { t } = useI18n();
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
+  );
   const [workflow, setWorkflow] = useState<WorkflowMode>('stow');
   const [scannerTarget, setScannerTarget] = useState<ScannerTarget | null>(null);
 
@@ -88,6 +91,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const stowBinRef = useRef<HTMLInputElement | null>(null);
   const pickBinRef = useRef<HTMLInputElement | null>(null);
   const pickSkuRef = useRef<HTMLInputElement | null>(null);
+  const [showOrdersPanel, setShowOrdersPanel] = useState<boolean>(() => !isMobile);
 
   const matchedStowProduct = useMemo(() => {
     if (!stowSku.trim()) return null;
@@ -378,6 +382,19 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     }
   }, [workflow]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const mq = window.matchMedia('(max-width: 768px)');
+    const handler = (event: MediaQueryListEvent) => {
+      setIsMobile(event.matches);
+      setShowOrdersPanel(event.matches ? false : true);
+    };
+    mq.addEventListener('change', handler);
+    setIsMobile(mq.matches);
+    setShowOrdersPanel(mq.matches ? false : true);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   const handleStow = async (resetAfter = false) => {
     if (!stowBin || (!matchedStowProduct && !stowSku)) {
       setErrorMessage('Bitte SKU und BIN auswählen.');
@@ -448,9 +465,9 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           <div>
             <p className="text-sm uppercase tracking-widest text-slate-400">BaseLinker</p>
             <h2 className="text-xl font-semibold text-white">{t('ops.orders.section')}</h2>
-            <p className="text-sm text-slate-400">Offene Bestellungen für die Kommissionierung.</p>
+            <p className="text-sm text-slate-400">{t('ops.orders.desc')}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
               <input
                 type="checkbox"
@@ -468,89 +485,102 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             >
               {isSyncingOrders ? 'Sync läuft …' : t('ops.orders.sync')}
             </button>
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setShowOrdersPanel((prev) => !prev)}
+                className="inline-flex items-center rounded-full border border-slate-600 px-3 py-2 text-sm text-slate-100 hover:border-slate-400"
+              >
+                {showOrdersPanel ? t('ops.orders.hide') : t('ops.orders.show')}
+              </button>
+            )}
           </div>
         </div>
         {orderStatusMessage && <div className="text-sm text-emerald-300 bg-emerald-900/30 px-3 py-2 rounded">{orderStatusMessage}</div>}
         {(ordersError || orderErrorMessage) && (
           <div className="text-sm text-rose-300 bg-rose-900/30 px-3 py-2 rounded">{ordersError || orderErrorMessage}</div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
-            <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.open')}</p>
-            <p className="text-2xl font-semibold text-white mt-1">{orderSummary.open}</p>
-          </div>
-          <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
-            <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.total')}</p>
-            <p className="text-2xl font-semibold text-white mt-1">{orderSummary.total}</p>
-          </div>
-          <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
-            <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.today')}</p>
-            <p className="text-2xl font-semibold text-white mt-1">{orderSummary.pickedToday}</p>
-          </div>
-        </div>
-        <div className="bg-slate-900/40 rounded-2xl p-4 border border-slate-700">
-          {ordersLoading ? (
-            <p className="text-slate-400 text-sm">{t('ops.orders.loading')}</p>
-          ) : openOrders.length === 0 ? (
-            <p className="text-slate-400 text-sm">{t('ops.orders.none')}</p>
-          ) : (
-            <div className="space-y-3">
-              <ul className="space-y-3">
-                {visibleOrders.map((order) => (
-                  <li key={order.id} className="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-white">
-                          {order.customer?.name || 'Unbekannter Kunde'}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {order.items.length} Positionen · {formatOrderDate(order.createdAt)}
-                        </p>
-                        {typeof order.totalAmount === 'number' && (
-                          <p className="text-xs text-slate-500">
-                            {order.currency || 'EUR'} {order.totalAmount.toFixed(2)}
-                          </p>
-                        )}
-                        <div className="mt-2 text-xs text-slate-300 space-y-1">
-                          {order.items.slice(0, 3).map((item) => (
-                            <p key={item.id}>
-                              {item.quantity}× {item.name}
+        {showOrdersPanel && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
+                <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.open')}</p>
+                <p className="text-2xl font-semibold text-white mt-1">{orderSummary.open}</p>
+              </div>
+              <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
+                <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.total')}</p>
+                <p className="text-2xl font-semibold text-white mt-1">{orderSummary.total}</p>
+              </div>
+              <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
+                <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.today')}</p>
+                <p className="text-2xl font-semibold text-white mt-1">{orderSummary.pickedToday}</p>
+              </div>
+            </div>
+            <div className="bg-slate-900/40 rounded-2xl p-4 border border-slate-700">
+              {ordersLoading ? (
+                <p className="text-slate-400 text-sm">{t('ops.orders.loading')}</p>
+              ) : openOrders.length === 0 ? (
+                <p className="text-slate-400 text-sm">{t('ops.orders.none')}</p>
+              ) : (
+                <div className="space-y-3">
+                  <ul className="space-y-3">
+                    {visibleOrders.map((order) => (
+                      <li key={order.id} className="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-white">
+                              {order.customer?.name || 'Unbekannter Kunde'}
                             </p>
-                          ))}
-                          {order.items.length > 3 && (
-                            <p className="text-slate-500">+ {order.items.length - 3} weitere Positionen</p>
-                          )}
+                            <p className="text-xs text-slate-400">
+                              {order.items.length} Positionen · {formatOrderDate(order.createdAt)}
+                            </p>
+                            {typeof order.totalAmount === 'number' && (
+                              <p className="text-xs text-slate-500">
+                                {order.currency || 'EUR'} {order.totalAmount.toFixed(2)}
+                              </p>
+                            )}
+                            <div className="mt-2 text-xs text-slate-300 space-y-1">
+                              {order.items.slice(0, 3).map((item) => (
+                                <p key={item.id}>
+                                  {item.quantity}× {item.name}
+                                </p>
+                              ))}
+                              {order.items.length > 3 && (
+                                <p className="text-slate-500">+ {order.items.length - 3} weitere Positionen</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-400">{order.statusLabel}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleMarkOrderComplete(order.id)}
+                              disabled={completingOrderId === order.id}
+                              className="px-3 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold disabled:opacity-50"
+                            >
+                              {completingOrderId === order.id ? 'Aktualisiere …' : t('ops.orders.complete')}
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">{order.statusLabel}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleMarkOrderComplete(order.id)}
-                          disabled={completingOrderId === order.id}
-                          className="px-3 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold disabled:opacity-50"
-                        >
-                          {completingOrderId === order.id ? 'Aktualisiere …' : 'Kommissioniert'}
-                        </button>
-                      </div>
+                      </li>
+                    ))}
+                  </ul>
+                  {openOrders.length > 5 && (
+                    <div className="flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setShowAllOpenOrders((prev) => !prev)}
+                        className="text-sm text-sky-300 hover:text-sky-200 underline-offset-4 underline"
+                      >
+                        {showAllOpenOrders ? t('ops.orders.less') : `${t('ops.orders.more')} (${openOrders.length})`}
+                      </button>
                     </div>
-                  </li>
-                ))}
-              </ul>
-              {openOrders.length > 5 && (
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setShowAllOpenOrders((prev) => !prev)}
-                    className="text-sm text-sky-300 hover:text-sky-200 underline-offset-4 underline"
-                  >
-                    {showAllOpenOrders ? t('ops.orders.less') : `${t('ops.orders.more')} (${openOrders.length})`}
-                  </button>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       <header className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg">
@@ -578,7 +608,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 <span className={`p-3 rounded-2xl ${active ? 'bg-sky-600/30 text-white' : 'bg-slate-800 text-slate-200'}`}>{card.icon}</span>
                 <div>
                   <p className="font-semibold">{t(card.titleKey)}</p>
-                  <p className="text-xs text-slate-400">{card.subtitleKey}</p>
+                  <p className="text-xs text-slate-400">{t(card.subtitleKey)}</p>
                 </div>
               </button>
             );

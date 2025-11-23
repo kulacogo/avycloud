@@ -120,7 +120,8 @@ const readInitialView = (): View => {
       return migrated as View;
     }
   }
-  return 'dashboard';
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  return isMobile ? 'operations' : 'dashboard';
 };
 
 const readInitialTheme = (): Theme => {
