@@ -175,24 +175,30 @@ const App: React.FC = () => {
     productsRef.current = products;
   }, [products]);
 
-  const handleIdentification = useCallback(async (images: File[], barcodes: string, model?: string) => {
-    const result: ProductBundle | null = await identifyProducts(images, barcodes, model);
-    if (result && result.products.length > 0) {
-      let focusProduct: Product | null = null;
-      setProducts(prev => {
-        const merged = mergeIdentifiedProducts(result.products, prev);
-        focusProduct = merged.focus;
-        return merged.list;
-      });
-      if (focusProduct) {
-        setCurrentProduct(focusProduct);
-      } else {
-        setCurrentProduct(result.products[0]);
+  const handleIdentification = useCallback(
+    async (images: File[], barcodes: string, model?: string) => {
+      const result: ProductBundle | null = await identifyProducts(images, barcodes, model);
+      if (result && result.products.length > 0) {
+        const newProducts: Product[] = [];
+        setProducts((prev) => {
+          const merged = mergeIdentifiedProducts(result.products, prev);
+          newProducts.push(...result.products);
+          return merged.list;
+        });
+
+        // Save all newly identified products in the background
+        for (const p of result.products) {
+          saveProduct(p);
+        }
+
+        // Optional focus: first identified product only (rest saved silently)
+        setCurrentProduct(result.products[0] || null);
+        setView('sheet');
       }
-      setView('sheet');
-    }
-    // Error is handled by the hook and displayed via the `error` state
-  }, [identifyProducts]);
+      // Error is handled by the hook and displayed via the `error` state
+    },
+    [identifyProducts]
+  );
 
   const handleUpdateProduct = (updatedProduct: Product) => {
     setProducts(prevProducts =>
