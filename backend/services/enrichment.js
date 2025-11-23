@@ -7,6 +7,7 @@ const { serpapiToolDefinition, executeSerpapiToolCall } = require('./toolkit');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { resolveModel } = require('../lib/model-select');
 const { fetchMarketingImages } = require('../lib/marketing-images');
+const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
 
 const MAX_TOOL_ITERATIONS = 8;
 const MAX_BARCODE_COUNT = 10000;
@@ -97,6 +98,8 @@ function buildSystemPrompt(locale = 'de-DE') {
     `6. Sprich Deutsch (${locale}), Währung EUR.`,
     `7. Produktbilder nur übernehmen, wenn Quelle eindeutig verifiziert ist.`,
     `8. Nutze SerpAPI engines exakt nach Dokumentation (keine eigenen Parameter).`,
+    `9. Ordne das Produkt einer passenden eBay.de Kategorie zu (Breadcrumb) und liefere diese.`,
+    `10. Alle Pflicht-Artikelmerkmale (Item Specifics) der eBay-Kategorie müssen im Datenblatt stehen; wenn Werte fehlen, lasse sie leer aber nenne die Keys.`,
   ].join('\n');
 }
 
@@ -177,6 +180,63 @@ function normalizeBundle(bundle) {
       }
       cloned.details = { ...cloned.details, attributes: attrObj };
     }
+    return cloned;
+  });
+  return bundle;
+}
+
+function parseCategoryIdFromString(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  const match = raw.match(/\\[(\\d+)\\]/);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    if (Number.isFinite(num)) return num;
+  }
+  const numeric = parseInt(raw, 10);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function applyEbayTaxonomy(bundle) {
+  if (!bundle?.products) return bundle;
+  bundle.products = bundle.products.map((product) => {
+    const cloned = { ...product };
+    const attributes = { ...(cloned.details?.attributes || {}) };
+    const rawCategory =
+      cloned.details?.ebayCategory ||
+      cloned.identification?.category ||
+      attributes?.Kategorie ||
+      attributes?.category;
+
+    let ebayCategory = null;
+    const fromId = parseCategoryIdFromString(rawCategory);
+    if (fromId) {
+      ebayCategory = findEbayCategory(fromId);
+    }
+    if (!ebayCategory) {
+      ebayCategory = findEbayCategory(rawCategory);
+    }
+
+    if (ebayCategory) {
+      cloned.identification = {
+        ...(cloned.identification || {}),
+        category: ebayCategory.breadcrumb,
+      };
+      cloned.details = {
+        ...(cloned.details || {}),
+        ebayCategoryId: ebayCategory.id,
+        ebayCategoryBreadcrumb: ebayCategory.breadcrumb,
+      };
+
+      const required = getRequiredAspects(ebayCategory.id);
+      required.forEach((aspect) => {
+        if (attributes[aspect] === undefined) {
+          attributes[aspect] = '';
+        }
+      });
+    }
+
+    cloned.details = cloned.details || {};
+    cloned.details.attributes = attributes;
     return cloned;
   });
   return bundle;
@@ -494,6 +554,7 @@ async function runProductIdentification({ files = [], barcodes = '', locale = 'd
       const bundle = parseModelJson(response);
       ensureSchema(bundle);
       normalizeBundle(bundle);
+      applyEbayTaxonomy(bundle);
       await enrichProductImages(bundle.products, serpTrace);
       ensurePriceCoverage(bundle.products, serpTrace);
       assertSerpUsage(serpTrace);
@@ -546,4 +607,3 @@ module.exports = {
   MAX_IMAGE_PAYLOAD_BYTES,
   TOOL_ITERATION_ERROR,
 };
-
