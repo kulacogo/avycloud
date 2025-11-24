@@ -1,6 +1,7 @@
 const Ajv = require('ajv');
 const addFormats = require('ajv-formats');
 const sharp = require('sharp');
+const crypto = require('crypto');
 const { productBundleSchema } = require('../lib/product-schema');
 const { getOpenAIClient } = require('../lib/openai-client');
 const { uploadImage } = require('../lib/storage');
@@ -171,7 +172,7 @@ function buildUserPrompt({ barcodeList, hostedImages, locale, fileCount = 0 }) {
 
   if (fileCount && fileCount > 1) {
     parts.push(
-      `Hinweis: Es wurden ${fileCount} Upload-Bilder geliefert. Wenn sie unterschiedliche Produkte zeigen, erzeuge mehrere Produkte im products-Array (je ein Eintrag pro Produkt).`
+      `Hinweis: Es wurden ${fileCount} Upload-Bilder geliefert. Wenn sie unterschiedliche Produkte oder unterschiedliche Barcodes zeigen, erzeuge mehrere Produkte im products-Array (je Barcode ein Eintrag, eindeutige IDs, keine Zusammenfassung).`
     );
   }
 
@@ -184,11 +185,12 @@ function buildUserPrompt({ barcodeList, hostedImages, locale, fileCount = 0 }) {
     `5. Validiere Bilder: nur öffentlich zugängliche, eindeutige, Auflösung >=900px; Dubletten entfernen.`,
     `6. Attribute als Liste ausgeben: [{ "key": "Material", "value": "100% Baumwolle", "value_type": "string" }, ...].`,
     `7. Wenn mehrere unterschiedliche Produkte erkannt werden, lege für jedes ein separates Objekt im products-Array an (eindeutige id, bevorzugt EAN/GTIN). Keine Zusammenfassung.`,
-    `8. pricing.lowest_price.sources benötigt echte Händler-URLs inkl. checked_at.`,
-    `9. key_features >= 5, spezifisch für das Produkt.`,
-    `10. images array: min. 3 verifizierte Einträge sofern SerpAPI passende Quellen liefert.`,
-    `11. Notiere Unsicherheiten in notes.unsure.`,
-    `12. Nutze nur Informationen aus Vision, Barcodes oder SerpAPI – keine sonstigen Wissensbestände.`,
+    `8. Pro Produkt nur EIN Barcode/EAN/GTIN zulassen (keine Mehrfach-Barcodes).`,
+    `9. pricing.lowest_price.sources benötigt echte Händler-URLs inkl. checked_at.`,
+    `10. key_features >= 5, spezifisch für das Produkt, kurz und marketing-/shop-tauglich (keine Romane).`,
+    `11. images array: min. 3 verifizierte Einträge sofern SerpAPI passende Quellen liefert.`,
+    `12. Notiere Unsicherheiten in notes.unsure.`,
+    `13. Nutze nur Informationen aus Vision, Barcodes oder SerpAPI – keine sonstigen Wissensbestände.`,
     `Sprache für Texte: Deutsch (${locale}).`
   );
 
@@ -233,6 +235,7 @@ function normalizeBundle(bundle) {
       cloned.details = { ...cloned.details, attributes: attrObj };
     }
     enforceSingleBarcode(cloned);
+    ensureProductId(cloned);
     return cloned;
   });
   return bundle;
@@ -322,6 +325,16 @@ function enforceSingleBarcode(product) {
   });
   if (cloned.details) {
     cloned.details.identifiers = identifiers;
+  }
+}
+
+function ensureProductId(product) {
+  if (!product) return;
+  const identifiers = product.details?.identifiers || {};
+  const primary = identifiers.ean || identifiers.gtin || identifiers.upc || null;
+  const hasId = typeof product.id === 'string' && product.id.trim().length >= 3;
+  if (!hasId) {
+    product.id = (primary && String(primary).trim()) || `prod-${crypto.randomUUID()}`;
   }
 }
 

@@ -4,6 +4,7 @@ const { downloadFile } = require('../lib/storage');
 const { runProductIdentification } = require('./enrichment');
 const { saveProduct } = require('../lib/firestore');
 const { ensureProductSku } = require('../lib/sku');
+const { getProduct } = require('../lib/firestore');
 
 const CONCURRENCY = parseInt(process.env.ID_QUEUE_CONCURRENCY || '3', 10);
 const MAX_ATTEMPTS = parseInt(process.env.ID_JOB_MAX_ATTEMPTS || '3', 10);
@@ -53,6 +54,19 @@ async function processJob(jobId) {
       for (const product of result.bundle.products) {
         try {
           ensureProductSku(product);
+
+          // Avoid overwriting unrelated products: if same ID exists with abweichenden Barcode -> create new ID
+          if (product.id) {
+            const existing = await getProduct(product.id);
+            if (existing && Array.isArray(existing.identification?.barcodes) && Array.isArray(product.identification?.barcodes)) {
+              const existingBarcode = existing.identification.barcodes[0] || null;
+              const incomingBarcode = product.identification.barcodes[0] || null;
+              if (existingBarcode && incomingBarcode && existingBarcode !== incomingBarcode) {
+                product.id = `${product.id}-${Date.now()}`;
+              }
+            }
+          }
+
           await saveProduct(product);
         } catch (saveError) {
           console.error(`Auto-Save failed for product ${product?.id || 'unknown'} in job ${jobId}:`, saveError);
