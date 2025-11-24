@@ -631,8 +631,15 @@ async function syncProductToBaseLinker(product) {
     // Bestands-Check: Priorität base_product_id → SKU-Match → Neuanlage
     let baseProductId = product?.ops?.base_product_id || null;
     let existing = null;
-    if (!baseProductId && payload?.sku) {
+    let resolvedExistingBySku = false;
+    const resolveExistingBySku = async () => {
+      if (resolvedExistingBySku || !payload?.sku) return null;
+      resolvedExistingBySku = true;
       existing = await findProductBySku(baseInventoryId, payload.sku);
+      return existing;
+    };
+    if (!baseProductId && payload?.sku) {
+      await resolveExistingBySku();
       if (existing?.product_id) {
         baseProductId = existing.product_id;
       }
@@ -645,6 +652,7 @@ async function syncProductToBaseLinker(product) {
 
     let requestPayload = buildRequest(baseProductId || 0);
     let result;
+    let retriedAfterResolvingId = false;
     try {
       result = await callBaseLinker('addInventoryProduct', requestPayload);
     } catch (error) {
@@ -652,19 +660,23 @@ async function syncProductToBaseLinker(product) {
       const staleIdError =
         msg.includes('ERROR_PRODUCT_ID') || msg.includes('NO PRODUCT WITH ID');
 
-      if (staleIdError && baseProductId) {
-        // BaseLinker kennt die gespeicherte ID nicht mehr → Sync abbrechen, um keine Duplikate zu erzeugen
-        return {
-          id: product.id,
-          status: 'failed',
-          message: `BaseLinker-Produkt-ID ${baseProductId} nicht gefunden – Sync abgebrochen, bitte ID/SKU in BaseLinker prüfen.`,
-        };
-      }
-
-      if (staleIdError && !baseProductId) {
-        // kein baseProductId -> wir dürfen neu anlegen
-        requestPayload = buildRequest(0);
-        result = await callBaseLinker('addInventoryProduct', requestPayload);
+      if (staleIdError) {
+        if (!retriedAfterResolvingId) {
+          retriedAfterResolvingId = true;
+          if (!existing) {
+            await resolveExistingBySku();
+          }
+          if (existing?.product_id) {
+            baseProductId = existing.product_id;
+            requestPayload = buildRequest(baseProductId);
+          } else {
+            baseProductId = null;
+            requestPayload = buildRequest(0);
+          }
+          result = await callBaseLinker('addInventoryProduct', requestPayload);
+        } else {
+          throw error;
+        }
       } else {
         throw error;
       }
