@@ -698,9 +698,6 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                   className="bg-slate-600 border-slate-500"
                 />
               </th>
-              <th className="p-3 w-20 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap" aria-label={t('table.thumbnail')}>
-                {t('table.thumbnail')}
-              </th>
               {visibleColumnDefinitions.map((column) => {
                 const isThumbnail = column.id === 'thumbnail';
                 return (
