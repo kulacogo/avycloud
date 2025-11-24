@@ -166,7 +166,7 @@ const fetchJobStatus = async (jobId: string, signal?: AbortSignal) => {
   return result?.data;
 };
 
-const waitForJobResult = async (
+export const waitForJobResult = async (
   jobId: string,
   signal?: AbortSignal,
   reportStatus?: (phase: IdentifyPhase) => void
@@ -221,11 +221,11 @@ export const fetchProducts = async (): Promise<Product[]> => {
 };
 
 // This function now makes a REAL API call to the live backend server.
-export const identifyProductApi = async (
+export const createIdentificationJob = async (
   images: File[],
   barcodes: string,
   options?: IdentifyApiOptions
-): Promise<{ ok: boolean; data?: ProductBundle; error?: { code: number; message: string } }> => {
+): Promise<{ ok: boolean; jobId?: string; error?: { code: number; message: string } }> => {
   const formData = new FormData();
   formData.append('barcodes', barcodes);
   images.forEach((image) => {
@@ -236,8 +236,6 @@ export const identifyProductApi = async (
   }
 
   let response: Response | undefined;
-  const reportStatus = createStatusReporter(options?.onStatus);
-  reportStatus('upload');
 
   try {
     response = await fetch(`${BACKEND_URL}/api/jobs`, {
@@ -256,11 +254,9 @@ export const identifyProductApi = async (
 
   try {
     const result = await parseResponse(response);
-
     if (!response.ok) {
       throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
     }
-
     const jobId = result?.jobId;
     if (!jobId) {
       return {
@@ -271,26 +267,21 @@ export const identifyProductApi = async (
         },
       };
     }
-
-    reportStatus('queued');
-
-    const bundle = await waitForJobResult(jobId, options?.signal, reportStatus);
-    if (!bundle || !bundle.products) {
-      return {
-        ok: false,
-        error: {
-          code: 502,
-          message: 'Job finished without valid product data.',
-        },
-      };
-    }
-
-    return { ok: true, data: bundle };
+    return { ok: true, jobId };
   } catch (error) {
-    console.error('Failed to process job:', error);
+    console.error('Failed to create identification job:', error);
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };
   }
+};
+
+export const pollIdentificationJob = async (
+  jobId: string,
+  options?: { signal?: AbortSignal; onStatus?: (phase: IdentifyPhase) => void }
+): Promise<ProductBundle> => {
+  const reportStatus = createStatusReporter(options?.onStatus);
+  reportStatus('queued');
+  return waitForJobResult(jobId, options?.signal, reportStatus);
 };
 
 // --- The rest of the functions remain as mocks for now ---

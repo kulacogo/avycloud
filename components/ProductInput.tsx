@@ -1,250 +1,414 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UploadIcon, BarcodeIcon, CameraIcon } from './icons/Icons';
+import type { UploadGroupPayload } from '../hooks/useIdentification';
 
 interface ProductInputProps {
-  onIdentify: (images: File[], barcodes: string, model?: string) => void;
+  onIdentify: (groups: UploadGroupPayload[], barcodes: string, model?: string) => void;
+}
+
+type ModelOption = 'gpt-5-mini-2025-08-07' | 'gpt-5-mini';
+
+interface GroupImage {
+  id: string;
+  file: File;
+  preview: string;
+}
+
+interface UploadGroup {
+  id: string;
+  name: string;
+  images: GroupImage[];
 }
 
 const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 const supportsBrowserCamera =
   typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
-type ModelOption = 'gpt-5-mini-2025-08-07' | 'gpt-5-mini';
+const createId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2, 10);
+};
+
+const createGroup = (index: number): UploadGroup => ({
+  id: createId(),
+  name: `Produkt ${index + 1}`,
+  images: [],
+});
 
 const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
-  const [images, setImages] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [groups, setGroups] = useState<UploadGroup[]>([createGroup(0)]);
   const [barcodes, setBarcodes] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
   const [model, setModel] = useState<ModelOption>('gpt-5-mini-2025-08-07');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const captureInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [cameraTargetGroup, setCameraTargetGroup] = useState<string | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      setImages(prev => [...prev, ...Array.from(event.target.files!)]);
-    }
-  };
-
-  useEffect(() => {
-    const urls = images.map(file => URL.createObjectURL(file));
-    setPreviews(urls);
-    return () => {
-      urls.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, [images]);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const captureInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const MODEL_LABELS: Record<ModelOption, string> = {
     'gpt-5-mini-2025-08-07': 'Backend Default (Aug 07 build)',
     'gpt-5-mini': 'Backend Fallback',
   };
 
-  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsDragging(true);
+  const addImagesToGroup = useCallback((groupId: string, files: File[]) => {
+    if (!files.length) return;
+    setGroups((prev) =>
+      prev.map((group) => {
+        if (group.id !== groupId) return group;
+        const additions = files.map((file) => ({
+          id: createId(),
+          file,
+          preview: URL.createObjectURL(file),
+        }));
+        return { ...group, images: [...group.images, ...additions] };
+      })
+    );
   }, []);
 
-  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsDragging(false);
+  const handleFileChange = (groupId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    addImagesToGroup(groupId, files);
+    event.target.value = '';
+  };
+
+  const removeImage = useCallback((groupId: string, imageId: string) => {
+    setGroups((prev) =>
+      prev.map((group) => {
+        if (group.id !== groupId) return group;
+        const target = group.images.find((img) => img.id === imageId);
+        if (target) {
+          URL.revokeObjectURL(target.preview);
+        }
+        return {
+          ...group,
+          images: group.images.filter((img) => img.id !== imageId),
+        };
+      })
+    );
   }, []);
 
-  const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsDragging(false);
-    if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
-      setImages(prev => [...prev, ...Array.from(event.dataTransfer.files)]);
-      event.dataTransfer.clearData();
-    }
-  }, []);
+  const moveImageBetweenGroups = useCallback(
+    (sourceId: string, targetId: string, imageId: string) => {
+      if (sourceId === targetId) return;
+      setGroups((prev) => {
+        let draggedImage: GroupImage | null = null;
+        const updated = prev.map((group) => {
+          if (group.id === sourceId) {
+            const nextImages = group.images.filter((img) => {
+              if (img.id === imageId) {
+                draggedImage = img;
+                return false;
+              }
+              return true;
+            });
+            return { ...group, images: nextImages };
+          }
+          return group;
+        });
+        if (!draggedImage) {
+          return updated;
+        }
+        return updated.map((group) => {
+          if (group.id === targetId) {
+            return { ...group, images: [...group.images, draggedImage!] };
+          }
+          return group;
+        });
+      });
+    },
+    []
+  );
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
+  const handleDrop = useCallback(
+    (groupId: string, event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const hasFiles = event.dataTransfer.files && event.dataTransfer.files.length > 0;
+      if (hasFiles) {
+        addImagesToGroup(groupId, Array.from(event.dataTransfer.files));
+        return;
+      }
+      const payload = event.dataTransfer.getData('application/json');
+      if (!payload) return;
+      try {
+        const { sourceGroupId, imageId } = JSON.parse(payload);
+        if (sourceGroupId && imageId) {
+          moveImageBetweenGroups(sourceGroupId, groupId, imageId);
+        }
+      } catch {
+        // ignore parsing issues
+      }
+    },
+    [addImagesToGroup, moveImageBetweenGroups]
+  );
+
+  const handleDragStart = (event: React.DragEvent<HTMLDivElement>, groupId: string, imageId: string) => {
+    event.dataTransfer.setData(
+      'application/json',
+      JSON.stringify({ sourceGroupId: groupId, imageId })
+    );
+  };
+
+  const addGroup = () => {
+    setGroups((prev) => [...prev, createGroup(prev.length)]);
+  };
+
+  const removeGroup = (groupId: string) => {
+    if (groups.length === 1) return;
+    setGroups((prev) => {
+      const target = prev.find((group) => group.id === groupId);
+      if (target) {
+        target.images.forEach((img) => URL.revokeObjectURL(img.preview));
+      }
+      return prev.filter((group) => group.id !== groupId);
+    });
   };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (images.length === 0 && barcodes.trim() === '') {
-      alert('Please provide at least one image or barcode.');
+    const payload: UploadGroupPayload[] = groups
+      .filter((group) => group.images.length > 0)
+      .map((group) => ({
+        id: group.id,
+        label: group.name,
+        images: group.images.map((img) => img.file),
+      }));
+    if (!payload.length && barcodes.trim() === '') {
+      alert('Bitte lade mindestens ein Bild hoch oder gib einen Barcode an.');
       return;
     }
-    onIdentify(images, barcodes, model);
+    onIdentify(payload, barcodes, model);
+    // Reset groups for the next run
+    setGroups([createGroup(0)]);
   };
 
-  const toggleCamera = async () => {
+  const toggleCamera = async (groupId: string) => {
+    setCameraTargetGroup(groupId);
     if (isCameraOn) {
       const stream = videoRef.current?.srcObject as MediaStream;
-      stream?.getTracks().forEach(track => track.stop());
+      stream?.getTracks().forEach((track) => track.stop());
       setIsCameraOn(false);
       setCameraError(null);
-    } else {
-      try {
-        if (!supportsBrowserCamera) {
-          throw new Error('Camera API not available in this browser.');
-        }
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play();
-        }
-        setIsCameraOn(true);
-        setCameraError(null);
-      } catch (err: any) {
-        console.error('Camera access denied:', err);
-        const message = err?.message || 'Could not access the camera. Please check permissions.';
-        setCameraError(message);
-        alert(message);
+      return;
+    }
+
+    try {
+      if (!supportsBrowserCamera) {
+        throw new Error('Camera API not available in this browser.');
       }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setIsCameraOn(true);
+      setCameraError(null);
+    } catch (error: any) {
+      console.error('Camera error:', error);
+      const message = error?.message || 'Kamera konnte nicht gestartet werden.';
+      setCameraError(message);
+      alert(message);
     }
   };
 
-  const handleCameraButtonClick = () => {
+  const handleCameraButtonClick = (groupId: string) => {
+    setCameraTargetGroup(groupId);
     if (isIOSDevice || !supportsBrowserCamera) {
-      if (captureInputRef.current) {
-        captureInputRef.current.click();
-      } else {
-        alert('Camera not available on this device.');
-      }
+      captureInputRef.current?.click();
       return;
     }
-    toggleCamera();
+    toggleCamera(groupId);
   };
 
   const handleCaptureFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      setImages(prev => [...prev, ...Array.from(event.target.files!)]);
+      const target = cameraTargetGroup || groups[0].id;
+      addImagesToGroup(target, Array.from(event.target.files));
     }
     event.target.value = '';
   };
 
   const captureImage = () => {
-    if (videoRef.current) {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
-      canvas.toBlob(blob => {
+    if (!videoRef.current || !cameraTargetGroup) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
+    canvas.toBlob(
+      (blob) => {
         if (blob) {
           const file = new File([blob], `capture-${Date.now()}.png`, { type: 'image/png' });
-          setImages(prev => [...prev, file]);
+          addImagesToGroup(cameraTargetGroup, [file]);
         }
-      }, 'image/png');
-      toggleCamera();
-    }
+      },
+      'image/png',
+      0.95
+    );
+    toggleCamera(cameraTargetGroup);
   };
 
+  useEffect(() => {
+    return () => {
+      groups.forEach((group) =>
+        group.images.forEach((image) => URL.revokeObjectURL(image.preview))
+      );
+    };
+  }, [groups]);
+
+  useEffect(() => {
+    return () => {
+      const stream = videoRef.current?.srcObject as MediaStream | null;
+      stream?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-4 pb-16 sm:pb-8 safe-area-bottom">
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div>
-          <div className="flex items-center mb-2 text-slate-200" aria-label="Product Images">
-            <CameraIcon className="w-8 h-8" />
-            <span className="sr-only">Product Images</span>
-          </div>
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-2xl transition-colors ${
-              isDragging ? 'border-sky-400 bg-slate-700' : 'border-slate-600 bg-slate-900/50'
-            }`}
-          >
-            <UploadIcon className="w-12 h-12 text-slate-500 mb-4" />
-            <p className="text-slate-400">Drag & drop files here, or</p>
-            <div className="mt-4 flex flex-col sm:flex-row gap-3 w-full">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full sm:w-auto px-4 py-3 bg-slate-600 text-white font-semibold rounded-xl hover:bg-slate-500 transition-colors flex items-center justify-center"
-              >
-                Browse Files
-              </button>
-              <button
-                type="button"
-                onClick={handleCameraButtonClick}
-                className="w-full sm:w-auto flex items-center justify-center px-4 py-3 bg-slate-600 text-white font-semibold rounded-xl hover:bg-slate-500 transition-colors"
-              >
-                <CameraIcon className="w-5 h-5 mr-2" />
-                {isCameraOn ? 'Close Camera' : 'Use Camera'}
-              </button>
+    <div className="max-w-5xl mx-auto p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-6 pb-16 sm:pb-8 safe-area-bottom">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-slate-200">
+              <CameraIcon className="w-7 h-7" />
+              <span className="font-semibold">Produktgruppen</span>
             </div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              multiple
-              accept="image/*"
-              className="hidden"
-            />
-            <input
-              type="file"
-              ref={captureInputRef}
-              accept="image/*"
-              capture="environment"
-              onChange={handleCaptureFileChange}
-              className="hidden"
-            />
+            <button
+              type="button"
+              onClick={addGroup}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors"
+            >
+              <span className="text-lg leading-none">＋</span>
+              Neues Produkt
+            </button>
           </div>
-          {cameraError && <p className="mt-2 text-sm text-red-400">{cameraError}</p>}
-          {isCameraOn && !isIOSDevice && (
-            <div className="mt-4 relative">
-              <video ref={videoRef} className="w-full rounded-2xl" />
+          <div className="space-y-4">
+            {groups.map((group, index) => (
+              <div key={group.id} className="rounded-2xl border border-slate-700 bg-slate-900/50 p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-slate-200">{group.name}</p>
+                  {groups.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeGroup(group.id)}
+                      className="text-xs text-rose-300 hover:text-rose-100 transition-colors"
+                    >
+                      Entfernen
+                    </button>
+                  )}
+                </div>
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleDrop(group.id, e)}
+                  className="flex flex-col gap-4 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/40 p-4 transition-colors hover:border-sky-500"
+                >
+                  <div className="flex flex-col lg:flex-row gap-3">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRefs.current[group.id]?.click()}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors"
+                    >
+                      <UploadIcon className="w-5 h-5" />
+                      Dateien wählen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCameraButtonClick(group.id)}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors"
+                    >
+                      <CameraIcon className="w-5 h-5" />
+                      {isCameraOn && cameraTargetGroup === group.id ? 'Kamera schließen' : 'Kamera verwenden'}
+                    </button>
+                  </div>
+                  <input
+                    ref={(el) => {
+                      fileInputRefs.current[group.id] = el;
+                    }}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(event) => handleFileChange(group.id, event)}
+                  />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {group.images.map((image) => (
+                      <div
+                        key={image.id}
+                        draggable
+                        onDragStart={(event) => handleDragStart(event, group.id, image.id)}
+                        className="relative group rounded-xl overflow-hidden border border-slate-600"
+                      >
+                        <img
+                          src={image.preview}
+                          alt={image.file.name}
+                          className="h-28 w-full object-cover pointer-events-none select-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(group.id, image.id)}
+                          className="absolute top-2 right-2 rounded-full bg-black/70 text-white w-6 h-6 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    ))}
+                    {!group.images.length && (
+                      <div className="h-28 rounded-xl border border-slate-600 border-dashed flex items-center justify-center text-slate-500 text-sm">
+                        Bilder hierher ziehen
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {cameraError && cameraTargetGroup === group.id && (
+                  <p className="text-xs text-rose-400">{cameraError}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {isCameraOn && !isIOSDevice && (
+          <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 space-y-3">
+            <p className="text-sm text-slate-200">Kamera aktiv – {groups.find(g => g.id === cameraTargetGroup)?.name || 'unbekannte Gruppe'}</p>
+            <div className="relative">
+              <video ref={videoRef} className="w-full rounded-xl bg-black" />
               <button
                 type="button"
                 onClick={captureImage}
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 bg-sky-600 text-white font-bold rounded-full hover:bg-sky-500 transition-transform transform hover:scale-105"
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white shadow-lg hover:bg-sky-500 transition-colors"
               >
-                Capture
+                Foto übernehmen
               </button>
             </div>
-          )}
-          {isIOSDevice && (
-            <p className="mt-3 text-sm text-slate-400 text-center">
-              Auf iOS öffnet der Button direkt die native Kamera oder Fotomediathek. Wiederhole den Vorgang
-              für weitere Bilder.
-            </p>
-          )}
-          {images.length > 0 && (
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {images.map((file, index) => (
-                <div key={index} className="relative group">
-                  <img src={previews[index]} alt={file.name} className="w-full h-24 object-cover rounded-md" />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    &times;
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
+        {isIOSDevice && (
+          <p className="text-xs text-slate-400 text-center">
+            Auf iOS öffnet der Kamera-Button direkt die native Kamera- oder Foto-App.
+          </p>
+        )}
 
         <div>
-          <div className="flex items-center mb-2 text-slate-200" aria-label="Barcodes (EAN/GTIN/UPC)">
-            <BarcodeIcon className="w-8 h-8" />
-            <span className="sr-only">Barcodes (EAN/GTIN/UPC)</span>
+          <div className="flex items-center mb-2 text-slate-200">
+            <BarcodeIcon className="w-6 h-6 mr-2" />
+            <span className="font-semibold">Barcodes (optional)</span>
           </div>
           <textarea
-            id="barcodes"
             value={barcodes}
             onChange={(e) => setBarcodes(e.target.value)}
-            placeholder="e.g., 4006381333931, 4954628245731"
-            className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition"
+            placeholder="z. B. 4006381333931, 4954628245731"
+            className="w-full rounded-xl border border-slate-600 bg-slate-900/60 p-3 text-sm text-slate-100 focus:border-sky-500 focus:ring-2 focus:ring-sky-500"
             rows={3}
           />
-          <p className="text-sm text-slate-500 mt-1">Enter barcodes separated by commas or new lines.</p>
+          <p className="text-xs text-slate-500 mt-1">Mehrere Barcodes durch Komma oder Zeilenumbruch trennen.</p>
         </div>
 
         <div>
-          <div className="flex items-center mb-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
-            <span>Modell (Server)</span>
+          <div className="mb-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+            Modell (Server)
           </div>
           <div className="grid grid-cols-2 gap-3">
             {(['gpt-5-mini-2025-08-07', 'gpt-5-mini'] as ModelOption[]).map((option) => (
@@ -268,11 +432,19 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
         <div className="text-center pt-2">
           <button
             type="submit"
-            className="w-full sm:w-auto px-12 py-4 bg-sky-600 text-white text-lg font-bold rounded-xl hover:bg-sky-500 transition-transform transform hover:scale-105 disabled:bg-slate-500 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto px-12 py-4 bg-sky-600 text-white text-lg font-bold rounded-xl hover:bg-sky-500 transition-transform transform hover:scale-105"
           >
-            Identify Product
+            Gruppen identifizieren
           </button>
         </div>
+        <input
+          ref={captureInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleCaptureFileChange}
+        />
       </form>
     </div>
   );

@@ -1,14 +1,14 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Product, ProductBundle, WarehouseBin } from './types';
-import { useIdentification } from './hooks/useIdentification';
+import { Product, WarehouseBin } from './types';
+import { useIdentification, UploadGroupPayload } from './hooks/useIdentification';
 import ProductInput from './components/ProductInput';
 import ProductSheet from './components/ProductSheet';
 import AdminTable from './components/AdminTable';
 import WarehouseView from './components/WarehouseView';
 import { Header } from './components/Header';
 import { Spinner } from './components/Spinner';
-import { ProcessStatusBar } from './components/ProcessStatusBar';
+import JobStatusPopup from './components/JobStatusPopup';
 import Dashboard from './components/Dashboard';
 import OperationsView from './components/OperationsView';
 import { fetchProducts } from './api/client';
@@ -144,7 +144,32 @@ const App: React.FC = () => {
   const [productsError, setProductsError] = useState<string | null>(null);
   const productsRef = useRef<Product[]>([]);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
-  const { identifyProducts, isLoading, error, cancelRequest, status } = useIdentification();
+  const {
+    enqueueIdentification,
+    jobStatuses,
+    isLoading: jobsRunning,
+    error: identificationError,
+    cancelJob,
+    dismissJob,
+    clearError,
+  } = useIdentification({
+    onJobCompleted: (bundle) => {
+      if (!bundle?.products?.length) {
+        return;
+      }
+      let nextFocus: Product | null = null;
+      setProducts((prev) => {
+        const merged = mergeIdentifiedProducts(bundle.products, prev);
+        nextFocus = merged.focus;
+        return merged.list;
+      });
+      if (nextFocus) {
+        setCurrentProduct(nextFocus);
+        setInventoryFocusId(nextFocus.id);
+        setView('sheet');
+      }
+    },
+  });
   const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
   const [warehouseRefresh, setWarehouseRefresh] = useState<WarehouseBin | null>(null);
   const [inventoryFocusId, setInventoryFocusId] = useState<string | null>(null);
@@ -175,24 +200,12 @@ const App: React.FC = () => {
     productsRef.current = products;
   }, [products]);
 
-  const handleIdentification = useCallback(async (images: File[], barcodes: string, model?: string) => {
-    const result: ProductBundle | null = await identifyProducts(images, barcodes, model);
-    if (result && result.products.length > 0) {
-      let focusProduct: Product | null = null;
-      setProducts(prev => {
-        const merged = mergeIdentifiedProducts(result.products, prev);
-        focusProduct = merged.focus;
-        return merged.list;
-      });
-      if (focusProduct) {
-        setCurrentProduct(focusProduct);
-      } else {
-        setCurrentProduct(result.products[0]);
-      }
-      setView('sheet');
-    }
-    // Error is handled by the hook and displayed via the `error` state
-  }, [identifyProducts]);
+  const handleIdentification = useCallback(
+    (groupsPayload: UploadGroupPayload[], barcodes: string, model?: string) => {
+      enqueueIdentification(groupsPayload, barcodes, model);
+    },
+    [enqueueIdentification]
+  );
 
   const handleUpdateProduct = (updatedProduct: Product) => {
     setProducts(prevProducts =>
@@ -302,21 +315,6 @@ const App: React.FC = () => {
   }, []);
 
   const renderView = () => {
-    if (error) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] bg-slate-900 text-center p-4">
-                <p className="text-2xl text-red-400 mb-4">An Error Occurred</p>
-                <p className="text-slate-300 bg-slate-800 p-4 rounded-lg">{error}</p>
-                <button
-                    onClick={() => window.location.reload()}
-                    className="mt-6 px-6 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-500 transition-colors"
-                >
-                    Try Again
-                </button>
-            </div>
-        );
-    }
-
     switch (view) {
       case 'sheet':
         return currentProduct ? (
@@ -382,17 +380,33 @@ const App: React.FC = () => {
             </button>
           </div>
         )}
-        <ProcessStatusBar status={status} onCancel={cancelRequest} />
+        {identificationError && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-rose-800 bg-rose-900/50 px-4 py-3 text-sm text-rose-50">
+            <span>{identificationError}</span>
+            <button
+              type="button"
+              onClick={clearError}
+              className="inline-flex items-center rounded-lg bg-rose-700 px-3 py-1.5 font-semibold text-white hover:bg-rose-600 transition-colors"
+            >
+              Schließen
+            </button>
+          </div>
+        )}
         {renderLoadState()}
       </main>
-      {isLoading && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
-          <Spinner className="w-6 h-6 text-sky-300" />
-          <div className="text-sm text-slate-100">
-            <p className="font-semibold">AI arbeitet im Hintergrund …</p>
-            <p className="text-slate-400 text-xs">Uploads abgeschlossen? Dann kannst du andere Bereiche nutzen.</p>
-          </div>
-        </div>
+      {(jobsRunning || jobStatuses.length > 0) && (
+        <>
+          {jobsRunning && (
+            <div className="fixed bottom-6 left-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
+              <Spinner className="w-6 h-6 text-sky-300" />
+              <div className="text-sm text-slate-100">
+                <p className="font-semibold">Uploads laufen im Hintergrund …</p>
+                <p className="text-slate-400 text-xs">Du kannst währenddessen weiterarbeiten.</p>
+              </div>
+            </div>
+          )}
+          <JobStatusPopup jobs={jobStatuses} onCancel={cancelJob} onDismiss={dismissJob} />
+        </>
       )}
     </div>
   );

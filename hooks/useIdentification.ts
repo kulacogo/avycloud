@@ -1,153 +1,217 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ProductBundle, IdentifyPhase, IdentifyStatus } from '../types';
+import { ProductBundle, IdentifyPhase } from '../types';
 import { MAX_IDENTIFY_FILES, MAX_IDENTIFY_FILE_BYTES, MAX_IDENTIFY_TOTAL_BYTES } from '../constants';
-import { identifyProductApi } from '../api/client';
+import { createIdentificationJob, pollIdentificationJob } from '../api/client';
 
-const IDLE_STATUS: IdentifyStatus = {
-  phase: 'idle',
-  message: 'Bereit für neue Produkterkennung.',
+export interface UploadGroupPayload {
+  id: string;
+  label: string;
+  images: File[];
+}
+
+export interface IdentificationJobStatus {
+  localId: string;
+  jobId?: string;
+  label: string;
+  phase: IdentifyPhase | 'upload';
+  message: string;
+  startedAt: string;
+  finishedAt?: string;
+  error?: string;
+}
+
+interface UseIdentificationOptions {
+  onJobCompleted?: (bundle: ProductBundle) => void;
+}
+
+const PHASE_MESSAGES: Record<string, string> = {
+  upload: 'Upload läuft …',
+  queued: 'Job wurde eingereiht …',
+  processing: 'AI identifiziert das Produkt …',
+  enriching: 'Produktdaten werden angereichert …',
+  complete: 'Fertig – Produktdaten gespeichert.',
+  cancelled: 'Upload wurde abgebrochen.',
 };
 
-export const useIdentification = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<IdentifyStatus>(IDLE_STATUS);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const statusResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const createLocalId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `job_${Math.random().toString(36).slice(2, 9)}`;
+};
 
-  const scheduleStatusReset = useCallback(() => {
-    if (statusResetRef.current) {
-      clearTimeout(statusResetRef.current);
-    }
-    statusResetRef.current = setTimeout(() => {
-      setStatus(IDLE_STATUS);
-      statusResetRef.current = null;
-    }, 5000);
+export const useIdentification = (options?: UseIdentificationOptions) => {
+  const [jobs, setJobs] = useState<IdentificationJobStatus[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const jobControllersRef = useRef<Map<string, AbortController>>(new Map());
+
+  const updateJob = useCallback((localId: string, patch: Partial<IdentificationJobStatus>) => {
+    setJobs((prev) =>
+      prev.map((job) => (job.localId === localId ? { ...job, ...patch } : job))
+    );
   }, []);
 
-  const identifyProducts = useCallback(async (images: File[], barcodes: string, model?: string): Promise<ProductBundle | null> => {
-    const baseModel = model || 'gpt-5-mini-2025-08-07';
-    const applyPhase = (phase: IdentifyPhase, message: string) => {
-      setStatus(prev => ({
-        phase,
-        message,
-        model: baseModel,
-        startedAt: phase === 'upload' || prev.phase === 'idle' ? new Date().toISOString() : prev.startedAt,
-        updatedAt: new Date().toISOString(),
-      }));
-    };
+  const addJob = useCallback((job: IdentificationJobStatus) => {
+    setJobs((prev) => [...prev, job]);
+  }, []);
 
-    if (statusResetRef.current) {
-      clearTimeout(statusResetRef.current);
-      statusResetRef.current = null;
+  const validateGroup = useCallback((group: UploadGroupPayload) => {
+    if (group.images.length > MAX_IDENTIFY_FILES) {
+      throw new Error(`Gruppe "${group.label}" enthält zu viele Bilder (max. ${MAX_IDENTIFY_FILES}).`);
     }
-
-    const totalBytes = images.reduce((acc, file) => acc + file.size, 0);
-    if (images.length > MAX_IDENTIFY_FILES) {
-      setError(`Maximal ${MAX_IDENTIFY_FILES} Bilder pro Anfrage erlaubt. Bitte reduziere deine Auswahl.`);
-      return null;
-    }
+    const totalBytes = group.images.reduce((acc, file) => acc + file.size, 0);
     if (totalBytes > MAX_IDENTIFY_TOTAL_BYTES) {
-      setError(`Uploads sind auf ${(MAX_IDENTIFY_TOTAL_BYTES / (1024 * 1024)).toFixed(1)} MB Gesamtgröße begrenzt, da Cloud Run Anfragen über 32 MB laut https://cloud.google.com/run/quotas#request_size ablehnt.`);
-      return null;
+      throw new Error(
+        `Die Bilder von "${group.label}" überschreiten das ${(MAX_IDENTIFY_TOTAL_BYTES / (1024 * 1024)).toFixed(
+          1
+        )} MB Limit pro Upload.`
+      );
     }
-    if (images.some((file) => file.size > MAX_IDENTIFY_FILE_BYTES)) {
-      setError(`Einzelne Bilder dürfen höchstens ${(MAX_IDENTIFY_FILE_BYTES / (1024 * 1024)).toFixed(1)} MB groß sein.`);
-      return null;
+    if (group.images.some((file) => file.size > MAX_IDENTIFY_FILE_BYTES)) {
+      throw new Error(
+        `Einzelne Bilder in "${group.label}" sind größer als ${(MAX_IDENTIFY_FILE_BYTES / (1024 * 1024)).toFixed(
+          1
+        )} MB.`
+      );
     }
-    // Cancel any ongoing request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+  }, []);
 
-    // Create new AbortController for this request
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    setIsLoading(true);
-    setError(null);
-    applyPhase('upload', 'Übertrage Bilder und Barcodes … bitte Tab geöffnet lassen.');
-
-    try {
-      const result = await identifyProductApi(images, barcodes, {
-        model,
-        signal: controller.signal,
-        onStatus: (phase) => {
-          switch (phase) {
-            case 'upload':
-              applyPhase('upload', 'Übertrage Bilder und Barcodes … bitte Tab geöffnet lassen.');
-              break;
-            case 'queued':
-              applyPhase('queued', 'Upload abgeschlossen. Du kannst weiterarbeiten – Job ist auf dem Server in der Warteschlange …');
-              break;
-            case 'processing':
-              applyPhase('processing', 'AI identifiziert das Produkt im Hintergrund. Du kannst andere Module öffnen …');
-              break;
-            case 'enriching':
-              applyPhase('enriching', 'Produktdaten werden angereichert – du kannst währenddessen weiterarbeiten …');
-              break;
-            default:
-              break;
-          }
-        },
+  const startJobForGroup = useCallback(
+    (group: UploadGroupPayload, barcodes: string, model?: string) => {
+      const localId = createLocalId();
+      const startedAt = new Date().toISOString();
+      addJob({
+        localId,
+        label: group.label,
+        phase: 'upload',
+        message: PHASE_MESSAGES.upload,
+        startedAt,
       });
 
-      if (!result.ok || !result.data) {
-        throw new Error(result.error?.message || 'Backend identification failed.');
+      const controller = new AbortController();
+      jobControllersRef.current.set(localId, controller);
+
+      (async () => {
+        try {
+          const creation = await createIdentificationJob(group.images, barcodes, {
+            model,
+            signal: controller.signal,
+          });
+          if (!creation.ok || !creation.jobId) {
+            throw new Error(creation.error?.message || 'Job konnte nicht erstellt werden.');
+          }
+          updateJob(localId, {
+            jobId: creation.jobId,
+            phase: 'queued',
+            message: PHASE_MESSAGES.queued,
+          });
+
+          const bundle = await pollIdentificationJob(creation.jobId, {
+            signal: controller.signal,
+            onStatus: (phase) => {
+              const message = PHASE_MESSAGES[phase] || 'Job wird verarbeitet …';
+              updateJob(localId, { phase, message });
+            },
+          });
+
+          if (!bundle?.products?.length) {
+            throw new Error('Job abgeschlossen, aber keine Produkte erhalten.');
+          }
+
+          options?.onJobCompleted?.(bundle);
+          updateJob(localId, {
+            phase: 'complete',
+            message: PHASE_MESSAGES.complete,
+            finishedAt: new Date().toISOString(),
+          });
+        } catch (err: any) {
+          if (err?.name === 'AbortError') {
+            updateJob(localId, {
+              phase: 'cancelled',
+              message: PHASE_MESSAGES.cancelled,
+              finishedAt: new Date().toISOString(),
+              error: 'Abgebrochen',
+            });
+          } else {
+            const message =
+              err instanceof Error ? err.message : 'Unbekannter Fehler bei der Produktidentifikation.';
+            console.error('Identification job failed:', err);
+            updateJob(localId, {
+              phase: 'error',
+              message,
+              finishedAt: new Date().toISOString(),
+              error: message,
+            });
+            setError(message);
+          }
+        } finally {
+          jobControllersRef.current.delete(localId);
+        }
+      })();
+    },
+    [addJob, options?.onJobCompleted, updateJob]
+  );
+
+  const enqueueIdentification = useCallback(
+    async (groups: UploadGroupPayload[], barcodes: string, model?: string) => {
+      const prepared = groups.filter((group) => group.images.length > 0);
+      if (!prepared.length) {
+        setError('Bitte ordne mindestens einer Produktgruppe Bilder zu.');
+        return;
       }
 
-      const productBundle = result.data;
-
-      if (!productBundle.products || productBundle.products.length === 0) {
-        throw new Error('Backend did not identify any products. Please try with clearer images or valid barcodes.');
+      try {
+        prepared.forEach((group) => validateGroup(group));
+      } catch (validationError: any) {
+        const message =
+          validationError instanceof Error
+            ? validationError.message
+            : 'Upload konnte nicht validiert werden.';
+        setError(message);
+        return;
       }
 
-      setIsLoading(false);
-      abortControllerRef.current = null;
-      applyPhase('complete', 'Produktdaten erfolgreich aktualisiert.');
-      scheduleStatusReset();
-      return productBundle;
+      setError(null);
+      prepared.forEach((group) => {
+        startJobForGroup(group, barcodes, model);
+      });
+    },
+    [startJobForGroup, validateGroup]
+  );
 
-    } catch (e: any) {
-      // Don't show error if request was cancelled
-      if (e?.name !== 'AbortError' && e?.code !== 499) {
-        console.error("API Error:", e);
-        const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during product identification.";
-        setError(`Failed to process request: ${errorMessage}`);
-        applyPhase('error', errorMessage);
-        scheduleStatusReset();
-      }
-      
-      setIsLoading(false);
-      abortControllerRef.current = null;
-      return null;
+  const cancelJob = useCallback((localId: string) => {
+    const controller = jobControllersRef.current.get(localId);
+    if (controller) {
+      controller.abort();
     }
   }, []);
 
-  // Cleanup function to cancel request on unmount
-  const cancelRequest = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-      setIsLoading(false);
-      setStatus(prev => ({
-        ...prev,
-        phase: 'cancelled',
-        message: 'Vorgang wurde abgebrochen.',
-        updatedAt: new Date().toISOString(),
-      }));
-      scheduleStatusReset();
-    }
-  }, [scheduleStatusReset]);
+  const dismissJob = useCallback((localId: string) => {
+    setJobs((prev) => prev.filter((job) => job.localId !== localId));
+  }, []);
 
   useEffect(() => {
     return () => {
-      if (statusResetRef.current) {
-        clearTimeout(statusResetRef.current);
-      }
+      jobControllersRef.current.forEach((controller) => controller.abort());
+      jobControllersRef.current.clear();
     };
   }, []);
 
-  return { identifyProducts, isLoading, error, cancelRequest, status };
+  const isLoading = jobs.some(
+    (job) =>
+      !job.finishedAt &&
+      job.phase !== 'error' &&
+      job.phase !== 'cancelled'
+  );
+
+  return {
+    enqueueIdentification,
+    jobStatuses: jobs,
+    isLoading,
+    error,
+    cancelJob,
+    dismissJob,
+    clearError: () => setError(null),
+  };
 };
