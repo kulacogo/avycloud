@@ -21,6 +21,7 @@ const TOOL_ITERATION_ERROR = 'TOOL_ITERATION_LIMIT';
 const MIN_ENRICHED_IMAGE_COUNT = parseInt(process.env.MIN_ENRICHED_IMAGE_COUNT || '4', 10);
 const DEFAULT_PRICE_CURRENCY = process.env.DEFAULT_PRICE_CURRENCY || 'EUR';
 const PRICE_TRACE_ENGINES = new Set(['google_shopping', 'google', 'ebay', 'bing_shopping', 'amazon']);
+const PRIMARY_BARCODE_KEYS = ['ean', 'gtin', 'upc'];
 const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);
 const validateProductBundle = ajv.compile(productBundleSchema);
@@ -231,6 +232,7 @@ function normalizeBundle(bundle) {
       }
       cloned.details = { ...cloned.details, attributes: attrObj };
     }
+    enforceSingleBarcode(cloned);
     return cloned;
   });
   return bundle;
@@ -291,6 +293,36 @@ function applyEbayTaxonomy(bundle) {
     return cloned;
   });
   return bundle;
+}
+
+function enforceSingleBarcode(product) {
+  const cloned = product || {};
+  const identifiers = { ...(cloned.details?.identifiers || {}) };
+  const candidateList = [];
+
+  // Collect barcodes from identification
+  if (Array.isArray(cloned.identification?.barcodes)) {
+    cloned.identification.barcodes.forEach((b) => b && candidateList.push(String(b).trim()));
+  }
+  // Collect from identifiers
+  PRIMARY_BARCODE_KEYS.forEach((key) => {
+    const val = identifiers[key];
+    if (val) candidateList.push(String(val).trim());
+  });
+
+  const primary = candidateList.find((v) => v.length >= 6) || null;
+  const unique = primary ? [primary] : [];
+
+  // Write back a single barcode everywhere
+  if (cloned.identification) {
+    cloned.identification.barcodes = unique;
+  }
+  PRIMARY_BARCODE_KEYS.forEach((key) => {
+    identifiers[key] = primary || null;
+  });
+  if (cloned.details) {
+    cloned.details.identifiers = identifiers;
+  }
 }
 
 function normalizeImageKey(url = '') {
