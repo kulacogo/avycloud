@@ -293,8 +293,6 @@ function pickSku(product) {
   const candidates = [
     product?.details?.identifiers?.sku,
     product?.details?.identifiers?.mpn,
-    product?.details?.identifiers?.ean,
-    product?.details?.identifiers?.gtin,
     product?.id,
   ];
   for (const entry of candidates) {
@@ -500,6 +498,25 @@ function validateProduct(product) {
 /**
  * Payload für addInventoryProduct
  */
+function pickEan(product) {
+  const candidates = [
+    product?.details?.identifiers?.ean,
+    product?.details?.identifiers?.gtin,
+    Array.isArray(product?.identification?.barcodes)
+      ? product.identification.barcodes[0]
+      : null,
+  ];
+  for (const entry of candidates) {
+    if (entry && typeof entry === 'string' && entry.trim().length > 0) {
+      const sanitized = entry.replace(/\D+/g, '');
+      if (sanitized.length >= 8 && sanitized.length <= 14) {
+        return sanitized;
+      }
+    }
+  }
+  return null;
+}
+
 function buildPayload(
   product,
   inventoryId,
@@ -511,6 +528,7 @@ function buildPayload(
 ) {
   const name = pickProductName(product);
   const sku = pickSku(product);
+  const ean = pickEan(product);
   const textFields = buildTextFields(product, name);
   const images = buildImages(product);
   const stockKey = meta.warehouseKey || `inventory_${inventoryId}`;
@@ -522,6 +540,8 @@ function buildPayload(
     is_bundle: false,
     sku,
     asin: '',
+    ean,
+    ean_additional: [],
     tags: [],
     tax_rate: 19,
     manufacturer_id: manufacturerId || undefined,
@@ -552,7 +572,7 @@ function buildPayload(
 /**
  * Existierendes Produkt anhand SKU finden
  */
-async function findProductBySku(inventoryId, sku) {
+async function findProductBySku(inventoryId, skuOrEan) {
   let page = 1;
   const MAX_PAGES = 200;
   const normalizeSkuValue = (val) =>
@@ -562,8 +582,13 @@ async function findProductBySku(inventoryId, sku) {
       .toLowerCase()
       .replace(/^sku-/, '')
       .replace(/\s+/g, '');
-  const target = normalizeSkuValue(sku);
-  const targetVariants = new Set([target, normalizeSkuValue(`SKU-${sku}`)]);
+  const normalizeEanValue = (val) =>
+    (val || '')
+      .toString()
+      .replace(/\D+/g, '')
+      .trim();
+  const targetSku = normalizeSkuValue(skuOrEan);
+  const targetEan = normalizeEanValue(skuOrEan);
 
   while (page <= MAX_PAGES) {
     const res = await callBaseLinker('getInventoryProductsList', {
@@ -574,7 +599,16 @@ async function findProductBySku(inventoryId, sku) {
     const products = Array.isArray(res.products) ? res.products : [];
     const match = products.find((entry) => {
       const entrySku = normalizeSkuValue(entry?.sku || entry?.product_sku || '');
-      return entrySku && targetVariants.has(entrySku);
+      if (targetSku && entrySku && entrySku === targetSku) {
+        return true;
+      }
+      if (targetEan) {
+        const entryEan = normalizeEanValue(entry?.ean || entry?.product_ean || '');
+        if (entryEan && entryEan === targetEan) {
+          return true;
+        }
+      }
+      return false;
     });
 
     if (match) return match;
@@ -631,15 +665,15 @@ async function syncProductToBaseLinker(product) {
     // Bestands-Check: Priorität base_product_id → SKU-Match → Neuanlage
     let baseProductId = product?.ops?.base_product_id || null;
     let existing = null;
-    let resolvedExistingBySku = false;
-    const resolveExistingBySku = async () => {
-      if (resolvedExistingBySku || !payload?.sku) return null;
-      resolvedExistingBySku = true;
-      existing = await findProductBySku(baseInventoryId, payload.sku);
+    let resolvedExisting = false;
+    const resolveExistingProduct = async (identifier) => {
+      if (resolvedExisting || !identifier) return null;
+      resolvedExisting = true;
+      existing = await findProductBySku(baseInventoryId, identifier);
       return existing;
     };
-    if (!baseProductId && payload?.sku) {
-      await resolveExistingBySku();
+    if (!baseProductId && (payload?.sku || payload?.ean)) {
+      await resolveExistingProduct(payload.sku || payload.ean);
       if (existing?.product_id) {
         baseProductId = existing.product_id;
       }
@@ -664,7 +698,7 @@ async function syncProductToBaseLinker(product) {
         if (!retriedAfterResolvingId) {
           retriedAfterResolvingId = true;
           if (!existing) {
-            await resolveExistingBySku();
+            await resolveExistingProduct(payload.sku || payload.ean);
           }
           if (existing?.product_id) {
             baseProductId = existing.product_id;
