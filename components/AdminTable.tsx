@@ -11,7 +11,8 @@ type ColumnId =
   | 'thumbnail'
   | 'nameBrand'
   | 'category'
-  | 'identifiers'
+  | 'sku'
+  | 'barcode'
   | 'price'
   | 'inventory'
   | 'storage'
@@ -24,10 +25,10 @@ type ColumnId =
 
 type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'identifiers', 'inventory', 'storage', 'syncStatus', 'lastSaved'],
-  warehouse: ['nameBrand', 'identifiers', 'inventory', 'storage', 'syncStatus', 'saveStatus'],
-  pricing: ['nameBrand', 'price', 'identifiers', 'syncStatus', 'lastSynced'],
-  minimal: ['nameBrand', 'identifiers', 'inventory', 'syncStatus'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'storage', 'syncStatus', 'lastSaved'],
+  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'storage', 'syncStatus', 'saveStatus'],
+  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'syncStatus', 'lastSynced'],
+  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'syncStatus'],
 };
 
 interface ColumnDefinition {
@@ -82,6 +83,22 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
 
   const categories = useMemo(() => ['all', ...new Set(products.map(p => p.identification.category))], [products]);
 
+  const primaryImage = (product: Product) =>
+    (product.details.images || []).find((img) => img.url_or_base64?.startsWith('http')) || null;
+  const primaryBarcode = (product: Product) => {
+    const codes = product.identification?.barcodes || [];
+    const ids = product.details?.identifiers || {};
+    return codes[0] || ids.ean || ids.gtin || ids.upc || '—';
+  };
+  const shortCategory = (product: Product) =>
+    (product.identification?.category || '')
+      .split('>')
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .pop() ||
+    product.identification?.category ||
+    '—';
+
   const columnDefinitions: ColumnDefinition[] = useMemo(() => {
     const baseRenderers: ColumnDefinition[] = [
       {
@@ -91,9 +108,9 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
         widthClass: 'w-20',
         render: ({ product }) => (
           <div className="w-12 h-12 rounded-md overflow-hidden bg-slate-700 flex items-center justify-center text-xs text-slate-400">
-            {product.details.images[0]?.url_or_base64 ? (
+            {primaryImage(product) ? (
               <img
-                src={product.details.images[0]?.url_or_base64}
+                src={primaryImage(product)!.url_or_base64}
                 alt={product.identification.name}
                 className="w-full h-full object-cover"
               />
@@ -132,16 +149,21 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
         render: ({ product }) => <span className="text-slate-300">{product.identification.category}</span>,
       },
       {
-        id: 'identifiers',
-        label: t('table.identifiers'),
+        id: 'sku',
+        label: t('table.sku'),
         defaultVisible: true,
         render: ({ product }) => (
-          <div className="text-slate-300 text-sm space-y-0.5 font-mono leading-tight">
-            <div>{product.details.identifiers.sku || product.identification.sku || '—'}</div>
-            <div className="text-slate-500">
-              {product.details.identifiers.ean || product.details.identifiers.gtin || '—'}
-            </div>
+          <div className="text-slate-300 text-sm font-mono leading-tight">
+            {product.details.identifiers.sku || product.identification.sku || '—'}
           </div>
+        ),
+      },
+      {
+        id: 'barcode',
+        label: t('table.barcode'),
+        defaultVisible: true,
+        render: ({ product }) => (
+          <div className="text-slate-300 text-sm font-mono leading-tight">{primaryBarcode(product)}</div>
         ),
       },
       {

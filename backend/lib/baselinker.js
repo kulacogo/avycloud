@@ -614,9 +614,7 @@ async function syncProductToBaseLinker(product) {
     // Bestands-Check: wenn base_product_id oder SKU-Match vorhanden ist ⇒ Update, sonst ⇒ Neuanlage
     let baseProductId = product?.ops?.base_product_id || null;
     let existing = null;
-    if (baseProductId) {
-      // nothing to do, explicit product_id update
-    } else {
+    if (!baseProductId) {
       existing = await findProductBySku(baseInventoryId, payload.sku);
       if (existing?.product_id) {
         baseProductId = existing.product_id;
@@ -633,12 +631,28 @@ async function syncProductToBaseLinker(product) {
       quantity
     );
 
-    const requestPayload = {
+    const buildRequest = (productId) => ({
       ...payload,
-      product_id: Number(baseProductId) || 0, // 0 => Neuanlage, >0 => Update
-    };
+      product_id: Number(productId) || 0, // 0 => Neuanlage, >0 => Update
+    });
 
-    const result = await callBaseLinker('addInventoryProduct', requestPayload);
+    let requestPayload = buildRequest(baseProductId || 0);
+    let result;
+    try {
+      result = await callBaseLinker('addInventoryProduct', requestPayload);
+    } catch (error) {
+      const msg = String(error.message || '').toUpperCase();
+      const retryCreate =
+        msg.includes('ERROR_PRODUCT_ID') || msg.includes('NO PRODUCT WITH ID');
+      if (retryCreate) {
+        // Stale/unbekannte product_id -> neu anlegen
+        requestPayload = buildRequest(0);
+        result = await callBaseLinker('addInventoryProduct', requestPayload);
+      } else {
+        throw error;
+      }
+    }
+
     if (result.status !== 'SUCCESS') {
       throw new Error(result.error_message || 'BaseLinker returned error');
     }
