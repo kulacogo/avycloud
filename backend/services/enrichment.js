@@ -149,7 +149,7 @@ function buildSystemPrompt(locale = 'de-DE') {
   ].join('\n');
 }
 
-function buildUserPrompt({ barcodeList, hostedImages, locale }) {
+function buildUserPrompt({ barcodeList, hostedImages, locale, fileCount = 0 }) {
   const parts = [];
   if (barcodeList.length) {
     parts.push(`Barcodes: ${barcodeList.join(', ')}`);
@@ -168,6 +168,12 @@ function buildUserPrompt({ barcodeList, hostedImages, locale }) {
     parts.push('Es liegen keine vorab gehosteten Bilder vor.');
   }
 
+  if (fileCount && fileCount > 1) {
+    parts.push(
+      `Hinweis: Es wurden ${fileCount} Upload-Bilder geliefert. Wenn sie unterschiedliche Produkte zeigen, erzeuge mehrere Produkte im products-Array (je ein Eintrag pro Produkt).`
+    );
+  }
+
   parts.push(
     `Aufgabe:`,
     `1. Analysiere die Vision-Eingaben (input_image) um Marke/Modell zu erkennen.`,
@@ -176,7 +182,7 @@ function buildUserPrompt({ barcodeList, hostedImages, locale }) {
     `4. Wenn Shopping-Ergebnis product_id liefert: google_product oder google_immersive_product nachladen; bei fehlenden Preisen zusätzlich bing_shopping/amazon/ebay.`,
     `5. Validiere Bilder: nur öffentlich zugängliche, eindeutige, Auflösung >=900px; Dubletten entfernen.`,
     `6. Attribute als Liste ausgeben: [{ "key": "Material", "value": "100% Baumwolle", "value_type": "string" }, ...].`,
-    `7. Wenn mehrere Produkte gefunden werden, gib jedes separat im products Array mit eindeutiger id (bevorzugt EAN/GTIN) zurück.`,
+    `7. Wenn mehrere unterschiedliche Produkte erkannt werden, lege für jedes ein separates Objekt im products-Array an (eindeutige id, bevorzugt EAN/GTIN). Keine Zusammenfassung.`,
     `8. pricing.lowest_price.sources benötigt echte Händler-URLs inkl. checked_at.`,
     `9. key_features >= 5, spezifisch für das Produkt.`,
     `10. images array: min. 3 verifizierte Einträge sofern SerpAPI passende Quellen liefert.`,
@@ -550,7 +556,7 @@ async function runProductIdentification({ files = [], barcodes = '', locale = 'd
   const client = await getOpenAIClient();
   const targetModel = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gpt-5-mini-2025-08-07');
   const systemPrompt = buildSystemPrompt(locale);
-  const userPrompt = buildUserPrompt({ barcodeList, hostedImages, locale });
+  const userPrompt = buildUserPrompt({ barcodeList, hostedImages, locale, fileCount: files.length });
 
   const inputMessages = [
     {
