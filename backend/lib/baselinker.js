@@ -555,6 +555,15 @@ function buildPayload(
 async function findProductBySku(inventoryId, sku) {
   let page = 1;
   const MAX_PAGES = 200;
+  const normalizeSkuValue = (val) =>
+    (val || '')
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/^sku-/, '')
+      .replace(/\s+/g, '');
+  const target = normalizeSkuValue(sku);
+  const targetVariants = new Set([target, normalizeSkuValue(`SKU-${sku}`)]);
 
   while (page <= MAX_PAGES) {
     const res = await callBaseLinker('getInventoryProductsList', {
@@ -563,10 +572,9 @@ async function findProductBySku(inventoryId, sku) {
     });
 
     const products = Array.isArray(res.products) ? res.products : [];
-    const normalizedSku = sku?.trim().toLowerCase();
     const match = products.find((entry) => {
-      const entrySku = (entry?.sku || entry?.product_sku || '').trim().toLowerCase();
-      return Boolean(normalizedSku && entrySku && entrySku === normalizedSku);
+      const entrySku = normalizeSkuValue(entry?.sku || entry?.product_sku || '');
+      return entrySku && targetVariants.has(entrySku);
     });
 
     if (match) return match;
@@ -611,7 +619,7 @@ async function syncProductToBaseLinker(product) {
 
     const quantity = pickQuantity(product);
 
-    // Bestands-Check: wenn base_product_id oder SKU-Match vorhanden ist ⇒ Update, sonst ⇒ Neuanlage
+    // Bestands-Check: Priorität base_product_id → SKU-Match → Neuanlage
     let baseProductId = product?.ops?.base_product_id || null;
     let existing = null;
     if (!baseProductId) {
@@ -642,10 +650,20 @@ async function syncProductToBaseLinker(product) {
       result = await callBaseLinker('addInventoryProduct', requestPayload);
     } catch (error) {
       const msg = String(error.message || '').toUpperCase();
-      const retryCreate =
+      const staleIdError =
         msg.includes('ERROR_PRODUCT_ID') || msg.includes('NO PRODUCT WITH ID');
-      if (retryCreate) {
-        // Stale/unbekannte product_id -> neu anlegen
+
+      if (staleIdError && baseProductId) {
+        // BaseLinker kennt die gespeicherte ID nicht mehr → Sync abbrechen, um keine Duplikate zu erzeugen
+        return {
+          id: product.id,
+          status: 'failed',
+          message: `BaseLinker-Produkt-ID ${baseProductId} nicht gefunden – Sync abgebrochen, bitte ID/SKU in BaseLinker prüfen.`,
+        };
+      }
+
+      if (staleIdError && !baseProductId) {
+        // kein baseProductId -> wir dürfen neu anlegen
         requestPayload = buildRequest(0);
         result = await callBaseLinker('addInventoryProduct', requestPayload);
       } else {
