@@ -632,6 +632,71 @@ async function listBinsForProduct(productIdOrSku) {
   return matches;
 }
 
+function normalizeKey(value) {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized ? normalized.toLowerCase() : null;
+}
+
+function toIsoString(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value.toDate === 'function') return value.toDate().toISOString();
+  if (typeof value === 'string') return value;
+  return null;
+}
+
+async function getProductBinSummaryMap(productIds = [], skuToProductIdMap = new Map()) {
+  const filterSet =
+    Array.isArray(productIds) && productIds.length
+      ? new Set(productIds.map((id) => (id == null ? null : String(id))))
+      : null;
+
+  const snapshot = await binsCollection.get();
+  const summaries = new Map();
+
+  snapshot.forEach((doc) => {
+    const data = doc.data() || {};
+    const binCode = doc.id;
+    const products = Array.isArray(data.products) ? data.products : [];
+
+    products.forEach((entry) => {
+      const quantity = Number(entry?.quantity) || 0;
+      if (!quantity) return;
+
+      let targetId = entry?.productId ? String(entry.productId) : null;
+      if (!targetId && entry?.sku && skuToProductIdMap && skuToProductIdMap.size) {
+        const normalizedSku = normalizeKey(entry.sku);
+        if (normalizedSku && skuToProductIdMap.has(normalizedSku)) {
+          targetId = skuToProductIdMap.get(normalizedSku);
+        }
+      }
+
+      if (!targetId) return;
+      if (filterSet && !filterSet.has(targetId)) return;
+
+      if (!summaries.has(targetId)) {
+        summaries.set(targetId, { totalQuantity: 0, bins: [] });
+      }
+      const summary = summaries.get(targetId);
+      summary.totalQuantity += quantity;
+      summary.bins.push({
+        code: binCode,
+        zone: data.zone,
+        etage: data.etage,
+        gang: data.gang,
+        regal: data.regal,
+        ebene: data.ebene,
+        quantity,
+        firstStoredAt: entry.firstStoredAt || toIsoString(data.firstStoredAt) || null,
+        lastUpdatedAt: entry.lastUpdatedAt || toIsoString(data.lastStoredAt) || null,
+      });
+    });
+  });
+
+  return summaries;
+}
+
 module.exports = {
   createWarehouseLayout,
   listWarehouseZones,
@@ -645,4 +710,5 @@ module.exports = {
   bookStockIn,
   bookStockOut,
   listBinsForProduct,
+  getProductBinSummaryMap,
 };
