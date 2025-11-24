@@ -27,6 +27,12 @@ steps:
         '$_SERVICE',
         '--image',
         '$_IMAGE:$SHORT_SHA',
+        '--memory',
+        '3Gi',
+        '--cpu',
+        '2',
+        '--min-instances',
+        '1',
         '--region',
         '$_REGION',
         '--platform',
@@ -37,4 +43,3 @@ steps:
 images:
   - '$_IMAGE:$SHORT_SHA'
   - '$_IMAGE:latest'
-
