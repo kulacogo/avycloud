@@ -2,6 +2,8 @@ const PQueue = require('p-queue').default || require('p-queue');
 const { Timestamp, claimJob, updateJob, listJobsByStatus } = require('../lib/jobs');
 const { downloadFile } = require('../lib/storage');
 const { runProductIdentification } = require('./enrichment');
+const { saveProduct } = require('../lib/firestore');
+const { ensureProductSku } = require('../lib/sku');
 
 const CONCURRENCY = parseInt(process.env.ID_QUEUE_CONCURRENCY || '3', 10);
 const MAX_ATTEMPTS = parseInt(process.env.ID_JOB_MAX_ATTEMPTS || '3', 10);
@@ -45,6 +47,18 @@ async function processJob(jobId) {
       locale: jobSnapshot.payload?.locale || 'de-DE',
       modelOverride: jobSnapshot.payload?.model || null,
     });
+
+    // Auto-Save identifizierte Produkte
+    if (result?.bundle?.products?.length) {
+      for (const product of result.bundle.products) {
+        try {
+          ensureProductSku(product);
+          await saveProduct(product);
+        } catch (saveError) {
+          console.error(`Auto-Save failed for product ${product?.id || 'unknown'} in job ${jobId}:`, saveError);
+        }
+      }
+    }
 
     await updateJob(jobId, {
       status: 'done',
@@ -100,4 +114,3 @@ module.exports = {
   enqueueJob,
   resumePendingJobs,
 };
-
