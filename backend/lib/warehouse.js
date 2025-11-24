@@ -18,6 +18,45 @@ const zonesCollection = firestore.collection('warehouseZones');
 const binsCollection = firestore.collection('warehouseBins');
 const productsCollection = firestore.collection('products');
 
+// Rebuild inventory summary (total quantity and primary BIN)
+async function refreshProductInventory(productId) {
+  if (!productId) return;
+  const bins = await listBinsForProduct(productId);
+  const totalQty = bins.reduce((sum, b) => sum + (b.quantity || 0), 0);
+  const sorted = [...bins].sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
+  const primary = sorted[0] || null;
+  const storageBins = bins.map((b) => ({
+    code: b.code,
+    quantity: b.quantity || 0,
+    zone: b.zone,
+    etage: b.etage,
+    gang: b.gang,
+    regal: b.regal,
+    ebene: b.ebene,
+    firstStoredAt: b.firstStoredAt || null,
+    lastUpdatedAt: b.lastUpdatedAt || null,
+  }));
+
+  const updatePayload = {
+    inventory: { quantity: totalQty },
+    storageBins,
+  };
+  if (primary) {
+    updatePayload.storage = {
+      binCode: primary.code,
+      zone: primary.zone,
+      etage: primary.etage,
+      gang: primary.gang,
+      regal: primary.regal,
+      ebene: primary.ebene,
+      quantity: primary.quantity || 0,
+      assigned_at: primary.lastUpdatedAt || new Date().toISOString(),
+    };
+  }
+
+  await productsCollection.doc(productId).set(updatePayload, { merge: true });
+}
+
 async function findProductDocument({ productId, sku, barcode }) {
   if (productId) {
     const ref = productsCollection.doc(productId);
@@ -280,6 +319,8 @@ async function removeProductFromBin(binCode, productId, options = {}) {
       });
     }
   });
+
+  await refreshProductInventory(productId);
 }
 
 async function assignProductToBin(binCode, productId, quantity) {
@@ -349,6 +390,7 @@ async function assignProductToBin(binCode, productId, quantity) {
     });
   });
 
+  await refreshProductInventory(productId);
   return getBinByCode(binCode);
 }
 
@@ -458,6 +500,7 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
     };
   });
 
+  await refreshProductInventory(resolvedProductId);
   return { product: updatedProduct, bin: updatedBin };
 }
 
@@ -549,6 +592,7 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
     };
   });
 
+  await refreshProductInventory(resolvedProductId);
   return { product: updatedProduct, bin: updatedBin };
 }
 

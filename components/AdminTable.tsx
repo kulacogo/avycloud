@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
 import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon } from './icons/Icons';
-import { normalizeSyncStatus, getStableNumericId } from '../utils/product';
+import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
@@ -90,6 +90,8 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
     const ids = product.details?.identifiers || {};
     return codes[0] || ids.ean || ids.gtin || ids.upc || '—';
   };
+  const primaryBin = (product: Product) =>
+    (product.storageBins && product.storageBins[0]?.code) || product.storage?.binCode || null;
   const shortCategory = (product: Product) =>
     (product.identification?.category || '')
       .split('>')
@@ -186,7 +188,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
         defaultVisible: true,
         render: ({ product }) => (
           <div className="flex flex-col leading-tight">
-            <span className="font-semibold text-slate-100 text-center block">{product.inventory?.quantity ?? 0}</span>
+            <span className="font-semibold text-slate-100 text-center block">{getProductQuantity(product)}</span>
           </div>
         ),
       },
@@ -195,12 +197,9 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
         label: t('table.storage'),
         defaultVisible: false,
         render: ({ product }) =>
-          product.storage ? (
+          primaryBin(product) ? (
             <div className="flex flex-col text-sm text-slate-300">
-              <span className="font-mono text-base text-white">{product.storage.binCode}</span>
-              <span className="text-slate-400">
-                Zone {product.storage.zone} · Gang {product.storage.gang} · Regal {product.storage.regal} · Ebene {product.storage.ebene}
-              </span>
+              <span className="font-mono text-base text-white">{primaryBin(product)}</span>
             </div>
           ) : (
             <span className="text-slate-500">{t('table.noBin')}</span>

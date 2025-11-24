@@ -618,17 +618,6 @@ async function syncProductToBaseLinker(product) {
     );
 
     const quantity = pickQuantity(product);
-
-    // Bestands-Check: Priorität base_product_id → SKU-Match → Neuanlage
-    let baseProductId = product?.ops?.base_product_id || null;
-    let existing = null;
-    if (!baseProductId) {
-      existing = await findProductBySku(baseInventoryId, payload.sku);
-      if (existing?.product_id) {
-        baseProductId = existing.product_id;
-      }
-    }
-
     const payload = buildPayload(
       product,
       baseInventoryId,
@@ -638,6 +627,16 @@ async function syncProductToBaseLinker(product) {
       validation.normalizedPrice,
       quantity
     );
+
+    // Bestands-Check: Priorität base_product_id → SKU-Match → Neuanlage
+    let baseProductId = product?.ops?.base_product_id || null;
+    let existing = null;
+    if (!baseProductId && payload?.sku) {
+      existing = await findProductBySku(baseInventoryId, payload.sku);
+      if (existing?.product_id) {
+        baseProductId = existing.product_id;
+      }
+    }
 
     const buildRequest = (productId) => ({
       ...payload,

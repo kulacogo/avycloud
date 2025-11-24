@@ -11,7 +11,16 @@ export const normalizeSyncStatus = (
 };
 
 export const getProductQuantity = (product: Product): number => {
-  return product.storage?.quantity ?? 0;
+  if (Array.isArray(product.storageBins) && product.storageBins.length) {
+    return product.storageBins.reduce((sum, bin) => sum + (bin.quantity || 0), 0);
+  }
+  if (typeof product.inventory?.quantity === 'number' && Number.isFinite(product.inventory.quantity)) {
+    return product.inventory.quantity;
+  }
+  if (typeof product.storage?.quantity === 'number' && Number.isFinite(product.storage.quantity)) {
+    return product.storage.quantity;
+  }
+  return 0;
 };
 
 const sanitizeNumeric = (value?: string | number | null): string | null => {
@@ -44,4 +53,3 @@ export const getStableNumericId = (product: Product): string => {
   }
   return hashStringToDigits(product.id || product.identification?.name || 'product');
 };
-
