@@ -46,7 +46,8 @@ interface AdminTableProps {
   onUpdateProducts: (products: Product[]) => void;
   focusProductId?: string | null;
   onImproveProduct?: (productId: string) => void;
-  improvingProductId?: string | null;
+  onImproveSelected?: (productIds: string[]) => void;
+  improvingProductIds?: Set<string>;
 }
 
 const SyncStatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
@@ -77,7 +78,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
   onUpdateProducts,
   focusProductId,
   onImproveProduct,
-  improvingProductId,
+  onImproveSelected,
+  improvingProductIds,
 }) => {
   const { t } = useI18n();
   const [searchTerm, setSearchTerm] = useState('');
@@ -615,6 +617,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
       <div className="flex flex-wrap gap-2 mb-4">
         <button id="table-sync-selected" onClick={handleBatchSync} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"><SyncIcon className="w-4 h-4 mr-1.5" /> {t('table.actions.syncSelected')}</button>
         <button id="table-price-refresh" onClick={handleBatchPriceRefresh} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"><RefreshIcon className="w-4 h-4 mr-1.5" /> {t('table.actions.priceRefresh')}</button>
+        {onImproveSelected && (
+          <button
+            id="table-improve-selected"
+            onClick={() => onImproveSelected(Array.from(selectedIds))}
+            disabled={selectedIds.size === 0}
+            className="flex items-center justify-center px-3 py-2 text-sm bg-purple-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"
+          >
+            Improve Selected
+          </button>
+        )}
         <button id="table-export-csv" onClick={handleExportCsv} className="flex items-center justify-center px-3 py-2 text-sm bg-slate-600 text-white rounded-md w-full sm:w-auto"><ExportIcon className="w-4 h-4 mr-1.5" /> {t('table.actions.exportCsv')}</button>
         <button
           id="table-print-labels"
@@ -753,10 +765,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
                       <button
                         type="button"
                         className="px-2 py-1 text-xs bg-sky-600 text-white rounded-md disabled:opacity-60"
-                        disabled={improvingProductId === p.id}
+                        disabled={Boolean(improvingProductIds?.has(p.id))}
                         onClick={() => onImproveProduct(p.id)}
                       >
-                        {improvingProductId === p.id ? 'Verbessere…' : 'Improve'}
+                        {improvingProductIds?.has(p.id) ? 'Verbessere…' : 'Improve'}
                       </button>
                     )}
                     <button

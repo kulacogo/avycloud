@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Product, WarehouseBin } from './types';
 import { useIdentification, UploadGroupPayload } from './hooks/useIdentification';
+import { useImproveQueue } from './hooks/useImproveQueue';
 import ProductInput from './components/ProductInput';
 import ProductSheet from './components/ProductSheet';
 import AdminTable from './components/AdminTable';
@@ -11,7 +12,7 @@ import { Spinner } from './components/Spinner';
 import JobStatusPopup from './components/JobStatusPopup';
 import Dashboard from './components/Dashboard';
 import OperationsView from './components/OperationsView';
-import { fetchProducts, improveProduct } from './api/client';
+import { fetchProducts } from './api/client';
 import { useI18n } from './i18n';
 
 type View = 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
@@ -65,7 +66,10 @@ const ensureInventoryQuantity = (product: Product, minQuantity = 1): Product => 
   };
 };
 
-const mergeIdentifiedProducts = (incoming: Product[], existing: Product[]) => {
+const mergeIdentifiedProducts = (
+  incoming: Product[],
+  existing: Product[]
+): { list: Product[]; focus: Product | null } => {
   if (!incoming.length) {
     return { list: existing, focus: null };
   }
@@ -163,9 +167,10 @@ const App: React.FC = () => {
         nextFocus = merged.focus;
         return merged.list;
       });
-      if (nextFocus) {
-        setCurrentProduct(nextFocus);
-        setInventoryFocusId(nextFocus.id);
+      const focusProduct = nextFocus as Product | null;
+      if (focusProduct) {
+        setCurrentProduct(focusProduct);
+        setInventoryFocusId(focusProduct.id);
         setView('sheet');
       }
     },
@@ -173,7 +178,6 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
   const [warehouseRefresh, setWarehouseRefresh] = useState<WarehouseBin | null>(null);
   const [inventoryFocusId, setInventoryFocusId] = useState<string | null>(null);
-  const [improvingProductId, setImprovingProductId] = useState<string | null>(null);
   const historyReadyRef = useRef(false);
   const skipNextHistoryPushRef = useRef(false);
   const lastHistoryStateRef = useRef<{ view: View; productId: string | null } | null>(null);
@@ -201,6 +205,33 @@ const App: React.FC = () => {
     productsRef.current = products;
   }, [products]);
 
+  const handleProductImproved = useCallback(
+    (product: Product) => {
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? product : p)));
+      if (currentProduct?.id === product.id) {
+        setCurrentProduct(product);
+      }
+    },
+    [currentProduct]
+  );
+
+  const resolveProductLabel = useCallback((productId: string) => {
+    const product = productsRef.current.find((p) => p.id === productId);
+    if (!product) return `Produkt ${productId}`;
+    const parts = [product.identification?.brand, product.identification?.name].filter(Boolean);
+    return parts.join(' ') || `Produkt ${productId}`;
+  }, []);
+
+  const {
+    enqueueImproveJobs,
+    activeProductIds,
+    error: improveError,
+    clearError: clearImproveError,
+  } = useImproveQueue({
+    onProductImproved: handleProductImproved,
+    resolveLabel: resolveProductLabel,
+  });
+
   const handleIdentification = useCallback(
     (groupsPayload: UploadGroupPayload[], barcodes: string, model?: string) => {
       enqueueIdentification(groupsPayload, barcodes, model);
@@ -222,28 +253,26 @@ const App: React.FC = () => {
   };
   
   const handleImproveProduct = useCallback(
-    async (productId: string) => {
+    (productId: string) => {
       if (!productId) return;
-      setImprovingProductId(productId);
-      try {
-        const result = await improveProduct(productId);
-        if (!result.ok || !result.data) {
-          throw new Error(result.error?.message || 'Verbesserung fehlgeschlagen.');
-        }
-        const improved = result.data;
-        setProducts((prev) => prev.map((p) => (p.id === productId ? improved : p)));
-        if (currentProduct?.id === productId) {
-          setCurrentProduct(improved);
-        }
-      } catch (error: any) {
-        console.error('Improve failed:', error);
-        alert(error?.message || 'Verbesserung fehlgeschlagen.');
-      } finally {
-        setImprovingProductId(null);
-      }
+      enqueueImproveJobs([productId]);
     },
-    [currentProduct]
+    [enqueueImproveJobs]
   );
+
+  const handleImproveSelected = useCallback(
+    (productIds: string[]) => {
+      if (!productIds.length) return;
+      enqueueImproveJobs(productIds);
+    },
+    [enqueueImproveJobs]
+  );
+ 
+  useEffect(() => {
+    if (!improveError) return;
+    alert(improveError);
+    clearImproveError();
+  }, [improveError, clearImproveError]);
  
   const handleSelectProduct = (productId: string) => {
     const product = products.find(p => p.id === productId);
@@ -347,7 +376,7 @@ const App: React.FC = () => {
             product={currentProduct}
             onUpdate={handleUpdateProduct}
             onImprove={handleImproveProduct}
-            isImproving={improvingProductId === currentProduct.id}
+            isImproving={Boolean(currentProduct && activeProductIds.has(currentProduct.id))}
           />
         ) : (
           <div className="text-center p-8 text-slate-400">No product selected. Go to 'New' to identify one or 'Admin' to select an existing one.</div>
@@ -360,7 +389,8 @@ const App: React.FC = () => {
             onUpdateProducts={setProducts}
             focusProductId={inventoryFocusId}
             onImproveProduct={handleImproveProduct}
-            improvingProductId={improvingProductId}
+            onImproveSelected={handleImproveSelected}
+            improvingProductIds={activeProductIds}
           />
         );
       case 'warehouse':

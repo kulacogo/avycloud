@@ -11,6 +11,10 @@ const {
   updateProductSyncStatus,
   listOrders,
 } = require('./lib/firestore');
+const {
+  createJob: createImproveJob,
+  getJob: getImproveJob,
+} = require('./lib/improve-jobs');
 const { uploadBase64Image, deleteProductImages, uploadJobFile } = require('./lib/storage');
 const { recordManualProductImage } = require('./lib/product-images');
 const { createJob, getJob } = require('./lib/jobs');
@@ -27,6 +31,7 @@ const { runProductChat } = require('./services/product-chat');
 const { improveExistingProduct } = require('./services/improve');
 const { getSecretValue } = require('./lib/secret-values');
 const { enqueueJob, resumePendingJobs } = require('./services/job-runner');
+const { enqueueImproveJob, resumePendingImproveJobs } = require('./services/improve-runner');
 const {
   createWarehouseLayout,
   listWarehouseZones,
@@ -114,6 +119,7 @@ const enrichProductsWithBinSummaries = async (products = []) => {
 const app = express();
 const MAX_IMAGE_FILES = 25;
 const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024; // 8 MB per file, total tracked separately
+const MAX_IMPROVE_BATCH = parseInt(process.env.MAX_IMPROVE_BATCH || '20', 10);
 const allowedOrigins = [
   'https://avycloud.web.app',
   'https://avycloud.firebaseapp.com',
@@ -140,6 +146,9 @@ const upload = multer({
 
 resumePendingJobs().catch((error) => {
   console.error('Failed to resume pending identification jobs:', error);
+});
+resumePendingImproveJobs().catch((error) => {
+  console.error('Failed to resume pending improve jobs:', error);
 });
 
 async function resolveGeminiApiKey() {
@@ -1692,6 +1701,98 @@ app.post('/api/products/:id/improve', async (req, res) => {
     res.status(status).json({
       ok: false,
       error: { code: status, message: error.message || 'Failed to improve product' },
+    });
+  }
+});
+
+app.post('/api/improve/jobs', async (req, res) => {
+  try {
+    const rawIds = Array.isArray(req.body?.productIds) ? req.body.productIds : [];
+    const uniqueIds = [...new Set(rawIds.map((id) => String(id || '').trim()))].filter(Boolean);
+    if (!uniqueIds.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Es wurden keine gültigen Produkt-IDs übermittelt.' },
+      });
+    }
+    if (uniqueIds.length > MAX_IMPROVE_BATCH) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: `Maximal ${MAX_IMPROVE_BATCH} Produkte können gleichzeitig verbessert werden.`,
+        },
+      });
+    }
+
+    const jobs = [];
+    const missing = [];
+
+    for (const productId of uniqueIds) {
+      const product = await getProduct(productId);
+      if (!product) {
+        missing.push(productId);
+        continue;
+      }
+      const jobId = crypto.randomUUID();
+      await createImproveJob(
+        {
+          payload: { productId },
+          productId,
+          productName: product.identification?.name || '',
+        },
+        jobId
+      );
+      enqueueImproveJob(jobId);
+      jobs.push({ jobId, productId });
+    }
+
+    if (!jobs.length) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Keine Improve-Jobs konnten erstellt werden (Produkte nicht gefunden).',
+          missing,
+        },
+      });
+    }
+
+    res.json({
+      ok: true,
+      data: {
+        jobs,
+        missing,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to create improve jobs:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Improve-Jobs konnten nicht angelegt werden.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+app.get('/api/improve/jobs/:id', async (req, res) => {
+  try {
+    const job = await getImproveJob(req.params.id);
+    if (!job) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: 404, message: 'Improve-Job wurde nicht gefunden.' },
+      });
+    }
+    res.json({ ok: true, data: job });
+  } catch (error) {
+    console.error('Failed to load improve job:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Improve-Job konnte nicht geladen werden.', details: error.message },
     });
   }
 });

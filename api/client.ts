@@ -202,6 +202,76 @@ export const waitForJobResult = async (
   }
 };
 
+export const createImproveJobs = async (
+  productIds: string[]
+): Promise<{ ok: boolean; data?: { jobs: Array<{ jobId: string; productId: string }>; missing?: string[] }; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/improve/jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productIds }),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: {
+          code: response.status,
+          message: result?.error?.message || response.statusText || 'Improve-Jobs konnten nicht erstellt werden.',
+        },
+      };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+const fetchImproveJobStatus = async (jobId: string, signal?: AbortSignal) => {
+  const response = await fetch(`${BACKEND_URL}/api/improve/jobs/${jobId}`, {
+    method: 'GET',
+    signal,
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || `Failed to load improve job (${response.status})`);
+  }
+  return result?.data;
+};
+
+export const pollImproveJob = async (
+  jobId: string,
+  options?: { signal?: AbortSignal; onStatus?: (phase: IdentifyPhase) => void }
+): Promise<Product> => {
+  const deadline = Date.now() + JOB_TIMEOUT_MS;
+  while (true) {
+    const job = await fetchImproveJobStatus(jobId, options?.signal);
+    if (!job) {
+      throw new Error('Improve-Job wurde nicht gefunden.');
+    }
+    if (job.status === 'done') {
+      if (job.result?.product) {
+        return job.result.product as Product;
+      }
+      throw new Error('Improve-Job abgeschlossen, aber kein Produkt geliefert.');
+    }
+    if (job.status === 'failed') {
+      throw new Error(job.error?.message || 'Improve-Job ist fehlgeschlagen.');
+    }
+    if (job.status === 'processing') {
+      options?.onStatus?.('processing');
+    } else {
+      options?.onStatus?.('queued');
+    }
+    if (Date.now() > deadline) {
+      throw new Error('Improve-Job hat das Zeitlimit überschritten.');
+    }
+    await wait(JOB_POLL_INTERVAL_MS, options?.signal);
+  }
+};
+
 export const fetchProducts = async (): Promise<Product[]> => {
   const response = await fetch(`${BACKEND_URL}/api/products`);
   const result = await parseResponse(response);
