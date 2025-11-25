@@ -123,13 +123,15 @@ async function generateVariantImage({
     const generationCall = response.output?.find(
       (item) => item.type === 'image_generation_call'
     );
-    if (!generationCall?.result) {
-      throw new Error('Image generation returned no result');
+    const rawResult = generationCall?.result;
+    const base64Payload = Array.isArray(rawResult) ? rawResult[0] : rawResult;
+    if (!base64Payload || typeof base64Payload !== 'string') {
+      throw new Error('Image generation returned no result payload');
     }
-    const base64 = generationCall.result.startsWith('data:')
-      ? generationCall.result
-      : `data:image/png;base64,${generationCall.result}`;
-    const upload = await uploadGeneratedProductImage(base64, product.id, variant);
+    const normalizedBase64 = base64Payload.startsWith('data:')
+      ? base64Payload
+      : `data:image/png;base64,${base64Payload}`;
+    const upload = await uploadGeneratedProductImage(normalizedBase64, product.id, variant);
     return {
       source: 'generated',
       variant,
