@@ -9,6 +9,7 @@ import {
   assignProductToBinApi,
   removeProductFromBinApi,
   fetchProductBins,
+  regenerateProductImageApi,
 } from '../api/client';
 import { EditIcon, SaveIcon, SyncIcon, GenerateIcon, PrintIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
@@ -41,6 +42,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
   >([]);
   const [binsLoading, setBinsLoading] = useState(false);
   const [binsError, setBinsError] = useState<string | null>(null);
+  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
 
   const loadProductBins = useCallback(
     async (productId: string) => {
@@ -68,6 +70,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
     setBinCodeInput(product.storage?.binCode || '');
     setBinQuantity(product.inventory?.quantity || 1);
     setNewImageUrl('');
+    setRegeneratingIndex(null);
     loadProductBins(product.id);
   }, [product, loadProductBins]);
 
@@ -142,6 +145,32 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
       }
     },
     [updateImages]
+  );
+
+  const handleRegenerateImage = useCallback(
+    async (index: number) => {
+      if (!localProduct?.id) return;
+      setRegeneratingIndex(index);
+      const result = await regenerateProductImageApi(localProduct.id, index);
+      if (result.ok && result.data?.image) {
+        const updatedImages = [...(localProduct.details.images || [])];
+        updatedImages[index] = result.data.image;
+        const updatedProduct = {
+          ...localProduct,
+          details: {
+            ...localProduct.details,
+            images: updatedImages,
+          },
+        };
+        setLocalProduct(updatedProduct);
+        onUpdate(updatedProduct);
+        showNotification('success', 'Bild wurde neu gerendert.');
+      } else {
+        showNotification('error', result.error?.message || 'Bild konnte nicht neu gerendert werden.');
+      }
+      setRegeneratingIndex(null);
+    },
+    [localProduct, onUpdate]
   );
 
   const showNotification = (type: 'success' | 'error', message: string) => {
@@ -445,6 +474,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
               isEditing={isEditing}
               onDeleteImage={isEditing ? handleDeleteImage : undefined}
               onReorder={isEditing ? handleReorderImages : undefined}
+              onRegenerateImage={handleRegenerateImage}
+              regeneratingIndex={regeneratingIndex}
             />
             {isEditing && (
               <div className="mt-4 space-y-3">

@@ -585,6 +585,7 @@ app.post('/api/identify', upload.array('images'), async (req, res) => {
 
 // --- BaseLinker sync endpoint ---
 const { syncProductToBaseLinker, syncProductsToBaseLinker } = require('./lib/baselinker');
+const { regenerateProductImage } = require('./lib/gpt-image');
 
 app.post('/api/sync-baselinker', async (req, res) => {
   console.log('Received request on /api/sync-baselinker');
@@ -1670,6 +1671,64 @@ app.post('/api/image-gen', async (req, res) => {
         message: 'Failed to generate images',
         details: error.message
       }
+    });
+  }
+});
+
+app.post('/api/products/:id/images/regenerate', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const { imageIndex } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Product ID missing' } });
+    }
+    if (!Number.isInteger(imageIndex)) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'imageIndex is required' } });
+    }
+
+    const product = await getProduct(productId);
+    if (!product) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'Product not found' } });
+    }
+
+    const images = Array.isArray(product.details?.images) ? product.details.images : [];
+    if (imageIndex < 0 || imageIndex >= images.length) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Invalid image index' } });
+    }
+    const targetImage = images[imageIndex];
+    const referenceUrl = targetImage?.url_or_base64 || targetImage?.url;
+    if (!referenceUrl) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Selected image has no accessible URL' } });
+    }
+
+    const variant = targetImage?.variant || 'studio';
+    const generated = await regenerateProductImage({
+      product,
+      referenceUrl,
+      variant,
+    });
+
+    if (!generated) {
+      throw new Error('Image generation failed');
+    }
+
+    images[imageIndex] = generated;
+    product.details.images = images;
+    await saveProduct(product);
+
+    res.json({
+      ok: true,
+      data: {
+        index: imageIndex,
+        image: generated,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to regenerate product image:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error.message || 'Failed to regenerate image' },
     });
   }
 });

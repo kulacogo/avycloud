@@ -9,6 +9,7 @@ import {
   WarehouseBin,
   IdentifyPhase,
   Order,
+  ProductImage,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -389,6 +390,28 @@ export const generateImages = async (productId: string): Promise<{ ok: boolean; 
     
   } catch (error) {
     console.error('Failed to generate images:', error);
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const regenerateProductImageApi = async (
+  productId: string,
+  imageIndex: number
+): Promise<{ ok: boolean; data?: { index: number; image: ProductImage }; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/images/regenerate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageIndex }),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Image regeneration failed' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };
   }

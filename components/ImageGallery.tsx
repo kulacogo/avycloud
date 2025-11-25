@@ -8,9 +8,18 @@ interface ImageGalleryProps {
   isEditing?: boolean;
   onDeleteImage?: (index: number) => void;
   onReorder?: (fromIndex: number, toIndex: number) => void;
+  onRegenerateImage?: (index: number) => void;
+  regeneratingIndex?: number | null;
 }
 
-const ImageGallery: React.FC<ImageGalleryProps> = ({ images, isEditing = false, onDeleteImage, onReorder }) => {
+const ImageGallery: React.FC<ImageGalleryProps> = ({
+  images,
+  isEditing = false,
+  onDeleteImage,
+  onReorder,
+  onRegenerateImage,
+  regeneratingIndex = null,
+}) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -110,6 +119,16 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, isEditing = false, 
           >
             <DownloadIcon />
           </a>
+          {typeof onRegenerateImage === 'function' && isActiveReal && (
+            <button
+              type="button"
+              onClick={() => onRegenerateImage(activeIndex)}
+              className="px-3 py-1 bg-sky-600 text-xs rounded-full text-white"
+              disabled={regeneratingIndex === activeIndex}
+            >
+              {regeneratingIndex === activeIndex ? 'Rendering…' : 'Re-Render'}
+            </button>
+          )}
         </div>
         {activeImage.source === 'generated' && (
             <span className="absolute bottom-2 left-2 px-2 py-1 text-xs bg-sky-500/80 text-white rounded">AI Generated</span>

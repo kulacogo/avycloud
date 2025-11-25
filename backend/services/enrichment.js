@@ -8,7 +8,7 @@ const { uploadImage } = require('../lib/storage');
 const { serpapiToolDefinition, executeSerpapiToolCall } = require('./toolkit');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { resolveModel } = require('../lib/model-select');
-const { fetchMarketingImages } = require('../lib/marketing-images');
+const { generateProductImageVariants } = require('../lib/gpt-image');
 const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
 
 const MAX_TOOL_ITERATIONS = 8;
@@ -19,7 +19,7 @@ const INLINE_IMAGE_CAP = parseInt(process.env.MAX_INLINE_IMAGES || '12', 10);
 const BARCODE_LIMIT_ERROR = 'BARCODE_LIMIT_EXCEEDED';
 const IMAGE_PAYLOAD_ERROR = 'IMAGE_PAYLOAD_LIMIT_EXCEEDED';
 const TOOL_ITERATION_ERROR = 'TOOL_ITERATION_LIMIT';
-const MIN_ENRICHED_IMAGE_COUNT = parseInt(process.env.MIN_ENRICHED_IMAGE_COUNT || '4', 10);
+const MAX_BARCODE_PREFETCH = parseInt(process.env.MAX_BARCODE_PREFETCH || '5', 10);
 const DEFAULT_PRICE_CURRENCY = process.env.DEFAULT_PRICE_CURRENCY || 'EUR';
 const PRICE_TRACE_ENGINES = new Set(['google_shopping', 'google', 'ebay', 'bing_shopping', 'amazon']);
 const PRIMARY_BARCODE_KEYS = ['ean', 'gtin', 'upc'];
@@ -134,6 +134,67 @@ async function prepareImages(files = []) {
   return { imageParts, hostedImages };
 }
 
+async function fetchBarcodeSerpData(barcode, serpTrace = []) {
+  const engines = [
+    { engine: 'google_shopping', params: { q: barcode, num: 20 } },
+    { engine: 'google', params: { q: barcode, num: 10 } },
+  ];
+
+  for (const spec of engines) {
+    try {
+      const raw = await callSerpApi(spec.engine, spec.params);
+      const summary = summarizeSerpEntries(spec.engine, raw, spec.params.num || 10);
+      if (!summary.length) continue;
+      serpTrace.push({
+        engine: spec.engine,
+        query: barcode,
+        summary,
+        params: spec.params,
+        prefetched: true,
+      });
+      return {
+        barcode,
+        engine: spec.engine,
+        items: summary.slice(0, 4).map((item) => ({
+          title: item.title,
+          source: item.source,
+          price: item.price,
+          url: item.url,
+        })),
+      };
+    } catch (error) {
+      serpTrace.push({
+        engine: spec.engine,
+        query: barcode,
+        summary: [],
+        params: spec.params,
+        error: error.message || String(error),
+        prefetched: true,
+      });
+    }
+  }
+  return null;
+}
+
+async function prefetchBarcodeResearch(barcodes = [], serpTrace = []) {
+  const uniqueCodes = [...new Set(barcodes)]
+    .map((code) => code.trim())
+    .filter(Boolean)
+    .slice(0, MAX_BARCODE_PREFETCH);
+  if (!uniqueCodes.length) {
+    return [];
+  }
+
+  const research = [];
+  for (const code of uniqueCodes) {
+    const note = await fetchBarcodeSerpData(code, serpTrace);
+    if (note) {
+      research.push(note);
+    }
+  }
+  return research;
+}
+
 function buildSystemPrompt(locale = 'de-DE') {
   return [
     `Du bist GPT-5 mini (Release 2025-08-07) und agierst als Product Intelligence Brain.`,
@@ -151,12 +212,30 @@ function buildSystemPrompt(locale = 'de-DE') {
   ].join('\n');
 }
 
-function buildUserPrompt({ barcodeList, hostedImages, locale, fileCount = 0 }) {
+function buildUserPrompt({ barcodeList, hostedImages, locale, barcodeResearch = [], fileCount = 0 }) {
   const parts = [];
   if (barcodeList.length) {
     parts.push(`Barcodes: ${barcodeList.join(', ')}`);
   } else {
     parts.push('Barcodes: keine angegeben');
+  }
+
+  if (Array.isArray(barcodeResearch) && barcodeResearch.length) {
+    parts.push(
+      'Barcode-Recherche (SerpAPI Vorab-Calls – nutze diese Treffer und erweitere sie bei Bedarf):',
+      barcodeResearch
+        .map((entry, idx) => {
+          const items = entry.items
+            .map((item) => {
+              const priceFragment = item.price ? ` | Preis: ${item.price}` : '';
+              const sourceFragment = item.source ? ` (${item.source})` : '';
+              return `- ${item.title}${priceFragment}${sourceFragment}`;
+            })
+            .join('\n');
+          return `${idx + 1}. ${entry.barcode} (${entry.engine}):\n${items}`;
+        })
+        .join('\n\n')
+    );
   }
 
   if (hostedImages.length) {
@@ -338,16 +417,6 @@ function ensureProductId(product) {
   }
 }
 
-function normalizeImageKey(url = '') {
-  if (!url || typeof url !== 'string') return null;
-  try {
-    const parsed = new URL(url);
-    return `${parsed.hostname}${parsed.pathname}`.toLowerCase();
-  } catch {
-    return url.trim().toLowerCase() || null;
-  }
-}
-
 const CURRENCY_MAP = {
   '€': 'EUR',
   eur: 'EUR',
@@ -525,69 +594,11 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
   }
 }
 
-async function enrichProductImages(products = [], serpTrace = []) {
-  if (!Array.isArray(products) || !products.length) return;
-
-  for (const product of products) {
-    const name = product?.identification?.name?.trim();
-    if (!name) continue;
-    const brand = product?.identification?.brand?.trim() || '';
-    const existingImages = Array.isArray(product?.details?.images) ? product.details.images : [];
-    const existingUrls = existingImages
-      .map((img) => img?.url_or_base64 || img?.url)
-      .filter((url) => typeof url === 'string' && url.startsWith('http'));
-    const desiredCount = Math.max(3, MIN_ENRICHED_IMAGE_COUNT);
-    const missingImages = Math.max(0, desiredCount - existingUrls.length);
-    if (missingImages === 0) continue;
-
-    try {
-      const { images, trace } = await fetchMarketingImages({
-        brand,
-        name,
-        limit: missingImages,
-        exclude: existingUrls,
-      });
-
-      if (trace?.length) {
-        trace.forEach((entry) => {
-          serpTrace.push({
-            engine: entry.engine,
-            query: entry.query,
-            summary: entry.images.slice(0, 5),
-            error: null,
-          });
-        });
-      }
-
-      if (!images.length) continue;
-      const seenKeys = new Set(
-        existingUrls
-          .map((url) => normalizeImageKey(url))
-          .filter(Boolean)
-      );
-
-      const mapped = images
-        .map((img) => ({
-          source: img.source || 'web',
-          variant: 'marketing',
-          url_or_base64: img.url,
-          width: img.width || null,
-          height: img.height || null,
-          notes: img.title || 'Marketing Bild',
-        }))
-        .filter((img) => {
-          const key = normalizeImageKey(img.url_or_base64);
-          if (!key || seenKeys.has(key)) return false;
-          seenKeys.add(key);
-          return true;
-        });
-
-      if (!mapped.length) continue;
-      product.details = product.details || {};
-      product.details.images = [...(product.details.images || []), ...mapped];
-    } catch (error) {
-      console.warn('Failed to fetch marketing images:', error.message);
-    }
+async function enrichWithGptImages(products = [], hostedImages = []) {
+  try {
+    await generateProductImageVariants(products, hostedImages);
+  } catch (error) {
+    console.warn('GPT image generation failed:', error.message);
   }
 }
 
@@ -598,10 +609,18 @@ async function runProductIdentification({ files = [], barcodes = '', locale = 'd
 
   const barcodeList = parseBarcodes(barcodes);
   const { imageParts, hostedImages } = await prepareImages(files);
+  const serpTrace = [];
+  const barcodeResearch = await prefetchBarcodeResearch(barcodeList, serpTrace);
   const client = await getOpenAIClient();
   const targetModel = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gpt-5-mini-2025-08-07');
   const systemPrompt = buildSystemPrompt(locale);
-  const userPrompt = buildUserPrompt({ barcodeList, hostedImages, locale, fileCount: files.length });
+  const userPrompt = buildUserPrompt({
+    barcodeList,
+    hostedImages,
+    locale,
+    barcodeResearch,
+    fileCount: files.length,
+  });
 
   const inputMessages = [
     {
@@ -614,7 +633,6 @@ async function runProductIdentification({ files = [], barcodes = '', locale = 'd
     },
   ];
 
-  const serpTrace = [];
   let finalizationHintInjected = false;
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
@@ -659,7 +677,7 @@ async function runProductIdentification({ files = [], barcodes = '', locale = 'd
       ensureSchema(bundle);
       normalizeBundle(bundle);
       applyEbayTaxonomy(bundle);
-      await enrichProductImages(bundle.products, serpTrace);
+      await enrichWithGptImages(bundle.products, hostedImages);
       ensurePriceCoverage(bundle.products, serpTrace);
       assertSerpUsage(serpTrace);
       return {

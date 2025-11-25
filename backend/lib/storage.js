@@ -82,13 +82,12 @@ async function normalizeImageBuffer(buffer, mimeType) {
   }
 }
 
-async function uploadImage(imageBuffer, mimeType, productId, variant = 'main') {
+async function saveBufferToBucket(imageBuffer, mimeType, targetPath) {
   await ensureBucket();
-
   const normalized = await normalizeImageBuffer(imageBuffer, mimeType);
   const hash = crypto.createHash('md5').update(normalized.buffer).digest('hex');
   const extension = normalized.mimeType?.split('/')?.[1] || mimeType?.split('/')?.[1] || 'jpg';
-  const filename = `products/${productId}/${variant}_${hash}.${extension}`;
+  const filename = `${targetPath}_${hash}.${extension}`;
   const file = bucket.file(filename);
 
   await file.save(normalized.buffer, {
@@ -101,13 +100,19 @@ async function uploadImage(imageBuffer, mimeType, productId, variant = 'main') {
   });
 
   const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${filename}`;
-  console.log(`Image uploaded: ${publicUrl}`);
   return {
     url: publicUrl,
     width: normalized.width,
     height: normalized.height,
     mimeType: normalized.mimeType || mimeType,
   };
+}
+
+async function uploadImage(imageBuffer, mimeType, productId, variant = 'main') {
+  const targetPath = `products/${productId}/${variant}`;
+  const result = await saveBufferToBucket(imageBuffer, mimeType, targetPath);
+  console.log(`Image uploaded: ${result.url}`);
+  return result;
 }
 
 async function uploadBase64Image(base64Data, productId, variant = 'main') {
@@ -119,6 +124,20 @@ async function uploadBase64Image(base64Data, productId, variant = 'main') {
   const mimeType = matches[1];
   const imageBuffer = Buffer.from(matches[2], 'base64');
   return uploadImage(imageBuffer, mimeType, productId, variant);
+}
+
+async function uploadGeneratedProductImage(base64Data, productId, variant = 'generated') {
+  if (!productId) {
+    throw new Error('productId is required for generated images');
+  }
+  const matches = base64Data.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+  const mimeType = matches?.[1] || 'image/png';
+  const payload = matches ? matches[2] : base64Data;
+  const imageBuffer = Buffer.from(payload, 'base64');
+  const targetPath = `product_images/${productId}/${variant}`;
+  const result = await saveBufferToBucket(imageBuffer, mimeType, targetPath);
+  console.log(`Generated image stored: ${result.url}`);
+  return result;
 }
 
 async function deleteProductImages(productId) {
@@ -186,6 +205,7 @@ async function downloadFile(filePath) {
 module.exports = {
   uploadImage,
   uploadBase64Image,
+  uploadGeneratedProductImage,
   deleteProductImages,
   uploadJobFile,
   downloadFile,
