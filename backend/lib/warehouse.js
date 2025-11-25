@@ -18,6 +18,45 @@ const zonesCollection = firestore.collection('warehouseZones');
 const binsCollection = firestore.collection('warehouseBins');
 const productsCollection = firestore.collection('products');
 
+// Rebuild inventory summary (total quantity and primary BIN)
+async function refreshProductInventory(productId) {
+  if (!productId) return;
+  const bins = await listBinsForProduct(productId);
+  const totalQty = bins.reduce((sum, b) => sum + (b.quantity || 0), 0);
+  const sorted = [...bins].sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
+  const primary = sorted[0] || null;
+  const storageBins = bins.map((b) => ({
+    code: b.code,
+    quantity: b.quantity || 0,
+    zone: b.zone,
+    etage: b.etage,
+    gang: b.gang,
+    regal: b.regal,
+    ebene: b.ebene,
+    firstStoredAt: b.firstStoredAt || null,
+    lastUpdatedAt: b.lastUpdatedAt || null,
+  }));
+
+  const updatePayload = {
+    inventory: { quantity: totalQty },
+    storageBins,
+  };
+  if (primary) {
+    updatePayload.storage = {
+      binCode: primary.code,
+      zone: primary.zone,
+      etage: primary.etage,
+      gang: primary.gang,
+      regal: primary.regal,
+      ebene: primary.ebene,
+      quantity: primary.quantity || 0,
+      assigned_at: primary.lastUpdatedAt || new Date().toISOString(),
+    };
+  }
+
+  await productsCollection.doc(productId).set(updatePayload, { merge: true });
+}
+
 async function findProductDocument({ productId, sku, barcode }) {
   if (productId) {
     const ref = productsCollection.doc(productId);
@@ -246,13 +285,18 @@ async function removeProductFromBin(binCode, productId, options = {}) {
   const binRef = binsCollection.doc(binCode);
   const productRef = productsCollection.doc(productId);
   await firestore.runTransaction(async (tx) => {
-    const binSnap = await tx.get(binRef);
+    const [binSnap, productSnap] = await Promise.all([tx.get(binRef), tx.get(productRef)]);
     if (!binSnap.exists) {
       throw new Error('BIN nicht gefunden.');
     }
+    if (!productSnap.exists) {
+      throw new Error('Produkt nicht gefunden.');
+    }
+
     const binData = binSnap.data();
     const products = Array.isArray(binData.products) ? [...binData.products] : [];
     const updatedProducts = products.filter((p) => p.productId !== productId);
+    const removedEntry = products.find((p) => p.productId === productId);
     const productCount = updatedProducts.reduce((sum, item) => sum + (item.quantity || 0), 0);
     tx.update(binRef, {
       products: updatedProducts,
@@ -260,15 +304,23 @@ async function removeProductFromBin(binCode, productId, options = {}) {
       lastStoredAt: Timestamp.now(),
     });
     if (!options.skipProductUpdate) {
+      const productData = productSnap.data();
+      const shouldClearStorage = productData?.storage?.binCode === binCode;
+      const remainingQuantity = Math.max(
+        0,
+        (productData?.inventory?.quantity || 0) - (removedEntry?.quantity || 0)
+      );
       tx.update(productRef, {
-        storage: null,
+        storage: shouldClearStorage ? null : productData.storage || null,
         inventory: {
-          ...(product?.inventory || {}),
-          quantity: 0,
+          ...(productData?.inventory || {}),
+          quantity: remainingQuantity,
         },
       });
     }
   });
+
+  await refreshProductInventory(productId);
 }
 
 async function assignProductToBin(binCode, productId, quantity) {
@@ -338,6 +390,7 @@ async function assignProductToBin(binCode, productId, quantity) {
     });
   });
 
+  await refreshProductInventory(productId);
   return getBinByCode(binCode);
 }
 
@@ -370,23 +423,6 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
     const resolvedProductId = productData.id || productRef.id;
     const nowIso = now.toDate().toISOString();
 
-    let previousBinRef = null;
-    let previousBinData = null;
-    if (productData.storage?.binCode && productData.storage.binCode !== binCode) {
-      previousBinRef = binsCollection.doc(productData.storage.binCode);
-      previousBinData = await tx.get(previousBinRef);
-    }
-
-    if (previousBinRef && previousBinData?.exists) {
-      const oldData = previousBinData.data();
-      const oldProducts = cloneProductsArray(oldData).filter((entry) => entry.productId !== productData.id);
-      tx.update(previousBinRef, {
-        products: oldProducts,
-        productCount: calculateBinProductCount(oldProducts),
-        lastStoredAt: now,
-      });
-    }
-
     let entry = products.find((p) => p.productId === resolvedProductId);
     if (entry && productData.storage?.binCode !== binCode) {
       entry.quantity = quantity;
@@ -417,22 +453,30 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
     });
 
     const storageQuantity = entry.quantity;
-    const storagePayload = {
-      binCode,
-      zone: binData.zone,
-      etage: binData.etage,
-      gang: binData.gang,
-      regal: binData.regal,
-      ebene: binData.ebene,
-      quantity: storageQuantity,
-      assigned_at: productData.storage?.assigned_at || nowIso,
-    };
+    const inventoryQuantity =
+      productData.storage?.binCode && productData.storage.binCode !== binCode
+        ? (productData.inventory?.quantity || 0) + quantity
+        : storageQuantity;
+    // Keep existing storage if Produkt liegt bereits in anderem BIN, um den ersten Standort nicht zu überschreiben
+    const storagePayload =
+      productData.storage && productData.storage.binCode && productData.storage.binCode !== binCode
+        ? productData.storage
+        : {
+            binCode,
+            zone: binData.zone,
+            etage: binData.etage,
+            gang: binData.gang,
+            regal: binData.regal,
+            ebene: binData.ebene,
+            quantity: storageQuantity,
+            assigned_at: productData.storage?.assigned_at || nowIso,
+          };
 
     tx.update(productRef, {
       storage: storagePayload,
       inventory: {
         ...(productData.inventory || {}),
-        quantity: storageQuantity,
+        quantity: inventoryQuantity,
       },
     });
 
@@ -442,7 +486,7 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
       storage: storagePayload,
       inventory: {
         ...(productData.inventory || {}),
-        quantity: storageQuantity,
+        quantity: inventoryQuantity,
       },
     };
 
@@ -456,6 +500,7 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
     };
   });
 
+  await refreshProductInventory(resolvedProductId);
   return { product: updatedProduct, bin: updatedBin };
 }
 
@@ -547,7 +592,109 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
     };
   });
 
+  await refreshProductInventory(resolvedProductId);
   return { product: updatedProduct, bin: updatedBin };
+}
+
+async function listBinsForProduct(productIdOrSku) {
+  if (!productIdOrSku) throw new Error('Produkt-ID oder SKU fehlt.');
+  const snapshot = await binsCollection.get();
+  const matches = [];
+
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+    const products = Array.isArray(data.products) ? data.products : [];
+    const hit = products.find(
+      (p) =>
+        p?.productId === productIdOrSku ||
+        p?.sku === productIdOrSku ||
+        p?.productId === String(productIdOrSku) ||
+        p?.sku === String(productIdOrSku)
+    );
+    if (hit) {
+      matches.push({
+        code: data.code,
+        zone: data.zone,
+        etage: data.etage,
+        gang: data.gang,
+        regal: data.regal,
+        ebene: data.ebene,
+        quantity: hit.quantity || 0,
+        productId: hit.productId,
+        sku: hit.sku,
+        name: hit.name,
+        firstStoredAt: hit.firstStoredAt || data.firstStoredAt || null,
+        lastUpdatedAt: hit.lastUpdatedAt || data.lastStoredAt || null,
+      });
+    }
+  });
+
+  return matches;
+}
+
+function normalizeKey(value) {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized ? normalized.toLowerCase() : null;
+}
+
+function toIsoString(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value.toDate === 'function') return value.toDate().toISOString();
+  if (typeof value === 'string') return value;
+  return null;
+}
+
+async function getProductBinSummaryMap(productIds = [], skuToProductIdMap = new Map()) {
+  const filterSet =
+    Array.isArray(productIds) && productIds.length
+      ? new Set(productIds.map((id) => (id == null ? null : String(id))))
+      : null;
+
+  const snapshot = await binsCollection.get();
+  const summaries = new Map();
+
+  snapshot.forEach((doc) => {
+    const data = doc.data() || {};
+    const binCode = doc.id;
+    const products = Array.isArray(data.products) ? data.products : [];
+
+    products.forEach((entry) => {
+      const quantity = Number(entry?.quantity) || 0;
+      if (!quantity) return;
+
+      let targetId = entry?.productId ? String(entry.productId) : null;
+      if (!targetId && entry?.sku && skuToProductIdMap && skuToProductIdMap.size) {
+        const normalizedSku = normalizeKey(entry.sku);
+        if (normalizedSku && skuToProductIdMap.has(normalizedSku)) {
+          targetId = skuToProductIdMap.get(normalizedSku);
+        }
+      }
+
+      if (!targetId) return;
+      if (filterSet && !filterSet.has(targetId)) return;
+
+      if (!summaries.has(targetId)) {
+        summaries.set(targetId, { totalQuantity: 0, bins: [] });
+      }
+      const summary = summaries.get(targetId);
+      summary.totalQuantity += quantity;
+      summary.bins.push({
+        code: binCode,
+        zone: data.zone,
+        etage: data.etage,
+        gang: data.gang,
+        regal: data.regal,
+        ebene: data.ebene,
+        quantity,
+        firstStoredAt: entry.firstStoredAt || toIsoString(data.firstStoredAt) || null,
+        lastUpdatedAt: entry.lastUpdatedAt || toIsoString(data.lastStoredAt) || null,
+      });
+    });
+  });
+
+  return summaries;
 }
 
 module.exports = {
@@ -562,5 +709,6 @@ module.exports = {
   parseLetterSelection,
   bookStockIn,
   bookStockOut,
+  listBinsForProduct,
+  getProductBinSummaryMap,
 };
-

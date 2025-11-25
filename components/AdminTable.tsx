@@ -3,14 +3,16 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
 import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon } from './icons/Icons';
-import { normalizeSyncStatus, getStableNumericId } from '../utils/product';
+import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
+import { useI18n } from '../i18n';
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
 type ColumnId =
   | 'thumbnail'
   | 'nameBrand'
   | 'category'
-  | 'identifiers'
+  | 'sku'
+  | 'barcode'
   | 'price'
   | 'inventory'
   | 'storage'
@@ -23,10 +25,10 @@ type ColumnId =
 
 type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'identifiers', 'inventory', 'storage', 'syncStatus', 'lastSaved'],
-  warehouse: ['nameBrand', 'identifiers', 'inventory', 'storage', 'syncStatus', 'saveStatus'],
-  pricing: ['nameBrand', 'price', 'identifiers', 'syncStatus', 'lastSynced'],
-  minimal: ['nameBrand', 'identifiers', 'inventory', 'syncStatus'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'storage', 'syncStatus', 'lastSaved'],
+  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'storage', 'syncStatus', 'saveStatus'],
+  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'syncStatus', 'lastSynced'],
+  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'syncStatus'],
 };
 
 interface ColumnDefinition {
@@ -68,6 +70,7 @@ const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
 };
 
 const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUpdateProducts, focusProductId }) => {
+  const { t } = useI18n();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<SyncStatus | 'all'>('all');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -80,18 +83,36 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
 
   const categories = useMemo(() => ['all', ...new Set(products.map(p => p.identification.category))], [products]);
 
+  const primaryImage = (product: Product) =>
+    (product.details.images || []).find((img) => img.url_or_base64?.startsWith('http')) || null;
+  const primaryBarcode = (product: Product) => {
+    const codes = product.identification?.barcodes || [];
+    const ids = product.details?.identifiers || {};
+    return codes[0] || ids.ean || ids.gtin || ids.upc || '—';
+  };
+  const primaryBin = (product: Product) =>
+    (product.storageBins && product.storageBins[0]?.code) || product.storage?.binCode || null;
+  const shortCategory = (product: Product) =>
+    (product.identification?.category || '')
+      .split('>')
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .pop() ||
+    product.identification?.category ||
+    '—';
+
   const columnDefinitions: ColumnDefinition[] = useMemo(() => {
     const baseRenderers: ColumnDefinition[] = [
       {
         id: 'thumbnail',
-        label: 'Thumbnail',
+        label: t('table.thumbnail'),
         defaultVisible: true,
         widthClass: 'w-20',
         render: ({ product }) => (
           <div className="w-12 h-12 rounded-md overflow-hidden bg-slate-700 flex items-center justify-center text-xs text-slate-400">
-            {product.details.images[0]?.url_or_base64 ? (
+            {primaryImage(product) ? (
               <img
-                src={product.details.images[0]?.url_or_base64}
+                src={primaryImage(product)!.url_or_base64}
                 alt={product.identification.name}
                 className="w-full h-full object-cover"
               />
@@ -103,7 +124,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       },
       {
         id: 'nameBrand',
-        label: 'Name / Brand',
+        label: t('table.nameBrand'),
         sortKey: 'identification.name',
         defaultVisible: true,
         render: ({ product, onSelectProduct: handleSelect }) => (
@@ -124,27 +145,32 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       },
       {
         id: 'category',
-        label: 'Kategorie',
+        label: t('table.category'),
         sortKey: 'identification.category',
         defaultVisible: true,
         render: ({ product }) => <span className="text-slate-300">{product.identification.category}</span>,
       },
       {
-        id: 'identifiers',
-        label: 'SKU / EAN',
+        id: 'sku',
+        label: t('table.sku'),
         defaultVisible: true,
         render: ({ product }) => (
-          <div className="text-slate-300 text-sm space-y-0.5 font-mono leading-tight">
-            <div>{product.details.identifiers.sku || product.identification.sku || '—'}</div>
-            <div className="text-slate-500">
-              {product.details.identifiers.ean || product.details.identifiers.gtin || '—'}
-            </div>
+          <div className="text-slate-300 text-sm font-mono leading-tight">
+            {product.details.identifiers.sku || product.identification.sku || '—'}
           </div>
         ),
       },
       {
+        id: 'barcode',
+        label: t('table.barcode'),
+        defaultVisible: true,
+        render: ({ product }) => (
+          <div className="text-slate-300 text-sm font-mono leading-tight">{primaryBarcode(product)}</div>
+        ),
+      },
+      {
         id: 'price',
-        label: 'Niedrigster Preis',
+        label: t('table.price'),
         sortKey: 'details.pricing.lowest_price.amount',
         defaultVisible: true,
         render: ({ product }) =>
@@ -157,32 +183,31 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       },
       {
         id: 'inventory',
-        label: 'Bestand',
+        label: t('table.inventory'),
         sortKey: 'inventory.quantity',
         defaultVisible: true,
         render: ({ product }) => (
-          <span className="font-semibold text-slate-100">{product.inventory?.quantity ?? 0}</span>
+          <div className="flex flex-col leading-tight">
+            <span className="font-semibold text-slate-100 text-center block">{getProductQuantity(product)}</span>
+          </div>
         ),
       },
       {
         id: 'storage',
-        label: 'Lagerplatz',
+        label: t('table.storage'),
         defaultVisible: false,
         render: ({ product }) =>
-          product.storage ? (
+          primaryBin(product) ? (
             <div className="flex flex-col text-sm text-slate-300">
-              <span className="font-mono text-base text-white">{product.storage.binCode}</span>
-              <span className="text-slate-400">
-                Zone {product.storage.zone} · Gang {product.storage.gang} · Regal {product.storage.regal} · Ebene {product.storage.ebene}
-              </span>
+              <span className="font-mono text-base text-white">{primaryBin(product)}</span>
             </div>
           ) : (
-            <span className="text-slate-500">Kein BIN zugewiesen</span>
+            <span className="text-slate-500">{t('table.noBin')}</span>
           ),
       },
       {
         id: 'lastSold',
-        label: 'Zuletzt verkauft',
+        label: t('table.lastSold'),
         sortKey: 'details.attributes.lastSoldAt',
         defaultVisible: false,
         render: ({ product }) => {
@@ -200,7 +225,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       },
       {
         id: 'syncStatus',
-        label: 'Sync-Status',
+        label: t('table.syncStatus'),
         sortKey: 'ops.sync_status',
         defaultVisible: true,
         render: ({ product }) => (
@@ -209,13 +234,13 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       },
       {
         id: 'saveStatus',
-        label: 'Speicherstatus',
+        label: t('table.saveStatus'),
         defaultVisible: true,
         render: ({ product }) => <SaveStatusBadge saved={Boolean(product.ops?.last_saved_iso)} />,
       },
       {
         id: 'lastSaved',
-        label: 'Zuletzt gespeichert',
+        label: t('table.lastSaved'),
         sortKey: 'ops.last_saved_iso',
         defaultVisible: true,
         render: ({ product }) => (
@@ -226,7 +251,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       },
       {
         id: 'lastSynced',
-        label: 'Zuletzt synchronisiert',
+        label: t('table.lastSynced'),
         sortKey: 'ops.last_synced_iso',
         defaultVisible: true,
         render: ({ product }) => (
@@ -237,7 +262,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       },
       {
         id: 'revision',
-        label: 'Revision',
+        label: t('table.revision'),
         sortKey: 'ops.revision',
         defaultVisible: false,
         widthClass: 'text-center',
@@ -245,7 +270,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       },
     ];
     return baseRenderers;
-  }, [onSelectProduct]);
+  }, [onSelectProduct, t]);
 
   const resolveInitialColumns = (): ColumnId[] => {
     if (typeof window !== 'undefined') {
@@ -461,7 +486,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
 
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Delete ${selectedIds.size} selected products? This cannot be undone.`)) return;
+    if (!confirm(t('table.actions.deleteConfirm', { count: selectedIds.size } as any))) return;
     const remaining = [...products];
     for (const id of Array.from(selectedIds)) {
       const res = await deleteProduct(id);
@@ -558,39 +583,39 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
   return (
     <section id="admin-table" className="p-6 bg-slate-800 rounded-lg shadow-lg">
       <header className="mb-6">
-        <h2 className="text-2xl font-bold text-white">Inventar</h2>
-        <p className="text-slate-400">Behalte den Überblick über alle Bestände und führe Sammelaktionen aus.</p>
+        <h2 className="text-2xl font-bold text-white">{t('inventory.title')}</h2>
+        <p className="text-slate-400">{t('inventory.subtitle')}</p>
       </header>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <div className="relative md:col-span-3">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input id="table-search" type="text" placeholder="Suchen..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 p-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500" />
+          <input id="table-search" type="text" placeholder={t('table.search')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 p-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500" />
         </div>
         <select id="table-filter-status" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="w-full p-2 bg-slate-700 border border-slate-600 rounded-lg">
-          <option value="all">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="synced">Synced</option>
-          <option value="failed">Failed</option>
+          <option value="all">{t('table.status.all')}</option>
+          <option value="pending">{t('table.status.pending')}</option>
+          <option value="synced">{t('table.status.synced')}</option>
+          <option value="failed">{t('table.status.failed')}</option>
         </select>
         <select id="table-filter-category" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="w-full p-2 bg-slate-700 border border-slate-600 rounded-lg">
-          {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
+          {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? t('table.categories.all') : cat}</option>)}
         </select>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
-        <button id="table-sync-selected" onClick={handleBatchSync} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"><SyncIcon className="w-4 h-4 mr-1.5" /> Sync ausgewählte</button>
-        <button id="table-price-refresh" onClick={handleBatchPriceRefresh} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"><RefreshIcon className="w-4 h-4 mr-1.5" /> Price Refresh</button>
-        <button id="table-export-csv" onClick={handleExportCsv} className="flex items-center justify-center px-3 py-2 text-sm bg-slate-600 text-white rounded-md w-full sm:w-auto"><ExportIcon className="w-4 h-4 mr-1.5" /> Export CSV</button>
+        <button id="table-sync-selected" onClick={handleBatchSync} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"><SyncIcon className="w-4 h-4 mr-1.5" /> {t('table.actions.syncSelected')}</button>
+        <button id="table-price-refresh" onClick={handleBatchPriceRefresh} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"><RefreshIcon className="w-4 h-4 mr-1.5" /> {t('table.actions.priceRefresh')}</button>
+        <button id="table-export-csv" onClick={handleExportCsv} className="flex items-center justify-center px-3 py-2 text-sm bg-slate-600 text-white rounded-md w-full sm:w-auto"><ExportIcon className="w-4 h-4 mr-1.5" /> {t('table.actions.exportCsv')}</button>
         <button
           id="table-print-labels"
           onClick={handleBatchLabelPrint}
           disabled={selectedIds.size === 0}
           className="flex items-center justify-center px-3 py-2 text-sm bg-emerald-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"
         >
-          <PrintIcon className="w-4 h-4 mr-1.5" /> Print Label
+          <PrintIcon className="w-4 h-4 mr-1.5" /> {t('table.actions.printLabel')}
         </button>
-        <button id="table-delete-selected" onClick={handleBatchDelete} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-red-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto">Delete selected</button>
+        <button id="table-delete-selected" onClick={handleBatchDelete} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-red-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto">{t('table.actions.deleteSelected')}</button>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {(['standard', 'warehouse', 'pricing', 'minimal'] as ColumnPreset[]).map((preset) => (
             <button
@@ -600,19 +625,19 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                 setVisibleColumns(COLUMN_PRESETS[preset]);
                 setColumnPreset(preset);
               }}
-              className={`px-3 py-2 text-sm rounded-md border ${
-                columnPreset === preset
-                  ? 'border-sky-500 bg-sky-600 text-white'
-                  : 'border-slate-600 bg-slate-700 text-slate-100 hover:border-slate-500'
-              }`}
-            >
+            className={`px-3 py-2 text-sm rounded-md border ${
+              columnPreset === preset
+                ? 'border-sky-500 bg-sky-600 text-white'
+                : 'border-slate-600 bg-slate-700 text-slate-100 hover:border-slate-500'
+            }`}
+          >
               {preset === 'standard'
-                ? 'Standard'
+                ? t('table.presets.standard')
                 : preset === 'warehouse'
-                ? 'Lager'
+                ? t('table.presets.warehouse')
                 : preset === 'pricing'
-                ? 'Pricing'
-                : 'Minimal'}
+                ? t('table.presets.pricing')
+                : t('table.presets.minimal')}
             </button>
           ))}
         </div>
@@ -622,18 +647,18 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
             onClick={() => setIsColumnPanelOpen((prev) => !prev)}
             className="w-full flex items-center justify-center px-3 py-2 text-sm bg-slate-700 text-white rounded-md border border-slate-600"
           >
-            Spalten anpassen
+            {t('table.columns.edit')}
           </button>
           {isColumnPanelOpen && (
             <div className="absolute z-20 mt-2 w-64 rounded-lg border border-slate-600 bg-slate-800 shadow-xl p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-white">Sichtbare Spalten</p>
+                <p className="text-sm font-semibold text-white">{t('table.columns.visible')}</p>
                 <button
                   type="button"
                   className="text-xs text-sky-400 hover:underline"
                   onClick={resetColumns}
                 >
-                  Zurücksetzen
+                  {t('table.columns.reset')}
                 </button>
               </div>
               <div className="max-h-64 overflow-y-auto space-y-1">
@@ -656,7 +681,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
       </div>
 
       <div className="overflow-x-auto">
-        <table id="grid" className="w-full text-left min-w-[900px]">
+        <table id="grid" className="w-full text-left min-w-[1000px]">
           <thead className="bg-slate-700/50">
             <tr>
               <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-slate-300">
@@ -672,14 +697,16 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                   className="bg-slate-600 border-slate-500"
                 />
               </th>
-              <th className="p-3 w-20 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap" aria-label="Select products" />
-              {visibleColumnDefinitions.map((column) => (
-                <SortableHeader key={column.id} sortKey={column.sortKey} widthClass={column.widthClass}>
-                  {column.label}
-                </SortableHeader>
-              ))}
+              {visibleColumnDefinitions.map((column) => {
+                const isThumbnail = column.id === 'thumbnail';
+                return (
+                  <SortableHeader key={column.id} sortKey={column.sortKey} widthClass={column.widthClass}>
+                    {column.label}
+                  </SortableHeader>
+                );
+              })}
               <th className="p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
-                Aktionen
+                {t('table.actions.label')}
               </th>
             </tr>
           </thead>
@@ -703,7 +730,11 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                   />
                 </td>
                 {visibleColumnDefinitions.map((column) => (
-                  <td key={`${p.id}-${column.id}`} className="p-3">
+                  <td
+                    key={`${p.id}-${column.id}`}
+                    className="p-3 align-top"
+                    style={column.id === 'thumbnail' ? { width: '80px' } : undefined}
+                  >
                     {column.render({ product: p, onSelectProduct })}
                   </td>
                 ))}
@@ -711,7 +742,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                   <button
                     className="px-2 py-1 text-xs bg-red-600 text-white rounded-md"
                     onClick={async () => {
-                      if (!confirm(`Delete product "${p.identification.name}"?`)) return;
+                      if (!confirm(t('table.actions.deleteOne', { name: p.identification.name } as any))) return;
                       const res = await deleteProduct(p.id);
                       if (res.ok) {
                         onUpdateProducts(products.filter(x => x.id !== p.id));
@@ -720,7 +751,7 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                       }
                     }}
                   >
-                    Delete
+                    {t('table.actions.delete')}
                   </button>
                 </td>
               </tr>

@@ -509,6 +509,15 @@ export const fetchWarehouseBinDetail = async (code: string): Promise<WarehouseBi
   return result?.data;
 };
 
+export const fetchProductBins = async (productId: string): Promise<WarehouseBin[]> => {
+  const response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/bins`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Failed to load product bins');
+  }
+  return result?.data || [];
+};
+
 export const assignProductToBinApi = async (
   code: string,
   productId: string,

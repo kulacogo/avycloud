@@ -87,6 +87,18 @@ export interface ProductStorageLocation {
   assigned_at: string;
 }
 
+export interface ProductStorageBinEntry {
+  code: string;
+  quantity: number;
+  zone?: WarehouseZoneCode;
+  etage?: WarehouseEtageCode;
+  gang?: number;
+  regal?: number;
+  ebene?: string;
+  firstStoredAt?: string | null;
+  lastUpdatedAt?: string | null;
+}
+
 export interface InventoryInfo {
   quantity: number;
   unit?: string;
@@ -100,6 +112,7 @@ export interface Product {
   notes?: Notes;
   inventory?: InventoryInfo;
   storage?: ProductStorageLocation | null;
+  storageBins?: ProductStorageBinEntry[];
 }
 
 export interface ProductBundle {

@@ -35,6 +35,8 @@ const {
   removeProductFromBin,
   bookStockIn,
   bookStockOut,
+  listBinsForProduct,
+  getProductBinSummaryMap,
 } = require('./lib/warehouse');
 const { buildProductLabelsHtml, buildBinLabelHtml, buildBinLabelsHtml, buildBinLabelsPdf } = require('./services/label-printer');
 const { scanToBuffer } = require('./services/scanner');
@@ -48,7 +50,64 @@ const IMAGE_PROXY_MAX_BYTES = parseInt(process.env.IMAGE_PROXY_MAX_BYTES || `${5
 const REQUEST_BODY_LIMIT =
   process.env.API_REQUEST_BODY_LIMIT ||
   process.env.REQUEST_BODY_LIMIT ||
-  '25mb';
+  '50mb';
+
+const normalizeIdentityKey = (value) => {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  if (!normalized) return null;
+  return normalized.toLowerCase();
+};
+
+const buildSkuToProductIdMap = (products = []) => {
+  const map = new Map();
+  products.forEach((product) => {
+    if (!product || !product.id) return;
+    const productId = String(product.id);
+    const addKey = (value) => {
+      const key = normalizeIdentityKey(value);
+      if (key) {
+        map.set(key, productId);
+      }
+    };
+    addKey(productId);
+    addKey(product.identification?.sku);
+    addKey(product.details?.identifiers?.sku);
+    addKey(product.details?.identifiers?.ean);
+    addKey(product.details?.identifiers?.gtin);
+    addKey(product.details?.identifiers?.upc);
+  });
+  return map;
+};
+
+const enrichProductsWithBinSummaries = async (products = []) => {
+  if (!Array.isArray(products) || products.length === 0) return products;
+  const productIds = products
+    .map((product) => (product?.id ? String(product.id) : null))
+    .filter(Boolean);
+  if (!productIds.length) return products;
+
+  const skuMap = buildSkuToProductIdMap(products);
+  const summaryMap = await getProductBinSummaryMap(productIds, skuMap);
+
+  return products.map((product) => {
+    const key = product?.id ? String(product.id) : null;
+    if (!key || !summaryMap.has(key)) {
+      return product;
+    }
+    const summary = summaryMap.get(key);
+    const mergedInventory = {
+      ...(product.inventory || {}),
+      quantity: summary.totalQuantity,
+      physicalQuantity: summary.totalQuantity,
+    };
+    return {
+      ...product,
+      inventory: mergedInventory,
+      storageBins: summary.bins,
+    };
+  });
+};
 
 // --- Initialization ---
 const app = express();
@@ -494,7 +553,9 @@ app.post('/api/identify', upload.array('images'), async (req, res) => {
         ok: false,
         error: {
           code: 413,
-          message: `Bildupload überschreitet das 25 MB-Gesamtkontingent (Konfiguration: ${MAX_IMAGE_FILES} Dateien à ca. ${Math.floor(
+          message: `Bildupload überschreitet das ${Math.floor(
+            MAX_IMAGE_PAYLOAD_BYTES / (1024 * 1024)
+          )} MB-Gesamtkontingent (Konfiguration: ${MAX_IMAGE_FILES} Dateien à ca. ${Math.floor(
             MAX_IMAGE_FILE_SIZE / (1024 * 1024)
           )} MB).`,
         },
@@ -624,7 +685,8 @@ app.post('/api/sync-baselinker', async (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const products = await getAllProducts();
-    res.json({ ok: true, products });
+    const enriched = await enrichProductsWithBinSummaries(products);
+    res.json({ ok: true, products: enriched });
   } catch (error) {
     console.error('Error getting products:', error);
     res.status(500).json({
@@ -720,7 +782,8 @@ app.get('/api/products/:id', async (req, res) => {
         }
       });
     }
-    res.json({ ok: true, product });
+    const [enriched] = await enrichProductsWithBinSummaries([product]);
+    res.json({ ok: true, product: enriched || product });
   } catch (error) {
     console.error('Error getting product:', error);
     res.status(500).json({
@@ -857,6 +920,19 @@ app.get('/api/warehouse/bins/:code', async (req, res) => {
     res.status(500).json({
       ok: false,
       error: { code: 500, message: 'Fehler beim Laden des BINs', details: error.message },
+    });
+  }
+});
+
+app.get('/api/products/:id/bins', async (req, res) => {
+  try {
+    const bins = await listBinsForProduct(req.params.id);
+    res.json({ ok: true, data: bins });
+  } catch (error) {
+    console.error('Failed to load product bins:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Laden der BINs für dieses Produkt.', details: error.message },
     });
   }
 });

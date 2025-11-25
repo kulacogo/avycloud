@@ -39,6 +39,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const [serpInsights, setSerpInsights] = useState<SerpInsight[]>([]);
   const bottomAnchorRef = useRef<HTMLDivElement>(null);
   const suggestionKeysRef = useRef<Set<string>>(new Set());
+  const quickPrompts = [
+    'eBay Item Specifics (Pflichtfelder) ergänzen',
+    'Produkttitel auf eBay-Style erweitern (Marke + Kerneigenschaft + Maße/Farbe)',
+    'Bullet-Features prägnant machen (max 5, deutsch)',
+    'Kurzbeschreibung in 2 Sätzen, deutsch',
+    'Prüfe fehlende Identifiers (EAN/MPN/SKU) und ergänze, falls bekannt',
+  ];
 
   const normalizeImageKey = (value?: string | null) => {
     if (!value) return null;
@@ -300,6 +307,17 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       </div>
 
       <div className="p-4 border-t border-slate-700">
+        <div className="flex flex-wrap gap-2 mb-3">
+          {quickPrompts.map((prompt) => (
+            <button
+              key={prompt}
+              onClick={() => setInput(prompt)}
+              className="px-2 py-1 text-xs bg-slate-600/50 text-slate-300 rounded-full hover:bg-slate-600"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap gap-2 mb-3">
           {predefinedActions.map(action => (
             <button

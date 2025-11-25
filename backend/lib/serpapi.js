@@ -7,15 +7,24 @@ const MIN_IMAGE_HEIGHT = parseInt(process.env.MIN_IMAGE_HEIGHT || '900', 10);
 const ALLOWED_ENGINES = [
   'google',
   'google_shopping',
+  'google_shopping_ai_overview',
+  'google_ai_overview',
+  'google_ai_mode',
   'google_images',
+  'google_images_shopping',
   'google_lens',
   'google_reverse_image',
+  'google_immersive_product',
+  'google_product',
   'bing',
   'bing_images',
+  'bing_shopping',
+  'bing_reverse_image',
   'duckduckgo',
   'yahoo',
   'yandex',
   'ebay',
+  'ebay_product',
   'walmart',
   'home_depot',
   'naver',
@@ -43,9 +52,15 @@ function buildDefaultParams(engine) {
   switch (engine) {
     case 'google':
     case 'google_images':
+    case 'google_images_shopping':
     case 'google_reverse_image':
     case 'google_shopping':
+    case 'google_shopping_ai_overview':
+    case 'google_ai_overview':
+    case 'google_ai_mode':
     case 'google_lens':
+    case 'google_immersive_product':
+    case 'google_product':
       return {
         gl: process.env.SERPAPI_GL || 'de',
         hl: process.env.SERPAPI_HL || 'de',
@@ -53,6 +68,8 @@ function buildDefaultParams(engine) {
       };
     case 'bing':
     case 'bing_images':
+    case 'bing_shopping':
+    case 'bing_reverse_image':
       return {
         cc: process.env.SERPAPI_CC || 'DE',
         mkt: process.env.SERPAPI_MARKET || 'de-DE',
@@ -62,6 +79,7 @@ function buildDefaultParams(engine) {
         kl: process.env.SERPAPI_KL || 'de-de',
       };
     case 'ebay':
+    case 'ebay_product':
       return {
         ebay_domain: process.env.SERPAPI_EBAY_DOMAIN || 'ebay.de',
       };
@@ -180,24 +198,36 @@ function summarizeSerpEntries(engine, data, limit = 5) {
 
   if (engine === 'google_shopping' && Array.isArray(data.shopping_results)) {
     fill(data.shopping_results);
+  } else if (engine === 'google_shopping_ai_overview' && Array.isArray(data.shopping_results)) {
+    fill(data.shopping_results);
+  } else if (engine === 'google_ai_overview' && Array.isArray(data.products)) {
+    fill(data.products);
   } else if (engine === 'google' && Array.isArray(data.organic_results)) {
     fill(data.organic_results);
   } else if (engine === 'google_images' && Array.isArray(data.images_results)) {
     fill(data.images_results);
+  } else if (engine === 'google_images_shopping' && Array.isArray(data.shopping_results)) {
+    fill(data.shopping_results);
   } else if (engine === 'google_lens' && Array.isArray(data.visual_matches)) {
     fill(data.visual_matches);
-  } else if ((engine === 'google_reverse_image' || engine === 'bing_images') && Array.isArray(data.image_results)) {
+  } else if ((engine === 'google_reverse_image' || engine === 'bing_images' || engine === 'bing_reverse_image') && Array.isArray(data.image_results)) {
     fill(data.image_results);
   } else if (engine === 'duckduckgo' && Array.isArray(data.organic_results)) {
     fill(data.organic_results);
   } else if (engine === 'ebay' && Array.isArray(data.shopping_results)) {
     fill(data.shopping_results);
+  } else if (engine === 'ebay' && Array.isArray(data.organic_results)) {
+    fill(data.organic_results);
+  } else if (engine === 'ebay_product' && Array.isArray(data.offers)) {
+    fill(data.offers);
   } else if (engine === 'amazon') {
     if (Array.isArray(data.images_results)) {
       fill(data.images_results);
     } else if (Array.isArray(data.organic_results)) {
       fill(data.organic_results);
     }
+  } else if (engine === 'bing_shopping' && Array.isArray(data.shopping_results)) {
+    fill(data.shopping_results);
   } else if (Array.isArray(data.organic_results)) {
     fill(data.organic_results);
   }
@@ -208,9 +238,14 @@ function summarizeSerpEntries(engine, data, limit = 5) {
 
     if (engine === 'google_images' && Array.isArray(data.images_results)) {
       fallbackFill(data.images_results);
+    } else if (engine === 'google_images_shopping' && Array.isArray(data.shopping_results)) {
+      fallbackFill(data.shopping_results);
     } else if (engine === 'google_lens' && Array.isArray(data.visual_matches)) {
       fallbackFill(data.visual_matches);
-    } else if ((engine === 'google_reverse_image' || engine === 'bing_images') && Array.isArray(data.image_results)) {
+    } else if (
+      (engine === 'google_reverse_image' || engine === 'bing_images' || engine === 'bing_reverse_image') &&
+      Array.isArray(data.image_results)
+    ) {
       fallbackFill(data.image_results);
     }
   }
@@ -227,4 +262,3 @@ module.exports = {
   MIN_IMAGE_WIDTH,
   MIN_IMAGE_HEIGHT,
 };
-

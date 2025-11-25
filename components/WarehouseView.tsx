@@ -37,6 +37,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     regale: '1-4',
     ebenen: 'A-E',
   });
+  const [removingProductId, setRemovingProductId] = useState<string | null>(null);
 
   const loadZones = useCallback(async () => {
     try {
@@ -232,13 +233,25 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
 
   const handleRemoveProduct = async (productId: string) => {
     if (!selectedBin) return;
-    const response = await removeProductFromBinApi(selectedBin.code, productId);
-    if (!response.ok) {
-      setStatusMessage(response.error?.message || 'Fehler beim Entfernen.');
-      return;
+    setRemovingProductId(productId);
+    try {
+      const response = await removeProductFromBinApi(selectedBin.code, productId);
+      if (!response.ok) {
+        setStatusMessage(response.error?.message || 'Fehler beim Entfernen.');
+        return;
+      }
+      setStatusMessage('Produkt entfernt.');
+      if (selectedZone) {
+        await loadBins(selectedZone.zone, selectedZone.etage, selectedBin.code);
+      }
+      // refresh bin detail to update UI immediately
+      const detail = await fetchWarehouseBinDetail(selectedBin.code);
+      setBinDetail(detail);
+    } catch (error: any) {
+      setStatusMessage(error?.message || 'Fehler beim Entfernen.');
+    } finally {
+      setRemovingProductId(null);
     }
-    setStatusMessage('Produkt entfernt.');
-    await loadBins(selectedZone!.zone, selectedZone!.etage, selectedBin.code);
   };
 
   const selectedGangBins = selectedGang != null ? binsByGang.get(selectedGang) || [] : [];
@@ -541,4 +554,3 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
 };
 
 export default WarehouseView;
-
