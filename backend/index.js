@@ -30,8 +30,8 @@ const {
 const { runProductChat } = require('./services/product-chat');
 const { improveExistingProduct } = require('./services/improve');
 const { getSecretValue } = require('./lib/secret-values');
-const { enqueueJob, resumePendingJobs } = require('./services/job-runner');
-const { enqueueImproveJob, resumePendingImproveJobs } = require('./services/improve-runner');
+const { enqueueJob, startJobRunner } = require('./services/job-runner');
+const { enqueueImproveJob, startImproveRunner } = require('./services/improve-runner');
 const {
   createWarehouseLayout,
   listWarehouseZones,
@@ -144,12 +144,8 @@ const upload = multer({
   },
 });
 
-resumePendingJobs().catch((error) => {
-  console.error('Failed to resume pending identification jobs:', error);
-});
-resumePendingImproveJobs().catch((error) => {
-  console.error('Failed to resume pending improve jobs:', error);
-});
+startJobRunner();
+startImproveRunner();
 
 async function resolveGeminiApiKey() {
   if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;

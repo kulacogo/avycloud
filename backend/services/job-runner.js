@@ -8,7 +8,10 @@ const { getProduct } = require('../lib/firestore');
 
 const CONCURRENCY = parseInt(process.env.ID_QUEUE_CONCURRENCY || '3', 10);
 const MAX_ATTEMPTS = parseInt(process.env.ID_JOB_MAX_ATTEMPTS || '3', 10);
+const JOB_SWEEP_INTERVAL_MS = parseInt(process.env.ID_JOB_SWEEP_MS || '30000', 10);
 const queue = new PQueue({ concurrency: CONCURRENCY });
+let sweepTimer = null;
+let sweepInFlight = false;
 
 async function processJob(jobId) {
   let jobSnapshot;
@@ -110,8 +113,15 @@ function enqueueJob(jobId, silent = false) {
 }
 
 async function resumePendingJobs() {
+  if (sweepInFlight) {
+    return;
+  }
+  sweepInFlight = true;
   try {
     const jobs = await listJobsByStatus(['pending', 'processing']);
+    if (!jobs.length) {
+      return;
+    }
     for (const job of jobs) {
       if (job.status === 'processing') {
         await updateJob(job.id, { status: 'pending' });
@@ -121,10 +131,30 @@ async function resumePendingJobs() {
     console.log(`Job runner resumed ${jobs.length} pending jobs`);
   } catch (error) {
     console.error('Failed to resume pending jobs:', error);
+  } finally {
+    sweepInFlight = false;
+  }
+}
+
+function startJobRunner() {
+  resumePendingJobs().catch((error) => {
+    console.error('Initial job resume failed:', error);
+  });
+  if (sweepTimer || JOB_SWEEP_INTERVAL_MS <= 0) {
+    return;
+  }
+  sweepTimer = setInterval(() => {
+    resumePendingJobs().catch((error) => {
+      console.error('Scheduled job resume failed:', error);
+    });
+  }, JOB_SWEEP_INTERVAL_MS);
+  if (typeof sweepTimer.unref === 'function') {
+    sweepTimer.unref();
   }
 }
 
 module.exports = {
   enqueueJob,
   resumePendingJobs,
+  startJobRunner,
 };

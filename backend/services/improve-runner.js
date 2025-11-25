@@ -4,7 +4,10 @@ const { improveExistingProduct } = require('./improve');
 
 const CONCURRENCY = parseInt(process.env.IMPROVE_QUEUE_CONCURRENCY || '2', 10);
 const MAX_ATTEMPTS = parseInt(process.env.IMPROVE_JOB_MAX_ATTEMPTS || '2', 10);
+const JOB_SWEEP_INTERVAL_MS = parseInt(process.env.IMPROVE_JOB_SWEEP_MS || '45000', 10);
 const queue = new PQueue({ concurrency: CONCURRENCY });
+let sweepTimer = null;
+let sweepInFlight = false;
 
 async function processImproveJob(jobId) {
   let jobSnapshot;
@@ -63,25 +66,50 @@ function enqueueImproveJob(jobId, silent = false) {
 }
 
 async function resumePendingImproveJobs() {
+  if (sweepInFlight) {
+    return;
+  }
+  sweepInFlight = true;
   try {
     const jobs = await listJobsByStatus(['pending', 'processing']);
+    if (!jobs.length) {
+      return;
+    }
     for (const job of jobs) {
       if (job.status === 'processing') {
         await updateJob(job.id, { status: 'pending', startedAt: null });
       }
       enqueueImproveJob(job.id, true);
     }
-    if (jobs.length) {
-      console.log(`Improve runner resumed ${jobs.length} pending jobs`);
-    }
+    console.log(`Improve runner resumed ${jobs.length} pending jobs`);
   } catch (error) {
     console.error('Failed to resume pending improve jobs:', error);
+  } finally {
+    sweepInFlight = false;
+  }
+}
+
+function startImproveRunner() {
+  resumePendingImproveJobs().catch((error) => {
+    console.error('Initial improve resume failed:', error);
+  });
+  if (sweepTimer || JOB_SWEEP_INTERVAL_MS <= 0) {
+    return;
+  }
+  sweepTimer = setInterval(() => {
+    resumePendingImproveJobs().catch((error) => {
+      console.error('Scheduled improve resume failed:', error);
+    });
+  }, JOB_SWEEP_INTERVAL_MS);
+  if (typeof sweepTimer.unref === 'function') {
+    sweepTimer.unref();
   }
 }
 
 module.exports = {
   enqueueImproveJob,
   resumePendingImproveJobs,
+  startImproveRunner,
 };
 
 
