@@ -146,7 +146,10 @@ async function generateVariantImage({
 
 async function generateProductImageVariants(products = [], hostedImages = []) {
   if (!Array.isArray(products) || !products.length) return;
-  if (!Array.isArray(hostedImages) || !hostedImages.length) return;
+  if (!Array.isArray(hostedImages) || hostedImages.length === 0) {
+    console.warn('Skipping GPT image generation: no hosted reference images were provided.');
+    return;
+  }
 
   const client = await getOpenAIClient();
   const referenceContent = getReferenceImages(hostedImages);
