@@ -3,6 +3,7 @@ const { resolveModel } = require('./model-select');
 const { uploadGeneratedProductImage } = require('./storage');
 
 const IMAGE_HOST_MODEL = process.env.IMAGE_HOST_MODEL || 'gpt-image-1';
+const IMAGE_PROMPT_MODEL = process.env.IMAGE_PROMPT_MODEL || 'gpt-4.1-mini';
 const IMAGE_GENERATION_PARAMS = {
   size: process.env.GPT_IMAGE_SIZE || '1024x1024',
   quality: process.env.GPT_IMAGE_QUALITY || 'high',
@@ -111,9 +112,10 @@ async function generateVariantImage({
   referenceContent = [],
 }) {
   try {
-    const targetModel = resolveModel(null, 'IMAGE_HOST_MODEL', IMAGE_HOST_MODEL);
+    const instructionModel = resolveModel(null, 'IMAGE_PROMPT_MODEL', IMAGE_PROMPT_MODEL);
+    const targetImageModel = resolveModel(null, 'IMAGE_HOST_MODEL', IMAGE_HOST_MODEL);
     const response = await client.responses.create({
-      model: targetModel,
+      model: instructionModel,
       input: [
         {
           role: 'user',
@@ -130,7 +132,10 @@ async function generateVariantImage({
       tools: [
         {
           type: 'image_generation',
-          image_generation: IMAGE_GENERATION_PARAMS,
+          image_generation: {
+            ...IMAGE_GENERATION_PARAMS,
+            model: targetImageModel,
+          },
         },
       ],
     });

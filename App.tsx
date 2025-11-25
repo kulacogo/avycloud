@@ -273,7 +273,7 @@ const App: React.FC = () => {
     alert(improveError);
     clearImproveError();
   }, [improveError, clearImproveError]);
- 
+  
   const handleSelectProduct = (productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product) {
@@ -460,12 +460,12 @@ const App: React.FC = () => {
         <>
           {jobsRunning && (
             <div className="fixed bottom-6 left-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
-              <Spinner className="w-6 h-6 text-sky-300" />
-              <div className="text-sm text-slate-100">
+          <Spinner className="w-6 h-6 text-sky-300" />
+          <div className="text-sm text-slate-100">
                 <p className="font-semibold">Uploads laufen im Hintergrund …</p>
                 <p className="text-slate-400 text-xs">Du kannst währenddessen weiterarbeiten.</p>
-              </div>
-            </div>
+          </div>
+        </div>
           )}
           <JobStatusPopup jobs={jobStatuses} onCancel={cancelJob} onDismiss={dismissJob} />
         </>

@@ -771,20 +771,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
                         {improvingProductIds?.has(p.id) ? 'Verbessere…' : 'Improve'}
                       </button>
                     )}
-                    <button
-                      className="px-2 py-1 text-xs bg-red-600 text-white rounded-md"
-                      onClick={async () => {
-                        if (!confirm(t('table.actions.deleteOne', { name: p.identification.name } as any))) return;
-                        const res = await deleteProduct(p.id);
-                        if (res.ok) {
+                  <button
+                    className="px-2 py-1 text-xs bg-red-600 text-white rounded-md"
+                    onClick={async () => {
+                      if (!confirm(t('table.actions.deleteOne', { name: p.identification.name } as any))) return;
+                      const res = await deleteProduct(p.id);
+                      if (res.ok) {
                           onUpdateProducts(products.filter((x) => x.id !== p.id));
-                        } else {
-                          alert(`Delete failed: ${res.error?.message || 'Unknown error'}`);
-                        }
-                      }}
-                    >
-                      {t('table.actions.delete')}
-                    </button>
+                      } else {
+                        alert(`Delete failed: ${res.error?.message || 'Unknown error'}`);
+                      }
+                    }}
+                  >
+                    {t('table.actions.delete')}
+                  </button>
                   </div>
                 </td>
               </tr>

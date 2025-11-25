@@ -781,7 +781,7 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
 async function enrichWithGptImages(products = [], hostedImages = []) {
   try {
     await generateProductImageVariants(products, hostedImages);
-  } catch (error) {
+    } catch (error) {
     console.warn('GPT image generation failed:', error.message);
   }
 }
