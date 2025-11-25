@@ -113,3 +113,4 @@ WICHTIGE REGELN:
 - Reale Preise recherchieren, nicht erfinden
 
 Analysiere jetzt die Eingaben und erstelle das vollständige Produktdatenblatt.
+Wenn der Modus "improve" aktiv ist, verwende die vorhandenen Produktdaten als Kontext und verbessere ausschließlich Qualität, Konsistenz und Vollständigkeit (kein Rückschritt).
