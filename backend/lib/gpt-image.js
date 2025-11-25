@@ -72,6 +72,20 @@ function buildPrompt(basePrompt, product) {
   return `${basePrompt}\nProduct details: ${context}`;
 }
 
+function collectProductImageReferences(product) {
+  if (!Array.isArray(product?.details?.images)) {
+    return [];
+  }
+  return product.details.images
+    .map((img) => img?.url_or_base64 || img?.url)
+    .filter((url) => typeof url === 'string' && /^https?:\/\//i.test(url))
+    .slice(0, 2)
+    .map((url) => ({
+      type: 'input_image',
+      image_url: url,
+    }));
+}
+
 function getReferenceImages(hostedImages = []) {
   return hostedImages.slice(0, 2).map((img) => ({
     type: 'input_image',
@@ -94,7 +108,7 @@ async function generateVariantImage({
   product,
   basePrompt,
   variant,
-  referenceContent,
+  referenceContent = [],
 }) {
   try {
     const targetModel = resolveModel(null, 'IMAGE_HOST_MODEL', IMAGE_HOST_MODEL);
@@ -155,20 +169,24 @@ async function generateVariantImage({
 
 async function generateProductImageVariants(products = [], hostedImages = []) {
   if (!Array.isArray(products) || !products.length) return;
-  if (!Array.isArray(hostedImages) || hostedImages.length === 0) {
-    console.warn('Skipping GPT image generation: no hosted reference images were provided.');
-    return;
-  }
-
   const client = await getOpenAIClient();
-  const referenceContent = getReferenceImages(hostedImages);
-  if (!referenceContent.length) {
-    console.warn('Skipping GPT image generation: no reference images available.');
-    return;
+  const hasHosted = Array.isArray(hostedImages) && hostedImages.length > 0;
+  const sharedReferenceContent = hasHosted ? getReferenceImages(hostedImages) : [];
+  if (!sharedReferenceContent.length) {
+    console.warn(
+      'GPT image generation: no hosted reference images available, falling back to product metadata/text prompts.'
+    );
   }
 
   for (const product of products) {
     if (!product?.id) continue;
+    const referenceContent =
+      sharedReferenceContent.length > 0 ? sharedReferenceContent : collectProductImageReferences(product);
+    if (!referenceContent.length) {
+      console.warn(
+        `GPT image generation: product ${product.id} has no reference imagery; generating from prompt context only.`
+      );
+    }
     const generated = [];
     for (const def of VARIANT_PROMPTS) {
       const image = await generateVariantImage({

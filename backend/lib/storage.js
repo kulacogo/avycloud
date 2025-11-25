@@ -6,7 +6,7 @@ const storage = new Storage({
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
 });
 
-const BUCKET_NAME = process.env.STORAGE_BUCKET || 'avycloud-product-images';
+const BUCKET_NAME = process.env.STORAGE_BUCKET || 'trendocean';
 const MIN_IMAGE_LONGEST_EDGE = parseInt(process.env.MIN_IMAGE_LONGEST_EDGE || '1200', 10);
 const MAX_IMAGE_LONGEST_EDGE = parseInt(process.env.MAX_IMAGE_LONGEST_EDGE || '2000', 10);
 let bucket;
