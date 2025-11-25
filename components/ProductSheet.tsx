@@ -540,9 +540,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           <section id="highlights" className="md:col-span-3 p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
             <h3 className="text-lg font-semibold mb-2 text-white">Highlights</h3>
             <ul className="space-y-2 list-disc list-inside text-slate-300 text-sm">
-          <section id="highlights" className="md:col-span-3 p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
-            <h3 className="text-xl font-semibold mb-3 text-white">Highlights</h3>
-            <ul className="space-y-2 list-disc list-inside text-slate-300">
               {localProduct.details.key_features.map((feature, index) => (
                 <li key={index}>{feature}</li>
               ))}

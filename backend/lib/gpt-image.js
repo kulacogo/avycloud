@@ -83,14 +83,20 @@ function collectProductImageReferences(product) {
     .slice(0, 2)
     .map((url) => ({
       type: 'input_image',
-      image_url: url,
+      image_url: {
+        url,
+        detail: 'high',
+      },
     }));
 }
 
 function getReferenceImages(hostedImages = []) {
   return hostedImages.slice(0, 2).map((img) => ({
     type: 'input_image',
-    image_url: img.url,
+    image_url: {
+      url: img.url,
+      detail: 'high',
+    },
   }));
 }
 
@@ -99,9 +105,30 @@ function buildReferenceContentFromUrl(url) {
   return [
     {
       type: 'input_image',
-      image_url: url,
+      image_url: {
+        url,
+        detail: 'high',
+      },
     },
   ];
+}
+
+async function uploadGeneratedResult(base64Payload, productId, variant) {
+  if (!base64Payload || typeof base64Payload !== 'string') {
+    throw new Error('Image generation returned empty payload');
+  }
+  const normalizedBase64 = base64Payload.startsWith('data:')
+    ? base64Payload
+    : `data:image/png;base64,${base64Payload}`;
+  const upload = await uploadGeneratedProductImage(normalizedBase64, productId, variant);
+  return {
+    source: 'generated',
+    variant,
+    url_or_base64: upload.url,
+    width: upload.width,
+    height: upload.height,
+    notes: `GPT Image 1 ${variant} render`,
+  };
 }
 
 async function generateVariantImage({
@@ -111,9 +138,12 @@ async function generateVariantImage({
   variant,
   referenceContent = [],
 }) {
+  const instructionModel = resolveModel(null, 'IMAGE_PROMPT_MODEL', IMAGE_PROMPT_MODEL);
+  const targetImageModel = resolveModel(null, 'IMAGE_HOST_MODEL', IMAGE_HOST_MODEL);
+  const prompt = buildPrompt(basePrompt, product);
+
+  // Primary attempt: Responses API with image_generation tool (allows vision references)
   try {
-    const instructionModel = resolveModel(null, 'IMAGE_PROMPT_MODEL', IMAGE_PROMPT_MODEL);
-    const targetImageModel = resolveModel(null, 'IMAGE_HOST_MODEL', IMAGE_HOST_MODEL);
     const response = await client.responses.create({
       model: instructionModel,
       input: [
@@ -123,7 +153,7 @@ async function generateVariantImage({
             ...referenceContent,
             {
               type: 'input_text',
-              text: buildPrompt(basePrompt, product),
+              text: prompt,
             },
           ],
         },
@@ -134,7 +164,6 @@ async function generateVariantImage({
           type: 'image_generation',
           image_generation: {
             ...IMAGE_GENERATION_PARAMS,
-            model: targetImageModel,
           },
         },
       ],
@@ -145,31 +174,47 @@ async function generateVariantImage({
     );
     const rawResult = generationCall?.result;
     const base64Payload = Array.isArray(rawResult) ? rawResult[0] : rawResult;
-    if (!base64Payload || typeof base64Payload !== 'string') {
-      throw new Error('Image generation returned no result payload');
+    if (base64Payload) {
+      return await uploadGeneratedResult(base64Payload, product.id, variant);
     }
-    const normalizedBase64 = base64Payload.startsWith('data:')
-      ? base64Payload
-      : `data:image/png;base64,${base64Payload}`;
-    const upload = await uploadGeneratedProductImage(normalizedBase64, product.id, variant);
-    return {
-      source: 'generated',
-      variant,
-      url_or_base64: upload.url,
-      width: upload.width,
-      height: upload.height,
-      notes: `GPT Image 1 ${variant} render`,
-    };
+    console.warn(`Image tool returned no payload for product ${product?.id}, variant ${variant}`);
   } catch (error) {
     console.warn(
-      `Failed to generate ${variant} image for ${product?.id}:`,
+      `Primary GPT image generation failed for ${product?.id} (${variant}):`,
       error?.message || error
     );
     if (error?.response?.body) {
       console.warn('Image generation response body:', error.response.body);
     }
-    return null;
   }
+
+  // Fallback: direct Images API (text-only prompt)
+  try {
+    const fallback = await client.images.generate({
+      model: targetImageModel,
+      prompt,
+      size: IMAGE_GENERATION_PARAMS.size || '1024x1024',
+      quality: IMAGE_GENERATION_PARAMS.quality === 'auto' ? undefined : IMAGE_GENERATION_PARAMS.quality,
+      background:
+        IMAGE_GENERATION_PARAMS.background === 'auto' ? undefined : IMAGE_GENERATION_PARAMS.background,
+      n: 1,
+      response_format: 'b64_json',
+    });
+    const base64Payload = fallback?.data?.[0]?.b64_json || null;
+    if (base64Payload) {
+      return await uploadGeneratedResult(base64Payload, product.id, variant);
+    }
+    console.warn(
+      `Fallback image generation returned no payload for ${product?.id} (${variant}).`
+    );
+  } catch (fallbackError) {
+    console.warn(
+      `Fallback GPT image generation failed for ${product?.id} (${variant}):`,
+      fallbackError?.message || fallbackError
+    );
+  }
+
+  return null;
 }
 
 async function generateProductImageVariants(products = [], hostedImages = []) {
@@ -211,7 +256,10 @@ async function generateProductImageVariants(products = [], hostedImages = []) {
       const existingImages = Array.isArray(product.details.images)
         ? product.details.images
         : [];
-      product.details.images = [...existingImages, ...generated];
+      const nonGenerated = existingImages.filter(
+        (img) => !/(generated|gpt)/i.test(img?.source || '') && !/(generated|gpt)/i.test(img?.notes || '')
+      );
+      product.details.images = [...generated, ...nonGenerated].slice(0, 10);
     }
   }
 }

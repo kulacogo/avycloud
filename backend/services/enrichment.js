@@ -23,6 +23,17 @@ const MAX_BARCODE_PREFETCH = parseInt(process.env.MAX_BARCODE_PREFETCH || '5', 1
 const DEFAULT_PRICE_CURRENCY = process.env.DEFAULT_PRICE_CURRENCY || 'EUR';
 const PRICE_TRACE_ENGINES = new Set(['google_shopping', 'google', 'ebay', 'bing_shopping', 'amazon']);
 const PRIMARY_BARCODE_KEYS = ['ean', 'gtin', 'upc'];
+const ATTRIBUTE_BLACKLIST = new Set([
+  'key features',
+  'keyfeatures',
+  'highlights',
+  'bullet points',
+  'bullets',
+  'beschreibung',
+  'description',
+  'kurzbeschreibung',
+  'features',
+]);
 const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);
 const validateProductBundle = ajv.compile(productBundleSchema);
@@ -351,8 +362,11 @@ function normalizeBundle(bundle) {
       }
       cloned.details = { ...cloned.details, attributes: attrObj };
     }
+    cloned.details = cloned.details || {};
+    cloned.details.attributes = sanitizeAttributesMap(cloned.details.attributes || {});
     enforceSingleBarcode(cloned);
     ensureProductId(cloned);
+    cloned.details.key_features = sanitizeKeyFeatures(cloned.details.key_features || []);
     return cloned;
   });
   return bundle;
@@ -522,6 +536,51 @@ function collectAttributePairs(product) {
     .filter((entry) => entry.trim().length > 0);
 }
 
+function sanitizeKeyFeatures(features = [], limit = 7) {
+  if (!Array.isArray(features) || !features.length) {
+    return [];
+  }
+  const seen = new Set();
+  const result = [];
+  for (const raw of features) {
+    if (typeof raw !== 'string') continue;
+    const trimmed = raw.replace(/\s+/g, ' ').trim();
+    if (trimmed.length < 8) continue;
+    if (containsPackagingReference(trimmed)) continue;
+    const normalized = trimmed.toLowerCase();
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(trimmed);
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
+function sanitizeAttributesMap(attributes = {}) {
+  if (!attributes || typeof attributes !== 'object') {
+    return {};
+  }
+  const cleaned = {};
+  for (const [rawKey, rawValue] of Object.entries(attributes)) {
+    if (rawValue === undefined || rawValue === null) {
+      continue;
+    }
+    const key = rawKey?.toString().trim();
+    if (!key) continue;
+    if (ATTRIBUTE_BLACKLIST.has(key.toLowerCase())) {
+      continue;
+    }
+    if (typeof rawValue === 'string') {
+      const val = rawValue.trim();
+      if (!val) continue;
+      cleaned[key] = val;
+      continue;
+    }
+    cleaned[key] = rawValue;
+  }
+  return cleaned;
+}
+
 function containsPackagingReference(text = '') {
   return /(etikett|karton|verpackung|sichtbar)/i.test(text || '');
 }
@@ -614,8 +673,8 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
   const client = await getOpenAIClient();
 
   for (const product of products) {
-    if (!needsMarketingRewrite(product)) continue;
-    try {
+    if (needsMarketingRewrite(product)) {
+      try {
       const response = await client.responses.create({
         model: targetModel,
         input: [
@@ -645,13 +704,16 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
       };
       product.details = product.details || {};
       product.details.short_description = rewrite.description.trim();
-      product.details.key_features = rewrite.highlights.map((item) => item.trim());
-    } catch (error) {
-      console.warn(
-        `Marketing rewrite failed for ${product?.id || product?.identification?.name || 'unknown product'}:`,
-        error.message
-      );
+      product.details.key_features = sanitizeKeyFeatures(rewrite.highlights.map((item) => item.trim()));
+      } catch (error) {
+        console.warn(
+          `Marketing rewrite failed for ${product?.id || product?.identification?.name || 'unknown product'}:`,
+          error.message
+        );
+      }
     }
+    product.details = product.details || {};
+    product.details.key_features = sanitizeKeyFeatures(product.details.key_features || []);
   }
 }
 

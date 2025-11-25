@@ -3,6 +3,17 @@ const { runProductIdentification } = require('./enrichment');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
+const PACKAGING_REGEX = /(etikett|karton|verpackung|sichtbar)/i;
+const ATTRIBUTE_BLACKLIST = new Set([
+  'key features',
+  'keyfeatures',
+  'highlights',
+  'bullets',
+  'bullet points',
+  'beschreibung',
+  'kurzbeschreibung',
+  'features',
+]);
 
 function collectBarcodes(product) {
   const codes = new Set(
@@ -57,6 +68,26 @@ function cleanAttributeValue(value) {
     return value.replace(/\s+/g, ' ').trim();
   }
   return value;
+}
+
+function sanitizeKeyFeatures(features = [], limit = 7) {
+  if (!Array.isArray(features) || !features.length) {
+    return [];
+  }
+  const seen = new Set();
+  const result = [];
+  for (const raw of features) {
+    if (typeof raw !== 'string') continue;
+    const trimmed = raw.replace(/\s+/g, ' ').trim();
+    if (trimmed.length < 8) continue;
+    if (PACKAGING_REGEX.test(trimmed)) continue;
+    const normalized = trimmed.toLowerCase();
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(trimmed);
+    if (result.length >= limit) break;
+  }
+  return result;
 }
 
 function attributeQuality(value) {
@@ -123,6 +154,7 @@ function mergeAttributes(existing, incoming) {
     for (const [rawKey, rawValue] of normalizeAttributePairs(pairs)) {
       const normalizedKey = rawKey.trim().toLowerCase();
       if (!normalizedKey) continue;
+      if (ATTRIBUTE_BLACKLIST.has(normalizedKey)) continue;
       const displayKey = rawKey.trim().replace(/\s+/g, ' ');
       const cleanedValue = cleanAttributeValue(rawValue);
       const quality = attributeQuality(cleanedValue);
@@ -319,6 +351,7 @@ function mergeDetails(existing = {}, incoming = {}) {
   };
   merged.short_description = pickBetterText(existing?.short_description, incoming?.short_description);
   merged.key_features = mergeKeyFeatures(existing?.key_features, incoming?.key_features);
+  merged.key_features = sanitizeKeyFeatures(merged.key_features);
   merged.attributes = mergeAttributes(existing?.attributes, incoming?.attributes);
   merged.images = mergeImages(existing?.images, incoming?.images);
   merged.identifiers = mergeIdentifiers(existing?.identifiers, incoming?.identifiers);

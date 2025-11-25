@@ -241,10 +241,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               </div>
             ))}
             {isLoading && (
-            <div className="flex justify-start">
-              <div className="max-w-[65%] px-3 py-2 rounded-2xl bg-slate-800/80 text-slate-200 flex items-center gap-2 text-sm">
-                <Spinner className="w-4 h-4" />
-                Denke nach …
+              <div className="flex justify-start">
+                <div className="max-w-[65%] px-3 py-2 rounded-2xl bg-slate-800/80 text-slate-200 flex items-center gap-2 text-sm">
+                  <Spinner className="w-4 h-4" />
+                  Denke nach …
+                </div>
               </div>
             )}
           </div>
