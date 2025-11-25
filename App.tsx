@@ -429,7 +429,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 font-sans flex flex-col">
       <Header currentView={view} setView={setView} theme={theme} onToggleTheme={toggleTheme} />
-      <main className="flex-1 w-full max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8 safe-area-content pb-36 sm:pb-8">
+      <main className="flex-1 w-full max-w-screen-2xl mx-auto p-3 sm:p-4 lg:p-6 safe-area-content pb-28 sm:pb-6">
         {productsError && (
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-rose-800 bg-rose-900/50 px-4 py-3 text-sm text-rose-50">
             <span>{productsError}</span>

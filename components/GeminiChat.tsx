@@ -37,14 +37,15 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [serpInsights, setSerpInsights] = useState<SerpInsight[]>([]);
+  const [showPromptTray, setShowPromptTray] = useState(false);
   const bottomAnchorRef = useRef<HTMLDivElement>(null);
   const suggestionKeysRef = useRef<Set<string>>(new Set());
   const quickPrompts = [
-    'eBay Item Specifics (Pflichtfelder) ergänzen',
-    'Produkttitel auf eBay-Style erweitern (Marke + Kerneigenschaft + Maße/Farbe)',
-    'Bullet-Features prägnant machen (max 5, deutsch)',
-    'Kurzbeschreibung in 2 Sätzen, deutsch',
-    'Prüfe fehlende Identifiers (EAN/MPN/SKU) und ergänze, falls bekannt',
+    'Item Specifics vervollständigen',
+    'Titel im eBay-Stil optimieren',
+    'Bullet-Features kürzen',
+    'Kurzbeschreibung (2 Sätze, DE)',
+    'Fehlende Identifiers prüfen',
   ];
 
   const normalizeImageKey = (value?: string | null) => {
@@ -179,27 +180,60 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     setPendingImages(prev => prev.filter(item => item.id !== id));
   };
 
-  const predefinedActions = [
-    'Finde günstigsten Preis neu',
-    'Suche Marketing-Bilder',
-    'Fasse Highlights kürzer zusammen',
+  const quickActions = [
+    { label: 'Preis prüfen', value: 'Finde günstigsten Preis neu' },
+    { label: 'Marketing-Bilder', value: 'Suche Marketing-Bilder' },
+    { label: 'Highlights kürzen', value: 'Fasse Highlights kürzer zusammen' },
   ];
 
+  const resetSession = () => {
+    setMessages([]);
+    setPendingChanges([]);
+    setPendingImages([]);
+    setSerpInsights([]);
+  };
+
   return (
-    <aside id="assistant-chat" className="flex flex-col h-[70vh] bg-slate-800 rounded-lg shadow-lg">
-      <header className="flex items-center p-4 border-b border-slate-700">
-        <SparklesIcon className="w-6 h-6 text-sky-400" />
-        <h3 className="ml-2 text-lg font-semibold text-white">GPT-5.1 Assistant</h3>
+    <aside
+      id="assistant-chat"
+      className="flex flex-col h-full min-h-[420px] bg-slate-900/70 border-l border-slate-800"
+    >
+      <header className="flex items-center justify-between px-3 py-2 border-b border-slate-800 text-xs uppercase tracking-wide text-slate-400">
+        <div className="flex items-center gap-2 text-slate-200">
+          <SparklesIcon className="w-4 h-4 text-sky-400" />
+          <span className="font-semibold text-sm text-white">GPT Assistant</span>
+          <span className="text-[11px] text-slate-500">Vision · SerpAPI</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPromptTray((prev) => !prev)}
+            className="px-2 py-1 rounded-full bg-slate-800 text-slate-300 text-[11px] hover:text-white transition"
+          >
+            {showPromptTray ? 'Prompts ausblenden' : 'Prompts anzeigen'}
+          </button>
+          <button
+            type="button"
+            onClick={resetSession}
+            className="px-2 py-1 rounded-full bg-slate-800 text-slate-300 text-[11px] hover:text-white transition"
+          >
+            Verlauf löschen
+          </button>
+        </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-4 space-y-4">
-          <div id="chat-log" className="space-y-4">
+      <div className="flex-1 overflow-y-auto px-3 py-3">
+          <div id="chat-log" className="space-y-3 text-sm">
             {messages.map((msg, index) => (
-              <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div
+              key={index}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
                 <div
-                  className={`max-w-xs lg:max-w-sm px-4 py-2 rounded-lg whitespace-pre-wrap break-words ${
-                    msg.role === 'user' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-200'
+                className={`max-w-[82%] px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${
+                    msg.role === 'user'
+                      ? 'bg-sky-600/80 text-white'
+                      : 'bg-slate-800/80 text-slate-200 border border-slate-800/80'
                   }`}
                 >
                   {renderContent(msg.text)}
@@ -207,45 +241,62 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               </div>
             ))}
             {isLoading && (
-              <div className="flex justify-start">
-                <div className="max-w-xs lg:max-w-sm px-4 py-2 rounded-lg bg-slate-700 text-slate-200 flex items-center">
-                  <Spinner className="w-5 h-5 mr-2" /> Thinking...
-                </div>
+            <div className="flex justify-start">
+              <div className="max-w-[65%] px-3 py-2 rounded-2xl bg-slate-800/80 text-slate-200 flex items-center gap-2 text-sm">
+                <Spinner className="w-4 h-4" />
+                Denke nach …
               </div>
             )}
           </div>
 
-          {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
-            <div className="border-t border-slate-700 space-y-4 pt-4">
-              {pendingChanges.length > 0 && (
-                <section>
-                  <h4 className="text-sm font-semibold text-slate-200 mb-2">Vorgeschlagene Änderungen</h4>
-                  <ul className="space-y-2">
+        {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
+          <div className="mt-4 space-y-4 border-t border-slate-800 pt-3">
+            {pendingChanges.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+                    Vorgeschlagene Änderungen
+                  </h4>
+                  <span className="text-[11px] text-slate-500">
+                    {pendingChanges.length} Vorschlag{pendingChanges.length > 1 ? 'e' : ''}
+                  </span>
+                </div>
+                <ul className="space-y-2">
                     {pendingChanges.map(item => (
-                      <li key={item.id} className="p-3 bg-slate-700 rounded-lg text-sm text-slate-200">
-                        <p className="font-semibold mb-1">{item.change.summary || 'Änderung aus dem Chat'}</p>
+                  <li key={item.id} className="p-3 bg-slate-800/70 border border-slate-800 rounded-lg text-xs text-slate-200">
+                        <p className="font-semibold text-sm mb-1">{item.change.summary || 'Änderung aus dem Chat'}</p>
                         <button
                           onClick={() => applyChange(item.id)}
-                          className="mt-2 px-3 py-1 text-xs bg-sky-600 text-white rounded hover:bg-sky-500"
+                      className="mt-2 px-3 py-1 text-[11px] bg-sky-600 text-white rounded-full hover:bg-sky-500"
                         >
                           Anwenden
                         </button>
                       </li>
                     ))}
                   </ul>
-                </section>
-              )}
+              </section>
+            )}
 
-              {pendingImages.length > 0 && (
-                <section>
-                  <h4 className="text-sm font-semibold text-slate-200 mb-2">Bild-Vorschläge</h4>
-                  <div className="grid grid-cols-2 gap-3">
+            {pendingImages.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+                    Bild-Vorschläge
+                  </h4>
+                  <span className="text-[11px] text-slate-500">
+                    {pendingImages.length} neu
+                  </span>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-1">
                     {pendingImages.map(item => (
-                  <div key={item.id} className="bg-slate-700 rounded-lg p-2 text-xs text-slate-200">
+                <div
+                  key={item.id}
+                  className="min-w-[140px] max-w-[140px] bg-slate-800/70 border border-slate-800 rounded-lg p-2 text-[11px] text-slate-200 flex flex-col gap-2"
+                >
                         <img
                           src={resolveImageSrc(item.image.url_or_base64)}
                           alt="Vorschlag"
-                          className="w-full h-24 object-cover rounded mb-2"
+                      className="w-full h-24 object-cover rounded"
                           referrerPolicy="no-referrer"
                           loading="lazy"
                           decoding="async"
@@ -253,31 +304,43 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                             (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/200x200?text=Bild';
                           }}
                         />
-                    {item.image.source && (
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
-                        {item.image.source}
-                      </p>
-                    )}
+                  {item.image.source && (
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                      {item.image.source}
+                    </p>
+                  )}
+                  {item.rationale && (
+                    <p className="text-[10px] text-slate-400 line-clamp-2">
+                      {item.rationale}
+                    </p>
+                  )}
                         <button
                           onClick={() => applyImage(item.id)}
-                          className="px-2 py-1 text-xs bg-sky-600 text-white rounded hover:bg-sky-500 w-full"
+                    className="px-2 py-1 text-[11px] bg-sky-600 text-white rounded-full hover:bg-sky-500 w-full"
                         >
                           Hinzufügen
                         </button>
                       </div>
                     ))}
-                  </div>
-                </section>
-              )}
+                </div>
+              </section>
+            )}
 
-              {serpInsights.length > 0 && (
-                <section>
-                  <h4 className="text-sm font-semibold text-slate-200 mb-2">SerpAPI Nachweise</h4>
-                  <ul className="space-y-2 text-xs text-slate-300">
+            {serpInsights.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+                    SerpAPI Nachweise
+                  </h4>
+                  <span className="text-[11px] text-slate-500">{serpInsights.length}</span>
+                </div>
+                <ul className="space-y-2 text-[11px] text-slate-300">
                     {serpInsights.map((entry, idx) => (
-                      <li key={`${entry.engine}-${idx}`} className="p-2 bg-slate-700 rounded">
-                        <p className="font-semibold text-slate-100">{entry.engine}</p>
-                        <p className="text-slate-400 break-words">{entry.query}</p>
+                  <li key={`${entry.engine}-${idx}`} className="p-2 bg-slate-800/70 border border-slate-800 rounded">
+                      <div className="flex items-center justify-between text-slate-100 text-[12px]">
+                          <p className="font-semibold">{entry.engine}</p>
+                          <p className="text-slate-500">{entry.query}</p>
+                        </div>
                         {entry.error && <p className="text-red-400 mt-1">{entry.error}</p>}
                         {!entry.error &&
                           entry.summary?.slice(0, 2).map((item, i) => (
@@ -297,38 +360,47 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                       </li>
                     ))}
                   </ul>
-                </section>
-              )}
-            </div>
-          )}
+              </section>
+            )}
+          </div>
+        )}
 
-          <div ref={bottomAnchorRef} />
-        </div>
+        <div ref={bottomAnchorRef} className="h-1" />
       </div>
 
-      <div className="p-4 border-t border-slate-700">
-        <div className="flex flex-wrap gap-2 mb-3">
-          {quickPrompts.map((prompt) => (
+      <div className="border-t border-slate-800 px-3 py-3 space-y-2">
+        {showPromptTray && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <span>Quick Prompts</span>
+              <span>Tap zum Einfügen</span>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {quickPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => setInput(prompt)}
+                  className="px-3 py-1 rounded-full bg-slate-800 text-slate-200 text-[12px] whitespace-nowrap hover:bg-slate-700"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {quickActions.map((action) => (
             <button
-              key={prompt}
-              onClick={() => setInput(prompt)}
-              className="px-2 py-1 text-xs bg-slate-600/50 text-slate-300 rounded-full hover:bg-slate-600"
+              key={action.label}
+              onClick={() => handleSend(action.value)}
+              className="px-3 py-1 rounded-full border border-slate-700 text-[12px] text-slate-200 hover:border-sky-500 hover:text-white whitespace-nowrap"
             >
-              {prompt}
+              {action.label}
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {predefinedActions.map(action => (
-            <button
-              key={action}
-              onClick={() => handleSend(action)}
-              className="px-2 py-1 text-xs bg-slate-600/50 text-slate-300 rounded-full hover:bg-slate-600"
-            >
-              {action}
-            </button>
-          ))}
-        </div>
+
         <div className="flex items-center space-x-2">
           <input
             id="chat-input"
@@ -337,13 +409,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Frag GPT nach Preisen, Bildern oder Optimierungen..."
-            className="flex-1 p-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500"
+          className="flex-1 p-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-100 focus:ring-2 focus:ring-sky-500"
           />
           <button
             id="chat-send"
             onClick={() => handleSend()}
             disabled={isLoading}
-            className="p-2 bg-sky-600 text-white rounded-lg hover:bg-sky-500 disabled:bg-slate-500"
+          className="p-2 bg-sky-600 text-white rounded-lg hover:bg-sky-500 disabled:bg-slate-600"
           >
             <SendIcon />
           </button>

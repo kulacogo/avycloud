@@ -138,9 +138,9 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   const DesktopNavButton = ({ nav }: { nav: NavIconConfig }) => (
     <button
       onClick={() => setView(nav.view)}
-      className={`hidden sm:inline-flex w-11 h-11 sm:w-12 sm:h-12 rounded-2xl items-center justify-center transition-all ${
+      className={`hidden sm:inline-flex w-10 h-10 sm:w-11 sm:h-11 rounded-xl items-center justify-center transition-all ${
         currentView === nav.view
-          ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40'
+          ? 'bg-sky-600 text-white shadow-md shadow-sky-900/40'
           : 'bg-slate-800/70 text-slate-300 hover:bg-slate-700 hover:text-white'
       }`}
       aria-current={currentView === nav.view ? 'page' : undefined}
@@ -176,13 +176,13 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   return (
     <>
       <header className="safe-area-header bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-white/5">
-        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <div className="flex items-center justify-between gap-3">
+        <div className="max-w-screen-2xl mx-auto px-3 sm:px-4 lg:px-6 py-1.5">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
               <div className="h-11 w-11 rounded-2xl overflow-hidden shadow-lg sm:hidden bg-white/80">
                 <img src={MOBILE_LOGO} alt="Avystock" className="h-full w-full object-cover" draggable={false} />
               </div>
-              <div className="hidden sm:block h-12 sm:h-14 lg:h-16 w-auto">
+              <div className="hidden sm:block h-10 sm:h-12 lg:h-14 w-auto">
                 <img
                   src={logoSrc}
                   alt="avystock"
@@ -196,7 +196,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               </div>
               <span className="sr-only">Avystock Product Intelligence Hub</span>
             </div>
-            <div className="hidden sm:flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2">
               {navIcons.map((nav) => (
                 <DesktopNavButton key={nav.view} nav={nav} />
               ))}

@@ -2,6 +2,7 @@ const { getProduct, saveProduct } = require('../lib/firestore');
 const { runProductIdentification } = require('./enrichment');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
+const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
 
 function collectBarcodes(product) {
   const codes = new Set(
@@ -81,6 +82,38 @@ function normalizeAttributePairs(source) {
       .filter(([key]) => typeof key === 'string' && key.trim());
   }
   return Object.entries(source).filter(([key]) => typeof key === 'string' && key.trim());
+}
+
+function normalizeImageKey(value) {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    return `${parsed.hostname}${parsed.pathname}`.toLowerCase();
+  } catch {
+    return value.toString().trim().toLowerCase() || null;
+  }
+}
+
+function classifyImageSource(image = {}, isExisting = false) {
+  const source = (image.source || '').toString().toLowerCase();
+  if (source.includes('generated') || /\bgpt\b/.test(image.notes || '')) {
+    return 'generated';
+  }
+  return isExisting ? 'fallback' : 'reference';
+}
+
+function shouldSkipIncomingImage(image, existingKeys) {
+  if (!image) return true;
+  const url = image.url_or_base64 || image.url;
+  if (!url) return true;
+  if (LENS_UPLOAD_PATTERN.test(url)) {
+    return true;
+  }
+  const key = normalizeImageKey(url);
+  if (key && existingKeys.has(key)) {
+    return true;
+  }
+  return false;
 }
 
 function mergeAttributes(existing, incoming) {
@@ -165,24 +198,65 @@ function mergeKeyFeatures(existing = [], incoming = []) {
 }
 
 function mergeImages(existing = [], incoming = []) {
-  const result = [];
-  const seen = new Set();
-  const add = (image) => {
+  const existingKeys = new Set(
+    (existing || [])
+      .map((img) => normalizeImageKey(img?.url_or_base64 || img?.url))
+      .filter(Boolean)
+  );
+  const dedupe = new Set();
+  const buckets = {
+    generated: [],
+    reference: [],
+    fallback: [],
+  };
+
+  const pushToBucket = (image, bucket) => {
     if (!image || typeof image !== 'object') return;
     const url = image.url_or_base64 || image.url;
-    if (!url) return;
-    const key = url;
-    if (seen.has(key)) return;
-    seen.add(key);
-    result.push({ ...image });
+    if (!url || LENS_UPLOAD_PATTERN.test(url)) {
+      return;
+    }
+    const key = normalizeImageKey(url);
+    if (key && dedupe.has(key)) {
+      return;
+    }
+    if (key) {
+      dedupe.add(key);
+      existingKeys.add(key);
+    }
+    buckets[bucket].push({ ...image });
   };
+
   if (Array.isArray(incoming)) {
-    incoming.forEach(add);
+    incoming.forEach((image) => {
+      if (shouldSkipIncomingImage(image, existingKeys)) {
+        return;
+      }
+      const bucket = classifyImageSource(image, false);
+      pushToBucket(image, bucket);
+    });
   }
+
   if (Array.isArray(existing)) {
-    existing.forEach(add);
+    existing.forEach((image) => {
+      if (!image) return;
+      const url = image.url_or_base64 || image.url;
+      if (url && LENS_UPLOAD_PATTERN.test(url)) {
+        return;
+      }
+      const bucket = classifyImageSource(image, true);
+      pushToBucket(image, bucket);
+    });
   }
-  return result;
+
+  let combined = [...buckets.generated, ...buckets.reference, ...buckets.fallback];
+  if (buckets.generated.length) {
+    const limitedReference = buckets.reference.slice(0, 2);
+    const limitedFallback = buckets.fallback.slice(0, 1);
+    combined = [...buckets.generated, ...limitedReference, ...limitedFallback];
+  }
+
+  return combined.slice(0, 10);
 }
 
 function textQuality(text) {

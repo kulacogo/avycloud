@@ -387,15 +387,15 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   };
 
   return (
-    <section id="product-sheet" className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-screen-2xl mx-auto relative">
+    <section id="product-sheet" className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-screen-2xl mx-auto relative px-2 sm:px-0">
       {notification && (
         <div className={`fixed top-20 right-8 p-4 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white`}>
           {notification.message}
         </div>
       )}
       
-      <div className="lg:col-span-2 space-y-8">
-        <header className="p-6 bg-slate-800 rounded-lg shadow-lg">
+      <div className="lg:col-span-2 space-y-6">
+        <header className="p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1 min-w-0">
               {isEditing ? (
@@ -422,7 +422,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 {' · '}
                 <span className="text-sky-400">{localProduct.identification.category}</span>
               </p>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-2">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-2">
                 <span>
                   SKU:{' '}
                   {localProduct.identification.sku || localProduct.details.identifiers?.sku || 'wird beim Speichern vergeben'}
@@ -447,12 +447,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 Barcodes: {localProduct.identification.barcodes?.join(', ') || 'N/A'}
               </p>
             </div>
-            <div className="actions flex flex-col sm:flex-row flex-wrap gap-3 w-full sm:w-auto justify-end">
+            <div className="actions flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto justify-end">
               <button
                 id="btn-edit"
                 onClick={() => setIsEditing(v => !v)}
-                className={`flex items-center justify-center px-4 py-2 font-semibold rounded-lg transition-colors w-full sm:w-auto ${
-                  isEditing ? 'bg-slate-600 text-white hover:bg-slate-500' : 'bg-sky-600 text-white hover:bg-sky-500'
+                className={`flex items-center justify-center px-4 py-2 font-medium rounded-lg transition-colors w-full sm:w-auto ${
+                  isEditing ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-sky-600 text-white hover:bg-sky-500'
                 }`}
               >
                 <EditIcon /><span className="ml-2">{isEditing ? 'Editing...' : 'Edit'}</span>
@@ -461,7 +461,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 id="btn-save"
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-500 transition-colors disabled:bg-green-800 disabled:cursor-not-allowed w-full sm:w-auto"
+                className="flex items-center justify-center px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-500 transition-colors disabled:bg-emerald-900 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 <SaveIcon /><span className="ml-2">{isSaving ? 'Saving...' : 'Save'}</span>
               </button>
@@ -470,7 +470,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   type="button"
                   onClick={() => onImprove(localProduct.id)}
                   disabled={Boolean(isImproving)}
-                  className="flex items-center justify-center px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-500 transition-colors disabled:opacity-60 w-full sm:w-auto"
+                  className="flex items-center justify-center px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-500 transition-colors disabled:opacity-60 w-full sm:w-auto"
                 >
                   {isImproving ? 'Verbessere…' : 'Improve'}
                 </button>
@@ -479,7 +479,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           <div id="media-gallery" className="md:col-span-2">
             <ImageGallery
               images={localProduct.details.images}
@@ -537,7 +537,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               </div>
             )}
           </div>
-          <section id="highlights" className="md:col-span-3 p-6 bg-slate-800 rounded-lg shadow-lg">
+          <section id="highlights" className="md:col-span-3 p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
+            <h3 className="text-lg font-semibold mb-2 text-white">Highlights</h3>
+            <ul className="space-y-2 list-disc list-inside text-slate-300 text-sm">
+          <section id="highlights" className="md:col-span-3 p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
             <h3 className="text-xl font-semibold mb-3 text-white">Highlights</h3>
             <ul className="space-y-2 list-disc list-inside text-slate-300">
               {localProduct.details.key_features.map((feature, index) => (
