@@ -11,7 +11,7 @@ import { Spinner } from './components/Spinner';
 import JobStatusPopup from './components/JobStatusPopup';
 import Dashboard from './components/Dashboard';
 import OperationsView from './components/OperationsView';
-import { fetchProducts } from './api/client';
+import { fetchProducts, improveProduct } from './api/client';
 import { useI18n } from './i18n';
 
 type View = 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
@@ -173,6 +173,7 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
   const [warehouseRefresh, setWarehouseRefresh] = useState<WarehouseBin | null>(null);
   const [inventoryFocusId, setInventoryFocusId] = useState<string | null>(null);
+  const [improvingProductId, setImprovingProductId] = useState<string | null>(null);
   const historyReadyRef = useRef(false);
   const skipNextHistoryPushRef = useRef(false);
   const lastHistoryStateRef = useRef<{ view: View; productId: string | null } | null>(null);
@@ -220,6 +221,30 @@ const App: React.FC = () => {
     setWarehouseRefresh(bin);
   };
   
+  const handleImproveProduct = useCallback(
+    async (productId: string) => {
+      if (!productId) return;
+      setImprovingProductId(productId);
+      try {
+        const result = await improveProduct(productId);
+        if (!result.ok || !result.data) {
+          throw new Error(result.error?.message || 'Verbesserung fehlgeschlagen.');
+        }
+        const improved = result.data;
+        setProducts((prev) => prev.map((p) => (p.id === productId ? improved : p)));
+        if (currentProduct?.id === productId) {
+          setCurrentProduct(improved);
+        }
+      } catch (error: any) {
+        console.error('Improve failed:', error);
+        alert(error?.message || 'Verbesserung fehlgeschlagen.');
+      } finally {
+        setImprovingProductId(null);
+      }
+    },
+    [currentProduct]
+  );
+ 
   const handleSelectProduct = (productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product) {
@@ -318,7 +343,12 @@ const App: React.FC = () => {
     switch (view) {
       case 'sheet':
         return currentProduct ? (
-          <ProductSheet product={currentProduct} onUpdate={handleUpdateProduct} />
+          <ProductSheet
+            product={currentProduct}
+            onUpdate={handleUpdateProduct}
+            onImprove={handleImproveProduct}
+            isImproving={improvingProductId === currentProduct.id}
+          />
         ) : (
           <div className="text-center p-8 text-slate-400">No product selected. Go to 'New' to identify one or 'Admin' to select an existing one.</div>
         );
@@ -329,6 +359,8 @@ const App: React.FC = () => {
             onSelectProduct={handleSelectProduct}
             onUpdateProducts={setProducts}
             focusProductId={inventoryFocusId}
+            onImproveProduct={handleImproveProduct}
+            improvingProductId={improvingProductId}
           />
         );
       case 'warehouse':

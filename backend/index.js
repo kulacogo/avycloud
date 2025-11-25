@@ -24,6 +24,7 @@ const {
   TOOL_ITERATION_ERROR,
 } = require('./services/enrichment');
 const { runProductChat } = require('./services/product-chat');
+const { improveExistingProduct } = require('./services/improve');
 const { getSecretValue } = require('./lib/secret-values');
 const { enqueueJob, resumePendingJobs } = require('./services/job-runner');
 const {
@@ -1671,6 +1672,26 @@ app.post('/api/image-gen', async (req, res) => {
         message: 'Failed to generate images',
         details: error.message
       }
+    });
+  }
+});
+
+app.post('/api/products/:id/improve', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    if (!productId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Product ID is required' },
+      });
+    }
+    const improved = await improveExistingProduct(productId);
+    res.json({ ok: true, data: improved });
+  } catch (error) {
+    const status = error.code === 404 ? 404 : 500;
+    res.status(status).json({
+      ok: false,
+      error: { code: status, message: error.message || 'Failed to improve product' },
     });
   }
 });

@@ -45,6 +45,8 @@ interface AdminTableProps {
   onSelectProduct: (productId: string) => void;
   onUpdateProducts: (products: Product[]) => void;
   focusProductId?: string | null;
+  onImproveProduct?: (productId: string) => void;
+  improvingProductId?: string | null;
 }
 
 const SyncStatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
@@ -69,7 +71,14 @@ const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
   );
 };
 
-const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUpdateProducts, focusProductId }) => {
+const AdminTable: React.FC<AdminTableProps> = ({
+  products,
+  onSelectProduct,
+  onUpdateProducts,
+  focusProductId,
+  onImproveProduct,
+  improvingProductId,
+}) => {
   const { t } = useI18n();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<SyncStatus | 'all'>('all');
@@ -739,20 +748,32 @@ const AdminTable: React.FC<AdminTableProps> = ({ products, onSelectProduct, onUp
                   </td>
                 ))}
                 <td className="p-3">
-                  <button
-                    className="px-2 py-1 text-xs bg-red-600 text-white rounded-md"
-                    onClick={async () => {
-                      if (!confirm(t('table.actions.deleteOne', { name: p.identification.name } as any))) return;
-                      const res = await deleteProduct(p.id);
-                      if (res.ok) {
-                        onUpdateProducts(products.filter(x => x.id !== p.id));
-                      } else {
-                        alert(`Delete failed: ${res.error?.message || 'Unknown error'}`);
-                      }
-                    }}
-                  >
-                    {t('table.actions.delete')}
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    {onImproveProduct && (
+                      <button
+                        type="button"
+                        className="px-2 py-1 text-xs bg-sky-600 text-white rounded-md disabled:opacity-60"
+                        disabled={improvingProductId === p.id}
+                        onClick={() => onImproveProduct(p.id)}
+                      >
+                        {improvingProductId === p.id ? 'Verbessere…' : 'Improve'}
+                      </button>
+                    )}
+                    <button
+                      className="px-2 py-1 text-xs bg-red-600 text-white rounded-md"
+                      onClick={async () => {
+                        if (!confirm(t('table.actions.deleteOne', { name: p.identification.name } as any))) return;
+                        const res = await deleteProduct(p.id);
+                        if (res.ok) {
+                          onUpdateProducts(products.filter((x) => x.id !== p.id));
+                        } else {
+                          alert(`Delete failed: ${res.error?.message || 'Unknown error'}`);
+                        }
+                      }}
+                    >
+                      {t('table.actions.delete')}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

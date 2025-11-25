@@ -229,7 +229,14 @@ function buildSystemPrompt(locale = 'de-DE') {
   ].join('\n');
 }
 
-function buildUserPrompt({ barcodeList, hostedImages, locale, barcodeResearch = [], fileCount = 0 }) {
+function buildUserPrompt({
+  barcodeList,
+  hostedImages,
+  locale,
+  barcodeResearch = [],
+  fileCount = 0,
+  improveContext = null,
+}) {
   const parts = [];
   if (barcodeList.length) {
     parts.push(`Barcodes: ${barcodeList.join(', ')}`);
@@ -271,6 +278,12 @@ function buildUserPrompt({ barcodeList, hostedImages, locale, barcodeResearch = 
       `Hinweis: Es wurden ${fileCount} Upload-Bilder geliefert. Wenn sie unterschiedliche Produkte oder unterschiedliche Barcodes zeigen, erzeuge mehrere Produkte im products-Array (je Barcode ein Eintrag, eindeutige IDs, keine Zusammenfassung).`
     );
   }
+  if (improveContext) {
+    parts.push(
+      'Verbesserungsmodus: Nutze den bestehenden Datensatz als Ausgangspunkt, korrigiere Fehler, fülle Lücken und optimiere Stil/Marketing. Wichtige Fakten (Marke, Modell, EAN) nur überschreiben, falls neue verifizierte Informationen vorliegen.',
+      improveContext
+    );
+  }
 
   parts.push(
     `Aufgabe:`,
@@ -292,6 +305,11 @@ function buildUserPrompt({ barcodeList, hostedImages, locale, barcodeResearch = 
     `13. Nutze nur Informationen aus Vision, Barcodes oder SerpAPI – keine sonstigen Wissensbestände.`,
     `Sprache für Texte: Deutsch (${locale}).`
   );
+  if (improveContext) {
+    parts.push(
+      'Stelle sicher, dass der Output gegenüber dem bestehenden Datensatz eine Verbesserung darstellt (keine Verkürzungen oder Auslassungen).'
+    );
+  }
 
   return parts.join('\n\n');
 }
@@ -768,7 +786,13 @@ async function enrichWithGptImages(products = [], hostedImages = []) {
   }
 }
 
-async function runProductIdentification({ files = [], barcodes = '', locale = 'de-DE', modelOverride = null }) {
+async function runProductIdentification({
+  files = [],
+  barcodes = '',
+  locale = 'de-DE',
+  modelOverride = null,
+  improveContext = null,
+}) {
   if ((!files || files.length === 0) && !barcodes) {
     throw new Error('Bitte mindestens ein Bild oder einen Barcode bereitstellen.');
   }
@@ -786,6 +810,7 @@ async function runProductIdentification({ files = [], barcodes = '', locale = 'd
     locale,
     barcodeResearch,
     fileCount: files.length,
+    improveContext,
   });
 
   const inputMessages = [

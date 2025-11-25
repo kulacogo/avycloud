@@ -417,6 +417,25 @@ export const regenerateProductImageApi = async (
   }
 };
 
+export const improveProduct = async (
+  productId: string
+): Promise<{ ok: boolean; data?: Product; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/improve`, {
+      method: 'POST',
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Improve failed' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
 export const fetchOrders = async (limit = 50): Promise<Order[]> => {
   const response = await fetch(`${BACKEND_URL}/api/orders?limit=${limit}`);
   const result = await parseResponse(response);

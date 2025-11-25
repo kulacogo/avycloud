@@ -21,9 +21,11 @@ import AssistantChat from './GeminiChat';
 interface ProductSheetProps {
   product: Product;
   onUpdate: (updatedProduct: Product) => void;
+  onImprove?: (productId: string) => void;
+  isImproving?: boolean;
 }
 
-const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
+const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localProduct, setLocalProduct] = useState(product);
   const [isSaving, setIsSaving] = useState(false);
@@ -463,6 +465,16 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate }) => {
               >
                 <SaveIcon /><span className="ml-2">{isSaving ? 'Saving...' : 'Save'}</span>
               </button>
+              {onImprove && (
+                <button
+                  type="button"
+                  onClick={() => onImprove(localProduct.id)}
+                  disabled={Boolean(isImproving)}
+                  className="flex items-center justify-center px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-500 transition-colors disabled:opacity-60 w-full sm:w-auto"
+                >
+                  {isImproving ? 'Verbessere…' : 'Improve'}
+                </button>
+              )}
             </div>
           </div>
         </header>
