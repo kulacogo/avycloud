@@ -2,7 +2,7 @@ const { getOpenAIClient } = require('./openai-client');
 const { resolveModel } = require('./model-select');
 const { uploadGeneratedProductImage } = require('./storage');
 
-const IMAGE_HOST_MODEL = process.env.IMAGE_HOST_MODEL || 'gpt-4.1-mini';
+const IMAGE_HOST_MODEL = process.env.IMAGE_HOST_MODEL || 'gpt-image-1';
 const IMAGE_GENERATION_PARAMS = {
   size: process.env.GPT_IMAGE_SIZE || '1024x1024',
   quality: process.env.GPT_IMAGE_QUALITY || 'high',
@@ -97,8 +97,9 @@ async function generateVariantImage({
   referenceContent,
 }) {
   try {
+    const targetModel = resolveModel(null, 'IMAGE_HOST_MODEL', IMAGE_HOST_MODEL);
     const response = await client.responses.create({
-      model: resolveModel(null, 'IMAGE_HOST_MODEL', IMAGE_HOST_MODEL),
+      model: targetModel,
       input: [
         {
           role: 'user',
@@ -141,7 +142,13 @@ async function generateVariantImage({
       notes: `GPT Image 1 ${variant} render`,
     };
   } catch (error) {
-    console.warn(`Failed to generate ${variant} image for ${product?.id}:`, error.message);
+    console.warn(
+      `Failed to generate ${variant} image for ${product?.id}:`,
+      error?.message || error
+    );
+    if (error?.response?.body) {
+      console.warn('Image generation response body:', error.response.body);
+    }
     return null;
   }
 }
