@@ -3,7 +3,7 @@ const { resolveModel } = require('./model-select');
 const { uploadGeneratedProductImage } = require('./storage');
 
 const IMAGE_HOST_MODEL = process.env.IMAGE_HOST_MODEL || 'gpt-4.1-mini';
-const IMAGE_GENERATION_OPTIONS = {
+const IMAGE_GENERATION_PARAMS = {
   size: process.env.GPT_IMAGE_SIZE || '1024x1024',
   quality: process.env.GPT_IMAGE_QUALITY || 'high',
   background: process.env.GPT_IMAGE_BACKGROUND || 'auto',
@@ -115,7 +115,7 @@ async function generateVariantImage({
       tools: [
         {
           type: 'image_generation',
-          options: IMAGE_GENERATION_OPTIONS,
+          image_generation: IMAGE_GENERATION_PARAMS,
         },
       ],
     });
