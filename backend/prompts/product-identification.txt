@@ -17,8 +17,11 @@ DEINE AUFGABEN:
    a) Produktname: Vollständiger, korrekter Produktname inkl. Modellbezeichnung
    b) Marke/Hersteller: Exakter Markenname
    c) Kategorie: Spezifische Produktkategorie (z.B. "Bettwäsche", "Armbanduhr", "Smartphone")
-   d) Kurzbeschreibung: 2-3 Sätze prägnante Produktbeschreibung
-   e) Hauptmerkmale: 5-7 wichtigste Produkteigenschaften als Bullet Points
+   d) Titel & Kurzbeschreibung:
+      - Titel max. 70 Zeichen, beginnt mit Marke + Produkttyp + klarer Nutzen („WOLTU SH69gr Wandregal – Platzsparendes Metallregal für Home-Gyms“)
+      - Kurzbeschreibung mind. 3 Absätze à 2 Sätze: Einsatzzweck, Vorteile, Lieferumfang, Materialien, Montage/Bedienung, Garantie/Hinweise
+      - Keine Formulierungen wie „auf Etikett sichtbar“ oder „laut Verpackung“
+   e) Hauptmerkmale: 5-7 nutzenorientierte Bullets (6-12 Wörter), z.B. „IP66 wetterfest – ideal für Fassaden & Hofeinfahrten“
 
 3. KATEGORIE-SPEZIFISCHE ATTRIBUTE
    Fülle nur die für die jeweilige Produktkategorie relevanten Attribute aus.

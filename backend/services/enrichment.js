@@ -27,6 +27,23 @@ const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);
 const validateProductBundle = ajv.compile(productBundleSchema);
 
+const marketingCopySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['title', 'description', 'highlights'],
+  properties: {
+    title: { type: 'string', minLength: 20, maxLength: 120 },
+    description: { type: 'string', minLength: 300 },
+    highlights: {
+      type: 'array',
+      minItems: 5,
+      maxItems: 7,
+      items: { type: 'string', minLength: 8, maxLength: 160 },
+    },
+  },
+};
+const validateMarketingCopy = ajv.compile(marketingCopySchema);
+
 function parseBarcodes(raw) {
   if (!raw) return [];
   const list = raw
@@ -261,12 +278,15 @@ function buildUserPrompt({ barcodeList, hostedImages, locale, barcodeResearch = 
     `2. SerpAPI-Calls für alle Fakten (Name, Preise, Händler, Bilder, Spezifikationen). Start immer mit google_shopping (num>=20).`,
     `3. Danach mindestens eine Bild-/Reverse-Suche: google_images_shopping oder google_lens/google_reverse_image mit den bereitgestellten URLs.`,
     `4. Wenn Shopping-Ergebnis product_id liefert: google_product oder google_immersive_product nachladen; bei fehlenden Preisen zusätzlich bing_shopping/amazon/ebay.`,
-    `5. Validiere Bilder: nur öffentlich zugängliche, eindeutige, Auflösung >=900px; Dubletten entfernen.`,
-    `6. Attribute als Liste ausgeben: [{ "key": "Material", "value": "100% Baumwolle", "value_type": "string" }, ...].`,
-    `7. Wenn mehrere unterschiedliche Produkte erkannt werden, lege für jedes ein separates Objekt im products-Array an (eindeutige id, bevorzugt EAN/GTIN). Keine Zusammenfassung.`,
-    `8. Pro Produkt nur EIN Barcode/EAN/GTIN zulassen (keine Mehrfach-Barcodes).`,
-    `9. pricing.lowest_price.sources benötigt echte Händler-URLs inkl. checked_at.`,
-    `10. key_features >= 5, spezifisch für das Produkt, kurz und marketing-/shop-tauglich (keine Romane).`,
+    `5. Titel & Copy müssen marketplace-ready sein:`,
+    `   - Titel: <=70 Zeichen, beginnt mit Marke + Produkttyp + Nutzen (keine SKU-only Titel).`,
+    `   - short_description: mind. 3 Absätze à 2 Sätze, inkl. Einsatzzwecke, Produktnutzen, Ausstattung, Material/Verarbeitung, Lieferumfang, Montage/Bedienung, Pflege/Service.`,
+    `   - key_features: 5-7 Nutzen-Bullets (6-12 Wörter, kein „laut Etikett“/„auf Karton“).`,
+    `6. Validiere Bilder: nur öffentlich zugängliche, eindeutige, Auflösung >=900px; Dubletten entfernen.`,
+    `7. Attribute als Liste ausgeben: [{ "key": "Material", "value": "100% Baumwolle", "value_type": "string" }, ...].`,
+    `8. Wenn mehrere unterschiedliche Produkte erkannt werden, lege für jedes ein separates Objekt im products-Array an (eindeutige id, bevorzugt EAN/GTIN). Keine Zusammenfassung.`,
+    `9. Pro Produkt nur EIN Barcode/EAN/GTIN zulassen (keine Mehrfach-Barcodes).`,
+    `10. pricing.lowest_price.sources benötigt echte Händler-URLs inkl. checked_at.`,
     `11. images array: min. 3 verifizierte Einträge sofern SerpAPI passende Quellen liefert.`,
     `12. Notiere Unsicherheiten in notes.unsure.`,
     `13. Nutze nur Informationen aus Vision, Barcodes oder SerpAPI – keine sonstigen Wissensbestände.`,
@@ -469,6 +489,152 @@ function collectProductKeywords(product) {
     .filter(Boolean)
     .map((value) => String(value).trim().toLowerCase())
     .filter((value) => value.length >= 3);
+}
+
+function collectAttributePairs(product) {
+  const attributes = product?.details?.attributes;
+  if (!attributes) return [];
+  if (Array.isArray(attributes)) {
+    return attributes
+      .map((entry) => `${entry?.key}: ${entry?.value}`)
+      .filter((entry) => typeof entry === 'string' && entry.trim().length > 0);
+  }
+  return Object.entries(attributes)
+    .map(([key, value]) => `${key}: ${value}`)
+    .filter((entry) => entry.trim().length > 0);
+}
+
+function containsPackagingReference(text = '') {
+  return /(etikett|karton|verpackung|sichtbar)/i.test(text || '');
+}
+
+function looksLikePlaceholderTitle(text = '') {
+  if (!text) return true;
+  const trimmed = text.trim();
+  if (trimmed.length < 15) return true;
+  if (/^(sku|item|model)?[-\w\s]+$/i.test(trimmed) && !/\s/.test(trimmed.replace(/[A-Za-z]+/g, ''))) {
+    return true;
+  }
+  if (/unbekannt/i.test(trimmed)) return true;
+  return false;
+}
+
+function needsMarketingRewrite(product) {
+  const title = product?.identification?.name || '';
+  const desc = product?.details?.short_description || '';
+  const features = Array.isArray(product?.details?.key_features)
+    ? product.details.key_features.filter(Boolean)
+    : [];
+
+  if (looksLikePlaceholderTitle(title)) return true;
+  if (desc.trim().length < 300 || containsPackagingReference(desc)) return true;
+  if (features.length < 5) return true;
+  if (features.some((item) => containsPackagingReference(item))) return true;
+  return false;
+}
+
+function buildMarketingPrompt(product, locale = 'de-DE') {
+  const brand = product?.identification?.brand || 'unbekannte Marke';
+  const name = product?.identification?.name || '';
+  const category = product?.identification?.category || '';
+  const description = product?.details?.short_description || '';
+  const features = Array.isArray(product?.details?.key_features)
+    ? product.details.key_features.join('; ')
+    : '';
+  const attributes = collectAttributePairs(product);
+
+  const parts = [
+    `Schreibe alle Texte in ${locale} und im Stil eines professionellen Marketplace-Listings.`,
+    `Produktname bisher: ${name || '–'}`,
+    `Marke: ${brand}`,
+    `Kategorie: ${category}`,
+    `Vorhandene Beschreibung: ${description || 'keine'}`,
+    `Features: ${features || 'keine'}`,
+  ];
+
+  if (attributes.length) {
+    parts.push(`Attribute: ${attributes.join(', ')}`);
+  }
+
+  parts.push(
+    `Anforderungen:`,
+    `- Titel max. 70 Zeichen, beginnt mit Marke + Produktkategorie + Nutzen.`,
+    `- Keine Erwähnungen von Verpackung, Etikett oder "sichtbar".`,
+    `- Kurzbeschreibung mind. 3 Absätze à 2 Sätze, beschreibt Einsatzzwecke, Vorteile, Material, Lieferumfang, Montage/Pflege.`,
+    `- Hauptmerkmale: 5-7 Bulletpoints, 6-12 Wörter, nutzenorientiert (keine Wiederholungen, keine Verpackungs-Hinweise).`,
+    `- Ton: verkaufsfördernd, seriös, faktenbasiert.`,
+    `Gib das Ergebnis als JSON mit { "title": "...", "description": "...", "highlights": ["...", ...] } zurück.`
+  );
+
+  return parts.join('\n');
+}
+
+function parseMarketingJson(response) {
+  const text = (response.output_text || '').trim();
+  if (!text) {
+    throw new Error('Marketing rewrite response missing output_text');
+  }
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`Marketing rewrite response invalid JSON: ${error.message}`);
+  }
+  if (!validateMarketingCopy(payload)) {
+    const message =
+      validateMarketingCopy.errors
+        ?.map((err) => `${err.instancePath || 'value'} ${err.message}`)
+        .join('; ') || 'unknown validation error';
+    throw new Error(`Marketing copy failed schema validation: ${message}`);
+  }
+  return payload;
+}
+
+async function ensureMarketingCopy(products = [], locale = 'de-DE') {
+  if (!Array.isArray(products) || !products.length) return;
+  const targetModel = resolveModel(null, 'MARKETING_MODEL', 'gpt-5-mini-2025-08-07');
+  const client = await getOpenAIClient();
+
+  for (const product of products) {
+    if (!needsMarketingRewrite(product)) continue;
+    try {
+      const response = await client.responses.create({
+        model: targetModel,
+        input: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'input_text',
+                text: buildMarketingPrompt(product, locale),
+              },
+            ],
+          },
+        ],
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'MarketingCopy',
+            schema: marketingCopySchema,
+            strict: true,
+          },
+        },
+      });
+      const rewrite = parseMarketingJson(response);
+      product.identification = {
+        ...product.identification,
+        name: rewrite.title.trim(),
+      };
+      product.details = product.details || {};
+      product.details.short_description = rewrite.description.trim();
+      product.details.key_features = rewrite.highlights.map((item) => item.trim());
+    } catch (error) {
+      console.warn(
+        `Marketing rewrite failed for ${product?.id || product?.identification?.name || 'unknown product'}:`,
+        error.message
+      );
+    }
+  }
 }
 
 function queryMatchesProduct(query, product, keywords = null) {
@@ -676,6 +842,7 @@ async function runProductIdentification({ files = [], barcodes = '', locale = 'd
       const bundle = parseModelJson(response);
       ensureSchema(bundle);
       normalizeBundle(bundle);
+      await ensureMarketingCopy(bundle.products, locale);
       applyEbayTaxonomy(bundle);
       await enrichWithGptImages(bundle.products, hostedImages);
       ensurePriceCoverage(bundle.products, serpTrace);
