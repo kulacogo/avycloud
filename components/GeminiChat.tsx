@@ -196,7 +196,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   return (
     <aside
       id="assistant-chat"
-      className="flex flex-col h-full min-h-[420px] bg-slate-900/70 border-l border-slate-800"
+      className="flex flex-col h-full max-h-full min-h-[420px] bg-slate-900/70 border-l border-slate-800 rounded-xl"
     >
       <header className="flex items-center justify-between px-3 py-2 border-b border-slate-800 text-xs uppercase tracking-wide text-slate-400">
         <div className="flex items-center gap-2 text-slate-200">
@@ -222,151 +222,155 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-3 py-3">
-          <div id="chat-log" className="space-y-3 text-sm">
-            {messages.map((msg, index) => (
-            <div
-              key={index}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+      <div className="flex-1 min-h-0 px-3 py-3">
+        <div className="flex h-full flex-col gap-3">
+          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+            <div id="chat-log" className="space-y-3 text-sm">
+              {messages.map((msg, index) => (
                 <div
-                className={`max-w-[82%] px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${
-                    msg.role === 'user'
-                      ? 'bg-sky-600/80 text-white'
-                      : 'bg-slate-800/80 text-slate-200 border border-slate-800/80'
-                  }`}
+                  key={index}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  {renderContent(msg.text)}
+                  <div
+                    className={`max-w-[82%] px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${
+                      msg.role === 'user'
+                        ? 'bg-sky-600/80 text-white'
+                        : 'bg-slate-800/80 text-slate-200 border border-slate-800/80'
+                    }`}
+                  >
+                    {renderContent(msg.text)}
+                  </div>
                 </div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="max-w-[65%] px-3 py-2 rounded-2xl bg-slate-800/80 text-slate-200 flex items-center gap-2 text-sm">
-                  <Spinner className="w-4 h-4" />
-                  Denke nach …
+              ))}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="max-w-[65%] px-3 py-2 rounded-2xl bg-slate-800/80 text-slate-200 flex items-center gap-2 text-sm">
+                    <Spinner className="w-4 h-4" />
+                    Denke nach …
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-        {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
-          <div className="mt-4 space-y-4 border-t border-slate-800 pt-3">
-            {pendingChanges.length > 0 && (
-              <section>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
-                    Vorgeschlagene Änderungen
-                  </h4>
-                  <span className="text-[11px] text-slate-500">
-                    {pendingChanges.length} Vorschlag{pendingChanges.length > 1 ? 'e' : ''}
-                  </span>
-                </div>
-                <ul className="space-y-2">
-                    {pendingChanges.map(item => (
-                  <li key={item.id} className="p-3 bg-slate-800/70 border border-slate-800 rounded-lg text-xs text-slate-200">
-                        <p className="font-semibold text-sm mb-1">{item.change.summary || 'Änderung aus dem Chat'}</p>
-                        <button
-                          onClick={() => applyChange(item.id)}
-                      className="mt-2 px-3 py-1 text-[11px] bg-sky-600 text-white rounded-full hover:bg-sky-500"
+            {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
+              <div className="space-y-4 border-t border-slate-800 pt-3">
+                {pendingChanges.length > 0 && (
+                  <section>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+                        Vorgeschlagene Änderungen
+                      </h4>
+                      <span className="text-[11px] text-slate-500">
+                        {pendingChanges.length} Vorschlag{pendingChanges.length > 1 ? 'e' : ''}
+                      </span>
+                    </div>
+                    <ul className="space-y-2">
+                      {pendingChanges.map((item) => (
+                        <li key={item.id} className="p-3 bg-slate-800/70 border border-slate-800 rounded-lg text-xs text-slate-200">
+                          <p className="font-semibold text-sm mb-1">{item.change.summary || 'Änderung aus dem Chat'}</p>
+                          <button
+                            onClick={() => applyChange(item.id)}
+                            className="mt-2 px-3 py-1 text-[11px] bg-sky-600 text-white rounded-full hover:bg-sky-500"
+                          >
+                            Anwenden
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {pendingImages.length > 0 && (
+                  <section>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+                        Bild-Vorschläge
+                      </h4>
+                      <span className="text-[11px] text-slate-500">
+                        {pendingImages.length} neu
+                      </span>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-1">
+                      {pendingImages.map((item) => (
+                        <div
+                          key={item.id}
+                          className="min-w-[140px] max-w-[140px] bg-slate-800/70 border border-slate-800 rounded-lg p-2 text-[11px] text-slate-200 flex flex-col gap-2"
                         >
-                          Anwenden
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-              </section>
-            )}
-
-            {pendingImages.length > 0 && (
-              <section>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
-                    Bild-Vorschläge
-                  </h4>
-                  <span className="text-[11px] text-slate-500">
-                    {pendingImages.length} neu
-                  </span>
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-1">
-                    {pendingImages.map(item => (
-                <div
-                  key={item.id}
-                  className="min-w-[140px] max-w-[140px] bg-slate-800/70 border border-slate-800 rounded-lg p-2 text-[11px] text-slate-200 flex flex-col gap-2"
-                >
-                        <img
-                          src={resolveImageSrc(item.image.url_or_base64)}
-                          alt="Vorschlag"
-                      className="w-full h-24 object-cover rounded"
-                          referrerPolicy="no-referrer"
-                          loading="lazy"
-                          decoding="async"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/200x200?text=Bild';
-                          }}
-                        />
-                  {item.image.source && (
-                    <p className="text-[10px] uppercase tracking-wide text-slate-400">
-                      {item.image.source}
-                    </p>
-                  )}
-                  {item.rationale && (
-                    <p className="text-[10px] text-slate-400 line-clamp-2">
-                      {item.rationale}
-                    </p>
-                  )}
-                        <button
-                          onClick={() => applyImage(item.id)}
-                    className="px-2 py-1 text-[11px] bg-sky-600 text-white rounded-full hover:bg-sky-500 w-full"
-                        >
-                          Hinzufügen
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </section>
-            )}
-
-            {serpInsights.length > 0 && (
-              <section>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
-                    SerpAPI Nachweise
-                  </h4>
-                  <span className="text-[11px] text-slate-500">{serpInsights.length}</span>
-                </div>
-                <ul className="space-y-2 text-[11px] text-slate-300">
-                    {serpInsights.map((entry, idx) => (
-                  <li key={`${entry.engine}-${idx}`} className="p-2 bg-slate-800/70 border border-slate-800 rounded">
-                      <div className="flex items-center justify-between text-slate-100 text-[12px]">
-                          <p className="font-semibold">{entry.engine}</p>
-                          <p className="text-slate-500">{entry.query}</p>
+                          <img
+                            src={resolveImageSrc(item.image.url_or_base64)}
+                            alt="Vorschlag"
+                            className="w-full h-24 object-cover rounded"
+                            referrerPolicy="no-referrer"
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/200x200?text=Bild';
+                            }}
+                          />
+                          {item.image.source && (
+                            <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                              {item.image.source}
+                            </p>
+                          )}
+                          {item.rationale && (
+                            <p className="text-[10px] text-slate-400 line-clamp-2">
+                              {item.rationale}
+                            </p>
+                          )}
+                          <button
+                            onClick={() => applyImage(item.id)}
+                            className="px-2 py-1 text-[11px] bg-sky-600 text-white rounded-full hover:bg-sky-500 w-full"
+                          >
+                            Hinzufügen
+                          </button>
                         </div>
-                        {entry.error && <p className="text-red-400 mt-1">{entry.error}</p>}
-                        {!entry.error &&
-                          entry.summary?.slice(0, 2).map((item, i) => (
-                            <div key={i} className="mt-1">
-                              <a
-                                href={item.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-sky-400 underline"
-                              >
-                                {item.title || item.url}
-                              </a>
-                              {item.price && <span className="ml-1 text-slate-300">{String(item.price)}</span>}
-                              {item.source && <span className="ml-1 text-slate-400">({item.source})</span>}
-                            </div>
-                          ))}
-                      </li>
-                    ))}
-                  </ul>
-              </section>
-            )}
-          </div>
-        )}
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-        <div ref={bottomAnchorRef} className="h-1" />
+                {serpInsights.length > 0 && (
+                  <section>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+                        SerpAPI Nachweise
+                      </h4>
+                      <span className="text-[11px] text-slate-500">{serpInsights.length}</span>
+                    </div>
+                    <ul className="space-y-2 text-[11px] text-slate-300">
+                      {serpInsights.map((entry, idx) => (
+                        <li key={`${entry.engine}-${idx}`} className="p-2 bg-slate-800/70 border border-slate-800 rounded">
+                          <div className="flex items-center justify-between text-slate-100 text-[12px]">
+                            <p className="font-semibold">{entry.engine}</p>
+                            <p className="text-slate-500">{entry.query}</p>
+                          </div>
+                          {entry.error && <p className="text-red-400 mt-1">{entry.error}</p>}
+                          {!entry.error &&
+                            entry.summary?.slice(0, 2).map((item, i) => (
+                              <div key={i} className="mt-1">
+                                <a
+                                  href={item.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-sky-400 underline"
+                                >
+                                  {item.title || item.url}
+                                </a>
+                                {item.price && <span className="ml-1 text-slate-300">{String(item.price)}</span>}
+                                {item.source && <span className="ml-1 text-slate-400">({item.source})</span>}
+                              </div>
+                            ))}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
+            )}
+
+            <div ref={bottomAnchorRef} className="h-1" />
+          </div>
+        </div>
       </div>
 
       <div className="border-t border-slate-800 px-3 py-3 space-y-2">

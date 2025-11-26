@@ -95,3 +95,13 @@ export const DashboardIcon = (props: React.SVGProps<SVGSVGElement>) => (
     />
   </Icon>
 );
+
+export const OperationsIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M12 8.25a3.75 3.75 0 103.75 3.75A3.75 3.75 0 0012 8.25zm0-5.25v2.25m0 13.5V21m7.5-9h2.25M2.25 12H4.5m13.182-5.318l1.59-1.59M4.728 19.272l1.59-1.59m0-10.364l-1.59-1.59m13.544 13.544l-1.59-1.59"
+    />
+  </Icon>
+);

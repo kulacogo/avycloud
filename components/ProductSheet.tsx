@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Product, DatasheetChange, ProductImage } from '../types';
+import { Product, DatasheetChange, ProductImage, WarehouseBin } from '../types';
 import {
   saveProduct,
   syncToBaseLinker,
@@ -39,9 +39,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [binQuantity, setBinQuantity] = useState<number>(product.inventory?.quantity || 1);
   const [isAssigningBin, setIsAssigningBin] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState('');
-  const [productBins, setProductBins] = useState<
-    Array<{ code: string; quantity: number; zone: string; etage: string; gang: number; regal: number; ebene: string }>
-  >([]);
+  const [productBins, setProductBins] = useState<WarehouseBin[]>([]);
   const [binsLoading, setBinsLoading] = useState(false);
   const [binsError, setBinsError] = useState<string | null>(null);
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
@@ -620,7 +618,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     <div className="text-xs text-slate-400">
                       Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
                     </div>
-                    <div className="text-xs text-slate-300">Menge {bin.quantity}</div>
+                    <div className="text-xs text-slate-300">Menge {bin.productCount ?? 0}</div>
                   </div>
                 </div>
               ))}
@@ -681,12 +679,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </div>
       </div>
 
-      <aside id="gemini-chat" className="lg:col-span-1 lg:sticky lg:top-24 h-fit">
-        <AssistantChat
-          product={localProduct}
-          onApplyDatasheetChange={applyAssistantChange}
-          onAddImages={applyAssistantImages}
-        />
+      <aside id="gemini-chat" className="lg:col-span-1 lg:sticky lg:top-24">
+        <div className="h-[60vh] min-h-[420px] lg:h-[70vh] lg:max-h-[80vh]">
+          <AssistantChat
+            product={localProduct}
+            onApplyDatasheetChange={applyAssistantChange}
+            onAddImages={applyAssistantImages}
+          />
+        </div>
       </aside>
     </section>
   );

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useI18n } from '../i18n';
-import { RefreshIcon } from './icons/Icons';
+import { RefreshIcon, OperationsIcon } from './icons/Icons';
 
 interface HeaderProps {
   currentView: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
@@ -15,21 +15,6 @@ const LOGOS = {
   dark: '/avystock_brand_logo_darkmode.png',
 } as const;
 const MOBILE_LOGO = '/app-icon-512.png';
-
-const OperationsGlyph = (
-  <svg width="24" height="24" viewBox="0 0 24 24" className="w-6 h-6" aria-hidden="true">
-    <path
-      d="M4 5.5h5M4 11.5h9M4 17.5h13"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={1.8}
-    />
-    <circle cx="17" cy="5.5" r="1.5" fill="currentColor" />
-    <circle cx="13" cy="11.5" r="1.5" fill="currentColor" />
-    <circle cx="9" cy="17.5" r="1.5" fill="currentColor" />
-  </svg>
-);
 
 type NavIconConfig = {
   view: HeaderProps['currentView'];
@@ -67,7 +52,7 @@ const NAV_ICONS: NavIconConfig[] = [
   {
     view: 'operations' as const,
     label: 'nav.operations',
-    iconNode: OperationsGlyph,
+    iconNode: <OperationsIcon className="w-5 h-5" />,
   },
 ] as const;
 
@@ -203,11 +188,11 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={handleHardRefresh}
-                className="rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
+                className="inline-flex w-10 h-10 items-center justify-center rounded-xl bg-slate-800/70 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
                 aria-label={t('actions.refresh')}
                 title={t('actions.refresh')}
               >
-                <RefreshIcon className="w-6 h-6" />
+                <RefreshIcon className="w-5 h-5" />
               </button>
               <select
                 value={locale}
@@ -251,11 +236,11 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
             <button
               type="button"
               onClick={handleHardRefresh}
-              className="sm:hidden rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
+              className="sm:hidden inline-flex w-10 h-10 items-center justify-center rounded-xl bg-slate-800/70 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
               aria-label={t('actions.refresh')}
               title={t('actions.refresh')}
             >
-              <RefreshIcon className="w-6 h-6 text-slate-100" />
+              <RefreshIcon className="w-5 h-5" />
             </button>
           </div>
         </div>
