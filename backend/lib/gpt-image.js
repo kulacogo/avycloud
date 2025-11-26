@@ -12,14 +12,24 @@ const IMAGE_GENERATION_PARAMS = {
 
 const VARIANT_PROMPTS = [
   {
-    variant: 'studio',
+    variant: 'studio_hero',
     basePrompt:
-      'High-end studio product photo of the same item from the reference image. 3/4 angle, soft gradient background, premium lighting, no props, no text.',
+      'Premium studio hero shot of the same product as the reference. 3/4 front angle, seamless light grey backdrop, floating reflection on the floor, no props, no people, cinematic rim lighting.',
   },
   {
-    variant: 'lifestyle',
+    variant: 'studio_detail',
     basePrompt:
-      'Realistic lifestyle scene featuring the same item from the reference image, used by a person in a modern home setting. Natural daylight, wooden floor, photorealistic textures, clean shadows.',
+      'Macro studio close-up of the reference product that highlights materials, controls and branding. Shot on neutral matte background, gentle spotlight, razor-sharp focus, absolutely no hands or accessories.',
+  },
+  {
+    variant: 'lifestyle_commute',
+    basePrompt:
+      'Outdoor lifestyle scene showing the referenced product in real-world commuter use. Gender-neutral young adult rider in motion on an urban street or plaza, soft morning light, product fully visible, background slightly defocused.',
+  },
+  {
+    variant: 'lifestyle_closeup',
+    basePrompt:
+      'Lifestyle scene that frames the referenced product parked next to a bench or café table in a park. No faces in focus, hands optional, product fills most of the frame, warm daylight and natural shadows.',
   },
 ];
 

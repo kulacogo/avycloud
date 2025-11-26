@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Product, DatasheetChange, ProductImage, WarehouseBin } from '../types';
 import {
   saveProduct,
@@ -68,7 +68,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsDirty(!product.ops?.last_saved_iso);
     setAutoGenDone(false);
     setBinCodeInput(product.storage?.binCode || '');
-    setBinQuantity(product.inventory?.quantity || 1);
+    setBinQuantity(product.storage?.quantity || product.inventory?.quantity || 1);
     setNewImageUrl('');
     setRegeneratingIndex(null);
     loadProductBins(product.id);
@@ -353,19 +353,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       onUpdate(updatedProduct);
       showNotification('success', 'New images generated!');
     } else {
-      // Fallback: show placeholder images so UI bleibt funktionsfähig
-      const placeholders = [
-        `https://placehold.co/600x600?text=${encodeURIComponent(localProduct.identification.name)}`,
-        `https://placehold.co/600x600/334155/FFFFFF?text=${encodeURIComponent(localProduct.identification.brand || 'AI Image')}`
-      ].map((url, idx) => ({
-        source: 'generated' as const,
-        variant: (idx === 0 ? 'front' : 'angle') as any,
-        url_or_base64: url,
-        notes: 'Placeholder (image-gen not available)'
-      }));
-      const updatedProduct = { ...localProduct, details: { ...localProduct.details, images: [...localProduct.details.images, ...placeholders] } };
-      onUpdate(updatedProduct);
-      showNotification('error', result.error?.message || 'Image generation not available. Added placeholders.');
+      showNotification('error', result.error?.message || 'Image generation not available.');
     }
     setIsGenerating(false);
   };
@@ -383,6 +371,19 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     });
     setIsDirty(true);
   };
+
+  const binHeaderBadge = useMemo(() => {
+    if (productBins.length) {
+      const totalQuantity = productBins.reduce((sum, bin) => sum + (bin.productCount ?? 0), 0);
+      const firstCode = productBins[0]?.code;
+      const extra = productBins.length > 1 ? ` +${productBins.length - 1}` : '';
+      return `BIN ${firstCode}${extra} · Menge ${totalQuantity}`;
+    }
+    if (localProduct.storage?.binCode) {
+      return `BIN ${localProduct.storage.binCode} · Menge ${localProduct.storage.quantity || 1}`;
+    }
+    return null;
+  }, [productBins, localProduct.storage]);
 
   return (
     <section id="product-sheet" className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-screen-2xl mx-auto relative px-2 sm:px-0">
@@ -435,11 +436,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <PrintIcon />
                   <span className="ml-1">Label</span>
                 </button>
-                {localProduct.storage?.binCode && (
-                  <span className="text-emerald-300">
-                    BIN {localProduct.storage.binCode} · Menge {localProduct.storage.quantity}
-                  </span>
-                )}
+                {binHeaderBadge && <span className="text-emerald-300">{binHeaderBadge}</span>}
               </div>
               <p id="p-barcodes" className="text-xs text-slate-500 mt-1">
                 Barcodes: {localProduct.identification.barcodes?.join(', ') || 'N/A'}
@@ -537,11 +534,27 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </div>
           <section id="highlights" className="md:col-span-3 p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
             <h3 className="text-lg font-semibold mb-2 text-white">Highlights</h3>
-            <ul className="space-y-2 list-disc list-inside text-slate-300 text-sm">
-              {localProduct.details.key_features.map((feature, index) => (
-                <li key={index}>{feature}</li>
-              ))}
-            </ul>
+            {isEditing ? (
+              <textarea
+                defaultValue={(localProduct.details.key_features || []).join('\n')}
+                onBlur={(e) => {
+                  const lines = e.target.value.split('\n').map((line) => line.trim()).filter(Boolean);
+                  setLocalProduct((prev) => ({
+                    ...prev,
+                    details: { ...prev.details, key_features: lines },
+                  }));
+                  setIsDirty(true);
+                }}
+                placeholder="Eine Stärke pro Zeile"
+                className="w-full min-h-[110px] bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-200"
+              />
+            ) : (
+              <ul className="space-y-2 list-disc list-inside text-slate-300 text-sm">
+                {localProduct.details.key_features.map((feature, index) => (
+                  <li key={index}>{feature}</li>
+                ))}
+              </ul>
+            )}
           </section>
         </div>
 
@@ -560,27 +573,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
         <section id="attributes" className="p-6 bg-slate-800 rounded-lg shadow-lg">
           <h3 className="text-xl font-semibold mb-4 text-white">Attributes</h3>
-          {/* Key Features editor */}
-          <div className="mb-6">
-            <h4 className="text-slate-300 font-semibold mb-2">Key Features</h4>
-            {isEditing ? (
-              <textarea
-                defaultValue={(localProduct.details.key_features || []).join('\n')}
-                onBlur={(e) => {
-                  const lines = e.target.value.split('\n').map(l => l.trim()).filter(Boolean);
-                  setLocalProduct(prev => ({ ...prev, details: { ...prev.details, key_features: lines } }));
-                  setIsDirty(true);
-                }}
-                placeholder="Eine Eigenschaft pro Zeile"
-                className="w-full min-h-[100px] bg-slate-700 border border-slate-600 rounded-lg p-3 text-slate-200"
-              />
-            ) : (
-              <ul className="list-disc list-inside text-slate-300">
-                {localProduct.details.key_features.map((f, i) => <li key={i}>{f}</li>)}
-              </ul>
-            )}
-          </div>
-
           <AttributeTable
             attributes={localProduct.details.attributes}
             isEditing={isEditing}

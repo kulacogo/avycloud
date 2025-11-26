@@ -11,6 +11,9 @@ interface PricingInfoProps {
 
 const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, onChange }) => {
   const { lowest_price, price_confidence } = pricing;
+  const validSources = (lowest_price.sources || []).filter(
+    (source) => source && typeof source.url === 'string' && /^https?:\/\//i.test(source.url)
+  );
   const setAmount = (val: string) => onChange && onChange({ ...pricing, lowest_price: { ...lowest_price, amount: parseFloat(val) || 0 } });
   const setCurrency = (val: string) => onChange && onChange({ ...pricing, lowest_price: { ...lowest_price, currency: val, amount: lowest_price.amount, sources: lowest_price.sources, last_checked_iso: lowest_price.last_checked_iso } });
   const setConfidence = (val: string) => onChange && onChange({ ...pricing, price_confidence: Math.max(0, Math.min(1, parseFloat(val) || 0)) });
@@ -41,11 +44,11 @@ const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, o
         )}
       </div>
 
-      {lowest_price.sources && lowest_price.sources.length > 0 && (
+      {validSources.length > 0 && (
         <div className="mt-4">
           <h4 className="font-semibold text-slate-300 mb-2">Sources:</h4>
           <ul id="price-sources" className="space-y-2">
-            {lowest_price.sources.map((source, index) => (
+            {validSources.map((source, index) => (
               <li key={index} className="flex items-center justify-between p-2 bg-slate-700/50 rounded-md">
                 <div className="flex items-center">
                   <LinkIcon className="w-4 h-4 text-slate-500 mr-2" />
