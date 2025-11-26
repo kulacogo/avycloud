@@ -1,5 +1,5 @@
 const { getProduct, saveProduct } = require('../lib/firestore');
-const { runProductIdentification } = require('./enrichment');
+const { runProductIdentification, runDatasheetReview } = require('./enrichment');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
@@ -457,6 +457,7 @@ async function improveExistingProduct(productId) {
   }
 
   const mergedProduct = mergeProductRecords(product, improvedOutput);
+  await runDatasheetReview([mergedProduct], { locale: product.locale || 'de-DE' });
   await saveProduct(mergedProduct);
   return mergedProduct;
 }

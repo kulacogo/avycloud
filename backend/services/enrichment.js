@@ -581,6 +581,143 @@ function sanitizeAttributesMap(attributes = {}) {
   return cleaned;
 }
 
+const DATASHEET_REVIEW_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['title', 'short_description', 'highlights', 'attributes', 'warnings'],
+  properties: {
+    title: { type: 'string', minLength: 15, maxLength: 90 },
+    short_description: { type: 'string', minLength: 180, maxLength: 2000 },
+    highlights: {
+      type: 'array',
+      minItems: 5,
+      maxItems: 7,
+      items: { type: 'string', minLength: 10, maxLength: 160 },
+    },
+    attributes: {
+      type: 'array',
+      minItems: 5,
+      maxItems: 40,
+      items: {
+        type: 'object',
+        required: ['key', 'value'],
+        additionalProperties: false,
+        properties: {
+          key: { type: 'string', minLength: 2, maxLength: 60 },
+          value: { type: 'string', minLength: 2, maxLength: 140 },
+        },
+      },
+    },
+    warnings: {
+      type: 'array',
+      maxItems: 10,
+      items: { type: 'string', minLength: 6, maxLength: 160 },
+    },
+  },
+};
+
+function buildReviewPrompt(product, locale) {
+  const snapshot = {
+    id: product?.id,
+    brand: product?.identification?.brand,
+    title: product?.identification?.name,
+    category: product?.identification?.category,
+    description: product?.details?.short_description,
+    highlights: product?.details?.key_features,
+    attributes: product?.details?.attributes,
+    ebayCategoryId: product?.details?.ebayCategoryId,
+  };
+
+  return [
+    'Du bist ein Marketplace-Quality-Inspector für eBay und Amazon. Deine Aufgabe: prüfe das vorliegende Produktdatenblatt und liefere eine korrigierte, maximal verkaufsstarke Version.',
+    'Richtlinien:',
+    '- Titel <= 70 Zeichen, beginnt mit Marke + Produktart + wichtigster Vorteil.',
+    '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Enthält Nutzen, Ausstattung, Materialien, Lieferumfang, Service/Hinweise. Keine Aufzählungen.',
+    '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, nur Nutzen/USPs, keine Verpackungshinweise, keine Dubletten.',
+    '- Attribute: strukturierte Key-Value-Paare, keine ausschweifenden Sätze. Entferne Wiederholungen, korrigiere Schreibweisen (z. B. „Farbe“ statt „Farbton“).',
+    '- Entferne widersprüchliche oder doppelte Aussagen. Markiere offene Punkte in warnings.',
+    `- Sprache: ${locale}.`,
+    'Rückgabe ausschließlich gemäß JSON Schema.',
+    'Vorliegender Datensatz:',
+    JSON.stringify(snapshot, null, 2),
+  ].join('\n\n');
+}
+
+function applyReviewResult(product, review) {
+  if (!product || !review) return;
+  product.identification = product.identification || {};
+  product.details = product.details || {};
+  if (typeof review.title === 'string' && review.title.trim().length >= 10) {
+    product.identification.name = review.title.trim();
+  }
+  if (typeof review.short_description === 'string' && review.short_description.trim().length > 0) {
+    product.details.short_description = review.short_description.trim();
+  }
+  if (Array.isArray(review.highlights) && review.highlights.length) {
+    product.details.key_features = sanitizeKeyFeatures(review.highlights);
+  }
+  if (Array.isArray(review.attributes) && review.attributes.length) {
+    const attrs = {};
+    review.attributes.forEach((entry) => {
+      const key = entry?.key?.trim();
+      const value = entry?.value?.trim();
+      if (key && value) {
+        attrs[key] = value;
+      }
+    });
+    product.details.attributes = sanitizeAttributesMap(attrs);
+  }
+  if (Array.isArray(review.warnings) && review.warnings.length) {
+    const cleaned = Array.from(
+      new Set(review.warnings.map((warn) => warn.replace(/\s+/g, ' ').trim()).filter(Boolean))
+    );
+    if (cleaned.length) {
+      product.notes = product.notes || {};
+      product.notes.warnings = Array.from(
+        new Set([...(product.notes.warnings || []), ...cleaned])
+      );
+    }
+  }
+}
+
+async function runDatasheetReview(products = [], { locale = 'de-DE' } = {}) {
+  if (!Array.isArray(products) || !products.length) return;
+  const client = await getOpenAIClient();
+  const reviewModel = resolveModel(null, 'REVIEW_MODEL', 'gpt-5.1');
+  for (const product of products) {
+    if (!product) continue;
+    try {
+      const response = await client.responses.create({
+        model: reviewModel,
+        input: [
+          {
+            role: 'user',
+            content: [{ type: 'input_text', text: buildReviewPrompt(product, locale) }],
+          },
+        ],
+        reasoning: { effort: 'medium' },
+        text: {
+          verbosity: 'high',
+          format: {
+            type: 'json_schema',
+            name: 'DatasheetQualityReview',
+            description: 'Marketingfertige Produktdatenblätter',
+            schema: DATASHEET_REVIEW_SCHEMA,
+            strict: true,
+          },
+        },
+      });
+      const review = parseModelJson(response);
+      applyReviewResult(product, review);
+    } catch (error) {
+      console.warn(
+        `Datasheet review failed for product ${product?.id || 'unknown'}:`,
+        error?.message || error
+      );
+    }
+  }
+}
+
 function containsPackagingReference(text = '') {
   return /(etikett|karton|verpackung|sichtbar)/i.test(text || '');
 }
@@ -933,6 +1070,7 @@ async function runProductIdentification({
       applyEbayTaxonomy(bundle);
       await enrichWithGptImages(bundle.products, hostedImages);
       ensurePriceCoverage(bundle.products, serpTrace);
+      await runDatasheetReview(bundle.products, { locale });
       assertSerpUsage(serpTrace);
       return {
         bundle,
@@ -977,6 +1115,7 @@ async function runProductIdentification({
 
 module.exports = {
   runProductIdentification,
+  runDatasheetReview,
   BARCODE_LIMIT_ERROR,
   IMAGE_PAYLOAD_ERROR,
   MAX_BARCODE_COUNT,

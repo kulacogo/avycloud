@@ -3,7 +3,7 @@ const { resolveModel } = require('./model-select');
 const { uploadGeneratedProductImage } = require('./storage');
 
 const IMAGE_HOST_MODEL = process.env.IMAGE_HOST_MODEL || 'gpt-image-1';
-const IMAGE_PROMPT_MODEL = process.env.IMAGE_PROMPT_MODEL || 'gpt-4.1-mini';
+const IMAGE_PROMPT_MODEL = process.env.IMAGE_PROMPT_MODEL || 'gpt-5-mini-2025-08-07';
 const IMAGE_GENERATION_PARAMS = {
   size: process.env.GPT_IMAGE_SIZE || '1024x1024',
   quality: process.env.GPT_IMAGE_QUALITY || 'high',
@@ -83,20 +83,14 @@ function collectProductImageReferences(product) {
     .slice(0, 2)
     .map((url) => ({
       type: 'input_image',
-      image_url: {
-        url,
-        detail: 'high',
-      },
+      image_url: url,
     }));
 }
 
 function getReferenceImages(hostedImages = []) {
   return hostedImages.slice(0, 2).map((img) => ({
     type: 'input_image',
-    image_url: {
-      url: img.url,
-      detail: 'high',
-    },
+    image_url: img.url,
   }));
 }
 
@@ -105,10 +99,7 @@ function buildReferenceContentFromUrl(url) {
   return [
     {
       type: 'input_image',
-      image_url: {
-        url,
-        detail: 'high',
-      },
+      image_url: url,
     },
   ];
 }
@@ -162,9 +153,10 @@ async function generateVariantImage({
       tools: [
         {
           type: 'image_generation',
-          image_generation: {
-            ...IMAGE_GENERATION_PARAMS,
-          },
+          quality:
+            IMAGE_GENERATION_PARAMS.quality === 'auto' ? undefined : IMAGE_GENERATION_PARAMS.quality,
+          background:
+            IMAGE_GENERATION_PARAMS.background === 'auto' ? undefined : IMAGE_GENERATION_PARAMS.background,
         },
       ],
     });
@@ -198,9 +190,9 @@ async function generateVariantImage({
       background:
         IMAGE_GENERATION_PARAMS.background === 'auto' ? undefined : IMAGE_GENERATION_PARAMS.background,
       n: 1,
-      response_format: 'b64_json',
     });
-    const base64Payload = fallback?.data?.[0]?.b64_json || null;
+    const imageData = fallback?.data?.[0] || {};
+    const base64Payload = imageData.b64_json || imageData.base64 || null;
     if (base64Payload) {
       return await uploadGeneratedResult(base64Payload, product.id, variant);
     }
