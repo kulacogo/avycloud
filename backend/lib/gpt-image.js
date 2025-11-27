@@ -10,7 +10,7 @@ const IMAGE_GENERATION_PARAMS = {
   background: process.env.GPT_IMAGE_BACKGROUND || 'auto',
 };
 const MAX_VARIANT_ATTEMPTS = parseInt(process.env.GPT_IMAGE_VARIANT_ATTEMPTS || '2', 10);
-const VARIANT_DELAY_MS = parseInt(process.env.GPT_IMAGE_VARIANT_DELAY_MS || '35000', 10);
+const VARIANT_DELAY_MS = parseInt(process.env.GPT_IMAGE_VARIANT_DELAY_MS || '3100', 10);
 
 const VARIANT_PROMPTS = [
   {
