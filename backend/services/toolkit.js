@@ -1,5 +1,69 @@
 const { callSerpApi, summarizeSerpEntries, ALLOWED_ENGINES } = require('../lib/serpapi');
 
+const AMAZON_DOMAIN_BY_HINT = {
+  de: 'amazon.de',
+  'de-de': 'amazon.de',
+  at: 'amazon.de',
+  ch: 'amazon.de',
+  'de-at': 'amazon.de',
+  'de-ch': 'amazon.de',
+  'en-de': 'amazon.de',
+  'en-us': 'amazon.com',
+  us: 'amazon.com',
+  'en-ca': 'amazon.ca',
+  ca: 'amazon.ca',
+  'fr-fr': 'amazon.fr',
+  fr: 'amazon.fr',
+  'it-it': 'amazon.it',
+  it: 'amazon.it',
+  'es-es': 'amazon.es',
+  es: 'amazon.es',
+  'nl-nl': 'amazon.nl',
+  nl: 'amazon.nl',
+  'pl-pl': 'amazon.pl',
+  pl: 'amazon.pl',
+  'se-se': 'amazon.se',
+  se: 'amazon.se',
+  'en-gb': 'amazon.co.uk',
+  gb: 'amazon.co.uk',
+  uk: 'amazon.co.uk',
+  'en-au': 'amazon.com.au',
+  au: 'amazon.com.au',
+  'ja-jp': 'amazon.co.jp',
+  jp: 'amazon.co.jp',
+  'zh-cn': 'amazon.cn',
+  cn: 'amazon.cn',
+  'in': 'amazon.in',
+  'en-in': 'amazon.in',
+};
+
+const AMAZON_LOCATION_KEYWORDS = [
+  { keyword: 'germany', domain: 'amazon.de' },
+  { keyword: 'deutsch', domain: 'amazon.de' },
+  { keyword: 'austria', domain: 'amazon.de' },
+  { keyword: 'österreich', domain: 'amazon.de' },
+  { keyword: 'switzerland', domain: 'amazon.de' },
+  { keyword: 'schweiz', domain: 'amazon.de' },
+  { keyword: 'france', domain: 'amazon.fr' },
+  { keyword: 'français', domain: 'amazon.fr' },
+  { keyword: 'italy', domain: 'amazon.it' },
+  { keyword: 'spain', domain: 'amazon.es' },
+  { keyword: 'united kingdom', domain: 'amazon.co.uk' },
+  { keyword: 'england', domain: 'amazon.co.uk' },
+  { keyword: 'uk', domain: 'amazon.co.uk' },
+  { keyword: 'canada', domain: 'amazon.ca' },
+  { keyword: 'australia', domain: 'amazon.com.au' },
+  { keyword: 'japan', domain: 'amazon.co.jp' },
+  { keyword: 'india', domain: 'amazon.in' },
+  { keyword: 'usa', domain: 'amazon.com' },
+  { keyword: 'united states', domain: 'amazon.com' },
+];
+
+const DEFAULT_AMAZON_DOMAIN =
+  process.env.SERPAPI_DEFAULT_AMAZON_DOMAIN ||
+  process.env.SERPAPI_AMAZON_DOMAIN ||
+  'amazon.de';
+
 const serpapiToolDefinition = {
   type: 'function',
   name: 'serpapi_web_search',
@@ -76,6 +140,7 @@ const serpapiToolDefinition = {
       uule: { type: ['string', 'null'], description: 'Google UULE kodierter Standort.' },
       google_domain: { type: ['string', 'null'], description: 'Google-Domain (google.de etc.).' },
       domain: { type: ['string', 'null'], description: 'Shop/Engine Domain (amazon.de, ebay.de).' },
+      locale: { type: ['string', 'null'], description: 'Locales im Format de-DE, en-US usw.' },
       sort_by: { type: ['string', 'null'], description: 'Sortierung (z.B. price_asc, price_desc).' },
       filters: {
         type: ['string', 'null'],
@@ -98,6 +163,56 @@ function clamp(value, min, max) {
   const num = Number(value);
   if (!Number.isFinite(num)) return undefined;
   return Math.min(Math.max(min, Math.floor(num)), max);
+}
+
+function normalizeHint(value) {
+  if (!value) return '';
+  return value.toString().trim().toLowerCase().replace('_', '-');
+}
+
+function matchAmazonDomainFromHint(hint) {
+  if (!hint) return null;
+  const normalized = normalizeHint(hint);
+  if (!normalized) return null;
+  if (AMAZON_DOMAIN_BY_HINT[normalized]) {
+    return AMAZON_DOMAIN_BY_HINT[normalized];
+  }
+  const short = normalized.split('-')[0];
+  if (AMAZON_DOMAIN_BY_HINT[short]) {
+    return AMAZON_DOMAIN_BY_HINT[short];
+  }
+  return null;
+}
+
+function inferAmazonDomain(args = {}) {
+  const hints = [
+    args.domain,
+    args.amazon_domain,
+    args.locale,
+    args.gl,
+    args.hl,
+    args.language,
+    args.lang,
+  ];
+
+  for (const hint of hints) {
+    const domain = matchAmazonDomainFromHint(hint);
+    if (domain) return domain;
+  }
+
+  const location = normalizeHint(args.location || '');
+  if (location) {
+    const match = AMAZON_LOCATION_KEYWORDS.find(({ keyword }) => location.includes(keyword));
+    if (match) return match.domain;
+  }
+
+  const query = args.query ? args.query.toString().toLowerCase() : '';
+  const queryDomainMatch = query.match(/amazon\.(com\.au|co\.uk|co\.jp|de|fr|it|es|nl|pl|se|ca|in|com)/);
+  if (queryDomainMatch) {
+    return `amazon.${queryDomainMatch[1]}`;
+  }
+
+  return DEFAULT_AMAZON_DOMAIN;
 }
 
 function ensureArg(args, field, engine) {
@@ -279,20 +394,36 @@ async function executeSerpapiToolCall(toolCall) {
     throw new Error(`Engine ${engine} is not supported by SerpAPI tool`);
   }
 
+  const normalizedArgs = { ...args };
+  if (engine === 'amazon') {
+    const inferredDomain = inferAmazonDomain(normalizedArgs);
+    normalizedArgs.domain = normalizedArgs.domain || normalizedArgs.amazon_domain || inferredDomain;
+  }
+
   let params;
   try {
-    params = buildSerpParams(engine, args);
+    params = buildSerpParams(engine, normalizedArgs);
   } catch (buildError) {
     return {
       engine,
-      query: args.query || args.image_url || args.product_id || args.page_token || engine,
+      query:
+        normalizedArgs.query ||
+        normalizedArgs.image_url ||
+        normalizedArgs.product_id ||
+        normalizedArgs.page_token ||
+        engine,
       params: {},
       summary: [],
       raw: null,
       error: buildError.message || String(buildError),
     };
   }
-  const traceQuery = args.query || args.image_url || args.product_id || args.page_token || engine;
+  const traceQuery =
+    normalizedArgs.query ||
+    normalizedArgs.image_url ||
+    normalizedArgs.product_id ||
+    normalizedArgs.page_token ||
+    engine;
 
   try {
     const raw = await callSerpApi(engine, params);
