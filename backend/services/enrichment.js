@@ -5,7 +5,12 @@ const crypto = require('crypto');
 const { productBundleSchema } = require('../lib/product-schema');
 const { getOpenAIClient } = require('../lib/openai-client');
 const { uploadImage } = require('../lib/storage');
-const { serpapiToolDefinition, executeSerpapiToolCall } = require('./toolkit');
+const {
+  serpapiToolDefinition,
+  webFetchToolDefinition,
+  executeSerpapiToolCall,
+  executeWebFetchToolCall,
+} = require('./toolkit');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { resolveModel } = require('../lib/model-select');
 const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
@@ -326,7 +331,7 @@ function buildUserPrompt({
 
 function assertSerpUsage(trace) {
   if (!trace.length) {
-    throw new Error('SerpAPI was not used. The workflow requires at least one SerpAPI call.');
+    throw new Error('Mindestens ein Search/FETCH-Tool (SerpAPI oder Web-Fetch) muss verwendet werden.');
   }
 }
 
@@ -1035,7 +1040,7 @@ async function runProductIdentification({
     const response = await client.responses.create({
       model: targetModel,
       input: inputMessages,
-      tools: disableTools ? [] : [serpapiToolDefinition],
+      tools: disableTools ? [] : [serpapiToolDefinition, webFetchToolDefinition],
       reasoning: { effort: 'low' },
       text: {
         verbosity: 'medium',
@@ -1074,24 +1079,42 @@ async function runProductIdentification({
     inputMessages.push(...response.output);
 
     for (const toolCall of toolCalls) {
-      const toolResult = await executeSerpapiToolCall(toolCall);
-      serpTrace.push({
-        engine: toolResult.engine,
-        query: toolResult.query,
-        summary: toolResult.summary,
-        params: toolResult.params,
-        error: toolResult.error || null,
-      });
+      let responsePayload = null;
+      if (toolCall.name === 'serpapi_web_search') {
+        const toolResult = await executeSerpapiToolCall(toolCall);
+        serpTrace.push({
+          type: 'serpapi',
+          engine: toolResult.engine,
+          query: toolResult.query,
+          summary: toolResult.summary,
+          params: toolResult.params,
+          error: toolResult.error || null,
+        });
+        responsePayload = {
+          engine: toolResult.engine,
+          query: toolResult.query,
+          summary: toolResult.summary,
+          error: toolResult.error || null,
+        };
+      } else if (toolCall.name === 'web_fetch') {
+        const fetchResult = await executeWebFetchToolCall(toolCall);
+        serpTrace.push({
+          type: 'web_fetch',
+          url: fetchResult.url,
+          status: fetchResult.status,
+          contentType: fetchResult.contentType,
+          bytes: fetchResult.bytes,
+          error: fetchResult.error || null,
+        });
+        responsePayload = fetchResult;
+      } else {
+        responsePayload = { ignored: true };
+      }
 
       inputMessages.push({
         type: 'function_call_output',
         call_id: toolCall.call_id,
-        output: JSON.stringify({
-          engine: toolResult.engine,
-          query: toolResult.query,
-          summary: toolResult.summary,
-            error: toolResult.error || null,
-        }),
+        output: JSON.stringify(responsePayload),
       });
     }
   }

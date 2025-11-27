@@ -1,5 +1,10 @@
 const { getOpenAIClient } = require('../lib/openai-client');
-const { serpapiToolDefinition, executeSerpapiToolCall } = require('./toolkit');
+const {
+  serpapiToolDefinition,
+  webFetchToolDefinition,
+  executeSerpapiToolCall,
+  executeWebFetchToolCall,
+} = require('./toolkit');
 const { resolveModel } = require('../lib/model-select');
 const { fetchMarketingImages } = require('../lib/marketing-images');
 
@@ -215,7 +220,7 @@ async function runProductChat(product, userMessage, { modelOverride = null } = {
     const response = await client.responses.create({
       model: targetModel,
       input: inputMessages,
-      tools: [serpapiToolDefinition, updateDatasheetTool, suggestImagesTool],
+      tools: [serpapiToolDefinition, webFetchToolDefinition, updateDatasheetTool, suggestImagesTool],
       reasoning: { effort: 'low' },
       text: { verbosity: 'medium' },
     });
@@ -238,6 +243,7 @@ async function runProductChat(product, userMessage, { modelOverride = null } = {
       if (toolCall.name === 'serpapi_web_search') {
         const result = await executeSerpapiToolCall(toolCall);
         serpTrace.push({
+          type: 'serpapi',
           engine: result.engine,
           query: result.query,
           summary: result.summary,
@@ -247,6 +253,17 @@ async function runProductChat(product, userMessage, { modelOverride = null } = {
           summary: result.summary,
           error: result.error || null,
         };
+      } else if (toolCall.name === 'web_fetch') {
+        const fetchResult = await executeWebFetchToolCall(toolCall);
+        serpTrace.push({
+          type: 'web_fetch',
+          url: fetchResult.url,
+          status: fetchResult.status,
+          contentType: fetchResult.contentType,
+          bytes: fetchResult.bytes,
+          error: fetchResult.error || null,
+        });
+        toolResult = fetchResult;
       } else if (toolCall.name === 'update_product_datasheet') {
         const args = JSON.parse(toolCall.arguments || '{}');
         const sanitized = sanitizeDatasheetChange(args);

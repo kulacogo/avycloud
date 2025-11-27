@@ -1,4 +1,5 @@
 const { callSerpApi, summarizeSerpEntries, ALLOWED_ENGINES } = require('../lib/serpapi');
+const { fetchWithUnlocker } = require('../lib/web-unlocker');
 
 const AMAZON_DOMAIN_BY_HINT = {
   de: 'amazon.de',
@@ -156,6 +157,64 @@ const serpapiToolDefinition = {
     },
     required: ['engine'],
     additionalProperties: false,
+  },
+};
+
+const webFetchToolDefinition = {
+  type: 'function',
+  name: 'web_fetch',
+  description:
+    'Ruft Webseiten über Bright Data Web Unlocker ab (HTML/JSON/Screenshot) und umgeht dabei Bot-Abwehrmaßnahmen. Nutze dies für direkte Produktseiten oder Preisverifikationen.',
+  parameters: {
+    type: 'object',
+    required: ['url'],
+    additionalProperties: false,
+    properties: {
+      url: { type: 'string', description: 'Vollständige Ziel-URL.' },
+      method: {
+        type: 'string',
+        enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+        description: 'HTTP-Methode (Standard GET).',
+      },
+      headers: {
+        type: 'object',
+        additionalProperties: { type: 'string' },
+        description: 'Optionale Zusatz-Header (erfordert Custom Web Unlocker API).',
+      },
+      body: { type: 'string', description: 'Roh-Body für POST/PUT/PATCH Requests.' },
+      format: {
+        type: 'string',
+        enum: ['raw'],
+        description: 'Unlocker-Format (raw lässt Antwort unverändert).',
+      },
+      data_format: {
+        type: 'string',
+        enum: ['raw', 'markdown', 'screenshot'],
+        description: 'Serverseitige Weiterverarbeitung (z. B. Markdown, Screenshot).',
+      },
+      country: {
+        type: 'string',
+        description: 'ISO-Ländercode für Geotargeting (z. B. de, us, fr).',
+      },
+      mobile: {
+        type: 'boolean',
+        description: 'true = mobiler User-Agent (entspricht -ua-mobile).',
+      },
+      expect_element: {
+        type: 'string',
+        description: 'CSS-Selector, der vorhanden sein muss (x-unblock-expect).',
+      },
+      expect_text: {
+        type: 'string',
+        description: 'Text, der vorhanden sein muss (x-unblock-expect).',
+      },
+      timeout_ms: {
+        type: 'number',
+        minimum: 1000,
+        maximum: 60000,
+        description: 'Timeout für den Unlocker-Request in Millisekunden.',
+      },
+    },
   },
 };
 
@@ -448,7 +507,47 @@ async function executeSerpapiToolCall(toolCall) {
   }
 }
 
+async function executeWebFetchToolCall(toolCall) {
+  let args = {};
+  try {
+    args = JSON.parse(toolCall.arguments || '{}');
+  } catch (error) {
+    return { success: false, url: null, error: `Invalid arguments: ${error.message}` };
+  }
+
+  if (!args.url) {
+    return { success: false, url: null, error: 'url is required' };
+  }
+
+  try {
+    const result = await fetchWithUnlocker({
+      url: args.url,
+      method: args.method || 'GET',
+      headers: args.headers,
+      body: args.body,
+      format: args.format || 'raw',
+      dataFormat: args.data_format || null,
+      country: args.country || null,
+      mobile: Boolean(args.mobile),
+      expect:
+        args.expect_element || args.expect_text
+          ? { element: args.expect_element, text: args.expect_text }
+          : null,
+      timeoutMs: args.timeout_ms || undefined,
+    });
+    return result;
+  } catch (error) {
+    return {
+      success: false,
+      url: args.url,
+      error: error.message || String(error),
+    };
+  }
+}
+
 module.exports = {
   serpapiToolDefinition,
+  webFetchToolDefinition,
   executeSerpapiToolCall,
+  executeWebFetchToolCall,
 };
