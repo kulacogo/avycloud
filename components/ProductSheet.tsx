@@ -23,6 +23,15 @@ interface ProductSheetProps {
   isImproving?: boolean;
 }
 
+const GENERATED_IMAGE_PATTERN = /(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)/i;
+
+const isGeneratedImageMeta = (image?: ProductImage) => {
+  if (!image) return false;
+  const source = (image.source || '').toLowerCase();
+  const notes = (image.notes || '').toLowerCase();
+  return GENERATED_IMAGE_PATTERN.test(source) || GENERATED_IMAGE_PATTERN.test(notes);
+};
+
 const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localProduct, setLocalProduct] = useState(product);
@@ -269,12 +278,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const applyAssistantImages = (images: ProductImage[]) => {
     if (!images || images.length === 0) return;
+    const safeImages = images.filter((img) => !isGeneratedImageMeta(img));
+    if (!safeImages.length) {
+      showNotification('error', 'AI-generierte Platzhalterbilder werden blockiert.');
+      return;
+    }
     setLocalProduct(prev => ({
       ...prev,
-      details: { ...prev.details, images: [...prev.details.images, ...images] },
+      details: { ...prev.details, images: [...prev.details.images, ...safeImages] },
     }));
     setIsDirty(true);
-    showNotification('success', `${images.length} Bild(er) hinzugefügt.`);
+    showNotification('success', `${safeImages.length} Bild(er) hinzugefügt.`);
   };
 
   const handleSync = async () => {

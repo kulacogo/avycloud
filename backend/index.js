@@ -120,6 +120,16 @@ const app = express();
 const MAX_IMAGE_FILES = 25;
 const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024; // 8 MB per file, total tracked separately
 const MAX_IMPROVE_BATCH = parseInt(process.env.MAX_IMPROVE_BATCH || '20', 10);
+const GENERATED_IMAGE_SIGNATURE = /\b(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)\b/i;
+
+function looksGeneratedImageMeta(image = {}) {
+  if (!image || typeof image !== 'object') {
+    return false;
+  }
+  const source = (image.source || '').toString().toLowerCase();
+  const notes = (image.notes || '').toString().toLowerCase();
+  return GENERATED_IMAGE_SIGNATURE.test(source) || GENERATED_IMAGE_SIGNATURE.test(notes);
+}
 const allowedOrigins = [
   'https://avycloud.web.app',
   'https://avycloud.firebaseapp.com',
@@ -1143,8 +1153,16 @@ app.post('/api/save', async (req, res) => {
           processedImages.push(image);
         }
       }
+
+      const filteredImages = processedImages.filter((img) => {
+        if (looksGeneratedImageMeta(img)) {
+          console.warn('Rejecting generated image metadata during save:', img?.url_or_base64 || img?.url || '');
+          return false;
+        }
+        return true;
+      });
       
-      product.details.images = processedImages;
+      product.details.images = filteredImages;
     }
     
     // Save to Firestore

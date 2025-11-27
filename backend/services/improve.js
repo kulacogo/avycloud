@@ -3,6 +3,7 @@ const { runProductIdentification, runDatasheetReview } = require('./enrichment')
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
+const GENERATED_IMAGE_SIGNATURE = /\b(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)\b/i;
 const PACKAGING_REGEX = /(etikett|karton|verpackung|sichtbar)/i;
 const ATTRIBUTE_BLACKLIST = new Set([
   'key features',
@@ -125,9 +126,18 @@ function normalizeImageKey(value) {
   }
 }
 
-function classifyImageSource(image = {}, isExisting = false) {
+function looksGeneratedImage(image = {}) {
+  if (!image || typeof image !== 'object') return false;
   const source = (image.source || '').toString().toLowerCase();
-  if (source.includes('generated') || /\bgpt\b/.test(image.notes || '')) {
+  const notes = (image.notes || '').toString().toLowerCase();
+  if (GENERATED_IMAGE_SIGNATURE.test(source) || GENERATED_IMAGE_SIGNATURE.test(notes)) {
+    return true;
+  }
+  return false;
+}
+
+function classifyImageSource(image = {}, isExisting = false) {
+  if (looksGeneratedImage(image)) {
     return 'generated';
   }
   return isExisting ? 'fallback' : 'reference';
@@ -265,6 +275,10 @@ function mergeImages(existing = [], incoming = []) {
         return;
       }
       const bucket = classifyImageSource(image, false);
+      if (bucket === 'generated') {
+        console.warn('Skipping generated incoming image during merge:', image?.url || image?.url_or_base64 || '');
+        return;
+      }
       pushToBucket(image, bucket);
     });
   }
@@ -277,17 +291,17 @@ function mergeImages(existing = [], incoming = []) {
         return;
       }
       const bucket = classifyImageSource(image, true);
+      if (bucket === 'generated') {
+        console.warn('Dropping generated existing image during merge:', image?.url || image?.url_or_base64 || '');
+        return;
+      }
       pushToBucket(image, bucket);
     });
   }
 
   let combined = [...buckets.generated, ...buckets.reference, ...buckets.fallback];
-  if (buckets.generated.length) {
-    const limitedReference = buckets.reference.slice(0, 2);
-    const limitedFallback = buckets.fallback.slice(0, 1);
-    combined = [...buckets.generated, ...limitedReference, ...limitedFallback];
-  }
-
+  // generated bucket is intentionally ignored to keep only real images
+  combined = [...buckets.reference, ...buckets.fallback];
   return combined.slice(0, 10);
 }
 
