@@ -430,63 +430,6 @@ export const syncToBaseLinker = async (productOrProducts: Product | Product[]): 
   }
 };
 
-export const generateImages = async (productId: string): Promise<{ ok: boolean; data?: { images: { url: string; variant: string }[] }; error?: { code: number; message: string } }> => {
-  let response: Response | undefined;
-  
-  try {
-    if (import.meta.env.DEV) {
-      console.log('API CALL: /api/image-gen', { productId });
-    }
-    
-    response = await fetch(`${BACKEND_URL}/api/image-gen`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ productId }),
-    });
-
-    const result = await parseResponse(response);
-
-    if (!response.ok) {
-      const errorInfo = { 
-        code: response.status, 
-        message: result?.error?.message || response.statusText || `Request failed with status ${response.status}` 
-      };
-      return { ok: false, error: errorInfo };
-    }
-    
-    return result || { ok: true, data: { images: [] } };
-    
-  } catch (error) {
-    console.error('Failed to generate images:', error);
-    const errorInfo = extractErrorInfo(error, response);
-    return { ok: false, error: errorInfo };
-  }
-};
-
-export const regenerateProductImageApi = async (
-  productId: string,
-  imageIndex: number
-): Promise<{ ok: boolean; data?: { index: number; image: ProductImage }; error?: { code: number; message: string } }> => {
-  let response: Response | undefined;
-  try {
-    response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/images/regenerate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageIndex }),
-    });
-    const result = await parseResponse(response);
-    if (!response.ok) {
-      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Image regeneration failed' } };
-    }
-    return { ok: true, data: result?.data };
-  } catch (error) {
-    const errorInfo = extractErrorInfo(error, response);
-    return { ok: false, error: errorInfo };
-  }
-};
-
 export const improveProduct = async (
   productId: string
 ): Promise<{ ok: boolean; data?: Product; error?: { code: number; message: string } }> => {

@@ -8,7 +8,6 @@ const { uploadImage } = require('../lib/storage');
 const { serpapiToolDefinition, executeSerpapiToolCall } = require('./toolkit');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { resolveModel } = require('../lib/model-select');
-const { generateProductImageVariants } = require('../lib/gemini-image');
 const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
 
 const MAX_TOOL_ITERATIONS = 8;
@@ -977,14 +976,6 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
   }
 }
 
-async function enrichWithGptImages(products = [], hostedImages = []) {
-  try {
-    await generateProductImageVariants(products, hostedImages);
-    } catch (error) {
-    console.warn('GPT image generation failed:', error.message);
-  }
-}
-
 async function runProductIdentification({
   files = [],
   barcodes = '',
@@ -1068,7 +1059,6 @@ async function runProductIdentification({
       normalizeBundle(bundle);
       await ensureMarketingCopy(bundle.products, locale);
       applyEbayTaxonomy(bundle);
-      await enrichWithGptImages(bundle.products, hostedImages);
       ensurePriceCoverage(bundle.products, serpTrace);
       await runDatasheetReview(bundle.products, { locale });
       assertSerpUsage(serpTrace);

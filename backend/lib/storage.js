@@ -126,20 +126,6 @@ async function uploadBase64Image(base64Data, productId, variant = 'main') {
   return uploadImage(imageBuffer, mimeType, productId, variant);
 }
 
-async function uploadGeneratedProductImage(base64Data, productId, variant = 'generated') {
-  if (!productId) {
-    throw new Error('productId is required for generated images');
-  }
-  const matches = base64Data.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
-  const mimeType = matches?.[1] || 'image/png';
-  const payload = matches ? matches[2] : base64Data;
-  const imageBuffer = Buffer.from(payload, 'base64');
-  const targetPath = `product_images/${productId}/${variant}`;
-  const result = await saveBufferToBucket(imageBuffer, mimeType, targetPath);
-  console.log(`Generated image stored: ${result.url}`);
-  return result;
-}
-
 async function deleteProductImages(productId) {
   try {
     await ensureBucket();
@@ -205,7 +191,6 @@ async function downloadFile(filePath) {
 module.exports = {
   uploadImage,
   uploadBase64Image,
-  uploadGeneratedProductImage,
   deleteProductImages,
   uploadJobFile,
   downloadFile,

@@ -4,14 +4,12 @@ import { Product, DatasheetChange, ProductImage, WarehouseBin } from '../types';
 import {
   saveProduct,
   syncToBaseLinker,
-  generateImages,
   openSkuLabelWindow,
   assignProductToBinApi,
   removeProductFromBinApi,
   fetchProductBins,
-  regenerateProductImageApi,
 } from '../api/client';
-import { EditIcon, SaveIcon, SyncIcon, GenerateIcon, PrintIcon } from './icons/Icons';
+import { EditIcon, SaveIcon, SyncIcon, PrintIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import ImageGallery from './ImageGallery';
 import AttributeTable from './AttributeTable';
@@ -30,7 +28,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [localProduct, setLocalProduct] = useState(product);
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [autoGenDone, setAutoGenDone] = useState(false);
@@ -42,7 +39,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [productBins, setProductBins] = useState<WarehouseBin[]>([]);
   const [binsLoading, setBinsLoading] = useState(false);
   const [binsError, setBinsError] = useState<string | null>(null);
-  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
 
   const loadProductBins = useCallback(
     async (productId: string) => {
@@ -70,7 +66,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setBinCodeInput(product.storage?.binCode || '');
     setBinQuantity(product.storage?.quantity || product.inventory?.quantity || 1);
     setNewImageUrl('');
-    setRegeneratingIndex(null);
     loadProductBins(product.id);
   }, [product, loadProductBins]);
 
@@ -145,32 +140,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       }
     },
     [updateImages]
-  );
-
-  const handleRegenerateImage = useCallback(
-    async (index: number) => {
-      if (!localProduct?.id) return;
-      setRegeneratingIndex(index);
-      const result = await regenerateProductImageApi(localProduct.id, index);
-      if (result.ok && result.data?.image) {
-        const updatedImages = [...(localProduct.details.images || [])];
-        updatedImages[index] = result.data.image;
-        const updatedProduct = {
-          ...localProduct,
-          details: {
-            ...localProduct.details,
-            images: updatedImages,
-          },
-        };
-        setLocalProduct(updatedProduct);
-        onUpdate(updatedProduct);
-        showNotification('success', 'Bild wurde neu gerendert.');
-      } else {
-        showNotification('error', result.error?.message || 'Bild konnte nicht neu gerendert werden.');
-      }
-      setRegeneratingIndex(null);
-    },
-    [localProduct, onUpdate]
   );
 
   const showNotification = (type: 'success' | 'error', message: string) => {
@@ -339,25 +308,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsSyncing(false);
   };
 
-  const handleGenerateImages = async () => {
-    setIsGenerating(true);
-    const result = await generateImages(localProduct.id);
-    if (result.ok && result.data) {
-      const newImages = result.data.images.map(img => ({
-        source: 'generated' as const,
-        variant: img.variant as any,
-        url_or_base64: img.url,
-        notes: 'AI Generated Image'
-      }));
-      const updatedProduct = { ...localProduct, details: { ...localProduct.details, images: [...localProduct.details.images, ...newImages] } };
-      onUpdate(updatedProduct);
-      showNotification('success', 'New images generated!');
-    } else {
-      showNotification('error', result.error?.message || 'Image generation not available.');
-    }
-    setIsGenerating(false);
-  };
-
   const handleFieldChange = (field: string, value: string) => {
     const keys = field.split('.');
     setLocalProduct(prev => {
@@ -481,8 +431,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               isEditing={isEditing}
               onDeleteImage={isEditing ? handleDeleteImage : undefined}
               onReorder={isEditing ? handleReorderImages : undefined}
-              onRegenerateImage={handleRegenerateImage}
-              regeneratingIndex={regeneratingIndex}
             />
             {isEditing && (
               <div className="mt-4 space-y-3">
@@ -663,9 +611,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             <div className="actions flex flex-wrap gap-4">
                 <button id="btn-sync" onClick={handleSync} disabled={isSyncing} className="flex items-center justify-center px-4 py-2 bg-slate-700 text-slate-200 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait">
                     {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}<span className="ml-2">Sync</span>
-                </button>
-                <button id="btn-genimg" onClick={handleGenerateImages} disabled={isGenerating} className="flex items-center justify-center px-4 py-2 bg-slate-700 text-slate-200 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait">
-                    {isGenerating ? <Spinner className="w-5 h-5" /> : <GenerateIcon />}<span className="ml-2">Generate Images</span>
                 </button>
             </div>
         </div>
