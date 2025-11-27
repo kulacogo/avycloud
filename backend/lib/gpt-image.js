@@ -10,6 +10,7 @@ const IMAGE_GENERATION_PARAMS = {
   background: process.env.GPT_IMAGE_BACKGROUND || 'auto',
 };
 const MAX_VARIANT_ATTEMPTS = parseInt(process.env.GPT_IMAGE_VARIANT_ATTEMPTS || '2', 10);
+const VARIANT_DELAY_MS = parseInt(process.env.GPT_IMAGE_VARIANT_DELAY_MS || '35000', 10);
 
 const VARIANT_PROMPTS = [
   {
@@ -33,6 +34,8 @@ const VARIANT_PROMPTS = [
       'Lifestyle scene with ${productName} parked near a bench or café table. Hands may rest on the controls but the product remains front-and-center. Capture the ${productColor} finish, textured grip, and premium branding with warm daylight and natural shadows.',
   },
 ];
+
+const delay = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function extractAttributes(details) {
   if (!details?.attributes) return [];
@@ -302,18 +305,33 @@ async function generateProductImageVariants(products = [], hostedImages = []) {
           variant: def.variant,
           referenceContent,
         });
-        if (!image && attempt < MAX_VARIANT_ATTEMPTS - 1) {
-          console.warn(
-            `Retrying image generation for ${product.id} (${def.variant}) – attempt ${attempt + 2}`
-          );
-        }
         attempt += 1;
+        if (!image && attempt < MAX_VARIANT_ATTEMPTS) {
+          console.warn(
+            `Retrying image generation for ${product.id} (${def.variant}) – attempt ${attempt + 1}`
+          );
+          if (VARIANT_DELAY_MS > 0) {
+            await delay(VARIANT_DELAY_MS);
+          }
+        }
       }
       if (image) {
         generated.push(image);
       } else {
         console.warn(`Failed to generate ${def.variant} for ${product.id} after ${MAX_VARIANT_ATTEMPTS} attempts.`);
       }
+      if (VARIANT_DELAY_MS > 0) {
+        await delay(VARIANT_DELAY_MS);
+      }
+    }
+
+    const requiredVariants = new Set(VARIANT_PROMPTS.map((entry) => entry.variant));
+    const producedVariants = new Set(generated.map((img) => img.variant));
+    const missing = Array.from(requiredVariants).filter((variant) => !producedVariants.has(variant));
+    if (missing.length) {
+      throw new Error(
+        `Missing GPT images for product ${product.id}: ${missing.join(', ')}. Aborting improve run.`
+      );
     }
 
     if (generated.length) {
