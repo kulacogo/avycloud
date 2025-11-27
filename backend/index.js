@@ -591,7 +591,7 @@ app.post('/api/identify', upload.array('images'), async (req, res) => {
 
 // --- BaseLinker sync endpoint ---
 const { syncProductToBaseLinker, syncProductsToBaseLinker } = require('./lib/baselinker');
-const { regenerateProductImage } = require('./lib/gpt-image');
+const { regenerateProductImage } = require('./lib/gemini-image');
 
 app.post('/api/sync-baselinker', async (req, res) => {
   console.log('Received request on /api/sync-baselinker');

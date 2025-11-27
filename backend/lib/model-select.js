@@ -2,7 +2,6 @@ const ALLOWED_MODELS = new Set([
   'gpt-5-mini-2025-08-07',
   'gpt-5-mini',
   'gpt-5.1',
-  'gpt-image-1',
   'gpt-4.1-mini',
   'gpt-4.1',
 ]);
@@ -17,9 +16,6 @@ const MODEL_ALIASES = {
   'gpt-5.1': 'gpt-5.1',
   'gpt-5.1-mini': 'gpt-5-mini-2025-08-07',
   'gpt-5.1-nano': 'gpt-5-mini',
-  'gpt-image-1': 'gpt-image-1',
-  'gpt_image_1': 'gpt-image-1',
-  'image-default': 'gpt-image-1',
   'gpt-4.1-mini': 'gpt-4.1-mini',
   'gpt-4.1': 'gpt-4.1',
 };

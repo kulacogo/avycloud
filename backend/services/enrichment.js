@@ -8,7 +8,7 @@ const { uploadImage } = require('../lib/storage');
 const { serpapiToolDefinition, executeSerpapiToolCall } = require('./toolkit');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { resolveModel } = require('../lib/model-select');
-const { generateProductImageVariants } = require('../lib/gpt-image');
+const { generateProductImageVariants } = require('../lib/gemini-image');
 const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
 
 const MAX_TOOL_ITERATIONS = 8;
