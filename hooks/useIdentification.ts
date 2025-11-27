@@ -89,14 +89,14 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
         startedAt,
       });
 
-      const controller = new AbortController();
+    const controller = new AbortController();
       jobControllersRef.current.set(localId, controller);
 
       (async () => {
-        try {
+    try {
           const creation = await createIdentificationJob(group.images, barcodes, {
-            model,
-            signal: controller.signal,
+        model,
+        signal: controller.signal,
           });
           if (!creation.ok || !creation.jobId) {
             throw new Error(creation.error?.message || 'Job konnte nicht erstellt werden.');
@@ -112,12 +112,12 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
             onStatus: (phase) => {
               const message = PHASE_MESSAGES[phase] || 'Job wird verarbeitet …';
               updateJob(localId, { phase, message });
-            },
-          });
+        },
+      });
 
           if (!bundle?.products?.length) {
             throw new Error('Job abgeschlossen, aber keine Produkte erhalten.');
-          }
+      }
 
           options?.onJobCompleted?.(bundle);
           updateJob(localId, {

@@ -125,7 +125,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
 
   const handleDrop = useCallback(
     (groupId: string, event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
+    event.preventDefault();
       const hasFiles = event.dataTransfer.files && event.dataTransfer.files.length > 0;
       if (hasFiles) {
         addImagesToGroup(groupId, Array.from(event.dataTransfer.files));
@@ -137,7 +137,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
         const { sourceGroupId, imageId } = JSON.parse(payload);
         if (sourceGroupId && imageId) {
           moveImageBetweenGroups(sourceGroupId, groupId, imageId);
-        }
+    }
       } catch {
         // ignore parsing issues
       }
@@ -195,24 +195,24 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
       return;
     }
 
-    try {
-      if (!supportsBrowserCamera) {
-        throw new Error('Camera API not available in this browser.');
-      }
+      try {
+        if (!supportsBrowserCamera) {
+          throw new Error('Camera API not available in this browser.');
+        }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
         await videoRef.current.play();
-      }
-      setIsCameraOn(true);
-      setCameraError(null);
+        }
+        setIsCameraOn(true);
+        setCameraError(null);
     } catch (error: any) {
       console.error('Camera error:', error);
       const message = error?.message || 'Kamera konnte nicht gestartet werden.';
-      setCameraError(message);
-      alert(message);
+        setCameraError(message);
+        alert(message);
     }
   };
 
@@ -235,10 +235,10 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
 
   const captureImage = () => {
     if (!videoRef.current || !cameraTargetGroup) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
     canvas.toBlob(
       (blob) => {
         if (blob) {
@@ -264,7 +264,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
     return () => {
       const stream = videoRef.current?.srcObject as MediaStream | null;
       stream?.getTracks().forEach((track) => track.stop());
-    };
+  };
   }, []);
 
   return (
@@ -299,40 +299,40 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                       Entfernen
                     </button>
                   )}
-                </div>
-                <div
+          </div>
+          <div
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => handleDrop(group.id, e)}
                   className="flex flex-col gap-4 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/40 p-4 transition-colors hover:border-sky-500"
                 >
                   <div className="flex flex-col lg:flex-row gap-3">
-                    <button
-                      type="button"
+              <button
+                type="button"
                       onClick={() => fileInputRefs.current[group.id]?.click()}
                       className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors"
-                    >
+              >
                       <UploadIcon className="w-5 h-5" />
                       Dateien wählen
-                    </button>
-                    <button
-                      type="button"
+              </button>
+              <button
+                type="button"
                       onClick={() => handleCameraButtonClick(group.id)}
                       className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors"
-                    >
+              >
                       <CameraIcon className="w-5 h-5" />
                       {isCameraOn && cameraTargetGroup === group.id ? 'Kamera schließen' : 'Kamera verwenden'}
-                    </button>
-                  </div>
-                  <input
+              </button>
+            </div>
+            <input
                     ref={(el) => {
                       fileInputRefs.current[group.id] = el;
                     }}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    className="hidden"
+              type="file"
+              multiple
+              accept="image/*"
+              className="hidden"
                     onChange={(event) => handleFileChange(group.id, event)}
-                  />
+            />
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {group.images.map((image) => (
                       <div
@@ -370,7 +370,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
           </div>
         </div>
 
-        {isCameraOn && !isIOSDevice && (
+          {isCameraOn && !isIOSDevice && (
           <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 space-y-3">
             <p className="text-sm text-slate-200">Kamera aktiv – {groups.find(g => g.id === cameraTargetGroup)?.name || 'unbekannte Gruppe'}</p>
             <div className="relative">
@@ -383,13 +383,13 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                 Foto übernehmen
               </button>
             </div>
-          </div>
-        )}
-        {isIOSDevice && (
+            </div>
+          )}
+          {isIOSDevice && (
           <p className="text-xs text-slate-400 text-center">
             Auf iOS öffnet der Kamera-Button direkt die native Kamera- oder Foto-App.
-          </p>
-        )}
+            </p>
+          )}
 
         <div>
           <div className="flex items-center mb-2 text-slate-200">
