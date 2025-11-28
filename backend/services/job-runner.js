@@ -76,6 +76,12 @@ async function processJob(jobId) {
         try {
           ensureProductSku(product);
 
+          product.ops = {
+            ...(product.ops || {}),
+            sync_status: 'pending',
+            last_synced_iso: null,
+          };
+
           const identityKey = computeProductIdentityKey(product);
           const isTemporaryId = typeof product.id === 'string' && /^prod-/i.test(product.id);
           const hasBarcode = Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0;

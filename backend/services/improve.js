@@ -397,6 +397,7 @@ function mergeProductRecords(existing, incoming) {
     ...(existing.ops || {}),
     ...(incoming.ops || {}),
     sync_status: 'pending',
+    last_synced_iso: null,
     revision: (existing.ops?.revision || 0) + 1,
   };
   if (incoming.ops?.revision && incoming.ops.revision > merged.ops.revision) {
