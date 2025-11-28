@@ -50,8 +50,10 @@ async function refreshProductInventory(productId) {
       regal: primary.regal,
       ebene: primary.ebene,
       quantity: primary.quantity || 0,
-      assigned_at: primary.lastUpdatedAt || new Date().toISOString(),
+      assigned_at: primary.lastUpdatedAt || primary.firstStoredAt || new Date().toISOString(),
     };
+  } else {
+    updatePayload.storage = null;
   }
 
   await productsCollection.doc(productId).set(updatePayload, { merge: true });
@@ -518,7 +520,8 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
   });
 
   await refreshProductInventory(resolvedProductId);
-  return { product: updatedProduct, bin: updatedBin };
+  const freshProduct = await getProduct(resolvedProductId);
+  return { product: freshProduct || updatedProduct, bin: updatedBin };
 }
 
 async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
@@ -610,7 +613,8 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
   });
 
   await refreshProductInventory(resolvedProductId);
-  return { product: updatedProduct, bin: updatedBin };
+  const freshProduct = await getProduct(resolvedProductId);
+  return { product: freshProduct || updatedProduct, bin: updatedBin };
 }
 
 async function listBinsForProduct(productIdOrSku) {
