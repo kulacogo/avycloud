@@ -9,6 +9,19 @@ interface AttributeTableProps {
 
 const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing = false, onChange }) => {
   const attributeEntries = Object.entries(attributes || {});
+  const EXCLUDED_KEYS = ['ean', 'sku', 'lowest_price', 'lowest_price.amount', 'lowest_price.currency', 'lowest_price.amount', 'lowest_price.currency'];
+  const MAX_VALUE_LENGTH = 160;
+  const displayEntries = isEditing
+    ? attributeEntries
+    : attributeEntries.filter(([key, value]) => {
+        if (value === null || value === undefined || value === '') return false;
+        const normalizedKey = key.toLowerCase();
+        if (EXCLUDED_KEYS.includes(normalizedKey) || normalizedKey.startsWith('lowest_price')) return false;
+        const textValue = String(value).trim();
+        if (!textValue) return false;
+        if (textValue.length > MAX_VALUE_LENGTH) return false;
+        return true;
+      });
 
   const updateAttr = (key: string, value: string) => {
     if (!onChange) return;
@@ -47,7 +60,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
     onChange(next);
   };
 
-  if (attributeEntries.length === 0) {
+  if (displayEntries.length === 0) {
     return (
       <div>
         <p className="text-slate-400">No specific attributes available.</p>
@@ -62,7 +75,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
     <div className="overflow-x-auto">
       <table className="w-full">
         <tbody className="divide-y divide-slate-700">
-          {attributeEntries.map(([key, value]) => (
+          {displayEntries.map(([key, value]) => (
             <tr key={key}>
               <td className="py-3 pr-4 font-medium text-slate-400 w-1/3">
                 {isEditing ? (

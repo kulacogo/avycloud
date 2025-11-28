@@ -170,6 +170,7 @@ async function fetchBarcodeSerpData(barcode, serpTrace = []) {
   const engines = [
     { engine: 'google_shopping', params: { q: barcode, num: 20 } },
     { engine: 'google', params: { q: barcode, num: 10 } },
+    { engine: 'bing_shopping', params: { q: barcode, count: 15 } },
   ];
 
   for (const spec of engines) {
@@ -254,21 +255,25 @@ function buildUserPrompt({
 }) {
   const parts = [];
   if (barcodeList.length) {
-    parts.push(`Barcodes: ${barcodeList.join(', ')}`);
+    parts.push(
+      `Barcodes: ${barcodeList.join(', ')}\nPriorität: Nutze diese Codes (EAN/GTIN/UPC) zuerst. Wenn Barcode-Resultate von Bildannahmen abweichen, vertraue den Barcode/Händlerinformationen und korrigiere die Bildinterpretation.`
+    );
   } else {
     parts.push('Barcodes: keine angegeben');
   }
 
   if (Array.isArray(barcodeResearch) && barcodeResearch.length) {
     parts.push(
-      'Barcode-Recherche (SerpAPI Vorab-Calls – nutze diese Treffer und erweitere sie bei Bedarf):',
+      'Barcode-Recherche (SerpAPI Vorab-Calls – öffne die URLs bei Bedarf mit web_fetch, übernimm Fakten vor der Bildinterpretation):',
       barcodeResearch
         .map((entry, idx) => {
           const items = entry.items
             .map((item) => {
               const priceFragment = item.price ? ` | Preis: ${item.price}` : '';
               const sourceFragment = item.source ? ` (${item.source})` : '';
-              return `- ${item.title}${priceFragment}${sourceFragment}`;
+              const urlFragment = item.url ? `\n  URL: ${item.url}` : '';
+              const snippetFragment = item.snippet ? `\n  Hinweis: ${item.snippet}` : '';
+              return `- ${item.title}${priceFragment}${sourceFragment}${urlFragment}${snippetFragment}`;
             })
             .join('\n');
           return `${idx + 1}. ${entry.barcode} (${entry.engine}):\n${items}`;
@@ -374,6 +379,37 @@ function normalizeBundle(bundle) {
     return cloned;
   });
   return bundle;
+}
+
+function injectMissingBarcodes(products = [], barcodeList = []) {
+  if (!Array.isArray(products) || !products.length || !barcodeList.length) {
+    return;
+  }
+  const remaining = [...new Set(barcodeList.map((code) => code.trim()).filter(Boolean))];
+  products.forEach((product) => {
+    if (remaining.length === 0) return;
+    const hasBarcode =
+      Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0;
+    if (hasBarcode) {
+      return;
+    }
+    const nextBarcode = remaining.shift();
+    if (!nextBarcode) return;
+    product.identification = {
+      ...(product.identification || {}),
+      barcodes: [nextBarcode],
+    };
+    product.details = product.details || {};
+    product.details.identifiers = {
+      ...(product.details.identifiers || {}),
+    };
+    if (!product.details.identifiers.ean) {
+      product.details.identifiers.ean = nextBarcode;
+    }
+    if (!product.details.identifiers.gtin) {
+      product.details.identifiers.gtin = nextBarcode;
+    }
+  });
 }
 
 function parseCategoryIdFromString(raw) {
@@ -1062,6 +1098,7 @@ async function runProductIdentification({
       const bundle = parseModelJson(response);
       ensureSchema(bundle);
       normalizeBundle(bundle);
+      injectMissingBarcodes(bundle.products, barcodeList);
       await ensureMarketingCopy(bundle.products, locale);
       applyEbayTaxonomy(bundle);
       ensurePriceCoverage(bundle.products, serpTrace);

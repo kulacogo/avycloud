@@ -136,7 +136,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     });
 
   const handleUploadImage = useCallback(
-    async (file: File | null) => {
+    async (file: File) => {
       if (!file) return;
       try {
         const base64 = await fileToBase64(file);
@@ -149,6 +149,18 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       }
     },
     [updateImages]
+  );
+
+  const handleUploadImages = useCallback(
+    async (fileList: FileList | File[] | null) => {
+      if (!fileList || fileList.length === 0) return;
+      const files = Array.isArray(fileList) ? fileList : Array.from(fileList);
+      for (const file of files) {
+        // eslint-disable-next-line no-await-in-loop
+        await handleUploadImage(file);
+      }
+    },
+    [handleUploadImage]
   );
 
   const showNotification = (type: 'success' | 'error', message: string) => {
@@ -336,21 +348,74 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsDirty(true);
   };
 
-  const binHeaderBadge = useMemo(() => {
-    if (productBins.length) {
-      const totalQuantity = productBins.reduce(
-        (sum, bin) => sum + (bin.quantity ?? bin.productCount ?? 0),
-        0
+  const attributesMap = useMemo(() => localProduct.details?.attributes || {}, [localProduct.details?.attributes]);
+
+  const highlightList = useMemo(() => {
+    const rawFeatures = Array.isArray(localProduct.details?.key_features)
+      ? localProduct.details.key_features
+      : [];
+    const primary = rawFeatures.map((feature) => feature?.trim()).filter(Boolean);
+    const unique = Array.from(new Set(primary));
+
+    const addExtra = (text?: string | null) => {
+      const value = text?.toString().trim();
+      if (value && !unique.includes(value)) {
+        unique.push(value);
+      }
+    };
+
+    const attr = attributesMap;
+    if (attr['Besondere Funktionen']) addExtra(`Features: ${attr['Besondere Funktionen']}`);
+    if (attr['Leistung']) addExtra(`Leistung ${attr['Leistung']}`);
+    if (attr['Programme']) addExtra(`Programme: ${attr['Programme']}`);
+    if (attr['Fassungsvermögen gesamt']) addExtra(`Fassungsvermögen ${attr['Fassungsvermögen gesamt']}`);
+
+    const lowestPrice = localProduct.details?.pricing?.lowest_price;
+    if (lowestPrice?.amount) {
+      addExtra(`Preisempfehlung: ab ${lowestPrice.amount.toFixed(2)} ${lowestPrice.currency || 'EUR'}`);
+    }
+
+    if (unique.length === 0 && localProduct.identification?.brand && localProduct.identification?.category) {
+      addExtra(`${localProduct.identification.brand} ${localProduct.identification.category} für den Alltag`);
+    }
+
+    return unique.slice(0, 5);
+  }, [
+    localProduct.details?.key_features,
+    localProduct.details?.pricing?.lowest_price,
+    localProduct.identification?.brand,
+    localProduct.identification?.category,
+    attributesMap,
+  ]);
+
+  const descriptionText = useMemo(() => {
+    const raw = (localProduct.details?.short_description || '').trim();
+    if (raw.length >= 120) {
+      return raw;
+    }
+    const parts: string[] = [];
+    const brand = localProduct.identification?.brand;
+    const name = localProduct.identification?.name;
+    if (name) {
+      parts.push(
+        `${name}${brand ? ` von ${brand}` : ''} bringt moderne Küchentechnik und komfortable Bedienung zusammen.`
       );
-      const firstCode = productBins[0]?.code;
-      const extra = productBins.length > 1 ? ` +${productBins.length - 1}` : '';
-      return `BIN ${firstCode}${extra} · Menge ${totalQuantity}`;
     }
-    if (localProduct.storage?.binCode) {
-      return `BIN ${localProduct.storage.binCode} · Menge ${localProduct.storage.quantity || 1}`;
+    if (attributesMap['Besondere Funktionen']) {
+      parts.push(`Highlights: ${attributesMap['Besondere Funktionen']}.`);
     }
-    return null;
-  }, [productBins, localProduct.storage]);
+    if (attributesMap['Programme']) {
+      parts.push(`Programme: ${attributesMap['Programme']}.`);
+    }
+    if (attributesMap['Leistung']) {
+      parts.push(`Leistung: ${attributesMap['Leistung']}.`);
+    }
+    const price = localProduct.details?.pricing?.lowest_price;
+    if (price?.amount) {
+      parts.push(`Preisorientierung ab ${price.amount.toFixed(2)} ${price.currency || 'EUR'}.`);
+    }
+    return parts.join(' ').trim() || 'Für dieses Produkt liegt noch keine ausführliche Beschreibung vor.';
+  }, [localProduct.details?.short_description, localProduct.details?.pricing?.lowest_price, localProduct.identification, attributesMap]);
 
   return (
     <section id="product-sheet" className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-screen-2xl mx-auto relative px-2 sm:px-0">
@@ -403,7 +468,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <PrintIcon />
                   <span className="ml-1">Label</span>
                 </button>
-                {binHeaderBadge && <span className="text-emerald-300">{binHeaderBadge}</span>}
               </div>
               <p id="p-barcodes" className="text-xs text-slate-500 mt-1">
                 Barcodes: {localProduct.identification.barcodes?.join(', ') || 'N/A'}
@@ -480,10 +544,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       className="hidden"
                       onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        handleUploadImage(file);
+                        const { files } = e.target;
+                        handleUploadImages(files);
                         if (e.target) {
                           e.target.value = '';
                         }
@@ -513,12 +578,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 placeholder="Eine Stärke pro Zeile"
                 className="w-full min-h-[110px] bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-200"
               />
-            ) : (
+            ) : highlightList.length ? (
               <ul className="space-y-2 list-disc list-inside text-slate-300 text-sm">
-                {localProduct.details.key_features.map((feature, index) => (
+                {highlightList.map((feature, index) => (
                   <li key={index}>{feature}</li>
                 ))}
               </ul>
+            ) : (
+              <p className="text-sm text-slate-400">Für dieses Produkt liegen noch keine Highlights vor.</p>
             )}
           </section>
         </div>
@@ -532,7 +599,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               className="w-full min-h-[120px] bg-slate-700 border border-slate-600 rounded-lg p-3 text-slate-200"
             />
           ) : (
-            <p className="text-slate-300 leading-relaxed">{localProduct.details.short_description}</p>
+            <p className="text-slate-300 leading-relaxed">{descriptionText}</p>
           )}
         </section>
 
