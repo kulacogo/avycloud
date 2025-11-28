@@ -1,5 +1,5 @@
-const { Firestore } = require('@google-cloud/firestore');
-const { computeProductIdentityKey } = require('./product-identity');
+const { Firestore, FieldValue } = require('@google-cloud/firestore');
+const { computeProductIdentityKey, buildIdentityAliasSet } = require('./product-identity');
 
 // Initialize Firestore
 const firestore = new Firestore({
@@ -20,11 +20,15 @@ async function saveProduct(product) {
     // Add timestamps
     const ops = product.ops || {};
     const identityKey = computeProductIdentityKey(product);
+    const aliasSet = buildIdentityAliasSet(product);
+    const existingAliases = Array.isArray(ops.identity_aliases) ? ops.identity_aliases.filter(Boolean) : [];
+    const mergedAliases = Array.from(new Set([...existingAliases, ...aliasSet])).slice(0, 100);
     const productData = {
       ...product,
       ops: {
         ...ops,
         identity_key: identityKey || ops.identity_key || null,
+        identity_aliases: mergedAliases.length ? mergedAliases : undefined,
         last_saved_iso: new Date().toISOString(),
         revision: ((ops.revision || 0)) + 1
       }
@@ -138,6 +142,49 @@ async function findProductByIdentityKey(identityKey) {
   return doc.data();
 }
 
+async function findProductByIdentityAliases(aliases = [], { excludeProductId = null, maxQueries = 12 } = {}) {
+  if (!Array.isArray(aliases) || !aliases.length) {
+    return null;
+  }
+  const uniqueAliases = Array.from(new Set(aliases.filter(Boolean))).slice(0, maxQueries);
+  for (const alias of uniqueAliases) {
+    const snapshot = await firestore
+      .collection(PRODUCTS_COLLECTION)
+      .where('ops.identity_aliases', 'array-contains', alias)
+      .limit(5)
+      .get();
+    if (snapshot.empty) {
+      continue;
+    }
+    for (const doc of snapshot.docs) {
+      if (excludeProductId && doc.id === excludeProductId) {
+        continue;
+      }
+      return doc.data();
+    }
+  }
+  return null;
+}
+
+async function appendProductIdentityAliases(productId, aliases = []) {
+  if (!productId || !Array.isArray(aliases) || !aliases.length) {
+    return;
+  }
+  const filtered = aliases.filter(Boolean);
+  if (!filtered.length) {
+    return;
+  }
+  const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
+  await docRef.set(
+    {
+      ops: {
+        identity_aliases: FieldValue.arrayUnion(...filtered.slice(0, 100)),
+      },
+    },
+    { merge: true }
+  );
+}
+
 async function saveOrders(orders = []) {
   if (!Array.isArray(orders) || orders.length === 0) {
     return [];
@@ -201,6 +248,8 @@ module.exports = {
   deleteProduct,
   updateProductSyncStatus,
   findProductByIdentityKey,
+  findProductByIdentityAliases,
+  appendProductIdentityAliases,
   saveOrders,
   listOrders,
   getOrderById,

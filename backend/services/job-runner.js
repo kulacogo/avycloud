@@ -2,13 +2,19 @@ const PQueue = require('p-queue').default || require('p-queue');
 const { Timestamp, claimJob, updateJob, listJobsByStatus } = require('../lib/jobs');
 const { downloadFile } = require('../lib/storage');
 const { runProductIdentification } = require('./enrichment');
-const { saveProduct, getProduct, findProductByIdentityKey } = require('../lib/firestore');
+const {
+  saveProduct,
+  getProduct,
+  findProductByIdentityKey,
+  findProductByIdentityAliases,
+} = require('../lib/firestore');
 const { ensureProductSku } = require('../lib/sku');
-const { computeProductIdentityKey } = require('../lib/product-identity');
+const { computeProductIdentityKey, buildIdentityAliasSet } = require('../lib/product-identity');
 
 const CONCURRENCY = parseInt(process.env.ID_QUEUE_CONCURRENCY || '3', 10);
 const MAX_ATTEMPTS = parseInt(process.env.ID_JOB_MAX_ATTEMPTS || '3', 10);
 const JOB_SWEEP_INTERVAL_MS = parseInt(process.env.ID_JOB_SWEEP_MS || '30000', 10);
+const ALIAS_QUERY_LIMIT = parseInt(process.env.IDENTITY_ALIAS_QUERY_LIMIT || '10', 10);
 const queue = new PQueue({ concurrency: CONCURRENCY });
 let sweepTimer = null;
 let sweepInFlight = false;
@@ -81,6 +87,11 @@ async function processJob(jobId) {
             sync_status: 'pending',
             last_synced_iso: null,
           };
+          const aliasSet = buildIdentityAliasSet(product);
+          if (aliasSet.length) {
+            product.ops.identity_aliases = aliasSet;
+          }
+          let matchedExistingProduct = null;
 
           const identityKey = computeProductIdentityKey(product);
           const isTemporaryId = typeof product.id === 'string' && /^prod-/i.test(product.id);
@@ -90,6 +101,7 @@ async function processJob(jobId) {
             const existingByIdentity = await findProductByIdentityKey(identityKey);
             if (existingByIdentity?.id) {
               product.id = existingByIdentity.id;
+              matchedExistingProduct = existingByIdentity;
             }
           }
 
@@ -103,6 +115,40 @@ async function processJob(jobId) {
                 product.id = `${product.id}-${Date.now()}`;
               }
             }
+          }
+
+          if (!matchedExistingProduct && (product.ops.identity_aliases?.length || aliasSet.length)) {
+            const aliasesToQuery = product.ops.identity_aliases?.length ? product.ops.identity_aliases : aliasSet;
+            const aliasMatch = await findProductByIdentityAliases(aliasesToQuery, {
+              excludeProductId: product.id,
+              maxQueries: ALIAS_QUERY_LIMIT,
+            });
+            if (aliasMatch?.id) {
+              product.id = aliasMatch.id;
+              matchedExistingProduct = aliasMatch;
+              const mergedAliases = Array.from(
+                new Set([
+                  ...(aliasMatch.ops?.identity_aliases || []),
+                  ...(product.ops.identity_aliases || []),
+                ])
+              ).slice(0, 100);
+              if (mergedAliases.length) {
+                product.ops.identity_aliases = mergedAliases;
+              }
+              console.log(
+                `Resolved duplicate product candidate via alias-set match for ${aliasMatch.id} (job ${jobId})`
+              );
+            }
+          }
+
+          if (matchedExistingProduct?.ops?.identity_aliases?.length && product.ops.identity_aliases?.length) {
+            const mergedAliases = Array.from(
+              new Set([
+                ...matchedExistingProduct.ops.identity_aliases,
+                ...product.ops.identity_aliases,
+              ])
+            ).slice(0, 100);
+            product.ops.identity_aliases = mergedAliases;
           }
 
           const dedupeKey = buildDedupeKey(product);
