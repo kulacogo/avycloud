@@ -1,4 +1,5 @@
 const { Firestore } = require('@google-cloud/firestore');
+const { computeProductIdentityKey } = require('./product-identity');
 
 // Initialize Firestore
 const firestore = new Firestore({
@@ -17,12 +18,15 @@ async function saveProduct(product) {
     const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(product.id);
     
     // Add timestamps
+    const ops = product.ops || {};
+    const identityKey = computeProductIdentityKey(product);
     const productData = {
       ...product,
       ops: {
-        ...product.ops,
+        ...ops,
+        identity_key: identityKey || ops.identity_key || null,
         last_saved_iso: new Date().toISOString(),
-        revision: (product.ops.revision || 0) + 1
+        revision: ((ops.revision || 0)) + 1
       }
     };
     
@@ -120,6 +124,20 @@ async function updateProductSyncStatus(productId, status, lastSyncedIso = null, 
   }
 }
 
+async function findProductByIdentityKey(identityKey) {
+  if (!identityKey) return null;
+  const snapshot = await firestore
+    .collection(PRODUCTS_COLLECTION)
+    .where('ops.identity_key', '==', identityKey)
+    .limit(1)
+    .get();
+  if (snapshot.empty) {
+    return null;
+  }
+  const doc = snapshot.docs[0];
+  return doc.data();
+}
+
 async function saveOrders(orders = []) {
   if (!Array.isArray(orders) || orders.length === 0) {
     return [];
@@ -182,6 +200,7 @@ module.exports = {
   getAllProducts,
   deleteProduct,
   updateProductSyncStatus,
+  findProductByIdentityKey,
   saveOrders,
   listOrders,
   getOrderById,

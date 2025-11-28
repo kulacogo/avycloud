@@ -338,7 +338,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const binHeaderBadge = useMemo(() => {
     if (productBins.length) {
-      const totalQuantity = productBins.reduce((sum, bin) => sum + (bin.productCount ?? 0), 0);
+      const totalQuantity = productBins.reduce(
+        (sum, bin) => sum + (bin.quantity ?? bin.productCount ?? 0),
+        0
+      );
       const firstCode = productBins[0]?.code;
       const extra = productBins.length > 1 ? ` +${productBins.length - 1}` : '';
       return `BIN ${firstCode}${extra} · Menge ${totalQuantity}`;
@@ -572,7 +575,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     <div className="text-xs text-slate-400">
                       Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
                     </div>
-                    <div className="text-xs text-slate-300">Menge {bin.productCount ?? 0}</div>
+                    <div className="text-xs text-slate-300">Menge {bin.quantity ?? bin.productCount ?? 0}</div>
                   </div>
                 </div>
               ))}

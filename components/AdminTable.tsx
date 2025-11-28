@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
 import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow } from '../api/client';
-import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon } from './icons/Icons';
+import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
 
@@ -69,6 +69,34 @@ const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
     >
       {saved ? 'Gespeichert' : 'Nicht gespeichert'}
     </span>
+  );
+};
+
+const ActionButton: React.FC<{
+  icon: React.ReactNode;
+  label: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  tone?: 'primary' | 'secondary' | 'danger' | 'accent';
+}> = ({ icon, label, onClick, disabled, tone = 'secondary' }) => {
+  const toneClasses = {
+    primary: 'bg-sky-600 text-white hover:bg-sky-500',
+    secondary: 'bg-slate-700 text-slate-100 hover:bg-slate-600',
+    danger: 'bg-red-600 text-white hover:bg-red-500',
+    accent: 'bg-purple-600 text-white hover:bg-purple-500',
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+        toneClasses[tone]
+      } ${disabled ? 'opacity-40 cursor-not-allowed hover:none' : ''}`}
+    >
+      {icon}
+      <span className="whitespace-nowrap">{label}</span>
+    </button>
   );
 };
 
@@ -282,6 +310,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
     ];
     return baseRenderers;
   }, [onSelectProduct, t]);
+
+  const statusFilters: Array<{ value: SyncStatus | 'all'; label: string }> = [
+    { value: 'all', label: t('table.status.all') },
+    { value: 'pending', label: t('table.status.pending') },
+    { value: 'synced', label: t('table.status.synced') },
+    { value: 'failed', label: t('table.status.failed') },
+  ];
 
   const resolveInitialColumns = (): ColumnId[] => {
     if (typeof window !== 'undefined') {
@@ -591,6 +626,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
     );
   };
 
+  const resetFilters = () => {
+    setSearchTerm('');
+    setFilterStatus('all');
+    setFilterCategory('all');
+  };
+
   return (
     <section id="admin-table" className="p-6 bg-slate-800 rounded-lg shadow-lg">
       <header className="mb-6">
@@ -598,106 +639,158 @@ const AdminTable: React.FC<AdminTableProps> = ({
         <p className="text-slate-400">{t('inventory.subtitle')}</p>
       </header>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div className="relative md:col-span-3">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input id="table-search" type="text" placeholder={t('table.search')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 p-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500" />
-        </div>
-        <select id="table-filter-status" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="w-full p-2 bg-slate-700 border border-slate-600 rounded-lg">
-          <option value="all">{t('table.status.all')}</option>
-          <option value="pending">{t('table.status.pending')}</option>
-          <option value="synced">{t('table.status.synced')}</option>
-          <option value="failed">{t('table.status.failed')}</option>
-        </select>
-        <select id="table-filter-category" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="w-full p-2 bg-slate-700 border border-slate-600 rounded-lg">
-          {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? t('table.categories.all') : cat}</option>)}
-        </select>
-      </div>
-
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button id="table-sync-selected" onClick={handleBatchSync} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"><SyncIcon className="w-4 h-4 mr-1.5" /> {t('table.actions.syncSelected')}</button>
-        <button id="table-price-refresh" onClick={handleBatchPriceRefresh} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-sky-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"><RefreshIcon className="w-4 h-4 mr-1.5" /> {t('table.actions.priceRefresh')}</button>
-        {onImproveSelected && (
-          <button
-            id="table-improve-selected"
-            onClick={() => onImproveSelected(Array.from(selectedIds))}
-            disabled={selectedIds.size === 0}
-            className="flex items-center justify-center px-3 py-2 text-sm bg-purple-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"
-          >
-            Improve Selected
-          </button>
-        )}
-        <button id="table-export-csv" onClick={handleExportCsv} className="flex items-center justify-center px-3 py-2 text-sm bg-slate-600 text-white rounded-md w-full sm:w-auto"><ExportIcon className="w-4 h-4 mr-1.5" /> {t('table.actions.exportCsv')}</button>
-        <button
-          id="table-print-labels"
-          onClick={handleBatchLabelPrint}
-          disabled={selectedIds.size === 0}
-          className="flex items-center justify-center px-3 py-2 text-sm bg-emerald-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto"
-        >
-          <PrintIcon className="w-4 h-4 mr-1.5" /> {t('table.actions.printLabel')}
-        </button>
-        <button id="table-delete-selected" onClick={handleBatchDelete} disabled={selectedIds.size === 0} className="flex items-center justify-center px-3 py-2 text-sm bg-red-600 text-white rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed w-full sm:w-auto">{t('table.actions.deleteSelected')}</button>
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          {(['standard', 'warehouse', 'pricing', 'minimal'] as ColumnPreset[]).map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => {
-                setVisibleColumns(COLUMN_PRESETS[preset]);
-                setColumnPreset(preset);
-              }}
-            className={`px-3 py-2 text-sm rounded-md border ${
-              columnPreset === preset
-                ? 'border-sky-500 bg-sky-600 text-white'
-                : 'border-slate-600 bg-slate-700 text-slate-100 hover:border-slate-500'
-            }`}
-          >
-              {preset === 'standard'
-                ? t('table.presets.standard')
-                : preset === 'warehouse'
-                ? t('table.presets.warehouse')
-                : preset === 'pricing'
-                ? t('table.presets.pricing')
-                : t('table.presets.minimal')}
+      <div className="space-y-3 mb-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[220px]">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              id="table-search"
+              type="text"
+              placeholder={t('table.search')}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <span>
+              {filteredAndSortedProducts.length} / {products.length} Produkte
+            </span>
+            <button type="button" onClick={resetFilters} className="text-sky-400 hover:underline">
+              Filter zurücksetzen
             </button>
-          ))}
+          </div>
         </div>
-        <div className="relative w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={() => setIsColumnPanelOpen((prev) => !prev)}
-            className="w-full flex items-center justify-center px-3 py-2 text-sm bg-slate-700 text-white rounded-md border border-slate-600"
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <select
+            id="table-filter-status"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as SyncStatus | 'all')}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
           >
-            {t('table.columns.edit')}
-          </button>
-          {isColumnPanelOpen && (
-            <div className="absolute z-20 mt-2 w-64 rounded-lg border border-slate-600 bg-slate-800 shadow-xl p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-white">{t('table.columns.visible')}</p>
-                <button
-                  type="button"
-                  className="text-xs text-sky-400 hover:underline"
-                  onClick={resetColumns}
-                >
-                  {t('table.columns.reset')}
-                </button>
-              </div>
-              <div className="max-h-64 overflow-y-auto space-y-1">
-                {columnDefinitions.map((column) => (
-                  <label key={column.id} className="flex items-center gap-2 text-sm text-slate-200">
-                    <input
-                      type="checkbox"
-                      checked={visibleColumns.includes(column.id)}
-                      onChange={() => toggleColumnVisibility(column.id)}
-                      disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
-                      className="bg-slate-600 border-slate-500"
-                    />
-                    {column.label}
-                  </label>
-                ))}
-              </div>
+            {statusFilters.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            id="table-filter-category"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat === 'all' ? t('table.categories.all') : cat}
+              </option>
+            ))}
+          </select>
+          <select
+            value={columnPreset}
+            onChange={(e) => {
+              const preset = e.target.value as ColumnPreset;
+              setVisibleColumns(COLUMN_PRESETS[preset]);
+              setColumnPreset(preset);
+            }}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            <option value="standard">{t('table.presets.standard')}</option>
+            <option value="warehouse">{t('table.presets.warehouse')}</option>
+            <option value="pricing">{t('table.presets.pricing')}</option>
+            <option value="minimal">{t('table.presets.minimal')}</option>
+          </select>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsColumnPanelOpen((prev) => !prev)}
+              className="flex-1 rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
+            >
+              {t('table.columns.edit')}
+            </button>
+            <button
+              type="button"
+              onClick={resetColumns}
+              className="rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
+            >
+              {t('table.columns.reset')}
+            </button>
+          </div>
+        </div>
+
+        {isColumnPanelOpen && (
+          <div className="rounded-lg border border-slate-600 bg-slate-900 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-white">{t('table.columns.visible')}</p>
+              <button type="button" className="text-xs text-sky-400 hover:underline" onClick={resetColumns}>
+                {t('table.columns.reset')}
+              </button>
             </div>
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              {columnDefinitions.map((column) => (
+                <label key={column.id} className="flex items-center gap-2 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.includes(column.id)}
+                    onChange={() => toggleColumnVisibility(column.id)}
+                    disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
+                    className="bg-slate-600 border-slate-500"
+                  />
+                  {column.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-700/40">
+          <ActionButton
+            icon={<SyncIcon className="w-4 h-4" />}
+            label={t('table.actions.syncSelected')}
+            onClick={handleBatchSync}
+            disabled={selectedIds.size === 0}
+            tone="primary"
+          />
+          <ActionButton
+            icon={<RefreshIcon className="w-4 h-4" />}
+            label={t('table.actions.priceRefresh')}
+            onClick={handleBatchPriceRefresh}
+            disabled={selectedIds.size === 0}
+            tone="primary"
+          />
+          {onImproveSelected && (
+            <ActionButton
+              icon={<OperationsIcon className="w-4 h-4" />}
+              label="Improve"
+              onClick={() => onImproveSelected(Array.from(selectedIds))}
+              disabled={selectedIds.size === 0}
+              tone="accent"
+            />
           )}
+          <ActionButton
+            icon={<ExportIcon className="w-4 h-4" />}
+            label={t('table.actions.exportCsv')}
+            onClick={handleExportCsv}
+          />
+          <ActionButton
+            icon={<PrintIcon className="w-4 h-4" />}
+            label={t('table.actions.printLabel')}
+            onClick={handleBatchLabelPrint}
+            disabled={selectedIds.size === 0}
+          />
+          <ActionButton
+            icon={<PrintIcon className="w-4 h-4 rotate-180" />}
+            label={t('table.columns.reset')}
+            onClick={resetColumns}
+          />
+          <ActionButton
+            icon={<SyncIcon className="w-4 h-4 rotate-90" />}
+            label={t('table.actions.deleteSelected')}
+            onClick={handleBatchDelete}
+            disabled={selectedIds.size === 0}
+            tone="danger"
+          />
         </div>
       </div>
 

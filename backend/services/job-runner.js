@@ -2,9 +2,9 @@ const PQueue = require('p-queue').default || require('p-queue');
 const { Timestamp, claimJob, updateJob, listJobsByStatus } = require('../lib/jobs');
 const { downloadFile } = require('../lib/storage');
 const { runProductIdentification } = require('./enrichment');
-const { saveProduct } = require('../lib/firestore');
+const { saveProduct, getProduct, findProductByIdentityKey } = require('../lib/firestore');
 const { ensureProductSku } = require('../lib/sku');
-const { getProduct } = require('../lib/firestore');
+const { computeProductIdentityKey } = require('../lib/product-identity');
 
 const CONCURRENCY = parseInt(process.env.ID_QUEUE_CONCURRENCY || '3', 10);
 const MAX_ATTEMPTS = parseInt(process.env.ID_JOB_MAX_ATTEMPTS || '3', 10);
@@ -12,6 +12,23 @@ const JOB_SWEEP_INTERVAL_MS = parseInt(process.env.ID_JOB_SWEEP_MS || '30000', 1
 const queue = new PQueue({ concurrency: CONCURRENCY });
 let sweepTimer = null;
 let sweepInFlight = false;
+
+function buildDedupeKey(product) {
+  const identity = computeProductIdentityKey(product);
+  if (identity) return `identity:${identity}`;
+  const sku =
+    product?.details?.identifiers?.sku ||
+    product?.identification?.sku ||
+    product?.identification?.barcodes?.[0];
+  if (sku) {
+    return `sku:${String(sku).trim().toLowerCase()}`;
+  }
+  const normalizedName = (product?.identification?.name || '').trim().toLowerCase();
+  if (normalizedName) {
+    return `name:${normalizedName}`;
+  }
+  return `id:${product?.id || Math.random().toString(36).slice(2)}`;
+}
 
 async function processJob(jobId) {
   let jobSnapshot;
@@ -54,11 +71,23 @@ async function processJob(jobId) {
 
     // Auto-Save identifizierte Produkte
     if (result?.bundle?.products?.length) {
+      const dedupeKeys = new Set();
       for (const product of result.bundle.products) {
         try {
           ensureProductSku(product);
 
-          // Avoid overwriting unrelated products: if same ID exists with abweichenden Barcode -> create new ID
+          const identityKey = computeProductIdentityKey(product);
+          const isTemporaryId = typeof product.id === 'string' && /^prod-/i.test(product.id);
+          const hasBarcode = Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0;
+
+          if (identityKey && isTemporaryId && !hasBarcode) {
+            const existingByIdentity = await findProductByIdentityKey(identityKey);
+            if (existingByIdentity?.id) {
+              product.id = existingByIdentity.id;
+            }
+          }
+
+          // Avoid overwriting unrelated products: if same ID exists with abweichendem Barcode -> create new ID
           if (product.id) {
             const existing = await getProduct(product.id);
             if (existing && Array.isArray(existing.identification?.barcodes) && Array.isArray(product.identification?.barcodes)) {
@@ -69,6 +98,13 @@ async function processJob(jobId) {
               }
             }
           }
+
+          const dedupeKey = buildDedupeKey(product);
+          if (dedupeKeys.has(dedupeKey)) {
+            console.log(`Skipping duplicate product candidate (${dedupeKey}) for job ${jobId}`);
+            continue;
+          }
+          dedupeKeys.add(dedupeKey);
 
           await saveProduct(product);
         } catch (saveError) {

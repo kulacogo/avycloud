@@ -620,6 +620,7 @@ async function listBinsForProduct(productIdOrSku) {
         regal: data.regal,
         ebene: data.ebene,
         quantity: hit.quantity || 0,
+        productCount: hit.quantity || 0,
         productId: hit.productId,
         sku: hit.sku,
         name: hit.name,
