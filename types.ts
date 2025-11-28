@@ -68,6 +68,7 @@ export interface Ops {
   last_saved_iso?: string | null; // ISO-8601
   last_synced_iso?: string | null; // ISO-8601
   base_product_id?: string | null;
+  pending_intake_quantity?: number;
   revision: number;
 }
 

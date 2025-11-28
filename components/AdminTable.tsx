@@ -15,6 +15,7 @@ type ColumnId =
   | 'barcode'
   | 'price'
   | 'inventory'
+  | 'pendingIntake'
   | 'storage'
   | 'lastSold'
   | 'syncStatus'
@@ -25,10 +26,10 @@ type ColumnId =
 
 type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'storage', 'syncStatus', 'lastSaved'],
-  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'storage', 'syncStatus', 'saveStatus'],
-  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'syncStatus', 'lastSynced'],
-  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'syncStatus'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'pendingIntake', 'storage', 'syncStatus', 'lastSaved'],
+  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'syncStatus', 'saveStatus'],
+  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'syncStatus', 'lastSynced'],
+  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'syncStatus'],
 };
 
 interface ColumnDefinition {
@@ -230,6 +231,23 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <span className="font-semibold text-slate-100 text-center block">{getProductQuantity(product)}</span>
           </div>
         ),
+      },
+      {
+        id: 'pendingIntake',
+        label: t('table.pendingIntake'),
+        sortKey: 'ops.pending_intake_quantity',
+        defaultVisible: true,
+        render: ({ product }) => {
+          const pending = Number(product.ops?.pending_intake_quantity) || 0;
+          if (pending <= 0) {
+            return <span className="text-slate-500 text-sm">0</span>;
+          }
+          return (
+            <span className="inline-flex items-center justify-center rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-200">
+              +{pending}
+            </span>
+          );
+        },
       },
       {
         id: 'storage',

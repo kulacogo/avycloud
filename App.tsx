@@ -56,6 +56,15 @@ const collectIdentityKeys = (product?: Product | null) => {
 };
 
 const ensureInventoryQuantity = (product: Product, minQuantity = 1): Product => {
+  if (product.ops?.last_saved_iso) {
+    return product;
+  }
+  const currentQuantity = product.inventory?.quantity;
+  const hasDefinedQuantity =
+    typeof currentQuantity === 'number' && Number.isFinite(currentQuantity) && currentQuantity > 0;
+  if (hasDefinedQuantity || (product.storageBins && product.storageBins.length > 0)) {
+    return product;
+  }
   const nextQuantity = Math.max(product.inventory?.quantity ?? 0, minQuantity);
   return {
     ...product,
@@ -92,12 +101,14 @@ const mergeIdentifiedProducts = (
 
     if (matchIndex >= 0) {
       const matched = updated[matchIndex];
-      const nextQuantity = (matched.inventory?.quantity ?? 0) + 1;
       const merged: Product = {
         ...matched,
-        inventory: {
-          ...(matched.inventory ?? {}),
-          quantity: nextQuantity,
+        ...normalizedIncoming,
+        inventory: normalizedIncoming.inventory || matched.inventory || undefined,
+        storage: normalizedIncoming.storage ?? matched.storage ?? null,
+        ops: {
+          ...(matched.ops || {}),
+          ...(normalizedIncoming.ops || {}),
         },
       };
       updated[matchIndex] = merged;

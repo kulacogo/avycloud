@@ -20,6 +20,10 @@ async function saveProduct(product) {
     // Add timestamps
     const ops = product.ops || {};
     const identityKey = computeProductIdentityKey(product);
+    const pendingIntake =
+      typeof ops.pending_intake_quantity === 'number' && Number.isFinite(ops.pending_intake_quantity)
+        ? ops.pending_intake_quantity
+        : 0;
     const aliasSet = buildIdentityAliasSet(product);
     const existingAliases = Array.isArray(ops.identity_aliases) ? ops.identity_aliases.filter(Boolean) : [];
     const mergedAliases = Array.from(new Set([...existingAliases, ...aliasSet])).slice(0, 100);
@@ -29,6 +33,7 @@ async function saveProduct(product) {
         ...ops,
         identity_key: identityKey || ops.identity_key || null,
         identity_aliases: mergedAliases.length ? mergedAliases : undefined,
+        pending_intake_quantity: pendingIntake,
         last_saved_iso: new Date().toISOString(),
         revision: ((ops.revision || 0)) + 1
       }
@@ -59,7 +64,11 @@ async function getProduct(productId) {
       return null;
     }
     
-    return doc.data();
+    const data = doc.data();
+    return {
+      ...data,
+      id: data?.id || doc.id,
+    };
   } catch (error) {
     console.error('Failed to get product from Firestore:', error);
     throw new Error(`Failed to get product: ${error.message}`);
@@ -78,7 +87,11 @@ async function getAllProducts() {
     
     const products = [];
     snapshot.forEach(doc => {
-      products.push(doc.data());
+      const data = doc.data();
+      products.push({
+        ...data,
+        id: data?.id || doc.id,
+      });
     });
     
     console.log(`Loaded ${products.length} products from Firestore`);
@@ -139,7 +152,11 @@ async function findProductByIdentityKey(identityKey) {
     return null;
   }
   const doc = snapshot.docs[0];
-  return doc.data();
+  const data = doc.data();
+  return {
+    ...data,
+    id: data?.id || doc.id,
+  };
 }
 
 async function findProductByIdentityAliases(aliases = [], { excludeProductId = null, maxQueries = 12 } = {}) {
@@ -160,10 +177,34 @@ async function findProductByIdentityAliases(aliases = [], { excludeProductId = n
       if (excludeProductId && doc.id === excludeProductId) {
         continue;
       }
-      return doc.data();
+      const data = doc.data();
+      return {
+        ...data,
+        id: data?.id || doc.id,
+      };
     }
   }
   return null;
+}
+
+async function adjustPendingIntakeQuantity(productId, delta = 0) {
+  if (!productId || !delta) {
+    return null;
+  }
+  const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
+  return firestore.runTransaction(async (tx) => {
+    const snap = await tx.get(docRef);
+    if (!snap.exists) {
+      throw new Error(`Product ${productId} not found for pending intake update`);
+    }
+    const data = snap.data() || {};
+    const current = Number(data?.ops?.pending_intake_quantity) || 0;
+    const next = Math.max(0, current + delta);
+    tx.update(docRef, {
+      'ops.pending_intake_quantity': next,
+    });
+    return next;
+  });
 }
 
 async function appendProductIdentityAliases(productId, aliases = []) {
@@ -249,6 +290,7 @@ module.exports = {
   updateProductSyncStatus,
   findProductByIdentityKey,
   findProductByIdentityAliases,
+  adjustPendingIntakeQuantity,
   appendProductIdentityAliases,
   saveOrders,
   listOrders,
@@ -256,4 +298,5 @@ module.exports = {
   updateOrder,
   firestore,
 };
+
 

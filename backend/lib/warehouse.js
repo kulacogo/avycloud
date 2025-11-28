@@ -1,5 +1,5 @@
 const { Firestore, Timestamp } = require('@google-cloud/firestore');
-const { getProduct } = require('./firestore');
+const { getProduct, adjustPendingIntakeQuantity } = require('./firestore');
 
 const firestore = new Firestore({
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
@@ -391,6 +391,16 @@ async function assignProductToBin(binCode, productId, quantity) {
   });
 
   await refreshProductInventory(productId);
+  const previousQuantity =
+    product.storage?.binCode === binCode ? Number(product.storage?.quantity) || 0 : 0;
+  const intakeDelta = Math.max(0, Number(quantity) - previousQuantity);
+  if (intakeDelta > 0) {
+    try {
+      await adjustPendingIntakeQuantity(productId, -intakeDelta);
+    } catch (error) {
+      console.warn(`Failed to decrement pending intake for ${productId}:`, error);
+    }
+  }
   return getBinByCode(binCode);
 }
 
@@ -472,17 +482,24 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
             assigned_at: productData.storage?.assigned_at || nowIso,
           };
 
+    const currentPending = Number(productData?.ops?.pending_intake_quantity) || 0;
+    const nextPending = Math.max(0, currentPending - quantity);
     tx.update(productRef, {
       storage: storagePayload,
       inventory: {
         ...(productData.inventory || {}),
         quantity: inventoryQuantity,
       },
+      'ops.pending_intake_quantity': nextPending,
     });
 
     updatedProduct = {
       ...productData,
       id: resolvedProductId,
+      ops: {
+        ...(productData.ops || {}),
+        pending_intake_quantity: nextPending,
+      },
       storage: storagePayload,
       inventory: {
         ...(productData.inventory || {}),

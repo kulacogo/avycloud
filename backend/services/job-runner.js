@@ -7,6 +7,8 @@ const {
   getProduct,
   findProductByIdentityKey,
   findProductByIdentityAliases,
+  adjustPendingIntakeQuantity,
+  appendProductIdentityAliases,
 } = require('../lib/firestore');
 const { ensureProductSku } = require('../lib/sku');
 const { computeProductIdentityKey, buildIdentityAliasSet } = require('../lib/product-identity');
@@ -78,7 +80,11 @@ async function processJob(jobId) {
     // Auto-Save identifizierte Produkte
     if (result?.bundle?.products?.length) {
       const dedupeKeys = new Set();
-      for (const product of result.bundle.products) {
+      const reuseEvents = [];
+      const bundleProducts = result.bundle.products;
+
+      for (let index = 0; index < bundleProducts.length; index += 1) {
+        const product = bundleProducts[index];
         try {
           ensureProductSku(product);
 
@@ -86,46 +92,39 @@ async function processJob(jobId) {
             ...(product.ops || {}),
             sync_status: 'pending',
             last_synced_iso: null,
+            pending_intake_quantity: product.ops?.pending_intake_quantity || 0,
           };
           const aliasSet = buildIdentityAliasSet(product);
           if (aliasSet.length) {
             product.ops.identity_aliases = aliasSet;
           }
           let matchedExistingProduct = null;
+          let matchedProductId = null;
 
           const identityKey = computeProductIdentityKey(product);
           const isTemporaryId = typeof product.id === 'string' && /^prod-/i.test(product.id);
           const hasBarcode = Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0;
 
-          if (identityKey && isTemporaryId && !hasBarcode) {
+          if (!matchedExistingProduct && identityKey && isTemporaryId && !hasBarcode) {
             const existingByIdentity = await findProductByIdentityKey(identityKey);
             if (existingByIdentity?.id) {
-              product.id = existingByIdentity.id;
               matchedExistingProduct = existingByIdentity;
+              matchedProductId = existingByIdentity.id;
             }
           }
 
-          // Avoid overwriting unrelated products: if same ID exists with abweichendem Barcode -> create new ID
-          if (product.id) {
-            const existing = await getProduct(product.id);
-            if (existing && Array.isArray(existing.identification?.barcodes) && Array.isArray(product.identification?.barcodes)) {
-              const existingBarcode = existing.identification.barcodes[0] || null;
-              const incomingBarcode = product.identification.barcodes[0] || null;
-              if (existingBarcode && incomingBarcode && existingBarcode !== incomingBarcode) {
-                product.id = `${product.id}-${Date.now()}`;
-              }
-            }
-          }
-
-          if (!matchedExistingProduct && (product.ops.identity_aliases?.length || aliasSet.length)) {
+          if (
+            !matchedExistingProduct &&
+            (product.ops.identity_aliases?.length || aliasSet.length)
+          ) {
             const aliasesToQuery = product.ops.identity_aliases?.length ? product.ops.identity_aliases : aliasSet;
             const aliasMatch = await findProductByIdentityAliases(aliasesToQuery, {
               excludeProductId: product.id,
               maxQueries: ALIAS_QUERY_LIMIT,
             });
             if (aliasMatch?.id) {
-              product.id = aliasMatch.id;
               matchedExistingProduct = aliasMatch;
+              matchedProductId = aliasMatch.id;
               const mergedAliases = Array.from(
                 new Set([
                   ...(aliasMatch.ops?.identity_aliases || []),
@@ -141,14 +140,42 @@ async function processJob(jobId) {
             }
           }
 
-          if (matchedExistingProduct?.ops?.identity_aliases?.length && product.ops.identity_aliases?.length) {
-            const mergedAliases = Array.from(
-              new Set([
-                ...matchedExistingProduct.ops.identity_aliases,
-                ...product.ops.identity_aliases,
-              ])
-            ).slice(0, 100);
-            product.ops.identity_aliases = mergedAliases;
+          if (matchedExistingProduct && matchedProductId) {
+            const pendingQuantity =
+              (await adjustPendingIntakeQuantity(matchedProductId, 1)) ??
+              ((matchedExistingProduct.ops?.pending_intake_quantity || 0) + 1);
+            reuseEvents.push({
+              jobId,
+              productId: matchedProductId,
+              pendingIntakeQuantity: pendingQuantity,
+            });
+            const canonicalProduct = (await getProduct(matchedProductId)) || matchedExistingProduct;
+            if (aliasSet.length) {
+              appendProductIdentityAliases(matchedProductId, aliasSet).catch((aliasError) => {
+                console.warn(`Failed to append identity aliases for ${matchedProductId}:`, aliasError);
+              });
+            }
+            const resolvedProduct = {
+              ...canonicalProduct,
+              ops: {
+                ...(canonicalProduct.ops || {}),
+                pending_intake_quantity: pendingQuantity,
+              },
+            };
+            bundleProducts[index] = resolvedProduct;
+            continue;
+          }
+
+          // Avoid overwriting unrelated products: if same ID exists with abweichendem Barcode -> create new ID
+          if (product.id) {
+            const existing = await getProduct(product.id);
+            if (existing && Array.isArray(existing.identification?.barcodes) && Array.isArray(product.identification?.barcodes)) {
+              const existingBarcode = existing.identification.barcodes[0] || null;
+              const incomingBarcode = product.identification.barcodes[0] || null;
+              if (existingBarcode && incomingBarcode && existingBarcode !== incomingBarcode) {
+                product.id = `${product.id}-${Date.now()}`;
+              }
+            }
           }
 
           const dedupeKey = buildDedupeKey(product);
@@ -159,9 +186,15 @@ async function processJob(jobId) {
           dedupeKeys.add(dedupeKey);
 
           await saveProduct(product);
+          bundleProducts[index] = product;
         } catch (saveError) {
           console.error(`Auto-Save failed for product ${product?.id || 'unknown'} in job ${jobId}:`, saveError);
         }
+      }
+
+      result.bundle.products = bundleProducts;
+      if (reuseEvents.length) {
+        result.bundle.reuseEvents = reuseEvents;
       }
     }
 
@@ -171,6 +204,7 @@ async function processJob(jobId) {
       result: result.bundle,
       serpTrace: result.serpTrace,
       modelUsed: result.modelResponse?.model || result.modelUsed || null,
+      reuseEvents: result.bundle?.reuseEvents || [],
     });
   } catch (error) {
     console.error(`Job ${jobId} failed:`, error);
