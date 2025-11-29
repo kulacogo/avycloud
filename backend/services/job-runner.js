@@ -7,6 +7,7 @@ const {
   getProduct,
   findProductByIdentityKey,
   findProductByIdentityAliases,
+  findProductByStrictIdentifier, // Import new function
   adjustPendingIntakeQuantity,
   appendProductIdentityAliases,
 } = require('../lib/firestore');
@@ -105,6 +106,20 @@ async function processJob(jobId) {
           const isTemporaryId = typeof product.id === 'string' && /^prod-/i.test(product.id);
           const hasBarcode = Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0;
 
+          // 1. Strict Identifier Check (Barcode/SKU) - PRIORITY
+          if (!matchedExistingProduct) {
+             const strictMatch = await findProductByStrictIdentifier({
+               barcodes: product.identification?.barcodes || [],
+               sku: product.identification?.sku || product.details?.identifiers?.sku
+             });
+             if (strictMatch?.id) {
+               matchedExistingProduct = strictMatch;
+               matchedProductId = strictMatch.id;
+               console.log(`Resolved duplicate product via STRICT identifier match: ${strictMatch.id} (job ${jobId})`);
+             }
+          }
+
+          // 2. Identity Key Heuristic (for non-barcode products)
           if (!matchedExistingProduct && identityKey && isTemporaryId && !hasBarcode) {
             const existingByIdentity = await findProductByIdentityKey(identityKey);
             if (existingByIdentity?.id) {
@@ -113,6 +128,7 @@ async function processJob(jobId) {
             }
           }
 
+          // 3. Alias Heuristic
           if (
             !matchedExistingProduct &&
             (product.ops.identity_aliases?.length || aliasSet.length)

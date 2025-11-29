@@ -159,6 +159,69 @@ async function findProductByIdentityKey(identityKey) {
   };
 }
 
+async function findProductByStrictIdentifier({ barcodes = [], sku = null } = {}) {
+  if (!barcodes.length && !sku) return null;
+
+  // 1. Check barcodes (EAN/GTIN/UPC/etc)
+  const uniqueBarcodes = Array.from(new Set(barcodes.filter(Boolean)));
+  for (const code of uniqueBarcodes) {
+    // Check identification.barcodes
+    let snap = await firestore.collection(PRODUCTS_COLLECTION)
+      .where('identification.barcodes', 'array-contains', code)
+      .limit(1)
+      .get();
+    if (!snap.empty) {
+      const doc = snap.docs[0];
+      return { ...doc.data(), id: doc.id };
+    }
+    
+    // Check details.identifiers.ean
+    snap = await firestore.collection(PRODUCTS_COLLECTION)
+      .where('details.identifiers.ean', '==', code)
+      .limit(1)
+      .get();
+    if (!snap.empty) {
+      const doc = snap.docs[0];
+      return { ...doc.data(), id: doc.id };
+    }
+
+    // Check details.identifiers.gtin
+    snap = await firestore.collection(PRODUCTS_COLLECTION)
+      .where('details.identifiers.gtin', '==', code)
+      .limit(1)
+      .get();
+    if (!snap.empty) {
+      const doc = snap.docs[0];
+      return { ...doc.data(), id: doc.id };
+    }
+  }
+
+  // 2. Check SKU
+  if (sku) {
+    // Check identification.sku
+    let snap = await firestore.collection(PRODUCTS_COLLECTION)
+      .where('identification.sku', '==', sku)
+      .limit(1)
+      .get();
+    if (!snap.empty) {
+      const doc = snap.docs[0];
+      return { ...doc.data(), id: doc.id };
+    }
+
+    // Check details.identifiers.sku
+    snap = await firestore.collection(PRODUCTS_COLLECTION)
+      .where('details.identifiers.sku', '==', sku)
+      .limit(1)
+      .get();
+    if (!snap.empty) {
+      const doc = snap.docs[0];
+      return { ...doc.data(), id: doc.id };
+    }
+  }
+
+  return null;
+}
+
 async function findProductByIdentityAliases(aliases = [], { excludeProductId = null, maxQueries = 12 } = {}) {
   if (!Array.isArray(aliases) || !aliases.length) {
     return null;
@@ -277,6 +340,7 @@ async function updateOrder(orderId, updates = {}) {
     {
       ...updates,
       updatedAt: new Date().toISOString(),
+      ...(!updates.updatedAt ? { updatedAt: new Date().toISOString() } : {}),
     },
     { merge: true }
   );
@@ -290,6 +354,7 @@ module.exports = {
   updateProductSyncStatus,
   findProductByIdentityKey,
   findProductByIdentityAliases,
+  findProductByStrictIdentifier, // Export the new function
   adjustPendingIntakeQuantity,
   appendProductIdentityAliases,
   saveOrders,
@@ -298,5 +363,3 @@ module.exports = {
   updateOrder,
   firestore,
 };
-
-
