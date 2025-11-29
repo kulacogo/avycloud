@@ -189,6 +189,8 @@ async function processJob(jobId) {
           bundleProducts[index] = product;
         } catch (saveError) {
           console.error(`Auto-Save failed for product ${product?.id || 'unknown'} in job ${jobId}:`, saveError);
+          // Re-throw to ensure the job is marked as failed if a product cannot be saved
+          throw saveError;
         }
       }
 
