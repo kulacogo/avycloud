@@ -463,15 +463,55 @@ app.post('/api/identify', upload.array('images'), async (req, res) => {
   }
 });
 
+
+// --- Image Generation Endpoint ---
+const { generateImagesForProduct } = require('./services/image-generation');
+
+app.post('/api/generate-images', async (req, res) => {
+  try {
+    const { productId, product } = req.body;
+
+    let targetProduct = product;
+    if (!targetProduct && productId) {
+      targetProduct = await getProduct(productId);
+    }
+
+    if (!targetProduct) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Product ID or object required' }
+      });
+    }
+
+    const images = await generateImagesForProduct(targetProduct);
+
+    res.json({
+      ok: true,
+      data: images
+    });
+
+  } catch (error) {
+    console.error('Image generation failed:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to generate images',
+        details: error.message
+      }
+    });
+  }
+});
+
 // --- BaseLinker sync endpoint ---
 const { syncProductToBaseLinker, syncProductsToBaseLinker } = require('./lib/baselinker');
 
 app.post('/api/sync-baselinker', async (req, res) => {
   console.log('Received request on /api/sync-baselinker');
-  
+
   try {
     const { product, products } = req.body;
-    
+
     // Validate input
     if (!product && !products) {
       return res.status(400).json({
@@ -479,14 +519,14 @@ app.post('/api/sync-baselinker', async (req, res) => {
         error: { code: 400, message: 'Please provide either a product or products array' }
       });
     }
-    
+
     let results;
-    
+
     // Handle single product
     if (product && !products) {
       const result = await syncProductToBaseLinker(product);
       results = [result];
-    } 
+    }
     // Handle multiple products
     else if (products && Array.isArray(products)) {
       if (products.length === 0) {
@@ -509,11 +549,11 @@ app.post('/api/sync-baselinker', async (req, res) => {
         error: { code: 400, message: 'Invalid request format' }
       });
     }
-    
+
     // Check if all succeeded
     const allSucceeded = results.every(r => r.status === 'synced');
-        const failedResults = results.filter(r => r.status === 'failed');
-    
+    const failedResults = results.filter(r => r.status === 'failed');
+
     try {
       await Promise.all(
         results.map((result) =>
@@ -529,23 +569,23 @@ app.post('/api/sync-baselinker', async (req, res) => {
     } catch (statusError) {
       console.error('Error while updating sync status metadata:', statusError);
     }
-    
-        const responsePayload = {
-          ok: allSucceeded,
-          results,
-        };
 
-        if (failedResults.length) {
-          responsePayload.error = {
-            code: 502,
-            message: failedResults
-              .map((entry) => `${entry.id}: ${entry.message || 'Sync fehlgeschlagen'}`)
-              .join(' | '),
-          };
-        }
+    const responsePayload = {
+      ok: allSucceeded,
+      results,
+    };
 
-        res.status(200).json(responsePayload);
-    
+    if (failedResults.length) {
+      responsePayload.error = {
+        code: 502,
+        message: failedResults
+          .map((entry) => `${entry.id}: ${entry.message || 'Sync fehlgeschlagen'}`)
+          .join(' | '),
+      };
+    }
+
+    res.status(200).json(responsePayload);
+
   } catch (error) {
     console.error('Error in sync-baselinker endpoint:', error);
     res.status(500).json({
@@ -593,9 +633,9 @@ app.get('/api/products/labels', async (req, res) => {
     const ids = Array.isArray(idsParam)
       ? idsParam
       : String(idsParam)
-          .split(',')
-          .map((id) => id.trim())
-          .filter(Boolean);
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
     if (!ids.length) {
       return res.status(400).json({
         ok: false,
@@ -1096,7 +1136,7 @@ app.post('/api/scanner/capture', async (req, res) => {
 app.post('/api/save', async (req, res) => {
   try {
     const product = req.body;
-    
+
     if (!product || !product.id) {
       return res.status(400).json({
         ok: false,
@@ -1106,17 +1146,17 @@ app.post('/api/save', async (req, res) => {
         }
       });
     }
-    
+
     // Ensure SKU is present before persisting
     const assignedSku = ensureProductSku(product);
 
     // Process and upload images to Cloud Storage
     if (product.details && product.details.images) {
       const processedImages = [];
-      
+
       for (let i = 0; i < product.details.images.length; i++) {
         const image = product.details.images[i];
-        
+
         // Only process base64 images
         if (image.url_or_base64 && image.url_or_base64.startsWith('data:')) {
           try {
@@ -1134,7 +1174,7 @@ app.post('/api/save', async (req, res) => {
                 height: uploadResult.height,
               });
             }
-            
+
             processedImages.push({
               ...image,
               url_or_base64: uploadResult.url,
@@ -1161,13 +1201,13 @@ app.post('/api/save', async (req, res) => {
         }
         return true;
       });
-      
+
       product.details.images = filteredImages;
     }
-    
+
     // Save to Firestore
     const result = await saveProduct(product);
-    
+
     res.json({
       ok: true,
       data: {
@@ -1191,13 +1231,13 @@ app.post('/api/save', async (req, res) => {
 app.delete('/api/products/:id', async (req, res) => {
   try {
     const productId = req.params.id;
-    
+
     // Delete images from Cloud Storage
     await deleteProductImages(productId);
-    
+
     // Delete from Firestore
     await deleteProduct(productId);
-    
+
     res.json({ ok: true });
   } catch (error) {
     console.error('Error deleting product:', error);
@@ -1316,7 +1356,7 @@ app.post('/api/orders/:orderId/complete', async (req, res) => {
 app.post('/api/price-refresh', async (req, res) => {
   try {
     const { productId } = req.body;
-    
+
     if (!productId) {
       return res.status(400).json({
         ok: false,
@@ -1326,7 +1366,7 @@ app.post('/api/price-refresh', async (req, res) => {
         }
       });
     }
-    
+
     // Load product from Firestore
     const product = await getProduct(productId);
     if (!product) {
@@ -1411,7 +1451,7 @@ app.post('/api/price-refresh', async (req, res) => {
     await saveProduct(product);
 
     res.json({ ok: true, data });
-    
+
   } catch (error) {
     console.error('Error in price refresh:', error);
     res.status(500).json({

@@ -8,8 +8,9 @@ import {
   assignProductToBinApi,
   removeProductFromBinApi,
   fetchProductBins,
+  generateProductImages,
 } from '../api/client';
-import { EditIcon, SaveIcon, SyncIcon, PrintIcon } from './icons/Icons';
+import { EditIcon, SaveIcon, SyncIcon, PrintIcon, MagicIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import ImageGallery from './ImageGallery';
 import AttributeTable from './AttributeTable';
@@ -47,7 +48,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [newImageUrl, setNewImageUrl] = useState('');
   const [productBins, setProductBins] = useState<WarehouseBin[]>([]);
   const [binsLoading, setBinsLoading] = useState(false);
+
   const [binsError, setBinsError] = useState<string | null>(null);
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
 
   const loadProductBins = useCallback(
     async (productId: string) => {
@@ -170,6 +173,22 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   // NO AUTO-GENERATION - user must click "Generate Images" button manually
 
+  const handleGenerateImages = async () => {
+    if (!localProduct.id) return;
+    setIsGeneratingImages(true);
+    showNotification('success', 'Generiere Bilder mit Vertex AI (ca. 15s)...');
+
+    const result = await generateProductImages(localProduct.id);
+
+    if (result.ok && result.data) {
+      updateImages((images) => [...images, ...result.data!]);
+      showNotification('success', '6 neue Bilder generiert!');
+    } else {
+      showNotification('error', result.error?.message || 'Bildgenerierung fehlgeschlagen.');
+    }
+    setIsGeneratingImages(false);
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     const result = await saveProduct(localProduct);
@@ -178,15 +197,15 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       const updatedProduct: Product = {
         ...localProduct,
         identification: {
-            ...localProduct.identification,
-            sku: assignedSku || localProduct.identification.sku,
+          ...localProduct.identification,
+          sku: assignedSku || localProduct.identification.sku,
         },
         details: {
-            ...localProduct.details,
-            identifiers: {
-                ...(localProduct.details.identifiers || {}),
-                sku: assignedSku || localProduct.details.identifiers?.sku || undefined,
-            },
+          ...localProduct.details,
+          identifiers: {
+            ...(localProduct.details.identifiers || {}),
+            sku: assignedSku || localProduct.details.identifiers?.sku || undefined,
+          },
         },
         ops: {
           ...localProduct.ops,
@@ -337,13 +356,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const handleFieldChange = (field: string, value: string) => {
     const keys = field.split('.');
     setLocalProduct(prev => {
-        const newProd = JSON.parse(JSON.stringify(prev)); // Deep copy
-        let current = newProd;
-        for (let i = 0; i < keys.length - 1; i++) {
-            current = current[keys[i]];
-        }
-        current[keys[keys.length - 1]] = value;
-        return newProd;
+      const newProd = JSON.parse(JSON.stringify(prev)); // Deep copy
+      let current = newProd;
+      for (let i = 0; i < keys.length - 1; i++) {
+        current = current[keys[i]];
+      }
+      current[keys[keys.length - 1]] = value;
+      return newProd;
     });
     setIsDirty(true);
   };
@@ -424,7 +443,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           {notification.message}
         </div>
       )}
-      
+
       <div className="lg:col-span-2 space-y-6">
         <header className="p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -477,9 +496,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               <button
                 id="btn-edit"
                 onClick={() => setIsEditing(v => !v)}
-                className={`flex items-center justify-center px-4 py-2 font-medium rounded-lg transition-colors w-full sm:w-auto ${
-                  isEditing ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-sky-600 text-white hover:bg-sky-500'
-                }`}
+                className={`flex items-center justify-center px-4 py-2 font-medium rounded-lg transition-colors w-full sm:w-auto ${isEditing ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-sky-600 text-white hover:bg-sky-500'
+                  }`}
               >
                 <EditIcon /><span className="ml-2">{isEditing ? 'Editing...' : 'Edit'}</span>
               </button>
@@ -559,6 +577,21 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     Unterstützt JPG, PNG oder WebP · optimale Breite ≥ 1200px
                   </p>
                 </div>
+              </div>
+            )}
+            {isEditing && (
+              <div className="mt-4 pt-4 border-t border-slate-700">
+                <button
+                  onClick={handleGenerateImages}
+                  disabled={isGeneratingImages}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-violet-500 hover:to-indigo-500 transition-all disabled:opacity-50 shadow-lg shadow-indigo-900/20"
+                >
+                  {isGeneratingImages ? <Spinner className="w-5 h-5 text-white" /> : <MagicIcon className="w-5 h-5" />}
+                  <span>{isGeneratingImages ? 'Generiere Bilder...' : 'AI Produktbilder generieren (Vertex AI)'}</span>
+                </button>
+                <p className="text-xs text-slate-400 mt-2 text-center">
+                  Erzeugt 3 Studio- und 3 Lifestyle-Aufnahmen basierend auf den Produktdaten.
+                </p>
               </div>
             )}
           </div>
@@ -689,14 +722,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             )}
           </div>
         </section>
-        
+
         <div className="p-6 bg-slate-800 rounded-lg shadow-lg">
-            <h3 className="text-xl font-semibold mb-4 text-white">Actions</h3>
-            <div className="actions flex flex-wrap gap-4">
-                <button id="btn-sync" onClick={handleSync} disabled={isSyncing} className="flex items-center justify-center px-4 py-2 bg-slate-700 text-slate-200 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait">
-                    {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}<span className="ml-2">Sync</span>
-                </button>
-            </div>
+          <h3 className="text-xl font-semibold mb-4 text-white">Actions</h3>
+          <div className="actions flex flex-wrap gap-4">
+            <button id="btn-sync" onClick={handleSync} disabled={isSyncing} className="flex items-center justify-center px-4 py-2 bg-slate-700 text-slate-200 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait">
+              {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}<span className="ml-2">Sync</span>
+            </button>
+          </div>
         </div>
       </div>
 

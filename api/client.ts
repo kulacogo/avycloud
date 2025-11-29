@@ -16,7 +16,7 @@ import {
 // Use import.meta.env for Vite compatibility
 const BACKEND_URL = (() => {
   const envUrl = import.meta.env.VITE_BACKEND_URL;
-  
+
   // In development, require explicit configuration
   if (import.meta.env.DEV) {
     if (!envUrl) {
@@ -25,17 +25,17 @@ const BACKEND_URL = (() => {
         console.warn('⚠️ WARNING: Explicitly using production backend in development mode.');
         return 'https://product-hub-backend-79205549235.europe-west3.run.app';
       }
-      
+
       console.error('❌ BACKEND_URL not configured! Set VITE_BACKEND_URL in .env.local');
       console.error('   Example: VITE_BACKEND_URL=http://localhost:8080');
       console.error('   Or set VITE_USE_PRODUCTION_BACKEND=true to use production (dangerous!)');
-      
+
       // Default to localhost to prevent accidental production writes
       return 'http://localhost:8080';
     }
     return envUrl;
   }
-  
+
   // In production, use env or default to production URL
   return envUrl || 'https://product-hub-backend-79205549235.europe-west3.run.app';
 })();
@@ -77,20 +77,20 @@ const createStatusReporter = (listener?: (phase: IdentifyPhase) => void) => {
 const parseResponse = async (response: Response): Promise<any> => {
   const contentType = response.headers.get('content-type');
   const contentLength = response.headers.get('content-length');
-  
+
   // Check for empty response (204, empty body)
   if (response.status === 204) {
     return { ok: true };
   }
-  
+
   // Try to read the response text first
   const text = await response.text();
-  
+
   // Check if body is actually empty
   if (!text || text.trim() === '') {
     return { ok: true };
   }
-  
+
   // Only parse as JSON if content-type indicates JSON
   if (contentType && contentType.includes('application/json')) {
     try {
@@ -100,12 +100,12 @@ const parseResponse = async (response: Response): Promise<any> => {
       throw new Error('Invalid JSON response');
     }
   }
-  
+
   // For non-JSON responses, check if it looks like an error page
   if (contentType && contentType.includes('text/html')) {
     throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
   }
-  
+
   // Otherwise return the text content wrapped
   return { ok: response.ok, data: text };
 };
@@ -114,26 +114,26 @@ const parseResponse = async (response: Response): Promise<any> => {
 const extractErrorInfo = (error: any, response?: Response): { code: number; message: string } => {
   // Always use response status if available, regardless of ok status
   if (response && typeof response.status === 'number') {
-    return { 
-      code: response.status, 
-      message: error?.message || response.statusText || 'Request failed' 
+    return {
+      code: response.status,
+      message: error?.message || response.statusText || 'Request failed'
     };
   }
-  
+
   // If error has code and message, use them
   if (error?.code && typeof error.code === 'number' && error?.message) {
     return { code: error.code, message: error.message };
   }
-  
+
   // Parse common error types
   const message = error instanceof Error ? error.message : 'Unknown error';
-  
+
   // Try to extract status from error message
   const statusMatch = message.match(/status (\d{3})/);
   if (statusMatch) {
     return { code: parseInt(statusMatch[1], 10), message };
   }
-  
+
   // Default to 503 for network errors
   return { code: 503, message };
 };
@@ -360,12 +360,12 @@ export const pollIdentificationJob = async (
 
 export const saveProduct = async (product: Product): Promise<{ ok: boolean; data?: { id: string; revision: number; sku?: string | null }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
-  
+
   try {
     if (import.meta.env.DEV) {
       console.log('API CALL: /api/save', { id: product.id, name: product.identification.name });
     }
-    
+
     response = await fetch(`${BACKEND_URL}/api/save`, {
       method: 'POST',
       headers: {
@@ -377,15 +377,15 @@ export const saveProduct = async (product: Product): Promise<{ ok: boolean; data
     const result = await parseResponse(response);
 
     if (!response.ok) {
-      const errorInfo = { 
-        code: response.status, 
-        message: result?.error?.message || response.statusText || `Request failed with status ${response.status}` 
+      const errorInfo = {
+        code: response.status,
+        message: result?.error?.message || response.statusText || `Request failed with status ${response.status}`
       };
       return { ok: false, error: errorInfo };
     }
-    
+
     return result || { ok: true, data: { id: product.id, revision: 1 } };
-    
+
   } catch (error) {
     console.error('Failed to save product:', error);
     const errorInfo = extractErrorInfo(error, response);
@@ -395,18 +395,18 @@ export const saveProduct = async (product: Product): Promise<{ ok: boolean; data
 
 
 // Sync a single product to BaseLinker
-export const syncToBaseLinker = async (productOrProducts: Product | Product[]): Promise<{ ok: boolean; results?: Array<{id: string; status: 'synced' | 'failed'; message?: string}>; error?: { code: number; message: string } }> => {
+export const syncToBaseLinker = async (productOrProducts: Product | Product[]): Promise<{ ok: boolean; results?: Array<{ id: string; status: 'synced' | 'failed'; message?: string }>; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
-  
+
   try {
     const isSingle = !Array.isArray(productOrProducts);
     const payload = isSingle ? { product: productOrProducts } : { products: productOrProducts };
-    
+
     if (import.meta.env.DEV) {
       const count = Array.isArray(productOrProducts) ? productOrProducts.length : 1;
       console.log('API CALL: /api/sync-baselinker', { count });
     }
-    
+
     response = await fetch(`${BACKEND_URL}/api/sync-baselinker`, {
       method: 'POST',
       headers: {
@@ -420,7 +420,7 @@ export const syncToBaseLinker = async (productOrProducts: Product | Product[]): 
     if (!response.ok) {
       throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
     }
-    
+
     return result;
 
   } catch (error) {
@@ -441,6 +441,33 @@ export const improveProduct = async (
     const result = await parseResponse(response);
     if (!response.ok) {
       return { ok: false, error: { code: response.status, message: result?.error?.message || 'Improve failed' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const generateProductImages = async (
+  productId: string
+): Promise<{ ok: boolean; data?: ProductImage[]; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/generate-images`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId }),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: {
+          code: response.status,
+          message: result?.error?.message || 'Image generation failed'
+        }
+      };
     }
     return { ok: true, data: result?.data };
   } catch (error) {
@@ -746,12 +773,12 @@ export const openBinLabelsBatchWindow = (options: {
 
 export const refreshPrice = async (productId: string): Promise<{ ok: boolean; data?: any; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
-  
+
   try {
     if (import.meta.env.DEV) {
       console.log('API CALL: /api/price-refresh', { productId });
     }
-    
+
     response = await fetch(`${BACKEND_URL}/api/price-refresh`, {
       method: 'POST',
       headers: {
@@ -765,9 +792,9 @@ export const refreshPrice = async (productId: string): Promise<{ ok: boolean; da
     if (!response.ok) {
       throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
     }
-    
+
     return result;
-    
+
   } catch (error) {
     console.error('Failed to refresh price:', error);
     const errorInfo = extractErrorInfo(error, response);
@@ -787,12 +814,12 @@ export const chatWithAssistant = async (
   message: string
 ): Promise<{ ok: boolean; data?: ChatAssistantPayload; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
-  
+
   try {
     if (import.meta.env.DEV) {
       console.log('API CALL: /api/chat', { productId, messageLength: message.length });
     }
-    
+
     response = await fetch(`${BACKEND_URL}/api/chat`, {
       method: 'POST',
       headers: {
@@ -806,9 +833,9 @@ export const chatWithAssistant = async (
     if (!response.ok) {
       throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
     }
-    
+
     return result;
-    
+
   } catch (error) {
     console.error('Failed to chat with Gemini:', error);
     const errorInfo = extractErrorInfo(error, response);
