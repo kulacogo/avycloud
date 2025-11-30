@@ -30,8 +30,8 @@ async function generateProductImages({
   editMode = null,
 }) {
   // Determine model and location based on task
-  // Imagen 2 (006) is great for text-to-image but strict about masks for editing.
-  // Imagen 1 (002) supports EDIT_MODE_BGSWAP without a mask reliably.
+  // Imagen 2 (006) seems to enforce mask requirements strictly when an image is provided.
+  // Imagen 1 (002) is more flexible for both variations and background swaps.
   const useLegacyEdit = !!referenceImageBase64;
 
   const targetLocation = useLegacyEdit ? 'us-central1' : LOCATION;
@@ -81,7 +81,7 @@ async function generateProductImages({
     parameters.editMode = editMode;
   }
 
-  if ((referenceImageBase64 || maskImageBase64) && !useLegacyEdit) {
+  if (maskImageBase64 && !useLegacyEdit) {
     parameters.editConfig = {
       baseSteps: 25,
     };

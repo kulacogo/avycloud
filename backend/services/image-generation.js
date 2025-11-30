@@ -42,7 +42,7 @@ function buildPromptTemplates(product) {
     .map(sanitizeSentence)
     .filter(Boolean);
 
-  const identity = titleParts.join(' ').trim() || 'Produkt';
+  const identity = titleParts.join(' ').trim() || 'Product';
   const sku = product.identification?.sku || product.details?.identifiers?.sku;
 
   const keyFeatures = (product.details?.key_features || []).map(sanitizeSentence).filter(Boolean).slice(0, 4);
@@ -65,31 +65,32 @@ function buildPromptTemplates(product) {
     .join(', ');
 
   const sharedFacts = [
-    `Product: ${identity}${sku ? ` (SKU ${sku})` : ''}`,
-    descriptorParts ? `Physical details: ${descriptorParts}` : null,
-    keyFeatures.length ? `Key features: ${keyFeatures.join('; ')}` : null,
-    highlightAttributes.length ? `Important specs: ${highlightAttributes.join('; ')}` : null,
+    `Subject: ${identity}`,
+    descriptorParts ? `Details: ${descriptorParts}` : null,
+    keyFeatures.length ? `Features: ${keyFeatures.join('; ')}` : null,
   ]
     .filter(Boolean)
     .join(' | ');
 
+  // Premium Studio Prompt (Variation/Detail focused)
   const studioPrompt = [
-    `Detailed close-up 3/4 view product-style photograph of ${identity}.`,
-    'Fashion-studio aesthetic with a smooth neutral gray gradient backdrop and soft floor spotlight transition.',
-    'Use large softbox overhead/front-left, gentle fill from front-right, subtle rim light to separate the product from the background.',
-    'Emphasize material fidelity and micro-detail: visible texture, accurate specular highlights, soft specular falloff, crisp contact shadows beneath legs/edges.',
-    'Elegant minimalist tone: no props, no logos, no text, no distractions, clean negative space.',
+    `High-end close-up 3/4 product photo of ${identity}.`,
+    'Studio lighting with softbox overhead and gentle rim light to separate from background.',
+    'Matte finish, ultra-sharp edges, extreme high resolution, razor-clean surface detail and texture.',
+    'Elegant minimalist tone: no props, no text, clean negative space, neutral gray gradient background.',
+    'Camera styling: 85mm-equivalent medium-telephoto perspective, f/8.0 for balanced depth of field.',
     sharedFacts,
   ]
     .filter(Boolean)
     .join(' ');
 
+  // Premium Lifestyle Prompt (Context focused)
   const lifestylePrompt = [
-    'Photorealistic lifestyle scene for e-commerce featuring the product in a real-world usage context.',
-    'Show authentic people interacting with the product naturally (no alterations to product geometry).',
-    'Balanced composition: subject occupies ~60% of frame, shallow depth of field with soft bokeh in background.',
-    'Lighting: late afternoon daylight, warm soft highlights, true-to-life skin tones, accurate color balance and textures.',
-    'Scene should convey quality and everyday utility; include subtle branded items (bags, cups) without obscuring the product.',
+    `Photorealistic lifestyle product shot of ${identity} being actively used in a natural environment suitable for this product.`,
+    'Keep the product design exactly as shown.',
+    'Balanced composition: subject occupies ~60% of frame, shallow depth of field with soft bokeh.',
+    'Lighting: Natural daytime lighting, soft directional sunlight, true-to-life color temperature.',
+    'Scene should convey quality, comfort, and everyday utility.',
     sharedFacts,
   ]
     .filter(Boolean)
@@ -149,8 +150,12 @@ async function generateImagesForProduct(product, options = {}) {
   );
 
   const runs = [
-    { prompt: studioPrompt, type: 'studio', count: Math.max(1, Math.round(sampleCount)) },
-    { prompt: lifestylePrompt, type: 'lifestyle', count: Math.max(1, Math.round(sampleCount)) },
+    // Studio: Use 'null' editMode to trigger Image Variation (allows angle changes, detail shots)
+    // Note: This relies on our vertex-ai.js logic to pick the right model for variation.
+    { prompt: studioPrompt, type: 'studio', count: Math.max(1, Math.round(sampleCount)), editMode: null },
+
+    // Lifestyle: Use 'EDIT_MODE_BGSWAP' to preserve product identity strictly in new context
+    { prompt: lifestylePrompt, type: 'lifestyle', count: Math.max(1, Math.round(sampleCount)), editMode: 'EDIT_MODE_BGSWAP' },
   ];
 
   const uploaded = [];
@@ -162,7 +167,7 @@ async function generateImagesForProduct(product, options = {}) {
       count: run.count,
       aspectRatio: options.aspectRatio || '1:1',
       referenceImageBase64: referenceDataUrl,
-      editMode: options.editMode || 'EDIT_MODE_BGSWAP',
+      editMode: run.editMode,
     });
 
     for (const [index, prediction] of predictions.entries()) {
