@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 const { generateProductImages } = require('../lib/vertex-ai');
 const { uploadBase64Image } = require('../lib/storage');
 
