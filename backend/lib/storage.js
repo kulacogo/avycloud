@@ -6,7 +6,7 @@ const storage = new Storage({
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
 });
 
-const BUCKET_NAME = process.env.STORAGE_BUCKET || 'trendocean';
+const BUCKET_NAME = process.env.STORAGE_BUCKET || 'avycloud-product-images';
 const MIN_IMAGE_LONGEST_EDGE = parseInt(process.env.MIN_IMAGE_LONGEST_EDGE || '1200', 10);
 const MAX_IMAGE_LONGEST_EDGE = parseInt(process.env.MAX_IMAGE_LONGEST_EDGE || '2000', 10);
 let bucket;
@@ -21,8 +21,30 @@ async function initializeBucket() {
         location: 'europe-west3',
         storageClass: 'STANDARD',
       });
-      await bucket.makePublic();
     }
+
+    // Always try to ensure public access, even if bucket exists
+    try {
+      await bucket.makePublic();
+      console.log(`Bucket ${BUCKET_NAME} is now public.`);
+    } catch (aclError) {
+      console.warn(`Warning: Could not make bucket ${BUCKET_NAME} public via ACL (might be enforced by IAM):`, aclError.message);
+      // Fallback: Try to set IAM policy for public read if ACL fails
+      try {
+        await bucket.iam.setPolicy({
+          bindings: [
+            {
+              role: 'roles/storage.objectViewer',
+              members: ['allUsers'],
+            },
+          ],
+        });
+        console.log(`Bucket ${BUCKET_NAME} IAM policy updated to public.`);
+      } catch (iamError) {
+        console.warn(`Warning: Could not set IAM policy for ${BUCKET_NAME}:`, iamError.message);
+      }
+    }
+
     console.log(`Using Cloud Storage bucket: ${BUCKET_NAME}`);
   } catch (error) {
     console.error('Failed to initialize bucket:', error);
