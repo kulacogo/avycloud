@@ -452,7 +452,7 @@ export const improveProduct = async (
 export const generateProductImages = async (
   productId: string,
   referenceImage: ProductImage,
-  options?: { sampleCount?: number; product?: Product }
+  options?: { sampleCount?: number; product?: Product; mode?: string }
 ): Promise<{
   ok: boolean;
   data?: ProductImage[];
@@ -469,6 +469,7 @@ export const generateProductImages = async (
         product: options?.product,
         referenceImage,
         sampleCount: options?.sampleCount || 2,
+        mode: options?.mode,
       }),
     });
     const result = await parseResponse(response);

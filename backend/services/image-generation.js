@@ -1,5 +1,6 @@
 const { generateProductImages } = require('../lib/vertex-ai');
 const { uploadBase64Image } = require('../lib/storage');
+const { generateVisualDescriptions } = require('./prompt-engine');
 
 const GENERATED_IMAGE_PATTERN = /(generated|gpt|gemini|vertex|ai[-\s]?image|ai[-\s]?render)/i;
 const MAX_REFERENCE_BYTES = parseInt(process.env.VERTEX_REFERENCE_MAX_BYTES || '12000000', 10);
@@ -33,71 +34,7 @@ function pickAttribute(product, candidates = []) {
   return null;
 }
 
-function buildPromptTemplates(product) {
-  const titleParts = [
-    product.identification?.brand,
-    product.identification?.name,
-    product.identification?.category,
-  ]
-    .map(sanitizeSentence)
-    .filter(Boolean);
-
-  const identity = titleParts.join(' ').trim() || 'Product';
-  const sku = product.identification?.sku || product.details?.identifiers?.sku;
-
-  const keyFeatures = (product.details?.key_features || []).map(sanitizeSentence).filter(Boolean).slice(0, 4);
-
-  const highlightAttributes = Object.entries(product.details?.attributes || {})
-    .filter(([key, value]) => Boolean(key) && value !== null && value !== undefined)
-    .slice(0, 6)
-    .map(([key, value]) => `${key}: ${value}`);
-
-  const color = pickAttribute(product, ['farbe', 'color', 'primary color']);
-  const material = pickAttribute(product, ['material', 'werkstoff', 'material type']);
-  const dimensions = pickAttribute(product, ['abmessungen', 'dimensions', 'size']);
-
-  const descriptorParts = [
-    color ? `color: ${color}` : null,
-    material ? `material: ${material}` : null,
-    dimensions ? `dimensions: ${dimensions}` : null,
-  ]
-    .filter(Boolean)
-    .join(', ');
-
-  const sharedFacts = [
-    `Subject: ${identity}`,
-    descriptorParts ? `Details: ${descriptorParts}` : null,
-    keyFeatures.length ? `Features: ${keyFeatures.join('; ')}` : null,
-  ]
-    .filter(Boolean)
-    .join(' | ');
-
-  // Premium Studio Prompt (Variation/Detail focused)
-  const studioPrompt = [
-    `High-end close-up 3/4 product photo of ${identity}.`,
-    'Studio lighting with softbox overhead and gentle rim light to separate from background.',
-    'Matte finish, ultra-sharp edges, extreme high resolution, razor-clean surface detail and texture.',
-    'Elegant minimalist tone: no props, no text, clean negative space, neutral gray gradient background.',
-    'Camera styling: 85mm-equivalent medium-telephoto perspective, f/8.0 for balanced depth of field.',
-    sharedFacts,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  // Premium Lifestyle Prompt (Context focused)
-  const lifestylePrompt = [
-    `Photorealistic lifestyle product shot of ${identity} being actively used in a natural environment suitable for this product.`,
-    'Keep the product design exactly as shown.',
-    'Balanced composition: subject occupies ~60% of frame, shallow depth of field with soft bokeh.',
-    'Lighting: Natural daytime lighting, soft directional sunlight, true-to-life color temperature.',
-    'Scene should convey quality, comfort, and everyday utility.',
-    sharedFacts,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  return { studioPrompt, lifestylePrompt };
-}
+// Removed static buildPromptTemplates function in favor of prompt-engine.js
 
 async function fetchImageAsDataUrl(image) {
   const value = image?.url_or_base64;
@@ -142,24 +79,56 @@ async function generateImagesForProduct(product, options = {}) {
   }
 
   const referenceDataUrl = await fetchImageAsDataUrl(referenceImage);
-  const { studioPrompt, lifestylePrompt } = buildPromptTemplates(product);
+
+  // Generate rich prompts using Gemini
+  console.log(`Generating visual descriptions for ${product.id}...`);
+  const prompts = await generateVisualDescriptions(product);
+
   const sampleCount = Number.isFinite(options.sampleCount) ? Math.min(Math.max(options.sampleCount, 1), 4) : 2;
 
   console.log(
     `Generating Vertex AI edits for ${product.id} using reference image (${referenceImage.source || 'unknown'})`
   );
 
-  const runs = [
-    // Studio: Use 'null' editMode to trigger Image Variation (allows angle changes, detail shots)
-    // Note: This relies on our vertex-ai.js logic to pick the right model for variation.
-    { prompt: studioPrompt, type: 'studio', count: Math.max(1, Math.round(sampleCount)), editMode: null },
+  // Determine runs based on requested mode (default to studio + lifestyle if not specified)
+  const requestedMode = options.mode || 'all'; // 'studio', 'lifestyle', 'detail', 'all'
 
-    // Lifestyle: Use 'EDIT_MODE_BGSWAP' to preserve product identity strictly in new context
-    { prompt: lifestylePrompt, type: 'lifestyle', count: Math.max(1, Math.round(sampleCount)), editMode: 'EDIT_MODE_BGSWAP' },
-  ];
+  const runs = [];
+
+  if (requestedMode === 'all' || requestedMode === 'studio') {
+    runs.push({
+      prompt: prompts.studio,
+      type: 'studio',
+      count: sampleCount,
+      editMode: null // Variation (Imagen 2)
+    });
+  }
+
+  if (requestedMode === 'all' || requestedMode === 'lifestyle') {
+    runs.push({
+      prompt: prompts.lifestyle,
+      type: 'lifestyle',
+      count: sampleCount,
+      editMode: 'EDIT_MODE_BGSWAP' // Background Swap (Imagen 1/2)
+    });
+  }
+
+  if (requestedMode === 'detail') {
+    runs.push({
+      prompt: prompts.detail,
+      type: 'detail',
+      count: sampleCount,
+      editMode: null // Variation (Imagen 2)
+    });
+  }
 
   const uploaded = [];
-  const promptMap = { studio: studioPrompt, lifestyle: lifestylePrompt };
+  // Map prompts to return object
+  const promptMap = {
+    studio: prompts.studio,
+    lifestyle: prompts.lifestyle,
+    detail: prompts.detail
+  };
 
   for (const run of runs) {
     const predictions = await generateProductImages({
