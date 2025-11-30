@@ -29,13 +29,21 @@ async function generateProductImages({
   maskImageBase64 = null,
   editMode = null,
 }) {
+  // Determine model and location based on task
+  // Imagen 2 (006) is great for text-to-image but strict about masks for editing.
+  // Imagen 1 (002) supports EDIT_MODE_BGSWAP without a mask reliably.
+  const useLegacyEdit = !!referenceImageBase64;
+
+  const targetLocation = useLegacyEdit ? 'us-central1' : LOCATION;
+  const targetModel = useLegacyEdit ? 'imagegeneration@002' : 'imagegeneration@006';
+
   const auth = new GoogleAuth({
     scopes: ['https://www.googleapis.com/auth/cloud-platform'],
   });
   const client = await auth.getClient();
   const accessToken = await client.getAccessToken();
 
-  const url = `${API_ENDPOINT}/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagegeneration@006:predict`;
+  const url = `https://${targetLocation}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${targetLocation}/publishers/google/models/${targetModel}:predict`;
 
   const instance = {
     prompt,
@@ -73,7 +81,7 @@ async function generateProductImages({
     parameters.editMode = editMode;
   }
 
-  if (referenceImageBase64 || maskImageBase64) {
+  if ((referenceImageBase64 || maskImageBase64) && !useLegacyEdit) {
     parameters.editConfig = {
       baseSteps: 25,
     };
