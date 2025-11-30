@@ -30,8 +30,8 @@ async function generateProductImages({
   editMode = null,
 }) {
   // Determine model and location based on task
-  // Imagen 2 (006) seems to enforce mask requirements strictly when an image is provided.
-  // Imagen 1 (002) is more flexible for both variations and background swaps.
+  // If we have a reference image, we use Imagen 1 (002) for variations because it's more robust for image-to-image.
+  // If NO reference image (Text-to-Image), we use Imagen 2 (006) for highest quality.
   const useLegacyEdit = !!referenceImageBase64;
 
   const targetLocation = useLegacyEdit ? 'us-central1' : LOCATION;
