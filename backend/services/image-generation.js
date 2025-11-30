@@ -29,6 +29,9 @@ async function generateImagesForProduct(product) {
         });
 
         for (const [index, base64] of studioImages.entries()) {
+            console.log(`Studio image ${index} base64 length: ${base64.length}`);
+            console.log(`Studio image ${index} start: ${base64.substring(0, 50)}`);
+
             const upload = await uploadBase64Image(
                 `data:image/png;base64,${base64}`,
                 product.id,

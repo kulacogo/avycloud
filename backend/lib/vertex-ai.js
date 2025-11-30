@@ -40,13 +40,16 @@ async function generateProductImages({ prompt, count = 1, aspectRatio = '1:1' })
   }
 
   const data = await response.json();
-  
+
   // Response structure for Imagen 2/3 usually contains predictions array with bytesBase64
   if (!data.predictions || !data.predictions.length) {
+    console.error('Vertex AI response:', JSON.stringify(data, null, 2));
     throw new Error('No predictions returned from Vertex AI');
   }
 
-  return data.predictions.map(pred => pred.bytesBase64);
+  console.log('Vertex AI prediction sample keys:', Object.keys(data.predictions[0]));
+
+  return data.predictions.map(pred => pred.bytesBase64Encoded || pred.bytesBase64);
 }
 
 module.exports = {
