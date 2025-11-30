@@ -33,6 +33,9 @@ const isGeneratedImageMeta = (image?: ProductImage) => {
   return GENERATED_IMAGE_PATTERN.test(source) || GENERATED_IMAGE_PATTERN.test(notes);
 };
 
+const filterReferenceCandidates = (images: ProductImage[] = []) =>
+  images.filter((image) => !isGeneratedImageMeta(image));
+
 const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localProduct, setLocalProduct] = useState(product);
@@ -51,6 +54,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const [binsError, setBinsError] = useState<string | null>(null);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  const [selectedReferenceIndex, setSelectedReferenceIndex] = useState<number>(-1);
 
   const loadProductBins = useCallback(
     async (productId: string) => {
@@ -80,6 +84,22 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setNewImageUrl('');
     loadProductBins(product.id);
   }, [product, loadProductBins]);
+
+  const referenceImages = useMemo(
+    () => filterReferenceCandidates(localProduct.details?.images || []),
+    [localProduct.details?.images]
+  );
+
+  useEffect(() => {
+    if (referenceImages.length) {
+      setSelectedReferenceIndex(0);
+    } else {
+      setSelectedReferenceIndex(-1);
+    }
+  }, [product.id, referenceImages.length]);
+
+  const selectedReferenceImage =
+    selectedReferenceIndex >= 0 ? referenceImages[selectedReferenceIndex] : null;
 
   const updateImages = useCallback((mutator: (images: ProductImage[]) => ProductImage[]) => {
     setLocalProduct(prev => {
@@ -175,14 +195,18 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const handleGenerateImages = async () => {
     if (!localProduct.id) return;
+    if (!selectedReferenceImage) {
+      showNotification('error', 'Bitte zuerst ein Referenzbild auswählen oder hochladen.');
+      return;
+    }
     setIsGeneratingImages(true);
-    showNotification('success', 'Generiere Bilder mit Vertex AI (ca. 15s)...');
+    showNotification('success', 'Verbessere Bilder anhand des Referenzfotos (ca. 15s)…');
 
-    const result = await generateProductImages(localProduct.id);
+    const result = await generateProductImages(localProduct.id, selectedReferenceImage, { sampleCount: 2 });
 
     if (result.ok && result.data) {
-      updateImages((images) => [...images, ...result.data!]);
-      showNotification('success', '6 neue Bilder generiert!');
+      updateImages((images) => [...images, ...(result.data || [])]);
+      showNotification('success', `${result.data?.length || 0} Varianten hinzugefügt.`);
     } else {
       showNotification('error', result.error?.message || 'Bildgenerierung fehlgeschlagen.');
     }
@@ -580,17 +604,42 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               </div>
             )}
             {isEditing && (
-              <div className="mt-4 pt-4 border-t border-slate-700">
+              <div className="mt-4 pt-4 border-t border-slate-700 space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Referenzbild für Vertex AI wählen
+                  </label>
+                  {referenceImages.length ? (
+                    <select
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
+                      value={selectedReferenceIndex >= 0 ? selectedReferenceIndex : ''}
+                      onChange={(e) => setSelectedReferenceIndex(Number(e.target.value))}
+                    >
+                      {referenceImages.map((img, index) => {
+                        const meta = [img.source, img.variant, img.notes].filter(Boolean).join(' · ');
+                        return (
+                          <option key={`${img.url_or_base64}-${index}`} value={index}>
+                            {`Bild ${index + 1}${meta ? ` – ${meta}` : ''}`}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  ) : (
+                    <p className="text-xs text-amber-400">
+                      Lade zuerst ein Originalproduktfoto hoch, um Vertex AI nutzen zu können.
+                    </p>
+                  )}
+                </div>
                 <button
                   onClick={handleGenerateImages}
-                  disabled={isGeneratingImages}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-violet-500 hover:to-indigo-500 transition-all disabled:opacity-50 shadow-lg shadow-indigo-900/20"
+                  disabled={isGeneratingImages || !selectedReferenceImage}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-violet-500 hover:to-indigo-500 transition-all disabled:opacity-40 shadow-lg shadow-indigo-900/20"
                 >
                   {isGeneratingImages ? <Spinner className="w-5 h-5 text-white" /> : <MagicIcon className="w-5 h-5" />}
-                  <span>{isGeneratingImages ? 'Generiere Bilder...' : 'AI Produktbilder generieren (Vertex AI)'}</span>
+                  <span>{isGeneratingImages ? 'Verbessere Bilder...' : 'AI-Varianten aus Referenz erzeugen'}</span>
                 </button>
-                <p className="text-xs text-slate-400 mt-2 text-center">
-                  Erzeugt 3 Studio- und 3 Lifestyle-Aufnahmen basierend auf den Produktdaten.
+                <p className="text-xs text-slate-400 text-center">
+                  Vertex AI nutzt ausschließlich das gewählte Referenzfoto + Produktdaten, um farbtreue Varianten zu erstellen.
                 </p>
               </div>
             )}

@@ -470,7 +470,7 @@ const { generateImagesForProduct } = require('./services/image-generation');
 
 app.post('/api/generate-images', async (req, res) => {
   try {
-    const { productId, product } = req.body;
+    const { productId, product, referenceImage, sampleCount } = req.body || {};
 
     let targetProduct = product;
     if (!targetProduct && productId) {
@@ -484,7 +484,28 @@ app.post('/api/generate-images', async (req, res) => {
       });
     }
 
-    const images = await generateImagesForProduct(targetProduct);
+    if (!referenceImage?.url_or_base64) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'referenceImage with url_or_base64 is required' }
+      });
+    }
+
+    const matchExists = Array.isArray(targetProduct.details?.images)
+      ? targetProduct.details.images.some((img) => img.url_or_base64 === referenceImage.url_or_base64)
+      : false;
+
+    if (!matchExists) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Reference image must belong to the target product' }
+      });
+    }
+
+    const images = await generateImagesForProduct(targetProduct, {
+      referenceImage,
+      sampleCount,
+    });
 
     res.json({
       ok: true,

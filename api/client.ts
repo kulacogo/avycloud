@@ -450,14 +450,20 @@ export const improveProduct = async (
 };
 
 export const generateProductImages = async (
-  productId: string
+  productId: string,
+  referenceImage: ProductImage,
+  options?: { sampleCount?: number }
 ): Promise<{ ok: boolean; data?: ProductImage[]; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
     response = await fetch(`${BACKEND_URL}/api/generate-images`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId }),
+      body: JSON.stringify({
+        productId,
+        referenceImage,
+        sampleCount: options?.sampleCount || 2,
+      }),
     });
     const result = await parseResponse(response);
     if (!response.ok) {
