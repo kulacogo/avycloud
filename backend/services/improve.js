@@ -1,5 +1,6 @@
 const { getProduct, saveProduct } = require('../lib/firestore');
 const { runProductIdentification, runDatasheetReview } = require('./enrichment');
+const { fetchWithUnlocker } = require('../lib/web-unlocker');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
@@ -408,15 +409,31 @@ function mergeProductRecords(existing, incoming) {
   return merged;
 }
 
+const IMPROVE_REFERENCE_TIMEOUT_MS = parseInt(process.env.IMPROVE_REFERENCE_TIMEOUT_MS || '20000', 10);
+
 async function downloadImageBuffer(url, index) {
   if (!url || typeof url !== 'string') return null;
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    const result = await fetchWithUnlocker({
+      url,
+      method: 'GET',
+      format: 'raw',
+      timeoutMs: IMPROVE_REFERENCE_TIMEOUT_MS,
+      headers: {
+        'User-Agent': 'avystock-improve/1.0',
+        Accept: 'image/*,*/*;q=0.8',
+      },
+    });
+    if (!result.success) {
+      throw new Error(result.error || 'Unlocker request failed');
     }
-    const mimeType = response.headers.get('content-type') || 'image/jpeg';
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const mimeType = result.contentType || 'image/jpeg';
+    if (!mimeType.startsWith('image/')) {
+      throw new Error(`Unexpected content-type ${mimeType}`);
+    }
+    const buffer = result.body_base64
+      ? Buffer.from(result.body_base64, 'base64')
+      : Buffer.from(result.body || '', 'binary');
     return {
       fieldname: 'images',
       originalname: `improve_${index}`,

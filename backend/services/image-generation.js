@@ -1,6 +1,7 @@
 const { generateProductImages } = require('../lib/vertex-ai');
 const { uploadBase64Image } = require('../lib/storage');
 const { generateVisualDescriptions } = require('./prompt-engine');
+const { fetchWithUnlocker } = require('../lib/web-unlocker');
 
 const GENERATED_IMAGE_PATTERN = /(generated|gpt|gemini|vertex|ai[-\s]?image|ai[-\s]?render)/i;
 const MAX_REFERENCE_BYTES = parseInt(process.env.VERTEX_REFERENCE_MAX_BYTES || '12000000', 10);
@@ -36,6 +37,8 @@ function pickAttribute(product, candidates = []) {
 
 // Removed static buildPromptTemplates function in favor of prompt-engine.js
 
+const VERTEX_REFERENCE_TIMEOUT_MS = parseInt(process.env.VERTEX_REFERENCE_TIMEOUT_MS || '20000', 10);
+
 async function fetchImageAsDataUrl(image) {
   const value = image?.url_or_base64;
   if (!value) {
@@ -47,14 +50,28 @@ async function fetchImageAsDataUrl(image) {
   }
 
   if (/^https?:\/\//i.test(value)) {
-    console.log(`Downloading reference image from ${value}`);
-    const response = await fetch(value);
-    if (!response.ok) {
-      throw new Error(`Failed to download reference image (${response.status})`);
+    console.log(`Downloading reference image via Web Unlocker from ${value}`);
+    const result = await fetchWithUnlocker({
+      url: value,
+      method: 'GET',
+      format: 'raw',
+      timeoutMs: VERTEX_REFERENCE_TIMEOUT_MS,
+      headers: {
+        'User-Agent': 'avystock-vertex-ref/1.0',
+        Accept: 'image/*,*/*;q=0.8',
+        Referer: '',
+      },
+    });
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to download reference image');
     }
-    const mimeType = response.headers.get('content-type') || 'image/jpeg';
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const mimeType = result.contentType || 'image/jpeg';
+    if (!mimeType.startsWith('image/')) {
+      throw new Error(`Unexpected reference content-type ${mimeType}`);
+    }
+    const buffer = result.body_base64
+      ? Buffer.from(result.body_base64, 'base64')
+      : Buffer.from(result.body || '', 'binary');
     if (buffer.length > MAX_REFERENCE_BYTES) {
       throw new Error(`Reference image exceeds ${Math.floor(MAX_REFERENCE_BYTES / (1024 * 1024))} MB limit`);
     }
@@ -109,7 +126,7 @@ async function generateImagesForProduct(product, options = {}) {
       prompt: prompts.lifestyle,
       type: 'lifestyle',
       count: sampleCount,
-      editMode: 'EDIT_MODE_BGSWAP' // Background Swap (Imagen 1/2)
+      editMode: null // Use Variation (Imagen 2) to allow scene transformation
     });
   }
 

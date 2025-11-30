@@ -11,6 +11,7 @@ const {
   executeSerpapiToolCall,
   executeWebFetchToolCall,
 } = require('./toolkit');
+const { extractOcrPayload, isLikelyGtin } = require('../lib/vision-ocr');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { resolveModel } = require('../lib/model-select');
 const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
@@ -73,6 +74,48 @@ function parseBarcodes(raw) {
     throw error;
   }
   return list;
+}
+
+function normalizeBarcodeValue(value = '') {
+  if (!value) return '';
+  const digits = value.replace(/[^\d]/g, '');
+  if (digits.length >= 8) {
+    return digits;
+  }
+  return value.trim();
+}
+
+function normalizeBarcodeList(list = []) {
+  const seen = new Set();
+  const normalized = [];
+  list
+    .map((code) => normalizeBarcodeValue(code))
+    .filter(Boolean)
+    .forEach((code) => {
+      if (seen.has(code)) return;
+      seen.add(code);
+      normalized.push(code);
+    });
+  return normalized;
+}
+
+function mergeBarcodeLists(...sources) {
+  const merged = [];
+  const seen = new Set();
+  sources
+    .flat()
+    .map((code) => normalizeBarcodeValue(code))
+    .filter(Boolean)
+    .forEach((code) => {
+      if (seen.has(code)) return;
+      seen.add(code);
+      merged.push({
+        code,
+        priority: isLikelyGtin(code) ? 0 : 1,
+      });
+    });
+  merged.sort((a, b) => a.priority - b.priority);
+  return merged.slice(0, MAX_BARCODE_COUNT).map((entry) => entry.code);
 }
 
 async function prepareImages(files = []) {
@@ -252,6 +295,8 @@ function buildUserPrompt({
   barcodeResearch = [],
   fileCount = 0,
   improveContext = null,
+  ocrTextSnippets = [],
+  ocrNumericValues = [],
 }) {
   const parts = [];
   if (barcodeList.length) {
@@ -291,6 +336,26 @@ function buildUserPrompt({
     );
   } else {
     parts.push('Es liegen keine vorab gehosteten Bilder vor.');
+  }
+
+  if (Array.isArray(ocrTextSnippets) && ocrTextSnippets.length) {
+    parts.push(
+      'OCR-Textauszüge (aus den hochgeladenen Bildern extrahiert – nutze diese Fakten, bevor du Vermutungen aus Vision ableitest):',
+      ocrTextSnippets
+        .slice(0, 40)
+        .map((line, idx) => `${idx + 1}. ${line}`)
+        .join('\n')
+    );
+  }
+
+  if (Array.isArray(ocrNumericValues) && ocrNumericValues.length) {
+    parts.push(
+      'OCR-Ziffern & Nummern (potentielle Seriennummern, SKUs, Barcodes):',
+      ocrNumericValues
+        .slice(0, 40)
+        .map((value) => `- ${value}`)
+        .join('\n')
+    );
   }
 
   if (fileCount && fileCount > 1) {
@@ -1028,9 +1093,23 @@ async function runProductIdentification({
     throw new Error('Bitte mindestens ein Bild oder einen Barcode bereitstellen.');
   }
 
-  const barcodeList = parseBarcodes(barcodes);
+  const manualBarcodes = normalizeBarcodeList(parseBarcodes(barcodes));
+  const ocrPayload = await extractOcrPayload(files);
+  const barcodeList = mergeBarcodeLists(manualBarcodes, ocrPayload.barcodes || []);
   const { imageParts, hostedImages } = await prepareImages(files);
   const serpTrace = [];
+  if (
+    (ocrPayload?.barcodes?.length || 0) > 0 ||
+    (ocrPayload?.textSnippets?.length || 0) > 0 ||
+    (ocrPayload?.numericValues?.length || 0) > 0
+  ) {
+    serpTrace.push({
+      type: 'ocr',
+      barcodes: ocrPayload.barcodes || [],
+      textSnippets: (ocrPayload.textSnippets || []).slice(0, 20),
+      numericHints: (ocrPayload.numericValues || []).slice(0, 20),
+    });
+  }
   const barcodeResearch = await prefetchBarcodeResearch(barcodeList, serpTrace);
   const client = await getOpenAIClient();
   const targetModel = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gpt-5-mini-2025-08-07');
@@ -1042,6 +1121,8 @@ async function runProductIdentification({
     barcodeResearch,
     fileCount: files.length,
     improveContext,
+    ocrTextSnippets: ocrPayload.textSnippets || [],
+    ocrNumericValues: ocrPayload.numericValues || [],
   });
 
   const inputMessages = [

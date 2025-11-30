@@ -6,6 +6,7 @@ const {
   MIN_IMAGE_WIDTH,
   MIN_IMAGE_HEIGHT,
 } = require('./serpapi');
+const { fetchWithUnlocker } = require('./web-unlocker');
 
 const QUALITY_MIN_WIDTH = parseInt(process.env.MARKETING_IMAGE_MIN_WIDTH || `${MIN_IMAGE_WIDTH}`, 10);
 const QUALITY_MIN_HEIGHT = parseInt(process.env.MARKETING_IMAGE_MIN_HEIGHT || `${MIN_IMAGE_HEIGHT}`, 10);
@@ -86,8 +87,6 @@ function buildReferer(url) {
 async function probeImageUrl(url, method = 'HEAD') {
   try {
     const target = new URL(url);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), IMAGE_PROBE_TIMEOUT_MS);
     const headers = {
       'User-Agent': IMAGE_PROBE_USER_AGENT,
       Accept: 'image/*,*/*;q=0.8',
@@ -99,18 +98,17 @@ async function probeImageUrl(url, method = 'HEAD') {
     if (method === 'GET') {
       headers.Range = 'bytes=0-1023';
     }
-
-    const response = await fetch(target.toString(), {
+    const result = await fetchWithUnlocker({
+      url: target.toString(),
       method,
-      redirect: 'follow',
-      signal: controller.signal,
+      format: 'raw',
+      timeoutMs: IMAGE_PROBE_TIMEOUT_MS,
       headers,
     });
-    clearTimeout(timer);
-    if (!response.ok) {
+    if (!result.success) {
       return false;
     }
-    const contentType = response.headers.get('content-type') || '';
+    const contentType = result.contentType || '';
     if (!contentType.startsWith('image/')) {
       return false;
     }

@@ -32,7 +32,7 @@ async function generateVisualDescriptions(product) {
     Write the prompts in English. They should be descriptive, focusing on lighting, texture, composition, and mood.
     
     1. **Studio Variation**: A clean, high-end e-commerce shot. Neutral background (gray/white gradient). Soft studio lighting. Focus on showing the product clearly from a flattering angle (3/4 view). High resolution, 8k, sharp focus.
-    2. **Lifestyle Scene**: The product in its natural environment (e.g., gym for yoga mat, kitchen for blender). Photorealistic, candid style. Soft natural lighting. Shallow depth of field. The product should be the clear focus.
+    2. **Lifestyle Scene**: The product being ACTIVELY USED in its natural environment (e.g., unrolled yoga mat in a sunny home studio, blender mixing fruit in a kitchen). Photorealistic, candid style. The product should be integrated into the scene naturally. If it's a mat, show it unrolled on the floor.
     3. **Detail Macro**: An extreme close-up shot highlighting the material texture, quality, or a specific feature. Macro lens, f/2.8, detailed texture.
 
     Return ONLY a JSON object with keys: "studio", "lifestyle", "detail". Do not include markdown formatting.

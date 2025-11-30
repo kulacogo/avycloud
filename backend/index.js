@@ -53,6 +53,7 @@ const PORT = process.env.PORT || 8080;
 const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'avycloud'; // Auto-detect from Cloud Run or fallback
 const IMAGE_PROXY_TIMEOUT_MS = parseInt(process.env.IMAGE_PROXY_TIMEOUT_MS || '10000', 10);
 const IMAGE_PROXY_MAX_BYTES = parseInt(process.env.IMAGE_PROXY_MAX_BYTES || `${5 * 1024 * 1024}`, 10); // 5 MB by default
+const PRICE_REFRESH_TIMEOUT_MS = parseInt(process.env.PRICE_REFRESH_TIMEOUT_MS || '20000', 10);
 const REQUEST_BODY_LIMIT =
   process.env.API_REQUEST_BODY_LIMIT ||
   process.env.REQUEST_BODY_LIMIT ||
@@ -322,33 +323,30 @@ app.get('/api/image-proxy', async (req, res) => {
     });
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), IMAGE_PROXY_TIMEOUT_MS);
-
   try {
-    const upstream = await fetch(target.toString(), {
+    const upstream = await fetchWithUnlocker({
+      url: target.toString(),
       method: 'GET',
-      redirect: 'follow',
-      signal: controller.signal,
+      format: 'raw',
+      timeoutMs: IMAGE_PROXY_TIMEOUT_MS,
       headers: {
         'User-Agent': 'avystock-image-proxy/1.0',
-        'Accept': 'image/*,*/*;q=0.8',
-        'Referer': '',
+        Accept: 'image/*,*/*;q=0.8',
+        Referer: '',
       },
     });
 
-    const contentLengthHeader = upstream.headers.get('content-length');
-    if (!upstream.ok) {
+    if (!upstream.success) {
       return res.status(502).json({
         ok: false,
         error: {
-          code: upstream.status,
-          message: `Upstream image request failed (${upstream.status}).`,
+          code: 502,
+          message: `Upstream image request failed: ${upstream.error || 'Unknown error'}`,
         },
       });
     }
 
-    if (contentLengthHeader && Number(contentLengthHeader) > IMAGE_PROXY_MAX_BYTES) {
+    if (upstream.bytes && upstream.bytes > IMAGE_PROXY_MAX_BYTES) {
       return res.status(413).json({
         ok: false,
         error: {
@@ -358,8 +356,9 @@ app.get('/api/image-proxy', async (req, res) => {
       });
     }
 
-    const arrayBuffer = await upstream.arrayBuffer();
-    const body = Buffer.from(arrayBuffer);
+    const body = upstream.body_base64
+      ? Buffer.from(upstream.body_base64, 'base64')
+      : Buffer.from(upstream.body || '', 'binary');
     if (body.length > IMAGE_PROXY_MAX_BYTES) {
       return res.status(413).json({
         ok: false,
@@ -370,21 +369,12 @@ app.get('/api/image-proxy', async (req, res) => {
       });
     }
 
-    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+    const contentType = upstream.contentType || 'application/octet-stream';
     res.set('Content-Type', contentType);
     res.set('Cache-Control', 'public, max-age=86400, immutable');
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     return res.status(200).send(body);
   } catch (error) {
-    if (error.name === 'AbortError') {
-      return res.status(504).json({
-        ok: false,
-        error: {
-          code: 504,
-          message: 'Image proxy request timed out.',
-        },
-      });
-    }
     console.error('Image proxy failed:', error);
     return res.status(502).json({
       ok: false,
@@ -393,8 +383,6 @@ app.get('/api/image-proxy', async (req, res) => {
         message: 'Failed to fetch upstream image.',
       },
     });
-  } finally {
-    clearTimeout(timeout);
   }
 });
 
@@ -1404,11 +1392,28 @@ app.post('/api/price-refresh', async (req, res) => {
       });
     }
 
+    const fetchHtml = async (url, customHeaders = {}) => {
+      const result = await fetchWithUnlocker({
+        url,
+        method: 'GET',
+        format: 'raw',
+        timeoutMs: PRICE_REFRESH_TIMEOUT_MS,
+        headers: {
+          'User-Agent': 'avystock-price-refresh/1.0',
+          Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+          ...customHeaders,
+        },
+      });
+      if (!result.success) {
+        throw new Error(result.error || 'Web Unlocker request failed');
+      }
+      return result.body || '';
+    };
+
     // Helper: fetch HTML and extract price candidates in EUR
     const fetchAndExtractPrice = async (url) => {
       try {
-        const resp = await fetch(url, { redirect: 'follow' });
-        const html = await resp.text();
+        const html = await fetchHtml(url);
         // Common meta tags
         const metaPrice = html.match(/property=["']?product:price:amount["']?\s*content=["']?([\d.,]+)/i)?.[1]
           || html.match(/itemprop=["']?price["']?\s*content=["']?([\d.,]+)/i)?.[1];
@@ -1442,8 +1447,7 @@ app.post('/api/price-refresh', async (req, res) => {
       const q = encodeURIComponent(`${product.identification.name} ${product.identification.brand} kaufen Preis`);
       const searchUrl = `https://duckduckgo.com/html/?q=${q}`;
       try {
-        const resp = await fetch(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-        const html = await resp.text();
+        const html = await fetchHtml(searchUrl, { 'User-Agent': 'Mozilla/5.0' });
         const links = Array.from(html.matchAll(/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"/g)).slice(0, 5).map(m => m[1]);
         for (const link of links) {
           const p = await fetchAndExtractPrice(link);
