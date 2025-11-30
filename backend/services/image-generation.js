@@ -11,11 +11,22 @@ async function generateImagesForProduct(product) {
     const category = product.identification?.category || '';
     const description = product.details?.short_description || '';
 
-    // Construct a rich prompt based on product details
-    const basePrompt = `Professional product photography of ${brand} ${name} (${category}). ${description.slice(0, 200)}. High resolution, photorealistic, 4k.`;
+    const keyFeatures = (product.details?.key_features || []).join(', ');
+    const attributes = Object.entries(product.details?.attributes || {})
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(', ');
 
-    const studioPrompt = `${basePrompt} Studio lighting, white background, clean composition, commercial product shot.`;
-    const lifestylePrompt = `${basePrompt} In-use lifestyle setting, realistic environment, natural lighting, showing the product in context.`;
+    // Construct a rich prompt based on product details
+    let basePrompt = `Professional product photography of ${brand} ${name}. `;
+    if (category) basePrompt += `Category: ${category}. `;
+    if (keyFeatures) basePrompt += `Features: ${keyFeatures}. `;
+    if (attributes) basePrompt += `Specs: ${attributes}. `;
+    if (description) basePrompt += `Description: ${description.slice(0, 300)}. `;
+
+    basePrompt += `High resolution, photorealistic, 8k, highly detailed, sharp focus.`;
+
+    const studioPrompt = `${basePrompt} Studio lighting, pure white background, centered, clean composition, commercial product shot, no text, no watermarks.`;
+    const lifestylePrompt = `${basePrompt} In-use industrial setting, warehouse ceiling, realistic environment, cinematic lighting, showing the product installed and working.`;
 
     const results = [];
 
@@ -29,9 +40,6 @@ async function generateImagesForProduct(product) {
         });
 
         for (const [index, base64] of studioImages.entries()) {
-            console.log(`Studio image ${index} base64 length: ${base64.length}`);
-            console.log(`Studio image ${index} start: ${base64.substring(0, 50)}`);
-
             const upload = await uploadBase64Image(
                 `data:image/png;base64,${base64}`,
                 product.id,
