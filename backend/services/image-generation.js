@@ -148,16 +148,13 @@ async function generateImagesForProduct(product, options = {}) {
   };
 
   for (const run of runs) {
-    // For lifestyle, we intentionally DROP the reference image to allow the model to generate
-    // the product in a completely new state (e.g. unrolled) based on the rich prompt.
-    // For studio/detail, we keep the reference to preserve exact look.
-    const runReferenceImage = run.type === 'lifestyle' ? null : referenceDataUrl;
-
+    // We use the reference image for ALL modes to ensure product identity (shape/design) is preserved.
+    // Imagen 2 (Variation) will use this as a strong guide while adapting the lighting/background.
     const predictions = await generateProductImages({
       prompt: run.prompt,
       count: run.count,
       aspectRatio: options.aspectRatio || '1:1',
-      referenceImageBase64: runReferenceImage,
+      referenceImageBase64: referenceDataUrl,
       editMode: run.editMode,
     });
 
