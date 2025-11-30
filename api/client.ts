@@ -452,8 +452,13 @@ export const improveProduct = async (
 export const generateProductImages = async (
   productId: string,
   referenceImage: ProductImage,
-  options?: { sampleCount?: number }
-): Promise<{ ok: boolean; data?: ProductImage[]; error?: { code: number; message: string } }> => {
+  options?: { sampleCount?: number; product?: Product }
+): Promise<{
+  ok: boolean;
+  data?: ProductImage[];
+  prompts?: { studio: string; lifestyle: string };
+  error?: { code: number; message: string };
+}> => {
   let response: Response | undefined;
   try {
     response = await fetch(`${BACKEND_URL}/api/generate-images`, {
@@ -461,6 +466,7 @@ export const generateProductImages = async (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         productId,
+        product: options?.product,
         referenceImage,
         sampleCount: options?.sampleCount || 2,
       }),
@@ -475,7 +481,11 @@ export const generateProductImages = async (
         }
       };
     }
-    return { ok: true, data: result?.data };
+    return {
+      ok: true,
+      data: result?.data?.images ?? result?.data,
+      prompts: result?.data?.prompts,
+    };
   } catch (error) {
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };

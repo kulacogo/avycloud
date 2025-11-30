@@ -24,7 +24,7 @@ interface ProductSheetProps {
   isImproving?: boolean;
 }
 
-const GENERATED_IMAGE_PATTERN = /(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)/i;
+const GENERATED_IMAGE_PATTERN = /(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render|ai[-\s]?derived)/i;
 
 const isGeneratedImageMeta = (image?: ProductImage) => {
   if (!image) return false;
@@ -202,7 +202,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsGeneratingImages(true);
     showNotification('success', 'Verbessere Bilder anhand des Referenzfotos (ca. 15s)…');
 
-    const result = await generateProductImages(localProduct.id, selectedReferenceImage, { sampleCount: 2 });
+    const result = await generateProductImages(localProduct.id, selectedReferenceImage, {
+      sampleCount: 2,
+      product: localProduct,
+    });
 
     if (result.ok && result.data) {
       updateImages((images) => [...images, ...(result.data || [])]);

@@ -502,14 +502,17 @@ app.post('/api/generate-images', async (req, res) => {
       });
     }
 
-    const images = await generateImagesForProduct(targetProduct, {
+    const { images, prompts } = await generateImagesForProduct(targetProduct, {
       referenceImage,
       sampleCount,
     });
 
     res.json({
       ok: true,
-      data: images
+      data: {
+        images,
+        prompts,
+      }
     });
 
   } catch (error) {
