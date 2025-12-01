@@ -29,11 +29,14 @@ async function generateVisualDescriptions(product) {
     
     ${context}
 
-    Write the prompts in English. They should be descriptive, focusing on lighting, texture, composition, and mood.
+    First, identify the **Core Object Type** (e.g., "Yoga Mat", "Serving Cart", "Bathtub Mat", "Frying Pan").
     
-    1. **Studio Variation**: A clean, high-end e-commerce shot. Neutral background (gray/white gradient). Soft studio lighting. Focus on showing the product clearly from a flattering angle (3/4 view). High resolution, 8k, sharp focus.
-    2. **Lifestyle Scene**: The product being ACTIVELY USED in its natural environment (e.g., unrolled yoga mat in a sunny home studio, blender mixing fruit in a kitchen). Photorealistic, candid style. The product should be integrated into the scene naturally. If it's a mat, show it unrolled on the floor.
-    3. **Detail Macro**: An extreme close-up shot highlighting the material texture, quality, or a specific feature. Macro lens, f/2.8, detailed texture.
+    Write the prompts in English. They should be descriptive, focusing on lighting, texture, composition, and mood.
+    **CRITICAL: Every prompt MUST start with "A photo of [Core Object Type]..." to ensure the AI draws the correct object.**
+    
+    1. **Studio Variation**: A clean, high-end e-commerce shot of the [Core Object Type]. Neutral background (gray/white gradient). Soft studio lighting. Focus on showing the product clearly from a flattering angle (3/4 view). High resolution, 8k, sharp focus.
+    2. **Lifestyle Scene**: The [Core Object Type] being ACTIVELY USED in its natural environment. Photorealistic, candid style. The [Core Object Type] must be the CLEAR MAIN SUBJECT in the center. (e.g., if it's a bath mat, show it INSIDE the bathtub or on the floor; if it's a cart, show it holding items). Do NOT just show the room.
+    3. **Detail Macro**: An extreme close-up shot of the [Core Object Type] highlighting the material texture, quality, or a specific feature. Macro lens, f/2.8, detailed texture.
 
     Return ONLY a JSON object with keys: "studio", "lifestyle", "detail". Do not include markdown formatting.
   `;
