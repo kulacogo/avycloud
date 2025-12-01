@@ -69,6 +69,29 @@ const isAllowedAttachment = (file: File) => {
   return ['.jpg', '.jpeg', '.png', '.webp', '.pdf', '.txt', '.csv', '.json'].some((ext) => lowerName.endsWith(ext));
 };
 
+const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
+  const result: DatasheetChange = {};
+  if (typeof entry.summary === 'string') {
+    result.summary = entry.summary;
+  }
+  if (typeof entry.short_description === 'string') {
+    result.short_description = entry.short_description;
+  }
+  if (Array.isArray(entry.key_features)) {
+    result.key_features = entry.key_features.filter(Boolean);
+  }
+  if (entry.attributes && typeof entry.attributes === 'object' && !Array.isArray(entry.attributes)) {
+    result.attributes = entry.attributes;
+  }
+  if (entry.pricing && typeof entry.pricing === 'object') {
+    result.pricing = entry.pricing;
+  }
+  if (entry.notes && typeof entry.notes === 'object') {
+    result.notes = entry.notes;
+  }
+  return result;
+};
+
   const mapSuggestionsToAttachments = (groups?: { rationale?: string; images: ProductImage[] }[]): MessageAttachment[] => {
     if (!groups?.length) return [];
     const attachments: MessageAttachment[] = [];
@@ -296,6 +319,28 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     setPendingImages((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const extractStructuredEdits = (message: string): DatasheetChange[] => {
+    if (!message) return [];
+    const matches = Array.from(message.matchAll(/```json([\s\S]*?)```/gi));
+    const edits: DatasheetChange[] = [];
+    for (const match of matches) {
+      const raw = match[1]?.trim();
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.edit && typeof parsed.edit === 'object') {
+          const change = sanitizeDatasheetChange(parsed.edit);
+          if (Object.keys(change).length) {
+            edits.push(change);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to parse structured edit JSON:', error);
+      }
+    }
+    return edits;
+  };
+
   const handleSend = useCallback(
     async (predefinedMessage?: string) => {
       if (isLoading) return;
@@ -338,13 +383,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
 
         const assistantAttachments = mapSuggestionsToAttachments(result.data.imageSuggestions);
         const linkedChanges = appendPendingChanges(result.data.datasheetChanges);
+        const structuredLinked = appendPendingChanges(extractStructuredEdits(result.data.message));
         const assistantMessage: ChatMessage = {
           id: uid(),
           role: 'assistant',
           text: result.data.message,
           timestamp: new Date().toISOString(),
           attachments: assistantAttachments,
-          datasheetChanges: linkedChanges,
+          datasheetChanges: [...linkedChanges, ...structuredLinked],
         };
         setMessages((prev) => [...prev, assistantMessage]);
 
