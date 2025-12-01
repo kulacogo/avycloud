@@ -29,13 +29,10 @@ async function generateProductImages({
   maskImageBase64 = null,
   editMode = null,
 }) {
-  // Determine model and location based on task
-  // If we have a reference image, we use Imagen 1 (002) for variations because it's more robust for image-to-image.
-  // If NO reference image (Text-to-Image), we use Imagen 2 (006) for highest quality.
-  const useLegacyEdit = !!referenceImageBase64;
-
-  const targetLocation = useLegacyEdit ? 'us-central1' : LOCATION;
-  const targetModel = useLegacyEdit ? 'imagegeneration@002' : 'imagegeneration@006';
+  // Always use Imagen 2 (006) for highest quality.
+  // We use "Subject Control" (via 'subject' field) to guide generation without strict masking.
+  const targetLocation = 'us-central1'; // Use us-central1 for best feature availability
+  const targetModel = 'imagegeneration@006';
 
   const auth = new GoogleAuth({
     scopes: ['https://www.googleapis.com/auth/cloud-platform'],
@@ -54,8 +51,12 @@ async function generateProductImages({
     if (!payload) {
       throw new Error('Invalid reference image payload provided');
     }
-    instance.image = {
-      bytesBase64Encoded: payload.data,
+    // Use 'subject' field for Subject Control/Image Prompting in Imagen 2
+    // This avoids the "Failed to get mask" error associated with the 'image' field (Edit Mode)
+    instance.subject = {
+      image: {
+        bytesBase64Encoded: payload.data,
+      }
     };
   }
 

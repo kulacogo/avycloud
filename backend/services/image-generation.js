@@ -126,7 +126,7 @@ async function generateImagesForProduct(product, options = {}) {
       prompt: prompts.lifestyle,
       type: 'lifestyle',
       count: sampleCount,
-      editMode: 'EDIT_MODE_BGSWAP' // Revert to BGSWAP to guarantee product identity (shape/design)
+      editMode: null // Use Subject Control (Imagen 2) for high-quality generation
     });
   }
 
