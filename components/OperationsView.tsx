@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BrowserMultiFormatReader } from '@zxing/browser';
-import { Product, WarehouseBin, Order } from '../types';
+import { Product, WarehouseBin, Order, OrderItem } from '../types';
 import {
   fetchWarehouseBinDetail,
   stockInProduct,
@@ -24,6 +24,18 @@ interface OperationsViewProps {
 
 type WorkflowMode = 'stow' | 'pick';
 type ScannerTarget = 'stowSku' | 'stowBin' | 'pickBin' | 'pickSku';
+
+type PickRouteTask = {
+  orderId: string;
+  orderNumber?: string | null;
+  customer?: string | null;
+  itemId: string;
+  itemName: string;
+  sku?: string | null;
+  binCode: string;
+  quantity: number;
+  productId?: string | null;
+};
 
 const WORKFLOW_CARDS: Array<{
   mode: WorkflowMode;
@@ -62,6 +74,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const [pickQuantity, setPickQuantity] = useState<number | ''>('');
   const [pickBinDetail, setPickBinDetail] = useState<WarehouseBin | null>(null);
   const [isLoadingBin, setIsLoadingBin] = useState(false);
+  const [completedPickItemIds, setCompletedPickItemIds] = useState<string[]>([]);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -92,6 +105,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const pickBinRef = useRef<HTMLInputElement | null>(null);
   const pickSkuRef = useRef<HTMLInputElement | null>(null);
   const [showOrdersPanel, setShowOrdersPanel] = useState<boolean>(() => !isMobile);
+  const lastAutoBinRef = useRef<string | null>(null);
 
   const matchedStowProduct = useMemo(() => {
     if (!stowSku.trim()) return null;
@@ -144,6 +158,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     );
   }, [products, pickSku, pickBinDetail]);
 
+  const completedPickItemSet = useMemo(() => new Set(completedPickItemIds), [completedPickItemIds]);
+
   const openOrders = useMemo(() => orders.filter((order) => order.status !== 'picked'), [orders]);
   const visibleOrders = useMemo(
     () => (showAllOpenOrders ? openOrders : openOrders.slice(0, 5)),
@@ -155,6 +171,16 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       setShowAllOpenOrders(false);
     }
   }, [openOrders.length, showAllOpenOrders]);
+
+  useEffect(() => {
+    if (!completedPickItemIds.length) return;
+    const stillOpenIds = new Set<string>();
+    openOrders.forEach((order) => order.items.forEach((item) => stillOpenIds.add(item.id)));
+    const filtered = completedPickItemIds.filter((id) => stillOpenIds.has(id));
+    if (filtered.length !== completedPickItemIds.length) {
+      setCompletedPickItemIds(filtered);
+    }
+  }, [openOrders, completedPickItemIds]);
 
   const orderSummary = useMemo(() => {
     const total = orders.length;
@@ -175,6 +201,75 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       return iso;
     }
   };
+
+  const resolveProductForItem = useCallback(
+    (item: OrderItem): Product | null => {
+      if (item.productId) {
+        const byId = products.find((p) => p.id === item.productId);
+        if (byId) return byId;
+      }
+      const searchKeys = [item.sku, item.ean].filter(Boolean).map((value) => String(value).toLowerCase());
+      if (!searchKeys.length) {
+        return null;
+      }
+      return (
+        products.find((product) => {
+          const candidateValues = [
+            product.identification?.sku,
+            product.details?.identifiers?.sku,
+            product.details?.identifiers?.ean,
+            product.details?.identifiers?.gtin,
+            product.details?.identifiers?.upc,
+            product.id,
+            ...(product.identification?.barcodes || []),
+          ]
+            .filter(Boolean)
+            .map((val) => String(val).toLowerCase());
+          return candidateValues.some((candidate) => searchKeys.includes(candidate));
+        }) || null
+      );
+    },
+    [products]
+  );
+
+  const pickRouteTasks = useMemo(() => {
+    const tasks: PickRouteTask[] = [];
+    openOrders.forEach((order) => {
+      order.items.forEach((item) => {
+        if (completedPickItemSet.has(item.id)) {
+          return;
+        }
+        const product = resolveProductForItem(item);
+        const binCode = product?.storage?.binCode || product?.storageBins?.[0]?.code;
+        if (!binCode) {
+          return;
+        }
+        const skuCandidate =
+          item.sku ||
+          product?.identification?.sku ||
+          product?.details?.identifiers?.sku ||
+          product?.details?.identifiers?.ean ||
+          product?.details?.identifiers?.gtin ||
+          product?.details?.identifiers?.upc ||
+          product?.id ||
+          undefined;
+        tasks.push({
+          orderId: order.id,
+          orderNumber: order.number,
+          customer: order.customer?.name,
+          itemId: item.id,
+          itemName: item.name,
+          sku: skuCandidate,
+          binCode: binCode.toUpperCase(),
+          quantity: item.quantity,
+          productId: product?.id,
+        });
+      });
+    });
+    return tasks;
+  }, [openOrders, resolveProductForItem, completedPickItemSet]);
+
+  const nextPickTask = pickRouteTasks[0] || null;
 
   const handleScannerResult = (value: string) => {
     switch (scannerTarget) {
@@ -383,6 +478,23 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   }, [workflow]);
 
   useEffect(() => {
+    if (workflow !== 'pick') return;
+    if (!nextPickTask) {
+      return;
+    }
+    setPickBin((prev) => (prev === nextPickTask.binCode ? prev : nextPickTask.binCode));
+    setPickSku((prev) => (prev === (nextPickTask.sku || '') ? prev : nextPickTask.sku || ''));
+    setPickQuantity((prev) => {
+      const nextQty = nextPickTask.quantity || 1;
+      return prev === nextQty ? prev : nextQty;
+    });
+    if (lastAutoBinRef.current !== nextPickTask.binCode) {
+      lastAutoBinRef.current = nextPickTask.binCode;
+      loadBinDetail(nextPickTask.binCode);
+    }
+  }, [nextPickTask, workflow]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const mq = window.matchMedia('(max-width: 768px)');
     const handler = (event: MediaQueryListEvent) => {
@@ -428,6 +540,16 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     }
   };
 
+  const markPickTaskCompleted = (itemId?: string | null) => {
+    if (!itemId) return;
+    setCompletedPickItemIds((prev) => {
+      if (prev.includes(itemId)) {
+        return prev;
+      }
+      return [...prev, itemId];
+    });
+  };
+
   const handlePick = async () => {
     if (!pickBin || (!matchedPickProduct && !pickSku)) {
       setErrorMessage('Bitte Bin und Artikel auswählen.');
@@ -442,6 +564,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         binCode: pickBin.toUpperCase(),
         quantity: pickQuantity,
       };
+      const activeTaskId = nextPickTask?.itemId;
       const result = await stockOutProduct(payload);
       if (!result.ok || !result.data) {
         throw new Error(result.error?.message || 'Kommissionierung fehlgeschlagen.');
@@ -451,6 +574,9 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       setStatusMessage(`Kommissionierung erfolgreich: ${result.data.product.identification?.name || pickSku}`);
       setPickQuantity(1);
       loadBinDetail(pickBin.toUpperCase());
+      if (activeTaskId) {
+        markPickTaskCompleted(activeTaskId);
+      }
     } catch (error: any) {
       setErrorMessage(error?.message || 'Kommissionierung fehlgeschlagen.');
     } finally {
@@ -757,6 +883,64 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               }
             }}
           >
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+              {nextPickTask ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-amber-200">
+                    <span>Pick-Route · nächster Auftrag</span>
+                    <span>{pickRouteTasks.length} offen</span>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-white">{nextPickTask.itemName}</p>
+                    <p className="text-sm text-slate-300">
+                      Auftrag {nextPickTask.orderNumber || nextPickTask.orderId} · {nextPickTask.customer || 'Unbekannt'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3 text-sm">
+                    <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">1 · Bin</p>
+                      <p className="text-xl font-semibold text-amber-300">{nextPickTask.binCode}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">2 · SKU</p>
+                      <p className="text-base font-semibold text-white break-all">{nextPickTask.sku || '—'}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Menge</p>
+                      <p className="text-xl font-semibold text-white">{nextPickTask.quantity}</p>
+                    </div>
+                  </div>
+                  <p className="text-[12px] text-slate-400">1) Gehe zu BIN {nextPickTask.binCode}. 2) Scanne die SKU. 3) Bestätige Menge und buche den Pick.</p>
+                  <div className="flex flex-wrap gap-2 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => loadBinDetail(nextPickTask.binCode)}
+                      className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400"
+                    >
+                      Bin neu laden
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => markPickTaskCompleted(nextPickTask.itemId)}
+                      className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400"
+                    >
+                      Auftrag überspringen
+                    </button>
+                    {completedPickItemIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setCompletedPickItemIds([])}
+                        className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400"
+                      >
+                        Route zurücksetzen
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-slate-300">Keine offenen Pick-Aufträge mit Bin-Zuordnung. Synchronisiere Aufträge, um neue Picks zu laden.</div>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.pick.bin')}</label>
