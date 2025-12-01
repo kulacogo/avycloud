@@ -68,7 +68,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   return (
     <div className={`flex ${role === 'user' ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-lg shadow-black/20 ${bubbleClasses}`}>
+      <div className={`max-w-[85%] rounded-none px-4 py-3 text-sm shadow-lg shadow-black/20 ${bubbleClasses}`}>
         <div className="space-y-3">
           {segments.map((segment, index) => {
             if (segment.type === 'code') {
