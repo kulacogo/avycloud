@@ -10,6 +10,13 @@ const { fetchMarketingImages } = require('../lib/marketing-images');
 const { generateImagesForProduct } = require('./image-generation');
 
 const MAX_CHAT_ITERATIONS = 5;
+const DEEP_MODE_REGEX =
+  /(mehr details|mehr detailliert|ausf(?:ue|ü)hrlich|voller report|lange analyse|bitte detailliert|detailliert|full report|detailed|long analysis)/i;
+const MARKETING_IMAGE_REGEX =
+  /(marketing|kampagne|kampagnen|werben|promo|produktfoto|produktbild|referenzbild|referenzbilder|imgurl|img url)/i;
+const IMAGE_KEYWORDS = /(bild|bilder|image|images|foto|photos?|shot|render|packshot|url)/i;
+const TEXT_LIKE_MIME = new Set(['text/plain', 'text/csv', 'application/json', 'text/json']);
+const MAX_ATTACHMENT_PREVIEW_CHARS = 6000;
 
 const updateDatasheetTool = {
   type: 'function',
@@ -166,6 +173,59 @@ const DIMENSION_KEYWORDS = {
   diameter: ['diameter', 'durchmesser', 'ø', 'diametre'],
 };
 
+function detectConversationMode(message = '') {
+  if (!message) return 'short';
+  return DEEP_MODE_REGEX.test(message) ? 'deep' : 'short';
+}
+
+function isMarketingImageRequest(message = '') {
+  if (!message) return false;
+  if (!MARKETING_IMAGE_REGEX.test(message)) return false;
+  return IMAGE_KEYWORDS.test(message);
+}
+
+function bufferToDataUrl(buffer, mimetype) {
+  if (!buffer) return null;
+  const base64 = buffer.toString('base64');
+  return `data:${mimetype || 'application/octet-stream'};base64,${base64}`;
+}
+
+function normalizeChatAttachments(attachments = []) {
+  if (!Array.isArray(attachments) || !attachments.length) {
+    return { summary: [], imageParts: [] };
+  }
+  const summary = [];
+  const imageParts = [];
+  attachments.forEach((attachment, idx) => {
+    if (!attachment?.buffer) return;
+    const mimetype = attachment.mimetype || 'application/octet-stream';
+    const entry = {
+      name: attachment.originalname || `attachment_${idx + 1}`,
+      mimetype,
+      size: attachment.size || attachment.buffer.length || 0,
+    };
+    if (mimetype.startsWith('image/')) {
+      const dataUrl = bufferToDataUrl(attachment.buffer, mimetype);
+      if (dataUrl) {
+        imageParts.push({
+          type: 'input_image',
+          image_url: dataUrl,
+        });
+        entry.inline_reference = `image_${imageParts.length}`;
+      }
+    } else if (TEXT_LIKE_MIME.has(mimetype)) {
+      const textPreview = attachment.buffer.toString('utf8').slice(0, MAX_ATTACHMENT_PREVIEW_CHARS);
+      entry.text_preview = textPreview;
+    } else if (mimetype === 'application/pdf') {
+      entry.note = 'PDF attachment available (not inlined).';
+    } else {
+      entry.note = 'Binary attachment provided.';
+    }
+    summary.push(entry);
+  });
+  return { summary, imageParts };
+}
+
 function attributeArrayToObject(entries = []) {
   if (!Array.isArray(entries)) return {};
   return entries.reduce((acc, entry) => {
@@ -270,7 +330,7 @@ function collectOcrData(product) {
   };
 }
 
-function buildProductContext(product) {
+function buildProductContext(product, { attachments = [], mode = 'short', marketingFocus = false } = {}) {
   const attributes = toAttributesObject(product?.details?.attributes);
   const dimensions = extractDimensionsFromAttributes(attributes);
   const identifiers = {
@@ -317,20 +377,26 @@ function buildProductContext(product) {
       last_synced_iso: product?.ops?.last_synced_iso || null,
     },
     locale: product?.locale || 'de-DE',
+    attachments,
+    meta: {
+      conversation_mode: mode,
+      marketing_focus: marketingFocus,
+    },
   };
 
   return context;
 }
 
-function buildContextImageParts(product) {
+function buildContextImageParts(product, extraImageParts = []) {
   const images = Array.isArray(product?.details?.images) ? product.details.images : [];
-  return images
+  const baseParts = images
     .map((img) => (typeof img?.url_or_base64 === 'string' ? img.url_or_base64 : null))
-    .filter((url) => typeof url === 'string' && /^https?:\/\//i.test(url))
+    .filter(Boolean)
     .map((url) => ({
       type: 'input_image',
       image_url: url,
     }));
+  return [...baseParts, ...extraImageParts];
 }
 
 function clamp(value, min, max) {
@@ -361,24 +427,36 @@ function selectReferenceImage(product, { reference_image_url, reference_variant 
 
 function buildSystemPrompt(locale = 'de-DE') {
   return [
-    'You are the AvyStock Product CoPilot. You always operate with full product awareness, including images, text, identifiers, warehouse data and OCR trails.',
-    'Primary duties: audit and improve catalog data, detect inconsistencies, repair wrong identifications, fill missing specs, optimise SEO copy, and ensure marketplace compliance.',
-    'Always cross-check highlights, descriptions, attributes, pricing, logistics data and warehouse status. Flag mismatches (e.g., weight vs. dimensions, bin quantity vs. inventory) and recommend concrete fixes.',
-    'Interpret every supplied image: mention the angles, materials, packaging or defects you observe. If imagery is missing or weak, describe what should be captured next.',
-    'Use BrightData via the provided web_fetch tool whenever external product, competitor or attribute data is required. Use serpapi_web_search for structured search. State when external evidence influenced your answer.',
-    'Image capability: craft campaign-ready prompt ideas and, when new renders would help, call generate_ai_images with a matching reference image (prefer hero/front) plus the desired mode (studio, lifestyle, detail, all). Use suggest_product_images for curated third-party references.',
-    'Editing rights: you may propose structured edits via update_product_datasheet or inline JSON. When you do so, include a valid JSON block exactly like {"edit": { "fieldName": "new value", ... }} in addition to prose. Keep JSON minimal and valid.',
-    'Output style: respond in the user locale (default German: ' + locale + '). Structure replies with clear sections such as OVERVIEW, DIAGNOSTICS, RECOMMENDATIONS, NEXT-STEPS. Use bullet lists and cite data sources.',
-    'Never hallucinate. If data is missing or doubtful, say so explicitly and suggest how to validate it (barcode scan, BrightData fetch, warehouse recount, etc.).',
+    'You are the AvyStock Product CoPilot.',
+    'You always respond in SHORT, ACTIONABLE messages by default (≤10 short sentences or ~1000 characters, ≤3 bullets, no section headers).',
+    'You have full product context (data, images, OCR, identifiers, inventory, warehouse info) and must cross-check for inconsistencies or missing facts.',
+    'Use BrightData web_fetch only when external validation (competitors, specs) is truly needed; cite when you do.',
+    'Interpret every supplied image (product gallery + user attachments) in concise wording; if imagery is weak, state what to shoot next.',
+    'When the user explicitly asks for "mehr Details", "ausführlich", "voller Report", "lange Analyse" or similar, switch to DEEP MODE with structured sections and long explanations. Otherwise stay in SHORT MODE.',
+    'Marketing-image requests must return exactly: one short sentence + a list of 3–6 concrete image URLs with 3–5 word labels (hero, lifestyle, detail, packshot, etc.). No long strategy unless explicitly asked.',
+    'When proposing product updates, explain briefly (1–2 sentences) and include a minimal JSON snippet called "edit" that only contains the changed fields.',
+    'You can craft new render prompts and call generate_ai_images when fresh material would help; note variant and intent.',
+    'Default language: ' + locale + '. Keep responses direct, avoid filler, offer deeper details only on request.',
   ].join('\n');
 }
 
-function buildUserPrompt(message, locale = 'de-DE') {
-  return [
-    `Nutzeranfrage (${locale}): ${message}`,
-    'Erfülle die Anfrage unter Berücksichtigung aller Kontextdaten. Falls zusätzliche Aktionen nötig sind (BrightData Recherche, Bild-Generierung, Datenblatt-Update), nutze die bereitgestellten Werkzeuge.',
-    'Halte dich an das geforderte Ausgabeschema und bleibe faktenbasiert.',
-  ].join('\n\n');
+function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingFocus = false }) {
+  const lines = [
+    `User request (${locale}, mode=${mode}): ${message}`,
+    mode === 'short'
+      ? 'SHORT MODE active: keep answer ≤10 short sentences (~1000 chars), ≤3 bullet points, no section headings.'
+      : 'DEEP MODE requested: structured sections and in-depth analysis are permitted for this reply.',
+  ];
+  if (!mode || mode === 'short') {
+    lines.push("Offer a follow-up such as \"Wenn du Details willst, sag z.B. 'mehr Details'\" only if additional depth might help.");
+  }
+  if (marketingFocus) {
+    lines.push(
+      'Marketing images requested: respond with one short intro sentence and a bullet list of 3–6 concrete URLs labelled with 3–5 words (hero, lifestyle, detail, packshot, etc.). No extra analysis unless asked.'
+    );
+  }
+  lines.push('If you propose edits, remember the {"edit": {...}} JSON rule.');
+  return lines.join('\n\n');
 }
 
 function sanitizeImageSuggestions(entry) {
@@ -412,13 +490,20 @@ function sanitizeDatasheetChange(entry) {
   return result;
 }
 
-async function runProductChat(product, userMessage, { modelOverride = null } = {}) {
+async function runProductChat(product, userMessage, { modelOverride = null, attachments = [] } = {}) {
   const client = await getOpenAIClient();
   const targetModel = resolveModel(modelOverride, 'CHAT_MODEL', 'gpt-5-mini-2025-08-07');
   const locale = product?.locale || 'de-DE';
-  const productContext = buildProductContext(product);
+  const conversationMode = detectConversationMode(userMessage || '');
+  const marketingFocus = isMarketingImageRequest(userMessage || '');
+  const attachmentPayload = normalizeChatAttachments(attachments);
+  const productContext = buildProductContext(product, {
+    attachments: attachmentPayload.summary,
+    mode: conversationMode,
+    marketingFocus,
+  });
   const serializedContext = JSON.stringify(productContext, null, 2);
-  const contextImageParts = buildContextImageParts(product);
+  const contextImageParts = buildContextImageParts(product, attachmentPayload.imageParts);
   const inputMessages = [
     {
       role: 'system',
@@ -445,8 +530,52 @@ async function runProductChat(product, userMessage, { modelOverride = null } = {
 
   inputMessages.push({
     role: 'user',
-    content: [{ type: 'input_text', text: buildUserPrompt(userMessage, locale) }],
+    content: [
+      {
+        type: 'input_text',
+        text: buildUserPrompt({
+          message: userMessage,
+          locale,
+          mode: conversationMode,
+          marketingFocus,
+        }),
+      },
+    ],
   });
+
+  if (conversationMode === 'short') {
+    inputMessages.push({
+      role: 'system',
+      content: [
+        {
+          type: 'input_text',
+          text: 'SHORT MODE reminder: keep answers ≤10 short sentences (~1000 chars), ≤3 bullet points, no headings. Offer detailed follow-up only if the user requests it.',
+        },
+      ],
+    });
+  } else {
+    inputMessages.push({
+      role: 'system',
+      content: [
+        {
+          type: 'input_text',
+          text: 'DEEP MODE enabled: provide structured sections (Overview, Diagnostics, Recommendations, etc.) and cover all relevant insights thoroughly.',
+        },
+      ],
+    });
+  }
+
+  if (marketingFocus) {
+    inputMessages.push({
+      role: 'system',
+      content: [
+        {
+          type: 'input_text',
+          text: 'Marketing-image request detected: respond with one short intro sentence and a bullet list of 3–6 concrete URLs labelled with 3–5 word descriptions (Hero, Lifestyle, Detail, Packshot, etc.).',
+        },
+      ],
+    });
+  }
 
   const datasheetChanges = [];
   const imageSuggestions = [];

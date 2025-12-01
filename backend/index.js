@@ -119,6 +119,17 @@ const enrichProductsWithBinSummaries = async (products = []) => {
 // --- Initialization ---
 const app = express();
 const MAX_IMAGE_FILES = 25;
+const MAX_CHAT_ATTACHMENTS = parseInt(process.env.CHAT_ATTACHMENT_MAX_FILES || '6', 10);
+const MAX_CHAT_ATTACHMENT_SIZE = parseInt(process.env.CHAT_ATTACHMENT_MAX_SIZE || `${6 * 1024 * 1024}`, 10); // 6 MB per attachment
+const CHAT_ATTACHMENT_TEXT_LIMIT = parseInt(process.env.CHAT_ATTACHMENT_TEXT_LIMIT || '6000', 10);
+const CHAT_ATTACHMENT_MIME_WHITELIST = new Set([
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+  'application/json',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]);
 const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024; // 8 MB per file, total tracked separately
 const MAX_IMPROVE_BATCH = parseInt(process.env.MAX_IMPROVE_BATCH || '20', 10);
 const GENERATED_IMAGE_SIGNATURE = /\b(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)\b/i;
@@ -155,6 +166,46 @@ const upload = multer({
     files: MAX_IMAGE_FILES,
   },
 });
+
+const chatUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_CHAT_ATTACHMENT_SIZE,
+    files: MAX_CHAT_ATTACHMENTS,
+  },
+  fileFilter(req, file, cb) {
+    if (file.mimetype.startsWith('image/')) {
+      return cb(null, true);
+    }
+    if (CHAT_ATTACHMENT_MIME_WHITELIST.has(file.mimetype)) {
+      return cb(null, true);
+    }
+    return cb(new Error('UNSUPPORTED_CHAT_ATTACHMENT'));
+  },
+});
+
+const chatUploadMiddleware = (req, res, next) => {
+  const contentType = req.headers['content-type'] || '';
+  if (contentType.includes('multipart/form-data')) {
+    return chatUpload.array('attachments', MAX_CHAT_ATTACHMENTS)(req, res, (error) => {
+      if (error) {
+        const message =
+          error.message === 'UNSUPPORTED_CHAT_ATTACHMENT'
+            ? 'Unsupported attachment type. Allowed: JPG, PNG, WEBP, PDF, TXT, CSV, JSON.'
+            : error.message;
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: 400,
+            message,
+          },
+        });
+      }
+      return next();
+    });
+  }
+  return next();
+};
 
 startJobRunner();
 startImproveRunner();
@@ -1265,17 +1316,28 @@ app.delete('/api/products/:id', async (req, res) => {
   }
 });
 
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
   try {
     const { productId, message, model: bodyModel } = req.body;
     const modelOverride = req.query?.model || bodyModel || null;
+    const attachments =
+      Array.isArray(req.files) && req.files.length
+        ? req.files.map((file) => ({
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            buffer: file.buffer,
+          }))
+        : [];
+    const hasAttachments = attachments.length > 0;
+    const normalizedMessage = typeof message === 'string' ? message.trim() : '';
 
-    if (!productId || !message) {
+    if (!productId || (!normalizedMessage && !hasAttachments)) {
       return res.status(400).json({
         ok: false,
         error: {
           code: 400,
-          message: 'Product ID and message are required',
+          message: 'Product ID und entweder eine Nachricht oder Dateianhänge sind erforderlich.',
         },
       });
     }
@@ -1291,7 +1353,10 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    const chatResult = await runProductChat(product, message, { modelOverride });
+    const chatResult = await runProductChat(product, normalizedMessage || 'Bitte analysiere die angehängten Dateien.', {
+      modelOverride,
+      attachments,
+    });
 
     res.json({
       ok: true,

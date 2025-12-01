@@ -828,22 +828,45 @@ export interface ChatAssistantPayload {
 
 export const chatWithAssistant = async (
   productId: string | undefined,
-  message: string
+  message: string,
+  attachments: File[] = []
 ): Promise<{ ok: boolean; data?: ChatAssistantPayload; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
 
   try {
     if (import.meta.env.DEV) {
-      console.log('API CALL: /api/chat', { productId, messageLength: message.length });
+      console.log('API CALL: /api/chat', {
+        productId,
+        messageLength: message.length,
+        attachments: attachments.length,
+      });
     }
 
-    response = await fetch(`${BACKEND_URL}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ productId, message }),
-    });
+    const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+    let requestInit: RequestInit;
+
+    if (hasAttachments) {
+      const formData = new FormData();
+      if (productId) {
+        formData.append('productId', productId);
+      }
+      formData.append('message', message);
+      attachments.forEach((file) => formData.append('attachments', file));
+      requestInit = {
+        method: 'POST',
+        body: formData,
+      };
+    } else {
+      requestInit = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ productId, message }),
+      };
+    }
+
+    response = await fetch(`${BACKEND_URL}/api/chat`, requestInit);
 
     const result = await parseResponse(response);
 
