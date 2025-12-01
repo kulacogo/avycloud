@@ -104,7 +104,7 @@ async function generateImagesForProduct(product, options = {}) {
   const sampleCount = Number.isFinite(options.sampleCount) ? Math.min(Math.max(options.sampleCount, 1), 4) : 2;
 
   console.log(
-    `Generating Vertex AI edits for ${product.id} using reference image (${referenceImage.source || 'unknown'})`
+    `Generating Gemini renders for ${product.id} using reference image (${referenceImage.source || 'unknown'})`
   );
 
   // Determine runs based on requested mode (default to studio + lifestyle if not specified)
@@ -167,13 +167,13 @@ async function generateImagesForProduct(product, options = {}) {
       const upload = await uploadBase64Image(
         dataUrl,
         product.id,
-        `vertex_edit_${run.type}_${Date.now()}_${index}`
+        `gemini_render_${run.type}_${Date.now()}_${index}`
       );
       uploaded.push({
         url_or_base64: upload.url,
         source: 'ai-derived',
         variant: run.type,
-        notes: `Vertex AI ${run.type} based on ${referenceImage.source || 'reference'} (${referenceImage.notes || 'user selected'})`,
+        notes: `Gemini ${run.type} basierend auf ${referenceImage.source || 'reference'} (${referenceImage.notes || 'user selected'})`,
         width: upload.width,
         height: upload.height,
         mimeType: upload.mimeType,

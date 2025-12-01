@@ -17,6 +17,8 @@ const MARKETING_IMAGE_REGEX =
 const IMAGE_KEYWORDS = /(bild|bilder|image|images|foto|photos?|shot|render|packshot|url)/i;
 const TEXT_LIKE_MIME = new Set(['text/plain', 'text/csv', 'application/json', 'text/json']);
 const MAX_ATTACHMENT_PREVIEW_CHARS = 6000;
+const MARKETING_MIN_RESULTS = 3;
+const MARKETING_MAX_RESULTS = 6;
 
 const updateDatasheetTool = {
   type: 'function',
@@ -224,6 +226,233 @@ function normalizeChatAttachments(attachments = []) {
     summary.push(entry);
   });
   return { summary, imageParts };
+}
+
+function buildExistingImageInventory(product) {
+  const keys = new Set();
+  const urls = [];
+  (product?.details?.images || []).forEach((img) => {
+    const value = typeof img?.url_or_base64 === 'string' ? img.url_or_base64 : null;
+    if (!value) return;
+    urls.push(value);
+    const key = normalizeImageKey(value);
+    if (key) {
+      keys.add(key);
+    }
+  });
+  return { keys, urls };
+}
+
+function convertTraceEntryToSerpInsight(entry) {
+  if (!entry) return null;
+  const summary =
+    Array.isArray(entry.images) && entry.images.length
+      ? entry.images.slice(0, 5).map((img) => ({
+          title: img.source || entry.engine,
+          url: img.url,
+          source: img.source,
+          snippet: img.width && img.height ? `${img.width}x${img.height}` : undefined,
+        }))
+      : undefined;
+  return {
+    engine: entry.engine || 'unknown',
+    query: entry.query || '',
+    summary,
+    error: entry.error || null,
+  };
+}
+
+function inferVariantFromText(text = '') {
+  const lower = text.toLowerCase();
+  if (/(pack|box|karton)/.test(lower)) return 'pack';
+  if (/(front|hero)/.test(lower)) return 'front';
+  if (/(angle|45|three|seitlich)/.test(lower)) return 'angle';
+  if (/(detail|close|macro)/.test(lower)) return 'detail';
+  return 'other';
+}
+
+function truncateWords(text = '', limit = 5) {
+  if (!text) return '';
+  const words = text.trim().split(/\s+/).slice(0, limit);
+  return words.join(' ');
+}
+
+function labelForMarketingImage(image, index) {
+  const variantLabels = {
+    front: 'Hero front',
+    angle: '45° angle',
+    detail: 'Detail close-up',
+    pack: 'Packshot',
+    other: 'Lifestyle view',
+  };
+  if (image?.variant && variantLabels[image.variant]) {
+    return variantLabels[image.variant];
+  }
+  if (image?.notes) {
+    const snippet = truncateWords(image.notes, 5);
+    if (snippet) return snippet;
+  }
+  return `Shot ${index + 1}`;
+}
+
+function mapWebImageToProductImage(entry) {
+  if (!entry?.url) return null;
+  return {
+    source: 'web',
+    variant: inferVariantFromText(entry.title || entry.source || ''),
+    url_or_base64: entry.url,
+    notes: entry.title || entry.source || 'Marketing Referenz',
+    width: entry.width || null,
+    height: entry.height || null,
+  };
+}
+
+async function tryFetchWebMarketingImages(product, { limit, excludeUrls, existingKeys }) {
+  const response = {
+    images: [],
+    trace: [],
+  };
+  const brand = product?.identification?.brand;
+  const name = product?.identification?.name;
+  const querySeed = [brand, name].filter(Boolean).join(' ').trim();
+  if (!querySeed) {
+    return response;
+  }
+  try {
+    const { images, trace } = await fetchMarketingImages({
+      brand,
+      name,
+      limit,
+      exclude: excludeUrls,
+    });
+    if (Array.isArray(trace)) {
+      trace.forEach((entry) => {
+        const insight = convertTraceEntryToSerpInsight(entry);
+        if (insight) response.trace.push(insight);
+      });
+    }
+    images.forEach((img) => {
+      const productImage = mapWebImageToProductImage(img);
+      if (!productImage) return;
+      const key = normalizeImageKey(productImage.url_or_base64);
+      if (!key || existingKeys.has(key)) return;
+      existingKeys.add(key);
+      response.images.push(productImage);
+    });
+    return response;
+  } catch (error) {
+    console.warn('Failed to fetch marketing images:', error.message);
+    response.trace.push({
+      engine: 'marketing-images',
+      query: querySeed,
+      error: error.message,
+    });
+    return response;
+  }
+}
+
+async function tryGenerateFallbackImages(product, existingKeys, neededCount = 1) {
+  const referenceImage = selectReferenceImage(product);
+  if (!referenceImage) {
+    return { images: [], trace: [] };
+  }
+  try {
+    const generation = await generateImagesForProduct(product, {
+      referenceImage,
+      sampleCount: Math.max(neededCount, 1),
+      mode: 'all',
+    });
+    const aiImages = [];
+    generation.images?.forEach((img) => {
+      if (!img?.url_or_base64) return;
+      const key = normalizeImageKey(img.url_or_base64);
+      if (!key || existingKeys.has(key)) return;
+      existingKeys.add(key);
+      aiImages.push({
+        ...img,
+        source: 'generated',
+      });
+    });
+    const trace = generation.prompts
+      ? [
+          {
+            engine: 'gemini-2.5-flash-image',
+            query: 'Gemini renders',
+            summary: Object.entries(generation.prompts).map(([variant, prompt]) => ({
+              title: variant,
+              snippet: truncateWords(prompt, 20),
+            })),
+          },
+        ]
+      : [];
+    return { images: aiImages, trace };
+  } catch (error) {
+    console.warn('Gemini fallback failed:', error.message);
+    return {
+      images: [],
+      trace: [
+        {
+          engine: 'gemini-2.5-flash-image',
+          query: 'Gemini renders',
+          error: error.message,
+        },
+      ],
+    };
+  }
+}
+
+async function fulfillMarketingImageRequest(product) {
+  const { keys: existingKeys, urls: existingUrls } = buildExistingImageInventory(product);
+  const serpTrace = [];
+  const webResult = await tryFetchWebMarketingImages(product, {
+    limit: MARKETING_MAX_RESULTS + 2,
+    excludeUrls: existingUrls,
+    existingKeys,
+  });
+  serpTrace.push(...webResult.trace);
+
+  let suggestions = webResult.images;
+  if (suggestions.length < MARKETING_MIN_RESULTS) {
+    const needed = MARKETING_MIN_RESULTS - suggestions.length;
+    const fallback = await tryGenerateFallbackImages(product, existingKeys, needed);
+    serpTrace.push(...fallback.trace);
+    suggestions = suggestions.concat(fallback.images);
+  }
+
+  if (!suggestions.length) {
+    return {
+      message:
+        'Keine externen Marketingbilder gefunden – ich brauche Herstellerlinks oder zusätzliche Produktfotos, dann suche ich erneut.',
+      datasheetChanges: [],
+      imageSuggestions: [],
+      serpTrace,
+      modelUsed: 'marketing-direct',
+    };
+  }
+
+  const limited = suggestions.slice(0, MARKETING_MAX_RESULTS);
+  const intro = `Hier ${limited.length} neue Marketing-Referenzen (keine deiner Uploads).`;
+  const bullets = limited
+    .map((img, idx) => `- ${img.url_or_base64} — ${labelForMarketingImage(img, idx)}`)
+    .join('\n');
+  const scarcityNote =
+    limited.length < MARKETING_MIN_RESULTS
+      ? '\nMehr Quellen finde ich erst mit Hersteller-Daten oder neuen Fotos.'
+      : '';
+  const message = `${intro}\n${bullets}${scarcityNote}\nLizenz prüfen, bevor du sie veröffentlichst.`;
+
+  return {
+    message,
+    datasheetChanges: [],
+    imageSuggestions: [
+      {
+        rationale: 'Marketingbilder',
+        images: limited,
+      },
+    ],
+    serpTrace,
+    modelUsed: 'marketing-direct',
+  };
 }
 
 function attributeArrayToObject(entries = []) {
@@ -434,6 +663,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     'Interpret every supplied image (product gallery + user attachments) in concise wording; if imagery is weak, state what to shoot next.',
     'When the user explicitly asks for "mehr Details", "ausführlich", "voller Report", "lange Analyse" or similar, switch to DEEP MODE with structured sections and long explanations. Otherwise stay in SHORT MODE.',
     'Marketing-image requests must return exactly: one short sentence + a list of 3–6 concrete image URLs with 3–5 word labels (hero, lifestyle, detail, packshot, etc.). No long strategy unless explicitly asked.',
+    'Never recycle the customer’s existing gallery URLs for marketing-image answers; prefer fresh web sources or new AI renders and state if none exist.',
     'When proposing product updates, explain briefly (1–2 sentences) and include a minimal JSON snippet called "edit" that only contains the changed fields.',
     'You can craft new render prompts and call generate_ai_images when fresh material would help; note variant and intent.',
     'Default language: ' + locale + '. Keep responses direct, avoid filler, offer deeper details only on request.',
@@ -492,11 +722,17 @@ function sanitizeDatasheetChange(entry) {
 
 async function runProductChat(product, userMessage, { modelOverride = null, attachments = [] } = {}) {
   const client = await getOpenAIClient();
-  const targetModel = resolveModel(modelOverride, 'CHAT_MODEL', 'gpt-5-mini-2025-08-07');
+  const targetModel = resolveModel(modelOverride, 'CHAT_MODEL', 'gpt-5.1');
   const locale = product?.locale || 'de-DE';
   const conversationMode = detectConversationMode(userMessage || '');
   const marketingFocus = isMarketingImageRequest(userMessage || '');
   const attachmentPayload = normalizeChatAttachments(attachments);
+  if (marketingFocus) {
+    const marketingResponse = await fulfillMarketingImageRequest(product);
+    if (marketingResponse) {
+      return marketingResponse;
+    }
+  }
   const productContext = buildProductContext(product, {
     attachments: attachmentPayload.summary,
     mode: conversationMode,

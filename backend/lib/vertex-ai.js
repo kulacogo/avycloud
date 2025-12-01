@@ -1,8 +1,6 @@
-const { GoogleAuth } = require('google-auth-library');
-
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 'avycloud';
-const LOCATION = 'europe-west3'; // or us-central1, depending on availability
-const API_ENDPOINT = `https://${LOCATION}-aiplatform.googleapis.com`;
+const GEMINI_API_KEY = process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY;
+const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent`;
 
 function extractBase64Payload(dataUrl = '') {
   if (!dataUrl) return null;
@@ -21,116 +19,102 @@ function extractBase64Payload(dataUrl = '') {
   return null;
 }
 
+function ensureGeminiConfig() {
+  if (!GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY (or GOOGLE_GENAI_API_KEY) is not configured');
+  }
+}
+
+function normalizeInlineData(part = {}) {
+  const inline = part.inlineData || part.inline_data;
+  if (!inline?.data) return null;
+  return {
+    base64: inline.data,
+    mimeType: inline.mimeType || inline.mime_type || 'image/png',
+  };
+}
+
+async function callGeminiGenerateContent({ parts, aspectRatio }) {
+  ensureGeminiConfig();
+  const params = new URLSearchParams({ key: GEMINI_API_KEY });
+  const body = {
+    contents: [{ parts }],
+    generationConfig: {
+      responseModalities: ['IMAGE'],
+    },
+  };
+
+  if (aspectRatio) {
+    body.generationConfig.imageConfig = { aspectRatio };
+  }
+
+  const response = await fetch(`${GEMINI_ENDPOINT}?${params.toString()}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini image API failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  if (!Array.isArray(data?.candidates)) {
+    throw new Error('Gemini image API returned no candidates');
+  }
+
+  const images = [];
+  for (const candidate of data.candidates) {
+    const candidateParts = candidate?.content?.parts || [];
+    for (const part of candidateParts) {
+      const normalized = normalizeInlineData(part);
+      if (normalized) {
+        images.push(normalized);
+      }
+    }
+  }
+  return images;
+}
+
 async function generateProductImages({
   prompt,
   count = 1,
   aspectRatio = '1:1',
   referenceImageBase64 = null,
-  maskImageBase64 = null,
-  editMode = null,
 }) {
-  // Always use Imagen 2 (006) for highest quality.
-  // We use "Subject Control" (via 'subject' field) to guide generation without strict masking.
-  const targetLocation = 'us-central1'; // Use us-central1 for best feature availability
-  const targetModel = 'imagegeneration@006';
+  if (!prompt?.trim()) {
+    throw new Error('Prompt is required for Gemini image generation');
+  }
 
-  const auth = new GoogleAuth({
-    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-  });
-  const client = await auth.getClient();
-  const accessToken = await client.getAccessToken();
-
-  const url = `https://${targetLocation}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${targetLocation}/publishers/google/models/${targetModel}:predict`;
-
-  const instance = {
-    prompt,
-  };
-
+  const parts = [];
   if (referenceImageBase64) {
     const payload = extractBase64Payload(referenceImageBase64);
-    if (!payload) {
+    if (!payload?.data) {
       throw new Error('Invalid reference image payload provided');
     }
-    // Use 'subject' field for Subject Control/Image Prompting in Imagen 2
-    // This avoids the "Failed to get mask" error associated with the 'image' field (Edit Mode)
-    instance.subject = {
-      image: {
-        bytesBase64Encoded: payload.data,
-      }
-    };
-  }
-
-  if (maskImageBase64) {
-    const payload = extractBase64Payload(maskImageBase64);
-    if (!payload) {
-      throw new Error('Invalid mask image payload provided');
-    }
-    instance.mask = {
-      image: {
-        bytesBase64Encoded: payload.data,
+    parts.push({
+      inline_data: {
+        mime_type: payload.mimeType || 'image/png',
+        data: payload.data,
       },
-    };
+    });
   }
 
-  const parameters = {
-    sampleCount: count,
-    aspectRatio,
-    responseModalities: ['TEXT', 'IMAGE'],
-  };
+  parts.push({ text: prompt.trim() });
 
-  if (editMode) {
-    parameters.editMode = editMode;
-  }
-
-  if (maskImageBase64 && !useLegacyEdit) {
-    parameters.editConfig = {
-      baseSteps: 25,
-    };
-  }
-
-  const requestBody = {
-    instances: [instance],
-    parameters,
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken.token}`,
-      'Content-Type': 'application/json; charset=utf-8',
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Vertex AI API failed (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-
-  // Response structure for Imagen 2/3 usually contains predictions array with bytesBase64
-  if (!data.predictions || !data.predictions.length) {
-    console.error('Vertex AI response:', JSON.stringify(data, null, 2));
-    throw new Error('No predictions returned from Vertex AI');
-  }
-
-  console.log('Vertex AI prediction sample keys:', Object.keys(data.predictions[0]));
-
-  return data.predictions.map((prediction) => {
-    const bytes =
-      prediction.bytesBase64Encoded ||
-      prediction.bytesBase64 ||
-      prediction.imageBase64 ||
-      prediction.image;
-    if (!bytes) {
-      console.warn('Vertex AI prediction missing base64 payload:', prediction);
+  const results = [];
+  while (results.length < count) {
+    const batch = await callGeminiGenerateContent({ parts, aspectRatio });
+    if (!batch.length) {
+      break;
     }
-    return {
-      base64: typeof bytes === 'string' ? bytes : null,
-      mimeType: prediction.mimeType || 'image/png',
-    };
-  });
+    results.push(...batch);
+  }
+
+  return results.slice(0, count);
 }
 
 module.exports = {
