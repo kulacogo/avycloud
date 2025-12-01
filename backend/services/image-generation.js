@@ -83,8 +83,8 @@ async function fetchImageAsDataUrl(image) {
 
 async function generateImagesForProduct(product, options = {}) {
   if (!product?.id) {
-    throw new Error('Product ID is required');
-  }
+        throw new Error('Product ID is required');
+    }
 
   const referenceImage = options.referenceImage;
   if (!referenceImage) {
@@ -156,7 +156,7 @@ async function generateImagesForProduct(product, options = {}) {
       aspectRatio: options.aspectRatio || '1:1',
       referenceImageBase64: referenceDataUrl,
       editMode: run.editMode,
-    });
+        });
 
     for (const [index, prediction] of predictions.entries()) {
       if (!prediction?.base64) {
@@ -164,20 +164,20 @@ async function generateImagesForProduct(product, options = {}) {
       }
       const mimeType = prediction.mimeType || 'image/png';
       const dataUrl = `data:${mimeType};base64,${prediction.base64}`;
-      const upload = await uploadBase64Image(
+            const upload = await uploadBase64Image(
         dataUrl,
-        product.id,
+                product.id,
         `gemini_render_${run.type}_${Date.now()}_${index}`
-      );
+            );
       uploaded.push({
-        url_or_base64: upload.url,
+                url_or_base64: upload.url,
         source: 'ai-derived',
         variant: run.type,
         notes: `Gemini ${run.type} basierend auf ${referenceImage.source || 'reference'} (${referenceImage.notes || 'user selected'})`,
         width: upload.width,
         height: upload.height,
         mimeType: upload.mimeType,
-      });
+            });
     }
   }
 
@@ -185,5 +185,5 @@ async function generateImagesForProduct(product, options = {}) {
 }
 
 module.exports = {
-  generateImagesForProduct,
+    generateImagesForProduct,
 };

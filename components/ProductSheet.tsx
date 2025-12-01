@@ -224,15 +224,15 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       const updatedProduct: Product = {
         ...localProduct,
         identification: {
-          ...localProduct.identification,
-          sku: assignedSku || localProduct.identification.sku,
+            ...localProduct.identification,
+            sku: assignedSku || localProduct.identification.sku,
         },
         details: {
-          ...localProduct.details,
-          identifiers: {
-            ...(localProduct.details.identifiers || {}),
-            sku: assignedSku || localProduct.details.identifiers?.sku || undefined,
-          },
+            ...localProduct.details,
+            identifiers: {
+                ...(localProduct.details.identifiers || {}),
+                sku: assignedSku || localProduct.details.identifiers?.sku || undefined,
+            },
         },
         ops: {
           ...localProduct.ops,
@@ -383,13 +383,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const handleFieldChange = (field: string, value: string) => {
     const keys = field.split('.');
     setLocalProduct(prev => {
-      const newProd = JSON.parse(JSON.stringify(prev)); // Deep copy
-      let current = newProd;
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-      current[keys[keys.length - 1]] = value;
-      return newProd;
+        const newProd = JSON.parse(JSON.stringify(prev)); // Deep copy
+        let current = newProd;
+        for (let i = 0; i < keys.length - 1; i++) {
+            current = current[keys[i]];
+        }
+        current[keys[keys.length - 1]] = value;
+        return newProd;
     });
     setIsDirty(true);
   };
@@ -470,7 +470,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           {notification.message}
         </div>
       )}
-
+      
       <div className="lg:col-span-2 space-y-6">
         <header className="p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -524,7 +524,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 id="btn-edit"
                 onClick={() => setIsEditing(v => !v)}
                 className={`flex items-center justify-center px-4 py-2 font-medium rounded-lg transition-colors w-full sm:w-auto ${isEditing ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-sky-600 text-white hover:bg-sky-500'
-                  }`}
+                }`}
               >
                 <EditIcon /><span className="ml-2">{isEditing ? 'Editing...' : 'Edit'}</span>
               </button>
@@ -774,14 +774,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             )}
           </div>
         </section>
-
+        
         <div className="p-6 bg-slate-800 rounded-lg shadow-lg">
-          <h3 className="text-xl font-semibold mb-4 text-white">Actions</h3>
-          <div className="actions flex flex-wrap gap-4">
-            <button id="btn-sync" onClick={handleSync} disabled={isSyncing} className="flex items-center justify-center px-4 py-2 bg-slate-700 text-slate-200 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait">
-              {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}<span className="ml-2">Sync</span>
-            </button>
-          </div>
+            <h3 className="text-xl font-semibold mb-4 text-white">Actions</h3>
+            <div className="actions flex flex-wrap gap-4">
+                <button id="btn-sync" onClick={handleSync} disabled={isSyncing} className="flex items-center justify-center px-4 py-2 bg-slate-700 text-slate-200 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait">
+                    {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}<span className="ml-2">Sync</span>
+                </button>
+            </div>
         </div>
       </div>
 

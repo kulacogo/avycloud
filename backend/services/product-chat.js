@@ -808,7 +808,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         {
           type: 'input_text',
           text: 'Marketing-image request detected: respond with one short intro sentence and a bullet list of 3–6 concrete URLs labelled with 3–5 word descriptions (Hero, Lifestyle, Detail, Packshot, etc.).',
-        },
+    },
       ],
     });
   }

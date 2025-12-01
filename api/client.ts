@@ -858,11 +858,11 @@ export const chatWithAssistant = async (
       };
     } else {
       requestInit = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ productId, message }),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ productId, message }),
       };
     }
 

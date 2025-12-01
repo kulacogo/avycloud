@@ -32,6 +32,23 @@ gcloud run deploy product-hub-backend \
   --project=avycloud
 ```
 
+### 3. Neues Produktbild-Bucket anlegen (öffentlich & uploadbar)
+
+```sh
+gcloud storage buckets create gs://avycloud-genai-images \
+  --project=avycloud \
+  --location=europe-west3 \
+  --uniform-bucket-level-access
+
+gcloud storage buckets add-iam-policy-binding gs://avycloud-genai-images \
+  --member="allUsers" \
+  --role="roles/storage.objectViewer"
+
+gcloud storage buckets add-iam-policy-binding gs://avycloud-genai-images \
+  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+  --role="roles/storage.objectCreator"
+```
+
 ### 3. Cloud-Run-Logs prüfen
 
 1. Cloud Console → Cloud Run → `product-hub-backend`
