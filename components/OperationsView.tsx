@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BrowserMultiFormatReader } from '@zxing/browser';
 import { Product, WarehouseBin, Order } from '../types';
 import {
@@ -204,6 +204,36 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     }
   };
 
+  const resolveProductForItem = useCallback(
+    (item: { productId?: string | null; sku?: string | null; ean?: string | null }) => {
+      if (item.productId) {
+        const byId = products.find((p) => p.id === item.productId);
+        if (byId) return byId;
+      }
+      const searchKeys = [item.sku, item.ean].filter(Boolean).map((value) => String(value).toLowerCase());
+      if (!searchKeys.length) {
+        return null;
+      }
+      return (
+        products.find((product) => {
+          const candidateValues = [
+            product.identification?.sku,
+            product.details?.identifiers?.sku,
+            product.details?.identifiers?.ean,
+            product.details?.identifiers?.gtin,
+            product.details?.identifiers?.upc,
+            product.id,
+            ...(product.identification?.barcodes || []),
+          ]
+            .filter(Boolean)
+            .map((val) => String(val).toLowerCase());
+          return candidateValues.some((candidate) => searchKeys.includes(candidate));
+        }) || null
+      );
+    },
+    [products]
+  );
+
   const pickRouteTasks = useMemo(() => {
     const tasks: PickRouteTask[] = [];
     openOrders.forEach((order) => {
@@ -211,36 +241,57 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         if (completedPickItemSet.has(item.id)) {
           return;
         }
-        const hint = item.pickHint;
-        const binCode = hint?.binCode?.toUpperCase();
-        if (!binCode) {
+        const hint = item.pickHint || null;
+        let binCode = hint?.binCode?.toUpperCase() || null;
+        let skuCandidate = item.sku || hint?.sku || item.ean || null;
+        let product: Product | null = null;
+
+        if (!binCode || !skuCandidate || !hint?.image || typeof hint?.quantityAvailable !== 'number') {
+          product = resolveProductForItem(item);
+          if (!binCode && product) {
+            binCode =
+              product.storage?.binCode ||
+              (product.storageBins && product.storageBins.length ? product.storageBins[0]?.code : null) ||
+              null;
+            if (binCode) {
+              binCode = binCode.toUpperCase();
+            }
+          }
+          if (!skuCandidate && product) {
+            skuCandidate =
+              product.details?.identifiers?.sku ||
+              product.identification?.sku ||
+              product.details?.identifiers?.ean ||
+              product.details?.identifiers?.gtin ||
+              product.id ||
+              null;
+          }
+        }
+
+        if (!binCode || !skuCandidate) {
           return;
         }
-        const skuCandidate =
-          item.sku ||
-          hint?.sku ||
-          item.ean ||
-          undefined;
-        if (!skuCandidate) {
-          return;
-        }
+
         tasks.push({
           orderId: order.id,
           orderNumber: order.number,
           customer: order.customer?.name,
           itemId: item.id,
-          itemName: hint?.productName || item.name,
+          itemName: hint?.productName || product?.identification?.name || item.name,
           sku: skuCandidate,
           binCode: binCode.toUpperCase(),
           quantity: item.quantity,
-          productId: hint?.productId || item.productId || undefined,
-          available: typeof hint?.quantityAvailable === 'number' ? hint.quantityAvailable : null,
-          image: hint?.image || null,
+          productId: hint?.productId || product?.id || item.productId || undefined,
+          available:
+            typeof hint?.quantityAvailable === 'number'
+              ? hint.quantityAvailable
+              : product?.storage?.quantity || product?.inventory?.quantity || null,
+          image: hint?.image || product?.details?.images?.[0]?.url_or_base64 || null,
         });
       });
     });
     return tasks;
-  }, [openOrders, completedPickItemSet]);
+  }, [completedPickItemSet, openOrders, resolveProductForItem]);
 
   const nextPickTask = pickRouteTasks[0] || null;
 
