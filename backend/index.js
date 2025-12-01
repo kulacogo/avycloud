@@ -143,6 +143,21 @@ function looksGeneratedImageMeta(image = {}) {
   const notes = (image.notes || '').toString().toLowerCase();
   return GENERATED_IMAGE_SIGNATURE.test(source) || GENERATED_IMAGE_SIGNATURE.test(notes);
 }
+
+function isVertexAiImage(image = {}) {
+  if (!image || typeof image !== 'object') {
+    return false;
+  }
+  const source = (image.source || '').toString().toLowerCase();
+  const notes = (image.notes || '').toString().toLowerCase();
+  return (
+    source.includes('ai-derived') ||
+    source.includes('vertex') ||
+    /gemini/.test(source) ||
+    /gemini/.test(notes) ||
+    /vertex/.test(notes)
+  );
+}
 const allowedOrigins = [
   'https://avycloud.web.app',
   'https://avycloud.firebaseapp.com',
@@ -1260,7 +1275,7 @@ app.post('/api/save', async (req, res) => {
       }
 
       const filteredImages = processedImages.filter((img) => {
-        if (looksGeneratedImageMeta(img)) {
+        if (looksGeneratedImageMeta(img) && !isVertexAiImage(img)) {
           console.warn('Rejecting generated image metadata during save:', img?.url_or_base64 || img?.url || '');
           return false;
         }
