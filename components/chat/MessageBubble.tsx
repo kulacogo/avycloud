@@ -1,5 +1,6 @@
 import React from 'react';
 import AttachmentMessage from './AttachmentMessage';
+import { DatasheetChange } from '../../types';
 
 type MessageAttachment = {
   id: string;
@@ -10,11 +11,18 @@ type MessageAttachment = {
   isImage?: boolean;
 };
 
+type InlineDatasheetChange = {
+  id: string;
+  change: DatasheetChange;
+};
+
 type MessageBubbleProps = {
   role: 'user' | 'assistant';
   text: string;
   timestamp: string;
   attachments?: MessageAttachment[];
+  datasheetChanges?: InlineDatasheetChange[];
+  onApplyDatasheetChange?: (changeId: string) => void;
 };
 
 const CODE_REGEX = /```([\w-]+)?\n([\s\S]*?)```/g;
@@ -30,7 +38,14 @@ const formatTime = (iso: string) => {
   }
 };
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ role, text, timestamp, attachments = [] }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({
+  role,
+  text,
+  timestamp,
+  attachments = [],
+  datasheetChanges = [],
+  onApplyDatasheetChange,
+}) => {
   const segments: Array<{ type: 'text' | 'code'; value: string; language?: string }> = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -96,6 +111,34 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ role, text, timestamp, at
               </p>
             );
           })}
+
+          {role === 'assistant' && datasheetChanges.length > 0 && (
+            <div className="space-y-2 rounded-xl border border-slate-700/60 bg-slate-900/60 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300">Übernehmbare Daten</p>
+              {datasheetChanges.map((entry) => {
+                const fieldKeys = Object.keys(entry.change).filter((key) => key !== 'summary');
+                return (
+                  <div key={entry.id} className="flex flex-col gap-2 rounded-lg bg-slate-900/80 p-3 text-xs text-slate-200">
+                    <div>
+                      <p className="text-sm font-semibold text-white">{entry.change.summary || 'Änderung aus Chat'}</p>
+                      {fieldKeys.length > 0 && (
+                        <p className="text-[11px] text-slate-400">Felder: {fieldKeys.join(', ')}</p>
+                      )}
+                    </div>
+                    {onApplyDatasheetChange && (
+                      <button
+                        type="button"
+                        onClick={() => onApplyDatasheetChange(entry.id)}
+                        className="self-start rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
+                      >
+                        Übernehmen
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {attachments.length > 0 && (
             <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">

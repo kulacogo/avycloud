@@ -23,20 +23,21 @@ type MessageAttachment = {
   isImage?: boolean;
 };
 
+type PendingChange = {
+  id: string;
+  change: DatasheetChange;
+};
+
 type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   timestamp: string;
   attachments?: MessageAttachment[];
+  datasheetChanges?: PendingChange[];
 };
 
 type AttachmentDraft = ChatInputAttachment & { file: File };
-
-type PendingChange = {
-  id: string;
-  change: DatasheetChange;
-};
 
 type PendingImage = {
   id: string;
@@ -101,18 +102,24 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const suggestionKeysRef = useRef<Set<string>>(new Set());
   const objectUrlStore = useRef<string[]>([]);
 
-  const quickPrompts = [
-    'Item Specifics vervollständigen',
-    'Titel im eBay-Stil optimieren',
-    'Bullet-Features kürzen',
-    'Kurzbeschreibung (2 Sätze, DE)',
-    'Fehlende Identifiers prüfen',
+  const predefinedPrompts = [
+    'Datenblatt verbessern (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+    'Titel verbessern (Marketing- und E-Commerce-ready machen)',
+    'Highlights verbessern (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+    'Attribute korrigieren/ergänzen (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+    'Beschreibung korrigieren/ergänzen (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+    'Preis korrigieren (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
   ];
 
+  const quickPrompts = predefinedPrompts;
+
   const quickActions = [
-    { label: 'Preis prüfen', value: 'Finde günstigsten Preis neu' },
-    { label: 'Marketing-Bilder', value: 'Suche Marketing-Bilder' },
-    { label: 'Highlights kürzen', value: 'Fasse Highlights kürzer zusammen' },
+    { label: 'Datenblatt verbessern', value: predefinedPrompts[0] },
+    { label: 'Titel verbessern', value: predefinedPrompts[1] },
+    { label: 'Highlights verbessern', value: predefinedPrompts[2] },
+    { label: 'Attribute korrigieren', value: predefinedPrompts[3] },
+    { label: 'Beschreibung korrigieren', value: predefinedPrompts[4] },
+    { label: 'Preis korrigieren', value: predefinedPrompts[5] },
   ];
 
   const normalizeImageKey = (value?: string | null) => {
@@ -245,6 +252,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     if (mapped.length) {
       setPendingChanges((prev) => [...prev, ...mapped]);
     }
+    return mapped;
   };
 
   const appendPendingImages = (suggestions: { rationale?: string; images: ProductImage[] }[] = []) => {
@@ -329,16 +337,17 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         }
 
         const assistantAttachments = mapSuggestionsToAttachments(result.data.imageSuggestions);
+        const linkedChanges = appendPendingChanges(result.data.datasheetChanges);
         const assistantMessage: ChatMessage = {
           id: uid(),
           role: 'assistant',
           text: result.data.message,
           timestamp: new Date().toISOString(),
           attachments: assistantAttachments,
+          datasheetChanges: linkedChanges,
         };
         setMessages((prev) => [...prev, assistantMessage]);
 
-        appendPendingChanges(result.data.datasheetChanges);
         appendPendingImages(result.data.imageSuggestions);
         setSerpInsights(result.data.serpTrace || []);
       } catch (error: any) {
@@ -385,6 +394,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                 text={msg.text}
                 timestamp={msg.timestamp}
                 attachments={msg.attachments}
+                datasheetChanges={msg.datasheetChanges}
+                onApplyDatasheetChange={msg.datasheetChanges?.length ? handleApplyChange : undefined}
               />
             ))}
             {isLoading && (
