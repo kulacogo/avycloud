@@ -9,6 +9,17 @@ module.exports = {
     './hooks/**/*.{ts,tsx}',
   ],
   theme: {
+    borderRadius: {
+      none: '0',
+      sm: '1%',
+      DEFAULT: '1%',
+      md: '1%',
+      lg: '1%',
+      xl: '1%',
+      '2xl': '1%',
+      '3xl': '1%',
+      full: '1%',
+    },
     extend: {},
   },
   plugins: [],
