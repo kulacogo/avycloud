@@ -68,23 +68,23 @@ const isAllowedAttachment = (file: File) => {
   return ['.jpg', '.jpeg', '.png', '.webp', '.pdf', '.txt', '.csv', '.json'].some((ext) => lowerName.endsWith(ext));
 };
 
-const mapSuggestionsToAttachments = (groups?: { rationale?: string; images: ProductImage[] }[]): MessageAttachment[] => {
-  if (!groups?.length) return [];
-  const attachments: MessageAttachment[] = [];
-  for (const group of groups) {
-    for (const image of group.images) {
-      if (!image?.url_or_base64 || attachments.length >= 4) break;
-      attachments.push({
-        id: uid(),
-        name: group.rationale || image.variant || 'Bild',
-        url: image.url_or_base64,
-        type: 'image/web',
-        isImage: true,
-      });
+  const mapSuggestionsToAttachments = (groups?: { rationale?: string; images: ProductImage[] }[]): MessageAttachment[] => {
+    if (!groups?.length) return [];
+    const attachments: MessageAttachment[] = [];
+    for (const group of groups) {
+      for (const image of group.images) {
+        if (!image?.url_or_base64 || attachments.length >= 4) break;
+        attachments.push({
+          id: uid(),
+          name: group.rationale || image.variant || 'Bild',
+          url: buildImageProxyUrl(image.url_or_base64),
+          type: image.source || 'image/web',
+          isImage: true,
+        });
+      }
     }
-  }
-  return attachments;
-};
+    return attachments;
+  };
 
 const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheetChange, onAddImages }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -258,7 +258,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           return;
         }
         dedupe.add(key);
-        flattened.push({ id: uid(), image: img, rationale: group.rationale });
+        flattened.push({
+          id: uid(),
+          image: {
+            ...img,
+            url_or_base64: buildImageProxyUrl(img.url_or_base64),
+          },
+          rationale: group.rationale,
+        });
       });
     });
     if (flattened.length) {
@@ -369,9 +376,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         </button>
       </header>
 
-      <div className="flex-1 min-h-0 px-4 py-3">
-        <div className="flex h-full flex-col gap-3">
-          <div ref={chatBodyRef} className="flex-1 space-y-3 overflow-y-auto pr-1">
+      <div className="flex h-full flex-col gap-3 px-4 py-3">
+        <div ref={chatBodyRef} className="flex-1 space-y-3 overflow-y-auto pr-1">
             {messages.map((msg) => (
               <MessageBubble
                 key={msg.id}
@@ -391,17 +397,17 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             )}
           </div>
 
-          {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
+        {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
             <div className="space-y-4 border-t border-slate-800 pt-3 text-xs text-slate-200">
               {pendingChanges.length > 0 && (
-                <section>
-                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wide text-slate-400">
+                <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
+                  <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
                     <span>Vorgeschlagene Änderungen</span>
                     <span>{pendingChanges.length}</span>
-                  </div>
-                  <ul className="space-y-2">
+                  </summary>
+                  <div className="space-y-2 p-3">
                     {pendingChanges.map((item) => (
-                      <li key={item.id} className="rounded-xl border border-slate-700/70 bg-slate-900/70 p-3">
+                      <div key={item.id} className="rounded-xl border border-slate-700/70 bg-slate-900/70 p-3">
                         <p className="text-sm font-semibold text-white">{item.change.summary || 'Änderung aus dem Chat'}</p>
                         <button
                           type="button"
@@ -410,57 +416,57 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                         >
                           Anwenden
                         </button>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
-              {pendingImages.length > 0 && (
-                <section>
-                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wide text-slate-400">
-                    <span>Bild-Vorschläge</span>
-                    <span>{pendingImages.length}</span>
-                  </div>
-                  <div className="flex gap-3 overflow-x-auto pb-1">
-                    {pendingImages.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex min-w-[160px] max-w-[160px] flex-col gap-2 rounded-xl border border-slate-700/60 bg-slate-900/70 p-2"
-                      >
-                        <img
-                          src={resolveImageSrc(item.image.url_or_base64)}
-                          alt={item.image.variant || 'Vorschlag'}
-                          className="h-24 w-full rounded-lg object-cover"
-                          loading="lazy"
-                          decoding="async"
-                          onError={(event) => {
-                            (event.currentTarget as HTMLImageElement).src = 'https://placehold.co/200x200?text=Bild';
-                          }}
-                        />
-                        {item.rationale && <p className="text-[11px] text-slate-400 line-clamp-2">{item.rationale}</p>}
-                        <button
-                          type="button"
-                          onClick={() => handleApplyImage(item.id)}
-                          className="rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
-                        >
-                          Hinzufügen
-                        </button>
                       </div>
                     ))}
                   </div>
-                </section>
+                </details>
+              )}
+
+              {pendingImages.length > 0 && (
+                <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
+                  <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
+                    <span>Bild-Vorschläge</span>
+                    <span>{pendingImages.length}</span>
+                  </summary>
+                    <div className="flex gap-3 overflow-x-auto p-3">
+                      {pendingImages.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex min-w-[160px] max-w-[160px] flex-col gap-2 rounded-xl border border-slate-700/60 bg-slate-900/70 p-2"
+                        >
+                          <img
+                            src={resolveImageSrc(item.image.url_or_base64)}
+                            alt={item.image.variant || 'Vorschlag'}
+                            className="h-24 w-full rounded-lg object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            onError={(event) => {
+                              (event.currentTarget as HTMLImageElement).src = 'https://placehold.co/200x200?text=Bild';
+                            }}
+                          />
+                          {item.rationale && <p className="text-[11px] text-slate-400 line-clamp-2">{item.rationale}</p>}
+                          <button
+                            type="button"
+                            onClick={() => handleApplyImage(item.id)}
+                            className="rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
+                          >
+                            Hinzufügen
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                </details>
               )}
 
               {serpInsights.length > 0 && (
-                <section>
-                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wide text-slate-400">
-                    <span>SerpAPI Nachweise</span>
+                <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
+                  <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
+                    <span>Nachweise</span>
                     <span>{serpInsights.length}</span>
-                  </div>
-                  <ul className="space-y-2 text-[11px] text-slate-200">
+                  </summary>
+                  <div className="space-y-2 p-3 text-[11px] text-slate-200">
                     {serpInsights.map((entry, index) => (
-                      <li key={`${entry.engine}-${index}`} className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
+                      <div key={`${entry.engine}-${index}`} className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
                         <div className="flex items-center justify-between text-slate-100">
                           <span className="font-semibold">{entry.engine}</span>
                           <span className="text-slate-400">{entry.query}</span>
@@ -481,15 +487,15 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                               {item.source && <span className="ml-1 text-slate-400">({item.source})</span>}
                             </div>
                           ))}
-                      </li>
+                      </div>
                     ))}
-                  </ul>
-                </section>
+                  </div>
+                </details>
               )}
             </div>
           )}
         </div>
-      </div>
+        </div>
 
       <div className="space-y-3 border-t border-slate-800 px-4 py-4">
         {showPromptTray && (

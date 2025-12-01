@@ -108,20 +108,25 @@ const ChatInput: React.FC<ChatInputProps> = ({
       </div>
 
       {attachments.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {attachments.map((attachment) => (
-            <FileAttachmentPreview
-              key={attachment.id}
-              id={attachment.id}
-              name={attachment.name}
-              size={attachment.size}
-              type={attachment.type}
-              isImage={attachment.isImage}
-              previewUrl={attachment.previewUrl}
-              onRemove={onRemoveAttachment}
-            />
-          ))}
-        </div>
+        <details className="rounded-2xl border border-slate-700/70 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+          <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wide">
+            Anhänge ({attachments.length})
+          </summary>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {attachments.map((attachment) => (
+              <FileAttachmentPreview
+                key={attachment.id}
+                id={attachment.id}
+                name={attachment.name}
+                size={attachment.size}
+                type={attachment.type}
+                isImage={attachment.isImage}
+                previewUrl={attachment.previewUrl}
+                onRemove={onRemoveAttachment}
+              />
+            ))}
+          </div>
+        </details>
       )}
 
       <div className="flex items-end gap-3">

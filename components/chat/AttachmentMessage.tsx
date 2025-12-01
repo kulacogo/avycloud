@@ -28,9 +28,12 @@ const AttachmentMessage: React.FC<AttachmentMessageProps> = ({
         <img
           src={url}
           alt={name}
-          className="block h-40 w-full object-cover"
+          className="block h-40 w-full rounded-md object-cover"
           loading="lazy"
           decoding="async"
+          onError={(event) => {
+            (event.currentTarget as HTMLImageElement).style.display = 'none';
+          }}
         />
         <figcaption className="flex items-center justify-between px-3 py-2 text-xs text-slate-200">
           <span className="truncate">{name}</span>

@@ -98,11 +98,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ role, text, timestamp, at
           })}
 
           {attachments.length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {attachments.map((attachment) => (
-                <AttachmentMessage key={attachment.id} {...attachment} />
-              ))}
-            </div>
+            <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
+              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+                Anhänge ({attachments.length})
+              </summary>
+              <div className="grid gap-3 p-3 sm:grid-cols-2">
+                {attachments.map((attachment) => (
+                  <AttachmentMessage key={attachment.id} {...attachment} />
+                ))}
+              </div>
+            </details>
           )}
         </div>
         <span className="mt-2 block text-right text-[10px] uppercase tracking-wide text-slate-400">
