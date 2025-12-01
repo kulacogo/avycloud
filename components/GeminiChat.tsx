@@ -80,8 +80,17 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
   if (Array.isArray(entry.key_features)) {
     result.key_features = entry.key_features.filter(Boolean);
   }
-  if (entry.attributes && typeof entry.attributes === 'object' && !Array.isArray(entry.attributes)) {
-    result.attributes = entry.attributes;
+  if (entry.attributes) {
+    if (Array.isArray(entry.attributes)) {
+      result.attributes = entry.attributes.reduce((acc: Record<string, string | number | boolean>, item: any) => {
+        if (item && typeof item.name === 'string') {
+          acc[item.name] = item.value;
+        }
+        return acc;
+      }, {});
+    } else if (typeof entry.attributes === 'object') {
+      result.attributes = entry.attributes;
+    }
   }
   if (entry.pricing && typeof entry.pricing === 'object') {
     result.pricing = entry.pricing;
@@ -89,7 +98,39 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
   if (entry.notes && typeof entry.notes === 'object') {
     result.notes = entry.notes;
   }
+  const identityPatch: Record<string, string> = {};
+  if (typeof entry.title === 'string' && entry.title.trim()) {
+    identityPatch.name = entry.title.trim();
+    result.title = entry.title.trim();
+  }
+  if (entry.identity && typeof entry.identity === 'object') {
+    if (typeof entry.identity.title === 'string' && entry.identity.title.trim()) {
+      identityPatch.name = entry.identity.title.trim();
+    }
+    if (typeof entry.identity.name === 'string' && entry.identity.name.trim()) {
+      identityPatch.name = entry.identity.name.trim();
+    }
+    if (typeof entry.identity.brand === 'string' && entry.identity.brand.trim()) {
+      identityPatch.brand = entry.identity.brand.trim();
+    }
+    if (typeof entry.identity.category === 'string' && entry.identity.category.trim()) {
+      identityPatch.category = entry.identity.category.trim();
+    }
+    if (typeof entry.identity.sku === 'string' && entry.identity.sku.trim()) {
+      identityPatch.sku = entry.identity.sku.trim();
+    }
+  }
+  if (Object.keys(identityPatch).length) {
+    result.identity = identityPatch;
+  }
   return result;
+};
+
+const cleanAssistantMessage = (raw: string) => {
+  if (!raw) return '';
+  const withoutCode = raw.replace(/```[\s\S]*?```/g, ' ').replace(/`([^`]+)`/g, '$1');
+  const withoutHtml = withoutCode.replace(/<\/?[^>]+>/g, ' ');
+  return withoutHtml.replace(/\s{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 };
 
   const mapSuggestionsToAttachments = (groups?: { rationale?: string; images: ProductImage[] }[]): MessageAttachment[] => {
@@ -383,11 +424,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
 
         const assistantAttachments = mapSuggestionsToAttachments(result.data.imageSuggestions);
         const linkedChanges = appendPendingChanges(result.data.datasheetChanges);
-        const structuredLinked = appendPendingChanges(extractStructuredEdits(result.data.message));
+        const structuredEdits = extractStructuredEdits(result.data.message);
+        const structuredLinked = appendPendingChanges(structuredEdits);
+        const cleanedMessage = cleanAssistantMessage(result.data.message);
         const assistantMessage: ChatMessage = {
           id: uid(),
           role: 'assistant',
-          text: result.data.message,
+          text: cleanedMessage || 'Es gibt neue Vorschläge – nutze die Buttons zum Übernehmen.',
           timestamp: new Date().toISOString(),
           attachments: assistantAttachments,
           datasheetChanges: [...linkedChanges, ...structuredLinked],

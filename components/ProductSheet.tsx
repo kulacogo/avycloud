@@ -300,6 +300,16 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const applyAssistantChange = (change: DatasheetChange) => {
     setLocalProduct(prev => {
       const next = JSON.parse(JSON.stringify(prev)) as Product;
+      if (change.identity && Object.keys(change.identity).length > 0) {
+        next.identification = {
+          ...next.identification,
+          ...change.identity,
+          name: change.identity.name || next.identification.name,
+        };
+      }
+      if (change.title) {
+        next.identification.name = change.title;
+      }
       if (change.short_description) {
         next.details.short_description = change.short_description;
       }
@@ -727,7 +737,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     <div className="text-xs text-slate-400">
                       Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
                     </div>
-                    <div className="text-xs text-slate-300">Menge {bin.quantity ?? bin.productCount ?? 0}</div>
+                    <div className="text-xs text-slate-300">Menge {bin.productCount ?? 0}</div>
                   </div>
                 </div>
               ))}

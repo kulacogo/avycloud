@@ -708,14 +708,42 @@ function sanitizeDatasheetChange(entry) {
   if (Array.isArray(entry.key_features)) {
     result.key_features = entry.key_features.filter(Boolean);
   }
-  if (Array.isArray(entry.attributes)) {
-    result.attributes = attributeArrayToObject(entry.attributes);
+  if (entry.attributes) {
+    if (Array.isArray(entry.attributes)) {
+      result.attributes = attributeArrayToObject(entry.attributes);
+    } else if (typeof entry.attributes === 'object') {
+      result.attributes = entry.attributes;
+    }
   }
   if (entry.pricing) {
     result.pricing = entry.pricing;
   }
   if (entry.notes) {
     result.notes = entry.notes;
+  }
+  const identityPatch = {};
+  if (typeof entry.title === 'string' && entry.title.trim()) {
+    identityPatch.name = entry.title.trim();
+  }
+  if (entry.identity && typeof entry.identity === 'object') {
+    if (typeof entry.identity.title === 'string' && entry.identity.title.trim()) {
+      identityPatch.name = entry.identity.title.trim();
+    }
+    if (typeof entry.identity.name === 'string' && entry.identity.name.trim()) {
+      identityPatch.name = entry.identity.name.trim();
+    }
+    if (typeof entry.identity.brand === 'string' && entry.identity.brand.trim()) {
+      identityPatch.brand = entry.identity.brand.trim();
+    }
+    if (typeof entry.identity.category === 'string' && entry.identity.category.trim()) {
+      identityPatch.category = entry.identity.category.trim();
+    }
+    if (typeof entry.identity.sku === 'string' && entry.identity.sku.trim()) {
+      identityPatch.sku = entry.identity.sku.trim();
+    }
+  }
+  if (Object.keys(identityPatch).length) {
+    result.identity = identityPatch;
   }
   return result;
 }

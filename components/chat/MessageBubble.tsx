@@ -46,6 +46,38 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   datasheetChanges = [],
   onApplyDatasheetChange,
 }) => {
+  const describeChangeFields = (change: DatasheetChange): string[] => {
+    const fields: string[] = [];
+    if (change.title || change.identity?.name) {
+      fields.push('Titel');
+    }
+    if (change.identity?.brand) {
+      fields.push('Marke');
+    }
+    if (change.identity?.category) {
+      fields.push('Kategorie');
+    }
+    if (change.identity?.sku) {
+      fields.push('SKU');
+    }
+    if (change.short_description) {
+      fields.push('Kurzbeschreibung');
+    }
+    if (change.key_features?.length) {
+      fields.push('Highlights');
+    }
+    if (change.attributes && Object.keys(change.attributes).length) {
+      fields.push('Attribute');
+    }
+    if (change.pricing) {
+      fields.push('Preis');
+    }
+    if (change.notes) {
+      fields.push('Notizen');
+    }
+    return fields;
+  };
+
   const segments: Array<{ type: 'text' | 'code'; value: string; language?: string }> = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -116,7 +148,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <div className="space-y-2 rounded-xl border border-slate-700/60 bg-slate-900/60 p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300">Übernehmbare Daten</p>
               {datasheetChanges.map((entry) => {
-                const fieldKeys = Object.keys(entry.change).filter((key) => key !== 'summary');
+                const fieldKeys = describeChangeFields(entry.change);
                 return (
                   <div key={entry.id} className="flex flex-col gap-2 rounded-lg bg-slate-900/80 p-3 text-xs text-slate-200">
                     <div>

@@ -128,6 +128,8 @@ export interface ProductBundle {
 
 export interface DatasheetChange {
   summary?: string;
+  title?: string;
+  identity?: Partial<Identification>;
   short_description?: string;
   key_features?: string[];
   attributes?: Record<string, string | number | boolean>;
