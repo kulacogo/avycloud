@@ -126,7 +126,7 @@ async function generateImagesForProduct(product, options = {}) {
       prompt: prompts.lifestyle,
       type: 'lifestyle',
       count: sampleCount,
-      editMode: null // Use Variation (Imagen 2) to allow scene transformation
+      editMode: 'EDIT_MODE_BGSWAP' // Revert to BGSWAP to guarantee product identity (shape/design)
     });
   }
 
