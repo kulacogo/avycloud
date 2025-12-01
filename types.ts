@@ -194,6 +194,15 @@ export interface WarehouseBin {
 
 export type OrderStatus = 'new' | 'picking' | 'picked';
 
+export interface OrderItemPickHint {
+  productId?: string | null;
+  productName?: string | null;
+  sku?: string | null;
+  binCode?: string | null;
+  quantityAvailable?: number | null;
+  image?: string | null;
+}
+
 export interface OrderItem {
   id: string;
   productId?: string | null;
@@ -203,6 +212,7 @@ export interface OrderItem {
   ean?: string | null;
   priceBrutto?: number;
   currency?: string;
+  pickHint?: OrderItemPickHint | null;
 }
 
 export interface OrderCustomer {

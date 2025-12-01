@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { BrowserMultiFormatReader } from '@zxing/browser';
-import { Product, WarehouseBin, Order, OrderItem } from '../types';
+import { Product, WarehouseBin, Order } from '../types';
 import {
   fetchWarehouseBinDetail,
   stockInProduct,
@@ -35,6 +35,8 @@ type PickRouteTask = {
   binCode: string;
   quantity: number;
   productId?: string | null;
+  available?: number | null;
+  image?: string | null;
 };
 
 const WORKFLOW_CARDS: Array<{
@@ -202,36 +204,6 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     }
   };
 
-  const resolveProductForItem = useCallback(
-    (item: OrderItem): Product | null => {
-      if (item.productId) {
-        const byId = products.find((p) => p.id === item.productId);
-        if (byId) return byId;
-      }
-      const searchKeys = [item.sku, item.ean].filter(Boolean).map((value) => String(value).toLowerCase());
-      if (!searchKeys.length) {
-        return null;
-      }
-      return (
-        products.find((product) => {
-          const candidateValues = [
-            product.identification?.sku,
-            product.details?.identifiers?.sku,
-            product.details?.identifiers?.ean,
-            product.details?.identifiers?.gtin,
-            product.details?.identifiers?.upc,
-            product.id,
-            ...(product.identification?.barcodes || []),
-          ]
-            .filter(Boolean)
-            .map((val) => String(val).toLowerCase());
-          return candidateValues.some((candidate) => searchKeys.includes(candidate));
-        }) || null
-      );
-    },
-    [products]
-  );
-
   const pickRouteTasks = useMemo(() => {
     const tasks: PickRouteTask[] = [];
     openOrders.forEach((order) => {
@@ -239,35 +211,36 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         if (completedPickItemSet.has(item.id)) {
           return;
         }
-        const product = resolveProductForItem(item);
-        const binCode = product?.storage?.binCode || product?.storageBins?.[0]?.code;
+        const hint = item.pickHint;
+        const binCode = hint?.binCode?.toUpperCase();
         if (!binCode) {
           return;
         }
         const skuCandidate =
           item.sku ||
-          product?.identification?.sku ||
-          product?.details?.identifiers?.sku ||
-          product?.details?.identifiers?.ean ||
-          product?.details?.identifiers?.gtin ||
-          product?.details?.identifiers?.upc ||
-          product?.id ||
+          hint?.sku ||
+          item.ean ||
           undefined;
+        if (!skuCandidate) {
+          return;
+        }
         tasks.push({
           orderId: order.id,
           orderNumber: order.number,
           customer: order.customer?.name,
           itemId: item.id,
-          itemName: item.name,
+          itemName: hint?.productName || item.name,
           sku: skuCandidate,
           binCode: binCode.toUpperCase(),
           quantity: item.quantity,
-          productId: product?.id,
+          productId: hint?.productId || item.productId || undefined,
+          available: typeof hint?.quantityAvailable === 'number' ? hint.quantityAvailable : null,
+          image: hint?.image || null,
         });
       });
     });
     return tasks;
-  }, [openOrders, resolveProductForItem, completedPickItemSet]);
+  }, [openOrders, completedPickItemSet]);
 
   const nextPickTask = pickRouteTasks[0] || null;
 
@@ -896,6 +869,20 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       Auftrag {nextPickTask.orderNumber || nextPickTask.orderId} · {nextPickTask.customer || 'Unbekannt'}
                     </p>
                   </div>
+                  {nextPickTask.image && (
+                    <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/70 p-3">
+                      <img
+                        src={buildImageProxyUrl(nextPickTask.image)}
+                        alt={nextPickTask.itemName}
+                        className="h-16 w-16 rounded-lg border border-slate-700 object-cover"
+                        loading="lazy"
+                      />
+                      <div className="text-xs text-slate-300">
+                        <p>Visuelle Referenz</p>
+                        <p className="text-[11px] text-slate-500">Nutze zur Identifikation im Bin</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-3 text-sm">
                     <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
                       <p className="text-[10px] uppercase tracking-wide text-slate-400">1 · Bin</p>
@@ -908,9 +895,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
                       <p className="text-[10px] uppercase tracking-wide text-slate-400">Menge</p>
                       <p className="text-xl font-semibold text-white">{nextPickTask.quantity}</p>
+                      {typeof nextPickTask.available === 'number' && (
+                        <p className="text-[11px] text-slate-400">Bestand: {nextPickTask.available}</p>
+                      )}
                     </div>
                   </div>
-                  <p className="text-[12px] text-slate-400">1) Gehe zu BIN {nextPickTask.binCode}. 2) Scanne die SKU. 3) Bestätige Menge und buche den Pick.</p>
+                  <p className="text-[12px] text-slate-400">
+                    1) Gehe zu BIN {nextPickTask.binCode}. 2) Scanne die SKU {nextPickTask.sku}. 3) Kontrolliere Menge und buche den Pick.
+                  </p>
                   <div className="flex flex-wrap gap-2 text-sm">
                     <button
                       type="button"

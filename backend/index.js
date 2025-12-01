@@ -47,6 +47,7 @@ const {
 const { buildProductLabelsHtml, buildBinLabelHtml, buildBinLabelsHtml, buildBinLabelsPdf } = require('./services/label-printer');
 const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked } = require('./services/order-sync');
+const { attachPickHintsToOrders } = require('./services/pick-hints');
 
 // --- Configuration ---
 const PORT = process.env.PORT || 8080;
@@ -1380,7 +1381,8 @@ app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
 app.get('/api/orders', async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 200);
-    const orders = await listOrders(limit);
+    const rawOrders = await listOrders(limit);
+    const orders = await attachPickHintsToOrders(rawOrders);
     res.json({ ok: true, data: orders });
   } catch (error) {
     console.error('Failed to load orders:', error);
@@ -1397,7 +1399,8 @@ app.get('/api/orders', async (req, res) => {
 
 app.post('/api/orders/sync', async (req, res) => {
   try {
-    const orders = await syncNewOrders();
+    const rawOrders = await syncNewOrders();
+    const orders = await attachPickHintsToOrders(rawOrders);
     res.json({ ok: true, data: orders });
   } catch (error) {
     console.error('Failed to sync orders:', error);
