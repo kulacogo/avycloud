@@ -426,13 +426,27 @@ async function runProductChat(product, userMessage, { modelOverride = null } = {
     },
     {
       role: 'system',
-      content: [{ type: 'input_text', text: `system.context\n${serializedContext}` }, ...contextImageParts],
-    },
-    {
-      role: 'user',
-      content: [{ type: 'input_text', text: buildUserPrompt(userMessage, locale) }],
+      content: [{ type: 'input_text', text: `system.context\n${serializedContext}` }],
     },
   ];
+
+  if (contextImageParts.length) {
+    inputMessages.push({
+      role: 'user',
+      content: [
+        {
+          type: 'input_text',
+          text: 'Referenzbilder des Produkts (verwende sie zur visuellen Analyse, nicht neu generieren):',
+        },
+        ...contextImageParts,
+      ],
+    });
+  }
+
+  inputMessages.push({
+    role: 'user',
+    content: [{ type: 'input_text', text: buildUserPrompt(userMessage, locale) }],
+  });
 
   const datasheetChanges = [];
   const imageSuggestions = [];
