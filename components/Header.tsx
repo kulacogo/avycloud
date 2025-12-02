@@ -11,10 +11,9 @@ interface HeaderProps {
 }
 
 const LOGOS = {
-  light: '/avystock_brand_logo.png',
-  dark: '/avystock_brand_logo_darkmode.png',
+  light: '/logo_b.png',
+  dark: '/logo_d.png',
 } as const;
-const MOBILE_LOGO = '/app-icon-512.png';
 
 type NavIconConfig = {
   view: HeaderProps['currentView'];
@@ -40,14 +39,14 @@ const NAV_ICONS: NavIconConfig[] = [
   {
     view: 'inventory' as const,
     label: 'nav.inventory',
-    light: '/wireframe_1932412.png',
-    dark: '/wireframe_darkmode.png',
+    light: '/inventory.png',
+    dark: '/inventory_1828075.png',
   },
   {
     view: 'warehouse' as const,
     label: 'nav.warehouse',
-    light: '/storage_3134365.png',
-    dark: '/storage_darkmode.png',
+    light: '/storeage.png',
+    dark: '/storeage_3134403.png',
   },
   {
     view: 'operations' as const,
@@ -57,8 +56,8 @@ const NAV_ICONS: NavIconConfig[] = [
 ] as const;
 
 const TOGGLE_ICONS = {
-  light: '/toggle_1827856.png',
-  dark: '/toggle_darkmode.png',
+  light: '/mode switch 1.png',
+  dark: '/mode switch 2.png',
 } as const;
 
 const safeBottomStyle: React.CSSProperties = {
@@ -123,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   const DesktopNavButton = ({ nav }: { nav: NavIconConfig }) => (
     <button
       onClick={() => setView(nav.view)}
-      className={`hidden sm:inline-flex w-10 h-10 sm:w-11 sm:h-11 rounded-xl items-center justify-center transition-all ${
+      className={`hidden sm:inline-flex w-12 h-12 rounded-2xl items-center justify-center transition-all ${
         currentView === nav.view
           ? 'bg-sky-600 text-white shadow-md shadow-sky-900/40'
           : 'bg-slate-800/70 text-slate-300 hover:bg-slate-700 hover:text-white'
@@ -161,11 +160,11 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   return (
     <>
       <header className="safe-area-header bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-white/5">
-        <div className="max-w-screen-2xl mx-auto px-3 sm:px-4 lg:px-6 py-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
+        <div className="max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-8 py-1.5">
+          <div className="flex items-center gap-3 w-full">
+            <div className="flex items-center gap-3 flex-shrink-0">
               <div className="h-11 w-11 rounded-2xl overflow-hidden shadow-lg sm:hidden bg-white/80">
-                <img src={MOBILE_LOGO} alt="Avystock" className="h-full w-full object-cover" draggable={false} />
+                <img src={logoSrc} alt="Avystock" className="h-full w-full object-cover" draggable={false} />
               </div>
               <div className="hidden sm:block h-10 sm:h-12 lg:h-14 w-auto">
                 <img
@@ -181,14 +180,16 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               </div>
               <span className="sr-only">Avystock Product Intelligence Hub</span>
             </div>
-            <div className="hidden sm:flex items-center gap-2">
+            <div className="hidden sm:flex flex-1 items-center justify-center gap-2">
               {navIcons.map((nav) => (
                 <DesktopNavButton key={nav.view} nav={nav} />
               ))}
+            </div>
+            <div className="hidden sm:flex items-center gap-2 ml-auto">
               <button
                 type="button"
                 onClick={handleHardRefresh}
-                className="inline-flex w-10 h-10 items-center justify-center rounded-xl bg-slate-800/70 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
+                className="inline-flex w-11 h-11 items-center justify-center rounded-2xl bg-slate-800/70 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
                 aria-label={t('actions.refresh')}
                 title={t('actions.refresh')}
               >
@@ -219,29 +220,31 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 />
               </button>
             </div>
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              className="sm:hidden rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
-              aria-label={theme === 'dark' ? 'Wechsel zu hellem Modus' : 'Wechsel zu dunklem Modus'}
-              title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-            >
-              <img
-                src={theme === 'dark' ? TOGGLE_ICONS.dark : TOGGLE_ICONS.light}
-                alt=""
-                className="w-6 h-6"
-                draggable={false}
-              />
-            </button>
-            <button
-              type="button"
-              onClick={handleHardRefresh}
-              className="sm:hidden inline-flex w-10 h-10 items-center justify-center rounded-xl bg-slate-800/70 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
-              aria-label={t('actions.refresh')}
-              title={t('actions.refresh')}
-            >
-              <RefreshIcon className="w-5 h-5" />
-            </button>
+            <div className="flex sm:hidden items-center gap-2 ml-auto">
+              <button
+                type="button"
+                onClick={onToggleTheme}
+                className="rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
+                aria-label={theme === 'dark' ? 'Wechsel zu hellem Modus' : 'Wechsel zu dunklem Modus'}
+                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              >
+                <img
+                  src={theme === 'dark' ? TOGGLE_ICONS.dark : TOGGLE_ICONS.light}
+                  alt=""
+                  className="w-6 h-6"
+                  draggable={false}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={handleHardRefresh}
+                className="inline-flex w-10 h-10 items-center justify-center rounded-xl bg-slate-800/70 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
+                aria-label={t('actions.refresh')}
+                title={t('actions.refresh')}
+              >
+                <RefreshIcon className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
