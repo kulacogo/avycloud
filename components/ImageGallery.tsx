@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ProductImage } from '../types';
 import { DownloadIcon } from './icons/Icons';
+import { useI18n } from '../i18n';
 
 interface ImageGalleryProps {
   images: ProductImage[];
@@ -20,6 +21,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   onRegenerateImage,
   regeneratingIndex = null,
 }) => {
+  const { t } = useI18n();
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -31,8 +33,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   if (!images || images.length === 0) {
     return (
-      <div className="flex items-center justify-center w-full h-48 sm:h-56 bg-slate-700 rounded-lg text-slate-400">
-        No Images Available
+      <div className="flex items-center justify-center w-full h-48 sm:h-56 bg-slate-700 rounded-lg text-slate-400 text-sm">
+        {t('sheet.gallery.empty')}
       </div>
     );
   }

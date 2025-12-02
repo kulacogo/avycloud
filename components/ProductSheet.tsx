@@ -16,6 +16,7 @@ import ImageGallery from './ImageGallery';
 import AttributeTable from './AttributeTable';
 import PricingInfo from './PricingInfo';
 import AssistantChat from './GeminiChat';
+import { useI18n } from '../i18n';
 
 interface ProductSheetProps {
   product: Product;
@@ -37,6 +38,7 @@ const filterReferenceCandidates = (images: ProductImage[] = []) =>
   images.filter((image) => !isGeneratedImageMeta(image));
 
 const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving }) => {
+  const { t } = useI18n();
   const [isEditing, setIsEditing] = useState(false);
   const [localProduct, setLocalProduct] = useState(product);
   const [isSaving, setIsSaving] = useState(false);
@@ -55,6 +57,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [binsError, setBinsError] = useState<string | null>(null);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [selectedReferenceIndex, setSelectedReferenceIndex] = useState<number>(-1);
+  const [isUploadDragActive, setIsUploadDragActive] = useState(false);
 
   const loadProductBins = useCallback(
     async (productId: string) => {
@@ -184,6 +187,28 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       }
     },
     [handleUploadImage]
+  );
+
+  const handleUploadDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsUploadDragActive(true);
+  }, []);
+
+  const handleUploadDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsUploadDragActive(false);
+  }, []);
+
+  const handleUploadDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setIsUploadDragActive(false);
+      const files = event.dataTransfer?.files;
+      if (files?.length) {
+        handleUploadImages(files);
+      }
+    },
+    [handleUploadImages]
   );
 
   const showNotification = (type: 'success' | 'error', message: string) => {
@@ -576,7 +601,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
-                    placeholder="Bild-URL einfügen (https://...)"
+                    placeholder={t('sheet.upload.urlPlaceholder')}
                     className="flex-1 bg-slate-700 border border-slate-600 rounded-lg p-2 text-slate-200"
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
@@ -593,29 +618,38 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     className="px-4 py-2 bg-slate-600 rounded-lg text-white font-semibold hover:bg-slate-500 transition-colors disabled:opacity-50"
                     disabled={!newImageUrl.trim()}
                   >
-                    URL hinzufügen
+                    {t('sheet.upload.urlButton')}
                   </button>
                 </div>
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <label className="px-4 py-2 bg-slate-700 text-slate-200 rounded-lg border border-slate-600 cursor-pointer w-full sm:w-auto text-center">
-                    Datei hochladen
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => {
-                        const { files } = e.target;
-                        handleUploadImages(files);
-                        if (e.target) {
-                          e.target.value = '';
-                        }
-                      }}
-                    />
-                  </label>
-                  <p className="text-xs text-slate-400 text-center sm:text-left">
-                    Unterstützt JPG, PNG oder WebP · optimale Breite ≥ 1200px
-                  </p>
+                <div
+                  className={`rounded-xl border-2 border-dashed p-4 text-center text-xs sm:text-sm transition-colors ${isUploadDragActive ? 'border-sky-500 bg-slate-800/60' : 'border-slate-600 bg-slate-900/40'}`}
+                  onDragOver={handleUploadDragOver}
+                  onDragEnter={handleUploadDragOver}
+                  onDragLeave={handleUploadDragLeave}
+                  onDrop={handleUploadDrop}
+                >
+                  <p className="text-sm font-semibold text-white">{t('sheet.upload.dragTitle')}</p>
+                  <p className="text-slate-400 mt-1">{t('sheet.upload.dragHint')}</p>
+                  <div className="mt-3 flex items-center justify-center gap-2 text-slate-400 text-xs uppercase tracking-wide">
+                    <span>{t('sheet.upload.or')}</span>
+                    <label className="cursor-pointer rounded-full border border-slate-600 px-3 py-1 text-white">
+                      {t('sheet.upload.fileBtn')}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          const { files } = e.target;
+                          handleUploadImages(files);
+                          if (e.target) {
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2">{t('sheet.upload.support')}</p>
                 </div>
               </div>
             )}
@@ -623,7 +657,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               <div className="mt-4 pt-4 border-t border-slate-700 space-y-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Referenzbild für Vertex AI wählen
+                    {t('sheet.ai.referenceLabel')}
                   </label>
                   {referenceImages.length ? (
                     <select
@@ -641,9 +675,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       })}
                     </select>
                   ) : (
-                    <p className="text-xs text-amber-400">
-                      Lade zuerst ein Originalproduktfoto hoch, um Vertex AI nutzen zu können.
-                    </p>
+                    <p className="text-xs text-amber-400">{t('sheet.ai.noReference')}</p>
                   )}
                 </div>
                 <button
@@ -652,16 +684,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-violet-500 hover:to-indigo-500 transition-all disabled:opacity-40 shadow-lg shadow-indigo-900/20"
                 >
                   {isGeneratingImages ? <Spinner className="w-5 h-5 text-white" /> : <MagicIcon className="w-5 h-5" />}
-                  <span>{isGeneratingImages ? 'Verbessere Bilder...' : 'AI-Varianten aus Referenz erzeugen'}</span>
+                  <span>{isGeneratingImages ? t('sheet.ai.running') : t('sheet.ai.cta')}</span>
                 </button>
-                <p className="text-xs text-slate-400 text-center">
-                  Vertex AI nutzt ausschließlich das gewählte Referenzfoto + Produktdaten, um farbtreue Varianten zu erstellen.
-                </p>
+                <p className="text-xs text-slate-400 text-center">{t('sheet.ai.helper')}</p>
               </div>
             )}
           </div>
           <section id="highlights" className="md:col-span-3 p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
-            <h3 className="text-lg font-semibold mb-2 text-white">Highlights</h3>
+            <h3 className="text-lg font-semibold mb-2 text-white">{t('sheet.highlights')}</h3>
             {isEditing ? (
               <textarea
                 defaultValue={(localProduct.details.key_features || []).join('\n')}
@@ -673,7 +703,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   }));
                   setIsDirty(true);
                 }}
-                placeholder="Eine Stärke pro Zeile"
+                placeholder={t('sheet.highlights.placeholder')}
                 className="w-full min-h-[110px] bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-200"
               />
             ) : highlightList.length ? (
@@ -683,14 +713,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-400">Für dieses Produkt liegen noch keine Highlights vor.</p>
+              <p className="text-sm text-slate-400">{t('sheet.highlights.empty')}</p>
             )}
           </section>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <section id="description" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
-            <h3 className="text-xl font-semibold mb-3 text-white">Beschreibung</h3>
+            <h3 className="text-xl font-semibold mb-3 text-white">{t('sheet.description')}</h3>
             {isEditing ? (
               <textarea
                 defaultValue={localProduct.details.short_description}
@@ -703,7 +733,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </section>
 
           <section id="attributes" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
-            <h3 className="text-xl font-semibold mb-4 text-white">Attributes</h3>
+            <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.attributes')}</h3>
             <AttributeTable
               attributes={localProduct.details.attributes}
               isEditing={isEditing}
@@ -717,7 +747,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <section id="pricing" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
-            <h3 className="text-xl font-semibold mb-4 text-white">Pricing</h3>
+            <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.pricing')}</h3>
             <PricingInfo
               pricing={localProduct.details.pricing}
               isEditing={isEditing}
@@ -729,9 +759,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </section>
 
           <section id="storage" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
-            <h3 className="text-xl font-semibold mb-4 text-white">Lagerplatz</h3>
+            <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.storage')}</h3>
             {binsLoading ? (
-              <p className="text-slate-400 text-sm mb-3">Lade BINs …</p>
+              <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.loading')}</p>
             ) : binsError ? (
               <p className="text-rose-300 text-sm mb-3">{binsError}</p>
             ) : productBins.length ? (
@@ -749,7 +779,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 ))}
               </div>
             ) : (
-              <p className="text-slate-400 text-sm mb-3">Aktuell keinem BIN zugeordnet.</p>
+              <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.none')}</p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -762,7 +792,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Menge</label>
+                <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.quantity')}</label>
                 <input
                   type="number"
                   min={1}
@@ -778,14 +808,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 disabled={isAssigningBin}
                 className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-500 disabled:opacity-40"
               >
-                {isAssigningBin ? 'Übernehme...' : 'In BIN einlagern'}
+                {isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}
               </button>
               {localProduct.storage?.binCode && (
                 <button
                   onClick={handleRemoveBin}
                   className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
                 >
-                  BIN-Zuordnung entfernen
+                  {t('sheet.storage.remove')}
                 </button>
               )}
             </div>
@@ -793,7 +823,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </div>
         
         <section className="p-4 bg-slate-800 rounded-lg shadow-lg">
-          <h3 className="text-xl font-semibold mb-4 text-white">Actions</h3>
+          <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.actions.title')}</h3>
           <div className="actions flex flex-wrap gap-4">
             <button
               id="btn-sync"
@@ -802,7 +832,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               className="flex items-center justify-center px-4 py-2 bg-slate-700 text-slate-200 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait"
             >
               {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}
-              <span className="ml-2">Sync</span>
+              <span className="ml-2">{t('sheet.actions.sync')}</span>
             </button>
           </div>
         </section>
