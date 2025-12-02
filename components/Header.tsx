@@ -164,7 +164,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   return (
     <>
       <header className="safe-area-header bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-white/5">
-        <div className="max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-8 py-1.5">
+        <div className="w-full px-3 sm:px-4 lg:px-8 py-1.5">
           <div className="flex items-center gap-3 w-full">
             <div className="flex items-center gap-3 flex-shrink-0">
               <img src={logoSrc} alt="Avystock" className="h-11 sm:h-12 lg:h-14 w-auto object-contain" draggable={false} />
@@ -175,11 +175,11 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 <DesktopNavButton key={nav.view} nav={nav} />
               ))}
             </div>
-            <div className="flex items-center gap-3 ml-auto">
+            <div className="flex items-center gap-4 ml-auto">
               <button
                 type="button"
                 onClick={handleHardRefresh}
-                className="w-10 h-10 flex items-center justify-center rounded-full hover:opacity-80 transition"
+                className="w-11 h-11 flex items-center justify-center rounded-full hover:opacity-80 transition"
                 aria-label={t('actions.refresh')}
                 title={t('actions.refresh')}
               >
@@ -191,21 +191,21 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 className="bg-transparent text-sm text-slate-100 focus:outline-none border-none appearance-none cursor-pointer"
                 aria-label={t('lang.label')}
               >
-                <option value="de">Deutsch</option>
-                <option value="en">English</option>
-                <option value="tr">Türkçe</option>
+                <option value="de">DE</option>
+                <option value="en">EN</option>
+                <option value="tr">TR</option>
               </select>
               <button
                 type="button"
                 onClick={onToggleTheme}
-                className="w-10 h-10 flex items-center justify-center rounded-full hover:opacity-80 transition"
+                className="w-12 h-12 flex items-center justify-center rounded-full hover:opacity-80 transition"
                 aria-label={theme === 'dark' ? 'Wechsel zu hellem Modus' : 'Wechsel zu dunklem Modus'}
                 title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
               >
                 <img
                   src={theme === 'dark' ? TOGGLE_ICONS.dark : TOGGLE_ICONS.light}
                   alt=""
-                  className="w-8 h-8"
+                  className="w-10 h-10 object-contain"
                   draggable={false}
                 />
               </button>

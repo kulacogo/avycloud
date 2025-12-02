@@ -670,136 +670,136 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const renderFilterControls = () => (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-        <select
-          id="table-filter-status"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value as SyncStatus | 'all')}
-          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-        >
-          {statusFilters.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <select
-          id="table-filter-category"
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-        >
-          {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat === 'all' ? t('table.categories.all') : cat}
-            </option>
-          ))}
-        </select>
-        <select
-          value={columnPreset}
-          onChange={(e) => {
-            const preset = e.target.value as ColumnPreset;
-            setVisibleColumns(COLUMN_PRESETS[preset]);
-            setColumnPreset(preset);
-          }}
-          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-        >
-          <option value="standard">{t('table.presets.standard')}</option>
-          <option value="warehouse">{t('table.presets.warehouse')}</option>
-          <option value="pricing">{t('table.presets.pricing')}</option>
-          <option value="minimal">{t('table.presets.minimal')}</option>
-        </select>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsColumnPanelOpen((prev) => !prev)}
-            className="flex-1 rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <select
+            id="table-filter-status"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as SyncStatus | 'all')}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
           >
-            {t('table.columns.edit')}
-          </button>
-          <button
-            type="button"
-            onClick={resetColumns}
-            className="rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
+            {statusFilters.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            id="table-filter-category"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
           >
-            {t('table.columns.reset')}
-          </button>
-        </div>
-      </div>
-
-      {isColumnPanelOpen && (
-        <div className="rounded-lg border border-slate-600 bg-slate-900 p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-white">{t('table.columns.visible')}</p>
-            <button type="button" className="text-xs text-sky-400 hover:underline" onClick={resetColumns}>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat === 'all' ? t('table.categories.all') : cat}
+              </option>
+            ))}
+          </select>
+          <select
+            value={columnPreset}
+            onChange={(e) => {
+              const preset = e.target.value as ColumnPreset;
+              setVisibleColumns(COLUMN_PRESETS[preset]);
+              setColumnPreset(preset);
+            }}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            <option value="standard">{t('table.presets.standard')}</option>
+            <option value="warehouse">{t('table.presets.warehouse')}</option>
+            <option value="pricing">{t('table.presets.pricing')}</option>
+            <option value="minimal">{t('table.presets.minimal')}</option>
+          </select>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsColumnPanelOpen((prev) => !prev)}
+              className="flex-1 rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
+            >
+              {t('table.columns.edit')}
+            </button>
+            <button
+              type="button"
+              onClick={resetColumns}
+              className="rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
+            >
               {t('table.columns.reset')}
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-            {columnDefinitions.map((column) => (
-              <label key={column.id} className="flex items-center gap-2 text-sm text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={visibleColumns.includes(column.id)}
-                  onChange={() => toggleColumnVisibility(column.id)}
-                  disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
-                  className="bg-slate-600 border-slate-500"
-                />
-                {column.label}
-              </label>
-            ))}
-          </div>
         </div>
-      )}
 
-      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-700/40">
-        <ActionButton
-          icon={<SyncIcon className="w-4 h-4" />}
-          label={t('table.actions.syncSelected')}
-          onClick={handleBatchSync}
-          disabled={selectedIds.size === 0}
-          tone="primary"
-        />
-        <ActionButton
-          icon={<RefreshIcon className="w-4 h-4" />}
-          label={t('table.actions.priceRefresh')}
-          onClick={handleBatchPriceRefresh}
-          disabled={selectedIds.size === 0}
-          tone="primary"
-        />
-        {onImproveSelected && (
-          <ActionButton
-            icon={<OperationsIcon className="w-4 h-4" />}
-            label="Improve"
-            onClick={() => onImproveSelected(Array.from(selectedIds))}
-            disabled={selectedIds.size === 0}
-            tone="accent"
-          />
+        {isColumnPanelOpen && (
+          <div className="rounded-lg border border-slate-600 bg-slate-900 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-white">{t('table.columns.visible')}</p>
+              <button type="button" className="text-xs text-sky-400 hover:underline" onClick={resetColumns}>
+                {t('table.columns.reset')}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              {columnDefinitions.map((column) => (
+                <label key={column.id} className="flex items-center gap-2 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.includes(column.id)}
+                    onChange={() => toggleColumnVisibility(column.id)}
+                    disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
+                    className="bg-slate-600 border-slate-500"
+                  />
+                  {column.label}
+                </label>
+              ))}
+            </div>
+          </div>
         )}
-        <ActionButton
-          icon={<ExportIcon className="w-4 h-4" />}
-          label={t('table.actions.exportCsv')}
-          onClick={handleExportCsv}
-        />
-        <ActionButton
-          icon={<PrintIcon className="w-4 h-4" />}
-          label={t('table.actions.printLabel')}
-          onClick={handleBatchLabelPrint}
-          disabled={selectedIds.size === 0}
-        />
-        <ActionButton
-          icon={<PrintIcon className="w-4 h-4 rotate-180" />}
-          label={t('table.columns.reset')}
-          onClick={resetColumns}
-        />
-        <ActionButton
-          icon={<SyncIcon className="w-4 h-4 rotate-90" />}
-          label={t('table.actions.deleteSelected')}
-          onClick={handleBatchDelete}
-          disabled={selectedIds.size === 0}
-          tone="danger"
-        />
-      </div>
+
+        <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-700/40">
+          <ActionButton
+            icon={<SyncIcon className="w-4 h-4" />}
+            label={t('table.actions.syncSelected')}
+            onClick={handleBatchSync}
+            disabled={selectedIds.size === 0}
+            tone="primary"
+          />
+          <ActionButton
+            icon={<RefreshIcon className="w-4 h-4" />}
+            label={t('table.actions.priceRefresh')}
+            onClick={handleBatchPriceRefresh}
+            disabled={selectedIds.size === 0}
+            tone="primary"
+          />
+          {onImproveSelected && (
+            <ActionButton
+              icon={<OperationsIcon className="w-4 h-4" />}
+              label="Improve"
+              onClick={() => onImproveSelected(Array.from(selectedIds))}
+              disabled={selectedIds.size === 0}
+              tone="accent"
+            />
+          )}
+          <ActionButton
+            icon={<ExportIcon className="w-4 h-4" />}
+            label={t('table.actions.exportCsv')}
+            onClick={handleExportCsv}
+          />
+          <ActionButton
+            icon={<PrintIcon className="w-4 h-4" />}
+            label={t('table.actions.printLabel')}
+            onClick={handleBatchLabelPrint}
+            disabled={selectedIds.size === 0}
+          />
+          <ActionButton
+            icon={<PrintIcon className="w-4 h-4 rotate-180" />}
+            label={t('table.columns.reset')}
+            onClick={resetColumns}
+          />
+          <ActionButton
+            icon={<SyncIcon className="w-4 h-4 rotate-90" />}
+            label={t('table.actions.deleteSelected')}
+            onClick={handleBatchDelete}
+            disabled={selectedIds.size === 0}
+            tone="danger"
+          />
+        </div>
     </>
   );
 

@@ -476,7 +476,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   return (
     <section
       id="product-sheet"
-      className="grid grid-cols-1 gap-6 w-full relative xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]"
+      className="grid grid-cols-1 gap-6 w-full relative lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]"
     >
       {notification && (
         <div className={`fixed top-20 right-8 p-4 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white`}>
@@ -798,8 +798,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </div>
       </div>
 
-      <aside id="gemini-chat" className="xl:sticky xl:top-24">
-        <div className="h-[60vh] min-h-[420px] xl:h-[70vh] xl:max-h-[80vh]">
+      <aside id="gemini-chat" className="lg:sticky lg:top-24">
+        <div className="h-[60vh] min-h-[420px] lg:h-[75vh]">
           <AssistantChat
             product={localProduct}
             onApplyDatasheetChange={applyAssistantChange}
