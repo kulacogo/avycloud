@@ -106,15 +106,24 @@ async function syncNewOrders() {
     ORDER_STATUS_ID_CACHE.new = String(baseOrderStatusNew);
   }
   if (!baseOrderStatusNew) {
-    throw new Error('BASE_ORDER_STATUS_NEW secret, env variable, or fallback name is required to sync orders.');
+    console.warn(
+      'No BaseLinker status for "new" orders could be resolved – falling back to all confirmed orders within the lookback window.'
+    );
   }
 
   const dateFrom = Math.floor(Date.now() / 1000) - DEFAULT_ORDER_LOOKBACK_DAYS * 24 * 60 * 60;
-  const response = await callBaseLinker('getOrders', {
-    status_id: Number(baseOrderStatusNew),
+  const params = {
+    date_from: dateFrom,
     date_confirmed_from: dateFrom,
-    get_unconfirmed_orders: true,
-  });
+    limit: 100,
+    get_unconfirmed_orders: false,
+  };
+
+  if (baseOrderStatusNew) {
+    params.status_id = Number(baseOrderStatusNew);
+  }
+
+  const response = await callBaseLinker('getOrders', params);
 
   const orders = Array.isArray(response?.orders) ? response.orders.map(mapBaseLinkerOrder) : [];
   await saveOrders(orders);

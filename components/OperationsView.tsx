@@ -371,13 +371,13 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     try {
       const result = await scanDocument();
       if (!result.ok || !result.data) {
-        setScanError(result.error?.message || 'Scanner-Abruf fehlgeschlagen.');
+        setScanError(result.error?.message || t('ops.errors.scan'));
         setScanResult(null);
       } else {
         setScanResult(result.data);
       }
     } catch (error: any) {
-      setScanError(error?.message || 'Scanner-Abruf fehlgeschlagen.');
+      setScanError(error?.message || t('ops.errors.scan'));
       setScanResult(null);
     } finally {
       setIsScanningDoc(false);
@@ -391,7 +391,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       const detail = await fetchWarehouseBinDetail(code.toUpperCase());
       setPickBinDetail(detail);
     } catch (error: any) {
-      setErrorMessage(error?.message || 'Bin konnte nicht geladen werden.');
+      setErrorMessage(error?.message || t('ops.errors.binLoad'));
       setPickBinDetail(null);
     } finally {
       setIsLoadingBin(false);
@@ -405,11 +405,12 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       const data = await syncOrdersApi();
       setOrders(data);
       if (showToast) {
-        setOrderStatusMessage(`Aufträge aktualisiert (${data.length})`);
+        setOrderStatusMessage(t('ops.orders.syncSuccess', { count: data.length }));
         window.setTimeout(() => setOrderStatusMessage(null), 4000);
       }
     } catch (error: any) {
-      setOrderErrorMessage(error?.message || 'Auftragssync fehlgeschlagen.');
+      console.error('Order sync failed', error);
+      setOrderErrorMessage(t('ops.orders.syncError'));
     } finally {
       setIsSyncingOrders(false);
     }
@@ -533,7 +534,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
   const handleStow = async (resetAfter = false) => {
     if (!stowBin || (!matchedStowProduct && !stowSku)) {
-      setErrorMessage('Bitte SKU und BIN auswählen.');
+      setErrorMessage(t('ops.errors.stowValidation'));
       return;
     }
     try {
@@ -547,18 +548,22 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       };
       const result = await stockInProduct(payload);
       if (!result.ok || !result.data) {
-        throw new Error(result.error?.message || 'Einlagerung fehlgeschlagen.');
+        throw new Error(result.error?.message || t('ops.errors.stow'));
       }
       onProductUpdate(result.data.product);
       onStockChanged?.(result.data.bin);
-      setStatusMessage(`Einlagerung erfolgreich: ${result.data.product.identification?.name || stowSku}`);
+      setStatusMessage(
+        t('ops.status.stowSuccess', {
+          name: result.data.product.identification?.name || stowSku,
+        })
+      );
       setStowQuantity(1);
       if (resetAfter) {
         setStowSku('');
         setStowBin('');
       }
     } catch (error: any) {
-      setErrorMessage(error?.message || 'Einlagerung fehlgeschlagen.');
+      setErrorMessage(error?.message || t('ops.errors.stow'));
     } finally {
       setIsSubmitting(false);
     }
@@ -632,7 +637,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               disabled={isSyncingOrders}
               className="inline-flex items-center gap-2 rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {isSyncingOrders ? 'Sync läuft …' : t('ops.orders.sync')}
+              {isSyncingOrders ? t('ops.orders.syncing') : t('ops.orders.sync')}
             </button>
             {isMobile && (
               <button
@@ -678,7 +683,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div>
                             <p className="text-sm font-semibold text-white">
-                              {order.customer?.name || 'Unbekannter Kunde'}
+                              {order.customer?.name || t('ops.labels.unknownCustomer')}
                             </p>
                             <p className="text-xs text-slate-400">
                               {order.items.length} Positionen · {formatOrderDate(order.createdAt)}
@@ -695,7 +700,9 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                                 </p>
                               ))}
                               {order.items.length > 3 && (
-                                <p className="text-slate-500">+ {order.items.length - 3} weitere Positionen</p>
+                                <p className="text-slate-500">
+                                  {t('ops.labels.additionalItems', { count: order.items.length - 3 })}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -783,7 +790,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm uppercase tracking-widest text-slate-400">Aktiver Workflow</p>
+            <p className="text-sm uppercase tracking-widest text-slate-400">{t('ops.labels.activeWorkflow')}</p>
             <h2 className="text-xl font-semibold text-white">{workflow === 'stow' ? t('ops.mode.stow') : t('ops.mode.pick')}</h2>
           </div>
           <button
@@ -820,18 +827,20 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   placeholder={t('ops.stow.product')}
                 />
                 <button type="button" onClick={() => setScannerTarget('stowSku')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
-                  Scan
+                  {t('ops.actions.scan')}
                 </button>
               </div>
               {matchedStowProduct ? (
                 <div className="text-xs text-slate-300">
                   {matchedStowProduct.identification?.name}
                   {matchedStowProduct.storage?.binCode && (
-                    <span className="block text-emerald-300">Aktuell in BIN {matchedStowProduct.storage.binCode}</span>
+                    <span className="block text-emerald-300">
+                      {t('ops.labels.currentBin', { code: matchedStowProduct.storage.binCode })}
+                    </span>
                   )}
                 </div>
               ) : (
-                stowSku && <div className="text-xs text-rose-300">Kein Produkt gefunden</div>
+                stowSku && <div className="text-xs text-rose-300">{t('ops.labels.noProductFound')}</div>
               )}
             </div>
 
@@ -846,7 +855,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   placeholder="XGA0101A"
                 />
                 <button type="button" onClick={() => setScannerTarget('stowBin')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
-                  Scan
+                  {t('ops.actions.scan')}
                 </button>
               </div>
             </div>
@@ -997,8 +1006,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   >
                     Laden
                   </button>
-                  <button type="button" onClick={() => setScannerTarget('pickBin')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
-                    Scan
+                <button type="button" onClick={() => setScannerTarget('pickBin')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
+                  {t('ops.actions.scan')}
                   </button>
                 </div>
                 {isLoadingBin && <p className="text-xs text-slate-400 mt-1">Lade Bin …</p>}
@@ -1013,8 +1022,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
                     placeholder={t('ops.pick.product')}
                   />
-                  <button type="button" onClick={() => setScannerTarget('pickSku')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
-                    Scan
+                <button type="button" onClick={() => setScannerTarget('pickSku')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
+                  {t('ops.actions.scan')}
                   </button>
                 </div>
               </div>
