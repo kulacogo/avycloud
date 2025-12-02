@@ -548,7 +548,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   onClick={handlePrintLabel}
                   disabled={!localProduct.identification.sku || isPrintingLabel}
                   className="flex items-center px-3 py-1.5 bg-slate-700 text-white rounded-full hover:bg-slate-600 disabled:opacity-40"
-                  title="Label drucken (57x25 mm)"
+                  title={t('sheet.buttons.printLabelTitle')}
                 >
                   <PrintIcon />
                   <span className="ml-1">{t('common.printLabel')}</span>

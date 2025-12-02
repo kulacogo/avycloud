@@ -334,7 +334,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     const file = event.target.files?.[0];
     if (!file) return;
     setIsFallbackDecoding(true);
-    setStatusMessage('Analysiere Foto …');
+    setStatusMessage(t('ops.status.analyzingPhoto'));
     setErrorMessage(null);
     try {
       const reader = await loadFallbackReader();
@@ -343,7 +343,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       img.src = url;
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
-        img.onerror = () => reject(new Error('Bild konnte nicht geladen werden.'));
+        img.onerror = () => reject(new Error(t('ops.errors.imageLoad')));
       });
       const result = await reader.decodeFromImageElement(img);
       const value = (result?.getText?.() ?? (result as any)?.text ?? '').trim();
@@ -941,18 +941,20 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   )}
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-3 text-sm">
                     <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">1 · Bin</p>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.labels.stepBin')}</p>
                       <p className="text-xl font-semibold text-amber-300">{nextPickTask.binCode}</p>
                     </div>
                     <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">2 · SKU</p>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.labels.stepSku')}</p>
                       <p className="text-base font-semibold text-white break-all">{nextPickTask.sku || '—'}</p>
                     </div>
                     <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Menge</p>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.labels.quantity')}</p>
                       <p className="text-xl font-semibold text-white">{nextPickTask.quantity}</p>
                       {typeof nextPickTask.available === 'number' && (
-                        <p className="text-[11px] text-slate-400">Bestand: {nextPickTask.available}</p>
+                        <p className="text-[11px] text-slate-400">
+                          {t('ops.labels.stock', { value: nextPickTask.available })}
+                        </p>
                       )}
                     </div>
                   </div>
