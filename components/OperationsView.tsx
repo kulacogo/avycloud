@@ -349,14 +349,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       const value = (result?.getText?.() ?? (result as any)?.text ?? '').trim();
       if (value) {
         handleScannerResult(value);
-        setStatusMessage('Code erkannt und übernommen.');
+        setStatusMessage(t('ops.status.codeCaptured'));
       } else {
-        setErrorMessage('Kein gültiger Code erkannt. Bitte erneut versuchen.');
+        setErrorMessage(t('ops.errors.scanInvalid'));
       }
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Fallback decode failed:', error);
-      setErrorMessage('Der Code konnte nicht gelesen werden. Bitte erneut versuchen.');
+      setErrorMessage(t('ops.errors.scanInvalid'));
     } finally {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -438,10 +438,10 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             : order
         )
       );
-      setOrderStatusMessage('Auftrag als kommissioniert markiert.');
+      setOrderStatusMessage(t('ops.orders.markedComplete'));
       window.setTimeout(() => setOrderStatusMessage(null), 4000);
     } catch (error: any) {
-      setOrderErrorMessage(error?.message || 'Auftrag konnte nicht aktualisiert werden.');
+      setOrderErrorMessage(error?.message || t('ops.errors.orderComplete'));
     } finally {
       setCompletingOrderId(null);
     }
@@ -459,7 +459,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         }
       } catch (error: any) {
         if (!cancelled) {
-          setOrdersError(error?.message || 'Aufträge konnten nicht geladen werden.');
+          setOrdersError(error?.message || t('ops.errors.ordersLoad'));
         }
       } finally {
         if (!cancelled) {
@@ -915,13 +915,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               {nextPickTask ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-amber-200">
-                    <span>Pick-Route · nächster Auftrag</span>
-                    <span>{pickRouteTasks.length} offen</span>
+                    <span>{t('ops.labels.nextPick')}</span>
+                    <span>{t('ops.labels.openRemaining', { count: pickRouteTasks.length })}</span>
                   </div>
                   <div>
                     <p className="text-lg font-semibold text-white">{nextPickTask.itemName}</p>
                     <p className="text-sm text-slate-300">
-                      Auftrag {nextPickTask.orderNumber || nextPickTask.orderId} · {nextPickTask.customer || 'Unbekannt'}
+                      Auftrag {nextPickTask.orderNumber || nextPickTask.orderId} ·{' '}
+                      {nextPickTask.customer || t('ops.labels.unknownCustomer')}
                     </p>
                   </div>
                   {nextPickTask.image && (
@@ -956,7 +957,10 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     </div>
                   </div>
                   <p className="text-[12px] text-slate-400">
-                    1) Gehe zu BIN {nextPickTask.binCode}. 2) Scanne die SKU {nextPickTask.sku}. 3) Kontrolliere Menge und buche den Pick.
+                    {t('ops.labels.pickInstructions', {
+                      bin: nextPickTask.binCode,
+                      sku: nextPickTask.sku || '—',
+                    })}
                   </p>
                   <div className="flex flex-wrap gap-2 text-sm">
                     <button
@@ -964,14 +968,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       onClick={() => loadBinDetail(nextPickTask.binCode)}
                       className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400"
                     >
-                      Bin neu laden
+                      {t('ops.actions.reloadBin')}
                     </button>
                     <button
                       type="button"
                       onClick={() => markPickTaskCompleted(nextPickTask.itemId)}
                       className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400"
                     >
-                      Auftrag überspringen
+                      {t('ops.actions.skipOrder')}
                     </button>
                     {completedPickItemIds.length > 0 && (
                       <button
@@ -979,13 +983,13 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                         onClick={() => setCompletedPickItemIds([])}
                         className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400"
                       >
-                        Route zurücksetzen
+                        {t('ops.actions.resetRoute')}
                       </button>
                     )}
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-slate-300">Keine offenen Pick-Aufträge mit Bin-Zuordnung. Synchronisiere Aufträge, um neue Picks zu laden.</div>
+                <div className="text-sm text-slate-300">{t('ops.labels.noPickTasks')}</div>
               )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1008,13 +1012,13 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     }}
                     className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white"
                   >
-                    Laden
+                    {t('ops.actions.reloadBin')}
                   </button>
-                <button type="button" onClick={() => setScannerTarget('pickBin')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
-                  {t('ops.actions.scan')}
+                  <button type="button" onClick={() => setScannerTarget('pickBin')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
+                    {t('ops.actions.scan')}
                   </button>
                 </div>
-                {isLoadingBin && <p className="text-xs text-slate-400 mt-1">Lade Bin …</p>}
+                {isLoadingBin && <p className="text-xs text-slate-400 mt-1">{t('ops.labels.loadingBin')}</p>}
               </div>
               <div>
                 <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.pick.product')}</label>
