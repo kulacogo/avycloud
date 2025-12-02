@@ -581,7 +581,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
   const handlePick = async () => {
     if (!pickBin || (!matchedPickProduct && !pickSku)) {
-      setErrorMessage('Bitte Bin und Artikel auswählen.');
+      setErrorMessage(t('ops.errors.pickValidation'));
       return;
     }
     try {
@@ -596,18 +596,22 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       const activeTaskId = nextPickTask?.itemId;
       const result = await stockOutProduct(payload);
       if (!result.ok || !result.data) {
-        throw new Error(result.error?.message || 'Kommissionierung fehlgeschlagen.');
+        throw new Error(result.error?.message || t('ops.errors.pick'));
       }
       onProductUpdate(result.data.product);
       onStockChanged?.(result.data.bin);
-      setStatusMessage(`Kommissionierung erfolgreich: ${result.data.product.identification?.name || pickSku}`);
+      setStatusMessage(
+        t('ops.status.pickSuccess', {
+          name: result.data.product.identification?.name || pickSku,
+        })
+      );
       setPickQuantity(1);
       loadBinDetail(pickBin.toUpperCase());
       if (activeTaskId) {
         markPickTaskCompleted(activeTaskId);
       }
     } catch (error: any) {
-      setErrorMessage(error?.message || 'Kommissionierung fehlgeschlagen.');
+      setErrorMessage(error?.message || t('ops.errors.pick'));
     } finally {
       setIsSubmitting(false);
     }
