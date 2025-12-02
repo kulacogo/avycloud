@@ -35,6 +35,27 @@ const normalizeEanValue = (val) =>
 
 const buildSkuIndexKey = (type, value) => (value ? `${type}:${value}` : null);
 
+const normalizeProductListPayload = (raw) => {
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+  if (raw && typeof raw === 'object') {
+    return Object.entries(raw).map(([key, value]) => {
+      if (value && typeof value === 'object') {
+        if (!value.product_id && key) {
+          return {
+            ...value,
+            product_id: value.product_id || Number(key) || key,
+          };
+        }
+        return value;
+      }
+      return { product_id: Number(key) || key, value };
+    });
+  }
+  return [];
+};
+
 async function acquireSlot() {
   while (activeRequestCount >= MAX_PARALLEL_REQUESTS) {
     await new Promise((resolve) => requestQueue.push(resolve));
@@ -622,12 +643,10 @@ async function findProductBySku(inventoryId, skuOrEan) {
         page: 1,
         [filterKey]: filterValue,
       });
-      const directProducts = Array.isArray(response.products)
-        ? response.products
-        : Array.isArray(response?.items)
-        ? response.items
-        : [];
-      return pickMatchFromList(directProducts);
+      const directProducts = normalizeProductListPayload(
+        response.products || response.items || []
+      );
+      return pickMatchFromList(directProducts || []);
     } catch (error) {
       console.warn(
         `BaseLinker filtered lookup failed (${filterKey}=${filterValue}):`,
@@ -655,8 +674,7 @@ async function findProductBySku(inventoryId, skuOrEan) {
       inventory_id: inventoryId,
       page,
     });
-
-    const products = Array.isArray(res.products) ? res.products : [];
+    const products = normalizeProductListPayload(res.products || res.items || []);
     const match = pickMatchFromList(products);
 
     if (match) return match;
