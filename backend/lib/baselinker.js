@@ -1,6 +1,11 @@
 const fetch = require('node-fetch');
 const { getSecrets } = require('./secrets');
-const { updateProductSyncStatus } = require('./firestore');
+const {
+  updateProductSyncStatus,
+  getSkuIndexEntry,
+  setSkuIndexEntry,
+  findProductByStrictIdentifier,
+} = require('./firestore');
 
 const MIN_IMAGE_EDGE_BASELINKER = parseInt(
   process.env.BASELINKER_IMAGE_MIN_EDGE || '600',
@@ -13,6 +18,22 @@ const MIN_IMAGE_EDGE_BASELINKER = parseInt(
 const MAX_PARALLEL_REQUESTS = 5;
 const requestQueue = [];
 let activeRequestCount = 0;
+
+const normalizeSkuValue = (val) =>
+  (val || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/^sku[-\s]*/i, '')
+    .replace(/\s+/g, '');
+
+const normalizeEanValue = (val) =>
+  (val || '')
+    .toString()
+    .replace(/\D+/g, '')
+    .trim();
+
+const buildSkuIndexKey = (type, value) => (value ? `${type}:${value}` : null);
 
 async function acquireSlot() {
   while (activeRequestCount >= MAX_PARALLEL_REQUESTS) {
@@ -575,18 +596,6 @@ function buildPayload(
 async function findProductBySku(inventoryId, skuOrEan) {
   let page = 1;
   const MAX_PAGES = 2000;
-  const normalizeSkuValue = (val) =>
-    (val || '')
-      .toString()
-      .trim()
-      .toLowerCase()
-      .replace(/^sku-/, '')
-      .replace(/\s+/g, '');
-  const normalizeEanValue = (val) =>
-    (val || '')
-      .toString()
-      .replace(/\D+/g, '')
-      .trim();
   const targetSku = normalizeSkuValue(skuOrEan);
   const targetEan = normalizeEanValue(skuOrEan);
 
@@ -700,6 +709,8 @@ async function syncProductToBaseLinker(product) {
       validation.normalizedPrice,
       quantity
     );
+    const normalizedSku = normalizeSkuValue(payload.sku);
+    const normalizedEan = normalizeEanValue(payload.ean);
 
     // Bestands-Check: Priorität base_product_id → SKU-Match → Neuanlage
     let baseProductId = product?.ops?.base_product_id || null;
@@ -711,6 +722,31 @@ async function syncProductToBaseLinker(product) {
       existing = await findProductBySku(baseInventoryId, identifier);
       return existing;
     };
+    if (!baseProductId && normalizedSku) {
+      const cached = await getSkuIndexEntry(
+        buildSkuIndexKey('sku', normalizedSku)
+      );
+      if (cached?.baseProductId) {
+        baseProductId = cached.baseProductId;
+      }
+    }
+    if (!baseProductId && normalizedEan) {
+      const cached = await getSkuIndexEntry(
+        buildSkuIndexKey('ean', normalizedEan)
+      );
+      if (cached?.baseProductId) {
+        baseProductId = cached.baseProductId;
+      }
+    }
+    if (!baseProductId) {
+      const sibling = await findProductByStrictIdentifier({
+        sku: payload.sku || null,
+        barcodes: payload.ean ? [payload.ean] : [],
+      });
+      if (sibling?.ops?.base_product_id && sibling.id !== product.id) {
+        baseProductId = sibling.ops.base_product_id;
+      }
+    }
     if (!baseProductId && (payload?.sku || payload?.ean)) {
       await resolveExistingProduct(payload.sku || payload.ean);
       if (existing?.product_id) {
@@ -761,17 +797,35 @@ async function syncProductToBaseLinker(product) {
 
     baseProductId = result.product_id || baseProductId || null;
 
+    const syncTimestamp = new Date().toISOString();
     try {
       await updateProductSyncStatus(
         product.id,
         'synced',
-        new Date().toISOString(),
+        syncTimestamp,
         baseProductId
       );
     } catch (updateError) {
       console.warn(
         'updateProductSyncStatus failed (non-blocking):',
         updateError.message
+      );
+    }
+
+    if (baseProductId) {
+      const indexPayload = {
+        baseProductId,
+        productId: product.id,
+        sku: payload.sku || null,
+        ean: payload.ean || null,
+        updatedAt: syncTimestamp,
+      };
+      const indexKeys = [
+        buildSkuIndexKey('sku', normalizedSku),
+        buildSkuIndexKey('ean', normalizedEan),
+      ].filter(Boolean);
+      await Promise.all(
+        indexKeys.map((key) => setSkuIndexEntry(key, indexPayload))
       );
     }
 

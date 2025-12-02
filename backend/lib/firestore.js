@@ -9,6 +9,7 @@ const firestore = new Firestore({
 // Collection name
 const PRODUCTS_COLLECTION = 'products';
 const ORDERS_COLLECTION = 'orders';
+const SKU_INDEX_COLLECTION = 'baselinker_sku_index';
 
 /**
  * Save a product to Firestore
@@ -346,6 +347,39 @@ async function updateOrder(orderId, updates = {}) {
   );
 }
 
+async function getSkuIndexEntry(key) {
+  if (!key) return null;
+  try {
+    const doc = await firestore.collection(SKU_INDEX_COLLECTION).doc(key).get();
+    if (!doc.exists) return null;
+    return doc.data();
+  } catch (error) {
+    console.warn('Failed to read SKU index entry:', key, error.message);
+    return null;
+  }
+}
+
+async function setSkuIndexEntry(key, payload = {}) {
+  if (!key) return;
+  try {
+    await firestore
+      .collection(SKU_INDEX_COLLECTION)
+      .doc(key)
+      .set(
+        {
+          baseProductId: payload.baseProductId || null,
+          productId: payload.productId || null,
+          sku: payload.sku || null,
+          ean: payload.ean || null,
+          updated_at: payload.updatedAt || new Date().toISOString(),
+        },
+        { merge: true }
+      );
+  } catch (error) {
+    console.warn('Failed to write SKU index entry:', key, error.message);
+  }
+}
+
 module.exports = {
   saveProduct,
   getProduct,
@@ -361,5 +395,7 @@ module.exports = {
   listOrders,
   getOrderById,
   updateOrder,
+  getSkuIndexEntry,
+  setSkuIndexEntry,
   firestore,
 };
