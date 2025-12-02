@@ -263,11 +263,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
       )}
 
       <div className="bg-slate-800 rounded-lg p-4 shadow border border-slate-700">
-        <h3 className="text-lg font-semibold text-white mb-2">Operative Workflows</h3>
-        <p className="text-sm text-slate-400">
-          Einlagerung (Stow) und Kommissionierung (Pick) findest du jetzt im Bereich <span className="text-white font-semibold">Operationen</span>. Wechsel dort,
-          um Artikel zu buchen.
-        </p>
+        <h3 className="text-lg font-semibold text-white">Warehouse</h3>
       </div>
 
       <div className="bg-slate-800 rounded-lg p-4 shadow border border-slate-700 space-y-3">

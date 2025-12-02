@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { useI18n } from '../i18n';
-import { RefreshIcon, OperationsIcon } from './icons/Icons';
 
 interface HeaderProps {
   currentView: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
@@ -11,8 +10,13 @@ interface HeaderProps {
 }
 
 const LOGOS = {
-  light: '/logo_b.png',
-  dark: '/logo_d.png',
+  light: '/logo_brightmode.png',
+  dark: '/logo_darkmode.png',
+} as const;
+
+const RELOAD_ICONS = {
+  light: '/reload_brightmode.png',
+  dark: '/reload_darkmode.png',
 } as const;
 
 type NavIconConfig = {
@@ -27,37 +31,38 @@ const NAV_ICONS: NavIconConfig[] = [
   {
     view: 'dashboard' as const,
     label: 'nav.dashboard',
-    light: '/home_1828871.png',
+    light: '/home_brightmode.png',
     dark: '/home_darkmode.png',
   },
   {
     view: 'input' as const,
     label: 'nav.input',
-    light: '/plus_1828926.png',
+    light: '/plus__brightmodepng.png',
     dark: '/plus_darkmode.png',
   },
   {
     view: 'inventory' as const,
     label: 'nav.inventory',
-    light: '/inventory.png',
-    dark: '/inventory_1828075.png',
+    light: '/inventory_brightmode.png',
+    dark: '/inventory_darkmode.png',
   },
   {
     view: 'warehouse' as const,
     label: 'nav.warehouse',
-    light: '/storeage.png',
-    dark: '/storeage_3134403.png',
+    light: '/storeage_brightmode.png',
+    dark: '/storeage_darkmode.png',
   },
   {
     view: 'operations' as const,
     label: 'nav.operations',
-    iconNode: <OperationsIcon className="w-5 h-5" />,
+    light: '/operations_brightmode.png',
+    dark: '/operations_darkmode.png',
   },
 ] as const;
 
 const TOGGLE_ICONS = {
-  light: '/mode switch 1.png',
-  dark: '/mode switch 2.png',
+  light: '/mode_switch__brightmode.png',
+  dark: '/mode_switch_darkmode.png',
 } as const;
 
 const safeBottomStyle: React.CSSProperties = {
@@ -105,7 +110,6 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   }, [isMobile]);
 
   const renderNavIcon = (nav: NavIconConfig) => {
-    if (nav.iconNode) return nav.iconNode;
     if (nav.dark && nav.light) {
       return (
         <img
@@ -163,21 +167,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
         <div className="max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-8 py-1.5">
           <div className="flex items-center gap-3 w-full">
             <div className="flex items-center gap-3 flex-shrink-0">
-              <div className="h-11 w-11 rounded-2xl overflow-hidden shadow-lg sm:hidden bg-white/80">
-                <img src={logoSrc} alt="Avystock" className="h-full w-full object-cover" draggable={false} />
-              </div>
-              <div className="hidden sm:block h-10 sm:h-12 lg:h-14 w-auto">
-                <img
-                  src={logoSrc}
-                  alt="avystock"
-                  className="h-full w-auto object-contain drop-shadow-lg"
-                  draggable={false}
-                />
-              </div>
-              <div className="sm:hidden flex flex-col leading-tight">
-                <p className="text-base font-semibold text-white tracking-wide">avystock</p>
-                <p className="text-[11px] uppercase text-slate-400 tracking-[0.3em]">Product Hub</p>
-              </div>
+              <img src={logoSrc} alt="Avystock" className="h-11 sm:h-12 lg:h-14 w-auto object-contain" draggable={false} />
               <span className="sr-only">Avystock Product Intelligence Hub</span>
             </div>
             <div className="hidden sm:flex flex-1 items-center justify-center gap-2">
@@ -185,20 +175,20 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 <DesktopNavButton key={nav.view} nav={nav} />
               ))}
             </div>
-            <div className="hidden sm:flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-3 ml-auto">
               <button
                 type="button"
                 onClick={handleHardRefresh}
-                className="inline-flex w-11 h-11 items-center justify-center rounded-2xl bg-slate-800/70 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
+                className="w-10 h-10 flex items-center justify-center rounded-full hover:opacity-80 transition"
                 aria-label={t('actions.refresh')}
                 title={t('actions.refresh')}
               >
-                <RefreshIcon className="w-5 h-5" />
+                <img src={theme === 'dark' ? RELOAD_ICONS.dark : RELOAD_ICONS.light} alt="" className="w-7 h-7" draggable={false} />
               </button>
               <select
                 value={locale}
                 onChange={(e) => setLocale(e.target.value as any)}
-                className="rounded-2xl bg-slate-800/80 border border-white/10 px-3 py-2 text-sm text-slate-100"
+                className="bg-transparent text-sm text-slate-100 focus:outline-none border-none appearance-none cursor-pointer"
                 aria-label={t('lang.label')}
               >
                 <option value="de">Deutsch</option>
@@ -208,41 +198,16 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={onToggleTheme}
-                className="rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
+                className="w-10 h-10 flex items-center justify-center rounded-full hover:opacity-80 transition"
                 aria-label={theme === 'dark' ? 'Wechsel zu hellem Modus' : 'Wechsel zu dunklem Modus'}
                 title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
               >
                 <img
                   src={theme === 'dark' ? TOGGLE_ICONS.dark : TOGGLE_ICONS.light}
                   alt=""
-                  className="w-6 h-6"
+                  className="w-8 h-8"
                   draggable={false}
                 />
-              </button>
-            </div>
-            <div className="flex sm:hidden items-center gap-2 ml-auto">
-              <button
-                type="button"
-                onClick={onToggleTheme}
-                className="rounded-2xl bg-slate-800/80 border border-white/10 p-2 hover:bg-slate-700 transition-colors"
-                aria-label={theme === 'dark' ? 'Wechsel zu hellem Modus' : 'Wechsel zu dunklem Modus'}
-                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-              >
-                <img
-                  src={theme === 'dark' ? TOGGLE_ICONS.dark : TOGGLE_ICONS.light}
-                  alt=""
-                  className="w-6 h-6"
-                  draggable={false}
-                />
-              </button>
-              <button
-                type="button"
-                onClick={handleHardRefresh}
-                className="inline-flex w-10 h-10 items-center justify-center rounded-xl bg-slate-800/70 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
-                aria-label={t('actions.refresh')}
-                title={t('actions.refresh')}
-              >
-                <RefreshIcon className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -253,16 +218,6 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
           {navIcons.map((nav) => (
             <MobileNavButton key={nav.view} nav={nav} />
           ))}
-          <select
-            value={locale}
-            onChange={(e) => setLocale(e.target.value as any)}
-            className="flex-1 rounded-2xl bg-slate-800 text-slate-200 text-sm px-2"
-            aria-label={t('lang.label')}
-          >
-            <option value="de">DE</option>
-            <option value="en">EN</option>
-            <option value="tr">TR</option>
-          </select>
         </div>
       </nav>
     </>

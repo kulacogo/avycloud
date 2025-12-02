@@ -543,7 +543,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         sku: stowSku || undefined,
         productId: matchedStowProduct?.id,
         binCode: stowBin.toUpperCase(),
-        quantity: stowQuantity,
+        quantity: typeof stowQuantity === 'number' ? stowQuantity : Number(stowQuantity) || 0,
       };
       const result = await stockInProduct(payload);
       if (!result.ok || !result.data) {
@@ -586,7 +586,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         sku: pickSku || undefined,
         productId: matchedPickProduct?.id,
         binCode: pickBin.toUpperCase(),
-        quantity: pickQuantity,
+        quantity: typeof pickQuantity === 'number' ? pickQuantity : Number(pickQuantity) || 0,
       };
       const activeTaskId = nextPickTask?.itemId;
       const result = await stockOutProduct(payload);
@@ -615,7 +615,6 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           <div>
             <p className="text-sm uppercase tracking-widest text-slate-400">BaseLinker</p>
             <h2 className="text-xl font-semibold text-white">{t('ops.orders.section')}</h2>
-            <p className="text-sm text-slate-400">{t('ops.orders.desc')}</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
@@ -734,15 +733,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       </div>
 
       <header className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="rounded-2xl bg-sky-900/40 p-3 text-sky-300">
-            <WarehouseIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-white">{t('ops.title')}</h1>
-            <p className="text-sm text-slate-400">{t('ops.subtitle')}</p>
-          </div>
-        </div>
+        <h1 className="text-2xl font-semibold text-white mb-4">{t('ops.title')}</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {WORKFLOW_CARDS.map((card) => {
             const active = workflow === card.mode;
