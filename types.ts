@@ -215,6 +215,7 @@ export interface OrderItem {
   priceBrutto?: number;
   currency?: string;
   pickHint?: OrderItemPickHint | null;
+  pickCompleted?: boolean;
 }
 
 export interface OrderCustomer {

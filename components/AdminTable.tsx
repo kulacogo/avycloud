@@ -148,8 +148,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
     const ids = product.details?.identifiers || {};
     return codes[0] || ids.ean || ids.gtin || ids.upc || '—';
   };
-  const primaryBin = (product: Product) =>
-    (product.storageBins && product.storageBins[0]?.code) || product.storage?.binCode || null;
+  const primaryBin = (product: Product) => {
+    if (product.storage?.binCode) {
+      return product.storage.binCode;
+    }
+    if (Array.isArray(product.storageBins) && product.storageBins.length) {
+      const withStock = product.storageBins.find((bin) => (bin.quantity || 0) > 0);
+      return withStock?.code || product.storageBins[0]?.code || null;
+    }
+    return null;
+  };
   const shortCategory = (product: Product) =>
     (product.identification?.category || '')
       .split('>')

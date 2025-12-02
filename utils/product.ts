@@ -11,15 +11,20 @@ export const normalizeSyncStatus = (
 };
 
 export const getProductQuantity = (product: Product): number => {
+  const inventoryQty = product?.inventory?.quantity;
+  if (typeof inventoryQty === 'number' && Number.isFinite(inventoryQty)) {
+    return Math.max(0, inventoryQty);
+  }
+
+  const storageQty = product?.storage?.quantity;
+  if (typeof storageQty === 'number' && Number.isFinite(storageQty)) {
+    return Math.max(0, storageQty);
+  }
+
   if (Array.isArray(product.storageBins) && product.storageBins.length) {
     return product.storageBins.reduce((sum, bin) => sum + (bin.quantity || 0), 0);
   }
-  if (typeof product.inventory?.quantity === 'number' && Number.isFinite(product.inventory.quantity)) {
-    return product.inventory.quantity;
-  }
-  if (typeof product.storage?.quantity === 'number' && Number.isFinite(product.storage.quantity)) {
-    return product.storage.quantity;
-  }
+
   return 0;
 };
 

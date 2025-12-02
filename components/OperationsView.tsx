@@ -6,7 +6,6 @@ import {
   stockInProduct,
   stockOutProduct,
   buildImageProxyUrl,
-  scanDocument,
   fetchOrders as fetchOrdersApi,
   syncOrders as syncOrdersApi,
   completeOrder as completeOrderApi,
@@ -38,6 +37,8 @@ type PickRouteTask = {
   available?: number | null;
   image?: string | null;
 };
+
+type ScanStatus = 'pending' | 'ok' | 'mismatch';
 
 const WORKFLOW_CARDS: Array<{
   mode: WorkflowMode;
@@ -76,6 +77,10 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const [pickQuantity, setPickQuantity] = useState<number | ''>('');
   const [pickBinDetail, setPickBinDetail] = useState<WarehouseBin | null>(null);
   const [isLoadingBin, setIsLoadingBin] = useState(false);
+  const [pickScanStatus, setPickScanStatus] = useState<{ bin: ScanStatus; sku: ScanStatus }>({
+    bin: 'pending',
+    sku: 'pending',
+  });
   const [completedPickItemIds, setCompletedPickItemIds] = useState<string[]>([]);
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -84,7 +89,6 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const [orderStatusMessage, setOrderStatusMessage] = useState<string | null>(null);
   const [orderErrorMessage, setOrderErrorMessage] = useState<string | null>(null);
   const [isSyncingOrders, setIsSyncingOrders] = useState(false);
-  const [completingOrderId, setCompletingOrderId] = useState<string | null>(null);
   const [showAllOpenOrders, setShowAllOpenOrders] = useState(false);
   const [autoOrderSync, setAutoOrderSync] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -95,17 +99,12 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isScanningDoc, setIsScanningDoc] = useState(false);
-  const [scanError, setScanError] = useState<string | null>(null);
-  const [scanResult, setScanResult] = useState<{ base64: string; mimeType: string; capturedAt: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fallbackReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const [isFallbackDecoding, setIsFallbackDecoding] = useState(false);
   const stowSkuRef = useRef<HTMLInputElement | null>(null);
   const stowBinRef = useRef<HTMLInputElement | null>(null);
-  const pickBinRef = useRef<HTMLInputElement | null>(null);
-  const pickSkuRef = useRef<HTMLInputElement | null>(null);
   const [showOrdersPanel, setShowOrdersPanel] = useState<boolean>(() => !isMobile);
   const lastAutoBinRef = useRef<string | null>(null);
 
@@ -168,6 +167,53 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     [openOrders, showAllOpenOrders]
   );
 
+  const resolveImageSrc = useCallback((value?: string | null) => {
+    if (!value) return '';
+    if (value.startsWith('data:') || value.startsWith('blob:')) {
+      return value;
+    }
+    return buildImageProxyUrl(value);
+  }, []);
+
+  const resetPickForm = useCallback(() => {
+    if (workflow !== 'pick') return;
+    setPickBin('');
+    setPickSku('');
+    setPickQuantity(nextPickTask?.quantity || 1);
+    setPickScanStatus({ bin: 'pending', sku: 'pending' });
+  }, [nextPickTask, workflow]);
+
+  const evaluateScanStatus = useCallback(
+    (type: 'bin' | 'sku', value: string): ScanStatus => {
+      const task = nextPickTask;
+      if (!task || !value) {
+        return 'pending';
+      }
+      if (type === 'bin') {
+          return value.toUpperCase() === task.binCode?.toUpperCase() ? 'ok' : 'mismatch';
+      }
+      const expectedSku = (task.sku || '').trim().toLowerCase();
+      if (!expectedSku) {
+        return 'ok';
+      }
+      return value.trim().toLowerCase() === expectedSku ? 'ok' : 'mismatch';
+    },
+    [nextPickTask]
+  );
+
+  const renderScanStatusBadge = useCallback(
+    (status: ScanStatus) => {
+      const base = 'px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide';
+      if (status === 'ok') {
+        return <span className={`${base} bg-emerald-500/20 text-emerald-300`}>{t('ops.pick.steps.ok')}</span>;
+      }
+      if (status === 'mismatch') {
+        return <span className={`${base} bg-rose-500/20 text-rose-200`}>{t('ops.pick.steps.mismatch')}</span>;
+      }
+      return <span className={`${base} bg-slate-700 text-slate-300`}>{t('ops.pick.steps.pending')}</span>;
+    },
+    [t]
+  );
   useEffect(() => {
     if (openOrders.length <= 5 && showAllOpenOrders) {
       setShowAllOpenOrders(false);
@@ -303,13 +349,24 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       case 'stowBin':
         setStowBin(value.toUpperCase());
         break;
-      case 'pickBin':
-        setPickBin(value.toUpperCase());
-        loadBinDetail(value.toUpperCase());
+      case 'pickBin': {
+        const normalized = value.toUpperCase();
+        setPickBin(normalized);
+        setPickScanStatus((prev) => ({
+          ...prev,
+          bin: evaluateScanStatus('bin', normalized),
+        }));
+        loadBinDetail(normalized);
         break;
-      case 'pickSku':
+      }
+      case 'pickSku': {
         setPickSku(value);
+        setPickScanStatus((prev) => ({
+          ...prev,
+          sku: evaluateScanStatus('sku', value),
+        }));
         break;
+      }
       default:
         break;
     }
@@ -365,26 +422,11 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     }
   };
 
-  const handleTriggerScan = async () => {
-    setIsScanningDoc(true);
-    setScanError(null);
-    try {
-      const result = await scanDocument();
-      if (!result.ok || !result.data) {
-        setScanError(result.error?.message || t('ops.errors.scan'));
-        setScanResult(null);
-      } else {
-        setScanResult(result.data);
-      }
-    } catch (error: any) {
-      setScanError(error?.message || t('ops.errors.scan'));
-      setScanResult(null);
-    } finally {
-      setIsScanningDoc(false);
-    }
-  };
-
   const loadBinDetail = async (code: string) => {
+    if (!code) {
+      setPickBinDetail(null);
+      return;
+    }
     setIsLoadingBin(true);
     setErrorMessage(null);
     try {
@@ -426,26 +468,9 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     });
   };
 
-  const handleMarkOrderComplete = async (orderId: string) => {
-    try {
-      setCompletingOrderId(orderId);
-      setOrderErrorMessage(null);
-      await completeOrderApi(orderId);
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === orderId
-            ? { ...order, status: 'picked', statusLabel: 'Kommissioniert', pickedAt: new Date().toISOString() }
-            : order
-        )
-      );
-      setOrderStatusMessage(t('ops.orders.markedComplete'));
-      window.setTimeout(() => setOrderStatusMessage(null), 4000);
-    } catch (error: any) {
-      setOrderErrorMessage(error?.message || t('ops.errors.orderComplete'));
-    } finally {
-      setCompletingOrderId(null);
-    }
-  };
+  const handleResetPickScans = useCallback(() => {
+    resetPickForm();
+  }, [resetPickForm]);
 
   useEffect(() => {
     let cancelled = false;
@@ -497,27 +522,17 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   useEffect(() => {
     if (workflow === 'stow') {
       stowSkuRef.current?.focus();
-    } else if (workflow === 'pick') {
-      pickBinRef.current?.focus();
     }
   }, [workflow]);
 
   useEffect(() => {
-    if (workflow !== 'pick') return;
-    if (!nextPickTask) {
-      return;
-    }
-    setPickBin((prev) => (prev === nextPickTask.binCode ? prev : nextPickTask.binCode));
-    setPickSku((prev) => (prev === (nextPickTask.sku || '') ? prev : nextPickTask.sku || ''));
-    setPickQuantity((prev) => {
-      const nextQty = nextPickTask.quantity || 1;
-      return prev === nextQty ? prev : nextQty;
-    });
-    if (lastAutoBinRef.current !== nextPickTask.binCode) {
-      lastAutoBinRef.current = nextPickTask.binCode;
-      loadBinDetail(nextPickTask.binCode);
-    }
-  }, [nextPickTask, workflow]);
+    resetPickForm();
+  }, [resetPickForm]);
+
+  const pickConfirmReady = useMemo(
+    () => pickScanStatus.bin === 'ok' && pickScanStatus.sku === 'ok' && Number(pickQuantity) > 0,
+    [pickScanStatus, pickQuantity]
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -580,7 +595,29 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   };
 
   const handlePick = async () => {
-    if (!pickBin || (!matchedPickProduct && !pickSku)) {
+    if (workflow !== 'pick') {
+      return;
+    }
+    const activeTask = nextPickTask;
+    if (!activeTask) {
+      setErrorMessage(t('ops.labels.noPickTasks'));
+      return;
+    }
+    if (pickScanStatus.bin !== 'ok' || pickScanStatus.sku !== 'ok') {
+      setErrorMessage(t('ops.errors.pickScansMissing'));
+      return;
+    }
+    if (!pickBin || !pickSku) {
+      setErrorMessage(t('ops.errors.pickValidation'));
+      return;
+    }
+    if (pickScanStatus.bin === 'mismatch' || pickScanStatus.sku === 'mismatch') {
+      setErrorMessage(t('ops.errors.pickScanMismatch'));
+      return;
+    }
+    const numericQuantity =
+      typeof pickQuantity === 'number' ? pickQuantity : Number(pickQuantity) || 0;
+    if (!numericQuantity || numericQuantity <= 0) {
       setErrorMessage(t('ops.errors.pickValidation'));
       return;
     }
@@ -589,11 +626,11 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       setErrorMessage(null);
       const payload = {
         sku: pickSku || undefined,
-        productId: matchedPickProduct?.id,
+        productId: matchedPickProduct?.id || activeTask.productId || undefined,
         binCode: pickBin.toUpperCase(),
-        quantity: typeof pickQuantity === 'number' ? pickQuantity : Number(pickQuantity) || 0,
+        quantity: numericQuantity,
       };
-      const activeTaskId = nextPickTask?.itemId;
+      const activeTaskId = activeTask.itemId;
       const result = await stockOutProduct(payload);
       if (!result.ok || !result.data) {
         throw new Error(result.error?.message || t('ops.errors.pick'));
@@ -605,11 +642,46 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           name: result.data.product.identification?.name || pickSku,
         })
       );
-      setPickQuantity(1);
       loadBinDetail(pickBin.toUpperCase());
       if (activeTaskId) {
         markPickTaskCompleted(activeTaskId);
+        setOrders((prev) =>
+          prev.map((order) =>
+            order.id === activeTask.orderId
+              ? {
+                  ...order,
+                  items: order.items.map((item) =>
+                    item.id === activeTaskId ? { ...item, pickCompleted: true } : item
+                  ),
+                }
+              : order
+          )
+        );
+        const completedSet = new Set(completedPickItemIds);
+        completedSet.add(activeTaskId);
+        const targetOrder = orders.find((order) => order.id === activeTask.orderId);
+        const hasRemaining = targetOrder?.items.some((item) => !completedSet.has(item.id));
+        if (!hasRemaining) {
+          try {
+            await completeOrderApi(activeTask.orderId);
+            setOrders((prev) =>
+              prev.map((order) =>
+                order.id === activeTask.orderId
+                  ? {
+                      ...order,
+                      status: 'picked',
+                      statusLabel: t('ops.orders.complete'),
+                      pickedAt: new Date().toISOString(),
+                    }
+                  : order
+              )
+            );
+          } catch (error) {
+            console.warn('Auto order completion failed:', error);
+          }
+        }
       }
+      resetPickForm();
     } catch (error: any) {
       setErrorMessage(error?.message || t('ops.errors.pick'));
     } finally {
@@ -711,15 +783,13 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-400">{order.statusLabel}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleMarkOrderComplete(order.id)}
-                              disabled={completingOrderId === order.id}
-                              className="px-3 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold disabled:opacity-50"
+                            <span
+                              className={`text-xs font-semibold ${
+                                order.status === 'picked' ? 'text-emerald-300' : 'text-slate-400'
+                              }`}
                             >
-                              {completingOrderId === order.id ? t('ops.orders.updating') : t('ops.orders.complete')}
-                            </button>
+                              {order.statusLabel}
+                            </span>
                           </div>
                         </div>
                       </li>
@@ -928,7 +998,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   {nextPickTask.image && (
                     <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/70 p-3">
                       <img
-                        src={buildImageProxyUrl(nextPickTask.image)}
+                        src={resolveImageSrc(nextPickTask.image)}
                         alt={nextPickTask.itemName}
                         className="h-16 w-16 rounded-lg border border-slate-700 object-cover"
                         loading="lazy"
@@ -994,70 +1064,105 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 <div className="text-sm text-slate-300">{t('ops.labels.noPickTasks')}</div>
               )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.pick.bin')}</label>
-                <div className="flex gap-2">
-                  <input
-                    value={pickBin}
-                    ref={pickBinRef}
-                    onChange={(e) => setPickBin(e.target.value.toUpperCase())}
-                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white uppercase"
-                    placeholder="XGA0101A"
-                  />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.pick.steps.bin')}</p>
+                    <p className="text-xl font-semibold text-white">{nextPickTask?.binCode || '—'}</p>
+                  </div>
+                  {renderScanStatusBadge(pickScanStatus.bin)}
+                </div>
+                <div className="mt-3 space-y-1 text-xs text-slate-400">
+                  <p>
+                    {t('ops.pick.steps.expected')}: <span className="text-slate-200">{nextPickTask?.binCode || '—'}</span>
+                  </p>
+                  <p>
+                    {t('ops.pick.steps.scanned')}: <span className="text-slate-200">{pickBin || t('ops.pick.steps.pending')}</span>
+                  </p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setScannerTarget('pickBin')}
+                    className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
+                  >
+                    {t('ops.pick.steps.cta')}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
-                      if (pickBin) {
-                        loadBinDetail(pickBin.toUpperCase());
-                      }
+                      const code = pickBin || nextPickTask?.binCode || '';
+                      loadBinDetail(code);
                     }}
-                    className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white"
+                    className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
                   >
                     {t('ops.actions.reloadBin')}
                   </button>
-                  <button type="button" onClick={() => setScannerTarget('pickBin')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
-                    {t('ops.actions.scan')}
-                  </button>
-                </div>
-                {isLoadingBin && <p className="text-xs text-slate-400 mt-1">{t('ops.labels.loadingBin')}</p>}
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.pick.product')}</label>
-                <div className="flex gap-2">
-                  <input
-                    value={pickSku}
-                    ref={pickSkuRef}
-                    onChange={(e) => setPickSku(e.target.value)}
-                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                    placeholder={t('ops.pick.product')}
-                  />
-                <button type="button" onClick={() => setScannerTarget('pickSku')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
-                  {t('ops.actions.scan')}
-                  </button>
                 </div>
               </div>
+              <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.pick.steps.sku')}</p>
+                    <p className="text-base font-semibold text-white break-all">{nextPickTask?.sku || '—'}</p>
+                  </div>
+                  {renderScanStatusBadge(pickScanStatus.sku)}
+                </div>
+                <div className="mt-3 space-y-1 text-xs text-slate-400">
+                  <p>
+                    {t('ops.pick.steps.expected')}: <span className="text-slate-200">{nextPickTask?.sku || '—'}</span>
+                  </p>
+                  <p>
+                    {t('ops.pick.steps.scanned')}: <span className="text-slate-200">{pickSku || t('ops.pick.steps.pending')}</span>
+                  </p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setScannerTarget('pickSku')}
+                    className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
+                  >
+                    {t('ops.pick.steps.cta')}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.pick.quantity')}</label>
                 <input
-                type="number"
-                min={1}
-                value={pickQuantity}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '') {
-                    setPickQuantity('');
-                  } else {
-                    setPickQuantity(Math.max(1, Number(val)));
-                  }
-                }}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-              />
+                  type="number"
+                  min={1}
+                  value={pickQuantity}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setPickQuantity('');
+                    } else {
+                      setPickQuantity(Math.max(1, Number(val)));
+                    }
+                  }}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  {t('ops.pick.quantityHint', { value: nextPickTask?.quantity || 1 })}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleResetPickScans}
+                  className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
+                >
+                  {t('ops.pick.reset')}
+                </button>
               </div>
             </div>
 
             {pickBinDetail && (
-              <div className="bg-slate-900 rounded-xl p-4 border border-slate-700">
+              <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-4">
                 <h4 className="text-white font-semibold mb-2">BIN {pickBinDetail.code}</h4>
                 {pickBinDetail.products?.length ? (
                   <ul className="space-y-2 max-h-52 overflow-y-auto text-sm">
@@ -1076,7 +1181,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                         </div>
                         {item.image && (
                           <img
-                            src={buildImageProxyUrl(item.image)}
+                            src={resolveImageSrc(item.image)}
                             alt={item.name}
                             className="w-12 h-12 object-cover rounded border border-slate-700"
                           />
@@ -1085,19 +1190,21 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-slate-400 text-sm">Bin ist leer.</p>
+                  <p className="text-slate-400 text-sm">{t('ops.labels.binEmpty')}</p>
                 )}
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={handlePick}
-              disabled={isSubmitting || !pickBin || !pickSku || !pickQuantity}
-              className="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-50"
-            >
-              {t('ops.pick.submit')}
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handlePick}
+                disabled={!pickConfirmReady || isSubmitting}
+                className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-600"
+              >
+                {isSubmitting ? t('ops.pick.submitting') : t('ops.pick.submit')}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -1120,38 +1227,6 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         onChange={handleFallbackFileChange}
       />
 
-      <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg space-y-3">
-        <h3 className="text-lg font-semibold text-white">Stationärer Scanner (SANE)</h3>
-        <p className="text-sm text-slate-400">
-          Verbundene Scanner werden über <code className="font-mono">scanimage</code> aus dem SANE-Projekt angesteuert. Der Server muss Zugriff auf das Gerät haben.
-        </p>
-        <button
-          type="button"
-          onClick={handleTriggerScan}
-          disabled={isScanningDoc}
-          className="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-40"
-        >
-          {isScanningDoc ? 'Scanner läuft …' : 'Dokument scannen'}
-        </button>
-        {scanError && <p className="text-sm text-rose-300">{scanError}</p>}
-        {scanResult && (
-          <div className="space-y-2">
-            <p className="text-xs text-slate-400">Erfasst am {new Date(scanResult.capturedAt).toLocaleString('de-DE')}</p>
-            <img
-              src={`data:${scanResult.mimeType};base64,${scanResult.base64}`}
-              alt="Scanvorschau"
-              className="w-full max-w-md rounded-lg border border-slate-600"
-            />
-            <a
-              href={`data:${scanResult.mimeType};base64,${scanResult.base64}`}
-              download={`scan-${scanResult.capturedAt}.png`}
-              className="inline-flex items-center px-3 py-1.5 text-sm rounded-lg bg-slate-700 text-white"
-            >
-              Download
-            </a>
-          </div>
-        )}
-      </div>
     </section>
   );
 };
