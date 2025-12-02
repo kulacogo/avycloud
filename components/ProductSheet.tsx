@@ -484,7 +484,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </div>
       )}
       
-      <div className="space-y-6">
+      <div className="space-y-5">
         <header className="p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1 min-w-0">
@@ -688,114 +688,124 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </section>
         </div>
 
-        <section id="description" className="p-6 bg-slate-800 rounded-lg shadow-lg">
-          <h3 className="text-xl font-semibold mb-3 text-white">Beschreibung</h3>
-          {isEditing ? (
-            <textarea
-              defaultValue={localProduct.details.short_description}
-              onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
-              className="w-full min-h-[120px] bg-slate-700 border border-slate-600 rounded-lg p-3 text-slate-200"
-            />
-          ) : (
-            <p className="text-slate-300 leading-relaxed">{descriptionText}</p>
-          )}
-        </section>
-
-        <section id="attributes" className="p-6 bg-slate-800 rounded-lg shadow-lg">
-          <h3 className="text-xl font-semibold mb-4 text-white">Attributes</h3>
-          <AttributeTable
-            attributes={localProduct.details.attributes}
-            isEditing={isEditing}
-            onChange={(next) => {
-              setLocalProduct(prev => ({ ...prev, details: { ...prev.details, attributes: next } }));
-              setIsDirty(true);
-            }}
-          />
-        </section>
-
-        <section id="pricing" className="p-6 bg-slate-800 rounded-lg shadow-lg">
-          <h3 className="text-xl font-semibold mb-4 text-white">Pricing</h3>
-          <PricingInfo
-            pricing={localProduct.details.pricing}
-            isEditing={isEditing}
-            onChange={(next) => {
-              setLocalProduct(prev => ({ ...prev, details: { ...prev.details, pricing: next } }));
-              setIsDirty(true);
-            }}
-          />
-        </section>
-
-        <section id="storage" className="p-6 bg-slate-800 rounded-lg shadow-lg">
-          <h3 className="text-xl font-semibold mb-4 text-white">Lagerplatz</h3>
-          {binsLoading ? (
-            <p className="text-slate-400 text-sm mb-3">Lade BINs …</p>
-          ) : binsError ? (
-            <p className="text-rose-300 text-sm mb-3">{binsError}</p>
-          ) : productBins.length ? (
-            <div className="mb-4 space-y-2">
-              {productBins.map((bin) => (
-                <div key={bin.code} className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="font-semibold text-white">{bin.code}</div>
-                    <div className="text-xs text-slate-400">
-                      Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
-                    </div>
-                    <div className="text-xs text-slate-300">Menge {bin.productCount ?? 0}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-slate-400 text-sm mb-3">Aktuell keinem BIN zugeordnet.</p>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">BIN-Code</label>
-              <input
-                value={binCodeInput}
-                onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
-                placeholder="z.B. XGA0101A"
-                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <section id="description" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
+            <h3 className="text-xl font-semibold mb-3 text-white">Beschreibung</h3>
+            {isEditing ? (
+              <textarea
+                defaultValue={localProduct.details.short_description}
+                onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
+                className="w-full min-h-[120px] bg-slate-700 border border-slate-600 rounded-lg p-3 text-slate-200"
               />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Menge</label>
-              <input
-                type="number"
-                min={1}
-                value={binQuantity}
-                onChange={(e) => setBinQuantity(Number(e.target.value))}
-                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3 mt-4">
-            <button
-              onClick={handleAssignBin}
-              disabled={isAssigningBin}
-              className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-500 disabled:opacity-40"
-            >
-              {isAssigningBin ? 'Übernehme...' : 'In BIN einlagern'}
-            </button>
-            {localProduct.storage?.binCode && (
-              <button
-                onClick={handleRemoveBin}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
-              >
-                BIN-Zuordnung entfernen
-              </button>
+            ) : (
+              <p className="text-slate-300 leading-relaxed text-sm sm:text-base">{descriptionText}</p>
             )}
+          </section>
+
+          <section id="attributes" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
+            <h3 className="text-xl font-semibold mb-4 text-white">Attributes</h3>
+            <AttributeTable
+              attributes={localProduct.details.attributes}
+              isEditing={isEditing}
+              onChange={(next) => {
+                setLocalProduct(prev => ({ ...prev, details: { ...prev.details, attributes: next } }));
+                setIsDirty(true);
+              }}
+            />
+          </section>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <section id="pricing" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
+            <h3 className="text-xl font-semibold mb-4 text-white">Pricing</h3>
+            <PricingInfo
+              pricing={localProduct.details.pricing}
+              isEditing={isEditing}
+              onChange={(next) => {
+                setLocalProduct(prev => ({ ...prev, details: { ...prev.details, pricing: next } }));
+                setIsDirty(true);
+              }}
+            />
+          </section>
+
+          <section id="storage" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
+            <h3 className="text-xl font-semibold mb-4 text-white">Lagerplatz</h3>
+            {binsLoading ? (
+              <p className="text-slate-400 text-sm mb-3">Lade BINs …</p>
+            ) : binsError ? (
+              <p className="text-rose-300 text-sm mb-3">{binsError}</p>
+            ) : productBins.length ? (
+              <div className="mb-4 space-y-2 max-h-56 overflow-auto pr-1">
+                {productBins.map((bin) => (
+                  <div key={bin.code} className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-semibold text-white">{bin.code}</div>
+                      <div className="text-xs text-slate-400">
+                        Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
+                      </div>
+                      <div className="text-xs text-slate-300">Menge {bin.productCount ?? 0}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-slate-400 text-sm mb-3">Aktuell keinem BIN zugeordnet.</p>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">BIN-Code</label>
+                <input
+                  value={binCodeInput}
+                  onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
+                  placeholder="z.B. XGA0101A"
+                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Menge</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={binQuantity}
+                  onChange={(e) => setBinQuantity(Number(e.target.value))}
+                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3 mt-4">
+              <button
+                onClick={handleAssignBin}
+                disabled={isAssigningBin}
+                className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-500 disabled:opacity-40"
+              >
+                {isAssigningBin ? 'Übernehme...' : 'In BIN einlagern'}
+              </button>
+              {localProduct.storage?.binCode && (
+                <button
+                  onClick={handleRemoveBin}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
+                >
+                  BIN-Zuordnung entfernen
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
+        
+        <section className="p-4 bg-slate-800 rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-4 text-white">Actions</h3>
+          <div className="actions flex flex-wrap gap-4">
+            <button
+              id="btn-sync"
+              onClick={handleSync}
+              disabled={isSyncing}
+              className="flex items-center justify-center px-4 py-2 bg-slate-700 text-slate-200 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait"
+            >
+              {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}
+              <span className="ml-2">Sync</span>
+            </button>
           </div>
         </section>
-        
-        <div className="p-6 bg-slate-800 rounded-lg shadow-lg">
-            <h3 className="text-xl font-semibold mb-4 text-white">Actions</h3>
-            <div className="actions flex flex-wrap gap-4">
-                <button id="btn-sync" onClick={handleSync} disabled={isSyncing} className="flex items-center justify-center px-4 py-2 bg-slate-700 text-slate-200 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait">
-                    {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}<span className="ml-2">Sync</span>
-                </button>
-            </div>
-        </div>
       </div>
 
       <aside id="gemini-chat" className="lg:sticky lg:top-24">

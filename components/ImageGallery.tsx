@@ -31,7 +31,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   if (!images || images.length === 0) {
     return (
-      <div className="flex items-center justify-center w-full h-64 bg-slate-700 rounded-lg text-slate-400">
+      <div className="flex items-center justify-center w-full h-48 sm:h-56 bg-slate-700 rounded-lg text-slate-400">
         No Images Available
       </div>
     );
@@ -85,7 +85,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   return (
     <div>
-      <div className="relative w-full aspect-square bg-slate-700 rounded-lg overflow-hidden group">
+      <div className="relative w-full aspect-[4/3] max-h-[420px] md:max-h-[360px] bg-slate-700 rounded-lg overflow-hidden group">
         <img
           src={resolveSrc(activeImage) || placeholder}
           alt={`Product image ${activeIndex + 1}`}
