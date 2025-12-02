@@ -7,6 +7,7 @@ import ChatInput, { ChatInputAttachment } from './chat/ChatInput';
 import MessageBubble from './chat/MessageBubble';
 import { SparklesIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
+import { useI18n } from '../i18n';
 
 interface AssistantChatProps {
   product: Product;
@@ -43,6 +44,12 @@ type PendingImage = {
   id: string;
   image: ProductImage;
   rationale?: string;
+};
+
+type PromptTemplate = {
+  key: string;
+  label: string;
+  value: string;
 };
 
 const MAX_ATTACHMENTS = 6;
@@ -133,25 +140,29 @@ const cleanAssistantMessage = (raw: string) => {
   return withoutHtml.replace(/\s{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 };
 
-  const mapSuggestionsToAttachments = (groups?: { rationale?: string; images: ProductImage[] }[]): MessageAttachment[] => {
-    if (!groups?.length) return [];
-    const attachments: MessageAttachment[] = [];
-    for (const group of groups) {
-      for (const image of group.images) {
-        if (!image?.url_or_base64 || attachments.length >= 4) break;
-        attachments.push({
-          id: uid(),
-          name: group.rationale || image.variant || 'Bild',
-          url: buildImageProxyUrl(image.url_or_base64),
-          type: image.source || 'image/web',
-          isImage: true,
-        });
-      }
+const mapSuggestionsToAttachments = (
+  groups: { rationale?: string; images: ProductImage[] }[] | undefined,
+  fallbackLabel: string
+): MessageAttachment[] => {
+  if (!groups?.length) return [];
+  const attachments: MessageAttachment[] = [];
+  for (const group of groups) {
+    for (const image of group.images) {
+      if (!image?.url_or_base64 || attachments.length >= 4) break;
+      attachments.push({
+        id: uid(),
+        name: group.rationale || image.variant || fallbackLabel,
+        url: buildImageProxyUrl(image.url_or_base64),
+        type: image.source || 'image/web',
+        isImage: true,
+      });
     }
-    return attachments;
-  };
+  }
+  return attachments;
+};
 
 const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheetChange, onAddImages }) => {
+  const { t } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -166,25 +177,46 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const suggestionKeysRef = useRef<Set<string>>(new Set());
   const objectUrlStore = useRef<string[]>([]);
 
-  const predefinedPrompts = [
-    'Datenblatt verbessern (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
-    'Titel verbessern (Marketing- und E-Commerce-ready machen)',
-    'Highlights verbessern (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
-    'Attribute korrigieren/ergänzen (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
-    'Beschreibung korrigieren/ergänzen (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
-    'Preis korrigieren (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
-  ];
-
-  const quickPrompts = predefinedPrompts;
-
-  const quickActions = [
-    { label: 'Datenblatt verbessern', value: predefinedPrompts[0] },
-    { label: 'Titel verbessern', value: predefinedPrompts[1] },
-    { label: 'Highlights verbessern', value: predefinedPrompts[2] },
-    { label: 'Attribute korrigieren', value: predefinedPrompts[3] },
-    { label: 'Beschreibung korrigieren', value: predefinedPrompts[4] },
-    { label: 'Preis korrigieren', value: predefinedPrompts[5] },
-  ];
+  const promptTemplates: PromptTemplate[] = useMemo(
+    () => [
+      {
+        key: 'datasheet',
+        label: t('chat.prompts.datasheet'),
+        value:
+          'Datenblatt verbessern (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+      },
+      {
+        key: 'title',
+        label: t('chat.prompts.title'),
+        value: 'Titel verbessern (Marketing- und E-Commerce-ready machen)',
+      },
+      {
+        key: 'highlights',
+        label: t('chat.prompts.highlights'),
+        value:
+          'Highlights verbessern (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+      },
+      {
+        key: 'attributes',
+        label: t('chat.prompts.attributes'),
+        value:
+          'Attribute korrigieren/ergänzen (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+      },
+      {
+        key: 'description',
+        label: t('chat.prompts.description'),
+        value:
+          'Beschreibung korrigieren/ergänzen (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+      },
+      {
+        key: 'pricing',
+        label: t('chat.prompts.pricing'),
+        value:
+          'Preis korrigieren (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+      },
+    ],
+    [t]
+  );
 
   const normalizeImageKey = (value?: string | null) => {
     if (!value) return null;
@@ -405,7 +437,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         {
           id: uid(),
           role: 'user',
-          text: trimmedInput || '(Dateianhang)',
+          text: trimmedInput || t('chat.ui.attachmentMessage'),
           timestamp,
           attachments: userAttachments,
         },
@@ -422,7 +454,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           throw new Error(result.error?.message || 'Unbekannter Fehler');
         }
 
-        const assistantAttachments = mapSuggestionsToAttachments(result.data.imageSuggestions);
+        const assistantAttachments = mapSuggestionsToAttachments(result.data.imageSuggestions, t('chat.ui.imageAlt'));
         const linkedChanges = appendPendingChanges(result.data.datasheetChanges);
         const structuredEdits = extractStructuredEdits(result.data.message);
         const structuredLinked = appendPendingChanges(structuredEdits);
@@ -430,7 +462,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         const assistantMessage: ChatMessage = {
           id: uid(),
           role: 'assistant',
-          text: cleanedMessage || 'Es gibt neue Vorschläge – nutze die Buttons zum Übernehmen.',
+          text: cleanedMessage || t('chat.ui.newSuggestions'),
           timestamp: new Date().toISOString(),
           attachments: assistantAttachments,
           datasheetChanges: [...linkedChanges, ...structuredLinked],
@@ -445,7 +477,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           {
             id: uid(),
             role: 'assistant',
-            text: `Fehler: ${error?.message || 'Anfrage fehlgeschlagen'}`,
+            text: `${t('chat.ui.errorPrefix')} ${error?.message || t('chat.ui.errorFallback')}`,
             timestamp: new Date().toISOString(),
           },
         ]);
@@ -454,7 +486,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         setIsLoading(false);
       }
     },
-    [attachmentDrafts, input, isLoading, product.id]
+    [attachmentDrafts, input, isLoading, product.id, t]
   );
 
   return (
@@ -462,15 +494,15 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       <header className="flex items-center justify-between border-b border-slate-800 px-4 py-3 text-xs uppercase tracking-wide text-slate-400">
         <div className="flex items-center gap-2 text-slate-100">
           <SparklesIcon className="h-4 w-4 text-sky-400" />
-          <span className="font-semibold text-sm text-white">GPT Assistant</span>
-          <span className="text-[11px] text-slate-500">Vision · SerpAPI</span>
+          <span className="font-semibold text-sm text-white">{t('chat.header.title')}</span>
+          <span className="text-[11px] text-slate-500">{t('chat.header.subtitle')}</span>
         </div>
         <button
           type="button"
           onClick={() => setShowPromptTray((prev) => !prev)}
           className="rounded-full border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:border-sky-500 hover:text-white"
         >
-          {showPromptTray ? 'Prompts ausblenden' : 'Prompts anzeigen'}
+          {showPromptTray ? t('chat.ui.promptsHide') : t('chat.ui.promptsShow')}
         </button>
       </header>
 
@@ -491,7 +523,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             <div className="flex justify-start">
               <div className="flex items-center gap-2 rounded-2xl bg-slate-800/80 px-4 py-3 text-sm text-slate-200">
                 <Spinner className="h-4 w-4" />
-                Denke nach …
+                {t('chat.ui.thinking')}
               </div>
             </div>
           )}
@@ -502,19 +534,21 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             {pendingChanges.length > 0 && (
               <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
                 <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
-                  <span>Vorgeschlagene Änderungen</span>
+                  <span>{t('chat.ui.pendingChanges')}</span>
                   <span>{pendingChanges.length}</span>
                 </summary>
                 <div className="space-y-2 p-3">
                   {pendingChanges.map((item) => (
                     <div key={item.id} className="rounded-xl border border-slate-700/70 bg-slate-900/70 p-3">
-                      <p className="text-sm font-semibold text-white">{item.change.summary || 'Änderung aus dem Chat'}</p>
+                      <p className="text-sm font-semibold text-white">
+                        {item.change.summary || t('chat.ui.changeFallback')}
+                      </p>
                       <button
                         type="button"
                         onClick={() => handleApplyChange(item.id)}
                         className="mt-2 rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
                       >
-                        Anwenden
+                        {t('chat.ui.apply')}
                       </button>
                     </div>
                   ))}
@@ -525,7 +559,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             {pendingImages.length > 0 && (
               <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
                 <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
-                  <span>Bild-Vorschläge</span>
+                  <span>{t('chat.ui.imageSuggestions')}</span>
                   <span>{pendingImages.length}</span>
                 </summary>
                 <div className="flex gap-3 overflow-x-auto p-3">
@@ -536,12 +570,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                     >
                       <img
                         src={resolveImageSrc(item.image.url_or_base64)}
-                        alt={item.image.variant || 'Vorschlag'}
+                        alt={item.image.variant || t('chat.ui.imageAlt')}
                         className="h-24 w-full rounded-lg object-cover"
                         loading="lazy"
                         decoding="async"
                         onError={(event) => {
-                          (event.currentTarget as HTMLImageElement).src = 'https://placehold.co/200x200?text=Bild';
+                          (event.currentTarget as HTMLImageElement).src = `https://placehold.co/200x200?text=${encodeURIComponent(
+                            t('chat.ui.imagePlaceholder')
+                          )}`;
                         }}
                       />
                       {item.rationale && <p className="text-[11px] text-slate-400 line-clamp-2">{item.rationale}</p>}
@@ -550,7 +586,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                         onClick={() => handleApplyImage(item.id)}
                         className="rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
                       >
-                        Hinzufügen
+                        {t('chat.ui.addImage')}
                       </button>
                     </div>
                   ))}
@@ -561,7 +597,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             {serpInsights.length > 0 && (
               <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
                 <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
-                  <span>Nachweise</span>
+                  <span>{t('chat.ui.serpInsights')}</span>
                   <span>{serpInsights.length}</span>
                 </summary>
                 <div className="space-y-2 p-3 text-[11px] text-slate-200">
@@ -600,18 +636,18 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         {showPromptTray && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-[11px] text-slate-500">
-              <span>Quick Prompts</span>
-              <span>Zum Einfügen tippen</span>
+              <span>{t('chat.ui.quickTitle')}</span>
+              <span>{t('chat.ui.quickHint')}</span>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {quickPrompts.map((prompt) => (
+              {promptTemplates.map((prompt) => (
                 <button
-                  key={prompt}
+                  key={`tray-${prompt.key}`}
                   type="button"
-                  onClick={() => setInput(prompt)}
+                  onClick={() => setInput(prompt.value)}
                   className="rounded-full bg-slate-800 px-3 py-1 text-[12px] text-slate-200 hover:bg-slate-700"
                 >
-                  {prompt}
+                  {prompt.label}
                 </button>
               ))}
             </div>
@@ -619,9 +655,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         )}
 
         <div className="flex gap-2 overflow-x-auto pb-1 text-[12px]">
-          {quickActions.map((action) => (
+          {promptTemplates.map((action) => (
             <button
-              key={action.label}
+              key={`action-${action.key}`}
               type="button"
               onClick={() => handleSend(action.value)}
               className="rounded-full border border-slate-700 px-3 py-1 text-slate-200 hover:border-sky-500 hover:text-white"

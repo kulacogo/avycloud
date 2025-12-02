@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import FileAttachmentPreview from './FileAttachmentPreview';
 import { SendIcon, PaperClipIcon } from '../icons/Icons';
+import { useI18n } from '../../i18n';
 
 export type ChatInputAttachment = {
   id: string;
@@ -38,6 +39,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onInsertContext,
   charLimit = 2000,
 }) => {
+  const { t } = useI18n();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,27 +82,27 @@ const ChatInput: React.FC<ChatInputProps> = ({
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-slate-500">
         <button
           type="button"
-          aria-label="Verlauf löschen"
+          aria-label={t('chat.input.clear')}
           onClick={onClearChat}
           className="rounded-full border border-slate-700 px-3 py-1 text-slate-300 hover:border-sky-500 hover:text-white"
         >
-          Verlauf löschen
+          {t('chat.input.clear')}
         </button>
         <button
           type="button"
-          aria-label="Datei hochladen"
+          aria-label={t('chat.input.upload')}
           onClick={handleAttachClick}
           className="rounded-full border border-slate-700 px-3 py-1 text-slate-300 hover:border-sky-500 hover:text-white"
         >
-          Upload file
+          {t('chat.input.upload')}
         </button>
         <button
           type="button"
-          aria-label="Produktkontext einfügen"
+          aria-label={t('chat.input.context')}
           onClick={onInsertContext}
           className="rounded-full border border-slate-700 px-3 py-1 text-slate-300 hover:border-sky-500 hover:text-white"
         >
-          Kontext einfügen
+          {t('chat.input.context')}
         </button>
         <span className="ml-auto text-[10px] text-slate-500">
           {characters}/{charLimit}
@@ -110,7 +112,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       {attachments.length > 0 && (
         <details className="rounded-2xl border border-slate-700/70 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
           <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wide">
-            Anhänge ({attachments.length})
+            {t('chat.input.attachments', { count: attachments.length })}
           </summary>
           <div className="mt-2 flex flex-wrap gap-2">
             {attachments.map((attachment) => (
@@ -133,7 +135,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <textarea
           ref={textareaRef}
           rows={1}
-          placeholder="Frag GPT nach Preisen, Bildern oder Optimierungen..."
+          placeholder={t('chat.input.placeholder')}
           value={value}
           onChange={(event) => onChange(event.target.value.slice(0, charLimit))}
           onKeyDown={handleKeyDown}
@@ -142,16 +144,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <div className="flex flex-col gap-2">
           <button
             type="button"
-            aria-label="Datei anhängen"
+          aria-label={t('chat.input.attachButton')}
             onClick={handleAttachClick}
             className="flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/70 px-3 py-2 text-slate-200 hover:border-sky-400 hover:text-white"
           >
             <PaperClipIcon className="h-4 w-4" />
-            <span className="ml-2 text-xs uppercase tracking-wide">Attach</span>
+            <span className="ml-2 text-xs uppercase tracking-wide">{t('chat.input.attachButton')}</span>
           </button>
           <button
             type="button"
-            aria-label="Nachricht senden"
+            aria-label={t('chat.input.send')}
             onClick={onSend}
             disabled={disabled || (!value.trim() && attachments.length === 0)}
             className="flex items-center justify-center rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-600"

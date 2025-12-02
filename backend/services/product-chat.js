@@ -751,7 +751,8 @@ function sanitizeDatasheetChange(entry) {
 async function runProductChat(product, userMessage, { modelOverride = null, attachments = [] } = {}) {
   const client = await getOpenAIClient();
   const targetModel = resolveModel(modelOverride, 'CHAT_MODEL', 'gpt-5.1');
-  const locale = product?.locale || 'de-DE';
+  // Chat responses must always be delivered in German irrespective of UI language.
+  const locale = 'de-DE';
   const conversationMode = detectConversationMode(userMessage || '');
   const marketingFocus = isMarketingImageRequest(userMessage || '');
   const attachmentPayload = normalizeChatAttachments(attachments);
