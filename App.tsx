@@ -390,7 +390,7 @@ const App: React.FC = () => {
             isImproving={Boolean(currentProduct && activeProductIds.has(currentProduct.id))}
           />
         ) : (
-          <div className="text-center p-8 text-slate-400">No product selected. Go to 'New' to identify one or 'Admin' to select an existing one.</div>
+          <div className="text-center p-8 text-slate-400">{t('app.sheet.empty')}</div>
         );
       case 'inventory':
         return (

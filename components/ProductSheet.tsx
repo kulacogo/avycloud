@@ -17,6 +17,7 @@ import AttributeTable from './AttributeTable';
 import PricingInfo from './PricingInfo';
 import AssistantChat from './GeminiChat';
 import { useI18n } from '../i18n';
+import { useI18n } from '../i18n';
 
 interface ProductSheetProps {
   product: Product;
@@ -67,7 +68,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         const bins = await fetchProductBins(productId);
         setProductBins(bins);
       } catch (error: any) {
-        setBinsError(error?.message || 'BINs konnten nicht geladen werden.');
+        setBinsError(error?.message || t('sheet.msg.binsLoadError'));
         setProductBins([]);
       } finally {
         setBinsLoading(false);
@@ -148,7 +149,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     if (!url) return;
     updateImages((images) => [
       ...images,
-      { source: 'web', variant: 'other', url_or_base64: url, notes: 'Manuell hinzugefügt' },
+      { source: 'web', variant: 'other', url_or_base64: url, notes: t('sheet.upload.note.manual') },
     ]);
     setNewImageUrl('');
   }, [newImageUrl, updateImages]);
@@ -168,7 +169,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         const base64 = await fileToBase64(file);
         updateImages((images) => [
           ...images,
-          { source: 'upload', variant: 'other', url_or_base64: base64, notes: file.name || 'Upload' },
+          { source: 'upload', variant: 'other', url_or_base64: base64, notes: file.name || t('sheet.upload.note.upload') },
         ]);
       } catch (error) {
         console.error('Failed to read image file', error);
@@ -221,11 +222,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const handleGenerateImages = async () => {
     if (!localProduct.id) return;
     if (!selectedReferenceImage) {
-      showNotification('error', 'Bitte zuerst ein Referenzbild auswählen oder hochladen.');
+      showNotification('error', t('sheet.msg.referenceRequired'));
       return;
     }
     setIsGeneratingImages(true);
-    showNotification('success', 'Verbessere Bilder anhand des Referenzfotos (ca. 15s)…');
+    showNotification('success', t('sheet.msg.vertexStart'));
 
     const result = await generateProductImages(localProduct.id, selectedReferenceImage, {
       sampleCount: 2,
@@ -234,9 +235,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
     if (result.ok && result.data) {
       updateImages((images) => [...images, ...(result.data || [])]);
-      showNotification('success', `${result.data?.length || 0} Varianten hinzugefügt.`);
+      showNotification('success', t('sheet.msg.vertexSuccess', { count: result.data?.length || 0 }));
     } else {
-      showNotification('error', result.error?.message || 'Bildgenerierung fehlgeschlagen.');
+      showNotification('error', result.error?.message || t('sheet.msg.vertexError'));
     }
     setIsGeneratingImages(false);
   };
@@ -268,9 +269,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       onUpdate(updatedProduct);
       setIsEditing(false);
       setIsDirty(false);
-      showNotification('success', 'Product saved successfully!');
+      showNotification('success', t('sheet.msg.saveSuccess'));
     } else {
-      showNotification('error', result.error?.message || 'Failed to save product.');
+      showNotification('error', result.error?.message || t('sheet.msg.saveError'));
     }
     setIsSaving(false);
   };
@@ -279,16 +280,16 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsPrintingLabel(true);
     const result = openSkuLabelWindow(localProduct.id);
     if (!result.ok) {
-      showNotification('error', result.error?.message || 'Konnte Etikett nicht laden.');
+      showNotification('error', result.error?.message || t('sheet.msg.labelError'));
     } else {
-      showNotification('success', 'Etikett geöffnet.');
+      showNotification('success', t('sheet.msg.labelSuccess'));
     }
     setIsPrintingLabel(false);
   };
 
   const handleAssignBin = async () => {
     if (!binCodeInput) {
-      showNotification('error', 'Bitte einen BIN-Code angeben.');
+      showNotification('error', t('sheet.msg.binRequired'));
       return;
     }
     setIsAssigningBin(true);
@@ -299,9 +300,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       setBinCodeInput(result.data.product.storage?.binCode || '');
       setBinQuantity(result.data.product.storage?.quantity || 1);
       loadProductBins(result.data.product.id);
-      showNotification('success', 'Produkt wurde eingelagert.');
+      showNotification('success', t('sheet.msg.binAssignSuccess'));
     } else {
-      showNotification('error', result.error?.message || 'Einlagerung fehlgeschlagen.');
+      showNotification('error', result.error?.message || t('sheet.msg.binAssignError'));
     }
     setIsAssigningBin(false);
   };
@@ -310,7 +311,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     if (!localProduct.storage?.binCode) return;
     const response = await removeProductFromBinApi(localProduct.storage.binCode, localProduct.id);
     if (!response.ok) {
-      showNotification('error', response.error?.message || 'Entfernen fehlgeschlagen.');
+      showNotification('error', response.error?.message || t('sheet.msg.binRemoveError'));
       return;
     }
     const updated = { ...localProduct, storage: null };
@@ -319,7 +320,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setBinCodeInput('');
     setBinQuantity(1);
     loadProductBins(localProduct.id);
-    showNotification('success', 'Produkt aus BIN entfernt.');
+    showNotification('success', t('sheet.msg.binRemoveSuccess'));
   };
 
   const applyAssistantChange = (change: DatasheetChange) => {
@@ -366,14 +367,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       return next;
     });
     setIsDirty(true);
-    showNotification('success', 'Vorgeschlagene Änderung übernommen.');
+    showNotification('success', t('sheet.msg.changeApplied'));
   };
 
   const applyAssistantImages = (images: ProductImage[]) => {
     if (!images || images.length === 0) return;
     const safeImages = images.filter((img) => !isGeneratedImageMeta(img));
     if (!safeImages.length) {
-      showNotification('error', 'AI-generierte Platzhalterbilder werden blockiert.');
+      showNotification('error', t('sheet.msg.generatedBlocked'));
       return;
     }
     setLocalProduct(prev => ({
@@ -381,7 +382,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       details: { ...prev.details, images: [...prev.details.images, ...safeImages] },
     }));
     setIsDirty(true);
-    showNotification('success', `${safeImages.length} Bild(er) hinzugefügt.`);
+    showNotification('success', t('sheet.msg.imagesAdded', { count: safeImages.length }));
   };
 
   const handleSync = async () => {
@@ -399,7 +400,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         },
       };
       onUpdate(updatedProduct);
-      showNotification('success', 'Sync mit BaseLinker erfolgreich.');
+      showNotification('success', t('sheet.msg.syncSuccess'));
     } else {
       const updatedProduct = {
         ...localProduct,
@@ -409,7 +410,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         },
       };
       onUpdate(updatedProduct);
-      const errorMessage = syncResult?.message || result.error?.message || 'Sync fehlgeschlagen.';
+      const errorMessage = syncResult?.message || result.error?.message || t('sheet.msg.syncError');
       showNotification('error', errorMessage);
     }
     setIsSyncing(false);
@@ -540,7 +541,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-2">
                 <span>
                   SKU:{' '}
-                  {localProduct.identification.sku || localProduct.details.identifiers?.sku || 'wird beim Speichern vergeben'}
+                  {localProduct.identification.sku || localProduct.details.identifiers?.sku || t('common.skuFallback')}
                 </span>
                 <button
                   id="btn-print-label"
@@ -550,11 +551,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   title="Label drucken (57x25 mm)"
                 >
                   <PrintIcon />
-                  <span className="ml-1">Label</span>
+                  <span className="ml-1">{t('common.printLabel')}</span>
                 </button>
               </div>
               <p id="p-barcodes" className="text-xs text-slate-500 mt-1">
-                Barcodes: {localProduct.identification.barcodes?.join(', ') || 'N/A'}
+                {t('common.barcodeLabel')}: {localProduct.identification.barcodes?.join(', ') || t('common.na')}
               </p>
             </div>
             <div className="actions flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto justify-end">
@@ -564,7 +565,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 className={`flex items-center justify-center px-4 py-2 font-medium rounded-lg transition-colors w-full sm:w-auto ${isEditing ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-sky-600 text-white hover:bg-sky-500'
                 }`}
               >
-                <EditIcon /><span className="ml-2">{isEditing ? 'Editing...' : 'Edit'}</span>
+                <EditIcon /><span className="ml-2">{isEditing ? t('common.editing') : t('common.edit')}</span>
               </button>
               <button
                 id="btn-save"
@@ -572,7 +573,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 disabled={isSaving}
                 className="flex items-center justify-center px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-500 transition-colors disabled:bg-emerald-900 disabled:cursor-not-allowed w-full sm:w-auto"
               >
-                <SaveIcon /><span className="ml-2">{isSaving ? 'Saving...' : 'Save'}</span>
+                <SaveIcon /><span className="ml-2">{isSaving ? t('common.saving') : t('common.save')}</span>
               </button>
               {onImprove && (
                 <button
@@ -581,7 +582,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   disabled={Boolean(isImproving)}
                   className="flex items-center justify-center px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-500 transition-colors disabled:opacity-60 w-full sm:w-auto"
                 >
-                  {isImproving ? 'Verbessere…' : 'Improve'}
+                  {isImproving ? t('common.improving') : t('common.improve')}
                 </button>
               )}
             </div>
@@ -783,11 +784,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">BIN-Code</label>
+              <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.binLabel')}</label>
                 <input
                   value={binCodeInput}
                   onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
-                  placeholder="z.B. XGA0101A"
+                placeholder={t('sheet.storage.binPlaceholder')}
                   className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
                 />
               </div>

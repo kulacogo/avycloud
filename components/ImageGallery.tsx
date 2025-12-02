@@ -109,7 +109,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             type="button"
             onClick={() => openLightbox(activeIndex)}
             className="p-2 bg-black/50 text-white rounded-full"
-            aria-label="Bild vergrößern"
+            aria-label={t('sheet.gallery.open')}
           >
             🔍
           </button>
@@ -117,7 +117,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             href={resolveSrc(activeImage) || '#'}
             download={`product-image-${activeIndex + 1}`}
             className="p-2 bg-black/50 text-white rounded-full"
-            aria-label="Download image"
+            aria-label={t('sheet.gallery.download')}
           >
             <DownloadIcon />
           </a>
@@ -128,12 +128,12 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
               className="px-3 py-1 bg-sky-600 text-xs rounded-full text-white"
               disabled={regeneratingIndex === activeIndex}
             >
-              {regeneratingIndex === activeIndex ? 'Rendering…' : 'Re-Render'}
+              {regeneratingIndex === activeIndex ? t('sheet.gallery.rerendering') : t('sheet.gallery.rerender')}
             </button>
           )}
         </div>
         {activeImage.source === 'generated' && (
-            <span className="absolute bottom-2 left-2 px-2 py-1 text-xs bg-sky-500/80 text-white rounded">AI Generated</span>
+            <span className="absolute bottom-2 left-2 px-2 py-1 text-xs bg-sky-500/80 text-white rounded">{t('sheet.gallery.aiBadge')}</span>
         )}
       </div>
       <div className="grid grid-cols-4 gap-2 mt-2">
@@ -172,7 +172,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
               <span
                 role="button"
                 tabIndex={0}
-                aria-label="Delete image thumbnail"
+                aria-label={t('sheet.gallery.delete')}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteImage(index);

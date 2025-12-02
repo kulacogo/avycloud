@@ -718,7 +718,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                               disabled={completingOrderId === order.id}
                               className="px-3 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold disabled:opacity-50"
                             >
-                              {completingOrderId === order.id ? 'Aktualisiere …' : t('ops.orders.complete')}
+                              {completingOrderId === order.id ? t('ops.orders.updating') : t('ops.orders.complete')}
                             </button>
                           </div>
                         </div>

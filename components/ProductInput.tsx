@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UploadIcon, BarcodeIcon, CameraIcon } from './icons/Icons';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
+import { useI18n } from '../i18n';
 
 interface ProductInputProps {
   onIdentify: (groups: UploadGroupPayload[], barcodes: string, model?: string) => void;
@@ -32,14 +33,15 @@ const createId = () => {
   return Math.random().toString(36).slice(2, 10);
 };
 
-const createGroup = (index: number): UploadGroup => ({
+const createGroup = (index: number, name?: string): UploadGroup => ({
   id: createId(),
-  name: `Produkt ${index + 1}`,
+  name: name || `Produkt ${index + 1}`,
   images: [],
 });
 
 const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
-  const [groups, setGroups] = useState<UploadGroup[]>([createGroup(0)]);
+  const { t } = useI18n();
+  const [groups, setGroups] = useState<UploadGroup[]>([createGroup(0, t('input.groups.defaultName', { index: 1 }))]);
   const [barcodes, setBarcodes] = useState('');
   const [model, setModel] = useState<ModelOption>('gpt-5-mini-2025-08-07');
   const [cameraTargetGroup, setCameraTargetGroup] = useState<string | null>(null);
@@ -48,11 +50,10 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-
-  const MODEL_LABELS: Record<ModelOption, string> = {
-    'gpt-5-mini-2025-08-07': 'Backend Default (Aug 07 build)',
-    'gpt-5-mini': 'Backend Fallback',
-  };
+  const groupNameForIndex = useCallback(
+    (index: number) => t('input.groups.defaultName', { index: index + 1 }),
+    [t]
+  );
 
   const addImagesToGroup = useCallback((groupId: string, files: File[]) => {
     if (!files.length) return;
@@ -153,7 +154,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   };
 
   const addGroup = () => {
-    setGroups((prev) => [...prev, createGroup(prev.length)]);
+    setGroups((prev) => [...prev, createGroup(prev.length, groupNameForIndex(prev.length))]);
   };
 
   const removeGroup = (groupId: string) => {
@@ -177,12 +178,12 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
         images: group.images.map((img) => img.file),
       }));
     if (!payload.length && barcodes.trim() === '') {
-      alert('Bitte lade mindestens ein Bild hoch oder gib einen Barcode an.');
+      alert(t('input.errors.payloadRequired'));
       return;
     }
     onIdentify(payload, barcodes, model);
     // Reset groups for the next run
-    setGroups([createGroup(0)]);
+    setGroups([createGroup(0, groupNameForIndex(0))]);
   };
 
   const toggleCamera = async (groupId: string) => {
@@ -197,7 +198,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
 
       try {
         if (!supportsBrowserCamera) {
-          throw new Error('Camera API not available in this browser.');
+          throw new Error(t('input.camera.unsupported'));
         }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
@@ -210,7 +211,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
         setCameraError(null);
     } catch (error: any) {
       console.error('Camera error:', error);
-      const message = error?.message || 'Kamera konnte nicht gestartet werden.';
+      const message = error?.message || t('input.camera.error');
         setCameraError(message);
         alert(message);
     }
@@ -274,7 +275,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-slate-200">
               <CameraIcon className="w-7 h-7" />
-              <span className="font-semibold">Produktgruppen</span>
+              <span className="font-semibold">{t('input.groups.title')}</span>
             </div>
             <button
               type="button"
@@ -282,7 +283,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
               className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors"
             >
               <span className="text-lg leading-none">＋</span>
-              Neues Produkt
+              {t('input.groups.add')}
             </button>
           </div>
           <div className="space-y-4">
@@ -296,7 +297,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                       onClick={() => removeGroup(group.id)}
                       className="text-xs text-rose-300 hover:text-rose-100 transition-colors"
                     >
-                      Entfernen
+                      {t('input.groups.remove')}
                     </button>
                   )}
           </div>
@@ -312,7 +313,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                       className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors"
               >
                       <UploadIcon className="w-5 h-5" />
-                      Dateien wählen
+                      {t('input.groups.files')}
               </button>
               <button
                 type="button"
@@ -320,7 +321,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                       className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors"
               >
                       <CameraIcon className="w-5 h-5" />
-                      {isCameraOn && cameraTargetGroup === group.id ? 'Kamera schließen' : 'Kamera verwenden'}
+                      {isCameraOn && cameraTargetGroup === group.id ? t('input.groups.cameraClose') : t('input.groups.cameraOpen')}
               </button>
             </div>
             <input
@@ -357,7 +358,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                     ))}
                     {!group.images.length && (
                       <div className="h-28 rounded-xl border border-slate-600 border-dashed flex items-center justify-center text-slate-500 text-sm">
-                        Bilder hierher ziehen
+                        {t('input.groups.dropHint')}
                       </div>
                     )}
                   </div>
@@ -370,9 +371,13 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
           </div>
         </div>
 
-          {isCameraOn && !isIOSDevice && (
+        {isCameraOn && !isIOSDevice && (
           <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 space-y-3">
-            <p className="text-sm text-slate-200">Kamera aktiv – {groups.find(g => g.id === cameraTargetGroup)?.name || 'unbekannte Gruppe'}</p>
+            <p className="text-sm text-slate-200">
+              {t('input.camera.active', {
+                name: groups.find((g) => g.id === cameraTargetGroup)?.name || t('input.groups.unknown'),
+              })}
+            </p>
             <div className="relative">
               <video ref={videoRef} className="w-full rounded-xl bg-black" />
               <button
@@ -380,35 +385,33 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                 onClick={captureImage}
                 className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white shadow-lg hover:bg-sky-500 transition-colors"
               >
-                Foto übernehmen
+                {t('input.camera.capture')}
               </button>
             </div>
             </div>
           )}
           {isIOSDevice && (
-          <p className="text-xs text-slate-400 text-center">
-            Auf iOS öffnet der Kamera-Button direkt die native Kamera- oder Foto-App.
-            </p>
+          <p className="text-xs text-slate-400 text-center">{t('input.camera.iosNote')}</p>
           )}
 
         <div>
           <div className="flex items-center mb-2 text-slate-200">
             <BarcodeIcon className="w-6 h-6 mr-2" />
-            <span className="font-semibold">Barcodes (optional)</span>
+            <span className="font-semibold">{t('input.barcodes.label')}</span>
           </div>
           <textarea
             value={barcodes}
             onChange={(e) => setBarcodes(e.target.value)}
-            placeholder="z. B. 4006381333931, 4954628245731"
+            placeholder={t('input.barcodes.placeholder')}
             className="w-full rounded-xl border border-slate-600 bg-slate-900/60 p-3 text-sm text-slate-100 focus:border-sky-500 focus:ring-2 focus:ring-sky-500"
             rows={3}
           />
-          <p className="text-xs text-slate-500 mt-1">Mehrere Barcodes durch Komma oder Zeilenumbruch trennen.</p>
+          <p className="text-xs text-slate-500 mt-1">{t('input.barcodes.hint')}</p>
         </div>
 
         <div>
           <div className="mb-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
-            Modell (Server)
+            {t('input.model.title')}
           </div>
           <div className="grid grid-cols-2 gap-3">
             {(['gpt-5-mini-2025-08-07', 'gpt-5-mini'] as ModelOption[]).map((option) => (
@@ -423,7 +426,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                     : 'bg-slate-700/80 border-slate-600 text-slate-200 hover:bg-slate-600'
                 }`}
               >
-                {MODEL_LABELS[option]}
+                {option === 'gpt-5-mini-2025-08-07' ? t('input.model.default') : t('input.model.fallback')}
               </button>
             ))}
           </div>
@@ -434,7 +437,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             type="submit"
             className="w-full sm:w-auto px-12 py-4 bg-sky-600 text-white text-lg font-bold rounded-xl hover:bg-sky-500 transition-transform transform hover:scale-105"
           >
-            Gruppen identifizieren
+            {t('input.submit')}
           </button>
         </div>
         <input
