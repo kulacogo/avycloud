@@ -574,7 +574,7 @@ function buildPayload(
  */
 async function findProductBySku(inventoryId, skuOrEan) {
   let page = 1;
-  const MAX_PAGES = 200;
+  const MAX_PAGES = 2000;
   const normalizeSkuValue = (val) =>
     (val || '')
       .toString()
@@ -590,14 +590,8 @@ async function findProductBySku(inventoryId, skuOrEan) {
   const targetSku = normalizeSkuValue(skuOrEan);
   const targetEan = normalizeEanValue(skuOrEan);
 
-  while (page <= MAX_PAGES) {
-    const res = await callBaseLinker('getInventoryProductsList', {
-      inventory_id: inventoryId,
-      page,
-    });
-
-    const products = Array.isArray(res.products) ? res.products : [];
-    const match = products.find((entry) => {
+  const pickMatchFromList = (products = []) =>
+    products.find((entry) => {
       const entrySku = normalizeSkuValue(entry?.sku || entry?.product_sku || '');
       if (targetSku && entrySku && entrySku === targetSku) {
         return true;
@@ -610,6 +604,51 @@ async function findProductBySku(inventoryId, skuOrEan) {
       }
       return false;
     });
+
+  const tryFilteredLookup = async (filterKey, filterValue) => {
+    if (!filterKey || !filterValue) return null;
+    try {
+      const response = await callBaseLinker('getInventoryProductsList', {
+        inventory_id: inventoryId,
+        page: 1,
+        [filterKey]: filterValue,
+      });
+      const directProducts = Array.isArray(response.products)
+        ? response.products
+        : Array.isArray(response?.items)
+        ? response.items
+        : [];
+      return pickMatchFromList(directProducts);
+    } catch (error) {
+      console.warn(
+        `BaseLinker filtered lookup failed (${filterKey}=${filterValue}):`,
+        error.message
+      );
+      return null;
+    }
+  };
+
+  if (targetSku) {
+    const directMatch = await tryFilteredLookup('filter_sku', skuOrEan);
+    if (directMatch) {
+      return directMatch;
+    }
+  }
+  if (!targetSku && targetEan) {
+    const eanMatch = await tryFilteredLookup('filter_ean', skuOrEan);
+    if (eanMatch) {
+      return eanMatch;
+    }
+  }
+
+  while (page <= MAX_PAGES) {
+    const res = await callBaseLinker('getInventoryProductsList', {
+      inventory_id: inventoryId,
+      page,
+    });
+
+    const products = Array.isArray(res.products) ? res.products : [];
+    const match = pickMatchFromList(products);
 
     if (match) return match;
     if (products.length < 100) break;
