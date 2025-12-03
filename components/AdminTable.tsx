@@ -5,6 +5,7 @@ import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWin
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
+import { addMediaQueryListener } from '../utils/mediaQuery';
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
 type ColumnId =
@@ -128,8 +129,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 640px)');
     const handler = (event: MediaQueryListEvent) => setIsMobile(event.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    const detach = addMediaQueryListener(mq, handler);
+    return () => detach();
   }, []);
 
   useEffect(() => {

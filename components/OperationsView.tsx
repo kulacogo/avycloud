@@ -13,6 +13,7 @@ import {
 import { ScannerOverlay } from './ScannerOverlay';
 import { WarehouseIcon, SyncIcon, CameraIcon } from './icons/Icons';
 import { useI18n } from '../i18n';
+import { addMediaQueryListener } from '../utils/mediaQuery';
 
 interface OperationsViewProps {
   products: Product[];
@@ -541,10 +542,10 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       setIsMobile(event.matches);
       setShowOrdersPanel(event.matches ? false : true);
     };
-    mq.addEventListener('change', handler);
+    const detach = addMediaQueryListener(mq, handler);
     setIsMobile(mq.matches);
     setShowOrdersPanel(mq.matches ? false : true);
-    return () => mq.removeEventListener('change', handler);
+    return () => detach();
   }, []);
 
   const handleStow = async (resetAfter = false) => {

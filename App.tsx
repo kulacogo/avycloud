@@ -14,6 +14,7 @@ import Dashboard from './components/Dashboard';
 import OperationsView from './components/OperationsView';
 import { fetchProducts } from './api/client';
 import { useI18n } from './i18n';
+import { addMediaQueryListener } from './utils/mediaQuery';
 
 type View = 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
 const VIEW_STORAGE_KEY = 'avystock:view';
@@ -318,10 +319,8 @@ const App: React.FC = () => {
     const listener = (event: MediaQueryListEvent) => {
       setTheme(event.matches ? 'dark' : 'light');
     };
-    media.addEventListener('change', listener);
-    return () => {
-      media.removeEventListener('change', listener);
-    };
+    const detach = addMediaQueryListener(media, listener);
+    return () => detach();
   }, []);
 
   useEffect(() => {

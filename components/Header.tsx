@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useI18n } from '../i18n';
+import { addMediaQueryListener } from '../utils/mediaQuery';
 
 interface HeaderProps {
   currentView: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations';
@@ -97,8 +98,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 768px)');
     const handler = (event: MediaQueryListEvent) => setIsMobile(event.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    const detach = addMediaQueryListener(mq, handler);
+    return () => detach();
   }, []);
 
   const navIcons = React.useMemo(() => {
