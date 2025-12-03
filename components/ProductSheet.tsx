@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Product, DatasheetChange, ProductImage, WarehouseBin, GpsrInfo } from '../types';
+import { Product, DatasheetChange, ProductImage, WarehouseBin } from '../types';
 import {
   saveProduct,
   syncToBaseLinker,
@@ -37,24 +37,11 @@ const isGeneratedImageMeta = (image?: ProductImage) => {
 const filterReferenceCandidates = (images: ProductImage[] = []) =>
   images.filter((image) => !isGeneratedImageMeta(image));
 
-const ensureGpsrDefaults = (gpsr?: GpsrInfo | null): GpsrInfo => ({
-  manufacturer_name: gpsr?.manufacturer_name || '',
-  manufacturer_address: gpsr?.manufacturer_address || '',
-  manufacturer_email: gpsr?.manufacturer_email || '',
-  manufacturer_url: gpsr?.manufacturer_url || '',
-});
-
 const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving }) => {
   const { t } = useI18n();
   const [isEditing, setIsEditing] = useState(false);
   const normalizeProduct = useCallback(
-    (input: Product): Product => ({
-      ...input,
-      details: {
-        ...input.details,
-        gpsr: ensureGpsrDefaults(input.details?.gpsr),
-      },
-    }),
+    (input: Product): Product => input,
     []
   );
   const [localProduct, setLocalProduct] = useState<Product>(() => normalizeProduct(product));
@@ -109,7 +96,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     () => filterReferenceCandidates(localProduct.details?.images || []),
     [localProduct.details?.images]
   );
-  const gpsrInfo = localProduct.details?.gpsr || ensureGpsrDefaults();
 
   useEffect(() => {
     if (referenceImages.length) {
@@ -260,15 +246,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   };
 
   const handleSave = async () => {
-    const gpsr = localProduct.details?.gpsr || ensureGpsrDefaults();
-    if (
-      !gpsr.manufacturer_name?.trim() ||
-      !gpsr.manufacturer_address?.trim() ||
-      (!gpsr.manufacturer_email?.trim() && !gpsr.manufacturer_url?.trim())
-    ) {
-      showNotification('error', t('sheet.msg.gpsrMissing'));
-      return;
-    }
     setIsSaving(true);
     const result = await saveProduct(localProduct);
     if (result.ok && result.data) {
@@ -351,23 +328,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     loadProductBins(localProduct.id);
     showNotification('success', t('sheet.msg.binRemoveSuccess'));
   };
-
-  const handleGpsrChange = useCallback(
-    (field: keyof GpsrInfo, value: string) => {
-      setLocalProduct((prev) => ({
-        ...prev,
-        details: {
-          ...prev.details,
-          gpsr: {
-            ...ensureGpsrDefaults(prev.details.gpsr),
-            [field]: value,
-          },
-        },
-      }));
-      setIsDirty(true);
-    },
-    []
-  );
 
   const applyAssistantChange = (change: DatasheetChange) => {
     setLocalProduct(prev => {
@@ -791,76 +751,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             />
           </section>
 
-          <section id="gpsr" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
-            <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.gpsr.title')}</h3>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">{t('sheet.gpsr.name')}</label>
-                {isEditing ? (
-                  <input
-                    value={gpsrInfo.manufacturer_name}
-                    onChange={(e) => handleGpsrChange('manufacturer_name', e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
-                  />
-                ) : (
-                  <p className="text-slate-200">{gpsrInfo.manufacturer_name || t('common.na')}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">{t('sheet.gpsr.address')}</label>
-                {isEditing ? (
-                  <textarea
-                    value={gpsrInfo.manufacturer_address}
-                    rows={3}
-                    onChange={(e) => handleGpsrChange('manufacturer_address', e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
-                  />
-                ) : (
-                  <p className="text-slate-200 whitespace-pre-wrap break-words">
-                    {gpsrInfo.manufacturer_address || t('common.na')}
-                  </p>
-                )}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">{t('sheet.gpsr.email')}</label>
-                  {isEditing ? (
-                    <input
-                      type="email"
-                      value={gpsrInfo.manufacturer_email || ''}
-                      onChange={(e) => handleGpsrChange('manufacturer_email', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
-                    />
-                  ) : (
-                    <p className="text-slate-200 break-all">{gpsrInfo.manufacturer_email || t('common.na')}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">{t('sheet.gpsr.url')}</label>
-                  {isEditing ? (
-                    <input
-                      type="url"
-                      value={gpsrInfo.manufacturer_url || ''}
-                      onChange={(e) => handleGpsrChange('manufacturer_url', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
-                    />
-                  ) : gpsrInfo.manufacturer_url ? (
-                    <a
-                      href={gpsrInfo.manufacturer_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sky-400 underline break-all"
-                    >
-                      {gpsrInfo.manufacturer_url}
-                    </a>
-                  ) : (
-                    <p className="text-slate-200">{t('common.na')}</p>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-slate-500">{t('sheet.gpsr.contactHint')}</p>
-            </div>
-          </section>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

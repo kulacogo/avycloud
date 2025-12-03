@@ -285,7 +285,6 @@ function buildSystemPrompt(locale = 'de-DE') {
     `8. Sprache Deutsch (${locale}), Währung EUR, Preise nur mit echter Händler-URL und checked_at.`,
     `9. Produktbilder nur übernehmen, wenn Quelle eindeutig verifiziert ist; Dubletten vermeiden.`,
     `10. Ordne das Produkt einer passenden eBay.de Kategorie zu (Breadcrumb) und liefere die Pflicht-Item-Specifics als Keys (Werte leer wenn unbekannt).`,
-    `11. GPSR-Pflichtangaben: Liefere Herstellername, vollständige Adresse sowie mindestens eine Kontaktmöglichkeit (E-Mail oder Website). Falls Händler nichts angibt, schreibe "Unbekannt" und erläutere es in notes.unsure.`,
   ].join('\n');
 }
 
@@ -388,7 +387,6 @@ function buildUserPrompt({
     `10. pricing.lowest_price.sources benötigt echte Händler-URLs inkl. checked_at.`,
     `11. images array: min. 3 verifizierte Einträge sofern SerpAPI passende Quellen liefert.`,
     `12. Notiere Unsicherheiten in notes.unsure.`,
-    `13. GPSR: Gib Herstellername, postalische Adresse und mindestens E-Mail oder Website an (falls unbekannt, "Unbekannt" + Begründung in notes.unsure).`,
     `14. Nutze nur Informationen aus Vision, Barcodes oder SerpAPI – keine sonstigen Wissensbestände.`,
     `Sprache für Texte: Deutsch (${locale}).`
   );
