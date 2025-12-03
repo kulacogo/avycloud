@@ -1,6 +1,6 @@
 // Minimal, network-first Service Worker to avoid stale shell in PWA (iOS)
 // Update CACHE_VERSION to force eviction on deploys.
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v20251203';
 const CACHE_NAME = `avystock-shell-${CACHE_VERSION}`;
 const SHELL_ASSETS = ['/', '/index.html'];
 

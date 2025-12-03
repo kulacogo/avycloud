@@ -176,32 +176,6 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     return buildImageProxyUrl(value);
   }, []);
 
-  const resetPickForm = useCallback(() => {
-    if (workflow !== 'pick') return;
-    setPickBin('');
-    setPickSku('');
-    setPickQuantity(nextPickTask?.quantity || 1);
-    setPickScanStatus({ bin: 'pending', sku: 'pending' });
-  }, [nextPickTask, workflow]);
-
-  const evaluateScanStatus = useCallback(
-    (type: 'bin' | 'sku', value: string): ScanStatus => {
-      const task = nextPickTask;
-      if (!task || !value) {
-        return 'pending';
-      }
-      if (type === 'bin') {
-          return value.toUpperCase() === task.binCode?.toUpperCase() ? 'ok' : 'mismatch';
-      }
-      const expectedSku = (task.sku || '').trim().toLowerCase();
-      if (!expectedSku) {
-        return 'ok';
-      }
-      return value.trim().toLowerCase() === expectedSku ? 'ok' : 'mismatch';
-    },
-    [nextPickTask]
-  );
-
   const renderScanStatusBadge = useCallback(
     (status: ScanStatus) => {
       const base = 'px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide';
@@ -341,6 +315,32 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   }, [completedPickItemSet, openOrders, resolveProductForItem]);
 
   const nextPickTask = pickRouteTasks[0] || null;
+
+  const resetPickForm = useCallback(() => {
+    if (workflow !== 'pick') return;
+    setPickBin('');
+    setPickSku('');
+    setPickQuantity(nextPickTask?.quantity || 1);
+    setPickScanStatus({ bin: 'pending', sku: 'pending' });
+  }, [nextPickTask, workflow]);
+
+  const evaluateScanStatus = useCallback(
+    (type: 'bin' | 'sku', value: string): ScanStatus => {
+      const task = nextPickTask;
+      if (!task || !value) {
+        return 'pending';
+      }
+      if (type === 'bin') {
+        return value.toUpperCase() === task.binCode?.toUpperCase() ? 'ok' : 'mismatch';
+      }
+      const expectedSku = (task.sku || '').trim().toLowerCase();
+      if (!expectedSku) {
+        return 'ok';
+      }
+      return value.trim().toLowerCase() === expectedSku ? 'ok' : 'mismatch';
+    },
+    [nextPickTask]
+  );
 
   const handleScannerResult = (value: string) => {
     switch (scannerTarget) {
