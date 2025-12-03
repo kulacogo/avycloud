@@ -44,6 +44,13 @@ export interface Identifiers {
   sku?: string;
 }
 
+export interface GpsrInfo {
+  manufacturer_name: string;
+  manufacturer_address: string;
+  manufacturer_email?: string;
+  manufacturer_url?: string;
+}
+
 export interface Details {
   short_description: string;
   key_features: string[];
@@ -51,6 +58,7 @@ export interface Details {
   identifiers: Identifiers;
   images: ProductImage[];
   pricing: Pricing;
+  gpsr?: GpsrInfo;
 }
 
 export interface Identification {

@@ -10,6 +10,7 @@ const {
   deleteProduct,
   updateProductSyncStatus,
   listOrders,
+  findProductIdsByAliases,
 } = require('./lib/firestore');
 const {
   createJob: createImproveJob,
@@ -1311,14 +1312,50 @@ app.post('/api/save', async (req, res) => {
 app.delete('/api/products/:id', async (req, res) => {
   try {
     const productId = req.params.id;
+    const product = await getProduct(productId);
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 404,
+          message: 'Product not found',
+        },
+      });
+    }
 
-    // Delete images from Cloud Storage
+    const aliasSeeds = [
+      ...(product.ops?.identity_aliases || []),
+      ...(product.identification?.barcodes || []),
+      product.identification?.sku,
+      product.details?.identifiers?.ean,
+      product.details?.identifiers?.gtin,
+      product.details?.identifiers?.upc,
+      product.details?.identifiers?.mpn,
+      product.details?.identifiers?.sku,
+      product.id,
+    ];
+    const aliasCandidates = Array.from(
+      new Set(aliasSeeds.filter((token) => typeof token === 'string' && token.trim()))
+    );
+
     await deleteProductImages(productId);
-
-    // Delete from Firestore
     await deleteProduct(productId);
 
-    res.json({ ok: true });
+    let purgedDuplicates = [];
+    if (aliasCandidates.length) {
+      const duplicateIds = await findProductIdsByAliases(aliasCandidates, { excludeProductId: productId });
+      if (duplicateIds.length) {
+        await Promise.all(
+          duplicateIds.map(async (dupId) => {
+            await deleteProductImages(dupId);
+            await deleteProduct(dupId);
+          })
+        );
+        purgedDuplicates = duplicateIds;
+      }
+    }
+
+    res.json({ ok: true, purgedDuplicates });
   } catch (error) {
     console.error('Error deleting product:', error);
     res.status(500).json({

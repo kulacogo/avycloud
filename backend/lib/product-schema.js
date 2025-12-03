@@ -50,6 +50,32 @@ const priceSourceSchema = {
   },
 };
 
+const gpsrContactSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    manufacturer_name: { type: 'string', minLength: 2 },
+    manufacturer_address: { type: 'string', minLength: 5 },
+    manufacturer_email: { type: ['string', 'null'], format: 'email' },
+    manufacturer_url: { type: ['string', 'null'], format: 'uri' },
+  },
+  required: ['manufacturer_name', 'manufacturer_address'],
+  anyOf: [
+    {
+      required: ['manufacturer_email'],
+      properties: {
+        manufacturer_email: { type: 'string', format: 'email', minLength: 3 },
+      },
+    },
+    {
+      required: ['manufacturer_url'],
+      properties: {
+        manufacturer_url: { type: 'string', format: 'uri', minLength: 6 },
+      },
+    },
+  ],
+};
+
 const productSchema = {
   type: 'object',
   required: ['id', 'identification', 'details', 'ops', 'notes'],
@@ -74,7 +100,7 @@ const productSchema = {
     },
     details: {
       type: 'object',
-      required: ['short_description', 'key_features', 'attributes', 'identifiers', 'images', 'pricing'],
+      required: ['short_description', 'key_features', 'attributes', 'identifiers', 'images', 'pricing', 'gpsr'],
       additionalProperties: false,
       properties: {
         short_description: { type: 'string', minLength: 1 },
@@ -126,6 +152,7 @@ const productSchema = {
             price_confidence: { type: 'number', minimum: 0, maximum: 1 },
           },
         },
+        gpsr: gpsrContactSchema,
       },
     },
     ops: {

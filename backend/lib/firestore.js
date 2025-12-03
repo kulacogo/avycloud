@@ -10,6 +10,8 @@ const firestore = new Firestore({
 const PRODUCTS_COLLECTION = 'products';
 const ORDERS_COLLECTION = 'orders';
 const SKU_INDEX_COLLECTION = 'baselinker_sku_index';
+const PRODUCT_LIST_LIMIT = parseInt(process.env.PRODUCT_LIST_LIMIT || '0', 10);
+const MAX_ALIAS_LOOKUP = parseInt(process.env.MAX_ALIAS_LOOKUP || '50', 10);
 
 /**
  * Save a product to Firestore
@@ -81,10 +83,11 @@ async function getProduct(productId) {
  */
 async function getAllProducts() {
   try {
-    const snapshot = await firestore.collection(PRODUCTS_COLLECTION)
-      .orderBy('ops.last_saved_iso', 'desc')
-      .limit(100)
-      .get();
+    let query = firestore.collection(PRODUCTS_COLLECTION).orderBy('ops.last_saved_iso', 'desc');
+    if (Number.isFinite(PRODUCT_LIST_LIMIT) && PRODUCT_LIST_LIMIT > 0) {
+      query = query.limit(PRODUCT_LIST_LIMIT);
+    }
+    const snapshot = await query.get();
     
     const products = [];
     snapshot.forEach(doc => {
@@ -251,6 +254,30 @@ async function findProductByIdentityAliases(aliases = [], { excludeProductId = n
   return null;
 }
 
+async function findProductIdsByAliases(aliases = [], { excludeProductId = null } = {}) {
+  if (!Array.isArray(aliases) || !aliases.length) {
+    return [];
+  }
+  const filtered = Array.from(new Set(aliases.filter(Boolean))).slice(0, MAX_ALIAS_LOOKUP);
+  if (!filtered.length) {
+    return [];
+  }
+  const ids = new Set();
+  for (const alias of filtered) {
+    const snapshot = await firestore
+      .collection(PRODUCTS_COLLECTION)
+      .where('ops.identity_aliases', 'array-contains', alias)
+      .get();
+    snapshot.forEach((doc) => {
+      if (excludeProductId && doc.id === excludeProductId) {
+        return;
+      }
+      ids.add(doc.id);
+    });
+  }
+  return Array.from(ids);
+}
+
 async function adjustPendingIntakeQuantity(productId, delta = 0) {
   if (!productId || !delta) {
     return null;
@@ -388,6 +415,7 @@ module.exports = {
   updateProductSyncStatus,
   findProductByIdentityKey,
   findProductByIdentityAliases,
+  findProductIdsByAliases,
   findProductByStrictIdentifier, // Export the new function
   adjustPendingIntakeQuantity,
   appendProductIdentityAliases,
