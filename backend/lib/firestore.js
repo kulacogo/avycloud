@@ -1,5 +1,9 @@
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
-const { computeProductIdentityKey, buildIdentityAliasSet } = require('./product-identity');
+const {
+  computeProductIdentityKey,
+  buildIdentityAliasSet,
+  sanitizeIdentityValue,
+} = require('./product-identity');
 
 // Initialize Firestore
 const firestore = new Firestore({
@@ -12,6 +16,54 @@ const ORDERS_COLLECTION = 'orders';
 const SKU_INDEX_COLLECTION = 'baselinker_sku_index';
 const PRODUCT_LIST_LIMIT = parseInt(process.env.PRODUCT_LIST_LIMIT || '0', 10);
 const MAX_ALIAS_LOOKUP = parseInt(process.env.MAX_ALIAS_LOOKUP || '50', 10);
+
+const normalizeSkuValue = (val) =>
+  (val || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/^sku[-\s]*/i, '')
+    .replace(/\s+/g, '');
+
+const normalizeEanValue = (val) =>
+  (val || '')
+    .toString()
+    .replace(/\D+/g, '')
+    .trim();
+
+const buildSkuIndexKey = (type, value) => (value ? `${type}:${value}` : null);
+
+const collectSkuIndexKeys = (product = {}) => {
+  const keys = new Set();
+  const addSku = (value) => {
+    const normalized = normalizeSkuValue(value);
+    if (normalized) {
+      keys.add(buildSkuIndexKey('sku', normalized));
+    }
+  };
+  const addEan = (value) => {
+    const normalized = normalizeEanValue(value);
+    if (normalized && normalized.length >= 6) {
+      keys.add(buildSkuIndexKey('ean', normalized));
+    }
+  };
+
+  addSku(product?.identification?.sku);
+  addSku(product?.details?.identifiers?.sku);
+
+  addEan(product?.details?.identifiers?.ean);
+  addEan(product?.details?.identifiers?.gtin);
+  addEan(product?.details?.identifiers?.upc);
+
+  if (Array.isArray(product?.identification?.barcodes)) {
+    product.identification.barcodes.forEach(addEan);
+  }
+  if (Array.isArray(product?.ops?.identity_aliases)) {
+    product.ops.identity_aliases.forEach(addEan);
+  }
+
+  return Array.from(keys).filter(Boolean);
+};
 
 /**
  * Save a product to Firestore
@@ -109,10 +161,36 @@ async function getAllProducts() {
 /**
  * Delete a product from Firestore
  */
-async function deleteProduct(productId) {
+async function deleteProduct(productId, { existingData = null } = {}) {
+  if (!productId) {
+    throw new Error('Product ID is required for deletion.');
+  }
   try {
-    await firestore.collection(PRODUCTS_COLLECTION).doc(productId).delete();
-    console.log(`Product deleted from Firestore: ${productId}`);
+    const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
+    let productData = existingData;
+    if (!productData) {
+      const snapshot = await docRef.get();
+      if (!snapshot.exists) {
+        console.log(`Product not found for deletion: ${productId}`);
+        return false;
+      }
+      productData = snapshot.data() || {};
+    }
+
+    const batch = firestore.batch();
+    batch.delete(docRef);
+
+    const indexKeys = collectSkuIndexKeys(productData);
+    indexKeys.forEach((key) => {
+      if (!key) return;
+      batch.delete(firestore.collection(SKU_INDEX_COLLECTION).doc(key));
+    });
+
+    await batch.commit();
+
+    const suffix = indexKeys.length === 1 ? 'entry' : 'entries';
+    console.log(`Product deleted from Firestore: ${productId} (removed ${indexKeys.length} SKU index ${suffix})`);
+    return true;
   } catch (error) {
     console.error('Failed to delete product from Firestore:', error);
     throw new Error(`Failed to delete product: ${error.message}`);
@@ -278,6 +356,42 @@ async function findProductIdsByAliases(aliases = [], { excludeProductId = null }
   return Array.from(ids);
 }
 
+async function deleteProductsByIdentityAlias(alias, { limit = 50 } = {}) {
+  const normalizedAlias = sanitizeIdentityValue(alias);
+  if (!normalizedAlias) {
+    return { alias: null, deletedCount: 0, productIds: [] };
+  }
+  const cap = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 200) : 50;
+  const snapshot = await firestore
+    .collection(PRODUCTS_COLLECTION)
+    .where('ops.identity_aliases', 'array-contains', normalizedAlias)
+    .limit(cap)
+    .get();
+
+  if (snapshot.empty) {
+    return { alias: normalizedAlias, deletedCount: 0, productIds: [] };
+  }
+
+  const docs = snapshot.docs.map((doc) => ({ id: doc.id, data: doc.data() || {} }));
+  const deletedIds = [];
+  for (const doc of docs) {
+    try {
+      const removed = await deleteProduct(doc.id, { existingData: doc.data });
+      if (removed) {
+        deletedIds.push(doc.id);
+      }
+    } catch (error) {
+      console.error(`Failed to delete product ${doc.id} for alias ${normalizedAlias}:`, error.message);
+    }
+  }
+
+  return {
+    alias: normalizedAlias,
+    deletedCount: deletedIds.length,
+    productIds: deletedIds,
+  };
+}
+
 async function adjustPendingIntakeQuantity(productId, delta = 0) {
   if (!productId || !delta) {
     return null;
@@ -416,6 +530,7 @@ module.exports = {
   findProductByIdentityKey,
   findProductByIdentityAliases,
   findProductIdsByAliases,
+  deleteProductsByIdentityAlias,
   findProductByStrictIdentifier, // Export the new function
   adjustPendingIntakeQuantity,
   appendProductIdentityAliases,

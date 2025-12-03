@@ -11,6 +11,7 @@ const {
   updateProductSyncStatus,
   listOrders,
   findProductIdsByAliases,
+  deleteProductsByIdentityAlias,
 } = require('./lib/firestore');
 const {
   createJob: createImproveJob,
@@ -1365,6 +1366,35 @@ app.delete('/api/products/:id', async (req, res) => {
         message: 'Failed to delete product',
         details: error.message
       }
+    });
+  }
+});
+
+app.delete('/api/products/cleanup-by-alias/:alias', async (req, res) => {
+  try {
+    const { alias } = req.params;
+    if (!alias || !alias.trim()) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Alias parameter is required',
+        },
+      });
+    }
+    const requestedLimit = req.query?.limit ? parseInt(req.query.limit, 10) : undefined;
+    const options = Number.isFinite(requestedLimit) ? { limit: requestedLimit } : undefined;
+    const result = await deleteProductsByIdentityAlias(alias, options || {});
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error('Error deleting products by alias:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to delete products by alias',
+        details: error.message,
+      },
     });
   }
 });
