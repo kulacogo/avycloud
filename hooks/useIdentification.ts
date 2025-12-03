@@ -156,13 +156,26 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
   const enqueueIdentification = useCallback(
     async (groups: UploadGroupPayload[], barcodes: string, model?: string) => {
       const prepared = groups.filter((group) => group.images.length > 0);
-      if (!prepared.length) {
+      const hasBarcodes = Boolean(barcodes && barcodes.trim());
+      const groupsToProcess =
+        prepared.length > 0
+          ? prepared
+          : hasBarcodes
+          ? [
+              {
+                id: 'barcode-only',
+                label: 'Barcode-Identifikation',
+                images: [],
+              },
+            ]
+          : [];
+      if (!groupsToProcess.length) {
         setError('Bitte ordne mindestens einer Produktgruppe Bilder zu.');
         return;
       }
 
       try {
-        prepared.forEach((group) => validateGroup(group));
+        groupsToProcess.forEach((group) => validateGroup(group));
       } catch (validationError: any) {
         const message =
           validationError instanceof Error
@@ -173,7 +186,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
       }
 
       setError(null);
-      prepared.forEach((group) => {
+      groupsToProcess.forEach((group) => {
         startJobForGroup(group, barcodes, model);
       });
     },
