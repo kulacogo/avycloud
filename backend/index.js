@@ -41,6 +41,8 @@ const {
   getBinByCode,
   assignProductToBin,
   removeProductFromBin,
+  refreshProductInventory,
+  findProductDocument,
   bookStockIn,
   bookStockOut,
   listBinsForProduct,
@@ -1023,6 +1025,31 @@ app.post('/api/warehouse/stock-out', async (req, res) => {
     res.status(400).json({
       ok: false,
       error: { code: 400, message: error.message || 'Auslagerung fehlgeschlagen.' },
+    });
+  }
+});
+
+app.post('/api/warehouse/refresh-inventory', async (req, res) => {
+  try {
+    const { productId, sku, barcode } = req.body || {};
+    if (!productId && !sku && !barcode) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'productId, sku oder barcode ist erforderlich.' },
+      });
+    }
+
+    const { ref } = await findProductDocument({ productId, sku, barcode });
+    const resolvedProductId = ref.id;
+    await refreshProductInventory(resolvedProductId);
+    const product = await getProduct(resolvedProductId);
+
+    res.json({ ok: true, data: { product } });
+  } catch (error) {
+    console.error('Failed to refresh inventory for product:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Inventar konnte nicht aktualisiert werden.', details: error.message },
     });
   }
 });

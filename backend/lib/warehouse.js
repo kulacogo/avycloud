@@ -726,6 +726,8 @@ module.exports = {
   getBinByCode,
   assignProductToBin,
   removeProductFromBin,
+  refreshProductInventory,
+  findProductDocument,
   buildBinCode,
   parseNumericSelection,
   parseLetterSelection,
