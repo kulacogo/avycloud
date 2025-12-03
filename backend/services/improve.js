@@ -364,6 +364,11 @@ function mergeDetails(existing = {}, incoming = {}) {
     ...(existing || {}),
     ...(incoming || {}),
   };
+  if ('gpsr' in merged) {
+    // GPSR metadata has been deprecated in the product schema; ensure we drop it so
+    // improved products stay compliant with additionalProperties: false on details.
+    delete merged.gpsr;
+  }
   merged.short_description = pickBetterText(existing?.short_description, incoming?.short_description);
   merged.key_features = mergeKeyFeatures(existing?.key_features, incoming?.key_features);
   merged.key_features = sanitizeKeyFeatures(merged.key_features);
