@@ -64,4 +64,3 @@ export const addMediaQueryListener = (
 
   return () => undefined;
 };
-
