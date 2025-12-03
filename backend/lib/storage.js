@@ -6,7 +6,7 @@ const storage = new Storage({
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
 });
 
-const PREFERRED_BUCKET = 'avycloud-genai-images';
+const PREFERRED_BUCKET = 'prodsandjobs';
 const envBucket = process.env.STORAGE_BUCKET;
 
 if (envBucket && envBucket !== PREFERRED_BUCKET) {

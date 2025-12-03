@@ -35,16 +35,16 @@ gcloud run deploy product-hub-backend \
 ### 3. Neues Produktbild-Bucket anlegen (öffentlich & uploadbar)
 
 ```sh
-gcloud storage buckets create gs://avycloud-genai-images \
+gcloud storage buckets create gs://prodsandjobs \
   --project=avycloud \
   --location=europe-west3 \
   --uniform-bucket-level-access
 
-gcloud storage buckets add-iam-policy-binding gs://avycloud-genai-images \
+gcloud storage buckets add-iam-policy-binding gs://prodsandjobs \
   --member="allUsers" \
   --role="roles/storage.objectViewer"
 
-gcloud storage buckets add-iam-policy-binding gs://avycloud-genai-images \
+gcloud storage buckets add-iam-policy-binding gs://prodsandjobs \
   --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
   --role="roles/storage.objectCreator"
 ```
