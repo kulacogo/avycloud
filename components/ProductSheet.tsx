@@ -62,6 +62,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [selectedReferenceIndex, setSelectedReferenceIndex] = useState<number>(-1);
   const [isUploadDragActive, setIsUploadDragActive] = useState(false);
+  const [barcodeInput, setBarcodeInput] = useState<string>(() => (product.identification?.barcodes || []).join('\n'));
 
   const loadProductBins = useCallback(
     async (productId: string) => {
@@ -90,6 +91,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setBinQuantity(product.storage?.quantity || product.inventory?.quantity || 1);
     setNewImageUrl('');
     loadProductBins(product.id);
+    setBarcodeInput((product.identification?.barcodes || []).join('\n'));
   }, [product, loadProductBins, normalizeProduct]);
 
   const referenceImages = useMemo(
@@ -247,24 +249,27 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const handleSave = async () => {
     setIsSaving(true);
-    const result = await saveProduct(localProduct);
+    const productToSave = buildProductWithBarcodeDraft();
+    setLocalProduct(productToSave);
+    const result = await saveProduct(productToSave);
     if (result.ok && result.data) {
-      const assignedSku = result.data.sku || localProduct.identification.sku || localProduct.details.identifiers?.sku || null;
+      const assignedSku =
+        result.data.sku || productToSave.identification.sku || productToSave.details.identifiers?.sku || null;
       const updatedProduct: Product = {
-        ...localProduct,
+        ...productToSave,
         identification: {
-            ...localProduct.identification,
-            sku: assignedSku || localProduct.identification.sku,
+          ...productToSave.identification,
+          sku: assignedSku || productToSave.identification.sku,
         },
         details: {
-            ...localProduct.details,
-            identifiers: {
-                ...(localProduct.details.identifiers || {}),
-                sku: assignedSku || localProduct.details.identifiers?.sku || undefined,
-            },
+          ...productToSave.details,
+          identifiers: {
+            ...(productToSave.details.identifiers || {}),
+            sku: assignedSku || productToSave.details.identifiers?.sku || undefined,
+          },
         },
         ops: {
-          ...localProduct.ops,
+          ...productToSave.ops,
           revision: result.data.revision,
           last_saved_iso: new Date().toISOString(),
         },
@@ -274,6 +279,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       onUpdate(normalized);
       setIsEditing(false);
       setIsDirty(false);
+      setBarcodeInput((normalized.identification?.barcodes || []).join('\n'));
       showNotification('success', t('sheet.msg.saveSuccess'));
     } else {
       showNotification('error', result.error?.message || t('sheet.msg.saveError'));
@@ -390,6 +396,25 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsDirty(true);
     showNotification('success', t('sheet.msg.imagesAdded', { count: safeImages.length }));
   };
+
+  const parseBarcodes = useCallback((input: string) => {
+    const entries = input
+      .split(/[\n,;]+/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    return Array.from(new Set(entries));
+  }, []);
+
+  const buildProductWithBarcodeDraft = useCallback(() => {
+    const parsedBarcodes = parseBarcodes(barcodeInput);
+    return {
+      ...localProduct,
+      identification: {
+        ...localProduct.identification,
+        barcodes: parsedBarcodes,
+      },
+    };
+  }, [barcodeInput, localProduct, parseBarcodes]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -560,9 +585,28 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <span className="ml-1">{t('common.printLabel')}</span>
                 </button>
               </div>
-              <p id="p-barcodes" className="text-xs text-slate-500 mt-1">
-                {t('common.barcodeLabel')}: {localProduct.identification.barcodes?.join(', ') || t('common.na')}
-              </p>
+              {isEditing ? (
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    {t('common.barcodeLabel')}
+                  </label>
+                  <textarea
+                    value={barcodeInput}
+                    onChange={(e) => {
+                      setBarcodeInput(e.target.value);
+                      setIsDirty(true);
+                    }}
+                    rows={Math.min(4, Math.max(2, barcodeInput.split('\n').length || 2))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200"
+                    placeholder={t('input.barcodes.placeholder')}
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">{t('input.barcodes.hint')}</p>
+                </div>
+              ) : (
+                <p id="p-barcodes" className="text-xs text-slate-500 mt-1">
+                  {t('common.barcodeLabel')}: {localProduct.identification.barcodes?.join(', ') || t('common.na')}
+                </p>
+              )}
             </div>
             <div className="actions flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto justify-end">
               <button
