@@ -6,7 +6,16 @@ const storage = new Storage({
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
 });
 
-const BUCKET_NAME = process.env.STORAGE_BUCKET || 'avycloud-genai-images';
+const PREFERRED_BUCKET = 'avycloud-genai-images';
+const envBucket = process.env.STORAGE_BUCKET;
+
+if (envBucket && envBucket !== PREFERRED_BUCKET) {
+  console.warn(
+    `[storage] STORAGE_BUCKET="${envBucket}" ignored – forcing ${PREFERRED_BUCKET} as required bucket.`
+  );
+}
+
+const BUCKET_NAME = PREFERRED_BUCKET;
 const MIN_IMAGE_LONGEST_EDGE = parseInt(process.env.MIN_IMAGE_LONGEST_EDGE || '1200', 10);
 const MAX_IMAGE_LONGEST_EDGE = parseInt(process.env.MAX_IMAGE_LONGEST_EDGE || '2000', 10);
 let bucket;
