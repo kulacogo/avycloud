@@ -79,7 +79,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped 
   return (
     <aside
       ref={containerRef}
-      className={`relative flex h-full min-h-[420px] flex-col rounded-xl border border-slate-800/80 bg-slate-900/80 text-slate-100 ${
+      className={`relative flex min-h-[420px] flex-col rounded-xl border border-slate-800/80 bg-slate-900/80 text-slate-100 ${
         isDragActive ? 'ring-2 ring-sky-500' : ''
       }`}
       style={{ width: isCompact ? '100%' : `${width}px` }}

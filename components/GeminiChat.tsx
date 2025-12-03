@@ -506,7 +506,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         </button>
       </header>
 
-      <div className="flex h-full flex-col gap-3 px-4 py-3">
+      <div className="flex flex-1 flex-col gap-3 px-4 py-3">
         <div ref={chatBodyRef} className="flex-1 space-y-3 overflow-y-auto pr-1">
           {messages.map((msg) => (
             <MessageBubble
