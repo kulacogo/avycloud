@@ -431,6 +431,38 @@ async function appendProductIdentityAliases(productId, aliases = []) {
   );
 }
 
+async function removeProductIdentityAliases(productId, aliases = []) {
+  if (!productId || !Array.isArray(aliases) || !aliases.length) {
+    return;
+  }
+  const normalized = aliases.map((alias) => sanitizeIdentityValue(alias)).filter(Boolean);
+  if (!normalized.length) {
+    return;
+  }
+  const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
+  await docRef.set(
+    {
+      ops: {
+        identity_aliases: FieldValue.arrayRemove(...normalized),
+      },
+    },
+    { merge: true }
+  );
+
+  // Clean up SKU/EAN index entries that may have been created for the alias values
+  const indexKeys = normalized
+    .map((alias) => buildSkuIndexKey('ean', normalizeEanValue(alias)))
+    .filter(Boolean);
+  if (!indexKeys.length) {
+    return;
+  }
+  const batch = firestore.batch();
+  indexKeys.forEach((key) => {
+    batch.delete(firestore.collection(SKU_INDEX_COLLECTION).doc(key));
+  });
+  await batch.commit();
+}
+
 async function saveOrders(orders = []) {
   if (!Array.isArray(orders) || orders.length === 0) {
     return [];
@@ -534,6 +566,7 @@ module.exports = {
   findProductByStrictIdentifier, // Export the new function
   adjustPendingIntakeQuantity,
   appendProductIdentityAliases,
+  removeProductIdentityAliases,
   saveOrders,
   listOrders,
   getOrderById,

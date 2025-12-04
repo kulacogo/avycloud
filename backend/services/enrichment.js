@@ -446,6 +446,54 @@ function normalizeBundle(bundle) {
   return bundle;
 }
 
+function attachReferenceImages(products = [], hostedImages = []) {
+  if (!Array.isArray(products) || !products.length) {
+    return;
+  }
+  if (!Array.isArray(hostedImages) || !hostedImages.length) {
+    return;
+  }
+  const normalizedUploads = hostedImages
+    .map((img, index) => {
+      if (!img?.url) return null;
+      return {
+        source: 'upload',
+        variant: 'reference',
+        url_or_base64: img.url,
+        notes: img.filename || `upload_${index + 1}`,
+        width: img.width || null,
+        height: img.height || null,
+        mimeType: img.mimeType || null,
+      };
+    })
+    .filter(Boolean);
+  if (!normalizedUploads.length) {
+    return;
+  }
+  products.forEach((product) => {
+    if (!product) return;
+    product.details = product.details || {};
+    const existing = Array.isArray(product.details.images) ? [...product.details.images] : [];
+    const existingKeys = new Set(
+      existing.map((img) => (img?.url_or_base64 || '').toLowerCase()).filter(Boolean)
+    );
+    const toAppend = [];
+    for (const upload of normalizedUploads) {
+      const key = upload.url_or_base64.toLowerCase();
+      if (existingKeys.has(key)) {
+        continue;
+      }
+      toAppend.push(upload);
+      existingKeys.add(key);
+    }
+    if (toAppend.length) {
+      product.details.images = [...existing, ...toAppend];
+    } else {
+      product.details.images = existing;
+    }
+  });
+}
+
 function injectMissingBarcodes(products = [], barcodeList = []) {
   if (!Array.isArray(products) || !products.length || !barcodeList.length) {
     return;
@@ -1179,6 +1227,7 @@ async function runProductIdentification({
       const bundle = parseModelJson(response);
       ensureSchema(bundle);
       normalizeBundle(bundle);
+      attachReferenceImages(bundle.products, hostedImages);
       injectMissingBarcodes(bundle.products, barcodeList);
       await ensureMarketingCopy(bundle.products, locale);
       applyEbayTaxonomy(bundle);

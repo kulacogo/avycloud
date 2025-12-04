@@ -10,6 +10,7 @@ const {
   findProductByStrictIdentifier, // Import new function
   adjustPendingIntakeQuantity,
   appendProductIdentityAliases,
+  removeProductIdentityAliases,
 } = require('../lib/firestore');
 const { ensureProductSku } = require('../lib/sku');
 const { computeProductIdentityKey, buildIdentityAliasSet } = require('../lib/product-identity');
@@ -21,6 +22,12 @@ const ALIAS_QUERY_LIMIT = parseInt(process.env.IDENTITY_ALIAS_QUERY_LIMIT || '10
 const queue = new PQueue({ concurrency: CONCURRENCY });
 let sweepTimer = null;
 let sweepInFlight = false;
+
+const normalizeBarcodeValue = (value) =>
+  (value || '')
+    .toString()
+    .replace(/\D+/g, '')
+    .trim();
 
 function buildDedupeKey(product) {
   const identity = computeProductIdentityKey(product);
@@ -99,6 +106,9 @@ async function processJob(jobId) {
           if (aliasSet.length) {
             product.ops.identity_aliases = aliasSet;
           }
+          const normalizedProductBarcodes = Array.isArray(product.identification?.barcodes)
+            ? product.identification.barcodes.map(normalizeBarcodeValue).filter(Boolean)
+            : [];
           let matchedExistingProduct = null;
           let matchedProductId = null;
 
@@ -139,20 +149,40 @@ async function processJob(jobId) {
               maxQueries: ALIAS_QUERY_LIMIT,
             });
             if (aliasMatch?.id) {
-              matchedExistingProduct = aliasMatch;
-              matchedProductId = aliasMatch.id;
-              const mergedAliases = Array.from(
-                new Set([
-                  ...(aliasMatch.ops?.identity_aliases || []),
-                  ...(product.ops.identity_aliases || []),
-                ])
-              ).slice(0, 100);
-              if (mergedAliases.length) {
-                product.ops.identity_aliases = mergedAliases;
+              const aliasMatchBarcodes = Array.isArray(aliasMatch.identification?.barcodes)
+                ? aliasMatch.identification.barcodes.map(normalizeBarcodeValue).filter(Boolean)
+                : [];
+              let aliasRejected = false;
+              if (
+                normalizedProductBarcodes.length &&
+                aliasMatchBarcodes.length &&
+                !normalizedProductBarcodes.some((code) => aliasMatchBarcodes.includes(code))
+              ) {
+                aliasRejected = true;
+                console.warn(
+                  `Rejected alias match for ${aliasMatch.id} due to barcode mismatch (incoming ${normalizedProductBarcodes.join(
+                    ', '
+                  )} vs existing ${aliasMatchBarcodes.join(', ')})`
+                );
+                await removeProductIdentityAliases(aliasMatch.id, normalizedProductBarcodes);
               }
-              console.log(
-                `Resolved duplicate product candidate via alias-set match for ${aliasMatch.id} (job ${jobId})`
-              );
+
+              if (!aliasRejected) {
+                matchedExistingProduct = aliasMatch;
+                matchedProductId = aliasMatch.id;
+                const mergedAliases = Array.from(
+                  new Set([
+                    ...(aliasMatch.ops?.identity_aliases || []),
+                    ...(product.ops.identity_aliases || []),
+                  ])
+                ).slice(0, 100);
+                if (mergedAliases.length) {
+                  product.ops.identity_aliases = mergedAliases;
+                }
+                console.log(
+                  `Resolved duplicate product candidate via alias-set match for ${aliasMatch.id} (job ${jobId})`
+                );
+              }
             }
           }
 
