@@ -19,7 +19,9 @@ interface OperationsViewProps {
   products: Product[];
   onProductUpdate: (product: Product) => void;
   onStockChanged?: (bin: WarehouseBin) => void;
-  onSwitchView?: (view: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations') => void;
+  onSwitchView?: (
+    view: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations' | 'queue'
+  ) => void;
 }
 
 type WorkflowMode = 'stow' | 'pick';

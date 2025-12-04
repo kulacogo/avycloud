@@ -10,6 +10,7 @@ import {
   IdentifyPhase,
   Order,
   ProductImage,
+  IdentificationJob,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -42,6 +43,25 @@ const BACKEND_URL = (() => {
 
 const JOB_POLL_INTERVAL_MS = 2000;
 const JOB_TIMEOUT_MS = 10 * 60 * 1000;
+interface FetchIdentificationJobsParams {
+  statuses?: string[];
+  limit?: number;
+  cursor?: string | null;
+  order?: 'asc' | 'desc';
+  signal?: AbortSignal;
+}
+
+interface IdentificationJobsResponse {
+  jobs: IdentificationJob[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  stats: Record<string, number>;
+  filters: {
+    statuses: string[];
+    limit: number;
+    order: 'asc' | 'desc';
+  };
+}
 
 export const buildImageProxyUrl = (sourceUrl?: string | null) => {
   if (!sourceUrl) return '';
@@ -353,6 +373,79 @@ export const pollIdentificationJob = async (
   const reportStatus = createStatusReporter(options?.onStatus);
   reportStatus('queued');
   return waitForJobResult(jobId, options?.signal, reportStatus);
+};
+
+const buildJobQueryString = (params: FetchIdentificationJobsParams) => {
+  const search = new URLSearchParams();
+  if (Array.isArray(params.statuses) && params.statuses.length) {
+    params.statuses.forEach((status) => {
+      if (status) {
+        search.append('status', status);
+      }
+    });
+  }
+  if (typeof params.limit === 'number') {
+    search.set('limit', String(params.limit));
+  }
+  if (params.cursor) {
+    search.set('cursor', params.cursor);
+  }
+  if (params.order) {
+    search.set('order', params.order);
+  }
+  return search.toString();
+};
+
+export const fetchIdentificationJobs = async (
+  params: FetchIdentificationJobsParams = {}
+): Promise<IdentificationJobsResponse> => {
+  const query = buildJobQueryString(params);
+  const url = query ? `${BACKEND_URL}/api/jobs?${query}` : `${BACKEND_URL}/api/jobs`;
+  const response = await fetch(url, {
+    method: 'GET',
+    signal: params.signal,
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Jobs konnten nicht geladen werden.');
+  }
+  const data = result?.data || {};
+  return {
+    jobs: Array.isArray(data.jobs) ? (data.jobs as IdentificationJob[]) : [],
+    nextCursor: data.nextCursor || null,
+    hasMore: Boolean(data.hasMore),
+    stats: data.stats || {},
+    filters: {
+      statuses: Array.isArray(data.filters?.statuses) ? data.filters.statuses : [],
+      limit: data.filters?.limit || params.limit || 50,
+      order: data.filters?.order === 'asc' ? 'asc' : 'desc',
+    },
+  };
+};
+
+export const retryIdentificationJob = async (
+  jobId: string
+): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/jobs/${jobId}/retry`, {
+      method: 'POST',
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: {
+          code: response.status,
+          message: result?.error?.message || 'Job konnte nicht neu gestartet werden.',
+        },
+      };
+    }
+    return { ok: true };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
 };
 
 // --- The rest of the functions remain as mocks for now ---

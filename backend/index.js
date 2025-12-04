@@ -19,7 +19,7 @@ const {
 } = require('./lib/improve-jobs');
 const { uploadBase64Image, deleteProductImages, uploadJobFile } = require('./lib/storage');
 const { recordManualProductImage } = require('./lib/product-images');
-const { createJob, getJob } = require('./lib/jobs');
+const { createJob, getJob, updateJob, listJobs, FieldValue } = require('./lib/jobs');
 const { ensureProductSku } = require('./lib/sku');
 const {
   runProductIdentification,
@@ -138,6 +138,7 @@ const CHAT_ATTACHMENT_MIME_WHITELIST = new Set([
 const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024; // 8 MB per file, total tracked separately
 const MAX_IMPROVE_BATCH = parseInt(process.env.MAX_IMPROVE_BATCH || '20', 10);
 const GENERATED_IMAGE_SIGNATURE = /\b(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)\b/i;
+const JOB_STATUS_FILTERS = ['pending', 'processing', 'failed', 'done'];
 
 function looksGeneratedImageMeta(image = {}) {
   if (!image || typeof image !== 'object') {
@@ -162,6 +163,75 @@ function isVertexAiImage(image = {}) {
     /vertex/.test(notes)
   );
 }
+
+const normalizeJobStatuses = (raw) => {
+  if (!raw) {
+    return null;
+  }
+  const values = Array.isArray(raw) ? raw : String(raw).split(',');
+  const normalized = values
+    .map((value) => value && value.toString().trim().toLowerCase())
+    .filter((value) => value && JOB_STATUS_FILTERS.includes(value));
+  return normalized.length ? Array.from(new Set(normalized)) : null;
+};
+
+const summarizeJobPayload = (payload = {}) => {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  const files = Array.isArray(payload.files)
+    ? payload.files.map((file) => ({
+        path: file?.path || null,
+        originalName: file?.originalName || null,
+        mimeType: file?.mimeType || null,
+        size: Number.isFinite(file?.size) ? file.size : null,
+      }))
+    : [];
+  return {
+    locale: payload.locale || null,
+    model: payload.model || null,
+    barcodes: payload.barcodes || '',
+    fileCount: files.length,
+    files,
+  };
+};
+
+const summarizeJobResult = (job = {}) => {
+  if (!job || !job.result) {
+    return null;
+  }
+  const products = Array.isArray(job.result?.products) ? job.result.products : [];
+  if (!products.length) {
+    return { productCount: 0, products: [] };
+  }
+  return {
+    productCount: products.length,
+    products: products.slice(0, 5).map((product) => ({
+      id: product?.id || null,
+      name: product?.identification?.name || product?.details?.identifiers?.sku || null,
+      sku:
+        product?.identification?.sku ||
+        product?.details?.identifiers?.sku ||
+        product?.details?.identifiers?.ean ||
+        null,
+    })),
+  };
+};
+
+const formatJobForResponse = (job = {}) => ({
+  id: job.id,
+  status: job.status,
+  attempts: job.attempts || 0,
+  createdAt: job.createdAt || null,
+  updatedAt: job.updatedAt || null,
+  startedAt: job.startedAt || null,
+  finishedAt: job.finishedAt || null,
+  model: job.modelUsed || job.payload?.model || null,
+  payload: summarizeJobPayload(job.payload),
+  error: job.error || null,
+  result: summarizeJobResult(job),
+  reuseEvents: Array.isArray(job.reuseEvents) ? job.reuseEvents : undefined,
+});
 const allowedOrigins = [
   'https://avycloud.web.app',
   'https://avycloud.firebaseapp.com',
@@ -310,6 +380,57 @@ app.post('/api/jobs', upload.array('images'), async (req, res) => {
   }
 });
 
+app.get('/api/jobs', async (req, res) => {
+  try {
+    const statuses = normalizeJobStatuses(req.query?.status) || ['pending', 'processing'];
+    const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 50, 1), 100);
+    const cursor = typeof req.query?.cursor === 'string' && req.query.cursor ? req.query.cursor : null;
+    const order = req.query?.order === 'asc' ? 'asc' : 'desc';
+
+    const { jobs, nextCursor } = await listJobs({
+      statuses,
+      limit,
+      cursor,
+      order,
+    });
+
+    const formatted = jobs.map(formatJobForResponse);
+    const stats = formatted.reduce(
+      (acc, job) => {
+        const key = job.status || 'unknown';
+        acc[key] = (acc[key] || 0) + 1;
+        acc.total += 1;
+        return acc;
+      },
+      { total: 0 }
+    );
+
+    res.json({
+      ok: true,
+      data: {
+        jobs: formatted,
+        nextCursor,
+        hasMore: Boolean(nextCursor),
+        stats,
+        filters: {
+          statuses,
+          limit,
+          order,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Failed to list identification jobs:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to load identification jobs.',
+      },
+    });
+  }
+});
+
 app.get('/api/jobs/:id', async (req, res) => {
   try {
     const job = await getJob(req.params.id);
@@ -354,6 +475,58 @@ app.get('/api/jobs/:id', async (req, res) => {
         code: 500,
         message: 'Failed to load job',
         details: error.message,
+      },
+    });
+  }
+});
+
+app.post('/api/jobs/:id/retry', async (req, res) => {
+  const jobId = req.params?.id;
+  if (!jobId) {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: 400,
+        message: 'Job-ID fehlt.',
+      },
+    });
+  }
+  try {
+    const job = await getJob(jobId);
+    if (!job) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 404,
+          message: 'Job nicht gefunden.',
+        },
+      });
+    }
+
+    await updateJob(jobId, {
+      status: 'pending',
+      startedAt: FieldValue.delete(),
+      finishedAt: FieldValue.delete(),
+      error: FieldValue.delete(),
+      result: FieldValue.delete(),
+      serpTrace: FieldValue.delete(),
+      reuseEvents: FieldValue.delete(),
+    });
+    enqueueJob(jobId, true);
+    res.json({
+      ok: true,
+      data: {
+        id: jobId,
+        status: 'pending',
+      },
+    });
+  } catch (error) {
+    console.error(`Failed to retry job ${jobId}:`, error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Job konnte nicht neu gestartet werden.',
       },
     });
   }

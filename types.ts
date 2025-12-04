@@ -259,3 +259,48 @@ export interface IdentifyStatus {
   startedAt?: string;
   updatedAt?: string;
 }
+
+export type IdentificationJobStatus = 'pending' | 'processing' | 'failed' | 'done';
+
+export interface IdentificationJobFileSummary {
+  path: string | null;
+  originalName: string | null;
+  mimeType: string | null;
+  size: number | null;
+}
+
+export interface IdentificationJobProductSummary {
+  id: string | null;
+  name: string | null;
+  sku: string | null;
+}
+
+export interface IdentificationJobPayloadSummary {
+  locale?: string | null;
+  model?: string | null;
+  barcodes?: string;
+  fileCount?: number;
+  files?: IdentificationJobFileSummary[];
+}
+
+export interface IdentificationJobResultSummary {
+  productCount: number;
+  products: IdentificationJobProductSummary[];
+}
+
+export interface IdentificationJob {
+  id: string;
+  status: IdentificationJobStatus;
+  attempts: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  model?: string | null;
+  payload?: IdentificationJobPayloadSummary | null;
+  error?: {
+    message?: string;
+  } | null;
+  result?: IdentificationJobResultSummary | null;
+  reuseEvents?: any[];
+}

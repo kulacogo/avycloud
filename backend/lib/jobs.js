@@ -117,6 +117,38 @@ async function claimJob(jobId) {
   });
 }
 
+async function listJobs(options = {}) {
+  const {
+    statuses = null,
+    limit = 50,
+    cursor = null,
+    order = 'desc',
+  } = options || {};
+
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
+  let query = collection().orderBy('createdAt', order === 'asc' ? 'asc' : 'desc').limit(safeLimit);
+
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    query = query.where('status', 'in', statuses.slice(0, 10));
+  }
+
+  if (cursor) {
+    const cursorSnapshot = await collection().doc(cursor).get();
+    if (cursorSnapshot.exists) {
+      query = query.startAfter(cursorSnapshot);
+    }
+  }
+
+  const snapshot = await query.get();
+  const jobs = snapshot.docs.map(serializeJob).filter(Boolean);
+  const nextCursor =
+    snapshot.docs.length === safeLimit
+      ? snapshot.docs[snapshot.docs.length - 1].id
+      : null;
+
+  return { jobs, nextCursor };
+}
+
 async function listJobsByStatus(statuses = ['pending']) {
   if (!Array.isArray(statuses) || statuses.length === 0) {
     return [];
@@ -132,6 +164,7 @@ module.exports = {
   updateJob,
   claimJob,
   listJobsByStatus,
+  listJobs,
   Timestamp,
   FieldValue,
 };
