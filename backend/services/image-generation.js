@@ -1,3 +1,4 @@
+const sharp = require('sharp');
 const { generateProductImages } = require('../lib/vertex-ai');
 const { uploadBase64Image } = require('../lib/storage');
 const { generateVisualDescriptions } = require('./prompt-engine');
@@ -5,6 +6,7 @@ const { fetchWithUnlocker } = require('../lib/web-unlocker');
 
 const GENERATED_IMAGE_PATTERN = /(generated|gpt|gemini|vertex|ai[-\s]?image|ai[-\s]?render)/i;
 const MAX_REFERENCE_BYTES = parseInt(process.env.VERTEX_REFERENCE_MAX_BYTES || '12000000', 10);
+const SUPPORTED_REFERENCE_MIME_TYPES = new Set(['image/png', 'image/jpeg']);
 
 function isLikelyAiImage(image = {}) {
   const source = String(image.source || '').toLowerCase();
@@ -39,6 +41,23 @@ function pickAttribute(product, candidates = []) {
 
 const VERTEX_REFERENCE_TIMEOUT_MS = parseInt(process.env.VERTEX_REFERENCE_TIMEOUT_MS || '20000', 10);
 
+async function normalizeReferenceBuffer(buffer, mimeType = 'image/png') {
+  let targetBuffer = buffer;
+  let targetMime = (mimeType || '').toLowerCase();
+
+  if (!SUPPORTED_REFERENCE_MIME_TYPES.has(targetMime)) {
+    // Convert unsupported formats (e.g., webp, gif) to PNG via sharp
+    targetBuffer = await sharp(buffer).png({ quality: 92 }).toBuffer();
+    targetMime = 'image/png';
+  }
+
+  if (targetBuffer.length > MAX_REFERENCE_BYTES) {
+    throw new Error(`Reference image exceeds ${Math.floor(MAX_REFERENCE_BYTES / (1024 * 1024))} MB limit`);
+  }
+
+  return `data:${targetMime};base64,${targetBuffer.toString('base64')}`;
+}
+
 async function fetchImageAsDataUrl(image) {
   const value = image?.url_or_base64;
   if (!value) {
@@ -46,7 +65,12 @@ async function fetchImageAsDataUrl(image) {
   }
 
   if (value.startsWith('data:')) {
-    return value;
+    const match = value.match(/^data:(?<mime>[^;]+);base64,(?<data>.+)$/);
+    if (!match?.groups?.data) {
+      throw new Error('Invalid data URL reference image.');
+    }
+    const buffer = Buffer.from(match.groups.data, 'base64');
+    return normalizeReferenceBuffer(buffer, match.groups.mime);
   }
 
   if (/^https?:\/\//i.test(value)) {
@@ -72,10 +96,7 @@ async function fetchImageAsDataUrl(image) {
     const buffer = result.body_base64
       ? Buffer.from(result.body_base64, 'base64')
       : Buffer.from(result.body || '', 'binary');
-    if (buffer.length > MAX_REFERENCE_BYTES) {
-      throw new Error(`Reference image exceeds ${Math.floor(MAX_REFERENCE_BYTES / (1024 * 1024))} MB limit`);
-    }
-    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+    return normalizeReferenceBuffer(buffer, mimeType);
   }
 
   throw new Error('Unsupported reference image format.');
