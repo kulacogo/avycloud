@@ -5,6 +5,64 @@ const {
   sanitizeIdentityValue,
 } = require('./product-identity');
 
+function isFirestoreSpecialValue(value) {
+  if (!value) return false;
+  if (value instanceof FieldValue) {
+    return true;
+  }
+  const ctorName = value?.constructor?.name;
+  return ctorName === 'FieldValue';
+}
+
+function sanitizeFirestoreValue(value) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+    return value;
+  }
+
+  if (typeof value === 'string' || typeof value === 'boolean') {
+    return value;
+  }
+
+  if (value instanceof Date || Buffer.isBuffer?.(value)) {
+    return value;
+  }
+
+  if (isFirestoreSpecialValue(value)) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    const cleaned = value
+      .map((item) => sanitizeFirestoreValue(item))
+      .filter((item) => item !== undefined);
+    return cleaned;
+  }
+
+  if (typeof value === 'object') {
+    const cleaned = {};
+    for (const [key, nested] of Object.entries(value)) {
+      const sanitized = sanitizeFirestoreValue(nested);
+      if (sanitized !== undefined) {
+        cleaned[key] = sanitized;
+      }
+    }
+    return cleaned;
+  }
+
+  return undefined;
+}
+
 // Initialize Firestore
 const firestore = new Firestore({
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud'
@@ -93,8 +151,9 @@ async function saveProduct(product) {
         revision: ((ops.revision || 0)) + 1
       }
     };
-    
-    await docRef.set(productData);
+
+    const sanitizedProduct = sanitizeFirestoreValue(productData);
+    await docRef.set(sanitizedProduct);
     
     console.log(`Product saved to Firestore: ${product.id}`);
     return {
