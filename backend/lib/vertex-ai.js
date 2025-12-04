@@ -58,7 +58,14 @@ async function callGeminiGenerateContent({ parts, aspectRatio }) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Gemini image API failed (${response.status}): ${errorText}`);
+    let reason = errorText;
+    try {
+      const parsed = JSON.parse(errorText);
+      reason = parsed.error?.message || JSON.stringify(parsed.error) || reason;
+    } catch (err) {
+      // ignore JSON parse issues
+    }
+    throw new Error(`Gemini image API failed (${response.status}): ${reason}`);
   }
 
   const data = await response.json();

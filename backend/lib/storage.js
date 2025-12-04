@@ -126,7 +126,9 @@ async function saveBufferToBucket(imageBuffer, mimeType, targetPath) {
       contentType: normalized.mimeType || mimeType,
       cacheControl: 'public, max-age=31536000',
     },
-    public: true,
+    // With uniform bucket-level access enabled we can't rely on per-object ACLs.
+    // Public readability is controlled via IAM on the bucket itself.
+    public: false,
     validation: false,
   });
 
