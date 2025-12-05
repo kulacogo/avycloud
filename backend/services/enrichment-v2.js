@@ -157,7 +157,7 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
   const ocrPayload = await extractOcrPayload(files);
   const mergedBarcodes = mergeBarcodeLists(manualBarcodes, ocrPayload.barcodes || []);
   const inputMode = determineInputMode(files, mergedBarcodes);
-  const uploadedImages = inputMode === 'product-image' ? await uploadReferenceImages(files) : [];
+  const uploadedImages = await uploadReferenceImages(files);
   const primaryBarcode = mergedBarcodes[0] || DEFAULT_TEXT;
   let llmRecord = null;
 
@@ -197,9 +197,8 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
     description_kaufland: DEFAULT_TEXT,
     item_specifics: [],
     attributes_kaufland: [],
-    heroImageUrl: inputMode === 'product-image' && uploadedImages[0] ? uploadedImages[0].url : null,
-    galleryImageUrls:
-      inputMode === 'product-image' ? uploadedImages.map((image) => image.url) : [],
+    heroImageUrl: uploadedImages[0]?.url || null,
+    galleryImageUrls: uploadedImages.map((image) => image.url),
   };
 
   if (baseRecord.heroImageUrl === null && baseRecord.galleryImageUrls.length) {
