@@ -838,50 +838,20 @@ export const openBinLabelsBatchWindow = (options: {
     return { ok: false, error: { code: 400, message: 'Bitte Bins auswählen oder Zone & Etage angeben.' } };
   }
 
-  const targetName = `bin-labels-${Date.now()}`;
-  const popup = window.open('about:blank', targetName, 'noopener');
+  const params = new URLSearchParams();
+  if (normalizedCodes?.length) {
+    normalizedCodes.forEach((code) => params.append('codes', code));
+  } else {
+    params.set('zone', options.zone);
+    params.set('etage', options.etage);
+    if (options.gang != null) params.set('gang', String(options.gang));
+    if (options.regal != null) params.set('regal', String(options.regal));
+  }
+  const url = `${BACKEND_URL}/api/warehouse/bins/labels.pdf?${params.toString()}`;
+  const popup = window.open(url, '_blank', 'noopener');
   if (!popup) {
     return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
   }
-  popup.document.write('<p style="font-family:system-ui;padding:16px;">Bereite BIN-Labels vor...</p>');
-
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = `${BACKEND_URL}/api/warehouse/bins/labels.pdf`;
-  form.target = targetName;
-  form.style.display = 'none';
-
-  if (normalizedCodes?.length) {
-    normalizedCodes.forEach((code) => {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'codes';
-      input.value = code;
-      form.appendChild(input);
-    });
-  } else {
-    const mapping: Record<string, string | number | undefined> = {
-      zone: options.zone,
-      etage: options.etage,
-      gang: options.gang,
-      regal: options.regal,
-    };
-    Object.entries(mapping).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === '') return;
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      input.value = String(value);
-      form.appendChild(input);
-    });
-  }
-
-  document.body.appendChild(form);
-  form.submit();
-  window.setTimeout(() => {
-    form.remove();
-  }, 0);
-
   return { ok: true };
 };
 
