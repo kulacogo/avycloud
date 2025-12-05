@@ -11,6 +11,7 @@ import {
   Order,
   ProductImage,
   IdentificationJob,
+  ProductEnrichmentRecord,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -974,6 +975,46 @@ export const chatWithAssistant = async (
 
   } catch (error) {
     console.error('Failed to chat with Gemini:', error);
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const runSerpapiFreeEnrichment = async (
+  files: File[],
+  barcodes: string,
+  locale = 'de-DE'
+): Promise<{ ok: boolean; data?: ProductEnrichmentRecord; error?: { code: number; message: string } }> => {
+  if (!files.length && (!barcodes || !barcodes.trim())) {
+    return {
+      ok: false,
+      error: { code: 400, message: 'Bitte mindestens ein Bild oder einen Barcode bereitstellen.' },
+    };
+  }
+
+  const formData = new FormData();
+  files.forEach((file) => formData.append('images', file));
+  formData.append('barcodes', barcodes);
+  formData.append('locale', locale);
+
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/v2/enrich`, {
+      method: 'POST',
+      body: formData,
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: {
+          code: response.status,
+          message: result?.error?.message || 'SerpAPI-freies Enrichment fehlgeschlagen.',
+        },
+      };
+    }
+    return { ok: true, data: result?.data as ProductEnrichmentRecord };
+  } catch (error) {
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };
   }

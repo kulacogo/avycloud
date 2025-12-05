@@ -4,7 +4,15 @@ import { useI18n } from '../i18n';
 import { addMediaQueryListener } from '../utils/mediaQuery';
 
 interface HeaderProps {
-  currentView: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations' | 'queue';
+  currentView:
+    | 'dashboard'
+    | 'input'
+    | 'sheet'
+    | 'inventory'
+    | 'warehouse'
+    | 'operations'
+    | 'queue'
+    | 'identifyV2';
   setView: (view: HeaderProps['currentView']) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -62,6 +70,12 @@ const NAV_ICONS: NavIconConfig[] = [
   {
     view: 'queue' as const,
     label: 'nav.identifyQueue',
+    light: '/queue_brightmode.png',
+    dark: '/queue_darkmode.png',
+  },
+  {
+    view: 'identifyV2' as const,
+    label: 'nav.serpapiFree',
     light: '/queue_brightmode.png',
     dark: '/queue_darkmode.png',
   },

@@ -29,6 +29,7 @@ const {
   MAX_IMAGE_PAYLOAD_BYTES,
   TOOL_ITERATION_ERROR,
 } = require('./services/enrichment');
+const { runSerpapiFreePipeline } = require('./services/enrichment-v2');
 const { runProductChat } = require('./services/product-chat');
 const { improveExistingProduct } = require('./services/improve');
 const { getSecretValue } = require('./lib/secret-values');
@@ -375,6 +376,45 @@ app.post('/api/jobs', upload.array('images'), async (req, res) => {
         code: 500,
         message: 'Failed to create identification job',
         details: error.message,
+      },
+    });
+  }
+});
+
+app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
+  try {
+    const files = req.files || [];
+    const barcodes = req.body?.barcodes || '';
+    if (!files.length && (!barcodes || !barcodes.trim())) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Bitte mindestens ein Bild oder einen Barcode bereitstellen.',
+        },
+      });
+    }
+
+    const locale = req.body?.locale || 'de-DE';
+    const result = await runSerpapiFreePipeline({ files, barcodes, locale });
+
+    return res.json({
+      ok: true,
+      data: result.record,
+      meta: {
+        locale: result.locale,
+        barcodes: result.barcodes,
+        ocr: result.ocr,
+      },
+    });
+  } catch (error) {
+    console.error('SerpAPI-free enrichment failed:', error);
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'SerpAPI-freies Enrichment fehlgeschlagen.',
+        details: error?.message || 'Unknown error',
       },
     });
   }

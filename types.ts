@@ -288,6 +288,41 @@ export interface IdentificationJobResultSummary {
   products: IdentificationJobProductSummary[];
 }
 
+export type ProductEnrichmentInputMode = 'product-image' | 'label';
+
+export interface MarketplaceAttribute {
+  key: string;
+  value: string;
+}
+
+export interface ProductEnrichmentRecord {
+  input_mode: ProductEnrichmentInputMode;
+  brand: string;
+  model: string;
+  sku: string;
+  variant: string;
+  gtin: string;
+  ean: string;
+  upc: string;
+  color: string;
+  size: string;
+  material: string;
+  condition: string;
+  internalCategory: string;
+  ebayCategoryId: string;
+  ebayCategoryPath: string;
+  kauflandCategoryId: string;
+  kauflandCategoryPath: string;
+  title_ebay: string;
+  title_kaufland: string;
+  description_ebay: string;
+  description_kaufland: string;
+  item_specifics: MarketplaceAttribute[];
+  attributes_kaufland: MarketplaceAttribute[];
+  heroImageUrl: string | null;
+  galleryImageUrls: string[];
+}
+
 export interface IdentificationJob {
   id: string;
   status: IdentificationJobStatus;
