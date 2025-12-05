@@ -197,18 +197,43 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
   }, []);
 
   const handlePrintSelectedBins = useCallback(() => {
-    if (!selectedCount) {
-      setStatusMessage('Keine Bins ausgewählt.');
+    if (selectedCount > 0) {
+      const codes = Array.from(selectedBinCodes);
+      const result = openBinLabelsBatchWindow({ codes });
+      if (!result.ok) {
+        setStatusMessage(result.error?.message || 'BIN-Labels konnten nicht erstellt werden.');
+        return;
+      }
+      setStatusMessage(`BIN-Labeldruck für ${codes.length} Bins gestartet.`);
       return;
     }
-    const codes = Array.from(selectedBinCodes);
-    const result = openBinLabelsBatchWindow({ codes });
+    if (!selectedZone) {
+      setStatusMessage('Bitte Bins auswählen oder Zone/Etage festlegen.');
+      return;
+    }
+    const params: {
+      zone: string;
+      etage: string;
+      gang?: number;
+      regal?: number;
+    } = {
+      zone: selectedZone.zone,
+      etage: selectedZone.etage,
+    };
+    if (selectedGang != null) {
+      params.gang = selectedGang;
+    }
+    if (selectedRegal != null) {
+      params.regal = selectedRegal;
+    }
+    const result = openBinLabelsBatchWindow(params);
     if (!result.ok) {
       setStatusMessage(result.error?.message || 'BIN-Labels konnten nicht erstellt werden.');
       return;
     }
-    setStatusMessage(`BIN-Labeldruck für ${codes.length} Bins gestartet.`);
-  }, [selectedBinCodes, selectedCount]);
+    const scope = params.regal != null ? `Regal ${params.regal}` : params.gang != null ? `Gang ${params.gang}` : 'Zone';
+    setStatusMessage(`BIN-Labeldruck für ${scope} ${params.regal ?? params.gang ?? `${params.zone}/${params.etage}`} gestartet.`);
+  }, [selectedBinCodes, selectedCount, selectedZone, selectedGang, selectedRegal]);
 
   const handleCreateLayout = async () => {
     setStatusMessage(null);

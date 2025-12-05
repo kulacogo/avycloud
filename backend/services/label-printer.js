@@ -243,6 +243,16 @@ async function buildBinLabelHtml({ code }) {
   return buildBinLabelsHtml([code]);
 }
 
+const applyPageRotation = (doc) => {
+  try {
+    if (doc?.page?.dictionary?.data) {
+      doc.page.dictionary.data.Rotate = 90;
+    }
+  } catch (error) {
+    console.warn('Failed to rotate PDF page:', error.message);
+  }
+};
+
 async function buildBinLabelsPdf(codes = []) {
   if (!codes || !codes.length) {
     throw new Error('Mindestens ein BIN-Code ist erforderlich.');
@@ -257,6 +267,7 @@ async function buildBinLabelsPdf(codes = []) {
       right: mmToPoints(LABEL_PADDING_MM),
     },
   });
+  applyPageRotation(doc);
 
   const chunks = [];
   doc.on('data', (chunk) => chunks.push(chunk));
@@ -265,6 +276,7 @@ async function buildBinLabelsPdf(codes = []) {
     const code = codes[index];
     if (index > 0) {
       doc.addPage();
+      applyPageRotation(doc);
     }
     const qrDataUrl = await QRCode.toDataURL(code, {
       errorCorrectionLevel: 'H',
