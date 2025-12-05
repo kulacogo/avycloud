@@ -1,8 +1,13 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ProductBundle, IdentifyPhase } from '../types';
+import { ProductBundle, IdentifyPhase, Product } from '../types';
 import { MAX_IDENTIFY_FILES, MAX_IDENTIFY_FILE_BYTES, MAX_IDENTIFY_TOTAL_BYTES } from '../constants';
-import { createIdentificationJob, pollIdentificationJob, runSerpapiFreeEnrichment } from '../api/client';
+import {
+  createIdentificationJob,
+  pollIdentificationJob,
+  runSerpapiFreeEnrichment,
+  saveProduct,
+} from '../api/client';
 import { buildProductFromEnrichment } from '../utils/enrichmentRecord';
 
 export interface UploadGroupPayload {
@@ -80,6 +85,23 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
     }
   }, []);
 
+  const persistProduct = useCallback(async (product: Product) => {
+    const saveResult = await saveProduct(product);
+    if (!saveResult.ok) {
+      throw new Error(saveResult.error?.message || 'Produkt konnte nicht gespeichert werden.');
+    }
+    const now = new Date().toISOString();
+    return {
+      ...product,
+      id: saveResult.data?.id || product.id,
+      ops: {
+        ...product.ops,
+        revision: saveResult.data?.revision ?? product.ops.revision ?? 0,
+        last_saved_iso: now,
+      },
+    };
+  }, []);
+
   const startJobForGroup = useCallback(
     (group: UploadGroupPayload, barcodes: string, model: string | undefined, pipeline: IdentifyPipeline) => {
       const localId = createLocalId();
@@ -111,7 +133,8 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
               barcodes,
               label: group.label,
             });
-            options?.onJobCompleted?.({ products: [product] });
+            const persisted = await persistProduct(product);
+            options?.onJobCompleted?.({ products: [persisted] });
             updateJob(localId, {
               phase: 'complete',
               message: PHASE_MESSAGES.complete,
@@ -175,7 +198,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
         }
       })();
     },
-    [addJob, options?.onJobCompleted, updateJob]
+    [addJob, options?.onJobCompleted, persistProduct, updateJob]
   );
 
   const enqueueIdentification = useCallback(
