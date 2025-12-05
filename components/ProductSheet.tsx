@@ -234,7 +234,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     showNotification('success', t('sheet.msg.vertexStart'));
 
     const result = await generateProductImages(localProduct.id, selectedReferenceImage, {
-      sampleCount: 2,
+      sampleCount: 1,
       product: localProduct,
     });
 

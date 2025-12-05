@@ -1004,7 +1004,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         } else {
           try {
             const mode = args.mode || 'all';
-            const sampleCount = clamp(Math.round(args.sample_count || 2), 1, 4);
+            const sampleCount = clamp(Math.round(args.sample_count || 1), 1, 4);
             const generation = await generateImagesForProduct(product, {
               referenceImage,
               sampleCount,

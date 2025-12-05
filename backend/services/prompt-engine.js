@@ -20,13 +20,36 @@ function detectPrimaryColor(attributes = {}) {
   return null;
 }
 
-function buildDefaultPromptSet(identity, backgroundLight, backgroundDark) {
-  const studioFront = `A photo of ${identity} on a seamless background (${backgroundLight}). Centered straight-on front view, soft studio lighting, ultra clean ecommerce aesthetic.`;
+function pickStudioBackground(colorDescriptor) {
+  const value = (colorDescriptor || '').toString().toLowerCase();
+  const darkTokens = ['black', 'dark', 'anthracite', 'charcoal', 'graphite', 'navy', 'schwarz', 'dunkel', 'grau', 'gray'];
+  const lightTokens = ['white', 'light', 'silver', 'ivory', 'cream', 'beige', 'weiß', 'hell', 'silber'];
+
+  if (darkTokens.some((token) => value.includes(token))) {
+    return {
+      background: 'a pure white seamless background (#FFFFFF)',
+      directive: 'Detected a dark-toned product; use pure white (#FFFFFF) for maximum contrast.',
+    };
+  }
+  if (lightTokens.some((token) => value.includes(token))) {
+    return {
+      background: 'a very light neutral gray seamless background (#F4F4F4)',
+      directive: 'Detected a light-toned product; use light neutral gray (#F4F4F4) to avoid blending with white.',
+    };
+  }
+  return {
+    background: 'a very light neutral gray seamless background (#F4F4F4)',
+    directive: 'Product color is unspecified or mid-tone; default to neutral light gray (#F4F4F4).',
+  };
+}
+
+function buildDefaultPromptSet(identity, studioBackground) {
+  const studioFront = `A photo of ${identity} on ${studioBackground}. Centered straight-on front view, soft studio lighting, ultra clean ecommerce aesthetic.`;
   return {
     studio: {
       front: studioFront,
-      detail: `A photo of ${identity} focusing on the main feature. Tight crop, razor sharp material detail, ${backgroundLight}.`,
-      topdown: `A photo of ${identity} from a perfectly vertical top-down camera angle on ${backgroundLight}.`,
+      detail: `A photo of ${identity} focusing on the main feature. Tight crop, razor sharp material detail, use ${studioBackground}.`,
+      topdown: `A photo of ${identity} from a perfectly vertical top-down camera angle on ${studioBackground}.`,
     },
     lifestyle: {
       front: `A photo of ${identity} placed in a realistic environment appropriate for its use. The product remains the hero in the frame.`,
@@ -50,15 +73,15 @@ async function generateVisualDescriptions(product) {
   const features = product.details?.key_features || [];
   const colorDescriptor = detectPrimaryColor(attributes) || 'unknown';
   const materialDescriptor = attributes.Material || attributes['Materialtyp'] || 'standard material';
-  const backgroundLight = 'very light neutral gray background (#F4F4F4)';
-  const backgroundDark = 'pure white background (#FFFFFF)';
+  const { background: studioBackground, directive: backgroundDirective } = pickStudioBackground(colorDescriptor);
 
-  const context = `
+const context = `
 Product Identity: ${identity}
 Attributes: ${JSON.stringify(attributes)}
 Key Features: ${features.join(', ')}
 Dominant Color: ${colorDescriptor}
 Material: ${materialDescriptor}
+Preferred studio background: ${studioBackground} (${backgroundDirective})
   `;
 
   const prompt = `
@@ -83,10 +106,9 @@ GLOBAL IMAGE RULES (APPLY TO ALL 6 PROMPTS):
 
 ------------------------------------------------------------
 BACKGROUND AUTO-SELECTION LOGIC:
-Analyze the provided product color information ("${colorDescriptor}") and follow these strict rules:
-If the Main product appears light-colored (white, silver, beige, light gray) → use a very light neutral gray seamless background (#F4F4F4).
-If the Main product appears dark-colored (black, charcoal, deep blue, dark green) → use a pure white seamless background (#FFFFFF).
-Never deviate from these options. Mention the appropriate background directly in each studio prompt.
+You have already determined that the product color "${colorDescriptor}" requires this background: ${studioBackground}. ${backgroundDirective}
+You MUST explicitly mention this background inside every studio prompt (front, detail, topdown) and you must never override it.
+If lifestyle prompts describe indoor scenes, keep lighting consistent with soft daylight.
 
 ------------------------------------------------------------
 You must now generate **six separate prompts**, grouped exactly as follows:
@@ -123,7 +145,7 @@ Return ONLY the following JSON structure (with fully populated strings):
 Do not wrap the JSON in markdown or prose.
   `;
 
-  const defaultPrompts = buildDefaultPromptSet(identity, backgroundLight, backgroundDark);
+const defaultPrompts = buildDefaultPromptSet(identity, studioBackground);
 
   try {
     const responseText = await generateText(prompt, { temperature: 0.6 });
