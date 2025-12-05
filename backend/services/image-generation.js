@@ -102,6 +102,25 @@ async function fetchImageAsDataUrl(image) {
   throw new Error('Unsupported reference image format.');
 }
 
+const VARIANT_SPECS = [
+  { group: 'studio', key: 'front', type: 'studio_front' },
+  { group: 'studio', key: 'detail', type: 'studio_detail' },
+  { group: 'studio', key: 'topdown', type: 'studio_topdown' },
+  { group: 'lifestyle', key: 'front', type: 'lifestyle_front' },
+  { group: 'lifestyle', key: 'closeup', type: 'lifestyle_closeup' },
+  { group: 'lifestyle', key: 'inuse', type: 'lifestyle_inuse' },
+];
+
+function shouldIncludeVariant(mode, spec) {
+  if (!mode || mode === 'all') return true;
+  if (mode === 'studio') return spec.group === 'studio';
+  if (mode === 'lifestyle') return spec.group === 'lifestyle';
+  if (mode === 'detail') {
+    return spec.key === 'detail' || spec.key === 'closeup';
+  }
+  return true;
+}
+
 async function generateImagesForProduct(product, options = {}) {
   if (!product?.id) {
         throw new Error('Product ID is required');
@@ -122,51 +141,24 @@ async function generateImagesForProduct(product, options = {}) {
   console.log(`Generating visual descriptions for ${product.id}...`);
   const prompts = await generateVisualDescriptions(product);
 
-  const sampleCount = Number.isFinite(options.sampleCount) ? Math.min(Math.max(options.sampleCount, 1), 4) : 2;
+  const sampleCount = Number.isFinite(options.sampleCount) ? Math.min(Math.max(options.sampleCount, 1), 4) : 1;
 
   console.log(
     `Generating Gemini renders for ${product.id} using reference image (${referenceImage.source || 'unknown'})`
   );
 
-  // Determine runs based on requested mode (default to studio + lifestyle if not specified)
   const requestedMode = options.mode || 'all'; // 'studio', 'lifestyle', 'detail', 'all'
 
-  const runs = [];
-
-  if (requestedMode === 'all' || requestedMode === 'studio') {
-    runs.push({
-      prompt: prompts.studio,
-      type: 'studio',
-      count: sampleCount,
-      editMode: null // Variation (Imagen 2)
-    });
-  }
-
-  if (requestedMode === 'all' || requestedMode === 'lifestyle') {
-    runs.push({
-      prompt: prompts.lifestyle,
-      type: 'lifestyle',
-      count: sampleCount,
-      editMode: null // Use Subject Control (Imagen 2) for high-quality generation
-    });
-  }
-
-  if (requestedMode === 'detail') {
-    runs.push({
-      prompt: prompts.detail,
-      type: 'detail',
-      count: sampleCount,
-      editMode: null // Variation (Imagen 2)
-    });
-  }
+  const runs = VARIANT_SPECS.map((spec) => ({
+    ...spec,
+    prompt: prompts?.[spec.group]?.[spec.key],
+    count: sampleCount,
+    editMode: null,
+  }))
+    .filter((run) => Boolean(run.prompt) && shouldIncludeVariant(requestedMode, run));
 
   const uploaded = [];
-  // Map prompts to return object
-  const promptMap = {
-    studio: prompts.studio,
-    lifestyle: prompts.lifestyle,
-    detail: prompts.detail
-  };
+  const promptMap = prompts;
 
   for (const run of runs) {
     // We use the reference image for ALL modes to ensure product identity (shape/design) is preserved.
@@ -185,20 +177,20 @@ async function generateImagesForProduct(product, options = {}) {
       }
       const mimeType = prediction.mimeType || 'image/png';
       const dataUrl = `data:${mimeType};base64,${prediction.base64}`;
-            const upload = await uploadBase64Image(
+      const upload = await uploadBase64Image(
         dataUrl,
-                product.id,
+        product.id,
         `gemini_render_${run.type}_${Date.now()}_${index}`
-            );
+      );
       uploaded.push({
-                url_or_base64: upload.url,
+        url_or_base64: upload.url,
         source: 'ai-derived',
         variant: run.type,
-        notes: `Gemini ${run.type} basierend auf ${referenceImage.source || 'reference'} (${referenceImage.notes || 'user selected'})`,
+        notes: `Gemini ${run.type} (${run.group}/${run.key}) based on ${referenceImage.source || 'reference'} (${referenceImage.notes || 'user selected'})`,
         width: upload.width,
         height: upload.height,
         mimeType: upload.mimeType,
-            });
+      });
     }
   }
 

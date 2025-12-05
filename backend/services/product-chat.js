@@ -277,6 +277,31 @@ function truncateWords(text = '', limit = 5) {
   return words.join(' ');
 }
 
+function summarizePromptMap(promptMap) {
+  if (!promptMap || typeof promptMap !== 'object') {
+    return [];
+  }
+  const summaries = [];
+  Object.entries(promptMap).forEach(([group, value]) => {
+    if (value && typeof value === 'object') {
+      Object.entries(value).forEach(([key, text]) => {
+        if (typeof text === 'string' && text.trim()) {
+          summaries.push({
+            title: `${group}.${key}`,
+            snippet: truncateWords(text, 20),
+          });
+        }
+      });
+    } else if (typeof value === 'string' && value.trim()) {
+      summaries.push({
+        title: group,
+        snippet: truncateWords(value, 20),
+      });
+    }
+  });
+  return summaries;
+}
+
 function labelForMarketingImage(image, index) {
   const variantLabels = {
     front: 'Hero front',
@@ -378,10 +403,7 @@ async function tryGenerateFallbackImages(product, existingKeys, neededCount = 1)
           {
             engine: 'gemini-2.5-flash-image',
             query: 'Gemini renders',
-            summary: Object.entries(generation.prompts).map(([variant, prompt]) => ({
-              title: variant,
-              snippet: truncateWords(prompt, 20),
-            })),
+            summary: summarizePromptMap(generation.prompts),
           },
         ]
       : [];

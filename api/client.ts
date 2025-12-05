@@ -549,7 +549,10 @@ export const generateProductImages = async (
 ): Promise<{
   ok: boolean;
   data?: ProductImage[];
-  prompts?: { studio: string; lifestyle: string };
+  prompts?: {
+    studio?: { front?: string; detail?: string; topdown?: string };
+    lifestyle?: { front?: string; closeup?: string; inuse?: string };
+  };
   error?: { code: number; message: string };
 }> => {
   let response: Response | undefined;
@@ -561,7 +564,7 @@ export const generateProductImages = async (
         productId,
         product: options?.product,
         referenceImage,
-        sampleCount: options?.sampleCount || 2,
+        sampleCount: options?.sampleCount ?? 1,
         mode: options?.mode,
       }),
     });

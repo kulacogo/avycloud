@@ -24,9 +24,8 @@ async function verifyPipeline() {
         console.log('✅ Prompts generated:');
         console.log('Studio:', prompts.studio);
         console.log('Lifestyle:', prompts.lifestyle);
-        console.log('Detail:', prompts.detail);
 
-        if (!prompts.studio.includes('Lululemon')) {
+        if (!prompts.studio?.front?.includes('Lululemon')) {
             console.warn('⚠️ Warning: Brand name missing from studio prompt');
         }
     } catch (error) {
