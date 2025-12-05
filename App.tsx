@@ -13,32 +13,14 @@ import JobStatusPopup from './components/JobStatusPopup';
 import Dashboard from './components/Dashboard';
 import OperationsView from './components/OperationsView';
 import IdentifyQueueView from './components/IdentifyQueueView';
-import SerpapiFreeIdentifyView from './components/SerpapiFreeIdentifyView';
 import { fetchProducts } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
 
-type View =
-  | 'dashboard'
-  | 'input'
-  | 'sheet'
-  | 'inventory'
-  | 'warehouse'
-  | 'operations'
-  | 'queue'
-  | 'identifyV2';
+type View = 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations' | 'queue';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const THEME_STORAGE_KEY = 'avystock:theme';
-const ALLOWED_VIEWS: View[] = [
-  'dashboard',
-  'input',
-  'sheet',
-  'inventory',
-  'warehouse',
-  'operations',
-  'queue',
-  'identifyV2',
-];
+const ALLOWED_VIEWS: View[] = ['dashboard', 'input', 'sheet', 'inventory', 'warehouse', 'operations', 'queue'];
 type Theme = 'light' | 'dark';
 
 const sanitizeIdentifier = (value?: string | null) => {
@@ -264,8 +246,13 @@ const App: React.FC = () => {
   });
 
   const handleIdentification = useCallback(
-    (groupsPayload: UploadGroupPayload[], barcodes: string, model?: string) => {
-      enqueueIdentification(groupsPayload, barcodes, model);
+    (
+      groupsPayload: UploadGroupPayload[],
+      barcodes: string,
+      model: string | undefined,
+      pipeline: 'legacy' | 'v2'
+    ) => {
+      enqueueIdentification(groupsPayload, barcodes, model, pipeline);
     },
     [enqueueIdentification]
   );
@@ -435,8 +422,6 @@ const App: React.FC = () => {
         );
       case 'queue':
         return <IdentifyQueueView />;
-      case 'identifyV2':
-        return <SerpapiFreeIdentifyView />;
       case 'dashboard':
         return <Dashboard products={products} onSelectProduct={handleSelectProduct} />;
       case 'input':

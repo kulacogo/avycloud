@@ -2,13 +2,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ProductBundle, IdentifyPhase } from '../types';
 import { MAX_IDENTIFY_FILES, MAX_IDENTIFY_FILE_BYTES, MAX_IDENTIFY_TOTAL_BYTES } from '../constants';
-import { createIdentificationJob, pollIdentificationJob } from '../api/client';
+import { createIdentificationJob, pollIdentificationJob, runSerpapiFreeEnrichment } from '../api/client';
+import { buildProductFromEnrichment } from '../utils/enrichmentRecord';
 
 export interface UploadGroupPayload {
   id: string;
   label: string;
   images: File[];
 }
+
+export type IdentifyPipeline = 'legacy' | 'v2';
 
 export interface IdentificationJobStatus {
   localId: string;
@@ -78,7 +81,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
   }, []);
 
   const startJobForGroup = useCallback(
-    (group: UploadGroupPayload, barcodes: string, model?: string) => {
+    (group: UploadGroupPayload, barcodes: string, model: string | undefined, pipeline: IdentifyPipeline) => {
       const localId = createLocalId();
       const startedAt = new Date().toISOString();
       addJob({
@@ -89,11 +92,33 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
         startedAt,
       });
 
-    const controller = new AbortController();
+      const controller = new AbortController();
       jobControllersRef.current.set(localId, controller);
 
       (async () => {
-    try {
+        try {
+          if (pipeline === 'v2') {
+            updateJob(localId, {
+              phase: 'processing',
+              message: 'Vision/Gemini analysiert das Produkt …',
+            });
+            const response = await runSerpapiFreeEnrichment(group.images, barcodes, 'de-DE');
+            if (!response.ok || !response.data) {
+              throw new Error(response.error?.message || 'SerpAPI-freies Enrichment fehlgeschlagen.');
+            }
+            const product = buildProductFromEnrichment(response.data, {
+              fallbackId: group.id,
+              barcodes,
+              label: group.label,
+            });
+            options?.onJobCompleted?.({ products: [product] });
+            updateJob(localId, {
+              phase: 'complete',
+              message: PHASE_MESSAGES.complete,
+              finishedAt: new Date().toISOString(),
+            });
+            return;
+          }
           const creation = await createIdentificationJob(group.images, barcodes, {
         model,
         signal: controller.signal,
@@ -154,7 +179,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
   );
 
   const enqueueIdentification = useCallback(
-    async (groups: UploadGroupPayload[], barcodes: string, model?: string) => {
+    async (groups: UploadGroupPayload[], barcodes: string, model: string | undefined, pipeline: IdentifyPipeline = 'legacy') => {
       const prepared = groups.filter((group) => group.images.length > 0);
       const hasBarcodes = Boolean(barcodes && barcodes.trim());
       const groupsToProcess =
@@ -187,7 +212,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
 
       setError(null);
       groupsToProcess.forEach((group) => {
-        startJobForGroup(group, barcodes, model);
+        startJobForGroup(group, barcodes, model, pipeline);
       });
     },
     [startJobForGroup, validateGroup]
