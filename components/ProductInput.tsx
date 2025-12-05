@@ -371,7 +371,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
           </div>
         </div>
 
-        {isCameraOn && !isIOSDevice && (
+          {isCameraOn && !isIOSDevice && (
           <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 space-y-3">
             <p className="text-sm text-slate-200">
               {t('input.camera.active', {

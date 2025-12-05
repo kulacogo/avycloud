@@ -709,8 +709,8 @@ function sanitizeDatasheetChange(entry) {
     result.key_features = entry.key_features.filter(Boolean);
   }
   if (entry.attributes) {
-    if (Array.isArray(entry.attributes)) {
-      result.attributes = attributeArrayToObject(entry.attributes);
+  if (Array.isArray(entry.attributes)) {
+    result.attributes = attributeArrayToObject(entry.attributes);
     } else if (typeof entry.attributes === 'object') {
       result.attributes = entry.attributes;
     }

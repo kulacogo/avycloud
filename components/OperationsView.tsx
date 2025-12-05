@@ -991,7 +991,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     <span>{t('ops.labels.nextPick')}</span>
                     <span>{t('ops.labels.openRemaining', { count: pickRouteTasks.length })}</span>
                   </div>
-                  <div>
+              <div>
                     <p className="text-lg font-semibold text-white">{nextPickTask.itemName}</p>
                     <p className="text-sm text-slate-300">
                       Auftrag {nextPickTask.orderNumber || nextPickTask.orderId} ·{' '}
@@ -1106,7 +1106,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               </div>
               <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <div>
+              <div>
                     <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.pick.steps.sku')}</p>
                     <p className="text-base font-semibold text-white break-all">{nextPickTask?.sku || '—'}</p>
                   </div>
@@ -1136,17 +1136,17 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               <div>
                 <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.pick.quantity')}</label>
                 <input
-                  type="number"
-                  min={1}
-                  value={pickQuantity}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === '') {
-                      setPickQuantity('');
-                    } else {
-                      setPickQuantity(Math.max(1, Number(val)));
-                    }
-                  }}
+                type="number"
+                min={1}
+                value={pickQuantity}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    setPickQuantity('');
+                  } else {
+                    setPickQuantity(Math.max(1, Number(val)));
+                  }
+                }}
                   className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                 />
                 <p className="mt-1 text-xs text-slate-400">
@@ -1199,14 +1199,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             )}
 
             <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={handlePick}
+            <button
+              type="button"
+              onClick={handlePick}
                 disabled={!pickConfirmReady || isSubmitting}
                 className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-600"
-              >
+            >
                 {isSubmitting ? t('ops.pick.submitting') : t('ops.pick.submit')}
-              </button>
+            </button>
             </div>
           </div>
         )}

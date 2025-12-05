@@ -178,7 +178,7 @@ async function processJob(jobId) {
                 ).slice(0, 100);
                 if (mergedAliases.length) {
                   product.ops.identity_aliases = mergedAliases;
-                }
+            }
                 console.log(
                   `Resolved duplicate product candidate via alias-set match for ${aliasMatch.id} (job ${jobId})`
                 );
