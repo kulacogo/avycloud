@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ProductEnrichmentRecord } from '../types';
+import { ProductEnrichmentRecord, SerpapiFreeMeta } from '../types';
 import { useSerpapiFreePipeline } from '../hooks/useSerpapiFreePipeline';
 import { buildImageProxyUrl } from '../api/client';
 
@@ -9,6 +9,63 @@ const FieldRow: React.FC<{ label: string; value: string }> = ({ label, value }) 
     <span className="text-sm text-slate-100">{value}</span>
   </div>
 );
+
+const TextBlock: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="flex flex-col">
+    <span className="text-xs uppercase tracking-wide text-slate-500">{label}</span>
+    <p className="text-sm text-slate-100 whitespace-pre-line">{value}</p>
+  </div>
+);
+
+const AttributeList: React.FC<{ title: string; items: { key: string; value: string }[] }> = ({
+  title,
+  items,
+}) => {
+  if (!items?.length) return null;
+  return (
+    <div className="bg-slate-900/70 border border-white/5 rounded-3xl p-4 sm:p-6 shadow-xl shadow-black/40">
+      <h3 className="text-base font-semibold text-white mb-3">{title}</h3>
+      <dl className="divide-y divide-white/5">
+        {items.map((item) => (
+          <div key={`${title}-${item.key}-${item.value}`} className="flex justify-between py-2">
+            <dt className="text-sm text-slate-400 pr-4">{item.key}</dt>
+            <dd className="text-sm text-slate-100 text-right">{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+};
+
+const MetaPanel: React.FC<{ meta: SerpapiFreeMeta }> = ({ meta }) => {
+  if (!meta) return null;
+  const ocrLines = meta.ocr?.textSnippets?.slice(0, 25) || [];
+  return (
+    <div className="bg-slate-900/70 border border-white/5 rounded-3xl p-4 sm:p-6 shadow-xl shadow-black/40">
+      <h3 className="text-base font-semibold text-white mb-3">Analyse & Quellen</h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <FieldRow label="Sprache" value={meta.locale} />
+        <FieldRow label="LLM" value={meta.llm?.model || 'unbekannt'} />
+        <FieldRow
+          label="LLM aktiv"
+          value={meta.llm?.applied ? 'ja' : 'nein'}
+        />
+        <FieldRow
+          label="Barcodes"
+          value={meta.barcodes && meta.barcodes.length ? meta.barcodes.join(', ') : 'keine'}
+        />
+      </div>
+      {!!ocrLines.length && (
+        <div>
+          <span className="text-xs uppercase tracking-wide text-slate-500 block mb-2">OCR Vorschau</span>
+          <pre className="bg-slate-950/60 border border-white/5 rounded-2xl p-3 text-xs text-slate-200 max-h-64 overflow-y-auto whitespace-pre-wrap">
+            {ocrLines.join('\n')}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const renderRecord = (record: ProductEnrichmentRecord) => {
   const entries: Array<[string, string]> = [
@@ -31,11 +88,17 @@ const renderRecord = (record: ProductEnrichmentRecord) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {entries.map(([label, value]) => (
-        <FieldRow key={label} label={label} value={value} />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {entries.map(([label, value]) => (
+          <FieldRow key={label} label={label} value={value} />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <TextBlock label="eBay Beschreibung" value={record.description_ebay} />
+        <TextBlock label="Kaufland Beschreibung" value={record.description_kaufland} />
+      </div>
+    </>
   );
 };
 
@@ -43,7 +106,7 @@ const SerpapiFreeIdentifyView: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [barcodes, setBarcodes] = useState('');
   const [locale, setLocale] = useState<'de-DE' | 'en-US'>('de-DE');
-  const { isLoading, error, record, run, reset } = useSerpapiFreePipeline();
+  const { isLoading, error, record, meta, run, reset } = useSerpapiFreePipeline();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -143,6 +206,8 @@ const SerpapiFreeIdentifyView: React.FC = () => {
             <h2 className="text-lg font-semibold text-white mb-3">Ergebnis</h2>
             {renderRecord(record)}
           </div>
+          <AttributeList title="eBay Item Specifics" items={record.item_specifics} />
+          <AttributeList title="Kaufland Attribute" items={record.attributes_kaufland} />
           {record.heroImageUrl && (
             <div className="bg-slate-900/70 border border-white/5 rounded-3xl p-4 sm:p-6 shadow-xl shadow-black/40">
               <h3 className="text-base font-semibold text-white mb-3">Hero Image</h3>
@@ -168,6 +233,7 @@ const SerpapiFreeIdentifyView: React.FC = () => {
               </div>
             </div>
           )}
+          {meta && <MetaPanel meta={meta} />}
         </div>
       )}
     </div>

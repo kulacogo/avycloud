@@ -405,6 +405,7 @@ app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
         locale: result.locale,
         barcodes: result.barcodes,
         ocr: result.ocr,
+        llm: result.llm,
       },
     });
   } catch (error) {

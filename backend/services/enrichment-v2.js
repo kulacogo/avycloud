@@ -1,6 +1,8 @@
 const { extractOcrPayload, isLikelyGtin } = require('../lib/vision-ocr');
 const { uploadImage } = require('../lib/storage');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
+const { findKauflandCategory } = require('../lib/kaufland-taxonomy');
+const { generateStructuredProductRecord } = require('./generative-identify');
 
 const DEFAULT_TEXT = 'unknown';
 
@@ -98,6 +100,34 @@ const buildMarketplaceAttributes = (record) => {
   return attrs;
 };
 
+const sanitizeAttributesArray = (rows = []) =>
+  rows
+    .map((row) => ({
+      key: normalizeRecordField(row?.key),
+      value: normalizeRecordField(row?.value),
+    }))
+    .filter(
+      (row) =>
+        row.key &&
+        row.key !== DEFAULT_TEXT &&
+        row.value &&
+        row.value !== DEFAULT_TEXT
+    );
+
+const enforceLimit = (value, limit, fallback) => {
+  const cleaned = normalizeWhitespace(value || '');
+  if (!cleaned) return fallback;
+  if (cleaned.length <= limit) return cleaned;
+  return `${cleaned.slice(0, limit - 1)}…`;
+};
+
+const preferString = (primary, fallback = DEFAULT_TEXT) => {
+  const cleaned = normalizeWhitespace(primary);
+  if (cleaned) return cleaned;
+  const fallbackClean = normalizeWhitespace(fallback);
+  return fallbackClean || DEFAULT_TEXT;
+};
+
 async function uploadReferenceImages(files = []) {
   const uploaded = [];
   for (let idx = 0; idx < files.length; idx += 1) {
@@ -129,6 +159,19 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
   const inputMode = determineInputMode(files, mergedBarcodes);
   const uploadedImages = inputMode === 'product-image' ? await uploadReferenceImages(files) : [];
   const primaryBarcode = mergedBarcodes[0] || DEFAULT_TEXT;
+  let llmRecord = null;
+
+  try {
+    llmRecord = await generateStructuredProductRecord({
+      files,
+      ocrLines: ocrPayload.textSnippets || [],
+      barcodes: mergedBarcodes,
+      locale,
+      inputMode,
+    });
+  } catch (error) {
+    console.warn('Structured product generation failed, falling back to defaults:', error.message);
+  }
 
   const baseRecord = {
     input_mode: inputMode,
@@ -163,18 +206,84 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
     [baseRecord.heroImageUrl] = baseRecord.galleryImageUrls;
   }
 
-  const ebayCategory = findEbayCategory(baseRecord.internalCategory);
-  if (ebayCategory) {
-    baseRecord.ebayCategoryId = String(ebayCategory.id || ebayCategory.categoryId || DEFAULT_TEXT);
-    baseRecord.ebayCategoryPath = ebayCategory.breadcrumb || DEFAULT_TEXT;
+  const mergedRecord = { ...baseRecord };
+  const assign = (key, value) => {
+    mergedRecord[key] = preferString(value, mergedRecord[key]);
+  };
+
+  if (llmRecord) {
+    assign('brand', llmRecord.brand);
+    assign('model', llmRecord.model);
+    assign('sku', llmRecord.sku);
+    assign('variant', llmRecord.variant);
+    assign('gtin', llmRecord.gtin);
+    assign('ean', llmRecord.ean);
+    assign('upc', llmRecord.upc);
+    assign('color', llmRecord.color);
+    assign('size', llmRecord.size);
+    assign('material', llmRecord.material);
+    assign('condition', llmRecord.condition);
+    assign('internalCategory', llmRecord.internalCategory);
+    assign('title_ebay', llmRecord.title_ebay);
+    assign('title_kaufland', llmRecord.title_kaufland);
+    assign('description_ebay', llmRecord.description_ebay);
+    assign('description_kaufland', llmRecord.description_kaufland);
+
+    if (Array.isArray(llmRecord.item_specifics) && llmRecord.item_specifics.length) {
+      mergedRecord.item_specifics = sanitizeAttributesArray(llmRecord.item_specifics);
+    }
+    if (Array.isArray(llmRecord.attributes_kaufland) && llmRecord.attributes_kaufland.length) {
+      mergedRecord.attributes_kaufland = sanitizeAttributesArray(llmRecord.attributes_kaufland);
+    }
   }
 
-  baseRecord.title_ebay = buildTitle(baseRecord, 'ebay');
-  baseRecord.title_kaufland = buildTitle(baseRecord, 'kaufland');
-  baseRecord.description_ebay = buildDescription(baseRecord);
-  baseRecord.description_kaufland = buildDescription(baseRecord);
-  baseRecord.item_specifics = buildMarketplaceAttributes(baseRecord);
-  baseRecord.attributes_kaufland = buildMarketplaceAttributes(baseRecord);
+  mergedRecord.title_ebay = enforceLimit(
+    mergedRecord.title_ebay,
+    80,
+    buildTitle(mergedRecord, 'ebay')
+  );
+  mergedRecord.title_kaufland = enforceLimit(
+    mergedRecord.title_kaufland,
+    100,
+    buildTitle(mergedRecord, 'kaufland')
+  );
+  mergedRecord.description_ebay = preferString(
+    mergedRecord.description_ebay,
+    buildDescription(mergedRecord)
+  );
+  mergedRecord.description_kaufland = preferString(
+    mergedRecord.description_kaufland,
+    buildDescription(mergedRecord)
+  );
+
+  if (!Array.isArray(mergedRecord.item_specifics) || !mergedRecord.item_specifics.length) {
+    mergedRecord.item_specifics = buildMarketplaceAttributes(mergedRecord);
+  }
+  if (!Array.isArray(mergedRecord.attributes_kaufland) || !mergedRecord.attributes_kaufland.length) {
+    mergedRecord.attributes_kaufland = buildMarketplaceAttributes(mergedRecord);
+  }
+
+  const categorySource =
+    mergedRecord.internalCategory === DEFAULT_TEXT && llmRecord?.internalCategory
+      ? llmRecord.internalCategory
+      : mergedRecord.internalCategory;
+  const ebayCategory = findEbayCategory(categorySource);
+  if (ebayCategory) {
+    mergedRecord.ebayCategoryId = String(ebayCategory.id || ebayCategory.categoryId || DEFAULT_TEXT);
+    mergedRecord.ebayCategoryPath = ebayCategory.breadcrumb || ebayCategory.name || DEFAULT_TEXT;
+    if (mergedRecord.internalCategory === DEFAULT_TEXT) {
+      mergedRecord.internalCategory = ebayCategory.breadcrumb || ebayCategory.name || DEFAULT_TEXT;
+    }
+  }
+
+  const kauflandCategory =
+    findKauflandCategory(mergedRecord.internalCategory) ||
+    findKauflandCategory(llmRecord?.internalCategory);
+  if (kauflandCategory) {
+    mergedRecord.kauflandCategoryId = String(kauflandCategory.id);
+    mergedRecord.kauflandCategoryPath =
+      kauflandCategory.dePath || kauflandCategory.enPath || DEFAULT_TEXT;
+  }
 
   return {
     locale,
@@ -183,7 +292,11 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
       textSnippets: ocrPayload.textSnippets || [],
       numericValues: ocrPayload.numericValues || [],
     },
-    record: baseRecord,
+    record: mergedRecord,
+    llm: {
+      applied: Boolean(llmRecord),
+      model: process.env.GEMINI_MULTIMODAL_MODEL || process.env.GEMINI_STRUCTURED_MODEL || 'gemini-2.0-flash',
+    },
   };
 }
 

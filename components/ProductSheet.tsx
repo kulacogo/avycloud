@@ -263,10 +263,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         },
         details: {
           ...productToSave.details,
-          identifiers: {
+            identifiers: {
             ...(productToSave.details.identifiers || {}),
             sku: assignedSku || productToSave.details.identifiers?.sku || undefined,
-          },
+            },
         },
         ops: {
           ...productToSave.ops,
@@ -603,9 +603,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <p className="text-[11px] text-slate-500 mt-1">{t('input.barcodes.hint')}</p>
                 </div>
               ) : (
-                <p id="p-barcodes" className="text-xs text-slate-500 mt-1">
+              <p id="p-barcodes" className="text-xs text-slate-500 mt-1">
                   {t('common.barcodeLabel')}: {localProduct.identification.barcodes?.join(', ') || t('common.na')}
-                </p>
+              </p>
               )}
             </div>
             <div className="actions flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto justify-end">
@@ -685,20 +685,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     <span>{t('sheet.upload.or')}</span>
                     <label className="cursor-pointer rounded-full border border-slate-600 px-3 py-1 text-white">
                       {t('sheet.upload.fileBtn')}
-                      <input
-                        type="file"
-                        accept="image/*"
+                    <input
+                      type="file"
+                      accept="image/*"
                         multiple
-                        className="hidden"
-                        onChange={(e) => {
+                      className="hidden"
+                      onChange={(e) => {
                           const { files } = e.target;
                           handleUploadImages(files);
-                          if (e.target) {
-                            e.target.value = '';
-                          }
-                        }}
-                      />
-                    </label>
+                        if (e.target) {
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </label>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-2">{t('sheet.upload.support')}</p>
                 </div>
@@ -772,111 +772,111 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <section id="description" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-3 text-white">{t('sheet.description')}</h3>
-            {isEditing ? (
-              <textarea
-                defaultValue={localProduct.details.short_description}
-                onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
-                className="w-full min-h-[120px] bg-slate-700 border border-slate-600 rounded-lg p-3 text-slate-200"
-              />
-            ) : (
+          {isEditing ? (
+            <textarea
+              defaultValue={localProduct.details.short_description}
+              onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
+              className="w-full min-h-[120px] bg-slate-700 border border-slate-600 rounded-lg p-3 text-slate-200"
+            />
+          ) : (
               <p className="text-slate-300 leading-relaxed text-sm sm:text-base">{descriptionText}</p>
-            )}
-          </section>
+          )}
+        </section>
 
           <section id="attributes" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.attributes')}</h3>
-            <AttributeTable
-              attributes={localProduct.details.attributes}
-              isEditing={isEditing}
-              onChange={(next) => {
-                setLocalProduct(prev => ({ ...prev, details: { ...prev.details, attributes: next } }));
-                setIsDirty(true);
-              }}
-            />
-          </section>
+          <AttributeTable
+            attributes={localProduct.details.attributes}
+            isEditing={isEditing}
+            onChange={(next) => {
+              setLocalProduct(prev => ({ ...prev, details: { ...prev.details, attributes: next } }));
+              setIsDirty(true);
+            }}
+          />
+        </section>
 
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <section id="pricing" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.pricing')}</h3>
-            <PricingInfo
-              pricing={localProduct.details.pricing}
-              isEditing={isEditing}
-              onChange={(next) => {
-                setLocalProduct(prev => ({ ...prev, details: { ...prev.details, pricing: next } }));
-                setIsDirty(true);
-              }}
-            />
-          </section>
+          <PricingInfo
+            pricing={localProduct.details.pricing}
+            isEditing={isEditing}
+            onChange={(next) => {
+              setLocalProduct(prev => ({ ...prev, details: { ...prev.details, pricing: next } }));
+              setIsDirty(true);
+            }}
+          />
+        </section>
 
           <section id="storage" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.storage')}</h3>
-            {binsLoading ? (
+          {binsLoading ? (
               <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.loading')}</p>
-            ) : binsError ? (
-              <p className="text-rose-300 text-sm mb-3">{binsError}</p>
-            ) : productBins.length ? (
+          ) : binsError ? (
+            <p className="text-rose-300 text-sm mb-3">{binsError}</p>
+          ) : productBins.length ? (
               <div className="mb-4 space-y-2 max-h-56 overflow-auto pr-1">
-                {productBins.map((bin) => (
-                  <div key={bin.code} className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-semibold text-white">{bin.code}</div>
-                      <div className="text-xs text-slate-400">
-                        Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
-                      </div>
-                      <div className="text-xs text-slate-300">Menge {bin.productCount ?? 0}</div>
+              {productBins.map((bin) => (
+                <div key={bin.code} className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-semibold text-white">{bin.code}</div>
+                    <div className="text-xs text-slate-400">
+                      Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
                     </div>
+                      <div className="text-xs text-slate-300">Menge {bin.productCount ?? 0}</div>
                   </div>
-                ))}
-              </div>
-            ) : (
+                </div>
+              ))}
+            </div>
+          ) : (
               <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.none')}</p>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
               <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.binLabel')}</label>
-                <input
-                  value={binCodeInput}
-                  onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
+              <input
+                value={binCodeInput}
+                onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
                 placeholder={t('sheet.storage.binPlaceholder')}
-                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
+                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
                 <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.quantity')}</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={binQuantity}
-                  onChange={(e) => setBinQuantity(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
-                />
-              </div>
+              <input
+                type="number"
+                min={1}
+                value={binQuantity}
+                onChange={(e) => setBinQuantity(Number(e.target.value))}
+                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+              />
             </div>
-            <div className="flex flex-wrap gap-3 mt-4">
-              <button
-                onClick={handleAssignBin}
-                disabled={isAssigningBin}
-                className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-500 disabled:opacity-40"
-              >
+          </div>
+          <div className="flex flex-wrap gap-3 mt-4">
+            <button
+              onClick={handleAssignBin}
+              disabled={isAssigningBin}
+              className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-500 disabled:opacity-40"
+            >
                 {isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}
-              </button>
-              {localProduct.storage?.binCode && (
-                <button
-                  onClick={handleRemoveBin}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
-                >
+            </button>
+            {localProduct.storage?.binCode && (
+              <button
+                onClick={handleRemoveBin}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
+              >
                   {t('sheet.storage.remove')}
-                </button>
-              )}
-            </div>
-          </section>
+              </button>
+            )}
+          </div>
+        </section>
         </div>
         
         <section className="p-4 bg-slate-800 rounded-lg shadow-lg">
           <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.actions.title')}</h3>
-          <div className="actions flex flex-wrap gap-4">
+            <div className="actions flex flex-wrap gap-4">
             <button
               id="btn-sync"
               onClick={handleSync}
@@ -885,8 +885,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             >
               {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}
               <span className="ml-2">{t('sheet.actions.sync')}</span>
-            </button>
-          </div>
+                </button>
+            </div>
         </section>
       </div>
 

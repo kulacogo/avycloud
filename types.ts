@@ -323,6 +323,19 @@ export interface ProductEnrichmentRecord {
   galleryImageUrls: string[];
 }
 
+export interface SerpapiFreeMeta {
+  locale: string;
+  barcodes: string[];
+  ocr: {
+    textSnippets: string[];
+    numericValues: string[];
+  };
+  llm?: {
+    applied: boolean;
+    model?: string;
+  };
+}
+
 export interface IdentificationJob {
   id: string;
   status: IdentificationJobStatus;

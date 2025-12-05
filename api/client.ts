@@ -12,6 +12,7 @@ import {
   ProductImage,
   IdentificationJob,
   ProductEnrichmentRecord,
+  SerpapiFreeMeta,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -984,7 +985,12 @@ export const runSerpapiFreeEnrichment = async (
   files: File[],
   barcodes: string,
   locale = 'de-DE'
-): Promise<{ ok: boolean; data?: ProductEnrichmentRecord; error?: { code: number; message: string } }> => {
+): Promise<{
+  ok: boolean;
+  data?: ProductEnrichmentRecord;
+  meta?: SerpapiFreeMeta;
+  error?: { code: number; message: string };
+}> => {
   if (!files.length && (!barcodes || !barcodes.trim())) {
     return {
       ok: false,
@@ -1013,7 +1019,11 @@ export const runSerpapiFreeEnrichment = async (
         },
       };
     }
-    return { ok: true, data: result?.data as ProductEnrichmentRecord };
+    return {
+      ok: true,
+      data: result?.data as ProductEnrichmentRecord,
+      meta: result?.meta as SerpapiFreeMeta,
+    };
   } catch (error) {
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };

@@ -174,16 +174,16 @@ async function generateImagesForProduct(product, options = {}) {
     for (const [index, prediction] of predictions.entries()) {
       if (!prediction?.base64) {
         continue;
-      }
+        }
       const mimeType = prediction.mimeType || 'image/png';
       const dataUrl = `data:${mimeType};base64,${prediction.base64}`;
-      const upload = await uploadBase64Image(
+            const upload = await uploadBase64Image(
         dataUrl,
-        product.id,
+                product.id,
         `gemini_render_${run.type}_${Date.now()}_${index}`
-      );
+            );
       uploaded.push({
-        url_or_base64: upload.url,
+                url_or_base64: upload.url,
         source: 'ai-derived',
         variant: run.type,
         notes: `Gemini ${run.type} (${run.group}/${run.key}) based on ${referenceImage.source || 'reference'} (${referenceImage.notes || 'user selected'})`,
@@ -192,7 +192,7 @@ async function generateImagesForProduct(product, options = {}) {
         mimeType: upload.mimeType,
       });
     }
-  }
+    }
 
   return { images: uploaded, prompts: promptMap };
 }
