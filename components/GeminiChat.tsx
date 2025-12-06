@@ -434,8 +434,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       if (!raw) continue;
       try {
         const parsed = JSON.parse(raw);
-        if (parsed?.edit && typeof parsed.edit === 'object') {
-          const change = sanitizeDatasheetChange(parsed.edit);
+        const candidate =
+          parsed?.edit && typeof parsed.edit === 'object'
+            ? parsed.edit
+            : parsed?.identity || parsed?.barcodes || parsed?.ean || parsed?.gtin
+            ? { identity: parsed.identity, barcodes: parsed.barcodes, ean: parsed.ean, gtin: parsed.gtin }
+            : null;
+        if (candidate) {
+          const change = sanitizeDatasheetChange(candidate);
           if (Object.keys(change).length) {
             edits.push(change);
           }
