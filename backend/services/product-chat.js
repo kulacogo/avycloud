@@ -20,6 +20,7 @@ const TEXT_LIKE_MIME = new Set(['text/plain', 'text/csv', 'application/json', 't
 const MAX_ATTACHMENT_PREVIEW_CHARS = 6000;
 const MARKETING_MIN_RESULTS = 3;
 const MARKETING_MAX_RESULTS = 6;
+const BARCODE_INTENT_REGEX = /\b(ean|gtin|upc)\b/i;
 
 const updateDatasheetTool = {
   type: 'function',
@@ -582,6 +583,21 @@ function collectOcrData(product) {
   };
 }
 
+function hasValidLocalBarcode(product) {
+  const codes = [];
+  if (Array.isArray(product?.identification?.barcodes)) {
+    codes.push(...product.identification.barcodes);
+  }
+  const ids = product?.details?.identifiers || {};
+  ['ean', 'gtin', 'upc', 'mpn', 'sku'].forEach((key) => {
+    if (ids[key]) codes.push(ids[key]);
+  });
+  return codes.some((code) => {
+    const digits = normalizeDigits(code);
+    return !!digits && isValidGtin(digits);
+  });
+}
+
 function buildProductContext(product, { attachments = [], mode = 'short', marketingFocus = false } = {}) {
   const attributes = toAttributesObject(product?.details?.attributes);
   const dimensions = extractDimensionsFromAttributes(attributes);
@@ -807,6 +823,8 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   const locale = 'de-DE';
   const conversationMode = detectConversationMode(userMessage || '');
   const marketingFocus = isMarketingImageRequest(userMessage || '');
+  const barcodeIntent = BARCODE_INTENT_REGEX.test(userMessage || '');
+  const hasLocalValidBarcode = hasValidLocalBarcode(product);
   const attachmentPayload = normalizeChatAttachments(attachments);
   if (marketingFocus) {
     const marketingResponse = await fulfillMarketingImageRequest(product);
@@ -890,6 +908,18 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
           type: 'input_text',
           text: 'Marketing-image request detected: respond with one short intro sentence and a bullet list of 3–6 concrete URLs labelled with 3–5 word descriptions (Hero, Lifestyle, Detail, Packshot, etc.).',
     },
+      ],
+    });
+  }
+
+  if (barcodeIntent && !hasLocalValidBarcode) {
+    inputMessages.push({
+      role: 'system',
+      content: [
+        {
+          type: 'input_text',
+          text: 'Barcode request detected (EAN/GTIN/UPC) and no valid code is present in the product context. You MUST use available tools (serpapi_web_search or web_fetch) to look up the most reliable barcode for this exact product using its title/brand/category and the provided images. Return only JSON in DatasheetChange format, e.g. {"identity":{"ean":"1234567890123","gtin":null}}. If no reliable code is found after searching, return {"identity":{}}.',
+        },
       ],
     });
   }
