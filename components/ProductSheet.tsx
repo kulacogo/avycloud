@@ -76,6 +76,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [barcodeInput, setBarcodeInput] = useState<string>(() => (product.identification?.barcodes || []).join('\n'));
   const [assigningInventory, setAssigningInventory] = useState(false);
   const [inventoryMessage, setInventoryMessage] = useState<string | null>(null);
+
+  const parseBarcodes = useCallback((input: string) => {
+    const entries = input
+      .split(/[\n,;]+/)
+      .map((value) => normalizeBarcode(value.trim()))
+      .filter(Boolean);
+    return Array.from(new Set(entries));
+  }, []);
   const currentBarcodeSummary = useMemo(
     () => summarizeBarcodes(localProduct.identification?.barcodes || []),
     [localProduct.identification?.barcodes]
@@ -479,14 +487,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsDirty(true);
     showNotification('success', t('sheet.msg.imagesAdded', { count: safeImages.length }));
   };
-
-  const parseBarcodes = useCallback((input: string) => {
-    const entries = input
-      .split(/[\n,;]+/)
-      .map((value) => normalizeBarcode(value.trim()))
-      .filter(Boolean);
-    return Array.from(new Set(entries));
-  }, []);
 
   const buildProductWithBarcodeDraft = useCallback(() => {
     const parsedBarcodes = parseBarcodes(barcodeInput);
