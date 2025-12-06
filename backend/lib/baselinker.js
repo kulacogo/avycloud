@@ -689,38 +689,58 @@ async function findProductBySku(inventoryId, skuOrEan) {
  * Einzelnes Produkt synchronisieren
  */
 async function syncProductToBaseLinker(product) {
+  const inventoryId = product?.inventory?.inventoryId || product?.inventory?.id || null;
+  if (!inventoryId) {
+    const message = 'Inventory ID fehlt';
+    await logInventorySyncEvent({
+      productId: product.id,
+      inventoryId: null,
+      status: 'failed',
+      message,
+    });
+    return {
+      id: product.id,
+      status: 'failed',
+      message,
+    };
+  }
+
   try {
-    const { baseInventoryId } = await getSecrets();
     const validation = validateProduct(product);
     if (!validation.isValid) {
+      const message = validation.errors.join(' | ');
+      await logInventorySyncEvent({
+        productId: product.id,
+        inventoryId,
+        status: 'failed',
+        message,
+      });
       return {
         id: product.id,
         status: 'failed',
-        message: validation.errors.join(' | '),
+        message,
       };
     }
 
-    const meta = await getInventoryMeta(baseInventoryId);
+    const meta = await getInventoryMeta(inventoryId);
     if (!meta.warehouseKey) {
-      throw new Error(
-        'BaseLinker inventory has no default warehouse (stock key)'
-      );
+      throw new Error('BaseLinker inventory has no default warehouse (stock key)');
     }
 
     const manufacturerId = await ensureManufacturerId(
       product?.identification?.brand,
-      baseInventoryId
+      inventoryId
     );
 
     const categoryId = await ensureCategoryId(
       product?.identification?.category,
-      baseInventoryId
+      inventoryId
     );
 
     const quantity = pickQuantity(product);
     const payload = buildPayload(
       product,
-      baseInventoryId,
+      inventoryId,
       meta,
       manufacturerId,
       categoryId,
@@ -730,28 +750,23 @@ async function syncProductToBaseLinker(product) {
     const normalizedSku = normalizeSkuValue(payload.sku);
     const normalizedEan = normalizeEanValue(payload.ean);
 
-    // Bestands-Check: Priorität base_product_id → SKU-Match → Neuanlage
     let baseProductId = product?.ops?.base_product_id || null;
     let existing = null;
     let resolvedExisting = false;
     const resolveExistingProduct = async (identifier) => {
       if (resolvedExisting || !identifier) return null;
       resolvedExisting = true;
-      existing = await findProductBySku(baseInventoryId, identifier);
+      existing = await findProductBySku(inventoryId, identifier);
       return existing;
     };
     if (!baseProductId && normalizedSku) {
-      const cached = await getSkuIndexEntry(
-        buildSkuIndexKey('sku', normalizedSku)
-      );
+      const cached = await getSkuIndexEntry(buildSkuIndexKey('sku', normalizedSku));
       if (cached?.baseProductId) {
         baseProductId = cached.baseProductId;
       }
     }
     if (!baseProductId && normalizedEan) {
-      const cached = await getSkuIndexEntry(
-        buildSkuIndexKey('ean', normalizedEan)
-      );
+      const cached = await getSkuIndexEntry(buildSkuIndexKey('ean', normalizedEan));
       if (cached?.baseProductId) {
         baseProductId = cached.baseProductId;
       }
@@ -774,7 +789,7 @@ async function syncProductToBaseLinker(product) {
 
     const buildRequest = (productId) => ({
       ...payload,
-      product_id: Number(productId) || 0, // 0 => Neuanlage, >0 => Update
+      product_id: Number(productId) || 0,
     });
 
     let requestPayload = buildRequest(baseProductId || 0);
@@ -842,10 +857,15 @@ async function syncProductToBaseLinker(product) {
         buildSkuIndexKey('sku', normalizedSku),
         buildSkuIndexKey('ean', normalizedEan),
       ].filter(Boolean);
-      await Promise.all(
-        indexKeys.map((key) => setSkuIndexEntry(key, indexPayload))
-      );
+      await Promise.all(indexKeys.map((key) => setSkuIndexEntry(key, indexPayload)));
     }
+
+    await logInventorySyncEvent({
+      productId: product.id,
+      inventoryId,
+      status: 'success',
+      message: 'Successfully synced to BaseLinker',
+    });
 
     return {
       id: product.id,
@@ -854,6 +874,12 @@ async function syncProductToBaseLinker(product) {
     };
   } catch (error) {
     console.error('Failed to sync product to BaseLinker:', error);
+    await logInventorySyncEvent({
+      productId: product.id,
+      inventoryId,
+      status: 'failed',
+      message: error.message,
+    });
     return {
       id: product.id,
       status: 'failed',

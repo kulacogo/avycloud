@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow } from '../api/client';
-import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon } from './icons/Icons';
+import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts } from '../api/client';
+import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
 import { addMediaQueryListener } from '../utils/mediaQuery';
+import { useInventoryContext } from '../context/InventoryContext';
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
 type ColumnId =
@@ -125,6 +126,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 640px)').matches : false
   );
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const { inventories } = useInventoryContext();
+  const [inventoryModalOpen, setInventoryModalOpen] = useState(false);
+  const [inventorySelection, setInventorySelection] = useState('');
+  const [inventoryAssigning, setInventoryAssigning] = useState(false);
+  const [inventoryAssignMessage, setInventoryAssignMessage] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 640px)');
@@ -613,6 +619,40 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   };
 
+  const handleAssignInventory = async () => {
+    if (!inventorySelection) {
+      setInventoryAssignMessage(t('table.inventory.selectOne'));
+      return;
+    }
+    setInventoryAssigning(true);
+    setInventoryAssignMessage(null);
+    try {
+      await assignInventoryToProducts(Array.from(selectedIds), inventorySelection);
+      const inventoryRecord = inventories.find((inv) => inv.inventoryId === inventorySelection) || null;
+      const updated = products.map((product) =>
+        selectedIds.has(product.id)
+          ? {
+              ...product,
+              inventory: {
+                ...(product.inventory || {}),
+                inventoryId: inventorySelection,
+                inventoryName: inventoryRecord?.name || product.inventory?.inventoryName || null,
+              },
+            }
+          : product
+      );
+      onUpdateProducts(updated);
+      setInventoryAssignMessage(t('table.inventory.assignSuccess'));
+      setInventoryModalOpen(false);
+      setInventorySelection('');
+    } catch (error: any) {
+      console.error('Inventory assignment failed:', error);
+      setInventoryAssignMessage(error?.message || t('table.inventory.assignError'));
+    } finally {
+      setInventoryAssigning(false);
+    }
+  };
+
   const handleExportCsv = () => {
     const headers = ['ID', 'ProductKey', 'Name', 'Brand', 'Category', 'EAN', 'Price', 'Currency', 'Sync Status'];
     const rows = filteredAndSortedProducts.map((p) => [
@@ -773,6 +813,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
             icon={<RefreshIcon className="w-4 h-4" />}
             label={t('table.actions.priceRefresh')}
             onClick={handleBatchPriceRefresh}
+            disabled={selectedIds.size === 0}
+            tone="primary"
+          />
+          <ActionButton
+            icon={<BarcodeIcon className="w-4 h-4" />}
+            label={t('table.actions.assignInventory')}
+            onClick={() => {
+              setInventoryAssignMessage(null);
+              setInventorySelection('');
+              setInventoryModalOpen(true);
+            }}
             disabled={selectedIds.size === 0}
             tone="primary"
           />
@@ -949,6 +1000,65 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </table>
       </div>
     </section>
+      {inventoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">{t('table.inventory.assignTitle')}</h3>
+              <button
+                type="button"
+                className="text-slate-400 hover:text-white"
+                onClick={() => {
+                  setInventoryModalOpen(false);
+                  setInventoryAssignMessage(null);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-xs uppercase tracking-wide text-slate-400">
+                {t('table.inventory.selectLabel')}
+              </label>
+              <select
+                value={inventorySelection}
+                onChange={(event) => setInventorySelection(event.target.value)}
+                className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+              >
+                <option value="">{t('table.inventory.selectPlaceholder')}</option>
+                {inventories.map((inv) => (
+                  <option key={inv.inventoryId} value={inv.inventoryId}>
+                    {inv.name} ({inv.inventoryId})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {inventoryAssignMessage && (
+              <p className="text-xs text-slate-300">{inventoryAssignMessage}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setInventoryModalOpen(false);
+                  setInventoryAssignMessage(null);
+                }}
+                className="px-3 py-1.5 rounded-lg border border-slate-600 text-sm text-slate-200"
+              >
+                {t('table.inventory.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleAssignInventory}
+                disabled={inventoryAssigning}
+                className="px-4 py-1.5 rounded-lg bg-sky-600 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
+              >
+                {inventoryAssigning ? t('table.inventory.assigning') : t('table.inventory.assign')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
   );
 };
 

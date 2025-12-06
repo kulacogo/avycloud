@@ -101,8 +101,26 @@ export interface ProductStorageBinEntry {
 }
 
 export interface InventoryInfo {
-  quantity: number;
+  quantity?: number;
   unit?: string;
+  inventoryId?: string | null;
+  inventoryName?: string | null;
+}
+
+export interface InventoryRecord {
+  inventoryId: string;
+  name: string;
+  description?: string;
+  vendorCode?: string | null;
+  fiscalYear?: number | null;
+  sequence?: number | null;
+  type?: string | null;
+  defaultWarehouse?: string | null;
+  defaultPriceGroup?: string | null;
+  isActive?: boolean;
+  isExternal?: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface Product {

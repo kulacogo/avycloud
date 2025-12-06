@@ -12,6 +12,7 @@ import {
   ProductImage,
   IdentificationJob,
   ProductEnrichmentRecord,
+  InventoryRecord,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -83,6 +84,7 @@ interface IdentifyApiOptions {
   model?: string;
   signal?: AbortSignal;
   onStatus?: (phase: IdentifyPhase) => void;
+  inventoryId?: string;
 }
 
 const createStatusReporter = (listener?: (phase: IdentifyPhase) => void) => {
@@ -325,6 +327,9 @@ export const createIdentificationJob = async (
   });
   if (options?.model) {
     formData.append('model', options.model);
+  }
+  if (options?.inventoryId) {
+    formData.append('inventoryId', options.inventoryId);
   }
 
   let response: Response | undefined;
@@ -953,7 +958,8 @@ export const chatWithAssistant = async (
 export const runSerpapiFreeEnrichment = async (
   files: File[],
   barcodes: string,
-  locale = 'de-DE'
+  locale = 'de-DE',
+  inventoryId?: string
 ): Promise<{ ok: boolean; data?: ProductEnrichmentRecord; error?: { code: number; message: string } }> => {
   if (!files.length && (!barcodes || !barcodes.trim())) {
     return {
@@ -966,6 +972,9 @@ export const runSerpapiFreeEnrichment = async (
   files.forEach((file) => formData.append('images', file));
   formData.append('barcodes', barcodes);
   formData.append('locale', locale);
+  if (inventoryId) {
+    formData.append('inventoryId', inventoryId);
+  }
 
   let response: Response | undefined;
   try {
@@ -1028,4 +1037,83 @@ export const deleteProduct = async (productId: string): Promise<{ ok: boolean; e
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };
   }
+};
+
+export const fetchInventories = async (params: { search?: string; vendor?: string; limit?: number } = {}): Promise<InventoryRecord[]> => {
+  const query = new URLSearchParams();
+  if (params.search) query.set('search', params.search);
+  if (params.vendor) query.set('vendor', params.vendor);
+  if (params.limit) query.set('limit', String(params.limit));
+  const url = query.toString() ? `${BACKEND_URL}/api/inventories?${query.toString()}` : `${BACKEND_URL}/api/inventories`;
+  const response = await fetch(url);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Inventories konnten nicht geladen werden.');
+  }
+  return Array.isArray(result?.data) ? (result.data as InventoryRecord[]) : [];
+};
+
+export const fetchInventoryById = async (inventoryId: string): Promise<InventoryRecord | null> => {
+  const response = await fetch(`${BACKEND_URL}/api/inventories/${encodeURIComponent(inventoryId)}`);
+  if (response.status === 404) {
+    return null;
+  }
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Inventory konnte nicht geladen werden.');
+  }
+  return (result?.data as InventoryRecord) || null;
+};
+
+export const syncInventories = async () => {
+  const response = await fetch(`${BACKEND_URL}/api/inventories/sync`, {
+    method: 'POST',
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Inventory-Sync fehlgeschlagen.');
+  }
+  return result?.data;
+};
+
+export const assignInventoryToProducts = async (productIds: string[], inventoryId: string) => {
+  const response = await fetch(`${BACKEND_URL}/api/inventories/assign`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ productIds, inventoryId }),
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Inventory konnte nicht zugewiesen werden.');
+  }
+  return result?.data;
+};
+
+export const setProductInventoryId = async (productId: string, inventoryId: string) => {
+  const response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/inventory`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ inventoryId }),
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Inventory konnte nicht gesetzt werden.');
+  }
+  return result?.data;
+};
+
+export const openInventoryLabelWindow = (inventoryId: string): { ok: boolean; error?: { code: number; message: string } } => {
+  if (!inventoryId) {
+    return { ok: false, error: { code: 400, message: 'Inventory ID fehlt.' } };
+  }
+  const url = `${BACKEND_URL}/api/inventories/${encodeURIComponent(inventoryId)}/label.pdf`;
+  const tab = window.open(url, '_blank', 'noopener');
+  if (!tab) {
+    return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
+  }
+  return { ok: true };
 };

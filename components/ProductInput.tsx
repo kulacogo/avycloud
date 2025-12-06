@@ -1,15 +1,19 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { UploadIcon, BarcodeIcon, CameraIcon } from './icons/Icons';
+import { UploadIcon, BarcodeIcon, CameraIcon, RefreshIcon } from './icons/Icons';
 import type { UploadGroupPayload, IdentifyPipeline } from '../hooks/useIdentification';
 import { useI18n } from '../i18n';
+import { useInventoryContext } from '../context/InventoryContext';
+import { ScannerOverlay } from './ScannerOverlay';
 
 interface ProductInputProps {
   onIdentify: (
     groups: UploadGroupPayload[],
     barcodes: string,
     model: string | undefined,
-    pipeline: IdentifyPipeline
+    pipeline: IdentifyPipeline,
+    inventoryId: string,
+    inventoryName?: string | null
   ) => void;
 }
 
@@ -46,6 +50,15 @@ const createGroup = (index: number, name?: string): UploadGroup => ({
 
 const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const { t } = useI18n();
+  const {
+    inventories,
+    activeInventoryId,
+    activeInventory,
+    setActiveInventoryId,
+    syncInventories,
+    syncing,
+    resolveInventory,
+  } = useInventoryContext();
   const [groups, setGroups] = useState<UploadGroup[]>([createGroup(0, t('input.groups.defaultName', { index: 1 }))]);
   const [barcodes, setBarcodes] = useState('');
   const [model, setModel] = useState<ModelOption>('gpt-5-mini-2025-08-07');
@@ -53,6 +66,9 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const [cameraTargetGroup, setCameraTargetGroup] = useState<string | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [inventoryScanOpen, setInventoryScanOpen] = useState(false);
+  const [resolvingInventory, setResolvingInventory] = useState(false);
+  const [inventoryError, setInventoryError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -187,7 +203,11 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
       alert(t('input.errors.payloadRequired'));
       return;
     }
-    onIdentify(payload, barcodes, model, pipeline);
+    if (!activeInventoryId) {
+      alert(t('input.errors.inventoryRequired'));
+      return;
+    }
+    onIdentify(payload, barcodes, model, pipeline, activeInventoryId, activeInventory?.name || null);
     // Reset groups for the next run
     setGroups([createGroup(0, groupNameForIndex(0))]);
   };
@@ -274,9 +294,85 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   };
   }, []);
 
+  const handleInventoryScan = useCallback(
+    async (value: string) => {
+      const sanitized = value?.trim();
+      if (!sanitized) return;
+      setResolvingInventory(true);
+      try {
+        const record = await resolveInventory(sanitized);
+        if (record?.inventoryId) {
+          setActiveInventoryId(record.inventoryId);
+          setInventoryError(null);
+        } else {
+          setInventoryError(t('input.inventory.notFound', { id: sanitized }));
+        }
+      } catch (error: any) {
+        console.error('Inventory scan failed:', error);
+        setInventoryError(error?.message || t('input.inventory.notFound', { id: sanitized }));
+      } finally {
+        setResolvingInventory(false);
+      }
+    },
+    [resolveInventory, setActiveInventoryId, t]
+  );
+
   return (
     <div className="w-full p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-6 pb-16 sm:pb-8 safe-area-bottom">
       <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-400">
+                {t('input.inventory.label')}
+              </p>
+              <p className="text-sm text-slate-100 font-semibold">
+                {activeInventory?.name || t('input.inventory.empty')}
+              </p>
+              <p className="text-xs text-slate-400">
+                {activeInventory?.inventoryId || t('input.inventory.hint')}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setInventoryScanOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors"
+              >
+                <BarcodeIcon className="w-4 h-4" />
+                {t('input.inventory.scan')}
+              </button>
+              <button
+                type="button"
+                onClick={() => syncInventories()}
+                disabled={syncing}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-60"
+              >
+                <RefreshIcon className="w-4 h-4" />
+                {syncing ? t('input.inventory.syncing') : t('input.inventory.sync')}
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="inventory-select" className="text-xs uppercase tracking-wide text-slate-400">
+              {t('input.inventory.selectLabel')}
+            </label>
+            <select
+              id="inventory-select"
+              value={activeInventoryId || ''}
+              onChange={(event) => setActiveInventoryId(event.target.value || null)}
+              className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+            >
+              <option value="">{t('input.inventory.selectPlaceholder')}</option>
+              {inventories.map((inv) => (
+                <option key={inv.inventoryId} value={inv.inventoryId}>
+                  {inv.name} ({inv.inventoryId})
+                </option>
+              ))}
+            </select>
+            {inventoryError && <p className="text-xs text-rose-400">{inventoryError}</p>}
+          </div>
+        </div>
         <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
@@ -480,6 +576,17 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
           onChange={handleCaptureFileChange}
         />
       </form>
+      <ScannerOverlay
+        open={inventoryScanOpen}
+        title={t('input.inventory.scanTitle')}
+        onClose={() => setInventoryScanOpen(false)}
+        onDetected={(value) => {
+          setInventoryScanOpen(false);
+          handleInventoryScan(value);
+        }}
+        fallbackHint={t('input.inventory.scanHint')}
+        fallbackBusy={resolvingInventory}
+      />
     </div>
   );
 };

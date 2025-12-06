@@ -103,7 +103,14 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
   }, []);
 
   const startJobForGroup = useCallback(
-    (group: UploadGroupPayload, barcodes: string, model: string | undefined, pipeline: IdentifyPipeline) => {
+    (
+      group: UploadGroupPayload,
+      barcodes: string,
+      model: string | undefined,
+      pipeline: IdentifyPipeline,
+      inventoryId?: string | null,
+      inventoryName?: string | null
+    ) => {
       const localId = createLocalId();
       const startedAt = new Date().toISOString();
       addJob({
@@ -124,7 +131,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
               phase: 'processing',
               message: 'Vision/Gemini analysiert das Produkt …',
             });
-            const response = await runSerpapiFreeEnrichment(group.images, barcodes, 'de-DE');
+            const response = await runSerpapiFreeEnrichment(group.images, barcodes, 'de-DE', inventoryId || undefined);
             if (!response.ok || !response.data) {
               throw new Error(response.error?.message || 'SerpAPI-freies Enrichment fehlgeschlagen.');
             }
@@ -132,6 +139,8 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
               fallbackId: group.id,
               barcodes,
               label: group.label,
+              inventoryId: inventoryId || null,
+              inventoryName: inventoryName || null,
             });
             const persisted = await persistProduct(product);
             options?.onJobCompleted?.({ products: [persisted] });
@@ -143,8 +152,9 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
             return;
           }
           const creation = await createIdentificationJob(group.images, barcodes, {
-        model,
-        signal: controller.signal,
+            model,
+            signal: controller.signal,
+            inventoryId: inventoryId || undefined,
           });
           if (!creation.ok || !creation.jobId) {
             throw new Error(creation.error?.message || 'Job konnte nicht erstellt werden.');
@@ -202,7 +212,14 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
   );
 
   const enqueueIdentification = useCallback(
-    async (groups: UploadGroupPayload[], barcodes: string, model: string | undefined, pipeline: IdentifyPipeline = 'legacy') => {
+    async (
+      groups: UploadGroupPayload[],
+      barcodes: string,
+      model: string | undefined,
+      pipeline: IdentifyPipeline = 'legacy',
+      inventoryId?: string | null,
+      inventoryName?: string | null
+    ) => {
       const prepared = groups.filter((group) => group.images.length > 0);
       const hasBarcodes = Boolean(barcodes && barcodes.trim());
       const groupsToProcess =
@@ -235,7 +252,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
 
       setError(null);
       groupsToProcess.forEach((group) => {
-        startJobForGroup(group, barcodes, model, pipeline);
+        startJobForGroup(group, barcodes, model, pipeline, inventoryId, inventoryName);
       });
     },
     [startJobForGroup, validateGroup]

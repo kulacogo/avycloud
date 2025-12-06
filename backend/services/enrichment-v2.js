@@ -152,7 +152,7 @@ async function uploadReferenceImages(files = []) {
   return uploaded;
 }
 
-async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-DE' } = {}) {
+async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-DE', inventoryId = null } = {}) {
   const manualBarcodes = parseBarcodes(barcodes);
   const ocrPayload = await extractOcrPayload(files);
   const mergedBarcodes = mergeBarcodeLists(manualBarcodes, ocrPayload.barcodes || []);
@@ -296,6 +296,7 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
       applied: Boolean(llmRecord),
       model: process.env.GEMINI_MULTIMODAL_MODEL || process.env.GEMINI_STRUCTURED_MODEL || 'gemini-2.0-flash',
     },
+    inventoryId,
   };
 }
 

@@ -250,9 +250,11 @@ const App: React.FC = () => {
       groupsPayload: UploadGroupPayload[],
       barcodes: string,
       model: string | undefined,
-      pipeline: 'legacy' | 'v2'
+      pipeline: 'legacy' | 'v2',
+      inventoryId: string,
+      inventoryName?: string | null
     ) => {
-      enqueueIdentification(groupsPayload, barcodes, model, pipeline);
+      enqueueIdentification(groupsPayload, barcodes, model, pipeline, inventoryId, inventoryName || null);
     },
     [enqueueIdentification]
   );

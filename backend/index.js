@@ -12,6 +12,10 @@ const {
   listOrders,
   findProductIdsByAliases,
   deleteProductsByIdentityAlias,
+  listInventories,
+  getInventoryRecord,
+  setProductInventory,
+  assignInventoryToProducts,
 } = require('./lib/firestore');
 const {
   createJob: createImproveJob,
@@ -30,6 +34,7 @@ const {
   TOOL_ITERATION_ERROR,
 } = require('./services/enrichment');
 const { runSerpapiFreePipeline } = require('./services/enrichment-v2');
+const { syncInventoriesFromBaseLinker } = require('./services/inventory-sync');
 const { runProductChat } = require('./services/product-chat');
 const { improveExistingProduct } = require('./services/improve');
 const { getSecretValue } = require('./lib/secret-values');
@@ -49,7 +54,13 @@ const {
   listBinsForProduct,
   getProductBinSummaryMap,
 } = require('./lib/warehouse');
-const { buildProductLabelsHtml, buildBinLabelHtml, buildBinLabelsHtml, buildBinLabelsPdf } = require('./services/label-printer');
+const {
+  buildProductLabelsHtml,
+  buildBinLabelHtml,
+  buildBinLabelsHtml,
+  buildBinLabelsPdf,
+  buildInventoryLabelPdf,
+} = require('./services/label-printer');
 const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked } = require('./services/order-sync');
 const { attachPickHintsToOrders } = require('./services/pick-hints');
@@ -300,6 +311,13 @@ const chatUploadMiddleware = (req, res, next) => {
 
 startJobRunner();
 startImproveRunner();
+syncInventoriesFromBaseLinker()
+  .then((result) => {
+    console.log(`Initial inventory sync completed (${result.fetched} entries)`);
+  })
+  .catch((error) => {
+    console.error('Initial inventory sync failed:', error);
+  });
 
 
 // --- Middleware ---
@@ -340,6 +358,17 @@ app.post('/api/jobs', upload.array('images'), async (req, res) => {
       });
     }
 
+    const inventoryId = typeof req.body?.inventoryId === 'string' ? req.body.inventoryId.trim() : '';
+    if (!inventoryId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Inventory ID ist erforderlich.',
+        },
+      });
+    }
+
     const locale = req.body?.locale || 'de-DE';
     const model = req.body?.model || null;
     const jobId = crypto.randomUUID();
@@ -357,6 +386,7 @@ app.post('/api/jobs', upload.array('images'), async (req, res) => {
           barcodes,
           locale,
           model,
+          inventoryId,
         },
       },
       jobId
@@ -381,6 +411,175 @@ app.post('/api/jobs', upload.array('images'), async (req, res) => {
   }
 });
 
+app.get('/api/inventories', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 500, 1), 1000);
+    const vendorCode =
+      typeof req.query?.vendor === 'string' && req.query.vendor ? req.query.vendor : null;
+    const search = typeof req.query?.search === 'string' ? req.query.search : '';
+    const inventories = await listInventories({ limit, vendorCode, search });
+    res.json({
+      ok: true,
+      data: inventories,
+      meta: {
+        limit,
+        vendor: vendorCode,
+        search,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to list inventories:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Inventories konnten nicht geladen werden.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+app.get('/api/inventories/:id', async (req, res) => {
+  try {
+    const inventoryId = req.params?.id;
+    const inventory = await getInventoryRecord(inventoryId);
+    if (!inventory) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 404,
+          message: 'Inventory wurde nicht gefunden.',
+        },
+      });
+    }
+    return res.json({ ok: true, data: inventory });
+  } catch (error) {
+    console.error('Failed to fetch inventory:', error);
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Inventory konnte nicht geladen werden.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+app.get('/api/inventories/:id/label.pdf', async (req, res) => {
+  try {
+    const inventoryId = req.params?.id;
+    const inventory = await getInventoryRecord(inventoryId);
+    if (!inventory) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: 404, message: 'Inventory wurde nicht gefunden.' },
+      });
+    }
+    const pdfBuffer = await buildInventoryLabelPdf(inventory);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="inventory-${inventoryId}.pdf"`);
+    return res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Failed to build inventory label:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Inventory-Label konnte nicht erstellt werden.', details: error.message },
+    });
+  }
+});
+
+app.post('/api/inventories/sync', async (req, res) => {
+  try {
+    const result = await syncInventoriesFromBaseLinker();
+    res.json({
+      ok: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error('Inventory sync failed:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Inventory-Sync fehlgeschlagen.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+app.post('/api/inventories/assign', async (req, res) => {
+  try {
+    const inventoryId = req.body?.inventoryId;
+    const productIds = Array.isArray(req.body?.productIds)
+      ? req.body.productIds.filter((id) => typeof id === 'string' && id.trim().length > 0)
+      : [];
+    if (!inventoryId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Inventory ID ist erforderlich.' },
+      });
+    }
+    if (!productIds.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Bitte mindestens ein Produkt auswählen.' },
+      });
+    }
+    const inventory = await getInventoryRecord(inventoryId);
+    if (!inventory) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: 404, message: 'Inventory wurde nicht gefunden.' },
+      });
+    }
+    await assignInventoryToProducts(productIds, inventory);
+    res.json({ ok: true, data: { productIds, inventoryId } });
+  } catch (error) {
+    console.error('Failed to assign inventory:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Inventory konnte nicht zugewiesen werden.', details: error.message },
+    });
+  }
+});
+
+app.post('/api/products/:productId/inventory', async (req, res) => {
+  try {
+    const productId = req.params?.productId;
+    const inventoryId = req.body?.inventoryId;
+    if (!productId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Produkt-ID ist erforderlich.' },
+      });
+    }
+    if (!inventoryId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Inventory ID ist erforderlich.' },
+      });
+    }
+    const inventory = await getInventoryRecord(inventoryId);
+    if (!inventory) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: 404, message: 'Inventory wurde nicht gefunden.' },
+      });
+    }
+    await setProductInventory(productId, inventory);
+    res.json({ ok: true, data: { productId, inventoryId } });
+  } catch (error) {
+    console.error('Failed to set product inventory:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Inventory konnte nicht gesetzt werden.', details: error.message },
+    });
+  }
+});
+
 app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
   try {
     const files = req.files || [];
@@ -396,7 +595,17 @@ app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
     }
 
     const locale = req.body?.locale || 'de-DE';
-    const result = await runSerpapiFreePipeline({ files, barcodes, locale });
+    const inventoryId = typeof req.body?.inventoryId === 'string' ? req.body.inventoryId.trim() : '';
+    if (!inventoryId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Inventory ID ist erforderlich.',
+        },
+      });
+    }
+    const result = await runSerpapiFreePipeline({ files, barcodes, locale, inventoryId });
 
     return res.json({
       ok: true,
@@ -406,6 +615,7 @@ app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
         barcodes: result.barcodes,
         ocr: result.ocr,
         llm: result.llm,
+        inventoryId,
       },
     });
   } catch (error) {

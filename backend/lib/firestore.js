@@ -72,6 +72,8 @@ const firestore = new Firestore({
 const PRODUCTS_COLLECTION = 'products';
 const ORDERS_COLLECTION = 'orders';
 const SKU_INDEX_COLLECTION = 'baselinker_sku_index';
+const INVENTORIES_COLLECTION = 'inventories';
+const INVENTORY_SYNC_LOGS_COLLECTION = 'inventorySyncLogs';
 const PRODUCT_LIST_LIMIT = parseInt(process.env.PRODUCT_LIST_LIMIT || '0', 10);
 const MAX_ALIAS_LOOKUP = parseInt(process.env.MAX_ALIAS_LOOKUP || '50', 10);
 
@@ -90,6 +92,23 @@ const normalizeEanValue = (val) =>
     .trim();
 
 const buildSkuIndexKey = (type, value) => (value ? `${type}:${value}` : null);
+
+const inventoryCollection = () => firestore.collection(INVENTORIES_COLLECTION);
+
+const parseInventoryNameMeta = (name = '') => {
+  const match = name.trim().match(/^([A-Z]{2,6})-(\d{2})-(\d{2,})/i);
+  if (!match) {
+    return { vendorCode: null, fiscalYear: null, sequence: null };
+  }
+  const [, vendor, year, seq] = match;
+  const fiscalYear = Number(`20${year}`);
+  const sequence = Number(seq);
+  return {
+    vendorCode: vendor.toUpperCase(),
+    fiscalYear: Number.isFinite(fiscalYear) ? fiscalYear : null,
+    sequence: Number.isFinite(sequence) ? sequence : null,
+  };
+};
 
 const collectSkuIndexKeys = (product = {}) => {
   const keys = new Set();
@@ -612,6 +631,131 @@ async function setSkuIndexEntry(key, payload = {}) {
   }
 }
 
+async function upsertInventories(records = []) {
+  if (!Array.isArray(records) || !records.length) {
+    return { upserted: 0 };
+  }
+  const snapshot = await inventoryCollection().get();
+  const existingMap = new Map();
+  snapshot.forEach((doc) => existingMap.set(doc.id, doc.data()));
+  const batch = firestore.batch();
+  records.forEach((record) => {
+    const inventoryId = String(record.inventoryId || record.id || '').trim();
+    if (!inventoryId) return;
+    const existing = existingMap.get(inventoryId);
+    const docRef = inventoryCollection().doc(inventoryId);
+    const parsedMeta = record.meta || parseInventoryNameMeta(record.name || '');
+    const payload = sanitizeFirestoreValue({
+      inventoryId,
+      name: record.name || inventoryId,
+      description: record.description || null,
+      vendorCode: record.vendorCode || parsedMeta.vendorCode || null,
+      fiscalYear: record.fiscalYear ?? parsedMeta.fiscalYear ?? null,
+      sequence: record.sequence ?? parsedMeta.sequence ?? null,
+      type: record.type || null,
+      defaultWarehouse: record.defaultWarehouse || null,
+      defaultPriceGroup: record.defaultPriceGroup || null,
+      isActive: record.isActive !== false,
+      isExternal: record.isExternal || false,
+      baselinker: record.baselinker || null,
+      meta: {
+        vendorCode: record.vendorCode || parsedMeta.vendorCode || null,
+        fiscalYear: record.fiscalYear ?? parsedMeta.fiscalYear ?? null,
+        sequence: record.sequence ?? parsedMeta.sequence ?? null,
+      },
+      createdAt: existing?.createdAt || FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    batch.set(docRef, payload, { merge: true });
+  });
+  await batch.commit();
+  return { upserted: records.length };
+}
+
+async function listInventories({ limit = 500, vendorCode = null, search = '' } = {}) {
+  let query = inventoryCollection().orderBy('name');
+  if (vendorCode) {
+    query = query.where('meta.vendorCode', '==', vendorCode.toUpperCase());
+  }
+  if (Number.isFinite(limit) && limit > 0) {
+    query = query.limit(limit);
+  }
+  const snapshot = await query.get();
+  let inventories = snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      ...data,
+      inventoryId: data.inventoryId || doc.id,
+    };
+  });
+  const normalizedSearch = search?.trim().toLowerCase();
+  if (normalizedSearch) {
+    inventories = inventories.filter((entry) => {
+      const haystacks = [
+        entry.name,
+        entry.inventoryId,
+        entry.description,
+        entry.vendorCode,
+        entry.meta?.vendorCode,
+      ]
+        .filter(Boolean)
+        .map((value) => String(value).toLowerCase());
+      return haystacks.some((value) => value.includes(normalizedSearch));
+    });
+  }
+  return inventories;
+}
+
+async function getInventoryRecord(inventoryId) {
+  if (!inventoryId) return null;
+  const snapshot = await inventoryCollection().doc(inventoryId).get();
+  if (!snapshot.exists) return null;
+  const data = snapshot.data();
+  return {
+    ...data,
+    inventoryId: data.inventoryId || snapshot.id,
+  };
+}
+
+async function setProductInventory(productId, inventory) {
+  if (!productId || !inventory?.inventoryId) {
+    throw new Error('Inventory ID und Produkt ID sind erforderlich.');
+  }
+  const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
+  await docRef.update({
+    'inventory.inventoryId': inventory.inventoryId,
+    'inventory.inventoryName': inventory.name || null,
+  });
+}
+
+async function assignInventoryToProducts(productIds = [], inventory) {
+  if (!Array.isArray(productIds) || !productIds.length) {
+    return;
+  }
+  if (!inventory?.inventoryId) {
+    throw new Error('Inventory-Datensatz ist erforderlich.');
+  }
+  const batch = firestore.batch();
+  productIds.forEach((productId) => {
+    const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
+    batch.update(docRef, {
+      'inventory.inventoryId': inventory.inventoryId,
+      'inventory.inventoryName': inventory.name || null,
+    });
+  });
+  await batch.commit();
+}
+
+async function logInventorySyncEvent({ productId, inventoryId, status, message }) {
+  await firestore.collection(INVENTORY_SYNC_LOGS_COLLECTION).add({
+    productId,
+    inventoryId,
+    status,
+    message: message || null,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+}
+
 module.exports = {
   saveProduct,
   getProduct,
@@ -632,5 +776,11 @@ module.exports = {
   updateOrder,
   getSkuIndexEntry,
   setSkuIndexEntry,
+  upsertInventories,
+  listInventories,
+  getInventoryRecord,
+  setProductInventory,
+  assignInventoryToProducts,
+  logInventorySyncEvent,
   firestore,
 };

@@ -88,6 +88,8 @@ export interface BuildProductOptions {
   fallbackId?: string;
   barcodes?: string;
   label?: string;
+  inventoryId?: string | null;
+  inventoryName?: string | null;
 }
 
 export const buildProductFromEnrichment = (
@@ -161,6 +163,8 @@ export const buildProductFromEnrichment = (
     },
     inventory: {
       quantity: 0,
+      inventoryId: options?.inventoryId || null,
+      inventoryName: options?.inventoryName || null,
     },
   };
 

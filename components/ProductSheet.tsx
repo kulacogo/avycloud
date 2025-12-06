@@ -9,14 +9,17 @@ import {
   removeProductFromBinApi,
   fetchProductBins,
   generateProductImages,
+  setProductInventoryId,
+  openInventoryLabelWindow,
 } from '../api/client';
-import { EditIcon, SaveIcon, SyncIcon, PrintIcon, MagicIcon } from './icons/Icons';
+import { EditIcon, SaveIcon, SyncIcon, PrintIcon, MagicIcon, RefreshIcon, BarcodeIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import ImageGallery from './ImageGallery';
 import AttributeTable from './AttributeTable';
 import PricingInfo from './PricingInfo';
 import AssistantChat from './GeminiChat';
 import { useI18n } from '../i18n';
+import { useInventoryContext } from '../context/InventoryContext';
 
 interface ProductSheetProps {
   product: Product;
@@ -39,6 +42,13 @@ const filterReferenceCandidates = (images: ProductImage[] = []) =>
 
 const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving }) => {
   const { t } = useI18n();
+  const {
+    inventories,
+    syncInventories: syncInventoryList,
+    syncing: inventorySyncing,
+    setActiveInventoryId,
+    resolveInventory,
+  } = useInventoryContext();
   const [isEditing, setIsEditing] = useState(false);
   const normalizeProduct = useCallback(
     (input: Product): Product => input,
@@ -63,6 +73,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [selectedReferenceIndex, setSelectedReferenceIndex] = useState<number>(-1);
   const [isUploadDragActive, setIsUploadDragActive] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState<string>(() => (product.identification?.barcodes || []).join('\n'));
+  const [assigningInventory, setAssigningInventory] = useState(false);
+  const [inventoryMessage, setInventoryMessage] = useState<string | null>(null);
 
   const loadProductBins = useCallback(
     async (productId: string) => {
@@ -246,6 +258,51 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     }
     setIsGeneratingImages(false);
   };
+
+  const handleInventoryAssign = useCallback(
+    async (inventoryId: string) => {
+      if (!inventoryId || inventoryId === localProduct.inventory?.inventoryId) {
+        return;
+      }
+      setAssigningInventory(true);
+      setInventoryMessage(null);
+      try {
+        await setProductInventoryId(localProduct.id, inventoryId);
+        const resolved =
+          inventories.find((inv) => inv.inventoryId === inventoryId) ||
+          (await resolveInventory(inventoryId));
+        const updatedProduct: Product = {
+          ...localProduct,
+          inventory: {
+            ...(localProduct.inventory || {}),
+            inventoryId,
+            inventoryName: resolved?.name || localProduct.inventory?.inventoryName || null,
+          },
+        };
+        setLocalProduct(updatedProduct);
+        onUpdate(updatedProduct);
+        setInventoryMessage(t('sheet.inventory.assignSuccess'));
+      } catch (error: any) {
+        console.error('Inventory assignment failed:', error);
+        setInventoryMessage(error?.message || t('sheet.inventory.assignError'));
+      } finally {
+        setAssigningInventory(false);
+      }
+    },
+    [localProduct, inventories, onUpdate, resolveInventory, t]
+  );
+
+  const handleInventoryLabel = useCallback(() => {
+    const inventoryId = localProduct.inventory?.inventoryId;
+    if (!inventoryId) {
+      showNotification('error', t('sheet.inventory.printError'));
+      return;
+    }
+    const result = openInventoryLabelWindow(inventoryId);
+    if (!result.ok) {
+      showNotification('error', result.error?.message || t('sheet.inventory.printError'));
+    }
+  }, [localProduct.inventory?.inventoryId, showNotification, t]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -873,7 +930,75 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </div>
         </section>
         </div>
-        
+
+        <section className="p-4 bg-slate-800 rounded-lg shadow-lg space-y-3">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="text-xl font-semibold text-white">{t('sheet.inventory.title')}</h3>
+              <p className="text-sm text-slate-200">
+                {localProduct.inventory?.inventoryName || t('sheet.inventory.none')}
+              </p>
+              <p className="text-xs text-slate-400">
+                {localProduct.inventory?.inventoryId || t('sheet.inventory.helper')}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleInventoryLabel}
+                disabled={!localProduct.inventory?.inventoryId}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
+              >
+                <PrintIcon className="w-4 h-4" />
+                {t('sheet.inventory.printLabel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => syncInventoryList()}
+                disabled={inventorySyncing}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-60"
+              >
+                {inventorySyncing ? <Spinner className="w-4 h-4" /> : <RefreshIcon className="w-4 h-4" />}
+                {inventorySyncing ? t('sheet.inventory.syncing') : t('sheet.inventory.sync')}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="block text-xs text-slate-400 uppercase tracking-wide">
+              {t('sheet.inventory.selectLabel')}
+            </label>
+            <select
+              value={localProduct.inventory?.inventoryId || ''}
+              onChange={(event) => handleInventoryAssign(event.target.value)}
+              disabled={assigningInventory}
+              className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 disabled:opacity-50"
+            >
+              <option value="">{t('sheet.inventory.selectPlaceholder')}</option>
+              {inventories.map((inv) => (
+                <option key={inv.inventoryId} value={inv.inventoryId}>
+                  {inv.name} ({inv.inventoryId})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                localProduct.inventory?.inventoryId
+                  ? setActiveInventoryId(localProduct.inventory.inventoryId)
+                  : null
+              }
+              disabled={!localProduct.inventory?.inventoryId}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
+            >
+              <BarcodeIcon className="w-4 h-4" />
+              {t('sheet.inventory.setActive')}
+            </button>
+          </div>
+          {inventoryMessage && <p className="text-xs text-slate-400">{inventoryMessage}</p>}
+        </section>
+
         <section className="p-4 bg-slate-800 rounded-lg shadow-lg">
           <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.actions.title')}</h3>
             <div className="actions flex flex-wrap gap-4">

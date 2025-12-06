@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles/main.css';
 import { I18nProvider } from './i18n';
+import { InventoryProvider } from './context/InventoryContext';
 
 const container = document.getElementById('root');
 if (container) {
@@ -11,7 +12,9 @@ if (container) {
   root.render(
     <React.StrictMode>
       <I18nProvider>
-        <App />
+        <InventoryProvider>
+          <App />
+        </InventoryProvider>
       </I18nProvider>
     </React.StrictMode>
   );

@@ -312,10 +312,94 @@ async function buildBinLabelsPdf(codes = []) {
   return Buffer.concat(chunks);
 }
 
+async function buildInventoryLabelPdf(inventory) {
+  const code = String(inventory?.inventoryId || inventory?.id || '').trim();
+  if (!code) {
+    throw new Error('Inventory ID ist erforderlich.');
+  }
+  const title = String(inventory?.name || code).trim();
+  const description = String(inventory?.description || '').trim();
+  const vendor = inventory?.vendorCode ? String(inventory.vendorCode).toUpperCase() : null;
+
+  const doc = new PDFDocument({
+    size: [mmToPoints(LABEL_WIDTH_MM), mmToPoints(LABEL_HEIGHT_MM)],
+    margins: {
+      top: mmToPoints(LABEL_PADDING_MM),
+      bottom: mmToPoints(LABEL_PADDING_MM),
+      left: mmToPoints(LABEL_PADDING_MM),
+      right: mmToPoints(LABEL_PADDING_MM),
+    },
+  });
+  applyPageRotation(doc);
+
+  const chunks = [];
+  doc.on('data', (chunk) => chunks.push(chunk));
+
+  const qrDataUrl = await QRCode.toDataURL(code, {
+    errorCorrectionLevel: 'H',
+    margin: 0,
+    scale: 8,
+  });
+  const qrBuffer = Buffer.from(qrDataUrl.replace(/^data:image\/png;base64,/, ''), 'base64');
+
+  doc.image(qrBuffer, 0, 0, { fit: [mmToPoints(QR_SIZE_MM), mmToPoints(QR_SIZE_MM)] });
+
+  const textX = mmToPoints(QR_SIZE_MM + LABEL_GAP_MM);
+  const headingY = mmToPoints(5);
+  const lineHeight = mmToPoints(4);
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(mmToPoints(4.8))
+    .text(code, textX, headingY, {
+      width: mmToPoints(TEXT_AREA_WIDTH_MM),
+      align: 'left',
+    });
+
+  doc
+    .font('Helvetica')
+    .fontSize(mmToPoints(3.6))
+    .text(title, textX, headingY + lineHeight, {
+      width: mmToPoints(TEXT_AREA_WIDTH_MM),
+      align: 'left',
+    });
+
+  if (vendor) {
+    doc
+      .font('Helvetica')
+      .fontSize(mmToPoints(3.2))
+      .text(`Vendor: ${vendor}`, textX, headingY + lineHeight * 2, {
+        width: mmToPoints(TEXT_AREA_WIDTH_MM),
+        align: 'left',
+      });
+  }
+
+  if (description) {
+    doc
+      .font('Helvetica')
+      .fontSize(mmToPoints(2.6))
+      .text(description, textX, headingY + lineHeight * 3, {
+        width: mmToPoints(TEXT_AREA_WIDTH_MM),
+        align: 'left',
+        height: mmToPoints(LABEL_HEIGHT_MM - 10),
+      });
+  }
+
+  doc.end();
+
+  await new Promise((resolve, reject) => {
+    doc.once('end', resolve);
+    doc.once('error', reject);
+  });
+
+  return Buffer.concat(chunks);
+}
+
 module.exports = {
   buildProductLabelsHtml,
   buildBinLabelHtml,
   buildBinLabelsHtml,
   buildBinLabelsPdf,
+  buildInventoryLabelPdf,
 };
 

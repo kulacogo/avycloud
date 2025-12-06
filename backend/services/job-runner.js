@@ -11,6 +11,8 @@ const {
   adjustPendingIntakeQuantity,
   appendProductIdentityAliases,
   removeProductIdentityAliases,
+  getInventoryRecord,
+  setProductInventory,
 } = require('../lib/firestore');
 const { ensureProductSku } = require('../lib/sku');
 const { computeProductIdentityKey, buildIdentityAliasSet } = require('../lib/product-identity');
@@ -59,6 +61,12 @@ async function processJob(jobId) {
   }
 
   try {
+    const inventoryId = jobSnapshot.payload?.inventoryId || null;
+    const inventoryRecord = inventoryId ? await getInventoryRecord(inventoryId) : null;
+    if (inventoryId && !inventoryRecord) {
+      throw new Error(`Inventory ${inventoryId} wurde nicht gefunden.`);
+    }
+
     const filesMeta = jobSnapshot.payload?.files || [];
     if (!filesMeta.length) {
       throw new Error('Job has no files to process');
@@ -95,6 +103,13 @@ async function processJob(jobId) {
         const product = bundleProducts[index];
         try {
           ensureProductSku(product);
+          if (inventoryRecord) {
+            product.inventory = {
+              ...(product.inventory || {}),
+              inventoryId: inventoryRecord.inventoryId,
+              inventoryName: inventoryRecord.name || null,
+            };
+          }
 
           product.ops = {
             ...(product.ops || {}),
@@ -201,6 +216,18 @@ async function processJob(jobId) {
                 console.warn(`Failed to append identity aliases for ${matchedProductId}:`, aliasError);
               });
             }
+            if (
+              inventoryRecord &&
+              matchedExistingProduct.inventory?.inventoryId !== inventoryRecord.inventoryId
+            ) {
+              setProductInventory(matchedProductId, inventoryRecord).catch((inventoryError) => {
+                console.warn(
+                  `Failed to update product ${matchedProductId} inventory:`,
+                  inventoryError.message
+                );
+              });
+            }
+
             const resolvedProduct = {
               ...canonicalProduct,
               ops: {
