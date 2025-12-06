@@ -116,6 +116,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<SyncStatus | 'all'>('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterInventoryId, setFilterInventoryId] = useState('all');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'ops.last_saved_iso', direction: 'desc' });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isColumnPanelOpen, setIsColumnPanelOpen] = useState(false);
@@ -452,7 +453,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
         identifiers.some((idVal) => idVal.includes(term));
       const matchesStatus = filterStatus === 'all' || normalizedStatus === filterStatus;
       const matchesCategory = filterCategory === 'all' || p.identification.category === filterCategory;
-      return matchesSearch && matchesStatus && matchesCategory;
+      const matchesInventory =
+        filterInventoryId === 'all' ||
+        (p.inventory?.inventoryId != null &&
+          String(p.inventory.inventoryId).trim() === String(filterInventoryId).trim());
+      return matchesSearch && matchesStatus && matchesCategory && matchesInventory;
     });
 
     if (sortConfig !== null) {
@@ -472,7 +477,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
 
     return filtered;
-  }, [products, searchTerm, filterStatus, filterCategory, sortConfig]);
+  }, [products, searchTerm, filterStatus, filterCategory, filterInventoryId, sortConfig]);
 
   const requestSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -715,6 +720,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setSearchTerm('');
     setFilterStatus('all');
     setFilterCategory('all');
+    setFilterInventoryId('all');
   };
 
   const renderFilterControls = () => (
@@ -741,6 +747,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
             {categories.map((cat) => (
               <option key={cat} value={cat}>
                 {cat === 'all' ? t('table.categories.all') : cat}
+              </option>
+            ))}
+          </select>
+          <select
+            id="table-filter-inventory"
+            value={filterInventoryId}
+            onChange={(e) => setFilterInventoryId(e.target.value)}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            <option value="all">{t('table.inventoryFilter.all')}</option>
+            {inventories.map((inv) => (
+              <option key={inv.inventoryId} value={inv.inventoryId}>
+                {inv.name} ({inv.inventoryId})
               </option>
             ))}
           </select>

@@ -245,7 +245,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         key: 'gtin',
         label: t('chat.prompts.gtin'),
         value:
-          'Ermittele den zuverlässigsten Barcode (EAN = 13 Stellen, GTIN = 14 Stellen). Gib ausschließlich JSON zurück: {"identity":{"barcodes":["1234567890123"]}}. Nur Codes mit korrekter Prüfziffer anwenden, sonst keine Änderung.',
+          'Ermittele den zuverlässigsten Barcode (EAN = 13 Stellen, GTIN = 14 Stellen, jeweils mit gültiger Prüfziffer). Antworte ausschließlich mit JSON im DatasheetChange-Schema, z. B.: ```json\n{"identity":{"ean":"1234567890123","gtin":null}}\n``` Verwende nur Codes mit korrekter Prüfziffer. Wenn kein valider Code gefunden wird, gib {"identity":{}} zurück und nichts weiter.',
       },
     ],
     [t]
