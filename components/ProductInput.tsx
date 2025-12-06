@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { UploadIcon, BarcodeIcon, CameraIcon, RefreshIcon } from './icons/Icons';
 import type { UploadGroupPayload, IdentifyPipeline } from '../hooks/useIdentification';
 import { useI18n } from '../i18n';
