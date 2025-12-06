@@ -103,6 +103,33 @@ const mergeIdentifiedProducts = (
 
     if (matchIndex >= 0) {
       const matched = updated[matchIndex];
+      const existingPersisted = Boolean(matched?.ops?.last_saved_iso);
+      const incomingPersisted = Boolean(normalizedIncoming?.ops?.last_saved_iso);
+
+      if (existingPersisted && !incomingPersisted) {
+        const reuse: Product = {
+          ...matched,
+          inventory: normalizedIncoming.inventory?.inventoryId
+            ? {
+                ...(matched.inventory || {}),
+                inventoryId: normalizedIncoming.inventory.inventoryId,
+                inventoryName:
+                  normalizedIncoming.inventory.inventoryName ?? matched.inventory?.inventoryName ?? null,
+                quantity: normalizedIncoming.inventory.quantity ?? matched.inventory?.quantity,
+              }
+            : matched.inventory,
+          ops: {
+            ...(matched.ops || {}),
+            pending_intake_quantity:
+              normalizedIncoming.ops?.pending_intake_quantity ??
+              matched.ops?.pending_intake_quantity,
+          },
+        };
+        updated[matchIndex] = reuse;
+        focus = reuse;
+        return;
+      }
+
       const merged: Product = {
         ...matched,
         ...normalizedIncoming,

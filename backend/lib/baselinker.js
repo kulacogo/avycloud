@@ -5,6 +5,7 @@ const {
   getSkuIndexEntry,
   setSkuIndexEntry,
   findProductByStrictIdentifier,
+  logInventorySyncEvent,
 } = require('./firestore');
 
 const MIN_IMAGE_EDGE_BASELINKER = parseInt(
