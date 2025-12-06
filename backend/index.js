@@ -616,6 +616,7 @@ app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
         ocr: result.ocr,
         llm: result.llm,
         inventoryId,
+        barcodeInsights: result.barcodeInsights,
       },
     });
   } catch (error) {

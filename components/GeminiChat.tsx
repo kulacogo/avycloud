@@ -8,6 +8,7 @@ import MessageBubble from './chat/MessageBubble';
 import { SparklesIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import { useI18n } from '../i18n';
+import { normalizeBarcode, isValidGtin } from '../utils/gtin';
 
 interface AssistantChatProps {
   product: Product;
@@ -105,7 +106,18 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
   if (entry.notes && typeof entry.notes === 'object') {
     result.notes = entry.notes;
   }
-  const identityPatch: Record<string, string> = {};
+  const identityPatch: Record<string, any> = {};
+  const barcodeSet = new Set<string>();
+  const pushBarcode = (value?: string) => {
+    if (!value) return;
+    const digits = normalizeBarcode(value);
+    if (digits && isValidGtin(digits)) {
+      barcodeSet.add(digits);
+    }
+  };
+  if (Array.isArray(entry.barcodes)) {
+    entry.barcodes.forEach((value: string) => pushBarcode(value));
+  }
   if (typeof entry.title === 'string' && entry.title.trim()) {
     identityPatch.name = entry.title.trim();
     result.title = entry.title.trim();
@@ -126,6 +138,21 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
     if (typeof entry.identity.sku === 'string' && entry.identity.sku.trim()) {
       identityPatch.sku = entry.identity.sku.trim();
     }
+    if (Array.isArray(entry.identity.barcodes)) {
+      entry.identity.barcodes.forEach((value: string) => pushBarcode(value));
+    }
+    if (typeof entry.identity.gtin === 'string') {
+      pushBarcode(entry.identity.gtin);
+    }
+    if (typeof entry.identity.ean === 'string') {
+      pushBarcode(entry.identity.ean);
+    }
+    if (typeof entry.identity.upc === 'string') {
+      pushBarcode(entry.identity.upc);
+    }
+  }
+  if (barcodeSet.size) {
+    identityPatch.barcodes = Array.from(barcodeSet);
   }
   if (Object.keys(identityPatch).length) {
     result.identity = identityPatch;
@@ -213,6 +240,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         label: t('chat.prompts.pricing'),
         value:
           'Preis korrigieren (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+      },
+      {
+        key: 'gtin',
+        label: t('chat.prompts.gtin'),
+        value:
+          'Ermittele den zuverlässigsten Barcode (EAN = 13 Stellen, GTIN = 14 Stellen). Gib ausschließlich JSON zurück: {"identity":{"barcodes":["1234567890123"]}}. Nur Codes mit korrekter Prüfziffer anwenden, sonst keine Änderung.',
       },
     ],
     [t]

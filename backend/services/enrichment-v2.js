@@ -1,10 +1,19 @@
-const { extractOcrPayload, isLikelyGtin } = require('../lib/vision-ocr');
+const { extractOcrPayload } = require('../lib/vision-ocr');
 const { uploadImage } = require('../lib/storage');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { findKauflandCategory } = require('../lib/kaufland-taxonomy');
 const { generateStructuredProductRecord } = require('./generative-identify');
+const { isValidGtin, getGtinType, normalizeDigits, EAN_LENGTH, GTIN_LENGTH } = require('../lib/gtin');
 
 const DEFAULT_TEXT = 'unknown';
+const SOURCE_WEIGHTS = {
+  manual: 6,
+  input: 5,
+  ocr: 5,
+  'ocr-text': 4,
+  llm: 3,
+  numeric: 1,
+};
 
 const normalizeWhitespace = (value = '') =>
   value
@@ -48,11 +57,141 @@ const mergeBarcodeLists = (...sources) => {
       seen.add(code);
       merged.push({
         code,
-        priority: isLikelyGtin(code) ? 0 : 1,
+        priority: isValidGtin(code) ? 0 : 1,
       });
     });
   merged.sort((a, b) => a.priority - b.priority);
   return merged.map((entry) => entry.code);
+};
+
+const MIN_BARCODE_LENGTH = 8;
+
+const createBarcodeCandidate = (code, source, meta = {}) => {
+  if (!code) return null;
+  const digits = normalizeDigits(code);
+  if (!digits || digits.length < MIN_BARCODE_LENGTH) return null;
+  if (!/^\d+$/.test(digits)) return null;
+  return {
+    code: digits,
+    length: digits.length,
+    source,
+    confidence: typeof meta.confidence === 'number' ? meta.confidence : null,
+    fileIndex: meta.fileIndex ?? null,
+    boundingPoly: meta.boundingPoly || null,
+    isValid: isValidGtin(digits),
+  };
+};
+
+const aggregateBarcodeCandidates = (candidates = []) => {
+  const aggregates = new Map();
+  const addCandidate = (candidate) => {
+    if (!candidate) return;
+    const existing = aggregates.get(candidate.code) || {
+      code: candidate.code,
+      length: candidate.length,
+      isValid: candidate.isValid,
+      sources: new Set(),
+      score: 0,
+      hits: 0,
+      confidenceSamples: [],
+      samples: [],
+    };
+    const baseWeight = SOURCE_WEIGHTS[candidate.source] || 1;
+    let score = baseWeight;
+    if (candidate.isValid) score += 4;
+    if (candidate.length === EAN_LENGTH || candidate.length === GTIN_LENGTH) score += 2;
+    if (candidate.confidence) {
+      score += Math.min(candidate.confidence, 1) * 2;
+      existing.confidenceSamples.push(candidate.confidence);
+    }
+    existing.score += score;
+    existing.hits += 1;
+    existing.isValid = existing.isValid || candidate.isValid;
+    existing.sources.add(candidate.source);
+    existing.samples.push(candidate);
+    aggregates.set(candidate.code, existing);
+  };
+
+  candidates.forEach(addCandidate);
+
+  const ranked = Array.from(aggregates.values()).map((entry) => {
+    const avgConfidence =
+      entry.confidenceSamples.length > 0
+        ? entry.confidenceSamples.reduce((acc, value) => acc + value, 0) / entry.confidenceSamples.length
+        : null;
+    const normalizedConfidence = Math.min(entry.score / 12, 1);
+    return {
+      code: entry.code,
+      length: entry.length,
+      isValid: entry.isValid,
+      score: entry.score,
+      hits: entry.hits,
+      sources: Array.from(entry.sources),
+      confidence: avgConfidence != null ? Math.max(avgConfidence, normalizedConfidence) : normalizedConfidence,
+    };
+  });
+
+  ranked.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (b.hits !== a.hits) return b.hits - a.hits;
+    return a.code.localeCompare(b.code);
+  });
+
+  return ranked;
+};
+
+const resolveBarcodeSet = ({ manualBarcodes = [], mergedBarcodes = [], ocrPayload = {}, llmRecord = null }) => {
+  const candidates = [];
+
+  manualBarcodes.forEach((code) => {
+    candidates.push(createBarcodeCandidate(code, 'manual'));
+  });
+
+  mergedBarcodes.forEach((code) => {
+    candidates.push(createBarcodeCandidate(code, 'input'));
+  });
+
+  (ocrPayload?.barcodeDetails || []).forEach((detail) => {
+    candidates.push(
+      createBarcodeCandidate(detail.code, 'ocr', {
+        confidence: detail.confidence,
+        fileIndex: detail.fileIndex,
+        boundingPoly: detail.boundingPoly,
+      })
+    );
+  });
+
+  (ocrPayload?.barcodes || []).forEach((code) => {
+    candidates.push(createBarcodeCandidate(code, 'ocr'));
+  });
+
+  (ocrPayload?.numericValues || []).forEach((code) => {
+    candidates.push(createBarcodeCandidate(code, 'numeric'));
+  });
+
+  if (llmRecord) {
+    if (llmRecord.ean && llmRecord.ean !== DEFAULT_TEXT) {
+      candidates.push(createBarcodeCandidate(llmRecord.ean, 'llm'));
+    }
+    if (llmRecord.gtin && llmRecord.gtin !== DEFAULT_TEXT) {
+      candidates.push(createBarcodeCandidate(llmRecord.gtin, 'llm'));
+    }
+    if (llmRecord.upc && llmRecord.upc !== DEFAULT_TEXT) {
+      candidates.push(createBarcodeCandidate(llmRecord.upc, 'llm'));
+    }
+  }
+
+  const ranked = aggregateBarcodeCandidates(candidates);
+  const primary = ranked[0] || null;
+  const bestEan = ranked.find((entry) => entry.length === EAN_LENGTH) || null;
+  const bestGtin = ranked.find((entry) => entry.length === GTIN_LENGTH) || null;
+
+  return {
+    ranked,
+    primary,
+    bestEan,
+    bestGtin,
+  };
 };
 
 const normalizeRecordField = (value) => {
@@ -158,7 +297,6 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
   const mergedBarcodes = mergeBarcodeLists(manualBarcodes, ocrPayload.barcodes || []);
   const inputMode = determineInputMode(files, mergedBarcodes);
   const uploadedImages = await uploadReferenceImages(files);
-  const primaryBarcode = mergedBarcodes[0] || DEFAULT_TEXT;
   let llmRecord = null;
 
   try {
@@ -179,8 +317,8 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
     model: DEFAULT_TEXT,
     sku: DEFAULT_TEXT,
     variant: DEFAULT_TEXT,
-    gtin: primaryBarcode,
-    ean: primaryBarcode,
+    gtin: DEFAULT_TEXT,
+    ean: DEFAULT_TEXT,
     upc: DEFAULT_TEXT,
     color: DEFAULT_TEXT,
     size: DEFAULT_TEXT,
@@ -284,6 +422,39 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
       kauflandCategory.dePath || kauflandCategory.enPath || DEFAULT_TEXT;
   }
 
+  const barcodeResolution = resolveBarcodeSet({
+    manualBarcodes,
+    mergedBarcodes,
+    ocrPayload,
+    llmRecord,
+  });
+  const fallbackBarcode = barcodeResolution.primary?.code || mergedBarcodes[0] || manualBarcodes[0] || null;
+
+  if (barcodeResolution.bestGtin) {
+    assign('gtin', barcodeResolution.bestGtin.code);
+  } else if (fallbackBarcode && fallbackBarcode.length === GTIN_LENGTH && isValidGtin(fallbackBarcode)) {
+    assign('gtin', fallbackBarcode);
+  }
+  if (barcodeResolution.bestEan) {
+    assign('ean', barcodeResolution.bestEan.code);
+  } else if (
+    fallbackBarcode &&
+    fallbackBarcode.length === EAN_LENGTH &&
+    isValidGtin(fallbackBarcode)
+  ) {
+    assign('ean', fallbackBarcode);
+  }
+
+  mergedRecord.barcode_sources = barcodeResolution.ranked.slice(0, 6);
+  mergedRecord.gtin_confidence =
+    barcodeResolution.bestGtin?.confidence ||
+    barcodeResolution.primary?.confidence ||
+    0;
+  mergedRecord.ean_confidence =
+    barcodeResolution.bestEan?.confidence ||
+    barcodeResolution.primary?.confidence ||
+    0;
+
   return {
     locale,
     barcodes: mergedBarcodes,
@@ -297,6 +468,14 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
       model: process.env.GEMINI_MULTIMODAL_MODEL || process.env.GEMINI_STRUCTURED_MODEL || 'gemini-2.0-flash',
     },
     inventoryId,
+    barcodeInsights: {
+      ranked: barcodeResolution.ranked,
+      primary: barcodeResolution.primary?.code || null,
+      selected: {
+        gtin: mergedRecord.gtin !== DEFAULT_TEXT ? mergedRecord.gtin : null,
+        ean: mergedRecord.ean !== DEFAULT_TEXT ? mergedRecord.ean : null,
+      },
+    },
   };
 }
 

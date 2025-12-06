@@ -22,6 +22,19 @@ const PRODUCT_RECORD_SCHEMA = {
     title_kaufland: { type: 'string' },
     description_ebay: { type: 'string' },
     description_kaufland: { type: 'string' },
+    ean_confidence: { type: 'number' },
+    gtin_confidence: { type: 'number' },
+    barcode_sources: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' },
+          source: { type: 'string' },
+          confidence: { type: 'number' },
+        },
+      },
+    },
     item_specifics: {
       type: 'array',
       items: {
@@ -73,9 +86,10 @@ Aufgabe:
    - eBay-Titel max. 80 Zeichen.
    - Kaufland-Titel max. 100 Zeichen.
    - Beschreibungen als kurzer Absatz mit Features / Nutzen.
-4. Bestimme eine passende Kategoriebezeichnung (interner Kategorie-String), z. B. "Schuhe > Sandalen".
-5. Erstelle Attribute/Item-Specifics als Liste aus { key, value } mit deutschen Schlüsseln (z. B. "Farbe": "Marineblau").
-6. Wenn eine Information nicht sicher ermittelbar ist, verwende exakt den String "unknown".
+4. Priorisiere Barcodes: EAN = exakt 13 Ziffern, GTIN = exakt 14 Ziffern. Verwende nur Codes mit korrekter Checkdigit. Wenn keiner sicher ist, setze EAN/GTIN auf "unknown".
+5. Bestimme eine passende Kategoriebezeichnung (interner Kategorie-String), z. B. "Schuhe > Sandalen".
+6. Erstelle Attribute/Item-Specifics als Liste aus { key, value } mit deutschen Schlüsseln (z. B. "Farbe": "Marineblau").
+7. Wenn eine Information nicht sicher ermittelbar ist, verwende exakt den String "unknown".
 
 Kontext:
 - Präferiere Label-Texte für Marken/GTIN

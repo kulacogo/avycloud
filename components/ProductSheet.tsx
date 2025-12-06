@@ -19,6 +19,7 @@ import AttributeTable from './AttributeTable';
 import PricingInfo from './PricingInfo';
 import AssistantChat from './GeminiChat';
 import { useI18n } from '../i18n';
+import { normalizeBarcode, summarizeBarcodes, isValidGtin } from '../utils/gtin';
 import { useInventoryContext } from '../context/InventoryContext';
 
 interface ProductSheetProps {
@@ -75,6 +76,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [barcodeInput, setBarcodeInput] = useState<string>(() => (product.identification?.barcodes || []).join('\n'));
   const [assigningInventory, setAssigningInventory] = useState(false);
   const [inventoryMessage, setInventoryMessage] = useState<string | null>(null);
+  const currentBarcodeSummary = useMemo(
+    () => summarizeBarcodes(localProduct.identification?.barcodes || []),
+    [localProduct.identification?.barcodes]
+  );
+  const editingBarcodeSummary = useMemo(
+    () => summarizeBarcodes(parseBarcodes(barcodeInput)),
+    [barcodeInput, parseBarcodes]
+  );
 
   const loadProductBins = useCallback(
     async (productId: string) => {
@@ -393,9 +402,23 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   };
 
   const applyAssistantChange = (change: DatasheetChange) => {
+    let incomingBarcodes: string[] | null = null;
     setLocalProduct(prev => {
       const next = JSON.parse(JSON.stringify(prev)) as Product;
       if (change.identity && Object.keys(change.identity).length > 0) {
+        if (Array.isArray(change.identity.barcodes)) {
+          const sanitized = Array.from(
+            new Set(
+              change.identity.barcodes
+                .map((value) => normalizeBarcode(String(value)))
+                .filter((value) => value && isValidGtin(value))
+            )
+          );
+          if (sanitized.length) {
+            next.identification.barcodes = sanitized;
+            incomingBarcodes = sanitized;
+          }
+        }
         next.identification = {
           ...next.identification,
           ...change.identity,
@@ -436,6 +459,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       return next;
     });
     setIsDirty(true);
+    if (incomingBarcodes) {
+      setBarcodeInput(incomingBarcodes.join('\n'));
+    }
     showNotification('success', t('sheet.msg.changeApplied'));
   };
 
@@ -457,7 +483,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const parseBarcodes = useCallback((input: string) => {
     const entries = input
       .split(/[\n,;]+/)
-      .map((value) => value.trim())
+      .map((value) => normalizeBarcode(value.trim()))
       .filter(Boolean);
     return Array.from(new Set(entries));
   }, []);
@@ -658,11 +684,39 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     placeholder={t('input.barcodes.placeholder')}
                   />
                   <p className="text-[11px] text-slate-500 mt-1">{t('input.barcodes.hint')}</p>
+                  <div className="text-[11px] mt-1">
+                    {editingBarcodeSummary.hasValid ? (
+                      <span className="text-emerald-300">
+                        {editingBarcodeSummary.gtin
+                          ? t('sheet.barcodes.statusValidGtin', { code: editingBarcodeSummary.gtin })
+                          : t('sheet.barcodes.statusValidEan', { code: editingBarcodeSummary.ean })}
+                      </span>
+                    ) : (
+                      <span className="text-amber-300">{t('sheet.barcodes.statusMissing')}</span>
+                    )}
+                  </div>
                 </div>
               ) : (
-              <p id="p-barcodes" className="text-xs text-slate-500 mt-1">
-                  {t('common.barcodeLabel')}: {localProduct.identification.barcodes?.join(', ') || t('common.na')}
-              </p>
+                <div className="mt-1">
+                  <p id="p-barcodes" className="text-xs text-slate-500">
+                    {t('common.barcodeLabel')}: {localProduct.identification.barcodes?.join(', ') || t('common.na')}
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-[11px] text-slate-400 mt-1">
+                    {currentBarcodeSummary.gtin && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/30">
+                        {t('sheet.barcodes.statusValidGtin', { code: currentBarcodeSummary.gtin })}
+                      </span>
+                    )}
+                    {!currentBarcodeSummary.gtin && currentBarcodeSummary.ean && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/30">
+                        {t('sheet.barcodes.statusValidEan', { code: currentBarcodeSummary.ean })}
+                      </span>
+                    )}
+                    {!currentBarcodeSummary.hasValid && (
+                      <span className="text-amber-300">{t('sheet.barcodes.statusMissing')}</span>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
             <div className="actions flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto justify-end">

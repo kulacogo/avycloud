@@ -11,10 +11,11 @@ const {
   executeSerpapiToolCall,
   executeWebFetchToolCall,
 } = require('./toolkit');
-const { extractOcrPayload, isLikelyGtin } = require('../lib/vision-ocr');
+const { extractOcrPayload } = require('../lib/vision-ocr');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { resolveModel } = require('../lib/model-select');
 const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
+const { isValidGtin } = require('../lib/gtin');
 
 const MAX_TOOL_ITERATIONS = 8;
 const MAX_BARCODE_COUNT = 10000;
@@ -111,7 +112,7 @@ function mergeBarcodeLists(...sources) {
       seen.add(code);
       merged.push({
         code,
-        priority: isLikelyGtin(code) ? 0 : 1,
+        priority: isValidGtin(code) ? 0 : 1,
       });
     });
   merged.sort((a, b) => a.priority - b.priority);

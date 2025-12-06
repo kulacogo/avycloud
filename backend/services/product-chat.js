@@ -8,6 +8,7 @@ const {
 const { resolveModel } = require('../lib/model-select');
 const { fetchMarketingImages } = require('../lib/marketing-images');
 const { generateImagesForProduct } = require('./image-generation');
+const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 
 const MAX_CHAT_ITERATIONS = 5;
 const DEEP_MODE_REGEX =
@@ -744,6 +745,18 @@ function sanitizeDatasheetChange(entry) {
     result.notes = entry.notes;
   }
   const identityPatch = {};
+  const barcodeSet = new Set();
+  const pushBarcode = (value) => {
+    if (!value) return;
+    const digits = normalizeDigits(value);
+    if (digits && isValidGtin(digits)) {
+      barcodeSet.add(digits);
+    }
+  };
+
+  if (Array.isArray(entry.barcodes)) {
+    entry.barcodes.forEach(pushBarcode);
+  }
   if (typeof entry.title === 'string' && entry.title.trim()) {
     identityPatch.name = entry.title.trim();
   }
@@ -763,9 +776,26 @@ function sanitizeDatasheetChange(entry) {
     if (typeof entry.identity.sku === 'string' && entry.identity.sku.trim()) {
       identityPatch.sku = entry.identity.sku.trim();
     }
+    if (Array.isArray(entry.identity.barcodes)) {
+      entry.identity.barcodes.forEach(pushBarcode);
+    }
+    if (typeof entry.identity.gtin === 'string') {
+      pushBarcode(entry.identity.gtin);
+    }
+    if (typeof entry.identity.ean === 'string') {
+      pushBarcode(entry.identity.ean);
+    }
+    if (typeof entry.identity.upc === 'string') {
+      pushBarcode(entry.identity.upc);
+    }
   }
   if (Object.keys(identityPatch).length) {
+    if (barcodeSet.size) {
+      identityPatch.barcodes = Array.from(barcodeSet);
+    }
     result.identity = identityPatch;
+  } else if (barcodeSet.size) {
+    result.identity = { barcodes: Array.from(barcodeSet) };
   }
   return result;
 }

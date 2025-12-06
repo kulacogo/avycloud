@@ -322,6 +322,14 @@ export interface ProductEnrichmentRecord {
   gtin: string;
   ean: string;
   upc: string;
+  gtin_confidence?: number;
+  ean_confidence?: number;
+  barcode_sources?: Array<{
+    code: string;
+    length?: number;
+    confidence?: number;
+    sources?: string[];
+  }>;
   color: string;
   size: string;
   material: string;

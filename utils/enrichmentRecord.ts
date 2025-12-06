@@ -1,4 +1,5 @@
 import { Product, ProductEnrichmentRecord, ProductImage } from '../types';
+import { normalizeBarcode } from './gtin';
 
 const UNKNOWN = 'unknown';
 
@@ -16,7 +17,7 @@ const parseBarcodeString = (input?: string) =>
   input
     ? input
         .split(/[\s,;|]+/)
-        .map((entry) => entry.trim())
+        .map((entry) => normalizeBarcode(entry.trim()))
         .filter(Boolean)
     : [];
 

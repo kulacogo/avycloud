@@ -1,4 +1,6 @@
 const { GoogleAuth } = require('google-auth-library');
+const sharp = require('sharp');
+const { normalizeDigits, isValidGtin } = require('./gtin');
 
 const OCR_ENDPOINT = 'https://vision.googleapis.com/v1/images:annotate';
 const OCR_SCOPE = 'https://www.googleapis.com/auth/cloud-platform';
@@ -11,33 +13,10 @@ const OCR_TEXT_SNIPPET_LIMIT = parseInt(process.env.OCR_TEXT_SNIPPET_LIMIT || '4
 const OCR_NUMERIC_LIMIT = parseInt(process.env.OCR_NUMERIC_LIMIT || '60', 10);
 const MIN_BARCODE_LENGTH = 8;
 const MAX_BARCODE_LENGTH = 18;
+const MAX_PREPROCESS_EDGE = parseInt(process.env.OCR_MAX_EDGE || '2200', 10);
 
 function normalizeLine(line = '') {
   return line.replace(/\s+/g, ' ').trim();
-}
-
-function normalizeDigits(value = '') {
-  return value.replace(/[^\d]/g, '');
-}
-
-function computeGtinCheckDigit(code = '') {
-  const digits = code.split('').map((char) => parseInt(char, 10));
-  let sum = 0;
-  for (let i = digits.length - 2, weightIdx = 0; i >= 0; i -= 1, weightIdx += 1) {
-    const weight = weightIdx % 2 === 0 ? 3 : 1;
-    sum += digits[i] * weight;
-  }
-  return (10 - (sum % 10)) % 10;
-}
-
-function isLikelyGtin(code = '') {
-  if (!/^\d+$/.test(code)) return false;
-  if (![8, 12, 13, 14].includes(code.length)) {
-    return false;
-  }
-  const expected = computeGtinCheckDigit(code);
-  const actual = parseInt(code.slice(-1), 10);
-  return expected === actual;
 }
 
 function extractNumericTokens(text = '', { minLength = 4, maxItems = OCR_NUMERIC_LIMIT } = {}) {
@@ -72,7 +51,7 @@ function extractBarcodeCandidates(text = '') {
       seen.add(normalizedLine);
       candidates.push({
         code: normalizedLine,
-        priority: isLikelyGtin(normalizedLine) ? 0 : 1,
+        priority: isValidGtin(normalizedLine) ? 0 : 1,
       });
     }
   }
@@ -83,7 +62,7 @@ function extractBarcodeCandidates(text = '') {
     seen.add(match);
     candidates.push({
       code: match,
-      priority: isLikelyGtin(match) ? 0 : 1,
+      priority: isValidGtin(match) ? 0 : 1,
     });
   }
 
@@ -119,8 +98,29 @@ async function callVisionApi(requests = []) {
   return Array.isArray(data.responses) ? data.responses : [];
 }
 
-function buildRequests(files = []) {
-  return files.map((file) => ({
+async function preprocessImageBuffer(buffer) {
+  try {
+    const pipeline = sharp(buffer).rotate();
+    const metadata = await pipeline.metadata();
+    const longest = Math.max(metadata.width || 0, metadata.height || 0);
+    if (longest > MAX_PREPROCESS_EDGE) {
+      pipeline.resize({ width: MAX_PREPROCESS_EDGE, height: MAX_PREPROCESS_EDGE, fit: 'inside', withoutEnlargement: true });
+    }
+    return await pipeline.normalize().toBuffer();
+  } catch (error) {
+    console.warn('OCR preprocess failed, using original buffer:', error.message);
+    return buffer;
+  }
+}
+
+async function buildRequests(files = []) {
+  const normalized = await Promise.all(
+    files.map(async (file) => ({
+      ...file,
+      buffer: await preprocessImageBuffer(file.buffer),
+    }))
+  );
+  return normalized.map((file) => ({
     image: {
       content: file.buffer.toString('base64'),
     },
@@ -136,6 +136,7 @@ async function extractOcrPayload(files = []) {
   if (!Array.isArray(files) || files.length === 0) {
     return {
       barcodes: [],
+      barcodeDetails: [],
       textSnippets: [],
       numericValues: [],
     };
@@ -145,16 +146,23 @@ async function extractOcrPayload(files = []) {
     const responses = [];
     for (let idx = 0; idx < files.length; idx += OCR_BATCH_SIZE) {
       const batch = files.slice(idx, idx + OCR_BATCH_SIZE);
-      const requests = buildRequests(batch);
+      const requests = await buildRequests(batch);
       const batchResponses = await callVisionApi(requests);
-      responses.push(...batchResponses);
+      batchResponses.forEach((entry, responseIdx) => {
+        responses.push({
+          response: entry,
+          fileIndex: idx + responseIdx,
+        });
+      });
     }
 
     const textSnippets = [];
     const numericValues = [];
     const barcodeCandidates = [];
 
-    for (const response of responses) {
+    const barcodeDetails = [];
+
+    for (const { response, fileIndex } of responses) {
       const fullText = response?.fullTextAnnotation?.text || '';
       if (fullText) {
         fullText
@@ -171,9 +179,24 @@ async function extractOcrPayload(files = []) {
       const combinedTextParts = [];
       if (fullText) combinedTextParts.push(fullText);
       if (Array.isArray(response?.textAnnotations)) {
-        response.textAnnotations.forEach((annotation) => {
+        response.textAnnotations.forEach((annotation, annotationIndex) => {
           if (annotation?.description) {
             combinedTextParts.push(annotation.description);
+            const digitsOnly = normalizeDigits(annotation.description);
+            if (
+              digitsOnly.length >= MIN_BARCODE_LENGTH &&
+              digitsOnly.length <= MAX_BARCODE_LENGTH &&
+              /^\d+$/.test(digitsOnly)
+            ) {
+              barcodeDetails.push({
+                code: digitsOnly,
+                source: annotationIndex === 0 ? 'fullText' : 'textAnnotation',
+                isValidGtin: isValidGtin(digitsOnly),
+                fileIndex,
+                boundingPoly: annotation.boundingPoly || null,
+                confidence: annotation.score ?? null,
+              });
+            }
           }
         });
       }
@@ -201,6 +224,7 @@ async function extractOcrPayload(files = []) {
 
     return {
       barcodes: dedupedBarcodes,
+      barcodeDetails,
       textSnippets,
       numericValues,
     };
@@ -208,6 +232,7 @@ async function extractOcrPayload(files = []) {
     console.warn('OCR extraction failed, continuing without OCR:', error.message);
     return {
       barcodes: [],
+      barcodeDetails: [],
       textSnippets: [],
       numericValues: [],
     };
@@ -216,6 +241,7 @@ async function extractOcrPayload(files = []) {
 
 module.exports = {
   extractOcrPayload,
-  isLikelyGtin,
+  isLikelyGtin: isValidGtin,
+  isValidGtin,
 };
 

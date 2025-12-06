@@ -4,6 +4,7 @@ import { UploadIcon, BarcodeIcon, CameraIcon, RefreshIcon } from './icons/Icons'
 import type { UploadGroupPayload, IdentifyPipeline } from '../hooks/useIdentification';
 import { useI18n } from '../i18n';
 import { useInventoryContext } from '../context/InventoryContext';
+import { normalizeBarcode, summarizeBarcodes } from '../utils/gtin';
 import { ScannerOverlay } from './ScannerOverlay';
 
 interface ProductInputProps {
@@ -69,6 +70,19 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const [inventoryScanOpen, setInventoryScanOpen] = useState(false);
   const [resolvingInventory, setResolvingInventory] = useState(false);
   const [inventoryError, setInventoryError] = useState<string | null>(null);
+  const manualBarcodeList = useMemo(
+    () =>
+      barcodes
+        .split(/[\n,;]+/)
+        .map((value) => normalizeBarcode(value.trim()))
+        .filter(Boolean),
+    [barcodes]
+  );
+
+  const manualBarcodeSummary = useMemo(
+    () => summarizeBarcodes(manualBarcodeList),
+    [manualBarcodeList]
+  );
   const videoRef = useRef<HTMLVideoElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -534,6 +548,17 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             rows={3}
           />
           <p className="text-xs text-slate-500 mt-1">{t('input.barcodes.hint')}</p>
+          <div className="text-xs mt-1">
+            {manualBarcodeSummary.hasValid ? (
+              <span className="text-emerald-300">
+                {manualBarcodeSummary.gtin
+                  ? t('input.barcodes.statusValidGtin', { code: manualBarcodeSummary.gtin })
+                  : t('input.barcodes.statusValidEan', { code: manualBarcodeSummary.ean })}
+              </span>
+            ) : (
+              <span className="text-amber-300">{t('input.barcodes.statusMissing')}</span>
+            )}
+          </div>
         </div>
 
         <div>
