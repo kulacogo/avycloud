@@ -8,6 +8,15 @@ const ORDER_STATUS_ID_CACHE = {
   picked: null,
 };
 
+const normalizeStatusIdInput = (value) => {
+  if (value === null || value === undefined) return null;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return String(numeric);
+  }
+  return null;
+};
+
 function normalizeStatusName(value) {
   return (value || '').trim().toLowerCase();
 }
@@ -17,7 +26,8 @@ async function resolveOrderStatusIdByName(cacheKey, envNameKey, fallbackLabel) {
     return ORDER_STATUS_ID_CACHE[cacheKey];
   }
 
-  const targetLabel = (process.env[envNameKey] || fallbackLabel || '').trim();
+  const envLabel = envNameKey ? process.env[envNameKey] : null;
+  const targetLabel = (envLabel || fallbackLabel || '').trim();
   if (!targetLabel) {
     return null;
   }
@@ -95,16 +105,21 @@ function mapBaseLinkerOrder(entry) {
 
 async function syncNewOrders() {
   const secrets = await getSecrets();
-  let baseOrderStatusNew = secrets.baseOrderStatusNew;
-  if (!baseOrderStatusNew) {
+  let baseOrderStatusNew = normalizeStatusIdInput(secrets.baseOrderStatusNew);
+  if (baseOrderStatusNew) {
+    ORDER_STATUS_ID_CACHE.new = baseOrderStatusNew;
+  } else {
+    const labelFallback =
+      typeof secrets.baseOrderStatusNew === 'string' && secrets.baseOrderStatusNew.trim()
+        ? secrets.baseOrderStatusNew.trim()
+        : null;
     baseOrderStatusNew = await resolveOrderStatusIdByName(
       'new',
-      'BASE_ORDER_STATUS_NEW_NAME',
-      'Neue Bestellung'
+      labelFallback ? undefined : 'BASE_ORDER_STATUS_NEW_NAME',
+      labelFallback || 'Neue Bestellung'
     );
-  } else {
-    ORDER_STATUS_ID_CACHE.new = String(baseOrderStatusNew);
   }
+
   if (!baseOrderStatusNew) {
     console.warn(
       'No BaseLinker status for "new" orders could be resolved – falling back to all confirmed orders within the lookback window.'
@@ -136,15 +151,19 @@ async function markOrderAsPicked(orderId) {
   }
 
   const secrets = await getSecrets();
-  let baseOrderStatusPicked = secrets.baseOrderStatusPicked;
-  if (!baseOrderStatusPicked) {
+  let baseOrderStatusPicked = normalizeStatusIdInput(secrets.baseOrderStatusPicked);
+  if (baseOrderStatusPicked) {
+    ORDER_STATUS_ID_CACHE.picked = baseOrderStatusPicked;
+  } else {
+    const labelFallback =
+      typeof secrets.baseOrderStatusPicked === 'string' && secrets.baseOrderStatusPicked.trim()
+        ? secrets.baseOrderStatusPicked.trim()
+        : null;
     baseOrderStatusPicked = await resolveOrderStatusIdByName(
       'picked',
-      'BASE_ORDER_STATUS_PICKED_NAME',
-      'Kommissioniert'
+      labelFallback ? undefined : 'BASE_ORDER_STATUS_PICKED_NAME',
+      labelFallback || 'Kommissioniert'
     );
-  } else {
-    ORDER_STATUS_ID_CACHE.picked = String(baseOrderStatusPicked);
   }
 
   if (!baseOrderStatusPicked) {
