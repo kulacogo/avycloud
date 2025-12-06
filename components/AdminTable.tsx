@@ -864,6 +864,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   );
 
   return (
+    <>
     <section id="admin-table" className="p-6 bg-slate-800 rounded-lg shadow-lg">
       <header className="mb-6">
         <h2 className="text-2xl font-bold text-white">{t('inventory.title')}</h2>
@@ -1000,65 +1001,66 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </table>
       </div>
     </section>
-      {inventoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">{t('table.inventory.assignTitle')}</h3>
-              <button
-                type="button"
-                className="text-slate-400 hover:text-white"
-                onClick={() => {
-                  setInventoryModalOpen(false);
-                  setInventoryAssignMessage(null);
-                }}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-2">
-              <label className="block text-xs uppercase tracking-wide text-slate-400">
-                {t('table.inventory.selectLabel')}
-              </label>
-              <select
-                value={inventorySelection}
-                onChange={(event) => setInventorySelection(event.target.value)}
-                className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100"
-              >
-                <option value="">{t('table.inventory.selectPlaceholder')}</option>
-                {inventories.map((inv) => (
-                  <option key={inv.inventoryId} value={inv.inventoryId}>
-                    {inv.name} ({inv.inventoryId})
-                  </option>
-                ))}
-              </select>
-            </div>
-            {inventoryAssignMessage && (
-              <p className="text-xs text-slate-300">{inventoryAssignMessage}</p>
-            )}
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setInventoryModalOpen(false);
-                  setInventoryAssignMessage(null);
-                }}
-                className="px-3 py-1.5 rounded-lg border border-slate-600 text-sm text-slate-200"
-              >
-                {t('table.inventory.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={handleAssignInventory}
-                disabled={inventoryAssigning}
-                className="px-4 py-1.5 rounded-lg bg-sky-600 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
-              >
-                {inventoryAssigning ? t('table.inventory.assigning') : t('table.inventory.assign')}
-              </button>
-            </div>
+    {inventoryModalOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-white">{t('table.inventory.assignTitle')}</h3>
+            <button
+              type="button"
+              className="text-slate-400 hover:text-white"
+              onClick={() => {
+                setInventoryModalOpen(false);
+                setInventoryAssignMessage(null);
+              }}
+            >
+              ✕
+            </button>
+          </div>
+          <div className="space-y-2">
+            <label className="block text-xs uppercase tracking-wide text-slate-400">
+              {t('table.inventory.selectLabel')}
+            </label>
+            <select
+              value={inventorySelection}
+              onChange={(event) => setInventorySelection(event.target.value)}
+              className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+            >
+              <option value="">{t('table.inventory.selectPlaceholder')}</option>
+              {inventories.map((inv) => (
+                <option key={inv.inventoryId} value={inv.inventoryId}>
+                  {inv.name} ({inv.inventoryId})
+                </option>
+              ))}
+            </select>
+          </div>
+          {inventoryAssignMessage && (
+            <p className="text-xs text-slate-300">{inventoryAssignMessage}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setInventoryModalOpen(false);
+                setInventoryAssignMessage(null);
+              }}
+              className="px-3 py-1.5 rounded-lg border border-slate-600 text-sm text-slate-200"
+            >
+              {t('table.inventory.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={handleAssignInventory}
+              disabled={inventoryAssigning}
+              className="px-4 py-1.5 rounded-lg bg-sky-600 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
+            >
+              {inventoryAssigning ? t('table.inventory.assigning') : t('table.inventory.assign')}
+            </button>
           </div>
         </div>
-      )}
+      </div>
+    )}
+    </>
   );
 };
 
