@@ -170,7 +170,7 @@ async function saveProduct(product) {
         revision: ((ops.revision || 0)) + 1
       }
     };
-    
+
     const sanitizedProduct = sanitizeFirestoreValue(productData);
     await docRef.set(sanitizedProduct);
     
