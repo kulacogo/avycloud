@@ -213,11 +213,17 @@ async function getProduct(productId) {
  */
 async function getAllProducts() {
   try {
-    let query = firestore.collection(PRODUCTS_COLLECTION).orderBy('ops.last_saved_iso', 'desc');
-    if (Number.isFinite(PRODUCT_LIST_LIMIT) && PRODUCT_LIST_LIMIT > 0) {
-      query = query.limit(PRODUCT_LIST_LIMIT);
+    const applyLimit = Number.isFinite(PRODUCT_LIST_LIMIT) && PRODUCT_LIST_LIMIT > 0;
+    if (applyLimit) {
+      console.warn(
+        `[firestore] PRODUCT_LIST_LIMIT=${PRODUCT_LIST_LIMIT} konfiguriert – wird ignoriert, um fehlende Produkte im Inventar zu vermeiden.`
+      );
     }
-    const snapshot = await query.get();
+
+    const snapshot = await firestore
+      .collection(PRODUCTS_COLLECTION)
+      .orderBy('ops.last_saved_iso', 'desc')
+      .get();
     
     const products = [];
     snapshot.forEach(doc => {
