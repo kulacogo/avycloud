@@ -662,26 +662,25 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         );
         const completedSet = new Set(completedPickItemIds);
         completedSet.add(activeTaskId);
-        const targetOrder = orders.find((order) => order.id === activeTask.orderId);
-        const hasRemaining = targetOrder?.items.some((item) => !completedSet.has(item.id));
-        if (!hasRemaining) {
-          try {
-            await completeOrderApi(activeTask.orderId);
-            setOrders((prev) =>
-              prev.map((order) =>
-                order.id === activeTask.orderId
-                  ? {
-                      ...order,
-                      status: 'picked',
-                      statusLabel: t('ops.orders.complete'),
-                      pickedAt: new Date().toISOString(),
-                    }
-                  : order
-              )
-            );
-          } catch (error) {
-            console.warn('Auto order completion failed:', error);
-          }
+        try {
+          await completeOrderApi(activeTask.orderId);
+          setOrders((prev) =>
+            prev.map((order) =>
+              order.id === activeTask.orderId
+                ? {
+                    ...order,
+                    status: 'picked',
+                    statusLabel: t('ops.orders.complete'),
+                    pickedAt: new Date().toISOString(),
+                  }
+                : order
+            )
+          );
+        } catch (error) {
+          console.warn('Order completion failed:', error);
+          setOrderErrorMessage(
+            error instanceof Error ? error.message : t('ops.errors.pick')
+          );
         }
       }
       resetPickForm();
