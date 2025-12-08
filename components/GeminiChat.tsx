@@ -210,7 +210,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         key: 'datasheet',
         label: t('chat.prompts.datasheet'),
         value:
-          'Datenblatt verbessern (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+          'Datenblatt komplett verbessern: Titel, Beschreibung, Highlights/Attribute, Preis, Identifikatoren und Bilder prüfen, korrigieren und auffüllen (keine Duplikate). Setze zwingend je eine Produktkategorie für ebay.de und kaufland.de anhand der bereitgestellten Kategorie- und Pflichtattribut-Listen in den Ordnern ebay/ bzw. kaufland/ und fülle alle dazugehörigen Pflichtattribute vollständig aus. Ergebnis e-commerce-ready und stilistisch konsistent liefern.',
       },
       {
         key: 'title',
