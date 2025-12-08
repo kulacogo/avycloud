@@ -3,15 +3,13 @@ const addFormats = require('ajv-formats');
 const sharp = require('sharp');
 const crypto = require('crypto');
 const { productBundleSchema } = require('../lib/product-schema');
-const { getOpenAIClient } = require('../lib/openai-client');
+const { getGeminiClient } = require('../lib/gemini-client'); // Replaced OpenAI
 const { uploadImage } = require('../lib/storage');
-// SerpAPI/Web fetch disabled per requirements ("ohne serpapi")
-// const { serpapiToolDefinition, webFetchToolDefinition, executeSerpapiToolCall, executeWebFetchToolCall } = require('./toolkit');
 const { extractOcrPayload } = require('../lib/vision-ocr');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { resolveModel } = require('../lib/model-select');
 const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
-const { findKauflandCategory } = require('../lib/kaufland-taxonomy');
+const { findKauflandCategory, getKauflandAttributes } = require('../lib/kaufland-taxonomy');
 const { isValidGtin } = require('../lib/gtin');
 
 const MAX_TOOL_ITERATIONS = 8;
@@ -40,6 +38,18 @@ const ATTRIBUTE_BLACKLIST = new Set([
 const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);
 const validateProductBundle = ajv.compile(productBundleSchema);
+
+// Gemini Helper: Convert buffer to generative part
+function bufferToGenerativePart(buffer, mimeType) {
+  return {
+    inlineData: {
+      data: buffer.toString("base64"),
+      mimeType
+    },
+  };
+}
+
+
 
 const marketingCopySchema = {
   type: 'object',
@@ -198,8 +208,7 @@ async function prepareImages(files = []) {
 
   if (payloadBytes > SOFT_IMAGE_PAYLOAD_BYTES) {
     console.log(
-      `Inline image payload ${Math.round(payloadBytes / (1024 * 1024))} MB (soft limit ${
-        SOFT_IMAGE_PAYLOAD_BYTES / (1024 * 1024)
+      `Inline image payload ${Math.round(payloadBytes / (1024 * 1024))} MB (soft limit ${SOFT_IMAGE_PAYLOAD_BYTES / (1024 * 1024)
       } MB) - remaining images are provided via hosted URLs for Lens.`
     );
   }
@@ -338,7 +347,9 @@ function buildUserPrompt({
     `7. Preise nur, wenn sicher aus gelieferten Daten ableitbar, sonst leer lassen.`,
     `8. Unsicherheiten in notes.unsure dokumentieren.`,
     `9. Ordne eBay.de Kategorie (Breadcrumb) zu und füge Pflicht-Item-Specifics als Keys (leer bei Unbekannt) hinzu.`,
-    `10. Bestimme auch eine Kaufland-Kategorie und ergänze Pflichtattribute soweit aus Daten ableitbar.`,
+    `10. Bestimme eine passende Kaufland-Kategorie (z.B. "Küche & Haushalt > ...") UND wähle passende Attribute aus der folgenden Liste gültiger Kaufland-Attribute (Format: "key (Label)") aus:`,
+    getKauflandAttributes().map(a => `- ${a.name} (${a.label})`).join('\n'),
+    `   Füge diese als Attribute hinzu (nur wenn sie zum Produkt passen).`,
     `Sprache: Deutsch (${locale}).`
   );
   if (improveContext) {
@@ -807,32 +818,29 @@ function applyReviewResult(product, review) {
 
 async function runDatasheetReview(products = [], { locale = 'de-DE' } = {}) {
   if (!Array.isArray(products) || !products.length) return;
-  const client = await getOpenAIClient();
-  const reviewModel = resolveModel(null, 'REVIEW_MODEL', 'gpt-5.1');
+  // Use Thinking model for deep quality assurance
+  const reviewModel = resolveModel(null, 'REVIEW_MODEL', 'gemini-2.0-flash-thinking-exp');
+
+  const client = await getGeminiClient();
+  const model = client.getGenerativeModel({ model: reviewModel });
+
   for (const product of products) {
     if (!product) continue;
     try {
-      const response = await client.responses.create({
-        model: reviewModel,
-        input: [
-          {
-            role: 'user',
-            content: [{ type: 'input_text', text: buildReviewPrompt(product, locale) }],
-          },
-        ],
-        reasoning: { effort: 'medium' },
-        text: {
-          verbosity: 'high',
-          format: {
-            type: 'json_schema',
-            name: 'DatasheetQualityReview',
-            description: 'Marketingfertige Produktdatenblätter',
-            schema: DATASHEET_REVIEW_SCHEMA,
-            strict: true,
-          },
-        },
+      const generationConfig = {
+        temperature: 0.2, // Low temperature for consistent reasoning
+        topP: 0.95,
+        topK: 64,
+        responseMimeType: "application/json",
+        responseSchema: DATASHEET_REVIEW_SCHEMA
+      };
+
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: buildReviewPrompt(product, locale) }] }],
+        generationConfig
       });
-      const review = parseModelJson(response);
+
+      const review = JSON.parse(result.response.text());
       applyReviewResult(product, review);
     } catch (error) {
       console.warn(
@@ -931,42 +939,36 @@ function parseMarketingJson(response) {
 
 async function ensureMarketingCopy(products = [], locale = 'de-DE') {
   if (!Array.isArray(products) || !products.length) return;
-  const targetModel = resolveModel(null, 'MARKETING_MODEL', 'gpt-5-mini-2025-08-07');
-  const client = await getOpenAIClient();
+  // Use experimental high-quality model for Marketing
+  const targetModelName = resolveModel(null, 'MARKETING_MODEL', 'gemini-exp-1206');
+  const client = await getGeminiClient();
+  const model = client.getGenerativeModel({ model: targetModelName });
 
   for (const product of products) {
     if (needsMarketingRewrite(product)) {
       try {
-      const response = await client.responses.create({
-        model: targetModel,
-        input: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'input_text',
-                text: buildMarketingPrompt(product, locale),
-              },
-            ],
-          },
-        ],
-        text: {
-          format: {
-            type: 'json_schema',
-            name: 'MarketingCopy',
-            schema: marketingCopySchema,
-            strict: true,
-          },
-        },
-      });
-      const rewrite = parseMarketingJson(response);
-      product.identification = {
-        ...product.identification,
-        name: rewrite.title.trim(),
-      };
-      product.details = product.details || {};
-      product.details.short_description = rewrite.description.trim();
-      product.details.key_features = sanitizeKeyFeatures(rewrite.highlights.map((item) => item.trim()));
+        const generationConfig = {
+          temperature: 0.7, // Higher creativity for marketing
+          topP: 0.95,
+          topK: 64,
+          responseMimeType: "application/json",
+          responseSchema: marketingCopySchema
+        };
+
+        const result = await model.generateContent({
+          contents: [{ role: "user", parts: [{ text: buildMarketingPrompt(product, locale) }] }],
+          generationConfig
+        });
+
+        const rewrite = JSON.parse(result.response.text());
+
+        product.identification = {
+          ...product.identification,
+          name: rewrite.title.trim(),
+        };
+        product.details = product.details || {};
+        product.details.short_description = rewrite.description.trim();
+        product.details.key_features = sanitizeKeyFeatures(rewrite.highlights.map((item) => item.trim()));
       } catch (error) {
         console.warn(
           `Marketing rewrite failed for ${product?.id || product?.identification?.name || 'unknown product'}:`,
@@ -1045,6 +1047,9 @@ async function fetchPriceTrace(product, keywords) {
 
 async function ensurePriceCoverage(products = [], serpTrace = []) {
   if (!Array.isArray(products) || !products.length) return;
+  const client = await getGeminiClient();
+  const thinkingModel = client.getGenerativeModel({ model: resolveModel(null, 'PRICING_MODEL', 'gemini-2.0-flash-thinking-exp') });
+
   for (const product of products) {
     const lowest = product?.details?.pricing?.lowest_price;
     const hasPrice =
@@ -1055,17 +1060,52 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
       Array.isArray(lowest.sources) &&
       lowest.sources.length > 0;
     if (hasPrice) continue;
-    const keywords = collectProductKeywords(product);
-    if (!keywords.length) continue;
 
-    let candidates = collectPriceCandidates(product, serpTrace, keywords);
+    // Use Thinking Model to create the best search query
+    let bestQuery = "";
+    try {
+      const prompt = `Du bist ein Preis-Such-Experte. Erstelle EINEN EINZIGEN, PERFEKTEN Such-Query für SerpApi (Google Shopping), um den aktuellen Preis für dieses Produkt zu finden:
+        Brand: ${product.identification?.brand}
+        Name: ${product.identification?.name}
+        Barcodes: ${product.identification?.barcodes?.join(', ')}
+        
+        Antworte NUR mit dem Query String, keinen Anführungszeichen, kein Markdown.`;
+
+      const result = await thinkingModel.generateContent(prompt);
+      bestQuery = result.response.text().trim();
+    } catch (e) {
+      // Fallback
+      const keywords = collectProductKeywords(product);
+      if (keywords.length) bestQuery = keywords.slice(0, 4).join(' ');
+    }
+
+    if (!bestQuery) continue;
+
+    const keywords = collectProductKeywords(product); // For matching verification
+    let candidates = collectPriceCandidates(product, serpTrace, keywords); // Check existing trace first
+
     if (!candidates.length) {
-      const fallbackTrace = await fetchPriceTrace(product, keywords);
-      if (fallbackTrace) {
-        serpTrace.push(fallbackTrace);
-        candidates = collectPriceCandidates(product, [fallbackTrace], keywords);
+      // Execute the smart query
+      try {
+        const raw = await callSerpApi('google_shopping', { q: bestQuery, num: 20 });
+        const summary = summarizeSerpEntries('google_shopping', raw, 15);
+        if (summary.length) {
+          const traceEntry = {
+            engine: 'google_shopping',
+            query: bestQuery,
+            summary,
+            params: { q: bestQuery, num: 20 },
+            error: null,
+            fallback: true,
+          };
+          serpTrace.push(traceEntry);
+          candidates = collectPriceCandidates(product, [traceEntry], keywords);
+        }
+      } catch (err) {
+        console.warn("Smart Price Search failed:", err.message);
       }
     }
+
     if (!candidates.length) continue;
     candidates.sort((a, b) => a.amount - b.amount);
     const best = candidates[0];
@@ -1102,6 +1142,8 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
   }
 }
 
+const SMART_IMAGE_RECOVERY_ENABLED = true;
+
 async function runProductIdentification({
   files = [],
   barcodes = '',
@@ -1117,22 +1159,20 @@ async function runProductIdentification({
   const ocrPayload = await extractOcrPayload(files);
   const barcodeList = mergeBarcodeLists(manualBarcodes, ocrPayload.barcodes || []);
   const { imageParts, hostedImages } = await prepareImages(files);
-  const serpTrace = [];
-  if (
-    (ocrPayload?.barcodes?.length || 0) > 0 ||
-    (ocrPayload?.textSnippets?.length || 0) > 0 ||
-    (ocrPayload?.numericValues?.length || 0) > 0
-  ) {
-    serpTrace.push({
-      type: 'ocr',
-      barcodes: ocrPayload.barcodes || [],
-      textSnippets: (ocrPayload.textSnippets || []).slice(0, 20),
-      numericHints: (ocrPayload.numericValues || []).slice(0, 20),
-    });
-  }
-  const client = await getOpenAIClient();
-  const targetModel = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gpt-5-mini-2025-08-07');
+
+  // Gemini Multimodal Input Preparation
+  const geminiParts = [];
+
+  // 1. Add System Instructions (as text part first, or via systemInstruction if supported, but text part is safer for now)
   const systemPrompt = buildSystemPrompt(locale);
+  geminiParts.push({ text: systemPrompt });
+
+  // 2. Add Images (converted to inlineData)
+  for (const file of files) {
+    geminiParts.push(bufferToGenerativePart(file.buffer, file.mimetype));
+  }
+
+  // 3. Add Context (Accessory Text)
   const userPrompt = buildUserPrompt({
     barcodeList,
     hostedImages,
@@ -1142,125 +1182,97 @@ async function runProductIdentification({
     ocrTextSnippets: ocrPayload.textSnippets || [],
     ocrNumericValues: ocrPayload.numericValues || [],
   });
+  geminiParts.push({ text: userPrompt });
 
-  const inputMessages = [
-    {
-      role: 'system',
-      content: [{ type: 'input_text', text: systemPrompt }],
-    },
-    {
-      role: 'user',
-      content: [...imageParts, { type: 'input_text', text: userPrompt }],
-    },
-  ];
+  const client = await getGeminiClient();
+  // Use Flash 2.0 for Identification (Speed + Vision)
+  const targetModelName = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gemini-2.0-flash-exp');
+  const model = client.getGenerativeModel({ model: targetModelName });
 
-  let finalizationHintInjected = false;
+  const generationConfig = {
+    temperature: 0.2,
+    topP: 0.8,
+    topK: 40,
+    responseMimeType: "application/json",
+    responseSchema: productBundleSchema
+  };
 
-  for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
-    let disableTools = finalizationHintInjected;
-    if (!finalizationHintInjected && iteration === MAX_TOOL_ITERATIONS - 1) {
-      inputMessages.push({
-        role: 'system',
-        content: [
-          {
-            type: 'input_text',
-            text: 'Du hast die maximale Anzahl an SerpAPI-Toolcalls erreicht. Nutze jetzt ausschließlich die bereits vorliegenden Informationen (Vision, Barcodes, vorhandene SerpAPI-Ergebnisse) und gib das vollständige ProductBundle zurück – keine weiteren Toolcalls.',
-          },
-        ],
-      });
-      finalizationHintInjected = true;
-      disableTools = true;
-    }
-
-    const response = await client.responses.create({
-      model: targetModel,
-      input: inputMessages,
-      tools: [], // SerpAPI/WebFetch disabled
-      reasoning: { effort: 'low' },
-      text: {
-        verbosity: 'medium',
-        format: {
-          type: 'json_schema',
-          name: 'ProductBundle',
-          description: 'Komplettes Produktdatenblatt laut types.ts',
-          schema: productBundleSchema,
-          strict: true,
-        },
-      },
-      metadata: {
-        domain: 'product-intelligence-hub',
-      },
+  let bundle;
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: geminiParts }],
+      generationConfig,
     });
 
-    const toolCalls = response.output.filter((item) => item.type === 'function_call');
-    if (!toolCalls.length) {
-      const bundle = parseModelJson(response);
-      ensureSchema(bundle);
-      normalizeBundle(bundle);
-      attachReferenceImages(bundle.products, hostedImages);
-      injectMissingBarcodes(bundle.products, barcodeList);
-      await ensureMarketingCopy(bundle.products, locale);
-      applyEbayTaxonomy(bundle);
-      applyKauflandTaxonomy(bundle);
-      ensurePriceCoverage(bundle.products, serpTrace);
-      await runDatasheetReview(bundle.products, { locale });
-      return {
-        bundle,
-        serpTrace,
-        modelResponse: response,
-        modelUsed: targetModel,
-      };
-    }
-
-    // Append model reasoning/tool call metadata
-    inputMessages.push(...response.output);
-
-    for (const toolCall of toolCalls) {
-      let responsePayload = null;
-      if (toolCall.name === 'serpapi_web_search') {
-        const toolResult = await executeSerpapiToolCall(toolCall);
-        serpTrace.push({
-          type: 'serpapi',
-          engine: toolResult.engine,
-          query: toolResult.query,
-          summary: toolResult.summary,
-          params: toolResult.params,
-          error: toolResult.error || null,
-        });
-        responsePayload = {
-          engine: toolResult.engine,
-          query: toolResult.query,
-          summary: toolResult.summary,
-          error: toolResult.error || null,
-        };
-      } else if (toolCall.name === 'web_fetch') {
-        const fetchResult = await executeWebFetchToolCall(toolCall);
-        serpTrace.push({
-          type: 'web_fetch',
-          url: fetchResult.url,
-          status: fetchResult.status,
-          contentType: fetchResult.contentType,
-          bytes: fetchResult.bytes,
-          error: fetchResult.error || null,
-        });
-        responsePayload = fetchResult;
-      } else {
-        responsePayload = { ignored: true };
-      }
-
-      inputMessages.push({
-        type: 'function_call_output',
-        call_id: toolCall.call_id,
-        output: JSON.stringify(responsePayload),
-      });
-    }
+    const responseText = result.response.text();
+    bundle = JSON.parse(responseText);
+  } catch (error) {
+    console.error("Gemini Identification Failed:", error);
+    throw new Error(`Gemini Identification failed: ${error.message}`);
   }
 
-  const iterationError = new Error('SerpAPI/GPT workflow exceeded the maximum number of tool iterations.');
-  iterationError.code = TOOL_ITERATION_ERROR;
-  iterationError.serpTrace = serpTrace;
-  iterationError.modelUsed = targetModel;
-  throw iterationError;
+  ensureSchema(bundle);
+  normalizeBundle(bundle);
+  attachReferenceImages(bundle.products, hostedImages);
+  injectMissingBarcodes(bundle.products, barcodeList);
+
+  // Smart Image Recovery (if no valid images found or only barcode/packaging)
+  if (SMART_IMAGE_RECOVERY_ENABLED) {
+    await runSmartImageRecovery(bundle.products);
+  }
+
+  // SEO & Marketing Optimization (using Pro/Exp model for high quality text)
+  await ensureMarketingCopy(bundle.products, locale);
+
+  applyEbayTaxonomy(bundle);
+  applyKauflandTaxonomy(bundle);
+
+  // Pricing Coverage (using Thinking model for complex research if needed)
+  const serpTrace = [];
+  await ensurePriceCoverage(bundle.products, serpTrace); // Updated to use smart logic
+
+  // Final Review
+  await runDatasheetReview(bundle.products, { locale });
+
+  return {
+    bundle,
+    serpTrace,
+    modelUsed: targetModelName,
+  };
+}
+
+// Helper for Smart Image Recovery
+async function runSmartImageRecovery(products = []) {
+  for (const product of products) {
+    const features = product.details?.key_features || [];
+    const isPackaging = features.some(f => containsPackagingReference(f));
+    const hasImages = product.details?.images?.length > 0;
+
+    if (!hasImages || isPackaging) {
+      // Search for high-res images via SerpApi
+      const query = `${product.identification?.brand || ''} ${product.identification?.name || ''} ${product.identification?.barcodes?.[0] || ''}`.trim();
+      if (!query) continue;
+
+      try {
+        const images = await callSerpApi('google_images', { q: query, tbs: 'isz:l' }); // Large images
+        const validImages = summarizeSerpEntries('google_images', images, 5);
+
+        const recoveryImages = validImages.map((img, idx) => ({
+          source: 'web_recovery',
+          variant: 'gallery',
+          url_or_base64: img.url,
+          notes: `recovery_${idx}`,
+          width: img.image_meta?.width,
+          height: img.image_meta?.height
+        }));
+
+        product.details = product.details || {};
+        product.details.images = [...(product.details.images || []), ...recoveryImages];
+      } catch (e) {
+        console.warn("Smart Image Recovery failed:", e.message);
+      }
+    }
+  }
 }
 
 module.exports = {
