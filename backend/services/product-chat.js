@@ -872,8 +872,8 @@ function sanitizeDatasheetChange(entry) {
 
 async function runProductChat(product, userMessage, { modelOverride = null, attachments = [] } = {}) {
   const client = await getGeminiClient();
-  // Using experimental thinking model for reasoning capabilities (Schema is now cleaned for tools)
-  const modelName = 'gemini-2.0-flash-thinking-exp';
+  // User requested newest models. Upgrading to 2.5 Thinking.
+  const modelName = 'gemini-2.5-flash-thinking-exp';
 
   const locale = 'de-DE';
   const conversationMode = detectConversationMode(userMessage || '');

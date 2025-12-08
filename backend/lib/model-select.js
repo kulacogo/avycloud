@@ -6,14 +6,17 @@ const ALLOWED_MODELS = new Set([
   'gpt-4.1',
   'gemini-2.0-flash-exp',
   'gemini-2.0-flash-thinking-exp',
+  'gemini-2.5-flash-exp',
+  'gemini-2.5-flash-thinking-exp',
+  'gemini-3.0-flash-exp',
   'gemini-exp-1206',
 ]);
 
 const MODEL_ALIASES = {
-  mini: 'gemini-2.0-flash-exp',
-  nano: 'gemini-2.0-flash-exp',
-  standard: 'gemini-exp-1206',
-  thinking: 'gemini-2.0-flash-thinking-exp',
+  mini: 'gemini-2.5-flash-exp',
+  nano: 'gemini-2.5-flash-exp',
+  standard: 'gemini-3.0-flash-exp',
+  thinking: 'gemini-2.5-flash-thinking-exp',
   default: null,
   'gpt-5-mini': 'gpt-5-mini',
   'gpt-5-mini-2025-08-07': 'gpt-5-mini-2025-08-07',
@@ -22,9 +25,9 @@ const MODEL_ALIASES = {
   'gpt-5.1-nano': 'gpt-5-mini',
   'gpt-4.1-mini': 'gpt-4.1-mini',
   'gpt-4.1': 'gpt-4.1',
-  'gemini-flash': 'gemini-2.0-flash-exp',
-  'gemini-thinking': 'gemini-2.0-flash-thinking-exp',
-  'gemini-pro': 'gemini-exp-1206',
+  'gemini-flash': 'gemini-2.5-flash-exp',
+  'gemini-thinking': 'gemini-2.5-flash-thinking-exp',
+  'gemini-pro': 'gemini-3.0-flash-exp',
 };
 
 function normalize(input) {
