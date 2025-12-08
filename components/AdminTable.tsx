@@ -117,6 +117,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [filterStatus, setFilterStatus] = useState<SyncStatus | 'all'>('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterInventoryId, setFilterInventoryId] = useState('all');
+  const [filterStock, setFilterStock] = useState<'all' | 'inStock' | 'outOfStock'>('all');
+  const [filterBin, setFilterBin] = useState<'all' | 'withBin' | 'withoutBin'>('all');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'ops.last_saved_iso', direction: 'desc' });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isColumnPanelOpen, setIsColumnPanelOpen] = useState(false);
@@ -227,6 +229,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       {
         id: 'sku',
         label: t('table.sku'),
+        sortKey: 'details.identifiers.sku',
         defaultVisible: true,
         render: ({ product }) => (
           <div className="text-slate-300 text-sm font-mono leading-tight">
@@ -237,6 +240,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       {
         id: 'barcode',
         label: t('table.barcode'),
+        sortKey: 'details.identifiers.ean',
         defaultVisible: true,
         render: ({ product }) => (
           <div className="text-slate-300 text-sm font-mono leading-tight">{primaryBarcode(product)}</div>
@@ -286,6 +290,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       {
         id: 'storage',
         label: t('table.storage'),
+        sortKey: 'storage.binCode',
         defaultVisible: false,
         render: ({ product }) =>
           primaryBin(product) ? (
@@ -457,7 +462,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
         filterInventoryId === 'all' ||
         (p.inventory?.inventoryId != null &&
           String(p.inventory.inventoryId).trim() === String(filterInventoryId).trim());
-      return matchesSearch && matchesStatus && matchesCategory && matchesInventory;
+      const quantity = getProductQuantity(p) || 0;
+      const matchesStock =
+        filterStock === 'all' ||
+        (filterStock === 'inStock' && quantity > 0) ||
+        (filterStock === 'outOfStock' && quantity <= 0);
+      const hasBin = Boolean(p.storage?.binCode);
+      const matchesBin =
+        filterBin === 'all' || (filterBin === 'withBin' && hasBin) || (filterBin === 'withoutBin' && !hasBin);
+      return matchesSearch && matchesStatus && matchesCategory && matchesInventory && matchesStock && matchesBin;
     });
 
     if (sortConfig !== null) {
@@ -477,7 +490,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
 
     return filtered;
-  }, [products, searchTerm, filterStatus, filterCategory, filterInventoryId, sortConfig]);
+  }, [products, searchTerm, filterStatus, filterCategory, filterInventoryId, filterStock, filterBin, sortConfig]);
 
   const requestSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -721,6 +734,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterStatus('all');
     setFilterCategory('all');
     setFilterInventoryId('all');
+    setFilterStock('all');
+    setFilterBin('all');
   };
 
   const renderFilterControls = () => (
@@ -749,6 +764,26 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 {cat === 'all' ? t('table.categories.all') : cat}
               </option>
             ))}
+          </select>
+          <select
+            id="table-filter-stock"
+            value={filterStock}
+            onChange={(e) => setFilterStock(e.target.value as 'all' | 'inStock' | 'outOfStock')}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            <option value="all">{t('table.stockFilter.all')}</option>
+            <option value="inStock">{t('table.stockFilter.inStock')}</option>
+            <option value="outOfStock">{t('table.stockFilter.outOfStock')}</option>
+          </select>
+          <select
+            id="table-filter-bin"
+            value={filterBin}
+            onChange={(e) => setFilterBin(e.target.value as 'all' | 'withBin' | 'withoutBin')}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            <option value="all">{t('table.binFilter.all')}</option>
+            <option value="withBin">{t('table.binFilter.withBin')}</option>
+            <option value="withoutBin">{t('table.binFilter.withoutBin')}</option>
           </select>
           <select
             id="table-filter-inventory"
