@@ -113,13 +113,53 @@ const AdminTable: React.FC<AdminTableProps> = ({
   improvingProductIds,
 }) => {
   const { t } = useI18n();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<SyncStatus | 'all'>('all');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [filterInventoryId, setFilterInventoryId] = useState('all');
-  const [filterStock, setFilterStock] = useState<'all' | 'inStock' | 'outOfStock'>('all');
-  const [filterBin, setFilterBin] = useState<'all' | 'withBin' | 'withoutBin'>('all');
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'ops.last_saved_iso', direction: 'desc' });
+  const [searchTerm, setSearchTerm] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return window.sessionStorage.getItem('avystock:admin-table:search') || '';
+  });
+  const [filterStatus, setFilterStatus] = useState<SyncStatus | 'all'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterStatus') as SyncStatus | 'all') || 'all';
+  });
+  const [filterCategory, setFilterCategory] = useState(() => {
+    if (typeof window === 'undefined') return 'all';
+    return window.sessionStorage.getItem('avystock:admin-table:filterCategory') || 'all';
+  });
+  const [filterInventoryId, setFilterInventoryId] = useState(() => {
+    if (typeof window === 'undefined') return 'all';
+    return window.sessionStorage.getItem('avystock:admin-table:filterInventoryId') || 'all';
+  });
+  const [filterStock, setFilterStock] = useState<'all' | 'inStock' | 'outOfStock'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterStock') as 'all' | 'inStock' | 'outOfStock') || 'all';
+  });
+  const [filterBin, setFilterBin] = useState<'all' | 'withBin' | 'withoutBin'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterBin') as 'all' | 'withBin' | 'withoutBin') || 'all';
+  });
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(() => {
+    if (typeof window === 'undefined') return { key: 'ops.last_saved_iso', direction: 'desc' };
+    try {
+      const raw = window.sessionStorage.getItem('avystock:admin-table:sort');
+      if (!raw) return { key: 'ops.last_saved_iso', direction: 'desc' };
+      const parsed = JSON.parse(raw);
+      if (parsed?.key && parsed?.direction) return parsed;
+      return { key: 'ops.last_saved_iso', direction: 'desc' };
+    } catch {
+      return { key: 'ops.last_saved_iso', direction: 'desc' };
+    }
+  });
+  const [pageSize, setPageSize] = useState<number>(() => {
+    if (typeof window === 'undefined') return 50;
+    try {
+      const stored = window.sessionStorage.getItem('avystock:admin-table:pageSize');
+      const parsed = stored ? parseInt(stored, 10) : NaN;
+      return Number.isFinite(parsed) ? parsed : 50;
+    } catch {
+      return 50;
+    }
+  });
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isColumnPanelOpen, setIsColumnPanelOpen] = useState(false);
   // track a simple preset to make column selection easier
@@ -492,6 +532,21 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return filtered;
   }, [products, searchTerm, filterStatus, filterCategory, filterInventoryId, filterStock, filterBin, sortConfig]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedProducts.length / pageSize));
+  useEffect(() => {
+    setCurrentPage((prev) => {
+      if (prev > totalPages) return totalPages;
+      if (prev < 1) return 1;
+      return prev;
+    });
+  }, [totalPages]);
+
+  const pageProducts = useMemo(() => {
+    const safePage = Math.min(Math.max(currentPage, 1), totalPages);
+    const start = (safePage - 1) * pageSize;
+    return filteredAndSortedProducts.slice(start, start + pageSize);
+  }, [filteredAndSortedProducts, currentPage, pageSize, totalPages]);
+
   const requestSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -736,7 +791,45 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterInventoryId('all');
     setFilterStock('all');
     setFilterBin('all');
+    setPageSize(50);
+    setCurrentPage(1);
   };
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:search', searchTerm);
+  }, [searchTerm]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterStatus', filterStatus);
+  }, [filterStatus]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterCategory', filterCategory);
+  }, [filterCategory]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterInventoryId', filterInventoryId);
+  }, [filterInventoryId]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterStock', filterStock);
+  }, [filterStock]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterBin', filterBin);
+  }, [filterBin]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:pageSize', String(pageSize));
+  }, [pageSize]);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !sortConfig) return;
+    try {
+      window.sessionStorage.setItem('avystock:admin-table:sort', JSON.stringify(sortConfig));
+    } catch {
+      // ignore session storage errors
+    }
+  }, [sortConfig]);
 
   const renderFilterControls = () => (
     <>
