@@ -8,6 +8,8 @@ const ORDER_STATUS_ID_CACHE = {
   picked: null,
 };
 
+const DEFAULT_PICKED_STATUS_ID = '363183'; // BaseLinker status "Kommissioniert"
+
 const normalizeStatusIdInput = (value) => {
   if (value === null || value === undefined) return null;
   const numeric = Number(value);
@@ -164,6 +166,14 @@ async function markOrderAsPicked(orderId) {
       labelFallback ? undefined : 'BASE_ORDER_STATUS_PICKED_NAME',
       labelFallback || 'Kommissioniert'
     );
+    // Hard fallback to known ID if name lookup fails
+    if (!baseOrderStatusPicked) {
+      baseOrderStatusPicked = DEFAULT_PICKED_STATUS_ID;
+      ORDER_STATUS_ID_CACHE.picked = DEFAULT_PICKED_STATUS_ID;
+      console.warn(
+        `BaseLinker picked status resolved via hard fallback DEFAULT_PICKED_STATUS_ID=${DEFAULT_PICKED_STATUS_ID}`
+      );
+    }
   }
 
   if (!baseOrderStatusPicked) {
@@ -175,10 +185,21 @@ async function markOrderAsPicked(orderId) {
     throw new Error('Order not found');
   }
 
-  await callBaseLinker('setOrderStatus', {
-    order_id: Number(order.baselinkerId || order.id),
-    status_id: Number(baseOrderStatusPicked),
+  const baselinkerOrderId = Number(order.baselinkerId || order.id);
+  const baselinkerStatusId = Number(baseOrderStatusPicked);
+
+  const response = await callBaseLinker('setOrderStatus', {
+    order_id: baselinkerOrderId,
+    status_id: baselinkerStatusId,
   });
+
+  if (response?.status !== 'SUCCESS') {
+    throw new Error(
+      `BaseLinker setOrderStatus failed for order ${orderId} (BL ${baselinkerOrderId}) to status ${baselinkerStatusId}: ${
+        response?.error_message || 'unknown error'
+      }`
+    );
+  }
 
   await updateOrder(orderId, {
     status: 'picked',
