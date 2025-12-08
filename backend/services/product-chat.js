@@ -22,14 +22,43 @@ const MARKETING_MIN_RESULTS = 3;
 const MARKETING_MAX_RESULTS = 6;
 const BARCODE_INTENT_REGEX = /\b(ean|gtin|upc)\b/i;
 
-// --- Tool Definitions (Adapted for Gemini) ---
+// Helper to recursively clean JSON schema for Gemini (e.g. remove null types)
+function cleanSchemaForGemini(schema) {
+  if (!schema || typeof schema !== 'object') return schema;
+  if (Array.isArray(schema)) return schema.map(cleanSchemaForGemini);
+
+  const cleaned = { ...schema };
+
+  // Fix type arrays: type: ["string", "null"] -> type: "string"
+  if (Array.isArray(cleaned.type)) {
+    const validTypes = cleaned.type.filter(t => t !== 'null');
+    cleaned.type = validTypes.length === 1 ? validTypes[0] : validTypes[0] || 'string'; // Fallback to first non-null or string
+  }
+
+  // Recursively clean parameters/properties
+  if (cleaned.properties) {
+    const newProps = {};
+    for (const [key, val] of Object.entries(cleaned.properties)) {
+      newProps[key] = cleanSchemaForGemini(val);
+    }
+    cleaned.properties = newProps;
+  }
+  if (cleaned.items) {
+    cleaned.items = cleanSchemaForGemini(cleaned.items);
+  }
+
+  // Remove keys invalid for Gemini function schemas if present
+  delete cleaned.additionalProperties;
+  delete cleaned.default;
+
+  return cleaned;
+}
 
 function toGeminiTool(def) {
-  // Strip 'type: function' if present, Gemini expects { name, description, parameters }
   return {
     name: def.name,
     description: def.description,
-    parameters: def.parameters,
+    parameters: cleanSchemaForGemini(def.parameters),
   };
 }
 
@@ -843,8 +872,8 @@ function sanitizeDatasheetChange(entry) {
 
 async function runProductChat(product, userMessage, { modelOverride = null, attachments = [] } = {}) {
   const client = await getGeminiClient();
-  // Using experimental thinking model for reasoning capabilities
-  const modelName = 'gemini-2.0-flash-thinking-exp';
+  // Using Flash generally for tools, or Pro if needed. Flash 2.0 Exp is good.
+  const modelName = 'gemini-2.0-flash-exp';
 
   const locale = 'de-DE';
   const conversationMode = detectConversationMode(userMessage || '');
