@@ -533,6 +533,7 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
   const now = Timestamp.now();
   let updatedProduct = null;
   let updatedBin = null;
+  let resolvedProductId = null;
 
   await firestore.runTransaction(async (tx) => {
     const [productSnap, binSnap] = await Promise.all([tx.get(productRef), tx.get(binRef)]);
@@ -542,7 +543,7 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
     const productData = productSnap.data();
     const binData = binSnap.data();
     const products = cloneProductsArray(binData);
-    const resolvedProductId = productData.id || productRef.id;
+    resolvedProductId = productData.id || productRef.id;
     const entry = products.find((p) => p.productId === resolvedProductId);
     if (!entry) throw new Error('Produkt befindet sich nicht in diesem BIN.');
 
