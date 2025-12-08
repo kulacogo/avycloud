@@ -872,8 +872,8 @@ function sanitizeDatasheetChange(entry) {
 
 async function runProductChat(product, userMessage, { modelOverride = null, attachments = [] } = {}) {
   const client = await getGeminiClient();
-  // User requested newest models. Upgrading to 2.5 Thinking.
-  const modelName = 'gemini-2.5-flash-thinking-exp';
+  // Reverted to Flash 2.0 Exp for stability. Thinking models are currently causing 500s with tools.
+  const modelName = 'gemini-2.0-flash-exp';
 
   const locale = 'de-DE';
   const conversationMode = detectConversationMode(userMessage || '');

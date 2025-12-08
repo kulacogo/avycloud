@@ -1,9 +1,4 @@
 const ALLOWED_MODELS = new Set([
-  'gpt-5-mini-2025-08-07',
-  'gpt-5-mini',
-  'gpt-5.1',
-  'gpt-4.1-mini',
-  'gpt-4.1',
   'gemini-2.0-flash-exp',
   'gemini-2.0-flash-thinking-exp',
   'gemini-2.5-flash-exp',
@@ -13,21 +8,14 @@ const ALLOWED_MODELS = new Set([
 ]);
 
 const MODEL_ALIASES = {
-  mini: 'gemini-2.5-flash-exp',
-  nano: 'gemini-2.5-flash-exp',
-  standard: 'gemini-3.0-flash-exp',
-  thinking: 'gemini-2.5-flash-thinking-exp',
-  default: null,
-  'gpt-5-mini': 'gpt-5-mini',
-  'gpt-5-mini-2025-08-07': 'gpt-5-mini-2025-08-07',
-  'gpt-5.1': 'gpt-5.1',
-  'gpt-5.1-mini': 'gpt-5-mini-2025-08-07',
-  'gpt-5.1-nano': 'gpt-5-mini',
-  'gpt-4.1-mini': 'gpt-4.1-mini',
-  'gpt-4.1': 'gpt-4.1',
-  'gemini-flash': 'gemini-2.5-flash-exp',
-  'gemini-thinking': 'gemini-2.5-flash-thinking-exp',
-  'gemini-pro': 'gemini-3.0-flash-exp',
+  mini: 'gemini-2.0-flash-exp',
+  nano: 'gemini-2.0-flash-exp',
+  standard: 'gemini-exp-1206',
+  thinking: 'gemini-2.0-flash-thinking-exp',
+  default: 'gemini-2.0-flash-exp',
+  'gemini-flash': 'gemini-2.0-flash-exp',
+  'gemini-thinking': 'gemini-2.0-flash-thinking-exp',
+  'gemini-pro': 'gemini-exp-1206',
 };
 
 function normalize(input) {
@@ -48,10 +36,10 @@ function normalizeModel(input) {
   return null;
 }
 
-function resolveModel(preferred, envKey, fallback = 'gpt-5-mini-2025-08-07') {
-  const absoluteFallback = fallback || 'gpt-5-mini-2025-08-07';
+function resolveModel(preferred, envKey, fallback = 'gemini-2.0-flash-exp') {
+  const absoluteFallback = fallback || 'gemini-2.0-flash-exp';
   const envRaw = process.env[envKey];
-  const chain = [preferred, envRaw, absoluteFallback, 'gpt-5-mini'];
+  const chain = [preferred, envRaw, absoluteFallback, 'gemini-2.0-flash-exp'];
 
   for (const candidate of chain) {
     const normalized = normalizeModel(candidate);
@@ -60,7 +48,7 @@ function resolveModel(preferred, envKey, fallback = 'gpt-5-mini-2025-08-07') {
     }
   }
 
-  return 'gpt-5-mini-2025-08-07';
+  return 'gemini-2.0-flash-exp';
 }
 
 module.exports = {
