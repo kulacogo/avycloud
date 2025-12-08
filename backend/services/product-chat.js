@@ -872,8 +872,8 @@ function sanitizeDatasheetChange(entry) {
 
 async function runProductChat(product, userMessage, { modelOverride = null, attachments = [] } = {}) {
   const client = await getGeminiClient();
-  // Using Flash generally for tools, or Pro if needed. Flash 2.0 Exp is good.
-  const modelName = 'gemini-2.0-flash-exp';
+  // Using experimental thinking model for reasoning capabilities (Schema is now cleaned for tools)
+  const modelName = 'gemini-2.0-flash-thinking-exp';
 
   const locale = 'de-DE';
   const conversationMode = detectConversationMode(userMessage || '');
@@ -909,10 +909,20 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     },
   ];
 
+  // Enhanced System Prompt for Autononomy
+  const systemPromptText = buildSystemPrompt(locale) + `
+  
+  CRITICAL RULES:
+  1. DO NOT ASK the user for search queries or "what marketplace to check". derivation of queries is YOUR job.
+  2. If the user asks for data (like an EAN/Barcode) and it is missing, you MUST immediately call 'serpapi_web_search' with a query like "Brand ModelNumber EAN" or "Brand Name Barcode".
+  3. Default to "google" engine for broad searches unless specific ID lookup is needed.
+  4. Never say "I can search if you want". JUST SEARCH.
+  `;
+
   const model = client.getGenerativeModel({
     model: modelName,
     tools: tools,
-    systemInstruction: buildSystemPrompt(locale),
+    systemInstruction: systemPromptText,
   });
 
   const chat = model.startChat({
@@ -923,7 +933,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       },
       {
         role: 'model',
-        parts: [{ text: 'Acknowledged. I have the product context and ready to help.' }],
+        parts: [{ text: 'Acknowledged. I have the product context and am ready to act autonomously.' }],
       },
       ...(attachmentPayload.imageParts.length ? [{
         role: 'user',
@@ -952,9 +962,9 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   if (barcodeIntent && !hasLocalValidBarcode) {
     currentMessageParts.push({
       text: `
-      IMPORTANT: Barcode request detected (EAN/GTIN/UPC) and no valid code is present. 
-      You MUST use available tools (serpapi_web_search or web_fetch) to look up the most reliable barcode.
-      Return the found barcode via update_product_datasheet tool.
+      IMPORTANT: The user explicitly wants a barcode/EAN. None is in the context.
+      ACTION REQUIRED: Do NOT ask questions. Immediately run serpapi_web_search (engine="google") for "${product?.identification?.brand || ''} ${product?.identification?.name || ''} EAN".
+      Then extract the EAN from results and return it via update_product_datasheet.
       `});
   }
 
