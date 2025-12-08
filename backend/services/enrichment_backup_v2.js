@@ -1184,46 +1184,6 @@ async function runProductIdentification({
   });
   geminiParts.push({ text: userPrompt });
 
-  // Helper to clean JSON schema for Gemini (remove invalid fields/types)
-  function cleanSchemaForGemini(schema) {
-    if (!schema || typeof schema !== 'object') return schema;
-    if (Array.isArray(schema)) return schema.map(cleanSchemaForGemini);
-
-    const cleaned = { ...schema };
-
-    // Fix type arrays: type: ["string", "null"] -> type: "string"
-    if (Array.isArray(cleaned.type)) {
-      const validTypes = cleaned.type.filter(t => t !== 'null');
-      cleaned.type = validTypes.length === 1 ? validTypes[0] : validTypes[0] || 'string';
-    }
-
-    // Recursively clean parameters/properties
-    if (cleaned.properties) {
-      const newProps = {};
-      for (const [key, val] of Object.entries(cleaned.properties)) {
-        newProps[key] = cleanSchemaForGemini(val);
-      }
-      cleaned.properties = newProps;
-    }
-    if (cleaned.items) {
-      cleaned.items = cleanSchemaForGemini(cleaned.items);
-    }
-
-    // Remove keys invalid for Gemini schemas if present
-    delete cleaned.additionalProperties;
-    delete cleaned.default;
-    delete cleaned.anyOf; // Gemini often struggles with anyOf in strict schemas, simplify if possible or leave if essential
-    // Note: removing anyOf might break validation if the schema relies on it heavily. 
-    // But product-schema.js uses anyOf specifically for value types which Gemini might accept as specific types.
-    // Actually, Gemini supports `enum` well. `anyOf` for types is tricky.
-    // For `value` property in attributeEntrySchema, it has anyOf: string, number, boolean, null.
-    // Gemini prefers explicit types. Let's try to keeping anyOf but stripping nulls inside it?
-    // Or better: relying on Gemini's loose JSON mode if strict schema fails? 
-    // No, we are using `responseSchema` which triggers constrained decoding.
-
-    return cleaned;
-  }
-
   const client = await getGeminiClient();
   // Use Flash 2.0 for Identification (Speed + Vision)
   const targetModelName = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gemini-2.0-flash-exp');
@@ -1234,7 +1194,7 @@ async function runProductIdentification({
     topP: 0.8,
     topK: 40,
     responseMimeType: "application/json",
-    responseSchema: cleanSchemaForGemini(productBundleSchema)
+    responseSchema: productBundleSchema
   };
 
   let bundle;
