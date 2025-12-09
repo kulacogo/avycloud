@@ -770,7 +770,7 @@ function buildReviewPrompt(product, locale) {
     '- Titel <= 70 Zeichen, beginnt mit Marke + Produktart + wichtigster Vorteil.',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Enthält Nutzen, Ausstattung, Materialien, Lieferumfang, Service/Hinweise. Keine Aufzählungen.',
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, nur Nutzen/USPs, keine Verpackungshinweise, keine Dubletten.',
-    '- Attribute: strukturierte Key-Value-Paare, keine ausschweifenden Sätze. Entferne Wiederholungen, korrigiere Schreibweisen (z. B. „Farbe“ statt „Farbton“).',
+    '- Attribute: strukturierte Key-Value-Paare. Entferne Wiederholungen. WICHTIG: Erhalte alle technischen Attribute (z. B. kaufland_..., ebay_..., _id) sowie spezifische Marktplatz-Daten unverändert!',
     '- Entferne widersprüchliche oder doppelte Aussagen. Markiere offene Punkte in warnings.',
     `- Sprache: ${locale}.`,
     'Rückgabe ausschließlich gemäß JSON Schema.',
@@ -801,6 +801,17 @@ function applyReviewResult(product, review) {
         attrs[key] = value;
       }
     });
+
+    // Restore technical attributes if dropped by review
+    const existingAttrs = product.details.attributes || {};
+    for (const [key, val] of Object.entries(existingAttrs)) {
+      if (/^(kaufland|ebay|mp)_/i.test(key) || key.endsWith('_id')) {
+        if (!attrs[key]) {
+          attrs[key] = val;
+        }
+      }
+    }
+
     product.details.attributes = sanitizeAttributesMap(attrs);
   }
   if (Array.isArray(review.warnings) && review.warnings.length) {

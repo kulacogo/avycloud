@@ -2119,7 +2119,7 @@ app.post('/api/products/:id/improve', async (req, res) => {
 app.post('/api/products/bulk-improve', async (req, res) => {
   try {
     const products = await getAllProducts();
-    const queuedIds = [];
+    const queuedJobs = [];
 
     console.log(`[bulk-improve] Starting bulk improvement for ${products.length} products...`);
 
@@ -2139,16 +2139,19 @@ app.post('/api/products/bulk-improve', async (req, res) => {
         jobId
       );
       enqueueImproveJob(jobId);
-      queuedIds.push(jobId);
+      queuedJobs.push({
+        jobId,
+        productId: product.id,
+      });
     }
 
-    console.log(`[bulk-improve] Enqueued ${queuedIds.length} jobs.`);
+    console.log(`[bulk-improve] Enqueued ${queuedJobs.length} jobs.`);
 
     res.json({
       ok: true,
       data: {
-        enqueuedParams: queuedIds.length,
-        jobIds: queuedIds,
+        enqueuedParams: queuedJobs.length,
+        jobs: queuedJobs,
       },
     });
   } catch (error) {

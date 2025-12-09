@@ -268,7 +268,7 @@ export const pollImproveJob = async (
   jobId: string,
   options?: { signal?: AbortSignal; onStatus?: (phase: IdentifyPhase) => void }
 ): Promise<Product> => {
-  const deadline = Date.now() + JOB_TIMEOUT_MS;
+  let deadline = Date.now() + JOB_TIMEOUT_MS;
   while (true) {
     const job = await fetchImproveJobStatus(jobId, options?.signal);
     if (!job) {
@@ -286,6 +286,8 @@ export const pollImproveJob = async (
     if (job.status === 'processing') {
       options?.onStatus?.('processing');
     } else {
+      // If still queued, extend deadline so we don't timeout while waiting in queue
+      deadline = Date.now() + JOB_TIMEOUT_MS;
       options?.onStatus?.('queued');
     }
     if (Date.now() > deadline) {
@@ -548,7 +550,7 @@ export const improveProduct = async (
   }
 };
 
-export const startBulkImprovement = async (): Promise<{ ok: boolean; data?: { enqueuedParams: number; jobIds: string[] }; error?: { code: number; message: string } }> => {
+export const startBulkImprovement = async (): Promise<{ ok: boolean; data?: { enqueuedParams: number; jobs: Array<{ jobId: string; productId: string }> }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
     response = await fetch(`${BACKEND_URL}/api/products/bulk-improve`, {

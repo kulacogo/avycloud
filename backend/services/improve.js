@@ -288,9 +288,7 @@ function mergeImages(existing = [], incoming = []) {
     existing.forEach((image) => {
       if (!image) return;
       const url = image.url_or_base64 || image.url;
-      if (url && LENS_UPLOAD_PATTERN.test(url)) {
-        return;
-      }
+      // Do not filter existing images based on pattern - if they are there, keep them
       const bucket = classifyImageSource(image, true);
       if (bucket === 'generated') {
         console.warn('Dropping generated existing image during merge:', image?.url || image?.url_or_base64 || '');

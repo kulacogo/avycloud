@@ -322,8 +322,8 @@ const App: React.FC = () => {
     if (!confirm('Dies wird die Datenanreicherung für ALLE Produkte starten. Fortfahren?')) return;
     try {
       const result = await startBulkImprovement();
-      if (result.ok && result.data?.jobIds) {
-        trackJobs(result.data.jobIds.map((id: string) => ({ jobId: id, productId: 'unknown' })));
+      if (result.ok && result.data?.jobs) {
+        trackJobs(result.data.jobs);
       } else {
         alert(`Fehler: ${result.error?.message}`);
       }
