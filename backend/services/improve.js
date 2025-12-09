@@ -576,13 +576,12 @@ async function improveExistingProduct(productId) {
     throw new Error('Improve-Fluss hat kein Produkt zurückgegeben.');
   }
 
-  const mergedProduct = mergeProductRecords(product, improvedOutput);
+  let mergedProduct = mergeProductRecords(product, improvedOutput);
 
   // Re-apply taxonomy enrichment on the final merged product to ensure attributes are correct
-  // This satisfies the requirement that improve workflow must enrich specific attributes
-  const trackingBundle = { products: [mergedProduct] };
-  applyEbayTaxonomy(trackingBundle);
-  applyKauflandTaxonomy(trackingBundle);
+  // The functions now support single product input and return the enriched object.
+  mergedProduct = applyEbayTaxonomy(mergedProduct);
+  mergedProduct = applyKauflandTaxonomy(mergedProduct);
 
   // Run final datasheet review on the enriched result
   await runDatasheetReview([mergedProduct], { locale: product.locale || 'de-DE' });
