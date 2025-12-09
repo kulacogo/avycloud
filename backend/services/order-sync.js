@@ -67,17 +67,17 @@ function mapBaseLinkerOrder(entry) {
   const createdAt = entry?.date_add ? new Date(Number(entry.date_add) * 1000).toISOString() : new Date().toISOString();
   const items = Array.isArray(entry?.products)
     ? entry.products.map((product) => ({
-        id:
-          String(product?.order_product_id || '') ||
-          `${entry.order_id}-${product?.product_id || product?.sku || product?.ean || Math.random().toString(36).slice(2)}`,
-        productId: product?.product_id ? String(product.product_id) : null,
-        name: product?.name || product?.product_name || 'Produkt',
-        sku: product?.sku || product?.code || product?.ean || '',
-        quantity: Number(product?.quantity || product?.quantity_confirmed || 1),
-        ean: product?.ean || null,
-        priceBrutto: Number(product?.price_brutto || product?.price || 0),
-        currency: entry?.currency || 'EUR',
-      }))
+      id:
+        String(product?.order_product_id || '') ||
+        `${entry.order_id}-${product?.product_id || product?.sku || product?.ean || Math.random().toString(36).slice(2)}`,
+      productId: product?.product_id ? String(product.product_id) : null,
+      name: product?.name || product?.product_name || 'Produkt',
+      sku: product?.sku || product?.code || product?.ean || '',
+      quantity: Number(product?.quantity || product?.quantity_confirmed || 1),
+      ean: product?.ean || null,
+      priceBrutto: Number(product?.price_brutto || product?.price || 0),
+      currency: entry?.currency || 'EUR',
+    }))
     : [];
 
   const totalAmount = items.reduce((sum, item) => sum + item.priceBrutto * item.quantity, 0);
@@ -122,6 +122,22 @@ async function syncNewOrders() {
     );
   }
 
+  // Also resolve "picked" status to correctly classify orders if they are fetched by mistake (e.g. fallback mode)
+  let baseOrderStatusPicked = normalizeStatusIdInput(secrets.baseOrderStatusPicked);
+  if (baseOrderStatusPicked) {
+    ORDER_STATUS_ID_CACHE.picked = baseOrderStatusPicked;
+  } else if (!ORDER_STATUS_ID_CACHE.picked) {
+    const labelFallback =
+      typeof secrets.baseOrderStatusPicked === 'string' && secrets.baseOrderStatusPicked.trim()
+        ? secrets.baseOrderStatusPicked.trim()
+        : null;
+    baseOrderStatusPicked = await resolveOrderStatusIdByName(
+      'picked',
+      labelFallback ? undefined : 'BASE_ORDER_STATUS_PICKED_NAME',
+      labelFallback || 'Kommissioniert'
+    );
+  }
+
   if (!baseOrderStatusNew) {
     console.warn(
       'No BaseLinker status for "new" orders could be resolved – falling back to all confirmed orders within the lookback window.'
@@ -143,6 +159,15 @@ async function syncNewOrders() {
   const response = await callBaseLinker('getOrders', params);
 
   const orders = Array.isArray(response?.orders) ? response.orders.map(mapBaseLinkerOrder) : [];
+
+  // Post-process statuses to prevent overwriting 'picked' orders with 'new'
+  const pickedId = ORDER_STATUS_ID_CACHE.picked || DEFAULT_PICKED_STATUS_ID;
+  orders.forEach((order) => {
+    if (order.statusId && String(order.statusId) === String(pickedId)) {
+      order.status = 'picked';
+    }
+  });
+
   await saveOrders(orders);
   return orders;
 }
@@ -195,8 +220,7 @@ async function markOrderAsPicked(orderId) {
 
   if (response?.status !== 'SUCCESS') {
     throw new Error(
-      `BaseLinker setOrderStatus failed for order ${orderId} (BL ${baselinkerOrderId}) to status ${baselinkerStatusId}: ${
-        response?.error_message || 'unknown error'
+      `BaseLinker setOrderStatus failed for order ${orderId} (BL ${baselinkerOrderId}) to status ${baselinkerStatusId}: ${response?.error_message || 'unknown error'
       }`
     );
   }
