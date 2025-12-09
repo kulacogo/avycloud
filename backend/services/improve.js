@@ -345,13 +345,19 @@ function mergeNotes(existing = {}, incoming = {}) {
 }
 
 function mergeBarcodes(existing = [], incoming = []) {
-  if (Array.isArray(incoming) && incoming.length) {
-    return incoming.slice(0, 1);
-  }
-  if (Array.isArray(existing) && existing.length) {
-    return existing.slice(0, 1);
-  }
-  return [];
+  const set = new Set();
+  const add = (list) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((code) => {
+      if (code && typeof code === 'string') {
+        const trimmed = code.trim();
+        if (trimmed) set.add(trimmed);
+      }
+    });
+  };
+  add(existing);
+  add(incoming);
+  return Array.from(set);
 }
 
 function mergeDetails(existing = {}, incoming = {}) {
@@ -378,10 +384,23 @@ function mergeProductRecords(existing, incoming) {
   };
 
   merged.id = existing.id;
-  merged.identification = {
-    ...(existing.identification || {}),
-    ...(incoming.identification || {}),
-  };
+
+  const baseId = existing.identification || {};
+  const incId = incoming.identification || {};
+
+  merged.identification = { ...baseId };
+
+  // Smart update for identification fields to prevent data loss
+  if (incId.name && incId.name.toLowerCase() !== 'unbekannt') {
+    merged.identification.name = incId.name;
+  }
+  if (incId.brand && incId.brand.toLowerCase() !== 'unbekannt') {
+    merged.identification.brand = incId.brand;
+  }
+  if (incId.category && incId.category.toLowerCase() !== 'unbekannt') {
+    merged.identification.category = incId.category;
+  }
+
   merged.identification.barcodes = mergeBarcodes(
     existing.identification?.barcodes,
     incoming.identification?.barcodes
