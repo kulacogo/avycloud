@@ -872,8 +872,8 @@ function sanitizeDatasheetChange(entry) {
 
 async function runProductChat(product, userMessage, { modelOverride = null, attachments = [] } = {}) {
   const client = await getGeminiClient();
-  // Reverted to Flash 2.0 Exp for stability. Thinking models are currently causing 500s with tools.
-  const modelName = 'gemini-2.0-flash-exp';
+  // Use Gemini 2.5 Flash for chat responses
+  const modelName = 'gemini-2.5-flash';
 
   const locale = 'de-DE';
   const conversationMode = detectConversationMode(userMessage || '');

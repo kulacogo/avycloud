@@ -1,21 +1,20 @@
 const ALLOWED_MODELS = new Set([
+  'gemini-2.5-flash',
   'gemini-2.0-flash-exp',
   'gemini-2.0-flash-thinking-exp',
-  'gemini-2.5-flash-exp',
-  'gemini-2.5-flash-thinking-exp',
-  'gemini-3.0-flash-exp',
   'gemini-exp-1206',
+  'gemini-1.5-pro-002',
 ]);
 
 const MODEL_ALIASES = {
-  mini: 'gemini-2.0-flash-exp',
-  nano: 'gemini-2.0-flash-exp',
-  standard: 'gemini-exp-1206',
-  thinking: 'gemini-2.0-flash-thinking-exp',
-  default: 'gemini-2.0-flash-exp',
-  'gemini-flash': 'gemini-2.0-flash-exp',
-  'gemini-thinking': 'gemini-2.0-flash-thinking-exp',
-  'gemini-pro': 'gemini-exp-1206',
+  mini: 'gemini-2.5-flash',
+  nano: 'gemini-2.5-flash',
+  standard: 'gemini-2.5-flash',
+  thinking: 'gemini-2.5-flash', // mapping thinking to flash per strict user request
+  default: 'gemini-2.5-flash',
+  'gemini-flash': 'gemini-2.5-flash',
+  'gemini-thinking': 'gemini-2.5-flash',
+  'gemini-pro': 'gemini-2.5-flash',
 };
 
 function normalize(input) {
@@ -36,10 +35,10 @@ function normalizeModel(input) {
   return null;
 }
 
-function resolveModel(preferred, envKey, fallback = 'gemini-2.0-flash-exp') {
-  const absoluteFallback = fallback || 'gemini-2.0-flash-exp';
+function resolveModel(preferred, envKey, fallback = 'gemini-2.5-flash') {
+  const absoluteFallback = fallback || 'gemini-2.5-flash';
   const envRaw = process.env[envKey];
-  const chain = [preferred, envRaw, absoluteFallback, 'gemini-2.0-flash-exp'];
+  const chain = [preferred, envRaw, absoluteFallback, 'gemini-2.5-flash'];
 
   for (const candidate of chain) {
     const normalized = normalizeModel(candidate);
@@ -48,7 +47,7 @@ function resolveModel(preferred, envKey, fallback = 'gemini-2.0-flash-exp') {
     }
   }
 
-  return 'gemini-2.0-flash-exp';
+  return 'gemini-2.5-flash';
 }
 
 module.exports = {

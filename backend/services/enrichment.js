@@ -869,7 +869,7 @@ function applyReviewResult(product, review) {
 async function runDatasheetReview(products = [], { locale = 'de-DE' } = {}) {
   if (!Array.isArray(products) || !products.length) return;
   // Use Thinking model for deep quality assurance
-  const reviewModel = resolveModel(null, 'REVIEW_MODEL', 'gemini-2.0-flash-thinking-exp');
+  const reviewModel = resolveModel(null, 'REVIEW_MODEL', 'gemini-2.5-flash');
 
   const client = await getGeminiClient();
   const model = client.getGenerativeModel({ model: reviewModel });
@@ -999,7 +999,7 @@ function parseMarketingJson(response) {
 async function ensureMarketingCopy(products = [], locale = 'de-DE') {
   if (!Array.isArray(products) || !products.length) return;
   // Use experimental high-quality model for Marketing
-  const targetModelName = resolveModel(null, 'MARKETING_MODEL', 'gemini-exp-1206');
+  const targetModelName = resolveModel(null, 'MARKETING_MODEL', 'gemini-2.5-flash');
   const client = await getGeminiClient();
   const model = client.getGenerativeModel({ model: targetModelName });
 
@@ -1107,7 +1107,7 @@ async function fetchPriceTrace(product, keywords) {
 async function ensurePriceCoverage(products = [], serpTrace = []) {
   if (!Array.isArray(products) || !products.length) return;
   const client = await getGeminiClient();
-  const thinkingModel = client.getGenerativeModel({ model: resolveModel(null, 'PRICING_MODEL', 'gemini-2.0-flash-thinking-exp') });
+  const thinkingModel = client.getGenerativeModel({ model: resolveModel(null, 'PRICING_MODEL', 'gemini-2.5-flash') });
 
   for (const product of products) {
     const lowest = product?.details?.pricing?.lowest_price;
@@ -1315,8 +1315,8 @@ async function runProductIdentification({
   }
 
   const client = await getGeminiClient();
-  // Use Thinking/Reasoning Model for Identification (Higher quality data extraction)
-  const targetModelName = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gemini-exp-1206');
+  // Use Gemini 2.5 Flash as requested (Fast + Vision)
+  const targetModelName = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gemini-2.5-flash');
   const model = client.getGenerativeModel({ model: targetModelName });
 
   const generationConfig = {

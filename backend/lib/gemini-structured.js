@@ -2,7 +2,7 @@ const GEMINI_API_KEY = process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_AP
 const GEMINI_MULTIMODAL_MODEL =
   process.env.GEMINI_MULTIMODAL_MODEL ||
   process.env.GEMINI_STRUCTURED_MODEL ||
-  'gemini-2.0-flash';
+  'gemini-2.5-flash';
 
 const BASE_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MULTIMODAL_MODEL}:generateContent`;
 
