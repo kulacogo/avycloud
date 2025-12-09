@@ -1315,8 +1315,8 @@ async function runProductIdentification({
   }
 
   const client = await getGeminiClient();
-  // Use Flash 2.0 for Identification (Speed + Vision)
-  const targetModelName = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gemini-2.0-flash-exp');
+  // Use Thinking/Reasoning Model for Identification (Higher quality data extraction)
+  const targetModelName = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gemini-exp-1206');
   const model = client.getGenerativeModel({ model: targetModelName });
 
   const generationConfig = {
