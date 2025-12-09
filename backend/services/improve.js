@@ -246,6 +246,14 @@ function mergeKeyFeatures(existing = [], incoming = []) {
 }
 
 function mergeImages(existing = [], incoming = []) {
+  // Safety Check: If incoming is empty or invalid, return existing to strictly prevent data loss
+  if (!incoming || (Array.isArray(incoming) && incoming.length === 0)) {
+    if (Array.isArray(existing) && existing.length > 0) {
+      console.log('[mergeImages] Incoming images empty. Preserving existing images.');
+      return existing;
+    }
+  }
+
   const existingKeys = new Set(
     (existing || [])
       .map((img) => normalizeImageKey(img?.url_or_base64 || img?.url))
@@ -477,8 +485,10 @@ function mergeProductRecords(existing, incoming) {
     merged.details.attributes = mergeAttributes(merged.details.attributes, incDet.attributes);
     console.log(`[mergeProductRecords] Merged attributes count: ${Object.keys(merged.details.attributes || {}).length}`);
 
-    // Images (Union, protect existing)
-    merged.details.images = mergeImages(merged.details.images, incDet.images);
+    // Images: User requested strict preservation.
+    // The "Improve" workflow should NOT modify, add, or delete images.
+    // We ignore 'incDet.images' entirely to prevent "No Image" placeholders or data loss.
+    merged.details.images = existing.details?.images || [];
 
     // Identifiers (Merge keys)
     merged.details.identifiers = mergeIdentifiers(merged.details.identifiers, incDet.identifiers);
@@ -590,6 +600,12 @@ async function improveExistingProduct(productId, onProgress) {
   const barcodes = collectBarcodes(product);
 
   console.log(`[improve] Running Identification. Files: ${files.length}, Barcodes: ${barcodes.length}`);
+
+  // If we have no files and no barcodes, we can't identify.
+  if (files.length === 0 && barcodes.length === 0) {
+    console.warn('[improve] No reference images downloadable and no barcodes. Skipping identification.');
+    // Return original product or fail? Fail is better so user knows.
+  }
   const result = await runProductIdentification({
     files,
     barcodes,

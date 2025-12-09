@@ -2249,6 +2249,7 @@ app.get('/api/improve/jobs/:id', async (req, res) => {
         error: { code: 404, message: 'Improve-Job wurde nicht gefunden.' },
       });
     }
+    res.setHeader('Cache-Control', 'no-store');
     res.json({ ok: true, data: job });
   } catch (error) {
     console.error('Failed to load improve job:', error);

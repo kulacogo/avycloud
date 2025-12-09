@@ -253,7 +253,7 @@ export const createImproveJobs = async (
 };
 
 const fetchImproveJobStatus = async (jobId: string, signal?: AbortSignal) => {
-  const response = await fetch(`${BACKEND_URL}/api/improve/jobs/${jobId}`, {
+  const response = await fetch(`${BACKEND_URL}/api/improve/jobs/${jobId}?t=${Date.now()}`, {
     method: 'GET',
     signal,
   });
