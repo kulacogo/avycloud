@@ -193,11 +193,11 @@ const summarizeJobPayload = (payload = {}) => {
   }
   const files = Array.isArray(payload.files)
     ? payload.files.map((file) => ({
-        path: file?.path || null,
-        originalName: file?.originalName || null,
-        mimeType: file?.mimeType || null,
-        size: Number.isFinite(file?.size) ? file.size : null,
-      }))
+      path: file?.path || null,
+      originalName: file?.originalName || null,
+      mimeType: file?.mimeType || null,
+      size: Number.isFinite(file?.size) ? file.size : null,
+    }))
     : [];
   return {
     locale: payload.locale || null,
@@ -1858,11 +1858,11 @@ app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
     const attachments =
       Array.isArray(req.files) && req.files.length
         ? req.files.map((file) => ({
-            originalname: file.originalname,
-            mimetype: file.mimetype,
-            size: file.size,
-            buffer: file.buffer,
-          }))
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+          buffer: file.buffer,
+        }))
         : [];
     const hasAttachments = attachments.length > 0;
     const normalizedMessage = typeof message === 'string' ? message.trim() : '';
@@ -2112,6 +2112,54 @@ app.post('/api/products/:id/improve', async (req, res) => {
     res.status(status).json({
       ok: false,
       error: { code: status, message: error.message || 'Failed to improve product' },
+    });
+  }
+});
+
+app.post('/api/products/bulk-improve', async (req, res) => {
+  try {
+    const products = await getAllProducts();
+    const queuedIds = [];
+
+    console.log(`[bulk-improve] Starting bulk improvement for ${products.length} products...`);
+
+    for (const product of products) {
+      if (!product.id) continue;
+
+      const jobId = crypto.randomUUID();
+      await createImproveJob(
+        {
+          payload: {
+            productId: product.id,
+            triggeredBy: 'bulk-api',
+          },
+          productId: product.id,
+          productName: product.identification?.name || 'Bulk Update',
+        },
+        jobId
+      );
+      enqueueImproveJob(jobId);
+      queuedIds.push(jobId);
+    }
+
+    console.log(`[bulk-improve] Enqueued ${queuedIds.length} jobs.`);
+
+    res.json({
+      ok: true,
+      data: {
+        enqueuedParams: queuedIds.length,
+        jobIds: queuedIds,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to start bulk improvement:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Bulk improvement failed.',
+        details: error.message,
+      },
     });
   }
 });

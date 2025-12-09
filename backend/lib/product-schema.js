@@ -126,6 +126,17 @@ const productSchema = {
             price_confidence: { type: 'number', minimum: 0, maximum: 1 },
           },
         },
+        gpsr: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            manufacturer_name: { type: 'string' },
+            manufacturer_address: { type: 'string' },
+            email: { type: 'string' },
+            url: { type: 'string' },
+          },
+          required: [],
+        },
       },
     },
     ops: {
