@@ -13,7 +13,7 @@ import JobStatusPopup from './components/JobStatusPopup';
 import Dashboard from './components/Dashboard';
 import OperationsView from './components/OperationsView';
 import IdentifyQueueView from './components/IdentifyQueueView';
-import { fetchProducts } from './api/client';
+import { fetchProducts, startBulkImprovement } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
 
@@ -111,12 +111,12 @@ const mergeIdentifiedProducts = (
           ...matched,
           inventory: normalizedIncoming.inventory?.inventoryId
             ? {
-                ...(matched.inventory || {}),
-                inventoryId: normalizedIncoming.inventory.inventoryId,
-                inventoryName:
-                  normalizedIncoming.inventory.inventoryName ?? matched.inventory?.inventoryName ?? null,
-                quantity: normalizedIncoming.inventory.quantity ?? matched.inventory?.quantity,
-              }
+              ...(matched.inventory || {}),
+              inventoryId: normalizedIncoming.inventory.inventoryId,
+              inventoryName:
+                normalizedIncoming.inventory.inventoryName ?? matched.inventory?.inventoryName ?? null,
+              quantity: normalizedIncoming.inventory.quantity ?? matched.inventory?.quantity,
+            }
             : matched.inventory,
           ops: {
             ...(matched.ops || {}),
@@ -221,12 +221,12 @@ const App: React.FC = () => {
   const historyReadyRef = useRef(false);
   const skipNextHistoryPushRef = useRef(false);
   const lastHistoryStateRef = useRef<{ view: View; productId: string | null } | null>(null);
-  
+
   // Load products from backend on mount
   useEffect(() => {
     loadProducts();
   }, []);
-  
+
   const loadProducts = async () => {
     setProductsLoading(true);
     try {
@@ -264,9 +264,12 @@ const App: React.FC = () => {
 
   const {
     enqueueImproveJobs,
+    trackJobs,
+    jobStatuses: improveJobStatuses,
     activeProductIds,
     error: improveError,
     clearError: clearImproveError,
+    dismissJob: dismissImproveJob,
   } = useImproveQueue({
     onProductImproved: handleProductImproved,
     resolveLabel: resolveProductLabel,
@@ -298,7 +301,7 @@ const App: React.FC = () => {
   const handleBinStockChanged = (bin: WarehouseBin) => {
     setWarehouseRefresh(bin);
   };
-  
+
   const handleImproveProduct = useCallback(
     (productId: string) => {
       if (!productId) return;
@@ -314,13 +317,27 @@ const App: React.FC = () => {
     },
     [enqueueImproveJobs]
   );
- 
+
+  const handleBulkImprove = useCallback(async () => {
+    if (!confirm('Dies wird die Datenanreicherung für ALLE Produkte starten. Fortfahren?')) return;
+    try {
+      const result = await startBulkImprovement();
+      if (result.ok && result.data?.jobIds) {
+        trackJobs(result.data.jobIds.map((id: string) => ({ jobId: id, productId: 'unknown' })));
+      } else {
+        alert(`Fehler: ${result.error?.message}`);
+      }
+    } catch (err: any) {
+      alert(`Fehler: ${err.message}`);
+    }
+  }, [trackJobs]);
+
   useEffect(() => {
     if (!improveError) return;
     alert(improveError);
     clearImproveError();
   }, [improveError, clearImproveError]);
-  
+
   const handleSelectProduct = (productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product) {
@@ -435,6 +452,7 @@ const App: React.FC = () => {
             focusProductId={inventoryFocusId}
             onImproveProduct={handleImproveProduct}
             onImproveSelected={handleImproveSelected}
+            onBulkImprove={handleBulkImprove}
             improvingProductIds={activeProductIds}
           />
         );
@@ -503,18 +521,25 @@ const App: React.FC = () => {
         )}
         {renderLoadState()}
       </main>
-      {(jobsRunning || jobStatuses.length > 0) && (
+      {(jobsRunning || jobStatuses.length > 0 || improveJobStatuses.length > 0) && (
         <>
           {jobsRunning && (
             <div className="fixed bottom-6 left-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
-          <Spinner className="w-6 h-6 text-sky-300" />
-          <div className="text-sm text-slate-100">
+              <Spinner className="w-6 h-6 text-sky-300" />
+              <div className="text-sm text-slate-100">
                 <p className="font-semibold">Uploads laufen im Hintergrund …</p>
                 <p className="text-slate-400 text-xs">Du kannst währenddessen weiterarbeiten.</p>
-          </div>
-        </div>
+              </div>
+            </div>
           )}
-          <JobStatusPopup jobs={jobStatuses} onCancel={cancelJob} onDismiss={dismissJob} />
+          <JobStatusPopup
+            jobs={[...jobStatuses, ...improveJobStatuses]}
+            onCancel={cancelJob}
+            onDismiss={(id) => {
+              dismissJob(id);
+              dismissImproveJob(id);
+            }}
+          />
         </>
       )}
     </div>

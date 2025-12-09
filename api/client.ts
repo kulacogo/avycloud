@@ -548,7 +548,7 @@ export const improveProduct = async (
   }
 };
 
-export const startBulkImprovement = async (): Promise<{ ok: boolean; data?: { enqueuedParams: number }; error?: { code: number; message: string } }> => {
+export const startBulkImprovement = async (): Promise<{ ok: boolean; data?: { enqueuedParams: number; jobIds: string[] }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
     response = await fetch(`${BACKEND_URL}/api/products/bulk-improve`, {
@@ -864,8 +864,8 @@ export const openBinLabelsBatchWindow = (options: {
   if (normalizedCodes?.length) {
     normalizedCodes.forEach((code) => params.append('codes', code));
   } else {
-    params.set('zone', options.zone);
-    params.set('etage', options.etage);
+    if (options.zone) params.set('zone', options.zone);
+    if (options.etage) params.set('etage', options.etage);
     if (options.gang != null) params.set('gang', String(options.gang));
     if (options.regal != null) params.set('regal', String(options.regal));
   }

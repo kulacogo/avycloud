@@ -47,6 +47,40 @@ export const useImproveQueue = (options?: UseImproveQueueOptions) => {
     setJobs((prev) => [...prev, job]);
   }, []);
 
+  const monitorJob = useCallback((jobId: string, localId: string, productId: string) => {
+    (async () => {
+      try {
+        const improvedProduct = await pollImproveJob(jobId, {
+          onStatus: (phase) => {
+            const mapped =
+              phase === 'processing'
+                ? { phase: 'processing', message: PHASE_MESSAGES.processing }
+                : { phase: 'queued', message: PHASE_MESSAGES.queued };
+            updateJob(localId, mapped);
+          },
+        });
+        updateJob(localId, {
+          phase: 'complete',
+          message: PHASE_MESSAGES.complete,
+          finishedAt: new Date().toISOString(),
+        });
+        if (improvedProduct) {
+          options?.onProductImproved?.(improvedProduct);
+        }
+      } catch (err: any) {
+        const message =
+          err instanceof Error ? err.message : 'Improve-Job fehlgeschlagen.';
+        updateJob(localId, {
+          phase: 'error',
+          message,
+          error: message,
+          finishedAt: new Date().toISOString(),
+        });
+        if (typeof setError === 'function') setError(message);
+      }
+    })();
+  }, [options, updateJob]);
+
   const enqueueImproveJobs = useCallback(
     async (productIds: string[]) => {
       const uniqueIds = [...new Set(productIds.map((id) => String(id || '').trim()))].filter(Boolean);
@@ -76,38 +110,7 @@ export const useImproveQueue = (options?: UseImproveQueueOptions) => {
           message: PHASE_MESSAGES.queued,
           startedAt: timestamp,
         });
-
-        (async () => {
-          try {
-            const improvedProduct = await pollImproveJob(jobId, {
-              onStatus: (phase) => {
-                const mapped =
-                  phase === 'processing'
-                    ? { phase: 'processing', message: PHASE_MESSAGES.processing }
-                    : { phase: 'queued', message: PHASE_MESSAGES.queued };
-                updateJob(localId, mapped);
-              },
-            });
-            updateJob(localId, {
-              phase: 'complete',
-              message: PHASE_MESSAGES.complete,
-              finishedAt: new Date().toISOString(),
-            });
-            if (improvedProduct) {
-              options?.onProductImproved?.(improvedProduct);
-            }
-          } catch (err: any) {
-            const message =
-              err instanceof Error ? err.message : 'Improve-Job fehlgeschlagen.';
-            updateJob(localId, {
-              phase: 'error',
-              message,
-              error: message,
-              finishedAt: new Date().toISOString(),
-            });
-            setError(message);
-          }
-        })();
+        monitorJob(jobId, localId, productId);
       });
 
       if (creation.data.missing?.length) {
@@ -116,8 +119,25 @@ export const useImproveQueue = (options?: UseImproveQueueOptions) => {
         );
       }
     },
-    [addJob, options, updateJob]
+    [addJob, options, monitorJob]
   );
+
+  const trackJobs = useCallback((jobsToTrack: Array<{ jobId: string, productId: string }>) => {
+    const timestamp = new Date().toISOString();
+    jobsToTrack.forEach(({ jobId, productId }) => {
+      const localId = createLocalId();
+      addJob({
+        localId,
+        jobId,
+        productId,
+        label: options?.resolveLabel?.(productId) || `Produkt ${productId}`,
+        phase: 'queued',
+        message: PHASE_MESSAGES.queued,
+        startedAt: timestamp,
+      });
+      monitorJob(jobId, localId, productId);
+    });
+  }, [addJob, monitorJob, options]);
 
   const activeProductIds = useMemo(() => {
     return new Set(
@@ -133,6 +153,7 @@ export const useImproveQueue = (options?: UseImproveQueueOptions) => {
 
   return {
     enqueueImproveJobs,
+    trackJobs,
     jobStatuses: jobs,
     activeProductIds,
     error,

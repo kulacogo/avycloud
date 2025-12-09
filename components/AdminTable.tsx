@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts, startBulkImprovement } from '../api/client';
+import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
@@ -50,6 +50,7 @@ interface AdminTableProps {
   focusProductId?: string | null;
   onImproveProduct?: (productId: string) => void;
   onImproveSelected?: (productIds: string[]) => void;
+  onBulkImprove?: () => void;
   improvingProductIds?: Set<string>;
 }
 
@@ -108,6 +109,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   focusProductId,
   onImproveProduct,
   onImproveSelected,
+  onBulkImprove,
   improvingProductIds,
 }) => {
   const { t } = useI18n();
@@ -724,19 +726,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   };
 
-  const handleBulkImprove = async () => {
-    if (!confirm('Dies wird die Datenanreicherung für ALLE Produkte starten. Fortfahren?')) return;
-    try {
-      const result = await startBulkImprovement();
-      if (result.ok) {
-        alert(`Erfolgreich gestartet: ${result.data?.enqueuedParams} Jobs in der Warteschlange.`);
-      } else {
-        alert(`Fehler: ${result.error?.message}`);
-      }
-    } catch (err: any) {
-      alert(`Fehler: ${err.message}`);
-    }
-  };
+
 
   const handleExportCsv = () => {
     const headers = ['ID', 'ProductKey', 'Name', 'Brand', 'Category', 'EAN', 'Price', 'Currency', 'Sync Status'];
@@ -995,12 +985,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
             tone="accent"
           />
         )}
-        <ActionButton
-          icon={<OperationsIcon className="w-4 h-4" />}
-          label="Improve All"
-          onClick={handleBulkImprove}
-          tone="accent"
-        />
+        {onBulkImprove && (
+          <ActionButton
+            icon={<OperationsIcon className="w-4 h-4" />}
+            label="Improve All"
+            onClick={onBulkImprove}
+            tone="accent"
+          />
+        )}
         <ActionButton
           icon={<ExportIcon className="w-4 h-4" />}
           label={t('table.actions.exportCsv')}
