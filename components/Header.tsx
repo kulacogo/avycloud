@@ -131,40 +131,45 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   };
 
   const DesktopNavButton = ({ nav }: { nav: NavIconConfig }) => (
-    <button
-      onClick={() => setView(nav.view)}
-      className={`hidden sm:inline-flex w-12 h-12 rounded-2xl items-center justify-center transition-all ${
-        currentView === nav.view
+    <a
+      href={`#${nav.view}`}
+      onClick={(e) => {
+        e.preventDefault();
+        setView(nav.view);
+      }}
+      className={`hidden sm:inline-flex w-12 h-12 rounded-2xl items-center justify-center transition-all ${currentView === nav.view
           ? 'bg-sky-600 text-white shadow-md shadow-sky-900/40'
           : 'bg-slate-800/70 text-slate-300 hover:bg-slate-700 hover:text-white'
-      }`}
+        }`}
       aria-current={currentView === nav.view ? 'page' : undefined}
       aria-label={t(nav.label)}
       title={t(nav.label)}
     >
       {renderNavIcon(nav)}
-    </button>
+    </a>
   );
 
   const MobileNavButton = ({ nav }: { nav: NavIconConfig }) => {
     const isActive = currentView === nav.view;
     return (
-      <button
-        onClick={() => setView(nav.view)}
-        className={`flex items-center justify-center flex-1 rounded-2xl py-2 ${
-          isActive ? 'text-white' : 'text-slate-300'
-        }`}
+      <a
+        href={`#${nav.view}`}
+        onClick={(e) => {
+          e.preventDefault();
+          setView(nav.view);
+        }}
+        className={`flex items-center justify-center flex-1 rounded-2xl py-2 ${isActive ? 'text-white' : 'text-slate-300'
+          }`}
         aria-label={t(nav.label)}
         title={t(nav.label)}
       >
         <span
-          className={`w-12 h-12 rounded-3xl flex items-center justify-center ${
-            isActive ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40' : 'bg-slate-800 text-slate-200'
-          }`}
+          className={`w-12 h-12 rounded-3xl flex items-center justify-center ${isActive ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40' : 'bg-slate-800 text-slate-200'
+            }`}
         >
           {renderNavIcon(nav)}
         </span>
-      </button>
+      </a>
     );
   };
 

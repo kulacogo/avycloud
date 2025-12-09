@@ -157,6 +157,14 @@ const VIEW_MIGRATIONS: Partial<Record<string, View>> = {
 
 const readInitialView = (): View => {
   if (typeof window === 'undefined') return 'dashboard';
+
+  // Check Hash first
+  const hash = window.location.hash.replace(/^#/, '');
+  const [viewPart] = hash.split('?');
+  if (viewPart && ALLOWED_VIEWS.includes(viewPart as View)) {
+    return viewPart as View;
+  }
+
   const stored = window.localStorage.getItem(VIEW_STORAGE_KEY) as View | string | null;
   if (stored) {
     const migrated = VIEW_MIGRATIONS[stored] || stored;
@@ -240,6 +248,24 @@ const App: React.FC = () => {
       setProductsLoading(false);
     }
   };
+
+  // Handle deep linking for products once loaded
+  useEffect(() => {
+    if (products.length === 0) return;
+    const hash = window.location.hash.replace(/^#/, '');
+    const [viewPart, queryPart] = hash.split('?');
+    if (viewPart === 'sheet' && queryPart) {
+      const params = new URLSearchParams(queryPart);
+      const pId = params.get('productId');
+      if (pId) {
+        const product = products.find((p) => p.id === pId);
+        if (product) {
+          setCurrentProduct(product);
+          setInventoryFocusId(product.id);
+        }
+      }
+    }
+  }, [products]);
 
   useEffect(() => {
     productsRef.current = products;

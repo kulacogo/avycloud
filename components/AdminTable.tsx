@@ -246,7 +246,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         render: ({ product, onSelectProduct: handleSelect }) => (
           <div>
             <a
-              href="#"
+              href={`#sheet?productId=${product.id}`}
               onClick={(e) => {
                 e.preventDefault();
                 handleSelect(product.id);

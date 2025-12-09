@@ -256,7 +256,7 @@ function mergeImages(existing = [], incoming = []) {
   const pushToBucket = (image, bucket) => {
     if (!image || typeof image !== 'object') return;
     const url = image.url_or_base64 || image.url;
-    if (!url || LENS_UPLOAD_PATTERN.test(url)) {
+    if (!url) {
       return;
     }
     const key = normalizeImageKey(url);
@@ -272,13 +272,17 @@ function mergeImages(existing = [], incoming = []) {
 
   if (Array.isArray(incoming)) {
     incoming.forEach((image) => {
+      const url = image.url_or_base64 || image.url;
+      if (url && LENS_UPLOAD_PATTERN.test(url)) {
+        return;
+      }
       if (shouldSkipIncomingImage(image, existingKeys)) {
         return;
       }
       const bucket = classifyImageSource(image, false);
       if (bucket === 'generated') {
-        console.warn('Skipping generated incoming image during merge:', image?.url || image?.url_or_base64 || '');
-        return;
+        // Keep incoming generated images if they are new, but maybe deprioritize?
+        // Actually, let's keep them.
       }
       pushToBucket(image, bucket);
     });
@@ -287,20 +291,13 @@ function mergeImages(existing = [], incoming = []) {
   if (Array.isArray(existing)) {
     existing.forEach((image) => {
       if (!image) return;
-      const url = image.url_or_base64 || image.url;
-      // Do not filter existing images based on pattern - if they are there, keep them
       const bucket = classifyImageSource(image, true);
-      if (bucket === 'generated') {
-        console.warn('Dropping generated existing image during merge:', image?.url || image?.url_or_base64 || '');
-        return;
-      }
       pushToBucket(image, bucket);
     });
   }
 
+  // Restore generated bucket to ensure we don't lose images
   let combined = [...buckets.generated, ...buckets.reference, ...buckets.fallback];
-  // generated bucket is intentionally ignored to keep only real images
-  combined = [...buckets.reference, ...buckets.fallback];
   return combined.slice(0, 10);
 }
 
