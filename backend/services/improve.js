@@ -1,5 +1,10 @@
 const { getProduct, saveProduct } = require('../lib/firestore');
-const { runProductIdentification, runDatasheetReview } = require('./enrichment');
+const {
+  runProductIdentification,
+  runDatasheetReview,
+  applyEbayTaxonomy,
+  applyKauflandTaxonomy,
+} = require('./enrichment');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
@@ -377,51 +382,86 @@ function mergeDetails(existing = {}, incoming = {}) {
   return merged;
 }
 
+function isValidString(str) {
+  return str && typeof str === 'string' && str.trim().length > 0 && !/unbekannt|unknown|nicht angegeben/i.test(str);
+}
+
 function mergeProductRecords(existing, incoming) {
-  const merged = {
-    ...existing,
-    ...incoming,
-  };
+  // Start with a deep copy of existing to ensure we don't accidentally lose deep properties
+  // or overwrite them with shallow spreads.
+  const merged = JSON.parse(JSON.stringify(existing));
 
-  merged.id = existing.id;
+  // 1. Identification: Safe Merge
+  // We never want to overwrite a valid Title/Brand with "Unbekannt" or empty/null
+  if (incoming.identification) {
+    const incId = incoming.identification;
 
-  const baseId = existing.identification || {};
-  const incId = incoming.identification || {};
+    if (isValidString(incId.name)) {
+      // Optional: Logic to prefer longer titles could go here, but usually AI title is better structure
+      merged.identification.name = incId.name;
+    }
 
-  merged.identification = { ...baseId };
+    if (isValidString(incId.brand)) {
+      merged.identification.brand = incId.brand;
+    }
 
-  // Smart update for identification fields to prevent data loss
-  if (incId.name && incId.name.toLowerCase() !== 'unbekannt') {
-    merged.identification.name = incId.name;
-  }
-  if (incId.brand && incId.brand.toLowerCase() !== 'unbekannt') {
-    merged.identification.brand = incId.brand;
-  }
-  if (incId.category && incId.category.toLowerCase() !== 'unbekannt') {
-    merged.identification.category = incId.category;
-  }
+    if (isValidString(incId.category)) {
+      merged.identification.category = incId.category;
+    }
 
-  merged.identification.barcodes = mergeBarcodes(
-    existing.identification?.barcodes,
-    incoming.identification?.barcodes
-  );
-
-  merged.details = mergeDetails(existing.details || {}, incoming.details || {});
-  merged.inventory = existing.inventory || incoming.inventory || null;
-  merged.storage = existing.storage || incoming.storage || null;
-  merged.storageBins = existing.storageBins || incoming.storageBins || [];
-  merged.ops = {
-    ...(existing.ops || {}),
-    ...(incoming.ops || {}),
-    sync_status: 'pending',
-    last_synced_iso: null,
-    revision: (existing.ops?.revision || 0) + 1,
-  };
-  if (incoming.ops?.revision && incoming.ops.revision > merged.ops.revision) {
-    merged.ops.revision = incoming.ops.revision;
+    // Barcodes: STRICT UNION. Never lose a barcode.
+    merged.identification.barcodes = mergeBarcodes(
+      merged.identification.barcodes,
+      incId.barcodes
+    );
   }
 
-  merged.notes = mergeNotes(existing.notes, incoming.notes);
+  // 2. Details: Safe Merge
+  if (incoming.details) {
+    merged.details = merged.details || {};
+    const incDet = incoming.details;
+
+    // Text Content
+    merged.details.short_description = pickBetterText(merged.details.short_description, incDet.short_description);
+
+    // Features (Union + Dedupe)
+    merged.details.key_features = mergeKeyFeatures(merged.details.key_features, incDet.key_features);
+    merged.details.key_features = sanitizeKeyFeatures(merged.details.key_features);
+
+    // Attributes (Merge, keep existing if meaningful)
+    merged.details.attributes = mergeAttributes(merged.details.attributes, incDet.attributes);
+
+    // Images (Union, protect existing)
+    merged.details.images = mergeImages(merged.details.images, incDet.images);
+
+    // Identifiers (Merge keys)
+    merged.details.identifiers = mergeIdentifiers(merged.details.identifiers, incDet.identifiers);
+
+    // Pricing: Only update if incoming has valid pricing data
+    if (incDet.pricing && incDet.pricing.lowest_price) {
+      merged.details.pricing = incDet.pricing;
+    }
+
+    // GPSR
+    if (incDet.gpsr) {
+      merged.details.gpsr = { ...(merged.details.gpsr || {}), ...incDet.gpsr };
+    }
+  }
+
+  // 3. Operational Data: Preserve Inventory/Storage strictly
+  // Improve workflow should NEVER change stock or bin locations.
+  // existing.inventory and existing.storage are already in 'merged' from the deep copy.
+  // We simply ensure we don't copy over any accidental nulls from incoming.
+
+  // Update revision and sync status
+  merged.ops = merged.ops || {};
+  merged.ops.revision = (merged.ops.revision || 0) + 1;
+  merged.ops.sync_status = 'pending';
+  merged.ops.updated_at = new Date().toISOString();
+
+  // 4. Notes
+  merged.notes = mergeNotes(merged.notes, incoming.notes);
+
   return merged;
 }
 
@@ -497,6 +537,7 @@ async function improveExistingProduct(productId) {
     locale: product.locale || 'de-DE',
     modelOverride: null,
     improveContext: buildImproveContext(product),
+    skipExternalSearch: true, // Disable SerpApi for improve workflow
   });
 
   const improvedOutput = result?.bundle?.products?.[0];
@@ -505,6 +546,14 @@ async function improveExistingProduct(productId) {
   }
 
   const mergedProduct = mergeProductRecords(product, improvedOutput);
+
+  // Re-apply taxonomy enrichment on the final merged product to ensure attributes are correct
+  // This satisfies the requirement that improve workflow must enrich specific attributes
+  const trackingBundle = { products: [mergedProduct] };
+  applyEbayTaxonomy(trackingBundle);
+  applyKauflandTaxonomy(trackingBundle);
+
+  // Run final datasheet review on the enriched result
   await runDatasheetReview([mergedProduct], { locale: product.locale || 'de-DE' });
   await saveProduct(mergedProduct);
   return mergedProduct;

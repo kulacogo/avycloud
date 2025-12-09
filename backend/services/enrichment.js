@@ -1161,6 +1161,7 @@ async function runProductIdentification({
   locale = 'de-DE',
   modelOverride = null,
   improveContext = null,
+  skipExternalSearch = false,
 }) {
   if ((!files || files.length === 0) && !barcodes) {
     throw new Error('Bitte mindestens ein Bild oder einen Barcode bereitstellen.');
@@ -1267,8 +1268,8 @@ async function runProductIdentification({
   attachReferenceImages(bundle.products, hostedImages);
   injectMissingBarcodes(bundle.products, barcodeList);
 
-  // Smart Image Recovery (if no valid images found or only barcode/packaging)
-  if (SMART_IMAGE_RECOVERY_ENABLED) {
+  // Smart Image Recovery (if no valid images found or only barcode/packaging) - DISABLED if skipExternalSearch is true
+  if (SMART_IMAGE_RECOVERY_ENABLED && !skipExternalSearch) {
     await runSmartImageRecovery(bundle.products);
   }
 
@@ -1278,9 +1279,11 @@ async function runProductIdentification({
   applyEbayTaxonomy(bundle);
   applyKauflandTaxonomy(bundle);
 
-  // Pricing Coverage (using Thinking model for complex research if needed)
+  // Pricing Coverage (using Thinking model for complex research if needed) - DISABLED if skipExternalSearch is true
   const serpTrace = [];
-  await ensurePriceCoverage(bundle.products, serpTrace); // Updated to use smart logic
+  if (!skipExternalSearch) {
+    await ensurePriceCoverage(bundle.products, serpTrace);
+  }
 
   // Final Review
   await runDatasheetReview(bundle.products, { locale });
@@ -1329,6 +1332,8 @@ async function runSmartImageRecovery(products = []) {
 module.exports = {
   runProductIdentification,
   runDatasheetReview,
+  applyEbayTaxonomy,
+  applyKauflandTaxonomy,
   BARCODE_LIMIT_ERROR,
   IMAGE_PAYLOAD_ERROR,
   MAX_BARCODE_COUNT,
