@@ -1229,8 +1229,26 @@ async function runProductIdentification({
   geminiParts.push({ text: systemPrompt });
 
   // 2. Add Images (converted to inlineData)
+  let validImageCount = 0;
   for (const file of files) {
+    if (!file.buffer || file.buffer.length === 0) {
+      console.warn('Skipping empty image buffer for Gemini input');
+      continue;
+    }
+    // Simple check to ensure we aren't sending weird types
+    if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+      console.warn(`Skipping invalid mimetype for Gemini input: ${file.mimetype}`);
+      continue;
+    }
     geminiParts.push(bufferToGenerativePart(file.buffer, file.mimetype));
+    validImageCount++;
+  }
+
+  if (validImageCount === 0 && !barcodes) {
+    // If we filtered out all images and have no barcodes, we can't reasonably identify.
+    // But we will let it proceed (maybe text context is enough? unlikely for identification).
+    // Warning meant for developer.
+    console.warn('Warning: No valid images found for Gemini input after filtering.');
   }
 
   // 3. Add Context (Accessory Text)

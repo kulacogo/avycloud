@@ -52,12 +52,21 @@ export const useImproveQueue = (options?: UseImproveQueueOptions) => {
       try {
         const improvedProduct = await pollImproveJob(jobId, {
           onStatus: (phase) => {
-            // Map any active phase to 'processing' to ensure the UI shows activity
-            const isProcessing = ['processing', 'identifying', 'enriching', 'reviewing'].includes(phase) || phase !== 'queued';
-            const mapped = isProcessing
-              ? { phase: 'processing' as const, message: PHASE_MESSAGES.processing }
-              : { phase: 'queued' as const, message: PHASE_MESSAGES.queued };
-            updateJob(localId, mapped);
+            const MESSAGES: Record<string, string> = {
+              downloading_images: 'Bilder werden heruntergeladen ...',
+              identifying: 'Produkt wird identifiziert ...',
+              merging: 'Daten werden verarbeitet ...',
+              enriching: 'Daten werden angereichert ...',
+              reviewing: 'Abschließende Prüfung ...',
+              queued: 'Verbesserung eingeplant …',
+              processing: 'Produkt wird verbessert …',
+            };
+            const message = MESSAGES[phase] || MESSAGES.processing;
+
+            updateJob(localId, {
+              phase: 'processing', // Keep generic phase for UI color/icon
+              message
+            });
           },
         });
 
