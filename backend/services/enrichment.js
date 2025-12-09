@@ -1232,18 +1232,27 @@ async function runProductIdentification({
 
   // 2. Add Images (converted to inlineData)
   let validImageCount = 0;
+  const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+
   for (const file of files) {
     if (!file.buffer || file.buffer.length === 0) {
       console.warn('Skipping empty image buffer for Gemini input');
       continue;
     }
-    // Simple check to ensure we aren't sending weird types
-    if (!file.mimetype || !file.mimetype.startsWith('image/')) {
-      console.warn(`Skipping invalid mimetype for Gemini input: ${file.mimetype}`);
+
+    // Strict MIME type check to prevent Gemini 400 errors
+    if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+      console.warn(`Skipping unsupported mimetype for Gemini input: ${file.mimetype} (Allowed: JPEG, PNG, WEBP, HEIC)`);
       continue;
     }
-    geminiParts.push(bufferToGenerativePart(file.buffer, file.mimetype));
-    validImageCount++;
+
+    // Double check base64 conversion safety?
+    try {
+      geminiParts.push(bufferToGenerativePart(file.buffer, file.mimetype));
+      validImageCount++;
+    } catch (err) {
+      console.error(`Failed to convert image buffer to Gemini part: ${err.message}`);
+    }
   }
 
   if (validImageCount === 0 && !barcodes) {
