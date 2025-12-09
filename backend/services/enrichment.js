@@ -1210,6 +1210,7 @@ async function runProductIdentification({
   modelOverride = null,
   improveContext = null,
   skipExternalSearch = false,
+  onProgress = null,
 }) {
   if ((!files || files.length === 0) && !barcodes) {
     throw new Error('Bitte mindestens ein Bild oder einen Barcode bereitstellen.');
@@ -1299,6 +1300,7 @@ async function runProductIdentification({
 
   let bundle;
   try {
+    if (onProgress) await onProgress('identifying');
     const result = await model.generateContent({
       contents: [{ role: "user", parts: geminiParts }],
       generationConfig,

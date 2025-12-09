@@ -551,7 +551,7 @@ async function buildReferenceFiles(product) {
   return files;
 }
 
-async function improveExistingProduct(productId) {
+async function improveExistingProduct(productId, onProgress) {
   const product = await getProduct(productId);
   if (!product) {
     const error = new Error('Produkt wurde nicht gefunden.');
@@ -559,6 +559,7 @@ async function improveExistingProduct(productId) {
     throw error;
   }
 
+  if (onProgress) await onProgress('downloading_images');
   const files = await buildReferenceFiles(product);
   const barcodes = collectBarcodes(product);
 
@@ -569,6 +570,7 @@ async function improveExistingProduct(productId) {
     modelOverride: null,
     improveContext: buildImproveContext(product),
     skipExternalSearch: true, // Disable SerpApi for improve workflow
+    onProgress, // Pass down to enrichment
   });
 
   const improvedOutput = result?.bundle?.products?.[0];
@@ -576,14 +578,17 @@ async function improveExistingProduct(productId) {
     throw new Error('Improve-Fluss hat kein Produkt zurückgegeben.');
   }
 
+  if (onProgress) await onProgress('merging');
   let mergedProduct = mergeProductRecords(product, improvedOutput);
 
   // Re-apply taxonomy enrichment on the final merged product to ensure attributes are correct
   // The functions now support single product input and return the enriched object.
+  if (onProgress) await onProgress('enriching');
   mergedProduct = applyEbayTaxonomy(mergedProduct);
   mergedProduct = applyKauflandTaxonomy(mergedProduct);
 
   // Run final datasheet review on the enriched result
+  if (onProgress) await onProgress('reviewing');
   await runDatasheetReview([mergedProduct], { locale: product.locale || 'de-DE' });
   await saveProduct(mergedProduct);
   return mergedProduct;

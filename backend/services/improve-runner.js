@@ -31,9 +31,17 @@ async function processImproveJob(jobId) {
       throw new Error('Job has no productId payload');
     }
 
-    const improvedProduct = await improveExistingProduct(productId);
+    const improvedProduct = await improveExistingProduct(productId, async (stage) => {
+      try {
+        await updateJob(jobId, { stage, updatedAt: Timestamp.now() });
+      } catch (err) {
+        console.warn(`Failed to update job stage to ${stage}:`, err);
+      }
+    });
+
     await updateJob(jobId, {
       status: 'done',
+      stage: 'complete',
       finishedAt: Timestamp.now(),
       result: { product: improvedProduct },
       error: null,
