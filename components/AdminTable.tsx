@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts } from '../api/client';
+import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts, startBulkImprovement } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
@@ -66,9 +66,8 @@ const SyncStatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
 const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full ${
-        saved ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-200'
-      }`}
+      className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full ${saved ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-200'
+        }`}
     >
       {saved ? 'Gespeichert' : 'Nicht gespeichert'}
     </span>
@@ -93,9 +92,8 @@ const ActionButton: React.FC<{
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
-        toneClasses[tone]
-      } ${disabled ? 'opacity-40 cursor-not-allowed hover:none' : ''}`}
+      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition ${toneClasses[tone]
+        } ${disabled ? 'opacity-40 cursor-not-allowed hover:none' : ''}`}
     >
       {icon}
       <span className="whitespace-nowrap">{label}</span>
@@ -294,9 +292,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
         render: ({ product }) =>
           product.details.pricing?.lowest_price?.amount
             ? new Intl.NumberFormat('de-DE', {
-                style: 'currency',
-                currency: product.details.pricing.lowest_price.currency || 'EUR',
-              }).format(product.details.pricing.lowest_price.amount)
+              style: 'currency',
+              currency: product.details.pricing.lowest_price.currency || 'EUR',
+            }).format(product.details.pricing.lowest_price.amount)
             : '—',
       },
       {
@@ -516,7 +514,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (sortConfig !== null) {
       filtered.sort((a, b) => {
         const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
-        
+
         let aValue = getNestedValue(a, sortConfig.key);
         let bValue = getNestedValue(b, sortConfig.key);
 
@@ -577,29 +575,29 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const handleBatchSync = async () => {
     if (selectedIds.size === 0) return;
-    
+
     // Get selected products
     const selectedProducts = products.filter(p => selectedIds.has(p.id));
     if (selectedProducts.length === 0) return;
-    
+
     // Update UI to show syncing state
-    const updatingProducts = products.map(p => 
-      selectedIds.has(p.id) 
+    const updatingProducts = products.map(p =>
+      selectedIds.has(p.id)
         ? { ...p, ops: { ...p.ops, sync_status: 'pending' as const } }
         : p
     );
     onUpdateProducts(updatingProducts);
-    
+
     try {
       // Sync all selected products
       const result = await syncToBaseLinker(selectedProducts);
-      
+
       if (result.results && result.results.length > 0) {
         // Update products based on sync results
         const finalProducts = products.map(p => {
           const syncResult = result.results?.find(r => r.id === p.id);
           if (!syncResult) return p;
-          
+
           return {
             ...p,
             ops: {
@@ -609,15 +607,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
             }
           };
         });
-        
+
         onUpdateProducts(finalProducts);
-        
+
         const successCount = result.results.filter(r => r.status === 'synced').length;
         const failedEntries = result.results.filter(r => r.status === 'failed');
         const failCount = failedEntries.length;
         const failureSummary = failedEntries.map(entry => `${entry.id}: ${entry.message || 'fehlgeschlagen'}`).join('\n');
         const baseSummary = `Sync abgeschlossen.\n✓ ${successCount} Produkte synchronisiert\n✗ ${failCount} fehlgeschlagen`;
-        
+
         if (failCount > 0) {
           alert(`${baseSummary}\n\nDetails:\n${failureSummary}`);
         } else {
@@ -639,16 +637,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
     alert(`Refreshing prices for ${selectedIds.size} products... (mocked)`);
     const updatedProducts = [...products];
     for (const id of selectedIds) {
-        const result = await refreshPrice(id);
-        if (result.ok && result.data) {
-            const productIndex = updatedProducts.findIndex(p => p.id === id);
-            if (productIndex > -1) {
-                updatedProducts[productIndex].details.pricing = {
-                    ...updatedProducts[productIndex].details.pricing,
-                    ...result.data
-                };
-            }
+      const result = await refreshPrice(id);
+      if (result.ok && result.data) {
+        const productIndex = updatedProducts.findIndex(p => p.id === id);
+        if (productIndex > -1) {
+          updatedProducts[productIndex].details.pricing = {
+            ...updatedProducts[productIndex].details.pricing,
+            ...result.data
+          };
         }
+      }
     }
     onUpdateProducts(updatedProducts);
     alert('Price refresh complete.');
@@ -705,13 +703,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
       const updated = products.map((product) =>
         selectedIds.has(product.id)
           ? {
-              ...product,
-              inventory: {
-                ...(product.inventory || {}),
-                inventoryId: inventorySelection,
-                inventoryName: inventoryRecord?.name || product.inventory?.inventoryName || null,
-              },
-            }
+            ...product,
+            inventory: {
+              ...(product.inventory || {}),
+              inventoryId: inventorySelection,
+              inventoryName: inventoryRecord?.name || product.inventory?.inventoryName || null,
+            },
+          }
           : product
       );
       onUpdateProducts(updated);
@@ -723,6 +721,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
       setInventoryAssignMessage(error?.message || t('table.inventory.assignError'));
     } finally {
       setInventoryAssigning(false);
+    }
+  };
+
+  const handleBulkImprove = async () => {
+    if (!confirm('Dies wird die Datenanreicherung für ALLE Produkte starten. Fortfahren?')) return;
+    try {
+      const result = await startBulkImprovement();
+      if (result.ok) {
+        alert(`Erfolgreich gestartet: ${result.data?.enqueuedParams} Jobs in der Warteschlange.`);
+      } else {
+        alert(`Fehler: ${result.error?.message}`);
+      }
+    } catch (err: any) {
+      alert(`Fehler: ${err.message}`);
     }
   };
 
@@ -833,380 +845,377 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const renderFilterControls = () => (
     <>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          <select
-            id="table-filter-status"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as SyncStatus | 'all')}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <select
+          id="table-filter-status"
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value as SyncStatus | 'all')}
+          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+        >
+          {statusFilters.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <select
+          id="table-filter-category"
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}
+          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+        >
+          {categories.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat === 'all' ? t('table.categories.all') : cat}
+            </option>
+          ))}
+        </select>
+        <select
+          id="table-filter-stock"
+          value={filterStock}
+          onChange={(e) => setFilterStock(e.target.value as 'all' | 'inStock' | 'outOfStock')}
+          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+        >
+          <option value="all">{t('table.stockFilter.all')}</option>
+          <option value="inStock">{t('table.stockFilter.inStock')}</option>
+          <option value="outOfStock">{t('table.stockFilter.outOfStock')}</option>
+        </select>
+        <select
+          id="table-filter-bin"
+          value={filterBin}
+          onChange={(e) => setFilterBin(e.target.value as 'all' | 'withBin' | 'withoutBin')}
+          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+        >
+          <option value="all">{t('table.binFilter.all')}</option>
+          <option value="withBin">{t('table.binFilter.withBin')}</option>
+          <option value="withoutBin">{t('table.binFilter.withoutBin')}</option>
+        </select>
+        <select
+          id="table-filter-inventory"
+          value={filterInventoryId}
+          onChange={(e) => setFilterInventoryId(e.target.value)}
+          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+        >
+          <option value="all">{t('table.inventoryFilter.all')}</option>
+          {inventories.map((inv) => (
+            <option key={inv.inventoryId} value={inv.inventoryId}>
+              {inv.name} ({inv.inventoryId})
+            </option>
+          ))}
+        </select>
+        <select
+          value={columnPreset}
+          onChange={(e) => {
+            const preset = e.target.value as ColumnPreset;
+            setVisibleColumns(COLUMN_PRESETS[preset]);
+            setColumnPreset(preset);
+          }}
+          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+        >
+          <option value="standard">{t('table.presets.standard')}</option>
+          <option value="warehouse">{t('table.presets.warehouse')}</option>
+          <option value="pricing">{t('table.presets.pricing')}</option>
+          <option value="minimal">{t('table.presets.minimal')}</option>
+        </select>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsColumnPanelOpen((prev) => !prev)}
+            className="flex-1 rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
           >
-            {statusFilters.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <select
-            id="table-filter-category"
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+            {t('table.columns.edit')}
+          </button>
+          <button
+            type="button"
+            onClick={resetColumns}
+            className="rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
           >
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat === 'all' ? t('table.categories.all') : cat}
-              </option>
-            ))}
-          </select>
-          <select
-            id="table-filter-stock"
-            value={filterStock}
-            onChange={(e) => setFilterStock(e.target.value as 'all' | 'inStock' | 'outOfStock')}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-          >
-            <option value="all">{t('table.stockFilter.all')}</option>
-            <option value="inStock">{t('table.stockFilter.inStock')}</option>
-            <option value="outOfStock">{t('table.stockFilter.outOfStock')}</option>
-          </select>
-          <select
-            id="table-filter-bin"
-            value={filterBin}
-            onChange={(e) => setFilterBin(e.target.value as 'all' | 'withBin' | 'withoutBin')}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-          >
-            <option value="all">{t('table.binFilter.all')}</option>
-            <option value="withBin">{t('table.binFilter.withBin')}</option>
-            <option value="withoutBin">{t('table.binFilter.withoutBin')}</option>
-          </select>
-          <select
-            id="table-filter-inventory"
-            value={filterInventoryId}
-            onChange={(e) => setFilterInventoryId(e.target.value)}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-          >
-            <option value="all">{t('table.inventoryFilter.all')}</option>
-            {inventories.map((inv) => (
-              <option key={inv.inventoryId} value={inv.inventoryId}>
-                {inv.name} ({inv.inventoryId})
-              </option>
-            ))}
-          </select>
-          <select
-            value={columnPreset}
-            onChange={(e) => {
-              const preset = e.target.value as ColumnPreset;
-              setVisibleColumns(COLUMN_PRESETS[preset]);
-              setColumnPreset(preset);
-            }}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-          >
-            <option value="standard">{t('table.presets.standard')}</option>
-            <option value="warehouse">{t('table.presets.warehouse')}</option>
-            <option value="pricing">{t('table.presets.pricing')}</option>
-            <option value="minimal">{t('table.presets.minimal')}</option>
-          </select>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsColumnPanelOpen((prev) => !prev)}
-              className="flex-1 rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
-            >
-              {t('table.columns.edit')}
-            </button>
-            <button
-              type="button"
-              onClick={resetColumns}
-              className="rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
-            >
+            {t('table.columns.reset')}
+          </button>
+        </div>
+      </div>
+
+      {isColumnPanelOpen && (
+        <div className="rounded-lg border border-slate-600 bg-slate-900 p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-white">{t('table.columns.visible')}</p>
+            <button type="button" className="text-xs text-sky-400 hover:underline" onClick={resetColumns}>
               {t('table.columns.reset')}
             </button>
           </div>
-        </div>
-
-        {isColumnPanelOpen && (
-          <div className="rounded-lg border border-slate-600 bg-slate-900 p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">{t('table.columns.visible')}</p>
-              <button type="button" className="text-xs text-sky-400 hover:underline" onClick={resetColumns}>
-                {t('table.columns.reset')}
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-              {columnDefinitions.map((column) => (
-                <label key={column.id} className="flex items-center gap-2 text-sm text-slate-200">
-                  <input
-                    type="checkbox"
-                    checked={visibleColumns.includes(column.id)}
-                    onChange={() => toggleColumnVisibility(column.id)}
-                    disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
-                    className="bg-slate-600 border-slate-500"
-                  />
-                  {column.label}
-                </label>
-              ))}
-            </div>
+          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+            {columnDefinitions.map((column) => (
+              <label key={column.id} className="flex items-center gap-2 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={visibleColumns.includes(column.id)}
+                  onChange={() => toggleColumnVisibility(column.id)}
+                  disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
+                  className="bg-slate-600 border-slate-500"
+                />
+                {column.label}
+              </label>
+            ))}
           </div>
-        )}
-
-        <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-700/40">
-          <ActionButton
-            icon={<SyncIcon className="w-4 h-4" />}
-            label={t('table.actions.syncSelected')}
-            onClick={handleBatchSync}
-            disabled={selectedIds.size === 0}
-            tone="primary"
-          />
-          <ActionButton
-            icon={<RefreshIcon className="w-4 h-4" />}
-            label={t('table.actions.priceRefresh')}
-            onClick={handleBatchPriceRefresh}
-            disabled={selectedIds.size === 0}
-            tone="primary"
-          />
-          <ActionButton
-            icon={<BarcodeIcon className="w-4 h-4" />}
-            label={t('table.actions.assignInventory')}
-            onClick={() => {
-              setInventoryAssignMessage(null);
-              setInventorySelection('');
-              setInventoryModalOpen(true);
-            }}
-            disabled={selectedIds.size === 0}
-            tone="primary"
-          />
-          {onImproveSelected && (
-            <ActionButton
-              icon={<OperationsIcon className="w-4 h-4" />}
-              label="Improve"
-              onClick={() => onImproveSelected(Array.from(selectedIds))}
-              disabled={selectedIds.size === 0}
-              tone="accent"
-            />
-          )}
-          <ActionButton
-            icon={<ExportIcon className="w-4 h-4" />}
-            label={t('table.actions.exportCsv')}
-            onClick={handleExportCsv}
-          />
-          <ActionButton
-            icon={<PrintIcon className="w-4 h-4" />}
-            label={t('table.actions.printLabel')}
-            onClick={handleBatchLabelPrint}
-            disabled={selectedIds.size === 0}
-          />
-          <ActionButton
-            icon={<PrintIcon className="w-4 h-4 rotate-180" />}
-            label={t('table.columns.reset')}
-            onClick={resetColumns}
-          />
-          <ActionButton
-            icon={<SyncIcon className="w-4 h-4 rotate-90" />}
-            label={t('table.actions.deleteSelected')}
-            onClick={handleBatchDelete}
-            disabled={selectedIds.size === 0}
-            tone="danger"
-          />
         </div>
+      )}
+
+      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-700/40">
+        <ActionButton
+          icon={<SyncIcon className="w-4 h-4" />}
+          label={t('table.actions.syncSelected')}
+          onClick={handleBatchSync}
+          disabled={selectedIds.size === 0}
+          tone="primary"
+        />
+        <ActionButton
+          icon={<RefreshIcon className="w-4 h-4" />}
+          label={t('table.actions.priceRefresh')}
+          onClick={handleBatchPriceRefresh}
+          disabled={selectedIds.size === 0}
+          tone="primary"
+        />
+        <ActionButton
+          icon={<BarcodeIcon className="w-4 h-4" />}
+          label={t('table.actions.assignInventory')}
+          onClick={() => {
+            setInventoryAssignMessage(null);
+            setInventorySelection('');
+            setInventoryModalOpen(true);
+          }}
+          disabled={selectedIds.size === 0}
+          tone="primary"
+        />
+        {onImproveSelected && (
+          <ActionButton
+            icon={<OperationsIcon className="w-4 h-4" />}
+            label="Improve Selected"
+            onClick={() => onImproveSelected(Array.from(selectedIds))}
+            disabled={selectedIds.size === 0}
+            tone="accent"
+          />
+        )}
+        <ActionButton
+          icon={<OperationsIcon className="w-4 h-4" />}
+          label="Improve All"
+          onClick={handleBulkImprove}
+          tone="accent"
+        />
+        <ActionButton
+          icon={<ExportIcon className="w-4 h-4" />}
+          label={t('table.actions.exportCsv')}
+          onClick={handleExportCsv}
+        />
+        <ActionButton
+          icon={<PrintIcon className="w-4 h-4" />}
+          label={t('table.actions.printLabel')}
+          onClick={handleBatchLabelPrint}
+          disabled={selectedIds.size === 0}
+        />
+        <ActionButton
+          icon={<PrintIcon className="w-4 h-4 rotate-180" />}
+          label={t('table.columns.reset')}
+          onClick={resetColumns}
+        />
+        <ActionButton
+          icon={<SyncIcon className="w-4 h-4 rotate-90" />}
+          label={t('table.actions.deleteSelected')}
+          onClick={handleBatchDelete}
+          disabled={selectedIds.size === 0}
+          tone="danger"
+        />
+      </div>
     </>
   );
 
   return (
     <>
-    <section id="admin-table" className="p-6 bg-slate-800 rounded-lg shadow-lg">
-      <header className="mb-6">
-        <h2 className="text-2xl font-bold text-white">{t('inventory.title')}</h2>
-      </header>
-      
-      <div className="space-y-3 mb-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[220px]">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              id="table-search"
-              type="text"
-              placeholder={t('table.search')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 text-sm"
-            />
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span>
-              {filteredAndSortedProducts.length} / {products.length} Produkte
-            </span>
-            <button type="button" onClick={resetFilters} className="text-sky-400 hover:underline">
-              Filter zurücksetzen
-            </button>
-          </div>
-        </div>
-        {isMobile ? (
-          <div className="rounded-2xl border border-slate-700 bg-slate-900/40">
-            <button
-              type="button"
-              onClick={() => setMobileFiltersOpen((prev) => !prev)}
-              className="w-full px-4 py-2 text-sm font-semibold text-slate-100 flex items-center justify-between"
-            >
-              <span>{`${t('table.actions.label')} & Filter`}</span>
-              <span>{mobileFiltersOpen ? '−' : '+'}</span>
-            </button>
-            {mobileFiltersOpen && <div className="p-3 space-y-3">{renderFilterControls()}</div>}
-          </div>
-        ) : (
-          <div className="space-y-3">{renderFilterControls()}</div>
-        )}
-      </div>
+      <section id="admin-table" className="p-6 bg-slate-800 rounded-lg shadow-lg">
+        <header className="mb-6">
+          <h2 className="text-2xl font-bold text-white">{t('inventory.title')}</h2>
+        </header>
 
-      <div className="overflow-x-auto">
-        <table id="grid" className="w-full text-left min-w-[1000px]">
-          <thead className="bg-slate-700/50">
-            <tr>
-              <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-slate-300">
-                <input
-                  type="checkbox"
-                  name="select-all-products"
-                  onChange={handleSelectAll}
-                  checked={
-                    selectedIds.size > 0 &&
-                    selectedIds.size === filteredAndSortedProducts.length &&
-                    filteredAndSortedProducts.length > 0
-                  }
-                  className="bg-slate-600 border-slate-500"
-                />
-              </th>
-              {visibleColumnDefinitions.map((column) => {
-                const isThumbnail = column.id === 'thumbnail';
-                return (
-                  <SortableHeader key={column.id} sortKey={column.sortKey} widthClass={column.widthClass}>
-                    {column.label}
-                  </SortableHeader>
-                );
-              })}
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
-                {t('table.actions.label')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAndSortedProducts.map(p => (
-              <tr
-                key={p.id}
-                ref={(el) => {
-                  rowRefs.current[p.id] = el;
-                }}
-                data-product-row={p.id}
-                className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors"
+        <div className="space-y-3 mb-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[220px]">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                id="table-search"
+                type="text"
+                placeholder={t('table.search')}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span>
+                {filteredAndSortedProducts.length} / {products.length} Produkte
+              </span>
+              <button type="button" onClick={resetFilters} className="text-sky-400 hover:underline">
+                Filter zurücksetzen
+              </button>
+            </div>
+          </div>
+          {isMobile ? (
+            <div className="rounded-2xl border border-slate-700 bg-slate-900/40">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen((prev) => !prev)}
+                className="w-full px-4 py-2 text-sm font-semibold text-slate-100 flex items-center justify-between"
               >
-                <td className="p-3">
+                <span>{`${t('table.actions.label')} & Filter`}</span>
+                <span>{mobileFiltersOpen ? '−' : '+'}</span>
+              </button>
+              {mobileFiltersOpen && <div className="p-3 space-y-3">{renderFilterControls()}</div>}
+            </div>
+          ) : (
+            <div className="space-y-3">{renderFilterControls()}</div>
+          )}
+        </div>
+
+        <div className="overflow-x-auto">
+          <table id="grid" className="w-full text-left min-w-[1000px]">
+            <thead className="bg-slate-700/50">
+              <tr>
+                <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-slate-300">
                   <input
                     type="checkbox"
-                    name={`select-product-${p.id}`}
-                    checked={selectedIds.has(p.id)}
-                    onChange={() => handleSelectOne(p.id)}
+                    name="select-all-products"
+                    onChange={handleSelectAll}
+                    checked={
+                      selectedIds.size > 0 &&
+                      selectedIds.size === filteredAndSortedProducts.length &&
+                      filteredAndSortedProducts.length > 0
+                    }
                     className="bg-slate-600 border-slate-500"
                   />
-                </td>
-                {visibleColumnDefinitions.map((column) => (
-                  <td
-                    key={`${p.id}-${column.id}`}
-                    className="p-3 align-top"
-                    style={column.id === 'thumbnail' ? { width: '80px' } : undefined}
-                  >
-                    {column.render({ product: p, onSelectProduct })}
-                  </td>
-                ))}
-                <td className="p-3">
-                  <div className="flex flex-col gap-2">
-                    {onImproveProduct && (
-                      <button
-                        type="button"
-                        className="px-2 py-1 text-xs bg-sky-600 text-white rounded-md disabled:opacity-60"
-                        disabled={Boolean(improvingProductIds?.has(p.id))}
-                        onClick={() => onImproveProduct(p.id)}
-                      >
-                        {improvingProductIds?.has(p.id) ? 'Verbessere…' : 'Improve'}
-                      </button>
-                    )}
-                  <button
-                    className="px-2 py-1 text-xs bg-red-600 text-white rounded-md"
-                    onClick={async () => {
-                      if (!confirm(t('table.actions.deleteOne', { name: p.identification.name } as any))) return;
-                      const res = await deleteProduct(p.id);
-                      if (res.ok) {
-                          onUpdateProducts(products.filter((x) => x.id !== p.id));
-                      } else {
-                        alert(`Delete failed: ${res.error?.message || 'Unknown error'}`);
-                      }
-                    }}
-                  >
-                    {t('table.actions.delete')}
-                  </button>
-                  </div>
-                </td>
+                </th>
+                {visibleColumnDefinitions.map((column) => {
+                  const isThumbnail = column.id === 'thumbnail';
+                  return (
+                    <SortableHeader key={column.id} sortKey={column.sortKey} widthClass={column.widthClass}>
+                      {column.label}
+                    </SortableHeader>
+                  );
+                })}
+                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
+                  {t('table.actions.label')}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-    {inventoryModalOpen && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-        <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-white">{t('table.inventory.assignTitle')}</h3>
-            <button
-              type="button"
-              className="text-slate-400 hover:text-white"
-              onClick={() => {
-                setInventoryModalOpen(false);
-                setInventoryAssignMessage(null);
-              }}
-            >
-              ✕
-            </button>
-          </div>
-          <div className="space-y-2">
-            <label className="block text-xs uppercase tracking-wide text-slate-400">
-              {t('table.inventory.selectLabel')}
-            </label>
-            <select
-              value={inventorySelection}
-              onChange={(event) => setInventorySelection(event.target.value)}
-              className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100"
-            >
-              <option value="">{t('table.inventory.selectPlaceholder')}</option>
-              {inventories.map((inv) => (
-                <option key={inv.inventoryId} value={inv.inventoryId}>
-                  {inv.name} ({inv.inventoryId})
-                </option>
+            </thead>
+            <tbody>
+              {filteredAndSortedProducts.map(p => (
+                <tr
+                  key={p.id}
+                  ref={(el) => {
+                    rowRefs.current[p.id] = el;
+                  }}
+                  data-product-row={p.id}
+                  className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors"
+                >
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      name={`select-product-${p.id}`}
+                      checked={selectedIds.has(p.id)}
+                      onChange={() => handleSelectOne(p.id)}
+                      className="bg-slate-600 border-slate-500"
+                    />
+                  </td>
+                  {visibleColumnDefinitions.map((column) => (
+                    <td
+                      key={`${p.id}-${column.id}`}
+                      className="p-3 align-top"
+                      style={column.id === 'thumbnail' ? { width: '80px' } : undefined}
+                    >
+                      {column.render({ product: p, onSelectProduct })}
+                    </td>
+                  ))}
+                  <td className="p-3">
+                    <div className="flex flex-col gap-2">
+
+                      <button
+                        className="px-2 py-1 text-xs bg-red-600 text-white rounded-md"
+                        onClick={async () => {
+                          if (!confirm(t('table.actions.deleteOne', { name: p.identification.name } as any))) return;
+                          const res = await deleteProduct(p.id);
+                          if (res.ok) {
+                            onUpdateProducts(products.filter((x) => x.id !== p.id));
+                          } else {
+                            alert(`Delete failed: ${res.error?.message || 'Unknown error'}`);
+                          }
+                        }}
+                      >
+                        {t('table.actions.delete')}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
               ))}
-            </select>
-          </div>
-          {inventoryAssignMessage && (
-            <p className="text-xs text-slate-300">{inventoryAssignMessage}</p>
-          )}
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setInventoryModalOpen(false);
-                setInventoryAssignMessage(null);
-              }}
-              className="px-3 py-1.5 rounded-lg border border-slate-600 text-sm text-slate-200"
-            >
-              {t('table.inventory.cancel')}
-            </button>
-            <button
-              type="button"
-              onClick={handleAssignInventory}
-              disabled={inventoryAssigning}
-              className="px-4 py-1.5 rounded-lg bg-sky-600 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
-            >
-              {inventoryAssigning ? t('table.inventory.assigning') : t('table.inventory.assign')}
-            </button>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {inventoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">{t('table.inventory.assignTitle')}</h3>
+              <button
+                type="button"
+                className="text-slate-400 hover:text-white"
+                onClick={() => {
+                  setInventoryModalOpen(false);
+                  setInventoryAssignMessage(null);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-xs uppercase tracking-wide text-slate-400">
+                {t('table.inventory.selectLabel')}
+              </label>
+              <select
+                value={inventorySelection}
+                onChange={(event) => setInventorySelection(event.target.value)}
+                className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+              >
+                <option value="">{t('table.inventory.selectPlaceholder')}</option>
+                {inventories.map((inv) => (
+                  <option key={inv.inventoryId} value={inv.inventoryId}>
+                    {inv.name} ({inv.inventoryId})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {inventoryAssignMessage && (
+              <p className="text-xs text-slate-300">{inventoryAssignMessage}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setInventoryModalOpen(false);
+                  setInventoryAssignMessage(null);
+                }}
+                className="px-3 py-1.5 rounded-lg border border-slate-600 text-sm text-slate-200"
+              >
+                {t('table.inventory.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleAssignInventory}
+                disabled={inventoryAssigning}
+                className="px-4 py-1.5 rounded-lg bg-sky-600 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
+              >
+                {inventoryAssigning ? t('table.inventory.assigning') : t('table.inventory.assign')}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
     </>
   );
 };

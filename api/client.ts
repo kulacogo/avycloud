@@ -548,6 +548,23 @@ export const improveProduct = async (
   }
 };
 
+export const startBulkImprovement = async (): Promise<{ ok: boolean; data?: { enqueuedParams: number }; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/products/bulk-improve`, {
+      method: 'POST',
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Bulk improvement failed' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
 export const generateProductImages = async (
   productId: string,
   referenceImage: ProductImage,
@@ -930,11 +947,11 @@ export const chatWithAssistant = async (
       };
     } else {
       requestInit = {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ productId, message }),
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ productId, message }),
       };
     }
 
