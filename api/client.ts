@@ -268,7 +268,7 @@ export const pollImproveJob = async (
   jobId: string,
   options?: { signal?: AbortSignal; onStatus?: (phase: IdentifyPhase) => void }
 ): Promise<Product> => {
-  let deadline = Date.now() + JOB_TIMEOUT_MS;
+  const deadline = Date.now() + JOB_TIMEOUT_MS;
   while (true) {
     const job = await fetchImproveJobStatus(jobId, options?.signal);
     if (!job) {
@@ -284,12 +284,13 @@ export const pollImproveJob = async (
       throw new Error(job.error?.message || 'Improve-Job ist fehlgeschlagen.');
     }
     if (job.status === 'processing') {
-      options?.onStatus?.('processing');
+      const stage = job.stage || job.state; // Capture specific stage if available
+      options?.onStatus?.((stage as IdentifyPhase) || 'processing');
     } else {
-      // If still queued, extend deadline so we don't timeout while waiting in queue
-      deadline = Date.now() + JOB_TIMEOUT_MS;
-      options?.onStatus?.('queued');
+      // Pass through other statuses if they seem active, otherwise queued
+      options?.onStatus?.((job.status as IdentifyPhase) || 'queued');
     }
+
     if (Date.now() > deadline) {
       throw new Error('Improve-Job hat das Zeitlimit überschritten.');
     }

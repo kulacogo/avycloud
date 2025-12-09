@@ -68,6 +68,15 @@ export const useImproveQueue = (options?: UseImproveQueueOptions) => {
         });
 
         if (improvedProduct) {
+          // Update the label to reflect the NEW product name
+          const newLabel = improvedProduct.identification ?
+            [improvedProduct.identification.brand, improvedProduct.identification.name].filter(Boolean).join(' ')
+            : options?.resolveLabel?.(productId);
+
+          if (newLabel) {
+            updateJob(localId, { label: newLabel });
+          }
+
           options?.onProductImproved?.(improvedProduct);
         }
 
