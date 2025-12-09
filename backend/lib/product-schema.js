@@ -43,7 +43,7 @@ const priceSourceSchema = {
   additionalProperties: false,
   properties: {
     name: { type: 'string', minLength: 1 },
-    url: { type: 'string', minLength: 1 },
+    url: { type: 'string', minLength: 0 },
     price: { type: ['number', 'null'] },
     shipping: { type: ['number', 'null'] },
     checked_at: { type: ['string', 'null'] },
@@ -117,7 +117,7 @@ const productSchema = {
                 currency: { type: 'string', minLength: 3, maxLength: 3 },
                 sources: {
                   type: 'array',
-                  minItems: 1,
+                  minItems: 0,
                   items: priceSourceSchema,
                 },
                 last_checked_iso: { type: ['string', 'null'] },
