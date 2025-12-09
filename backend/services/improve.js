@@ -386,20 +386,51 @@ function isValidString(str) {
   return str && typeof str === 'string' && str.trim().length > 0 && !/unbekannt|unknown|nicht angegeben/i.test(str);
 }
 
+function pickBetterTitle(existing = '', incoming = '', brand = '') {
+  const exValid = isValidString(existing);
+  const incValid = isValidString(incoming);
+
+  if (!exValid && !incValid) return '';
+  if (exValid && !incValid) return existing.trim();
+  if (!exValid && incValid) return incoming.trim();
+
+  // Both are valid strings. Compare quality.
+  const ex = existing.trim();
+  const inc = incoming.trim();
+
+  // 1. Prefer title containing the Brand
+  if (brand && isValidString(brand)) {
+    const brandLower = brand.toLowerCase();
+    const exHas = ex.toLowerCase().includes(brandLower);
+    const incHas = inc.toLowerCase().includes(brandLower);
+    if (exHas && !incHas) return ex;
+    if (!exHas && incHas) return inc;
+  }
+
+  // 2. Prefer significantly longer title (usually more descriptive)
+  // But cap it? No, marketplace titles are usually 80-150 chars.
+  if (inc.length > ex.length + 10) return inc;
+  if (ex.length > inc.length + 10) return ex;
+
+  // 3. Fallback to incoming if roughly equal, assuming it might be "fresher" or normalized
+  return inc;
+}
+
 function mergeProductRecords(existing, incoming) {
   // Start with a deep copy of existing to ensure we don't accidentally lose deep properties
   // or overwrite them with shallow spreads.
   const merged = JSON.parse(JSON.stringify(existing));
 
   // 1. Identification: Safe Merge
-  // We never want to overwrite a valid Title/Brand with "Unbekannt" or empty/null
   if (incoming.identification) {
     const incId = incoming.identification;
 
-    if (isValidString(incId.name)) {
-      // Optional: Logic to prefer longer titles could go here, but usually AI title is better structure
-      merged.identification.name = incId.name;
-    }
+    // Smart Title Selection
+    merged.identification.name = pickBetterTitle(
+      merged.identification.name,
+      incId.name,
+      incId.brand || merged.identification.brand
+    );
 
     if (isValidString(incId.brand)) {
       merged.identification.brand = incId.brand;

@@ -869,22 +869,31 @@ function containsPackagingReference(text = '') {
 function looksLikePlaceholderTitle(text = '') {
   if (!text) return true;
   const trimmed = text.trim();
-  if (trimmed.length < 15) return true;
+  if (trimmed.length < 35) return true; // Increased from 15 to 35 to catch "LED Hallenleuchte"
   if (/^(sku|item|model)?[-\w\s]+$/i.test(trimmed) && !/\s/.test(trimmed.replace(/[A-Za-z]+/g, ''))) {
     return true;
   }
-  if (/unbekannt/i.test(trimmed)) return true;
+  if (/unbekannt|unknown|neu|new/i.test(trimmed)) return true;
   return false;
 }
 
 function needsMarketingRewrite(product) {
   const title = product?.identification?.name || '';
+  const brand = product?.identification?.brand || '';
   const desc = product?.details?.short_description || '';
   const features = Array.isArray(product?.details?.key_features)
     ? product.details.key_features.filter(Boolean)
     : [];
 
   if (looksLikePlaceholderTitle(title)) return true;
+
+  // If we know the brand, it MUST be in the title
+  if (brand && brand.length > 2 && !/unbekannt/i.test(brand)) {
+    if (!title.toLowerCase().includes(brand.toLowerCase())) {
+      return true;
+    }
+  }
+
   if (desc.trim().length < 300 || containsPackagingReference(desc)) return true;
   if (features.length < 5) return true;
   if (features.some((item) => containsPackagingReference(item))) return true;

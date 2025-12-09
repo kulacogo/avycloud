@@ -52,21 +52,30 @@ export const useImproveQueue = (options?: UseImproveQueueOptions) => {
       try {
         const improvedProduct = await pollImproveJob(jobId, {
           onStatus: (phase) => {
-            const mapped =
-              phase === 'processing'
-                ? { phase: 'processing', message: PHASE_MESSAGES.processing }
-                : { phase: 'queued', message: PHASE_MESSAGES.queued };
+            // Map any active phase to 'processing' to ensure the UI shows activity
+            const isProcessing = ['processing', 'identifying', 'enriching', 'reviewing'].includes(phase) || phase !== 'queued';
+            const mapped = isProcessing
+              ? { phase: 'processing' as const, message: PHASE_MESSAGES.processing }
+              : { phase: 'queued' as const, message: PHASE_MESSAGES.queued };
             updateJob(localId, mapped);
           },
         });
+
         updateJob(localId, {
           phase: 'complete',
           message: PHASE_MESSAGES.complete,
           finishedAt: new Date().toISOString(),
         });
+
         if (improvedProduct) {
           options?.onProductImproved?.(improvedProduct);
         }
+
+        // Auto-dismiss the status window after 4 seconds only on success
+        setTimeout(() => {
+          setJobs(prev => prev.filter(j => j.localId !== localId));
+        }, 4000);
+
       } catch (err: any) {
         const message =
           err instanceof Error ? err.message : 'Improve-Job fehlgeschlagen.';
