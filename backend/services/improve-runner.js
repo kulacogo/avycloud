@@ -25,6 +25,8 @@ async function processImproveJob(jobId) {
     return;
   }
 
+  console.log(`[ImproveRunner] Starting job ${jobId} (Product: ${jobSnapshot.productId})...`);
+
   try {
     const productId = jobSnapshot.productId || jobSnapshot.payload?.productId;
     if (!productId) {
@@ -33,12 +35,14 @@ async function processImproveJob(jobId) {
 
     const improvedProduct = await improveExistingProduct(productId, async (stage) => {
       try {
+        console.log(`[ImproveRunner] Job ${jobId} stage: ${stage}`);
         await updateJob(jobId, { stage, updatedAt: Timestamp.now() });
       } catch (err) {
         console.warn(`Failed to update job stage to ${stage}:`, err);
       }
     });
 
+    console.log(`[ImproveRunner] Job ${jobId} COMPLETED.`);
     await updateJob(jobId, {
       status: 'done',
       stage: 'complete',

@@ -387,36 +387,43 @@ function isValidString(str) {
 }
 
 function pickBetterTitle(existing = '', incoming = '', brand = '') {
-  const exValid = isValidString(existing);
-  const incValid = isValidString(incoming);
+  const result = (() => {
+    const exValid = isValidString(existing);
+    const incValid = isValidString(incoming);
 
-  if (!exValid && !incValid) return '';
-  if (exValid && !incValid) return existing.trim();
-  if (!exValid && incValid) return incoming.trim();
+    if (!exValid && !incValid) return '';
+    if (exValid && !incValid) return existing.trim();
+    if (!exValid && incValid) return incoming.trim();
 
-  // Both are valid strings. Compare quality.
-  const ex = existing.trim();
-  const inc = incoming.trim();
+    // Both are valid strings. Compare quality.
+    const ex = existing.trim();
+    const inc = incoming.trim();
 
-  // 1. Prefer title containing the Brand
-  if (brand && isValidString(brand)) {
-    const brandLower = brand.toLowerCase();
-    const exHas = ex.toLowerCase().includes(brandLower);
-    const incHas = inc.toLowerCase().includes(brandLower);
-    if (exHas && !incHas) return ex;
-    if (!exHas && incHas) return inc;
-  }
+    // 1. Prefer title containing the Brand
+    if (brand && isValidString(brand)) {
+      const brandLower = brand.toLowerCase();
+      const exHas = ex.toLowerCase().includes(brandLower);
+      const incHas = inc.toLowerCase().includes(brandLower);
+      if (exHas && !incHas) return ex;
+      if (!exHas && incHas) return inc;
+    }
 
-  // 2. Prefer significantly longer title (usually more descriptive)
-  // But cap it? No, marketplace titles are usually 80-150 chars.
-  if (inc.length > ex.length + 10) return inc;
-  if (ex.length > inc.length + 10) return ex;
+    // 2. Prefer significantly longer title (usually more descriptive)
+    // But cap it? No, marketplace titles are usually 80-150 chars.
+    if (inc.length > ex.length + 10) return inc;
+    if (ex.length > inc.length + 10) return ex;
 
-  // 3. Fallback to incoming if roughly equal, assuming it might be "fresher" or normalized
-  return inc;
+    // 3. Fallback to incoming if roughly equal, assuming it might be "fresher" or normalized
+    return inc;
+  })();
+  // console.log(`[pickTitle] Existing: "${existing.substring(0, 20)}..." | Incoming: "${incoming.substring(0, 20)}..." | Choice: "${result.substring(0, 20)}..."`);
+  return result;
 }
 
 function mergeProductRecords(existing, incoming) {
+  console.log('[mergeProductRecords] Starting merge...');
+  console.log('[mergeProductRecords] Incoming product keys:', Object.keys(incoming));
+  console.log('[mergeProductRecords] Existing product keys:', Object.keys(existing));
   // Start with a deep copy of existing to ensure we don't accidentally lose deep properties
   // or overwrite them with shallow spreads.
   const merged = JSON.parse(JSON.stringify(existing));
@@ -426,17 +433,23 @@ function mergeProductRecords(existing, incoming) {
     const incId = incoming.identification;
 
     // Smart Title Selection
+    const oldTitle = merged.identification.name;
     merged.identification.name = pickBetterTitle(
       merged.identification.name,
       incId.name,
       incId.brand || merged.identification.brand
     );
+    if (merged.identification.name !== oldTitle) {
+      console.log('[mergeProductRecords] Title updated.');
+    }
 
     if (isValidString(incId.brand)) {
+      if (merged.identification.brand !== incId.brand) console.log('[mergeProductRecords] Brand updated.');
       merged.identification.brand = incId.brand;
     }
 
     if (isValidString(incId.category)) {
+      if (merged.identification.category !== incId.category) console.log('[mergeProductRecords] Category updated.');
       merged.identification.category = incId.category;
     }
 
@@ -460,7 +473,9 @@ function mergeProductRecords(existing, incoming) {
     merged.details.key_features = sanitizeKeyFeatures(merged.details.key_features);
 
     // Attributes (Merge, keep existing if meaningful)
+    console.log(`[mergeProductRecords] Merging attributes. Existing keys: ${Object.keys(merged.details.attributes || {}).length}, Incoming keys: ${Object.keys(incDet.attributes || {}).length}`);
     merged.details.attributes = mergeAttributes(merged.details.attributes, incDet.attributes);
+    console.log(`[mergeProductRecords] Merged attributes count: ${Object.keys(merged.details.attributes || {}).length}`);
 
     // Images (Union, protect existing)
     merged.details.images = mergeImages(merged.details.images, incDet.images);
@@ -488,11 +503,20 @@ function mergeProductRecords(existing, incoming) {
   merged.ops = merged.ops || {};
   merged.ops.revision = (merged.ops.revision || 0) + 1;
   merged.ops.sync_status = 'pending';
-  merged.ops.updated_at = new Date().toISOString();
+  merged.ops.updated_at_iso = new Date().toISOString();
+  console.log('[mergeProductRecords] Updated ops fields.');
+
+  // Protect critical fields
+  console.log('[mergeProductRecords] Protecting critical fields (inventory, storage, storageBins).');
+  merged.inventory = existing.inventory;
+  merged.storage = existing.storage;
+  merged.storageBins = existing.storageBins;
 
   // 4. Notes
   merged.notes = mergeNotes(merged.notes, incoming.notes);
 
+  console.log('[mergeProductRecords] Merged product keys (final):', Object.keys(merged));
+  console.log('[mergeProductRecords] Finished merge.');
   return merged;
 }
 
@@ -552,6 +576,7 @@ async function buildReferenceFiles(product) {
 }
 
 async function improveExistingProduct(productId, onProgress) {
+  console.log(`[improveExistingProduct] Starting for ${productId}`);
   const product = await getProduct(productId);
   if (!product) {
     const error = new Error('Produkt wurde nicht gefunden.');
@@ -560,37 +585,42 @@ async function improveExistingProduct(productId, onProgress) {
   }
 
   if (onProgress) await onProgress('downloading_images');
+  console.log('[improve] Downloading reference images...');
   const files = await buildReferenceFiles(product);
   const barcodes = collectBarcodes(product);
 
+  console.log(`[improve] Running Identification. Files: ${files.length}, Barcodes: ${barcodes.length}`);
   const result = await runProductIdentification({
     files,
     barcodes,
     locale: product.locale || 'de-DE',
     modelOverride: null,
     improveContext: buildImproveContext(product),
-    skipExternalSearch: true, // Disable SerpApi for improve workflow
-    onProgress, // Pass down to enrichment
+    skipExternalSearch: true,
+    onProgress,
   });
 
   const improvedOutput = result?.bundle?.products?.[0];
   if (!improvedOutput) {
+    console.error('[improve] No product returned from identification flow!');
     throw new Error('Improve-Fluss hat kein Produkt zurückgegeben.');
   }
 
+  console.log('[improve] Merging records...');
   if (onProgress) await onProgress('merging');
   let mergedProduct = mergeProductRecords(product, improvedOutput);
 
-  // Re-apply taxonomy enrichment on the final merged product to ensure attributes are correct
-  // The functions now support single product input and return the enriched object.
+  console.log('[improve] Applying Taxonomy...');
   if (onProgress) await onProgress('enriching');
   mergedProduct = applyEbayTaxonomy(mergedProduct);
   mergedProduct = applyKauflandTaxonomy(mergedProduct);
 
-  // Run final datasheet review on the enriched result
+  console.log('[improve] Final Review & Save...');
   if (onProgress) await onProgress('reviewing');
   await runDatasheetReview([mergedProduct], { locale: product.locale || 'de-DE' });
   await saveProduct(mergedProduct);
+
+  console.log('[improve] SUCCESS.');
   return mergedProduct;
 }
 
