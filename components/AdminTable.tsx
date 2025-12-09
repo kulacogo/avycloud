@@ -507,7 +507,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         filterStock === 'all' ||
         (filterStock === 'inStock' && quantity > 0) ||
         (filterStock === 'outOfStock' && quantity <= 0);
-      const hasBin = Boolean(p.storage?.binCode);
+      const hasBin = Boolean(p.storage?.binCode) || (Array.isArray(p.storageBins) && p.storageBins.length > 0);
       const matchesBin =
         filterBin === 'all' || (filterBin === 'withBin' && hasBin) || (filterBin === 'withoutBin' && !hasBin);
       return matchesSearch && matchesStatus && matchesCategory && matchesInventory && matchesStock && matchesBin;

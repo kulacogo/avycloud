@@ -474,15 +474,15 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
       productData.storage && productData.storage.binCode && productData.storage.binCode !== binCode
         ? productData.storage
         : {
-            binCode,
-            zone: binData.zone,
-            etage: binData.etage,
-            gang: binData.gang,
-            regal: binData.regal,
-            ebene: binData.ebene,
-            quantity: storageQuantity,
-            assigned_at: productData.storage?.assigned_at || nowIso,
-          };
+          binCode,
+          zone: binData.zone,
+          etage: binData.etage,
+          gang: binData.gang,
+          regal: binData.regal,
+          ebene: binData.ebene,
+          quantity: storageQuantity,
+          assigned_at: productData.storage?.assigned_at || nowIso,
+        };
 
     const currentPending = Number(productData?.ops?.pending_intake_quantity) || 0;
     const nextPending = Math.max(0, currentPending - quantity);
@@ -557,7 +557,7 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
     let newProducts = products;
     let storagePayload = null;
     if (entry.quantity <= 0) {
-      newProducts = products.filter((p) => p.productId !== productData.id);
+      newProducts = products.filter((p) => p.productId !== resolvedProductId);
       tx.update(productRef, {
         storage: null,
         inventory: { ...(productData.inventory || {}), quantity: 0 },
@@ -633,7 +633,7 @@ async function listBinsForProduct(productIdOrSku) {
         p?.productId === String(productIdOrSku) ||
         p?.sku === String(productIdOrSku)
     );
-    if (hit) {
+    if (hit && (hit.quantity || 0) > 0) {
       matches.push({
         code: data.code,
         zone: data.zone,
