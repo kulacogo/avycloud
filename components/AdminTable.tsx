@@ -1097,7 +1097,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               </tr>
             </thead>
             <tbody>
-              {filteredAndSortedProducts.map(p => (
+              {pageProducts.map(p => (
                 <tr
                   key={p.id}
                   ref={(el) => {
@@ -1148,7 +1148,53 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </tbody>
           </table>
         </div>
-      </section>
+
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
+          <div className="flex items-center gap-2">
+            <span>Zeige</span>
+            <select
+              title="Items per page"
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                if (typeof window !== 'undefined') {
+                  window.sessionStorage.setItem('avystock:admin-table:pageSize', e.target.value);
+                }
+              }}
+              className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-slate-200 focus:ring-2 focus:ring-sky-500 outline-none"
+            >
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+            </select>
+            <span>Einträge</span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span>
+              Seite {currentPage} von {totalPages}
+            </span>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-200"
+              >
+                Zurück
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-200"
+              >
+                Weiter
+              </button>
+            </div>
+          </div>
+        </div>
+      </section >
       {inventoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
           <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-4">
@@ -1207,7 +1253,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </div>
           </div>
         </div>
-      )}
+      )
+      }
     </>
   );
 };
