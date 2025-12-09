@@ -584,6 +584,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       if (resetAfter) {
         setStowSku('');
         setStowBin('');
+        setScannerTarget('stowSku');
       }
     } catch (error: any) {
       setErrorMessage(error?.message || t('ops.errors.stow'));
@@ -890,7 +891,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
         {workflow === 'stow' ? (
           <div
-            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+            className="flex flex-col gap-5"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
@@ -898,74 +899,87 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               }
             }}
           >
-            <div className="space-y-2">
-              <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.stow.product')}</label>
-              <div className="flex gap-2">
+            {/* Produkt */}
+            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+              <label className="text-xs text-slate-400 uppercase tracking-wide block mb-2">{t('ops.stow.product')}</label>
+              <div className="flex gap-3">
                 <input
                   value={stowSku}
                   ref={stowSkuRef}
                   onChange={(e) => setStowSku(e.target.value)}
-                  className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                  className="flex-1 bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-base text-white focus:ring-2 focus:ring-sky-500 outline-none"
                   placeholder={t('ops.stow.product')}
                 />
-                <button type="button" onClick={() => setScannerTarget('stowSku')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
-                  {t('ops.actions.scan')}
+                <button
+                  type="button"
+                  onClick={() => setScannerTarget('stowSku')}
+                  className="px-4 py-3 rounded-xl bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform"
+                >
+                  <CameraIcon className="w-6 h-6" />
                 </button>
               </div>
               {matchedStowProduct ? (
-                <div className="text-xs text-slate-300">
-                  {matchedStowProduct.identification?.name}
+                <div className="mt-3 bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                  <p className="text-sm font-medium text-white">{matchedStowProduct.identification?.name}</p>
                   {matchedStowProduct.storage?.binCode && (
-                    <span className="block text-emerald-300">
+                    <p className="text-xs text-emerald-400 mt-1">
                       {t('ops.labels.currentBin', { code: matchedStowProduct.storage.binCode })}
-                    </span>
+                    </p>
                   )}
                 </div>
               ) : (
-                stowSku && <div className="text-xs text-rose-300">{t('ops.labels.noProductFound')}</div>
+                stowSku && <div className="mt-2 text-sm text-rose-400">{t('ops.labels.noProductFound')}</div>
               )}
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.stow.bin')}</label>
-              <div className="flex gap-2">
+            {/* Bin & Menge */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                <label className="text-xs text-slate-400 uppercase tracking-wide block mb-2">{t('ops.stow.bin')}</label>
+                <div className="flex gap-3">
+                  <input
+                    value={stowBin}
+                    ref={stowBinRef}
+                    onChange={(e) => setStowBin(e.target.value.toUpperCase())}
+                    className="flex-1 bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-base text-white uppercase font-mono focus:ring-2 focus:ring-sky-500 outline-none"
+                    placeholder="BIN..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setScannerTarget('stowBin')}
+                    className="px-4 py-3 rounded-xl bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform"
+                  >
+                    <CameraIcon className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                <label className="text-xs text-slate-400 uppercase tracking-wide block mb-2">{t('ops.stow.quantity')}</label>
                 <input
-                  value={stowBin}
-                  ref={stowBinRef}
-                  onChange={(e) => setStowBin(e.target.value.toUpperCase())}
-                  className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white uppercase"
-                  placeholder="XGA0101A"
+                  type="number"
+                  min={1}
+                  value={stowQuantity}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setStowQuantity('');
+                    } else {
+                      setStowQuantity(Math.max(1, Number(val)));
+                    }
+                  }}
+                  className="w-full bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-base text-white font-mono focus:ring-2 focus:ring-sky-500 outline-none"
                 />
-                <button type="button" onClick={() => setScannerTarget('stowBin')} className="px-3 py-2 rounded-xl bg-slate-700 text-sm text-white">
-                  {t('ops.actions.scan')}
-                </button>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.stow.quantity')}</label>
-              <input
-                type="number"
-                min={1}
-                value={stowQuantity}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '') {
-                    setStowQuantity('');
-                  } else {
-                    setStowQuantity(Math.max(1, Number(val)));
-                  }
-                }}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-              />
-            </div>
-
-            <div className="md:col-span-3 flex flex-wrap gap-3 mt-2">
+            {/* Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
               <button
                 type="button"
                 onClick={() => handleStow(false)}
                 disabled={isSubmitting || !stowSku || !stowBin || !stowQuantity}
-                className="px-4 py-2 rounded-xl bg-sky-600 text-white disabled:opacity-50"
+                className="w-full py-4 rounded-xl bg-sky-600 text-white font-semibold shadow-lg shadow-sky-900/20 hover:bg-sky-500 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
               >
                 {t('ops.stow.submit')}
               </button>
@@ -973,7 +987,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 type="button"
                 onClick={() => handleStow(true)}
                 disabled={isSubmitting || !stowSku || !stowBin || !stowQuantity}
-                className="px-4 py-2 rounded-xl bg-slate-700 text-white disabled:opacity-50"
+                className="w-full py-4 rounded-xl bg-slate-700 text-white font-semibold border border-slate-600 hover:bg-slate-600 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
               >
                 {t('ops.stow.submit.next')}
               </button>

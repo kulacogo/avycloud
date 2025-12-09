@@ -424,6 +424,8 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
   let updatedProduct = null;
   let updatedBin = null;
 
+  let resolvedProductId = null;
+
   await firestore.runTransaction(async (tx) => {
     const [productSnap, binSnap] = await Promise.all([tx.get(productRef), tx.get(binRef)]);
     if (!productSnap.exists) throw new Error('Produkt nicht gefunden.');
@@ -432,7 +434,7 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
     const productData = productSnap.data();
     const binData = binSnap.data();
     const products = cloneProductsArray(binData);
-    const resolvedProductId = productData.id || productRef.id;
+    resolvedProductId = productData.id || productRef.id;
     const nowIso = now.toDate().toISOString();
 
     let entry = products.find((p) => p.productId === resolvedProductId);
