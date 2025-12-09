@@ -1216,6 +1216,8 @@ async function runProductIdentification({
     throw new Error('Bitte mindestens ein Bild oder einen Barcode bereitstellen.');
   }
 
+  if (onProgress) await onProgress('identifying');
+
   const manualBarcodes = normalizeBarcodeList(parseBarcodes(barcodes));
   const ocrPayload = await extractOcrPayload(files);
   const barcodeList = mergeBarcodeLists(manualBarcodes, ocrPayload.barcodes || []);
@@ -1318,7 +1320,6 @@ async function runProductIdentification({
 
   let bundle;
   try {
-    if (onProgress) await onProgress('identifying');
     const result = await model.generateContent({
       contents: [{ role: "user", parts: geminiParts }],
       generationConfig,

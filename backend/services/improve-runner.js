@@ -2,7 +2,7 @@ const PQueue = require('p-queue').default || require('p-queue');
 const { Timestamp, claimJob, updateJob, listJobsByStatus } = require('../lib/improve-jobs');
 const { improveExistingProduct } = require('./improve');
 
-const CONCURRENCY = parseInt(process.env.IMPROVE_QUEUE_CONCURRENCY || '1', 10);
+const CONCURRENCY = parseInt(process.env.IMPROVE_QUEUE_CONCURRENCY || '5', 10);
 const MAX_ATTEMPTS = parseInt(process.env.IMPROVE_JOB_MAX_ATTEMPTS || '2', 10);
 const JOB_SWEEP_INTERVAL_MS = parseInt(process.env.IMPROVE_JOB_SWEEP_MS || '45000', 10);
 const JOB_RETRY_BACKOFF_MS = parseInt(process.env.IMPROVE_JOB_BACKOFF_MS || '30000', 10);
