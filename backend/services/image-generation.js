@@ -122,81 +122,19 @@ function shouldIncludeVariant(mode, spec) {
 }
 
 async function generateImagesForProduct(product, options = {}) {
+  // USER REQUEST: Disable all AI image generation (Improve text only).
+  console.log('[generateImagesForProduct] AI Image Generation is DISABLED by user request. Skipping.');
+  return { images: [], prompts: {} };
+
+  /* 
+  // Original logic disabled
   if (!product?.id) {
         throw new Error('Product ID is required');
     }
-
-  const referenceImage = options.referenceImage;
-  if (!referenceImage) {
-    throw new Error('Reference image must be provided');
-  }
-
-  if (isLikelyAiImage(referenceImage)) {
-    throw new Error('AI-generated images cannot be used as reference material');
-  }
-
-  const referenceDataUrl = await fetchImageAsDataUrl(referenceImage);
-
-  // Generate rich prompts using Gemini
-  console.log(`Generating visual descriptions for ${product.id}...`);
-  const prompts = await generateVisualDescriptions(product);
-
-  const sampleCount = Number.isFinite(options.sampleCount) ? Math.min(Math.max(options.sampleCount, 1), 4) : 1;
-
-  console.log(
-    `Generating Gemini renders for ${product.id} using reference image (${referenceImage.source || 'unknown'})`
-  );
-
-  const requestedMode = options.mode || 'all'; // 'studio', 'lifestyle', 'detail', 'all'
-
-  const runs = VARIANT_SPECS.map((spec) => ({
-    ...spec,
-    prompt: prompts?.[spec.group]?.[spec.key],
-    count: sampleCount,
-    editMode: null,
-  }))
-    .filter((run) => Boolean(run.prompt) && shouldIncludeVariant(requestedMode, run));
-
-  const uploaded = [];
-  const promptMap = prompts;
-
-  for (const run of runs) {
-    // We use the reference image for ALL modes to ensure product identity (shape/design) is preserved.
-    // Imagen 2 (Variation) will use this as a strong guide while adapting the lighting/background.
-    const predictions = await generateProductImages({
-      prompt: run.prompt,
-      count: run.count,
-      aspectRatio: options.aspectRatio || '1:1',
-      referenceImageBase64: referenceDataUrl,
-      editMode: run.editMode,
-        });
-
-    for (const [index, prediction] of predictions.entries()) {
-      if (!prediction?.base64) {
-        continue;
-        }
-      const mimeType = prediction.mimeType || 'image/png';
-      const dataUrl = `data:${mimeType};base64,${prediction.base64}`;
-            const upload = await uploadBase64Image(
-        dataUrl,
-                product.id,
-        `gemini_render_${run.type}_${Date.now()}_${index}`
-            );
-      uploaded.push({
-                url_or_base64: upload.url,
-        source: 'ai-derived',
-        variant: run.type,
-        notes: `Gemini ${run.type} (${run.group}/${run.key}) based on ${referenceImage.source || 'reference'} (${referenceImage.notes || 'user selected'})`,
-        width: upload.width,
-        height: upload.height,
-        mimeType: upload.mimeType,
-      });
-    }
-    }
-
-  return { images: uploaded, prompts: promptMap };
+  ...
+  */
 }
 
 module.exports = {
-    generateImagesForProduct,
+  generateImagesForProduct,
 };
