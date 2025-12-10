@@ -10,6 +10,7 @@ const {
   deleteProduct,
   updateProductSyncStatus,
   listOrders,
+  getOrderSummary,
   findProductIdsByAliases,
   deleteProductsByIdentityAlias,
   listInventories,

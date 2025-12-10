@@ -583,6 +583,62 @@ async function listOrders(limit = 50) {
   return snapshot.docs.map((doc) => doc.data());
 }
 
+/**
+ * Aggregate order counts across the entire orders collection.
+ * Picks are detected by:
+ * - status === 'picked'
+ * - statusLabel/status matching known closed labels (kommissioniert/versendet/zugestellt/…)
+ * - pickedAt being present
+ * - statusId matching configured picked status IDs (env) or the hard fallback.
+ */
+async function getOrderSummary() {
+  const CLOSED_LABELS = new Set([
+    'kommissioniert',
+    'versendet',
+    'zugestellt',
+    'shipped',
+    'delivered',
+    'completed',
+    'erledigt',
+  ]);
+
+  const pickedStatusIds = new Set(['363183']); // hard fallback BaseLinker picked status
+  const envPickedId = process.env.BASE_ORDER_STATUS_PICKED;
+  if (envPickedId) {
+    pickedStatusIds.add(String(envPickedId).trim());
+  }
+
+  const snapshot = await firestore.collection(ORDERS_COLLECTION).get();
+
+  let total = 0;
+  let picked = 0;
+
+  snapshot.forEach((doc) => {
+    const order = doc.data() || {};
+    total += 1;
+
+    const statusId = order.statusId ? String(order.statusId) : null;
+    const rawStatus = order.status || order.statusLabel || '';
+    const normalizedStatus = typeof rawStatus === 'string' ? rawStatus.trim().toLowerCase() : '';
+
+    const isPickedById = statusId ? pickedStatusIds.has(statusId) : false;
+    const isPickedByLabel =
+      CLOSED_LABELS.has(normalizedStatus) ||
+      CLOSED_LABELS.has(normalizedStatus.replace(/\s+/g, ' ')) ||
+      normalizedStatus.includes('versendet') ||
+      normalizedStatus.includes('zugestellt');
+    const isPickedStatus = normalizedStatus === 'picked';
+    const isPickedByTimestamp = Boolean(order.pickedAt);
+
+    if (isPickedById || isPickedByLabel || isPickedStatus || isPickedByTimestamp) {
+      picked += 1;
+    }
+  });
+
+  const open = Math.max(0, total - picked);
+  return { total, picked, open };
+}
+
 async function getOrderById(orderId) {
   if (!orderId) return null;
   const doc = await firestore.collection(ORDERS_COLLECTION).doc(orderId).get();
@@ -778,6 +834,7 @@ module.exports = {
   removeProductIdentityAliases,
   saveOrders,
   listOrders,
+  getOrderSummary,
   getOrderById,
   updateOrder,
   getSkuIndexEntry,
