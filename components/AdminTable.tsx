@@ -137,6 +137,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterBin') as 'all' | 'withBin' | 'withoutBin') || 'all';
   });
+  const [filterImage, setFilterImage] = useState<'all' | 'withImages' | 'noImages'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterImage') as 'all' | 'withImages' | 'noImages') || 'all';
+  });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(() => {
     if (typeof window === 'undefined') return { key: 'ops.last_saved_iso', direction: 'desc' };
     try {
@@ -510,7 +514,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
       const hasBin = Boolean(p.storage?.binCode) || (Array.isArray(p.storageBins) && p.storageBins.length > 0);
       const matchesBin =
         filterBin === 'all' || (filterBin === 'withBin' && hasBin) || (filterBin === 'withoutBin' && !hasBin);
-      return matchesSearch && matchesStatus && matchesCategory && matchesInventory && matchesStock && matchesBin;
+
+      const hasImages = Array.isArray(p.details.images) && p.details.images.length > 0;
+      const matchesImages =
+        filterImage === 'all' ||
+        (filterImage === 'withImages' && hasImages) ||
+        (filterImage === 'noImages' && !hasImages);
+
+      return matchesSearch && matchesStatus && matchesCategory && matchesInventory && matchesStock && matchesBin && matchesImages;
     });
 
     if (sortConfig !== null) {
@@ -530,7 +541,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
 
     return filtered;
-  }, [products, searchTerm, filterStatus, filterCategory, filterInventoryId, filterStock, filterBin, sortConfig]);
+  }, [products, searchTerm, filterStatus, filterCategory, filterInventoryId, filterStock, filterBin, filterImage, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSortedProducts.length / pageSize));
   useEffect(() => {
@@ -793,6 +804,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterInventoryId('all');
     setFilterStock('all');
     setFilterBin('all');
+    setFilterImage('all');
     setPageSize(50);
     setCurrentPage(1);
   };
@@ -820,6 +832,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterBin', filterBin);
   }, [filterBin]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterImage', filterImage);
+  }, [filterImage]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:pageSize', String(pageSize));
@@ -879,6 +895,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
           <option value="all">{t('table.binFilter.all')}</option>
           <option value="withBin">{t('table.binFilter.withBin')}</option>
           <option value="withoutBin">{t('table.binFilter.withoutBin')}</option>
+        </select>
+        <select
+          id="table-filter-images"
+          value={filterImage}
+          onChange={(e) => setFilterImage(e.target.value as 'all' | 'withImages' | 'noImages')}
+          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+        >
+          <option value="all">Bilder: Alle</option>
+          <option value="withImages">Mit Bildern</option>
+          <option value="noImages">Keine Bilder</option>
         </select>
         <select
           id="table-filter-inventory"
