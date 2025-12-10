@@ -213,12 +213,23 @@ function mergeAttributes(existing, incoming) {
   return result;
 }
 
+function isValidSku(value) {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed.length > 64) return false;
+  return /^[A-Za-z0-9._\-\/]+$/.test(trimmed);
+}
+
 function mergeIdentifiers(existing = {}, incoming = {}) {
   const merged = { ...(existing || {}) };
   Object.entries(incoming || {}).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
     if (typeof value === 'string' && !value.trim()) {
       return;
+    }
+    if (key === 'sku') {
+      if (!isValidSku(value)) return;
     }
     merged[key] = typeof value === 'string' ? value.trim() : value;
   });

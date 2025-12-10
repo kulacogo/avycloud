@@ -502,28 +502,46 @@ export const syncToBaseLinker = async (productOrProducts: Product | Product[]): 
 
   try {
     const isSingle = !Array.isArray(productOrProducts);
-    const payload = isSingle ? { product: productOrProducts } : { products: productOrProducts };
+    const products = Array.isArray(productOrProducts) ? productOrProducts : [productOrProducts];
 
     if (import.meta.env.DEV) {
-      const count = Array.isArray(productOrProducts) ? productOrProducts.length : 1;
-      console.log('API CALL: /api/sync-baselinker', { count });
+      console.log('API CALL: /api/sync-baselinker', { count: products.length });
     }
 
-    response = await fetch(`${BACKEND_URL}/api/sync-baselinker`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+    const CHUNK_SIZE = 90;
+    const allResults: Array<{ id: string; status: 'synced' | 'failed'; message?: string }> = [];
 
-    const result = await parseResponse(response);
+    for (let i = 0; i < products.length; i += CHUNK_SIZE) {
+      const chunk = products.slice(i, i + CHUNK_SIZE);
+      const payload = chunk.length === 1 ? { product: chunk[0] } : { products: chunk };
 
-    if (!response.ok) {
-      throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
+      response = await fetch(`${BACKEND_URL}/api/sync-baselinker`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await parseResponse(response);
+
+      if (!response.ok) {
+        throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
+      }
+
+      if (Array.isArray(result?.results)) {
+        allResults.push(...result.results);
+      }
     }
 
-    return result;
+    const failed = allResults.filter((r) => r.status === 'failed');
+    return {
+      ok: failed.length === 0,
+      results: allResults,
+      error: failed.length
+        ? { code: 502, message: failed.map((f) => `${f.id}: ${f.message || 'Sync failed'}`).join(' | ') }
+        : undefined,
+    };
 
   } catch (error) {
     console.error('Failed to sync to BaseLinker:', error);

@@ -794,6 +794,14 @@ function sanitizeImageSuggestions(entry) {
 
 function sanitizeDatasheetChange(entry) {
   const result = {};
+  const isValidSku = (value) => {
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    if (trimmed.length > 64) return false;
+    return /^[A-Za-z0-9._\\-\\/]+$/.test(trimmed);
+  };
+
   if (entry.summary) result.summary = entry.summary;
   if (entry.short_description) result.short_description = entry.short_description;
   if (Array.isArray(entry.key_features)) {
@@ -845,7 +853,7 @@ function sanitizeDatasheetChange(entry) {
     if (typeof entry.identity.category === 'string' && entry.identity.category.trim()) {
       identityPatch.category = entry.identity.category.trim();
     }
-    if (typeof entry.identity.sku === 'string' && entry.identity.sku.trim()) {
+    if (typeof entry.identity.sku === 'string' && isValidSku(entry.identity.sku)) {
       identityPatch.sku = entry.identity.sku.trim();
     }
     if (Array.isArray(entry.identity.barcodes)) {
@@ -861,6 +869,10 @@ function sanitizeDatasheetChange(entry) {
       pushBarcode(entry.identity.upc);
     }
   }
+  if (entry.sku && isValidSku(entry.sku)) {
+    identityPatch.sku = entry.sku.trim();
+  }
+
   if (Object.keys(identityPatch).length) {
     if (barcodeSet.size) {
       identityPatch.barcodes = Array.from(barcodeSet);

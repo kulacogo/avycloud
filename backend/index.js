@@ -1049,13 +1049,15 @@ app.post('/api/sync-baselinker', async (req, res) => {
           error: { code: 400, message: 'Products array cannot be empty' }
         });
       }
-      if (products.length > 100) {
-        return res.status(400).json({
-          ok: false,
-          error: { code: 400, message: 'Maximum 100 products per sync request' }
-        });
+
+      // Chunk client payload to respect BaseLinker limit (100) and avoid 400 errors
+      const CHUNK_SIZE = 90;
+      results = [];
+      for (let i = 0; i < products.length; i += CHUNK_SIZE) {
+        const chunk = products.slice(i, i + CHUNK_SIZE);
+        const chunkResults = await syncProductsToBaseLinker(chunk);
+        results.push(...chunkResults);
       }
-      results = await syncProductsToBaseLinker(products);
     }
     else {
       return res.status(400).json({
