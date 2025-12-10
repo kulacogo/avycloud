@@ -378,23 +378,23 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     const mapped = changes
       .filter((change) => Object.keys(change).length > 0)
       .map((change) => ({ id: uid(), change }));
-        if (mapped.length) {
+    if (mapped.length) {
       setPendingChanges((prev) => [...prev, ...mapped]);
-        }
+    }
     return mapped;
   };
 
   const appendPendingImages = (suggestions: { rationale?: string; images: ProductImage[] }[] = []) => {
     if (!suggestions.length) return;
-        const dedupe = new Set(suggestionKeysRef.current);
-        const flattened: PendingImage[] = [];
+    const dedupe = new Set(suggestionKeysRef.current);
+    const flattened: PendingImage[] = [];
     suggestions.forEach((group) => {
       group.images.forEach((img) => {
-            const key = normalizeImageKey(img?.url_or_base64);
-            if (!key || dedupe.has(key)) {
-              return;
-            }
-            dedupe.add(key);
+        const key = normalizeImageKey(img?.url_or_base64);
+        if (!key || dedupe.has(key)) {
+          return;
+        }
+        dedupe.add(key);
         flattened.push({
           id: uid(),
           image: {
@@ -403,12 +403,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           },
           rationale: group.rationale,
         });
-          });
-        });
-        if (flattened.length) {
-          suggestionKeysRef.current = dedupe;
+      });
+    });
+    if (flattened.length) {
+      suggestionKeysRef.current = dedupe;
       setPendingImages((prev) => [...prev, ...flattened]);
-        }
+    }
   };
 
   const handleApplyChange = (id: string) => {
@@ -434,12 +434,18 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       if (!raw) continue;
       try {
         const parsed = JSON.parse(raw);
-        const candidate =
-          parsed?.edit && typeof parsed.edit === 'object'
-            ? parsed.edit
-            : parsed?.identity || parsed?.barcodes || parsed?.ean || parsed?.gtin
-            ? { identity: parsed.identity, barcodes: parsed.barcodes, ean: parsed.ean, gtin: parsed.gtin }
-            : null;
+        // Candidate is either 'edit' wrapper, OR the object itself if it has recognized fields
+        let candidate = parsed?.edit && typeof parsed.edit === 'object' ? parsed.edit : null;
+
+        if (!candidate) {
+          const hasDirectFields = parsed.identity || parsed.barcodes || parsed.ean || parsed.gtin ||
+            parsed.title || parsed.short_description || parsed.key_features ||
+            parsed.attributes || parsed.pricing || parsed.notes;
+          if (hasDirectFields) {
+            candidate = parsed;
+          }
+        }
+
         if (candidate) {
           const change = sanitizeDatasheetChange(candidate);
           if (Object.keys(change).length) {
@@ -536,13 +542,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           <span className="font-semibold text-sm text-white">{t('chat.header.title')}</span>
           <span className="text-[11px] text-slate-500">{t('chat.header.subtitle')}</span>
         </div>
-          <button
-            type="button"
-            onClick={() => setShowPromptTray((prev) => !prev)}
+        <button
+          type="button"
+          onClick={() => setShowPromptTray((prev) => !prev)}
           className="rounded-full border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:border-sky-500 hover:text-white"
-          >
+        >
           {showPromptTray ? t('chat.ui.promptsHide') : t('chat.ui.promptsShow')}
-          </button>
+        </button>
       </header>
 
       <div className="flex flex-1 min-h-0 flex-col gap-3 px-4 py-3">
@@ -557,20 +563,20 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               datasheetChanges={msg.datasheetChanges}
               onApplyDatasheetChange={msg.datasheetChanges?.length ? handleApplyChange : undefined}
             />
-            ))}
-            {isLoading && (
-              <div className="flex justify-start">
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
               <div className="flex items-center gap-2 rounded-2xl bg-slate-800/80 px-4 py-3 text-sm text-slate-200">
                 <Spinner className="h-4 w-4" />
                 {t('chat.ui.thinking')}
-                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
 
-          {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
+        {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
           <div className="space-y-4 border-t border-slate-800 pt-3 text-xs text-slate-200">
-              {pendingChanges.length > 0 && (
+            {pendingChanges.length > 0 && (
               <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
                 <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
                   <span>{t('chat.ui.pendingChanges')}</span>
@@ -590,29 +596,29 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                         {t('chat.ui.apply')}
                       </button>
                     </div>
-                    ))}
+                  ))}
                 </div>
               </details>
-              )}
+            )}
 
-              {pendingImages.length > 0 && (
+            {pendingImages.length > 0 && (
               <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
                 <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
                   <span>{t('chat.ui.imageSuggestions')}</span>
                   <span>{pendingImages.length}</span>
                 </summary>
                 <div className="flex gap-3 overflow-x-auto p-3">
-                      {pendingImages.map((item) => (
-                        <div
-                          key={item.id}
+                  {pendingImages.map((item) => (
+                    <div
+                      key={item.id}
                       className="flex min-w-[160px] max-w-[160px] flex-col gap-2 rounded-xl border border-slate-700/60 bg-slate-900/70 p-2"
-                        >
-                        <img
-                          src={resolveImageSrc(item.image.url_or_base64)}
+                    >
+                      <img
+                        src={resolveImageSrc(item.image.url_or_base64)}
                         alt={item.image.variant || t('chat.ui.imageAlt')}
                         className="h-24 w-full rounded-lg object-cover"
-                          loading="lazy"
-                          decoding="async"
+                        loading="lazy"
+                        decoding="async"
                         onError={(event) => {
                           (event.currentTarget as HTMLImageElement).src = `https://placehold.co/200x200?text=${encodeURIComponent(
                             t('chat.ui.imagePlaceholder')
@@ -620,20 +626,20 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                         }}
                       />
                       {item.rationale && <p className="text-[11px] text-slate-400 line-clamp-2">{item.rationale}</p>}
-                        <button
+                      <button
                         type="button"
                         onClick={() => handleApplyImage(item.id)}
                         className="rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
-                        >
+                      >
                         {t('chat.ui.addImage')}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </details>
-              )}
+            )}
 
-              {serpInsights.length > 0 && (
+            {serpInsights.length > 0 && (
               <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
                 <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
                   <span>{t('chat.ui.serpInsights')}</span>
@@ -645,30 +651,30 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                       <div className="flex items-center justify-between text-slate-100">
                         <span className="font-semibold">{entry.engine}</span>
                         <span className="text-slate-400">{entry.query}</span>
-                    </div>
+                      </div>
                       {entry.error && <p className="mt-1 text-red-400">{entry.error}</p>}
-                        {!entry.error &&
+                      {!entry.error &&
                         entry.summary?.slice(0, 2).map((item, idx) => (
                           <div key={idx} className="mt-1">
-                              <a
-                                href={item.url}
-                                target="_blank"
-                                rel="noreferrer"
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noreferrer"
                               className="text-sky-400 underline hover:text-sky-200"
-                              >
-                                {item.title || item.url}
-                              </a>
-                              {item.price && <span className="ml-1 text-slate-300">{String(item.price)}</span>}
-                              {item.source && <span className="ml-1 text-slate-400">({item.source})</span>}
-                            </div>
-                          ))}
+                            >
+                              {item.title || item.url}
+                            </a>
+                            {item.price && <span className="ml-1 text-slate-300">{String(item.price)}</span>}
+                            {item.source && <span className="ml-1 text-slate-400">({item.source})</span>}
+                          </div>
+                        ))}
                     </div>
-                    ))}
+                  ))}
                 </div>
               </details>
-              )}
-            </div>
-          )}
+            )}
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 border-t border-slate-800 px-4 py-4">
@@ -680,16 +686,16 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {promptTemplates.map((prompt) => (
-            <button
+                <button
                   key={`tray-${prompt.key}`}
                   type="button"
                   onClick={() => setInput(prompt.value)}
                   className="rounded-full bg-slate-800 px-3 py-1 text-[12px] text-slate-200 hover:bg-slate-700"
-            >
+                >
                   {prompt.label}
-            </button>
-          ))}
-        </div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -707,7 +713,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         </div>
 
         <ChatInput
-            value={input}
+          value={input}
           onChange={setInput}
           onSend={() => handleSend()}
           disabled={isLoading}

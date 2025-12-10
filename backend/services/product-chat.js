@@ -917,7 +917,8 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   2. If the user asks for data (like an EAN/Barcode) and it is missing, you MUST immediately call 'serpapi_web_search' with a query like "Brand ModelNumber EAN" or "Brand Name Barcode".
   3. Default to "google" engine for broad searches unless specific ID lookup is needed.
   4. Never say "I can search if you want". JUST SEARCH.
-  5. DO NOT ASK for confirmation to update or improve the product data. Just call 'update_product_datasheet' with your proposed changes. The User Interface works as the confirmation dialog. Asking "Should I?" is a failure.
+  5. **ALWAYS** usage the 'update_product_datasheet' tool when you propose ANY data changes (title, description, attributes, etc.). Do NOT just output JSON text. The tool call IS the way to propose changes.
+  6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
   `;
 
   const model = client.getGenerativeModel({
