@@ -65,6 +65,8 @@ const {
 const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked } = require('./services/order-sync');
 const { attachPickHintsToOrders } = require('./services/pick-hints');
+const { improveExistingProduct } = require('./services/improve');
+const { updateJob, Timestamp } = require('./lib/improve-jobs');
 
 // --- Configuration ---
 const PORT = process.env.PORT || 8080;
@@ -150,6 +152,7 @@ const CHAT_ATTACHMENT_MIME_WHITELIST = new Set([
 ]);
 const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024; // 8 MB per file, total tracked separately
 const MAX_IMPROVE_BATCH = parseInt(process.env.MAX_IMPROVE_BATCH || '100', 10);
+const IMPROVE_INLINE = process.env.IMPROVE_INLINE === 'true';
 const GENERATED_IMAGE_SIGNATURE = /\b(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)\b/i;
 const JOB_STATUS_FILTERS = ['pending', 'processing', 'failed', 'done'];
 
@@ -2168,6 +2171,35 @@ app.post('/api/products/bulk-improve', async (req, res) => {
   }
 });
 
+async function runImproveJobInline(jobId, productId) {
+  // Fallback: verarbeitet den Improve-Job synchron im Request, wenn IMPROVE_INLINE=true
+  try {
+    await updateJob(jobId, { status: 'processing', stage: 'inline', startedAt: Timestamp.now() });
+    const improvedProduct = await improveExistingProduct(productId, async (stage) => {
+      try {
+        await updateJob(jobId, { stage });
+      } catch (err) {
+        console.warn(`Inline updateJob stage failed for ${jobId}:`, err.message);
+      }
+    });
+    await updateJob(jobId, {
+      status: 'done',
+      stage: 'complete',
+      finishedAt: Timestamp.now(),
+      result: { product: improvedProduct },
+      error: null,
+    });
+  } catch (error) {
+    console.error(`Inline improve job ${jobId} failed:`, error);
+    await updateJob(jobId, {
+      status: 'failed',
+      stage: 'error',
+      finishedAt: Timestamp.now(),
+      error: { message: error.message, stack: error.stack?.slice(0, 500) },
+    });
+  }
+}
+
 app.post('/api/improve/jobs', async (req, res) => {
   try {
     const rawIds = Array.isArray(req.body?.productIds) ? req.body.productIds : [];
@@ -2219,6 +2251,13 @@ app.post('/api/improve/jobs', async (req, res) => {
           missing,
         },
       });
+    }
+
+    if (IMPROVE_INLINE) {
+      // Inline-Modus: verarbeitet nacheinander im Request (nur für kleinere Batches empfehlenswert)
+      for (const job of jobs) {
+        await runImproveJobInline(job.jobId, job.productId);
+      }
     }
 
     res.json({
