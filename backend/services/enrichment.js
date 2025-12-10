@@ -12,6 +12,36 @@ const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy')
 const { findKauflandCategory, getKauflandAttributes } = require('../lib/kaufland-taxonomy');
 const { isValidGtin } = require('../lib/gtin');
 
+// Clean JSON schema to be compatible with Gemini responseSchema
+function cleanSchemaForGemini(schema) {
+  if (!schema || typeof schema !== 'object') return schema;
+  if (Array.isArray(schema)) return schema.map(cleanSchemaForGemini);
+
+  const cleaned = { ...schema };
+
+  if (Array.isArray(cleaned.type)) {
+    const validTypes = cleaned.type.filter((t) => t !== 'null');
+    cleaned.type = validTypes.length === 1 ? validTypes[0] : validTypes[0] || 'string';
+  }
+
+  if (cleaned.properties) {
+    const props = {};
+    for (const [key, val] of Object.entries(cleaned.properties)) {
+      props[key] = cleanSchemaForGemini(val);
+    }
+    cleaned.properties = props;
+  }
+
+  if (cleaned.items) {
+    cleaned.items = cleanSchemaForGemini(cleaned.items);
+  }
+
+  // Remove fields Gemini rejects in responseSchema
+  delete cleaned.additionalProperties;
+  delete cleaned.default;
+  return cleaned;
+}
+
 const MAX_TOOL_ITERATIONS = 8;
 const MAX_BARCODE_COUNT = 10000;
 const MAX_IMAGE_PAYLOAD_BYTES = parseInt(process.env.MAX_IMAGE_PAYLOAD_BYTES || `${45 * 1024 * 1024}`, 10);
@@ -882,7 +912,7 @@ async function runDatasheetReview(products = [], { locale = 'de-DE' } = {}) {
         topP: 0.95,
         topK: 64,
         responseMimeType: "application/json",
-        responseSchema: DATASHEET_REVIEW_SCHEMA
+        responseSchema: cleanSchemaForGemini(DATASHEET_REVIEW_SCHEMA)
       };
 
       const result = await model.generateContent({
@@ -1011,7 +1041,7 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
           topP: 0.95,
           topK: 64,
           responseMimeType: "application/json",
-          responseSchema: marketingCopySchema
+          responseSchema: cleanSchemaForGemini(marketingCopySchema)
         };
 
         const result = await model.generateContent({
