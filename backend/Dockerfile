@@ -5,14 +5,14 @@ FROM node:20-slim
 # Set working directory
 WORKDIR /app
 
-# Copy backend package files (works whether build context is repo root or backend/)
-COPY backend/package*.json ./ 
+# Copy package files (build context = backend/)
+COPY package*.json ./
 
 # Install production dependencies
 RUN npm ci --only=production
 
-# Copy backend source
-COPY backend/. .
+# Copy source
+COPY . .
 
 # Expose port (Cloud Run uses PORT env variable)
 EXPOSE 8080
