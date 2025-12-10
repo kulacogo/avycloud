@@ -827,13 +827,17 @@ function sanitizeDatasheetChange(entry) {
   }
   if (typeof entry.title === 'string' && entry.title.trim()) {
     identityPatch.name = entry.title.trim();
+    // Keep an explicit title field so the frontend can display/apply it directly.
+    result.title = entry.title.trim();
   }
   if (entry.identity && typeof entry.identity === 'object') {
     if (typeof entry.identity.title === 'string' && entry.identity.title.trim()) {
       identityPatch.name = entry.identity.title.trim();
+      result.title = entry.identity.title.trim();
     }
     if (typeof entry.identity.name === 'string' && entry.identity.name.trim()) {
       identityPatch.name = entry.identity.name.trim();
+      result.title = entry.identity.name.trim();
     }
     if (typeof entry.identity.brand === 'string' && entry.identity.brand.trim()) {
       identityPatch.brand = entry.identity.brand.trim();

@@ -431,9 +431,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             ...next.identification,
             ...change.identity,
           };
-          // Explicitly ensure name is overwritten if present in identity
+          // Explicitly ensure name is overwritten if present in identity/title
           if (change.identity.name) {
             next.identification.name = change.identity.name;
+          } else if (change.identity.title) {
+            next.identification.name = change.identity.title;
           }
           // Explicitly ensure brand is overwritten if present in identity
           if (change.identity.brand) {
