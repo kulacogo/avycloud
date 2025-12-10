@@ -123,8 +123,8 @@ function shouldIncludeVariant(mode, spec) {
 
 async function generateImagesForProduct(product, options = {}) {
   if (!product?.id) {
-    throw new Error('Product ID is required');
-  }
+        throw new Error('Product ID is required');
+    }
 
   const { referenceImage, sampleCount = 3, mode = 'all' } = options;
   if (!referenceImage?.url_or_base64) {
