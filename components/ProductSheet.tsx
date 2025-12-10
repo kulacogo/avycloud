@@ -337,10 +337,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         },
         details: {
           ...productToSave.details,
-            identifiers: {
+          identifiers: {
             ...(productToSave.details.identifiers || {}),
             sku: assignedSku || productToSave.details.identifiers?.sku || undefined,
-            },
+          },
         },
         ops: {
           ...productToSave.ops,
@@ -410,62 +410,97 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   };
 
   const applyAssistantChange = (change: DatasheetChange) => {
+    console.log('Applying Assistant Change:', change);
     let incomingBarcodes: string[] | null = null;
-    setLocalProduct(prev => {
+
+    setLocalProduct((prev) => {
       const next = JSON.parse(JSON.stringify(prev)) as Product;
-      if (change.identity && Object.keys(change.identity).length > 0) {
-        if (Array.isArray(change.identity.barcodes)) {
-          const sanitized = Array.from(
-            new Set(
-              change.identity.barcodes
-                .map((value) => normalizeBarcode(String(value)))
-                .filter((value) => value && isValidGtin(value))
-            )
-          );
-          if (sanitized.length) {
-            next.identification.barcodes = sanitized;
-            incomingBarcodes = sanitized;
+
+      // 1. Identity / Basic Info
+      if (change.identity || change.title) {
+        next.identification = next.identification || {};
+
+        // Handle direct title alias
+        if (change.title) {
+          next.identification.name = change.title;
+        }
+
+        // Handle identity object
+        if (change.identity) {
+          next.identification = {
+            ...next.identification,
+            ...change.identity,
+          };
+          // Explicitly ensure name is overwritten if present in identity
+          if (change.identity.name) {
+            next.identification.name = change.identity.name;
+          }
+          // Explicitly ensure brand is overwritten if present in identity
+          if (change.identity.brand) {
+            next.identification.brand = change.identity.brand;
           }
         }
-        next.identification = {
-          ...next.identification,
-          ...change.identity,
-          name: change.identity.name || next.identification.name,
-        };
+
+        // Handle barcodes merging specifically
+        if (change.identity?.barcodes && Array.isArray(change.identity.barcodes)) {
+          const merged = new Set([
+            ...(next.identification.barcodes || []),
+            ...change.identity.barcodes
+          ]);
+          next.identification.barcodes = Array.from(merged)
+            .map(b => normalizeBarcode(String(b)))
+            .filter(b => b && isValidGtin(b));
+          incomingBarcodes = next.identification.barcodes;
+        }
       }
-      if (change.title) {
-        next.identification.name = change.title;
-      }
+
+      // 2. Short Description
       if (change.short_description) {
+        next.details = next.details || {};
         next.details.short_description = change.short_description;
       }
+
+      // 3. Key Features
       if (Array.isArray(change.key_features) && change.key_features.length > 0) {
+        next.details = next.details || {};
         next.details.key_features = change.key_features;
       }
+
+      // 4. Attributes (Merge)
       if (change.attributes && Object.keys(change.attributes).length > 0) {
+        next.details = next.details || {};
         next.details.attributes = {
           ...next.details.attributes,
           ...change.attributes,
         };
       }
+
+      // 5. Pricing
       if (change.pricing) {
+        next.details = next.details || {};
         next.details.pricing = {
           ...next.details.pricing,
           ...change.pricing,
           lowest_price: {
-            ...next.details.pricing.lowest_price,
-            ...change.pricing.lowest_price,
+            ...(next.details.pricing?.lowest_price || {}),
+            ...(change.pricing.lowest_price || {}),
           },
         };
       }
+
+      // 6. Notes
       if (change.notes) {
         next.notes = {
           unsure: change.notes.unsure || next.notes?.unsure || [],
           warnings: change.notes.warnings || next.notes?.warnings || [],
         };
       }
+
+      // Propagate update to parent (Critical fix)
+      onUpdate(next);
       return next;
     });
+
     setIsDirty(true);
     if (incomingBarcodes) {
       setBarcodeInput(incomingBarcodes.join('\n'));
@@ -533,13 +568,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const handleFieldChange = (field: string, value: string) => {
     const keys = field.split('.');
     setLocalProduct(prev => {
-        const newProd = JSON.parse(JSON.stringify(prev)); // Deep copy
-        let current = newProd;
-        for (let i = 0; i < keys.length - 1; i++) {
-            current = current[keys[i]];
-        }
-        current[keys[keys.length - 1]] = value;
-        return newProd;
+      const newProd = JSON.parse(JSON.stringify(prev)); // Deep copy
+      let current = newProd;
+      for (let i = 0; i < keys.length - 1; i++) {
+        current = current[keys[i]];
+      }
+      current[keys[keys.length - 1]] = value;
+      return newProd;
     });
     setIsDirty(true);
   };
@@ -623,7 +658,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           {notification.message}
         </div>
       )}
-      
+
       <div className="space-y-5">
         <header className="p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -724,7 +759,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 id="btn-edit"
                 onClick={() => setIsEditing(v => !v)}
                 className={`flex items-center justify-center px-4 py-2 font-medium rounded-lg transition-colors w-full sm:w-auto ${isEditing ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-sky-600 text-white hover:bg-sky-500'
-                }`}
+                  }`}
               >
                 <EditIcon /><span className="ml-2">{isEditing ? t('common.editing') : t('common.edit')}</span>
               </button>
@@ -796,20 +831,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     <span>{t('sheet.upload.or')}</span>
                     <label className="cursor-pointer rounded-full border border-slate-600 px-3 py-1 text-white">
                       {t('sheet.upload.fileBtn')}
-                    <input
-                      type="file"
-                      accept="image/*"
+                      <input
+                        type="file"
+                        accept="image/*"
                         multiple
-                      className="hidden"
-                      onChange={(e) => {
+                        className="hidden"
+                        onChange={(e) => {
                           const { files } = e.target;
                           handleUploadImages(files);
-                        if (e.target) {
-                          e.target.value = '';
-                        }
-                      }}
-                    />
-                  </label>
+                          if (e.target) {
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-2">{t('sheet.upload.support')}</p>
                 </div>
@@ -883,106 +918,106 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <section id="description" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-3 text-white">{t('sheet.description')}</h3>
-          {isEditing ? (
-            <textarea
-              defaultValue={localProduct.details.short_description}
-              onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
-              className="w-full min-h-[120px] bg-slate-700 border border-slate-600 rounded-lg p-3 text-slate-200"
-            />
-          ) : (
+            {isEditing ? (
+              <textarea
+                defaultValue={localProduct.details.short_description}
+                onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
+                className="w-full min-h-[120px] bg-slate-700 border border-slate-600 rounded-lg p-3 text-slate-200"
+              />
+            ) : (
               <p className="text-slate-300 leading-relaxed text-sm sm:text-base">{descriptionText}</p>
-          )}
-        </section>
+            )}
+          </section>
 
           <section id="attributes" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.attributes')}</h3>
-          <AttributeTable
-            attributes={localProduct.details.attributes}
-            isEditing={isEditing}
-            onChange={(next) => {
-              setLocalProduct(prev => ({ ...prev, details: { ...prev.details, attributes: next } }));
-              setIsDirty(true);
-            }}
-          />
-        </section>
+            <AttributeTable
+              attributes={localProduct.details.attributes}
+              isEditing={isEditing}
+              onChange={(next) => {
+                setLocalProduct(prev => ({ ...prev, details: { ...prev.details, attributes: next } }));
+                setIsDirty(true);
+              }}
+            />
+          </section>
 
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <section id="pricing" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.pricing')}</h3>
-          <PricingInfo
-            pricing={localProduct.details.pricing}
-            isEditing={isEditing}
-            onChange={(next) => {
-              setLocalProduct(prev => ({ ...prev, details: { ...prev.details, pricing: next } }));
-              setIsDirty(true);
-            }}
-          />
-        </section>
+            <PricingInfo
+              pricing={localProduct.details.pricing}
+              isEditing={isEditing}
+              onChange={(next) => {
+                setLocalProduct(prev => ({ ...prev, details: { ...prev.details, pricing: next } }));
+                setIsDirty(true);
+              }}
+            />
+          </section>
 
           <section id="storage" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.storage')}</h3>
-          {binsLoading ? (
+            {binsLoading ? (
               <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.loading')}</p>
-          ) : binsError ? (
-            <p className="text-rose-300 text-sm mb-3">{binsError}</p>
-          ) : productBins.length ? (
+            ) : binsError ? (
+              <p className="text-rose-300 text-sm mb-3">{binsError}</p>
+            ) : productBins.length ? (
               <div className="mb-4 space-y-2 max-h-56 overflow-auto pr-1">
-              {productBins.map((bin) => (
-                <div key={bin.code} className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="font-semibold text-white">{bin.code}</div>
-                    <div className="text-xs text-slate-400">
-                      Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
-                    </div>
+                {productBins.map((bin) => (
+                  <div key={bin.code} className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-semibold text-white">{bin.code}</div>
+                      <div className="text-xs text-slate-400">
+                        Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
+                      </div>
                       <div className="text-xs text-slate-300">Menge {bin.productCount ?? 0}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
+                ))}
+              </div>
+            ) : (
               <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.none')}</p>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.binLabel')}</label>
-              <input
-                value={binCodeInput}
-                onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
-                placeholder={t('sheet.storage.binPlaceholder')}
-                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-                <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.quantity')}</label>
-              <input
-                type="number"
-                min={1}
-                value={binQuantity}
-                onChange={(e) => setBinQuantity(Number(e.target.value))}
-                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3 mt-4">
-            <button
-              onClick={handleAssignBin}
-              disabled={isAssigningBin}
-              className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-500 disabled:opacity-40"
-            >
-                {isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}
-            </button>
-            {localProduct.storage?.binCode && (
-              <button
-                onClick={handleRemoveBin}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
-              >
-                  {t('sheet.storage.remove')}
-              </button>
             )}
-          </div>
-        </section>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.binLabel')}</label>
+                <input
+                  value={binCodeInput}
+                  onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
+                  placeholder={t('sheet.storage.binPlaceholder')}
+                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.quantity')}</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={binQuantity}
+                  onChange={(e) => setBinQuantity(Number(e.target.value))}
+                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3 mt-4">
+              <button
+                onClick={handleAssignBin}
+                disabled={isAssigningBin}
+                className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-500 disabled:opacity-40"
+              >
+                {isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}
+              </button>
+              {localProduct.storage?.binCode && (
+                <button
+                  onClick={handleRemoveBin}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
+                >
+                  {t('sheet.storage.remove')}
+                </button>
+              )}
+            </div>
+          </section>
         </div>
 
         <section className="p-4 bg-slate-800 rounded-lg shadow-lg space-y-3">
@@ -1055,7 +1090,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
         <section className="p-4 bg-slate-800 rounded-lg shadow-lg">
           <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.actions.title')}</h3>
-            <div className="actions flex flex-wrap gap-4">
+          <div className="actions flex flex-wrap gap-4">
             <button
               id="btn-sync"
               onClick={handleSync}
@@ -1064,8 +1099,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             >
               {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}
               <span className="ml-2">{t('sheet.actions.sync')}</span>
-                </button>
-            </div>
+            </button>
+          </div>
         </section>
       </div>
 
