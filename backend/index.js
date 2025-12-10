@@ -152,7 +152,8 @@ const CHAT_ATTACHMENT_MIME_WHITELIST = new Set([
 ]);
 const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024; // 8 MB per file, total tracked separately
 const MAX_IMPROVE_BATCH = parseInt(process.env.MAX_IMPROVE_BATCH || '100', 10);
-const IMPROVE_INLINE = process.env.IMPROVE_INLINE === 'true';
+// Default: Inline-Improve aktiv, außer explizit IMPROVE_INLINE=false gesetzt.
+const IMPROVE_INLINE = (process.env.IMPROVE_INLINE ?? 'true') === 'true';
 const GENERATED_IMAGE_SIGNATURE = /\b(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)\b/i;
 const JOB_STATUS_FILTERS = ['pending', 'processing', 'failed', 'done'];
 
