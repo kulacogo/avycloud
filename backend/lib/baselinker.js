@@ -621,6 +621,27 @@ function buildPayload(
 
   const { weight, width, height, length } = pickPhysicalProperties(product);
 
+  // Marketplace-spezifische Kategorien (falls als IDs im Produkt hinterlegt)
+  const attrs = product?.details?.attributes || {};
+  const ebayCategoryId =
+    attrs.ebay_category_id ||
+    attrs.ebayCategoryId ||
+    attrs['ebay.category_id'] ||
+    null;
+  const kauflandCategoryId =
+    attrs.kaufland_category_id ||
+    attrs.kauflandCategoryId ||
+    attrs['kaufland.category_id'] ||
+    null;
+  if (ebayCategoryId) {
+    textFields.features = textFields.features || {};
+    textFields.features.ebay_category_id = ebayCategoryId;
+  }
+  if (kauflandCategoryId) {
+    textFields.features = textFields.features || {};
+    textFields.features.kaufland_category_id = kauflandCategoryId;
+  }
+
   const payload = {
     inventory_id: inventoryId,
     is_bundle: false,
