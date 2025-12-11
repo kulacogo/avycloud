@@ -129,7 +129,7 @@ export interface Product {
   details: Details;
   ops: Ops;
   notes?: Notes;
-  inventory?: InventoryInfo;
+  inventory?: InventoryInfo; // legacy, to be ignored
   storage?: ProductStorageLocation | null;
   storageBins?: ProductStorageBinEntry[];
 }

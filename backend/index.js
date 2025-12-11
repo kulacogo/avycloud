@@ -362,16 +362,7 @@ app.post('/api/jobs', upload.array('images'), async (req, res) => {
       });
     }
 
-    const inventoryId = typeof req.body?.inventoryId === 'string' ? req.body.inventoryId.trim() : '';
-    if (!inventoryId) {
-      return res.status(400).json({
-        ok: false,
-        error: {
-          code: 400,
-          message: 'Inventory ID ist erforderlich.',
-        },
-      });
-    }
+    // Inventory wird für Identify nicht mehr benötigt/akzeptiert
 
     const locale = req.body?.locale || 'de-DE';
     const model = req.body?.model || null;
@@ -516,31 +507,10 @@ app.post('/api/inventories/sync', async (req, res) => {
 
 app.post('/api/inventories/assign', async (req, res) => {
   try {
-    const inventoryId = req.body?.inventoryId;
-    const productIds = Array.isArray(req.body?.productIds)
-      ? req.body.productIds.filter((id) => typeof id === 'string' && id.trim().length > 0)
-      : [];
-    if (!inventoryId) {
-      return res.status(400).json({
-        ok: false,
-        error: { code: 400, message: 'Inventory ID ist erforderlich.' },
-      });
-    }
-    if (!productIds.length) {
-      return res.status(400).json({
-        ok: false,
-        error: { code: 400, message: 'Bitte mindestens ein Produkt auswählen.' },
-      });
-    }
-    const inventory = await getInventoryRecord(inventoryId);
-    if (!inventory) {
-      return res.status(404).json({
-        ok: false,
-        error: { code: 404, message: 'Inventory wurde nicht gefunden.' },
-      });
-    }
-    await assignInventoryToProducts(productIds, inventory);
-    res.json({ ok: true, data: { productIds, inventoryId } });
+    return res.status(410).json({
+      ok: false,
+      error: { code: 410, message: 'Inventory-Zuordnung wird nicht mehr unterstützt.' },
+    });
   } catch (error) {
     console.error('Failed to assign inventory:', error);
     res.status(500).json({
@@ -599,17 +569,7 @@ app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
     }
 
     const locale = req.body?.locale || 'de-DE';
-    const inventoryId = typeof req.body?.inventoryId === 'string' ? req.body.inventoryId.trim() : '';
-    if (!inventoryId) {
-      return res.status(400).json({
-        ok: false,
-        error: {
-          code: 400,
-          message: 'Inventory ID ist erforderlich.',
-        },
-      });
-    }
-    const result = await runSerpapiFreePipeline({ files, barcodes, locale, inventoryId });
+    const result = await runSerpapiFreePipeline({ files, barcodes, locale });
 
     return res.json({
       ok: true,
@@ -619,7 +579,6 @@ app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
         barcodes: result.barcodes,
         ocr: result.ocr,
         llm: result.llm,
-        inventoryId,
         barcodeInsights: result.barcodeInsights,
       },
     });
@@ -1023,7 +982,15 @@ app.post('/api/sync-baselinker', async (req, res) => {
   console.log('Received request on /api/sync-baselinker');
 
   try {
-    const { product, products } = req.body;
+    const { product, products, inventoryId } = req.body;
+
+    const invId = inventoryId ? String(inventoryId) : '';
+    if (!invId || (invId !== '85403' && invId !== '85404')) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'inventoryId ist erforderlich (85403=eBay, 85404=Kaufland)' }
+      });
+    }
 
     // Validate input
     if (!product && !products) {
@@ -1037,7 +1004,7 @@ app.post('/api/sync-baselinker', async (req, res) => {
 
     // Handle single product
     if (product && !products) {
-      const result = await syncProductToBaseLinker(product);
+      const result = await syncProductToBaseLinker(product, invId);
       results = [result];
     }
     // Handle multiple products
@@ -1054,7 +1021,7 @@ app.post('/api/sync-baselinker', async (req, res) => {
       results = [];
       for (let i = 0; i < products.length; i += CHUNK_SIZE) {
         const chunk = products.slice(i, i + CHUNK_SIZE);
-        const chunkResults = await syncProductsToBaseLinker(chunk);
+        const chunkResults = await syncProductsToBaseLinker(chunk, invId);
         results.push(...chunkResults);
       }
     }

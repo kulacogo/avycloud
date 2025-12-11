@@ -1,37 +1,16 @@
 const fetch = require('node-fetch');
-const path = require('path');
 const { getSecrets } = require('./secrets');
 const {
   updateProductSyncStatus,
   getSkuIndexEntry,
   setSkuIndexEntry,
   findProductByStrictIdentifier,
-  logInventorySyncEvent,
 } = require('./firestore');
-const { MarketplaceLookup } = require('./marketplace-lookup');
 
 const MIN_IMAGE_EDGE_BASELINKER = parseInt(
   process.env.BASELINKER_IMAGE_MIN_EDGE || '600',
   10
 );
-const EBAY_CATEGORY_CSV =
-  process.env.EBAY_CATEGORY_CSV ||
-  path.join(__dirname, '../ebay/DE_New_Structure_(May2023).csv');
-const KAUFLAND_CATEGORY_CSV =
-  process.env.KAUFLAND_CATEGORY_CSV ||
-  path.join(__dirname, '../kaufland/category_tree_int_all_languages - 📕 category_tree_all_languages.csv');
-
-let marketplaceLookup = null;
-function ensureMarketplaceLookup() {
-  if (marketplaceLookup) return marketplaceLookup;
-  marketplaceLookup = new MarketplaceLookup({
-    ebayCsvPath: EBAY_CATEGORY_CSV,
-    kauflandCsvPath: KAUFLAND_CATEGORY_CSV,
-    ebayPathColumn: 'category_path',
-    kauflandPathColumn: 'category_path',
-  });
-  return marketplaceLookup;
-}
 
 /**
  * BaseLinker API – request limiter (100 RPM ⇒ max 5 parallel calls)
@@ -102,7 +81,7 @@ function backoffDelay(attempt) {
  */
 async function callBaseLinker(method, parameters = {}, retries = 4) {
   const { baseApiToken } = await getSecrets();
-
+  
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     await acquireSlot();
     try {
@@ -128,11 +107,12 @@ async function callBaseLinker(method, parameters = {}, retries = 4) {
         await new Promise((resolve) =>
           setTimeout(resolve, backoffDelay(attempt))
         );
-        continue;
+          continue;
       }
 
       throw new Error(
-        `${payload.error_code || 'BL_ERROR'}: ${payload.error_message || 'Unknown BaseLinker error'
+        `${payload.error_code || 'BL_ERROR'}: ${
+          payload.error_message || 'Unknown BaseLinker error'
         }`
       );
     } catch (error) {
@@ -373,7 +353,7 @@ function pickPrice(product) {
   ];
   for (const value of priceCandidates) {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string') {
+  if (typeof value === 'string') {
       const numeric = Number(value);
       if (Number.isFinite(numeric)) return numeric;
     }
@@ -417,53 +397,53 @@ function buildEbay9800Fields(product, featuresFromTextFields = {}) {
   add(
     'Marke',
     f.Marke ||
-    f.marke ||
-    attrs.Marke ||
-    attrs.marke ||
-    product?.identification?.brand
+      f.marke ||
+      attrs.Marke ||
+      attrs.marke ||
+      product?.identification?.brand
   );
 
   // Modell
   add(
     'Modell',
     f.Modell ||
-    f.modell ||
-    attrs.Modell ||
-    attrs.modell ||
-    attrs.model ||
-    product?.details?.identifiers?.mpn
+      f.modell ||
+      attrs.Modell ||
+      attrs.modell ||
+      attrs.model ||
+      product?.details?.identifiers?.mpn
   );
 
   // Farbe
   add(
     'Farbe',
     f.Farbe ||
-    f.farbe ||
-    attrs.Farbe ||
-    attrs.farbe ||
-    attrs.color ||
-    attrs.colour
+      f.farbe ||
+      attrs.Farbe ||
+      attrs.farbe ||
+      attrs.color ||
+      attrs.colour
   );
 
   // Produkttyp
   add(
     'Produkttyp',
     f.Produkttyp ||
-    f.produkttyp ||
-    attrs.Produkttyp ||
-    attrs.produkttyp ||
-    attrs.product_type
+      f.produkttyp ||
+      attrs.Produkttyp ||
+      attrs.produkttyp ||
+      attrs.product_type
   );
 
   // Herstellernummer
   add(
     'Herstellernummer',
     attrs.mpn ||
-    attrs.Manufacturernummer ||
-    product?.details?.identifiers?.mpn ||
-    product?.details?.attributes?.manufacturer_number ||
-    product?.details?.identifiers?.sku ||
-    product?.identification?.sku
+      attrs.Manufacturernummer ||
+      product?.details?.identifiers?.mpn ||
+      product?.details?.attributes?.manufacturer_number ||
+      product?.details?.identifiers?.sku ||
+      product?.identification?.sku
   );
 
   return fields;
@@ -507,17 +487,6 @@ function buildTextFields(product, name) {
   const ebayFields = buildEbay9800Fields(product, features);
   if (ebayFields && Object.keys(ebayFields).length) {
     textFields['features|de|ebay_9800'] = ebayFields;
-  }
-
-  // GPSR Parameters (Essential for compliance)
-  const gpsr = product?.details?.gpsr;
-  if (gpsr) {
-    // Add these to default features so they appear in "Parameters" (BaseLinker general)
-    // Kaufland often picks these up if mapped or present.
-    if (gpsr.manufacturer_name) features['GPSR Manufacturer name'] = gpsr.manufacturer_name;
-    if (gpsr.manufacturer_address) features['GPSR Manufacturer address'] = gpsr.manufacturer_address;
-    if (gpsr.email) features['GPSR Manufacturer email'] = gpsr.email;
-    if (gpsr.url) features['GPSR Manufacturer URL'] = gpsr.url;
   }
 
   return textFields;
@@ -590,37 +559,6 @@ function pickEan(product) {
   return null;
 }
 
-function pickPhysicalProperties(product) {
-  const attrs = product?.details?.attributes || {};
-
-  const parseNum = (val) => {
-    if (typeof val === 'number') return val;
-    if (typeof val === 'string') {
-      const match = val.match(/([\d.,]+)/); // match number part
-      if (match) {
-        return parseFloat(match[1].replace(',', '.'));
-      }
-    }
-    return 0;
-  };
-
-  const findVal = (keys) => {
-    for (const key of keys) {
-      // Case insensitive lookup
-      const actualKey = Object.keys(attrs).find(k => k.toLowerCase() === key.toLowerCase());
-      if (actualKey && attrs[actualKey]) return parseNum(attrs[actualKey]);
-    }
-    return 0;
-  };
-
-  return {
-    weight: findVal(['weight', 'gewicht', 'artikelgewicht', 'masse']), // sometimes weight is under generic keys, but 'gewicht' is standard
-    width: findVal(['width', 'breite', 'artikelbreite']),
-    height: findVal(['height', 'höhe', 'artikelhöhe']),
-    length: findVal(['length', 'länge', 'tiefe', 'artikellänge', 'artikeltiefe']),
-  };
-}
-
 function buildPayload(
   product,
   inventoryId,
@@ -639,29 +577,6 @@ function buildPayload(
   const priceKey = meta.priceGroupKey || '1';
   const binCode = product?.storage?.binCode;
 
-  const { weight, width, height, length } = pickPhysicalProperties(product);
-
-  // Marketplace-spezifische Kategorien (falls als IDs im Produkt hinterlegt)
-  const attrs = product?.details?.attributes || {};
-  const ebayCategoryId =
-    attrs.ebay_category_id ||
-    attrs.ebayCategoryId ||
-    attrs['ebay.category_id'] ||
-    null;
-  const kauflandCategoryId =
-    attrs.kaufland_category_id ||
-    attrs.kauflandCategoryId ||
-    attrs['kaufland.category_id'] ||
-    null;
-  if (ebayCategoryId) {
-    textFields.features = textFields.features || {};
-    textFields.features.ebay_category_id = ebayCategoryId;
-  }
-  if (kauflandCategoryId) {
-    textFields.features = textFields.features || {};
-    textFields.features.kaufland_category_id = kauflandCategoryId;
-  }
-
   const payload = {
     inventory_id: inventoryId,
     is_bundle: false,
@@ -677,17 +592,13 @@ function buildPayload(
     stock: {
       [stockKey]: Math.max(0, quantity),
     },
-    prices: {
+        prices: {
       [priceKey]: price,
     },
     links: {},
     average_cost: 0,
     average_landed_cost: 0,
     suppliers: [],
-    weight: weight || 0,
-    height: height || 0,
-    width: width || 0,
-    length: length || 0,
   };
 
   if (binCode) {
@@ -696,7 +607,7 @@ function buildPayload(
   if (Object.keys(images).length) {
     payload.images = images;
   }
-
+  
   return payload;
 }
 
@@ -777,98 +688,39 @@ async function findProductBySku(inventoryId, skuOrEan) {
 /**
  * Einzelnes Produkt synchronisieren
  */
-async function syncProductToBaseLinker(product, inventoryId) {
-  const invId = inventoryId ? String(inventoryId) : null;
-  if (!invId || (invId !== '85403' && invId !== '85404')) {
-    const message = 'Inventory ID fehlt oder ist nicht erlaubt (nur 85403=eBay, 85404=Kaufland)';
-    await logInventorySyncEvent({
-      productId: product.id,
-      inventoryId: invId,
-      status: 'failed',
-      message,
-    });
-    return {
-      id: product.id,
-      status: 'failed',
-      message,
-    };
-  }
-
+async function syncProductToBaseLinker(product) {
   try {
+    const { baseInventoryId } = await getSecrets();
     const validation = validateProduct(product);
     if (!validation.isValid) {
-      const message = validation.errors.join(' | ');
-      await logInventorySyncEvent({
-        productId: product.id,
-        inventoryId,
-        status: 'failed',
-        message,
-      });
       return {
         id: product.id,
         status: 'failed',
-        message,
+        message: validation.errors.join(' | '),
       };
     }
 
-    const meta = await getInventoryMeta(inventoryId);
+    const meta = await getInventoryMeta(baseInventoryId);
     if (!meta.warehouseKey) {
-      throw new Error('BaseLinker inventory has no default warehouse (stock key)');
+      throw new Error(
+        'BaseLinker inventory has no default warehouse (stock key)'
+      );
     }
-
-    // Better Brand Detection
-    let brandName = product?.identification?.brand;
-    if (!brandName) {
-      // Look in attributes
-      const attrs = product?.details?.attributes || {};
-      const brandKey = Object.keys(attrs).find(k => ['marke', 'hersteller', 'brand', 'manufacturer'].includes(k.toLowerCase()));
-      if (brandKey) brandName = attrs[brandKey];
-    }
-
-    // Fallback if still empty, dont call ensureManufacturerId with empty string or default
-    if (brandName && brandName.toLowerCase() === 'unbekannt') brandName = null;
 
     const manufacturerId = await ensureManufacturerId(
-      brandName,
-      inventoryId
+      product?.identification?.brand,
+      baseInventoryId
     );
 
-    // Marketplace category lookup via CSV (strict)
-    const lookup = ensureMarketplaceLookup();
-    let categoryId = null;
-    if (invId === '85403') {
-      const sourceCat =
-        product?.details?.attributes?.ebay_category_path ||
-        product?.details?.attributes?.ebay_category ||
-        product?.identification?.category;
-      categoryId = lookup.lookupEbay(sourceCat);
-    } else if (invId === '85404') {
-      const sourceCat =
-        product?.details?.attributes?.kaufland_category_path ||
-        product?.details?.attributes?.kaufland_category ||
-        product?.identification?.category;
-      categoryId = lookup.lookupKaufland(sourceCat);
-    }
-
-    if (!categoryId) {
-      const message = `Kategorie konnte für Inventory ${invId} nicht ermittelt werden (Produkt ${product.id})`;
-      await logInventorySyncEvent({
-        productId: product.id,
-        inventoryId,
-        status: 'failed',
-        message,
-      });
-      return {
-        id: product.id,
-        status: 'failed',
-        message,
-      };
-    }
+    const categoryId = await ensureCategoryId(
+      product?.identification?.category,
+      baseInventoryId
+    );
 
     const quantity = pickQuantity(product);
     const payload = buildPayload(
       product,
-      inventoryId,
+      baseInventoryId,
       meta,
       manufacturerId,
       categoryId,
@@ -878,23 +730,28 @@ async function syncProductToBaseLinker(product, inventoryId) {
     const normalizedSku = normalizeSkuValue(payload.sku);
     const normalizedEan = normalizeEanValue(payload.ean);
 
+    // Bestands-Check: Priorität base_product_id → SKU-Match → Neuanlage
     let baseProductId = product?.ops?.base_product_id || null;
     let existing = null;
     let resolvedExisting = false;
     const resolveExistingProduct = async (identifier) => {
       if (resolvedExisting || !identifier) return null;
       resolvedExisting = true;
-      existing = await findProductBySku(inventoryId, identifier);
+      existing = await findProductBySku(baseInventoryId, identifier);
       return existing;
     };
     if (!baseProductId && normalizedSku) {
-      const cached = await getSkuIndexEntry(buildSkuIndexKey('sku', normalizedSku));
+      const cached = await getSkuIndexEntry(
+        buildSkuIndexKey('sku', normalizedSku)
+      );
       if (cached?.baseProductId) {
         baseProductId = cached.baseProductId;
       }
     }
     if (!baseProductId && normalizedEan) {
-      const cached = await getSkuIndexEntry(buildSkuIndexKey('ean', normalizedEan));
+      const cached = await getSkuIndexEntry(
+        buildSkuIndexKey('ean', normalizedEan)
+      );
       if (cached?.baseProductId) {
         baseProductId = cached.baseProductId;
       }
@@ -917,7 +774,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
 
     const buildRequest = (productId) => ({
       ...payload,
-      product_id: Number(productId) || 0,
+      product_id: Number(productId) || 0, // 0 => Neuanlage, >0 => Update
     });
 
     let requestPayload = buildRequest(baseProductId || 0);
@@ -985,15 +842,10 @@ async function syncProductToBaseLinker(product, inventoryId) {
         buildSkuIndexKey('sku', normalizedSku),
         buildSkuIndexKey('ean', normalizedEan),
       ].filter(Boolean);
-      await Promise.all(indexKeys.map((key) => setSkuIndexEntry(key, indexPayload)));
+      await Promise.all(
+        indexKeys.map((key) => setSkuIndexEntry(key, indexPayload))
+      );
     }
-
-    await logInventorySyncEvent({
-      productId: product.id,
-      inventoryId,
-      status: 'success',
-      message: 'Successfully synced to BaseLinker',
-    });
 
     return {
       id: product.id,
@@ -1002,12 +854,6 @@ async function syncProductToBaseLinker(product, inventoryId) {
     };
   } catch (error) {
     console.error('Failed to sync product to BaseLinker:', error);
-    await logInventorySyncEvent({
-      productId: product.id,
-      inventoryId,
-      status: 'failed',
-      message: error.message,
-    });
     return {
       id: product.id,
       status: 'failed',
@@ -1019,10 +865,10 @@ async function syncProductToBaseLinker(product, inventoryId) {
 /**
  * Mehrere Produkte synchronisieren
  */
-async function syncProductsToBaseLinker(products, inventoryId) {
+async function syncProductsToBaseLinker(products) {
   const results = [];
   for (const product of products) {
-    const result = await syncProductToBaseLinker(product, inventoryId);
+    const result = await syncProductToBaseLinker(product);
     results.push(result);
   }
   return results;
