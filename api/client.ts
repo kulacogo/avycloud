@@ -496,16 +496,27 @@ export const saveProduct = async (product: Product): Promise<{ ok: boolean; data
 };
 
 
-// Sync a single product to BaseLinker
-export const syncToBaseLinker = async (productOrProducts: Product | Product[]): Promise<{ ok: boolean; results?: Array<{ id: string; status: 'synced' | 'failed'; message?: string }>; error?: { code: number; message: string } }> => {
+// Sync product(s) to BaseLinker – inventoryId is REQUIRED (85403=eBay, 85404=Kaufland)
+export const syncToBaseLinker = async (
+  productOrProducts: Product | Product[],
+  inventoryId: string
+): Promise<{ ok: boolean; results?: Array<{ id: string; status: 'synced' | 'failed'; message?: string }>; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
 
   try {
+    const inv = (inventoryId || '').trim();
+    if (inv !== '85403' && inv !== '85404') {
+      return {
+        ok: false,
+        error: { code: 400, message: 'inventoryId ist erforderlich (85403=eBay, 85404=Kaufland)' },
+      };
+    }
+
     const isSingle = !Array.isArray(productOrProducts);
     const products = Array.isArray(productOrProducts) ? productOrProducts : [productOrProducts];
 
     if (import.meta.env.DEV) {
-      console.log('API CALL: /api/sync-baselinker', { count: products.length });
+      console.log('API CALL: /api/sync-baselinker', { count: products.length, inventoryId: inv });
     }
 
     const CHUNK_SIZE = 90;
@@ -513,7 +524,10 @@ export const syncToBaseLinker = async (productOrProducts: Product | Product[]): 
 
     for (let i = 0; i < products.length; i += CHUNK_SIZE) {
       const chunk = products.slice(i, i + CHUNK_SIZE);
-      const payload = chunk.length === 1 ? { product: chunk[0] } : { products: chunk };
+      const payload =
+        chunk.length === 1
+          ? { product: chunk[0], inventoryId: inv }
+          : { products: chunk, inventoryId: inv };
 
       response = await fetch(`${BACKEND_URL}/api/sync-baselinker`, {
         method: 'POST',

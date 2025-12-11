@@ -178,6 +178,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [inventorySelection, setInventorySelection] = useState('');
   const [inventoryAssigning, setInventoryAssigning] = useState(false);
   const [inventoryAssignMessage, setInventoryAssignMessage] = useState<string | null>(null);
+  const [syncInventoryId, setSyncInventoryId] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return window.sessionStorage.getItem('avystock:admin-table:syncInventoryId') || '';
+  });
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 640px)');
@@ -185,6 +189,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
     const detach = addMediaQueryListener(mq, handler);
     return () => detach();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:syncInventoryId', syncInventoryId);
+  }, [syncInventoryId]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -588,6 +597,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const handleBatchSync = async () => {
     if (selectedIds.size === 0) return;
+    if (!syncInventoryId || (syncInventoryId !== '85403' && syncInventoryId !== '85404')) {
+      alert('Bitte Marktplatz auswählen (85403 = eBay, 85404 = Kaufland)');
+      return;
+    }
 
     // Get selected products
     const selectedProducts = products.filter(p => selectedIds.has(p.id));
@@ -603,7 +616,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
     try {
       // Sync all selected products
-      const result = await syncToBaseLinker(selectedProducts);
+      const result = await syncToBaseLinker(selectedProducts, syncInventoryId);
 
       if (result.results && result.results.length > 0) {
         // Update products based on sync results
@@ -976,7 +989,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-700/40">
+      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-700/40 items-center">
+        <div className="flex items-center gap-2 pr-2">
+          <span className="text-xs text-slate-300 font-semibold">Marktplatz</span>
+          <select
+            value={syncInventoryId}
+            onChange={(e) => setSyncInventoryId(e.target.value)}
+            className="rounded-md border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100"
+          >
+            <option value="">Wählen…</option>
+            <option value="85403">eBay (85403)</option>
+            <option value="85404">Kaufland (85404)</option>
+          </select>
+        </div>
         <ActionButton
           icon={<SyncIcon className="w-4 h-4" />}
           label={t('table.actions.syncSelected')}
@@ -994,13 +1019,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
         <ActionButton
           icon={<BarcodeIcon className="w-4 h-4" />}
           label={t('table.actions.assignInventory')}
-          onClick={() => {
-            setInventoryAssignMessage(null);
-            setInventorySelection('');
-            setInventoryModalOpen(true);
-          }}
-          disabled={selectedIds.size === 0}
-          tone="primary"
+          onClick={() => {}}
+          disabled
+          tone="secondary"
         />
         {onImproveSelected && (
           <ActionButton
