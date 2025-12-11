@@ -65,7 +65,6 @@ const {
 const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked } = require('./services/order-sync');
 const { attachPickHintsToOrders } = require('./services/pick-hints');
-const { improveExistingProduct } = require('./services/improve');
 const { updateJob, Timestamp } = require('./lib/improve-jobs');
 
 // --- Configuration ---
