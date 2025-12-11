@@ -865,11 +865,23 @@ async function syncProductToBaseLinker(product, inventoryId) {
         product?.identification?.category;
       categoryId = lookup.lookupEbay(sourceCat);
     } else if (invId === '85404') {
+    const attrs = product?.details?.attributes || {};
+    const directId =
+      attrs.kaufland_category_id ||
+      attrs.kauflandCategoryId ||
+      attrs['kaufland.category_id'] ||
+      product?.identification?.category;
+
+    const asString = directId ? String(directId).trim() : '';
+    if (asString && /^\d+$/.test(asString)) {
+      categoryId = asString;
+    } else {
       const sourceCat =
-        product?.details?.attributes?.kaufland_category_path ||
-        product?.details?.attributes?.kaufland_category ||
+        attrs.kaufland_category_path ||
+        attrs.kaufland_category ||
         product?.identification?.category;
       categoryId = lookup.lookupKaufland(sourceCat);
+    }
     }
 
     if (!categoryId) {

@@ -9,6 +9,8 @@ function loadCsv(filePath) {
     columns: true,
     skip_empty_lines: true,
     delimiter: ',',
+    bom: true, // ignore UTF-8 BOM
+    relax_quotes: true, // tolerate stray quotes
   });
 }
 
