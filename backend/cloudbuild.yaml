@@ -7,6 +7,12 @@ options:
   substitutionOption: ALLOW_LOOSE
 
 steps:
+  # Quick syntax check to catch duplicate declarations / syntax errors
+  - name: gcr.io/cloud-builders/node
+    dir: backend
+    entrypoint: node
+    args: ["--check", "index.js"]
+
   - name: gcr.io/cloud-builders/docker
     dir: backend
     args:
@@ -18,6 +24,30 @@ steps:
         '$_IMAGE:latest',
         '.',
       ]
+
+  # Run container locally and health-check port 8080 before pushing/deploying
+  - name: gcr.io/cloud-builders/docker
+    dir: backend
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        docker run --rm -d --name backend-test -e PORT=8080 -p 8080:8080 $_IMAGE:$SHORT_SHA
+        success=""
+        for i in {1..10}; do
+          if curl -fsS http://localhost:8080/ >/dev/null; then
+            success="yes"
+            break
+          fi
+          sleep 2
+        end
+        docker logs backend-test || true
+        docker stop backend-test
+        if [ -z "$success" ]; then
+          echo "Health check failed: backend did not respond on 8080"
+          exit 1
+        fi
 
   - name: gcr.io/cloud-builders/gcloud
     args:
