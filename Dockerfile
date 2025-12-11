@@ -14,6 +14,10 @@ RUN npm ci --only=production
 # Copy backend source
 COPY backend/. .
 
+# Copy marketplace category CSVs (needed at runtime for lookups)
+COPY ebay ./ebay
+COPY kaufland ./kaufland
+
 # Expose Cloud Run port
 EXPOSE 8080
 
