@@ -1002,6 +1002,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <option value="85404">Kaufland (85404)</option>
           </select>
         </div>
+        <span className="text-xs text-slate-300 pr-2">
+          {selectedIds.size} {selectedIds.size === 1 ? 'Produkt' : 'Produkte'} ausgewählt
+        </span>
         <ActionButton
           icon={<SyncIcon className="w-4 h-4" />}
           label={t('table.actions.syncSelected')}
