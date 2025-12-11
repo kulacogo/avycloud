@@ -36,9 +36,13 @@ function ensureMarketplaceLookup() {
 /**
  * BaseLinker API – request limiter (100 RPM ⇒ max 5 parallel calls)
  */
-const MAX_PARALLEL_REQUESTS = 5;
+// Begrenze Parallelität hart, um Burst-Blocks zu vermeiden
+const MAX_PARALLEL_REQUESTS = 1;
+// Mindestabstand zwischen Requests in ms (zusätzlich zur Parallelitätsbremse)
+const MIN_REQUEST_INTERVAL_MS = 250;
 const requestQueue = [];
 let activeRequestCount = 0;
+let lastRequestAt = 0;
 
 const normalizeSkuValue = (val) =>
   (val || '')
@@ -82,6 +86,13 @@ async function acquireSlot() {
     await new Promise((resolve) => requestQueue.push(resolve));
   }
   activeRequestCount += 1;
+  const now = Date.now();
+  const elapsed = now - lastRequestAt;
+  if (elapsed < MIN_REQUEST_INTERVAL_MS) {
+    await new Promise((resolve) =>
+      setTimeout(resolve, MIN_REQUEST_INTERVAL_MS - elapsed)
+    );
+  }
 }
 
 function releaseSlot() {
@@ -119,15 +130,26 @@ async function callBaseLinker(method, parameters = {}, retries = 4) {
       });
 
       const payload = await response.json();
+      lastRequestAt = Date.now();
 
       if (payload.status === 'SUCCESS') {
         return payload;
       }
 
-      if (response.status === 429 || payload.error_code === 'RATE_LIMIT') {
-        await new Promise((resolve) =>
-          setTimeout(resolve, backoffDelay(attempt))
-        );
+      // Rate-Limit / Token block → Backoff und Retry
+      const errCode = payload.error_code || '';
+      const errMsg = payload.error_message || '';
+      if (
+        response.status === 429 ||
+        errCode === 'RATE_LIMIT' ||
+        errCode === 'ERROR_BLOCKED_TOKEN' ||
+        /token blocked/i.test(errMsg)
+      ) {
+        // Wenn explizit "blocked until" im Text steht, 60s warten, sonst exponentiell
+        const waitMs = /blocked until/i.test(errMsg)
+          ? 60_000
+          : backoffDelay(attempt);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
         continue;
       }
 
