@@ -24,7 +24,7 @@ const {
 } = require('./lib/improve-jobs');
 const { uploadBase64Image, deleteProductImages, uploadJobFile } = require('./lib/storage');
 const { recordManualProductImage } = require('./lib/product-images');
-const { createJob, getJob, updateJob, listJobs, FieldValue } = require('./lib/jobs');
+const { createJob, getJob, listJobs, FieldValue } = require('./lib/jobs');
 const { ensureProductSku } = require('./lib/sku');
 const {
   runProductIdentification,
