@@ -19,7 +19,7 @@ const EBAY_CATEGORY_CSV =
   path.join(__dirname, '../ebay/DE_New_Structure_(May2023).csv');
 const KAUFLAND_CATEGORY_CSV =
   process.env.KAUFLAND_CATEGORY_CSV ||
-  path.join(__dirname, '../kaufland/category_tree_int_all_languages - 📕 category_tree_all_languages.csv');
+  path.join(__dirname, '../kaufland/category_tree_all_languages.csv');
 
 let marketplaceLookup = null;
 function ensureMarketplaceLookup() {

@@ -2,20 +2,14 @@ const fs = require('fs');
 const path = require('path');
 
 // Fix paths to point to the root kaufland directory from backend/lib
-const CATEGORY_FILE = path.join(
-  __dirname,
-  '..',
-  '..',
-  'kaufland',
-  'category_tree_int_all_languages - 📗 category_tree_all_languages.csv'
-);
+const CATEGORY_FILE = path.join(__dirname, '..', '..', 'kaufland', 'category_tree_all_languages.csv');
 
 const ATTRIBUTE_FILE = path.join(
   __dirname,
   '..',
   '..',
   'kaufland',
-  'attributeValues_all_languages - 📗 all_attribute_values.csv'
+  'attribute_values_all_languages.csv'
 );
 
 const CACHE = [];
