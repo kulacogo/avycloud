@@ -14,10 +14,12 @@ steps:
     args: ["--check", "index.js"]
 
   - name: gcr.io/cloud-builders/docker
-    dir: backend
+    dir: .
     args:
       [
         'build',
+        '-f',
+        'Dockerfile',
         '-t',
         '$_IMAGE:$SHORT_SHA',
         '-t',
@@ -27,7 +29,7 @@ steps:
 
   # Run container locally and health-check port 8080 before pushing/deploying
   - name: gcr.io/cloud-builders/docker
-    dir: backend
+    dir: .
     entrypoint: 'bash'
     args:
       - '-c'
