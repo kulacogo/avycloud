@@ -873,7 +873,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
       attrs.kaufland_category_id ||
       attrs.kauflandCategoryId ||
       attrs['kaufland.category_id'] ||
-      product?.identification?.category;
+      null;
 
     const asString = directId ? String(directId).trim() : '';
     if (asString && /^\d+$/.test(asString)) {
@@ -882,7 +882,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
       const sourceCat =
         attrs.kaufland_category_path ||
         attrs.kaufland_category ||
-        product?.identification?.category;
+        null; // Kein Fallback auf identification.category für Kaufland, um Fehlzuordnungen zu vermeiden
       categoryId = lookup.lookupKaufland(sourceCat);
     }
     }

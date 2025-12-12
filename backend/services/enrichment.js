@@ -537,30 +537,48 @@ function applyEbayTaxonomy(input) {
 function processEbayProduct(product) {
   const cloned = { ...product };
   const attributes = { ...(cloned.details?.attributes || {}) };
-  const rawCategory =
+
+  // Prefer explicit eBay fields; avoid mixing with other marketplaces
+  const rawId =
+    attributes.ebay_category_id ||
+    attributes.ebayCategoryId ||
+    attributes['ebay.category_id'] ||
+    cloned.details?.ebayCategoryId ||
+    null;
+
+  const rawPath =
+    attributes.ebay_category_path ||
+    attributes.ebay_category ||
     cloned.details?.ebayCategory ||
-    cloned.identification?.category ||
-    attributes?.Kategorie ||
-    attributes?.category;
+    null;
 
   let ebayCategory = null;
-  const fromId = parseCategoryIdFromString(rawCategory);
-  if (fromId) {
-    ebayCategory = findEbayCategory(fromId);
+
+  const idCandidate = parseCategoryIdFromString(rawId);
+  if (idCandidate) {
+    ebayCategory = findEbayCategory(idCandidate);
   }
   if (!ebayCategory) {
-    ebayCategory = findEbayCategory(rawCategory);
+    ebayCategory = findEbayCategory(rawPath);
   }
 
   if (ebayCategory) {
-    cloned.identification = {
-      ...(cloned.identification || {}),
-      category: ebayCategory.breadcrumb,
-    };
+    // Persist in dedicated fields
     cloned.details = {
       ...(cloned.details || {}),
       ebayCategoryId: ebayCategory.id,
       ebayCategoryBreadcrumb: ebayCategory.breadcrumb,
+      ebayCategoryPath: ebayCategory.breadcrumb,
+    };
+
+    // Keep attributes aligned for downstream usage/BaseLinker
+    attributes.ebay_category_id = ebayCategory.id;
+    attributes.ebay_category_path = ebayCategory.breadcrumb;
+
+    // Optional: reflect breadcrumb in identification.category so UI shows eBay path
+    cloned.identification = {
+      ...(cloned.identification || {}),
+      category: ebayCategory.breadcrumb,
     };
 
     const required = getRequiredAspects(ebayCategory.id);
@@ -595,21 +613,42 @@ function processKauflandProduct(product) {
   cloned.details.attributes = cloned.details.attributes || {};
 
   const attributes = cloned.details.attributes;
-  const rawCategory =
-    cloned.details?.kauflandCategory ||
-    cloned.identification?.category ||
-    attributes?.Kategorie ||
-    attributes?.category;
 
-  const kauflandCategory = findKauflandCategory(rawCategory);
+  // Prefer explicit Kaufland fields; do NOT fallback to identification.category to avoid mixing with eBay
+  const rawId =
+    attributes.kaufland_category_id ||
+    attributes.kauflandCategoryId ||
+    attributes['kaufland.category_id'] ||
+    cloned.details?.kauflandCategoryId ||
+    null;
+
+  const rawPath =
+    attributes.kaufland_category_path ||
+    attributes.kaufland_category ||
+    cloned.details?.kauflandCategory ||
+    null;
+
+  let kauflandCategory = null;
+  const idCandidate = parseCategoryIdFromString(rawId);
+  if (idCandidate) {
+    kauflandCategory = findKauflandCategory(idCandidate);
+  }
+  if (!kauflandCategory) {
+    kauflandCategory = findKauflandCategory(rawPath);
+  }
+
   if (kauflandCategory) {
     // Set explicit details fields
     cloned.details.kauflandCategoryId = kauflandCategory.id;
-    cloned.details.kauflandCategoryPath = kauflandCategory.dePath || kauflandCategory.enPath || rawCategory || '';
+    cloned.details.kauflandCategoryPath =
+      kauflandCategory.dePath || kauflandCategory.enPath || rawPath || '';
 
     // Also map to attributes for BaseLinker compatibility
-    attributes['kaufland_category_id'] = kauflandCategory.id;
-    attributes['Kategorie'] = kauflandCategory.dePath || kauflandCategory.enPath;
+    attributes.kaufland_category_id = kauflandCategory.id;
+    attributes.kaufland_category_path =
+      kauflandCategory.dePath || kauflandCategory.enPath || rawPath || '';
+    // Optionally keep a human-readable category attribute
+    attributes.Kategorie = kauflandCategory.dePath || kauflandCategory.enPath;
   }
 
   // --- GPSR Auto-Enrichment ---
