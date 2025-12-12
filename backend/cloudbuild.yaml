@@ -1,14 +1,15 @@
 substitutions:
   _REGION: europe-west3
   _SERVICE: product-hub-backend
-  _IMAGE: gcr.io/$PROJECT_ID/product-hub-backend
+  _IMAGE: product-hub-backend
+  _TAG: latest
 
 options:
   substitutionOption: ALLOW_LOOSE
 
 steps:
   # Quick syntax check to catch duplicate declarations / syntax errors
-  - name: gcr.io/cloud-builders/node
+  - name: node:20
     dir: backend
     entrypoint: node
     args: ["--check", "index.js"]
@@ -21,9 +22,9 @@ steps:
         '-f',
         'Dockerfile',
         '-t',
-        '$_IMAGE:$SHORT_SHA',
+        'gcr.io/${PROJECT_ID}/$_IMAGE:${_TAG}',
         '-t',
-        '$_IMAGE:latest',
+        'gcr.io/${PROJECT_ID}/$_IMAGE:latest',
         '.',
       ]
 
@@ -35,7 +36,7 @@ steps:
       - '-c'
       - |
         set -euo pipefail
-        docker run --rm -d --name backend-test -e PORT=8080 -p 8080:8080 $_IMAGE:$SHORT_SHA
+        docker run --rm -d --name backend-test -e PORT=8080 -p 8080:8080 gcr.io/${PROJECT_ID}/$_IMAGE:${_TAG}
         success=""
         for i in {1..10}; do
           if curl -fsS http://localhost:8080/ >/dev/null; then
@@ -58,7 +59,7 @@ steps:
         'deploy',
         '$_SERVICE',
         '--image',
-        '$_IMAGE:$SHORT_SHA',
+        'gcr.io/${PROJECT_ID}/$_IMAGE:${_TAG}',
         '--memory',
         '3Gi',
         '--cpu',
@@ -73,5 +74,5 @@ steps:
       ]
 
 images:
-  - '$_IMAGE:$SHORT_SHA'
-  - '$_IMAGE:latest'
+  - 'gcr.io/${PROJECT_ID}/$_IMAGE:${_TAG}'
+  - 'gcr.io/${PROJECT_ID}/$_IMAGE:latest'
