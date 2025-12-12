@@ -862,14 +862,29 @@ async function syncProductToBaseLinker(product, inventoryId) {
     const lookup = ensureMarketplaceLookup();
     let categoryId = null;
     if (invId === '85403') {
-      const sourceCat =
-        product?.details?.attributes?.ebay_category_path ||
-        product?.details?.attributes?.ebay_category ||
-        product?.identification?.category;
+    const attrs = product?.details?.attributes || {};
+    const directId =
+      product?.details?.ebayCategoryId ||
+      attrs.ebay_category_id ||
+      attrs.ebayCategoryId ||
+      attrs['ebay.category_id'] ||
+      null;
+    const directPath =
+      product?.details?.ebayCategoryPath ||
+      attrs.ebay_category_path ||
+      attrs.ebay_category ||
+      null;
+
+    if (directId && /^\d+$/.test(String(directId))) {
+      categoryId = String(directId).trim();
+    } else {
+      const sourceCat = directPath || product?.identification?.category;
       categoryId = lookup.lookupEbay(sourceCat);
+    }
     } else if (invId === '85404') {
     const attrs = product?.details?.attributes || {};
     const directId =
+      product?.details?.kauflandCategoryId ||
       attrs.kaufland_category_id ||
       attrs.kauflandCategoryId ||
       attrs['kaufland.category_id'] ||
@@ -880,6 +895,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
       categoryId = asString;
     } else {
       const sourceCat =
+        product?.details?.kauflandCategoryPath ||
         attrs.kaufland_category_path ||
         attrs.kaufland_category ||
         null; // Kein Fallback auf identification.category für Kaufland, um Fehlzuordnungen zu vermeiden
