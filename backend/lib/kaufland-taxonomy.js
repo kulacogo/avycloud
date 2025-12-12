@@ -1,12 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
-// Fix paths to point to the root kaufland directory from backend/lib
-const CATEGORY_FILE = path.join(__dirname, '..', '..', 'kaufland', 'category_tree_all_languages.csv');
+// Files live in /app/kaufland when the backend directory is copied into the image
+const CATEGORY_FILE = path.join(__dirname, '..', 'kaufland', 'category_tree_all_languages.csv');
 
 const ATTRIBUTE_FILE = path.join(
   __dirname,
-  '..',
   '..',
   'kaufland',
   'attribute_values_all_languages.csv'
