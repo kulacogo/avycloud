@@ -220,10 +220,9 @@ async function getAllProducts() {
       );
     }
 
-    const snapshot = await firestore
-      .collection(PRODUCTS_COLLECTION)
-      .orderBy('ops.last_saved_iso', 'desc')
-      .get();
+    // Wichtiger Fix: orderBy auf einem optionalen Feld filtert alle Dokumente ohne dieses Feld heraus.
+    // Wir holen deshalb alle Dokumente ohne orderBy, damit keine Produkte fehlen.
+    const snapshot = await firestore.collection(PRODUCTS_COLLECTION).get();
     
     const products = [];
     snapshot.forEach(doc => {
