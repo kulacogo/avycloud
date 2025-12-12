@@ -8,8 +8,10 @@ const { uploadImage } = require('../lib/storage');
 const { extractOcrPayload } = require('../lib/vision-ocr');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { resolveModel } = require('../lib/model-select');
+const path = require('path');
 const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
 const { findKauflandCategory, getKauflandAttributes } = require('../lib/kaufland-taxonomy');
+const { MarketplaceLookup } = require('../lib/marketplace-lookup');
 const { isValidGtin } = require('../lib/gtin');
 
 // Clean JSON schema to be compatible with Gemini responseSchema
@@ -68,6 +70,19 @@ const ATTRIBUTE_BLACKLIST = new Set([
 const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);
 const validateProductBundle = ajv.compile(productBundleSchema);
+
+// Marketplace lookup (uses JSON caches or CSV)
+const EBAY_CATEGORY_CSV = path.join(__dirname, '..', 'ebay', 'DE_New_Structure_(May2023).csv');
+const KAUFLAND_CATEGORY_CSV = path.join(__dirname, '..', 'kaufland', 'category_tree_all_languages.csv');
+const marketplaceLookup = new MarketplaceLookup({
+  ebayCsvPath: EBAY_CATEGORY_CSV,
+  kauflandCsvPath: KAUFLAND_CATEGORY_CSV,
+  ebayPathColumn: 'category_path',
+  kauflandPathColumn: 'category_path',
+});
+
+const isNumericId = (v) => v !== undefined && v !== null && /^\d+$/.test(String(v).trim());
+const normalizePath = (v) => (v ? v.toString().trim() : '');
 
 // Gemini Helper: Convert buffer to generative part
 function bufferToGenerativePart(buffer, mimeType) {
@@ -534,54 +549,70 @@ function applyEbayTaxonomy(input) {
   return input;
 }
 
-function processEbayProduct(product) {
-  const cloned = { ...product };
-  const attributes = { ...(cloned.details?.attributes || {}) };
-
-  // Prefer explicit eBay fields; avoid mixing with other marketplaces
+function resolveEbayCategory({ details = {}, attributes = {}, identification = {} }) {
   const rawId =
     attributes.ebay_category_id ||
     attributes.ebayCategoryId ||
     attributes['ebay.category_id'] ||
-    cloned.details?.ebayCategoryId ||
+    details.ebayCategoryId ||
     null;
 
   const rawPath =
+    details.ebayCategoryPath ||
     attributes.ebay_category_path ||
     attributes.ebay_category ||
-    cloned.details?.ebayCategory ||
+    details.ebayCategory ||
+    attributes.Kategorie ||
+    attributes.category ||
+    identification.category ||
     null;
 
-  let ebayCategory = null;
+  if (isNumericId(rawId) && marketplaceLookup.isValidEbayId(String(rawId).trim())) {
+    return { id: String(rawId).trim(), path: normalizePath(rawPath) };
+  }
+
+  const byPath = marketplaceLookup.lookupEbay(normalizePath(rawPath));
+  if (byPath) {
+    return { id: byPath, path: normalizePath(rawPath) };
+  }
 
   const idCandidate = parseCategoryIdFromString(rawId);
-  if (idCandidate) {
-    ebayCategory = findEbayCategory(idCandidate);
+  let cat = null;
+  if (idCandidate) cat = findEbayCategory(idCandidate);
+  if (!cat) cat = findEbayCategory(rawPath);
+  if (cat) {
+    return { id: String(cat.id), path: cat.breadcrumb || normalizePath(rawPath) };
   }
-  if (!ebayCategory) {
-    ebayCategory = findEbayCategory(rawPath);
-  }
+  return null;
+}
 
-  if (ebayCategory) {
-    // Persist in dedicated fields
+function processEbayProduct(product) {
+  const cloned = { ...product };
+  const attributes = { ...(cloned.details?.attributes || {}) };
+
+  const resolved = resolveEbayCategory({
+    details: cloned.details,
+    attributes,
+    identification: cloned.identification,
+  });
+
+  if (resolved) {
     cloned.details = {
       ...(cloned.details || {}),
-      ebayCategoryId: ebayCategory.id,
-      ebayCategoryBreadcrumb: ebayCategory.breadcrumb,
-      ebayCategoryPath: ebayCategory.breadcrumb,
+      ebayCategoryId: resolved.id,
+      ebayCategoryBreadcrumb: resolved.path || cloned.details?.ebayCategoryBreadcrumb || resolved.id,
+      ebayCategoryPath: resolved.path || cloned.details?.ebayCategoryPath || resolved.id,
     };
 
-    // Keep attributes aligned for downstream usage/BaseLinker
-    attributes.ebay_category_id = ebayCategory.id;
-    attributes.ebay_category_path = ebayCategory.breadcrumb;
+    attributes.ebay_category_id = resolved.id;
+    attributes.ebay_category_path = resolved.path || resolved.id;
 
-    // Optional: reflect breadcrumb in identification.category so UI shows eBay path
     cloned.identification = {
       ...(cloned.identification || {}),
-      category: ebayCategory.breadcrumb,
+      category: resolved.path || cloned.identification?.category,
     };
 
-    const required = getRequiredAspects(ebayCategory.id);
+    const required = getRequiredAspects(resolved.id);
     required.forEach((aspect) => {
       if (attributes[aspect] === undefined) {
         attributes[aspect] = '';
@@ -607,67 +638,73 @@ function applyKauflandTaxonomy(input) {
   return input;
 }
 
+function resolveKauflandCategory({ details = {}, attributes = {}, identification = {} }) {
+  const rawId =
+    attributes.kaufland_category_id ||
+    attributes.kauflandCategoryId ||
+    attributes['kaufland.category_id'] ||
+    details.kauflandCategoryId ||
+    null;
+
+  const rawPath =
+    details.kauflandCategoryPath ||
+    attributes.kaufland_category_path ||
+    attributes.kaufland_category ||
+    attributes.Kategorie ||
+    attributes.category ||
+    identification.category ||
+    null;
+
+  if (isNumericId(rawId) && marketplaceLookup.isValidKauflandId(String(rawId).trim())) {
+    return { id: String(rawId).trim(), path: normalizePath(rawPath) };
+  }
+
+  const byPath = marketplaceLookup.lookupKaufland(normalizePath(rawPath));
+  if (byPath) {
+    return { id: byPath, path: normalizePath(rawPath) };
+  }
+
+  const idCandidate = parseCategoryIdFromString(rawId);
+  let cat = null;
+  if (idCandidate) cat = findKauflandCategory(idCandidate);
+  if (!cat) cat = findKauflandCategory(rawPath);
+  if (cat) {
+    return { id: String(cat.id), path: cat.dePath || cat.enPath || normalizePath(rawPath) };
+  }
+  return null;
+}
+
 function processKauflandProduct(product) {
   const cloned = { ...product }; // Shallow copy
   cloned.details = cloned.details || {};
   cloned.details.attributes = cloned.details.attributes || {};
 
   const attributes = cloned.details.attributes;
+  const resolved = resolveKauflandCategory({
+    details: cloned.details,
+    attributes,
+    identification: cloned.identification,
+  });
 
-  const rawId =
-    attributes.kaufland_category_id ||
-    attributes.kauflandCategoryId ||
-    attributes['kaufland.category_id'] ||
-    cloned.details?.kauflandCategoryId ||
-    null;
+  if (resolved) {
+    cloned.details.kauflandCategoryId = resolved.id;
+    cloned.details.kauflandCategoryPath = resolved.path || resolved.id;
 
-  const rawPath =
-    attributes.kaufland_category_path ||
-    attributes.kaufland_category ||
-    cloned.details?.kauflandCategory ||
-    attributes.Kategorie ||
-    attributes.category ||
-    cloned.identification?.category ||
-    null;
-
-  let kauflandCategory = null;
-  const idCandidate = parseCategoryIdFromString(rawId);
-  if (idCandidate) {
-    kauflandCategory = findKauflandCategory(idCandidate);
-  }
-  if (!kauflandCategory) {
-    kauflandCategory = findKauflandCategory(rawPath);
-  }
-
-  if (kauflandCategory) {
-    // Set explicit details fields
-    cloned.details.kauflandCategoryId = kauflandCategory.id;
-    cloned.details.kauflandCategoryPath =
-      kauflandCategory.dePath || kauflandCategory.enPath || rawPath || '';
-
-    // Also map to attributes for BaseLinker compatibility
-    attributes.kaufland_category_id = kauflandCategory.id;
-    attributes.kaufland_category_path =
-      kauflandCategory.dePath || kauflandCategory.enPath || rawPath || '';
-    // Optionally keep a human-readable category attribute
-    attributes.Kategorie = kauflandCategory.dePath || kauflandCategory.enPath;
+    attributes.kaufland_category_id = resolved.id;
+    attributes.kaufland_category_path = resolved.path || resolved.id;
+    attributes.Kategorie = resolved.path || attributes.Kategorie;
   }
 
   // --- GPSR Auto-Enrichment ---
-  // Fixes "GPSR parameter requirements" error.
-  // We infer from Brand or set minimal valid placeholders.
   const brand = cloned.identification?.brand || 'Generic';
 
   if (!attributes['GPSR Manufacturer name']) {
     attributes['GPSR Manufacturer name'] = brand;
   }
   if (!attributes['GPSR Manufacturer address']) {
-    // This is a required field. If unknown, we must provide a placeholder or risk sync failure.
-    // Ideally this comes from a setting, but for "Improve" we want to unblock.
     attributes['GPSR Manufacturer address'] = 'Not Provided, EU';
   }
   if (!attributes['GPSR Manufacturer email'] && !attributes['GPSR Manufacturer URL']) {
-    // One of contact info is usually required
     attributes['GPSR Manufacturer email'] = 'info@example.com';
   }
 
