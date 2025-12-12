@@ -8,6 +8,11 @@ import { useI18n } from '../i18n';
 import { addMediaQueryListener } from '../utils/mediaQuery';
 import { useInventoryContext } from '../context/InventoryContext';
 
+const safeCurrency = (code?: string) => {
+  const c = (code || '').toString().trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(c) ? c : 'EUR';
+};
+
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
 type ColumnId =
   | 'thumbnail'
@@ -308,7 +313,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           product.details.pricing?.lowest_price?.amount
             ? new Intl.NumberFormat('de-DE', {
               style: 'currency',
-              currency: product.details.pricing.lowest_price.currency || 'EUR',
+              currency: safeCurrency(product.details.pricing.lowest_price.currency),
             }).format(product.details.pricing.lowest_price.amount)
             : '—',
       },
@@ -760,7 +765,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       `"${p.identification.name}"`,
       `"${p.identification.brand}"`,
       p.identification.category,
-      p.details.identifiers.ean || '', p.details.pricing.lowest_price.amount, p.details.pricing.lowest_price.currency, p.ops.sync_status
+        p.details.identifiers.ean || '', p.details.pricing.lowest_price.amount, safeCurrency(p.details.pricing.lowest_price.currency), p.ops.sync_status
     ].join(','));
     const csvContent = `data:text/csv;charset=utf-8,${headers.join(',')}\n${rows.join('\n')}`;
     const encodedUri = encodeURI(csvContent);
