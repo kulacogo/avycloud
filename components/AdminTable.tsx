@@ -498,7 +498,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = products.filter(p => {
       const normalizedStatus = normalizeSyncStatus(p.ops.sync_status, p.ops.last_synced_iso);
-      const term = searchTerm.toLowerCase().trim();
+      const term = (searchTerm || '').toLowerCase().trim();
+      const name = (p.identification?.name || '').toLowerCase();
+      const brand = (p.identification?.brand || '').toLowerCase();
       const identifiers = [
         p.details.identifiers?.sku,
         p.identification?.sku,
@@ -511,8 +513,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         .map((v) => String(v).toLowerCase());
       const matchesSearch =
         term === '' ||
-        p.identification.name.toLowerCase().includes(term) ||
-        p.identification.brand.toLowerCase().includes(term) ||
+        name.includes(term) ||
+        brand.includes(term) ||
         identifiers.some((idVal) => idVal.includes(term));
       const matchesStatus = filterStatus === 'all' || normalizedStatus === filterStatus;
       const matchesCategory = filterCategory === 'all' || p.identification.category === filterCategory;
