@@ -942,12 +942,27 @@ async function syncProductToBaseLinker(product, inventoryId) {
     }
 
     const quantity = pickQuantity(product);
+    const numericCategoryId = categoryId ? Number(categoryId) : null;
+    if (!numericCategoryId || Number.isNaN(numericCategoryId)) {
+      const message = `Kategorie-ID ist ungültig oder nicht numerisch (Inventory ${invId}, Produkt ${product.id}, Wert: ${categoryId})`;
+      await logInventorySyncEvent({
+        productId: product.id,
+        inventoryId,
+        status: 'failed',
+        message,
+      });
+      return {
+        id: product.id,
+        status: 'failed',
+        message,
+      };
+    }
     const payload = buildPayload(
       product,
       inventoryId,
       meta,
       manufacturerId,
-      categoryId,
+      numericCategoryId,
       validation.normalizedPrice,
       quantity
     );
