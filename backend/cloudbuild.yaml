@@ -9,7 +9,7 @@ options:
 
 steps:
   # Quick syntax check to catch duplicate declarations / syntax errors
-  - name: node:20
+  - name: gcr.io/cloud-builders/npm
     dir: backend
     entrypoint: node
     args: ["--check", "index.js"]
