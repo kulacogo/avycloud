@@ -508,9 +508,9 @@ app.post('/api/inventories/sync', async (req, res) => {
 app.post('/api/inventories/assign', async (req, res) => {
   try {
     return res.status(410).json({
-      ok: false,
+        ok: false,
       error: { code: 410, message: 'Inventory-Zuordnung wird nicht mehr unterstützt.' },
-    });
+      });
   } catch (error) {
     console.error('Failed to assign inventory:', error);
     res.status(500).json({

@@ -529,19 +529,19 @@ export const syncToBaseLinker = async (
           ? { product: chunk[0], inventoryId: inv }
           : { products: chunk, inventoryId: inv };
 
-      response = await fetch(`${BACKEND_URL}/api/sync-baselinker`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+    response = await fetch(`${BACKEND_URL}/api/sync-baselinker`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
-      const result = await parseResponse(response);
+    const result = await parseResponse(response);
 
-      if (!response.ok) {
-        throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
-      }
+    if (!response.ok) {
+      throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
+    }
 
       if (Array.isArray(result?.results)) {
         allResults.push(...result.results);
