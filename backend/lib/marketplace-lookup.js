@@ -48,6 +48,25 @@ function buildNameIndex(rows, pathColumn) {
   return index;
 }
 
+function buildIdSet(rows) {
+  const set = new Set();
+  rows.forEach((row) => {
+    const id =
+      row.id ||
+      row.category_id ||
+      row.id_category ||
+      row.CategoryId ||
+      row.categoryId ||
+      row.Kategorienummer ||
+      row.kategorienummer;
+    if (id !== undefined && id !== null) {
+      const trimmed = id.toString().trim();
+      if (trimmed) set.add(trimmed);
+    }
+  });
+  return set;
+}
+
 function buildPathFromColumns(row, columns = []) {
   if (!columns || !columns.length) return '';
   return columns
@@ -73,6 +92,8 @@ class MarketplaceLookup {
     this.kauflandPathColumn = kauflandPathColumn;
     this.ebayLoaded = false;
     this.kauflandLoaded = false;
+    this.ebayIdSet = new Set();
+    this.kauflandIdSet = new Set();
   }
 
   ensureEbay() {
@@ -104,6 +125,7 @@ class MarketplaceLookup {
     });
     this.ebayPathIndex = buildPathIndex(rows, this.ebayPathColumn);
     this.ebayNameIndex = buildNameIndex(rows, this.ebayPathColumn);
+    this.ebayIdSet = buildIdSet(rows);
     this.ebayLoaded = true;
   }
 
@@ -144,6 +166,7 @@ class MarketplaceLookup {
     });
     this.kauflandPathIndex = buildPathIndex(rows, this.kauflandPathColumn);
     this.kauflandNameIndex = buildNameIndex(rows, this.kauflandPathColumn);
+    this.kauflandIdSet = buildIdSet(rows);
     this.kauflandLoaded = true;
   }
 
@@ -159,6 +182,18 @@ class MarketplaceLookup {
     if (!categoryPathOrName) return null;
     const normalized = categoryPathOrName.toString().trim().toLowerCase();
     return this.kauflandPathIndex.get(normalized) || this.kauflandNameIndex.get(normalized) || null;
+  }
+
+  isValidEbayId(id) {
+    this.ensureEbay();
+    if (id === undefined || id === null) return false;
+    return this.ebayIdSet.has(id.toString().trim());
+  }
+
+  isValidKauflandId(id) {
+    this.ensureKaufland();
+    if (id === undefined || id === null) return false;
+    return this.kauflandIdSet.has(id.toString().trim());
   }
 }
 

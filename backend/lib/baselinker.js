@@ -876,7 +876,12 @@ async function syncProductToBaseLinker(product, inventoryId) {
       null;
 
     if (directId && /^\d+$/.test(String(directId))) {
-      categoryId = String(directId).trim();
+      const candidate = String(directId).trim();
+      if (lookup.isValidEbayId(candidate)) {
+        categoryId = candidate;
+      } else if (directPath) {
+        categoryId = lookup.lookupEbay(directPath);
+      }
     } else {
       const sourceCat = directPath || product?.identification?.category;
       categoryId = lookup.lookupEbay(sourceCat);
@@ -892,7 +897,14 @@ async function syncProductToBaseLinker(product, inventoryId) {
 
     const asString = directId ? String(directId).trim() : '';
     if (asString && /^\d+$/.test(asString)) {
-      categoryId = asString;
+      if (lookup.isValidKauflandId(asString)) {
+        categoryId = asString;
+      } else if (product?.details?.kauflandCategoryPath || attrs.kaufland_category_path) {
+        categoryId =
+          lookup.lookupKaufland(product?.details?.kauflandCategoryPath) ||
+          lookup.lookupKaufland(attrs.kaufland_category_path) ||
+          lookup.lookupKaufland(attrs.kaufland_category);
+      }
     } else {
       const sourceCat =
         product?.details?.kauflandCategoryPath ||
