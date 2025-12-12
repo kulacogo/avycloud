@@ -44,7 +44,7 @@ steps:
             break
           fi
           sleep 2
-        end
+        done
         docker logs backend-test || true
         docker stop backend-test
         if [ -z "$success" ]; then
