@@ -9,11 +9,17 @@ interface DashboardProps {
   onSelectProduct: (productId: string) => void;
 }
 
+const safeCurrency = (code?: string) => {
+  const c = (code || '').toString().trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(c) ? c : 'EUR';
+};
+
 const formatCurrency = (value: number, currency: string) => {
+  const cur = safeCurrency(currency);
   try {
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency }).format(value);
+    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: cur }).format(value);
   } catch {
-    return `${value.toFixed(2)} ${currency}`;
+    return `${value.toFixed(2)} ${cur}`;
   }
 };
 
