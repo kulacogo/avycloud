@@ -614,7 +614,6 @@ function processKauflandProduct(product) {
 
   const attributes = cloned.details.attributes;
 
-  // Prefer explicit Kaufland fields; do NOT fallback to identification.category to avoid mixing with eBay
   const rawId =
     attributes.kaufland_category_id ||
     attributes.kauflandCategoryId ||
@@ -627,8 +626,6 @@ function processKauflandProduct(product) {
     attributes.kaufland_category ||
     cloned.details?.kauflandCategory ||
     attributes.Kategorie ||
-    attributes.category ||
-    cloned.identification?.category ||
     null;
 
   let kauflandCategory = null;

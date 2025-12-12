@@ -60,6 +60,9 @@ class MarketplaceLookup {
 
   ensureEbay() {
     if (this.ebayLoaded) return;
+    if (!fs.existsSync(this.ebayCsvPath)) {
+      throw new Error(`[marketplace-lookup] eBay CSV not found at ${this.ebayCsvPath}`);
+    }
     const rows = loadCsv(this.ebayCsvPath);
     this.ebayPathIndex = buildPathIndex(rows, this.ebayPathColumn);
     this.ebayNameIndex = buildNameIndex(rows, this.ebayPathColumn);
@@ -68,6 +71,9 @@ class MarketplaceLookup {
 
   ensureKaufland() {
     if (this.kauflandLoaded) return;
+    if (!fs.existsSync(this.kauflandCsvPath)) {
+      throw new Error(`[marketplace-lookup] Kaufland CSV not found at ${this.kauflandCsvPath}`);
+    }
     const rows = loadCsv(this.kauflandCsvPath);
     this.kauflandPathIndex = buildPathIndex(rows, this.kauflandPathColumn);
     this.kauflandNameIndex = buildNameIndex(rows, this.kauflandPathColumn);
