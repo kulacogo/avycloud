@@ -148,6 +148,35 @@ const collectSkuIndexKeys = (product = {}) => {
 async function saveProduct(product) {
   try {
     const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(product.id);
+    const existingSnap = await docRef.get();
+    const existingData = existingSnap.exists ? existingSnap.data() || {} : null;
+
+    const pickStableSku = (data) => {
+      const idSku = typeof data?.identification?.sku === 'string' ? data.identification.sku.trim() : '';
+      const detSku = typeof data?.details?.identifiers?.sku === 'string' ? data.details.identifiers.sku.trim() : '';
+      return idSku || detSku || '';
+    };
+
+    const stableSku = pickStableSku(existingData);
+    if (stableSku) {
+      // Enforce SKU immutability: never overwrite existing SKU
+      if (!product.identification) product.identification = {};
+      if (!product.details) product.details = {};
+      if (!product.details.identifiers) product.details.identifiers = {};
+
+      const incomingSku =
+        (typeof product.identification.sku === 'string' && product.identification.sku.trim()) ||
+        (typeof product.details.identifiers.sku === 'string' && product.details.identifiers.sku.trim()) ||
+        '';
+
+      if (incomingSku && incomingSku !== stableSku) {
+        console.warn(
+          `[saveProduct] SKU change blocked for ${product.id}: incoming="${incomingSku}" kept="${stableSku}"`
+        );
+      }
+      product.identification.sku = stableSku;
+      product.details.identifiers.sku = stableSku;
+    }
     
     // Add timestamps
     const ops = product.ops || {};

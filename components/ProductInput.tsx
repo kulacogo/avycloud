@@ -51,15 +51,7 @@ const createGroup = (index: number, name?: string): UploadGroup => ({
 
 const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const { t } = useI18n();
-  const {
-    inventories,
-    activeInventoryId,
-    activeInventory,
-    setActiveInventoryId,
-    syncInventories,
-    syncing,
-    resolveInventory,
-  } = useInventoryContext();
+  const { activeInventoryId, activeInventory, setActiveInventoryId } = useInventoryContext();
   const [groups, setGroups] = useState<UploadGroup[]>([createGroup(0, t('input.groups.defaultName', { index: 1 }))]);
   const [barcodes, setBarcodes] = useState('');
   const [model, setModel] = useState<ModelOption>('gpt-5-mini-2025-08-07');
@@ -217,11 +209,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
       alert(t('input.errors.payloadRequired'));
       return;
     }
-    if (!activeInventoryId) {
-      alert(t('input.errors.inventoryRequired'));
-      return;
-    }
-    onIdentify(payload, barcodes, model, pipeline, activeInventoryId, activeInventory?.name || null);
+    onIdentify(payload, barcodes, model, pipeline);
     // Reset groups for the next run
     setGroups([createGroup(0, groupNameForIndex(0))]);
   };
@@ -334,59 +322,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   return (
     <div className="w-full p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-6 pb-16 sm:pb-8 safe-area-bottom">
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-slate-400">
-                {t('input.inventory.label')}
-              </p>
-              <p className="text-sm text-slate-100 font-semibold">
-                {activeInventory?.name || t('input.inventory.empty')}
-              </p>
-              <p className="text-xs text-slate-400">
-                {activeInventory?.inventoryId || t('input.inventory.hint')}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setInventoryScanOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors"
-              >
-                <BarcodeIcon className="w-4 h-4" />
-                {t('input.inventory.scan')}
-              </button>
-              <button
-                type="button"
-                onClick={() => syncInventories()}
-                disabled={syncing}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-60"
-              >
-                <RefreshIcon className="w-4 h-4" />
-                {syncing ? t('input.inventory.syncing') : t('input.inventory.sync')}
-              </button>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="inventory-select" className="text-xs uppercase tracking-wide text-slate-400">
-              {t('input.inventory.selectLabel')}
-            </label>
-            <select
-              id="inventory-select"
-              value={activeInventoryId || ''}
-              onChange={(event) => setActiveInventoryId(event.target.value || null)}
-              className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100"
-            >
-              <option value="">{t('input.inventory.selectPlaceholder')}</option>
-              {inventories.map((inv) => (
-                <option key={inv.inventoryId} value={inv.inventoryId}>
-                  {inv.name} ({inv.inventoryId})
-                </option>
-              ))}
-            </select>
-            {inventoryError && <p className="text-xs text-rose-400">{inventoryError}</p>}
-          </div>
-        </div>
+        
         <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>

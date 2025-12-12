@@ -230,6 +230,10 @@ function mergeIdentifiers(existing = {}, incoming = {}) {
     }
     if (key === 'sku') {
       if (!isValidSku(value)) return;
+      const existingSku = typeof existing?.sku === 'string' ? existing.sku.trim() : '';
+      const incomingSku = value.trim();
+      // SKU is immutable once set: keep the first non-empty SKU
+      if (existingSku && existingSku !== incomingSku) return;
     }
     merged[key] = typeof value === 'string' ? value.trim() : value;
   });

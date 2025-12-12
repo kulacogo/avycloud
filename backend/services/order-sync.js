@@ -2,7 +2,8 @@ const { callBaseLinker } = require('../lib/baselinker');
 const { getSecrets } = require('../lib/secrets');
 const { saveOrders, getOrderById, updateOrder } = require('../lib/firestore');
 
-const DEFAULT_ORDER_LOOKBACK_DAYS = parseInt(process.env.ORDER_SYNC_LOOKBACK_DAYS || '7', 10);
+// Increase lookback to ensure older shipped/picked orders are included for stock cleanup
+const DEFAULT_ORDER_LOOKBACK_DAYS = parseInt(process.env.ORDER_SYNC_LOOKBACK_DAYS || '60', 10);
 const ORDER_STATUS_ID_CACHE = {
   new: null,
   picked: null,
@@ -87,8 +88,8 @@ function mapBaseLinkerOrder(entry) {
     baselinkerId: String(entry.order_id),
     source: 'baselinker',
     status: 'new',
-    statusLabel: entry?.status_name || 'Neue Bestellung',
-    statusId: entry?.status_id ? String(entry.status_id) : null,
+    statusLabel: entry?.status_name || entry?.order_status_name || 'Neue Bestellung',
+    statusId: entry?.order_status_id ? String(entry.order_status_id) : entry?.status_id ? String(entry.status_id) : null,
     createdAt,
     updatedAt: createdAt,
     number: entry?.order_source_id || entry?.custom_source_id || entry?.external_invoice_number || null,
@@ -152,18 +153,25 @@ async function syncNewOrders() {
     get_unconfirmed_orders: false,
   };
 
-  if (baseOrderStatusNew) {
-    params.status_id = Number(baseOrderStatusNew);
-  }
+  // Fetch all confirmed orders in the window (no status filter) so picked/shipped are included
+  const statusList = await callBaseLinker('getOrderStatusList', {})?.then((r) => r?.statuses || []).catch(() => []);
+  const statusNameById = new Map(statusList.map((s) => [String(s.id), s.name || '']));
 
   const response = await callBaseLinker('getOrders', params);
 
   const orders = Array.isArray(response?.orders) ? response.orders.map(mapBaseLinkerOrder) : [];
 
-  // Post-process statuses to prevent overwriting 'picked' orders with 'new'
+  // Post-process statuses using resolved names to classify picked/closed
   const pickedId = ORDER_STATUS_ID_CACHE.picked || DEFAULT_PICKED_STATUS_ID;
   orders.forEach((order) => {
+    const name = statusNameById.get(order.statusId || '') || order.statusLabel || '';
+    order.statusLabel = name || order.statusLabel;
+    const normalized = name.toLowerCase();
     if (order.statusId && String(order.statusId) === String(pickedId)) {
+      order.status = 'picked';
+    } else if (normalized.includes('kommissioniert')) {
+      order.status = 'picked';
+    } else if (normalized.includes('versendet') || normalized.includes('zugestellt') || normalized.includes('delivered')) {
       order.status = 'picked';
     }
   });

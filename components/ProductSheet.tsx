@@ -1035,6 +1035,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </section>
         </div>
 
+        {false && (
         <section className="p-4 bg-slate-800 rounded-lg shadow-lg space-y-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
@@ -1102,6 +1103,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </div>
           {inventoryMessage && <p className="text-xs text-slate-400">{inventoryMessage}</p>}
         </section>
+        )}
 
         <section className="p-4 bg-slate-800 rounded-lg shadow-lg">
           <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.actions.title')}</h3>

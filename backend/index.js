@@ -1618,6 +1618,27 @@ app.post('/api/warehouse/bins/labels.pdf', async (req, res) => {
   }
 });
 
+// --- Product BIN lookup ---
+app.get('/api/products/:productId/bins', async (req, res) => {
+  try {
+    const productId = String(req.params.productId || '').trim();
+    if (!productId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Product ID ist erforderlich.' },
+      });
+    }
+    const bins = await listBinsForProduct(productId);
+    return res.json({ ok: true, data: bins });
+  } catch (error) {
+    console.error('Failed to load product bins:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Produkt-BINs konnten nicht geladen werden.', details: error.message },
+    });
+  }
+});
+
 app.post('/api/scanner/capture', async (req, res) => {
   try {
     const buffer = await scanToBuffer();
@@ -1888,6 +1909,8 @@ app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
 app.get('/api/orders', async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 200);
+    // Always refresh from BaseLinker before returning orders to keep dashboard counts accurate
+    await syncNewOrders();
     const rawOrders = await listOrders(limit);
     const orders = await attachPickHintsToOrders(rawOrders);
     res.json({ ok: true, data: orders });

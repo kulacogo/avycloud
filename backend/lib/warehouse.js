@@ -5,7 +5,7 @@ const firestore = new Firestore({
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
 });
 
-const ZONES = ['X', 'XS', 'S', 'M', 'L', 'XL'];
+const ZONES = ['X', 'XS', 'S', 'M', 'L', 'XL', 'XQ'];
 const ETAGEN = ['GA', 'UG', 'EG'];
 const MIN_GANG = 1;
 const MAX_GANG = 6;
@@ -637,7 +637,7 @@ async function listBinsForProduct(productIdOrSku) {
     );
     if (hit && (hit.quantity || 0) > 0) {
       matches.push({
-        code: data.code,
+        code: data.code || doc.id,
         zone: data.zone,
         etage: data.etage,
         gang: data.gang,
