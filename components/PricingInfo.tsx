@@ -18,6 +18,12 @@ const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, o
   const setCurrency = (val: string) => onChange && onChange({ ...pricing, lowest_price: { ...lowest_price, currency: val, amount: lowest_price.amount, sources: lowest_price.sources, last_checked_iso: lowest_price.last_checked_iso } });
   const setConfidence = (val: string) => onChange && onChange({ ...pricing, price_confidence: Math.max(0, Math.min(1, parseFloat(val) || 0)) });
 
+  const safeCurrency = (code?: string) => {
+    const c = (code || '').toString().trim().toUpperCase();
+    if (/^[A-Z]{3}$/.test(c)) return c;
+    return 'EUR';
+  };
+
   return (
     <>
       <div className="flex items-baseline space-x-4">
@@ -30,7 +36,7 @@ const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, o
         ) : (
           <span id="price-value" className="text-3xl font-bold text-sky-400">
             {lowest_price.amount > 0
-              ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: lowest_price.currency }).format(lowest_price.amount)
+              ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: safeCurrency(lowest_price.currency) }).format(lowest_price.amount)
               : 'Not Available'}
           </span>
         )}
@@ -57,7 +63,7 @@ const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, o
                   </a>
                 </div>
                 <span className="font-mono text-slate-300">
-                  {source.price ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: lowest_price.currency }).format(source.price) : ''}
+                  {source.price ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: safeCurrency(lowest_price.currency) }).format(source.price) : ''}
                 </span>
               </li>
             ))}
