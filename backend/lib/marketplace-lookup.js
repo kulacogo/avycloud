@@ -48,8 +48,25 @@ function buildNameIndex(rows, pathColumn) {
   return index;
 }
 
+function buildPathFromColumns(row, columns = []) {
+  if (!columns || !columns.length) return '';
+  return columns
+    .map((col) => {
+      const value = row[col];
+      if (value === undefined || value === null) return '';
+      return value.toString().trim();
+    })
+    .filter(Boolean)
+    .join(' > ');
+}
+
 class MarketplaceLookup {
-  constructor({ ebayCsvPath, ebayPathColumn = 'category_path', kauflandCsvPath, kauflandPathColumn = 'category_path' }) {
+  constructor({
+    ebayCsvPath,
+    ebayPathColumn = 'category_path',
+    kauflandCsvPath,
+    kauflandPathColumn = 'category_path',
+  }) {
     this.ebayCsvPath = ebayCsvPath;
     this.kauflandCsvPath = kauflandCsvPath;
     this.ebayPathColumn = ebayPathColumn;
@@ -66,7 +83,25 @@ class MarketplaceLookup {
       error.filePath = this.ebayCsvPath;
       throw error;
     }
-    const rows = loadCsv(this.ebayCsvPath);
+    const rawRows = loadCsv(this.ebayCsvPath);
+    const rows = rawRows.map((row) => {
+      const next = { ...row };
+      // eBay CSV uses "Kategorienummer" as ID
+      const idCandidate =
+        row.Kategorienummer ||
+        row.kategorienummer ||
+        row.category_id ||
+        row.id ||
+        row.CategoryId ||
+        row.categoryId;
+      if (idCandidate) {
+        next.category_id = idCandidate.toString().trim();
+      }
+      if (!next[this.ebayPathColumn]) {
+        next[this.ebayPathColumn] = buildPathFromColumns(row, ['L1', 'L2', 'L3', 'L4', 'L5', 'L6']);
+      }
+      return next;
+    });
     this.ebayPathIndex = buildPathIndex(rows, this.ebayPathColumn);
     this.ebayNameIndex = buildNameIndex(rows, this.ebayPathColumn);
     this.ebayLoaded = true;
@@ -80,7 +115,33 @@ class MarketplaceLookup {
       error.filePath = this.kauflandCsvPath;
       throw error;
     }
-    const rows = loadCsv(this.kauflandCsvPath);
+    const rawRows = loadCsv(this.kauflandCsvPath);
+    const rows = rawRows.map((row) => {
+      const next = { ...row };
+      const idCandidate =
+        row.id_category ||
+        row.category_id ||
+        row.id ||
+        row.CategoryId ||
+        row.categoryId;
+      if (idCandidate) {
+        next.category_id = idCandidate.toString().trim();
+      }
+      if (!next[this.kauflandPathColumn]) {
+        next[this.kauflandPathColumn] = buildPathFromColumns(row, [
+          'DE_level_1_title_category',
+          'DE_level_2_title_category',
+          'DE_level_3_title_category',
+          'DE_level_4_title_category',
+          'DE_level_5_title_category',
+          'DE_level_6_title_category',
+          'DE_level_7_title_category',
+          'DE_level_8_title_category',
+          'DE_level_9_title_category',
+        ]);
+      }
+      return next;
+    });
     this.kauflandPathIndex = buildPathIndex(rows, this.kauflandPathColumn);
     this.kauflandNameIndex = buildNameIndex(rows, this.kauflandPathColumn);
     this.kauflandLoaded = true;
