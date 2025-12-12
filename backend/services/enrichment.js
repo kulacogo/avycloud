@@ -625,6 +625,9 @@ function processKauflandProduct(product) {
     attributes.kaufland_category_path ||
     attributes.kaufland_category ||
     cloned.details?.kauflandCategory ||
+    attributes.Kategorie ||
+    attributes.category ||
+    cloned.identification?.category ||
     null;
 
   let kauflandCategory = null;

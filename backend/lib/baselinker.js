@@ -904,13 +904,24 @@ async function syncProductToBaseLinker(product, inventoryId) {
           lookup.lookupKaufland(product?.details?.kauflandCategoryPath) ||
           lookup.lookupKaufland(attrs.kaufland_category_path) ||
           lookup.lookupKaufland(attrs.kaufland_category);
+      } else {
+        // Letzten Fallback: versuche generische Kategorie (z.B. identification.category) zu matchen
+        categoryId = lookup.lookupKaufland(
+          attrs.Kategorie ||
+            attrs.category ||
+            product?.identification?.category ||
+            null
+        );
       }
     } else {
       const sourceCat =
         product?.details?.kauflandCategoryPath ||
         attrs.kaufland_category_path ||
         attrs.kaufland_category ||
-        null; // Kein Fallback auf identification.category für Kaufland, um Fehlzuordnungen zu vermeiden
+        attrs.Kategorie ||
+        attrs.category ||
+        product?.identification?.category ||
+        null;
       categoryId = lookup.lookupKaufland(sourceCat);
     }
     }
