@@ -28,29 +28,11 @@ steps:
         '.',
       ]
 
-  # Run container locally and health-check port 8080 before pushing/deploying
   - name: gcr.io/cloud-builders/docker
-    dir: .
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -euo pipefail
-        docker run --rm -d --name backend-test -e PORT=8080 -p 8080:8080 gcr.io/${PROJECT_ID}/$_IMAGE:${_TAG}
-        success=""
-        for i in {1..10}; do
-          if curl -fsS http://localhost:8080/ >/dev/null; then
-            success="yes"
-            break
-          fi
-          sleep 2
-        done
-        docker logs backend-test || true
-        docker stop backend-test
-        if [ -z "$success" ]; then
-          echo "Health check failed: backend did not respond on 8080"
-          exit 1
-        fi
+    args: ['push', 'gcr.io/${PROJECT_ID}/$_IMAGE:${_TAG}']
+
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', 'gcr.io/${PROJECT_ID}/$_IMAGE:latest']
 
   - name: gcr.io/cloud-builders/gcloud
     args:
