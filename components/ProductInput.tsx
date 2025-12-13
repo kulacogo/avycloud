@@ -1,11 +1,9 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { UploadIcon, BarcodeIcon, CameraIcon, RefreshIcon } from './icons/Icons';
+import { UploadIcon, CameraIcon } from './icons/Icons';
 import type { UploadGroupPayload, IdentifyPipeline } from '../hooks/useIdentification';
 import { useI18n } from '../i18n';
-import { useInventoryContext } from '../context/InventoryContext';
 import { normalizeBarcode, summarizeBarcodes } from '../utils/gtin';
-import { ScannerOverlay } from './ScannerOverlay';
 
 interface ProductInputProps {
   onIdentify: (
@@ -13,7 +11,7 @@ interface ProductInputProps {
     barcodes: string,
     model: string | undefined,
     pipeline: IdentifyPipeline,
-    inventoryId: string,
+    inventoryId?: string | null,
     inventoryName?: string | null
   ) => void;
 }
@@ -51,7 +49,6 @@ const createGroup = (index: number, name?: string): UploadGroup => ({
 
 const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const { t } = useI18n();
-  const { activeInventoryId, activeInventory, setActiveInventoryId } = useInventoryContext();
   const [groups, setGroups] = useState<UploadGroup[]>([createGroup(0, t('input.groups.defaultName', { index: 1 }))]);
   const [barcodes, setBarcodes] = useState('');
   const [model, setModel] = useState<ModelOption>('gpt-5-mini-2025-08-07');
@@ -59,9 +56,6 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const [cameraTargetGroup, setCameraTargetGroup] = useState<string | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [inventoryScanOpen, setInventoryScanOpen] = useState(false);
-  const [resolvingInventory, setResolvingInventory] = useState(false);
-  const [inventoryError, setInventoryError] = useState<string | null>(null);
   const manualBarcodeList = useMemo(
     () =>
       barcodes
@@ -296,29 +290,6 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   };
   }, []);
 
-  const handleInventoryScan = useCallback(
-    async (value: string) => {
-      const sanitized = value?.trim();
-      if (!sanitized) return;
-      setResolvingInventory(true);
-      try {
-        const record = await resolveInventory(sanitized);
-        if (record?.inventoryId) {
-          setActiveInventoryId(record.inventoryId);
-          setInventoryError(null);
-        } else {
-          setInventoryError(t('input.inventory.notFound', { id: sanitized }));
-        }
-      } catch (error: any) {
-        console.error('Inventory scan failed:', error);
-        setInventoryError(error?.message || t('input.inventory.notFound', { id: sanitized }));
-      } finally {
-        setResolvingInventory(false);
-      }
-    },
-    [resolveInventory, setActiveInventoryId, t]
-  );
-
   return (
     <div className="w-full p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-6 pb-16 sm:pb-8 safe-area-bottom">
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -537,17 +508,6 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
           onChange={handleCaptureFileChange}
         />
       </form>
-      <ScannerOverlay
-        open={inventoryScanOpen}
-        title={t('input.inventory.scanTitle')}
-        onClose={() => setInventoryScanOpen(false)}
-        onDetected={(value) => {
-          setInventoryScanOpen(false);
-          handleInventoryScan(value);
-        }}
-        fallbackHint={t('input.inventory.scanHint')}
-        fallbackBusy={resolvingInventory}
-      />
     </div>
   );
 };
