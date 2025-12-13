@@ -191,6 +191,64 @@ const normalizeJobStatuses = (raw) => {
   return normalized.length ? Array.from(new Set(normalized)) : null;
 };
 
+// Produkt-Vollständigkeit bewerten
+function computeCompleteness(product = {}) {
+  const missing = [];
+  const details = product.details || {};
+  const attrs = details.attributes || {};
+
+  const hasSku =
+    !!product.identification?.sku || !!details.identifiers?.sku;
+  const hasName = !!product.identification?.name;
+  const hasBrand = !!product.identification?.brand;
+  const hasBarcode =
+    !!details.identifiers?.ean ||
+    !!details.identifiers?.gtin ||
+    (Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0);
+  const hasImages = Array.isArray(details.images) && details.images.length > 0;
+  const hasDescription = !!(details.description || details.short_description);
+  const priceCandidate =
+    product.pricing?.price ??
+    details.price ??
+    product.inventory?.price ??
+    null;
+  const hasPrice = priceCandidate !== null && priceCandidate !== undefined;
+  const ebayCat =
+    details.ebayCategoryId ||
+    attrs.ebay_category_id ||
+    attrs.ebayCategoryId ||
+    attrs['ebay.category_id'];
+  const kauflandCat =
+    details.kauflandCategoryId ||
+    attrs.kaufland_category_id ||
+    attrs.kauflandCategoryId ||
+    attrs['kaufland.category_id'];
+  const hasEbayCategory = !!ebayCat;
+  const hasKauflandCategory = !!kauflandCat;
+
+  if (!hasSku) missing.push('sku');
+  if (!hasName) missing.push('name');
+  if (!hasBrand) missing.push('brand');
+  if (!hasBarcode) missing.push('barcode');
+  if (!hasImages) missing.push('images');
+  if (!hasDescription) missing.push('description');
+  if (!hasPrice) missing.push('price');
+  if (!hasEbayCategory) missing.push('ebayCategoryId');
+  if (!hasKauflandCategory) missing.push('kauflandCategoryId');
+
+  const total = 9;
+  const filled = total - missing.length;
+  const percent = Math.round((filled / total) * 100);
+
+  return {
+    percent,
+    missing,
+    total,
+    filled,
+    complete: missing.length === 0,
+  };
+}
+
 const summarizeJobPayload = (payload = {}) => {
   if (!payload || typeof payload !== 'object') {
     return null;
@@ -1088,7 +1146,11 @@ app.get('/api/products', async (req, res) => {
   try {
     const products = await getAllProducts();
     const enriched = await enrichProductsWithBinSummaries(products);
-    res.json({ ok: true, products: enriched });
+    const withCompleteness = enriched.map((p) => ({
+      ...p,
+      completeness: computeCompleteness(p),
+    }));
+    res.json({ ok: true, products: withCompleteness });
   } catch (error) {
     console.error('Error getting products:', error);
     res.status(500).json({
@@ -1185,7 +1247,14 @@ app.get('/api/products/:id', async (req, res) => {
       });
     }
     const [enriched] = await enrichProductsWithBinSummaries([product]);
-    res.json({ ok: true, product: enriched || product });
+    const hydrated = enriched || product;
+    res.json({
+      ok: true,
+      product: {
+        ...hydrated,
+        completeness: computeCompleteness(hydrated),
+      },
+    });
   } catch (error) {
     console.error('Error getting product:', error);
     res.status(500).json({

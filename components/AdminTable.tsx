@@ -21,6 +21,7 @@ type ColumnId =
   | 'sku'
   | 'barcode'
   | 'price'
+  | 'completeness'
   | 'inventory'
   | 'pendingIntake'
   | 'storage'
@@ -33,7 +34,7 @@ type ColumnId =
 
 type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'pendingIntake', 'storage', 'syncStatus', 'lastSaved'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'inventory', 'pendingIntake', 'storage', 'syncStatus', 'lastSaved'],
   warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'syncStatus', 'saveStatus'],
   pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'syncStatus', 'lastSynced'],
   minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'syncStatus'],
@@ -146,6 +147,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterImage') as 'all' | 'withImages' | 'noImages') || 'all';
   });
+  const [filterCompleteness, setFilterCompleteness] = useState<'all' | 'complete' | 'incomplete' | 'lt80' | 'lt50'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterCompleteness') as any) || 'all';
+  });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(() => {
     if (typeof window === 'undefined') return { key: 'ops.last_saved_iso', direction: 'desc' };
     try {
@@ -255,6 +260,37 @@ const AdminTable: React.FC<AdminTableProps> = ({
             )}
           </div>
         ),
+      },
+      {
+        id: 'completeness',
+        label: 'Vollständig',
+        sortKey: 'completeness.percent',
+        defaultVisible: true,
+        widthClass: 'w-32',
+        render: ({ product }) => {
+          const percent = product.completeness?.percent ?? 0;
+          const missing = product.completeness?.missing || [];
+          const barWidth = Math.min(Math.max(percent, 0), 100);
+          return (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs text-slate-200">
+                <span>{percent}%</span>
+                {missing.length > 0 && (
+                  <span className="text-[11px] text-amber-300">
+                    fehlend: {missing.length}
+                  </span>
+                )}
+              </div>
+              <div className="h-2 w-full rounded-full bg-slate-700 overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500"
+                  style={{ width: `${barWidth}%` }}
+                  title={missing.length ? `Fehlt: ${missing.join(', ')}` : 'Vollständig'}
+                />
+              </div>
+            </div>
+          );
+        },
       },
       {
         id: 'nameBrand',
@@ -537,7 +573,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterImage === 'withImages' && hasImages) ||
         (filterImage === 'noImages' && !hasImages);
 
-      return matchesSearch && matchesStatus && matchesCategory && matchesInventory && matchesStock && matchesBin && matchesImages;
+      const percent = p.completeness?.percent ?? 0;
+      const isComplete = p.completeness?.complete === true;
+      const matchesCompleteness =
+        filterCompleteness === 'all' ||
+        (filterCompleteness === 'complete' && isComplete) ||
+        (filterCompleteness === 'incomplete' && !isComplete) ||
+        (filterCompleteness === 'lt80' && percent < 80) ||
+        (filterCompleteness === 'lt50' && percent < 50);
+
+      return matchesSearch && matchesStatus && matchesCategory && matchesInventory && matchesStock && matchesBin && matchesImages && matchesCompleteness;
     });
 
     if (sortConfig !== null) {
@@ -557,7 +602,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
 
     return filtered;
-  }, [products, searchTerm, filterStatus, filterCategory, filterInventoryId, filterStock, filterBin, filterImage, sortConfig]);
+  }, [products, searchTerm, filterStatus, filterCategory, filterInventoryId, filterStock, filterBin, filterImage, filterCompleteness, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSortedProducts.length / pageSize));
   useEffect(() => {
@@ -825,6 +870,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterStock('all');
     setFilterBin('all');
     setFilterImage('all');
+    setFilterCompleteness('all');
     setPageSize(50);
     setCurrentPage(1);
   };
@@ -856,6 +902,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterImage', filterImage);
   }, [filterImage]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterCompleteness', filterCompleteness);
+  }, [filterCompleteness]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:pageSize', String(pageSize));
@@ -925,6 +975,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
           <option value="all">Bilder: Alle</option>
           <option value="withImages">Mit Bildern</option>
           <option value="noImages">Keine Bilder</option>
+        </select>
+        <select
+          id="table-filter-completeness"
+          value={filterCompleteness}
+          onChange={(e) => setFilterCompleteness(e.target.value as 'all' | 'complete' | 'incomplete' | 'lt80' | 'lt50')}
+          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+        >
+          <option value="all">Vollständig: Alle</option>
+          <option value="complete">Nur vollständig</option>
+          <option value="incomplete">Unvollständig</option>
+          <option value="lt80">&lt; 80%</option>
+          <option value="lt50">&lt; 50%</option>
         </select>
         <select
           id="table-filter-inventory"

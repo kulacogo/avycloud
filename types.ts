@@ -6,6 +6,14 @@ export type ImageSource = "upload" | "generated" | "web";
 export type ImageVariant = "front" | "angle" | "detail" | "pack" | "other";
 export type SyncStatus = "pending" | "synced" | "failed";
 
+export interface Completeness {
+  percent: number;
+  missing: string[];
+  total: number;
+  filled: number;
+  complete: boolean;
+}
+
 export interface PriceSource {
   name: string;
   url: string;
@@ -128,6 +136,7 @@ export interface Product {
   identification: Identification;
   details: Details;
   ops: Ops;
+  completeness?: Completeness;
   notes?: Notes;
   inventory?: InventoryInfo; // legacy, to be ignored
   storage?: ProductStorageLocation | null;
