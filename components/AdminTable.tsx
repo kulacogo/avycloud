@@ -346,11 +346,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
         sortKey: 'details.pricing.lowest_price.amount',
         defaultVisible: true,
         render: ({ product }) =>
-          product.details.pricing?.lowest_price?.amount
+          product.details?.pricing?.lowest_price?.amount
             ? new Intl.NumberFormat('de-DE', {
               style: 'currency',
-              currency: safeCurrency(product.details.pricing.lowest_price.currency),
-            }).format(product.details.pricing.lowest_price.amount)
+              currency: safeCurrency(product.details?.pricing?.lowest_price?.currency),
+            }).format(product.details?.pricing?.lowest_price?.amount as number)
             : '—',
       },
       {
@@ -812,7 +812,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
       `"${p.identification.name}"`,
       `"${p.identification.brand}"`,
       p.identification.category,
-        p.details.identifiers.ean || '', p.details.pricing.lowest_price.amount, safeCurrency(p.details.pricing.lowest_price.currency), p.ops.sync_status
+      p.details?.identifiers?.ean || '',
+      p.details?.pricing?.lowest_price?.amount ?? '',
+      p.details?.pricing?.lowest_price?.currency ? safeCurrency(p.details.pricing.lowest_price.currency) : '',
+      p.ops.sync_status
     ].join(','));
     const csvContent = `data:text/csv;charset=utf-8,${headers.join(',')}\n${rows.join('\n')}`;
     const encodedUri = encodeURI(csvContent);
