@@ -84,6 +84,45 @@ const marketplaceLookup = new MarketplaceLookup({
 const isNumericId = (v) => v !== undefined && v !== null && /^\d+$/.test(String(v).trim());
 const normalizePath = (v) => (v ? v.toString().trim() : '');
 
+async function resolveCategoryWithGemini(product, target) {
+  try {
+    const client = await getGeminiClient();
+    const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const attrs = product?.details?.attributes || {};
+    const prompt = `
+Du bist ein Kategorisierungs-Assistent. Finde einen passenden Kategorie-PFAD (deutsch)
+für ${target === 'ebay' ? 'eBay (inventory 85403)' : 'Kaufland (inventory 85404)'}.
+Liefere NUR ein JSON-Objekt: { "path": "..." }
+- Keine IDs erfinden, nur einen realistischen Pfadtext.
+
+Daten:
+SKU: ${product?.details?.identifiers?.sku || product?.identification?.sku || product?.id}
+Name: ${product?.identification?.name || ''}
+Marke: ${product?.identification?.brand || ''}
+Freie Kategorie: ${product?.identification?.category || ''}
+Beschreibung: ${product?.details?.description || product?.details?.short_description || ''}
+Attribute: ${Object.entries(attrs)
+        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+        .join(' | ')}
+    `.trim();
+    const resp = await model.generateContent(prompt);
+    const text = resp?.response?.text() || '';
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    const json = JSON.parse(match[0]);
+    const pathText = json.path || json.category || json.category_path;
+    if (!pathText) return null;
+    const id =
+      target === 'ebay'
+        ? marketplaceLookup.lookupEbay(pathText)
+        : marketplaceLookup.lookupKaufland(pathText);
+    if (id) return { id: String(id), path: pathText };
+  } catch (e) {
+    console.warn('Gemini category resolution failed:', e.message);
+  }
+  return null;
+}
+
 // Gemini Helper: Convert buffer to generative part
 function bufferToGenerativePart(buffer, mimeType) {
   return {
@@ -636,6 +675,39 @@ function applyKauflandTaxonomy(input) {
     return processKauflandProduct(input);
   }
   return input;
+}
+
+// Ensure categories using Gemini fallback if missing
+async function ensureCategories(products = []) {
+  for (const p of products) {
+    if (!p || !p.details) continue;
+    const attrs = p.details.attributes || {};
+
+    if (!p.details.ebayCategoryId || !marketplaceLookup.isValidEbayId(String(p.details.ebayCategoryId))) {
+      const g = await resolveCategoryWithGemini(p, 'ebay');
+      if (g?.id) {
+        p.details.ebayCategoryId = g.id;
+        p.details.ebayCategoryPath = g.path;
+        attrs.ebay_category_id = g.id;
+        attrs.ebay_category_path = g.path;
+      }
+    }
+
+    if (
+      !p.details.kauflandCategoryId ||
+      !marketplaceLookup.isValidKauflandId(String(p.details.kauflandCategoryId))
+    ) {
+      const g = await resolveCategoryWithGemini(p, 'kaufland');
+      if (g?.id) {
+        p.details.kauflandCategoryId = g.id;
+        p.details.kauflandCategoryPath = g.path;
+        attrs.kaufland_category_id = g.id;
+        attrs.kaufland_category_path = g.path;
+      }
+    }
+
+    p.details.attributes = attrs;
+  }
 }
 
 function resolveKauflandCategory({ details = {}, attributes = {}, identification = {} }) {
@@ -1494,6 +1566,7 @@ async function runProductIdentification({
 
   applyEbayTaxonomy(bundle);
   applyKauflandTaxonomy(bundle);
+  await ensureCategories(bundle.products);
 
   // Pricing Coverage (using Thinking model for complex research if needed) - DISABLED if skipExternalSearch is true
   const serpTrace = [];

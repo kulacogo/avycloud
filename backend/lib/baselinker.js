@@ -9,6 +9,7 @@ const {
   logInventorySyncEvent,
 } = require('./firestore');
 const { MarketplaceLookup } = require('./marketplace-lookup');
+const { getGeminiClient } = require('../lib/gemini-client');
 
 const MIN_IMAGE_EDGE_BASELINKER = parseInt(
   process.env.BASELINKER_IMAGE_MIN_EDGE || '600',
@@ -34,6 +35,49 @@ function ensureMarketplaceLookup() {
     kauflandPathColumn: 'category_path',
   });
   return marketplaceLookup;
+}
+
+async function resolveCategoryWithGemini(product, invId) {
+  try {
+    const client = await getGeminiClient();
+    const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const lookup = ensureMarketplaceLookup();
+    const isEbay = String(invId) === '85403';
+    const isKaufland = String(invId) === '85404';
+    if (!isEbay && !isKaufland) return null;
+
+    const attrs = product?.details?.attributes || {};
+    const prompt = `
+Du bist ein Kategorisierungs-Assistent. Finde einen passenden Kategorie-PFAD (deutsch)
+für ${isEbay ? 'eBay (inventory 85403)' : 'Kaufland (inventory 85404)'}.
+Liefere NUR ein JSON-Objekt: { "path": "..." }
+- Nutze realistische, präzise Pfade (deutsch) entsprechend dem Marktplatz.
+- Keine IDs ausdenken – nur Pfadtext.
+
+Daten:
+SKU: ${product?.details?.identifiers?.sku || product?.identification?.sku || product?.id}
+Name: ${product?.identification?.name || ''}
+Marke: ${product?.identification?.brand || ''}
+Kategorie (frei): ${product?.identification?.category || ''}
+Beschreibung: ${product?.details?.description || product?.details?.short_description || ''}
+Attribute: ${Object.entries(attrs)
+        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+        .join(' | ')}
+    `.trim();
+
+    const resp = await model.generateContent(prompt);
+    const text = resp?.response?.text() || '';
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    const json = JSON.parse(match[0]);
+    const pathText = json.path || json.category || json.category_path;
+    if (!pathText) return null;
+    const id = isEbay ? lookup.lookupEbay(pathText) : lookup.lookupKaufland(pathText);
+    if (id) return { id: String(id), path: pathText };
+  } catch (e) {
+    console.warn('Gemini category resolution failed:', e.message);
+  }
+  return null;
 }
 
 /**
@@ -926,6 +970,32 @@ async function syncProductToBaseLinker(product, inventoryId) {
     }
     }
 
+    if (!categoryId) {
+      // Gemini-Fallback versuchen
+      const gem = await resolveCategoryWithGemini(product, invId);
+      if (gem?.id) {
+        categoryId = gem.id;
+        if (invId === '85403') {
+          attrs.ebay_category_id = gem.id;
+          attrs.ebay_category_path = gem.path;
+          product.details = product.details || {};
+          product.details.ebayCategoryId = gem.id;
+          product.details.ebayCategoryPath = gem.path;
+        } else {
+          attrs.kaufland_category_id = gem.id;
+          attrs.kaufland_category_path = gem.path;
+          product.details = product.details || {};
+          product.details.kauflandCategoryId = gem.id;
+          product.details.kauflandCategoryPath = gem.path;
+        }
+        // Persist the enrichment so UI sees it
+        try {
+          await updateProductSyncStatus(product.id, product.ops?.sync_status || 'pending');
+        } catch (e) {
+          console.warn('Could not persist gemini category enrichment:', e.message);
+        }
+      }
+    }
     if (!categoryId) {
       const message = `Kategorie konnte für Inventory ${invId} nicht ermittelt werden (Produkt ${product.id})`;
       await logInventorySyncEvent({
