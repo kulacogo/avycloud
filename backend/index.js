@@ -17,7 +17,10 @@ const {
   getInventoryRecord,
   setProductInventory,
   assignInventoryToProducts,
+  setSkuIndexEntry,
+  firestore,
 } = require('./lib/firestore');
+const { buildIdentityAliasSet, computeProductIdentityKey } = require('./lib/product-identity');
 const {
   createJob: createImproveJob,
   getJob: getImproveJob,
@@ -73,6 +76,7 @@ const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'avycloud'; // Auto-dete
 const IMAGE_PROXY_TIMEOUT_MS = parseInt(process.env.IMAGE_PROXY_TIMEOUT_MS || '10000', 10);
 const IMAGE_PROXY_MAX_BYTES = parseInt(process.env.IMAGE_PROXY_MAX_BYTES || `${5 * 1024 * 1024}`, 10); // 5 MB by default
 const PRICE_REFRESH_TIMEOUT_MS = parseInt(process.env.PRICE_REFRESH_TIMEOUT_MS || '20000', 10);
+const ADMIN_DELETE_TOKEN = process.env.ADMIN_DELETE_TOKEN || '';
 const REQUEST_BODY_LIMIT =
   process.env.API_REQUEST_BODY_LIMIT ||
   process.env.REQUEST_BODY_LIMIT ||
