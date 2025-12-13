@@ -37,6 +37,66 @@ function ensureMarketplaceLookup() {
   return marketplaceLookup;
 }
 
+// Inventory category cache (BaseLinker-internal category IDs per inventory)
+const inventoryCategoryCache = new Map(); // key: inventoryId -> { paths: Map<path, id>, loaded: bool }
+
+function normalizePathSegments(pathStr) {
+  return (pathStr || '')
+    .split('>')
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+async function ensureInventoryCategoriesLoaded(inventoryId) {
+  const key = String(inventoryId);
+  if (inventoryCategoryCache.has(key) && inventoryCategoryCache.get(key).loaded) return;
+  const cache = { paths: new Map(), loaded: true };
+  try {
+    const resp = await callBaseLinker('getInventoryCategories', { inventory_id: Number(inventoryId) });
+    const cats = resp?.categories || [];
+    cats.forEach((c) => {
+      if (c?.name) {
+        // Build full path from parent chain? API returns flat; we only store simple name here.
+        cache.paths.set(c.name, c.category_id);
+      }
+    });
+  } catch (e) {
+    console.warn('Could not load inventory categories for', inventoryId, e.message);
+  }
+  inventoryCategoryCache.set(key, cache);
+}
+
+async function ensureInventoryCategory(inventoryId, pathStr) {
+  if (!inventoryId || !pathStr) return null;
+  await ensureInventoryCategoriesLoaded(inventoryId);
+  const key = String(inventoryId);
+  const cache = inventoryCategoryCache.get(key) || { paths: new Map(), loaded: true };
+  const segments = normalizePathSegments(pathStr);
+  let parentId = 0;
+  let currentPath = '';
+
+  for (const seg of segments) {
+    currentPath = currentPath ? `${currentPath} > ${seg}` : seg;
+    if (cache.paths.has(currentPath)) {
+      parentId = cache.paths.get(currentPath);
+      continue;
+    }
+    const resp = await callBaseLinker('addInventoryCategory', {
+      inventory_id: Number(inventoryId),
+      name: seg,
+      parent_id: parentId,
+    });
+    if (resp?.status !== 'SUCCESS' || !resp?.category_id) {
+      console.warn(`Failed to create inventory category "${currentPath}" for ${inventoryId}:`, resp);
+      return null;
+    }
+    parentId = resp.category_id;
+    cache.paths.set(currentPath, parentId);
+  }
+  inventoryCategoryCache.set(key, cache);
+  return parentId || null;
+}
+
 async function resolveCategoryWithGemini(product, invId) {
   try {
     const client = await getGeminiClient();
@@ -695,9 +755,10 @@ function buildPayload(
   inventoryId,
   meta,
   manufacturerId,
-  categoryId,
+  categoryId, // marketplace category (for features)
   price,
-  quantity
+  quantity,
+  inventoryCategoryId // BaseLinker inventory category id
 ) {
   const name = pickProductName(product);
   const sku = pickSku(product);
@@ -741,7 +802,8 @@ function buildPayload(
     tags: [],
     tax_rate: 19,
     manufacturer_id: manufacturerId || undefined,
-    category_id: categoryId || 0,
+    // BaseLinker-inventory category (not marketplace); if missing, fall back to 0
+    category_id: inventoryCategoryId || 0,
     text_fields: textFields,
     stock: {
       [stockKey]: Math.max(0, quantity),
@@ -1027,6 +1089,18 @@ async function syncProductToBaseLinker(product, inventoryId) {
         message,
       };
     }
+    const invCategoryPath =
+      invId === '85403'
+        ? product?.details?.ebayCategoryPath ||
+          attrs.ebay_category_path ||
+          product?.identification?.category
+        : product?.details?.kauflandCategoryPath ||
+          attrs.kaufland_category_path ||
+          product?.identification?.category;
+    const inventoryCategoryId = invCategoryPath
+      ? await ensureInventoryCategory(inventoryId, invCategoryPath)
+      : null;
+
     const payload = buildPayload(
       product,
       inventoryId,
@@ -1034,7 +1108,8 @@ async function syncProductToBaseLinker(product, inventoryId) {
       manufacturerId,
       numericCategoryId,
       validation.normalizedPrice,
-      quantity
+      quantity,
+      inventoryCategoryId
     );
     const normalizedSku = normalizeSkuValue(payload.sku);
     const normalizedEan = normalizeEanValue(payload.ean);
