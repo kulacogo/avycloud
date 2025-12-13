@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { UploadIcon, CameraIcon } from './icons/Icons';
+import { UploadIcon, CameraIcon, BarcodeIcon } from './icons/Icons';
 import type { UploadGroupPayload, IdentifyPipeline } from '../hooks/useIdentification';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, summarizeBarcodes } from '../utils/gtin';
