@@ -306,8 +306,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <a
               href={`#sheet?productId=${product.id}`}
               onClick={(e) => {
+                // Nur bei normalem Klick SPA-Navigation nutzen; bei Ctrl/Meta/Middle Tabs öffnen erlauben
+                if (e.metaKey || e.ctrlKey || e.button === 1) {
+                  return;
+                }
                 e.preventDefault();
                 handleSelect(product.id);
+                // URL aktualisieren, damit Reload/Copy funktioniert
+                window.location.hash = `sheet?productId=${product.id}`;
               }}
               className="font-medium text-sky-400 hover:underline"
             >
