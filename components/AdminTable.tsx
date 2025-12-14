@@ -192,6 +192,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return '';
     return window.sessionStorage.getItem('avystock:admin-table:syncInventoryId') || '';
   });
+  const [syncInProgress, setSyncInProgress] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 640px)');
@@ -629,7 +631,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(new Set(filteredAndSortedProducts.map(p => p.id)));
+      // Select only currently visible page
+      setSelectedIds(new Set(pageProducts.map((p) => p.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -659,6 +662,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (selectedProducts.length === 0) return;
 
     // Update UI to show syncing state
+    setSyncInProgress(true);
+    setSyncMessage(`Synchronisiere ${selectedProducts.length} Produkte …`);
     const updatingProducts = products.map(p =>
       selectedIds.has(p.id)
         ? { ...p, ops: { ...p.ops, sync_status: 'pending' as const } }
@@ -708,6 +713,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
       // Revert to original state on error
       onUpdateProducts(products);
       alert(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSyncInProgress(false);
+      setSyncMessage(null);
+      setSelectedIds(new Set());
     }
   };
 
@@ -1199,8 +1208,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
                     onChange={handleSelectAll}
                     checked={
                       selectedIds.size > 0 &&
-                      selectedIds.size === filteredAndSortedProducts.length &&
-                      filteredAndSortedProducts.length > 0
+                      selectedIds.size === pageProducts.length &&
+                      pageProducts.length > 0
                     }
                     className="bg-slate-600 border-slate-500"
                   />
@@ -1377,6 +1386,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </div>
       )
       }
+      {syncInProgress && (
+        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
+          <Spinner className="w-6 h-6 text-sky-300" />
+          <div className="text-sm text-slate-100">
+            <p className="font-semibold">Sync läuft …</p>
+            <p className="text-slate-400 text-xs">{syncMessage || 'Produkte werden übertragen'}</p>
+          </div>
+        </div>
+      )}
     </>
   );
 };
