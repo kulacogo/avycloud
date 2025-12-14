@@ -85,10 +85,69 @@ Attribute: ${Object.entries(attrs)
  * BaseLinker API – request limiter (100 RPM ⇒ max 5 parallel calls)
  */
 // Begrenze Parallelität hart, um Burst-Blocks zu vermeiden
-// Vorsichtiger höher drehen: mehr Parallelität für schnelleren Sync
 const MAX_PARALLEL_REQUESTS = 5;
 // Mindestabstand zwischen Requests in ms (zusätzlich zur Parallelitätsbremse)
 const MIN_REQUEST_INTERVAL_MS = 200;
+
+// Inventory category cache (path -> id)
+const inventoryCategoryCache = new Map(); // key: inventoryId -> Map<path, id>
+
+function normalizePathSegments(pathStr) {
+  return (pathStr || '')
+    .split('>')
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+async function ensureInventoryCategoriesLoaded(inventoryId) {
+  const key = String(inventoryId);
+  if (inventoryCategoryCache.has(key)) return;
+  const cache = new Map();
+  try {
+    const resp = await callBaseLinker('getInventoryCategories', { inventory_id: Number(inventoryId) });
+    const cats = resp?.categories || [];
+    cats.forEach((c) => {
+      if (c?.name && c?.category_id) {
+        cache.set(c.name, c.category_id);
+      }
+    });
+    inventoryCategoryCache.set(key, cache);
+  } catch (e) {
+    console.warn('Could not load inventory categories for', inventoryId, e.message);
+    inventoryCategoryCache.set(key, cache);
+  }
+}
+
+async function ensureInventoryCategory(inventoryId, pathStr) {
+  if (!inventoryId || !pathStr) return 0;
+  await ensureInventoryCategoriesLoaded(inventoryId);
+  const key = String(inventoryId);
+  const cache = inventoryCategoryCache.get(key) || new Map();
+  const segments = normalizePathSegments(pathStr);
+  let parentId = 0;
+  let currentPath = '';
+
+  for (const seg of segments) {
+    currentPath = currentPath ? `${currentPath} > ${seg}` : seg;
+    if (cache.has(currentPath)) {
+      parentId = cache.get(currentPath);
+      continue;
+    }
+    const resp = await callBaseLinker('addInventoryCategory', {
+      inventory_id: Number(inventoryId),
+      name: seg,
+      parent_id: parentId,
+    });
+    if (resp?.status !== 'SUCCESS' || !resp?.category_id) {
+      console.warn(`Failed to create inventory category "${currentPath}" for ${inventoryId}:`, resp);
+      return parentId || 0;
+    }
+    parentId = resp.category_id;
+    cache.set(currentPath, parentId);
+  }
+  inventoryCategoryCache.set(key, cache);
+  return parentId || 0;
+}
 const requestQueue = [];
 let activeRequestCount = 0;
 let lastRequestAt = 0;
@@ -923,7 +982,6 @@ async function syncProductToBaseLinker(product, inventoryId) {
     );
 
     const attrs = { ...(product?.details?.attributes || {}) };
-    // Kategorien: keine IDs, keine internen Kategorien – nur informative Pfade in Attributes
     const categoryPath =
       product?.details?.ebayCategoryPath ||
       product?.details?.kauflandCategoryPath ||
@@ -933,17 +991,16 @@ async function syncProductToBaseLinker(product, inventoryId) {
       null;
     if (categoryPath) {
       attrs.category_path = categoryPath;
-      if (invId === '78659') {
-        // keine Differenzierung nötig, nur Informationszweck
-      }
     }
     if (product.details) {
       product.details.attributes = attrs;
     }
 
     const quantity = pickQuantity(product);
-    const numericCategoryId = 0; // keine Marketplace-ID senden
-    const inventoryCategoryId = 0; // keine internen Kategorien erzwingen
+    const inventoryCategoryId = categoryPath
+      ? await ensureInventoryCategory(invId, categoryPath)
+      : 0;
+    const numericCategoryId = inventoryCategoryId || 0;
 
     const payload = buildPayload(
       product,
@@ -977,6 +1034,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
     const buildRequest = (productId) => ({
       ...payload,
       product_id: Number(productId) || 0,
+      category_id: numericCategoryId || 0,
     });
 
     let requestPayload = buildRequest(baseProductId || 0);
