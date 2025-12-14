@@ -5,6 +5,7 @@ import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWin
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
+import { Spinner } from './Spinner';
 import { addMediaQueryListener } from '../utils/mediaQuery';
 import { useInventoryContext } from '../context/InventoryContext';
 
