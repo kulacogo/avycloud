@@ -1080,8 +1080,8 @@ app.post('/api/sync-baselinker', async (req, res) => {
         });
       }
 
-      // Chunk client payload to respect BaseLinker limit (100) and avoid 400 errors
-      const CHUNK_SIZE = 90;
+      // Chunk client payload to respect BaseLinker limit (100) and avoid timeouts (Cloud Run 600s)
+      const CHUNK_SIZE = 30;
       results = [];
       for (let i = 0; i < products.length; i += CHUNK_SIZE) {
         const chunk = products.slice(i, i + CHUNK_SIZE);

@@ -982,14 +982,29 @@ async function syncProductToBaseLinker(product, inventoryId) {
     );
 
     const attrs = { ...(product?.details?.attributes || {}) };
-    // Kein Marketplace-ID-Zwang mehr: nur Namen/Pfade als Features mitgeben, category_id bleibt 0
-    const categoryPath =
-      product?.details?.ebayCategoryPath ||
-      product?.details?.kauflandCategoryPath ||
-      product?.identification?.category ||
-      attrs.ebay_category_path ||
-      attrs.kaufland_category_path ||
-      null;
+    // Kategorie nur als interner Inventory-Path in BaseLinker anlegen (keine Marketplace-ID)
+    let categoryPath = null;
+    if (invId === '85403') {
+      categoryPath =
+        product?.details?.ebayCategoryPath ||
+        attrs.ebay_category_path ||
+        product?.identification?.category ||
+        null;
+      if (categoryPath) {
+        attrs.ebay_category_path = categoryPath;
+      }
+    } else if (invId === '85404') {
+      categoryPath =
+        product?.details?.kauflandCategoryPath ||
+        attrs.kaufland_category_path ||
+        product?.identification?.category ||
+        null;
+      if (categoryPath) {
+        attrs.kaufland_category_path = categoryPath;
+      }
+    } else {
+      categoryPath = product?.identification?.category || null;
+    }
     if (categoryPath) {
       attrs.category_path = categoryPath;
     }
@@ -998,8 +1013,10 @@ async function syncProductToBaseLinker(product, inventoryId) {
     }
 
     const quantity = pickQuantity(product);
-    const numericCategoryId = 0; // keine Kategorie-ID an BL senden
-    const inventoryCategoryId = 0; // keine internen Kategorien erzwingen
+    const numericCategoryId = 0; // keine Marketplace-ID senden
+    const inventoryCategoryId = categoryPath
+      ? await ensureInventoryCategory(inventoryId, categoryPath)
+      : 0;
 
     const payload = buildPayload(
       product,
