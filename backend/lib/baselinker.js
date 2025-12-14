@@ -86,7 +86,7 @@ Attribute: ${Object.entries(attrs)
  */
 // Begrenze Parallelität hart, um Burst-Blocks zu vermeiden
 // Vorsichtiger höher drehen: mehr Parallelität für schnelleren Sync
-const MAX_PARALLEL_REQUESTS = 3;
+const MAX_PARALLEL_REQUESTS = 5;
 // Mindestabstand zwischen Requests in ms (zusätzlich zur Parallelitätsbremse)
 const MIN_REQUEST_INTERVAL_MS = 200;
 const requestQueue = [];
@@ -867,9 +867,9 @@ async function findProductBySku(inventoryId, skuOrEan) {
  * Einzelnes Produkt synchronisieren
  */
 async function syncProductToBaseLinker(product, inventoryId) {
-  const invId = inventoryId ? String(inventoryId) : null;
-  if (!invId || (invId !== '85403' && invId !== '85404')) {
-    const message = 'Inventory ID fehlt oder ist nicht erlaubt (nur 85403=eBay, 85404=Kaufland)';
+  const invId = String(TARGET_INVENTORY_ID);
+  if (!invId) {
+    const message = 'Inventory ID fehlt';
     await logInventorySyncEvent({
       productId: product.id,
       inventoryId: invId,
@@ -923,31 +923,19 @@ async function syncProductToBaseLinker(product, inventoryId) {
     );
 
     const attrs = { ...(product?.details?.attributes || {}) };
-    // Kategorie nur als interner Inventory-Path in BaseLinker anlegen (keine Marketplace-ID)
-    let categoryPath = null;
-    if (invId === '85403') {
-      categoryPath =
-        product?.details?.ebayCategoryPath ||
-        attrs.ebay_category_path ||
-        product?.identification?.category ||
-        null;
-      if (categoryPath) {
-        attrs.ebay_category_path = categoryPath;
-      }
-    } else if (invId === '85404') {
-      categoryPath =
-        product?.details?.kauflandCategoryPath ||
-        attrs.kaufland_category_path ||
-        product?.identification?.category ||
-        null;
-      if (categoryPath) {
-        attrs.kaufland_category_path = categoryPath;
-      }
-    } else {
-      categoryPath = product?.identification?.category || null;
-    }
+    // Kategorien: keine IDs, keine internen Kategorien – nur informative Pfade in Attributes
+    const categoryPath =
+      product?.details?.ebayCategoryPath ||
+      product?.details?.kauflandCategoryPath ||
+      product?.identification?.category ||
+      attrs.ebay_category_path ||
+      attrs.kaufland_category_path ||
+      null;
     if (categoryPath) {
       attrs.category_path = categoryPath;
+      if (invId === '78659') {
+        // keine Differenzierung nötig, nur Informationszweck
+      }
     }
     if (product.details) {
       product.details.attributes = attrs;
@@ -955,9 +943,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
 
     const quantity = pickQuantity(product);
     const numericCategoryId = 0; // keine Marketplace-ID senden
-    const inventoryCategoryId = categoryPath
-      ? await ensureInventoryCategory(inventoryId, categoryPath)
-      : 0;
+    const inventoryCategoryId = 0; // keine internen Kategorien erzwingen
 
     const payload = buildPayload(
       product,
