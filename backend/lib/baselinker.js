@@ -144,9 +144,10 @@ Attribute: ${Object.entries(attrs)
  * BaseLinker API – request limiter (100 RPM ⇒ max 5 parallel calls)
  */
 // Begrenze Parallelität hart, um Burst-Blocks zu vermeiden
-const MAX_PARALLEL_REQUESTS = 1;
+// Vorsichtiger höher drehen: mehr Parallelität für schnelleren Sync
+const MAX_PARALLEL_REQUESTS = 3;
 // Mindestabstand zwischen Requests in ms (zusätzlich zur Parallelitätsbremse)
-const MIN_REQUEST_INTERVAL_MS = 250;
+const MIN_REQUEST_INTERVAL_MS = 150;
 const requestQueue = [];
 let activeRequestCount = 0;
 let lastRequestAt = 0;
@@ -981,92 +982,24 @@ async function syncProductToBaseLinker(product, inventoryId) {
     );
 
     const attrs = { ...(product?.details?.attributes || {}) };
-    const lookup = ensureMarketplaceLookup();
-    let categoryId = null;
-    let categoryPath = null;
-    if (invId === '85403') {
-      const directId =
-        product?.details?.ebayCategoryId ||
-        attrs.ebay_category_id ||
-        attrs.ebayCategoryId ||
-        attrs['ebay.category_id'] ||
-        null;
-      const directPath =
-        product?.details?.ebayCategoryPath ||
-        attrs.ebay_category_path ||
-        attrs.ebay_category ||
-        product?.identification?.category ||
-        null;
-      if (directId && /^\d+$/.test(String(directId))) {
-        categoryId = String(directId).trim();
-      } else if (directPath) {
-        const looked = lookup.lookupEbay(directPath);
-        if (looked) {
-          categoryId = String(looked);
-          categoryPath = directPath;
-        }
-      }
-      if (!categoryId && directPath) {
-        categoryPath = directPath;
-      }
-      if (!categoryId) {
-        const gem = await resolveCategoryWithGemini(product, invId);
-        if (gem?.id) {
-          categoryId = String(gem.id);
-          categoryPath = gem.path || categoryPath;
-          attrs.ebay_category_id = categoryId;
-          attrs.ebay_category_path = categoryPath;
-          product.details = product.details || {};
-          product.details.ebayCategoryId = categoryId;
-          product.details.ebayCategoryPath = categoryPath;
-        }
-      }
-    } else if (invId === '85404') {
-      const directId =
-        product?.details?.kauflandCategoryId ||
-        attrs.kaufland_category_id ||
-        attrs.kauflandCategoryId ||
-        attrs['kaufland.category_id'] ||
-        null;
-      const directPath =
-        product?.details?.kauflandCategoryPath ||
-        attrs.kaufland_category_path ||
-        attrs.kaufland_category ||
-        product?.identification?.category ||
-        null;
-      if (directId && /^\d+$/.test(String(directId))) {
-        categoryId = String(directId).trim();
-      } else if (directPath) {
-        const looked = lookup.lookupKaufland(directPath);
-        if (looked) {
-          categoryId = String(looked);
-          categoryPath = directPath;
-        }
-      }
-      if (!categoryId && directPath) {
-        categoryPath = directPath;
-      }
-      if (!categoryId) {
-        const gem = await resolveCategoryWithGemini(product, invId);
-        if (gem?.id) {
-          categoryId = String(gem.id);
-          categoryPath = gem.path || categoryPath;
-          attrs.kaufland_category_id = categoryId;
-          attrs.kaufland_category_path = categoryPath;
-          product.details = product.details || {};
-          product.details.kauflandCategoryId = categoryId;
-          product.details.kauflandCategoryPath = categoryPath;
-        }
-      }
+    // Kein Marketplace-ID-Zwang mehr: nur Namen/Pfade als Features mitgeben, category_id bleibt 0
+    const categoryPath =
+      product?.details?.ebayCategoryPath ||
+      product?.details?.kauflandCategoryPath ||
+      product?.identification?.category ||
+      attrs.ebay_category_path ||
+      attrs.kaufland_category_path ||
+      null;
+    if (categoryPath) {
+      attrs.category_path = categoryPath;
     }
-    // persist updated attrs into product for payload features
     if (product.details) {
       product.details.attributes = attrs;
     }
 
     const quantity = pickQuantity(product);
-    const numericCategoryId = categoryId && /^\d+$/.test(categoryId) ? Number(categoryId) : 0;
-    const inventoryCategoryId = 0; // do not rely on BaseLinker internal categories
+    const numericCategoryId = 0; // keine Kategorie-ID an BL senden
+    const inventoryCategoryId = 0; // keine internen Kategorien erzwingen
 
     const payload = buildPayload(
       product,
