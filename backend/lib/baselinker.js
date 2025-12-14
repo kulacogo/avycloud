@@ -15,6 +15,7 @@ const MIN_IMAGE_EDGE_BASELINKER = parseInt(
   process.env.BASELINKER_IMAGE_MIN_EDGE || '600',
   10
 );
+const TARGET_INVENTORY_ID = process.env.BASELINKER_INVENTORY_ID || '78659'; // statisch, wie gefordert
 // Feste Zuordnung der CSVs (keine env-Overrides, um Vertauschungen zu vermeiden)
 const EBAY_CATEGORY_CSV = path.join(
   __dirname,
@@ -35,66 +36,6 @@ function ensureMarketplaceLookup() {
     kauflandPathColumn: 'category_path',
   });
   return marketplaceLookup;
-}
-
-// Inventory category cache (BaseLinker-internal category IDs per inventory)
-const inventoryCategoryCache = new Map(); // key: inventoryId -> { paths: Map<path, id>, loaded: bool }
-
-function normalizePathSegments(pathStr) {
-  return (pathStr || '')
-    .split('>')
-    .map((p) => p.trim())
-    .filter(Boolean);
-}
-
-async function ensureInventoryCategoriesLoaded(inventoryId) {
-  const key = String(inventoryId);
-  if (inventoryCategoryCache.has(key) && inventoryCategoryCache.get(key).loaded) return;
-  const cache = { paths: new Map(), loaded: true };
-  try {
-    const resp = await callBaseLinker('getInventoryCategories', { inventory_id: Number(inventoryId) });
-    const cats = resp?.categories || [];
-    cats.forEach((c) => {
-      if (c?.name) {
-        // Build full path from parent chain? API returns flat; we only store simple name here.
-        cache.paths.set(c.name, c.category_id);
-      }
-    });
-  } catch (e) {
-    console.warn('Could not load inventory categories for', inventoryId, e.message);
-  }
-  inventoryCategoryCache.set(key, cache);
-}
-
-async function ensureInventoryCategory(inventoryId, pathStr) {
-  if (!inventoryId || !pathStr) return null;
-  await ensureInventoryCategoriesLoaded(inventoryId);
-  const key = String(inventoryId);
-  const cache = inventoryCategoryCache.get(key) || { paths: new Map(), loaded: true };
-  const segments = normalizePathSegments(pathStr);
-  let parentId = 0;
-  let currentPath = '';
-
-  for (const seg of segments) {
-    currentPath = currentPath ? `${currentPath} > ${seg}` : seg;
-    if (cache.paths.has(currentPath)) {
-      parentId = cache.paths.get(currentPath);
-      continue;
-    }
-    const resp = await callBaseLinker('addInventoryCategory', {
-      inventory_id: Number(inventoryId),
-      name: seg,
-      parent_id: parentId,
-    });
-    if (resp?.status !== 'SUCCESS' || !resp?.category_id) {
-      console.warn(`Failed to create inventory category "${currentPath}" for ${inventoryId}:`, resp);
-      return null;
-    }
-    parentId = resp.category_id;
-    cache.paths.set(currentPath, parentId);
-  }
-  inventoryCategoryCache.set(key, cache);
-  return parentId || null;
 }
 
 async function resolveCategoryWithGemini(product, invId) {
@@ -147,7 +88,7 @@ Attribute: ${Object.entries(attrs)
 // Vorsichtiger höher drehen: mehr Parallelität für schnelleren Sync
 const MAX_PARALLEL_REQUESTS = 3;
 // Mindestabstand zwischen Requests in ms (zusätzlich zur Parallelitätsbremse)
-const MIN_REQUEST_INTERVAL_MS = 150;
+const MIN_REQUEST_INTERVAL_MS = 200;
 const requestQueue = [];
 let activeRequestCount = 0;
 let lastRequestAt = 0;
