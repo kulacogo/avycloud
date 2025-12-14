@@ -200,6 +200,26 @@ async function saveProduct(product) {
       }
     };
 
+    // Guard: prevent price loss. If existing has a valid price, do not overwrite with null/undefined/0.
+    const existingPrice = existingData?.details?.pricing?.lowest_price;
+    const incomingPrice = product?.details?.pricing?.lowest_price;
+    const incomingValid =
+      incomingPrice &&
+      typeof incomingPrice.amount === 'number' &&
+      Number(incomingPrice.amount) > 0;
+    if (existingPrice && !incomingValid) {
+      productData.details = productData.details || {};
+      productData.details.pricing = productData.details.pricing || {};
+      productData.details.pricing.lowest_price = existingPrice;
+    }
+    if (incomingValid) {
+      // normalize currency
+      productData.details = productData.details || {};
+      productData.details.pricing = productData.details.pricing || {};
+      productData.details.pricing.lowest_price.currency =
+        productData.details.pricing.lowest_price.currency || existingPrice?.currency || 'EUR';
+    }
+
     const sanitizedProduct = sanitizeFirestoreValue(productData);
     await docRef.set(sanitizedProduct);
     

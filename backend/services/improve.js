@@ -508,9 +508,25 @@ function mergeProductRecords(existing, incoming) {
     // Identifiers (Merge keys)
     merged.details.identifiers = mergeIdentifiers(merged.details.identifiers, incDet.identifiers);
 
-    // Pricing: Only update if incoming has valid pricing data
-    if (incDet.pricing && incDet.pricing.lowest_price) {
-      merged.details.pricing = incDet.pricing;
+    // Pricing: Only update if incoming has valid, positive pricing; otherwise preserve existing
+    const existingPrice = merged.details?.pricing?.lowest_price;
+    const incomingPrice = incDet?.pricing?.lowest_price;
+    const incomingValid =
+      incomingPrice &&
+      typeof incomingPrice.amount === 'number' &&
+      Number(incomingPrice.amount) > 0;
+    if (incomingValid) {
+      merged.details.pricing = {
+        ...(merged.details?.pricing || {}),
+        lowest_price: {
+          ...incomingPrice,
+          currency: incomingPrice.currency || existingPrice?.currency || 'EUR',
+        },
+      };
+    } else if (existingPrice) {
+      // keep existing price if incoming is missing/invalid
+      merged.details.pricing = merged.details.pricing || {};
+      merged.details.pricing.lowest_price = existingPrice;
     }
 
     // GPSR
