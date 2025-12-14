@@ -962,7 +962,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           <section id="pricing" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.pricing')}</h3>
             <PricingInfo
-              pricing={localProduct.details.pricing}
+              pricing={localProduct.details?.pricing}
               isEditing={isEditing}
               onChange={(next) => {
                 setLocalProduct(prev => ({ ...prev, details: { ...prev.details, pricing: next } }));

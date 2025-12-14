@@ -4,19 +4,23 @@ import { Pricing } from '../types';
 import { LinkIcon } from './icons/Icons';
 
 interface PricingInfoProps {
-  pricing: Pricing;
+  pricing?: Pricing;
   isEditing?: boolean;
   onChange?: (next: Pricing) => void;
 }
 
 const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, onChange }) => {
-  const { lowest_price, price_confidence } = pricing;
-  const validSources = (lowest_price.sources || []).filter(
+  const safePricing: Pricing = pricing || {
+    lowest_price: { amount: 0, currency: 'EUR', sources: [], last_checked_iso: undefined as any },
+    price_confidence: 0,
+  };
+  const { lowest_price, price_confidence } = safePricing;
+  const validSources = (lowest_price?.sources || []).filter(
     (source) => source && typeof source.url === 'string' && /^https?:\/\//i.test(source.url)
   );
-  const setAmount = (val: string) => onChange && onChange({ ...pricing, lowest_price: { ...lowest_price, amount: parseFloat(val) || 0 } });
-  const setCurrency = (val: string) => onChange && onChange({ ...pricing, lowest_price: { ...lowest_price, currency: val, amount: lowest_price.amount, sources: lowest_price.sources, last_checked_iso: lowest_price.last_checked_iso } });
-  const setConfidence = (val: string) => onChange && onChange({ ...pricing, price_confidence: Math.max(0, Math.min(1, parseFloat(val) || 0)) });
+  const setAmount = (val: string) => onChange && onChange({ ...safePricing, lowest_price: { ...lowest_price, amount: parseFloat(val) || 0 } });
+  const setCurrency = (val: string) => onChange && onChange({ ...safePricing, lowest_price: { ...lowest_price, currency: val, amount: lowest_price.amount, sources: lowest_price.sources, last_checked_iso: lowest_price.last_checked_iso } });
+  const setConfidence = (val: string) => onChange && onChange({ ...safePricing, price_confidence: Math.max(0, Math.min(1, parseFloat(val) || 0)) });
 
   const safeCurrency = (code?: string) => {
     const c = (code || '').toString().trim().toUpperCase();
@@ -35,7 +39,7 @@ const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, o
           </div>
         ) : (
           <span id="price-value" className="text-3xl font-bold text-sky-400">
-            {lowest_price.amount > 0
+            {lowest_price?.amount > 0
               ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: safeCurrency(lowest_price.currency) }).format(lowest_price.amount)
               : 'Not Available'}
           </span>
