@@ -19,6 +19,7 @@ import { addMediaQueryListener } from './utils/mediaQuery';
 
 type View = 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations' | 'queue';
 const VIEW_STORAGE_KEY = 'avystock:view';
+const VIEW_PRODUCT_KEY = 'avystock:view:productId';
 const THEME_STORAGE_KEY = 'avystock:theme';
 const ALLOWED_VIEWS: View[] = ['dashboard', 'input', 'sheet', 'inventory', 'warehouse', 'operations', 'queue'];
 type Theme = 'light' | 'dark';
@@ -176,6 +177,12 @@ const readInitialView = (): View => {
   return isMobile ? 'operations' : 'dashboard';
 };
 
+const readInitialProductId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const stored = window.localStorage.getItem(VIEW_PRODUCT_KEY);
+  return stored || null;
+};
+
 const readInitialTheme = (): Theme => {
   if (typeof window === 'undefined') {
     return 'dark';
@@ -191,6 +198,7 @@ const readInitialTheme = (): Theme => {
 const App: React.FC = () => {
   const { t } = useI18n();
   const [view, setView] = useState<View>(() => readInitialView());
+  const [initialProductId] = useState<string | null>(() => readInitialProductId());
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState<boolean>(false);
   const [productsError, setProductsError] = useState<string | null>(null);
@@ -229,6 +237,7 @@ const App: React.FC = () => {
   const historyReadyRef = useRef(false);
   const skipNextHistoryPushRef = useRef(false);
   const lastHistoryStateRef = useRef<{ view: View; productId: string | null } | null>(null);
+  const initialProductHydratedRef = useRef(false);
 
   // Load products from backend on mount
   useEffect(() => {
@@ -375,7 +384,20 @@ const App: React.FC = () => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(VIEW_STORAGE_KEY, view);
     }
+    if (typeof window !== 'undefined') {
+      // keep last visited product only when on sheet
+      if (view !== 'sheet') {
+        window.localStorage.removeItem(VIEW_PRODUCT_KEY);
+      }
+    }
   }, [view]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (view === 'sheet' && currentProduct?.id) {
+      window.localStorage.setItem(VIEW_PRODUCT_KEY, currentProduct.id);
+    }
+  }, [currentProduct?.id, view]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -453,6 +475,27 @@ const App: React.FC = () => {
   const toggleTheme = useCallback(() => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   }, []);
+
+  // Hydrate initial product after products are loaded (for refresh)
+  useEffect(() => {
+    if (initialProductHydratedRef.current) return;
+    if (!products.length) return;
+    if (!initialProductId) {
+      initialProductHydratedRef.current = true;
+      return;
+    }
+    const product = products.find((p) => p.id === initialProductId);
+    if (product) {
+      setCurrentProduct(product);
+      setInventoryFocusId(product.id);
+      if (view === 'sheet') {
+        // keep sheet
+      } else {
+        // if stored view was different, keep it; we only set product, not force view
+      }
+    }
+    initialProductHydratedRef.current = true;
+  }, [products, initialProductId, view]);
 
   const renderView = () => {
     switch (view) {
