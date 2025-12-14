@@ -211,12 +211,14 @@ function computeCompleteness(product = {}) {
     (Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0);
   const hasImages = Array.isArray(details.images) && details.images.length > 0;
   const hasDescription = !!(details.description || details.short_description);
+  const lowest = details.pricing?.lowest_price;
   const priceCandidate =
     product.pricing?.price ??
     details.price ??
+    (lowest && typeof lowest.amount === 'number' ? lowest.amount : null) ??
     product.inventory?.price ??
     null;
-  const hasPrice = priceCandidate !== null && priceCandidate !== undefined;
+  const hasPrice = priceCandidate !== null && priceCandidate !== undefined && Number(priceCandidate) > 0;
   const ebayCat =
     details.ebayCategoryId ||
     attrs.ebay_category_id ||
