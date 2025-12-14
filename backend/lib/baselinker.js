@@ -980,11 +980,93 @@ async function syncProductToBaseLinker(product, inventoryId) {
       inventoryId
     );
 
+    const attrs = { ...(product?.details?.attributes || {}) };
+    const lookup = ensureMarketplaceLookup();
+    let categoryId = null;
+    let categoryPath = null;
+    if (invId === '85403') {
+      const directId =
+        product?.details?.ebayCategoryId ||
+        attrs.ebay_category_id ||
+        attrs.ebayCategoryId ||
+        attrs['ebay.category_id'] ||
+        null;
+      const directPath =
+        product?.details?.ebayCategoryPath ||
+        attrs.ebay_category_path ||
+        attrs.ebay_category ||
+        product?.identification?.category ||
+        null;
+      if (directId && /^\d+$/.test(String(directId))) {
+        categoryId = String(directId).trim();
+      } else if (directPath) {
+        const looked = lookup.lookupEbay(directPath);
+        if (looked) {
+          categoryId = String(looked);
+          categoryPath = directPath;
+        }
+      }
+      if (!categoryId && directPath) {
+        categoryPath = directPath;
+      }
+      if (!categoryId) {
+        const gem = await resolveCategoryWithGemini(product, invId);
+        if (gem?.id) {
+          categoryId = String(gem.id);
+          categoryPath = gem.path || categoryPath;
+          attrs.ebay_category_id = categoryId;
+          attrs.ebay_category_path = categoryPath;
+          product.details = product.details || {};
+          product.details.ebayCategoryId = categoryId;
+          product.details.ebayCategoryPath = categoryPath;
+        }
+      }
+    } else if (invId === '85404') {
+      const directId =
+        product?.details?.kauflandCategoryId ||
+        attrs.kaufland_category_id ||
+        attrs.kauflandCategoryId ||
+        attrs['kaufland.category_id'] ||
+        null;
+      const directPath =
+        product?.details?.kauflandCategoryPath ||
+        attrs.kaufland_category_path ||
+        attrs.kaufland_category ||
+        product?.identification?.category ||
+        null;
+      if (directId && /^\d+$/.test(String(directId))) {
+        categoryId = String(directId).trim();
+      } else if (directPath) {
+        const looked = lookup.lookupKaufland(directPath);
+        if (looked) {
+          categoryId = String(looked);
+          categoryPath = directPath;
+        }
+      }
+      if (!categoryId && directPath) {
+        categoryPath = directPath;
+      }
+      if (!categoryId) {
+        const gem = await resolveCategoryWithGemini(product, invId);
+        if (gem?.id) {
+          categoryId = String(gem.id);
+          categoryPath = gem.path || categoryPath;
+          attrs.kaufland_category_id = categoryId;
+          attrs.kaufland_category_path = categoryPath;
+          product.details = product.details || {};
+          product.details.kauflandCategoryId = categoryId;
+          product.details.kauflandCategoryPath = categoryPath;
+        }
+      }
+    }
+    // persist updated attrs into product for payload features
+    if (product.details) {
+      product.details.attributes = attrs;
+    }
+
     const quantity = pickQuantity(product);
-    // Kategorie-Logik aussetzen: keine Marketplace- oder Inventory-Kategorie erzwingen
-    const attrs = product?.details?.attributes || {};
-    const numericCategoryId = 0;
-    const inventoryCategoryId = 0;
+    const numericCategoryId = categoryId && /^\d+$/.test(categoryId) ? Number(categoryId) : 0;
+    const inventoryCategoryId = 0; // do not rely on BaseLinker internal categories
 
     const payload = buildPayload(
       product,

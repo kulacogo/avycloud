@@ -431,11 +431,12 @@ const App: React.FC = () => {
         const product = productsRef.current.find((p) => p.id === productId) || null;
         setCurrentProduct(product);
         if (product) setInventoryFocusId(product.id);
-      } else {
+      } else if (nextView !== 'sheet') {
         setCurrentProduct(null);
       }
     };
 
+    applyHash(); // initial hydrate
     window.addEventListener('hashchange', applyHash);
     return () => window.removeEventListener('hashchange', applyHash);
   }, [view]);
