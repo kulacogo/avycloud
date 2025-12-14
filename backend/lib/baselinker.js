@@ -774,22 +774,38 @@ function buildPayload(
   // Marketplace-spezifische Kategorien (falls als IDs im Produkt hinterlegt)
   const attrs = product?.details?.attributes || {};
   const ebayCategoryId =
+    product?.details?.ebayCategoryId ||
     attrs.ebay_category_id ||
     attrs.ebayCategoryId ||
     attrs['ebay.category_id'] ||
     null;
+  const ebayCategoryPath =
+    product?.details?.ebayCategoryPath ||
+    attrs.ebay_category_path ||
+    attrs.ebay_category ||
+    product?.identification?.category ||
+    null;
   const kauflandCategoryId =
+    product?.details?.kauflandCategoryId ||
     attrs.kaufland_category_id ||
     attrs.kauflandCategoryId ||
     attrs['kaufland.category_id'] ||
     null;
-  if (ebayCategoryId) {
+  const kauflandCategoryPath =
+    product?.details?.kauflandCategoryPath ||
+    attrs.kaufland_category_path ||
+    attrs.kaufland_category ||
+    product?.identification?.category ||
+    null;
+  if (ebayCategoryId || ebayCategoryPath) {
     textFields.features = textFields.features || {};
-    textFields.features.ebay_category_id = ebayCategoryId;
+    textFields.features.ebay_category_id = ebayCategoryId || ebayCategoryPath || '';
+    textFields.features.ebay_category_path = ebayCategoryPath || '';
   }
-  if (kauflandCategoryId) {
+  if (kauflandCategoryId || kauflandCategoryPath) {
     textFields.features = textFields.features || {};
-    textFields.features.kaufland_category_id = kauflandCategoryId;
+    textFields.features.kaufland_category_id = kauflandCategoryId || kauflandCategoryPath || '';
+    textFields.features.kaufland_category_path = kauflandCategoryPath || '';
   }
 
   const payload = {

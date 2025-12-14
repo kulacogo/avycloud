@@ -157,31 +157,32 @@ const VIEW_MIGRATIONS: Partial<Record<string, View>> = {
   admin: 'inventory',
 };
 
-const readInitialView = (): View => {
-  if (typeof window === 'undefined') return 'dashboard';
-
-  // Check Hash first
-  const hash = window.location.hash.replace(/^#/, '');
-  const [viewPart] = hash.split('?');
-  if (viewPart && ALLOWED_VIEWS.includes(viewPart as View)) {
-    return viewPart as View;
+const parseHash = (): { view: View; productId: string | null } => {
+  if (typeof window === 'undefined') return { view: 'dashboard', productId: null };
+  const raw = window.location.hash.replace(/^#\/?/, '');
+  const parts = raw.split('/').filter(Boolean);
+  if (parts[0] === 'sheet' && parts[1]) {
+    return { view: 'sheet', productId: parts[1] };
   }
+  if (parts[0] && ALLOWED_VIEWS.includes(parts[0] as View)) {
+    return { view: parts[0] as View, productId: null };
+  }
+  return { view: 'dashboard', productId: null };
+};
 
+const readInitialView = (): { view: View; productId: string | null } => {
+  if (typeof window === 'undefined') return { view: 'dashboard', productId: null };
+  const fromHash = parseHash();
+  if (fromHash.view !== 'dashboard' || fromHash.productId) return fromHash;
   const stored = window.localStorage.getItem(VIEW_STORAGE_KEY) as View | string | null;
   if (stored) {
     const migrated = VIEW_MIGRATIONS[stored] || stored;
     if (ALLOWED_VIEWS.includes(migrated as View)) {
-      return migrated as View;
+      return { view: migrated as View, productId: null };
     }
   }
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
-  return isMobile ? 'operations' : 'dashboard';
-};
-
-const readInitialProductId = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  const stored = window.localStorage.getItem(VIEW_PRODUCT_KEY);
-  return stored || null;
+  return { view: isMobile ? 'operations' : 'dashboard', productId: null };
 };
 
 const readInitialTheme = (): Theme => {
@@ -198,8 +199,9 @@ const readInitialTheme = (): Theme => {
 
 const App: React.FC = () => {
   const { t } = useI18n();
-  const [view, setView] = useState<View>(() => readInitialView());
-  const [initialProductId] = useState<string | null>(() => readInitialProductId());
+  const [{ view: initialView, productId: initialHashProductId }] = useState(() => readInitialView());
+  const [view, setView] = useState<View>(initialView);
+  const [initialProductId] = useState<string | null>(initialHashProductId);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState<boolean>(false);
   const [productsError, setProductsError] = useState<string | null>(null);
@@ -386,19 +388,13 @@ const App: React.FC = () => {
       window.localStorage.setItem(VIEW_STORAGE_KEY, view);
     }
     if (typeof window !== 'undefined') {
-      // keep last visited product only when on sheet
-      if (view !== 'sheet') {
-        window.localStorage.removeItem(VIEW_PRODUCT_KEY);
+      if (view === 'sheet' && currentProduct?.id) {
+        window.location.hash = `#/sheet/${currentProduct.id}`;
+      } else {
+        window.location.hash = `#/${view}`;
       }
     }
-  }, [view]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (view === 'sheet' && currentProduct?.id) {
-      window.localStorage.setItem(VIEW_PRODUCT_KEY, currentProduct.id);
-    }
-  }, [currentProduct?.id, view]);
+  }, [view, currentProduct?.id]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -424,54 +420,25 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const initialState = { view, productId: view === 'sheet' ? currentProduct?.id ?? null : null };
-    window.history.replaceState(initialState, '', window.location.href);
-    lastHistoryStateRef.current = initialState;
     historyReadyRef.current = true;
 
-    const handlePopState = (event: PopStateEvent) => {
-      const state = (event.state || {}) as { view?: View; productId?: string | null };
-      const nextView = state.view && ALLOWED_VIEWS.includes(state.view) ? (state.view as View) : 'dashboard';
-      const productId = state.productId ?? null;
+    const applyHash = () => {
+      const { view: nextView, productId } = parseHash();
+      if (nextView !== view) {
+        setView(nextView);
+      }
       if (productId) {
         const product = productsRef.current.find((p) => p.id === productId) || null;
         setCurrentProduct(product);
-        if (product) {
-          setInventoryFocusId(product.id);
-        }
+        if (product) setInventoryFocusId(product.id);
       } else {
         setCurrentProduct(null);
       }
-      skipNextHistoryPushRef.current = true;
-      setView(nextView);
     };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !historyReadyRef.current) return;
-    const state = {
-      view,
-      productId: view === 'sheet' ? currentProduct?.id ?? null : null,
-    };
-    const prevState = lastHistoryStateRef.current;
-    if (prevState && prevState.view === state.view && prevState.productId === state.productId) {
-      return;
-    }
-    if (skipNextHistoryPushRef.current) {
-      skipNextHistoryPushRef.current = false;
-      window.history.replaceState(state, '', window.location.href);
-      lastHistoryStateRef.current = state;
-      return;
-    }
-    window.history.pushState(state, '', window.location.href);
-    lastHistoryStateRef.current = state;
-  }, [view, currentProduct?.id]);
+    window.addEventListener('hashchange', applyHash);
+    return () => window.removeEventListener('hashchange', applyHash);
+  }, [view]);
 
   const toggleTheme = useCallback(() => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
