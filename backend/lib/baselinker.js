@@ -983,7 +983,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
     const normalizedSku = normalizeSkuValue(payload.sku);
     const normalizedEan = normalizeEanValue(payload.ean);
 
-    let baseProductId = product?.ops?.base_product_id || null;
+    let baseProductId = null; // do not reuse across inventories; resolve per inventory
     let existing = null;
     let resolvedExisting = false;
     const resolveExistingProduct = async (identifier) => {
@@ -992,27 +992,6 @@ async function syncProductToBaseLinker(product, inventoryId) {
       existing = await findProductBySku(inventoryId, identifier);
       return existing;
     };
-    if (!baseProductId && normalizedSku) {
-      const cached = await getSkuIndexEntry(buildSkuIndexKey('sku', normalizedSku));
-      if (cached?.baseProductId) {
-        baseProductId = cached.baseProductId;
-      }
-    }
-    if (!baseProductId && normalizedEan) {
-      const cached = await getSkuIndexEntry(buildSkuIndexKey('ean', normalizedEan));
-      if (cached?.baseProductId) {
-        baseProductId = cached.baseProductId;
-      }
-    }
-    if (!baseProductId) {
-      const sibling = await findProductByStrictIdentifier({
-        sku: payload.sku || null,
-        barcodes: payload.ean ? [payload.ean] : [],
-      });
-      if (sibling?.ops?.base_product_id && sibling.id !== product.id) {
-        baseProductId = sibling.ops.base_product_id;
-      }
-    }
     if (!baseProductId && (payload?.sku || payload?.ean)) {
       await resolveExistingProduct(payload.sku || payload.ean);
       if (existing?.product_id) {
