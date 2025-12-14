@@ -10,6 +10,7 @@ import WarehouseView from './components/WarehouseView';
 import { Header } from './components/Header';
 import { Spinner } from './components/Spinner';
 import JobStatusPopup from './components/JobStatusPopup';
+import StatusDock from './components/StatusDock';
 import Dashboard from './components/Dashboard';
 import OperationsView from './components/OperationsView';
 import IdentifyQueueView from './components/IdentifyQueueView';
@@ -606,6 +607,12 @@ const App: React.FC = () => {
               dismissJob(id);
               dismissImproveJob(id);
             }}
+          />
+          <StatusDock
+            identifyActive={jobStatuses.filter((j) => !j.finishedAt && j.phase !== 'error').length}
+            identifyTotal={jobStatuses.length}
+            improveActive={improveJobStatuses.filter((j) => !j.finishedAt && j.phase !== 'error').length}
+            improveTotal={improveJobStatuses.length}
           />
         </>
       )}
