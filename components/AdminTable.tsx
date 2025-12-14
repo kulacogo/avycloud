@@ -194,6 +194,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
   });
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [improveInProgress, setImproveInProgress] = useState(false);
+  const [improveMessage, setImproveMessage] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 640px)');
@@ -1111,7 +1113,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
           <ActionButton
             icon={<OperationsIcon className="w-4 h-4" />}
             label="Improve Selected"
-            onClick={() => onImproveSelected(Array.from(selectedIds))}
+            onClick={() => {
+              const ids = Array.from(selectedIds);
+              if (!ids.length) return;
+              setImproveInProgress(true);
+              setImproveMessage(`Improve gestartet für ${ids.length} Produkte …`);
+              onImproveSelected(ids);
+              setTimeout(() => setImproveInProgress(false), 3000);
+            }}
             disabled={selectedIds.size === 0}
             tone="accent"
           />
@@ -1392,6 +1401,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
           <div className="text-sm text-slate-100">
             <p className="font-semibold">Sync läuft …</p>
             <p className="text-slate-400 text-xs">{syncMessage || 'Produkte werden übertragen'}</p>
+          </div>
+        </div>
+      )}
+      {improveInProgress && (
+        <div className="fixed bottom-20 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
+          <Spinner className="w-6 h-6 text-purple-300" />
+          <div className="text-sm text-slate-100">
+            <p className="font-semibold">Improve läuft …</p>
+            <p className="text-slate-400 text-xs">{improveMessage || 'Produkte werden verbessert'}</p>
           </div>
         </div>
       )}
