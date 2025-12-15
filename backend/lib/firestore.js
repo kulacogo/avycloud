@@ -648,6 +648,9 @@ async function getOrderSummary() {
     'delivered',
     'completed',
     'erledigt',
+    'storniert',
+    'cancelled',
+    'canceled',
   ]);
 
   const pickedStatusIds = new Set(['363183']); // hard fallback BaseLinker picked status

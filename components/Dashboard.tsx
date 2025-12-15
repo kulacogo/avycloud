@@ -101,9 +101,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
   );
 
   const orderMetrics = useMemo(() => {
+    const isClosed = (order: Order) => {
+      const raw = (order.status || order.statusLabel || '').toLowerCase();
+      const CLOSED = [
+        'picked',
+        'kommissioniert',
+        'versendet',
+        'zugestellt',
+        'shipped',
+        'delivered',
+        'completed',
+        'erledigt',
+        'storniert',
+        'cancelled',
+        'canceled',
+      ];
+      return CLOSED.some((k) => raw.includes(k)) || Boolean(order.pickedAt);
+    };
+
     const total = orders.length;
-    const open = orders.filter((order) => order.status !== 'picked').length;
-    const picked = total - open;
+    const picked = orders.filter(isClosed).length;
+    const open = total - picked;
 
     const template: Array<{ key: string; date: Date; count: number }> = [];
     const base = new Date();
