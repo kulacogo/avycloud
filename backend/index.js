@@ -98,6 +98,11 @@ const buildSkuToProductIdMap = (products = []) => {
       const key = normalizeIdentityKey(value);
       if (key) {
         map.set(key, productId);
+        // Zusätzlich SKU-Präfix entfernen, um BIN-Einträge mit/ohne SKU- vorzureifizieren
+        const trimmed = key.replace(/^sku[-_\\s]*/, '');
+        if (trimmed && !map.has(trimmed)) {
+          map.set(trimmed, productId);
+        }
       }
     };
     addKey(productId);

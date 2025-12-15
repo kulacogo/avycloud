@@ -227,10 +227,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return codes[0] || ids.ean || ids.gtin || ids.upc || '—';
   };
   const primaryBin = (product: Product) => {
-    if (product.storage?.binCode) {
-      return product.storage.binCode;
-    }
+    if (product.storage?.binCode) return product.storage.binCode;
     if (Array.isArray(product.storageBins) && product.storageBins.length) {
+      // Zeige auch dann den ersten Bin, wenn die Menge 0 ist, damit „No BIN assigned“ vermieden wird.
       const withStock = product.storageBins.find((bin) => (bin.quantity || 0) > 0);
       return withStock?.code || product.storageBins[0]?.code || null;
     }

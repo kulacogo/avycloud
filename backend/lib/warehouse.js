@@ -690,10 +690,18 @@ async function getProductBinSummaryMap(productIds = [], skuToProductIdMap = new 
       if (!quantity) return;
 
       let targetId = entry?.productId ? String(entry.productId) : null;
-      if (!targetId && entry?.sku && skuToProductIdMap && skuToProductIdMap.size) {
+      if (entry?.sku && skuToProductIdMap && skuToProductIdMap.size) {
+        const rawSku = String(entry.sku).trim();
         const normalizedSku = normalizeKey(entry.sku);
-        if (normalizedSku && skuToProductIdMap.has(normalizedSku)) {
+        if (rawSku && skuToProductIdMap.has(rawSku)) {
+          targetId = skuToProductIdMap.get(rawSku);
+        } else if (normalizedSku && skuToProductIdMap.has(normalizedSku)) {
           targetId = skuToProductIdMap.get(normalizedSku);
+        } else {
+          const trimmed = rawSku.replace(/^sku[-_\\s]*/i, '');
+          if (trimmed && skuToProductIdMap.has(trimmed)) {
+            targetId = skuToProductIdMap.get(trimmed);
+          }
         }
       }
 
