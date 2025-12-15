@@ -95,7 +95,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
     };
   }, []);
 
-  const stockedProducts = useMemo(() => products.filter((p) => (p.storage?.quantity || 0) > 0), [products]);
+  const stockedProducts = useMemo(
+    () => products.filter((p) => getProductQuantity(p) > 0),
+    [products]
+  );
 
   const orderMetrics = useMemo(() => {
     const total = orders.length;
