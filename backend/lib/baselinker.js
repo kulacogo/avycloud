@@ -84,10 +84,10 @@ Attribute: ${Object.entries(attrs)
 /**
  * BaseLinker API – request limiter (100 RPM ⇒ max 5 parallel calls)
  */
-// Begrenze Parallelität hart, um Burst-Blocks zu vermeiden
-const MAX_PARALLEL_REQUESTS = 5;
+// Konservativer: weniger Parallelität, stabiler gegen 429/Timeouts
+const MAX_PARALLEL_REQUESTS = 3;
 // Mindestabstand zwischen Requests in ms (zusätzlich zur Parallelitätsbremse)
-const MIN_REQUEST_INTERVAL_MS = 200;
+const MIN_REQUEST_INTERVAL_MS = 250;
 
 // Inventory category cache (path -> id)
 const inventoryCategoryCache = new Map(); // key: inventoryId -> Map<path, id>
@@ -225,6 +225,8 @@ async function callBaseLinker(method, parameters = {}, retries = 4) {
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     await acquireSlot();
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 25_000);
       const response = await fetch('https://api.baselinker.com/connector.php', {
         method: 'POST',
         headers: {
@@ -235,7 +237,9 @@ async function callBaseLinker(method, parameters = {}, retries = 4) {
           method,
           parameters: JSON.stringify(parameters),
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       const payload = await response.json();
       lastRequestAt = Date.now();

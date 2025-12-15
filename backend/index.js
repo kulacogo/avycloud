@@ -1074,7 +1074,7 @@ app.post('/api/sync-baselinker', async (req, res) => {
       }
 
       // Chunk client payload kleiner halten für Timeouts/Ratelimit
-      const CHUNK_SIZE = 20;
+      const CHUNK_SIZE = 15;
       results = [];
       for (let i = 0; i < products.length; i += CHUNK_SIZE) {
         const chunk = products.slice(i, i + CHUNK_SIZE);
