@@ -127,6 +127,32 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setBarcodeInput((product.identification?.barcodes || []).join('\n'));
   }, [product, loadProductBins, normalizeProduct]);
 
+  // Falls Storage leer, aber Bins vorhanden: erste Bin übernehmen, damit Remove-Button und Anzeige stimmen
+  useEffect(() => {
+    if (binsLoading) return;
+    if (!productBins.length) return;
+    const primary = productBins[0];
+    if (!primary?.code) return;
+    if (!localProduct.storage?.binCode) {
+      const qty = primary.quantity ?? primary.productCount ?? localProduct.storage?.quantity ?? 1;
+      setLocalProduct((prev) => ({
+        ...prev,
+        storage: {
+          ...(prev.storage || {}),
+          binCode: primary.code,
+          quantity: qty,
+          zone: primary.zone,
+          etage: primary.etage,
+          gang: primary.gang,
+          regal: primary.regal,
+          ebene: primary.ebene,
+        },
+      }));
+      setBinCodeInput(primary.code);
+      setBinQuantity(qty);
+    }
+  }, [binsLoading, productBins, localProduct.storage?.binCode]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:sheet:syncInventoryId', syncInventoryId);
@@ -986,7 +1012,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       <div className="text-xs text-slate-400">
                         Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
                       </div>
-                      <div className="text-xs text-slate-300">Menge {bin.productCount ?? 0}</div>
+                      <div className="text-xs text-slate-300">Menge {bin.quantity ?? bin.productCount ?? 0}</div>
                     </div>
                   </div>
                 ))}
