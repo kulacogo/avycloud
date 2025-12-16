@@ -546,7 +546,24 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
     const binData = binSnap.data();
     const products = cloneProductsArray(binData);
     resolvedProductId = productData.id || productRef.id;
-    const entry = products.find((p) => p.productId === resolvedProductId);
+    let entry = products.find((p) => p.productId === resolvedProductId);
+    if (!entry) {
+      // Fallback: match per SKU aus Produktdaten
+      const skuCandidate =
+        (productData.details?.identifiers?.sku ||
+          productData.identification?.sku ||
+          '').toString().trim();
+      if (skuCandidate) {
+        const normalized = skuCandidate.replace(/^sku[-_\s]*/i, '');
+        entry = products.find(
+          (p) =>
+            p.productId === skuCandidate ||
+            p.productId === normalized ||
+            p.sku === skuCandidate ||
+            p.sku === normalized
+        );
+      }
+    }
     if (!entry) throw new Error('Produkt befindet sich nicht in diesem BIN.');
 
     if (entry.quantity < quantity) {
