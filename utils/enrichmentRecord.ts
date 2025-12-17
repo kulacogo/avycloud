@@ -105,15 +105,22 @@ export const buildProductFromEnrichment = (
   ].filter(Boolean);
   const productId = identifierCandidates[0] || options?.fallbackId || `v2-${Date.now()}`;
 
-  const brand = normalizeValue(record.brand) || 'Unbekannte Marke';
+  const brand = normalizeValue(record.brand) || 'Unbekannt';
   const model = normalizeValue(record.model);
   const variant = normalizeValue(record.variant);
+  const titleCandidate =
+    normalizeValue(record.title_ebay) ||
+    normalizeValue(record.title_kaufland) ||
+    '';
   const nameParts = [brand, model, variant].filter(Boolean);
-  const identificationName = nameParts.join(' ').trim() || options?.label || 'Neues Produkt';
+  const identificationName =
+    titleCandidate || nameParts.join(' ').trim() || options?.label || 'Neues Produkt';
 
   const manualBarcodes = parseBarcodeString(options?.barcodes || '');
+  const barcodeFromInsights =
+    (record.barcode_sources && record.barcode_sources[0]?.code) || '';
   const normalizedBarcodes = dedupe(
-    [record.gtin, record.ean, record.upc, ...manualBarcodes]
+    [record.gtin, record.ean, record.upc, barcodeFromInsights, ...manualBarcodes]
       .map(normalizeValue)
       .filter(Boolean)
   );

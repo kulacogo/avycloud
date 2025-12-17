@@ -142,6 +142,12 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
               inventoryId: inventoryId || null,
               inventoryName: inventoryName || null,
             });
+            const hasName = !!product.identification?.name?.trim();
+            const hasDesc = !!product.details?.short_description?.trim();
+            const hasImages = Array.isArray(product.details?.images) && product.details.images.length > 0;
+            if (!hasName || !hasDesc || !hasImages) {
+              throw new Error('Enrichment unvollständig: Name/Beschreibung/Bilder fehlen.');
+            }
             const persisted = await persistProduct(product);
             options?.onJobCompleted?.({ products: [persisted] });
             updateJob(localId, {
