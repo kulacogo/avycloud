@@ -407,6 +407,26 @@ const AdminTable: React.FC<AdminTableProps> = ({
           ),
       },
       {
+        id: 'baselinker',
+        label: 'BaseLinker',
+        sortKey: 'ops.baselinker.product_id',
+        defaultVisible: true,
+        render: ({ product }) => {
+          const bl = (product as any)?.ops?.baselinker;
+          const linked = Boolean(bl?.product_id);
+          return (
+            <span
+              className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${linked
+                  ? 'bg-emerald-500/20 text-emerald-200'
+                  : 'bg-slate-700 text-slate-200'
+                }`}
+            >
+              {linked ? 'verknüpft' : 'nicht in BL'}
+            </span>
+          );
+        },
+      },
+      {
         id: 'lastSold',
         label: t('table.lastSold'),
         sortKey: 'details.attributes.lastSoldAt',
