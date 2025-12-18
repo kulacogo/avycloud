@@ -105,6 +105,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
         'storniert',
         'cancelled',
         'canceled',
+        // Treat stray "new" as closed if it slipped through (BaseLinker zeigt 0 offen)
+        'new',
+        'neu',
       ];
       return CLOSED.some((k) => raw.includes(k)) || Boolean(order.pickedAt);
     };
@@ -254,10 +257,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
   }, [allProducts, stockedProducts]);
 
   const warehouseStats = useMemo(() => {
-    const totalBins = zones.reduce((sum, zone) => sum + (zone.binCount || 0), 0);
+    // Fallback: wenn Zonen kein verlässliches binCount liefern, nutze real belegte BINs aus Produkten.
     const occupiedBins = new Set(
-      stockedProducts.map((p) => p.storage?.binCode).filter(Boolean) as string[]
+      allProducts
+        .map((p) => p.storage?.binCode)
+        .filter(Boolean) as string[]
     ).size;
+    const totalBinsFromZones = zones.reduce((sum, zone) => sum + (zone.binCount || 0), 0);
+    const totalBins = totalBinsFromZones > 0 ? totalBinsFromZones : occupiedBins;
     const fillPercent =
       totalBins === 0 ? 0 : Math.min(100, Math.round((occupiedBins / totalBins) * 100));
     return {
@@ -268,7 +275,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
         .sort((a, b) => (b.totalProducts || 0) - (a.totalProducts || 0))
         .slice(0, 2),
     };
-  }, [zones, stockedProducts]);
+  }, [zones, allProducts]);
 
   const warehouseMeterLabel = warehouseStats.totalBins
     ? `${warehouseStats.occupiedBins} / ${warehouseStats.totalBins} belegte Bins`
