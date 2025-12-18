@@ -57,37 +57,44 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     () => products.filter((p) => getProductQuantity(p) > 0 && !p.storage?.binCode),
     [products]
   );
+  // Nur offene Kommissionierungen: nehmen wir als Heuristik ops.sync_status === 'pending'
   const pickList = useMemo(
-    () => products.filter((p) => getProductQuantity(p) > 0 && p.storage?.binCode),
+    () => products.filter((p) => getProductQuantity(p) > 0 && p.storage?.binCode && (p.ops?.sync_status ?? 'pending') === 'pending'),
     [products]
   );
+  // Pack: nur bereits gepickte; Heuristik ops.sync_status === 'picked'
   const packList = useMemo(
-    () => products.filter((p) => (p.ops?.sync_status || 'pending') !== 'synced' && getProductQuantity(p) > 0),
+    () => products.filter((p) => (p.ops?.sync_status ?? 'pending') === 'picked' && getProductQuantity(p) > 0),
     [products]
   );
 
   const [stowSku, setStowSku] = useState('');
   const [stowBin, setStowBin] = useState('');
   const [stowQty, setStowQty] = useState(1);
+  const [stowedSkus, setStowedSkus] = useState<Set<string>>(new Set());
 
   const [pickBin, setPickBin] = useState('');
   const [pickSku, setPickSku] = useState('');
   const [pickQty, setPickQty] = useState(1);
 
-  const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const [identifySlots, setIdentifySlots] = useState<number[]>([0]);
+  const uploadInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
-  const handleSubmitStow = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitStow = () => {
     if (!stowSku || !stowBin || stowQty <= 0) return;
     alert(`Stow erfasst: SKU ${stowSku}, BIN ${stowBin}, Menge ${stowQty}`);
+    setStowedSkus((prev) => {
+      const next = new Set(prev);
+      next.add(stowSku);
+      return next;
+    });
     setStowSku('');
     setStowBin('');
     setStowQty(1);
   };
 
-  const handleSubmitPick = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitPick = () => {
     if (!pickSku || !pickBin || pickQty <= 0) return;
     alert(`Pick erfasst: BIN ${pickBin}, SKU ${pickSku}, Menge ${pickQty}`);
     setPickSku('');
@@ -95,34 +102,110 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     setPickQty(1);
   };
 
+  const scanSku = () => {
+    const value = window.prompt('SKU scannen/eingeben');
+    if (value) setStowSku(value.trim());
+  };
+
+  const scanBin = () => {
+    const value = window.prompt('BIN scannen/eingeben');
+    if (value) setStowBin(value.trim());
+    if (value) {
+      const qty = window.prompt('Menge eingeben');
+      const n = qty ? Number(qty) : 1;
+      if (Number.isFinite(n) && n > 0) {
+        setStowQty(n);
+        setTimeout(handleSubmitStow, 0);
+      }
+    }
+  };
+
+  const scanPickBin = () => {
+    const value = window.prompt('BIN scannen/eingeben');
+    if (value) setPickBin(value.trim());
+  };
+
+  const scanPickSku = () => {
+    const value = window.prompt('SKU scannen/eingeben');
+    if (value) {
+      setPickSku(value.trim());
+      const qty = window.prompt('Menge eingeben');
+      const n = qty ? Number(qty) : 1;
+      if (Number.isFinite(n) && n > 0) {
+        setPickQty(n);
+        setTimeout(handleSubmitPick, 0);
+      }
+    }
+  };
+
+  const stowFiltered = useMemo(
+    () => stowList.filter((p) => !stowedSkus.has(p.identification?.sku || p.details?.identifiers?.sku || '')),
+    [stowList, stowedSkus]
+  );
+
+  const addIdentifySlot = () => {
+    setIdentifySlots((prev) => [...prev, Date.now()]);
+  };
+
+  const triggerIdentifyInput = (slot: number, type: 'camera' | 'upload') => {
+    const refMap = type === 'camera' ? cameraInputRefs.current : uploadInputRefs.current;
+    const input = refMap[slot];
+    if (input) input.click();
+  };
+
   if (mode === 'operations-identify') {
     return (
       <div className="space-y-4">
-        <SectionTitle title="Identify" desc="Mehrere Fotos aufnehmen oder hochladen" />
+        <div className="flex items-center justify-between">
+          <SectionTitle title="Identify" desc="Mehrere Fotos aufnehmen oder hochladen" />
+          <button
+            type="button"
+            className="rounded-full bg-slate-800 text-white px-3 py-2 text-sm font-semibold border border-slate-700"
+            onClick={addIdentifySlot}
+          >
+            + Add
+          </button>
+        </div>
         <div className="grid grid-cols-1 gap-3">
-          <button
-            type="button"
-            className="rounded-2xl bg-sky-600 text-white font-semibold py-4"
-            onClick={() => cameraInputRef.current?.click()}
-          >
-            Kamera / Mehrere Fotos
-          </button>
-          <button
-            type="button"
-            className="rounded-2xl bg-slate-800 text-slate-100 font-semibold py-4 border border-slate-700"
-            onClick={() => uploadInputRef.current?.click()}
-          >
-            Bilder hochladen
-          </button>
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            multiple
-            className="hidden"
-          />
-          <input ref={uploadInputRef} type="file" accept="image/*" multiple className="hidden" />
+          {identifySlots.map((slot) => (
+            <div key={slot} className="rounded-2xl border border-dashed border-white/15 bg-slate-800/70 p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  className="rounded-2xl bg-sky-600 text-white font-semibold py-3"
+                  onClick={() => triggerIdentifyInput(slot, 'camera')}
+                >
+                  Kamera
+                </button>
+                <button
+                  type="button"
+                  className="rounded-2xl bg-slate-800 text-slate-100 font-semibold py-3 border border-slate-700"
+                  onClick={() => triggerIdentifyInput(slot, 'upload')}
+                >
+                  Upload
+                </button>
+              </div>
+              <input
+                ref={(el) => {
+                  cameraInputRefs.current[slot] = el;
+                }}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                className="hidden"
+              />
+              <input
+                ref={(el) => {
+                  uploadInputRefs.current[slot] = el;
+                }}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+              />
+            </div>
+          ))}
         </div>
         <p className="text-xs text-slate-400">
           Hinweis: Fotos werden gesammelt. Nach Upload bitte den Identify-Job im Desktop nicht öffnen; dieser Screen bleibt mobil.
@@ -135,36 +218,30 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     return (
       <div className="space-y-3">
         <SectionTitle title="Stow" desc="Ohne BIN, mit Bestand" />
-        <form onSubmit={handleSubmitStow} className="space-y-2 rounded-2xl border border-white/10 bg-slate-800/70 p-3">
-          <p className="text-xs text-slate-300">Scanner-Flow: Erst SKU scannen, dann BIN scannen, Menge eingeben.</p>
-          <input
-            value={stowSku}
-            onChange={(e) => setStowSku(e.target.value)}
-            placeholder="SKU scannen/eingeben"
-            className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white"
-          />
-          <input
-            value={stowBin}
-            onChange={(e) => setStowBin(e.target.value)}
-            placeholder="BIN scannen/eingeben"
-            className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white"
-          />
-          <input
-            type="number"
-            min={1}
-            value={stowQty}
-            onChange={(e) => setStowQty(Number(e.target.value))}
-            placeholder="Menge"
-            className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white"
-          />
-          <button type="submit" className="w-full rounded-xl bg-emerald-600 text-white font-semibold py-2">
-            Stow abschließen
-          </button>
-        </form>
-        {stowList.length === 0 && <p className="text-sm text-slate-400">Keine Produkte ohne BIN.</p>}
-        {stowList.slice(0, 100).map((p) => (
-          <ProductCard key={p.id} product={p} footer={<StatusBadge label="Stow" tone="warn" />} />
-        ))}
+        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
+          <p className="text-xs text-slate-300">Scanner-Flow: SKU scannen → Produkt wird gehighlightet. BIN scannen → Menge abfragen → Stow abschließen.</p>
+          <div className="flex flex-col gap-2">
+            <button type="button" onClick={scanSku} className="rounded-xl bg-sky-700 text-white font-semibold py-2">
+              SKU scannen
+            </button>
+            <button type="button" onClick={scanBin} className="rounded-xl bg-emerald-700 text-white font-semibold py-2">
+              BIN scannen & Menge
+            </button>
+          </div>
+        </div>
+        {stowFiltered.length === 0 && <p className="text-sm text-slate-400">Keine Produkte ohne BIN.</p>}
+        {stowFiltered.slice(0, 100).map((p) => {
+          const sku = p.identification?.sku || p.details?.identifiers?.sku || '';
+          const highlight = stowSku && sku === stowSku;
+          return (
+            <div
+              key={p.id}
+              className={`rounded-2xl border p-3 bg-slate-800 shadow-sm shadow-black/30 ${highlight ? 'border-emerald-400 bg-emerald-900/30' : 'border-white/5'}`}
+            >
+              <ProductCard product={p} footer={<StatusBadge label="Stow" tone="warn" />} />
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -173,32 +250,17 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     return (
       <div className="space-y-3">
         <SectionTitle title="Pick" desc="Produkte mit BIN und Bestand" />
-        <form onSubmit={handleSubmitPick} className="space-y-2 rounded-2xl border border-white/10 bg-slate-800/70 p-3">
-          <p className="text-xs text-slate-300">Scanner-Flow: Erst BIN scannen, dann SKU scannen, Menge eingeben.</p>
-          <input
-            value={pickBin}
-            onChange={(e) => setPickBin(e.target.value)}
-            placeholder="BIN scannen/eingeben"
-            className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white"
-          />
-          <input
-            value={pickSku}
-            onChange={(e) => setPickSku(e.target.value)}
-            placeholder="SKU scannen/eingeben"
-            className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white"
-          />
-          <input
-            type="number"
-            min={1}
-            value={pickQty}
-            onChange={(e) => setPickQty(Number(e.target.value))}
-            placeholder="Menge"
-            className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white"
-          />
-          <button type="submit" className="w-full rounded-xl bg-sky-600 text-white font-semibold py-2">
-            Pick abschließen
-          </button>
-        </form>
+        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
+          <p className="text-xs text-slate-300">Scanner-Flow: BIN scannen → SKU scannen → Menge eingeben → Pick abschließen.</p>
+          <div className="flex flex-col gap-2">
+            <button type="button" onClick={scanPickBin} className="rounded-xl bg-sky-700 text-white font-semibold py-2">
+              BIN scannen
+            </button>
+            <button type="button" onClick={scanPickSku} className="rounded-xl bg-emerald-700 text-white font-semibold py-2">
+              SKU scannen & Menge
+            </button>
+          </div>
+        </div>
         {pickList.length === 0 && <p className="text-sm text-slate-400">Keine pickbaren Produkte.</p>}
         {pickList.slice(0, 100).map((p) => (
           <ProductCard key={p.id} product={p} footer={<StatusBadge label={p.storage?.binCode || 'Pick'} tone="success" />} />
