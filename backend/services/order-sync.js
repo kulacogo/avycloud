@@ -196,6 +196,30 @@ async function syncNewOrders() {
   });
 
   await saveOrders(orders);
+
+  // Reduce stock / bins for closed orders (picked/shipped/etc.)
+  try {
+    const closed = orders.filter((o) => o.status === 'picked' || o.pickedAt || isClosedStatus(o.statusLabel));
+    const aggregated = new Map(); // key: sku -> qty
+    for (const order of closed) {
+      for (const item of order.items || []) {
+        const sku = (item.sku || item.productId || '').toString().trim();
+        const qty = Number(item.quantity || 0);
+        if (!sku || qty <= 0) continue;
+        aggregated.set(sku, (aggregated.get(sku) || 0) + qty);
+      }
+    }
+    for (const [sku, qty] of aggregated.entries()) {
+      try {
+        await decrementProductByIdOrSku(sku, qty);
+      } catch (err) {
+        console.warn('Failed to decrement product for order items', sku, qty, err.message);
+      }
+    }
+  } catch (err) {
+    console.warn('Order sync post-processing failed:', err.message);
+  }
+
   return orders;
 }
 
@@ -266,4 +290,19 @@ module.exports = {
   syncNewOrders,
   markOrderAsPicked,
 };
+
+function isClosedStatus(statusLabel = '') {
+  const raw = statusLabel.toLowerCase();
+  return (
+    raw.includes('kommissioniert') ||
+    raw.includes('versendet') ||
+    raw.includes('zugestellt') ||
+    raw.includes('delivered') ||
+    raw.includes('storniert') ||
+    raw.includes('cancelled') ||
+    raw.includes('canceled') ||
+    raw.includes('abgeschlossen') ||
+    raw.includes('completed')
+  );
+}
 

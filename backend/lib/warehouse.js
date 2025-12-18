@@ -335,6 +335,86 @@ async function removeProductFromBin(binCode, productId, options = {}) {
   await refreshProductInventory(productId);
 }
 
+/**
+ * Decrement product quantity by productId/SKU when an order is closed (no explicit BIN info).
+ * Strategy:
+ *  - Reduce storageBins quantities first, then inventory.quantity.
+ *  - Remove empty bin entries; clear storage if primary bin disappears.
+ *  - Keep warehouseBins collection consistent for touched bins.
+ */
+async function decrementProductByIdOrSku(productIdOrSku, quantity) {
+  if (!quantity || quantity <= 0) return;
+  const id = String(productIdOrSku).trim();
+  const productRef = productsCollection.doc(id);
+  const productSnap = await productRef.get();
+  if (!productSnap.exists) {
+    console.warn('[decrementProductByIdOrSku] product not found', id);
+    return;
+  }
+  const productData = productSnap.data() || {};
+  let remaining = Number(quantity) || 0;
+  const bins = Array.isArray(productData.storageBins) ? [...productData.storageBins] : [];
+  const binDeltas = [];
+
+  for (const b of bins) {
+    if (!b?.code || remaining <= 0) continue;
+    const current = Number(b.quantity || 0);
+    if (current <= 0) continue;
+    const take = Math.min(current, remaining);
+    b.quantity = current - take;
+    remaining -= take;
+    binDeltas.push({ code: String(b.code).trim(), delta: -take });
+  }
+
+  const cleanedBins = bins.filter((b) => Number(b.quantity || 0) > 0);
+  const invQty = Number(productData.inventory?.quantity || 0);
+  const newInv = Math.max(0, invQty - remaining);
+
+  let newStorage = productData.storage || null;
+  if (newStorage?.binCode && !cleanedBins.find((b) => String(b.code).trim() === String(newStorage.binCode).trim())) {
+    newStorage = null;
+  }
+
+  await firestore.runTransaction(async (tx) => {
+    tx.update(productRef, {
+      storageBins: cleanedBins,
+      storage: newStorage,
+      inventory: {
+        ...(productData.inventory || {}),
+        quantity: newInv,
+      },
+    });
+
+    for (const delta of binDeltas) {
+      const binRef = binsCollection.doc(delta.code);
+      const binSnap = await tx.get(binRef);
+      if (!binSnap.exists) continue;
+      const binData = binSnap.data() || {};
+      const products = Array.isArray(binData.products) ? [...binData.products] : [];
+      const match = (p) =>
+        p &&
+        (String(p.productId || '').trim() === id ||
+          String(p.sku || '').trim() === id ||
+          String(p.sku || '').trim() === String(productData.identification?.sku || '').trim());
+      const updated = [];
+      for (const entry of products) {
+        if (!match(entry)) {
+          updated.push(entry);
+          continue;
+        }
+        const nextQty = Math.max(0, Number(entry.quantity || 0) + delta.delta);
+        if (nextQty > 0) {
+          updated.push({ ...entry, quantity: nextQty, lastUpdatedAt: new Date().toISOString() });
+        }
+      }
+      const productCount = updated.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+      tx.update(binRef, { products: updated, productCount, lastStoredAt: Timestamp.now() });
+    }
+  });
+
+  await refreshProductInventory(id);
+}
+
 async function assignProductToBin(binCode, productId, quantity) {
   if (!quantity || quantity <= 0) {
     throw new Error('Menge muss größer als 0 sein.');
@@ -764,6 +844,7 @@ module.exports = {
   getBinByCode,
   assignProductToBin,
   removeProductFromBin,
+  decrementProductByIdOrSku,
   refreshProductInventory,
   findProductDocument,
   buildBinCode,
