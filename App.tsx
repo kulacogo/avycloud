@@ -242,12 +242,7 @@ const App: React.FC = () => {
   const lastHistoryStateRef = useRef<{ view: View; productId: string | null } | null>(null);
   const initialProductHydratedRef = useRef(false);
 
-  // Load products from backend on mount
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     setProductsLoading(true);
     try {
       const list = await fetchProducts();
@@ -259,7 +254,16 @@ const App: React.FC = () => {
     } finally {
       setProductsLoading(false);
     }
-  };
+  }, [t]);
+
+  // Load products from backend on mount + lightweight polling
+  useEffect(() => {
+    loadProducts();
+    const interval = setInterval(() => {
+      loadProducts();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [loadProducts]);
 
   // Handle deep linking for products once loaded
   useEffect(() => {
@@ -506,7 +510,7 @@ const App: React.FC = () => {
       case 'queue':
         return <IdentifyQueueView />;
       case 'dashboard':
-        return <Dashboard products={products} onSelectProduct={handleSelectProduct} />;
+        return <Dashboard products={products} onSelectProduct={handleSelectProduct} onRefreshProducts={loadProducts} />;
       case 'input':
       default:
         return <ProductInput onIdentify={handleIdentification} />;

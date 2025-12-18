@@ -1738,6 +1738,40 @@ app.post('/api/save', async (req, res) => {
   try {
     const product = req.body;
 
+    // Hard guard: block saving incomplete identify/enrichment results
+    const skuCandidate =
+      product?.identification?.sku ||
+      product?.details?.identifiers?.sku ||
+      product?.id;
+    const nameCandidate =
+      product?.identification?.name ||
+      product?.details?.name ||
+      product?.details?.title;
+    const descCandidate =
+      product?.details?.short_description ||
+      product?.details?.description;
+    const hasImages =
+      Array.isArray(product?.details?.images) &&
+      product.details.images.some(
+        (img) => img && (img.url_or_base64 || img.url || img.href)
+      );
+
+    if (
+      !skuCandidate ||
+      !nameCandidate ||
+      !descCandidate ||
+      !hasImages
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message:
+            'Produkt unvollständig: SKU, Name, Beschreibung oder Bilder fehlen.',
+        },
+      });
+    }
+
     if (!product || !product.id) {
       return res.status(400).json({
         ok: false,
@@ -1831,6 +1865,21 @@ app.post('/api/save', async (req, res) => {
 // Delete product
 app.delete('/api/products/:id', async (req, res) => {
   try {
+    const adminToken = process.env.ADMIN_DELETE_TOKEN;
+    const provided = req.header('x-admin-delete-token');
+    if (!adminToken || !adminToken.trim()) {
+      return res.status(403).json({
+        ok: false,
+        error: { code: 403, message: 'Delete blocked: ADMIN_DELETE_TOKEN not configured.' },
+      });
+    }
+    if (!provided || provided.trim() !== adminToken.trim()) {
+      return res.status(403).json({
+        ok: false,
+        error: { code: 403, message: 'Delete blocked: missing or invalid admin token.' },
+      });
+    }
+
     const productId = req.params.id;
     const product = await getProduct(productId);
     if (!product) {

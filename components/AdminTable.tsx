@@ -599,11 +599,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
       filtered.sort((a, b) => {
         const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
 
-        let aValue = getNestedValue(a, sortConfig.key);
-        let bValue = getNestedValue(b, sortConfig.key);
+        // Special handling for BIN/Location sorting: use primaryBin (storage.binCode or first storageBins)
+        const isBinSort = sortConfig.key === 'storage.binCode';
+        let aValue = isBinSort ? primaryBin(a) : getNestedValue(a, sortConfig.key);
+        let bValue = isBinSort ? primaryBin(b) : getNestedValue(b, sortConfig.key);
 
-        if (aValue === null || aValue === undefined) aValue = sortConfig.direction === 'asc' ? Infinity : -Infinity;
-        if (bValue === null || bValue === undefined) bValue = sortConfig.direction === 'asc' ? Infinity : -Infinity;
+        const emptyMarker = sortConfig.direction === 'asc' ? '\uFFFF' : '\u0000';
+        if (aValue === null || aValue === undefined || aValue === '') aValue = emptyMarker;
+        if (bValue === null || bValue === undefined || bValue === '') bValue = emptyMarker;
 
         if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;

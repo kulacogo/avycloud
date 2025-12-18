@@ -7,6 +7,7 @@ import { getProductQuantity, normalizeSyncStatus } from '../utils/product';
 interface DashboardProps {
   products: Product[];
   onSelectProduct: (productId: string) => void;
+  onRefreshProducts?: () => void | Promise<void>;
 }
 
 const safeCurrency = (code?: string) => {
@@ -35,7 +36,7 @@ const DashboardCard: React.FC<{
   </div>
 );
 
-export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct, onRefreshProducts }) => {
   const [zones, setZones] = useState<WarehouseLayout[]>([]);
   const [zonesError, setZonesError] = useState<string | null>(null);
   const [isLoadingZones, setIsLoadingZones] = useState(false);
@@ -43,61 +44,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [ordersLoading, setOrdersLoading] = useState(false);
 
+  const loadZones = React.useCallback(async () => {
+    setIsLoadingZones(true);
+    try {
+      const data = await fetchWarehouseZones();
+      setZones(data);
+      setZonesError(null);
+    } catch (error: any) {
+      setZonesError(error?.message || 'Zonen konnten nicht geladen werden.');
+    } finally {
+      setIsLoadingZones(false);
+    }
+  }, []);
+
+  const loadOrders = React.useCallback(async () => {
+    setOrdersLoading(true);
+    try {
+      const data = await fetchOrdersApi();
+      setOrders(data);
+      setOrdersError(null);
+    } catch (error: any) {
+      setOrdersError(error?.message || 'Aufträge konnten nicht geladen werden.');
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
-    const loadZones = async () => {
-      setIsLoadingZones(true);
-      try {
-        const data = await fetchWarehouseZones();
-        if (!cancelled) {
-          setZones(data);
-          setZonesError(null);
-        }
-      } catch (error: any) {
-        if (!cancelled) {
-          setZonesError(error?.message || 'Zonen konnten nicht geladen werden.');
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingZones(false);
-        }
-      }
-    };
     loadZones();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadOrders = async () => {
-      setOrdersLoading(true);
-      try {
-        const data = await fetchOrdersApi();
-        if (!cancelled) {
-          setOrders(data);
-          setOrdersError(null);
-        }
-      } catch (error: any) {
-        if (!cancelled) {
-          setOrdersError(error?.message || 'Aufträge konnten nicht geladen werden.');
-        }
-      } finally {
-        if (!cancelled) {
-          setOrdersLoading(false);
-        }
-      }
-    };
     loadOrders();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [loadZones, loadOrders]);
 
+  // lightweight auto-refresh every 60s to keep dashboard fresh
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadOrders();
+      if (onRefreshProducts) onRefreshProducts();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [loadOrders, onRefreshProducts]);
+
+  const allProducts = products;
   const stockedProducts = useMemo(
-    () => products.filter((p) => getProductQuantity(p) > 0),
-    [products]
+    () => allProducts.filter((p) => getProductQuantity(p) > 0),
+    [allProducts]
   );
 
   const orderMetrics = useMemo(() => {
@@ -168,6 +158,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
 
   const {
     totalProducts,
+    totalStocked,
     unsavedCount,
     savedPercentage,
     syncCounts,
@@ -179,15 +170,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
     topProducts,
     recentProducts,
   } = useMemo(() => {
-    const total = stockedProducts.length;
-    const unsaved = stockedProducts.filter((p) => !p.ops?.last_saved_iso).length;
+    const total = allProducts.length;
+    const totalInStock = stockedProducts.length;
+    const unsaved = allProducts.filter((p) => !p.ops?.last_saved_iso).length;
     const savedPct = total === 0 ? 0 : Math.round(((total - unsaved) / total) * 100);
     const syncBuckets = { synced: 0, pending: 0, failed: 0 };
     let qty = 0;
     const valueMap = new Map<string, number>();
     const categoryMap = new Map<string, number>();
 
-    const topProductList = stockedProducts
+    const topProductList = allProducts
       .map((product) => {
         const quantity = getProductQuantity(product);
         const price = product.details?.pricing?.lowest_price;
@@ -195,8 +187,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
         const currency = (price?.currency || 'EUR').toUpperCase();
 
         qty += quantity;
-        const prev = valueMap.get(currency) ?? 0;
-        valueMap.set(currency, prev + itemValue);
+        valueMap.set(currency, (valueMap.get(currency) ?? 0) + itemValue);
 
         const category = product.identification?.category || 'Unbekannt';
         categoryMap.set(category, (categoryMap.get(category) ?? 0) + 1);
@@ -231,7 +222,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
         percent: total === 0 ? 0 : Math.round((count / total) * 100),
       }));
 
-    const recentList = [...stockedProducts]
+    const recentList = [...allProducts]
       .filter((p) => p.ops?.last_saved_iso)
       .sort((a, b) => {
         const aDate = a.ops?.last_saved_iso ? new Date(a.ops.last_saved_iso).getTime() : 0;
@@ -246,8 +237,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
         savedAt: p.ops?.last_saved_iso ? new Date(p.ops.last_saved_iso) : null,
       }));
 
-  return {
+    return {
       totalProducts: total,
+      totalStocked: totalInStock,
       unsavedCount: unsaved,
       savedPercentage: savedPct,
       syncCounts: syncBuckets,
@@ -259,7 +251,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
       topProducts: topProductList.slice(0, 5),
       recentProducts: recentList,
     };
-  }, [stockedProducts]);
+  }, [allProducts, stockedProducts]);
 
   const warehouseStats = useMemo(() => {
     const totalBins = zones.reduce((sum, zone) => sum + (zone.binCount || 0), 0);
@@ -284,18 +276,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct 
 
   return (
     <section className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold text-white mb-2">Operations Dashboard</h1>
-        <p className="text-slate-400">
-          Überblick über Produktbestand, Status, Lagerauslastung und jüngste Aktivitäten.
-        </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold text-white mb-1">Operations Dashboard</h1>
+          <p className="text-slate-400">
+            Überblick über Produktbestand, Status, Lagerauslastung und jüngste Aktivitäten.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              loadOrders();
+              loadZones();
+              if (onRefreshProducts) onRefreshProducts();
+            }}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-100 border border-slate-600 hover:bg-slate-700 transition"
+          >
+            <SyncIcon className="w-4 h-4" />
+            Aktualisieren
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <DashboardCard
-          label="Produkte im Bestand"
+          label="Produkte gesamt"
           value={totalProducts.toString()}
-          sublabel={`${unsavedCount} ohne Speichernachweis`}
+          sublabel={`${unsavedCount} ohne Speichernachweis · ${totalStocked} mit Bestand`}
         />
         <DashboardCard
           label="Bestandseinheiten"
