@@ -166,12 +166,31 @@ async function syncNewOrders() {
   orders.forEach((order) => {
     const name = statusNameById.get(order.statusId || '') || order.statusLabel || '';
     order.statusLabel = name || order.statusLabel;
-    const normalized = name.toLowerCase();
-    if (order.statusId && String(order.statusId) === String(pickedId)) {
+    const normalized = (name || '').toLowerCase();
+    const isPickedId = order.statusId && String(order.statusId) === String(pickedId);
+    const looksNew =
+      normalized.includes('neu') ||
+      normalized.includes('new') ||
+      normalized.includes('bestellung') ||
+      normalized === '';
+
+    if (isPickedId) {
       order.status = 'picked';
-    } else if (normalized.includes('kommissioniert')) {
+    } else if (
+      normalized.includes('kommissioniert') ||
+      normalized.includes('versandt') ||
+      normalized.includes('versendet') ||
+      normalized.includes('zugestellt') ||
+      normalized.includes('delivered') ||
+      normalized.includes('storniert') ||
+      normalized.includes('cancelled') ||
+      normalized.includes('canceled')
+    ) {
       order.status = 'picked';
-    } else if (normalized.includes('versendet') || normalized.includes('zugestellt') || normalized.includes('delivered')) {
+    } else if (looksNew) {
+      order.status = 'new';
+    } else {
+      // Default: treat unknown/other statuses as closed to avoid phantom “open” counts
       order.status = 'picked';
     }
   });
