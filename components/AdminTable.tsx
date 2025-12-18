@@ -26,6 +26,7 @@ type ColumnId =
   | 'inventory'
   | 'pendingIntake'
   | 'storage'
+  | 'baselinker'
   | 'lastSold'
   | 'syncStatus'
   | 'saveStatus'
@@ -35,10 +36,10 @@ type ColumnId =
 
 type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'inventory', 'pendingIntake', 'storage', 'syncStatus', 'lastSaved'],
-  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'syncStatus', 'saveStatus'],
-  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'syncStatus', 'lastSynced'],
-  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'syncStatus'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'syncStatus', 'lastSaved'],
+  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'syncStatus', 'saveStatus'],
+  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'baselinker', 'syncStatus', 'lastSynced'],
+  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'baselinker', 'syncStatus'],
 };
 
 interface ColumnDefinition {
