@@ -265,6 +265,16 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadProducts]);
 
+  // keep hash in sync when view changes (for back/forward navigation)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const current = window.location.hash.replace(/^#/, '');
+    const target = view === 'sheet' && currentProduct?.id ? `sheet?productId=${currentProduct.id}` : view;
+    if (current !== target) {
+      window.location.hash = `#${target}`;
+    }
+  }, [view, currentProduct?.id]);
+
   // Handle deep linking for products once loaded
   useEffect(() => {
     if (products.length === 0) return;

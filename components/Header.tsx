@@ -134,7 +134,11 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     <a
       href={`#${nav.view}`}
       onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.button === 1 || e.shiftKey) {
+          return; // allow native new-tab / background tab
+        }
         e.preventDefault();
+        window.location.hash = `#${nav.view}`;
         setView(nav.view);
       }}
       className={`hidden sm:inline-flex w-12 h-12 rounded-2xl items-center justify-center transition-all ${currentView === nav.view
@@ -155,7 +159,11 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
       <a
         href={`#${nav.view}`}
         onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.button === 1 || e.shiftKey) {
+            return;
+          }
           e.preventDefault();
+          window.location.hash = `#${nav.view}`;
           setView(nav.view);
         }}
         className={`flex items-center justify-center flex-1 rounded-2xl py-2 ${isActive ? 'text-white' : 'text-slate-300'
