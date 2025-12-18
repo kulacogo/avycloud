@@ -1,10 +1,22 @@
 
 import React from 'react';
 import { useI18n } from '../i18n';
-import { addMediaQueryListener } from '../utils/mediaQuery';
 
 interface HeaderProps {
-  currentView: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations' | 'queue';
+  currentView:
+    | 'dashboard'
+    | 'home'
+    | 'search'
+    | 'input'
+    | 'sheet'
+    | 'inventory'
+    | 'warehouse'
+    | 'operations'
+    | 'operations-identify'
+    | 'operations-stow'
+    | 'operations-pick'
+    | 'operations-pack'
+    | 'queue';
   setView: (view: HeaderProps['currentView']) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -72,16 +84,8 @@ const TOGGLE_ICONS = {
   dark: '/mode_switch_darkmode.png',
 } as const;
 
-const safeBottomStyle: React.CSSProperties = {
-  paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.5rem)',
-  bottom: 'max(calc(env(safe-area-inset-bottom, 0px) - 0.75rem), 0.5rem)',
-};
-
 export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onToggleTheme }) => {
   const { t, locale, setLocale } = useI18n();
-  const [isMobile, setIsMobile] = React.useState<boolean>(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
-  );
   const logoSrc = theme === 'dark' ? LOGOS.dark : LOGOS.light;
   const handleHardRefresh = React.useCallback(async () => {
     try {
@@ -99,22 +103,6 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
       window.location.reload();
     }
   }, []);
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(max-width: 768px)');
-    const handler = (event: MediaQueryListEvent) => setIsMobile(event.matches);
-    const detach = addMediaQueryListener(mq, handler);
-    return () => detach();
-  }, []);
-
-  const navIcons = React.useMemo(() => {
-    if (!isMobile) return NAV_ICONS;
-    const ops = NAV_ICONS.find((n) => n.view === 'operations');
-    const input = NAV_ICONS.find((n) => n.view === 'input');
-    const rest = NAV_ICONS.filter((n) => n.view !== 'operations' && n.view !== 'input');
-    return [ops, input, ...rest].filter(Boolean) as typeof NAV_ICONS;
-  }, [isMobile]);
 
   const renderNavIcon = (nav: NavIconConfig) => {
     if (nav.dark && nav.light) {
@@ -153,34 +141,6 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     </a>
   );
 
-  const MobileNavButton = ({ nav }: { nav: NavIconConfig }) => {
-    const isActive = currentView === nav.view;
-    return (
-      <a
-        href={`#/${nav.view}`}
-        onClick={(e) => {
-          if (e.metaKey || e.ctrlKey || e.button === 1 || e.shiftKey) {
-            return;
-          }
-          e.preventDefault();
-          window.location.hash = `#/${nav.view}`;
-          setView(nav.view);
-        }}
-        className={`flex items-center justify-center flex-1 rounded-2xl py-2 ${isActive ? 'text-white' : 'text-slate-300'
-          }`}
-        aria-label={t(nav.label)}
-        title={t(nav.label)}
-      >
-        <span
-          className={`w-12 h-12 rounded-3xl flex items-center justify-center ${isActive ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40' : 'bg-slate-800 text-slate-200'
-            }`}
-        >
-          {renderNavIcon(nav)}
-        </span>
-      </a>
-    );
-  };
-
   return (
     <>
       <header className="safe-area-header bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-white/5">
@@ -191,7 +151,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <span className="sr-only">Avystock Product Intelligence Hub</span>
             </div>
             <div className="hidden sm:flex flex-1 items-center justify-center gap-2">
-              {navIcons.map((nav) => (
+              {NAV_ICONS.map((nav) => (
                 <DesktopNavButton key={nav.view} nav={nav} />
               ))}
             </div>
@@ -233,13 +193,6 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
           </div>
         </div>
       </header>
-      <nav className="sm:hidden fixed left-0 right-0 bottom-4 z-50 px-4 pointer-events-none" style={safeBottomStyle} aria-label="Mobile Navigation">
-        <div className="bg-slate-900/95 border border-white/10 rounded-[32px] shadow-2xl shadow-black/40 px-3 py-2 flex gap-1 pointer-events-auto">
-          {navIcons.map((nav) => (
-            <MobileNavButton key={nav.view} nav={nav} />
-          ))}
-        </div>
-      </nav>
     </>
   );
 };

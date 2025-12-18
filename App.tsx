@@ -12,23 +12,107 @@ import { Spinner } from './components/Spinner';
 import JobStatusPopup from './components/JobStatusPopup';
 import StatusDock from './components/StatusDock';
 import Dashboard from './components/Dashboard';
+import DashboardMobile from './components/DashboardMobile';
 import OperationsView from './components/OperationsView';
+import MobileSearchView from './components/MobileSearchView';
+import MobileOperationsView from './components/MobileOperationsView';
+import MobileTabBar from './components/MobileTabBar';
 import IdentifyQueueView from './components/IdentifyQueueView';
 import { fetchProducts, startBulkImprovement } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
 
-type View = 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations' | 'queue';
+type View =
+  | 'dashboard'
+  | 'home'
+  | 'search'
+  | 'operations'
+  | 'operations-identify'
+  | 'operations-stow'
+  | 'operations-pick'
+  | 'operations-pack'
+  | 'input'
+  | 'sheet'
+  | 'inventory'
+  | 'warehouse'
+  | 'queue';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const VIEW_PRODUCT_KEY = 'avystock:view:productId';
 const THEME_STORAGE_KEY = 'avystock:theme';
-const ALLOWED_VIEWS: View[] = ['dashboard', 'input', 'sheet', 'inventory', 'warehouse', 'operations', 'queue'];
+const ALLOWED_VIEWS: View[] = [
+  'dashboard',
+  'home',
+  'search',
+  'operations',
+  'operations-identify',
+  'operations-stow',
+  'operations-pick',
+  'operations-pack',
+  'input',
+  'sheet',
+  'inventory',
+  'warehouse',
+  'queue',
+];
 type Theme = 'light' | 'dark';
 
 const sanitizeIdentifier = (value?: string | null) => {
   if (!value) return null;
   const cleaned = value.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   return cleaned || null;
+};
+
+const parseHash = (): { view: View; productId: string | null } => {
+  if (typeof window === 'undefined') return { view: 'dashboard', productId: null };
+  const raw = window.location.hash.replace(/^#/, '').replace(/^\/+/, '');
+  const [pathPart, queryPart] = raw.split('?');
+  const segments = pathPart.split('/').filter(Boolean);
+  const [first, second] = segments;
+
+  if (first === 'sheet') {
+    const productId = segments[1] || new URLSearchParams(queryPart || '').get('productId') || null;
+    return { view: 'sheet', productId };
+  }
+
+  if (first === 'operations') {
+    const opMap: Record<string, View> = {
+      identify: 'operations-identify',
+      stow: 'operations-stow',
+      pick: 'operations-pick',
+      pack: 'operations-pack',
+    };
+    const mapped = opMap[second || ''] || 'operations';
+    return { view: mapped, productId: null };
+  }
+
+  if (first && ALLOWED_VIEWS.includes(first as View)) {
+    return { view: first as View, productId: null };
+  }
+
+  return { view: 'dashboard', productId: null };
+};
+
+const viewToHashPath = (view: View, productId?: string | null) => {
+  switch (view) {
+    case 'home':
+      return '/home';
+    case 'search':
+      return '/search';
+    case 'operations-identify':
+      return '/operations/identify';
+    case 'operations-stow':
+      return '/operations/stow';
+    case 'operations-pick':
+      return '/operations/pick';
+    case 'operations-pack':
+      return '/operations/pack';
+    case 'operations':
+      return '/operations';
+    case 'sheet':
+      return productId ? `/sheet/${productId}` : '/sheet';
+    default:
+      return `/${view}`;
+  }
 };
 
 const collectIdentityKeys = (product?: Product | null) => {
@@ -155,22 +239,8 @@ const mergeIdentifiedProducts = (
 
 const VIEW_MIGRATIONS: Partial<Record<string, View>> = {
   admin: 'inventory',
-};
-
-const parseHash = (): { view: View; productId: string | null } => {
-  if (typeof window === 'undefined') return { view: 'dashboard', productId: null };
-  const raw = window.location.hash.replace(/^#/, '').replace(/^\/+/, '');
-  const [pathPart, queryPart] = raw.split('?');
-  const segments = pathPart.split('/').filter(Boolean);
-  const viewSeg = segments[0];
-  if (viewSeg === 'sheet') {
-    const productId = segments[1] || new URLSearchParams(queryPart || '').get('productId') || null;
-    return { view: 'sheet', productId };
-  }
-  if (viewSeg && ALLOWED_VIEWS.includes(viewSeg as View)) {
-    return { view: viewSeg as View, productId: null };
-  }
-  return { view: 'dashboard', productId: null };
+  home: 'home',
+  search: 'search',
 };
 
 const readInitialView = (): { view: View; productId: string | null } => {
@@ -185,7 +255,7 @@ const readInitialView = (): { view: View; productId: string | null } => {
     }
   }
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
-  return { view: isMobile ? 'operations' : 'dashboard', productId: null };
+  return { view: isMobile ? 'home' : 'dashboard', productId: null };
 };
 
 const readInitialTheme = (): Theme => {
@@ -240,10 +310,14 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
   const [warehouseRefresh, setWarehouseRefresh] = useState<WarehouseBin | null>(null);
   const [inventoryFocusId, setInventoryFocusId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
+  );
   const historyReadyRef = useRef(false);
   const skipNextHistoryPushRef = useRef(false);
   const lastHistoryStateRef = useRef<{ view: View; productId: string | null } | null>(null);
   const initialProductHydratedRef = useRef(false);
+  const viewRef = useRef<View>(initialView);
 
   const loadProducts = useCallback(async () => {
     setProductsLoading(true);
@@ -268,31 +342,30 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadProducts]);
 
-  // keep hash in sync when view changes (for back/forward navigation)
+  // keep hash + storage in sync when view changes (for back/forward navigation)
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const target = viewToHashPath(view, currentProduct?.id).replace(/^#/, '').replace(/^\/+/, '');
     const current = window.location.hash.replace(/^#/, '').replace(/^\/+/, '');
-    const target =
-      view === 'sheet' && currentProduct?.id ? `/sheet/${currentProduct.id}` : `/${view}`;
-    if (current !== target.replace(/^#/, '').replace(/^\/+/, '')) {
+    if (current !== target) {
       window.location.hash = `#${target}`;
+    }
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+    } catch {
+      // ignore storage errors
     }
   }, [view, currentProduct?.id]);
 
   // Handle deep linking for products once loaded
   useEffect(() => {
     if (products.length === 0) return;
-    const hash = window.location.hash.replace(/^#/, '');
-    const [viewPart, queryPart] = hash.split('?');
-    if (viewPart === 'sheet' && queryPart) {
-      const params = new URLSearchParams(queryPart);
-      const pId = params.get('productId');
-      if (pId) {
-        const product = products.find((p) => p.id === pId);
-        if (product) {
-          setCurrentProduct(product);
-          setInventoryFocusId(product.id);
-        }
+    const { view: v, productId } = parseHash();
+    if (v === 'sheet' && productId) {
+      const product = products.find((p) => p.id === productId);
+      if (product) {
+        setCurrentProduct(product);
+        setInventoryFocusId(product.id);
       }
     }
   }, [products]);
@@ -402,17 +475,8 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(VIEW_STORAGE_KEY, view);
-    }
-    if (typeof window !== 'undefined') {
-      if (view === 'sheet' && currentProduct?.id) {
-        window.location.hash = `#/sheet/${currentProduct.id}`;
-      } else {
-        window.location.hash = `#/${view}`;
-      }
-    }
-  }, [view, currentProduct?.id]);
+    viewRef.current = view;
+  }, [view]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -438,11 +502,15 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 768px)');
+    const mqHandler = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+    mq.addEventListener('change', mqHandler);
+
     historyReadyRef.current = true;
 
     const applyHash = () => {
       const { view: nextView, productId } = parseHash();
-      if (nextView !== view) {
+      if (nextView !== viewRef.current) {
         setView(nextView);
       }
       if (productId) {
@@ -456,8 +524,11 @@ const App: React.FC = () => {
 
     applyHash(); // initial hydrate
     window.addEventListener('hashchange', applyHash);
-    return () => window.removeEventListener('hashchange', applyHash);
-  }, [view]);
+    return () => {
+      window.removeEventListener('hashchange', applyHash);
+      mq.removeEventListener('change', mqHandler);
+    };
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
@@ -486,6 +557,50 @@ const App: React.FC = () => {
 
   const renderView = () => {
     switch (view) {
+      case 'home':
+        return isMobile ? (
+          <DashboardMobile products={products} onRefreshProducts={loadProducts} isLoading={productsLoading} />
+        ) : (
+          <Dashboard products={products} onSelectProduct={handleSelectProduct} onRefreshProducts={loadProducts} />
+        );
+      case 'search':
+        return isMobile ? (
+          <MobileSearchView products={products} onSelectProduct={handleSelectProduct} isLoading={productsLoading} />
+        ) : (
+          <AdminTable
+            products={products}
+            onSelectProduct={handleSelectProduct}
+            onUpdateProducts={setProducts}
+            focusProductId={inventoryFocusId}
+            onImproveProduct={handleImproveProduct}
+            onImproveSelected={handleImproveSelected}
+            onBulkImprove={handleBulkImprove}
+            improvingProductIds={activeProductIds}
+          />
+        );
+      case 'operations':
+      case 'operations-identify':
+      case 'operations-stow':
+      case 'operations-pick':
+      case 'operations-pack':
+        if (isMobile) {
+          return (
+            <MobileOperationsView
+              products={products}
+              mode={view}
+              onNavigate={setView}
+              onSelectProduct={handleSelectProduct}
+            />
+          );
+        }
+        return (
+          <OperationsView
+            products={products}
+            onProductUpdate={handleUpdateProduct}
+            onStockChanged={handleBinStockChanged}
+            onSwitchView={setView}
+          />
+        );
       case 'sheet':
         return currentProduct ? (
           <ProductSheet
@@ -512,19 +627,14 @@ const App: React.FC = () => {
         );
       case 'warehouse':
         return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
-      case 'operations':
-        return (
-          <OperationsView
-            products={products}
-            onProductUpdate={handleUpdateProduct}
-            onStockChanged={handleBinStockChanged}
-            onSwitchView={setView}
-          />
-        );
       case 'queue':
         return <IdentifyQueueView />;
       case 'dashboard':
-        return <Dashboard products={products} onSelectProduct={handleSelectProduct} onRefreshProducts={loadProducts} />;
+        return isMobile ? (
+          <DashboardMobile products={products} onRefreshProducts={loadProducts} isLoading={productsLoading} />
+        ) : (
+          <Dashboard products={products} onSelectProduct={handleSelectProduct} onRefreshProducts={loadProducts} />
+        );
       case 'input':
       default:
         return <ProductInput onIdentify={handleIdentification} />;
@@ -575,6 +685,16 @@ const App: React.FC = () => {
         )}
         {renderLoadState()}
       </main>
+      {isMobile && (
+        <div className="sm:hidden fixed left-0 right-0 bottom-0 z-40">
+          <MobileTabBar
+            currentView={view}
+            onNavigate={(next) => {
+              setView(next as View);
+            }}
+          />
+        </div>
+      )}
       {(jobsRunning || jobStatuses.length > 0 || improveJobStatuses.length > 0) && (
         <>
           {jobsRunning && (
