@@ -435,7 +435,15 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       showNotification('error', response.error?.message || t('sheet.msg.binRemoveError'));
       return;
     }
-    const updated = normalizeProduct({ ...localProduct, storage: null });
+    const updated = normalizeProduct({
+      ...localProduct,
+      storage: null,
+      storageBins: [],
+      inventory: {
+        ...(localProduct.inventory || {}),
+        quantity: 0,
+      },
+    });
     setLocalProduct(updated);
     onUpdate(updated);
     setBinCodeInput('');
