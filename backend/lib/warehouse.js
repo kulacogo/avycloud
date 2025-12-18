@@ -297,8 +297,14 @@ async function removeProductFromBin(binCode, productId, options = {}) {
 
     const binData = binSnap.data();
     const products = Array.isArray(binData.products) ? [...binData.products] : [];
-    const updatedProducts = products.filter((p) => p.productId !== productId);
-    const removedEntry = products.find((p) => p.productId === productId);
+    // match by productId OR sku to be robust
+    const matches = (p) =>
+      p &&
+      (String(p.productId).trim() === String(productId).trim() ||
+        String(p.sku || '').trim() === String(productId).trim());
+    const updatedProducts = products.filter((p) => !matches(p));
+    const removedEntries = products.filter((p) => matches(p));
+    const removedQty = removedEntries.reduce((sum, p) => sum + Number(p.quantity || 0), 0);
     const productCount = updatedProducts.reduce((sum, item) => sum + (item.quantity || 0), 0);
     tx.update(binRef, {
       products: updatedProducts,
@@ -308,12 +314,16 @@ async function removeProductFromBin(binCode, productId, options = {}) {
     if (!options.skipProductUpdate) {
       const productData = productSnap.data();
       const shouldClearStorage = productData?.storage?.binCode === binCode;
+      const updatedStorageBins = Array.isArray(productData?.storageBins)
+        ? productData.storageBins.filter((b) => String(b.code || '').trim() !== String(binCode).trim())
+        : [];
       const remainingQuantity = Math.max(
         0,
-        (productData?.inventory?.quantity || 0) - (removedEntry?.quantity || 0)
+        (productData?.inventory?.quantity || 0) - removedQty
       );
       tx.update(productRef, {
         storage: shouldClearStorage ? null : productData.storage || null,
+        storageBins: updatedStorageBins,
         inventory: {
           ...(productData?.inventory || {}),
           quantity: remainingQuantity,
