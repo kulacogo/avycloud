@@ -596,17 +596,35 @@ const AdminTable: React.FC<AdminTableProps> = ({
     });
 
     if (sortConfig !== null) {
+      const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
+      const getSortValue = (product: Product, key: string) => {
+        switch (key) {
+          case 'details.pricing.lowest_price.amount':
+            return Number(product.details?.pricing?.lowest_price?.amount || 0);
+          case 'inventory.quantity':
+            // Sort by effektiver Bestand (summe aus inventory + storageBins)
+            return getProductQuantity(product);
+          case 'storage.binCode':
+            return (primaryBin(product) || '').toString().toLowerCase();
+          case 'identification.name':
+            return (product.identification?.name || '').toString().toLowerCase();
+          default:
+            return getNestedValue(product, key);
+        }
+      };
+
       filtered.sort((a, b) => {
-        const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
+        let aValue = getSortValue(a, sortConfig.key);
+        let bValue = getSortValue(b, sortConfig.key);
 
-        // Special handling for BIN/Location sorting: use primaryBin (storage.binCode or first storageBins)
-        const isBinSort = sortConfig.key === 'storage.binCode';
-        let aValue = isBinSort ? primaryBin(a) : getNestedValue(a, sortConfig.key);
-        let bValue = isBinSort ? primaryBin(b) : getNestedValue(b, sortConfig.key);
-
-        const emptyMarker = sortConfig.direction === 'asc' ? '\uFFFF' : '\u0000';
-        if (aValue === null || aValue === undefined || aValue === '') aValue = emptyMarker;
-        if (bValue === null || bValue === undefined || bValue === '') bValue = emptyMarker;
+        const isNumber = typeof aValue === 'number' || typeof bValue === 'number';
+        if (isNumber) {
+          aValue = Number(aValue) || 0;
+          bValue = Number(bValue) || 0;
+        } else {
+          aValue = (aValue ?? '').toString().toLowerCase();
+          bValue = (bValue ?? '').toString().toLowerCase();
+        }
 
         if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
