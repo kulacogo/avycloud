@@ -19,7 +19,7 @@ const MobileSearchView: React.FC<MobileSearchViewProps> = ({ products, onSelectP
 
   const filtered = useMemo(() => {
     const q = debouncedTerm.trim().toLowerCase();
-    if (!q) return products;
+    if (!q) return [];
     return products.filter((p) => {
       const name = (p.identification?.name || '').toLowerCase();
       const sku = (p.identification?.sku || p.details?.identifiers?.sku || '').toLowerCase();
@@ -31,6 +31,7 @@ const MobileSearchView: React.FC<MobileSearchViewProps> = ({ products, onSelectP
 
   const visible = filtered.slice(0, 200);
   const showEmpty = !isLoading && products.length === 0;
+  const hasQuery = debouncedTerm.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -39,7 +40,7 @@ const MobileSearchView: React.FC<MobileSearchViewProps> = ({ products, onSelectP
           <h1 className="text-2xl font-semibold text-white">Search</h1>
           <p className="text-slate-400 text-sm">Suche fokussiert auf Inventar</p>
         </div>
-        <span className="text-xs text-slate-400">{filtered.length} Treffer</span>
+        <span className="text-xs text-slate-400">{hasQuery ? `${filtered.length} Treffer` : 'Tippe zum Suchen'}</span>
       </div>
 
       <div className="rounded-2xl bg-slate-800 border border-white/5 p-3">
@@ -52,12 +53,15 @@ const MobileSearchView: React.FC<MobileSearchViewProps> = ({ products, onSelectP
       </div>
 
       <div className="space-y-3">
-        {isLoading && products.length === 0 && (
+        {!hasQuery && (
+          <p className="text-sm text-slate-400">Gib einen Suchbegriff ein (z.B. SKU, EAN, Name, Marke), um Ergebnisse zu sehen.</p>
+        )}
+        {isLoading && !hasQuery && products.length === 0 && (
           <p className="text-sm text-slate-400">Lädt Produkte …</p>
         )}
         {showEmpty && <p className="text-sm text-slate-400">Keine Produkte verfügbar.</p>}
 
-        {visible.map((p) => (
+        {hasQuery && visible.map((p) => (
           <button
             key={p.id}
             type="button"
@@ -88,10 +92,10 @@ const MobileSearchView: React.FC<MobileSearchViewProps> = ({ products, onSelectP
           </button>
         ))}
 
-        {filtered.length === 0 && !isLoading && products.length > 0 && (
+        {hasQuery && filtered.length === 0 && !isLoading && products.length > 0 && (
           <p className="text-sm text-slate-400">Keine Ergebnisse.</p>
         )}
-        {filtered.length > visible.length && (
+        {hasQuery && filtered.length > visible.length && (
           <p className="text-xs text-slate-500">Zeige die ersten {visible.length} von {filtered.length} Treffern.</p>
         )}
       </div>
