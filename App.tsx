@@ -159,13 +159,16 @@ const VIEW_MIGRATIONS: Partial<Record<string, View>> = {
 
 const parseHash = (): { view: View; productId: string | null } => {
   if (typeof window === 'undefined') return { view: 'dashboard', productId: null };
-  const raw = window.location.hash.replace(/^#\/?/, '');
-  const parts = raw.split('/').filter(Boolean);
-  if (parts[0] === 'sheet' && parts[1]) {
-    return { view: 'sheet', productId: parts[1] };
+  const raw = window.location.hash.replace(/^#/, '').replace(/^\/+/, '');
+  const [pathPart, queryPart] = raw.split('?');
+  const segments = pathPart.split('/').filter(Boolean);
+  const viewSeg = segments[0];
+  if (viewSeg === 'sheet') {
+    const productId = segments[1] || new URLSearchParams(queryPart || '').get('productId') || null;
+    return { view: 'sheet', productId };
   }
-  if (parts[0] && ALLOWED_VIEWS.includes(parts[0] as View)) {
-    return { view: parts[0] as View, productId: null };
+  if (viewSeg && ALLOWED_VIEWS.includes(viewSeg as View)) {
+    return { view: viewSeg as View, productId: null };
   }
   return { view: 'dashboard', productId: null };
 };
@@ -268,9 +271,10 @@ const App: React.FC = () => {
   // keep hash in sync when view changes (for back/forward navigation)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const current = window.location.hash.replace(/^#/, '');
-    const target = view === 'sheet' && currentProduct?.id ? `sheet?productId=${currentProduct.id}` : view;
-    if (current !== target) {
+    const current = window.location.hash.replace(/^#/, '').replace(/^\/+/, '');
+    const target =
+      view === 'sheet' && currentProduct?.id ? `/sheet/${currentProduct.id}` : `/${view}`;
+    if (current !== target.replace(/^#/, '').replace(/^\/+/, '')) {
       window.location.hash = `#${target}`;
     }
   }, [view, currentProduct?.id]);

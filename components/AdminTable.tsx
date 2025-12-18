@@ -304,16 +304,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
         render: ({ product, onSelectProduct: handleSelect }) => (
           <div>
             <a
-              href={`#sheet?productId=${product.id}`}
+              href={`#/sheet/${product.id}`}
               onClick={(e) => {
-                // Nur bei normalem Klick SPA-Navigation nutzen; bei Ctrl/Meta/Middle Tabs öffnen erlauben
-                if (e.metaKey || e.ctrlKey || e.button === 1) {
+                // Nur bei normalem Klick SPA-Navigation nutzen; bei Ctrl/Meta/Middle/Shift Tabs öffnen erlauben
+                if (e.metaKey || e.ctrlKey || e.button === 1 || e.shiftKey) {
                   return;
                 }
                 e.preventDefault();
                 handleSelect(product.id);
                 // URL aktualisieren, damit Reload/Copy funktioniert
-                window.location.hash = `sheet?productId=${product.id}`;
+                window.location.hash = `#/sheet/${product.id}`;
               }}
               className="font-medium text-sky-400 hover:underline"
             >
