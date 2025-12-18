@@ -45,29 +45,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
   const [ordersLoading, setOrdersLoading] = useState(false);
 
   const loadZones = React.useCallback(async () => {
-    setIsLoadingZones(true);
-    try {
-      const data = await fetchWarehouseZones();
-      setZones(data);
-      setZonesError(null);
-    } catch (error: any) {
-      setZonesError(error?.message || 'Zonen konnten nicht geladen werden.');
-    } finally {
-      setIsLoadingZones(false);
-    }
+      setIsLoadingZones(true);
+      try {
+        const data = await fetchWarehouseZones();
+          setZones(data);
+          setZonesError(null);
+      } catch (error: any) {
+          setZonesError(error?.message || 'Zonen konnten nicht geladen werden.');
+      } finally {
+          setIsLoadingZones(false);
+        }
   }, []);
 
   const loadOrders = React.useCallback(async () => {
-    setOrdersLoading(true);
-    try {
-      const data = await fetchOrdersApi();
-      setOrders(data);
-      setOrdersError(null);
-    } catch (error: any) {
-      setOrdersError(error?.message || 'Aufträge konnten nicht geladen werden.');
-    } finally {
-      setOrdersLoading(false);
-    }
+      setOrdersLoading(true);
+      try {
+        const data = await fetchOrdersApi();
+          setOrders(data);
+          setOrdersError(null);
+      } catch (error: any) {
+          setOrdersError(error?.message || 'Aufträge konnten nicht geladen werden.');
+      } finally {
+          setOrdersLoading(false);
+        }
   }, []);
 
   useEffect(() => {
@@ -237,7 +237,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
         savedAt: p.ops?.last_saved_iso ? new Date(p.ops.last_saved_iso) : null,
       }));
 
-    return {
+  return {
       totalProducts: total,
       totalStocked: totalInStock,
       unsavedCount: unsaved,
@@ -277,11 +277,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div>
           <h1 className="text-3xl font-semibold text-white mb-1">Operations Dashboard</h1>
-          <p className="text-slate-400">
-            Überblick über Produktbestand, Status, Lagerauslastung und jüngste Aktivitäten.
-          </p>
+        <p className="text-slate-400">
+          Überblick über Produktbestand, Status, Lagerauslastung und jüngste Aktivitäten.
+        </p>
         </div>
         <div className="flex items-center gap-2">
           <button
