@@ -168,10 +168,13 @@ async function syncNewOrders() {
     order.statusLabel = name || order.statusLabel;
     const normalized = (name || '').toLowerCase();
     const isPickedId = order.statusId && String(order.statusId) === String(pickedId);
+    const isNewId = baseOrderStatusNew && order.statusId && String(order.statusId) === String(baseOrderStatusNew);
     const looksNew =
+      isNewId ||
       normalized.includes('neu') ||
       normalized.includes('new') ||
       normalized.includes('bestellung') ||
+      normalized.includes('bestellungen') ||
       normalized === '';
 
     if (isPickedId) {
@@ -190,8 +193,8 @@ async function syncNewOrders() {
     } else if (looksNew) {
       order.status = 'new';
     } else {
-      // Default: treat unknown/other statuses as closed to avoid phantom “open” counts
-      order.status = 'picked';
+      // Default: treat unknown/other statuses as open to avoid hiding new orders
+      order.status = 'new';
     }
   });
 
