@@ -1,6 +1,7 @@
 const { callBaseLinker } = require('../lib/baselinker');
 const { getSecrets } = require('../lib/secrets');
 const { saveOrders, getOrderById, updateOrder } = require('../lib/firestore');
+const { decrementProductByIdOrSku } = require('../lib/warehouse');
 
 // Increase lookback to ensure older shipped/picked orders are included for stock cleanup
 const DEFAULT_ORDER_LOOKBACK_DAYS = parseInt(process.env.ORDER_SYNC_LOOKBACK_DAYS || '60', 10);
