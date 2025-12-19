@@ -486,6 +486,25 @@ function normalizeBundle(bundle) {
   return bundle;
 }
 
+function assertIdentifiedProduct(product) {
+  if (!product) {
+    throw new Error('Produkt fehlt im Bundle');
+  }
+  const name = (product.identification?.name || '').trim();
+  const brand = (product.identification?.brand || '').trim();
+  const hasName = name.length >= 3 && !/^unbekannt$/i.test(name);
+  const hasBrand = brand.length >= 2 && !/^unbekannt$/i.test(brand);
+  const hasBarcode =
+    Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0;
+  const hasImage =
+    Array.isArray(product.details?.images) &&
+    product.details.images.some((img) => img && (img.url_or_base64 || img.url || img.href));
+
+  if (!hasName || (!hasBrand && !hasBarcode && !hasImage)) {
+    throw new Error('Identifikation unvollständig (Name oder Basis-Metadaten fehlen)');
+  }
+}
+
 function attachReferenceImages(products = [], hostedImages = []) {
   if (!Array.isArray(products) || !products.length) {
     return;
@@ -1576,6 +1595,11 @@ async function runProductIdentification({
 
   // Final Review
   await runDatasheetReview(bundle.products, { locale });
+
+// Hard guard: prevent storing "Unbekannt" / leere Ergebnisse
+for (const product of bundle.products || []) {
+  assertIdentifiedProduct(product);
+}
 
   return {
     bundle,
