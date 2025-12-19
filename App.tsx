@@ -18,7 +18,7 @@ import MobileSearchView from './components/MobileSearchView';
 import MobileOperationsView from './components/MobileOperationsView';
 import MobileTabBar from './components/MobileTabBar';
 import IdentifyQueueView from './components/IdentifyQueueView';
-import { fetchProducts, startBulkImprovement } from './api/client';
+import { fetchProducts, startBulkImprovement, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
 
@@ -404,6 +404,38 @@ const App: React.FC = () => {
     resolveLabel: resolveProductLabel,
   });
 
+  const refreshPricingForProducts = useCallback(async (productIds: string[]) => {
+    if (!productIds.length) return;
+    const priceResults: Array<{ id: string; data: any }> = [];
+    for (const id of productIds) {
+      try {
+        const res = await refreshPrice(id);
+        if (res.ok && res.data) {
+          priceResults.push({ id, data: res.data });
+        }
+      } catch (err) {
+        console.warn('Price refresh failed', id, (err as any)?.message || err);
+      }
+    }
+    if (!priceResults.length) return;
+    setProducts(prev =>
+      prev.map(p => {
+        const hit = priceResults.find(r => r.id === p.id);
+        if (!hit) return p;
+        return {
+          ...p,
+          details: {
+            ...(p.details || ({} as any)),
+            pricing: {
+              ...(p.details?.pricing || {}),
+              ...hit.data,
+            },
+          },
+        };
+      })
+    );
+  }, []);
+
   const handleIdentification = useCallback(
     (
       groupsPayload: UploadGroupPayload[],
@@ -430,19 +462,21 @@ const App: React.FC = () => {
   };
 
   const handleImproveProduct = useCallback(
-    (productId: string) => {
+    async (productId: string) => {
       if (!productId) return;
+      await refreshPricingForProducts([productId]);
       enqueueImproveJobs([productId]);
     },
-    [enqueueImproveJobs]
+    [enqueueImproveJobs, refreshPricingForProducts]
   );
 
   const handleImproveSelected = useCallback(
-    (productIds: string[]) => {
+    async (productIds: string[]) => {
       if (!productIds.length) return;
+      await refreshPricingForProducts(productIds);
       enqueueImproveJobs(productIds);
     },
-    [enqueueImproveJobs]
+    [enqueueImproveJobs, refreshPricingForProducts]
   );
 
   const handleBulkImprove = useCallback(async () => {

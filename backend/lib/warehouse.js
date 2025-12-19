@@ -376,6 +376,14 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
   }
 
   await firestore.runTransaction(async (tx) => {
+    // Alle Reads vor Writes: hole Bin-Snapshots vor Updates
+    const binSnapshots = [];
+    for (const delta of binDeltas) {
+      const binRef = binsCollection.doc(delta.code);
+      const binSnap = await tx.get(binRef);
+      binSnapshots.push({ binRef, binSnap, delta });
+    }
+
     tx.update(productRef, {
       storageBins: cleanedBins,
       storage: newStorage,
@@ -385,9 +393,7 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
       },
     });
 
-    for (const delta of binDeltas) {
-      const binRef = binsCollection.doc(delta.code);
-      const binSnap = await tx.get(binRef);
+    for (const { binRef, binSnap, delta } of binSnapshots) {
       if (!binSnap.exists) continue;
       const binData = binSnap.data() || {};
       const products = Array.isArray(binData.products) ? [...binData.products] : [];
