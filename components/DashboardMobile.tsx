@@ -22,13 +22,25 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
 
+  const dedupeOrders = (list: Order[]) => {
+    const seen = new Set<string>();
+    const result: Order[] = [];
+    list.forEach((order) => {
+      const key = order.baselinkerId || order.id;
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(order);
+    });
+    return result;
+  };
+
   useEffect(() => {
     let cancelled = false;
     const loadOrders = async () => {
       setOrdersLoading(true);
       try {
         const data = await fetchOrdersApi(100);
-        if (!cancelled) setOrders(data || []);
+        if (!cancelled) setOrders(dedupeOrders(data || []));
       } catch {
         if (!cancelled) setOrders([]);
       } finally {

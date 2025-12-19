@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
 import { fetchOrders as fetchOrdersApi } from '../api/client';
@@ -63,9 +63,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     () => products.filter((p) => getProductQuantity(p) > 0 && p.storage?.binCode && (p.ops?.sync_status ?? 'pending') === 'pending'),
     [products]
   );
-  // Pack: nur bereits gepickte; Heuristik ops.sync_status === 'picked'
+  // Pack: nutze "synced" als konservative Heuristik, da "picked" kein gültiger SyncStatus ist
   const packList = useMemo(
-    () => products.filter((p) => (p.ops?.sync_status ?? 'pending') === 'picked' && getProductQuantity(p) > 0),
+    () => products.filter((p) => (p.ops?.sync_status ?? 'pending') === 'synced' && getProductQuantity(p) > 0),
     [products]
   );
 
@@ -74,15 +74,27 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [stowQty, setStowQty] = useState(1);
   const [stowedSkus, setStowedSkus] = useState<Set<string>>(new Set());
 
-  const [pickBin, setPickBin] = useState('');
-  const [pickSku, setPickSku] = useState('');
-  const [pickQty, setPickQty] = useState(1);
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [activeBin, setActiveBin] = useState('');
+  const [activeSku, setActiveSku] = useState('');
+  const [highlightKey, setHighlightKey] = useState<string | null>(null);
 
   const [identifySlots, setIdentifySlots] = useState<number[]>([0]);
   const uploadInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
+  const dedupeOrders = (list: Order[]) => {
+    const seen = new Set<string>();
+    const result: Order[] = [];
+    list.forEach((order) => {
+      const key = order.baselinkerId || order.id;
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(order);
+    });
+    return result;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +102,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       setOrdersLoading(true);
       try {
         const data = await fetchOrdersApi(100);
-        if (!cancelled) setOrders(data || []);
+        if (!cancelled) setOrders(dedupeOrders(data || []));
       } catch (err) {
         console.warn('Failed to load orders', err);
       } finally {
@@ -105,6 +117,132 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     };
   }, []);
 
+  const pickItems = useMemo(() => {
+    const openOrders = orders.filter((o) => o.status === 'new' || o.status === 'picking');
+    const bucket: Record<string, { orderId: string; sku: string; name: string; binCode: string; qty: number; pickHint?: any }> = {};
+    openOrders.forEach((o) => {
+      o.items
+        .filter((it) => !it.pickCompleted)
+        .forEach((it) => {
+          const sku = it.sku || it.id;
+          const binCode = it.pickHint?.binCode || '—';
+          const key = `${o.id}::${sku}::${binCode}`;
+          const qty = Number.isFinite(it.quantity) ? it.quantity : 1;
+          if (!bucket[key]) {
+            bucket[key] = { orderId: o.id, sku, name: it.name, binCode, qty: 0, pickHint: it.pickHint };
+          }
+          bucket[key].qty += qty;
+        });
+    });
+    return Object.values(bucket);
+  }, [orders]);
+
+  const packItems = useMemo(() => {
+    const ready = orders.filter((o) => o.status === 'picked');
+    const bucket: Record<string, { orderId: string; sku: string; name: string; binCode: string; qty: number }> = {};
+    ready.forEach((o) => {
+      o.items.forEach((it) => {
+        const sku = it.sku || it.id;
+        const binCode = it.pickHint?.binCode || '—';
+        const key = `${o.id}::${sku}::${binCode}`;
+        const qty = Number.isFinite(it.quantity) ? it.quantity : 1;
+        if (!bucket[key]) {
+          bucket[key] = { orderId: o.id, sku, name: it.name, binCode, qty: 0 };
+        }
+        bucket[key].qty += qty;
+      });
+    });
+    return Object.values(bucket);
+  }, [orders]);
+
+  const equalsIgnoreCase = useCallback((a?: string | null, b?: string | null) => (a || '').toLowerCase() === (b || '').toLowerCase(), []);
+
+  const completePickFlow = useCallback(
+    (item: { orderId: string; sku: string; name: string; binCode: string }, bin: string, sku: string) => {
+      const qtyStr = window.prompt('Menge eingeben', '1');
+      const qty = qtyStr ? Number(qtyStr) : 1;
+      if (!Number.isFinite(qty) || qty <= 0) return;
+      alert(`Pick erfasst: BIN ${bin} · SKU ${sku} · Menge ${qty} · Auftrag ${item.orderId}`);
+      setActiveBin('');
+      setActiveSku('');
+      setHighlightKey(null);
+    },
+    []
+  );
+
+  const handleScannedValue = useCallback(
+    (value: string) => {
+      const normalized = value.trim();
+      if (!normalized) return;
+
+      let nextBin = activeBin;
+      let nextSku = activeSku;
+
+      const binMatches = pickItems.filter((it) => equalsIgnoreCase(it.binCode, normalized));
+      const skuMatches = pickItems.filter((it) => equalsIgnoreCase(it.sku, normalized));
+
+      if (binMatches.length) {
+        nextBin = binMatches[0].binCode;
+      }
+      if (skuMatches.length) {
+        nextSku = skuMatches[0].sku || '';
+      }
+
+      setActiveBin(nextBin);
+      setActiveSku(nextSku);
+
+      const findCandidate = () => {
+        if (nextBin && nextSku) {
+          return pickItems.find((it) => equalsIgnoreCase(it.binCode, nextBin) && equalsIgnoreCase(it.sku, nextSku));
+        }
+        if (nextBin && binMatches.length === 1) {
+          return binMatches[0];
+        }
+        if (nextSku && skuMatches.length === 1) {
+          return skuMatches[0];
+        }
+        return null;
+      };
+
+      const candidate = findCandidate();
+      if (candidate) {
+        const key = `${candidate.orderId}-${candidate.sku}-${candidate.binCode}`;
+        setHighlightKey(key);
+        // Sobald eindeutig: Menge abfragen und Pick abschließen
+        if ((nextBin && nextSku) || binMatches.length === 1) {
+          completePickFlow(candidate, nextBin || candidate.binCode, nextSku || candidate.sku);
+        }
+      }
+    },
+    [activeBin, activeSku, completePickFlow, equalsIgnoreCase, pickItems]
+  );
+  useEffect(() => {
+    const bufferRef = { current: '' };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (mode !== 'operations-pick') return;
+      const target = e.target as HTMLElement | null;
+      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
+
+      if (e.key === 'Enter') {
+        const val = bufferRef.current.trim();
+        bufferRef.current = '';
+        if (val) {
+          e.preventDefault();
+          handleScannedValue(val);
+        }
+        return;
+      }
+
+      if (e.key.length === 1) {
+        bufferRef.current += e.key;
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleScannedValue, mode]);
+
   const handleSubmitStow = () => {
     if (!stowSku || !stowBin || stowQty <= 0) return;
     alert(`Stow erfasst: SKU ${stowSku}, BIN ${stowBin}, Menge ${stowQty}`);
@@ -116,14 +254,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     setStowSku('');
     setStowBin('');
     setStowQty(1);
-  };
-
-  const handleSubmitPick = () => {
-    if (!pickSku || !pickBin || pickQty <= 0) return;
-    alert(`Pick erfasst: BIN ${pickBin}, SKU ${pickSku}, Menge ${pickQty}`);
-    setPickSku('');
-    setPickBin('');
-    setPickQty(1);
   };
 
   const scanSku = () => {
@@ -144,57 +274,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     }
   };
 
-  const scanPickBin = () => {
-    const value = window.prompt('BIN scannen/eingeben');
-    if (value) setPickBin(value.trim());
-  };
-
-  const scanPickSku = () => {
-    const value = window.prompt('SKU scannen/eingeben');
-    if (value) {
-      setPickSku(value.trim());
-      const qty = window.prompt('Menge eingeben');
-      const n = qty ? Number(qty) : 1;
-      if (Number.isFinite(n) && n > 0) {
-        setPickQty(n);
-        setTimeout(handleSubmitPick, 0);
-      }
-    }
-  };
-
   const stowFiltered = useMemo(
     () => stowList.filter((p) => !stowedSkus.has(p.identification?.sku || p.details?.identifiers?.sku || '')),
     [stowList, stowedSkus]
   );
-
-  const pickItems = useMemo(() => {
-    const openOrders = orders.filter((o) => o.status === 'new' || o.status === 'picking');
-    return openOrders.flatMap((o) =>
-      o.items
-        .filter((it) => !it.pickCompleted)
-        .map((it) => ({
-          orderId: o.id,
-          sku: it.sku || it.id,
-          name: it.name,
-          binCode: it.pickHint?.binCode || '—',
-          qty: it.quantity,
-          pickHint: it.pickHint,
-        }))
-    );
-  }, [orders]);
-
-  const packItems = useMemo(() => {
-    const ready = orders.filter((o) => o.status === 'picked');
-    return ready.flatMap((o) =>
-      o.items.map((it) => ({
-        orderId: o.id,
-        sku: it.sku || it.id,
-        name: it.name,
-        binCode: it.pickHint?.binCode || '—',
-        qty: it.quantity,
-      }))
-    );
-  }, [orders]);
 
   const addIdentifySlot = () => {
     setIdentifySlots((prev) => [...prev, Date.now()]);
@@ -304,30 +387,40 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       <div className="space-y-3">
         <SectionTitle title="Pick" desc="Offene Aufträge (BaseLinker)" />
         <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
-          <p className="text-xs text-slate-300">Scanner-Flow: BIN scannen → SKU scannen → Menge eingeben → Pick abschließen.</p>
-          <div className="flex flex-col gap-2">
-            <button type="button" onClick={scanPickBin} className="rounded-xl bg-sky-700 text-white font-semibold py-2">
-              BIN scannen
-            </button>
-            <button type="button" onClick={scanPickSku} className="rounded-xl bg-emerald-700 text-white font-semibold py-2">
-              SKU scannen & Menge
-            </button>
+          <p className="text-xs text-slate-300">
+            Scanner-Flow: BIN scannen → SKU scannen (oder nur BIN falls eindeutig) → Menge eingeben → Pick fertig.
+          </p>
+          <div className="text-xs text-slate-400 flex flex-wrap gap-2">
+            <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5">BIN: {activeBin || '—'}</span>
+            <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5">SKU: {activeSku || '—'}</span>
+            <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5">
+              Fokus: Scanner-Eingabe wird automatisch erfasst (Enter schließt den Scan ab)
+            </span>
           </div>
         </div>
         {ordersLoading && <p className="text-sm text-slate-400">Lade Aufträge …</p>}
         {pickItems.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">Keine offenen Pick-Aufträge.</p>}
-        {pickItems.slice(0, 100).map((item) => (
-          <div key={`${item.orderId}-${item.sku}`} className="rounded-2xl border border-white/5 bg-slate-800 p-3 shadow-sm shadow-black/20">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-white line-clamp-2">{item.name}</p>
-                <p className="text-xs text-slate-400">SKU {item.sku || '—'} · BIN {item.binCode || '—'}</p>
-                <p className="text-xs text-slate-400">Qty {item.qty}</p>
+        {pickItems.slice(0, 100).map((item) => {
+          const key = `${item.orderId}-${item.sku}-${item.binCode}`;
+          const isHighlighted = highlightKey === key;
+          return (
+            <div
+              key={key}
+              className={`rounded-2xl border p-3 shadow-sm shadow-black/20 ${
+                isHighlighted ? 'border-sky-500 bg-sky-900/30' : 'border-white/5 bg-slate-800'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-white line-clamp-2">{item.name}</p>
+                  <p className="text-xs text-slate-400">SKU {item.sku || '—'} · BIN {item.binCode || '—'}</p>
+                  <p className="text-xs text-slate-400">Qty {item.qty}</p>
+                </div>
+                <StatusBadge label={item.binCode || 'Pick'} tone={isHighlighted ? 'warn' : 'success'} />
               </div>
-              <StatusBadge label={item.binCode || 'Pick'} tone="success" />
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
