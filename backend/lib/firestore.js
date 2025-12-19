@@ -436,6 +436,52 @@ async function findProductByStrictIdentifier({ barcodes = [], sku = null } = {})
   return null;
 }
 
+async function findProductByNameBrand(name = null, brand = null) {
+  const queries = [];
+  const trimmedName = (name || '').trim();
+  const trimmedBrand = (brand || '').trim();
+
+  if (!trimmedName) return null;
+
+  // Exact name match on identification.name
+  queries.push(
+    firestore
+      .collection(PRODUCTS_COLLECTION)
+      .where('identification.name', '==', trimmedName)
+      .limit(3)
+      .get()
+  );
+
+  // Exact name match on details.name
+  queries.push(
+    firestore
+      .collection(PRODUCTS_COLLECTION)
+      .where('details.name', '==', trimmedName)
+      .limit(3)
+      .get()
+  );
+
+  const snapshots = await Promise.all(queries);
+
+  for (const snap of snapshots) {
+    if (snap.empty) continue;
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      // If brand is provided, prefer matching brand
+      if (trimmedBrand) {
+        const candidateBrand =
+          (data?.identification?.brand || data?.details?.brand || '').trim().toLowerCase();
+        if (candidateBrand && candidateBrand !== trimmedBrand.toLowerCase()) {
+          continue;
+        }
+      }
+      return { ...data, id: data?.id || doc.id };
+    }
+  }
+
+  return null;
+}
+
 async function findProductByIdentityAliases(aliases = [], { excludeProductId = null, maxQueries = 12 } = {}) {
   if (!Array.isArray(aliases) || !aliases.length) {
     return null;

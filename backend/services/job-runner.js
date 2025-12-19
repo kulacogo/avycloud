@@ -8,6 +8,7 @@ const {
   findProductByIdentityKey,
   findProductByIdentityAliases,
   findProductByStrictIdentifier, // Import new function
+  findProductByNameBrand,
   adjustPendingIntakeQuantity,
   appendProductIdentityAliases,
   removeProductIdentityAliases,
@@ -143,6 +144,8 @@ async function processJob(jobId) {
           const identityKey = computeProductIdentityKey(product);
           const isTemporaryId = typeof product.id === 'string' && /^prod-/i.test(product.id);
           const hasBarcode = Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0;
+          const nameForMatch = (product.identification?.name || '').trim();
+          const brandForMatch = (product.identification?.brand || '').trim();
 
           // 1. Strict Identifier Check (Barcode/SKU) - PRIORITY
           if (!matchedExistingProduct) {
@@ -155,6 +158,16 @@ async function processJob(jobId) {
                matchedProductId = strictMatch.id;
                console.log(`Resolved duplicate product via STRICT identifier match: ${strictMatch.id} (job ${jobId})`);
              }
+          }
+
+          // 1b. Exact name match (optional brand filter) if no barcode/sku hit
+          if (!matchedExistingProduct && nameForMatch) {
+            const nameMatch = await findProductByNameBrand(nameForMatch, brandForMatch);
+            if (nameMatch?.id) {
+              matchedExistingProduct = nameMatch;
+              matchedProductId = nameMatch.id;
+              console.log(`Resolved duplicate product via NAME match: ${nameMatch.id} (job ${jobId})`);
+            }
           }
 
           // 2. Identity Key Heuristic (for non-barcode products)

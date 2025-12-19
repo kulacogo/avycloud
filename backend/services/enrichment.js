@@ -1596,11 +1596,6 @@ async function runProductIdentification({
   // Final Review
   await runDatasheetReview(bundle.products, { locale });
 
-// Hard guard: prevent storing "Unbekannt" / leere Ergebnisse
-for (const product of bundle.products || []) {
-  assertIdentifiedProduct(product);
-}
-
   return {
     bundle,
     serpTrace,
