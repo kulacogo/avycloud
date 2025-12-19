@@ -52,7 +52,8 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const [groups, setGroups] = useState<UploadGroup[]>([createGroup(0, t('input.groups.defaultName', { index: 1 }))]);
   const [barcodes, setBarcodes] = useState('');
   const [model, setModel] = useState<ModelOption>('gpt-5-mini-2025-08-07');
-  const [pipeline, setPipeline] = useState<IdentifyPipeline>('legacy');
+  // Force a single default pipeline: Vision + Gemini (SerpAPI-frei)
+  const pipeline: IdentifyPipeline = 'v2';
   const [cameraTargetGroup, setCameraTargetGroup] = useState<string | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -294,29 +295,9 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
     <div className="w-full p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-6 pb-16 sm:pb-8 safe-area-bottom">
       <form onSubmit={handleSubmit} className="space-y-6">
         
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-slate-400">{t('input.pipeline.label')}</p>
-              <p className="text-sm text-slate-200">{pipeline === 'legacy' ? t('input.pipeline.legacy') : t('input.pipeline.v2')}</p>
-            </div>
-            <div className="flex gap-2">
-              {(['legacy', 'v2'] as IdentifyPipeline[]).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setPipeline(value)}
-                  className={`px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors ${
-                    pipeline === value
-                      ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  {value === 'legacy' ? t('input.pipeline.legacy') : t('input.pipeline.v2')}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 space-y-1">
+          <p className="text-xs uppercase tracking-wide text-slate-400">{t('input.pipeline.label')}</p>
+          <p className="text-sm text-slate-200">{t('input.pipeline.v2')} (Gemini Vision, SerpAPI-frei)</p>
           <p className="text-xs text-slate-400">{t('input.pipeline.hint')}</p>
         </div>
         <div className="space-y-4">
