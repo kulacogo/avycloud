@@ -770,10 +770,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   };
 
-  const handleBatchPriceRefresh = async () => {
-    alert(`Refreshing prices for ${selectedIds.size} products... (mocked)`);
+  const runBatchPriceRefresh = async (ids: string[]) => {
+    if (!ids.length) return;
+    alert(`Refreshing prices for ${ids.length} products...`);
     const updatedProducts = [...products];
-    for (const id of selectedIds) {
+    for (const id of ids) {
       const result = await refreshPrice(id);
       if (result.ok && result.data) {
         const productIndex = updatedProducts.findIndex(p => p.id === id);
@@ -788,6 +789,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     onUpdateProducts(updatedProducts);
     alert('Price refresh complete.');
   };
+
+  const handleBatchPriceRefresh = async () => runBatchPriceRefresh(Array.from(selectedIds));
 
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -1161,13 +1164,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
           <ActionButton
             icon={<OperationsIcon className="w-4 h-4" />}
             label="Improve Selected"
-            onClick={() => {
+            onClick={async () => {
               const ids = Array.from(selectedIds);
               if (!ids.length) return;
               setImproveInProgress(true);
-              setImproveMessage(`Improve gestartet für ${ids.length} Produkte …`);
-              onImproveSelected(ids);
-              setTimeout(() => setImproveInProgress(false), 3000);
+              setImproveMessage(`Improve + Price gestartet für ${ids.length} Produkte …`);
+              try {
+                await runBatchPriceRefresh(ids);
+                onImproveSelected(ids);
+              } catch (err: any) {
+                console.error('Improve Selected failed', err?.message || err);
+                setImproveMessage('Fehler beim Improve/Price');
+              } finally {
+                setTimeout(() => setImproveInProgress(false), 3000);
+              }
             }}
             disabled={selectedIds.size === 0}
             tone="accent"
