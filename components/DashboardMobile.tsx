@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
-import { Product } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
 import { SyncIcon } from './icons/Icons';
+import { fetchOrders as fetchOrdersApi } from '../api/client';
 
 interface DashboardMobileProps {
   products: Product[];
@@ -18,6 +19,37 @@ const Card: React.FC<{ label: string; value: string; sub?: string }> = ({ label,
 );
 
 const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshProducts, isLoading }) => {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadOrders = async () => {
+      setOrdersLoading(true);
+      try {
+        const data = await fetchOrdersApi(100);
+        if (!cancelled) setOrders(data || []);
+      } catch {
+        if (!cancelled) setOrders([]);
+      } finally {
+        if (!cancelled) setOrdersLoading(false);
+      }
+    };
+    loadOrders();
+    const interval = setInterval(loadOrders, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const orderStats = useMemo(() => {
+    const open = orders.filter((o) => o.status === 'new').length;
+    const picking = orders.filter((o) => o.status === 'picking').length;
+    const picked = orders.filter((o) => o.status === 'picked').length;
+    return { open, picking, picked };
+  }, [orders]);
+
   const summary = useMemo(() => {
     const total = products.length;
     const inStock = products.filter((p) => getProductQuantity(p) > 0).length;
@@ -57,12 +89,19 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
           {isLoading ? 'Lädt Produkte …' : 'Keine Produkte geladen. Ziehe zum Aktualisieren oder tippe auf Refresh.'}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <Card label="Produkte" value={`${summary.total}`} sub={`${summary.inStock} mit Bestand`} />
-          <Card label="Bestandseinheiten" value={`${summary.qtySum}`} sub="aufsummiert" />
-          <Card label="Wert" value={`${summary.value.toFixed(2)} €`} sub={`${summary.synced} synced`} />
-          <Card label="Sync Status" value={`${summary.pending} pending`} sub={`${summary.synced} ok`} />
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <Card label="Produkte" value={`${summary.total}`} sub={`${summary.inStock} mit Bestand`} />
+            <Card label="Bestandseinheiten" value={`${summary.qtySum}`} sub="aufsummiert" />
+            <Card label="Wert" value={`${summary.value.toFixed(2)} €`} sub={`${summary.synced} synced`} />
+            <Card label="Sync Status" value={`${summary.pending} pending`} sub={`${summary.synced} ok`} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Card label="Orders Open" value={`${orderStats.open}`} sub={ordersLoading ? 'lädt…' : 'BaseLinker'} />
+            <Card label="Picking" value={`${orderStats.picking}`} sub={ordersLoading ? 'lädt…' : 'BaseLinker'} />
+            <Card label="Picked" value={`${orderStats.picked}`} sub={ordersLoading ? 'lädt…' : 'BaseLinker'} />
+          </div>
+        </>
       )}
     </div>
   );
