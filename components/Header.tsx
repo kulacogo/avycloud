@@ -159,16 +159,21 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={handleHardRefresh}
-                className="w-11 h-11 flex items-center justify-center rounded-full hover:opacity-80 transition"
+                className="w-[20px] h-0 flex items-center justify-center rounded-full hover:opacity-80 transition"
                 aria-label={t('actions.refresh')}
                 title={t('actions.refresh')}
               >
-                <img src={theme === 'dark' ? RELOAD_ICONS.dark : RELOAD_ICONS.light} alt="" className="w-7 h-7" draggable={false} />
+                <img
+                  src={theme === 'dark' ? RELOAD_ICONS.dark : RELOAD_ICONS.light}
+                  alt=""
+                  className="w-[15px] h-[15px]"
+                  draggable={false}
+                />
               </button>
               <select
                 value={locale}
                 onChange={(e) => setLocale(e.target.value as any)}
-                className="bg-transparent w-[33px] h-[33px] text-[15px] text-slate-100 focus:outline-none border-none appearance-none cursor-pointer"
+                className="bg-transparent w-[33px] h-[33px] text-[15px] text-slate-100 text-center focus:outline-none border-none appearance-none cursor-pointer"
                 aria-label={t('lang.label')}
               >
                 <option value="de">DE</option>
