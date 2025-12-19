@@ -169,26 +169,18 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   const pickItems = useMemo(() => {
     const openOrders = orders.filter((o) => o.status === 'new' || o.status === 'picking');
-    const bucket: Record<string, { orderId: string; sku: string; name: string; binCode: string; qty: number }> = {};
-    openOrders.forEach((o) => {
+    return openOrders.flatMap((o) =>
       o.items
         .filter((it) => !it.pickCompleted)
-        .forEach((it) => {
-          const sku = it.sku || it.id;
-          const key = `${sku}::${it.pickHint?.binCode || '—'}`;
-          if (!bucket[key]) {
-            bucket[key] = {
-              orderId: o.id,
-              sku,
-              name: it.name,
-              binCode: it.pickHint?.binCode || '—',
-              qty: 0,
-            };
-          }
-          bucket[key].qty += it.quantity || 1;
-        });
-    });
-    return Object.values(bucket);
+        .map((it) => ({
+          orderId: o.id,
+          sku: it.sku || it.id,
+          name: it.name,
+          binCode: it.pickHint?.binCode || '—',
+          qty: it.quantity,
+          pickHint: it.pickHint,
+        }))
+    );
   }, [orders]);
 
   const packItems = useMemo(() => {
