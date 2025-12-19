@@ -207,21 +207,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const promptTemplates: PromptTemplate[] = useMemo(
     () => [
       {
-        key: 'datasheet',
-        label: t('chat.prompts.datasheet'),
-        value:
-          'Datenblatt komplett verbessern: Titel, Beschreibung, Highlights/Attribute, Preis, Identifikatoren und Bilder prüfen, korrigieren und auffüllen (keine Duplikate). Setze zwingend je eine Produktkategorie für ebay.de und kaufland.de anhand der bereitgestellten Kategorie- und Pflichtattribut-Listen in den Ordnern ebay/ bzw. kaufland/ und fülle alle dazugehörigen Pflichtattribute vollständig aus. Ergebnis e-commerce-ready und stilistisch konsistent liefern.',
+        key: 'pricing',
+        label: t('chat.prompts.pricing'),
+        value: 'Preis korrigieren (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
       },
       {
         key: 'title',
         label: t('chat.prompts.title'),
         value: 'Titel verbessern (Marketing- und E-Commerce-ready machen)',
-      },
-      {
-        key: 'highlights',
-        label: t('chat.prompts.highlights'),
-        value:
-          'Highlights verbessern (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
       },
       {
         key: 'attributes',
@@ -230,22 +223,28 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           'Attribute korrigieren/ergänzen (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
       },
       {
-        key: 'description',
-        label: t('chat.prompts.description'),
-        value:
-          'Beschreibung korrigieren/ergänzen (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
-      },
-      {
-        key: 'pricing',
-        label: t('chat.prompts.pricing'),
-        value:
-          'Preis korrigieren (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
-      },
-      {
         key: 'gtin',
         label: t('chat.prompts.gtin'),
         value:
           'Ermittele den zuverlässigsten Barcode (EAN = 13 Stellen, GTIN = 14 Stellen, jeweils mit gültiger Prüfziffer). Antworte ausschließlich mit JSON im DatasheetChange-Schema, z. B.: ```json\n{"identity":{"ean":"1234567890123","gtin":null}}\n``` Verwende nur Codes mit korrekter Prüfziffer. Wenn kein valider Code gefunden wird, gib {"identity":{}} zurück und nichts weiter.',
+      },
+      {
+        key: 'datasheet',
+        label: t('chat.prompts.datasheet'),
+        value:
+          'Datenblatt komplett verbessern: Titel, Beschreibung, Highlights/Attribute, Preis, Identifikatoren und Bilder prüfen, korrigieren und auffüllen (keine Duplikate). Setze zwingend je eine Produktkategorie für ebay.de und kaufland.de anhand der bereitgestellten Kategorie- und Pflichtattribut-Listen in den Ordnern ebay/ bzw. kaufland/ und fülle alle dazugehörigen Pflichtattribute vollständig aus. Ergebnis e-commerce-ready und stilistisch konsistent liefern.',
+      },
+      {
+        key: 'highlights',
+        label: t('chat.prompts.highlights'),
+        value:
+          'Highlights verbessern (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+      },
+      {
+        key: 'description',
+        label: t('chat.prompts.description'),
+        value:
+          'Beschreibung korrigieren/ergänzen (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
       },
     ],
     [t]
@@ -684,7 +683,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               <span>{t('chat.ui.quickTitle')}</span>
               <span>{t('chat.ui.quickHint')}</span>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex flex-wrap gap-2 pb-1">
               {promptTemplates.map((prompt) => (
                 <button
                   key={`tray-${prompt.key}`}
@@ -699,7 +698,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           </div>
         )}
 
-        <div className="flex gap-2 overflow-x-auto pb-1 text-[12px]">
+        <div className="flex flex-wrap gap-2 pb-1 text-[12px]">
           {promptTemplates.map((action) => (
             <button
               key={`action-${action.key}`}

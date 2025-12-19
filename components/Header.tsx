@@ -168,7 +168,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <select
                 value={locale}
                 onChange={(e) => setLocale(e.target.value as any)}
-                className="bg-transparent text-sm text-slate-100 focus:outline-none border-none appearance-none cursor-pointer"
+                className="bg-transparent w-[33px] h-[33px] text-[15px] text-slate-100 focus:outline-none border-none appearance-none cursor-pointer"
                 aria-label={t('lang.label')}
               >
                 <option value="de">DE</option>

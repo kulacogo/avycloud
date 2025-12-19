@@ -8,7 +8,7 @@ type ChatContainerProps = {
 const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isCompact, setIsCompact] = useState(false);
-  const [width, setWidth] = useState(420);
+  const [width, setWidth] = useState(520);
   const [isDragActive, setIsDragActive] = useState(false);
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
 
@@ -20,7 +20,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped 
       if (compact) {
         setWidth(window.innerWidth);
       } else {
-        setWidth((prev) => Math.min(Math.max(prev, 320), 520));
+        setWidth((prev) => Math.min(Math.max(prev, 360), 660));
       }
     };
     handleResize();
@@ -32,7 +32,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped 
     if (!resizeStartRef.current) return;
     const { x, width: startWidth } = resizeStartRef.current;
     const delta = x - event.clientX;
-    const nextWidth = Math.min(Math.max(startWidth + delta, 320), 560);
+    const nextWidth = Math.min(Math.max(startWidth + delta, 360), 660);
     setWidth(nextWidth);
   };
 
@@ -82,7 +82,10 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped 
       className={`relative flex min-h-[420px] h-full flex-col overflow-hidden rounded-xl border border-slate-800/80 bg-slate-900/80 text-slate-100 ${
         isDragActive ? 'ring-2 ring-sky-500' : ''
       }`}
-      style={{ width: isCompact ? '100%' : `${width}px` }}
+      style={{
+        width: isCompact ? '100%' : `${width}px`,
+        fontFamily: '"Roboto", -apple-system, BlinkMacSystemFont, sans-serif',
+      }}
       onDragOver={handleDragOver}
       onDragEnter={handleDragOver}
       onDragLeave={handleDragLeave}
