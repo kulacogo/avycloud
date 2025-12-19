@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
 import { SyncIcon } from './icons/Icons';
-import { fetchOrders as fetchOrdersApi } from '../api/client';
+import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi } from '../api/client';
 
 interface DashboardMobileProps {
   products: Product[];
@@ -39,6 +39,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
     const loadOrders = async () => {
       setOrdersLoading(true);
       try {
+        await syncOrdersApi();
         const data = await fetchOrdersApi(100);
         if (!cancelled) setOrders(dedupeOrders(data || []));
       } catch {

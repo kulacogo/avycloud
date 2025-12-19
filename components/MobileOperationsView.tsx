@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
-import { fetchOrders as fetchOrdersApi } from '../api/client';
+import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder } from '../api/client';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
@@ -83,6 +83,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [identifySlots, setIdentifySlots] = useState<number[]>([0]);
   const uploadInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const isUnmountedRef = useRef(false);
 
   const dedupeOrders = (list: Order[]) => {
     const seen = new Set<string>();
@@ -96,26 +97,34 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     return result;
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    const loadOrders = async () => {
+  const refreshOrders = useCallback(
+    async (isCancelled?: () => boolean) => {
+      if (isCancelled?.()) return;
       setOrdersLoading(true);
       try {
+        await syncOrdersApi();
         const data = await fetchOrdersApi(100);
-        if (!cancelled) setOrders(dedupeOrders(data || []));
+        if (!isCancelled?.() && !isUnmountedRef.current) setOrders(dedupeOrders(data || []));
       } catch (err) {
         console.warn('Failed to load orders', err);
       } finally {
-        if (!cancelled) setOrdersLoading(false);
+        if (!isCancelled?.() && !isUnmountedRef.current) setOrdersLoading(false);
       }
-    };
-    loadOrders();
-    const interval = setInterval(loadOrders, 30000);
+    },
+    [dedupeOrders]
+  );
+
+  useEffect(() => {
+    isUnmountedRef.current = false;
+    let cancelled = false;
+    refreshOrders(() => cancelled);
+    const interval = setInterval(() => refreshOrders(() => cancelled), 30000);
     return () => {
       cancelled = true;
+      isUnmountedRef.current = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [refreshOrders]);
 
   const pickItems = useMemo(() => {
     const openOrders = orders.filter((o) => o.status === 'new' || o.status === 'picking');
@@ -158,16 +167,22 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const equalsIgnoreCase = useCallback((a?: string | null, b?: string | null) => (a || '').toLowerCase() === (b || '').toLowerCase(), []);
 
   const completePickFlow = useCallback(
-    (item: { orderId: string; sku: string; name: string; binCode: string }, bin: string, sku: string) => {
+    async (item: { orderId: string; sku: string; name: string; binCode: string }, bin: string, sku: string) => {
       const qtyStr = window.prompt('Menge eingeben', '1');
       const qty = qtyStr ? Number(qtyStr) : 1;
       if (!Number.isFinite(qty) || qty <= 0) return;
       alert(`Pick erfasst: BIN ${bin} · SKU ${sku} · Menge ${qty} · Auftrag ${item.orderId}`);
+      try {
+        await completeOrder(item.orderId);
+      } catch (err: any) {
+        console.error('Failed to mark order as picked', err);
+      }
+      await refreshOrders();
       setActiveBin('');
       setActiveSku('');
       setHighlightKey(null);
     },
-    []
+    [refreshOrders]
   );
 
   const handleScannedValue = useCallback(
@@ -210,7 +225,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         setHighlightKey(key);
         // Sobald eindeutig: Menge abfragen und Pick abschließen
         if ((nextBin && nextSku) || binMatches.length === 1) {
-          completePickFlow(candidate, nextBin || candidate.binCode, nextSku || candidate.sku);
+          void completePickFlow(candidate, nextBin || candidate.binCode, nextSku || candidate.sku);
         }
       }
     },
