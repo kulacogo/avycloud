@@ -165,10 +165,15 @@ async function syncNewOrders() {
   // Post-process statuses using resolved names to classify picked/closed
   const pickedId = ORDER_STATUS_ID_CACHE.picked || DEFAULT_PICKED_STATUS_ID;
   orders.forEach((order) => {
-    const name = statusNameById.get(order.statusId || '') || order.statusLabel || '';
-    order.statusLabel = name || order.statusLabel;
-    const normalized = (name || '').toLowerCase();
+    const rawLabel = statusNameById.get(order.statusId || '') || order.statusLabel || order.orderStatus || '';
+    order.statusLabel = rawLabel || order.statusLabel;
+    const normalized = (rawLabel || '').toLowerCase();
     const isPickedId = order.statusId && String(order.statusId) === String(pickedId);
+    const looksCancelled =
+      normalized.includes('storniert') ||
+      normalized.includes('cancelled') ||
+      normalized.includes('canceled') ||
+      normalized.includes('abgebrochen');
     const isNewId = baseOrderStatusNew && order.statusId && String(order.statusId) === String(baseOrderStatusNew);
     const looksNew =
       isNewId ||
@@ -178,7 +183,7 @@ async function syncNewOrders() {
       normalized.includes('bestellungen') ||
       normalized === '';
 
-    if (isPickedId) {
+    if (isPickedId || looksCancelled) {
       order.status = 'picked';
     } else if (
       normalized.includes('kommissioniert') ||
