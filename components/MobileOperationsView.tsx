@@ -1,6 +1,7 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Product } from '../types';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
+import { fetchOrders as fetchOrdersApi } from '../api/client';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
@@ -76,10 +77,33 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [pickBin, setPickBin] = useState('');
   const [pickSku, setPickSku] = useState('');
   const [pickQty, setPickQty] = useState(1);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
   const [identifySlots, setIdentifySlots] = useState<number[]>([0]);
   const uploadInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadOrders = async () => {
+      setOrdersLoading(true);
+      try {
+        const data = await fetchOrdersApi(100);
+        if (!cancelled) setOrders(data || []);
+      } catch (err) {
+        console.warn('Failed to load orders', err);
+      } finally {
+        if (!cancelled) setOrdersLoading(false);
+      }
+    };
+    loadOrders();
+    const interval = setInterval(loadOrders, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleSubmitStow = () => {
     if (!stowSku || !stowBin || stowQty <= 0) return;
@@ -142,6 +166,35 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     () => stowList.filter((p) => !stowedSkus.has(p.identification?.sku || p.details?.identifiers?.sku || '')),
     [stowList, stowedSkus]
   );
+
+  const pickItems = useMemo(() => {
+    const openOrders = orders.filter((o) => o.status === 'new' || o.status === 'picking');
+    return openOrders.flatMap((o) =>
+      o.items
+        .filter((it) => !it.pickCompleted)
+        .map((it) => ({
+          orderId: o.id,
+          sku: it.sku || it.id,
+          name: it.name,
+          binCode: it.pickHint?.binCode || '—',
+          qty: it.quantity,
+          pickHint: it.pickHint,
+        }))
+    );
+  }, [orders]);
+
+  const packItems = useMemo(() => {
+    const ready = orders.filter((o) => o.status === 'picked');
+    return ready.flatMap((o) =>
+      o.items.map((it) => ({
+        orderId: o.id,
+        sku: it.sku || it.id,
+        name: it.name,
+        binCode: it.pickHint?.binCode || '—',
+        qty: it.quantity,
+      }))
+    );
+  }, [orders]);
 
   const addIdentifySlot = () => {
     setIdentifySlots((prev) => [...prev, Date.now()]);
@@ -249,7 +302,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   if (mode === 'operations-pick') {
     return (
       <div className="space-y-3">
-        <SectionTitle title="Pick" desc="Produkte mit BIN und Bestand" />
+        <SectionTitle title="Pick" desc="Offene Aufträge (BaseLinker)" />
         <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
           <p className="text-xs text-slate-300">Scanner-Flow: BIN scannen → SKU scannen → Menge eingeben → Pick abschließen.</p>
           <div className="flex flex-col gap-2">
@@ -261,9 +314,19 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             </button>
           </div>
         </div>
-        {pickList.length === 0 && <p className="text-sm text-slate-400">Keine pickbaren Produkte.</p>}
-        {pickList.slice(0, 100).map((p) => (
-          <ProductCard key={p.id} product={p} footer={<StatusBadge label={p.storage?.binCode || 'Pick'} tone="success" />} />
+        {ordersLoading && <p className="text-sm text-slate-400">Lade Aufträge …</p>}
+        {pickItems.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">Keine offenen Pick-Aufträge.</p>}
+        {pickItems.slice(0, 100).map((item) => (
+          <div key={`${item.orderId}-${item.sku}`} className="rounded-2xl border border-white/5 bg-slate-800 p-3 shadow-sm shadow-black/20">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white line-clamp-2">{item.name}</p>
+                <p className="text-xs text-slate-400">SKU {item.sku || '—'} · BIN {item.binCode || '—'}</p>
+                <p className="text-xs text-slate-400">Qty {item.qty}</p>
+              </div>
+              <StatusBadge label={item.binCode || 'Pick'} tone="success" />
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -272,14 +335,20 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   if (mode === 'operations-pack') {
     return (
       <div className="space-y-3">
-        <SectionTitle title="Pack" desc="Offene/pending Produkte" />
-        {packList.length === 0 && <p className="text-sm text-slate-400">Keine offenen Pack-Aufgaben.</p>}
-        {packList.slice(0, 100).map((p) => (
-          <ProductCard
-            key={p.id}
-            product={p}
-            footer={<StatusBadge label={p.ops?.sync_status || 'pending'} tone={p.ops?.sync_status === 'synced' ? 'success' : 'warn'} />}
-          />
+        <SectionTitle title="Pack" desc="Bereit zum Verpacken" />
+        {ordersLoading && <p className="text-sm text-slate-400">Lade Aufträge …</p>}
+        {packItems.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">Keine gepickten Aufträge zum Packen.</p>}
+        {packItems.slice(0, 100).map((item) => (
+          <div key={`${item.orderId}-${item.sku}`} className="rounded-2xl border border-white/5 bg-slate-800 p-3 shadow-sm shadow-black/20">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white line-clamp-2">{item.name}</p>
+                <p className="text-xs text-slate-400">SKU {item.sku || '—'} · BIN {item.binCode || '—'}</p>
+                <p className="text-xs text-slate-400">Qty {item.qty}</p>
+              </div>
+              <StatusBadge label="Pack" tone="warn" />
+            </div>
+          </div>
         ))}
       </div>
     );
