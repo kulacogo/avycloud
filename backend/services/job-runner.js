@@ -31,6 +31,19 @@ const normalizeBarcodeValue = (value) =>
     .replace(/\D+/g, '')
     .trim();
 
+function hasMinimalIdentification(product = {}) {
+  const name = product.identification?.name?.trim() || '';
+  const brand = product.identification?.brand?.trim() || '';
+  const hasName = name.length >= 3 && !/^unbekannt$/i.test(name);
+  const hasBrand = brand.length >= 2 && !/^unbekannt$/i.test(brand);
+  const hasBarcode =
+    Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0;
+  const hasImage =
+    Array.isArray(product.details?.images) &&
+    product.details.images.some((img) => img && (img.url_or_base64 || img.url || img.href));
+  return hasName && (hasBrand || hasBarcode || hasImage);
+}
+
 function buildDedupeKey(product) {
   const identity = computeProductIdentityKey(product);
   if (identity) return `identity:${identity}`;
@@ -257,6 +270,12 @@ async function processJob(jobId) {
             continue;
           }
           dedupeKeys.add(dedupeKey);
+
+          if (!hasMinimalIdentification(product)) {
+            throw new Error(
+              `Identification incomplete (name/brand/barcode/image missing or 'Unbekannt') for product ${product.id || 'n/a'}`
+            );
+          }
 
           await saveProduct(product);
           bundleProducts[index] = product;
