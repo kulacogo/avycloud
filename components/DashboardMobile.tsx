@@ -39,8 +39,12 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
     const loadOrders = async () => {
       setOrdersLoading(true);
       try {
-        await syncOrdersApi();
-        const data = await fetchOrdersApi(100);
+        try {
+          await syncOrdersApi({ timeoutMs: 10000 });
+        } catch (err) {
+          console.warn('Order sync failed (dashboard will still fetch)', err);
+        }
+        const data = await fetchOrdersApi(100, { timeoutMs: 10000 });
         if (!cancelled) setOrders(dedupeOrders(data || []));
       } catch {
         if (!cancelled) setOrders([]);

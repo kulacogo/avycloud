@@ -178,6 +178,17 @@ const wait = (ms: number, signal?: AbortSignal) =>
     }
   });
 
+// Small helper to add a timeout to fetch calls (defaults to 10s)
+const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 10000) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const fetchJobStatus = async (jobId: string, signal?: AbortSignal) => {
   const response = await fetch(`${BACKEND_URL}/api/jobs/${jobId}`, {
     method: 'GET',
@@ -647,8 +658,8 @@ export const generateProductImages = async (
   }
 };
 
-export const fetchOrders = async (limit = 50): Promise<Order[]> => {
-  const response = await fetch(`${BACKEND_URL}/api/orders?limit=${limit}`);
+export const fetchOrders = async (limit = 50, options?: { timeoutMs?: number }): Promise<Order[]> => {
+  const response = await fetchWithTimeout(`${BACKEND_URL}/api/orders?limit=${limit}`, undefined, options?.timeoutMs || 10000);
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Aufträge konnten nicht geladen werden.');
@@ -656,10 +667,14 @@ export const fetchOrders = async (limit = 50): Promise<Order[]> => {
   return result?.data || [];
 };
 
-export const syncOrders = async (): Promise<Order[]> => {
-  const response = await fetch(`${BACKEND_URL}/api/orders/sync`, {
-    method: 'POST',
-  });
+export const syncOrders = async (options?: { timeoutMs?: number }): Promise<Order[]> => {
+  const response = await fetchWithTimeout(
+    `${BACKEND_URL}/api/orders/sync`,
+    {
+      method: 'POST',
+    },
+    options?.timeoutMs || 10000
+  );
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Auftragssync fehlgeschlagen.');
