@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Product, DatasheetChange, ProductImage, WarehouseBin } from '../types';
 import {
   saveProduct,
@@ -80,6 +80,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     if (typeof window === 'undefined') return '';
     return window.sessionStorage.getItem('avystock:sheet:syncInventoryId') || '';
   });
+  const prevProductIdRef = useRef(product.id);
 
   const parseBarcodes = useCallback((input: string) => {
     const entries = input
@@ -115,6 +116,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   );
 
   useEffect(() => {
+    const isSameProduct = product.id === prevProductIdRef.current;
+    // Wenn derselbe Datensatz während Bearbeitung/Generierung neu geliefert wird:
+    // nicht hart zurücksetzen, sonst brechen Edit- und AI-Flows ab.
+    if (isSameProduct && (isEditing || isDirty || isGeneratingImages)) {
+      return;
+    }
+
+    prevProductIdRef.current = product.id;
     setLocalProduct(normalizeProduct(product));
     setIsEditing(false);
     // New products should be marked as dirty so they can be saved immediately
@@ -125,7 +134,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setNewImageUrl('');
     loadProductBins(product.id);
     setBarcodeInput((product.identification?.barcodes || []).join('\n'));
-  }, [product, loadProductBins, normalizeProduct]);
+  }, [product, loadProductBins, normalizeProduct, isDirty, isEditing, isGeneratingImages]);
 
   // Falls Storage leer, aber Bins vorhanden: erste Bin übernehmen, damit Remove-Button und Anzeige stimmen
   useEffect(() => {
