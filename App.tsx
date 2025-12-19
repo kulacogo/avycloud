@@ -363,9 +363,9 @@ const App: React.FC = () => {
     const { view: v, productId } = parseHash();
     if (v === 'sheet' && productId) {
       const product = products.find((p) => p.id === productId);
-      if (product) {
-        setCurrentProduct(product);
-        setInventoryFocusId(product.id);
+        if (product) {
+          setCurrentProduct(product);
+          setInventoryFocusId(product.id);
       }
     }
   }, [products]);

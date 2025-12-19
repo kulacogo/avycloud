@@ -617,7 +617,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     });
 
     if (sortConfig !== null) {
-      const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
+        const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
       const getSortValue = (product: Product, key: string) => {
         switch (key) {
           case 'details.pricing.lowest_price.amount':
