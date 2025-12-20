@@ -156,17 +156,25 @@ async function generateStructuredProductRecord({ files, ocrLines, barcodes, loca
   };
 
   const cleaned = sanitizeStructuredJson(raw);
+  const fixTrailingCommas = (text = '') => text.replace(/,\s*([}\]])/g, '$1');
+
   try {
     return JSON.parse(cleaned);
   } catch (error) {
-    const snippet = cleaned.slice(0, 400);
-    console.error(
-      'Failed to parse Gemini structured JSON (cleaned snippet):',
-      snippet,
-      'error:',
-      error.message
-    );
-    throw new Error(`Failed to parse Gemini structured JSON: ${error.message}`);
+    // Retry with a simple trailing-comma cleanup
+    const fixed = fixTrailingCommas(cleaned);
+    try {
+      return JSON.parse(fixed);
+    } catch (err2) {
+      const snippet = cleaned.slice(0, 400);
+      console.error(
+        'Failed to parse Gemini structured JSON (cleaned snippet):',
+        snippet,
+        'error:',
+        error.message
+      );
+      throw new Error(`Failed to parse Gemini structured JSON: ${err2.message}`);
+    }
   }
 }
 
