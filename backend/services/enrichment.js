@@ -467,6 +467,11 @@ function normalizeBundle(bundle) {
   if (!bundle?.products) return bundle;
   bundle.products = bundle.products.map((product) => {
     const cloned = { ...product };
+    // Ensure identification exists and required strings are non-empty
+    cloned.identification = cloned.identification || {};
+    cloned.identification.brand = (cloned.identification.brand || '').trim() || 'unknown';
+    cloned.identification.name =
+      (cloned.identification.name || '').trim() || 'Unbekanntes Produkt';
     if (Array.isArray(cloned.details?.attributes)) {
       const attrObj = {};
       for (const entry of cloned.details.attributes) {
