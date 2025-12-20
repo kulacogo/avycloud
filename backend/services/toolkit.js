@@ -447,7 +447,9 @@ function buildSerpParams(engine, args = {}) {
 
 async function executeSerpapiToolCall(toolCall) {
   const args = JSON.parse(toolCall.arguments || '{}');
-  const { engine } = args;
+  const engine = args.engine && ALLOWED_ENGINES.includes(args.engine)
+    ? args.engine
+    : 'google_shopping'; // default fallback
 
   if (!ALLOWED_ENGINES.includes(engine)) {
     throw new Error(`Engine ${engine} is not supported by SerpAPI tool`);
