@@ -308,8 +308,8 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
       inputMode,
     });
   } catch (error) {
-    console.error('Structured product generation failed (blocking save):', error.message);
-    throw error;
+    console.warn('Structured product generation failed, falling back to defaults:', error.message);
+    llmRecord = null; // proceed with base defaults
   }
 
   const baseRecord = {
