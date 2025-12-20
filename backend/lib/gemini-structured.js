@@ -71,11 +71,8 @@ async function callGeminiStructured({
     throw new Error('Gemini structured call returned no candidates.');
   }
   const partsResponse = candidates[0]?.content?.parts || [];
-  const textPayload = partsResponse
-    .map((part) => part?.text || part?.inlineData?.data)
-    .filter(Boolean)
-    .join('\n')
-    .trim();
+  const primaryText = partsResponse.find((p) => typeof p?.text === 'string')?.text || '';
+  const textPayload = (primaryText || '').trim();
   if (!textPayload) {
     throw new Error('Gemini structured call returned empty payload.');
   }
