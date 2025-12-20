@@ -21,6 +21,8 @@ async function callGeminiStructured({
   topP = 0.8,
   topK = 40,
   maxOutputTokens = 1024,
+  candidateCount = 1,
+  stopSequences = ['```'],
 }) {
   ensureConfig();
   if (!Array.isArray(parts) || parts.length === 0) {
@@ -39,6 +41,8 @@ async function callGeminiStructured({
       topP,
       topK,
       maxOutputTokens,
+      candidateCount,
+      stopSequences,
       responseMimeType: 'application/json',
       responseSchema,
     },

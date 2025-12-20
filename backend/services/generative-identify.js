@@ -133,10 +133,12 @@ async function generateStructuredProductRecord({ files, ocrLines, barcodes, loca
   const raw = await callGeminiStructured({
     parts,
     responseSchema: PRODUCT_RECORD_SCHEMA,
-    temperature: 0.15,
+    temperature: 0.0,
     topP: 0.8,
-    topK: 32,
-    maxOutputTokens: 2048,
+    topK: 16,
+    maxOutputTokens: 1200,
+    candidateCount: 1,
+    stopSequences: ['```'],
   });
 
   // Defensive cleaning: strip Markdown fences, keep outermost JSON object only
