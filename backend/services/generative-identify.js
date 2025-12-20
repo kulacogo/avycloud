@@ -139,9 +139,28 @@ async function generateStructuredProductRecord({ files, ocrLines, barcodes, loca
     maxOutputTokens: 2048,
   });
 
+  // Defensive cleaning: strip Markdown fences, keep outermost JSON object only
+  const sanitizeStructuredJson = (text = '') => {
+    const withoutCode = text.replace(/```[\s\S]*?```/g, '').trim();
+    const start = withoutCode.indexOf('{');
+    const end = withoutCode.lastIndexOf('}');
+    if (start === -1 || end === -1 || end <= start) {
+      return withoutCode;
+    }
+    return withoutCode.slice(start, end + 1);
+  };
+
+  const cleaned = sanitizeStructuredJson(raw);
   try {
-    return JSON.parse(raw);
+    return JSON.parse(cleaned);
   } catch (error) {
+    const snippet = cleaned.slice(0, 400);
+    console.error(
+      'Failed to parse Gemini structured JSON (cleaned snippet):',
+      snippet,
+      'error:',
+      error.message
+    );
     throw new Error(`Failed to parse Gemini structured JSON: ${error.message}`);
   }
 }
