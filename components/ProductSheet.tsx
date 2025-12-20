@@ -76,10 +76,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [barcodeInput, setBarcodeInput] = useState<string>(() => (product.identification?.barcodes || []).join('\n'));
   const [assigningInventory, setAssigningInventory] = useState(false);
   const [inventoryMessage, setInventoryMessage] = useState<string | null>(null);
-  const [syncInventoryId, setSyncInventoryId] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    return window.sessionStorage.getItem('avystock:sheet:syncInventoryId') || '';
-  });
+  const [syncInventoryId] = useState('78659');
   const prevProductIdRef = useRef(product.id);
 
   const parseBarcodes = useCallback((input: string) => {
@@ -162,10 +159,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     }
   }, [binsLoading, productBins, localProduct.storage?.binCode]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:sheet:syncInventoryId', syncInventoryId);
-  }, [syncInventoryId]);
+  useEffect(() => {}, []);
 
   const referenceImages = useMemo(
     () => filterReferenceCandidates(localProduct.details?.images || []),
@@ -589,10 +583,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   }, [barcodeInput, localProduct, parseBarcodes]);
 
   const handleSync = async () => {
-    if (!syncInventoryId || (syncInventoryId !== '85403' && syncInventoryId !== '85404')) {
-      showNotification('error', 'Bitte Marktplatz wählen (85403 = eBay, 85404 = Kaufland)');
-      return;
-    }
     setIsSyncing(true);
     const result = await syncToBaseLinker(localProduct, syncInventoryId);
     const syncResult = result.results?.find((entry) => entry.id === localProduct.id);
@@ -1151,18 +1141,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         <section className="p-4 bg-slate-800 rounded-lg shadow-lg">
           <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.actions.title')}</h3>
           <div className="actions flex flex-wrap gap-4 items-center">
-            <div className="flex flex-col text-xs text-slate-300">
-              <span className="font-semibold">Marktplatz</span>
-              <select
-                value={syncInventoryId}
-                onChange={(e) => setSyncInventoryId(e.target.value)}
-                className="rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-              >
-                <option value="">Wählen…</option>
-                <option value="85403">eBay (85403)</option>
-                <option value="85404">Kaufland (85404)</option>
-              </select>
-            </div>
+            {/* Fixed BaseLinker inventory (78659), no selector */}
             <button
               id="btn-sync"
               onClick={handleSync}

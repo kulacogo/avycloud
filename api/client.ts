@@ -507,21 +507,15 @@ export const saveProduct = async (product: Product): Promise<{ ok: boolean; data
 };
 
 
-// Sync product(s) to BaseLinker – inventoryId is REQUIRED (85403=eBay, 85404=Kaufland)
+// Sync product(s) to BaseLinker – single inventory (default 78659)
 export const syncToBaseLinker = async (
   productOrProducts: Product | Product[],
-  inventoryId: string
+  inventoryId?: string
 ): Promise<{ ok: boolean; results?: Array<{ id: string; status: 'synced' | 'failed'; message?: string }>; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
 
   try {
-    const inv = (inventoryId || '').trim();
-    if (inv !== '85403' && inv !== '85404') {
-      return {
-        ok: false,
-        error: { code: 400, message: 'inventoryId ist erforderlich (85403=eBay, 85404=Kaufland)' },
-      };
-    }
+    const inv = (inventoryId || '78659').trim();
 
     const isSingle = !Array.isArray(productOrProducts);
     const products = Array.isArray(productOrProducts) ? productOrProducts : [productOrProducts];
