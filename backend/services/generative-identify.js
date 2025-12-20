@@ -147,7 +147,12 @@ async function generateStructuredProductRecord({ files, ocrLines, barcodes, loca
     if (start === -1 || end === -1 || end <= start) {
       return withoutCode;
     }
-    return withoutCode.slice(start, end + 1);
+    // Only keep the outermost JSON object
+    let slice = withoutCode.slice(start, end + 1);
+    // Remove trailing characters after the last balanced brace
+    const lastBrace = slice.lastIndexOf('}');
+    slice = slice.slice(0, lastBrace + 1);
+    return slice;
   };
 
   const cleaned = sanitizeStructuredJson(raw);

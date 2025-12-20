@@ -17,7 +17,7 @@ function ensureConfig() {
 async function callGeminiStructured({
   parts,
   responseSchema,
-  temperature = 0.2,
+  temperature = 0.0,
   topP = 0.8,
   topK = 40,
   maxOutputTokens = 1024,
@@ -71,8 +71,13 @@ async function callGeminiStructured({
     throw new Error('Gemini structured call returned no candidates.');
   }
   const partsResponse = candidates[0]?.content?.parts || [];
-  const primaryText = partsResponse.find((p) => typeof p?.text === 'string')?.text || '';
-  const textPayload = (primaryText || '').trim();
+  const textParts = partsResponse
+    .map((p) => (typeof p?.text === 'string' ? p.text : ''))
+    .filter((t) => t && t.trim().length > 0);
+  // Prefer a part that contains JSON braces
+  const withBraces = textParts.filter((t) => t.includes('{') && t.includes('}'));
+  const primaryText = (withBraces[0] || textParts[0] || '').trim();
+  const textPayload = primaryText;
   if (!textPayload) {
     throw new Error('Gemini structured call returned empty payload.');
   }
