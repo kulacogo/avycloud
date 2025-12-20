@@ -295,11 +295,6 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
     <div className="w-full p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-6 pb-16 sm:pb-8 safe-area-bottom">
       <form onSubmit={handleSubmit} className="space-y-6">
         
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 space-y-1">
-          <p className="text-xs uppercase tracking-wide text-slate-400">{t('input.pipeline.label')}</p>
-          <p className="text-sm text-slate-200">{t('input.pipeline.v2')} (Gemini Vision, SerpAPI-frei)</p>
-          <p className="text-xs text-slate-400">{t('input.pipeline.hint')}</p>
-        </div>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-slate-200">
