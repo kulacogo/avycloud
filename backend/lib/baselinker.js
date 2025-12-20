@@ -1025,7 +1025,12 @@ async function syncProductToBaseLinker(product, inventoryId) {
     const resolveExistingProduct = async (identifier) => {
       if (resolvedExisting || !identifier) return null;
       resolvedExisting = true;
+      // Try lookup by SKU first
       existing = await findProductBySku(inventoryId, identifier);
+      if (!existing?.product_id && payload?.ean) {
+        // second attempt: by EAN
+        existing = await findProductBySku(inventoryId, payload.ean);
+      }
       return existing;
     };
     if (!baseProductId && (payload?.sku || payload?.ean)) {
