@@ -1090,7 +1090,8 @@ async function syncProductToBaseLinker(product, inventoryId) {
         product.id,
         'synced',
         syncTimestamp,
-        baseProductId
+        baseProductId,
+        inventoryId
       );
     } catch (updateError) {
       console.warn(

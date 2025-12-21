@@ -330,9 +330,15 @@ async function deleteProduct(productId, { existingData = null } = {}) {
 }
 
 /**
- * Update product sync status
+ * Update product sync status (and optional BaseLinker linkage)
  */
-async function updateProductSyncStatus(productId, status, lastSyncedIso = null, baseProductId = undefined) {
+async function updateProductSyncStatus(
+  productId,
+  status,
+  lastSyncedIso = null,
+  baseProductId = undefined,
+  inventoryId = undefined
+) {
   try {
     const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
     const updateData = {
@@ -345,6 +351,11 @@ async function updateProductSyncStatus(productId, status, lastSyncedIso = null, 
     
     if (baseProductId !== undefined) {
       updateData['ops.base_product_id'] = baseProductId;
+      updateData['ops.baselinker'] = {
+        ...(updateData['ops.baselinker'] || {}),
+        product_id: baseProductId,
+        synced_inventory: inventoryId || null,
+      };
     }
     
     await docRef.update(updateData);
