@@ -44,7 +44,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate, th
             key={tab.id}
             type="button"
             onClick={() => onNavigate(tab.id)}
-            className={`flex flex-col items-center justify-center flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+            className={`flex flex-col items-center justify-center flex-1 rounded-[8px] px-3 py-2 text-xs font-semibold transition ${
               active ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40' : 'text-slate-200 bg-slate-800/80'
             }`}
           >

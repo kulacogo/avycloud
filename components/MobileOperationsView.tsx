@@ -109,7 +109,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         } catch (err) {
           console.warn('Order sync failed (will still fetch)', err);
         }
-        const data = await fetchOrdersApi(100, { timeoutMs: 10000 });
+        const data = await fetchOrdersApi(200, { timeoutMs: 10000 });
         if (!isCancelled?.() && !isUnmountedRef.current) setOrders(dedupeOrders(data || []));
       } catch (err) {
         console.warn('Failed to load orders', err);
@@ -133,7 +133,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   }, [refreshOrders]);
 
   const pickItems = useMemo(() => {
-    const openOrders = orders.filter((o) => o.status === 'new' || o.status === 'picking');
+    // Nur offene BaseLinker-Aufträge: Status "new" / "Neue Bestellung"
+    const openOrders = orders.filter((o) => (o.status || '').toLowerCase() === 'new');
     const bucket: Record<string, { orderId: string; sku: string; name: string; binCode: string; qty: number; pickHint?: any }> = {};
     openOrders.forEach((o) => {
       o.items
@@ -474,25 +475,27 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               </div>
             </div>
           )}
-          <button
-            type="button"
-            disabled={!stowSku || !stowBin || stowQty <= 0}
-            onClick={handleSubmitStow}
-            className="rounded-xl bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
-          >
-            Einlagern
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setStowSku('');
-              setStowBin('');
-              setStowQty(1);
-            }}
-            className="rounded-xl bg-slate-700 text-white font-semibold py-2"
-          >
-            Zurücksetzen
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={!stowSku || !stowBin || stowQty <= 0}
+              onClick={handleSubmitStow}
+              className="rounded-lg bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
+            >
+              Einlagern
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStowSku('');
+                setStowBin('');
+                setStowQty(1);
+              }}
+              className="rounded-lg bg-slate-700 text-white font-semibold py-3"
+            >
+              Zurücksetzen
+            </button>
+          </div>
         </div>
 
         {stowEntries.length > 0 && (
