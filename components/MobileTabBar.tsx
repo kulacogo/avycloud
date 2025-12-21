@@ -48,7 +48,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate, th
               active ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40' : 'text-slate-200 bg-slate-800/80'
             }`}
           >
-            <img src={iconSrc} alt="" className="w-[30px] h-[25px]" draggable={false} />
+            <img src={iconSrc} alt="" className="w-[30px] h-[30px]" draggable={false} />
             <span className="mt-1">{tab.label}</span>
           </button>
         );

@@ -29,7 +29,7 @@ const DashboardCard: React.FC<{
   value: string;
   sublabel?: string;
 }> = ({ label, value, sublabel }) => (
-  <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-lg shadow-black/20">
+  <div className="bg-slate-800 rounded-lg p-5 border border-white/5 shadow-lg shadow-black/20">
     <p className="text-sm uppercase tracking-wide text-slate-400">{label}</p>
     <p className="text-3xl font-semibold text-white mt-2">{value}</p>
     {sublabel && <p className="text-xs text-slate-400 mt-1">{sublabel}</p>}
