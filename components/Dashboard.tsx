@@ -91,31 +91,74 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
   );
 
   const orderMetrics = useMemo(() => {
-    const isClosed = (order: Order) => {
-      const raw = (order.status || order.statusLabel || '').toLowerCase();
-      const CLOSED = [
-        'picked',
-        'kommissioniert',
-        'versendet',
-        'zugestellt',
-        'shipped',
-        'delivered',
-        'completed',
-        'erledigt',
-        'storniert',
-        'cancelled',
-        'canceled',
-        // Treat stray "new" as closed if it slipped through (BaseLinker zeigt 0 offen)
-        'new',
-        'neu',
-      ];
-      return CLOSED.some((k) => raw.includes(k)) || Boolean(order.pickedAt);
+    const toRaw = (order: Order) => (order.statusLabel || order.status || '').toLowerCase();
+
+    const categorize = (order: Order) => {
+      const raw = toRaw(order);
+      if (raw.includes('storniert') || raw.includes('cancel')) return 'cancelled';
+      if (raw.includes('zugestellt') || raw.includes('delivered')) return 'zugestellt';
+      if (raw.includes('versendet') || raw.includes('shipped') || raw.includes('dispatched')) return 'versendet';
+      if (raw.includes('kommission') || raw.includes('picked')) return 'kommissioniert';
+      if (raw.includes('neu') || raw.includes('new')) return 'neu';
+      return 'other';
     };
 
-    const total = orders.length;
-    const picked = orders.filter(isClosed).length;
-    const open = total - picked;
+    const counts = {
+      neu: 0,
+      kommissioniert: 0,
+      versendet: 0,
+      zugestellt: 0,
+      cancelled: 0,
+      other: 0,
+    };
 
+    const valueMap = new Map<string, number>();
+
+    const activeOrders: Order[] = [];
+
+    orders.forEach((order) => {
+      const cat = categorize(order);
+      if (cat === 'cancelled') {
+        counts.cancelled += 1;
+        return; // Ignore cancelled everywhere
+      }
+      switch (cat) {
+        case 'neu':
+          counts.neu += 1;
+          break;
+        case 'kommissioniert':
+          counts.kommissioniert += 1;
+          break;
+        case 'versendet':
+          counts.versendet += 1;
+          break;
+        case 'zugestellt':
+          counts.zugestellt += 1;
+          break;
+        default:
+          counts.other += 1;
+          break;
+      }
+      activeOrders.push(order);
+      const amount = Number(order.totalAmount) || 0;
+      const currency = safeCurrency(order.currency || 'EUR');
+      valueMap.set(currency, (valueMap.get(currency) || 0) + amount);
+    });
+
+    const total = activeOrders.length;
+    const open = counts.neu;
+    const picked = counts.kommissioniert + counts.versendet + counts.zugestellt;
+
+    // revenue aggregation
+    const revenueEntries = Array.from(valueMap.entries()).map(([currency, amount]) => ({
+      currency,
+      amount,
+    }));
+    revenueEntries.sort((a, b) => b.amount - a.amount);
+    const primaryRevenue = revenueEntries[0] || { currency: 'EUR', amount: 0 };
+    const otherRevenues = revenueEntries.slice(1);
+
+    // chart for last 7 days (active orders only)
     const template: Array<{ key: string; date: Date; count: number }> = [];
     const base = new Date();
     base.setHours(0, 0, 0, 0);
@@ -131,7 +174,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
 
     const templateMap = new Map(template.map((entry) => [entry.key, entry]));
 
-    orders.forEach((order) => {
+    activeOrders.forEach((order) => {
       if (!order.createdAt) return;
       const date = new Date(order.createdAt);
       date.setHours(0, 0, 0, 0);
@@ -153,9 +196,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
     return {
       total,
       open,
+      neu: counts.neu,
+      kommissioniert: counts.kommissioniert,
+      versendet: counts.versendet,
+      zugestellt: counts.zugestellt,
+      cancelled: counts.cancelled,
       picked,
       chart,
       maxChartCount,
+      revenuePrimary: primaryRevenue,
+      revenueOthers: otherRevenues,
     };
   }, [orders]);
 
@@ -349,20 +399,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
           {ordersLoading ? (
             <p className="text-sm text-slate-400">Lade Auftragszahlen …</p>
           ) : (
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-slate-400">Offen</p>
-                <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.open}</p>
+            <>
+              <div className="grid grid-cols-4 gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Neue Bestellung</p>
+                  <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.neu}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Kommissioniert</p>
+                  <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.kommissioniert}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Versendet</p>
+                  <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.versendet}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Zugestellt</p>
+                  <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.zugestellt}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs uppercase tracking-widest text-slate-400">Kommissioniert</p>
-                <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.picked}</p>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Offen (nur neu)</p>
+                  <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.open}</p>
+                  <p className="text-xs text-slate-400 mt-1">Gesamt aktiv (ohne storniert): {orderMetrics.total}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Gesamtumsatz (alle, ohne Storniert)</p>
+                  <p className="text-2xl font-semibold text-white mt-1">
+                    {formatCurrency(orderMetrics.revenuePrimary.amount, orderMetrics.revenuePrimary.currency)}
+                  </p>
+                  {orderMetrics.revenueOthers.length > 0 && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      Weitere Währungen: {orderMetrics.revenueOthers.map((r) => `${formatCurrency(r.amount, r.currency)}`).join(', ')}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-xs uppercase tracking-widest text-slate-400">Gesamt</p>
-                <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.total}</p>
-              </div>
-            </div>
+            </>
           )}
         </div>
         <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-inner shadow-black/20 lg:col-span-2">
