@@ -72,6 +72,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [stowSku, setStowSku] = useState('');
   const [stowBin, setStowBin] = useState('');
   const [stowQty, setStowQty] = useState(1);
+  const [stowEntries, setStowEntries] = useState<Array<{ sku: string; bin: string; qty: number }>>([]);
   const [stowedSkus, setStowedSkus] = useState<Set<string>>(new Set());
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -264,12 +265,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   const handleSubmitStow = () => {
     if (!stowSku || !stowBin || stowQty <= 0) return;
-    alert(`Stow erfasst: SKU ${stowSku}, BIN ${stowBin}, Menge ${stowQty}`);
-    setStowedSkus((prev) => {
-      const next = new Set(prev);
-      next.add(stowSku);
-      return next;
-    });
+    setStowEntries((prev) => [...prev, { sku: stowSku, bin: stowBin, qty: stowQty }]);
+    // Nach Abschluss alles zurücksetzen
     setStowSku('');
     setStowBin('');
     setStowQty(1);
@@ -283,20 +280,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const scanBin = () => {
     const value = window.prompt('BIN scannen/eingeben');
     if (value) setStowBin(value.trim());
-    if (value) {
-      const qty = window.prompt('Menge eingeben');
-      const n = qty ? Number(qty) : 1;
-      if (Number.isFinite(n) && n > 0) {
-        setStowQty(n);
-        setTimeout(handleSubmitStow, 0);
-      }
-    }
   };
-
-  const stowFiltered = useMemo(
-    () => stowList.filter((p) => !stowedSkus.has(p.identification?.sku || p.details?.identifiers?.sku || '')),
-    [stowList, stowedSkus]
-  );
 
   const addIdentifySlot = () => {
     setIdentifySlots((prev) => [...prev, Date.now()]);
@@ -374,29 +358,133 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       <div className="space-y-3">
         <SectionTitle title="Stow" desc="Ohne BIN, mit Bestand" />
         <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
-          <p className="text-xs text-slate-300">Scanner-Flow: SKU scannen → Produkt wird gehighlightet. BIN scannen → Menge abfragen → Stow abschließen.</p>
+          <p className="text-xs text-slate-300">
+            Flow: SKU scannen → BIN scannen → Menge per Nummern-Pad → Submit. Mehrere Bins pro SKU möglich.
+          </p>
           <div className="flex flex-col gap-2">
             <button type="button" onClick={scanSku} className="rounded-xl bg-sky-700 text-white font-semibold py-2">
               SKU scannen
             </button>
             <button type="button" onClick={scanBin} className="rounded-xl bg-emerald-700 text-white font-semibold py-2">
-              BIN scannen & Menge
+              BIN scannen
+            </button>
+            <div className="grid grid-cols-2 gap-2 text-sm text-slate-200">
+              <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+                <p className="text-[11px] uppercase tracking-widest text-slate-400">Aktuelle SKU</p>
+                <p className="text-base font-semibold break-all">{stowSku || '—'}</p>
+              </div>
+              <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+                <p className="text-[11px] uppercase tracking-widest text-slate-400">Aktuelle BIN</p>
+                <p className="text-base font-semibold break-all">{stowBin || '—'}</p>
+              </div>
+            </div>
+            <div className="rounded-xl bg-slate-900/60 border border-white/10 p-3 space-y-3">
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">Menge (Num-Pad)</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  readOnly
+                  value={stowQty}
+                  className="flex-1 rounded-lg bg-slate-800 text-white text-xl font-semibold px-3 py-2 border border-slate-700"
+                />
+                <button
+                  type="button"
+                  className="rounded-lg px-3 py-2 bg-slate-700 text-white text-sm font-semibold"
+                  onClick={() => setStowQty(1)}
+                >
+                  Reset
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
+                    onClick={() => setStowQty((prev) => Number(`${prev}${n}`))}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
+                  onClick={() => setStowQty((prev) => Math.max(0, Math.floor(prev / 10)))}
+                >
+                  ⌫
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
+                  onClick={() => setStowQty((prev) => Number(`${prev}0`))}
+                >
+                  0
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
+                  onClick={() => setStowQty(0)}
+                >
+                  C
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg bg-slate-700 text-white text-sm font-semibold py-2"
+                  onClick={() => setStowQty((prev) => Math.max(0, prev + 1))}
+                >
+                  +1
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-slate-700 text-white text-sm font-semibold py-2"
+                  onClick={() => setStowQty((prev) => Math.max(0, prev + 5))}
+                >
+                  +5
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={!stowSku || !stowBin || stowQty <= 0}
+              onClick={handleSubmitStow}
+              className="rounded-xl bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
+            >
+              Einlagern
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStowSku('');
+                setStowBin('');
+                setStowQty(1);
+              }}
+              className="rounded-xl bg-slate-700 text-white font-semibold py-2"
+            >
+              SKU wechseln
             </button>
           </div>
         </div>
-        {stowFiltered.length === 0 && <p className="text-sm text-slate-400">Keine Produkte ohne BIN.</p>}
-        {stowFiltered.slice(0, 100).map((p) => {
-          const sku = p.identification?.sku || p.details?.identifiers?.sku || '';
-          const highlight = stowSku && sku === stowSku;
-          return (
-            <div
-              key={p.id}
-              className={`rounded-2xl border p-3 bg-slate-800 shadow-sm shadow-black/30 ${highlight ? 'border-emerald-400 bg-emerald-900/30' : 'border-white/5'}`}
-            >
-              <ProductCard product={p} footer={<StatusBadge label="Stow" tone="warn" />} />
+
+        {stowEntries.length > 0 && (
+          <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
+            <p className="text-sm font-semibold text-white">Erfasste Stows (Session)</p>
+            <div className="space-y-2">
+              {stowEntries.map((entry, idx) => (
+                <div key={`${entry.sku}-${entry.bin}-${idx}`} className="rounded-xl border border-white/10 bg-slate-900/60 p-2 text-sm text-slate-200">
+                  <div className="flex justify-between gap-2">
+                    <span className="font-semibold break-all">{entry.sku}</span>
+                    <span className="text-slate-300">Qty {entry.qty}</span>
+                  </div>
+                  <p className="text-xs text-slate-400 break-all">BIN {entry.bin}</p>
+                </div>
+              ))}
             </div>
-          );
-        })}
+          </div>
+        )}
       </div>
     );
   }
