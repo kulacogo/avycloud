@@ -638,7 +638,8 @@ function buildTextFields(product, name) {
     ? product.details.key_features.filter(Boolean)
     : [];
   if (highlights.length) {
-    textFields.extra_description_1 = highlights.map((h) => `• ${h}`).join('\n');
+    // BaseLinker erwartet description_extra1 (nicht extra_description_1)
+    textFields.description_extra1 = highlights.map((h) => `• ${h}`).join('\n');
   }
 
   if (Object.keys(features).length) {
