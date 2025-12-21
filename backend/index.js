@@ -1045,7 +1045,7 @@ app.post('/api/generate-images', async (req, res) => {
 });
 
 // --- BaseLinker sync endpoint ---
-const { syncProductToBaseLinker, syncProductsToBaseLinker } = require('./lib/baselinker');
+const { syncProductToBaseLinker, syncProductsToBaseLinker, findProductsBySkus } = require('./lib/baselinker');
 
 app.post('/api/sync-baselinker', async (req, res) => {
   console.log('Received request on /api/sync-baselinker');
@@ -1139,6 +1139,28 @@ app.post('/api/sync-baselinker', async (req, res) => {
         message: 'An internal server error occurred during sync',
         details: error.message
       }
+    });
+  }
+});
+
+// BaseLinker SKU/EAN lookup (existiert in Inventory?)
+app.post('/api/baselinker/lookup', async (req, res) => {
+  try {
+    const { skus } = req.body || {};
+    if (!Array.isArray(skus) || skus.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'skus array required' },
+      });
+    }
+    const invId = process.env.BASELINKER_INVENTORY_ID || '78659';
+    const results = await findProductsBySkus(invId, skus);
+    return res.status(200).json({ ok: true, results });
+  } catch (error) {
+    console.error('Error in /api/baselinker/lookup:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to lookup BaseLinker SKUs', details: error.message },
     });
   }
 });

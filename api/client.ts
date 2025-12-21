@@ -569,6 +569,29 @@ export const syncToBaseLinker = async (
   }
 };
 
+// Lookup SKU/EAN in BaseLinker inventory → returns map { normalizedSkuOrEan: { product_id, sku, ean, inventoryId } }
+export const lookupBaseLinkerBySkus = async (
+  skus: string[]
+): Promise<{ ok: boolean; results?: Record<string, { product_id: number; sku?: string | null; ean?: string | null; inventoryId?: string }>; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/baselinker/lookup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skus }),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Lookup failed' } };
+    }
+    return { ok: true, results: result?.results || {} };
+  } catch (error) {
+    console.error('Failed to lookup BaseLinker SKUs:', error);
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
 export const improveProduct = async (
   productId: string
 ): Promise<{ ok: boolean; data?: Product; error?: { code: number; message: string } }> => {

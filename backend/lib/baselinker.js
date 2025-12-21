@@ -936,6 +936,41 @@ async function findProductBySku(inventoryId, skuOrEan) {
 }
 
 /**
+ * Mehrere SKUs/EANs in einem Rutsch prüfen
+ * Rückgabe: Map von normalisiertem SKU/EAN → { product_id, sku, ean }
+ */
+async function findProductsBySkus(inventoryId, skuList = []) {
+  if (!Array.isArray(skuList) || !skuList.length) return {};
+  const invId = String(inventoryId || TARGET_INVENTORY_ID);
+  const normalized = Array.from(
+    new Set(
+      skuList
+        .map((v) => normalizeSkuValue(v) || normalizeEanValue(v))
+        .filter(Boolean)
+    )
+  );
+
+  const results = {};
+  for (const key of normalized) {
+    const match = await findProductBySku(invId, key);
+    if (match) {
+      const pid = match.product_id || match.id;
+      if (pid) {
+        const matchedSku = normalizeSkuValue(match.sku || match.product_sku || key) || null;
+        const matchedEan = normalizeEanValue(match.ean || match.product_ean || null) || null;
+        results[key] = {
+          product_id: pid,
+          sku: matchedSku,
+          ean: matchedEan,
+          inventoryId: invId,
+        };
+      }
+    }
+  }
+  return results;
+}
+
+/**
  * Einzelnes Produkt synchronisieren
  */
 async function syncProductToBaseLinker(product, inventoryId) {
@@ -1168,4 +1203,5 @@ module.exports = {
   syncProductToBaseLinker,
   syncProductsToBaseLinker,
   callBaseLinker,
+  findProductsBySkus,
 };

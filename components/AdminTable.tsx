@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts } from '../api/client';
+import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
@@ -196,6 +196,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [improveInProgress, setImproveInProgress] = useState(false);
   const [improveMessage, setImproveMessage] = useState<string | null>(null);
+  const [baselinkerLookupInProgress, setBaselinkerLookupInProgress] = useState(false);
+  const baselinkerChecked = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 640px)');
@@ -211,6 +213,75 @@ const AdminTable: React.FC<AdminTableProps> = ({
       setMobileFiltersOpen(false);
     }
   }, [isMobile]);
+
+  // Helper: normalize SKU/EAN
+  const normalizeSku = (value?: string | null) => {
+    if (!value) return '';
+    return value.toString().trim().replace(/\s+/g, '').toUpperCase();
+  };
+
+  // On load: check BaseLinker existence by SKU/EAN and update products with found product_id
+  useEffect(() => {
+    const candidates = products
+      .filter((p) => !p?.ops?.baselinker?.product_id)
+      .map((p) => {
+        const identifiers = p.details?.identifiers || {};
+        const sku = normalizeSku(p.identification?.sku || identifiers.sku);
+        const ean = normalizeSku(identifiers.ean || identifiers.gtin || identifiers.upc || (p.identification?.barcodes || [])[0]);
+        return sku || ean || '';
+      })
+      .filter(Boolean)
+      .filter((sku) => !baselinkerChecked.current.has(sku));
+
+    const uniqueSkus = Array.from(new Set(candidates));
+    if (!uniqueSkus.length || baselinkerLookupInProgress) return;
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        setBaselinkerLookupInProgress(true);
+        const res = await lookupBaseLinkerBySkus(uniqueSkus);
+        if (!res.ok || !res.results || cancelled) return;
+
+        const updated = products.map((p) => {
+          const identifiers = p.details?.identifiers || {};
+          const sku = normalizeSku(p.identification?.sku || identifiers.sku);
+          const ean = normalizeSku(identifiers.ean || identifiers.gtin || identifiers.upc || (p.identification?.barcodes || [])[0]);
+          const key = sku || ean || '';
+          const match = key ? res.results?.[key] : undefined;
+          if (match?.product_id) {
+            const currentOps = { ...(p.ops || {}) };
+            const currentBL = currentOps.baselinker || {};
+            return {
+              ...p,
+              ops: {
+                ...currentOps,
+                baselinker: {
+                  ...currentBL,
+                  product_id: match.product_id,
+                  synced_inventory: match.inventoryId || syncInventoryId,
+                  matched_sku: match.sku || sku || null,
+                  matched_ean: match.ean || ean || null,
+                },
+              },
+            };
+          }
+          return p;
+        });
+
+        // mark checked
+        uniqueSkus.forEach((s) => baselinkerChecked.current.add(s));
+        onUpdateProducts(updated);
+      } finally {
+        if (!cancelled) setBaselinkerLookupInProgress(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [products, baselinkerLookupInProgress, onUpdateProducts, syncInventoryId]);
 
 
   const categories = useMemo(() => ['all', ...new Set(products.map(p => p.identification.category))], [products]);
