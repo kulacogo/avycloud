@@ -1078,8 +1078,8 @@ app.post('/api/sync-baselinker', async (req, res) => {
         });
       }
 
-      // Chunk client payload kleiner halten für Timeouts/Ratelimit
-      const CHUNK_SIZE = 15;
+      // Chunk klein halten, damit Request < Cloud-Run-Timeout bleibt
+      const CHUNK_SIZE = 5;
       results = [];
       for (let i = 0; i < products.length; i += CHUNK_SIZE) {
         const chunk = products.slice(i, i + CHUNK_SIZE);

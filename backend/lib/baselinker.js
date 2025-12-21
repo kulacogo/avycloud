@@ -1191,11 +1191,25 @@ async function syncProductToBaseLinker(product, inventoryId) {
  * Mehrere Produkte synchronisieren
  */
 async function syncProductsToBaseLinker(products, inventoryId) {
-  const results = [];
-  for (const product of products) {
-    const result = await syncProductToBaseLinker(product, inventoryId);
-    results.push(result);
-  }
+  const results = new Array(products.length);
+  const concurrency = Math.max(1, parseInt(process.env.BASELINKER_SYNC_CONCURRENCY || '3', 10));
+  let index = 0;
+
+  const worker = async () => {
+    while (true) {
+      const current = index;
+      index += 1;
+      if (current >= products.length) break;
+      const product = products[current];
+      results[current] = await syncProductToBaseLinker(product, inventoryId);
+    }
+  };
+
+  const workers = Array(Math.min(concurrency, products.length))
+    .fill(null)
+    .map(() => worker());
+
+  await Promise.all(workers);
   return results;
 }
 

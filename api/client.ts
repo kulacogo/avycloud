@@ -525,7 +525,7 @@ export const syncToBaseLinker = async (
     }
 
     // Cloud Run ingress limit is 32MB; keep payloads small to avoid 413/CORS failures
-    const CHUNK_SIZE = 20;
+    const CHUNK_SIZE = 10;
     const allResults: Array<{ id: string; status: 'synced' | 'failed'; message?: string }> = [];
 
     for (let i = 0; i < products.length; i += CHUNK_SIZE) {
