@@ -150,7 +150,7 @@ async function syncNewOrders() {
   const params = {
     date_from: dateFrom,
     date_confirmed_from: dateFrom,
-    limit: 100,
+    limit: 500,
     get_unconfirmed_orders: false,
   };
 
@@ -183,7 +183,9 @@ async function syncNewOrders() {
       normalized.includes('bestellungen') ||
       normalized === '';
 
-    if (isPickedId || looksCancelled) {
+    if (looksNew) {
+      order.status = 'new';
+    } else if (isPickedId || looksCancelled) {
       order.status = 'picked';
     } else if (
       normalized.includes('kommissioniert') ||
@@ -196,11 +198,9 @@ async function syncNewOrders() {
       normalized.includes('canceled')
     ) {
       order.status = 'picked';
-    } else if (looksNew) {
-      order.status = 'new';
     } else {
-      // Default: treat unknown/other statuses as open to avoid hiding new orders
-      order.status = 'new';
+      // Default: treat unknown/other statuses as closed so sie blocken nicht das "new"-Listing
+      order.status = 'picked';
     }
   });
 
