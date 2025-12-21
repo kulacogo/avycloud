@@ -103,12 +103,16 @@ async function fetchImageAsDataUrl(image) {
 }
 
 const VARIANT_SPECS = [
+  // 4 Studio-Perspektiven
   { group: 'studio', key: 'front', type: 'studio_front' },
   { group: 'studio', key: 'detail', type: 'studio_detail' },
   { group: 'studio', key: 'topdown', type: 'studio_topdown' },
+  { group: 'studio', key: 'angle', type: 'studio_angle' },
+  // 4 Lifestyle-Perspektiven
   { group: 'lifestyle', key: 'front', type: 'lifestyle_front' },
   { group: 'lifestyle', key: 'closeup', type: 'lifestyle_closeup' },
   { group: 'lifestyle', key: 'inuse', type: 'lifestyle_inuse' },
+  { group: 'lifestyle', key: 'angle', type: 'lifestyle_angle' },
 ];
 
 function shouldIncludeVariant(mode, spec) {
@@ -126,7 +130,7 @@ async function generateImagesForProduct(product, options = {}) {
         throw new Error('Product ID is required');
     }
 
-  const { referenceImage, sampleCount = 3, mode = 'all' } = options;
+  const { referenceImage, sampleCount = 1, mode = 'all' } = options;
   if (!referenceImage?.url_or_base64) {
     throw new Error('Reference image is required');
   }

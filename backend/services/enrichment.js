@@ -1168,11 +1168,10 @@ function buildMarketingPrompt(product, locale = 'de-DE') {
 
   parts.push(
     `Anforderungen:`,
-    `- Titel max. 70 Zeichen, beginnt mit Marke + Produktkategorie + Nutzen.`,
-    `- Keine Erwähnungen von Verpackung, Etikett oder "sichtbar".`,
-    `- Kurzbeschreibung mind. 3 Absätze à 2 Sätze, beschreibt Einsatzzwecke, Vorteile, Material, Lieferumfang, Montage/Pflege.`,
-    `- Hauptmerkmale: 5-7 Bulletpoints, 6-12 Wörter, nutzenorientiert (keine Wiederholungen, keine Verpackungs-Hinweise).`,
-    `- Ton: verkaufsfördernd, seriös, faktenbasiert.`,
+    `- Titel (SEO): max. 70 Zeichen, starte mit Marke + Produktkategorie + Top-Nutzen, ergänze Modell/Größe/Zustand, keine Füllwörter.`,
+    `- Kurzbeschreibung: 3 Absätze à 2 Sätze, verkaufsstark, Nutzen & Materialien, Pflege/Montage, Social Proof/Trust, klarer CTA ("Jetzt kaufen", "Nur begrenzte Stückzahl").`,
+    `- Highlights: 6-8 Bullets, 6-12 Wörter, nutzenorientiert. Enthalten: Versanddetails (DHL, kostenloser Versand, Versand bis 14 Uhr am selben Werktag), Rückgaberecht 14 Tage, Sonderangebote/Limitierung. Keine Wiederholungen, kein Verpackungstext.`,
+    `- Ton: aggressiv verkaufsfördernd, faktenbasiert, aber ohne Übertreibungen; klare Kaufaufforderung.`,
     `Gib das Ergebnis als JSON mit { "title": "...", "description": "...", "highlights": ["...", ...] } zurück.`
   );
 

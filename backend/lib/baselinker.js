@@ -633,6 +633,14 @@ function buildTextFields(product, name) {
     description: product?.details?.short_description || name,
   };
 
+  // Extra Beschreibung 1 = Highlights/Bullets für BL
+  const highlights = Array.isArray(product?.details?.key_features)
+    ? product.details.key_features.filter(Boolean)
+    : [];
+  if (highlights.length) {
+    textFields.extra_description_1 = highlights.map((h) => `• ${h}`).join('\n');
+  }
+
   if (Object.keys(features).length) {
     textFields.features = features;
   }
