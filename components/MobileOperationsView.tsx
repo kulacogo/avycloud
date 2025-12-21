@@ -363,6 +363,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   }
 
   if (mode === 'operations-stow') {
+    const showKeypad = Boolean(stowSku && stowBin);
     return (
       <div className="space-y-3">
         <SectionTitle title="Stow" desc="Ohne BIN, mit Bestand" />
@@ -380,10 +381,61 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               <p className="text-base font-semibold break-all">{stowBin || '—'}</p>
             </div>
           </div>
-          <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-            <p className="text-[11px] uppercase tracking-widest text-slate-400">Menge (Scanner-Ziffern)</p>
-            <p className="text-xl font-semibold text-white">{stowQty}</p>
-          </div>
+          {showKeypad && (
+            <div className="rounded-xl bg-slate-900/60 border border-white/10 p-3 space-y-3">
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">Menge (Scanner oder Num-Pad)</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  readOnly
+                  value={stowQty}
+                  className="flex-1 rounded-lg bg-slate-800 text-white text-xl font-semibold px-3 py-2 border border-slate-700"
+                />
+                <button
+                  type="button"
+                  className="rounded-lg px-3 py-2 bg-slate-700 text-white text-sm font-semibold"
+                  onClick={() => setStowQty(0)}
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
+                    onClick={() => setStowQty((prev) => Number(`${prev}${n}`))}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
+                  onClick={() => setStowQty((prev) => Math.max(0, Math.floor(prev / 10)))}
+                >
+                  ⌫
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
+                  onClick={() => setStowQty((prev) => Number(`${prev}0`))}
+                >
+                  0
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
+                  onClick={() => setStowQty(0)}
+                >
+                  C
+                </button>
+              </div>
+            </div>
+          )}
           <button
             type="button"
             disabled={!stowSku || !stowBin || stowQty <= 0}
