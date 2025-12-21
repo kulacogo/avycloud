@@ -5,7 +5,7 @@
 /* Alle div-Ecken global auf 8px abrunden */
 @layer base {
   div {
-    border-radius: 8px;
+    border-radius: 8px !important;
   }
 }
 

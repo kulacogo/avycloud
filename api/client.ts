@@ -675,8 +675,13 @@ export const generateProductImages = async (
   }
 };
 
-export const fetchOrders = async (limit = 50, options?: { timeoutMs?: number }): Promise<Order[]> => {
-  const response = await fetchWithTimeout(`${BACKEND_URL}/api/orders?limit=${limit}`, undefined, options?.timeoutMs || 10000);
+export const fetchOrders = async (limit = 200, options?: { timeoutMs?: number }): Promise<Order[]> => {
+  const cappedLimit = Math.min(Math.max(Number(limit) || 0, 1), 200);
+  const response = await fetchWithTimeout(
+    `${BACKEND_URL}/api/orders?limit=${cappedLimit}`,
+    undefined,
+    options?.timeoutMs || 10000
+  );
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Aufträge konnten nicht geladen werden.');
