@@ -524,7 +524,8 @@ export const syncToBaseLinker = async (
       console.log('API CALL: /api/sync-baselinker', { count: products.length, inventoryId: inv });
     }
 
-    const CHUNK_SIZE = 90;
+    // Cloud Run ingress limit is 32MB; keep payloads small to avoid 413/CORS failures
+    const CHUNK_SIZE = 20;
     const allResults: Array<{ id: string; status: 'synced' | 'failed'; message?: string }> = [];
 
     for (let i = 0; i < products.length; i += CHUNK_SIZE) {
