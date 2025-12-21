@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
-import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder } from '../api/client';
+import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, stockInProduct } from '../api/client';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
@@ -74,6 +74,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [stowQty, setStowQty] = useState(1);
   const [stowEntries, setStowEntries] = useState<Array<{ sku: string; bin: string; qty: number }>>([]);
   const [stowedSkus, setStowedSkus] = useState<Set<string>>(new Set());
+  const [stowMessage, setStowMessage] = useState<string | null>(null);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -190,13 +191,49 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     [refreshOrders]
   );
 
-  const handleSubmitStow = useCallback(() => {
+  const normalize = (val?: string | null) => (val || '').replace(/\s+/g, '').toUpperCase();
+  const resolveProductForStow = useCallback(
+    (skuValue: string) => {
+      const needle = normalize(skuValue);
+      if (!needle) return null;
+      return (
+        products.find((p) => normalize(p.identification?.sku || p.details?.identifiers?.sku || '') === needle) ||
+        products.find((p) =>
+          (p.identification?.barcodes || []).some((bc) => normalize(bc) === needle)
+        ) ||
+        null
+      );
+    },
+    [products]
+  );
+
+  const handleSubmitStow = useCallback(async () => {
     if (!stowSku || !stowBin || stowQty <= 0) return;
+    setStowMessage(null);
+    const productMatch = resolveProductForStow(stowSku);
+    const payload = {
+      productId: productMatch?.id,
+      sku: stowSku,
+      binCode: stowBin,
+      quantity: stowQty,
+      barcode: productMatch?.identification?.barcodes?.[0] || productMatch?.details?.identifiers?.ean || undefined,
+    };
+    const result = await stockInProduct(payload);
+    if (!result.ok) {
+      setStowMessage(result.error?.message || 'Einlagerung fehlgeschlagen.');
+      return;
+    }
     setStowEntries((prev) => [...prev, { sku: stowSku, bin: stowBin, qty: stowQty }]);
+    setStowedSkus((prev) => {
+      const next = new Set(prev);
+      next.add(normalize(stowSku));
+      return next;
+    });
+    setStowMessage('Einlagerung gespeichert.');
     setStowSku('');
     setStowBin('');
     setStowQty(1);
-  }, [stowBin, stowQty, stowSku]);
+  }, [resolveProductForStow, stowBin, stowQty, stowSku, normalize]);
 
   const handleScannedValue = useCallback(
     (value: string) => {
@@ -371,6 +408,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           <p className="text-xs text-slate-300">
             Scanner-Flow: SKU scannen → BIN scannen → Menge (Ziffern) scannen. Nach jeder Einlagerung wird alles zurückgesetzt.
           </p>
+          {stowMessage && <p className="text-xs text-emerald-300">{stowMessage}</p>}
           <div className="grid grid-cols-2 gap-2 text-sm text-slate-200">
             <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
               <p className="text-[11px] uppercase tracking-widest text-slate-400">SKU</p>
