@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Alle div-Ecken global auf 8px abrunden */
+@layer base {
+  div {
+    border-radius: 8px;
+  }
+}
+
 :root {
   /* Globale Textgröße: 12px (4px kleiner als Browser-Default 16px) */
   font-size: 12px;
