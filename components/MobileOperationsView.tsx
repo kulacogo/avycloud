@@ -190,10 +190,38 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     [refreshOrders]
   );
 
+  const handleSubmitStow = useCallback(() => {
+    if (!stowSku || !stowBin || stowQty <= 0) return;
+    setStowEntries((prev) => [...prev, { sku: stowSku, bin: stowBin, qty: stowQty }]);
+    setStowSku('');
+    setStowBin('');
+    setStowQty(1);
+  }, [stowBin, stowQty, stowSku]);
+
   const handleScannedValue = useCallback(
     (value: string) => {
       const normalized = value.trim();
       if (!normalized) return;
+
+      if (mode === 'operations-stow') {
+        const numeric = /^\d+$/;
+        if (!stowSku && !numeric.test(normalized)) {
+          setStowSku(normalized);
+          return;
+        }
+        if (stowSku && !stowBin && !numeric.test(normalized)) {
+          setStowBin(normalized);
+          return;
+        }
+        if (numeric.test(normalized)) {
+          const n = Number(normalized);
+          if (Number.isFinite(n) && n > 0) {
+            setStowQty(n);
+            setTimeout(handleSubmitStow, 0);
+          }
+        }
+        return;
+      }
 
       let nextBin = activeBin;
       let nextSku = activeSku;
@@ -234,13 +262,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         }
       }
     },
-    [activeBin, activeSku, completePickFlow, equalsIgnoreCase, pickItems]
+    [activeBin, activeSku, completePickFlow, equalsIgnoreCase, pickItems, handleSubmitStow, stowBin, stowQty, stowSku]
   );
   useEffect(() => {
     const bufferRef = { current: '' };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (mode !== 'operations-pick') return;
+      if (mode !== 'operations-pick' && mode !== 'operations-stow') return;
       const target = e.target as HTMLElement | null;
       if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
 
@@ -262,25 +290,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleScannedValue, mode]);
-
-  const handleSubmitStow = () => {
-    if (!stowSku || !stowBin || stowQty <= 0) return;
-    setStowEntries((prev) => [...prev, { sku: stowSku, bin: stowBin, qty: stowQty }]);
-    // Nach Abschluss alles zurücksetzen
-    setStowSku('');
-    setStowBin('');
-    setStowQty(1);
-  };
-
-  const scanSku = () => {
-    const value = window.prompt('SKU scannen/eingeben');
-    if (value) setStowSku(value.trim());
-  };
-
-  const scanBin = () => {
-    const value = window.prompt('BIN scannen/eingeben');
-    if (value) setStowBin(value.trim());
-  };
 
   const addIdentifySlot = () => {
     setIdentifySlots((prev) => [...prev, Date.now()]);
@@ -359,114 +368,41 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         <SectionTitle title="Stow" desc="Ohne BIN, mit Bestand" />
         <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
           <p className="text-xs text-slate-300">
-            Flow: SKU scannen → BIN scannen → Menge per Nummern-Pad → Submit. Mehrere Bins pro SKU möglich.
+            Scanner-Flow: SKU scannen → BIN scannen → Menge (Ziffern) scannen. Nach jeder Einlagerung wird alles zurückgesetzt.
           </p>
-          <div className="flex flex-col gap-2">
-            <button type="button" onClick={scanSku} className="rounded-xl bg-sky-700 text-white font-semibold py-2">
-              SKU scannen
-            </button>
-            <button type="button" onClick={scanBin} className="rounded-xl bg-emerald-700 text-white font-semibold py-2">
-              BIN scannen
-            </button>
-            <div className="grid grid-cols-2 gap-2 text-sm text-slate-200">
-              <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-                <p className="text-[11px] uppercase tracking-widest text-slate-400">Aktuelle SKU</p>
-                <p className="text-base font-semibold break-all">{stowSku || '—'}</p>
-              </div>
-              <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-                <p className="text-[11px] uppercase tracking-widest text-slate-400">Aktuelle BIN</p>
-                <p className="text-base font-semibold break-all">{stowBin || '—'}</p>
-              </div>
+          <div className="grid grid-cols-2 gap-2 text-sm text-slate-200">
+            <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">SKU</p>
+              <p className="text-base font-semibold break-all">{stowSku || '—'}</p>
             </div>
-            <div className="rounded-xl bg-slate-900/60 border border-white/10 p-3 space-y-3">
-              <p className="text-[11px] uppercase tracking-widest text-slate-400">Menge (Num-Pad)</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  readOnly
-                  value={stowQty}
-                  className="flex-1 rounded-lg bg-slate-800 text-white text-xl font-semibold px-3 py-2 border border-slate-700"
-                />
-                <button
-                  type="button"
-                  className="rounded-lg px-3 py-2 bg-slate-700 text-white text-sm font-semibold"
-                  onClick={() => setStowQty(1)}
-                >
-                  Reset
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
-                    onClick={() => setStowQty((prev) => Number(`${prev}${n}`))}
-                  >
-                    {n}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
-                  onClick={() => setStowQty((prev) => Math.max(0, Math.floor(prev / 10)))}
-                >
-                  ⌫
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
-                  onClick={() => setStowQty((prev) => Number(`${prev}0`))}
-                >
-                  0
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
-                  onClick={() => setStowQty(0)}
-                >
-                  C
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg bg-slate-700 text-white text-sm font-semibold py-2"
-                  onClick={() => setStowQty((prev) => Math.max(0, prev + 1))}
-                >
-                  +1
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-slate-700 text-white text-sm font-semibold py-2"
-                  onClick={() => setStowQty((prev) => Math.max(0, prev + 5))}
-                >
-                  +5
-                </button>
-              </div>
+            <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">BIN</p>
+              <p className="text-base font-semibold break-all">{stowBin || '—'}</p>
             </div>
-            <button
-              type="button"
-              disabled={!stowSku || !stowBin || stowQty <= 0}
-              onClick={handleSubmitStow}
-              className="rounded-xl bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
-            >
-              Einlagern
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setStowSku('');
-                setStowBin('');
-                setStowQty(1);
-              }}
-              className="rounded-xl bg-slate-700 text-white font-semibold py-2"
-            >
-              SKU wechseln
-            </button>
           </div>
+          <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+            <p className="text-[11px] uppercase tracking-widest text-slate-400">Menge (Scanner-Ziffern)</p>
+            <p className="text-xl font-semibold text-white">{stowQty}</p>
+          </div>
+          <button
+            type="button"
+            disabled={!stowSku || !stowBin || stowQty <= 0}
+            onClick={handleSubmitStow}
+            className="rounded-xl bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
+          >
+            Einlagern
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setStowSku('');
+              setStowBin('');
+              setStowQty(1);
+            }}
+            className="rounded-xl bg-slate-700 text-white font-semibold py-2"
+          >
+            Zurücksetzen
+          </button>
         </div>
 
         {stowEntries.length > 0 && (
