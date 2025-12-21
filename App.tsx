@@ -726,6 +726,7 @@ const App: React.FC = () => {
             onNavigate={(next) => {
               setView(next as View);
             }}
+            theme={theme}
           />
         </div>
       )}
