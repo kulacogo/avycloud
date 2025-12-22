@@ -15,6 +15,9 @@ const MIN_IMAGE_EDGE_BASELINKER = parseInt(
   process.env.BASELINKER_IMAGE_MIN_EDGE || '600',
   10
 );
+// Optional: Bild-URLs übertragen (kein Base64). Default an, da nur URLs gesendet werden.
+const BASELINKER_SEND_IMAGES =
+  (process.env.BASELINKER_SEND_IMAGES ?? 'true').toString().toLowerCase() === 'true';
 const TARGET_INVENTORY_ID = process.env.BASELINKER_INVENTORY_ID || '78659'; // statisch, wie gefordert
 // Feste Zuordnung der CSVs (keine env-Overrides, um Vertauschungen zu vermeiden)
 const EBAY_CATEGORY_CSV = path.join(
@@ -670,6 +673,7 @@ function buildTextFields(product, name) {
  * Bilder → nur self-hosted URLs, Mindestkante filterbar
  */
 function buildImages(product) {
+  if (!BASELINKER_SEND_IMAGES) return {};
   const images = {};
   const candidates = (product?.details?.images || [])
     .filter(

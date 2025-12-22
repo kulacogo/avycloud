@@ -1404,6 +1404,87 @@ app.get('/api/warehouse/zones/:zone/:etage', async (req, res) => {
   }
 });
 
+// BIN label endpoints – define before generic /:code route to avoid shadowing
+app.get('/api/warehouse/bins/labels', async (req, res) => {
+  try {
+    const codes = await resolveBinCodes({
+      codesInput: req.query.codes,
+      zone: req.query.zone,
+      etage: req.query.etage,
+      gang: req.query.gang,
+      regal: req.query.regal,
+    });
+    await sendBinLabelHtml(res, codes);
+  } catch (error) {
+    console.error('Failed to generate batch bin labels:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Erstellen der BIN-Labels', details: error.message },
+    });
+  }
+});
+
+app.post('/api/warehouse/bins/labels', async (req, res) => {
+  try {
+    const { zone, etage, gang, regal } = req.body || {};
+    const bodyCodes = req.body?.codes ?? req.body?.['codes[]'];
+    const resolvedCodes = await resolveBinCodes({
+      codesInput: bodyCodes,
+      zone,
+      etage,
+      gang,
+      regal,
+    });
+    await sendBinLabelHtml(res, resolvedCodes);
+  } catch (error) {
+    console.error('Failed to generate batch bin labels (POST):', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Erstellen der BIN-Labels', details: error.message },
+    });
+  }
+});
+
+app.get('/api/warehouse/bins/labels.pdf', async (req, res) => {
+  try {
+    const codes = await resolveBinCodes({
+      codesInput: req.query.codes,
+      zone: req.query.zone,
+      etage: req.query.etage,
+      gang: req.query.gang,
+      regal: req.query.regal,
+    });
+    await sendBinLabelsPdf(res, codes);
+  } catch (error) {
+    console.error('Failed to generate batch bin labels PDF:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Erstellen der BIN-Labels (PDF)', details: error.message },
+    });
+  }
+});
+
+app.post('/api/warehouse/bins/labels.pdf', async (req, res) => {
+  try {
+    const { zone, etage, gang, regal } = req.body || {};
+    const bodyCodes = req.body?.codes ?? req.body?.['codes[]'];
+    const resolvedCodes = await resolveBinCodes({
+      codesInput: bodyCodes,
+      zone,
+      etage,
+      gang,
+      regal,
+    });
+    await sendBinLabelsPdf(res, resolvedCodes);
+  } catch (error) {
+    console.error('Failed to generate batch bin labels PDF (POST):', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Erstellen der BIN-Labels (PDF)', details: error.message },
+    });
+  }
+});
+
 app.get('/api/warehouse/bins/:code', async (req, res) => {
   try {
     const code = req.params.code.toUpperCase();
