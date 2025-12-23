@@ -236,26 +236,6 @@ export const buildProductFromEnrichment = (
     },
   };
 
-  const priceHint: any = (record as any).price_hint;
-  if (priceHint && typeof priceHint.amount === 'number' && priceHint.amount > 0) {
-    product.details.pricing = {
-      ...product.details.pricing,
-      lowest_price: {
-        amount: priceHint.amount,
-        currency: priceHint.currency || 'EUR',
-        sources: [
-          {
-            name: priceHint.source || 'SerpAPI',
-            url: priceHint.url || '',
-            price: priceHint.amount,
-            checked_at: new Date().toISOString(),
-          },
-        ],
-      },
-      price_confidence: 0.6,
-    };
-  }
-
   return product;
 };
 
