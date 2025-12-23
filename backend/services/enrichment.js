@@ -1250,6 +1250,9 @@ function queryMatchesProduct(query, product, keywords = null) {
   return searchKeywords.some((keyword) => normalizedQuery.includes(keyword.slice(0, Math.min(keyword.length, 8))));
 }
 
+const USED_PRICE_HINT_REGEX =
+  /\b(gebraucht|used|refurb|refurbished|renewed|b-ware|pre-owned|second hand|open box)\b/i;
+
 function collectPriceCandidates(product, serpTrace = [], existingKeywords = null) {
   if (!Array.isArray(serpTrace) || !serpTrace.length) return [];
   const keywords = existingKeywords || collectProductKeywords(product);
@@ -1263,6 +1266,8 @@ function collectPriceCandidates(product, serpTrace = [], existingKeywords = null
       const parsedPrice = normalizePriceString(item.price);
       if (!parsedPrice) continue;
       const textBlob = [item.title, item.snippet].filter(Boolean).join(' ').toLowerCase();
+      // User requirement: prefer new price (Neuware) → drop obvious used/refurbished offers
+      if (USED_PRICE_HINT_REGEX.test(textBlob)) continue;
       const textMatches = keywords.some((keyword) => textBlob.includes(keyword));
       if (!queryIsRelevant && !textMatches) continue;
       candidates.push({
@@ -1326,7 +1331,8 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
     // Use Thinking Model to create the best search query
     let bestQuery = "";
     try {
-      const prompt = `Du bist ein Preis-Such-Experte. Erstelle EINEN EINZIGEN, PERFEKTEN Such-Query für SerpApi (Google Shopping), um den aktuellen Preis für dieses Produkt zu finden:
+      const prompt = `Du bist ein Preis-Such-Experte. Erstelle EINEN EINZIGEN, PERFEKTEN Such-Query für SerpApi (Google Shopping), um den aktuellen NEUPREIS (Neuware, nicht gebraucht) für dieses Produkt zu finden.
+Nutze in der Query explizit neuware/neu kaufen und schließe gebrauchte/refurbished Angebote aus (z.B. -gebraucht -used -refurbished).
         Brand: ${product.identification?.brand}
         Name: ${product.identification?.name}
         Barcodes: ${product.identification?.barcodes?.join(', ')}
@@ -1338,7 +1344,7 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
     } catch (e) {
       // Fallback
       const keywords = collectProductKeywords(product);
-      if (keywords.length) bestQuery = keywords.slice(0, 4).join(' ');
+      if (keywords.length) bestQuery = `${keywords.slice(0, 4).join(' ')} neu kaufen preis`;
     }
 
     if (!bestQuery) continue;
@@ -1643,6 +1649,7 @@ async function runSmartImageRecovery(products = []) {
 
 module.exports = {
   runProductIdentification,
+  ensurePriceCoverage,
   runDatasheetReview,
   applyEbayTaxonomy,
   applyKauflandTaxonomy,

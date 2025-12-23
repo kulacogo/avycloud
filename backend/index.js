@@ -31,6 +31,7 @@ const { createJob, getJob, listJobs, FieldValue } = require('./lib/jobs');
 const { ensureProductSku } = require('./lib/sku');
 const {
   runProductIdentification,
+  ensurePriceCoverage,
   BARCODE_LIMIT_ERROR,
   IMAGE_PAYLOAD_ERROR,
   MAX_BARCODE_COUNT,
@@ -42,6 +43,7 @@ const { syncInventoriesFromBaseLinker } = require('./services/inventory-sync');
 const { runProductChat } = require('./services/product-chat');
 const { improveExistingProduct } = require('./services/improve');
 const { getSecretValue } = require('./lib/secret-values');
+const { fetchWithUnlocker } = require('./lib/web-unlocker');
 const { enqueueJob, startJobRunner } = require('./services/job-runner');
 const { enqueueImproveJob, startImproveRunner } = require('./services/improve-runner');
 const {
@@ -2215,6 +2217,46 @@ app.post('/api/price-refresh', async (req, res) => {
           message: 'Product not found'
         }
       });
+    }
+
+    // Preferred: LLM builds a Google Shopping query + SerpAPI returns current NEW price offers.
+    // Falls back to HTML scraping / DuckDuckGo if SerpAPI or Gemini isn't configured.
+    try {
+      const serpTrace = [];
+      // Only enrich if price is missing/empty
+      const existing = product?.details?.pricing?.lowest_price;
+      const hasPrice =
+        existing &&
+        typeof existing.amount === 'number' &&
+        Number.isFinite(existing.amount) &&
+        existing.amount > 0 &&
+        Array.isArray(existing.sources) &&
+        existing.sources.length > 0;
+
+      if (!hasPrice) {
+        await ensurePriceCoverage([product], serpTrace);
+        const updated = product?.details?.pricing?.lowest_price;
+        const hasNow =
+          updated &&
+          typeof updated.amount === 'number' &&
+          Number.isFinite(updated.amount) &&
+          updated.amount > 0 &&
+          Array.isArray(updated.sources) &&
+          updated.sources.length > 0;
+        if (hasNow) {
+          await saveProduct(product);
+          return res.json({
+            ok: true,
+            data: {
+              lowest_price: product.details.pricing.lowest_price,
+              price_confidence: product.details.pricing.price_confidence || 0.7,
+            },
+            serpTrace,
+          });
+        }
+      }
+    } catch (error) {
+      console.log('SerpAPI price enrichment not available, falling back:', error?.message || error);
     }
 
     const fetchHtml = async (url, customHeaders = {}) => {

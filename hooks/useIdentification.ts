@@ -6,6 +6,7 @@ import {
   createIdentificationJob,
   pollIdentificationJob,
   runSerpapiFreeEnrichment,
+  refreshPrice,
   saveProduct,
 } from '../api/client';
 import { buildProductFromEnrichment } from '../utils/enrichmentRecord';
@@ -149,7 +150,31 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
               throw new Error('Enrichment unvollständig: Name/Beschreibung/Bilder fehlen.');
             }
             const persisted = await persistProduct(product);
-            options?.onJobCompleted?.({ products: [persisted] });
+            // Ensure a Neupreis-Richtwert is available (web search)
+            let pricedProduct = persisted;
+            try {
+              updateJob(localId, {
+                phase: 'enriching',
+                message: 'Preis wird recherchiert …',
+              });
+              const priceResult = await refreshPrice(persisted.id);
+              if (priceResult.ok && priceResult.data) {
+                pricedProduct = {
+                  ...persisted,
+                  details: {
+                    ...persisted.details,
+                    pricing: {
+                      ...(persisted.details?.pricing || {}),
+                      ...priceResult.data,
+                    },
+                  },
+                };
+              }
+            } catch (priceError) {
+              // Never fail the identify flow because of pricing
+              console.warn('Price enrichment failed:', (priceError as any)?.message || priceError);
+            }
+            options?.onJobCompleted?.({ products: [pricedProduct] });
             updateJob(localId, {
               phase: 'complete',
               message: PHASE_MESSAGES.complete,
