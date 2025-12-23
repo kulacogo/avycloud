@@ -640,25 +640,6 @@ app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
     const locale = req.body?.locale || 'de-DE';
     const result = await runSerpapiFreePipeline({ files, barcodes, locale });
 
-    if (!result?.quality?.isIdentified) {
-      return res.status(422).json({
-        ok: false,
-        error: {
-          code: 422,
-          message:
-            'Produkt konnte nicht sicher erkannt werden. Bitte lade ein scharfes Etikett-/Barcode-Foto sowie Front/Back-Fotos hoch.',
-        },
-        meta: {
-          locale: result?.locale || locale,
-          barcodes: result?.barcodes || [],
-          ocr: result?.ocr || { textSnippets: [], numericValues: [] },
-          llm: result?.llm || { applied: false, model: null },
-          barcodeInsights: result?.barcodeInsights || {},
-          quality: result?.quality || {},
-        },
-      });
-    }
-
     return res.json({
       ok: true,
       data: result.record,

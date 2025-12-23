@@ -35,8 +35,23 @@ export const isEnrichmentRecordIdentified = (record: ProductEnrichmentRecord): b
   const hasModel = model.length >= 2 && !isUnknownToken(model);
   const hasVariant = variant.length >= 2 && !isUnknownToken(variant);
 
-  // Accept either a strong identifier (valid GTIN/EAN/UPC) or a meaningful brand+model(/variant).
-  return hasValidBarcode || (hasBrand && (hasModel || hasVariant));
+  const category = normalizeValue(record.internalCategory);
+  const hasCategory =
+    category.length >= 3 && !isUnknownToken(category) && category.toLowerCase() !== 'unkategorisiert';
+
+  const titleCandidate = normalizeValue(record.title_ebay) || normalizeValue(record.title_kaufland);
+  const hasMeaningfulTitle =
+    titleCandidate.length >= 6 &&
+    !isUnknownToken(titleCandidate) &&
+    !/^(artikel|produkt)$/i.test(titleCandidate);
+
+  // Recognized if we have a strong identifier, or meaningful descriptive signals.
+  return (
+    hasValidBarcode ||
+    (hasBrand && (hasModel || hasVariant)) ||
+    hasCategory ||
+    hasMeaningfulTitle
+  );
 };
 
 const dedupe = <T>(values: T[]) => Array.from(new Set(values));
@@ -125,6 +140,7 @@ export const buildProductFromEnrichment = (
   record: ProductEnrichmentRecord,
   options?: BuildProductOptions
 ): Product => {
+  const identified = isEnrichmentRecordIdentified(record);
   const identifierCandidates = [
     normalizeValue(record.ean),
     normalizeValue(record.gtin),
@@ -140,9 +156,13 @@ export const buildProductFromEnrichment = (
     normalizeValue(record.title_ebay) ||
     normalizeValue(record.title_kaufland) ||
     '';
+
   const nameParts = [brand, model, variant].filter(Boolean);
+  const namePartsJoined = nameParts.join(' ').trim();
+  const canUseNameParts = Boolean(namePartsJoined) && !(isUnknownToken(brand) && !model && !variant);
+  const unknownName = options?.label ? `Unbekanntes Produkt (${options.label})` : 'Unbekanntes Produkt';
   const identificationName =
-    titleCandidate || nameParts.join(' ').trim() || options?.label || 'Neues Produkt';
+    titleCandidate || (canUseNameParts ? namePartsJoined : '') || (identified ? options?.label : unknownName) || unknownName;
 
   const manualBarcodes = parseBarcodeString(options?.barcodes || '');
   const barcodeFromInsights =
@@ -161,6 +181,17 @@ export const buildProductFromEnrichment = (
     normalizeValue(record.description_ebay) ||
     `${identificationName} – Beschreibung folgt.`;
 
+  const barcodeConfidence = Math.max(record.gtin_confidence || 0, record.ean_confidence || 0);
+  const confidence = identified
+    ? Math.min(0.92, Math.max(0.55, 0.55 + barcodeConfidence * 0.35))
+    : 0.22;
+
+  const warnings = identified
+    ? []
+    : [
+        'Identifikation unsicher: Produkt wurde als "Unbekannt" erstellt. Bitte Titel/Marke/Kategorie prüfen und ggf. ergänzen.',
+      ];
+
   const product: Product = {
     id: productId,
     identification: {
@@ -169,7 +200,7 @@ export const buildProductFromEnrichment = (
       name: identificationName,
       brand,
       category: normalizeValue(record.internalCategory) || 'Unkategorisiert',
-      confidence: 0.82,
+      confidence,
       sku: normalizeValue(record.sku) || undefined,
     },
     details: {
@@ -197,6 +228,7 @@ export const buildProductFromEnrichment = (
       revision: 0,
       pending_intake_quantity: 0,
     },
+    notes: warnings.length ? { warnings } : undefined,
     inventory: {
       quantity: 0,
       inventoryId: options?.inventoryId || null,

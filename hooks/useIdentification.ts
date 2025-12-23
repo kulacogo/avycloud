@@ -8,7 +8,7 @@ import {
   runSerpapiFreeEnrichment,
   saveProduct,
 } from '../api/client';
-import { buildProductFromEnrichment, isEnrichmentRecordIdentified } from '../utils/enrichmentRecord';
+import { buildProductFromEnrichment } from '../utils/enrichmentRecord';
 
 export interface UploadGroupPayload {
   id: string;
@@ -134,11 +134,6 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
             const response = await runSerpapiFreeEnrichment(group.images, barcodes, 'de-DE', inventoryId || undefined);
             if (!response.ok || !response.data) {
               throw new Error(response.error?.message || 'SerpAPI-freies Enrichment fehlgeschlagen.');
-            }
-            if (!isEnrichmentRecordIdentified(response.data)) {
-              throw new Error(
-                'Produkt konnte nicht sicher erkannt werden. Bitte lade ein scharfes Etikett-/Barcode-Foto sowie Front/Back-Fotos hoch.'
-              );
             }
             const product = buildProductFromEnrichment(response.data, {
               fallbackId: group.id,
