@@ -1,5 +1,5 @@
 import { Product, ProductEnrichmentRecord, ProductImage } from '../types';
-import { normalizeBarcode } from './gtin';
+import { isValidGtin, normalizeBarcode } from './gtin';
 
 const UNKNOWN = 'unknown';
 
@@ -9,6 +9,34 @@ const normalizeValue = (value?: string | null) => {
   if (!trimmed) return '';
   if (trimmed.toLowerCase() === UNKNOWN) return '';
   return trimmed;
+};
+
+const isUnknownToken = (value?: string | null) => {
+  const trimmed = (value ?? '').toString().trim().toLowerCase();
+  if (!trimmed) return true;
+  if (trimmed === UNKNOWN) return true;
+  if (trimmed === 'unbekannt') return true;
+  if (trimmed.startsWith('unbekannt')) return true; // "unbekannte Marke", "unbekanntes Produkt", ...
+  if (trimmed.startsWith('unknown')) return true; // "unknown brand", ...
+  return false;
+};
+
+export const isEnrichmentRecordIdentified = (record: ProductEnrichmentRecord): boolean => {
+  const barcodeCandidates = [record.gtin, record.ean, record.upc]
+    .map(normalizeValue)
+    .map(normalizeBarcode)
+    .filter(Boolean);
+  const hasValidBarcode = barcodeCandidates.some((code) => isValidGtin(code));
+
+  const brand = normalizeValue(record.brand);
+  const model = normalizeValue(record.model);
+  const variant = normalizeValue(record.variant);
+  const hasBrand = brand.length >= 2 && !isUnknownToken(brand);
+  const hasModel = model.length >= 2 && !isUnknownToken(model);
+  const hasVariant = variant.length >= 2 && !isUnknownToken(variant);
+
+  // Accept either a strong identifier (valid GTIN/EAN/UPC) or a meaningful brand+model(/variant).
+  return hasValidBarcode || (hasBrand && (hasModel || hasVariant));
 };
 
 const dedupe = <T>(values: T[]) => Array.from(new Set(values));

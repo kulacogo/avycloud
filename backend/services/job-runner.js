@@ -35,8 +35,8 @@ const normalizeBarcodeValue = (value) =>
 function hasMinimalIdentification(product = {}) {
   const name = product.identification?.name?.trim() || '';
   const brand = product.identification?.brand?.trim() || '';
-  const hasName = name.length >= 3 && !/^unbekannt$/i.test(name);
-  const hasBrand = brand.length >= 2 && !/^unbekannt$/i.test(brand);
+  const hasName = name.length >= 3 && !/^(unbekannt|unknown)/i.test(name);
+  const hasBrand = brand.length >= 2 && !/^(unbekannt|unknown)/i.test(brand);
   const hasBarcode =
     Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0;
   const hasImage =

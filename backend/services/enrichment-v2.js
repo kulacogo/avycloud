@@ -199,6 +199,41 @@ const normalizeRecordField = (value) => {
   return cleaned || DEFAULT_TEXT;
 };
 
+const isUnknownToken = (value) => {
+  const cleaned = normalizeWhitespace(value || '').toLowerCase();
+  if (!cleaned) return true;
+  if (cleaned === DEFAULT_TEXT) return true; // "unknown"
+  if (cleaned === 'unbekannt') return true;
+  if (cleaned.startsWith('unbekannt')) return true;
+  if (cleaned.startsWith('unknown')) return true;
+  return false;
+};
+
+const computeIdentificationQuality = (record = {}) => {
+  const brand = record.brand;
+  const model = record.model;
+  const variant = record.variant;
+  const hasBrand = !isUnknownToken(brand) && normalizeWhitespace(brand).length >= 2;
+  const hasModel = !isUnknownToken(model) && normalizeWhitespace(model).length >= 2;
+  const hasVariant = !isUnknownToken(variant) && normalizeWhitespace(variant).length >= 2;
+
+  const barcodeCandidates = [record.gtin, record.ean, record.upc]
+    .map((value) => normalizeWhitespace(value || ''))
+    .filter(Boolean)
+    .filter((value) => !isUnknownToken(value));
+  const hasValidBarcode = barcodeCandidates.some((code) => isValidGtin(code));
+
+  const isIdentified = hasValidBarcode || (hasBrand && (hasModel || hasVariant));
+
+  return {
+    isIdentified,
+    hasValidBarcode,
+    hasBrand,
+    hasModel,
+    hasVariant,
+  };
+};
+
 const buildTitle = (record, marketplace) => {
   const parts = [];
   if (record.brand !== DEFAULT_TEXT) parts.push(record.brand);
@@ -456,6 +491,8 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
     barcodeResolution.primary?.confidence ||
     0;
 
+  const quality = computeIdentificationQuality(mergedRecord);
+
   return {
     locale,
     barcodes: mergedBarcodes,
@@ -468,6 +505,7 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
       applied: Boolean(llmRecord),
       model: process.env.GEMINI_MULTIMODAL_MODEL || process.env.GEMINI_STRUCTURED_MODEL || 'gemini-2.5-flash',
     },
+    quality,
     inventoryId,
     barcodeInsights: {
       ranked: barcodeResolution.ranked,
