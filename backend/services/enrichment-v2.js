@@ -2,6 +2,7 @@ const { extractOcrPayload } = require('../lib/vision-ocr');
 const { uploadImage } = require('../lib/storage');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { findKauflandCategory } = require('../lib/kaufland-taxonomy');
+const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { generateStructuredProductRecord } = require('./generative-identify');
 const { isValidGtin, getGtinType, normalizeDigits, EAN_LENGTH, GTIN_LENGTH } = require('../lib/gtin');
 
@@ -65,6 +66,45 @@ const mergeBarcodeLists = (...sources) => {
 };
 
 const MIN_BARCODE_LENGTH = 8;
+
+const normalizePrice = (raw) => {
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    return { amount: raw, currency: 'EUR' };
+  }
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.replace(/\s+/g, ' ').trim();
+  if (!trimmed) return null;
+  const currencyMatch = trimmed.match(/(€|eur|usd|gbp|\$|£)/i);
+  const currency =
+    currencyMatch && currencyMatch[1]
+      ? {
+          '€': 'EUR',
+          eur: 'EUR',
+          $: 'USD',
+          usd: 'USD',
+          '£': 'GBP',
+          gbp: 'GBP',
+        }[currencyMatch[1].toLowerCase()] || 'EUR'
+      : 'EUR';
+  const numeric = trimmed.replace(/[^0-9,.\-]/g, '');
+  if (!numeric) return null;
+  const commaCount = (numeric.match(/,/g) || []).length;
+  const dotCount = (numeric.match(/\./g) || []).length;
+  let normalized = numeric;
+  if (commaCount && dotCount) {
+    normalized =
+      numeric.lastIndexOf(',') > numeric.lastIndexOf('.')
+        ? numeric.replace(/\./g, '').replace(',', '.')
+        : numeric.replace(/,/g, '');
+  } else if (commaCount === 1 && dotCount === 0) {
+    normalized = numeric.replace(',', '.');
+  } else {
+    normalized = numeric.replace(/,/g, '');
+  }
+  const amount = Number(normalized);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return { amount, currency };
+};
 
 const createBarcodeCandidate = (code, source, meta = {}) => {
   if (!code) return null;
@@ -490,6 +530,65 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
     barcodeResolution.bestEan?.confidence ||
     barcodeResolution.primary?.confidence ||
     0;
+
+  // --- Fallback: wenn LLM/OCR schwach -> Google Shopping via SerpAPI nutzen, um Titel/Brand/Preis zu ziehen
+  const isLikelyIdentified =
+    mergedRecord.brand !== DEFAULT_TEXT ||
+    mergedRecord.model !== DEFAULT_TEXT ||
+    mergedRecord.internalCategory !== DEFAULT_TEXT ||
+    (barcodeResolution.primary?.code && barcodeResolution.primary?.isValid);
+
+  const searchQueries = [];
+  if (barcodeResolution.primary?.code) searchQueries.push(barcodeResolution.primary.code);
+  if (manualBarcodes[0]) searchQueries.push(manualBarcodes[0]);
+  const keywordQuery = [mergedRecord.brand, mergedRecord.model, mergedRecord.variant]
+    .filter((v) => v && v !== DEFAULT_TEXT)
+    .join(' ');
+  if (keywordQuery) searchQueries.push(keywordQuery);
+
+  const tryShoppingFallback = async (queries) => {
+    for (const q of queries) {
+      if (!q) continue;
+      try {
+        const raw = await callSerpApi('google_shopping', { q, num: 10 });
+        const summary = summarizeSerpEntries('google_shopping', raw, 8);
+        const best = summary.find((s) => normalizePrice(s.price)) || summary[0];
+        if (!best) continue;
+        // Titel
+        if (!mergedRecord.title_ebay || mergedRecord.title_ebay === DEFAULT_TEXT) {
+          mergedRecord.title_ebay = best.title || mergedRecord.title_ebay;
+        }
+        if (!mergedRecord.title_kaufland || mergedRecord.title_kaufland === DEFAULT_TEXT) {
+          mergedRecord.title_kaufland = mergedRecord.title_ebay;
+        }
+        // Brand heuristisch aus Titel (erstes Wort)
+        if (!mergedRecord.brand || isUnknownToken(mergedRecord.brand)) {
+          const firstWord = (best.title || '').split(/\s+/)[0] || '';
+          if (firstWord.length >= 2) mergedRecord.brand = firstWord;
+        }
+        // Preis
+        const parsed = normalizePrice(best.price);
+        if (parsed) {
+          mergedRecord.price_hint = {
+            amount: parsed.amount,
+            currency: parsed.currency,
+            source: best.source || 'google_shopping',
+            url: best.url || '',
+          };
+        }
+        return true;
+      } catch (err) {
+        console.warn('SerpAPI shopping fallback failed:', err.message);
+      }
+    }
+    return false;
+  };
+
+  if (!isLikelyIdentified) {
+    await tryShoppingFallback(searchQueries);
+  } else if (!mergedRecord.price_hint) {
+    await tryShoppingFallback(searchQueries);
+  }
 
   const quality = computeIdentificationQuality(mergedRecord);
 
