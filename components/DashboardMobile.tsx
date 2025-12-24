@@ -54,11 +54,11 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
       setOrdersLoading(true);
       try {
         try {
-          await syncOrdersApi({ timeoutMs: 10000 });
+          await syncOrdersApi({ timeoutMs: 20000 });
         } catch (err) {
           console.warn('Order sync failed (dashboard will still fetch)', err);
         }
-        const data = await fetchOrdersApi(200, { timeoutMs: 10000 });
+        const data = await fetchOrdersApi(100, { timeoutMs: 20000 });
         if (!cancelled) setOrders(dedupeOrders(data || []));
       } catch {
         if (!cancelled) setOrders([]);

@@ -105,11 +105,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       setOrdersLoading(true);
       try {
         try {
-          await syncOrdersApi({ timeoutMs: 10000 });
+          await syncOrdersApi({ timeoutMs: 20000 });
         } catch (err) {
           console.warn('Order sync failed (will still fetch)', err);
         }
-        const data = await fetchOrdersApi(200, { timeoutMs: 10000 });
+        const data = await fetchOrdersApi(100, { timeoutMs: 20000 });
         if (!isCancelled?.() && !isUnmountedRef.current) setOrders(dedupeOrders(data || []));
       } catch (err) {
         console.warn('Failed to load orders', err);
