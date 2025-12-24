@@ -353,8 +353,8 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
       productRef = ref;
       productSnap = await ref.get();
     } catch (e) {
-      console.warn('[decrementProductByIdOrSku] product not found', id);
-      return;
+    console.warn('[decrementProductByIdOrSku] product not found', id);
+    return;
     }
   }
   const productData = productSnap.data() || {};

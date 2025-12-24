@@ -127,3 +127,16 @@ components example/chat/FileAttachmentPreview.tsx
 components example/chat/MessageBubble.tsx
 components example/icons/Icons.tsx
 .gitignore
+exports/bin_mismatches.csv
+exports/products.csv
+exports/warehouse_bins.csv
+exports/firestore/baselinker_sku_index.csv
+exports/firestore/identificationJobs.csv
+exports/firestore/improveJobs.csv
+exports/firestore/inventories.csv
+exports/firestore/inventorySyncLogs.csv
+exports/firestore/orders.csv
+exports/firestore/products.csv
+exports/firestore/trendocean.csv
+exports/firestore/warehouseBins.csv
+exports/firestore/warehouseZones.csv

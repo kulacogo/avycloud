@@ -284,7 +284,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, [products, baselinkerLookupInProgress, onUpdateProducts, syncInventoryId]);
 
 
-  const categories = useMemo(() => ['all', ...new Set(products.map(p => p.identification.category))], [products]);
+  const categories = useMemo(
+    () => ['all', ...new Set(products.map((p) => p.identification?.category || 'Unbekannt'))],
+    [products]
+  );
 
   const primaryImage = (product: Product) =>
     (product.details.images || []).find((img) => img.url_or_base64?.startsWith('http')) || null;
@@ -323,7 +326,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             {primaryImage(product) ? (
               <img
                 src={primaryImage(product)!.url_or_base64}
-                alt={product.identification.name}
+                alt={product.identification?.name || ''}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -384,9 +387,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
               }}
               className="font-medium text-sky-400 hover:underline"
             >
-              {product.identification.name}
+              {product.identification?.name || '—'}
             </a>
-            <div className="text-sm text-slate-400">{product.identification.brand}</div>
+            <div className="text-sm text-slate-400">{product.identification?.brand || '—'}</div>
           </div>
         ),
       },
@@ -395,7 +398,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         label: t('table.category'),
         sortKey: 'identification.category',
         defaultVisible: true,
-        render: ({ product }) => <span className="text-slate-300">{product.identification.category}</span>,
+        render: ({ product }) => <span className="text-slate-300">{product.identification?.category || '—'}</span>,
       },
       {
         id: 'sku',
@@ -404,7 +407,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         defaultVisible: true,
         render: ({ product }) => (
           <div className="text-slate-300 text-sm font-mono leading-tight">
-            {product.details.identifiers.sku || product.identification.sku || '—'}
+            {product.details?.identifiers?.sku || product.identification?.sku || '—'}
           </div>
         ),
       },
@@ -630,16 +633,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = products.filter(p => {
-      const normalizedStatus = normalizeSyncStatus(p.ops.sync_status, p.ops.last_synced_iso);
+      const normalizedStatus = normalizeSyncStatus(p.ops?.sync_status, p.ops?.last_synced_iso);
       const term = (searchTerm || '').toLowerCase().trim();
       const name = (p.identification?.name || '').toLowerCase();
       const brand = (p.identification?.brand || '').toLowerCase();
       const identifiers = [
-        p.details.identifiers?.sku,
+        p.details?.identifiers?.sku,
         p.identification?.sku,
-        p.details.identifiers?.ean,
-        p.details.identifiers?.gtin,
-        p.details.identifiers?.upc,
+        p.details?.identifiers?.ean,
+        p.details?.identifiers?.gtin,
+        p.details?.identifiers?.upc,
         p.id,
       ]
         .filter(Boolean)
@@ -650,7 +653,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         brand.includes(term) ||
         identifiers.some((idVal) => idVal.includes(term));
       const matchesStatus = filterStatus === 'all' || normalizedStatus === filterStatus;
-      const matchesCategory = filterCategory === 'all' || p.identification.category === filterCategory;
+      const productCategory = p.identification?.category || 'Unbekannt';
+      const matchesCategory = filterCategory === 'all' || productCategory === filterCategory;
       const matchesInventory =
         filterInventoryId === 'all' ||
         (p.inventory?.inventoryId != null &&
@@ -875,12 +879,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (selectedIds.size === 0) return;
     const selectedProducts = filteredAndSortedProducts.filter((p) => selectedIds.has(p.id));
     const missingSku = selectedProducts.filter(
-      (p) => !p.identification.sku && !p.details?.identifiers?.sku
+      (p) => !(p.identification?.sku || p.details?.identifiers?.sku)
     );
     if (missingSku.length > 0) {
       alert(
         `Die folgenden Produkte haben noch keine SKU und können nicht gedruckt werden:\n${missingSku
-          .map((p) => `• ${p.identification.name}`)
+          .map((p) => `• ${p.identification?.name || p.id}`)
           .join('\n')}`
       );
       return;
@@ -933,13 +937,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
     const rows = filteredAndSortedProducts.map((p) => [
       getStableNumericId(p),
       p.id,
-      `"${p.identification.name}"`,
-      `"${p.identification.brand}"`,
-      p.identification.category,
+      `"${p.identification?.name || ''}"`,
+      `"${p.identification?.brand || ''}"`,
+      p.identification?.category || '',
       p.details?.identifiers?.ean || '',
       p.details?.pricing?.lowest_price?.amount ?? '',
       p.details?.pricing?.lowest_price?.currency ? safeCurrency(p.details.pricing.lowest_price.currency) : '',
-      p.ops.sync_status
+      p.ops?.sync_status
     ].join(','));
     const csvContent = `data:text/csv;charset=utf-8,${headers.join(',')}\n${rows.join('\n')}`;
     const encodedUri = encodeURI(csvContent);
@@ -1379,7 +1383,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                       <button
                         className="px-2 py-1 text-xs bg-red-600 text-white rounded-md"
                         onClick={async () => {
-                          if (!confirm(t('table.actions.deleteOne', { name: p.identification.name } as any))) return;
+                          if (!confirm(t('table.actions.deleteOne', { name: p.identification?.name || p.id } as any))) return;
                           const res = await deleteProduct(p.id);
                           if (res.ok) {
                             onUpdateProducts(products.filter((x) => x.id !== p.id));
