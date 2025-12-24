@@ -179,7 +179,7 @@ const wait = (ms: number, signal?: AbortSignal) =>
   });
 
 // Small helper to add a timeout to fetch calls (defaults to 10s)
-const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 10000) => {
+const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 20000) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {

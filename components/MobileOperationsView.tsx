@@ -134,7 +134,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   const pickItems = useMemo(() => {
     // Nur offene BaseLinker-Aufträge: Status "new" / "Neue Bestellung"
-    const openOrders = orders.filter((o) => (o.status || '').toLowerCase() === 'new');
+    const isCancelled = (label?: string | null) => {
+      const raw = (label || '').toLowerCase();
+      return raw.includes('storniert') || raw.includes('cancel');
+    };
+    const openOrders = orders.filter((o) => (o.status || '').toLowerCase() === 'new' && !isCancelled(o.statusLabel));
     const bucket: Record<string, { orderId: string; sku: string; name: string; binCode: string; qty: number; pickHint?: any }> = {};
     openOrders.forEach((o) => {
       o.items

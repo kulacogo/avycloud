@@ -315,6 +315,24 @@ async function markOrderAsPicked(orderId) {
     );
   }
 
+  // Immediately decrement stock locally to reflect the pick action (do not wait for next sync)
+  if (Array.isArray(order.items)) {
+    const aggregated = new Map(); // sku -> qty
+    for (const item of order.items) {
+      const sku = (item?.sku || item?.productId || '').toString().trim();
+      const qty = Number(item?.quantity || 0);
+      if (!sku || qty <= 0) continue;
+      aggregated.set(sku, (aggregated.get(sku) || 0) + qty);
+    }
+    for (const [sku, qty] of aggregated.entries()) {
+      try {
+        await decrementProductByIdOrSku(sku, qty);
+      } catch (err) {
+        console.warn('markOrderAsPicked: stock decrement failed', sku, qty, err.message);
+      }
+    }
+  }
+
   await updateOrder(orderId, {
     status: 'picked',
     statusLabel: 'Kommissioniert',
