@@ -178,47 +178,104 @@ async function saveProduct(product) {
       product.details.identifiers.sku = stableSku;
     }
     
-    // Add timestamps
-    const ops = product.ops || {};
-    const identityKey = computeProductIdentityKey(product);
-    const pendingIntake =
-      typeof ops.pending_intake_quantity === 'number' && Number.isFinite(ops.pending_intake_quantity)
-        ? ops.pending_intake_quantity
-        : 0;
-    const aliasSet = buildIdentityAliasSet(product);
-    const existingAliases = Array.isArray(ops.identity_aliases) ? ops.identity_aliases.filter(Boolean) : [];
-    const mergedAliases = Array.from(new Set([...existingAliases, ...aliasSet])).slice(0, 100);
-    const productData = {
-      ...product,
-      ops: {
-        ...ops,
-        identity_key: identityKey || ops.identity_key || null,
-        identity_aliases: mergedAliases.length ? mergedAliases : undefined,
-        pending_intake_quantity: pendingIntake,
-        last_saved_iso: new Date().toISOString(),
-        revision: ((ops.revision || 0)) + 1
-      }
+    // Merge existing product data to avoid overwriting enriched content (images/descriptions/attrs)
+    const existingDetails = existingData?.details || {};
+    const incomingDetails = product?.details || {};
+
+    const mergeString = (incomingVal, existingVal) => {
+      const normalizedIncoming = typeof incomingVal === 'string' ? incomingVal.trim() : '';
+      const normalizedExisting = typeof existingVal === 'string' ? existingVal.trim() : '';
+      return normalizedExisting || normalizedIncoming || '';
     };
 
-    // Guard: prevent price loss. If existing has a valid price, do not overwrite with null/undefined/0.
-    const existingPrice = existingData?.details?.pricing?.lowest_price;
-    const incomingPrice = product?.details?.pricing?.lowest_price;
+    // Merge images: keep all existing images, append new ones that are not duplicates
+    const existingImages = Array.isArray(existingDetails.images) ? existingDetails.images : [];
+    const incomingImages = Array.isArray(incomingDetails.images) ? incomingDetails.images : [];
+    const mergedImages = [...existingImages];
+    const seenImages = new Set(
+      existingImages
+        .map((img) => img?.url_or_base64 || img?.url || img?.href)
+        .filter(Boolean)
+    );
+    incomingImages.forEach((img) => {
+      const key = img?.url_or_base64 || img?.url || img?.href;
+      if (key && seenImages.has(key)) return;
+      if (key) seenImages.add(key);
+      mergedImages.push(img);
+    });
+
+    // Merge attributes (existing wins if incoming missing; incoming overrides same key if provided)
+    const mergedAttributes = {
+      ...(existingDetails.attributes || {}),
+      ...(incomingDetails.attributes || {}),
+    };
+
+    // Merge pricing with guard (do not drop existing valid price)
+    const existingPrice = existingDetails?.pricing?.lowest_price;
+    const incomingPrice = incomingDetails?.pricing?.lowest_price;
     const incomingValid =
       incomingPrice &&
       typeof incomingPrice.amount === 'number' &&
       Number(incomingPrice.amount) > 0;
+    const mergedPricing = {
+      ...(existingDetails.pricing || {}),
+      ...(incomingDetails.pricing || {}),
+    };
     if (existingPrice && !incomingValid) {
-      productData.details = productData.details || {};
-      productData.details.pricing = productData.details.pricing || {};
-      productData.details.pricing.lowest_price = existingPrice;
+      mergedPricing.lowest_price = existingPrice;
+    } else if (incomingValid) {
+      mergedPricing.lowest_price = {
+        ...incomingPrice,
+        currency: incomingPrice.currency || existingPrice?.currency || 'EUR',
+      };
     }
-    if (incomingValid) {
-      // normalize currency
-      productData.details = productData.details || {};
-      productData.details.pricing = productData.details.pricing || {};
-      productData.details.pricing.lowest_price.currency =
-        productData.details.pricing.lowest_price.currency || existingPrice?.currency || 'EUR';
-    }
+
+    // Build merged details
+    const mergedDetails = {
+      ...existingDetails,
+      ...incomingDetails,
+      short_description: mergeString(incomingDetails.short_description, existingDetails.short_description),
+      description: mergeString(incomingDetails.description, existingDetails.description),
+      attributes: mergedAttributes,
+      images: mergedImages,
+      pricing: Object.keys(mergedPricing).length ? mergedPricing : undefined,
+    };
+
+    // Merge identification
+    const mergedIdentification = {
+      ...(existingData?.identification || {}),
+      ...(product?.identification || {}),
+    };
+
+    const mergedOps = {
+      ...(existingData?.ops || {}),
+      ...(product?.ops || {}),
+    };
+
+    // Add timestamps and identity metadata
+    const identityKey = computeProductIdentityKey({ ...product, details: mergedDetails, identification: mergedIdentification });
+    const pendingIntake =
+      typeof mergedOps.pending_intake_quantity === 'number' && Number.isFinite(mergedOps.pending_intake_quantity)
+        ? mergedOps.pending_intake_quantity
+        : 0;
+    const aliasSet = buildIdentityAliasSet({ ...product, details: mergedDetails, identification: mergedIdentification });
+    const existingAliases = Array.isArray(mergedOps.identity_aliases) ? mergedOps.identity_aliases.filter(Boolean) : [];
+    const mergedAliases = Array.from(new Set([...existingAliases, ...aliasSet])).slice(0, 100);
+
+    const productData = {
+      ...(existingData || {}),
+      ...product,
+      identification: mergedIdentification,
+      details: mergedDetails,
+      ops: {
+        ...mergedOps,
+        identity_key: identityKey || mergedOps.identity_key || null,
+        identity_aliases: mergedAliases.length ? mergedAliases : undefined,
+        pending_intake_quantity: pendingIntake,
+        last_saved_iso: new Date().toISOString(),
+        revision: ((mergedOps.revision || 0)) + 1,
+      },
+    };
 
     const sanitizedProduct = sanitizeFirestoreValue(productData);
     await docRef.set(sanitizedProduct);
