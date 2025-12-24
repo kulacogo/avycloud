@@ -202,6 +202,23 @@ const normalizeJobStatuses = (raw) => {
   return normalized.length ? Array.from(new Set(normalized)) : null;
 };
 
+// --- Helper: order sync with timeout + fallback ---
+const ORDER_SYNC_TIMEOUT_MS = parseInt(process.env.ORDER_SYNC_TIMEOUT_MS || '12000', 10);
+
+async function syncOrdersWithTimeout(limit) {
+  try {
+    const syncPromise = syncNewOrders();
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('sync-timeout')), ORDER_SYNC_TIMEOUT_MS)
+    );
+    const rawOrders = await Promise.race([syncPromise, timeoutPromise]);
+    return Array.isArray(rawOrders) ? rawOrders : null;
+  } catch (err) {
+    console.warn('Order sync timed out or failed, fallback to cached orders:', err?.message || err);
+    return null;
+  }
+}
+
 // Produkt-Vollständigkeit bewerten
 function computeCompleteness(product = {}) {
   const missing = [];
@@ -2138,14 +2155,7 @@ app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
 app.get('/api/orders', async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 200);
-    let rawOrders = null;
-
-    try {
-      // Always try to refresh from BaseLinker first
-      rawOrders = await syncNewOrders();
-    } catch (syncError) {
-      console.warn('Failed to refresh orders from BaseLinker, serving cached orders:', syncError.message);
-    }
+    let rawOrders = await syncOrdersWithTimeout(limit);
 
     // Fallback to cached orders if sync failed
     if (!Array.isArray(rawOrders)) {
@@ -2170,12 +2180,7 @@ app.get('/api/orders', async (req, res) => {
 
 app.post('/api/orders/sync', async (req, res) => {
   try {
-    let rawOrders = null;
-    try {
-      rawOrders = await syncNewOrders();
-    } catch (syncError) {
-      console.warn('Failed to sync orders from BaseLinker, serving cached orders:', syncError.message);
-    }
+    let rawOrders = await syncOrdersWithTimeout(Math.min(Number(req.query?.limit) || 200, 200));
 
     if (!Array.isArray(rawOrders)) {
       rawOrders = await listOrders(Math.min(Number(req.query?.limit) || 200, 200));
