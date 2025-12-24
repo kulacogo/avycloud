@@ -202,22 +202,15 @@ const normalizeJobStatuses = (raw) => {
   return normalized.length ? Array.from(new Set(normalized)) : null;
 };
 
-// --- Helper: order sync with timeout + fallback ---
-// Keep backend responses snappy even if BaseLinker is slow; fallback to cached orders after timeout
+// --- Helper: order sync best-effort in background; never block responses ---
 const ORDER_SYNC_TIMEOUT_MS = parseInt(process.env.ORDER_SYNC_TIMEOUT_MS || '8000', 10);
 
-async function syncOrdersWithTimeout(limit) {
-  try {
-    const syncPromise = syncNewOrders();
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('sync-timeout')), ORDER_SYNC_TIMEOUT_MS)
-    );
-    const rawOrders = await Promise.race([syncPromise, timeoutPromise]);
-    return Array.isArray(rawOrders) ? rawOrders : null;
-  } catch (err) {
-    console.warn('Order sync timed out or failed, fallback to cached orders:', err?.message || err);
-    return null;
-  }
+function backgroundSyncOrders() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ORDER_SYNC_TIMEOUT_MS);
+  syncNewOrders()
+    .catch((err) => console.warn('Background order sync failed:', err?.message || err))
+    .finally(() => clearTimeout(timer));
 }
 
 // Produkt-Vollständigkeit bewerten
@@ -2156,11 +2149,12 @@ app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
 app.get('/api/orders', async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 100);
-    let rawOrders = await syncOrdersWithTimeout(limit);
+    // Return cached orders immediately; trigger background sync best-effort
+    let rawOrders = await listOrders(limit);
+    backgroundSyncOrders();
 
-    // Fallback to cached orders if sync failed
     if (!Array.isArray(rawOrders)) {
-      rawOrders = await listOrders(limit);
+      rawOrders = [];
     }
 
     const cappedOrders = Array.isArray(rawOrders) ? rawOrders.slice(0, limit) : [];
@@ -2181,11 +2175,9 @@ app.get('/api/orders', async (req, res) => {
 
 app.post('/api/orders/sync', async (req, res) => {
   try {
-    let rawOrders = await syncOrdersWithTimeout(Math.min(Number(req.query?.limit) || 200, 100));
-
-    if (!Array.isArray(rawOrders)) {
-      rawOrders = await listOrders(Math.min(Number(req.query?.limit) || 200, 100));
-    }
+    // Kick off background sync, but respond immediately with cached orders
+    backgroundSyncOrders();
+    const rawOrders = await listOrders(Math.min(Number(req.query?.limit) || 200, 100));
 
     const orders = await attachPickHintsToOrders(rawOrders || []);
     res.json({ ok: true, data: orders });
