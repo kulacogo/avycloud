@@ -203,7 +203,8 @@ const normalizeJobStatuses = (raw) => {
 };
 
 // --- Helper: order sync with timeout + fallback ---
-const ORDER_SYNC_TIMEOUT_MS = parseInt(process.env.ORDER_SYNC_TIMEOUT_MS || '12000', 10);
+// Keep backend responses snappy even if BaseLinker is slow; fallback to cached orders after timeout
+const ORDER_SYNC_TIMEOUT_MS = parseInt(process.env.ORDER_SYNC_TIMEOUT_MS || '8000', 10);
 
 async function syncOrdersWithTimeout(limit) {
   try {
@@ -2154,7 +2155,7 @@ app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
 
 app.get('/api/orders', async (req, res) => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
     let rawOrders = await syncOrdersWithTimeout(limit);
 
     // Fallback to cached orders if sync failed
@@ -2180,10 +2181,10 @@ app.get('/api/orders', async (req, res) => {
 
 app.post('/api/orders/sync', async (req, res) => {
   try {
-    let rawOrders = await syncOrdersWithTimeout(Math.min(Number(req.query?.limit) || 200, 200));
+    let rawOrders = await syncOrdersWithTimeout(Math.min(Number(req.query?.limit) || 200, 100));
 
     if (!Array.isArray(rawOrders)) {
-      rawOrders = await listOrders(Math.min(Number(req.query?.limit) || 200, 200));
+      rawOrders = await listOrders(Math.min(Number(req.query?.limit) || 200, 100));
     }
 
     const orders = await attachPickHintsToOrders(rawOrders || []);
