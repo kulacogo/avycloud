@@ -229,8 +229,8 @@ async function syncNewOrders() {
     ) {
       order.status = 'picked';
     } else {
-      // Default: treat unknown/other statuses as closed so sie blocken nicht das "new"-Listing
-      order.status = 'picked';
+      // Default: unknown status => treat as open so Picks nicht verschwinden
+      order.status = 'new';
     }
   });
 
