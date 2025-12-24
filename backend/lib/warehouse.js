@@ -345,11 +345,17 @@ async function removeProductFromBin(binCode, productId, options = {}) {
 async function decrementProductByIdOrSku(productIdOrSku, quantity) {
   if (!quantity || quantity <= 0) return;
   const id = String(productIdOrSku).trim();
-  const productRef = productsCollection.doc(id);
-  const productSnap = await productRef.get();
+  let productRef = productsCollection.doc(id);
+  let productSnap = await productRef.get();
   if (!productSnap.exists) {
-    console.warn('[decrementProductByIdOrSku] product not found', id);
-    return;
+    try {
+      const { ref } = await findProductDocument({ productId: null, sku: id, barcode: id });
+      productRef = ref;
+      productSnap = await ref.get();
+    } catch (e) {
+      console.warn('[decrementProductByIdOrSku] product not found', id);
+      return;
+    }
   }
   const productData = productSnap.data() || {};
   let remaining = Number(quantity) || 0;

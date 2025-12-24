@@ -380,12 +380,30 @@ async function saveProduct(product) {
       mergedDetails.weight = bucketedWeight;
     }
 
+    // Preserve storage/storageBins/inventory unless explicitly provided
+    const incomingStorage =
+      product && Object.prototype.hasOwnProperty.call(product, 'storage') ? product.storage : undefined;
+    const incomingStorageBins =
+      product && Object.prototype.hasOwnProperty.call(product, 'storageBins') ? product.storageBins : undefined;
+    const incomingInventory =
+      product && Object.prototype.hasOwnProperty.call(product, 'inventory') ? product.inventory : undefined;
+
+    const preservedStorage =
+      incomingStorage !== undefined ? incomingStorage : existingData?.storage || null;
+    const preservedStorageBins =
+      Array.isArray(incomingStorageBins) ? incomingStorageBins : existingData?.storageBins || [];
+    const preservedInventory =
+      incomingInventory !== undefined ? incomingInventory : existingData?.inventory || {};
+
     const productWithEbay = enforceEbayAspects({
       ...(existingData || {}),
       ...product,
       identification: mergedIdentification,
       details: mergedDetails,
       ops: mergedOps,
+      storage: preservedStorage,
+      storageBins: preservedStorageBins,
+      inventory: preservedInventory,
     });
 
     const productData = {
