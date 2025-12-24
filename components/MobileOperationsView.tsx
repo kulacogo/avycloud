@@ -81,6 +81,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [activeBin, setActiveBin] = useState('');
   const [activeSku, setActiveSku] = useState('');
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
+  const [pickMessage, setPickMessage] = useState<string | null>(null);
 
   const [identifySlots, setIdentifySlots] = useState<number[]>([0]);
   const uploadInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
@@ -182,11 +183,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       const qtyStr = window.prompt('Menge eingeben', '1');
       const qty = qtyStr ? Number(qtyStr) : 1;
       if (!Number.isFinite(qty) || qty <= 0) return;
-      alert(`Pick erfasst: BIN ${bin} · SKU ${sku} · Menge ${qty} · Auftrag ${item.orderId}`);
       try {
         await completeOrder(item.orderId);
+        setPickMessage(`Pick ok: BIN ${bin} · SKU ${sku} · Qty ${qty} · Auftrag ${item.orderId}`);
       } catch (err: any) {
         console.error('Failed to mark order as picked', err);
+        setPickMessage(`Pick fehlgeschlagen: ${err?.message || 'Unbekannter Fehler'}`);
       }
       await refreshOrders();
       setActiveBin('');
@@ -537,6 +539,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               Fokus: Scanner-Eingabe wird automatisch erfasst (Enter schließt den Scan ab)
             </span>
           </div>
+          {pickMessage && <p className="text-xs text-emerald-300">{pickMessage}</p>}
         </div>
         {ordersLoading && <p className="text-sm text-slate-400">Lade Aufträge …</p>}
         {pickItems.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">Keine offenen Pick-Aufträge.</p>}

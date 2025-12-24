@@ -145,6 +145,108 @@ const collectSkuIndexKeys = (product = {}) => {
 /**
  * Save a product to Firestore
  */
+// Cache required eBay aspects
+let REQUIRED_ASPECTS = null;
+function getRequiredAspects() {
+  if (REQUIRED_ASPECTS) return REQUIRED_ASPECTS;
+  try {
+    // eslint-disable-next-line global-require, import/no-dynamic-require
+    REQUIRED_ASPECTS = require('../ebay-data/required-aspects.json');
+  } catch (e) {
+    console.warn('Failed to load required-aspects.json:', e.message);
+    REQUIRED_ASPECTS = {};
+  }
+  return REQUIRED_ASPECTS;
+}
+
+const WEIGHT_BUCKETS = [1, 3, 6, 9, 12, 15];
+function bucketWeight(value) {
+  if (value === null || value === undefined) return null;
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return null;
+  let best = WEIGHT_BUCKETS[0];
+  let bestDiff = Math.abs(num - best);
+  for (const b of WEIGHT_BUCKETS) {
+    const d = Math.abs(num - b);
+    if (d < bestDiff) {
+      best = b;
+      bestDiff = d;
+    }
+  }
+  return Number(best.toFixed(2));
+}
+
+function normalizeAttributesOrder(attrs = {}, catId, requiredMap) {
+  const entries = Object.entries(attrs || {});
+  if (!entries.length) return {};
+  const order = Array.isArray(requiredMap?.[catId]) ? requiredMap[catId] : [];
+  const orderIndex = new Map(order.map((name, idx) => [name.toLowerCase(), idx]));
+  entries.sort((a, b) => {
+    const aKey = a[0] ? a[0].toLowerCase() : '';
+    const bKey = b[0] ? b[0].toLowerCase() : '';
+    const aIdx = orderIndex.has(aKey) ? orderIndex.get(aKey) : Number.POSITIVE_INFINITY;
+    const bIdx = orderIndex.has(bKey) ? orderIndex.get(bKey) : Number.POSITIVE_INFINITY;
+    if (aIdx !== bIdx) return aIdx - bIdx;
+    return aKey.localeCompare(bKey);
+  });
+  return entries.reduce((acc, [k, v]) => {
+    acc[k] = v;
+    return acc;
+  }, {});
+}
+
+function enforceEbayAspects(product) {
+  const requiredMap = getRequiredAspects();
+  const details = product.details || {};
+  const attrs = details.attributes || {};
+
+  const catId =
+    (details.ebayCategoryId && String(details.ebayCategoryId).trim()) ||
+    (attrs.ebay_category_id && String(attrs.ebay_category_id).trim()) ||
+    null;
+
+  // Drop non-eBay category fields
+  delete details.kauflandCategoryId;
+  delete details.kauflandCategoryPath;
+  if (attrs.kaufland_category_id) delete attrs.kaufland_category_id;
+  if (attrs.kaufland_category_path) delete attrs.kaufland_category_path;
+
+  if (!catId) {
+    // No category -> just sort attributes alphabetically
+    return {
+      ...product,
+      details: {
+        ...details,
+        attributes: normalizeAttributesOrder(attrs, null, requiredMap),
+      },
+    };
+  }
+
+  const requiredAspects = Array.isArray(requiredMap[catId]) ? requiredMap[catId] : [];
+  const allowedSet = new Set(requiredAspects.map((n) => (n || '').toLowerCase()));
+
+  const filteredAttrs = {};
+  Object.entries(attrs || {}).forEach(([key, val]) => {
+    if (!key) return;
+    const lower = key.toLowerCase();
+    if (allowedSet.size && !allowedSet.has(lower)) {
+      return;
+    }
+    filteredAttrs[key] = val;
+  });
+
+  const sortedAttrs = normalizeAttributesOrder(filteredAttrs, catId, requiredMap);
+
+  return {
+    ...product,
+    details: {
+      ...details,
+      ebayCategoryId: catId,
+      attributes: sortedAttrs,
+    },
+  };
+}
+
 async function saveProduct(product) {
   try {
     const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(product.id);
@@ -188,19 +290,22 @@ async function saveProduct(product) {
       return normalizedExisting || normalizedIncoming || '';
     };
 
-    // Merge images: keep all existing images, append new ones that are not duplicates
-    const existingImages = Array.isArray(existingDetails.images) ? existingDetails.images : [];
+    // Deleted images tracking
+    const existingDeleted = Array.isArray(existingData?.ops?.deleted_images) ? existingData.ops.deleted_images : [];
+    const incomingDeleted = Array.isArray(product?.ops?.deleted_images) ? product.ops.deleted_images : [];
+    const deletedImages = Array.from(new Set([...existingDeleted, ...incomingDeleted])).filter(Boolean);
+    const isDeleted = (url) => deletedImages.some((d) => d && url && d === url);
+
+    // Images: treat incoming as authoritative if provided, filter out deleted and dedupe
     const incomingImages = Array.isArray(incomingDetails.images) ? incomingDetails.images : [];
-    const mergedImages = [...existingImages];
-    const seenImages = new Set(
-      existingImages
-        .map((img) => img?.url_or_base64 || img?.url || img?.href)
-        .filter(Boolean)
-    );
+    const mergedImages = [];
+    const seenImages = new Set();
     incomingImages.forEach((img) => {
       const key = img?.url_or_base64 || img?.url || img?.href;
-      if (key && seenImages.has(key)) return;
-      if (key) seenImages.add(key);
+      if (!key) return;
+      if (isDeleted(key)) return;
+      if (seenImages.has(key)) return;
+      seenImages.add(key);
       mergedImages.push(img);
     });
 
@@ -262,13 +367,32 @@ async function saveProduct(product) {
     const existingAliases = Array.isArray(mergedOps.identity_aliases) ? mergedOps.identity_aliases.filter(Boolean) : [];
     const mergedAliases = Array.from(new Set([...existingAliases, ...aliasSet])).slice(0, 100);
 
-    const productData = {
+    // Weight bucket (overwrite as requested)
+    const incomingWeight =
+      mergedDetails?.attributes?.weight ??
+      mergedDetails?.weight ??
+      mergedOps?.weight ??
+      mergedAttributes?.weight;
+    const bucketedWeight = bucketWeight(incomingWeight || existingDetails?.attributes?.weight);
+    if (!mergedDetails.attributes) mergedDetails.attributes = {};
+    if (bucketedWeight !== null) {
+      mergedDetails.attributes.weight = bucketedWeight;
+      mergedDetails.weight = bucketedWeight;
+    }
+
+    const productWithEbay = enforceEbayAspects({
       ...(existingData || {}),
       ...product,
       identification: mergedIdentification,
       details: mergedDetails,
+      ops: mergedOps,
+    });
+
+    const productData = {
+      ...productWithEbay,
       ops: {
-        ...mergedOps,
+        ...productWithEbay.ops,
+        deleted_images: deletedImages.length ? deletedImages : undefined,
         identity_key: identityKey || mergedOps.identity_key || null,
         identity_aliases: mergedAliases.length ? mergedAliases : undefined,
         pending_intake_quantity: pendingIntake,
