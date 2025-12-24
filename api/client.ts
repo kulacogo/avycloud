@@ -133,6 +133,94 @@ const parseResponse = async (response: Response): Promise<any> => {
   return { ok: response.ok, data: text };
 };
 
+// Defensive normalizer: backend/Firestore data may omit nested objects.
+// Keep UI stable by ensuring required sub-structures exist.
+const normalizeProduct = (raw: any): Product => {
+  const input = raw && typeof raw === 'object' ? raw : {};
+  const id = input.id != null ? String(input.id) : '';
+
+  const identificationIn = input.identification && typeof input.identification === 'object' ? input.identification : {};
+  const detailsIn = input.details && typeof input.details === 'object' ? input.details : {};
+  const opsIn = input.ops && typeof input.ops === 'object' ? input.ops : {};
+
+  const identifiersIn =
+    detailsIn.identifiers && typeof detailsIn.identifiers === 'object' ? detailsIn.identifiers : {};
+
+  const pricingIn = detailsIn.pricing && typeof detailsIn.pricing === 'object' ? detailsIn.pricing : {};
+  const lowestPriceIn =
+    pricingIn.lowest_price && typeof pricingIn.lowest_price === 'object' ? pricingIn.lowest_price : {};
+
+  const imagesIn = Array.isArray(detailsIn.images) ? detailsIn.images : [];
+  const images: ProductImage[] = imagesIn
+    .filter(Boolean)
+    .map((img: any) => ({
+      ...(img && typeof img === 'object' ? img : {}),
+      // Some legacy paths store url/href instead of url_or_base64; preserve by mapping.
+      url_or_base64: img?.url_or_base64 || img?.url || img?.href || '',
+      source: (img?.source as any) || 'web',
+    }))
+    .filter((img) => Boolean(img.url_or_base64));
+
+  return {
+    ...input,
+    id,
+    identification: {
+      ...(identificationIn as any),
+      method: (identificationIn.method as any) || 'image',
+      barcodes: Array.isArray(identificationIn.barcodes) ? identificationIn.barcodes.filter(Boolean) : [],
+      name: identificationIn.name || id || '—',
+      brand: identificationIn.brand || '',
+      category: identificationIn.category || '',
+      confidence: typeof identificationIn.confidence === 'number' ? identificationIn.confidence : 0,
+      sku: identificationIn.sku || undefined,
+    },
+    details: {
+      ...(detailsIn as any),
+      short_description: detailsIn.short_description || '',
+      key_features: Array.isArray(detailsIn.key_features) ? detailsIn.key_features.filter(Boolean) : [],
+      attributes:
+        detailsIn.attributes && typeof detailsIn.attributes === 'object' && !Array.isArray(detailsIn.attributes)
+          ? detailsIn.attributes
+          : {},
+      identifiers: {
+        ...(identifiersIn as any),
+      },
+      images,
+      pricing: {
+        ...(pricingIn as any),
+        price_confidence: typeof pricingIn.price_confidence === 'number' ? pricingIn.price_confidence : 0,
+        lowest_price: {
+          ...(lowestPriceIn as any),
+          amount: typeof lowestPriceIn.amount === 'number' ? lowestPriceIn.amount : 0,
+          currency: (lowestPriceIn.currency || 'EUR') as string,
+          sources: Array.isArray(lowestPriceIn.sources) ? lowestPriceIn.sources : [],
+          last_checked_iso: lowestPriceIn.last_checked_iso || undefined,
+        },
+      },
+    },
+    ops: {
+      ...(opsIn as any),
+      sync_status: (opsIn.sync_status as any) || 'pending',
+      last_saved_iso: opsIn.last_saved_iso ?? null,
+      last_synced_iso: opsIn.last_synced_iso ?? null,
+      base_product_id: opsIn.base_product_id ?? null,
+      baselinker: opsIn.baselinker ?? undefined,
+      pending_intake_quantity:
+        typeof opsIn.pending_intake_quantity === 'number' ? opsIn.pending_intake_quantity : 0,
+      revision: typeof opsIn.revision === 'number' ? opsIn.revision : 0,
+    },
+  };
+};
+
+const normalizeProductBundle = (raw: any): ProductBundle => {
+  const input = raw && typeof raw === 'object' ? raw : {};
+  const products = Array.isArray(input.products) ? input.products.map(normalizeProduct) : [];
+  return {
+    ...input,
+    products,
+  };
+};
+
 // Helper function to extract meaningful error info
 const extractErrorInfo = (error: any, response?: Response): { code: number; message: string } => {
   // Always use response status if available, regardless of ok status
@@ -213,7 +301,7 @@ export const waitForJobResult = async (
       throw new Error('Job not found');
     }
     if (job.status === 'done') {
-      return job.result as ProductBundle;
+      return normalizeProductBundle(job.result);
     }
     if (job.status === 'failed') {
       throw new Error(job.error?.message || 'Produktidentifikation fehlgeschlagen.');
@@ -287,7 +375,7 @@ export const pollImproveJob = async (
     }
     if (job.status === 'done') {
       if (job.result?.product) {
-        return job.result.product as Product;
+        return normalizeProduct(job.result.product);
       }
       throw new Error('Improve-Job abgeschlossen, aber kein Produkt geliefert.');
     }
@@ -317,13 +405,13 @@ export const fetchProducts = async (): Promise<Product[]> => {
   }
   // Backend may return { products } or { data: [...] }
   if (Array.isArray(result?.products)) {
-    return result.products;
+    return result.products.map(normalizeProduct);
   }
   if (Array.isArray(result?.data?.products)) {
-    return result.data.products;
+    return result.data.products.map(normalizeProduct);
   }
   if (Array.isArray(result?.data)) {
-    return result.data;
+    return result.data.map(normalizeProduct);
   }
   return [];
 };

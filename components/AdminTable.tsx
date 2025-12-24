@@ -290,7 +290,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   );
 
   const primaryImage = (product: Product) =>
-    (product.details.images || []).find((img) => img.url_or_base64?.startsWith('http')) || null;
+    (product.details?.images || []).find((img) => img.url_or_base64?.startsWith('http')) || null;
   const primaryBarcode = (product: Product) => {
     const codes = product.identification?.barcodes || [];
     const ids = product.details?.identifiers || {};
@@ -668,7 +668,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       const matchesBin =
         filterBin === 'all' || (filterBin === 'withBin' && hasBin) || (filterBin === 'withoutBin' && !hasBin);
 
-      const hasImages = Array.isArray(p.details.images) && p.details.images.length > 0;
+      const hasImages = Array.isArray(p.details?.images) && p.details.images.length > 0;
       const matchesImages =
         filterImage === 'all' ||
         (filterImage === 'withImages' && hasImages) ||
