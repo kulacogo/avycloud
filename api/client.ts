@@ -681,7 +681,7 @@ export const fetchOrders = async (limit = 200, options?: { timeoutMs?: number })
   const response = await fetchWithTimeout(
     `${BACKEND_URL}/api/orders?limit=${cappedLimit}`,
     undefined,
-    options?.timeoutMs || 10000
+    options?.timeoutMs || 25000
   );
   const result = await parseResponse(response);
   if (!response.ok) {
@@ -696,7 +696,7 @@ export const syncOrders = async (options?: { timeoutMs?: number }): Promise<Orde
     {
       method: 'POST',
     },
-    options?.timeoutMs || 10000
+    options?.timeoutMs || 25000
   );
   const result = await parseResponse(response);
   if (!response.ok) {

@@ -104,3 +104,26 @@ ex-backend/services/product-chat.js
 ex-backend/services/prompt-engine.js
 ex-backend/services/scanner.js
 ex-backend/services/toolkit.js
+components example/AdminTable.tsx
+components example/AttributeTable.tsx
+components example/Dashboard.tsx
+components example/GeminiChat.tsx
+components example/Header.tsx
+components example/IdentifyQueueView.tsx
+components example/ImageGallery.tsx
+components example/JobStatusPopup.tsx
+components example/OperationsView.tsx
+components example/PricingInfo.tsx
+components example/ProcessStatusBar.tsx
+components example/ProductInput.tsx
+components example/ProductSheet.tsx
+components example/ScannerOverlay.tsx
+components example/Spinner.tsx
+components example/WarehouseView.tsx
+components example/chat/AttachmentMessage.tsx
+components example/chat/ChatContainer.tsx
+components example/chat/ChatInput.tsx
+components example/chat/FileAttachmentPreview.tsx
+components example/chat/MessageBubble.tsx
+components example/icons/Icons.tsx
+.gitignore

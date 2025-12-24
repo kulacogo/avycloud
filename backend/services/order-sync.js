@@ -5,6 +5,8 @@ const { decrementProductByIdOrSku } = require('../lib/warehouse');
 
 // Increase lookback to ensure older shipped/picked orders are included for stock cleanup
 const DEFAULT_ORDER_LOOKBACK_DAYS = parseInt(process.env.ORDER_SYNC_LOOKBACK_DAYS || '60', 10);
+const BASELINKER_ORDER_PAGE_LIMIT = 100; // per docs: max 100 orders per call
+const MAX_ORDER_PAGES = 1000; // safety guard
 const ORDER_STATUS_ID_CACHE = {
   new: null,
   picked: null,
@@ -147,10 +149,8 @@ async function syncNewOrders() {
   }
 
   const dateFrom = Math.floor(Date.now() / 1000) - DEFAULT_ORDER_LOOKBACK_DAYS * 24 * 60 * 60;
-  const params = {
+  const baseParams = {
     date_from: dateFrom,
-    date_confirmed_from: dateFrom,
-    limit: 500,
     get_unconfirmed_orders: false,
   };
 
@@ -158,9 +158,39 @@ async function syncNewOrders() {
   const statusList = await callBaseLinker('getOrderStatusList', {})?.then((r) => r?.statuses || []).catch(() => []);
   const statusNameById = new Map(statusList.map((s) => [String(s.id), s.name || '']));
 
-  const response = await callBaseLinker('getOrders', params);
+  const orders = [];
+  let cursor = dateFrom;
+  let page = 0;
 
-  const orders = Array.isArray(response?.orders) ? response.orders.map(mapBaseLinkerOrder) : [];
+  // Paginate according to official guidance: date_confirmed_from cursor, limit 100, stop when <100
+  // and advance cursor to last date_confirmed (+1s).
+  while (page < MAX_ORDER_PAGES) {
+    page += 1;
+    const response = await callBaseLinker('getOrders', {
+      ...baseParams,
+      date_confirmed_from: cursor,
+      limit: BASELINKER_ORDER_PAGE_LIMIT,
+    });
+
+    const pageOrdersRaw = Array.isArray(response?.orders) ? response.orders : [];
+    if (!pageOrdersRaw.length) {
+      break;
+    }
+
+    orders.push(...pageOrdersRaw.map(mapBaseLinkerOrder));
+
+    // Advance cursor: last confirmed date (fallback date_add) +1s
+    const lastRaw = pageOrdersRaw[pageOrdersRaw.length - 1];
+    const lastConfirmed = Number(lastRaw?.date_confirmed || lastRaw?.date_add || 0);
+    if (!Number.isFinite(lastConfirmed) || lastConfirmed <= 0) {
+      break; // cannot safely paginate, stop to avoid loop
+    }
+    cursor = lastConfirmed + 1;
+
+    if (pageOrdersRaw.length < BASELINKER_ORDER_PAGE_LIMIT) {
+      break; // no more pages
+    }
+  }
 
   // Post-process statuses using resolved names to classify picked/closed
   const pickedId = ORDER_STATUS_ID_CACHE.picked || DEFAULT_PICKED_STATUS_ID;

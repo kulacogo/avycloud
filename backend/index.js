@@ -2138,10 +2138,22 @@ app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
 app.get('/api/orders', async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 200);
-    // Always refresh from BaseLinker before returning orders to keep dashboard counts accurate
-    await syncNewOrders();
-    const rawOrders = await listOrders(limit);
-    const orders = await attachPickHintsToOrders(rawOrders);
+    let rawOrders = null;
+
+    try {
+      // Always try to refresh from BaseLinker first
+      rawOrders = await syncNewOrders();
+    } catch (syncError) {
+      console.warn('Failed to refresh orders from BaseLinker, serving cached orders:', syncError.message);
+    }
+
+    // Fallback to cached orders if sync failed
+    if (!Array.isArray(rawOrders)) {
+      rawOrders = await listOrders(limit);
+    }
+
+    const cappedOrders = Array.isArray(rawOrders) ? rawOrders.slice(0, limit) : [];
+    const orders = await attachPickHintsToOrders(cappedOrders);
     res.json({ ok: true, data: orders });
   } catch (error) {
     console.error('Failed to load orders:', error);
@@ -2158,8 +2170,18 @@ app.get('/api/orders', async (req, res) => {
 
 app.post('/api/orders/sync', async (req, res) => {
   try {
-    const rawOrders = await syncNewOrders();
-    const orders = await attachPickHintsToOrders(rawOrders);
+    let rawOrders = null;
+    try {
+      rawOrders = await syncNewOrders();
+    } catch (syncError) {
+      console.warn('Failed to sync orders from BaseLinker, serving cached orders:', syncError.message);
+    }
+
+    if (!Array.isArray(rawOrders)) {
+      rawOrders = await listOrders(Math.min(Number(req.query?.limit) || 200, 200));
+    }
+
+    const orders = await attachPickHintsToOrders(rawOrders || []);
     res.json({ ok: true, data: orders });
   } catch (error) {
     console.error('Failed to sync orders:', error);
