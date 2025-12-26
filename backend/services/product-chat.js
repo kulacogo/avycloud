@@ -19,6 +19,7 @@ const DEEP_MODE_REGEX =
 const MARKETING_IMAGE_REGEX =
   /(marketingbild|marketingbilder|kampagne|kampagnen|werben|promo|produktfoto|produktbild|referenzbild|referenzbilder|imgurl|img url)/i;
 const IMAGE_KEYWORDS = /(bild|bilder|image|images|foto|photos?|shot|render|packshot|url)/i;
+const WEB_ONLY_IMAGE_REGEX = /(nur\s+web|nur\s+internet|im\s+internet|web[-\s]?only|keine\s+ai|ohne\s+ai|no\s+ai|keine\s+generierung|ohne\s+generierung)/i;
 const TEXT_LIKE_MIME = new Set(['text/plain', 'text/csv', 'application/json', 'text/json']);
 const MAX_ATTACHMENT_PREVIEW_CHARS = 6000;
 const MARKETING_MIN_RESULTS = 3;
@@ -468,7 +469,7 @@ async function tryGenerateFallbackImages(product, existingKeys, neededCount = 1)
   }
 }
 
-async function fulfillMarketingImageRequest(product) {
+async function fulfillMarketingImageRequest(product, { allowGeneratedFallback = true } = {}) {
   const { keys: existingKeys, urls: existingUrls } = buildExistingImageInventory(product);
   const serpTrace = [];
   const webResult = await tryFetchWebMarketingImages(product, {
@@ -479,7 +480,7 @@ async function fulfillMarketingImageRequest(product) {
   serpTrace.push(...webResult.trace);
 
   let suggestions = webResult.images;
-  if (suggestions.length < MARKETING_MIN_RESULTS) {
+  if (allowGeneratedFallback && suggestions.length < MARKETING_MIN_RESULTS) {
     const needed = MARKETING_MIN_RESULTS - suggestions.length;
     const fallback = await tryGenerateFallbackImages(product, existingKeys, needed);
     serpTrace.push(...fallback.trace);
@@ -897,12 +898,16 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   const locale = 'de-DE';
   const conversationMode = detectConversationMode(userMessage || '');
   const marketingFocus = isMarketingImageRequest(userMessage || '');
+  const webOnlyImages = marketingFocus && WEB_ONLY_IMAGE_REGEX.test(userMessage || '');
   const barcodeIntent = BARCODE_INTENT_REGEX.test(userMessage || '');
   const hasLocalValidBarcode = hasValidLocalBarcode(product);
   const attachmentPayload = normalizeChatAttachments(attachments);
 
   if (marketingFocus) {
-    const marketingResponse = await fulfillMarketingImageRequest(product);
+    const marketingResponse = await fulfillMarketingImageRequest(product, {
+      // If the user asks explicitly for web-only images, do not generate fallback AI renders.
+      allowGeneratedFallback: !webOnlyImages,
+    });
     if (marketingResponse) {
       return marketingResponse;
     }

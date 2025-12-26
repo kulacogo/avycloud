@@ -236,6 +236,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           'Datenblatt komplett verbessern: Titel (TECHNISCH, max. 80 Zeichen, inkl. Modell/Herstellernummer/Größe/Spannung/Leistung/Volumen wenn vorhanden; keine Marketingfloskeln), Beschreibung, Highlights/Attribute, Preis, Identifikatoren und Bilder prüfen, korrigieren und auffüllen (keine Duplikate). Setze exakt EINE Kategorie („Kategorie“) anhand der Liste in backend/ebay-data/categories.json und fülle alle Pflicht-Attribute für diese Kategorie anhand backend/ebay-data/required-aspects.json vollständig aus. Ergebnis e-commerce-ready und stilistisch konsistent liefern.',
       },
       {
+        key: 'webImages',
+        label: t('chat.prompts.webImages'),
+        value:
+          'Finde 3–6 Referenzbilder/Produktbilder im Internet (NUR Web-Quellen, KEINE AI-Generierung). Antworte mit konkreten URLs und liefere sie als Bild-Vorschläge, damit ich sie direkt übernehmen kann.',
+      },
+      {
         key: 'highlights',
         label: t('chat.prompts.highlights'),
         value:
