@@ -425,6 +425,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     setPendingImages((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const handleApplyAllImages = () => {
+    if (!pendingImages.length) return;
+    onAddImages?.(pendingImages.map((item) => item.image));
+    setPendingImages([]);
+  };
+
   const extractStructuredEdits = (message: string): DatasheetChange[] => {
     if (!message) return [];
     const matches = Array.from(message.matchAll(/```json([\s\S]*?)```/gi));
@@ -607,7 +613,20 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   <span>{t('chat.ui.imageSuggestions')}</span>
                   <span>{pendingImages.length}</span>
                 </summary>
-                <div className="flex gap-3 overflow-x-auto p-3">
+                <div className="space-y-2 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] text-slate-400">
+                      Tipp: Du kannst alle Vorschläge mit einem Klick übernehmen.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleApplyAllImages}
+                      className="rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
+                    >
+                      Alle hinzufügen
+                    </button>
+                  </div>
+                  <div className="flex gap-3 overflow-x-auto">
                   {pendingImages.map((item) => (
                     <div
                       key={item.id}
@@ -635,6 +654,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                       </button>
                     </div>
                   ))}
+                  </div>
                 </div>
               </details>
             )}

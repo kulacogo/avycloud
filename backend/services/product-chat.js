@@ -13,8 +13,11 @@ const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 const MAX_CHAT_ITERATIONS = 5;
 const DEEP_MODE_REGEX =
   /(mehr details|mehr detailliert|ausf(?:ue|ü)hrlich|voller report|lange analyse|bitte detailliert|detailliert|full report|detailed|long analysis)/i;
+// IMPORTANT: Be strict here. The chat prompts may contain the word "Marketing" (e.g. "keine Marketingfloskeln")
+// even when the user wants a full datasheet rewrite. We only treat as "marketing image request" when the
+// user explicitly asks for marketing/reference images or URLs.
 const MARKETING_IMAGE_REGEX =
-  /(marketing|kampagne|kampagnen|werben|promo|produktfoto|produktbild|referenzbild|referenzbilder|imgurl|img url)/i;
+  /(marketingbild|marketingbilder|kampagne|kampagnen|werben|promo|produktfoto|produktbild|referenzbild|referenzbilder|imgurl|img url)/i;
 const IMAGE_KEYWORDS = /(bild|bilder|image|images|foto|photos?|shot|render|packshot|url)/i;
 const TEXT_LIKE_MIME = new Set(['text/plain', 'text/csv', 'application/json', 'text/json']);
 const MAX_ATTACHMENT_PREVIEW_CHARS = 6000;

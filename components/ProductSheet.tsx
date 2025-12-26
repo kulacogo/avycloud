@@ -38,6 +38,21 @@ const isGeneratedImageMeta = (image?: ProductImage) => {
   return GENERATED_IMAGE_PATTERN.test(source) || GENERATED_IMAGE_PATTERN.test(notes);
 };
 
+// We allow "trusted" AI images produced by our own pipeline (Gemini/Vertex/ai-derived),
+// but still block unknown placeholder-like AI images from being appended unintentionally.
+const isTrustedAiImage = (image?: ProductImage) => {
+  if (!image) return false;
+  const source = (image.source || '').toLowerCase();
+  const notes = (image.notes || '').toLowerCase();
+  return (
+    source.includes('ai-derived') ||
+    source.includes('vertex') ||
+    /gemini/.test(source) ||
+    /gemini/.test(notes) ||
+    /vertex/.test(notes)
+  );
+};
+
 const filterReferenceCandidates = (images: ProductImage[] = []) =>
   images.filter((image) => !isGeneratedImageMeta(image));
 
@@ -570,15 +585,31 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const applyAssistantImages = (images: ProductImage[]) => {
     if (!images || images.length === 0) return;
-    const safeImages = images.filter((img) => !isGeneratedImageMeta(img));
+    // Allow trusted AI images (Gemini/Vertex), but block unknown placeholder-like AI images.
+    const safeImages = images.filter((img) => !isGeneratedImageMeta(img) || isTrustedAiImage(img));
     if (!safeImages.length) {
       showNotification('error', t('sheet.msg.generatedBlocked'));
       return;
     }
-    setLocalProduct(prev => ({
-      ...prev,
-      details: { ...prev.details, images: [...prev.details.images, ...safeImages] },
-    }));
+    setLocalProduct((prev) => {
+      const existing = Array.isArray(prev.details?.images) ? prev.details.images : [];
+      const seen = new Set(existing.map((img) => img?.url_or_base64).filter(Boolean) as string[]);
+      const dedupedIncoming = safeImages.filter((img) => {
+        const key = img?.url_or_base64;
+        if (!key || typeof key !== 'string') return false;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (!dedupedIncoming.length) {
+        showNotification('success', t('sheet.msg.imagesAdded', { count: 0 }));
+        return prev;
+      }
+      return {
+        ...prev,
+        details: { ...prev.details, images: [...existing, ...dedupedIncoming] },
+      };
+    });
     setIsDirty(true);
     showNotification('success', t('sheet.msg.imagesAdded', { count: safeImages.length }));
   };
