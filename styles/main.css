@@ -21,6 +21,13 @@
   --border-color: #1f2a37;
 }
 
+@media (max-width: 768px) {
+  :root {
+    /* Better readability + touch UX on handheld scanners / phones */
+    font-size: 14px;
+  }
+}
+
 [data-theme='light'] {
   color-scheme: light;
   --page-bg: #f8fafc;

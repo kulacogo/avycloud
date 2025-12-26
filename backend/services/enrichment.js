@@ -620,31 +620,47 @@ function resolveEbayCategory({ details = {}, attributes = {}, identification = {
     details.ebayCategoryId ||
     null;
 
-  const rawPath =
-    details.ebayCategoryPath ||
-    attributes.ebay_category_path ||
-    attributes.ebay_category ||
-    details.ebayCategory ||
-    attributes.Kategorie ||
-    attributes.category ||
-    identification.category ||
+  // NOTE:
+  // - `identification.category` is an internal/free-text classification in this app and is NOT reliably an eBay breadcrumb.
+  // - Many eBay leaf names are ambiguous ("Sonstige", "Elektronik & Computer", ...). Never resolve by leaf-only names.
+  // Prefer explicit eBay path fields and canonical "Kategorie" (which we set to the FULL breadcrumb on save).
+  const pathCandidates = [
+    details.ebayCategoryPath,
+    attributes.ebay_category_path,
+    attributes.ebay_category,
+    details.ebayCategory,
+    attributes.Kategorie,
+    attributes.category,
+  ]
+    .map((v) => normalizePath(v))
+    .filter(Boolean);
+  // Prefer candidates that look like a full breadcrumb/path (contain ">" separators).
+  // If multiple, pick the longest (most specific).
+  const bestPath =
+    pathCandidates
+      .filter((p) => p.includes('>'))
+      .sort((a, b) => b.length - a.length)[0] ||
     null;
 
   if (isNumericId(rawId) && marketplaceLookup.isValidEbayId(String(rawId).trim())) {
-    return { id: String(rawId).trim(), path: normalizePath(rawPath) };
+    return { id: String(rawId).trim(), path: bestPath || pathCandidates[0] || '' };
   }
 
-  const byPath = marketplaceLookup.lookupEbay(normalizePath(rawPath));
-  if (byPath) {
-    return { id: byPath, path: normalizePath(rawPath) };
+  // Only resolve by breadcrumb/path if we actually have a breadcrumb (avoid leaf-only strings).
+  if (bestPath) {
+    const byPath = marketplaceLookup.lookupEbay(bestPath);
+    if (byPath) {
+      return { id: byPath, path: bestPath };
+    }
   }
 
   const idCandidate = parseCategoryIdFromString(rawId);
   let cat = null;
   if (idCandidate) cat = findEbayCategory(idCandidate);
-  if (!cat) cat = findEbayCategory(rawPath);
+  // Fallback: best-effort map from breadcrumb-like paths only (never from leaf-only strings).
+  if (!cat && bestPath) cat = findEbayCategory(bestPath);
   if (cat) {
-    return { id: String(cat.id), path: cat.breadcrumb || normalizePath(rawPath) };
+    return { id: String(cat.id), path: cat.breadcrumb || bestPath || '' };
   }
   return null;
 }
