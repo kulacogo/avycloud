@@ -190,6 +190,32 @@ function bucketWeight(value) {
   return Number(best.toFixed(2));
 }
 
+function parseWeightKg(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value <= 0) return null;
+    // Heuristic: values > 50 are almost certainly grams, not kg (we only bucket up to 15kg).
+    return value > 50 ? value / 1000 : value;
+  }
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const match = raw.match(/([\d.,]+)\s*(kg|g|gramm|grams?|kilogramm|kilograms?)?/i);
+  if (!match) return null;
+  const num = Number(match[1].replace(',', '.'));
+  if (!Number.isFinite(num) || num <= 0) return null;
+  const unit = (match[2] || '').toLowerCase();
+  if (unit) {
+    if (unit === 'g' || unit.startsWith('gram')) {
+      return num / 1000;
+    }
+    if (unit === 'kg' || unit.startsWith('kilo')) {
+      return num;
+    }
+  }
+  // No unit: apply the same heuristic as numeric inputs.
+  return num > 50 ? num / 1000 : num;
+}
+
 function normalizeAttributesOrder(attrs = {}, catId, requiredMap) {
   const entries = Object.entries(attrs || {});
   if (!entries.length) return {};
@@ -279,6 +305,20 @@ function enforceEbayAspects(product) {
       'oem reference number': 'Referenznummer(n) OEM',
       'oem reference number(s)': 'Referenznummer(n) OEM',
       'referenznummer(n) oem': 'Referenznummer(n) OEM',
+
+      // Weight (kg) aliases
+      // We store a normalized numeric weight under the internal key `weight` (kg).
+      // Category-specific required aspect names (e.g. "Gewicht(kg)", "Eigengewicht (kg)") are derived below.
+      'gewicht': 'weight',
+      'gewicht(kg)': 'weight',
+      'gewicht (kg)': 'weight',
+      'eigengewicht': 'weight',
+      'eigengewicht(kg)': 'weight',
+      'eigengewicht (kg)': 'weight',
+      'artikelgewicht': 'weight',
+      'versandgewicht': 'weight',
+      'shipping weight': 'weight',
+      'weight': 'weight',
 
       // Category path variants
       'kategorie-pfad': 'Kategorie',
@@ -513,6 +553,11 @@ function enforceEbayAspects(product) {
         null;
     } else if (lower === 'herstellernummer' || lower === 'mpn') {
       derived = details?.identifiers?.mpn || null;
+    } else if (lower.includes('gewicht')) {
+      // Weight aspects can be required in some eBay categories (e.g. "Gewicht(kg)", "Eigengewicht (kg)", sometimes "Gewicht").
+      // We do NOT ask the model here. Instead we reuse the already-bucketed internal weight in kg.
+      const w = details?.attributes?.weight;
+      derived = Number.isFinite(Number(w)) && Number(w) > 0 ? Number(w) : null;
     }
 
     keptAspects[canonical] = derived ?? null;
@@ -821,12 +866,16 @@ async function saveProduct(product, options = {}) {
       mergedDetails?.weight ??
       mergedOps?.weight ??
       mergedAttributes?.weight;
-    const bucketedWeight = bucketWeight(incomingWeight || existingDetails?.attributes?.weight);
+    const weightKg =
+      parseWeightKg(incomingWeight) ??
+      parseWeightKg(existingDetails?.attributes?.weight) ??
+      null;
+    // Guarantee: every product has an approximate shipping weight in kg (bucketed).
+    // Buckets are intentionally coarse for reliability.
+    const bucketedWeight = bucketWeight(weightKg) ?? WEIGHT_BUCKETS[0];
     if (!mergedDetails.attributes) mergedDetails.attributes = {};
-    if (bucketedWeight !== null) {
-      mergedDetails.attributes.weight = bucketedWeight;
-      mergedDetails.weight = bucketedWeight;
-    }
+    mergedDetails.attributes.weight = bucketedWeight;
+    mergedDetails.weight = bucketedWeight;
 
     // Warehouse invariants:
     // - General product saves (LLM pipelines, admin edits, reconciliation scripts, etc.) must NEVER wipe warehouse state.
