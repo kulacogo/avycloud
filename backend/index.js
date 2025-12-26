@@ -2184,7 +2184,8 @@ app.post('/api/save', async (req, res) => {
     }
 
     // Save to Firestore
-    const result = await saveProduct(product);
+    // Manual UI saves are allowed to change category; automation pipelines are not.
+    const result = await saveProduct(product, { allowCategoryChange: true });
 
     res.json({
       ok: true,

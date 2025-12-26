@@ -389,10 +389,28 @@ async function tryFetchWebMarketingImages(product, { limit, excludeUrls, existin
   if (!querySeed) {
     return response;
   }
+  const identifiers = [];
+  const barcodes = Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : [];
+  barcodes.forEach((code) => {
+    if (code) identifiers.push(String(code).trim());
+  });
+  const detIds = product?.details?.identifiers || {};
+  ['ean', 'gtin', 'upc', 'mpn', 'sku'].forEach((key) => {
+    if (detIds[key]) identifiers.push(String(detIds[key]).trim());
+  });
+  // MPN/model helps a lot for web image search when brand+title are generated/normalized.
+  const mpnCandidate =
+    detIds?.mpn ||
+    product?.details?.attributes?.mpn ||
+    product?.details?.attributes?.model ||
+    product?.details?.attributes?.modell ||
+    '';
   try {
     const { images, trace } = await fetchMarketingImages({
       brand,
       name,
+      identifiers,
+      mpn: mpnCandidate,
       limit,
       exclude: excludeUrls,
     });
@@ -488,9 +506,21 @@ async function fulfillMarketingImageRequest(product, { allowGeneratedFallback = 
   }
 
   if (!suggestions.length) {
+    const errors = serpTrace
+      .filter((t) => t && typeof t === 'object' && t.error)
+      .map((t) => `${t.engine || 'engine'}: ${t.error}`)
+      .slice(0, 2);
+    const tried = serpTrace
+      .filter((t) => t && typeof t === 'object' && t.engine && t.query)
+      .map((t) => `${t.engine}: ${t.query}`)
+      .slice(0, 3);
+    const help =
+      (tried.length ? `\nTried: ${tried.join(' | ')}` : '') +
+      (errors.length ? `\nErrors: ${errors.join(' | ')}` : '') +
+      '\nTipp: EAN/GTIN oder Hersteller-/Shop-Link erhöht Trefferquote stark.';
     return {
       message:
-        'Keine externen Marketingbilder gefunden – ich brauche Herstellerlinks oder zusätzliche Produktfotos, dann suche ich erneut.',
+        'Keine externen Web-Bilder gefunden.' + help,
       datasheetChanges: [],
       imageSuggestions: [],
       serpTrace,

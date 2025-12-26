@@ -13,6 +13,10 @@ const QUALITY_MIN_HEIGHT = parseInt(process.env.MARKETING_IMAGE_MIN_HEIGHT || `$
 const DEFAULT_IMAGE_LIMIT = parseInt(process.env.MARKETING_IMAGE_LIMIT || '12', 10);
 const IMAGE_PROBE_TIMEOUT_MS = parseInt(process.env.MARKETING_IMAGE_PROBE_TIMEOUT_MS || '5000', 10);
 const IMAGE_PROBE_USER_AGENT = process.env.MARKETING_IMAGE_USER_AGENT || 'avystock-image-probe/1.0';
+const IMAGE_VERIFY_MODE = (process.env.MARKETING_IMAGE_VERIFY_MODE || 'auto').toLowerCase(); // auto | strict | off
+
+// Bright Data is optional; when it's not configured we must NOT drop all results.
+let unlockerAvailable = null; // null unknown, true/false known
 
 function normalizeUrlKey(url = '') {
   if (!url || typeof url !== 'string') return null;
@@ -108,20 +112,31 @@ async function probeImageUrl(url, method = 'HEAD') {
     if (!result.success) {
       return false;
     }
+    unlockerAvailable = true;
     const contentType = result.contentType || '';
     if (!contentType.startsWith('image/')) {
       return false;
     }
     return true;
   } catch (error) {
+    const msg = String(error?.message || '');
+    // If BrightData is not configured, we must fail-open elsewhere (auto mode).
+    if (msg.includes('BRIGHTDATA_API_TOKEN') || msg.includes('BRIGHTDATA_ZONE')) {
+      unlockerAvailable = false;
+    }
     return false;
   }
 }
 
 async function verifyAccessibleUrl(url) {
   if (!url) return null;
+  if (IMAGE_VERIFY_MODE === 'off') return url;
+  // In auto mode: when BrightData isn't configured, do NOT verify – return unverified URL.
+  if (IMAGE_VERIFY_MODE === 'auto' && unlockerAvailable === false) return url;
   if (await probeImageUrl(url, 'HEAD')) return url;
   if (await probeImageUrl(url, 'GET')) return url;
+  // If the probe set unlockerAvailable=false (token missing), fail-open in auto mode.
+  if (IMAGE_VERIFY_MODE === 'auto' && unlockerAvailable === false) return url;
   return null;
 }
 
@@ -136,10 +151,22 @@ async function pickAccessibleUrl(candidate) {
       return fallback;
     }
   }
+  // Fail-open in AUTO mode: return the original candidate URL even when we can't probe it
+  // (e.g. BrightData not configured or HEAD blocked). The UI can still preview it.
+  if (IMAGE_VERIFY_MODE === 'auto') {
+    return candidate.url || candidate.preview || null;
+  }
   return null;
 }
 
-async function fetchMarketingImages({ brand, name, limit = DEFAULT_IMAGE_LIMIT, exclude = [] }) {
+async function fetchMarketingImages({
+  brand,
+  name,
+  identifiers = [],
+  mpn = '',
+  limit = DEFAULT_IMAGE_LIMIT,
+  exclude = [],
+} = {}) {
   const baseQuery = [brand, name].filter(Boolean).join(' ').trim();
   if (!baseQuery) {
     return { images: [], trace: [] };
@@ -155,31 +182,90 @@ async function fetchMarketingImages({ brand, name, limit = DEFAULT_IMAGE_LIMIT, 
   const trace = [];
   const desired = Math.max(1, limit);
 
-  const googleQueries = [
+  const uniq = (list) => Array.from(new Set(list.filter((v) => typeof v === 'string' && v.trim()))).map((v) => v.trim());
+
+  const cleanIds = uniq(
+    (Array.isArray(identifiers) ? identifiers : [])
+      .map((v) => (v ? String(v).trim() : ''))
+      .filter(Boolean)
+  ).slice(0, 3);
+
+  const mpnClean = mpn ? String(mpn).trim() : '';
+
+  // Prefer very specific queries first (EAN/GTIN/MPN usually yields the most accurate product pages/images).
+  const googleQueries = uniq([
+    ...cleanIds,
+    ...(mpnClean ? [`${mpnClean}`, `${brand || ''} ${mpnClean}`.trim(), `${baseQuery} ${mpnClean}`.trim()] : []),
+    baseQuery,
+    `${baseQuery} Produktfoto`,
+    `${baseQuery} Produktbilder`,
+    `${baseQuery} Pressefoto`,
     `${baseQuery} marketing photo`,
     `${baseQuery} lifestyle`,
     `${baseQuery} hero image`,
-  ];
+  ]);
 
   for (const query of googleQueries) {
     if (collected.length >= desired) break;
-    const params = {
-      q: query,
-      tbs: 'isz:l,itp:photo',
-      num: 20,
-      ijn: collected.length > 0 ? 1 : 0,
-    };
-    const { images, trace: engineTrace } = await querySerpImages('google_images', params, desired - collected.length, query);
-    for (const img of images) {
+    const queryAttempts = [
+      // Strict: large photos
+      { tbs: 'isz:l,itp:photo', label: query },
+      // Relaxed: any photo
+      { tbs: 'itp:photo', label: `${query} (relaxed)` },
+    ];
+    for (const attempt of queryAttempts) {
       if (collected.length >= desired) break;
-      const accessibleUrl = await pickAccessibleUrl(img);
-      if (!accessibleUrl) continue;
-      const key = normalizeUrlKey(accessibleUrl);
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      collected.push({ ...img, url: accessibleUrl });
+      const params = {
+        q: query,
+        tbs: attempt.tbs,
+        num: 20,
+        ijn: collected.length > 0 ? 1 : 0,
+      };
+      const { images, trace: engineTrace } = await querySerpImages(
+        'google_images',
+        params,
+        desired - collected.length,
+        attempt.label
+      );
+      for (const img of images) {
+        if (collected.length >= desired) break;
+        const accessibleUrl = await pickAccessibleUrl(img);
+        if (!accessibleUrl) continue;
+        const key = normalizeUrlKey(accessibleUrl);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        collected.push({ ...img, url: accessibleUrl });
+      }
+      trace.push(...engineTrace);
     }
-    trace.push(...engineTrace);
+  }
+
+  if (collected.length < desired) {
+    // Fallback: Bing Images sometimes yields more directly accessible image URLs than Google Images.
+    const bingQueries = uniq([
+      ...cleanIds,
+      ...(mpnClean ? [`${brand || ''} ${mpnClean}`.trim(), `${baseQuery} ${mpnClean}`.trim()] : []),
+      baseQuery,
+    ]);
+    for (const query of bingQueries) {
+      if (collected.length >= desired) break;
+      const { images, trace: engineTrace } = await querySerpImages(
+        'bing_images',
+        { q: query, count: 35 },
+        desired - collected.length,
+        query
+      );
+      for (const img of images) {
+        if (collected.length >= desired) break;
+        const accessibleUrl = await pickAccessibleUrl(img);
+        if (!accessibleUrl) continue;
+        const key = normalizeUrlKey(accessibleUrl);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        collected.push({ ...img, url: accessibleUrl });
+      }
+      trace.push(...engineTrace);
+    }
   }
 
   if (collected.length < desired) {

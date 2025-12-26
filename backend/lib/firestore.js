@@ -733,6 +733,7 @@ async function saveProduct(product, options = {}) {
     const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(product.id);
     const existingSnap = await docRef.get();
     const existingData = existingSnap.exists ? existingSnap.data() || {} : null;
+    const hasExisting = Boolean(existingData);
     const allowWarehouseFields = options && options.allowWarehouseFields === true;
 
     const pickStableSku = (data) => {
@@ -765,6 +766,18 @@ async function saveProduct(product, options = {}) {
     // Merge existing product data to avoid overwriting enriched content (images/descriptions/attrs)
     const existingDetails = existingData?.details || {};
     const incomingDetails = product?.details || {};
+    const allowCategoryChange = options && options.allowCategoryChange === true;
+
+    const pickStableCategoryId = (data) => {
+      const details = data?.details || {};
+      const attrs = details?.attributes || {};
+      const candidate =
+        (details.categoryId && String(details.categoryId).trim()) ||
+        (details.ebayCategoryId && String(details.ebayCategoryId).trim()) ||
+        (attrs.ebay_category_id && String(attrs.ebay_category_id).trim()) ||
+        null;
+      return candidate ? String(candidate).trim() : null;
+    };
 
     const mergeString = (incomingVal, existingVal) => {
       const normalizedIncoming = typeof incomingVal === 'string' ? incomingVal.trim() : '';
@@ -850,6 +863,28 @@ async function saveProduct(product, options = {}) {
       ...(product?.ops || {}),
     };
 
+    // Category invariants:
+    // - eBay category assignment must be stable and NEVER jump across unrelated branches due to ambiguous strings.
+    // - Only explicit user/admin actions (or dedicated scripts) should be able to change an existing category.
+    //
+    // Therefore: if an existing category is present, we lock it unless allowCategoryChange=true.
+    const existingCategoryId = pickStableCategoryId(existingData);
+    const incomingCategoryId = pickStableCategoryId({ ...product, details: mergedDetails });
+    if (existingCategoryId && hasExisting && !allowCategoryChange) {
+      if (incomingCategoryId && incomingCategoryId !== existingCategoryId) {
+        mergedOps.category_write_blocked = {
+          at_iso: new Date().toISOString(),
+          kept: existingCategoryId,
+          incoming: incomingCategoryId,
+        };
+      }
+      mergedDetails.categoryId = existingCategoryId;
+      // Remove legacy category fields so enforceEbayAspects can't re-introduce changes from them.
+      if (mergedDetails.ebayCategoryId) delete mergedDetails.ebayCategoryId;
+      if (mergedDetails.ebayCategoryPath) delete mergedDetails.ebayCategoryPath;
+      if (mergedDetails.ebayCategoryBreadcrumb) delete mergedDetails.ebayCategoryBreadcrumb;
+    }
+
     // Add timestamps and identity metadata
     const identityKey = computeProductIdentityKey({ ...product, details: mergedDetails, identification: mergedIdentification });
     const pendingIntake =
@@ -890,7 +925,6 @@ async function saveProduct(product, options = {}) {
     const incomingInventory =
       product && Object.prototype.hasOwnProperty.call(product, 'inventory') ? product.inventory : undefined;
 
-    const hasExisting = Boolean(existingData);
     const canWriteWarehouseFields = !hasExisting || allowWarehouseFields;
 
     if (hasExisting && !canWriteWarehouseFields) {
