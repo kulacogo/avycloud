@@ -2,6 +2,7 @@ const { getProduct, saveProduct } = require('../lib/firestore');
 const {
   runProductIdentification,
   runDatasheetReview,
+  ensurePriceCoverage,
   applyEbayTaxonomy,
   applyKauflandTaxonomy,
 } = require('./enrichment');
@@ -699,33 +700,14 @@ async function improveExistingProduct(productId, onProgress) {
   if (onProgress) await onProgress('merging');
   let mergedProduct = improvedOutput ? mergeProductRecords(product, improvedOutput) : JSON.parse(JSON.stringify(product));
 
-  // Price enrichment: cheapest new price from external search (barcodes/brand/model/title)
+  // Price enrichment:
+  // Use the shared pricing logic (robust candidate selection + outlier guards).
   if (onProgress) await onProgress('pricing');
-  const priceLookup = await fetchCheapestPrice({
-    barcodes: (mergedProduct.identification?.barcodes || []).filter(Boolean),
-    brand: mergedProduct.identification?.brand || '',
-    model:
-      mergedProduct.details?.attributes?.model ||
-      mergedProduct.details?.identifiers?.sku ||
-      '',
-    title: mergedProduct.identification?.name || '',
-  });
-  if (priceLookup) {
-    const existingPrice = mergedProduct.details?.pricing?.lowest_price;
-    const incomingValid = priceLookup && typeof priceLookup.amount === 'number' && priceLookup.amount > 0;
-    const keepExisting = existingPrice && typeof existingPrice.amount === 'number' && existingPrice.amount > 0;
-    if (incomingValid && (!keepExisting || priceLookup.amount < existingPrice.amount)) {
-      mergedProduct.details = mergedProduct.details || {};
-      mergedProduct.details.pricing = mergedProduct.details.pricing || {};
-      mergedProduct.details.pricing.lowest_price = {
-        amount: priceLookup.amount,
-        currency: priceLookup.currency || 'EUR',
-        sources: [
-          ...(mergedProduct.details.pricing.lowest_price?.sources || []),
-          { name: priceLookup.source, url: priceLookup.url, price: priceLookup.amount, checked_at: priceLookup.checked_at },
-        ].slice(-5),
-      };
-    }
+  try {
+    const serpTrace = [];
+    await ensurePriceCoverage([mergedProduct], serpTrace);
+  } catch (err) {
+    console.warn('[improve] Pricing enrichment failed:', err?.message || err);
   }
 
   console.log('[improve] Applying Taxonomy...');

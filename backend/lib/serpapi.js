@@ -183,9 +183,20 @@ function summarizeSerpEntries(engine, data, limit = 5) {
       return;
     }
 
+    // Prefer numeric prices when SerpAPI provides them (extracted_* fields).
+    // This avoids dropping results when `price` is a range string (e.g. "€19.99 - €29.99"),
+    // while still keeping a readable price string when no numeric field exists.
+    const numericPrice =
+      (typeof entry.extracted_price === 'number' && Number.isFinite(entry.extracted_price) && entry.extracted_price > 0
+        ? entry.extracted_price
+        : null) ||
+      (typeof entry.extracted_lowest === 'number' && Number.isFinite(entry.extracted_lowest) && entry.extracted_lowest > 0
+        ? entry.extracted_lowest
+        : null);
+
     items.push({
       title: entry.title || entry.product_title || entry.name || entry.heading || 'Untitled',
-      price: entry.price || entry.extracted_price,
+      price: numericPrice ?? entry.price,
       source: entry.source || entry.displayed_link || entry.merchant || entry.store || engine,
       url: imageMeta?.url || entry.link || entry.product_link || entry.url,
       thumbnail: entry.thumbnail || entry.image || imageMeta?.url,

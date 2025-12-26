@@ -376,8 +376,41 @@ function enforceEbayAspects(product) {
       'kategorie-pfad',
       'kategorie pfad',
       'kategoriepfad',
+      // Generic IDs that should NEVER be displayed as user-facing attributes
+      'category_id',
+      'categoryid',
+      'produkt-id',
+      'produkt id',
+      'produkt_id',
+      'produktid',
+      'product-id',
+      'product id',
+      'product_id',
+      'productid',
+      'artikel-id',
+      'artikel id',
+      'artikel_id',
     ].map((k) => k.toLowerCase())
   );
+
+  const PLACEHOLDER_VALUES = [
+    'not provided, eu',
+    'info@example.com',
+    'info@example.example.com',
+    'info@example.de',
+    'example.com',
+    'n/a',
+    'na',
+    'unknown',
+    'unbekannt',
+  ];
+
+  const isPlaceholder = (value) => {
+    if (value === null || value === undefined) return false;
+    const v = normalizeLower(value);
+    if (!v) return false;
+    return PLACEHOLDER_VALUES.some((p) => v === p || v.includes(p));
+  };
 
   const isMetaKey = (lowerKey) => {
     if (!lowerKey) return false;
@@ -435,6 +468,11 @@ function enforceEbayAspects(product) {
     const finalKey = aliased;
     const lowerKey = normalizeLower(finalKey);
       if (isMetaKey(lowerKey)) {
+        nextExtra[originalKey] = val;
+        return;
+      }
+      if (isPlaceholder(val)) {
+        // Never show placeholder values in the attribute table; preserve them for forensics.
         nextExtra[originalKey] = val;
         return;
       }
@@ -500,11 +538,19 @@ function enforceEbayAspects(product) {
         nextExtra[originalKey] = val;
         return;
       }
+      if (isPlaceholder(val)) {
+        nextExtra[originalKey] = val;
+        return;
+      }
       keptCompliance[finalKey] = normalizeBooleanishValue(val);
       return;
     }
 
     if (val && typeof val === 'object') {
+      nextExtra[originalKey] = val;
+      return;
+    }
+    if (isPlaceholder(val)) {
       nextExtra[originalKey] = val;
       return;
     }

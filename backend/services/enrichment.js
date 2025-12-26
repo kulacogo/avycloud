@@ -807,19 +807,6 @@ function processKauflandProduct(product) {
     attributes.Kategorie = resolved.path || attributes.Kategorie;
   }
 
-  // --- GPSR Auto-Enrichment ---
-  const brand = cloned.identification?.brand || 'Generic';
-
-  if (!attributes['GPSR Manufacturer name']) {
-    attributes['GPSR Manufacturer name'] = brand;
-  }
-  if (!attributes['GPSR Manufacturer address']) {
-    attributes['GPSR Manufacturer address'] = 'Not Provided, EU';
-  }
-  if (!attributes['GPSR Manufacturer email'] && !attributes['GPSR Manufacturer URL']) {
-    attributes['GPSR Manufacturer email'] = 'info@example.com';
-  }
-
   cloned.details.attributes = attributes;
   return cloned;
 }
@@ -880,6 +867,10 @@ function normalizePriceString(raw) {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;
+  // Avoid monthly installment strings (SerpAPI can expose installment separately for some Shopping results).
+  if (/(\/\s*mon(at)?|per\s*month|\/\s*mo\b|\bmonat\b)/i.test(trimmed)) {
+    return null;
+  }
   const currencyMatch = trimmed.match(/(€|eur|\$|usd|£|gbp)/i);
   const currency = currencyMatch ? CURRENCY_MAP[currencyMatch[1].toLowerCase()] || DEFAULT_PRICE_CURRENCY : DEFAULT_PRICE_CURRENCY;
   const numericPortion = trimmed.replace(/[^0-9,.\-]/g, '');
@@ -905,17 +896,39 @@ function normalizePriceString(raw) {
 
 function collectProductKeywords(product) {
   const values = [
-    product?.identification?.name,
     product?.identification?.brand,
-    product?.identification?.sku,
-    product?.details?.identifiers?.sku,
+    product?.details?.identifiers?.mpn,
+    product?.details?.attributes?.Herstellernummer,
+    product?.details?.attributes?.mpn,
     product?.details?.identifiers?.ean,
     product?.details?.identifiers?.gtin,
-  ];
-  return values
-    .filter(Boolean)
-    .map((value) => String(value).trim().toLowerCase())
-    .filter((value) => value.length >= 3);
+    product?.details?.identifiers?.upc,
+  ].filter(Boolean);
+
+  const title = (product?.identification?.name || '').toString();
+  const titleTokens = title
+    .toLowerCase()
+    .replace(/ä/g, 'a')
+    .replace(/ö/g, 'o')
+    .replace(/ü/g, 'u')
+    .replace(/ß/g, 'ss')
+    .replace(/[\u2010-\u2015-]/g, ' ')
+    .split(/[^a-z0-9]+/i)
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  const STOP = new Set([
+    'und','oder','mit','fur','fuer','für','der','die','das','ein','eine','einer','eines','zum','zur','im','in','auf','an','von','für','set','kit','neu','new'
+  ]);
+
+  const tokens = [
+    ...values.map((v) => String(v).trim().toLowerCase()),
+    ...titleTokens.filter((t) => t.length >= 4 && !STOP.has(t)),
+  ]
+    .filter((v) => v && v.length >= 3)
+    .slice(0, 16);
+
+  return Array.from(new Set(tokens));
 }
 
 function collectAttributePairs(product) {
@@ -999,7 +1012,8 @@ const DATASHEET_REVIEW_SCHEMA = {
         additionalProperties: false,
         properties: {
           key: { type: 'string', minLength: 2, maxLength: 60 },
-          value: { type: 'string', minLength: 2, maxLength: 140 },
+          // Allow numeric single-digit values like "1" (e.g. "Anzahl der Einheiten: 1").
+          value: { type: 'string', minLength: 1, maxLength: 140 },
         },
       },
     },
@@ -1029,7 +1043,10 @@ function buildReviewPrompt(product, locale) {
     '- Titel (TECHNISCH) <= 80 Zeichen, beginnt mit Marke + Produktart und enthält – falls vorhanden – Modell/Herstellernummer sowie 1–2 technische Kerndaten (z. B. Spannung/Leistung/Größe/Volumen). Keine Marketingfloskeln, keine Dubletten.',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Enthält Nutzen, Ausstattung, Materialien, Lieferumfang, Service/Hinweise. Keine Aufzählungen.',
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
-    '- Attribute: strukturierte Key-Value-Paare. Entferne Wiederholungen. WICHTIG: Erhalte alle technischen Attribute (z. B. kaufland_..., ebay_..., _id) sowie spezifische Marktplatz-Daten unverändert! Ergänze fehlende technische Daten, wenn sie aus dem Datensatz ableitbar sind.',
+    '- Attribute: strukturierte Key-Value-Paare (kundenverständlich). Entferne Wiederholungen und halte die Sprache konsistent.',
+    '- WICHTIG: Keine internen/technischen Meta-Keys als Attribute ausgeben (z. B. product-id, Produkt-ID, category_id, *_id, ebay_category_id/path, kaufland_category_id/path, text_*, features|*). Solche Daten gehören NICHT in die Attribut-Tabelle.',
+    '- WICHTIG: Keine Platzhalter-Werte erzeugen (z. B. "Not Provided, EU", "info@example.com"). Wenn etwas fehlt: weglassen und als warning markieren.',
+    '- Ergänze technische Daten nur, wenn sie aus dem Datensatz eindeutig ableitbar sind. Wenn unsicher: warning statt raten.',
     '- Entferne widersprüchliche oder doppelte Aussagen. Markiere offene Punkte in warnings.',
     `- Sprache: ${locale}.`,
     'Rückgabe ausschließlich gemäß JSON Schema.',
@@ -1060,16 +1077,6 @@ function applyReviewResult(product, review) {
         attrs[key] = value;
       }
     });
-
-    // Restore technical attributes if dropped by review
-    const existingAttrs = product.details.attributes || {};
-    for (const [key, val] of Object.entries(existingAttrs)) {
-      if (/^(kaufland|ebay|mp)_/i.test(key) || key.endsWith('_id')) {
-        if (!attrs[key]) {
-          attrs[key] = val;
-        }
-      }
-    }
 
     product.details.attributes = sanitizeAttributesMap(attrs);
   }
@@ -1263,7 +1270,10 @@ function queryMatchesProduct(query, product, keywords = null) {
   if (!query) return false;
   const normalizedQuery = query.toLowerCase();
   const searchKeywords = keywords || collectProductKeywords(product);
-  return searchKeywords.some((keyword) => normalizedQuery.includes(keyword.slice(0, Math.min(keyword.length, 8))));
+  return searchKeywords.some((keyword) => {
+    const token = keyword.slice(0, Math.min(keyword.length, 8));
+    return token && normalizedQuery.includes(token);
+  });
 }
 
 const USED_PRICE_HINT_REGEX =
@@ -1275,27 +1285,120 @@ function collectPriceCandidates(product, serpTrace = [], existingKeywords = null
   if (!keywords.length) return [];
 
   const candidates = [];
+  const brand = (product?.identification?.brand || '').toString().trim().toLowerCase();
+  const mpn =
+    (product?.details?.identifiers?.mpn ||
+      product?.details?.attributes?.Herstellernummer ||
+      product?.details?.attributes?.mpn ||
+      '')
+      .toString()
+      .trim()
+      .toLowerCase();
+  const barcodeCandidates = []
+    .concat(Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : [])
+    .concat([
+      product?.details?.identifiers?.ean,
+      product?.details?.identifiers?.gtin,
+      product?.details?.identifiers?.upc,
+    ])
+    .filter(Boolean)
+    .map((v) => String(v).trim())
+    .filter((v) => v.length >= 8);
+
   for (const entry of serpTrace) {
     if (!entry || !PRICE_TRACE_ENGINES.has(entry.engine)) continue;
     const queryIsRelevant = queryMatchesProduct(entry.query || '', product, keywords);
     for (const item of entry.summary || []) {
       const parsedPrice = normalizePriceString(item.price);
       if (!parsedPrice) continue;
+      // Keep EUR only (SerpAPI may return mixed locales). If missing currency, we treat as EUR (DEFAULT).
+      if (parsedPrice.currency && parsedPrice.currency !== DEFAULT_PRICE_CURRENCY) continue;
       const textBlob = [item.title, item.snippet].filter(Boolean).join(' ').toLowerCase();
       // User requirement: prefer new price (Neuware) → drop obvious used/refurbished offers
       if (USED_PRICE_HINT_REGEX.test(textBlob)) continue;
-      const textMatches = keywords.some((keyword) => textBlob.includes(keyword));
-      if (!queryIsRelevant && !textMatches) continue;
+      const matches = keywords.filter((keyword) => keyword && textBlob.includes(keyword)).length;
+      const hasBrand = brand && textBlob.includes(brand);
+      const hasMpn = mpn && mpn.length >= 3 && textBlob.includes(mpn);
+      const hasBarcode = barcodeCandidates.some((code) => textBlob.includes(code));
+      // Require at least SOME signal that the item refers to the product (avoid "cheapest accessory" matches).
+      const ok = (queryIsRelevant && (matches >= 1 || hasBrand || hasMpn || hasBarcode)) || matches >= 2 || hasMpn || hasBarcode;
+      if (!ok) continue;
       candidates.push({
         amount: parsedPrice.amount,
         currency: parsedPrice.currency,
         source: item.source || entry.engine,
         url: item.url || '',
         engine: entry.engine,
+        title: item.title || '',
+        snippet: item.snippet || '',
+        match_count: matches,
+        has_brand: hasBrand,
+        has_mpn: hasMpn,
+        has_barcode: hasBarcode,
       });
     }
   }
   return candidates;
+}
+
+function median(values = []) {
+  const nums = values.filter((n) => typeof n === 'number' && Number.isFinite(n)).sort((a, b) => a - b);
+  if (!nums.length) return null;
+  const mid = Math.floor(nums.length / 2);
+  return nums.length % 2 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+}
+
+function scorePriceCandidate(c) {
+  let score = 0;
+  score += Math.min(5, c.match_count || 0) * 5;
+  if (c.has_brand) score += 12;
+  if (c.has_mpn) score += 18;
+  if (c.has_barcode) score += 22;
+  if (c.engine === 'google_shopping') score += 4;
+  if (c.engine === 'bing_shopping') score += 2;
+  if (!c.url) score -= 3;
+  return score;
+}
+
+function pickBestPriceCandidate(candidates = []) {
+  if (!Array.isArray(candidates) || !candidates.length) return null;
+  const enriched = candidates
+    .filter((c) => typeof c.amount === 'number' && Number.isFinite(c.amount) && c.amount > 0)
+    .map((c) => ({ ...c, score: scorePriceCandidate(c) }));
+
+  if (!enriched.length) return null;
+
+  const maxScore = Math.max(...enriched.map((c) => c.score || 0));
+  const top = enriched.filter((c) => (c.score || 0) >= Math.max(0, maxScore - 8));
+
+  // Outlier filter based on median of top matches (when enough data)
+  const amounts = top.map((c) => c.amount);
+  const med = median(amounts);
+  let filtered = top;
+  if (med && amounts.length >= 3) {
+    const low = Math.max(0.5, med * 0.35);
+    const high = med * 3.0;
+    filtered = top.filter((c) => c.amount >= low && c.amount <= high);
+    if (!filtered.length) {
+      filtered = top; // fallback: don't drop everything
+    }
+  }
+
+  // If we only have a single weak match and it's very high, fail-safe: don't set a price.
+  if (filtered.length === 1) {
+    const only = filtered[0];
+    const weak = (only.score || 0) < 12 && !only.has_mpn && !only.has_barcode;
+    if (weak && only.amount >= 300) {
+      return null;
+    }
+  }
+
+  filtered.sort((a, b) => {
+    const s = (b.score || 0) - (a.score || 0);
+    if (s) return s;
+    return a.amount - b.amount;
+  });
+  return filtered[0] || null;
 }
 
 async function fetchPriceTrace(product, keywords) {
@@ -1330,8 +1433,6 @@ async function fetchPriceTrace(product, keywords) {
 
 async function ensurePriceCoverage(products = [], serpTrace = []) {
   if (!Array.isArray(products) || !products.length) return;
-  const client = await getGeminiClient();
-  const thinkingModel = client.getGenerativeModel({ model: resolveModel(null, 'PRICING_MODEL', 'gemini-2.5-flash') });
 
   for (const product of products) {
     const lowest = product?.details?.pricing?.lowest_price;
@@ -1344,55 +1445,78 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
       lowest.sources.length > 0;
     if (hasPrice) continue;
 
-    // Use Thinking Model to create the best search query
-    let bestQuery = "";
-    try {
-      const prompt = `Du bist ein Preis-Such-Experte. Erstelle EINEN EINZIGEN, PERFEKTEN Such-Query für SerpApi (Google Shopping), um den aktuellen NEUPREIS (Neuware, nicht gebraucht) für dieses Produkt zu finden.
-Nutze in der Query explizit neuware/neu kaufen und schließe gebrauchte/refurbished Angebote aus (z.B. -gebraucht -used -refurbished).
-        Brand: ${product.identification?.brand}
-        Name: ${product.identification?.name}
-        Barcodes: ${product.identification?.barcodes?.join(', ')}
-        
-        Antworte NUR mit dem Query String, keinen Anführungszeichen, kein Markdown.`;
+    // Deterministic query building (more robust than a single LLM-crafted query).
+    const negativeTerms = '-gebraucht -used -refurb -refurbished -renewed -b-ware -openbox';
+    const brand = (product?.identification?.brand || '').toString().trim();
+    const title = (product?.identification?.name || '').toString().trim();
+    const mpn =
+      (product?.details?.identifiers?.mpn ||
+        product?.details?.attributes?.Herstellernummer ||
+        product?.details?.attributes?.mpn ||
+        '')
+        .toString()
+        .trim();
+    const barcodes = []
+      .concat(Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : [])
+      .concat([
+        product?.details?.identifiers?.ean,
+        product?.details?.identifiers?.gtin,
+        product?.details?.identifiers?.upc,
+      ])
+      .filter(Boolean)
+      .map((v) => String(v).trim())
+      .filter((v) => v.length >= 8);
 
-      const result = await thinkingModel.generateContent(prompt);
-      bestQuery = result.response.text().trim();
-    } catch (e) {
-      // Fallback
-      const keywords = collectProductKeywords(product);
-      if (keywords.length) bestQuery = `${keywords.slice(0, 4).join(' ')} neu kaufen preis`;
-    }
+    const keywords = collectProductKeywords(product); // tokens for matching verification
 
-    if (!bestQuery) continue;
+    const queryCandidates = [];
+    if (barcodes.length) queryCandidates.push(`${barcodes[0]} neu preis ${negativeTerms}`);
+    if (brand && mpn) queryCandidates.push(`${brand} ${mpn} neu preis ${negativeTerms}`);
+    if (brand && title) queryCandidates.push(`${brand} ${title} neu preis ${negativeTerms}`);
+    if (title) queryCandidates.push(`${title} neu preis ${negativeTerms}`);
+    // Keep it bounded to reduce SerpAPI cost.
+    const queries = Array.from(new Set(queryCandidates.map((q) => q.replace(/\s+/g, ' ').trim()))).slice(0, 3);
 
-    const keywords = collectProductKeywords(product); // For matching verification
-    let candidates = collectPriceCandidates(product, serpTrace, keywords); // Check existing trace first
-
+    let candidates = collectPriceCandidates(product, serpTrace, keywords);
     if (!candidates.length) {
-      // Execute the smart query
-      try {
-        const raw = await callSerpApi('google_shopping', { q: bestQuery, num: 20 });
-        const summary = summarizeSerpEntries('google_shopping', raw, 15);
-        if (summary.length) {
+      for (const q of queries) {
+        try {
+          const raw = await callSerpApi('google_shopping', { q, num: 20 });
+          const summary = summarizeSerpEntries('google_shopping', raw, 15);
+          if (!summary.length) continue;
           const traceEntry = {
             engine: 'google_shopping',
-            query: bestQuery,
+            query: q,
             summary,
-            params: { q: bestQuery, num: 20 },
+            params: { q, num: 20 },
             error: null,
             fallback: true,
           };
           serpTrace.push(traceEntry);
-          candidates = collectPriceCandidates(product, [traceEntry], keywords);
+        } catch (err) {
+          console.warn('Price search failed:', err.message);
+          serpTrace.push({
+            engine: 'google_shopping',
+            query: q,
+            summary: [],
+            params: { q, num: 20 },
+            error: err.message,
+            fallback: true,
+          });
         }
-      } catch (err) {
-        console.warn("Smart Price Search failed:", err.message);
       }
+      candidates = collectPriceCandidates(product, serpTrace, keywords);
     }
 
-    if (!candidates.length) continue;
-    candidates.sort((a, b) => a.amount - b.amount);
-    const best = candidates[0];
+    const best = pickBestPriceCandidate(candidates);
+    if (!best) {
+      product.notes = product.notes || {};
+      product.notes.warnings = Array.from(
+        new Set([...(product.notes.warnings || []), 'Preis konnte nicht zuverlässig ermittelt werden – bitte prüfen.'])
+      );
+      continue;
+    }
+
     const timestamp = new Date().toISOString();
 
     product.details = product.details || {};
@@ -1421,7 +1545,7 @@ Nutze in der Query explizit neuware/neu kaufen und schließe gebrauchte/refurbis
       price_confidence:
         typeof existingPricing.price_confidence === 'number' && existingPricing.price_confidence > 0
           ? existingPricing.price_confidence
-          : Math.min(0.95, Math.max(0.4, candidates.length / 5)),
+          : Math.min(0.95, Math.max(0.4, Math.min(1, (best.score || 0) / 40) + candidates.length / 12)),
     };
   }
 }
