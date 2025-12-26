@@ -259,7 +259,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     `3. Gib die Ausgabe strikt im ProductBundle-Schema zurück (keine Freitexte).`,
     `4. Sprache Deutsch (${locale}), Währung EUR. Preise nur, wenn aus den gelieferten Daten sicher ableitbar, sonst leer lassen.`,
     `5. Produktbilder nur übernehmen, wenn Quelle eindeutig verifiziert ist; Dubletten vermeiden.`,
-    `6. Ordne das Produkt einer passenden eBay.de Kategorie zu (Breadcrumb) und liefere die Pflicht-Item-Specifics als Keys (Werte leer wenn unbekannt).`,
+    `6. Ordne das Produkt einer passenden eBay.de Kategorie zu (Breadcrumb) und liefere die Pflichtattribute (Item Specifics) als Keys OHNE Prefix (Werte leer wenn unbekannt).`,
   ].join('\n');
 }
 
@@ -337,7 +337,7 @@ function buildUserPrompt({
     `6. Pro Produkt nur EIN Barcode/EAN/GTIN zulassen (keine Mehrfach-Barcodes).`,
     `7. Preise nur, wenn sicher aus gelieferten Daten ableitbar, sonst leer lassen.`,
     `8. Unsicherheiten in notes.unsure dokumentieren.`,
-    `9. Ordne eBay.de Kategorie (Breadcrumb) zu und füge Pflicht-Item-Specifics als Keys (leer bei Unbekannt) hinzu.`,
+    `9. Ordne eBay.de Kategorie (Breadcrumb) zu und füge die Pflichtattribute (Item Specifics) als Keys OHNE Prefix (leer bei Unbekannt) hinzu.`,
     `10. Bestimme auch eine Kaufland-Kategorie und ergänze Pflichtattribute soweit aus Daten ableitbar.`,
     `Sprache: Deutsch (${locale}).`
   );

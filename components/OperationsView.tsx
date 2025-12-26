@@ -568,6 +568,9 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         productId: matchedStowProduct?.id,
         binCode: stowBin.toUpperCase(),
         quantity: typeof stowQuantity === 'number' ? stowQuantity : Number(stowQuantity) || 0,
+        meta: {
+          flow: 'stow',
+        },
       };
       const result = await stockInProduct(payload);
       if (!result.ok || !result.data) {
@@ -641,6 +644,13 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         productId: matchedPickProduct?.id || activeTask.productId || undefined,
         binCode: pickBin.toUpperCase(),
         quantity: numericQuantity,
+        orderId: activeTask.orderId,
+        orderItemId: activeTask.itemId,
+        meta: {
+          flow: 'pick',
+          orderId: activeTask.orderId,
+          orderItemId: activeTask.itemId,
+        },
       };
       const activeTaskId = activeTask.itemId;
       const result = await stockOutProduct(payload);

@@ -1,0 +1,1048 @@
+{
+  "scanned": 340,
+  "limited": null,
+  "missingEbayCategoryId": 10,
+  "invalidEbayCategoryId": 4,
+  "productsWithAttributes": 333,
+  "productsWithPrefixedKeys": 28,
+  "productsWithMetaKeys": 333,
+  "productsWithUnknownKeys": 32,
+  "productsWithPlaceholderValues": 326,
+  "topAttributeKeys": {
+    "GPSR Manufacturer address": 328,
+    "GPSR Manufacturer email": 327,
+    "ebay_category_path": 326,
+    "ebay_category_id": 326,
+    "GPSR Manufacturer name": 323,
+    "kaufland_category_path": 308,
+    "kaufland_category_id": 308,
+    "Marke": 269,
+    "Farbe": 235,
+    "Zustand": 179,
+    "EAN": 173,
+    "Material": 165,
+    "Herstellernummer": 155,
+    "Modell": 153,
+    "category_path": 136,
+    "Produkttyp": 135,
+    "Produktart": 129,
+    "Besonderheiten": 110,
+    "Kaufland Kategorie": 99,
+    "eBay Kategorie": 98,
+    "Kategorie": 91,
+    "Kaufland-Kategorie": 86,
+    "eBay-Kategorie": 82,
+    "Herstellungsland": 74,
+    "Lieferumfang": 57,
+    "Zielgruppe": 57,
+    "Anwendungsbereich": 54,
+    "Kaufland_Kategorie": 49,
+    "Stil": 44,
+    "text_name": 44,
+    "text_features|de|ebay_9800": 42,
+    "Hersteller": 40,
+    "text_description": 40,
+    "eBay_Kategorie": 39,
+    "text_features": 39,
+    "Anlass": 37,
+    "Muster": 37,
+    "id": 36,
+    "Verschluss": 36,
+    "Einsatzbereich": 35,
+    "Geschlecht": 35,
+    "SKU": 32,
+    "eBay_Marke": 31,
+    "Obermaterial": 31,
+    "Größe": 29,
+    "eBay_Farbe": 28,
+    "ebayCategoryId": 28,
+    "Anzahl der Einheiten": 27,
+    "eBay_Produktart": 27,
+    "Form": 26,
+    "Kaufland_Farbe": 26,
+    "Jahreszeit": 26,
+    "Thema": 25,
+    "Länge": 25,
+    "Sportart": 25,
+    "Breite": 23,
+    "eBay_Besonderheiten": 23,
+    "Vintage": 23,
+    "eBay Kategorie Pfad": 21,
+    "Kaufland_Material": 21,
+    "Geeignet für": 21,
+    "Produkt-ID": 20,
+    "Kaufland_Produkttyp": 20,
+    "Pflegehinweise": 20,
+    "Abteilung": 20,
+    "Zimmer": 19,
+    "Höhe": 19,
+    "Kaufland Kategorie Pfad": 19,
+    "Maßeinheit": 19,
+    "Absatzhöhe": 19,
+    "eBay-Produktart": 17,
+    "Eigenschaften": 17,
+    "Altersgruppe": 16,
+    "Gewicht": 15,
+    "eBay_Material": 15,
+    "Kaufland_Marke": 15,
+    "Montageart": 15,
+    "Montage erforderlich": 14,
+    "Herstellungsland und -region": 14,
+    "Set": 14
+  },
+  "topNormalizedKeys": {
+    "GPSR Manufacturer address": 328,
+    "GPSR Manufacturer email": 327,
+    "ebay_category_path": 326,
+    "ebay_category_id": 326,
+    "GPSR Manufacturer name": 323,
+    "kaufland_category_path": 308,
+    "kaufland_category_id": 308,
+    "Marke": 284,
+    "Farbe": 252,
+    "Zustand": 187,
+    "EAN": 181,
+    "Material": 176,
+    "Herstellernummer": 159,
+    "Modell": 158,
+    "Produktart": 144,
+    "category_path": 136,
+    "Produkttyp": 135,
+    "Besonderheiten": 120,
+    "Kaufland Kategorie": 99,
+    "eBay Kategorie": 98,
+    "Kategorie": 91,
+    "Kaufland-Kategorie": 86,
+    "eBay-Kategorie": 82,
+    "Herstellungsland": 74,
+    "Zielgruppe": 60,
+    "Lieferumfang": 57,
+    "Anwendungsbereich": 55,
+    "Kaufland_Kategorie": 49,
+    "Stil": 49,
+    "text_name": 44,
+    "Anlass": 43,
+    "Muster": 42,
+    "text_features|de|ebay_9800": 42,
+    "Hersteller": 40,
+    "text_description": 40,
+    "eBay_Kategorie": 39,
+    "Verschluss": 39,
+    "text_features": 39,
+    "id": 36,
+    "Einsatzbereich": 35,
+    "Geschlecht": 35,
+    "Größe": 32,
+    "SKU": 32,
+    "Obermaterial": 32,
+    "eBay_Marke": 31,
+    "Jahreszeit": 31,
+    "Thema": 30,
+    "Anzahl der Einheiten": 30,
+    "eBay_Farbe": 28,
+    "ebayCategoryId": 28,
+    "Form": 27,
+    "eBay_Produktart": 27,
+    "Kaufland_Farbe": 26,
+    "Vintage": 26,
+    "Länge": 25,
+    "Sportart": 25,
+    "Breite": 24,
+    "Abteilung": 24,
+    "Zimmer": 23,
+    "eBay_Besonderheiten": 23,
+    "Geeignet für": 23,
+    "eBay Kategorie Pfad": 21,
+    "Kaufland_Material": 21,
+    "Absatzhöhe": 21,
+    "Höhe": 20,
+    "Maßeinheit": 20,
+    "Produkt-ID": 20,
+    "Kaufland_Produkttyp": 20,
+    "Pflegehinweise": 20,
+    "Kaufland Kategorie Pfad": 19,
+    "Eigenschaften": 18,
+    "Herstellungsland und -region": 17,
+    "eBay-Produktart": 17,
+    "Sprache": 16,
+    "Altersgruppe": 16,
+    "Personalisieren": 16,
+    "Gewicht": 15,
+    "Set": 15,
+    "eBay_Material": 15,
+    "Kaufland_Marke": 15
+  },
+  "topUnknownKeys": {
+    "GPSR Manufacturer address": 32,
+    "GPSR Manufacturer email": 32,
+    "GPSR Manufacturer name": 32,
+    "EAN": 19,
+    "Marke": 17,
+    "category_path": 16,
+    "Produkttyp": 15,
+    "Farbe": 15,
+    "Herstellernummer": 13,
+    "Material": 12,
+    "Modell": 12,
+    "Kategorie": 12,
+    "Zustand": 11,
+    "Herstellungsland": 10,
+    "Besonderheiten": 10,
+    "Zielgruppe": 10,
+    "Produktart": 10,
+    "eBay-Kategorie": 8,
+    "Kaufland-Kategorie": 8,
+    "text_features|de|ebay_9800": 8,
+    "text_features": 7,
+    "text_description": 7,
+    "text_name": 7,
+    "Einsatzbereich": 6,
+    "Sportart": 5,
+    "Form": 4,
+    "Lieferumfang": 4,
+    "Anwendungsbereich": 4,
+    "Hersteller": 4,
+    "id": 4,
+    "Kaufland_Kategorie": 4,
+    "Set": 3,
+    "Wasserdicht": 3,
+    "Größe": 3,
+    "Herstellungsland und -region": 3,
+    "Eigenschaften": 3,
+    "Anzahl der Einheiten": 3,
+    "Einheitentyp": 3,
+    "Breite": 3,
+    "Pflegehinweise": 3,
+    "eBay_Kategorie": 3,
+    "eBay_Produktart": 3,
+    "eBay_Marke": 3,
+    "eBay_Farbe": 3,
+    "Prüfzeichen": 2,
+    "Montage erforderlich": 2,
+    "Fahrzeugmodell": 2,
+    "Höhe": 2,
+    "Anzahl pro Packung": 2,
+    "Angebotspaket": 2,
+    "Verschlussart": 2,
+    "Vintage": 2,
+    "Passend für": 2,
+    "Stil": 2,
+    "ID": 2,
+    "UPC": 2,
+    "Dicke": 2,
+    "Sportart/Aktivität": 2,
+    "MPN": 2,
+    "Kaufland Kategorie Pfad": 2,
+    "Länge": 2,
+    "Gewicht": 2,
+    "UV-Schutz": 2,
+    "SKU": 2,
+    "Kaufland_Material": 2,
+    "eBay_Modell": 2,
+    "Kaufland_Marke": 2,
+    "eBay_Besonderheiten": 2,
+    "Kaufland_Farbe": 2,
+    "Kaufland_Produkttyp": 2,
+    "eBay_Material": 2,
+    "Farbe der Beschriftung": 1,
+    "Referenznummer(n) OEM": 1,
+    "Kompatible Marken": 1,
+    "Farbe der Verpackung": 1,
+    "Baujahr": 1,
+    "Hitzebeständig": 1,
+    "Zulassung": 1,
+    "Durchmesser": 1,
+    "Fassungsvermögen": 1
+  },
+  "sampleIssues": [
+    {
+      "id": "0060cdec-9193-411b-af64-4754ca0226bd",
+      "ebayCategoryId": "37412",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_path",
+        "kaufland_category_path",
+        "kaufland_category_id",
+        "ebay_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "Verpackungsland",
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer address"
+      ]
+    },
+    {
+      "id": "0196214105119",
+      "ebayCategoryId": "2536",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [
+        "eBay Item Specifics: Thema",
+        "eBay Item Specifics: Serie",
+        "eBay Item Specifics: Besonderheiten",
+        "eBay Item Specifics: Charakter",
+        "eBay Item Specifics: Produktart"
+      ],
+      "metaKeys": [
+        "eBay Kategorie",
+        "ebay_category_id",
+        "ebay_category_path",
+        "Kaufland Kategorie"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer address",
+        "eBay Item Specifics: Charakter"
+      ]
+    },
+    {
+      "id": "03142017000003",
+      "ebayCategoryId": "169124",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "kaufland_category_id",
+        "Kaufland-Kategorie",
+        "kaufland_category_path",
+        "ebay_category_path",
+        "ebay_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer address"
+      ]
+    },
+    {
+      "id": "04052938000016",
+      "ebayCategoryId": "39057",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "kaufland_category_path",
+        "ebay_category_id",
+        "ebay_category_path",
+        "kaufland_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer address"
+      ]
+    },
+    {
+      "id": "0700153955478",
+      "ebayCategoryId": "156104",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland_Attribute_Marke",
+        "Kaufland_Kategorie_Listing",
+        "kaufland_category_path",
+        "Kaufland_Attribute_Produkttyp",
+        "Kaufland_Attribute_Zustand",
+        "ebay_category_path",
+        "Kaufland_Attribute_Lieferumfang",
+        "Kaufland_Attribute_Farbe",
+        "Kaufland_Attribute_Modell",
+        "kaufland_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "0810123671069",
+      "ebayCategoryId": "69197",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "kaufland_attribute_Abmessungen",
+        "Kaufland_Kategorie_Pfad",
+        "kaufland_attribute_Herstellergarantie",
+        "kaufland_category_path",
+        "kaufland_attribute_Anwendungsbereich",
+        "kaufland_attribute_Stromversorgung",
+        "kaufland_attribute_Empfohlene_Raumgröße",
+        "kaufland_attribute_Herstellernummer",
+        "ebay_category_path",
+        "kaufland_attribute_Geräuschpegel"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "kaufland_category_path",
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "09be7756-7b4f-4dda-bda0-799754052fff",
+      "ebayCategoryId": "131090",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_id",
+        "kaufland_category_id",
+        "kaufland_category_path",
+        "ebay_category_path"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "14006633314036",
+      "ebayCategoryId": "131090",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_id",
+        "ebay_category_path",
+        "Kaufland-Kategorie",
+        "kaufland_category_id",
+        "kaufland_category_path"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "Herstellungsland",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "1472920275814",
+      "ebayCategoryId": "3199",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_path",
+        "kaufland_category_id",
+        "kaufland_category_path",
+        "ebay_category_id",
+        "Kaufland_Kategorie_ID",
+        "Kaufland_Kategorie_Pfad",
+        "Kaufland Kategorie Pfad",
+        "eBay Kategorie Pfad"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "kaufland_category_path",
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "1900201900525",
+      "ebayCategoryId": "177807",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "kaufland_category_id",
+        "kaufland_category_path",
+        "ebay_category_path",
+        "ebay_category_id"
+      ],
+      "unknownKeys": [
+        "Zustand",
+        "EAN",
+        "Farbe der Beschriftung",
+        "Referenznummer(n) OEM",
+        "Form",
+        "Lieferumfang",
+        "Kompatible Marken",
+        "Farbe der Verpackung",
+        "Produkttyp",
+        "GPSR Manufacturer address"
+      ],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email",
+        "Herstellungsland"
+      ]
+    },
+    {
+      "id": "1e369bf5-e5e6-460c-b595-8a08a2bbaf2d",
+      "ebayCategoryId": "29523",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_id",
+        "kaufland_category_id",
+        "ebay_category_path",
+        "kaufland_category_path"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email",
+        "Herstellungsland und -region"
+      ]
+    },
+    {
+      "id": "20221212000014",
+      "ebayCategoryId": "47075",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland-Attribut: Eingangsspannung",
+        "Kaufland-Attribut: Marke",
+        "Kaufland-Kategorie",
+        "kaufland_category_path",
+        "ebay_category_id",
+        "Kaufland-Attribut: Anschlüsse",
+        "ebay_category_path",
+        "Kaufland-Attribut: Max. Ausgangsstrom",
+        "Kaufland-Attribut: Besonderheiten",
+        "Kaufland-Attribut: Anzahl der Ladeanschlüsse"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "Kaufland-Attribut: Herstellungsland",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "2074133001002",
+      "ebayCategoryId": "2536",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_path",
+        "ebay_category_id",
+        "Kaufland_Kategorie"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "ebay_item_specifics_Charakter",
+        "Charakter",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "2810449728013",
+      "ebayCategoryId": "174119",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_path",
+        "kaufland_category_path",
+        "eBay Kategorie",
+        "ebay_category_id",
+        "Kaufland Kategorie",
+        "kaufland_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "Herstellungsland",
+        "Funktion",
+        "eBay Kategorie",
+        "Marke",
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer name",
+        "GPSR Manufacturer address"
+      ]
+    },
+    {
+      "id": "3165143111321",
+      "ebayCategoryId": "131090",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_id",
+        "kaufland_category_id",
+        "kaufland_category_path",
+        "eBay Kategorie",
+        "Kaufland Kategorie",
+        "ebay_category_path"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "3322937241712",
+      "ebayCategoryId": "131090",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "kaufland_category_path",
+        "ebay_category_id",
+        "kaufland_category_id",
+        "ebay_category_path"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "3662775243128",
+      "ebayCategoryId": "131090",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland-Attribute: Empfohlene Ladespannung",
+        "Kaufland-Attribute: Spannung",
+        "Kaufland-Attribute: Marke",
+        "Kaufland-Attribute: Farbe",
+        "ebay_category_id",
+        "Kaufland-Attribute: Vorgeladen",
+        "Kaufland-Attribute: Empfohlener Ladestrom",
+        "kaufland_category_path",
+        "Kaufland-Attribute: Technologie",
+        "Kaufland-Kategorie"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer address"
+      ]
+    },
+    {
+      "id": "3770010398363",
+      "ebayCategoryId": "101428",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_path",
+        "Kaufland-Kategorie",
+        "ebay_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email",
+        "eBay-Herstellungsland"
+      ]
+    },
+    {
+      "id": "4003318620911",
+      "ebayCategoryId": "167468",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_id",
+        "kaufland_category_path",
+        "kaufland_category_id",
+        "ebay_category_path",
+        "Kaufland-Kategorie"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer address"
+      ]
+    },
+    {
+      "id": "4004133669093",
+      "ebayCategoryId": "158950",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "kaufland_category_path",
+        "ebay_category_path",
+        "kaufland_category_id",
+        "ebay_category_id",
+        "Kaufland-Kategorie"
+      ],
+      "unknownKeys": [
+        "Besonderheiten",
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer name",
+        "Durchmesser",
+        "GPSR Manufacturer email",
+        "EAN",
+        "Fassungsvermögen",
+        "Höhe",
+        "Zustand",
+        "eBay-Kategorie"
+      ],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "4006387029807",
+      "ebayCategoryId": "54145",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland_Gewicht",
+        "Kaufland_Zertifizierung (Certification)",
+        "Kaufland_Marke (Brand)",
+        "ebay_category_path",
+        "Kaufland_Produkttyp (Product type)",
+        "Kaufland_Anwendungsbereich (Area of application)",
+        "Kaufland_Anwendungsbereich",
+        "Kaufland_Farbe",
+        "Kaufland_Gewicht (Weight)",
+        "Kaufland_Kategoriepfad"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "Kaufland_Gewicht",
+        "Kaufland_Gewicht (Weight)",
+        "Kaufland_Kategoriepfad",
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer address",
+        "kaufland_category_path"
+      ]
+    },
+    {
+      "id": "4006633310222",
+      "ebayCategoryId": "131090",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "kaufland_category_id",
+        "ebay_category_id",
+        "kaufland_category_path",
+        "ebay_category_path"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "Herstellungsland",
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer address"
+      ]
+    },
+    {
+      "id": "4007123624386",
+      "ebayCategoryId": null,
+      "ebayCategoryValid": false,
+      "prefixedKeys": [],
+      "metaKeys": [],
+      "unknownKeys": [],
+      "placeholderKeys": []
+    },
+    {
+      "id": "4009384341071",
+      "ebayCategoryId": "238",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_path",
+        "ebay_category_id",
+        "kaufland_category_path",
+        "kaufland_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "Herstellungsland",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "4009384458304",
+      "ebayCategoryId": "63",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland_Zielgruppe",
+        "Kaufland_Zielgruppe (Zielgruppe)",
+        "Kaufland_Material (Material)",
+        "Kaufland_Farbe (Farbe)",
+        "Kaufland_Farbe",
+        "ebay_category_path",
+        "Kaufland_Thema",
+        "Kaufland_Sportart",
+        "Kaufland_Material",
+        "Kaufland_Sportart (Sportart)"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "ebay_category_path",
+        "GPSR Manufacturer address",
+        "eBay_Kategorie",
+        "GPSR Manufacturer email",
+        "Kaufland_Kategorie"
+      ]
+    },
+    {
+      "id": "4010886516256",
+      "ebayCategoryId": "84237",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_id",
+        "kaufland_category_path",
+        "ebay_category_path",
+        "kaufland_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer address"
+      ]
+    },
+    {
+      "id": "4013556577007",
+      "ebayCategoryId": "39080",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland-Kategorie",
+        "ebay_category_id",
+        "ebay_category_path",
+        "kaufland_category_id",
+        "kaufland_category_path"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "4013556577076",
+      "ebayCategoryId": "159912",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_path",
+        "ebay_category_id",
+        "Kaufland-Kategorie",
+        "kaufland_category_path",
+        "kaufland_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer address"
+      ]
+    },
+    {
+      "id": "4013556577120",
+      "ebayCategoryId": "261011",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland-Kategorie",
+        "ebay_category_path",
+        "ebay_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "4013556577144",
+      "ebayCategoryId": "261011",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "eBay Kategorie",
+        "Kaufland Kategorie",
+        "ebay_category_path",
+        "ebay_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "4013556592796",
+      "ebayCategoryId": "39080",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland_Attribut_Befestigung",
+        "Kaufland_Attribut_Einheitentyp",
+        "Kaufland_Attribut_Eigenschaften",
+        "Kaufland_Attribut_Beschichtung",
+        "Kaufland_Attribut_EAN",
+        "Kaufland_Attribut_Nähte",
+        "Kaufland_Attribut_Garantie",
+        "Kaufland_Attribut_Angebotspaket",
+        "ebay_category_path",
+        "Kaufland_Attribut_Anzahl der Einheiten"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "4016417025303",
+      "ebayCategoryId": "20710",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland_Attribute_Länge",
+        "ebay_category_id",
+        "Kaufland_Kategorie",
+        "Kaufland_Attribute_Durchmesser",
+        "Kaufland_Attribute_Produkttyp",
+        "Kaufland_Attribute_Farbe",
+        "kaufland_category_id",
+        "Kaufland_Attribute_Material",
+        "Kaufland_Attribute_Geeignet_für",
+        "ebay_category_path"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "4023103244009",
+      "ebayCategoryId": "20622",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "eBay Kategorie Pfad",
+        "ebay_category_path",
+        "ebay_category_id",
+        "kaufland_category_path",
+        "kaufland_category_id",
+        "Kaufland Kategorie Pfad"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "4027816273868",
+      "ebayCategoryId": "131090",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "kaufland_category_path",
+        "Kaufland-Kategorie",
+        "ebay_category_id",
+        "ebay_category_path",
+        "kaufland_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "Hersteller",
+        "Kaufland-Kategorie"
+      ]
+    },
+    {
+      "id": "4027816321033",
+      "ebayCategoryId": "33661",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "kaufland_category_id",
+        "ebay_category_path",
+        "ebay_category_id",
+        "kaufland_category_path"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address"
+      ]
+    },
+    {
+      "id": "4040074053454",
+      "ebayCategoryId": "131090",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "ebay_category_id",
+        "ebay_category_path",
+        "kaufland_category_path",
+        "kaufland_category_id",
+        "eBay Kategorie",
+        "Kaufland Kategorie",
+        "ebay_category_breadcrumb",
+        "kaufland_category_breadcrumb"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "4041248145418",
+      "ebayCategoryId": "33612",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland Kategorie Pfad",
+        "ebay_category_path",
+        "eBay Kategorie Pfad",
+        "ebay_category_id",
+        "kaufland_category_path",
+        "kaufland_category_id"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "4041248434536",
+      "ebayCategoryId": "262128",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland-Kategorie",
+        "ebay_category_path",
+        "ebay_category_id",
+        "kaufland_category_id",
+        "kaufland_category_path"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer address",
+        "GPSR Manufacturer email"
+      ]
+    },
+    {
+      "id": "4041248450864",
+      "ebayCategoryId": null,
+      "ebayCategoryValid": false,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "Kaufland-Kategorie",
+        "Kaufland-Attribute: Artikel-ID"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email",
+        "Qualität",
+        "Besonderheiten",
+        "GPSR Manufacturer address"
+      ]
+    },
+    {
+      "id": "4041248450871",
+      "ebayCategoryId": "33612",
+      "ebayCategoryValid": true,
+      "prefixedKeys": [],
+      "metaKeys": [
+        "kaufland_category_id",
+        "kaufland_category_path",
+        "ebay_category_id",
+        "ebay_category_path"
+      ],
+      "unknownKeys": [],
+      "placeholderKeys": [
+        "GPSR Manufacturer email",
+        "GPSR Manufacturer address"
+      ]
+    }
+  ]
+}

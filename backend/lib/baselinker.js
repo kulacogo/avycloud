@@ -7,6 +7,7 @@ const {
   setSkuIndexEntry,
   findProductByStrictIdentifier,
   logInventorySyncEvent,
+  firestore,
 } = require('./firestore');
 const { MarketplaceLookup } = require('./marketplace-lookup');
 const { getGeminiClient } = require('../lib/gemini-client');
@@ -91,6 +92,60 @@ Attribute: ${Object.entries(attrs)
 const MAX_PARALLEL_REQUESTS = 3;
 // Mindestabstand zwischen Requests in ms (zusätzlich zur Parallelitätsbremse)
 const MIN_REQUEST_INTERVAL_MS = 250;
+
+// --- Reserved stock (open orders) ---
+// BaseLinker reduces "available" stock on sale (open orders).
+// In avycloud, warehouse BIN stock represents physical stock and should only change on pick/stock-out.
+// Therefore, when syncing stock TO BaseLinker we must send AVAILABLE = physical - reserved(open orders).
+let RESERVED_OPEN_ORDERS_CACHE = { atMs: 0, map: new Map() };
+const RESERVED_CACHE_TTL_MS = parseInt(process.env.RESERVED_STOCK_CACHE_TTL_MS || '30000', 10);
+
+async function getReservedOpenOrderMap() {
+  const now = Date.now();
+  if (
+    RESERVED_OPEN_ORDERS_CACHE?.map &&
+    now - (RESERVED_OPEN_ORDERS_CACHE.atMs || 0) < RESERVED_CACHE_TTL_MS
+  ) {
+    return RESERVED_OPEN_ORDERS_CACHE.map;
+  }
+
+  const map = new Map(); // key: normalizeSkuValue -> reserved qty
+  try {
+    // Prefer indexed query, but fall back to scanning all orders if needed.
+    const snap = await firestore.collection('orders').where('status', '==', 'new').get();
+    snap.forEach((doc) => {
+      const order = doc.data() || {};
+      const items = Array.isArray(order.items) ? order.items : [];
+      for (const item of items) {
+        const key = normalizeSkuValue(item?.sku || item?.productId || '');
+        const qty = Number(item?.quantity || 0);
+        if (!key || qty <= 0) continue;
+        map.set(key, (map.get(key) || 0) + qty);
+      }
+    });
+  } catch (error) {
+    console.warn('Reserved-open-orders query failed; falling back to full scan:', error.message);
+    try {
+      const snap = await firestore.collection('orders').get();
+      snap.forEach((doc) => {
+        const order = doc.data() || {};
+        if (order.status !== 'new') return;
+        const items = Array.isArray(order.items) ? order.items : [];
+        for (const item of items) {
+          const key = normalizeSkuValue(item?.sku || item?.productId || '');
+          const qty = Number(item?.quantity || 0);
+          if (!key || qty <= 0) continue;
+          map.set(key, (map.get(key) || 0) + qty);
+        }
+      });
+    } catch (scanError) {
+      console.warn('Reserved-open-orders full scan failed:', scanError.message);
+    }
+  }
+
+  RESERVED_OPEN_ORDERS_CACHE = { atMs: now, map };
+  return map;
+}
 
 // Inventory category cache (path -> id)
 const inventoryCategoryCache = new Map(); // key: inventoryId -> Map<path, id>
@@ -1048,7 +1103,19 @@ async function syncProductToBaseLinker(product, inventoryId) {
       product.details.attributes = attrs;
     }
 
-    const quantity = pickQuantity(product);
+    // Quantity to send to BaseLinker must reflect AVAILABLE stock:
+    // available = physical (warehouse BIN stock) - reserved (open orders).
+    const physicalQuantity = pickQuantity(product);
+    let quantity = Math.max(0, physicalQuantity);
+    const preferredAvailable = product?.inventory?.availableQuantity;
+    if (typeof preferredAvailable === 'number' && Number.isFinite(preferredAvailable)) {
+      quantity = Math.max(0, preferredAvailable);
+    } else {
+      const reservedMap = await getReservedOpenOrderMap();
+      const skuKey = normalizeSkuValue(pickSku(product) || product?.id || '');
+      const reservedQty = skuKey ? Number(reservedMap.get(skuKey) || 0) : 0;
+      quantity = Math.max(0, physicalQuantity - reservedQty);
+    }
     const inventoryCategoryId = categoryPath
       ? await ensureInventoryCategory(invId, categoryPath)
       : 0;

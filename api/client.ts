@@ -949,6 +949,7 @@ export const stockInProduct = async (payload: {
   barcode?: string;
   binCode: string;
   quantity: number;
+  meta?: Record<string, any>;
 }): Promise<{ ok: boolean; data?: { bin: WarehouseBin; product: Product }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
@@ -974,6 +975,9 @@ export const stockOutProduct = async (payload: {
   barcode?: string;
   binCode: string;
   quantity: number;
+  orderId?: string;
+  orderItemId?: string;
+  meta?: Record<string, any>;
 }): Promise<{ ok: boolean; data?: { bin: WarehouseBin; product: Product }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {

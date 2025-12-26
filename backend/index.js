@@ -146,6 +146,56 @@ const enrichProductsWithBinSummaries = async (products = []) => {
   });
 };
 
+const normalizeSkuKey = (val) =>
+  (val || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/^sku[-_\s]*/i, '')
+    .replace(/\s+/g, '');
+
+async function buildReservedOpenOrderMap() {
+  const map = new Map(); // normalizeSkuKey -> qty
+  try {
+    const snap = await firestore.collection('orders').where('status', '==', 'new').get();
+    snap.forEach((doc) => {
+      const order = doc.data() || {};
+      const items = Array.isArray(order.items) ? order.items : [];
+      for (const item of items) {
+        const key = normalizeSkuKey(item?.sku || item?.productId || '');
+        const qty = Number(item?.quantity || 0);
+        if (!key || qty <= 0) continue;
+        map.set(key, (map.get(key) || 0) + qty);
+      }
+    });
+  } catch (error) {
+    console.warn('buildReservedOpenOrderMap failed:', error.message);
+  }
+  return map;
+}
+
+function attachReservedAvailability(products = [], reservedMap) {
+  if (!Array.isArray(products) || !products.length) return products;
+  const map = reservedMap instanceof Map ? reservedMap : new Map();
+  return products.map((product) => {
+    const skuCandidate =
+      product?.details?.identifiers?.sku || product?.identification?.sku || product?.id;
+    const key = normalizeSkuKey(skuCandidate);
+    const reservedQuantity = key ? Number(map.get(key) || 0) : 0;
+    const physicalQuantity = Number(product?.inventory?.quantity || 0);
+    const availableQuantity = Math.max(0, physicalQuantity - reservedQuantity);
+    return {
+      ...product,
+      inventory: {
+        ...(product.inventory || {}),
+        physicalQuantity,
+        reservedQuantity,
+        availableQuantity,
+      },
+    };
+  });
+}
+
 // --- Initialization ---
 const app = express();
 const MAX_IMAGE_FILES = 25;
@@ -204,6 +254,12 @@ const normalizeJobStatuses = (raw) => {
 
 // --- Helper: order sync best-effort in background; never block responses ---
 const ORDER_SYNC_TIMEOUT_MS = parseInt(process.env.ORDER_SYNC_TIMEOUT_MS || '8000', 10);
+const BASELINKER_AUTO_STOCK_SYNC = (process.env.BASELINKER_AUTO_STOCK_SYNC ?? 'true') === 'true';
+const BASELINKER_AUTO_STOCK_SYNC_THROTTLE_MS = parseInt(
+  process.env.BASELINKER_AUTO_STOCK_SYNC_THROTTLE_MS || '15000',
+  10
+);
+const lastAutoStockSyncAtMs = new Map(); // productId -> epoch ms
 
 function backgroundSyncOrders() {
   const controller = new AbortController();
@@ -211,6 +267,40 @@ function backgroundSyncOrders() {
   syncNewOrders()
     .catch((err) => console.warn('Background order sync failed:', err?.message || err))
     .finally(() => clearTimeout(timer));
+}
+
+function backgroundSyncProductStockToBaseLinker(product, reason = 'warehouse') {
+  if (!BASELINKER_AUTO_STOCK_SYNC) return;
+  const productId = product?.id ? String(product.id) : null;
+  if (!productId) return;
+
+  // Only auto-sync products that are linked/synced to BaseLinker to avoid creating accidental listings
+  const hasLink = Boolean(product?.ops?.base_product_id || product?.ops?.baselinker?.product_id);
+  if (!hasLink) return;
+
+  const now = Date.now();
+  const last = Number(lastAutoStockSyncAtMs.get(productId) || 0);
+  if (Number.isFinite(last) && now - last < BASELINKER_AUTO_STOCK_SYNC_THROTTLE_MS) {
+    return;
+  }
+  lastAutoStockSyncAtMs.set(productId, now);
+
+  const invId = process.env.BASELINKER_INVENTORY_ID || '78659';
+  // Best-effort background sync; never block warehouse ops responses
+  setTimeout(() => {
+    syncProductToBaseLinker(product, invId)
+      .then((result) => {
+        console.log(
+          `[auto-sync-baselinker] reason=${reason} product=${productId} status=${result?.status || 'unknown'}`
+        );
+      })
+      .catch((err) => {
+        console.warn(
+          `[auto-sync-baselinker] failed reason=${reason} product=${productId}:`,
+          err?.message || err
+        );
+      });
+  }, 0);
 }
 
 // Produkt-Vollständigkeit bewerten
@@ -237,18 +327,13 @@ function computeCompleteness(product = {}) {
     product.inventory?.price ??
     null;
   const hasPrice = priceCandidate !== null && priceCandidate !== undefined && Number(priceCandidate) > 0;
-  const ebayCat =
+  const categoryId =
+    details.categoryId ||
     details.ebayCategoryId ||
     attrs.ebay_category_id ||
     attrs.ebayCategoryId ||
     attrs['ebay.category_id'];
-  const kauflandCat =
-    details.kauflandCategoryId ||
-    attrs.kaufland_category_id ||
-    attrs.kauflandCategoryId ||
-    attrs['kaufland.category_id'];
-  const hasEbayCategory = !!ebayCat;
-  const hasKauflandCategory = !!kauflandCat;
+  const hasCategory = !!categoryId;
 
   if (!hasSku) missing.push('sku');
   if (!hasName) missing.push('name');
@@ -257,10 +342,9 @@ function computeCompleteness(product = {}) {
   if (!hasImages) missing.push('images');
   if (!hasDescription) missing.push('description');
   if (!hasPrice) missing.push('price');
-  if (!hasEbayCategory) missing.push('ebayCategoryId');
-  if (!hasKauflandCategory) missing.push('kauflandCategoryId');
+  if (!hasCategory) missing.push('category');
 
-  const total = 9;
+  const total = 8;
   const filled = total - missing.length;
   const percent = Math.round((filled / total) * 100);
 
@@ -270,6 +354,68 @@ function computeCompleteness(product = {}) {
     total,
     filled,
     complete: missing.length === 0,
+  };
+}
+
+// Ensure API responses always have the minimum nested structure expected by the frontend.
+// This prevents UI crashes when Firestore contains partial/stub documents.
+function normalizeProductForApi(product = {}) {
+  const p = product && typeof product === 'object' ? product : {};
+  const identification =
+    p.identification && typeof p.identification === 'object' ? p.identification : {};
+  const details = p.details && typeof p.details === 'object' ? p.details : {};
+  const identifiers =
+    details.identifiers && typeof details.identifiers === 'object' ? details.identifiers : {};
+  const pricing = details.pricing && typeof details.pricing === 'object' ? details.pricing : {};
+  const lowest =
+    pricing.lowest_price && typeof pricing.lowest_price === 'object' ? pricing.lowest_price : {};
+  const ops = p.ops && typeof p.ops === 'object' ? p.ops : {};
+
+  const images = Array.isArray(details.images) ? details.images.filter(Boolean) : [];
+  const barcodes = Array.isArray(identification.barcodes)
+    ? identification.barcodes.filter(Boolean)
+    : [];
+
+  return {
+    ...p,
+    identification: {
+      ...identification,
+      method: identification.method || 'image',
+      name: identification.name || '',
+      brand: identification.brand || '',
+      category: identification.category || '',
+      confidence: typeof identification.confidence === 'number' ? identification.confidence : 0,
+      barcodes,
+    },
+    details: {
+      ...details,
+      short_description: details.short_description || '',
+      key_features: Array.isArray(details.key_features) ? details.key_features.filter(Boolean) : [],
+      attributes:
+        details.attributes && typeof details.attributes === 'object' && !Array.isArray(details.attributes)
+          ? details.attributes
+          : {},
+      identifiers: {
+        ...identifiers,
+      },
+      images,
+      pricing: {
+        ...pricing,
+        price_confidence: typeof pricing.price_confidence === 'number' ? pricing.price_confidence : 0,
+        lowest_price: {
+          ...lowest,
+          amount: typeof lowest.amount === 'number' ? lowest.amount : 0,
+          currency: lowest.currency || 'EUR',
+          sources: Array.isArray(lowest.sources) ? lowest.sources : [],
+        },
+      },
+    },
+    ops: {
+      ...ops,
+      sync_status: ops.sync_status || 'pending',
+      revision: typeof ops.revision === 'number' ? ops.revision : 0,
+    },
+    storageBins: Array.isArray(p.storageBins) ? p.storageBins : [],
   };
 }
 
@@ -1186,10 +1332,15 @@ app.get('/api/products', async (req, res) => {
   try {
     const products = await getAllProducts();
     const enriched = await enrichProductsWithBinSummaries(products);
-    const withCompleteness = enriched.map((p) => ({
-      ...p,
-      completeness: computeCompleteness(p),
-    }));
+    const reservedMap = await buildReservedOpenOrderMap();
+    const withReserved = attachReservedAvailability(enriched, reservedMap);
+    const withCompleteness = withReserved.map((p) => {
+      const normalized = normalizeProductForApi(p);
+      return {
+        ...normalized,
+        completeness: computeCompleteness(normalized),
+      };
+    });
     res.json({ ok: true, products: withCompleteness });
   } catch (error) {
     console.error('Error getting products:', error);
@@ -1287,7 +1438,7 @@ app.get('/api/products/:id', async (req, res) => {
       });
     }
     const [enriched] = await enrichProductsWithBinSummaries([product]);
-    const hydrated = enriched || product;
+    const hydrated = normalizeProductForApi(enriched || product);
     res.json({
       ok: true,
       product: {
@@ -1538,6 +1689,9 @@ app.post('/api/warehouse/bins/:code/assign', async (req, res) => {
     }
     const bin = await assignProductToBin(code, productId, Number(quantity));
     const updatedProduct = await getProduct(productId);
+    if (updatedProduct) {
+      backgroundSyncProductStockToBaseLinker(updatedProduct, 'bin-assign');
+    }
     res.json({ ok: true, data: { bin, product: updatedProduct } });
   } catch (error) {
     console.error('Failed to assign product to bin:', error);
@@ -1553,6 +1707,14 @@ app.delete('/api/warehouse/bins/:code/products/:productId', async (req, res) => 
     const code = req.params.code.toUpperCase();
     const { productId } = req.params;
     await removeProductFromBin(code, productId);
+    try {
+      const updatedProduct = await getProduct(productId);
+      if (updatedProduct) {
+        backgroundSyncProductStockToBaseLinker(updatedProduct, 'bin-remove');
+      }
+    } catch (syncErr) {
+      console.warn('Background BaseLinker stock sync after bin-remove failed:', syncErr?.message || syncErr);
+    }
     res.json({ ok: true });
   } catch (error) {
     console.error('Failed to remove product from bin:', error);
@@ -1565,7 +1727,7 @@ app.delete('/api/warehouse/bins/:code/products/:productId', async (req, res) => 
 
 app.post('/api/warehouse/stock-in', async (req, res) => {
   try {
-    const { sku, productId, barcode, binCode, quantity } = req.body || {};
+    const { sku, productId, barcode, binCode, quantity, meta } = req.body || {};
     if (!binCode) {
       return res.status(400).json({ ok: false, error: { code: 400, message: 'Bin-Code ist erforderlich.' } });
     }
@@ -1579,7 +1741,15 @@ app.post('/api/warehouse/stock-in', async (req, res) => {
       barcode,
       binCode: binCode.toUpperCase(),
       quantity: amount,
+      meta: {
+        ...(meta && typeof meta === 'object' ? meta : {}),
+        source: 'api',
+        action: 'stock-in',
+      },
     });
+    if (result?.product) {
+      backgroundSyncProductStockToBaseLinker(result.product, 'stock-in');
+    }
     res.json({ ok: true, data: result });
   } catch (error) {
     console.error('Stow workflow failed:', error);
@@ -1592,7 +1762,7 @@ app.post('/api/warehouse/stock-in', async (req, res) => {
 
 app.post('/api/warehouse/stock-out', async (req, res) => {
   try {
-    const { sku, productId, barcode, binCode, quantity } = req.body || {};
+    const { sku, productId, barcode, binCode, quantity, meta, orderId, orderItemId } = req.body || {};
     if (!binCode) {
       return res.status(400).json({ ok: false, error: { code: 400, message: 'Bin-Code ist erforderlich.' } });
     }
@@ -1606,7 +1776,17 @@ app.post('/api/warehouse/stock-out', async (req, res) => {
       barcode,
       binCode: binCode.toUpperCase(),
       quantity: amount,
+      meta: {
+        ...(meta && typeof meta === 'object' ? meta : {}),
+        source: 'api',
+        action: 'stock-out',
+        orderId: orderId || null,
+        orderItemId: orderItemId || null,
+      },
     });
+    if (result?.product) {
+      backgroundSyncProductStockToBaseLinker(result.product, 'stock-out');
+    }
     res.json({ ok: true, data: result });
   } catch (error) {
     console.error('Pick workflow failed:', error);

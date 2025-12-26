@@ -236,28 +236,14 @@ async function syncNewOrders() {
 
   await saveOrders(orders);
 
-  // Reduce stock / bins for closed orders (picked/shipped/etc.)
-  try {
-    const closed = orders.filter((o) => o.status === 'picked' || o.pickedAt || isClosedStatus(o.statusLabel));
-    const aggregated = new Map(); // key: sku -> qty
-    for (const order of closed) {
-      for (const item of order.items || []) {
-        const sku = (item.sku || item.productId || '').toString().trim();
-        const qty = Number(item.quantity || 0);
-        if (!sku || qty <= 0) continue;
-        aggregated.set(sku, (aggregated.get(sku) || 0) + qty);
-      }
-    }
-    for (const [sku, qty] of aggregated.entries()) {
-      try {
-        await decrementProductByIdOrSku(sku, qty);
-      } catch (err) {
-        console.warn('Failed to decrement product for order items', sku, qty, err.message);
-      }
-    }
-  } catch (err) {
-    console.warn('Order sync post-processing failed:', err.message);
-  }
+  // IMPORTANT:
+  // Do NOT decrement warehouse stock during order sync.
+  //
+  // Reason:
+  // - Bin-accurate stock changes must be driven by explicit warehouse operations
+  //   (/api/warehouse/stock-in|stock-out, etc.).
+  // - Auto-decrement during sync is not idempotent and can cause repeated decrements
+  //   whenever the same "closed" orders are re-synced, leading to disappearing BIN assignments.
 
   return orders;
 }
@@ -315,23 +301,8 @@ async function markOrderAsPicked(orderId) {
     );
   }
 
-  // Immediately decrement stock locally to reflect the pick action (do not wait for next sync)
-  if (Array.isArray(order.items)) {
-    const aggregated = new Map(); // sku -> qty
-    for (const item of order.items) {
-      const sku = (item?.sku || item?.productId || '').toString().trim();
-      const qty = Number(item?.quantity || 0);
-      if (!sku || qty <= 0) continue;
-      aggregated.set(sku, (aggregated.get(sku) || 0) + qty);
-    }
-    for (const [sku, qty] of aggregated.entries()) {
-      try {
-        await decrementProductByIdOrSku(sku, qty);
-      } catch (err) {
-        console.warn('markOrderAsPicked: stock decrement failed', sku, qty, err.message);
-      }
-    }
-  }
+  // Stock decrement is handled by the explicit warehouse pick endpoint (/api/warehouse/stock-out),
+  // which is BIN-accurate. Do not decrement here to avoid double-decrements.
 
   await updateOrder(orderId, {
     status: 'picked',

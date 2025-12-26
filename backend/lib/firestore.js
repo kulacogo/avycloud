@@ -159,6 +159,20 @@ function getRequiredAspects() {
   return REQUIRED_ASPECTS;
 }
 
+// Cache eBay category tree (id -> {id, name, breadcrumb})
+let EBAY_CATEGORIES = null;
+function getEbayCategories() {
+  if (EBAY_CATEGORIES) return EBAY_CATEGORIES;
+  try {
+    // eslint-disable-next-line global-require, import/no-dynamic-require
+    EBAY_CATEGORIES = require('../ebay-data/categories.json');
+  } catch (e) {
+    console.warn('Failed to load categories.json:', e.message);
+    EBAY_CATEGORIES = {};
+  }
+  return EBAY_CATEGORIES;
+}
+
 const WEIGHT_BUCKETS = [1, 3, 6, 9, 12, 15];
 function bucketWeight(value) {
   if (value === null || value === undefined) return null;
@@ -199,8 +213,62 @@ function enforceEbayAspects(product) {
   const requiredMap = getRequiredAspects();
   const details = product.details || {};
   const attrs = details.attributes || {};
+  const existingExtra =
+    details.attributes_extra && typeof details.attributes_extra === 'object'
+      ? details.attributes_extra
+      : {};
 
+  const normalizeKey = (v) => (v == null ? '' : String(v)).trim();
+  const normalizeLower = (v) => normalizeKey(v).toLowerCase();
+  const normalizeAspectKey = (key) =>
+    normalizeKey(key)
+      // Normalize noisy "Item Specifics" prefixes from exports/LLM output
+      // Examples:
+      // - "eBay Item Specifics: Besonderheiten" -> "Besonderheiten"
+      // - "eBay-Item-Specifics: Besonderheiten" -> "Besonderheiten"
+      // - "eBay_Item_Specifics_Marke" -> "Marke"
+      .replace(/^eBay[\s-_]*Item[\s-_]*Specifics[\s:_-]*\s*/i, '')
+      // - "Pflicht-Item-Specifics: Besonderheiten" -> "Besonderheiten"
+      .replace(/^Pflicht[\s-_]*Item[\s-_]*Specifics[\s:_-]*\s*/i, '')
+      // Normalize other noisy eBay-* attribute prefixes from exports
+      // Examples: "eBay_Marke" / "eBay-Produktart" -> "Marke" / "Produktart"
+      .replace(/^eBay[\s-_]+/i, '')
+      .trim();
+
+  const META_ATTRIBUTE_KEYS = new Set(
+    [
+      'ebay_category_id',
+      'ebaycategoryid',
+      'ebay_category_path',
+      'ebaycategorypath',
+      'ebay_category_breadcrumb',
+      'ebaycategorybreadcrumb',
+      // Some exports store a whole list of item specifics under this meta key (redundant, noisy)
+      'ebay_item_specifics',
+      'ebayitemspecifics',
+      'ebay kategorie',
+      'ebay-kategorie',
+      'ebay_kategorie',
+      'ebay kategorie id',
+      'ebay kategorie pfad',
+      'kaufland_category_id',
+      'kauflandcategoryid',
+      'kaufland_category_path',
+      'kauflandcategorypath',
+      'kaufland kategorie',
+      'kaufland-kategorie',
+      'kaufland_kategorie',
+      'kaufland kategorie pfad',
+      'category_path',
+    ].map((k) => k.toLowerCase())
+  );
+
+  const isGpsrKey = (key) => normalizeLower(key).startsWith('gpsr ');
+
+  // Single category system (canonical): details.categoryId
+  // Backwards compatible reads from legacy fields.
   const catId =
+    (details.categoryId && String(details.categoryId).trim()) ||
     (details.ebayCategoryId && String(details.ebayCategoryId).trim()) ||
     (attrs.ebay_category_id && String(attrs.ebay_category_id).trim()) ||
     null;
@@ -211,47 +279,156 @@ function enforceEbayAspects(product) {
   if (attrs.kaufland_category_id) delete attrs.kaufland_category_id;
   if (attrs.kaufland_category_path) delete attrs.kaufland_category_path;
 
+  // Drop legacy eBay-category fields; keep only generic `categoryId` and `identification.category`.
+  if (details.ebayCategoryId) delete details.ebayCategoryId;
+  if (details.ebayCategoryBreadcrumb) delete details.ebayCategoryBreadcrumb;
+  if (details.ebayCategoryPath) delete details.ebayCategoryPath;
+
+  if (catId) {
+    details.categoryId = String(catId).trim();
+    const categories = getEbayCategories();
+    const breadcrumb = categories?.[String(catId)]?.breadcrumb;
+    if (breadcrumb) {
+      if (!product.identification) product.identification = {};
+      product.identification.category = String(breadcrumb);
+    }
+  }
+
   if (!catId) {
-    // No category -> just sort attributes alphabetically
+    // No category -> normalize keys a bit and sort alphabetically.
+    const nextAttrs = {};
+    const nextExtra = { ...(existingExtra || {}) };
+    Object.entries(attrs || {}).forEach(([key, val]) => {
+      const originalKey = normalizeKey(key);
+      if (!originalKey) return;
+      const normalizedKey = normalizeAspectKey(originalKey);
+      const finalKey = normalizedKey || originalKey;
+      const lowerKey = normalizeLower(finalKey);
+      if (META_ATTRIBUTE_KEYS.has(lowerKey) || lowerKey.includes('kaufland')) {
+        nextExtra[originalKey] = val;
+        return;
+      }
+      nextAttrs[finalKey] = val;
+    });
     return {
       ...product,
       details: {
         ...details,
-        attributes: normalizeAttributesOrder(attrs, null, requiredMap),
+        attributes: normalizeAttributesOrder(nextAttrs, null, requiredMap),
+        attributes_extra: Object.keys(nextExtra).length ? nextExtra : undefined,
       },
     };
   }
 
   const requiredAspects = Array.isArray(requiredMap[catId]) ? requiredMap[catId] : [];
-  const allowedSet = new Set(requiredAspects.map((n) => (n || '').toLowerCase()));
+  const canonicalByLower = new Map(
+    requiredAspects
+      .map((n) => normalizeKey(n))
+      .filter(Boolean)
+      .map((n) => [normalizeLower(n), n])
+  );
+  const allowedSet = new Set(requiredAspects.map((n) => normalizeLower(n)).filter(Boolean));
 
-  const filteredAttrs = {};
+  const keptAspects = {};
+  const keptCompliance = {};
+  const nextExtra = { ...(existingExtra || {}) };
+
   Object.entries(attrs || {}).forEach(([key, val]) => {
-    if (!key) return;
-    const lower = key.toLowerCase();
-    if (allowedSet.size && !allowedSet.has(lower)) {
+    const originalKey = normalizeKey(key);
+    if (!originalKey) return;
+    const normalizedKey = normalizeAspectKey(originalKey);
+    const finalKey = normalizedKey || originalKey;
+    const lower = normalizeLower(finalKey);
+
+    if (META_ATTRIBUTE_KEYS.has(lower) || lower.includes('kaufland')) {
+      nextExtra[originalKey] = val;
       return;
     }
-    filteredAttrs[key] = val;
+
+    // Keep GPSR/compliance keys regardless of category allowlist
+    if (isGpsrKey(finalKey)) {
+      keptCompliance[finalKey] = val;
+      return;
+    }
+
+    if (allowedSet.size && !allowedSet.has(lower)) {
+      nextExtra[originalKey] = val;
+      return;
+    }
+
+    // Canonicalize required aspect names for consistent formatting
+    const canonicalName = canonicalByLower.get(lower) || finalKey;
+    if (Object.prototype.hasOwnProperty.call(keptAspects, canonicalName)) {
+      // Preserve duplicates rather than overwriting
+      const prev = keptAspects[canonicalName];
+      const prevStr = typeof prev === 'string' ? prev.trim() : prev;
+      const nextStr = typeof val === 'string' ? val.trim() : val;
+      const prevEmpty = prev === null || prev === undefined || prevStr === '';
+      const nextEmpty = val === null || val === undefined || nextStr === '';
+      if (prevEmpty && !nextEmpty) {
+        keptAspects[canonicalName] = val;
+      } else {
+        nextExtra[originalKey] = val;
+      }
+      return;
+    }
+    keptAspects[canonicalName] = val;
   });
 
-  const sortedAttrs = normalizeAttributesOrder(filteredAttrs, catId, requiredMap);
+  // Ensure all required aspects exist (missing ones are set to null, not guessed)
+  const existingLowerKeys = new Set(Object.keys(keptAspects).map((k) => normalizeLower(k)));
+  requiredAspects.forEach((reqName) => {
+    const canonical = normalizeKey(reqName);
+    if (!canonical) return;
+    const lower = normalizeLower(canonical);
+    if (existingLowerKeys.has(lower)) return;
+
+    // Best-effort fill from known fields (no guessing beyond existing data)
+    let derived = null;
+    if (lower === 'marke') {
+      derived = product?.identification?.brand || details?.brand || null;
+    } else if (lower === 'ean') {
+      derived =
+        details?.identifiers?.ean ||
+        details?.identifiers?.gtin ||
+        details?.identifiers?.upc ||
+        null;
+    } else if (lower === 'sku') {
+      derived =
+        product?.identification?.sku ||
+        details?.identifiers?.sku ||
+        null;
+    } else if (lower === 'herstellernummer' || lower === 'mpn') {
+      derived = details?.identifiers?.mpn || null;
+    }
+
+    keptAspects[canonical] = derived ?? null;
+    existingLowerKeys.add(lower);
+  });
+
+  const sortedAspects = normalizeAttributesOrder(keptAspects, catId, requiredMap);
+  const sortedCompliance = Object.fromEntries(
+    Object.entries(keptCompliance).sort((a, b) => normalizeLower(a[0]).localeCompare(normalizeLower(b[0])))
+  );
+  const sortedAttrs = { ...sortedAspects, ...sortedCompliance };
 
   return {
     ...product,
     details: {
       ...details,
-      ebayCategoryId: catId,
+      categoryId: String(catId),
       attributes: sortedAttrs,
+      attributes_extra: Object.keys(nextExtra).length ? nextExtra : undefined,
     },
   };
 }
 
-async function saveProduct(product) {
+async function saveProduct(product, options = {}) {
   try {
     const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(product.id);
     const existingSnap = await docRef.get();
     const existingData = existingSnap.exists ? existingSnap.data() || {} : null;
+    const allowWarehouseFields = options && options.allowWarehouseFields === true;
 
     const pickStableSku = (data) => {
       const idSku = typeof data?.identification?.sku === 'string' ? data.identification.sku.trim() : '';
@@ -296,11 +473,22 @@ async function saveProduct(product) {
     const deletedImages = Array.from(new Set([...existingDeleted, ...incomingDeleted])).filter(Boolean);
     const isDeleted = (url) => deletedImages.some((d) => d && url && d === url);
 
-    // Images: treat incoming as authoritative if provided, filter out deleted and dedupe
-    const incomingImages = Array.isArray(incomingDetails.images) ? incomingDetails.images : [];
+    // Images:
+    // - If the incoming payload explicitly contains `details.images`, treat it as authoritative.
+    // - Otherwise preserve existing images (but still filter out newly-deleted ones).
+    const incomingHasImages =
+      product?.details && Object.prototype.hasOwnProperty.call(product.details, 'images');
+    const sourceImages = incomingHasImages
+      ? Array.isArray(incomingDetails.images)
+        ? incomingDetails.images
+        : []
+      : Array.isArray(existingDetails.images)
+        ? existingDetails.images
+        : [];
+
     const mergedImages = [];
     const seenImages = new Set();
-    incomingImages.forEach((img) => {
+    sourceImages.forEach((img) => {
       const key = img?.url_or_base64 || img?.url || img?.href;
       if (!key) return;
       if (isDeleted(key)) return;
@@ -380,7 +568,12 @@ async function saveProduct(product) {
       mergedDetails.weight = bucketedWeight;
     }
 
-    // Preserve storage/storageBins/inventory unless explicitly provided
+    // Warehouse invariants:
+    // - General product saves (LLM pipelines, admin edits, reconciliation scripts, etc.) must NEVER wipe warehouse state.
+    // - Only dedicated warehouse flows (bookStockIn/out, assign/remove from bin, inventory refresh) are allowed to mutate
+    //   storage/storageBins/inventory.quantity.
+    //
+    // Therefore: for existing docs, we only accept incoming warehouse fields when explicitly allowed via options.
     const incomingStorage =
       product && Object.prototype.hasOwnProperty.call(product, 'storage') ? product.storage : undefined;
     const incomingStorageBins =
@@ -388,12 +581,31 @@ async function saveProduct(product) {
     const incomingInventory =
       product && Object.prototype.hasOwnProperty.call(product, 'inventory') ? product.inventory : undefined;
 
-    const preservedStorage =
-      incomingStorage !== undefined ? incomingStorage : existingData?.storage || null;
-    const preservedStorageBins =
-      Array.isArray(incomingStorageBins) ? incomingStorageBins : existingData?.storageBins || [];
-    const preservedInventory =
-      incomingInventory !== undefined ? incomingInventory : existingData?.inventory || {};
+    const hasExisting = Boolean(existingData);
+    const canWriteWarehouseFields = !hasExisting || allowWarehouseFields;
+
+    if (hasExisting && !canWriteWarehouseFields) {
+      const attempted = [];
+      if (incomingStorage !== undefined) attempted.push('storage');
+      if (incomingStorageBins !== undefined) attempted.push('storageBins');
+      if (incomingInventory !== undefined) attempted.push('inventory');
+      if (attempted.length) {
+        mergedOps.warehouse_write_blocked = {
+          at_iso: new Date().toISOString(),
+          fields: attempted,
+        };
+      }
+    }
+
+    const preservedStorage = canWriteWarehouseFields
+      ? (incomingStorage !== undefined ? incomingStorage : existingData?.storage || null)
+      : existingData?.storage || null;
+    const preservedStorageBins = canWriteWarehouseFields
+      ? (Array.isArray(incomingStorageBins) ? incomingStorageBins : existingData?.storageBins || [])
+      : existingData?.storageBins || [];
+    const preservedInventory = canWriteWarehouseFields
+      ? (incomingInventory !== undefined ? incomingInventory : existingData?.inventory || {})
+      : existingData?.inventory || {};
 
     const productWithEbay = enforceEbayAspects({
       ...(existingData || {}),

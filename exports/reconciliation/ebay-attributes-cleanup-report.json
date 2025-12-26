@@ -1,0 +1,215 @@
+{
+  "apply": true,
+  "limit": null,
+  "scanned": 333,
+  "changed": 330,
+  "skipped": 3,
+  "missingCategory": 0,
+  "invalidCategory": 0,
+  "samples": {
+    "changed": [
+      {
+        "id": "0060cdec-9193-411b-af64-4754ca0226bd",
+        "categoryId": "37412",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 12,
+        "attrsAfter": 12,
+        "extraCount": 0
+      },
+      {
+        "id": "0196214105119",
+        "categoryId": "2536",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 19,
+        "attrsAfter": 19,
+        "extraCount": 0
+      },
+      {
+        "id": "03142017000003",
+        "categoryId": "169124",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 14,
+        "attrsAfter": 14,
+        "extraCount": 0
+      },
+      {
+        "id": "04052938000016",
+        "categoryId": "39057",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 8,
+        "attrsAfter": 8,
+        "extraCount": 0
+      },
+      {
+        "id": "0700153955478",
+        "categoryId": "156104",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 13,
+        "attrsAfter": 13,
+        "extraCount": 0
+      },
+      {
+        "id": "0810123671069",
+        "categoryId": "69197",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 14,
+        "attrsAfter": 14,
+        "extraCount": 0
+      },
+      {
+        "id": "09be7756-7b4f-4dda-bda0-799754052fff",
+        "categoryId": "131090",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 8,
+        "attrsAfter": 8,
+        "extraCount": 0
+      },
+      {
+        "id": "14006633314036",
+        "categoryId": "131090",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 13,
+        "attrsAfter": 13,
+        "extraCount": 0
+      },
+      {
+        "id": "1472920275814",
+        "categoryId": "3199",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 19,
+        "attrsAfter": 19,
+        "extraCount": 0
+      },
+      {
+        "id": "1900201900525",
+        "categoryId": "177807",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 14,
+        "attrsAfter": 14,
+        "extraCount": 10
+      },
+      {
+        "id": "1e369bf5-e5e6-460c-b595-8a08a2bbaf2d",
+        "categoryId": "29523",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 12,
+        "attrsAfter": 12,
+        "extraCount": 0
+      },
+      {
+        "id": "20221212000014",
+        "categoryId": "47075",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 17,
+        "attrsAfter": 17,
+        "extraCount": 0
+      },
+      {
+        "id": "2074133001002",
+        "categoryId": "2536",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 18,
+        "attrsAfter": 18,
+        "extraCount": 0
+      },
+      {
+        "id": "2810449728013",
+        "categoryId": "174119",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 10,
+        "attrsAfter": 10,
+        "extraCount": 0
+      },
+      {
+        "id": "3165143111321",
+        "categoryId": "131090",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 7,
+        "attrsAfter": 7,
+        "extraCount": 0
+      },
+      {
+        "id": "3322937241712",
+        "categoryId": "131090",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 16,
+        "attrsAfter": 16,
+        "extraCount": 0
+      },
+      {
+        "id": "3662775243128",
+        "categoryId": "131090",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 15,
+        "attrsAfter": 15,
+        "extraCount": 0
+      },
+      {
+        "id": "3770010398363",
+        "categoryId": "101428",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 10,
+        "attrsAfter": 10,
+        "extraCount": 0
+      },
+      {
+        "id": "4003318620911",
+        "categoryId": "167468",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 17,
+        "attrsAfter": 17,
+        "extraCount": 0
+      },
+      {
+        "id": "4004133669093",
+        "categoryId": "158950",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 9,
+        "attrsAfter": 9,
+        "extraCount": 6
+      },
+      {
+        "id": "4006387029807",
+        "categoryId": "54145",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 18,
+        "attrsAfter": 18,
+        "extraCount": 0
+      },
+      {
+        "id": "4006633310222",
+        "categoryId": "131090",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 17,
+        "attrsAfter": 17,
+        "extraCount": 0
+      },
+      {
+        "id": "4009384341071",
+        "categoryId": "238",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 8,
+        "attrsAfter": 8,
+        "extraCount": 0
+      },
+      {
+        "id": "4009384458304",
+        "categoryId": "63",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 14,
+        "attrsAfter": 14,
+        "extraCount": 0
+      },
+      {
+        "id": "4010886516256",
+        "categoryId": "84237",
+        "willSetBreadcrumb": true,
+        "attrsBefore": 9,
+        "attrsAfter": 9,
+        "extraCount": 0
+      }
+    ],
+    "missingCategory": [],
+    "invalidCategory": []
+  }
+}

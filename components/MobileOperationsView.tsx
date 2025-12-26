@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
-import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, stockInProduct } from '../api/client';
+import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, stockInProduct, stockOutProduct } from '../api/client';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
@@ -184,6 +184,16 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       const qty = qtyStr ? Number(qtyStr) : 1;
       if (!Number.isFinite(qty) || qty <= 0) return;
       try {
+        const stockResult = await stockOutProduct({
+          sku,
+          binCode: bin,
+          quantity: qty,
+          orderId: item.orderId,
+          meta: { flow: 'pick', orderId: item.orderId },
+        });
+        if (!stockResult.ok) {
+          throw new Error(stockResult.error?.message || 'Kommissionierung fehlgeschlagen');
+        }
         await completeOrder(item.orderId);
         setPickMessage(`Pick ok: BIN ${bin} · SKU ${sku} · Qty ${qty} · Auftrag ${item.orderId}`);
       } catch (err: any) {
@@ -224,6 +234,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       binCode: stowBin,
       quantity: stowQty,
       barcode: productMatch?.identification?.barcodes?.[0] || productMatch?.details?.identifiers?.ean || undefined,
+      meta: { flow: 'stow' },
     };
     const result = await stockInProduct(payload);
     if (!result.ok) {

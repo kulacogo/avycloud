@@ -17,14 +17,117 @@ const MAX_EBENE = 'E'.charCodeAt(0);
 const zonesCollection = firestore.collection('warehouseZones');
 const binsCollection = firestore.collection('warehouseBins');
 const productsCollection = firestore.collection('products');
+const warehouseEventsCollection = firestore.collection('warehouseEvents');
+
+function writeWarehouseEventTx(tx, payload = {}) {
+  const ref = warehouseEventsCollection.doc();
+  tx.set(ref, {
+    ...payload,
+    createdAt: Timestamp.now(),
+  });
+}
 
 // Rebuild inventory summary (total quantity and primary BIN)
 async function refreshProductInventory(productId) {
   if (!productId) return;
-  const bins = await listBinsForProduct(productId);
+  const resolvedId = String(productId).trim();
+  if (!resolvedId) return;
+
+  // IMPORTANT: never create a new product doc as a side-effect of inventory refresh.
+  // If callers pass SKU/EAN instead of the Firestore doc id, a set({merge:true}) would silently create
+  // an "empty" product document containing only inventory/storageBins, which then breaks UI and indexing.
+  const docRef = productsCollection.doc(resolvedId);
+  const snap = await docRef.get();
+  if (!snap.exists) {
+    console.warn(
+      `[refreshProductInventory] skip: product '${resolvedId}' not found (would create stub doc)`
+    );
+    return;
+  }
+
+  const productData = snap.data() || {};
+
+  // Match bins by multiple stable keys: doc id, stored product.id, SKU fields (with/without "SKU-" prefix)
+  const keySet = new Set();
+  const addKey = (value) => {
+    const normalized = normalizeKey(value);
+    if (normalized) keySet.add(normalized);
+  };
+  const addSkuVariants = (value) => {
+    if (!value) return;
+    const raw = String(value).trim();
+    addKey(raw);
+    const stripped = raw.replace(/^sku[-_\s]*/i, '');
+    addKey(stripped);
+  };
+
+  addKey(resolvedId);
+  addKey(productData.id);
+  addSkuVariants(productData?.identification?.sku);
+  addSkuVariants(productData?.details?.identifiers?.sku);
+
+  const snapshot = await binsCollection.get();
+  const bins = [];
+  snapshot.forEach((doc) => {
+    const data = doc.data() || {};
+    const products = Array.isArray(data.products) ? data.products : [];
+    const matches = products.filter((p) => {
+      if (!p) return false;
+      const pid = normalizeKey(p.productId);
+      const sku = normalizeKey(p.sku);
+      const skuStripped = p.sku ? normalizeKey(String(p.sku).replace(/^sku[-_\s]*/i, '')) : null;
+      const pidStripped =
+        p.productId ? normalizeKey(String(p.productId).replace(/^sku[-_\s]*/i, '')) : null;
+      return (
+        (pid && keySet.has(pid)) ||
+        (sku && keySet.has(sku)) ||
+        (skuStripped && keySet.has(skuStripped)) ||
+        (pidStripped && keySet.has(pidStripped))
+      );
+    });
+
+    const quantity = matches.reduce((sum, entry) => sum + (Number(entry?.quantity) || 0), 0);
+    if (!quantity) return;
+
+    // Prefer timestamps from matched entries; fallback to bin-level timestamps
+    const firstStoredAt =
+      matches
+        .map((m) => toIsoString(m?.firstStoredAt))
+        .filter(Boolean)
+        .sort()[0] ||
+      toIsoString(data.firstStoredAt) ||
+      null;
+    const lastUpdatedAt =
+      matches
+        .map((m) => toIsoString(m?.lastUpdatedAt))
+        .filter(Boolean)
+        .sort()
+        .slice(-1)[0] ||
+      toIsoString(data.lastStoredAt) ||
+      null;
+    const first = matches[0] || {};
+
+    bins.push({
+      code: data.code || doc.id,
+      zone: data.zone,
+      etage: data.etage,
+      gang: data.gang,
+      regal: data.regal,
+      ebene: data.ebene,
+      quantity,
+      productCount: quantity,
+      productId: first.productId,
+      sku: first.sku,
+      name: first.name,
+      firstStoredAt,
+      lastUpdatedAt,
+    });
+  });
+
   const totalQty = bins.reduce((sum, b) => sum + (b.quantity || 0), 0);
   const sorted = [...bins].sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
   const primary = sorted[0] || null;
+
   const storageBins = bins.map((b) => ({
     code: b.code,
     quantity: b.quantity || 0,
@@ -37,26 +140,27 @@ async function refreshProductInventory(productId) {
     lastUpdatedAt: b.lastUpdatedAt || null,
   }));
 
-  const updatePayload = {
-    inventory: { quantity: totalQty },
-    storageBins,
-  };
-  if (primary) {
-    updatePayload.storage = {
-      binCode: primary.code,
-      zone: primary.zone,
-      etage: primary.etage,
-      gang: primary.gang,
-      regal: primary.regal,
-      ebene: primary.ebene,
-      quantity: primary.quantity || 0,
-      assigned_at: primary.lastUpdatedAt || primary.firstStoredAt || new Date().toISOString(),
-    };
-  } else {
-    updatePayload.storage = null;
-  }
+  const storage =
+    primary
+      ? {
+          binCode: primary.code,
+          zone: primary.zone,
+          etage: primary.etage,
+          gang: primary.gang,
+          regal: primary.regal,
+          ebene: primary.ebene,
+          quantity: primary.quantity || 0,
+          assigned_at: primary.lastUpdatedAt || primary.firstStoredAt || new Date().toISOString(),
+        }
+      : null;
 
-  await productsCollection.doc(productId).set(updatePayload, { merge: true });
+  // Use update() to avoid creating documents by mistake, and update inventory.quantity as a field path
+  // so we don't overwrite other inventory metadata (inventoryId, inventoryName, etc.).
+  await docRef.update({
+    'inventory.quantity': totalQty,
+    storageBins,
+    storage,
+  });
 }
 
 async function findProductDocument({ productId, sku, barcode }) {
@@ -311,6 +415,14 @@ async function removeProductFromBin(binCode, productId, options = {}) {
       productCount,
       lastStoredAt: Timestamp.now(),
     });
+    writeWarehouseEventTx(tx, {
+      type: 'bin_remove_product',
+      binCode,
+      productId: String(productId),
+      removedQty,
+      remainingBinProductCount: productCount,
+      skipProductUpdate: Boolean(options.skipProductUpdate),
+    });
     if (!options.skipProductUpdate) {
       const productData = productSnap.data();
       const shouldClearStorage = productData?.storage?.binCode === binCode;
@@ -398,6 +510,15 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
         quantity: newInv,
       },
     });
+    writeWarehouseEventTx(tx, {
+      type: 'order_decrement',
+      productId: productRef.id,
+      productKey: id,
+      requestedQty: Number(quantity) || 0,
+      appliedBinDeltas: binDeltas,
+      inventoryAfter: newInv,
+      binCountAfter: cleanedBins.length,
+    });
 
     for (const { binRef, binSnap, delta } of binSnapshots) {
       if (!binSnap.exists) continue;
@@ -424,7 +545,7 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
     }
   });
 
-  await refreshProductInventory(id);
+  await refreshProductInventory(productRef.id);
 }
 
 async function assignProductToBin(binCode, productId, quantity) {
@@ -492,6 +613,13 @@ async function assignProductToBin(binCode, productId, quantity) {
         quantity,
       },
     });
+    writeWarehouseEventTx(tx, {
+      type: 'bin_assign_product',
+      binCode,
+      productId: String(productId),
+      quantity: Number(quantity) || 0,
+      mode: 'set',
+    });
   });
 
   await refreshProductInventory(productId);
@@ -516,7 +644,7 @@ function calculateBinProductCount(products) {
   return products.reduce((sum, item) => sum + (item.quantity || 0), 0);
 }
 
-async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
+async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta }) {
   if (!binCode) throw new Error('Bin-Code fehlt.');
   if (!quantity || quantity <= 0) throw new Error('Menge muss größer als 0 sein.');
 
@@ -598,6 +726,16 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
       },
       'ops.pending_intake_quantity': nextPending,
     });
+    writeWarehouseEventTx(tx, {
+      type: 'stock_in',
+      binCode,
+      productId: resolvedProductId,
+      sku: productData.details?.identifiers?.sku || productData.identification?.sku || null,
+      delta: Number(quantity) || 0,
+      quantityAfter: inventoryQuantity,
+      binQuantityAfter: entry.quantity,
+      meta: meta || null,
+    });
 
     updatedProduct = {
       ...productData,
@@ -623,12 +761,12 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity }) {
     };
   });
 
-  await refreshProductInventory(resolvedProductId);
-  const freshProduct = await getProduct(resolvedProductId);
+  await refreshProductInventory(productRef.id);
+  const freshProduct = await getProduct(productRef.id);
   return { product: freshProduct || updatedProduct, bin: updatedBin };
 }
 
-async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
+async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }) {
   if (!binCode) throw new Error('Bin-Code fehlt.');
   if (!quantity || quantity <= 0) throw new Error('Menge muss größer als 0 sein.');
 
@@ -724,6 +862,16 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
       productCount,
       lastStoredAt: now,
     });
+    writeWarehouseEventTx(tx, {
+      type: 'stock_out',
+      binCode,
+      productId: resolvedProductId,
+      sku: productData.details?.identifiers?.sku || productData.identification?.sku || null,
+      delta: -(Number(quantity) || 0),
+      quantityAfter: entry.quantity <= 0 ? 0 : entry.quantity,
+      binProductCountAfter: productCount,
+      meta: meta || null,
+    });
 
     updatedBin = {
       code: binCode,
@@ -734,8 +882,8 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity }) {
     };
   });
 
-  await refreshProductInventory(resolvedProductId);
-  const freshProduct = await getProduct(resolvedProductId);
+  await refreshProductInventory(productRef.id);
+  const freshProduct = await getProduct(productRef.id);
   return { product: freshProduct || updatedProduct, bin: updatedBin };
 }
 
