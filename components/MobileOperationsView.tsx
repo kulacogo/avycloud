@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
 import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, stockInProduct, stockOutProduct } from '../api/client';
+import { useI18n } from '../i18n';
+import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
@@ -19,57 +21,6 @@ type MobilePickTask = {
   productId?: string | null;
   availableInBin?: number | null;
 };
-
-const WAREHOUSE_ZONES_ROUTE = ['X', 'XS', 'S', 'M', 'L', 'XL', 'XQ'] as const;
-const WAREHOUSE_ETAGEN_ROUTE = ['GA', 'EG', 'UG'] as const;
-const ZONE_PREFIXES = [...WAREHOUSE_ZONES_ROUTE].sort((a, b) => b.length - a.length);
-
-function parseWarehouseBinCode(code?: string | null): {
-  zone: string;
-  etage: string;
-  gang: number;
-  regal: number;
-  ebene: string;
-} | null {
-  const raw = (code || '').toString().trim().toUpperCase();
-  if (!raw) return null;
-
-  const zone = ZONE_PREFIXES.find((z) => raw.startsWith(z)) || null;
-  if (!zone) return null;
-
-  const rest = raw.slice(zone.length);
-  const etage = rest.slice(0, 2);
-  if (!WAREHOUSE_ETAGEN_ROUTE.includes(etage as any)) return null;
-
-  const gang = Number.parseInt(rest.slice(2, 4), 10);
-  const regal = Number.parseInt(rest.slice(4, 6), 10);
-  const ebene = rest.slice(6, 7);
-  if (!Number.isFinite(gang) || !Number.isFinite(regal) || !ebene) return null;
-
-  return { zone, etage, gang, regal, ebene };
-}
-
-function compareBinCodesForPickRoute(a?: string | null, b?: string | null): number {
-  const pa = parseWarehouseBinCode(a);
-  const pb = parseWarehouseBinCode(b);
-  if (!pa && !pb) return String(a || '').localeCompare(String(b || ''), 'de', { sensitivity: 'base' });
-  if (!pa) return 1;
-  if (!pb) return -1;
-
-  const zoneA = WAREHOUSE_ZONES_ROUTE.indexOf(pa.zone as any);
-  const zoneB = WAREHOUSE_ZONES_ROUTE.indexOf(pb.zone as any);
-  if (zoneA !== zoneB) return zoneA - zoneB;
-
-  const etageA = WAREHOUSE_ETAGEN_ROUTE.indexOf(pa.etage as any);
-  const etageB = WAREHOUSE_ETAGEN_ROUTE.indexOf(pb.etage as any);
-  if (etageA !== etageB) return etageA - etageB;
-
-  // Route: higher gang/regal first (matches typical "back to front" walk and the user's example)
-  if (pa.gang !== pb.gang) return pb.gang - pa.gang;
-  if (pa.regal !== pb.regal) return pb.regal - pa.regal;
-
-  return pa.ebene.localeCompare(pb.ebene, 'de', { sensitivity: 'base' });
-}
 
 interface MobileOperationsViewProps {
   products: Product[];
@@ -99,27 +50,33 @@ const StatusBadge: React.FC<{ label: string; tone?: 'neutral' | 'success' | 'war
   );
 };
 
-const ProductCard: React.FC<{ product: Product; footer?: React.ReactNode }> = ({ product, footer }) => (
-  <div className="w-full text-left rounded-2xl bg-slate-800 border border-white/5 p-3 flex gap-3 shadow-sm shadow-black/20">
-    <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden flex items-center justify-center">
-      {product.details?.images?.[0]?.url_or_base64 ? (
-        <img src={product.details.images[0].url_or_base64} alt="" className="w-full h-full object-cover" />
-      ) : (
-        <span className="text-xs text-slate-300">No Img</span>
-      )}
+const ProductCard: React.FC<{ product: Product; footer?: React.ReactNode }> = ({ product, footer }) => {
+  const { t } = useI18n();
+  return (
+    <div className="w-full text-left rounded-2xl bg-slate-800 border border-white/5 p-3 flex gap-3 shadow-sm shadow-black/20">
+      <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden flex items-center justify-center">
+        {product.details?.images?.[0]?.url_or_base64 ? (
+          <img src={product.details.images[0].url_or_base64} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-xs text-slate-300">{t('common.noImage')}</span>
+        )}
+      </div>
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-white line-clamp-2">{product.identification?.name}</p>
+        <p className="text-xs text-slate-400">
+          {t('common.sku')} {product.identification?.sku || '—'} · {t('common.bin')} {product.storage?.binCode || '—'}
+        </p>
+        <p className="text-xs text-slate-400">
+          {t('common.qty')} {getProductQuantity(product)}
+        </p>
+      </div>
+      {footer && <div className="flex flex-col items-end gap-1">{footer}</div>}
     </div>
-    <div className="flex-1">
-      <p className="text-sm font-semibold text-white line-clamp-2">{product.identification?.name}</p>
-      <p className="text-xs text-slate-400">
-        SKU {product.identification?.sku || '—'} · BIN {product.storage?.binCode || '—'}
-      </p>
-      <p className="text-xs text-slate-400">Qty {getProductQuantity(product)}</p>
-    </div>
-    {footer && <div className="flex flex-col items-end gap-1">{footer}</div>}
-  </div>
-);
+  );
+};
 
 const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, mode, onNavigate, onSelectProduct }) => {
+  const { t } = useI18n();
   const stowList = useMemo(
     () => products.filter((p) => getProductQuantity(p) > 0 && !p.storage?.binCode),
     [products]
@@ -387,11 +344,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       const numeric = Number(qty);
       if (!Number.isFinite(numeric) || numeric <= 0) return;
       if (numeric > task.remainingTotal) {
-        setPickMessage(`Pick fehlgeschlagen: Menge ${numeric} ist größer als Restmenge ${task.remainingTotal}.`);
+        setPickMessage(
+          t('ops.mobile.pick.errorQtyExceedsRemaining', { qty: numeric, remaining: task.remainingTotal })
+        );
         return;
       }
       if (typeof task.availableInBin === 'number' && Number.isFinite(task.availableInBin) && numeric > task.availableInBin) {
-        setPickMessage(`Pick fehlgeschlagen: Nicht genügend Bestand im BIN (verfügbar ${task.availableInBin}).`);
+        setPickMessage(t('ops.mobile.pick.errorNotEnoughInBin', { available: task.availableInBin }));
         return;
       }
 
@@ -406,7 +365,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           meta: { flow: 'pick', orderId: task.orderId, orderItemId: task.itemId },
         });
         if (!stockResult.ok) {
-          throw new Error(stockResult.error?.message || 'Kommissionierung fehlgeschlagen');
+          throw new Error(stockResult.error?.message || t('ops.errors.pick'));
         }
 
         const newPickedForItem = Math.min(task.itemTotal, task.pickedSoFar + numeric);
@@ -434,13 +393,29 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
         if (isOrderDone) {
           await completeOrder(task.orderId);
-          setPickMessage(`Pick ok (Auftrag fertig): BIN ${task.binCode} · SKU ${task.sku} · Qty ${numeric} · Auftrag ${task.orderId}`);
+          setPickMessage(
+            t('ops.mobile.pick.successOrderDone', {
+              bin: task.binCode,
+              sku: task.sku,
+              qty: numeric,
+              order: task.orderNumber || task.orderId,
+            })
+          );
         } else {
-          setPickMessage(`Pick ok: BIN ${task.binCode} · SKU ${task.sku} · Qty ${numeric} · Rest ${Math.max(0, task.remainingTotal - numeric)}`);
+          setPickMessage(
+            t('ops.mobile.pick.success', {
+              bin: task.binCode,
+              sku: task.sku,
+              qty: numeric,
+              remaining: Math.max(0, task.remainingTotal - numeric),
+            })
+          );
         }
       } catch (err: any) {
         console.error('Pick failed', err);
-        setPickMessage(`Pick fehlgeschlagen: ${err?.message || 'Unbekannter Fehler'}`);
+        setPickMessage(
+          t('ops.mobile.pick.errorGeneric', { message: err?.message || t('common.unknownError') })
+        );
       }
 
       await refreshOrders();
@@ -450,7 +425,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       setActiveSku('');
       setHighlightKey(null);
     },
-    [openOrders, pickedByItemId, refreshOrders]
+    [openOrders, pickedByItemId, refreshOrders, t]
   );
   const resolveProductForStow = useCallback(
     (skuValue: string) => {
@@ -481,7 +456,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     };
     const result = await stockInProduct(payload);
     if (!result.ok) {
-      setStowMessage(result.error?.message || 'Einlagerung fehlgeschlagen.');
+      setStowMessage(result.error?.message || t('ops.errors.stow'));
       return;
     }
     setStowEntries((prev) => [...prev, { sku: stowSku, bin: stowBin, qty: stowQty }]);
@@ -490,11 +465,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       next.add(normalizeScan(stowSku));
       return next;
     });
-    setStowMessage('Einlagerung gespeichert.');
+    setStowMessage(
+      t('ops.status.stowSuccess', { name: productMatch?.identification?.name || stowSku })
+    );
     setStowSku('');
     setStowBin('');
     setStowQty(1);
-  }, [resolveProductForStow, stowBin, stowQty, stowSku]);
+  }, [resolveProductForStow, stowBin, stowQty, stowSku, t]);
 
   const handleScannedValue = useCallback(
     (value: string) => {
@@ -638,15 +615,15 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   if (mode === 'operations-identify') {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 max-w-xl mx-auto">
         <div className="flex items-center justify-between">
-          <SectionTitle title="Identify" desc="Mehrere Fotos aufnehmen oder hochladen" />
+          <SectionTitle title={t('ops.mode.identify')} desc={t('ops.mode.identify.subtitle')} />
           <button
             type="button"
             className="rounded-full bg-slate-800 text-white px-3 py-2 text-sm font-semibold border border-slate-700"
             onClick={addIdentifySlot}
           >
-            + Add
+            + {t('common.add')}
           </button>
         </div>
         <div className="grid grid-cols-1 gap-3">
@@ -658,14 +635,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   className="rounded-2xl bg-sky-600 text-white font-semibold py-3"
                   onClick={() => triggerIdentifyInput(slot, 'camera')}
                 >
-                  Kamera
+                  {t('common.camera')}
                 </button>
                 <button
                   type="button"
                   className="rounded-2xl bg-slate-800 text-slate-100 font-semibold py-3 border border-slate-700"
                   onClick={() => triggerIdentifyInput(slot, 'upload')}
                 >
-                  Upload
+                  {t('common.upload')}
                 </button>
               </div>
               <input
@@ -691,7 +668,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           ))}
         </div>
         <p className="text-xs text-slate-400">
-          Hinweis: Fotos werden gesammelt. Nach Upload bitte den Identify-Job im Desktop nicht öffnen; dieser Screen bleibt mobil.
+          {t('ops.mobile.identify.hint')}
         </p>
       </div>
     );
@@ -700,26 +677,26 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   if (mode === 'operations-stow') {
     const showKeypad = Boolean(stowSku && stowBin);
     return (
-      <div className="space-y-3">
-        <SectionTitle title="Stow" desc="Ohne BIN, mit Bestand" />
+      <div className="space-y-3 max-w-xl mx-auto">
+        <SectionTitle title={t('ops.mode.stow')} desc={t('ops.mode.stow.subtitle')} />
         <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
           <p className="text-xs text-slate-300">
-            Scanner-Flow: SKU scannen → BIN scannen → Menge (Ziffern) scannen. Nach jeder Einlagerung wird alles zurückgesetzt.
+            {t('ops.mobile.stow.flowHelp')}
           </p>
           {stowMessage && <p className="text-xs text-emerald-300">{stowMessage}</p>}
           <div className="grid grid-cols-2 gap-2 text-sm text-slate-200">
             <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-              <p className="text-[11px] uppercase tracking-widest text-slate-400">SKU</p>
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
               <p className="text-base font-semibold break-all">{stowSku || '—'}</p>
             </div>
             <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-              <p className="text-[11px] uppercase tracking-widest text-slate-400">BIN</p>
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
               <p className="text-base font-semibold break-all">{stowBin || '—'}</p>
             </div>
           </div>
           {showKeypad && (
             <div className="rounded-xl bg-slate-900/60 border border-white/10 p-3 space-y-3">
-              <p className="text-[11px] uppercase tracking-widest text-slate-400">Menge (Scanner oder Num-Pad)</p>
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('ops.mobile.qtyScannerOrPad')}</p>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -734,7 +711,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   className="rounded-lg px-3 py-2 bg-slate-700 text-white text-sm font-semibold"
                   onClick={() => setStowQty(0)}
                 >
-                  Clear
+                  {t('common.clear')}
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -779,7 +756,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               onClick={handleSubmitStow}
               className="rounded-lg bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
             >
-              Einlagern
+              {t('ops.stow.submit')}
             </button>
             <button
               type="button"
@@ -790,22 +767,26 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               }}
               className="rounded-lg bg-slate-700 text-white font-semibold py-3"
             >
-              Zurücksetzen
+              {t('common.reset')}
             </button>
           </div>
         </div>
 
         {stowEntries.length > 0 && (
           <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
-            <p className="text-sm font-semibold text-white">Erfasste Stows (Session)</p>
+            <p className="text-sm font-semibold text-white">{t('ops.mobile.stow.sessionTitle')}</p>
             <div className="space-y-2">
               {stowEntries.map((entry, idx) => (
                 <div key={`${entry.sku}-${entry.bin}-${idx}`} className="rounded-xl border border-white/10 bg-slate-900/60 p-2 text-sm text-slate-200">
                   <div className="flex justify-between gap-2">
                     <span className="font-semibold break-all">{entry.sku}</span>
-                    <span className="text-slate-300">Qty {entry.qty}</span>
+                    <span className="text-slate-300">
+                      {t('common.qty')} {entry.qty}
+                    </span>
                   </div>
-                  <p className="text-xs text-slate-400 break-all">BIN {entry.bin}</p>
+                  <p className="text-xs text-slate-400 break-all">
+                    {t('common.bin')} {entry.bin}
+                  </p>
                 </div>
               ))}
             </div>
@@ -818,51 +799,64 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   if (mode === 'operations-pick') {
     const nextTask = pickTasks[0] || null;
     return (
-      <div className="space-y-3">
-        <SectionTitle title="Pick" desc="Offene Aufträge (BaseLinker)" />
+      <div className="space-y-3 max-w-xl mx-auto">
+        <SectionTitle title={t('ops.mode.pick')} desc={`${t('ops.orders.open')} · BaseLinker`} />
         <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
           <p className="text-xs text-slate-300">
-            Scanner-Flow: BIN scannen → SKU scannen (oder nur BIN falls eindeutig) → Menge wählen → Pick buchen. Route ist nach BIN-Koordinaten sortiert.
+            {t('ops.mobile.pick.flowHelp')}
           </p>
           <div className="text-xs text-slate-400 flex flex-wrap gap-2">
-            <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5">BIN: {activeBin || '—'}</span>
-            <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5">SKU: {activeSku || '—'}</span>
             <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5">
-              Fokus: Scanner-Eingabe wird automatisch erfasst (Enter schließt den Scan ab)
+              {t('common.bin')}: {activeBin || '—'}
+            </span>
+            <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5">
+              {t('common.sku')}: {activeSku || '—'}
+            </span>
+            <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5">
+              {t('ops.mobile.scannerFocusHint')}
             </span>
           </div>
           {nextTask && !pendingPick && (
             <p className="text-xs text-slate-300">
-              Nächster Pick: <span className="text-slate-100 font-semibold">{nextTask.binCode || 'Kein BIN'}</span> ·{' '}
-              <span className="text-slate-100 font-semibold">{nextTask.sku}</span> · Rest{' '}
-              <span className="text-slate-100 font-semibold">{nextTask.remainingTotal}</span>
+              {t('ops.labels.nextPick')}:{' '}
+              <span className="text-slate-100 font-semibold">{nextTask.binCode || '—'}</span> ·{' '}
+              <span className="text-slate-100 font-semibold">{nextTask.sku}</span> ·{' '}
+              <span className="text-slate-100 font-semibold">
+                {t('ops.labels.openRemaining', { count: nextTask.remainingTotal })}
+              </span>
             </p>
           )}
           {pickMessage && <p className="text-xs text-emerald-300">{pickMessage}</p>}
         </div>
-        {ordersLoading && <p className="text-sm text-slate-400">Lade Aufträge …</p>}
+        {ordersLoading && <p className="text-sm text-slate-400">{t('ops.orders.loading')}</p>}
         {pendingPick && (
           <div className="rounded-2xl border border-sky-500 bg-sky-900/20 p-3 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
                 <p className="text-sm font-semibold text-white line-clamp-2">{pendingPick.name}</p>
                 <p className="text-xs text-slate-300">
-                  Auftrag {pendingPick.orderId} · SKU {pendingPick.sku} · BIN {pendingPick.binCode || '—'}
+                  {t('common.order')} {pendingPick.orderNumber || pendingPick.orderId} · {t('common.sku')} {pendingPick.sku} · {t('common.bin')}{' '}
+                  {pendingPick.binCode || '—'}
                 </p>
                 <p className="text-xs text-slate-300">
-                  Rest <span className="font-semibold text-white">{pendingPick.remainingTotal}</span>{' '}
+                  <span className="font-semibold text-white">
+                    {t('ops.labels.openRemaining', { count: pendingPick.remainingTotal })}
+                  </span>{' '}
                   {typeof pendingPick.availableInBin === 'number' ? (
                     <>
-                      · Verfügbar im BIN <span className="font-semibold text-white">{pendingPick.availableInBin}</span>
+                      ·{' '}
+                      <span className="font-semibold text-white">
+                        {t('ops.mobile.availableInBin', { value: pendingPick.availableInBin })}
+                      </span>
                     </>
                   ) : null}
                 </p>
               </div>
-              <StatusBadge label="Pick" tone="warn" />
+              <StatusBadge label={t('ops.badge.pick')} tone="warn" />
             </div>
 
             <div className="rounded-xl bg-slate-900/60 border border-white/10 p-3 space-y-3">
-              <p className="text-[11px] uppercase tracking-widest text-slate-400">Menge (Num-Pad oder Scan Ziffern + Enter)</p>
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('ops.mobile.pick.qtyPadHint')}</p>
               <div className="flex items-center gap-2">
                 <div className="flex-1 rounded-lg bg-slate-800 text-white text-2xl font-semibold px-3 py-2 border border-slate-700">
                   {pendingPickQty}
@@ -872,7 +866,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   className="rounded-lg px-3 py-2 bg-slate-700 text-white text-sm font-semibold"
                   onClick={() => setPendingPickQty(0)}
                 >
-                  Clear
+                  {t('common.clear')}
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -905,7 +899,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
                   onClick={() => setPendingPickQty(pendingPick.suggestedQty || 1)}
                 >
-                  Auto
+                  {t('common.auto')}
                 </button>
               </div>
             </div>
@@ -917,7 +911,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 onClick={() => void submitPick(pendingPick, pendingPickQty)}
                 className="rounded-lg bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
               >
-                Pick buchen
+                {t('ops.pick.submit')}
               </button>
               <button
                 type="button"
@@ -930,13 +924,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 }}
                 className="rounded-lg bg-slate-700 text-white font-semibold py-3"
               >
-                Abbrechen
+                {t('common.cancel')}
               </button>
             </div>
           </div>
         )}
 
-        {pickTasks.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">Keine offenen Pick-Aufträge.</p>}
+        {pickTasks.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">{t('ops.orders.none')}</p>}
         {pickTasks.slice(0, 100).map((task) => {
           const key = `${task.orderId}-${task.itemId}-${task.binCode}`;
           const isHighlighted = highlightKey === key;
@@ -959,14 +953,15 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-white line-clamp-2">{task.name}</p>
                   <p className="text-xs text-slate-400">
-                    Auftrag {task.orderNumber || task.orderId} · SKU {task.sku} · BIN {task.binCode || '—'}
+                    {t('common.order')} {task.orderNumber || task.orderId} · {t('common.sku')} {task.sku} · {t('common.bin')}{' '}
+                    {task.binCode || '—'}
                   </p>
                   <p className="text-xs text-slate-400">
-                    Rest {task.remainingTotal} · Vorschlag {task.suggestedQty}
-                    {typeof task.availableInBin === 'number' ? ` · BIN ${task.availableInBin}` : ''}
+                    {t('ops.labels.openRemaining', { count: task.remainingTotal })} · {t('ops.pick.quantityHint', { value: task.suggestedQty })}
+                    {typeof task.availableInBin === 'number' ? ` · ${t('ops.mobile.availableInBin', { value: task.availableInBin })}` : ''}
                   </p>
                 </div>
-                <StatusBadge label={task.binCode || 'Pick'} tone={isHighlighted ? 'warn' : 'success'} />
+                <StatusBadge label={task.binCode || t('ops.badge.pick')} tone={isHighlighted ? 'warn' : 'success'} />
               </div>
             </button>
           );
@@ -977,19 +972,23 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   if (mode === 'operations-pack') {
     return (
-      <div className="space-y-3">
-        <SectionTitle title="Pack" desc="Bereit zum Verpacken" />
-        {ordersLoading && <p className="text-sm text-slate-400">Lade Aufträge …</p>}
-        {packItems.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">Keine gepickten Aufträge zum Packen.</p>}
+      <div className="space-y-3 max-w-xl mx-auto">
+        <SectionTitle title={t('ops.mode.pack')} desc={t('ops.mode.pack.subtitle')} />
+        {ordersLoading && <p className="text-sm text-slate-400">{t('ops.orders.loading')}</p>}
+        {packItems.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">{t('ops.mobile.pack.none')}</p>}
         {packItems.slice(0, 100).map((item) => (
           <div key={`${item.orderId}-${item.sku}`} className="rounded-2xl border border-white/5 bg-slate-800 p-3 shadow-sm shadow-black/20">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
                 <p className="text-sm font-semibold text-white line-clamp-2">{item.name}</p>
-                <p className="text-xs text-slate-400">SKU {item.sku || '—'} · BIN {item.binCode || '—'}</p>
-                <p className="text-xs text-slate-400">Qty {item.qty}</p>
+                <p className="text-xs text-slate-400">
+                  {t('common.sku')} {item.sku || '—'} · {t('common.bin')} {item.binCode || '—'}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {t('common.qty')} {item.qty}
+                </p>
               </div>
-              <StatusBadge label="Pack" tone="warn" />
+              <StatusBadge label={t('ops.badge.pack')} tone="warn" />
             </div>
           </div>
         ))}
@@ -999,16 +998,22 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   // Hub
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Operations</h1>
-          <p className="text-slate-400 text-sm">Schnellzugriff für Mobile</p>
+          <h1 className="text-2xl font-semibold text-white">{t('ops.title')}</h1>
+          <p className="text-slate-400 text-sm">{t('ops.subtitle')}</p>
         </div>
         <div className="text-right text-xs text-slate-400 space-y-0.5">
-          <p>Stow: {stowList.length}</p>
-          <p>Pick: {pickList.length}</p>
-          <p>Pack: {packList.length}</p>
+          <p>
+            {t('ops.mode.stow')}: {stowList.length}
+          </p>
+          <p>
+            {t('ops.mode.pick')}: {pickList.length}
+          </p>
+          <p>
+            {t('ops.mode.pack')}: {packList.length}
+          </p>
         </div>
       </div>
       <div className="flex flex-col gap-3">
@@ -1017,28 +1022,28 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           className="w-full rounded-2xl bg-sky-600 text-white font-semibold py-4 text-lg"
           onClick={() => onNavigate('operations-identify')}
         >
-          Identify
+          {t('ops.mode.identify')}
         </button>
         <button
           type="button"
           className="w-full rounded-2xl bg-emerald-600 text-white font-semibold py-4 text-lg"
           onClick={() => onNavigate('operations-stow')}
         >
-          Stow
+          {t('ops.mode.stow')}
         </button>
         <button
           type="button"
           className="w-full rounded-2xl bg-amber-600 text-white font-semibold py-4 text-lg"
           onClick={() => onNavigate('operations-pick')}
         >
-          Pick
+          {t('ops.mode.pick')}
         </button>
         <button
           type="button"
           className="w-full rounded-2xl bg-slate-700 text-white font-semibold py-4 text-lg"
           onClick={() => onNavigate('operations-pack')}
         >
-          Pack
+          {t('ops.mode.pack')}
         </button>
       </div>
     </div>

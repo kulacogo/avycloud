@@ -5,6 +5,7 @@ import searchLight from '../mobile icons/mobile search.png';
 import searchDark from '../mobile icons/mobile search dm.png';
 import opsLight from '../mobile icons/mobile operation.png';
 import opsDark from '../mobile icons/mobile operation dm.png';
+import { useI18n } from '../i18n';
 
 type MobileTab = 'home' | 'search' | 'operations';
 
@@ -20,10 +21,10 @@ const tabIcons = {
   operations: { light: opsLight, dark: opsDark },
 } as const;
 
-const tabs: { id: MobileTab; label: string }[] = [
-  { id: 'home', label: 'Home' },
-  { id: 'search', label: 'Search' },
-  { id: 'operations', label: 'Operations' },
+const tabs: { id: MobileTab; labelKey: string }[] = [
+  { id: 'home', labelKey: 'nav.home' },
+  { id: 'search', labelKey: 'nav.search' },
+  { id: 'operations', labelKey: 'nav.operations' },
 ];
 
 const isActive = (current: string, tab: MobileTab) => {
@@ -34,6 +35,7 @@ const isActive = (current: string, tab: MobileTab) => {
 };
 
 const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate, theme }) => {
+  const { t } = useI18n();
   return (
     <nav className="bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-4 py-2 flex justify-around gap-2 pb-4 safe-area-bottom shadow-2xl shadow-black/40">
       {tabs.map((tab) => {
@@ -47,9 +49,11 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate, th
             className={`flex flex-col items-center justify-center flex-1 rounded-[8px] px-3 py-2 text-xs font-semibold transition ${
               active ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40' : 'text-slate-200 bg-slate-800/80'
             }`}
+            aria-current={active ? 'page' : undefined}
+            aria-label={t(tab.labelKey)}
           >
             <img src={iconSrc} alt="" className="w-[30px] h-[30px]" draggable={false} />
-            <span className="mt-1">{tab.label}</span>
+            <span className="mt-1">{t(tab.labelKey)}</span>
           </button>
         );
       })}

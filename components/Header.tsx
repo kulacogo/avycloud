@@ -184,8 +184,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 type="button"
                 onClick={onToggleTheme}
                 className="w-12 h-12 flex items-center justify-center rounded-full hover:opacity-80 transition"
-                aria-label={theme === 'dark' ? 'Wechsel zu hellem Modus' : 'Wechsel zu dunklem Modus'}
-                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                aria-label={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
+                title={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
               >
                 <img
                   src={theme === 'dark' ? TOGGLE_ICONS.dark : TOGGLE_ICONS.light}

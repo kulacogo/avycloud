@@ -480,19 +480,19 @@ const App: React.FC = () => {
   );
 
   const handleBulkImprove = useCallback(async () => {
-    if (!confirm('Dies wird die Datenanreicherung für ALLE Produkte starten. Fortfahren?')) return;
+    if (!confirm(t('improve.bulk.confirm'))) return;
     try {
       const ids = productsRef.current.map((p) => p.id).filter(Boolean);
       if (!ids.length) {
-        alert('Keine Produkte gefunden.');
+        alert(t('improve.bulk.noProducts'));
         return;
       }
       // Bulk improve uses the same queue-based improve jobs, but created in safe batches in useImproveQueue.
       enqueueImproveJobs(ids);
     } catch (err: any) {
-      alert(`Fehler: ${err.message}`);
+      alert(`${t('chat.ui.errorPrefix')} ${err.message}`);
     }
-  }, [enqueueImproveJobs]);
+  }, [enqueueImproveJobs, t]);
 
   useEffect(() => {
     if (!improveError) return;
@@ -594,7 +594,12 @@ const App: React.FC = () => {
     switch (view) {
       case 'home':
         return isMobile ? (
-          <DashboardMobile products={products} onRefreshProducts={loadProducts} isLoading={productsLoading} />
+          <DashboardMobile
+            products={products}
+            onRefreshProducts={loadProducts}
+            onNavigate={(next) => setView(next as View)}
+            isLoading={productsLoading}
+          />
         ) : (
           <Dashboard products={products} onSelectProduct={handleSelectProduct} onRefreshProducts={loadProducts} />
         );
@@ -714,7 +719,7 @@ const App: React.FC = () => {
               onClick={clearError}
               className="inline-flex items-center rounded-lg bg-rose-700 px-3 py-1.5 font-semibold text-white hover:bg-rose-600 transition-colors"
             >
-              Schließen
+              {t('common.close')}
             </button>
           </div>
         )}
@@ -737,8 +742,8 @@ const App: React.FC = () => {
             <div className="fixed bottom-6 left-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
               <Spinner className="w-6 h-6 text-sky-300" />
               <div className="text-sm text-slate-100">
-                <p className="font-semibold">Uploads laufen im Hintergrund …</p>
-                <p className="text-slate-400 text-xs">Du kannst währenddessen weiterarbeiten.</p>
+                <p className="font-semibold">{t('status.backgroundUploads.title')}</p>
+                <p className="text-slate-400 text-xs">{t('status.backgroundUploads.subtitle')}</p>
               </div>
             </div>
           )}
