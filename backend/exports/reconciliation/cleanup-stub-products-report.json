@@ -1,0 +1,18 @@
+{
+  "apply": true,
+  "scanned": 340,
+  "stubCandidates": 7,
+  "deleted": 7,
+  "skippedReferenced": 0,
+  "skipped": 0,
+  "deletedIds": [
+    "4007123624386",
+    "4260012351552",
+    "4710069708958",
+    "SKU-0874304411",
+    "SKU-2801069572",
+    "SKU-9885764249",
+    "SKU-9905416565"
+  ],
+  "referencedIds": []
+}

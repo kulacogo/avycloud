@@ -357,6 +357,44 @@ function computeCompleteness(product = {}) {
   };
 }
 
+function isGhostProduct(product = {}) {
+  const identification = product?.identification || {};
+  const details = product?.details || {};
+  const identifiers = details?.identifiers || {};
+  const ops = product?.ops || {};
+
+  const hasName = typeof identification?.name === 'string' && identification.name.trim().length > 0;
+  const hasSku =
+    (typeof identification?.sku === 'string' && identification.sku.trim().length > 0) ||
+    (typeof identifiers?.sku === 'string' && identifiers.sku.trim().length > 0);
+  const hasBarcode =
+    Boolean(identifiers?.ean || identifiers?.gtin || identifiers?.upc) ||
+    (Array.isArray(identification?.barcodes) && identification.barcodes.length > 0);
+  const hasImages = Array.isArray(details?.images) && details.images.length > 0;
+  const hasAttrs = details?.attributes && typeof details.attributes === 'object' && Object.keys(details.attributes).length > 0;
+  const hasPricing = Boolean(details?.pricing?.lowest_price?.amount);
+  const hasPendingIntake = Number(ops?.pending_intake_quantity || 0) > 0;
+  const hasOpsLink = Boolean(ops?.base_product_id || ops?.baselinker?.product_id || ops?.sync_status);
+
+  const invQty = Number(product?.inventory?.quantity || 0);
+  const hasStock =
+    (Number.isFinite(invQty) && invQty > 0) ||
+    Boolean(product?.storage?.binCode) ||
+    (Array.isArray(product?.storageBins) && product.storageBins.some((b) => Number(b?.quantity || 0) > 0));
+
+  return !(
+    hasName ||
+    hasSku ||
+    hasBarcode ||
+    hasImages ||
+    hasAttrs ||
+    hasPricing ||
+    hasPendingIntake ||
+    hasOpsLink ||
+    hasStock
+  );
+}
+
 // Ensure API responses always have the minimum nested structure expected by the frontend.
 // This prevents UI crashes when Firestore contains partial/stub documents.
 function normalizeProductForApi(product = {}) {
@@ -1331,17 +1369,23 @@ app.post('/api/baselinker/lookup', async (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const products = await getAllProducts();
-    const enriched = await enrichProductsWithBinSummaries(products);
+    const filteredProducts = Array.isArray(products)
+      ? products.filter((p) => !isGhostProduct(p))
+      : [];
     const reservedMap = await buildReservedOpenOrderMap();
-    const withReserved = attachReservedAvailability(enriched, reservedMap);
-    const withCompleteness = withReserved.map((p) => {
+    // NOTE: Filter ghost/stub docs early to avoid showing meaningless rows in the AdminTable.
+    // Rebuild enriched pipeline using the filtered set to keep counts consistent.
+    const enrichedFiltered = await enrichProductsWithBinSummaries(filteredProducts);
+    const withReservedFiltered = attachReservedAvailability(enrichedFiltered, reservedMap);
+    const withCompletenessFiltered = withReservedFiltered.map((p) => {
       const normalized = normalizeProductForApi(p);
       return {
         ...normalized,
         completeness: computeCompleteness(normalized),
       };
     });
-    res.json({ ok: true, products: withCompleteness });
+
+    res.json({ ok: true, products: withCompletenessFiltered });
   } catch (error) {
     console.error('Error getting products:', error);
     res.status(500).json({

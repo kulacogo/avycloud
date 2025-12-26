@@ -640,8 +640,12 @@ function buildEbay9800Fields(product, featuresFromTextFields = {}) {
   // Produkttyp
   add(
     'Produkttyp',
+    f.Produktart ||
+    f.produktart ||
     f.Produkttyp ||
     f.produkttyp ||
+    attrs.Produktart ||
+    attrs.produktart ||
     attrs.Produkttyp ||
     attrs.produkttyp ||
     attrs.product_type

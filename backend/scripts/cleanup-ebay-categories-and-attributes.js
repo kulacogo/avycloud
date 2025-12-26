@@ -45,6 +45,17 @@ const LIMIT = (() => {
 const normalizeKey = (key) => (key == null ? '' : String(key)).trim();
 const normalizeLower = (v) => normalizeKey(v).toLowerCase();
 
+const normalizeBooleanishValue = (val) => {
+  if (val === true) return 'Ja';
+  if (val === false) return 'Nein';
+  if (typeof val !== 'string') return val;
+  const trimmed = val.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower === 'true') return 'Ja';
+  if (lower === 'false') return 'Nein';
+  return val;
+};
+
 const normalizeAspectKey = (key) => {
   const raw = normalizeKey(key);
   if (!raw) return '';
@@ -54,6 +65,52 @@ const normalizeAspectKey = (key) => {
     .replace(/^eBay[\s-_]+/i, '')
     .trim();
 };
+
+// Canonical key aliases (cross-category + multilingual).
+// Goal: stable internal vocabulary aligned with common eBay DE aspect names.
+const KEY_ALIASES = new Map(
+  Object.entries({
+    // Product type
+    'produkttyp': 'Produktart',
+    'produkt typ': 'Produktart',
+    'produktart': 'Produktart',
+    'product type': 'Produktart',
+    'item type': 'Produktart',
+
+    // Brand / manufacturer
+    'brand': 'Marke',
+    'marke': 'Marke',
+    'manufacturer': 'Hersteller',
+    'hersteller': 'Hersteller',
+
+    // Condition
+    'condition': 'Zustand',
+    'zustand': 'Zustand',
+
+    // Common spec keys
+    'color': 'Farbe',
+    'colour': 'Farbe',
+    'farbe': 'Farbe',
+    'material': 'Material',
+    'modell': 'Modell',
+    'model': 'Modell',
+
+    // Identifiers
+    'mpn': 'Herstellernummer',
+    'manufacturer part number': 'Herstellernummer',
+    'herstellernummer': 'Herstellernummer',
+    'oem reference number': 'Referenznummer(n) OEM',
+    'oem reference number(s)': 'Referenznummer(n) OEM',
+    'referenznummer(n) oem': 'Referenznummer(n) OEM',
+
+    // Category path variants
+    'kategorie-pfad': 'Kategorie',
+    'kategorie pfad': 'Kategorie',
+    'kategoriepfad': 'Kategorie',
+    'category path': 'Kategorie',
+    'category_path': 'Kategorie',
+  }).map(([k, v]) => [k.toLowerCase(), v])
+);
 
 const normalizeCatId = (val) => {
   const raw = normalizeKey(val);
@@ -105,8 +162,29 @@ const META_ATTRIBUTE_KEYS = new Set(
     'kaufland_kategorie',
     'kaufland kategorie pfad',
     'category_path',
+    // Text-field payloads / LLM exports sometimes embed BaseLinker text fields in attributes
+    'text_name',
+    'text_description',
+    'text_features',
+    'text_features|de|ebay_9800',
+    'features|de|ebay_9800',
+    'features|de|ebay',
+    // Category path variants (canonical key is "Kategorie")
+    'kategorie-pfad',
+    'kategorie pfad',
+    'kategoriepfad',
   ]
 );
+
+const isMetaKey = (lowerKey) => {
+  if (!lowerKey) return false;
+  if (META_ATTRIBUTE_KEYS.has(lowerKey)) return true;
+  if (lowerKey.includes('kaufland')) return true;
+  if (lowerKey.startsWith('text_')) return true;
+  if (lowerKey.includes('|de|')) return true;
+  if (lowerKey.startsWith('features|')) return true;
+  return false;
+};
 
 const IDENTIFIER_ATTRIBUTE_KEYS = new Set(
   ['ean', 'gtin', 'upc', 'sku', 'produkt-id', 'produkt id', 'product id', 'id', 'mpn'].map((x) => x.toLowerCase())
@@ -135,6 +213,14 @@ function normalizeAttributesOrder(attrs = {}, catId, allowedList = []) {
   entries.sort((a, b) => {
     const aKey = normalizeLower(a[0]);
     const bKey = normalizeLower(b[0]);
+    const aIsKategorie = aKey === 'kategorie';
+    const bIsKategorie = bKey === 'kategorie';
+    if (aIsKategorie !== bIsKategorie) return aIsKategorie ? -1 : 1;
+
+    const aIsGpsr = aKey.startsWith('gpsr ');
+    const bIsGpsr = bKey.startsWith('gpsr ');
+    if (aIsGpsr !== bIsGpsr) return aIsGpsr ? 1 : -1;
+
     const aIdx = orderIndex.has(aKey) ? orderIndex.get(aKey) : Number.POSITIVE_INFINITY;
     const bIdx = orderIndex.has(bKey) ? orderIndex.get(bKey) : Number.POSITIVE_INFINITY;
     if (aIdx !== bIdx) return aIdx - bIdx;
@@ -189,8 +275,19 @@ async function main() {
     const product = doc.data() || {};
     const details = product.details || {};
     const attrsRaw = details.attributes && typeof details.attributes === 'object' ? details.attributes : {};
+    const attrsExtraRaw =
+      details.attributes_extra && typeof details.attributes_extra === 'object' ? details.attributes_extra : {};
 
-    const catId = extractCategoryId(product);
+    const stableSku =
+      normalizeKey(product?.identification?.sku) ||
+      normalizeKey(product?.details?.identifiers?.sku) ||
+      '';
+
+    let catId = extractCategoryId(product);
+    // Targeted fixes for the 3 SKUs referenced by the user (deterministic overrides).
+    if (stableSku.toUpperCase() === 'SKU-1353005263') catId = '177699';
+    if (stableSku.toUpperCase() === 'SKU-3818412905') catId = '29585';
+
     const categoryInfo = catId ? CATEGORIES[String(catId)] : null;
     if (!catId) {
       report.missingCategory += 1;
@@ -200,9 +297,10 @@ async function main() {
       if (report.samples.invalidCategory.length < 20) report.samples.invalidCategory.push({ id: doc.id, catId });
     }
 
+    const nextBreadcrumb = categoryInfo?.breadcrumb ? String(categoryInfo.breadcrumb) : null;
+
     const allowedList =
       catId && Array.isArray(ASPECTS_BY_CATEGORY?.[String(catId)]) ? ASPECTS_BY_CATEGORY[String(catId)] : [];
-    const allowedSet = new Set(allowedList.map((x) => normalizeLower(x)).filter(Boolean));
     const canonicalByLower = new Map(
       allowedList
         .map((n) => normalizeKey(n))
@@ -215,50 +313,64 @@ async function main() {
     const compliance = {};
     const extra = {};
 
-    for (const [rawKey, rawVal] of Object.entries(attrsRaw || {})) {
+    const seenOriginalKeys = new Set();
+
+    const processEntry = (rawKey, rawVal) => {
       const originalKey = normalizeKey(rawKey);
-      if (!originalKey) continue;
+      if (!originalKey) return;
+      if (seenOriginalKeys.has(originalKey)) return;
+      seenOriginalKeys.add(originalKey);
 
       const normalizedKey = normalizeAspectKey(originalKey);
-      const keyToUse = normalizedKey || originalKey;
+      const preKey = normalizedKey || originalKey;
+      const aliasedKey = KEY_ALIASES.get(normalizeLower(preKey)) || preKey;
+      const keyToUse = aliasedKey;
       const lowerKey = normalizeLower(keyToUse);
 
       // Clean value
       let value = rawVal;
       if (typeof value === 'string') value = value.trim();
+      value = normalizeBooleanishValue(value);
 
       // Drop empty or placeholder values
       if (value === null || value === undefined || value === '' || isPlaceholder(value)) {
         extra[originalKey] = rawVal;
-        continue;
+        return;
       }
 
       // Remove meta keys (but keep in extra for audit)
-      if (META_ATTRIBUTE_KEYS.has(lowerKey) || lowerKey.includes('kaufland')) {
+      if (isMetaKey(lowerKey)) {
         extra[originalKey] = rawVal;
-        continue;
+        return;
+      }
+
+      // Move non-primitive values out of attributes to keep UI stable
+      if (value && typeof value === 'object') {
+        extra[originalKey] = rawVal;
+        return;
+      }
+
+      // Normalize category path keys: when we have a canonical eBay breadcrumb,
+      // we only keep the canonical "Kategorie" derived from categoryId.
+      // If we don't have a categoryId/breadcrumb yet, keep the user's value for now.
+      if (lowerKey === 'kategorie' && nextBreadcrumb) {
+        extra[originalKey] = rawVal;
+        return;
       }
 
       // Remove identifier duplicates from attributes (we keep identifiers in details.identifiers)
       if (IDENTIFIER_ATTRIBUTE_KEYS.has(lowerKey)) {
         extra[originalKey] = rawVal;
-        continue;
+        return;
       }
 
       // Compliance keys: keep, but separate sorting bucket
       if (isGpsrKey(keyToUse)) {
         compliance[keyToUse] = value;
-        continue;
+        return;
       }
 
-      // If we know the category-aspect allowlist, keep only those; move others to extra.
-      if (allowedSet.size) {
-        if (!allowedSet.has(lowerKey)) {
-          extra[originalKey] = rawVal;
-          continue;
-        }
-      }
-      const canonicalName = allowedSet.size ? (canonicalByLower.get(lowerKey) || keyToUse) : keyToUse;
+      const canonicalName = canonicalByLower.get(lowerKey) || keyToUse;
 
       // Avoid overwriting on collisions (e.g. "eBay_Marke" + "Marke" -> "Marke").
       // Prefer non-eBay-prefixed keys when both exist; otherwise preserve duplicates in attributes_extra.
@@ -295,6 +407,19 @@ async function main() {
           extra[originalKey] = rawVal;
         }
       }
+    };
+
+    for (const [rawKey, rawVal] of Object.entries(attrsRaw || {})) {
+      processEntry(rawKey, rawVal);
+    }
+    // Rehydrate optional attributes previously moved to attributes_extra (without bringing back meta/noise).
+    for (const [rawKey, rawVal] of Object.entries(attrsExtraRaw || {})) {
+      processEntry(rawKey, rawVal);
+    }
+
+    // Canonical Kategorie attribute for consistent UI + exports
+    if (nextBreadcrumb) {
+      cleaned.Kategorie = nextBreadcrumb;
     }
 
     // Ordering: aspects by allowlist order, then compliance keys alphabetical
@@ -311,9 +436,7 @@ async function main() {
       });
     }
 
-    const orderedAspects = allowedSet.size
-      ? normalizeAttributesOrder(cleaned, catId, allowedList)
-      : normalizeAttributesOrder(cleaned, null, []);
+    const orderedAspects = normalizeAttributesOrder(cleaned, catId, allowedList);
     const orderedCompliance = Object.fromEntries(
       Object.entries(compliance).sort((a, b) => normalizeLower(a[0]).localeCompare(normalizeLower(b[0])))
     );
@@ -321,9 +444,6 @@ async function main() {
       ...orderedAspects,
       ...orderedCompliance,
     };
-
-    // Determine canonical breadcrumb
-    const nextBreadcrumb = categoryInfo?.breadcrumb ? String(categoryInfo.breadcrumb) : null;
 
     // Build update payload (only category + attribute fields)
     const updates = {};
@@ -354,7 +474,7 @@ async function main() {
 
     // Only write if something changes
     const prevAttrs = attrsRaw || {};
-    const prevExtra = details.attributes_extra || null;
+    const prevExtra = attrsExtraRaw || null;
     const prevCat = details.categoryId || details.ebayCategoryId || null;
     const prevBreadcrumb = product?.identification?.category || null;
 

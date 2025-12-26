@@ -2,13 +2,39 @@
 import React from 'react';
 
 interface AttributeTableProps {
-  attributes: Record<string, string | number | boolean>;
+  attributes: Record<string, any>;
   isEditing?: boolean;
-  onChange?: (next: Record<string, string | number | boolean>) => void;
+  onChange?: (next: Record<string, any>) => void;
 }
 
 const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing = false, onChange }) => {
-  const attributeEntries = Object.entries(attributes || {});
+  const formatValue = (value: any) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return String(value);
+    if (typeof value === 'boolean') return value ? 'Ja' : 'Nein';
+    try {
+      return JSON.stringify(value);
+    } catch (e) {
+      return String(value);
+    }
+  };
+
+  const priority = (key: string) => {
+    const lower = (key || '').toLowerCase();
+    if (lower === 'kategorie') return -1000;
+    if (lower.startsWith('gpsr ')) return 1000;
+    return 0;
+  };
+
+  const attributeEntries = Object.entries(attributes || {}).sort((a, b) => {
+    const pa = priority(a[0]);
+    const pb = priority(b[0]);
+    if (pa !== pb) return pa - pb;
+    const aKey = (a[0] || '').toLowerCase();
+    const bKey = (b[0] || '').toLowerCase();
+    return aKey.localeCompare(bKey, 'de', { sensitivity: 'base' });
+  });
   const EXCLUDED_KEYS = ['ean', 'sku', 'lowest_price', 'lowest_price.amount', 'lowest_price.currency', 'lowest_price.amount', 'lowest_price.currency'];
   const MAX_VALUE_LENGTH = 160;
   const displayEntries = isEditing
@@ -17,7 +43,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
         if (value === null || value === undefined || value === '') return false;
         const normalizedKey = key.toLowerCase();
         if (EXCLUDED_KEYS.includes(normalizedKey) || normalizedKey.startsWith('lowest_price')) return false;
-        const textValue = String(value).trim();
+        const textValue = formatValue(value).trim();
         if (!textValue) return false;
         if (textValue.length > MAX_VALUE_LENGTH) return false;
         return true;
@@ -84,8 +110,8 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
               </td>
               <td className="py-3 pl-4 text-slate-200">
                 {isEditing ? (
-                  <input defaultValue={String(value)} onBlur={(e) => updateAttr(key, e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-slate-200" />
-                ) : String(value)}
+                  <input defaultValue={formatValue(value)} onBlur={(e) => updateAttr(key, e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-slate-200" />
+                ) : formatValue(value)}
               </td>
               {isEditing && (
                 <td className="py-3 pl-4 text-right w-24">

@@ -198,6 +198,14 @@ function normalizeAttributesOrder(attrs = {}, catId, requiredMap) {
   entries.sort((a, b) => {
     const aKey = a[0] ? a[0].toLowerCase() : '';
     const bKey = b[0] ? b[0].toLowerCase() : '';
+    const aIsKategorie = aKey === 'kategorie';
+    const bIsKategorie = bKey === 'kategorie';
+    if (aIsKategorie !== bIsKategorie) return aIsKategorie ? -1 : 1;
+
+    const aIsGpsr = aKey.startsWith('gpsr ');
+    const bIsGpsr = bKey.startsWith('gpsr ');
+    if (aIsGpsr !== bIsGpsr) return aIsGpsr ? 1 : -1;
+
     const aIdx = orderIndex.has(aKey) ? orderIndex.get(aKey) : Number.POSITIVE_INFINITY;
     const bIdx = orderIndex.has(bKey) ? orderIndex.get(bKey) : Number.POSITIVE_INFINITY;
     if (aIdx !== bIdx) return aIdx - bIdx;
@@ -235,6 +243,63 @@ function enforceEbayAspects(product) {
       .replace(/^eBay[\s-_]+/i, '')
       .trim();
 
+  // Canonical key aliases (cross-category + multilingual).
+  // Goal: keep a stable internal attribute vocabulary that matches common eBay DE aspect names.
+  const KEY_ALIASES = new Map(
+    Object.entries({
+      // Product type
+      'produkttyp': 'Produktart',
+      'produkt typ': 'Produktart',
+      'produktart': 'Produktart',
+      'product type': 'Produktart',
+      'item type': 'Produktart',
+
+      // Brand / manufacturer
+      'brand': 'Marke',
+      'marke': 'Marke',
+      'manufacturer': 'Hersteller',
+      'hersteller': 'Hersteller',
+
+      // Condition
+      'condition': 'Zustand',
+      'zustand': 'Zustand',
+
+      // Common spec keys
+      'color': 'Farbe',
+      'colour': 'Farbe',
+      'farbe': 'Farbe',
+      'material': 'Material',
+      'modell': 'Modell',
+      'model': 'Modell',
+
+      // Identifiers
+      'mpn': 'Herstellernummer',
+      'manufacturer part number': 'Herstellernummer',
+      'herstellernummer': 'Herstellernummer',
+      'oem reference number': 'Referenznummer(n) OEM',
+      'oem reference number(s)': 'Referenznummer(n) OEM',
+      'referenznummer(n) oem': 'Referenznummer(n) OEM',
+
+      // Category path variants
+      'kategorie-pfad': 'Kategorie',
+      'kategorie pfad': 'Kategorie',
+      'kategoriepfad': 'Kategorie',
+      'category path': 'Kategorie',
+      'category_path': 'Kategorie',
+    }).map(([k, v]) => [k.toLowerCase(), v])
+  );
+
+  const normalizeBooleanishValue = (val) => {
+    if (val === true) return 'Ja';
+    if (val === false) return 'Nein';
+    if (typeof val !== 'string') return val;
+    const trimmed = val.trim();
+    const lower = trimmed.toLowerCase();
+    if (lower === 'true') return 'Ja';
+    if (lower === 'false') return 'Nein';
+    return val;
+  };
+
   const META_ATTRIBUTE_KEYS = new Set(
     [
       'ebay_category_id',
@@ -260,8 +325,30 @@ function enforceEbayAspects(product) {
       'kaufland_kategorie',
       'kaufland kategorie pfad',
       'category_path',
+      // Text-field payloads / LLM exports sometimes embed BaseLinker text fields in attributes
+      'text_name',
+      'text_description',
+      'text_features',
+      'text_features|de|ebay_9800',
+      'features|de|ebay_9800',
+      'features|de|ebay',
+      // Category path variants (canonical key is "Kategorie")
+      'kategorie-pfad',
+      'kategorie pfad',
+      'kategoriepfad',
     ].map((k) => k.toLowerCase())
   );
+
+  const isMetaKey = (lowerKey) => {
+    if (!lowerKey) return false;
+    if (META_ATTRIBUTE_KEYS.has(lowerKey)) return true;
+    if (lowerKey.includes('kaufland')) return true;
+    // Generic patterns we never want in end-user attribute tables
+    if (lowerKey.startsWith('text_')) return true;
+    if (lowerKey.includes('|de|')) return true;
+    if (lowerKey.startsWith('features|')) return true;
+    return false;
+  };
 
   const isGpsrKey = (key) => normalizeLower(key).startsWith('gpsr ');
 
@@ -302,13 +389,21 @@ function enforceEbayAspects(product) {
       const originalKey = normalizeKey(key);
       if (!originalKey) return;
       const normalizedKey = normalizeAspectKey(originalKey);
-      const finalKey = normalizedKey || originalKey;
-      const lowerKey = normalizeLower(finalKey);
-      if (META_ATTRIBUTE_KEYS.has(lowerKey) || lowerKey.includes('kaufland')) {
+    const preKey = normalizedKey || originalKey;
+    const lowerPre = normalizeLower(preKey);
+    const aliased = KEY_ALIASES.get(lowerPre) || preKey;
+    const finalKey = aliased;
+    const lowerKey = normalizeLower(finalKey);
+      if (isMetaKey(lowerKey)) {
         nextExtra[originalKey] = val;
         return;
       }
-      nextAttrs[finalKey] = val;
+      // Move non-primitive values out of attributes to keep UI stable
+      if (val && typeof val === 'object') {
+        nextExtra[originalKey] = val;
+        return;
+      }
+      nextAttrs[finalKey] = normalizeBooleanishValue(val);
     });
     return {
       ...product,
@@ -321,13 +416,13 @@ function enforceEbayAspects(product) {
   }
 
   const requiredAspects = Array.isArray(requiredMap[catId]) ? requiredMap[catId] : [];
+  const categoryPath = product?.identification?.category || null;
   const canonicalByLower = new Map(
     requiredAspects
       .map((n) => normalizeKey(n))
       .filter(Boolean)
       .map((n) => [normalizeLower(n), n])
   );
-  const allowedSet = new Set(requiredAspects.map((n) => normalizeLower(n)).filter(Boolean));
 
   const keptAspects = {};
   const keptCompliance = {};
@@ -337,21 +432,39 @@ function enforceEbayAspects(product) {
     const originalKey = normalizeKey(key);
     if (!originalKey) return;
     const normalizedKey = normalizeAspectKey(originalKey);
-    const finalKey = normalizedKey || originalKey;
+    const preKey = normalizedKey || originalKey;
+    const lowerPre = normalizeLower(preKey);
+    const aliased = KEY_ALIASES.get(lowerPre) || preKey;
+    const finalKey = aliased;
     const lower = normalizeLower(finalKey);
 
-    if (META_ATTRIBUTE_KEYS.has(lower) || lower.includes('kaufland')) {
+    // Normalize category path keys to one canonical attribute ("Kategorie").
+    // If the input contains a conflicting value, preserve it in attributes_extra.
+    if (lower === 'kategorie') {
+      const incoming = normalizeKey(val);
+      const canonical = categoryPath ? String(categoryPath) : '';
+      if (incoming && canonical && incoming !== canonical) {
+        nextExtra[originalKey] = val;
+      }
+      return;
+    }
+
+    if (isMetaKey(lower)) {
       nextExtra[originalKey] = val;
       return;
     }
 
     // Keep GPSR/compliance keys regardless of category allowlist
     if (isGpsrKey(finalKey)) {
-      keptCompliance[finalKey] = val;
+      if (val && typeof val === 'object') {
+        nextExtra[originalKey] = val;
+        return;
+      }
+      keptCompliance[finalKey] = normalizeBooleanishValue(val);
       return;
     }
 
-    if (allowedSet.size && !allowedSet.has(lower)) {
+    if (val && typeof val === 'object') {
       nextExtra[originalKey] = val;
       return;
     }
@@ -366,13 +479,13 @@ function enforceEbayAspects(product) {
       const prevEmpty = prev === null || prev === undefined || prevStr === '';
       const nextEmpty = val === null || val === undefined || nextStr === '';
       if (prevEmpty && !nextEmpty) {
-        keptAspects[canonicalName] = val;
+        keptAspects[canonicalName] = normalizeBooleanishValue(val);
       } else {
         nextExtra[originalKey] = val;
       }
       return;
     }
-    keptAspects[canonicalName] = val;
+    keptAspects[canonicalName] = normalizeBooleanishValue(val);
   });
 
   // Ensure all required aspects exist (missing ones are set to null, not guessed)
@@ -405,6 +518,11 @@ function enforceEbayAspects(product) {
     keptAspects[canonical] = derived ?? null;
     existingLowerKeys.add(lower);
   });
+
+  // Add canonical Kategorie attribute for consistent UI + exports
+  if (categoryPath) {
+    keptAspects.Kategorie = String(categoryPath);
+  }
 
   const sortedAspects = normalizeAttributesOrder(keptAspects, catId, requiredMap);
   const sortedCompliance = Object.fromEntries(

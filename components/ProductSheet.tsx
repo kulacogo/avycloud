@@ -5,8 +5,8 @@ import {
   saveProduct,
   syncToBaseLinker,
   openSkuLabelWindow,
-  assignProductToBinApi,
-  removeProductFromBinApi,
+  stockInProduct,
+  stockOutProduct,
   fetchProductBins,
   generateProductImages,
   setProductInventoryId,
@@ -416,13 +416,18 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       return;
     }
     setIsAssigningBin(true);
-    const result = await assignProductToBinApi(binCodeInput.toUpperCase(), localProduct.id, Number(binQuantity) || 1);
+    const result = await stockInProduct({
+      productId: localProduct.id,
+      binCode: binCodeInput.toUpperCase(),
+      quantity: Number(binQuantity) || 1,
+      meta: { flow: 'product-sheet', action: 'stock-in' },
+    });
     if (result.ok && result.data?.product) {
       const normalized = normalizeProduct(result.data.product);
       setLocalProduct(normalized);
       onUpdate(normalized);
-      setBinCodeInput(normalized.storage?.binCode || '');
-      setBinQuantity(normalized.storage?.quantity || 1);
+      setBinCodeInput(binCodeInput.toUpperCase());
+      setBinQuantity(1);
       loadProductBins(normalized.id);
       showNotification('success', t('sheet.msg.binAssignSuccess'));
     } else {
@@ -432,24 +437,28 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   };
 
   const handleRemoveBin = async () => {
-    if (!localProduct.storage?.binCode) return;
-    const response = await removeProductFromBinApi(localProduct.storage.binCode, localProduct.id);
-    if (!response.ok) {
+    if (!binCodeInput) {
+      showNotification('error', t('sheet.msg.binRequired'));
+      return;
+    }
+    const qty = Number(binQuantity) || 0;
+    if (!qty || qty <= 0) {
+      showNotification('error', t('sheet.msg.binAssignError'));
+      return;
+    }
+    const response = await stockOutProduct({
+      productId: localProduct.id,
+      binCode: binCodeInput.toUpperCase(),
+      quantity: qty,
+      meta: { flow: 'product-sheet', action: 'stock-out' },
+    });
+    if (!response.ok || !response.data?.product) {
       showNotification('error', response.error?.message || t('sheet.msg.binRemoveError'));
       return;
     }
-    const updated = normalizeProduct({
-      ...localProduct,
-      storage: null,
-      storageBins: [],
-      inventory: {
-        ...(localProduct.inventory || {}),
-        quantity: 0,
-      },
-    });
-    setLocalProduct(updated);
-    onUpdate(updated);
-    setBinCodeInput('');
+    const normalized = normalizeProduct(response.data.product);
+    setLocalProduct(normalized);
+    onUpdate(normalized);
     setBinQuantity(1);
     loadProductBins(localProduct.id);
     showNotification('success', t('sheet.msg.binRemoveSuccess'));
@@ -1056,7 +1065,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               >
                 {isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}
               </button>
-              {localProduct.storage?.binCode && (
+              {binCodeInput && (
                 <button
                   onClick={handleRemoveBin}
                   className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"

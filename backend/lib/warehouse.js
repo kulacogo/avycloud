@@ -557,13 +557,10 @@ async function assignProductToBin(binCode, productId, quantity) {
     throw new Error('Produkt nicht gefunden.');
   }
 
-  if (product.storage?.binCode && product.storage.binCode !== binCode) {
-    await removeProductFromBin(product.storage.binCode, productId, { skipProductUpdate: true });
-  }
-
   const binRef = binsCollection.doc(binCode);
   const productRef = productsCollection.doc(productId);
   const now = Timestamp.now();
+  let previousBinQty = 0;
 
   await firestore.runTransaction(async (tx) => {
     const binSnap = await tx.get(binRef);
@@ -574,6 +571,7 @@ async function assignProductToBin(binCode, productId, quantity) {
     const products = Array.isArray(binData.products) ? [...binData.products] : [];
     let entry = products.find((p) => p.productId === productId);
     if (entry) {
+      previousBinQty = Number(entry.quantity || 0) || 0;
       entry.quantity = quantity;
       entry.lastUpdatedAt = now.toDate().toISOString();
       if (!entry.firstStoredAt) entry.firstStoredAt = now.toDate().toISOString();
@@ -596,23 +594,6 @@ async function assignProductToBin(binCode, productId, quantity) {
       firstStoredAt: binData.firstStoredAt || now,
       lastStoredAt: now,
     });
-
-    tx.update(productRef, {
-      storage: {
-        binCode,
-        zone: binData.zone,
-        etage: binData.etage,
-        gang: binData.gang,
-        regal: binData.regal,
-        ebene: binData.ebene,
-        quantity,
-        assigned_at: now.toDate().toISOString(),
-      },
-      inventory: {
-        ...(product.inventory || {}),
-        quantity,
-      },
-    });
     writeWarehouseEventTx(tx, {
       type: 'bin_assign_product',
       binCode,
@@ -623,9 +604,7 @@ async function assignProductToBin(binCode, productId, quantity) {
   });
 
   await refreshProductInventory(productId);
-  const previousQuantity =
-    product.storage?.binCode === binCode ? Number(product.storage?.quantity) || 0 : 0;
-  const intakeDelta = Math.max(0, Number(quantity) - previousQuantity);
+  const intakeDelta = Math.max(0, Number(quantity) - Number(previousBinQty || 0));
   if (intakeDelta > 0) {
     try {
       await adjustPendingIntakeQuantity(productId, -intakeDelta);
@@ -668,12 +647,10 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta })
     const nowIso = now.toDate().toISOString();
 
     let entry = products.find((p) => p.productId === resolvedProductId);
-    if (entry && productData.storage?.binCode !== binCode) {
-      entry.quantity = quantity;
+    if (entry) {
+      // Stock-in is additive, regardless of whether this BIN is currently the product's primary location.
+      entry.quantity = (Number(entry.quantity) || 0) + quantity;
       entry.firstStoredAt = entry.firstStoredAt || nowIso;
-      entry.lastUpdatedAt = nowIso;
-    } else if (entry) {
-      entry.quantity = (entry.quantity || 0) + quantity;
       entry.lastUpdatedAt = nowIso;
     } else {
       entry = {
