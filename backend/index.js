@@ -212,8 +212,9 @@ const CHAT_ATTACHMENT_MIME_WHITELIST = new Set([
 ]);
 const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024; // 8 MB per file, total tracked separately
 const MAX_IMPROVE_BATCH = parseInt(process.env.MAX_IMPROVE_BATCH || '100', 10);
-// Default: Inline-Improve aktiv, außer explizit IMPROVE_INLINE=false gesetzt.
-const IMPROVE_INLINE = (process.env.IMPROVE_INLINE ?? 'true') === 'true';
+// IMPORTANT: Inline-Improve causes request timeouts for anything but tiny batches (Cloud Run / reverse proxies).
+// Therefore it is OFF by default and must be explicitly enabled via IMPROVE_INLINE=true.
+const IMPROVE_INLINE = (process.env.IMPROVE_INLINE ?? 'false') === 'true';
 const GENERATED_IMAGE_SIGNATURE = /\b(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)\b/i;
 const JOB_STATUS_FILTERS = ['pending', 'processing', 'failed', 'done'];
 
@@ -2758,8 +2759,9 @@ app.post('/api/improve/jobs', async (req, res) => {
       });
     }
 
-    if (IMPROVE_INLINE) {
-      // Inline-Modus: verarbeitet nacheinander im Request (nur für kleinere Batches empfehlenswert)
+    // Inline-Modus: nur für sehr kleine Batches (sonst HTTP-Timeouts)
+    const inlineAllowed = IMPROVE_INLINE && jobs.length <= 3;
+    if (inlineAllowed) {
       for (const job of jobs) {
         await runImproveJobInline(job.jobId, job.productId);
       }

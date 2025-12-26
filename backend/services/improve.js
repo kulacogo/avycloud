@@ -672,30 +672,32 @@ async function improveExistingProduct(productId, onProgress) {
 
   console.log(`[improve] Running Identification. Files: ${files.length}, Barcodes: ${barcodes.length}`);
 
-  // If we have no files and no barcodes, we can't identify.
+  let improvedOutput = null;
   if (files.length === 0 && barcodes.length === 0) {
-    console.warn('[improve] No reference images downloadable and no barcodes. Skipping identification.');
-    // Return original product or fail? Fail is better so user knows.
-  }
-  const result = await runProductIdentification({
-    files,
-    barcodes,
-    locale: product.locale || 'de-DE',
-    modelOverride: null,
-    improveContext: buildImproveContext(product),
-    skipExternalSearch: true,
-    onProgress,
-  });
-
-  const improvedOutput = result?.bundle?.products?.[0];
-  if (!improvedOutput) {
-    console.error('[improve] No product returned from identification flow!');
-    throw new Error('Improve-Fluss hat kein Produkt zurückgegeben.');
+    console.warn('[improve] No reference images downloadable and no barcodes. Falling back to review-only improve.');
+    if (onProgress) await onProgress('reviewing');
+  } else {
+    try {
+      const result = await runProductIdentification({
+        files,
+        barcodes,
+        locale: product.locale || 'de-DE',
+        modelOverride: null,
+        improveContext: buildImproveContext(product),
+        skipExternalSearch: true,
+        onProgress,
+      });
+      improvedOutput = result?.bundle?.products?.[0] || null;
+    } catch (error) {
+      console.warn('[improve] Identification failed. Falling back to review-only improve:', error?.message || error);
+      improvedOutput = null;
+      if (onProgress) await onProgress('reviewing');
+    }
   }
 
   console.log('[improve] Merging records...');
   if (onProgress) await onProgress('merging');
-  let mergedProduct = mergeProductRecords(product, improvedOutput);
+  let mergedProduct = improvedOutput ? mergeProductRecords(product, improvedOutput) : JSON.parse(JSON.stringify(product));
 
   // Price enrichment: cheapest new price from external search (barcodes/brand/model/title)
   if (onProgress) await onProgress('pricing');

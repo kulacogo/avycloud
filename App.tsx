@@ -18,7 +18,7 @@ import MobileSearchView from './components/MobileSearchView';
 import MobileOperationsView from './components/MobileOperationsView';
 import MobileTabBar from './components/MobileTabBar';
 import IdentifyQueueView from './components/IdentifyQueueView';
-import { fetchProducts, startBulkImprovement, refreshPrice } from './api/client';
+import { fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
 
@@ -482,16 +482,17 @@ const App: React.FC = () => {
   const handleBulkImprove = useCallback(async () => {
     if (!confirm('Dies wird die Datenanreicherung für ALLE Produkte starten. Fortfahren?')) return;
     try {
-      const result = await startBulkImprovement();
-      if (result.ok && result.data?.jobs) {
-        trackJobs(result.data.jobs);
-      } else {
-        alert(`Fehler: ${result.error?.message}`);
+      const ids = productsRef.current.map((p) => p.id).filter(Boolean);
+      if (!ids.length) {
+        alert('Keine Produkte gefunden.');
+        return;
       }
+      // Bulk improve uses the same queue-based improve jobs, but created in safe batches in useImproveQueue.
+      enqueueImproveJobs(ids);
     } catch (err: any) {
       alert(`Fehler: ${err.message}`);
     }
-  }, [trackJobs]);
+  }, [enqueueImproveJobs]);
 
   useEffect(() => {
     if (!improveError) return;

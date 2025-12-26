@@ -365,9 +365,11 @@ const fetchImproveJobStatus = async (jobId: string, signal?: AbortSignal) => {
 
 export const pollImproveJob = async (
   jobId: string,
-  options?: { signal?: AbortSignal; onStatus?: (phase: IdentifyPhase) => void }
+  options?: { signal?: AbortSignal; onStatus?: (phase: IdentifyPhase) => void; timeoutMs?: number; pollIntervalMs?: number }
 ): Promise<Product> => {
-  const deadline = Date.now() + JOB_TIMEOUT_MS;
+  const timeoutMs = typeof options?.timeoutMs === 'number' ? options.timeoutMs : JOB_TIMEOUT_MS;
+  const pollIntervalMs = typeof options?.pollIntervalMs === 'number' ? options.pollIntervalMs : JOB_POLL_INTERVAL_MS;
+  const deadline = Date.now() + timeoutMs;
   while (true) {
     const job = await fetchImproveJobStatus(jobId, options?.signal);
     if (!job) {
@@ -393,7 +395,7 @@ export const pollImproveJob = async (
     if (Date.now() > deadline) {
       throw new Error('Improve-Job hat das Zeitlimit überschritten.');
     }
-    await wait(JOB_POLL_INTERVAL_MS, options?.signal);
+    await wait(pollIntervalMs, options?.signal);
   }
 };
 
