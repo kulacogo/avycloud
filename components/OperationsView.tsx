@@ -35,13 +35,67 @@ type PickRouteTask = {
   itemName: string;
   sku?: string | null;
   binCode: string;
-  quantity: number;
+  quantity: number; // recommended pick quantity for THIS step (may be partial if stock is split across bins)
+  itemTotal: number;
+  remainingTotal: number;
+  pickedSoFar: number;
   productId?: string | null;
-  available?: number | null;
+  available?: number | null; // available in selected bin (best-effort)
   image?: string | null;
 };
 
 type ScanStatus = 'pending' | 'ok' | 'mismatch';
+
+const WAREHOUSE_ZONES_ROUTE = ['X', 'XS', 'S', 'M', 'L', 'XL', 'XQ'] as const;
+const WAREHOUSE_ETAGEN_ROUTE = ['GA', 'EG', 'UG'] as const;
+const ZONE_PREFIXES = [...WAREHOUSE_ZONES_ROUTE].sort((a, b) => b.length - a.length);
+
+function parseWarehouseBinCode(code?: string | null): {
+  zone: string;
+  etage: string;
+  gang: number;
+  regal: number;
+  ebene: string;
+} | null {
+  const raw = (code || '').toString().trim().toUpperCase();
+  if (!raw) return null;
+
+  const zone = ZONE_PREFIXES.find((z) => raw.startsWith(z)) || null;
+  if (!zone) return null;
+
+  const rest = raw.slice(zone.length);
+  const etage = rest.slice(0, 2);
+  if (!WAREHOUSE_ETAGEN_ROUTE.includes(etage as any)) return null;
+
+  const gang = Number.parseInt(rest.slice(2, 4), 10);
+  const regal = Number.parseInt(rest.slice(4, 6), 10);
+  const ebene = rest.slice(6, 7);
+  if (!Number.isFinite(gang) || !Number.isFinite(regal) || !ebene) return null;
+
+  return { zone, etage, gang, regal, ebene };
+}
+
+function compareBinCodesForPickRoute(a?: string | null, b?: string | null): number {
+  const pa = parseWarehouseBinCode(a);
+  const pb = parseWarehouseBinCode(b);
+  if (!pa && !pb) return String(a || '').localeCompare(String(b || ''), 'de', { sensitivity: 'base' });
+  if (!pa) return 1;
+  if (!pb) return -1;
+
+  const zoneA = WAREHOUSE_ZONES_ROUTE.indexOf(pa.zone as any);
+  const zoneB = WAREHOUSE_ZONES_ROUTE.indexOf(pb.zone as any);
+  if (zoneA !== zoneB) return zoneA - zoneB;
+
+  const etageA = WAREHOUSE_ETAGEN_ROUTE.indexOf(pa.etage as any);
+  const etageB = WAREHOUSE_ETAGEN_ROUTE.indexOf(pb.etage as any);
+  if (etageA !== etageB) return etageA - etageB;
+
+  // Route: higher gang/regal first (matches typical "from back to front" walk + user's example)
+  if (pa.gang !== pb.gang) return pb.gang - pa.gang;
+  if (pa.regal !== pb.regal) return pb.regal - pa.regal;
+
+  return pa.ebene.localeCompare(pb.ebene, 'de', { sensitivity: 'base' });
+}
 
 const WORKFLOW_CARDS: Array<{
   mode: WorkflowMode;
@@ -84,7 +138,10 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     bin: 'pending',
     sku: 'pending',
   });
-  const [completedPickItemIds, setCompletedPickItemIds] = useState<string[]>([]);
+  // Pick progress for open orders (per item id): supports partial picks across multiple BINs.
+  const [pickedByItemId, setPickedByItemId] = useState<Record<string, number>>({});
+  // "Skip" list for route building (does NOT mark as picked, only hides from the current route)
+  const [skippedPickItemIds, setSkippedPickItemIds] = useState<string[]>([]);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -162,7 +219,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     );
   }, [products, pickSku, pickBinDetail]);
 
-  const completedPickItemSet = useMemo(() => new Set(completedPickItemIds), [completedPickItemIds]);
+  const skippedPickItemSet = useMemo(() => new Set(skippedPickItemIds), [skippedPickItemIds]);
 
   const openOrders = useMemo(() => orders.filter((order) => order.status !== 'picked'), [orders]);
   const visibleOrders = useMemo(
@@ -198,14 +255,20 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   }, [openOrders.length, showAllOpenOrders]);
 
   useEffect(() => {
-    if (!completedPickItemIds.length) return;
     const stillOpenIds = new Set<string>();
     openOrders.forEach((order) => order.items.forEach((item) => stillOpenIds.add(item.id)));
-    const filtered = completedPickItemIds.filter((id) => stillOpenIds.has(id));
-    if (filtered.length !== completedPickItemIds.length) {
-      setCompletedPickItemIds(filtered);
-    }
-  }, [openOrders, completedPickItemIds]);
+
+    setSkippedPickItemIds((prev) => prev.filter((id) => stillOpenIds.has(id)));
+    setPickedByItemId((prev) => {
+      const next: Record<string, number> = {};
+      Object.entries(prev).forEach(([id, qty]) => {
+        if (stillOpenIds.has(id)) {
+          next[id] = qty;
+        }
+      });
+      return next;
+    });
+  }, [openOrders]);
 
   const orderSummary = useMemo(() => {
     const total = orders.length;
@@ -259,41 +322,67 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
   const pickRouteTasks = useMemo(() => {
     const tasks: PickRouteTask[] = [];
+
+    const normalizeSku = (value?: string | null) =>
+      (value || '').toString().trim().toUpperCase();
+
+    const chooseBestBinForProduct = (product: Product | null) => {
+      if (!product) return null;
+      const bins = Array.isArray(product.storageBins) ? product.storageBins : [];
+      const positive = bins
+        .filter((b) => b && b.code && Number(b.quantity || 0) > 0)
+        .map((b) => ({ code: String(b.code).toUpperCase(), quantity: Number(b.quantity || 0) || 0 }));
+      if (positive.length) {
+        positive.sort((a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code));
+        return positive[0];
+      }
+      if (product.storage?.binCode) {
+        return { code: String(product.storage.binCode).toUpperCase(), quantity: Number(product.storage.quantity || 0) || 0 };
+      }
+      return null;
+    };
+
     openOrders.forEach((order) => {
       order.items.forEach((item) => {
-        if (completedPickItemSet.has(item.id)) {
-          return;
-        }
+        if (skippedPickItemSet.has(item.id)) return;
+
+        const pickedSoFar = Number(pickedByItemId[item.id] || 0) || 0;
+        const itemTotal = Number(item.quantity || 0) || 0;
+        const remainingTotal = Math.max(0, itemTotal - pickedSoFar);
+        if (!remainingTotal) return;
+
         const hint = item.pickHint || null;
-        let binCode = hint?.binCode?.toUpperCase() || null;
-        let skuCandidate = item.sku || hint?.sku || item.ean || null;
-        let product: Product | null = null;
+        const product = resolveProductForItem(item);
 
-        if (!binCode || !skuCandidate || !hint?.image || typeof hint?.quantityAvailable !== 'number') {
-          product = resolveProductForItem(item);
-          if (!binCode && product) {
-            binCode =
-              product.storage?.binCode ||
-              (product.storageBins && product.storageBins.length ? product.storageBins[0]?.code : null) ||
-              null;
-            if (binCode) {
-              binCode = binCode.toUpperCase();
-            }
-          }
-          if (!skuCandidate && product) {
-            skuCandidate =
-              product.details?.identifiers?.sku ||
-              product.identification?.sku ||
-              product.details?.identifiers?.ean ||
-              product.details?.identifiers?.gtin ||
-              product.id ||
-              null;
-          }
-        }
+        const skuCandidate =
+          normalizeSku(item.sku) ||
+          normalizeSku(hint?.sku) ||
+          normalizeSku(item.ean) ||
+          normalizeSku(product?.details?.identifiers?.sku) ||
+          normalizeSku(product?.identification?.sku) ||
+          normalizeSku(product?.details?.identifiers?.ean) ||
+          normalizeSku(product?.details?.identifiers?.gtin) ||
+          normalizeSku(product?.id) ||
+          null;
 
-        if (!skuCandidate) {
-          return;
-        }
+        if (!skuCandidate) return;
+
+        const bestBin =
+          chooseBestBinForProduct(product) ||
+          (hint?.binCode ? { code: String(hint.binCode).toUpperCase(), quantity: Number(hint.quantityAvailable || 0) || 0 } : null);
+
+        const binCode = bestBin?.code || '';
+        const availableInBin =
+          Number.isFinite(Number(bestBin?.quantity))
+            ? Number(bestBin?.quantity || 0)
+            : typeof hint?.quantityAvailable === 'number'
+              ? hint.quantityAvailable
+              : null;
+
+        const pickNow =
+          typeof availableInBin === 'number' && Number.isFinite(availableInBin) && availableInBin > 0
+            ? Math.max(1, Math.min(remainingTotal, availableInBin))
+            : remainingTotal;
 
         tasks.push({
           orderId: order.id,
@@ -302,19 +391,27 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           itemId: item.id,
           itemName: hint?.productName || product?.identification?.name || item.name,
           sku: skuCandidate,
-          binCode: binCode ? binCode.toUpperCase() : '',
-          quantity: item.quantity,
+          binCode,
+          quantity: pickNow,
+          itemTotal,
+          remainingTotal,
+          pickedSoFar,
           productId: hint?.productId || product?.id || item.productId || undefined,
-          available:
-            typeof hint?.quantityAvailable === 'number'
-              ? hint.quantityAvailable
-              : product?.storage?.quantity || product?.inventory?.quantity || null,
+          available: typeof availableInBin === 'number' && Number.isFinite(availableInBin) ? availableInBin : null,
           image: hint?.image || product?.details?.images?.[0]?.url_or_base64 || null,
         });
       });
     });
+
+    tasks.sort((a, b) => {
+      const aHasBin = Boolean(a.binCode);
+      const bHasBin = Boolean(b.binCode);
+      if (aHasBin !== bHasBin) return aHasBin ? -1 : 1;
+      return compareBinCodesForPickRoute(a.binCode, b.binCode);
+    });
+
     return tasks;
-  }, [completedPickItemSet, openOrders, resolveProductForItem]);
+  }, [openOrders, resolveProductForItem, skippedPickItemSet, pickedByItemId]);
 
   const nextPickTask = pickRouteTasks[0] || null;
 
@@ -325,6 +422,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     setPickQuantity(nextPickTask?.quantity || 1);
     setPickScanStatus({ bin: 'pending', sku: 'pending' });
   }, [nextPickTask, workflow]);
+
+  // Keep default pick quantity aligned with the current route task (important for partial picks across bins).
+  useEffect(() => {
+    if (workflow !== 'pick') return;
+    if (!nextPickTask) return;
+    if (pickScanStatus.bin !== 'pending' || pickScanStatus.sku !== 'pending') return;
+    setPickQuantity(nextPickTask.quantity || 1);
+  }, [workflow, nextPickTask?.itemId, nextPickTask?.binCode, nextPickTask?.quantity, pickScanStatus.bin, pickScanStatus.sku]);
 
   const evaluateScanStatus = useCallback(
     (type: 'bin' | 'sku', value: string): ScanStatus => {
@@ -597,8 +702,9 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   };
 
   const markPickTaskCompleted = (itemId?: string | null) => {
+    // "Skip" item in current route (does not affect stock or order status)
     if (!itemId) return;
-    setCompletedPickItemIds((prev) => {
+    setSkippedPickItemIds((prev) => {
       if (prev.includes(itemId)) {
         return prev;
       }
@@ -639,6 +745,12 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     try {
       setIsSubmitting(true);
       setErrorMessage(null);
+      if (typeof activeTask.available === 'number' && Number.isFinite(activeTask.available) && numericQuantity > activeTask.available) {
+        throw new Error(t('ops.errors.pickValidation'));
+      }
+      if (numericQuantity > activeTask.remainingTotal) {
+        throw new Error(t('ops.errors.pickValidation'));
+      }
       const payload = {
         sku: pickSku || undefined,
         productId: matchedPickProduct?.id || activeTask.productId || undefined,
@@ -666,35 +778,54 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       );
       loadBinDetail(pickBin.toUpperCase());
       if (activeTaskId) {
-        markPickTaskCompleted(activeTaskId);
+        const pickedNow = (Number(pickedByItemId[activeTaskId] || 0) || 0) + numericQuantity;
+        const clampedPicked = Math.min(activeTask.itemTotal, pickedNow);
+        setPickedByItemId((prev) => ({
+          ...prev,
+          [activeTaskId]: Math.min(activeTask.itemTotal, (Number(prev[activeTaskId] || 0) || 0) + numericQuantity),
+        }));
+
+        // Update UI state for pickCompleted flags (best-effort, derived from pickedByItemId)
         setOrders((prev) =>
-          prev.map((order) =>
-            order.id === activeTask.orderId
-              ? {
-                ...order,
-                items: order.items.map((item) =>
-                  item.id === activeTaskId ? { ...item, pickCompleted: true } : item
-                ),
-              }
-              : order
-          )
+          prev.map((order) => {
+            if (order.id !== activeTask.orderId) return order;
+            return {
+              ...order,
+              items: order.items.map((it) => {
+                const qtyPicked =
+                  it.id === activeTaskId ? clampedPicked : Number(pickedByItemId[it.id] || 0) || 0;
+                const done = (it.pickCompleted === true) || (qtyPicked >= Number(it.quantity || 0));
+                return done ? { ...it, pickCompleted: true } : it;
+              }),
+            };
+          })
         );
-        const completedSet = new Set(completedPickItemIds);
-        completedSet.add(activeTaskId);
+
+        const targetOrder = openOrders.find((o) => o.id === activeTask.orderId) || null;
+        const isOrderDone = targetOrder
+          ? targetOrder.items.every((it) => {
+            const qtyPicked =
+              it.id === activeTaskId ? clampedPicked : Number(pickedByItemId[it.id] || 0) || 0;
+            return (it.pickCompleted === true) || (qtyPicked >= Number(it.quantity || 0));
+          })
+          : false;
+
         try {
-          await completeOrderApi(activeTask.orderId);
-          setOrders((prev) =>
-            prev.map((order) =>
-              order.id === activeTask.orderId
-                ? {
-                  ...order,
-                  status: 'picked',
-                  statusLabel: t('ops.orders.complete'),
-                  pickedAt: new Date().toISOString(),
-                }
-                : order
-            )
-          );
+          if (isOrderDone) {
+            await completeOrderApi(activeTask.orderId);
+            setOrders((prev) =>
+              prev.map((order) =>
+                order.id === activeTask.orderId
+                  ? {
+                      ...order,
+                      status: 'picked',
+                      statusLabel: t('ops.orders.complete'),
+                      pickedAt: new Date().toISOString(),
+                    }
+                  : order
+              )
+            );
+          }
         } catch (error) {
           console.warn('Order completion failed:', error);
           setOrderErrorMessage(
@@ -1084,10 +1215,10 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     >
                       {t('ops.actions.skipOrder')}
                     </button>
-                    {completedPickItemIds.length > 0 && (
+                    {skippedPickItemIds.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => setCompletedPickItemIds([])}
+                        onClick={() => setSkippedPickItemIds([])}
                         className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400"
                       >
                         {t('ops.actions.resetRoute')}

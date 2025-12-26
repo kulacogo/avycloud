@@ -63,7 +63,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [autoGenDone, setAutoGenDone] = useState(false);
   const [isPrintingLabel, setIsPrintingLabel] = useState(false);
   const [binCodeInput, setBinCodeInput] = useState(product.storage?.binCode || '');
-  const [binQuantity, setBinQuantity] = useState<number>(product.inventory?.quantity || 1);
+  // For multi-BIN: this input is a delta (stock-in/out), not the total product quantity.
+  const [binQuantity, setBinQuantity] = useState<number>(1);
   const [isAssigningBin, setIsAssigningBin] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState('');
   const [productBins, setProductBins] = useState<WarehouseBin[]>([]);
