@@ -145,6 +145,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterBin') as 'all' | 'withBin' | 'withoutBin') || 'all';
   });
+  const [filterBinSplit, setFilterBinSplit] = useState<'all' | 'singleBin' | 'multiBin'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterBinSplit') as any) || 'all';
+  });
   const [filterImage, setFilterImage] = useState<'all' | 'withImages' | 'noImages'>(() => {
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterImage') as 'all' | 'withImages' | 'noImages') || 'all';
@@ -152,6 +156,26 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [filterCompleteness, setFilterCompleteness] = useState<'all' | 'complete' | 'incomplete' | 'lt80' | 'lt50'>(() => {
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterCompleteness') as any) || 'all';
+  });
+  const [filterBaselinkerLink, setFilterBaselinkerLink] = useState<'all' | 'linked' | 'unlinked'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterBaselinkerLink') as any) || 'all';
+  });
+  const [filterWeight, setFilterWeight] = useState<'all' | 'withWeight' | 'noWeight'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterWeight') as any) || 'all';
+  });
+  const [filterReserved, setFilterReserved] = useState<'all' | 'reserved' | 'notReserved'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterReserved') as any) || 'all';
+  });
+  const [filterAvailable, setFilterAvailable] = useState<'all' | 'available' | 'notAvailable'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterAvailable') as any) || 'all';
+  });
+  const [filterEbayCategory, setFilterEbayCategory] = useState<'all' | 'withEbayCategory' | 'missingEbayCategory'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterEbayCategory') as any) || 'all';
   });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(() => {
     if (typeof window === 'undefined') return { key: 'ops.last_saved_iso', direction: 'desc' };
@@ -668,11 +692,65 @@ const AdminTable: React.FC<AdminTableProps> = ({
       const matchesBin =
         filterBin === 'all' || (filterBin === 'withBin' && hasBin) || (filterBin === 'withoutBin' && !hasBin);
 
+      const binCodesWithStock = new Set<string>();
+      const storageBins = Array.isArray(p.storageBins) ? p.storageBins : [];
+      storageBins
+        .filter((bin) => Boolean(bin?.code))
+        .forEach((bin) => {
+          const qty = Number(bin?.quantity || 0) || 0;
+          if (qty > 0) {
+            binCodesWithStock.add(String(bin.code).toUpperCase());
+          }
+        });
+      // Fallback: if we have no storageBins (or all 0), use primary storage bin if present
+      if (binCodesWithStock.size === 0 && p.storage?.binCode) {
+        binCodesWithStock.add(String(p.storage.binCode).toUpperCase());
+      }
+      const binCount = binCodesWithStock.size;
+      const matchesBinSplit =
+        filterBinSplit === 'all' ||
+        (filterBinSplit === 'singleBin' && binCount <= 1) ||
+        (filterBinSplit === 'multiBin' && binCount >= 2);
+
       const hasImages = Array.isArray(p.details?.images) && p.details.images.length > 0;
       const matchesImages =
         filterImage === 'all' ||
         (filterImage === 'withImages' && hasImages) ||
         (filterImage === 'noImages' && !hasImages);
+
+      const baselinkerProductId = (p as any)?.ops?.baselinker?.product_id;
+      const hasBaselinkerLink = Boolean(baselinkerProductId);
+      const matchesBaselinkerLink =
+        filterBaselinkerLink === 'all' ||
+        (filterBaselinkerLink === 'linked' && hasBaselinkerLink) ||
+        (filterBaselinkerLink === 'unlinked' && !hasBaselinkerLink);
+
+      const weight = Number((p.details?.attributes as any)?.weight || 0);
+      const hasWeight = Number.isFinite(weight) && weight > 0;
+      const matchesWeight =
+        filterWeight === 'all' ||
+        (filterWeight === 'withWeight' && hasWeight) ||
+        (filterWeight === 'noWeight' && !hasWeight);
+
+      const reservedQuantity = Number(p.inventory?.reservedQuantity || 0) || 0;
+      const availableQuantity =
+        typeof p.inventory?.availableQuantity === 'number'
+          ? Math.max(0, p.inventory.availableQuantity)
+          : Math.max(0, quantity - reservedQuantity);
+      const matchesReserved =
+        filterReserved === 'all' ||
+        (filterReserved === 'reserved' && reservedQuantity > 0) ||
+        (filterReserved === 'notReserved' && reservedQuantity <= 0);
+      const matchesAvailable =
+        filterAvailable === 'all' ||
+        (filterAvailable === 'available' && availableQuantity > 0) ||
+        (filterAvailable === 'notAvailable' && availableQuantity <= 0);
+
+      const hasEbayCategory = Boolean((p.details as any)?.categoryId);
+      const matchesEbayCategory =
+        filterEbayCategory === 'all' ||
+        (filterEbayCategory === 'withEbayCategory' && hasEbayCategory) ||
+        (filterEbayCategory === 'missingEbayCategory' && !hasEbayCategory);
 
       const percent = p.completeness?.percent ?? 0;
       const isComplete = p.completeness?.complete === true;
@@ -683,7 +761,22 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterCompleteness === 'lt80' && percent < 80) ||
         (filterCompleteness === 'lt50' && percent < 50);
 
-      return matchesSearch && matchesStatus && matchesCategory && matchesInventory && matchesStock && matchesBin && matchesImages && matchesCompleteness;
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesCategory &&
+        matchesInventory &&
+        matchesStock &&
+        matchesBin &&
+        matchesBinSplit &&
+        matchesImages &&
+        matchesBaselinkerLink &&
+        matchesWeight &&
+        matchesReserved &&
+        matchesAvailable &&
+        matchesEbayCategory &&
+        matchesCompleteness
+      );
     });
 
     if (sortConfig !== null) {
@@ -724,7 +817,24 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
 
     return filtered;
-  }, [products, searchTerm, filterStatus, filterCategory, filterInventoryId, filterStock, filterBin, filterImage, filterCompleteness, sortConfig]);
+  }, [
+    products,
+    searchTerm,
+    filterStatus,
+    filterCategory,
+    filterInventoryId,
+    filterStock,
+    filterBin,
+    filterBinSplit,
+    filterImage,
+    filterBaselinkerLink,
+    filterWeight,
+    filterReserved,
+    filterAvailable,
+    filterEbayCategory,
+    filterCompleteness,
+    sortConfig,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSortedProducts.length / pageSize));
   useEffect(() => {
@@ -1000,8 +1110,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterInventoryId('all');
     setFilterStock('all');
     setFilterBin('all');
+    setFilterBinSplit('all');
     setFilterImage('all');
     setFilterCompleteness('all');
+    setFilterBaselinkerLink('all');
+    setFilterWeight('all');
+    setFilterReserved('all');
+    setFilterAvailable('all');
+    setFilterEbayCategory('all');
     setPageSize(50);
     setCurrentPage(1);
   };
@@ -1031,12 +1147,36 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, [filterBin]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterBinSplit', filterBinSplit);
+  }, [filterBinSplit]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterImage', filterImage);
   }, [filterImage]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterCompleteness', filterCompleteness);
   }, [filterCompleteness]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterBaselinkerLink', filterBaselinkerLink);
+  }, [filterBaselinkerLink]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterWeight', filterWeight);
+  }, [filterWeight]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterReserved', filterReserved);
+  }, [filterReserved]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterAvailable', filterAvailable);
+  }, [filterAvailable]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterEbayCategory', filterEbayCategory);
+  }, [filterEbayCategory]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:pageSize', String(pageSize));
@@ -1163,6 +1303,74 @@ const AdminTable: React.FC<AdminTableProps> = ({
           </button>
         </div>
       </div>
+
+      <details className="rounded-lg border border-slate-700 bg-slate-900/40">
+        <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-200">
+          Erweiterte Filter
+        </summary>
+        <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <select
+            id="table-filter-baselinker-link"
+            value={filterBaselinkerLink}
+            onChange={(e) => setFilterBaselinkerLink(e.target.value as any)}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            <option value="all">BaseLinker: Alle</option>
+            <option value="linked">BaseLinker: verknüpft</option>
+            <option value="unlinked">BaseLinker: nicht verknüpft</option>
+          </select>
+          <select
+            id="table-filter-weight"
+            value={filterWeight}
+            onChange={(e) => setFilterWeight(e.target.value as any)}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            <option value="all">Gewicht: Alle</option>
+            <option value="withWeight">Gewicht: vorhanden</option>
+            <option value="noWeight">Gewicht: fehlt</option>
+          </select>
+          <select
+            id="table-filter-reserved"
+            value={filterReserved}
+            onChange={(e) => setFilterReserved(e.target.value as any)}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            <option value="all">Reserviert: Alle</option>
+            <option value="reserved">Reserviert: &gt; 0</option>
+            <option value="notReserved">Reserviert: 0</option>
+          </select>
+          <select
+            id="table-filter-available"
+            value={filterAvailable}
+            onChange={(e) => setFilterAvailable(e.target.value as any)}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            <option value="all">Verfügbar: Alle</option>
+            <option value="available">Verfügbar: &gt; 0</option>
+            <option value="notAvailable">Verfügbar: 0</option>
+          </select>
+          <select
+            id="table-filter-bin-split"
+            value={filterBinSplit}
+            onChange={(e) => setFilterBinSplit(e.target.value as any)}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            <option value="all">Bins: Alle</option>
+            <option value="singleBin">Bins: 1 BIN</option>
+            <option value="multiBin">Bins: mehrere BINs</option>
+          </select>
+          <select
+            id="table-filter-ebay-category"
+            value={filterEbayCategory}
+            onChange={(e) => setFilterEbayCategory(e.target.value as any)}
+            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          >
+            <option value="all">eBay-Kategorie: Alle</option>
+            <option value="withEbayCategory">eBay-Kategorie: vorhanden</option>
+            <option value="missingEbayCategory">eBay-Kategorie: fehlt</option>
+          </select>
+        </div>
+      </details>
 
       {isColumnPanelOpen && (
         <div className="rounded-lg border border-slate-600 bg-slate-900 p-4 space-y-2">

@@ -56,9 +56,12 @@ export interface Details {
   short_description: string;
   key_features: string[];
   attributes: Record<string, string | number | boolean>;
+  attributes_extra?: Record<string, unknown>;
   identifiers: Identifiers;
   images: ProductImage[];
   pricing: Pricing;
+  // canonical eBay category id (see backend enforceEbayAspects)
+  categoryId?: string;
 }
 
 export interface Identification {
@@ -119,6 +122,10 @@ export interface InventoryInfo {
   unit?: string;
   inventoryId?: string | null;
   inventoryName?: string | null;
+  // Derived quantities (physical/reserved/available) for BaseLinker vs. warehouse flow
+  physicalQuantity?: number;
+  reservedQuantity?: number;
+  availableQuantity?: number;
 }
 
 export interface InventoryRecord {
