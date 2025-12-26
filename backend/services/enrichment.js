@@ -1010,10 +1010,10 @@ function buildReviewPrompt(product, locale) {
   return [
     'Du bist ein Marketplace-Quality-Inspector für eBay und Amazon. Deine Aufgabe: prüfe das vorliegende Produktdatenblatt und liefere eine korrigierte, maximal verkaufsstarke Version.',
     'Richtlinien:',
-    '- Titel <= 70 Zeichen, beginnt mit Marke + Produktart + wichtigster Vorteil.',
+    '- Titel (TECHNISCH) <= 80 Zeichen, beginnt mit Marke + Produktart und enthält – falls vorhanden – Modell/Herstellernummer sowie 1–2 technische Kerndaten (z. B. Spannung/Leistung/Größe/Volumen). Keine Marketingfloskeln, keine Dubletten.',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Enthält Nutzen, Ausstattung, Materialien, Lieferumfang, Service/Hinweise. Keine Aufzählungen.',
-    '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, nur Nutzen/USPs, keine Verpackungshinweise, keine Dubletten.',
-    '- Attribute: strukturierte Key-Value-Paare. Entferne Wiederholungen. WICHTIG: Erhalte alle technischen Attribute (z. B. kaufland_..., ebay_..., _id) sowie spezifische Marktplatz-Daten unverändert!',
+    '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
+    '- Attribute: strukturierte Key-Value-Paare. Entferne Wiederholungen. WICHTIG: Erhalte alle technischen Attribute (z. B. kaufland_..., ebay_..., _id) sowie spezifische Marktplatz-Daten unverändert! Ergänze fehlende technische Daten, wenn sie aus dem Datensatz ableitbar sind.',
     '- Entferne widersprüchliche oder doppelte Aussagen. Markiere offene Punkte in warnings.',
     `- Sprache: ${locale}.`,
     'Rückgabe ausschließlich gemäß JSON Schema.',
@@ -1168,7 +1168,7 @@ function buildMarketingPrompt(product, locale = 'de-DE') {
 
   parts.push(
     `Anforderungen:`,
-    `- Titel (SEO): max. 70 Zeichen, starte mit Marke + Produktkategorie + Top-Nutzen, ergänze Modell/Größe/Zustand, keine Füllwörter.`,
+    `- Titel (SEO, TECHNISCH): max. 80 Zeichen, starte mit Marke + Produktart, ergänze Modell/Herstellernummer + 1–2 technische Kerndaten (z. B. Spannung/Leistung/Größe/Volumen), keine Marketingfloskeln, keine Dubletten.`,
     `- Kurzbeschreibung: 3 Absätze à 2 Sätze, verkaufsstark, Nutzen & Materialien, Pflege/Montage, Social Proof/Trust, klarer CTA ("Jetzt kaufen", "Nur begrenzte Stückzahl").`,
     `- Highlights: 6-8 Bullets, 6-12 Wörter, nutzenorientiert. Enthalten: Versanddetails (DHL, kostenloser Versand, Versand bis 14 Uhr am selben Werktag), Rückgaberecht 14 Tage, Sonderangebote/Limitierung. Keine Wiederholungen, kein Verpackungstext.`,
     `- Ton: aggressiv verkaufsfördernd, faktenbasiert, aber ohne Übertreibungen; klare Kaufaufforderung.`,

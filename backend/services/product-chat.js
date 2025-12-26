@@ -935,6 +935,10 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   4. Never say "I can search if you want". JUST SEARCH.
   5. **ALWAYS** usage the 'update_product_datasheet' tool when you propose ANY data changes (title, description, attributes, etc.). Do NOT just output JSON text. The tool call IS the way to propose changes.
   6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
+
+  TITLE / HIGHLIGHTS QUALITY BAR:
+  - Titles must be TECHNICAL & searchable (max ~80 chars): Brand + ProductType + Model/MPN + 1–2 key specs (Size/Voltage/Power/Volume) if available. No marketing fluff, no duplicates.
+  - Key features must be non-duplicative, factual, and short.
   `;
 
   const model = client.getGenerativeModel({
@@ -1093,6 +1097,62 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       response = await chat.sendMessage(functionResponses);
       responseText = response.response.text();
       functionCalls = response.response.functionCalls();
+    }
+
+    // Fallback: Sometimes Gemini answers without calling update_product_datasheet.
+    // This makes "Übernahme" in the UI feel sporadic because no structured change exists to apply.
+    // We run a deterministic 2nd pass that converts the assistant message into ONE tool call.
+    if ((!datasheetChanges || datasheetChanges.length === 0) && responseText) {
+      try {
+        const updateOnlyTools = [
+          {
+            functionDeclarations: [toGeminiTool(updateDatasheetTool)],
+          },
+        ];
+
+        const updateOnlyModel = client.getGenerativeModel({
+          model: modelName,
+          tools: updateOnlyTools,
+          toolConfig: {
+            functionCallingConfig: {
+              mode: 'ANY',
+              allowedFunctionNames: ['update_product_datasheet'],
+            },
+          },
+          systemInstruction: [
+            'You are a strict converter.',
+            'CRITICAL: You MUST call update_product_datasheet exactly once.',
+            'CRITICAL: Do NOT output any plain text.',
+            'If the assistant message implies NO concrete datasheet edits, call update_product_datasheet with {}.',
+          ].join('\n'),
+        });
+
+        const updatePrompt = [
+          'System Context:',
+          serializedContext,
+          '',
+          'Assistant message to convert:',
+          responseText,
+          '',
+          'Task:',
+          '- Convert any implied concrete datasheet edits into a SINGLE update_product_datasheet tool call.',
+          '- If no edits are implied, call update_product_datasheet with {}.',
+        ].join('\n');
+
+        const updateResponse = await updateOnlyModel.generateContent({
+          contents: [{ role: 'user', parts: [{ text: updatePrompt }] }],
+        });
+        const updateCalls = updateResponse.response.functionCalls?.() || [];
+        const updateCall = updateCalls.find((call) => call?.name === 'update_product_datasheet');
+        if (updateCall?.args && typeof updateCall.args === 'object') {
+          const sanitized = sanitizeDatasheetChange(updateCall.args);
+          if (sanitized && Object.keys(sanitized).length > 0) {
+            datasheetChanges.push(sanitized);
+          }
+        }
+      } catch (fallbackError) {
+        console.warn('Chat fallback update_product_datasheet conversion failed:', fallbackError?.message || fallbackError);
+      }
     }
 
     return {

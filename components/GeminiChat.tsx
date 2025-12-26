@@ -214,7 +214,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       {
         key: 'title',
         label: t('chat.prompts.title'),
-        value: 'Titel verbessern (Marketing- und E-Commerce-ready machen)',
+        value:
+          'Titel verbessern (TECHNISCH & suchbar, keine Marketingfloskeln/Adjektive, keine Dubletten, max. 80 Zeichen, inkl. wichtiger technischer Daten wie Modell/Herstellernummer/Größe/Spannung/Leistung/Volumen – wenn vorhanden).',
       },
       {
         key: 'attributes',
@@ -232,13 +233,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         key: 'datasheet',
         label: t('chat.prompts.datasheet'),
         value:
-          'Datenblatt komplett verbessern: Titel, Beschreibung, Highlights/Attribute, Preis, Identifikatoren und Bilder prüfen, korrigieren und auffüllen (keine Duplikate). Setze exakt EINE Kategorie („Kategorie“) anhand der Liste in backend/ebay-data/categories.json und fülle alle Pflicht-Attribute für diese Kategorie anhand backend/ebay-data/required-aspects.json vollständig aus. Ergebnis e-commerce-ready und stilistisch konsistent liefern.',
+          'Datenblatt komplett verbessern: Titel (TECHNISCH, max. 80 Zeichen, inkl. Modell/Herstellernummer/Größe/Spannung/Leistung/Volumen wenn vorhanden; keine Marketingfloskeln), Beschreibung, Highlights/Attribute, Preis, Identifikatoren und Bilder prüfen, korrigieren und auffüllen (keine Duplikate). Setze exakt EINE Kategorie („Kategorie“) anhand der Liste in backend/ebay-data/categories.json und fülle alle Pflicht-Attribute für diese Kategorie anhand backend/ebay-data/required-aspects.json vollständig aus. Ergebnis e-commerce-ready und stilistisch konsistent liefern.',
       },
       {
         key: 'highlights',
         label: t('chat.prompts.highlights'),
         value:
-          'Highlights verbessern (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
+          'Highlights verbessern (6–8 kurze Bullets, technisch/faktenbasiert, keine Dubletten, keine Verpackungstexte).',
       },
       {
         key: 'description',

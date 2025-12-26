@@ -541,6 +541,148 @@ function enforceEbayAspects(product) {
   };
 }
 
+function sanitizeKeyFeatures(list, { max = 8 } = {}) {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set();
+  const out = [];
+
+  const norm = (val) =>
+    String(val || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+
+  for (const entry of list) {
+    const raw = typeof entry === 'string' ? entry : entry == null ? '' : String(entry);
+    const cleaned = raw.replace(/\s+/g, ' ').trim();
+    if (!cleaned) continue;
+    const n = norm(cleaned);
+    if (!n) continue;
+    if (n === 'unknown' || n === 'unbekannt' || n === 'n/a') continue;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    out.push(cleaned);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+function ensureTechnicalTitle(product, { maxLen = 80 } = {}) {
+  const safeString = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
+  const normalizeMatch = (v) =>
+    safeString(v)
+      .toLowerCase()
+      .replace(/[\s\-_/.,:;()\\[\]{}'"`´’“”!?+*=<>|]/g, '');
+
+  const existingTitle = safeString(product?.identification?.name);
+  const brand = safeString(product?.identification?.brand);
+  const attrs = (product?.details?.attributes && typeof product.details.attributes === 'object') ? product.details.attributes : {};
+
+  const productType = safeString(attrs['Produktart'] || attrs['Produkttyp'] || attrs['Produkttyp (Produktart)'] || '');
+
+  const pickAttr = (...keys) => {
+    for (const key of keys) {
+      const val = attrs?.[key];
+      const str = safeString(val);
+      if (str && !/^unknown|unbekannt$/i.test(str)) return str;
+    }
+    return '';
+  };
+
+  const candidates = [];
+  const pushCandidate = (val) => {
+    const s = safeString(val);
+    if (!s) return;
+    if (/^unknown|unbekannt$/i.test(s)) return;
+    const key = normalizeMatch(s);
+    if (!key) return;
+    if (candidates.some((c) => normalizeMatch(c) === key)) return;
+    candidates.push(s);
+  };
+
+  // Priority: part/model numbers first, then key specs.
+  pushCandidate(pickAttr('Herstellernummer'));
+  pushCandidate(safeString(product?.details?.identifiers?.mpn));
+  pushCandidate(pickAttr('Referenznummer(n) OEM', 'Referenznummer', 'OEM-Referenznummer'));
+  pushCandidate(pickAttr('Modell', 'Model', 'Model Number'));
+
+  // Common technical specs (best-effort, category-agnostic).
+  pushCandidate(pickAttr('Spannung', 'Volt', 'Voltage'));
+  pushCandidate(pickAttr('Leistung', 'Power'));
+  pushCandidate(pickAttr('Fassungsvermögen gesamt', 'Fassungsvermögen', 'Volumen', 'Kapazität'));
+  pushCandidate(pickAttr('Größe', 'Size', 'Maße'));
+  pushCandidate(pickAttr('Farbe', 'Color'));
+  pushCandidate(pickAttr('Material'));
+
+  const isPlaceholder = (title) => {
+    const t = safeString(title);
+    if (!t) return true;
+    if (/unknown|unbekannt/i.test(t)) return true;
+    if (/^sku[\s\-_]?\d+/i.test(t)) return true;
+    if (t.length < 10) return true;
+    return false;
+  };
+
+  const containsToken = (title, token) => {
+    const t = normalizeMatch(title);
+    const k = normalizeMatch(token);
+    if (!t || !k) return false;
+    return t.includes(k);
+  };
+
+  const compact = (title) => safeString(title).replace(/\s+/g, ' ').trim();
+
+  const rebuildTechnical = () => {
+    const parts = [];
+    if (brand) parts.push(brand);
+    if (productType) parts.push(productType);
+    for (const token of candidates) {
+      const next = compact([...parts, token].join(' '));
+      if (!next) continue;
+      if (next.length > maxLen) continue;
+      parts.push(token);
+    }
+    let built = compact(parts.join(' '));
+    if (built.length > maxLen) built = built.slice(0, maxLen).trim();
+    return built;
+  };
+
+  let title = existingTitle;
+
+  if (isPlaceholder(title)) {
+    title = rebuildTechnical();
+  } else {
+    // Ensure brand + product type are present if known.
+    if (brand && !containsToken(title, brand)) {
+      title = compact(`${brand} ${title}`);
+    }
+    if (productType && !containsToken(title, productType)) {
+      const tentative = compact(`${title} ${productType}`);
+      title = tentative.length <= maxLen ? tentative : title;
+    }
+    // Append technical candidates if we have space.
+    for (const token of candidates) {
+      if (!token) continue;
+      if (containsToken(title, token)) continue;
+      const tentative = compact(`${title} ${token}`);
+      if (tentative.length <= maxLen) {
+        title = tentative;
+      }
+    }
+    // If we still overflow, prefer a deterministic technical rebuild.
+    if (title.length > maxLen) {
+      const rebuilt = rebuildTechnical();
+      if (rebuilt) {
+        title = rebuilt;
+      } else {
+        title = compact(title).slice(0, maxLen).trim();
+      }
+    }
+  }
+
+  return compact(title);
+}
+
 async function saveProduct(product, options = {}) {
   try {
     const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(product.id);
@@ -735,6 +877,18 @@ async function saveProduct(product, options = {}) {
       storageBins: preservedStorageBins,
       inventory: preservedInventory,
     });
+
+    // Normalize generated fields consistently across Identify / Improve / Chat saves.
+    // - no duplicate highlights
+    // - stable, technical title (eBay safe length)
+    const normalizedKeyFeatures = sanitizeKeyFeatures(productWithEbay?.details?.key_features || [], { max: 8 });
+    const technicalTitle = ensureTechnicalTitle(productWithEbay, { maxLen: 80 });
+    if (!productWithEbay.details) productWithEbay.details = {};
+    productWithEbay.details.key_features = normalizedKeyFeatures;
+    if (!productWithEbay.identification) productWithEbay.identification = {};
+    if (technicalTitle) {
+      productWithEbay.identification.name = technicalTitle;
+    }
 
     const productData = {
       ...productWithEbay,

@@ -128,7 +128,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsDirty(!product.ops?.last_saved_iso);
     setAutoGenDone(false);
     setBinCodeInput(product.storage?.binCode || '');
-    setBinQuantity(product.storage?.quantity || product.inventory?.quantity || 1);
+    // binQuantity is a delta for stockIn/stockOut (multi-BIN), so default to 1.
+    setBinQuantity(1);
     setNewImageUrl('');
     loadProductBins(product.id);
     setBarcodeInput((product.identification?.barcodes || []).join('\n'));
@@ -156,7 +157,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         },
       }));
       setBinCodeInput(primary.code);
-      setBinQuantity(qty);
+      // delta input
+      setBinQuantity(1);
     }
   }, [binsLoading, productBins, localProduct.storage?.binCode]);
 
