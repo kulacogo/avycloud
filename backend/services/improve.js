@@ -679,15 +679,15 @@ async function improveExistingProduct(productId, onProgress) {
     if (onProgress) await onProgress('reviewing');
   } else {
     try {
-      const result = await runProductIdentification({
-        files,
-        barcodes,
-        locale: product.locale || 'de-DE',
-        modelOverride: null,
-        improveContext: buildImproveContext(product),
-        skipExternalSearch: true,
-        onProgress,
-      });
+  const result = await runProductIdentification({
+    files,
+    barcodes,
+    locale: product.locale || 'de-DE',
+    modelOverride: null,
+    improveContext: buildImproveContext(product),
+    skipExternalSearch: true,
+    onProgress,
+  });
       improvedOutput = result?.bundle?.products?.[0] || null;
     } catch (error) {
       console.warn('[improve] Identification failed. Falling back to review-only improve:', error?.message || error);

@@ -147,6 +147,18 @@ async function processJob(jobId) {
           const nameForMatch = (product.identification?.name || '').trim();
           const brandForMatch = (product.identification?.brand || '').trim();
 
+          // 0. Hard safety: if the identified product ID already exists in Firestore, DO NOT overwrite it.
+          // This can happen when `ensureProductId()` uses a barcode/EAN as the product id.
+          // Identify is allowed to CREATE new products, but must never "reset" an existing datasheet.
+          if (!matchedExistingProduct && product.id) {
+            const existingById = await getProduct(String(product.id));
+            if (existingById?.id) {
+              matchedExistingProduct = existingById;
+              matchedProductId = existingById.id;
+              console.log(`Resolved duplicate product via ID collision: ${existingById.id} (job ${jobId})`);
+            }
+          }
+
           // 1. Strict Identifier Check (Barcode/SKU) - PRIORITY
           if (!matchedExistingProduct) {
              const strictMatch = await findProductByStrictIdentifier({

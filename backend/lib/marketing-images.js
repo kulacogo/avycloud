@@ -214,29 +214,29 @@ async function fetchMarketingImages({
       { tbs: 'itp:photo', label: `${query} (relaxed)` },
     ];
     for (const attempt of queryAttempts) {
-      if (collected.length >= desired) break;
-      const params = {
-        q: query,
+    if (collected.length >= desired) break;
+    const params = {
+      q: query,
         tbs: attempt.tbs,
-        num: 20,
-        ijn: collected.length > 0 ? 1 : 0,
-      };
+      num: 20,
+      ijn: collected.length > 0 ? 1 : 0,
+    };
       const { images, trace: engineTrace } = await querySerpImages(
         'google_images',
         params,
         desired - collected.length,
         attempt.label
       );
-      for (const img of images) {
-        if (collected.length >= desired) break;
-        const accessibleUrl = await pickAccessibleUrl(img);
-        if (!accessibleUrl) continue;
-        const key = normalizeUrlKey(accessibleUrl);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        collected.push({ ...img, url: accessibleUrl });
-      }
-      trace.push(...engineTrace);
+    for (const img of images) {
+      if (collected.length >= desired) break;
+      const accessibleUrl = await pickAccessibleUrl(img);
+      if (!accessibleUrl) continue;
+      const key = normalizeUrlKey(accessibleUrl);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      collected.push({ ...img, url: accessibleUrl });
+    }
+    trace.push(...engineTrace);
     }
   }
 

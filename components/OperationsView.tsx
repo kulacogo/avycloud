@@ -214,7 +214,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       Object.entries(prev).forEach(([id, qty]) => {
         if (stillOpenIds.has(id)) {
           next[id] = qty;
-        }
+    }
       });
       return next;
     });
@@ -313,7 +313,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           normalizeSku(product?.details?.identifiers?.ean) ||
           normalizeSku(product?.details?.identifiers?.gtin) ||
           normalizeSku(product?.id) ||
-          null;
+              null;
 
         if (!skuCandidate) return;
 
@@ -740,7 +740,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           prev.map((order) => {
             if (order.id !== activeTask.orderId) return order;
             return {
-              ...order,
+                ...order,
               items: order.items.map((it) => {
                 const qtyPicked =
                   it.id === activeTaskId ? clampedPicked : Number(pickedByItemId[it.id] || 0) || 0;
@@ -762,19 +762,19 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
         try {
           if (isOrderDone) {
-            await completeOrderApi(activeTask.orderId);
-            setOrders((prev) =>
-              prev.map((order) =>
-                order.id === activeTask.orderId
-                  ? {
-                      ...order,
-                      status: 'picked',
-                      statusLabel: t('ops.orders.complete'),
-                      pickedAt: new Date().toISOString(),
-                    }
-                  : order
-              )
-            );
+          await completeOrderApi(activeTask.orderId);
+          setOrders((prev) =>
+            prev.map((order) =>
+              order.id === activeTask.orderId
+                ? {
+                  ...order,
+                  status: 'picked',
+                  statusLabel: t('ops.orders.complete'),
+                  pickedAt: new Date().toISOString(),
+                }
+                : order
+            )
+          );
           }
         } catch (error) {
           console.warn('Order completion failed:', error);

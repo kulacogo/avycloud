@@ -91,10 +91,10 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
     async ({ sync }: { sync: boolean }) => {
       try {
         if (sync) {
-          try {
+        try {
             await syncOrdersApi({ timeoutMs: 20000 });
-          } catch (err) {
-            console.warn('Order sync failed (dashboard will still fetch)', err);
+        } catch (err) {
+          console.warn('Order sync failed (dashboard will still fetch)', err);
           }
         }
         const data = await fetchOrdersApi(100, { timeoutMs: 20000 });

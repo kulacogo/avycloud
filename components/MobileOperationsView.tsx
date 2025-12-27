@@ -53,26 +53,26 @@ const StatusBadge: React.FC<{ label: string; tone?: 'neutral' | 'success' | 'war
 const ProductCard: React.FC<{ product: Product; footer?: React.ReactNode }> = ({ product, footer }) => {
   const { t } = useI18n();
   return (
-    <div className="w-full text-left rounded-2xl bg-slate-800 border border-white/5 p-3 flex gap-3 shadow-sm shadow-black/20">
-      <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden flex items-center justify-center">
-        {product.details?.images?.[0]?.url_or_base64 ? (
-          <img src={product.details.images[0].url_or_base64} alt="" className="w-full h-full object-cover" />
-        ) : (
+  <div className="w-full text-left rounded-2xl bg-slate-800 border border-white/5 p-3 flex gap-3 shadow-sm shadow-black/20">
+    <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden flex items-center justify-center">
+      {product.details?.images?.[0]?.url_or_base64 ? (
+        <img src={product.details.images[0].url_or_base64} alt="" className="w-full h-full object-cover" />
+      ) : (
           <span className="text-xs text-slate-300">{t('common.noImage')}</span>
-        )}
-      </div>
-      <div className="flex-1">
-        <p className="text-sm font-semibold text-white line-clamp-2">{product.identification?.name}</p>
-        <p className="text-xs text-slate-400">
+      )}
+    </div>
+    <div className="flex-1">
+      <p className="text-sm font-semibold text-white line-clamp-2">{product.identification?.name}</p>
+      <p className="text-xs text-slate-400">
           {t('common.sku')} {product.identification?.sku || '—'} · {t('common.bin')} {product.storage?.binCode || '—'}
         </p>
         <p className="text-xs text-slate-400">
           {t('common.qty')} {getProductQuantity(product)}
-        </p>
-      </div>
-      {footer && <div className="flex flex-col items-end gap-1">{footer}</div>}
+      </p>
     </div>
-  );
+    {footer && <div className="flex flex-col items-end gap-1">{footer}</div>}
+  </div>
+);
 };
 
 const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, mode, onNavigate, onSelectProduct }) => {
@@ -288,7 +288,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           productId: (product?.id || hint?.productId || it.productId || null) as any,
           availableInBin: typeof availableInBin === 'number' ? availableInBin : null,
         });
-      });
+        });
     });
 
     tasks.sort((a, b) => compareBinCodesForPickRoute(a.binCode, b.binCode));

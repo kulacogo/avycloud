@@ -107,7 +107,7 @@ export const useImproveQueue = (options?: UseImproveQueueOptions) => {
 
         // Auto-dismiss only for small job sessions (bulk should remain visible).
         if (jobsCountRef.current <= 10) {
-          setTimeout(() => {
+        setTimeout(() => {
             setJobs((prev) => prev.filter((j) => j.localId !== localId));
           }, 6000);
         }
@@ -174,30 +174,30 @@ export const useImproveQueue = (options?: UseImproveQueueOptions) => {
 
       for (const batchIds of batches) {
         const creation = await createImproveJobs(batchIds);
-        if (!creation.ok || !creation.data?.jobs?.length) {
-          const message =
-            creation.error?.message || 'Improve-Jobs konnten nicht gestartet werden.';
-          setError(message);
-          return;
-        }
+      if (!creation.ok || !creation.data?.jobs?.length) {
+        const message =
+          creation.error?.message || 'Improve-Jobs konnten nicht gestartet werden.';
+        setError(message);
+        return;
+      }
 
         if (creation.data.missing?.length) {
           allMissing.push(...creation.data.missing);
         }
 
-        creation.data.jobs.forEach(({ jobId, productId }) => {
-          const localId = createLocalId();
-          addJob({
-            localId,
-            jobId,
-            productId,
-            label: options?.resolveLabel?.(productId) || `Produkt ${productId}`,
-            phase: 'queued',
-            message: PHASE_MESSAGES.queued,
-            startedAt: timestamp,
-          });
-          enqueueMonitor(jobId, localId, productId);
+      creation.data.jobs.forEach(({ jobId, productId }) => {
+        const localId = createLocalId();
+        addJob({
+          localId,
+          jobId,
+          productId,
+          label: options?.resolveLabel?.(productId) || `Produkt ${productId}`,
+          phase: 'queued',
+          message: PHASE_MESSAGES.queued,
+          startedAt: timestamp,
         });
+          enqueueMonitor(jobId, localId, productId);
+      });
       }
 
       if (allMissing.length) {

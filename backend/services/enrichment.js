@@ -649,7 +649,7 @@ function resolveEbayCategory({ details = {}, attributes = {}, identification = {
   // Only resolve by breadcrumb/path if we actually have a breadcrumb (avoid leaf-only strings).
   if (bestPath) {
     const byPath = marketplaceLookup.lookupEbay(bestPath);
-    if (byPath) {
+  if (byPath) {
       return { id: byPath, path: bestPath };
     }
   }
@@ -1480,9 +1480,9 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
     let candidates = collectPriceCandidates(product, serpTrace, keywords);
     if (!candidates.length) {
       for (const q of queries) {
-        try {
+      try {
           const raw = await callSerpApi('google_shopping', { q, num: 20 });
-          const summary = summarizeSerpEntries('google_shopping', raw, 15);
+        const summary = summarizeSerpEntries('google_shopping', raw, 15);
           if (!summary.length) continue;
           const traceEntry = {
             engine: 'google_shopping',
@@ -1493,7 +1493,7 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
             fallback: true,
           };
           serpTrace.push(traceEntry);
-        } catch (err) {
+      } catch (err) {
           console.warn('Price search failed:', err.message);
           serpTrace.push({
             engine: 'google_shopping',

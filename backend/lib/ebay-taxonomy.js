@@ -131,9 +131,9 @@ function findEbayCategory(rawCategory) {
 
     // Score: prefer stronger breadcrumb prefix matches, then prefer leaf-token overlap.
     const score = prefix * 100 + overlapLast * 25 + haySegs.length;
-    if (score > bestScore) {
-      bestScore = score;
-      best = cat;
+        if (score > bestScore) {
+          bestScore = score;
+          best = cat;
     }
   }
 

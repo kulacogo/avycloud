@@ -143,14 +143,14 @@ async function refreshProductInventory(productId) {
   const storage =
     primary
       ? {
-          binCode: primary.code,
-          zone: primary.zone,
-          etage: primary.etage,
-          gang: primary.gang,
-          regal: primary.regal,
-          ebene: primary.ebene,
-          quantity: primary.quantity || 0,
-          assigned_at: primary.lastUpdatedAt || primary.firstStoredAt || new Date().toISOString(),
+      binCode: primary.code,
+      zone: primary.zone,
+      etage: primary.etage,
+      gang: primary.gang,
+      regal: primary.regal,
+      ebene: primary.ebene,
+      quantity: primary.quantity || 0,
+      assigned_at: primary.lastUpdatedAt || primary.firstStoredAt || new Date().toISOString(),
         }
       : null;
 
@@ -596,7 +596,7 @@ async function assignProductToBin(binCode, productId, quantity) {
     });
     writeWarehouseEventTx(tx, {
       type: 'bin_assign_product',
-      binCode,
+        binCode,
       productId: String(productId),
       quantity: Number(quantity) || 0,
       mode: 'set',

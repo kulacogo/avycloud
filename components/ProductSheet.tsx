@@ -606,7 +606,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         return prev;
       }
       return {
-        ...prev,
+      ...prev,
         details: { ...prev.details, images: [...existing, ...dedupedIncoming] },
       };
     });
