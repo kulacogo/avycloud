@@ -1250,8 +1250,11 @@ app.post('/api/sync-baselinker', async (req, res) => {
   console.log('Received request on /api/sync-baselinker');
 
   try {
-    const { product, products } = req.body;
-    const invId = process.env.BASELINKER_INVENTORY_ID || '78659';
+    const { product, products, inventoryId } = req.body || {};
+    // Prefer request-provided inventoryId (frontend sends it), fall back to env/default.
+    const invId = String(
+      (inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659')
+    ).trim();
 
     // Validate input
     if (!product && !products) {
@@ -1265,7 +1268,11 @@ app.post('/api/sync-baselinker', async (req, res) => {
 
     // Handle single product
     if (product && !products) {
-      const result = await syncProductToBaseLinker(product, invId);
+      // Always prefer the canonical Firestore doc (contains ops.linkage, latest saved description, etc.)
+      const canonical =
+        product?.id ? await getProduct(String(product.id)).catch(() => null) : null;
+      const sourceProduct = canonical || product;
+      const result = await syncProductToBaseLinker(sourceProduct, invId);
       results = [result];
     }
     // Handle multiple products
@@ -1282,7 +1289,15 @@ app.post('/api/sync-baselinker', async (req, res) => {
       results = [];
       for (let i = 0; i < products.length; i += CHUNK_SIZE) {
         const chunk = products.slice(i, i + CHUNK_SIZE);
-        const chunkResults = await syncProductsToBaseLinker(chunk, invId);
+        const canonicalChunk = await Promise.all(
+          chunk.map(async (p) => {
+            const pid = p?.id ? String(p.id) : null;
+            if (!pid) return p;
+            const canonical = await getProduct(pid).catch(() => null);
+            return canonical || p;
+          })
+        );
+        const chunkResults = await syncProductsToBaseLinker(canonicalChunk, invId);
         results.push(...chunkResults);
       }
     }

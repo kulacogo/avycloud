@@ -711,6 +711,7 @@ function pickProductName(product) {
 
 function pickSku(product) {
   const candidates = [
+    product?.identification?.sku,
     product?.details?.identifiers?.sku,
     product?.details?.identifiers?.mpn,
     product?.id,
@@ -851,10 +852,21 @@ function buildTextFields(product, name) {
   Object.entries(attributes).forEach(([rawKey, rawVal]) => {
     if (rawVal === undefined || rawVal === null) return;
     const key = String(rawKey).trim();
+    // Avoid syncing technical/ambiguous keys as Parameters.
+    // "SKU" must come from the actual SKU field, not from arbitrary source attributes.
+    const keyLower = key.toLowerCase();
+    if (keyLower === 'sku' || keyLower === 'product_id' || keyLower === 'id') return;
     const value =
       typeof rawVal === 'object' ? JSON.stringify(rawVal) : rawVal;
     addFeature(key, value);
   });
+
+  // Always expose the real SKU as parameter "SKU" for consistency in BaseLinker UI,
+  // overriding any source attribute that might use the same key.
+  const realSku = pickSku(product);
+  if (realSku) {
+    features.SKU = realSku;
+  }
 
   // BaseLinker text_fields keys support optional "|{lang}" and "|{lang}|{integration_account}" suffixes.
   // See BaseLinker API docs (addInventoryProduct): examples include "name|de".
