@@ -206,6 +206,125 @@ async function ensureInventoryCategory(inventoryId, pathStr) {
   inventoryCategoryCache.set(key, cache);
   return parentId || 0;
 }
+
+/**
+ * Inventory text field keys cache (BaseLinker integration-scoped text fields)
+ *
+ * BaseLinker product text fields can be overridden per language and per integration account:
+ *   field|lang|integration_account (e.g. "description|de|amazon_123")
+ *
+ * The official API exposes discoverability via:
+ * - getInventoryIntegrations (lists integrations + accounts + languages)
+ * - getInventoryAvailableTextFieldKeys (returns "text_field_keys" map of key -> label)
+ */
+const inventoryTextFieldKeysCache = new Map(); // key: inventoryId -> { atMs, keys: string[] }
+const TEXT_FIELD_KEYS_CACHE_TTL_MS = parseInt(
+  process.env.BASELINKER_TEXT_FIELD_KEYS_CACHE_TTL_MS || `${6 * 60 * 60 * 1000}`,
+  10
+);
+
+function parseTextFieldKeyId(key) {
+  const parts = String(key || '')
+    .split('|')
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const field = parts[0] || null;
+  const maybeLang = parts[1] || null;
+  const lang = maybeLang && /^[a-z]{2}$/i.test(maybeLang) ? maybeLang.toLowerCase() : null;
+  return { field, lang };
+}
+
+async function getInventoryAvailableTextFieldKeyIds(inventoryId) {
+  const invKey = String(inventoryId || '');
+  if (!invKey) return [];
+
+  const now = Date.now();
+  const cached = inventoryTextFieldKeysCache.get(invKey);
+  if (cached?.keys && now - (cached.atMs || 0) < TEXT_FIELD_KEYS_CACHE_TTL_MS) {
+    return cached.keys;
+  }
+
+  const keys = new Set();
+
+  // 1) Default keys (without specifying integration_name)
+  try {
+    const res = await callBaseLinker('getInventoryAvailableTextFieldKeys', {
+      inventory_id: Number(invKey),
+    });
+    const map = res?.text_field_keys;
+    if (map && typeof map === 'object') {
+      Object.keys(map).forEach((k) => keys.add(k));
+    }
+  } catch (e) {
+    console.warn('getInventoryAvailableTextFieldKeys (default) failed:', e.message);
+  }
+
+  // 2) Integration-scoped keys
+  try {
+    const res = await callBaseLinker('getInventoryIntegrations', {
+      inventory_id: Number(invKey),
+    });
+    const integrations = Array.isArray(res?.integrations) ? res.integrations : [];
+
+    for (const entry of integrations) {
+      if (!entry || typeof entry !== 'object') continue;
+      const [integrationName] = Object.keys(entry);
+      if (!integrationName) continue;
+
+      try {
+        const keysRes = await callBaseLinker('getInventoryAvailableTextFieldKeys', {
+          inventory_id: Number(invKey),
+          integration_name: integrationName,
+        });
+        const map = keysRes?.text_field_keys;
+        if (map && typeof map === 'object') {
+          Object.keys(map).forEach((k) => keys.add(k));
+        }
+      } catch (inner) {
+        console.warn(
+          `getInventoryAvailableTextFieldKeys failed for integration ${integrationName}:`,
+          inner.message
+        );
+      }
+    }
+  } catch (e) {
+    console.warn('getInventoryIntegrations failed:', e.message);
+  }
+
+  const list = Array.from(keys);
+  inventoryTextFieldKeysCache.set(invKey, { atMs: now, keys: list });
+  return list;
+}
+
+async function expandTextFieldsForInventory(inventoryId, textFields, values, lang) {
+  const enabled =
+    (process.env.BASELINKER_TEXT_FIELDS_AUTO_EXPAND ?? 'true')
+      .toString()
+      .toLowerCase() === 'true';
+  if (!enabled) return textFields;
+  if (!textFields || typeof textFields !== 'object') return textFields;
+
+  const keyIds = await getInventoryAvailableTextFieldKeyIds(inventoryId);
+  if (!Array.isArray(keyIds) || keyIds.length === 0) return textFields;
+
+  const out = { ...textFields };
+  const targetLang = (lang || 'de').toLowerCase();
+
+  for (const keyId of keyIds) {
+    const { field, lang: keyLang } = parseTextFieldKeyId(keyId);
+    if (!field) continue;
+    if (keyLang && keyLang !== targetLang) continue;
+
+    if (field === 'name' && values?.name && out[keyId] == null) out[keyId] = values.name;
+    if (field === 'description' && values?.description && out[keyId] == null)
+      out[keyId] = values.description;
+    if (field === 'description_extra1' && values?.description_extra1 && out[keyId] == null)
+      out[keyId] = values.description_extra1;
+  }
+
+  return out;
+}
+
 const requestQueue = [];
 let activeRequestCount = 0;
 let lastRequestAt = 0;
@@ -1173,6 +1292,47 @@ async function syncProductToBaseLinker(product, inventoryId) {
       quantity,
       inventoryCategoryId
     );
+
+    // Ensure BaseLinker receives description for the *actual* text field key used by the UI.
+    // BaseLinker supports field|lang|integration_account keys; we discover and mirror values.
+    const defaultLang = (process.env.BASELINKER_TEXT_LANG || 'de')
+      .toString()
+      .trim()
+      .toLowerCase();
+    payload.text_fields = await expandTextFieldsForInventory(
+      inventoryId,
+      payload.text_fields,
+      {
+        name: payload?.text_fields?.name,
+        description: payload?.text_fields?.description,
+        description_extra1: payload?.text_fields?.description_extra1,
+      },
+      defaultLang
+    );
+
+    const debugTextFields =
+      (process.env.BASELINKER_DEBUG_TEXT_FIELDS ?? 'false').toString().toLowerCase() ===
+      'true';
+    if (debugTextFields) {
+      const tf = payload.text_fields || {};
+      const descKeys = Object.keys(tf).filter((k) => /^description(\||$)/i.test(k));
+      console.log(
+        '[BaseLinker sync debug] text_fields description keys:',
+        JSON.stringify(
+          {
+            inventoryId,
+            sku: payload.sku,
+            productId: product.id,
+            keys: descKeys,
+            preview: Object.fromEntries(
+              descKeys.slice(0, 12).map((k) => [k, String(tf[k] || '').slice(0, 120)])
+            ),
+          },
+          null,
+          2
+        )
+      );
+    }
     const normalizedSku = normalizeSkuValue(payload.sku);
     const normalizedEan = normalizeEanValue(payload.ean);
 
