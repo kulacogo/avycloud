@@ -264,27 +264,74 @@ async function getInventoryAvailableTextFieldKeyIds(inventoryId) {
     const res = await callBaseLinker('getInventoryIntegrations', {
       inventory_id: Number(invKey),
     });
-    const integrations = Array.isArray(res?.integrations) ? res.integrations : [];
+    // BaseLinker returns integrations typically as:
+    // { integrations: [ { ebay: { langs: [...], accounts: { "301": "..." } } }, ... ] }
+    const raw = res?.integrations;
+    const list = Array.isArray(raw)
+      ? raw
+      : raw && typeof raw === 'object'
+        ? Object.entries(raw).map(([name, value]) => ({ [name]: value }))
+        : [];
 
-    for (const entry of integrations) {
+    const MAX_ACCOUNTS_PER_INTEGRATION = Math.max(
+      1,
+      parseInt(process.env.BASELINKER_TEXT_FIELDS_MAX_ACCOUNTS || '30', 10)
+    );
+
+    const fields = ['name', 'description', 'description_extra1'];
+
+    for (const entry of list) {
       if (!entry || typeof entry !== 'object') continue;
       const [integrationName] = Object.keys(entry);
-      if (!integrationName) continue;
+      const meta = integrationName ? entry[integrationName] : null;
+      if (!integrationName || !meta || typeof meta !== 'object') continue;
 
-      try {
-        const keysRes = await callBaseLinker('getInventoryAvailableTextFieldKeys', {
-          inventory_id: Number(invKey),
-          integration_name: integrationName,
-        });
-        const map = keysRes?.text_field_keys;
-        if (map && typeof map === 'object') {
-          Object.keys(map).forEach((k) => keys.add(k));
+      const langs = Array.isArray(meta.langs)
+        ? meta.langs.map((l) => String(l).toLowerCase()).filter(Boolean)
+        : [];
+      const accountsObj = meta.accounts && typeof meta.accounts === 'object' ? meta.accounts : {};
+      const accountIds = Object.keys(accountsObj)
+        .map((id) => String(id).trim())
+        .filter(Boolean)
+        .slice(0, MAX_ACCOUNTS_PER_INTEGRATION);
+
+      // Add integration-wide "0" identifier (per BaseLinker docs, e.g. amazon_0)
+      const integrationAccounts = Array.from(
+        new Set([`${integrationName}_0`, ...accountIds.map((id) => `${integrationName}_${id}`)])
+      );
+
+      for (const field of fields) {
+        for (const acc of integrationAccounts) {
+          // Without explicit lang (falls back to default language in BaseLinker)
+          keys.add(`${field}|${acc}`);
+          // With explicit language variants
+          for (const l of langs) {
+            keys.add(`${field}|${l}|${acc}`);
+          }
         }
-      } catch (inner) {
-        console.warn(
-          `getInventoryAvailableTextFieldKeys failed for integration ${integrationName}:`,
-          inner.message
-        );
+      }
+
+      // Optional: also fetch the integration-provided keys list (can be slow if many integrations)
+      const fetchIntegrationKeys =
+        (process.env.BASELINKER_FETCH_INTEGRATION_TEXT_KEYS ?? 'false')
+          .toString()
+          .toLowerCase() === 'true';
+      if (fetchIntegrationKeys) {
+        try {
+          const keysRes = await callBaseLinker('getInventoryAvailableTextFieldKeys', {
+            inventory_id: Number(invKey),
+            integration_name: integrationName,
+          });
+          const map = keysRes?.text_field_keys;
+          if (map && typeof map === 'object') {
+            Object.keys(map).forEach((k) => keys.add(k));
+          }
+        } catch (inner) {
+          console.warn(
+            `getInventoryAvailableTextFieldKeys failed for integration ${integrationName}:`,
+            inner.message
+          );
+        }
       }
     }
   } catch (e) {
@@ -1194,7 +1241,8 @@ async function findProductsBySkus(inventoryId, skuList = []) {
  * Einzelnes Produkt synchronisieren
  */
 async function syncProductToBaseLinker(product, inventoryId) {
-  const invId = String(TARGET_INVENTORY_ID);
+  // Always use the effective inventory (we only operate on one BaseLinker inventory in production).
+  const invId = String(inventoryId || TARGET_INVENTORY_ID);
   if (!invId) {
     const message = 'Inventory ID fehlt';
     await logInventorySyncEvent({
@@ -1227,7 +1275,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
       };
     }
 
-    const meta = await getInventoryMeta(inventoryId);
+    const meta = await getInventoryMeta(invId);
     if (!meta.warehouseKey) {
       throw new Error('BaseLinker inventory has no default warehouse (stock key)');
     }
@@ -1246,7 +1294,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
 
     const manufacturerId = await ensureManufacturerId(
       brandName,
-      inventoryId
+      invId
     );
 
     const attrs = { ...(product?.details?.attributes || {}) };
@@ -1277,14 +1325,12 @@ async function syncProductToBaseLinker(product, inventoryId) {
       const reservedQty = skuKey ? Number(reservedMap.get(skuKey) || 0) : 0;
       quantity = Math.max(0, physicalQuantity - reservedQty);
     }
-    const inventoryCategoryId = categoryPath
-      ? await ensureInventoryCategory(invId, categoryPath)
-      : 0;
+    const inventoryCategoryId = categoryPath ? await ensureInventoryCategory(invId, categoryPath) : 0;
     const numericCategoryId = inventoryCategoryId || 0;
 
     const payload = buildPayload(
       product,
-      inventoryId,
+      invId,
       meta,
       manufacturerId,
       numericCategoryId,
@@ -1300,7 +1346,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
       .trim()
       .toLowerCase();
     payload.text_fields = await expandTextFieldsForInventory(
-      inventoryId,
+      invId,
       payload.text_fields,
       {
         name: payload?.text_fields?.name,
@@ -1320,7 +1366,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
         '[BaseLinker sync debug] text_fields description keys:',
         JSON.stringify(
           {
-            inventoryId,
+            inventoryId: invId,
             sku: payload.sku,
             productId: product.id,
             keys: descKeys,
@@ -1336,17 +1382,64 @@ async function syncProductToBaseLinker(product, inventoryId) {
     const normalizedSku = normalizeSkuValue(payload.sku);
     const normalizedEan = normalizeEanValue(payload.ean);
 
-    let baseProductId = null; // do not reuse across inventories; resolve per inventory
+    const hasOpsLink = Boolean(product?.ops?.base_product_id || product?.ops?.baselinker?.product_id);
+
+    // If the BaseLinker product_id is already known, prefer it (do NOT rely on SKU scan).
+    // This is critical to update the intended product (e.g. 467527271) and avoid accidental duplicates.
+    let baseProductId = null; // resolved per inventory
+    let baseProductIdSource = null;
+
+    // Optional override for one-off fixes/debugging.
+    const forcedPid = Number(process.env.BASELINKER_FORCE_PRODUCT_ID || 0);
+    if (Number.isFinite(forcedPid) && forcedPid > 0) {
+      baseProductId = forcedPid;
+      baseProductIdSource = 'env:BASELINKER_FORCE_PRODUCT_ID';
+    }
+
+    if (!baseProductId) {
+      const linkedRaw =
+        product?.ops?.baselinker?.product_id ??
+        product?.ops?.base_product_id ??
+        null;
+      const linkedPid = Number(linkedRaw);
+      const linkedInv = product?.ops?.baselinker?.synced_inventory ?? null;
+      if (
+        Number.isFinite(linkedPid) &&
+        linkedPid > 0 &&
+        (!linkedInv || String(linkedInv) === String(invId))
+      ) {
+        baseProductId = linkedPid;
+        baseProductIdSource = 'product.ops';
+      }
+    }
+
+    // Next best: resolve via Firestore SKU index (fast, avoids BaseLinker list scans).
+    if (!baseProductId) {
+      const indexKeys = [
+        buildSkuIndexKey('sku', normalizedSku),
+        buildSkuIndexKey('ean', normalizedEan),
+      ].filter(Boolean);
+      for (const key of indexKeys) {
+        const entry = await getSkuIndexEntry(key);
+        const pid = Number(entry?.baseProductId);
+        if (Number.isFinite(pid) && pid > 0) {
+          baseProductId = pid;
+          baseProductIdSource = `sku_index:${key}`;
+          break;
+        }
+      }
+    }
+
     let existing = null;
     let resolvedExisting = false;
     const resolveExistingProduct = async (identifier) => {
       if (resolvedExisting || !identifier) return null;
       resolvedExisting = true;
       // Try lookup by SKU first
-      existing = await findProductBySku(inventoryId, identifier);
+      existing = await findProductBySku(invId, identifier);
       if (!existing?.product_id && payload?.ean) {
         // second attempt: by EAN
-        existing = await findProductBySku(inventoryId, payload.ean);
+        existing = await findProductBySku(invId, payload.ean);
       }
       return existing;
     };
@@ -1354,7 +1447,15 @@ async function syncProductToBaseLinker(product, inventoryId) {
       await resolveExistingProduct(payload.sku || payload.ean);
       if (existing?.product_id) {
         baseProductId = existing.product_id;
+        baseProductIdSource = 'baselinker_lookup';
       }
+    }
+
+    // If the product is already linked to BaseLinker, never create a new product.
+    if (!baseProductId && hasOpsLink) {
+      throw new Error(
+        `BaseLinker linkage exists but product_id could not be resolved (sku=${payload?.sku || ''}, ean=${payload?.ean || ''}). Refusing to create a new BaseLinker product.`
+      );
     }
 
     const buildRequest = (productId) => ({
@@ -1381,9 +1482,16 @@ async function syncProductToBaseLinker(product, inventoryId) {
           }
           if (existing?.product_id) {
             baseProductId = existing.product_id;
+            baseProductIdSource = 'baselinker_lookup_after_stale';
             requestPayload = buildRequest(baseProductId);
           } else {
             baseProductId = null;
+            // If linked, do NOT create a new product as a fallback.
+            if (hasOpsLink) {
+              throw new Error(
+                `BaseLinker product_id is stale and no replacement could be resolved (sku=${payload?.sku || ''}). Refusing to create a new product.`
+              );
+            }
             requestPayload = buildRequest(0);
           }
           result = await callBaseLinker('addInventoryProduct', requestPayload);
@@ -1400,6 +1508,18 @@ async function syncProductToBaseLinker(product, inventoryId) {
     }
 
     baseProductId = result.product_id || baseProductId || null;
+    const debugPid =
+      (process.env.BASELINKER_DEBUG_TEXT_FIELDS ?? 'false').toString().toLowerCase() ===
+      'true';
+    if (debugPid) {
+      console.log('[BaseLinker sync debug] product_id resolved:', {
+        inventoryId: invId,
+        sku: payload?.sku,
+        productId: product?.id,
+        baseProductId,
+        baseProductIdSource,
+      });
+    }
 
     const syncTimestamp = new Date().toISOString();
     try {
@@ -1408,7 +1528,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
         'synced',
         syncTimestamp,
         baseProductId,
-        inventoryId
+        invId
       );
     } catch (updateError) {
       console.warn(
@@ -1434,7 +1554,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
 
     await logInventorySyncEvent({
       productId: product.id,
-      inventoryId,
+      inventoryId: invId,
       status: 'success',
       message: 'Successfully synced to BaseLinker',
     });
