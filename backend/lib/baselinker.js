@@ -690,9 +690,22 @@ function buildTextFields(product, name) {
     addFeature(key, value);
   });
 
+  // BaseLinker text_fields keys support optional "|{lang}" and "|{lang}|{integration_account}" suffixes.
+  // See BaseLinker API docs (addInventoryProduct): examples include "name|de".
+  // To ensure the DE language tab is updated, we send both default keys and language-specific keys.
+  const defaultLang = (process.env.BASELINKER_TEXT_LANG || 'de').toString().trim().toLowerCase();
+  const desc =
+    (product?.details?.short_description || '').toString().trim() ||
+    (product?.details?.description || '').toString().trim() ||
+    name;
+
   const textFields = {
+    // Default (catalog default language)
     name,
-    description: product?.details?.short_description || name,
+    description: desc,
+    // Explicit language (e.g. DE tab in BaseLinker UI)
+    [`name|${defaultLang}`]: name,
+    [`description|${defaultLang}`]: desc,
   };
 
   // Extra Beschreibung 1 = Highlights/Bullets für BL
@@ -701,7 +714,9 @@ function buildTextFields(product, name) {
     : [];
   if (highlights.length) {
     // BaseLinker erwartet description_extra1 (nicht extra_description_1)
-    textFields.description_extra1 = highlights.map((h) => `• ${h}`).join('\n');
+    const extra1 = highlights.map((h) => `• ${h}`).join('\n');
+    textFields.description_extra1 = extra1;
+    textFields[`description_extra1|${defaultLang}`] = extra1;
   }
 
   if (Object.keys(features).length) {
@@ -921,6 +936,29 @@ function buildPayload(
     payload.images = images;
   }
 
+  return payload;
+}
+
+// Lightweight internal export for local verification/debugging (not part of public API usage).
+// Allows scripts/tests to assert the payload includes language-specific text_fields keys.
+function __buildPayloadForDebug(product, inventoryId) {
+  const meta = { warehouseKey: 'inventory_debug', priceGroupKey: '1' };
+  const name = pickProductName(product) || 'Debug product';
+  const textFields = buildTextFields(product, name);
+  const sku = pickSku(product) || 'DEBUG-SKU';
+  const payload = buildPayload(
+    { ...product, identification: { ...(product.identification || {}), name } },
+    String(inventoryId || TARGET_INVENTORY_ID || '0'),
+    meta,
+    null,
+    0,
+    1,
+    0,
+    0
+  );
+  // Ensure deterministic fields for assertions.
+  payload.sku = sku;
+  payload.text_fields = textFields;
   return payload;
 }
 
@@ -1293,4 +1331,5 @@ module.exports = {
   syncProductsToBaseLinker,
   callBaseLinker,
   findProductsBySkus,
+  __buildPayloadForDebug,
 };
