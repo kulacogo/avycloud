@@ -658,7 +658,7 @@ function sanitizeKeyFeatures(list, { max = 8 } = {}) {
   return out;
 }
 
-function ensureTechnicalTitle(product, { maxLen = 80 } = {}) {
+function ensureTechnicalTitle(product, { minLen = 70, maxLen = 80 } = {}) {
   const safeString = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
   const normalizeMatch = (v) =>
     safeString(v)
@@ -703,12 +703,23 @@ function ensureTechnicalTitle(product, { maxLen = 80 } = {}) {
   pushCandidate(pickAttr('Fassungsvermögen gesamt', 'Fassungsvermögen', 'Volumen', 'Kapazität'));
   pushCandidate(pickAttr('Größe', 'Size', 'Maße'));
   pushCandidate(pickAttr('Farbe', 'Color'));
-  pushCandidate(pickAttr('Material'));
+  pushCandidate(pickAttr('Material', 'Obermaterial', 'Gewebeart', 'Futtermaterial'));
+  // Extra fillers to reach SEO target length (only if present)
+  pushCandidate(pickAttr('Einbauposition', 'Position'));
+  pushCandidate(pickAttr('Bremsscheibenart'));
+  pushCandidate(pickAttr('Bildschirmgröße'));
+  pushCandidate(pickAttr('Betriebssystem'));
+  pushCandidate(pickAttr('Wiedergabeformate'));
+  pushCandidate(pickAttr('Format', 'Einband'));
+  pushCandidate(pickAttr('Sprache'));
+  pushCandidate(pickAttr('Erscheinungsjahr', 'Herstellungsjahr', 'Baujahr'));
+  pushCandidate(pickAttr('Produktlinie', 'Serie', 'Thema'));
 
   const isPlaceholder = (title) => {
     const t = safeString(title);
     if (!t) return true;
     if (/unknown|unbekannt/i.test(t)) return true;
+    if (/\bsku[\s\-_]?\d+\b/i.test(t)) return true;
     if (/^sku[\s\-_]?\d+/i.test(t)) return true;
     if (t.length < 10) return true;
     return false;
@@ -768,6 +779,20 @@ function ensureTechnicalTitle(product, { maxLen = 80 } = {}) {
       } else {
         title = compact(title).slice(0, maxLen).trim();
       }
+    }
+  }
+
+  // Best-effort: try to hit the SEO range 70–80 chars by appending technical candidates.
+  // Never invent tokens; only use known attributes/candidates.
+  if (title.length < minLen) {
+    for (const token of candidates) {
+      if (!token) continue;
+      if (containsToken(title, token)) continue;
+      const tentative = compact(`${title} ${token}`);
+      if (tentative.length <= maxLen) {
+        title = tentative;
+      }
+      if (title.length >= minLen) break;
     }
   }
 
@@ -1081,15 +1106,33 @@ async function saveProduct(product, options = {}) {
     // - no duplicate highlights
     // - stable, technical title (eBay safe length)
     const normalizedKeyFeatures = sanitizeKeyFeatures(productWithEbay?.details?.key_features || [], { max: 8 });
-    const technicalTitle = ensureTechnicalTitle(productWithEbay, { maxLen: 80 });
+    const AUTO_TITLE_MIN_LEN = 70;
+    const AUTO_TITLE_MAX_LEN = 80;
+    const technicalTitle = ensureTechnicalTitle(productWithEbay, { minLen: AUTO_TITLE_MIN_LEN, maxLen: AUTO_TITLE_MAX_LEN });
     if (!productWithEbay.details) productWithEbay.details = {};
     productWithEbay.details.key_features = normalizedKeyFeatures;
     if (!productWithEbay.identification) productWithEbay.identification = {};
     // IMPORTANT: Do not overwrite a manually edited title.
     // We still generate a technical title for automation paths (identify/improve/import),
     // but UI saves must persist exactly what the user entered.
-    if (!isManualSave && technicalTitle) {
-      productWithEbay.identification.name = technicalTitle;
+    if (!isManualSave) {
+      const safeString = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
+      const stripSkuNoise = (val) =>
+        safeString(val)
+          .replace(/\bSKU[\s\-_]?\d+\b/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      const incomingTitle = stripSkuNoise(productWithEbay.identification.name);
+      // Keep AI-generated titles if they already satisfy 70–80 chars and don't contain SKU noise.
+      const keepIncoming =
+        incomingTitle &&
+        incomingTitle.length >= AUTO_TITLE_MIN_LEN &&
+        incomingTitle.length <= AUTO_TITLE_MAX_LEN;
+      if (keepIncoming) {
+        productWithEbay.identification.name = incomingTitle;
+      } else if (technicalTitle) {
+        productWithEbay.identification.name = technicalTitle;
+      }
     }
 
     const productData = {
