@@ -1235,6 +1235,26 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       }
     }
 
+    // Make the user-visible message reflect the final coerced title (70–80 chars),
+    // otherwise the model might *say* a short title while the structured change contains the coerced one.
+    const lastTitleChange = [...(datasheetChanges || [])]
+      .reverse()
+      .find((change) => {
+        if (!change || typeof change !== 'object') return false;
+        if (typeof change.title === 'string' && change.title.trim()) return true;
+        if (change.identity && typeof change.identity === 'object' && typeof change.identity.name === 'string' && change.identity.name.trim()) {
+          return true;
+        }
+        return false;
+      });
+    const finalTitleRaw =
+      (lastTitleChange && (lastTitleChange.title || lastTitleChange.identity?.name)) || '';
+    const finalTitle = typeof finalTitleRaw === 'string' ? finalTitleRaw.trim() : '';
+    if (finalTitle) {
+      const baseMessage = (responseText || '').trim() || 'Titel aktualisiert.';
+      responseText = `${baseMessage}\n\nFinaler Titel (${finalTitle.length} Zeichen): ${finalTitle}`;
+    }
+
     return {
       message: responseText || 'Antwort generiert.',
       datasheetChanges,

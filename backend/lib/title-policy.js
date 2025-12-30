@@ -47,8 +47,25 @@ function normalizeSpaces(text = '') {
   return safeString(text).replace(/\s+/g, ' ').trim();
 }
 
+function stripMarkdownDecorations(text = '') {
+  let t = normalizeSpaces(text);
+  if (!t) return '';
+
+  // Remove wrapping quotes/backticks
+  t = t.replace(/^`(.+)`$/s, '$1');
+  t = t.replace(/^["“”](.+)["“”]$/s, '$1');
+
+  // Remove common markdown bold/italic wrappers (only if they wrap the whole string)
+  t = t.replace(/^\*{1,3}(.+?)\*{1,3}$/s, '$1');
+  t = t.replace(/^_{1,3}(.+?)_{1,3}$/s, '$1');
+
+  // Remove any remaining decoration markers
+  t = t.replace(/\*\*/g, '').replace(/__/g, '');
+  return normalizeSpaces(t);
+}
+
 function stripSkuNoise(text = '') {
-  return normalizeSpaces(text)
+  return stripMarkdownDecorations(text)
     .replace(/\bSKU[\s\-_]?\d+\b/gi, '')
     .replace(/\bSKU\b/gi, '')
     .replace(/\s+/g, ' ')
