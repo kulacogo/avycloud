@@ -71,7 +71,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     []
   );
   const [localProduct, setLocalProduct] = useState<Product>(() => normalizeProduct(product));
+  // Keep stable refs to avoid losing last-moment edits (e.g. blur updates) when clicking "Save".
+  const latestProductRef = useRef<Product>(localProduct);
+  latestProductRef.current = localProduct;
   const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -90,6 +94,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [selectedReferenceIndex, setSelectedReferenceIndex] = useState<number>(-1);
   const [isUploadDragActive, setIsUploadDragActive] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState<string>(() => (product.identification?.barcodes || []).join('\n'));
+  const latestBarcodeInputRef = useRef<string>(barcodeInput);
+  latestBarcodeInputRef.current = barcodeInput;
   const [assigningInventory, setAssigningInventory] = useState(false);
   const [inventoryMessage, setInventoryMessage] = useState<string | null>(null);
   const [syncInventoryId] = useState('78659');
@@ -377,44 +383,73 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     }
   }, [localProduct.inventory?.inventoryId, showNotification, t]);
 
-  const handleSave = async () => {
+  const performSave = useCallback(async () => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
     setIsSaving(true);
-    const productToSave = buildProductWithBarcodeDraft();
-    setLocalProduct(productToSave);
-    const result = await saveProduct(productToSave);
-    if (result.ok && result.data) {
-      const assignedSku =
-        result.data.sku || productToSave.identification.sku || productToSave.details.identifiers?.sku || null;
-      const updatedProduct: Product = {
-        ...productToSave,
+
+    try {
+      // Snapshot AFTER blur-based updates have had a chance to commit.
+      const baseProduct = latestProductRef.current;
+      const parsedBarcodes = parseBarcodes(latestBarcodeInputRef.current);
+      const productToSave: Product = {
+        ...baseProduct,
         identification: {
-          ...productToSave.identification,
-          sku: assignedSku || productToSave.identification.sku,
-        },
-        details: {
-          ...productToSave.details,
-          identifiers: {
-            ...(productToSave.details.identifiers || {}),
-            sku: assignedSku || productToSave.details.identifiers?.sku || undefined,
-          },
-        },
-        ops: {
-          ...productToSave.ops,
-          revision: result.data.revision,
-          last_saved_iso: new Date().toISOString(),
+          ...(baseProduct.identification || {}),
+          barcodes: parsedBarcodes,
         },
       };
-      const normalized = normalizeProduct(updatedProduct);
-      setLocalProduct(normalized);
-      onUpdate(normalized);
-      setIsEditing(false);
-      setIsDirty(false);
-      setBarcodeInput((normalized.identification?.barcodes || []).join('\n'));
-      showNotification('success', t('sheet.msg.saveSuccess'));
-    } else {
-      showNotification('error', result.error?.message || t('sheet.msg.saveError'));
+
+      setLocalProduct(productToSave);
+      const result = await saveProduct(productToSave);
+      if (result.ok && result.data) {
+        const assignedSku =
+          result.data.sku ||
+          productToSave.identification.sku ||
+          productToSave.details.identifiers?.sku ||
+          null;
+        const updatedProduct: Product = {
+          ...productToSave,
+          identification: {
+            ...productToSave.identification,
+            sku: assignedSku || productToSave.identification.sku,
+          },
+          details: {
+            ...productToSave.details,
+            identifiers: {
+              ...(productToSave.details.identifiers || {}),
+              sku: assignedSku || productToSave.details.identifiers?.sku || undefined,
+            },
+          },
+          ops: {
+            ...productToSave.ops,
+            revision: result.data.revision,
+            last_saved_iso: new Date().toISOString(),
+          },
+        };
+        const normalized = normalizeProduct(updatedProduct);
+        setLocalProduct(normalized);
+        onUpdate(normalized);
+        setIsEditing(false);
+        setIsDirty(false);
+        setBarcodeInput((normalized.identification?.barcodes || []).join('\n'));
+        showNotification('success', t('sheet.msg.saveSuccess'));
+      } else {
+        showNotification('error', result.error?.message || t('sheet.msg.saveError'));
+      }
+    } finally {
+      setIsSaving(false);
+      isSavingRef.current = false;
     }
-    setIsSaving(false);
+  }, [normalizeProduct, onUpdate, parseBarcodes, showNotification, t]);
+
+  const handleSave = () => {
+    // Critical: inputs in this sheet commit changes onBlur (attributes, K-Typ, description, highlights).
+    // Clicking "Save" triggers blur + click in the same tick, so state updates may not be applied yet.
+    // Defer the save to the next tick so blur updates are committed before snapshotting the product.
+    setTimeout(() => {
+      void performSave();
+    }, 0);
   };
   const handlePrintLabel = async () => {
     if (!localProduct?.id) return;
