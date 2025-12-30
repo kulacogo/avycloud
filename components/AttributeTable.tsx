@@ -35,10 +35,24 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
     const bKey = (b[0] || '').toLowerCase();
     return aKey.localeCompare(bKey, 'de', { sensitivity: 'base' });
   });
-  const EXCLUDED_KEYS = ['ean', 'sku', 'lowest_price', 'lowest_price.amount', 'lowest_price.currency', 'lowest_price.amount', 'lowest_price.currency'];
+  // Note: some fields are edited elsewhere in the product sheet (SKU/EAN/Barcodes),
+  // or are special-cased with dedicated UI (K-Typ).
+  const EXCLUDED_KEYS = [
+    'ean',
+    'sku',
+    'k-typ',
+    'ktyp',
+    'k typ',
+    'lowest_price',
+    'lowest_price.amount',
+    'lowest_price.currency',
+    'lowest_price.amount',
+    'lowest_price.currency',
+  ];
+  const ALWAYS_HIDE_KEYS = ['k-typ', 'ktyp', 'k typ'];
   const MAX_VALUE_LENGTH = 160;
   const displayEntries = isEditing
-    ? attributeEntries
+    ? attributeEntries.filter(([key]) => !ALWAYS_HIDE_KEYS.includes((key || '').toLowerCase()))
     : attributeEntries.filter(([key, value]) => {
         if (value === null || value === undefined || value === '') return false;
         const normalizedKey = key.toLowerCase();

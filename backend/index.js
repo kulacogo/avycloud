@@ -29,6 +29,7 @@ const { uploadBase64Image, deleteProductImages, uploadJobFile } = require('./lib
 const { recordManualProductImage } = require('./lib/product-images');
 const { createJob, getJob, listJobs, FieldValue } = require('./lib/jobs');
 const { ensureProductSku } = require('./lib/sku');
+const { parseKTypeEbayCsvToSkuMap } = require('./lib/ktype');
 const {
   runProductIdentification,
   ensurePriceCoverage,
@@ -202,6 +203,7 @@ const MAX_IMAGE_FILES = 25;
 const MAX_CHAT_ATTACHMENTS = parseInt(process.env.CHAT_ATTACHMENT_MAX_FILES || '6', 10);
 const MAX_CHAT_ATTACHMENT_SIZE = parseInt(process.env.CHAT_ATTACHMENT_MAX_SIZE || `${6 * 1024 * 1024}`, 10); // 6 MB per attachment
 const CHAT_ATTACHMENT_TEXT_LIMIT = parseInt(process.env.CHAT_ATTACHMENT_TEXT_LIMIT || '6000', 10);
+const MAX_KTYPE_UPLOAD_SIZE = parseInt(process.env.KTYPE_UPLOAD_MAX_SIZE || `${10 * 1024 * 1024}`, 10); // 10 MB
 const CHAT_ATTACHMENT_MIME_WHITELIST = new Set([
   'application/pdf',
   'text/plain',
@@ -557,6 +559,25 @@ const chatUpload = multer({
   },
 });
 
+const ktypeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_KTYPE_UPLOAD_SIZE,
+    files: 1,
+  },
+  fileFilter(req, file, cb) {
+    const name = (file.originalname || '').toLowerCase();
+    const mime = (file.mimetype || '').toLowerCase();
+    const looksCsv =
+      name.endsWith('.csv') ||
+      mime.includes('text/csv') ||
+      mime.includes('application/vnd.ms-excel') ||
+      mime.includes('application/csv');
+    if (looksCsv) return cb(null, true);
+    return cb(new Error('UNSUPPORTED_KTYPE_FILE'));
+  },
+});
+
 const chatUploadMiddleware = (req, res, next) => {
   const contentType = req.headers['content-type'] || '';
   if (contentType.includes('multipart/form-data')) {
@@ -579,6 +600,24 @@ const chatUploadMiddleware = (req, res, next) => {
   }
   return next();
 };
+
+const ktypeUploadMiddleware = (req, res, next) =>
+  ktypeUpload.single('file')(req, res, (error) => {
+    if (error) {
+      const message =
+        error.message === 'UNSUPPORTED_KTYPE_FILE'
+          ? 'Unsupported file type. Please upload a CSV file.'
+          : error.message;
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message,
+        },
+      });
+    }
+    return next();
+  });
 
 startJobRunner();
 startImproveRunner();
@@ -1380,6 +1419,125 @@ app.post('/api/baselinker/lookup', async (req, res) => {
 });
 
 // --- Product Management Endpoints ---
+
+// Upload K-Type CSV (eBay compatibility export) and update products' details.attributes["K-Typ"]
+app.post('/api/ktype/upload', ktypeUploadMiddleware, async (req, res) => {
+  try {
+    const dryRunRaw =
+      req.query?.dryRun ?? req.body?.dryRun ?? req.body?.dry_run ?? req.body?.dryrun ?? '';
+    const dryRun =
+      String(dryRunRaw || '')
+        .trim()
+        .toLowerCase() === '1' ||
+      String(dryRunRaw || '')
+        .trim()
+        .toLowerCase() === 'true';
+
+    const file = req.file;
+    if (!file || !file.buffer) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'CSV file missing (multipart field: "file")' },
+      });
+    }
+
+    const csv = file.buffer.toString('utf8');
+    const { skuToKTyp, stats } = parseKTypeEbayCsvToSkuMap(csv);
+    const entries = Object.entries(skuToKTyp);
+
+    const findExistingKTyp = (attrs = {}) => {
+      const keys = Object.keys(attrs || {});
+      const key = keys.find((k) => {
+        const lower = String(k || '').trim().toLowerCase();
+        return lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ';
+      });
+      if (!key) return '';
+      const raw = attrs[key];
+      return raw == null ? '' : String(raw).trim();
+    };
+
+    const report = {
+      dryRun,
+      parsed: stats,
+      processed: entries.length,
+      updated: 0,
+      unchanged: 0,
+      notFound: [],
+      errors: [],
+      samples: {
+        updated: [],
+        notFound: [],
+      },
+    };
+
+    // Simple concurrency-limited worker pool
+    let cursor = 0;
+    const concurrency = 10;
+    const workers = Array.from({ length: concurrency }, async () => {
+      while (cursor < entries.length) {
+        const idx = cursor++;
+        const [sku, ktyp] = entries[idx];
+        try {
+          const product = await getProduct(sku);
+          if (!product) {
+            report.notFound.push(sku);
+            if (report.samples.notFound.length < 10) report.samples.notFound.push(sku);
+            continue;
+          }
+
+          const existing = findExistingKTyp(product?.details?.attributes || {});
+          const nextVal = String(ktyp || '').trim();
+          if (!nextVal) {
+            // Nothing to set
+            report.unchanged += 1;
+            continue;
+          }
+          if (existing === nextVal) {
+            report.unchanged += 1;
+            continue;
+          }
+
+          if (!dryRun) {
+            const docRef = firestore.collection('products').doc(String(sku));
+            await docRef.set(
+              {
+                details: {
+                  attributes: {
+                    'K-Typ': nextVal,
+                  },
+                },
+                ops: {
+                  last_saved_source: 'ktype-upload',
+                  last_saved_iso: new Date().toISOString(),
+                  revision: FieldValue.increment(1),
+                  sync_status: 'pending',
+                },
+              },
+              { merge: true }
+            );
+          }
+
+          report.updated += 1;
+          if (report.samples.updated.length < 10) {
+            report.samples.updated.push({ sku, length: nextVal.length });
+          }
+        } catch (error) {
+          report.errors.push({ sku, message: error?.message || String(error) });
+        }
+      }
+    });
+
+    await Promise.all(workers);
+
+    return res.status(200).json({ ok: true, report });
+  } catch (error) {
+    console.error('Error in /api/ktype/upload:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to process K-Type upload', details: error.message },
+    });
+  }
+});
 
 // Get all products
 app.get('/api/products', async (req, res) => {

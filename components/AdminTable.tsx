@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus } from '../api/client';
+import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
@@ -214,6 +214,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [inventorySelection, setInventorySelection] = useState('');
   const [inventoryAssigning, setInventoryAssigning] = useState(false);
   const [inventoryAssignMessage, setInventoryAssignMessage] = useState<string | null>(null);
+  const [ktypeModalOpen, setKtypeModalOpen] = useState(false);
+  const [ktypeFile, setKtypeFile] = useState<File | null>(null);
+  const [ktypeBusy, setKtypeBusy] = useState(false);
+  const [ktypeMessage, setKtypeMessage] = useState<string | null>(null);
+  const [ktypeReport, setKtypeReport] = useState<any | null>(null);
   // Fixed BaseLinker inventory
   const [syncInventoryId] = useState('78659');
   const [syncInProgress, setSyncInProgress] = useState(false);
@@ -1042,6 +1047,31 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
 
 
+  const runKTypeUpload = async (dryRun: boolean) => {
+    if (!ktypeFile) {
+      setKtypeMessage('Bitte eine CSV-Datei auswählen.');
+      return;
+    }
+    setKtypeBusy(true);
+    setKtypeReport(null);
+    setKtypeMessage(dryRun ? 'Dry-Run läuft …' : 'Upload läuft …');
+    try {
+      const res = await uploadKTypeCsv(ktypeFile, { dryRun });
+      if (!res.ok) {
+        setKtypeMessage(res.error?.message || 'K-Typ Upload fehlgeschlagen.');
+        return;
+      }
+      setKtypeReport(res.report || null);
+      setKtypeMessage(
+        dryRun
+          ? 'Dry-Run abgeschlossen.'
+          : 'Upload abgeschlossen. Bitte Produkte neu laden, damit die neuen K-Typ Werte sichtbar sind.'
+      );
+    } finally {
+      setKtypeBusy(false);
+    }
+  };
+
   const handleExportCsv = () => {
     const headers = ['ID', 'ProductKey', 'Name', 'Brand', 'Category', 'EAN', 'Price', 'Currency', 'Sync Status'];
     const rows = filteredAndSortedProducts.map((p) => [
@@ -1455,6 +1485,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
           />
         )}
         <ActionButton
+          icon={<SheetIcon className="w-4 h-4" />}
+          label="K-Typ Upload"
+          onClick={() => {
+            setKtypeModalOpen(true);
+            setKtypeFile(null);
+            setKtypeReport(null);
+            setKtypeMessage(null);
+          }}
+        />
+        <ActionButton
           icon={<ExportIcon className="w-4 h-4" />}
           label={t('table.actions.exportCsv')}
           onClick={handleExportCsv}
@@ -1716,6 +1756,108 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </div>
       )
       }
+      {ktypeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">K-Typ Upload (CSV)</h3>
+              <button
+                type="button"
+                className="text-slate-400 hover:text-white"
+                onClick={() => {
+                  setKtypeModalOpen(false);
+                  setKtypeFile(null);
+                  setKtypeReport(null);
+                  setKtypeMessage(null);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-400">
+              Format: eBay Export (Revise + Compatibility Zeilen, z. B. <span className="font-mono">Ktype=12345|Notes=...</span>).
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs uppercase tracking-wide text-slate-400">
+                CSV Datei auswählen
+              </label>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setKtypeFile(file);
+                  setKtypeReport(null);
+                  setKtypeMessage(null);
+                }}
+                className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+              />
+              {ktypeFile && (
+                <div className="text-xs text-slate-300">
+                  Datei: <span className="font-mono">{ktypeFile.name}</span> ({Math.round(ktypeFile.size / 1024)} KB)
+                </div>
+              )}
+            </div>
+
+            {ktypeMessage && (
+              <p className="text-xs text-slate-200">{ktypeMessage}</p>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => runKTypeUpload(true)}
+                disabled={ktypeBusy || !ktypeFile}
+                className="px-3 py-1.5 rounded-lg border border-slate-600 text-sm text-slate-200 disabled:opacity-60"
+              >
+                Dry-Run
+              </button>
+              <button
+                type="button"
+                onClick={() => runKTypeUpload(false)}
+                disabled={ktypeBusy || !ktypeFile}
+                className="px-4 py-1.5 rounded-lg bg-sky-600 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
+              >
+                {ktypeBusy ? 'Läuft …' : 'Übernehmen'}
+              </button>
+            </div>
+
+            {ktypeReport && (
+              <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-3 space-y-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <div className="text-slate-300">
+                    <div className="text-slate-500">SKUs</div>
+                    <div className="font-semibold text-white">{ktypeReport.parsed?.skus ?? '—'}</div>
+                  </div>
+                  <div className="text-slate-300">
+                    <div className="text-slate-500">Einträge</div>
+                    <div className="font-semibold text-white">{ktypeReport.parsed?.entries ?? '—'}</div>
+                  </div>
+                  <div className="text-slate-300">
+                    <div className="text-slate-500">Updated</div>
+                    <div className="font-semibold text-white">{ktypeReport.updated ?? 0}</div>
+                  </div>
+                  <div className="text-slate-300">
+                    <div className="text-slate-500">Not found</div>
+                    <div className="font-semibold text-white">{(ktypeReport.notFound || []).length}</div>
+                  </div>
+                </div>
+
+                <details className="text-xs">
+                  <summary className="cursor-pointer select-none text-slate-200">
+                    Report JSON anzeigen
+                  </summary>
+                  <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words text-[11px] text-slate-200">
+                    {JSON.stringify(ktypeReport, null, 2)}
+                  </pre>
+                </details>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {syncInProgress && (
         <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
           <Spinner className="w-6 h-6 text-sky-300" />

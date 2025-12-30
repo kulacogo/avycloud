@@ -683,6 +683,38 @@ export const lookupBaseLinkerBySkus = async (
   }
 };
 
+export const uploadKTypeCsv = async (
+  file: File,
+  options?: { dryRun?: boolean }
+): Promise<{ ok: boolean; report?: any; error?: { code: number; message: string } }> => {
+  const formData = new FormData();
+  formData.append('file', file, file.name || 'ktype.csv');
+
+  const url = `${BACKEND_URL}/api/ktype/upload${options?.dryRun ? '?dryRun=1' : ''}`;
+  let response: Response | undefined;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: {
+          code: response.status,
+          message: result?.error?.message || 'K-Type upload failed',
+        },
+      };
+    }
+    return { ok: true, report: result?.report };
+  } catch (error) {
+    console.error('Failed to upload K-Type CSV:', error);
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
 export const improveProduct = async (
   productId: string
 ): Promise<{ ok: boolean; data?: Product; error?: { code: number; message: string } }> => {

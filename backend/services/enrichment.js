@@ -1060,6 +1060,23 @@ function applyReviewResult(product, review) {
   if (!product || !review) return;
   product.identification = product.identification || {};
   product.details = product.details || {};
+
+  // Preserve K-Typ if it already exists but the review output omits it.
+  // The datasheet review currently replaces the whole attributes map, so without this,
+  // a manually curated K-Typ could be wiped by the Improve job.
+  const existingAttrs =
+    product.details.attributes && typeof product.details.attributes === 'object'
+      ? product.details.attributes
+      : {};
+  const existingKTypKey = Object.keys(existingAttrs).find((k) => {
+    const lower = String(k || '').trim().toLowerCase();
+    return lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ';
+  });
+  const existingKTyp =
+    existingKTypKey && existingAttrs[existingKTypKey] != null
+      ? String(existingAttrs[existingKTypKey]).trim()
+      : '';
+
   if (typeof review.title === 'string' && review.title.trim().length >= 10) {
     product.identification.name = review.title.trim();
   }
@@ -1078,6 +1095,14 @@ function applyReviewResult(product, review) {
         attrs[key] = value;
       }
     });
+
+    const hasKTyp = Object.keys(attrs).some((k) => {
+      const lower = String(k || '').trim().toLowerCase();
+      return lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ';
+    });
+    if (!hasKTyp && existingKTyp) {
+      attrs['K-Typ'] = existingKTyp;
+    }
 
     product.details.attributes = sanitizeAttributesMap(attrs);
   }
