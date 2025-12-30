@@ -1,4 +1,5 @@
 const { getProduct, saveProduct } = require('../lib/firestore');
+const { coerceTitleToPolicy } = require('../lib/title-policy');
 const {
   runProductIdentification,
   runDatasheetReview,
@@ -718,6 +719,14 @@ async function improveExistingProduct(productId, onProgress) {
   console.log('[improve] Final Review & Save...');
   if (onProgress) await onProgress('reviewing');
   await runDatasheetReview([mergedProduct], { locale: product.locale || 'de-DE' });
+
+  // Enforce title policy even if the model skipped title updates.
+  mergedProduct.identification = mergedProduct.identification || {};
+  mergedProduct.identification.name = coerceTitleToPolicy(
+    mergedProduct,
+    mergedProduct.identification.name,
+    { minLen: 70, maxLen: 80 }
+  );
   await saveProduct(mergedProduct);
 
   console.log('[improve] SUCCESS.');

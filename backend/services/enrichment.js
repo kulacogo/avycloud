@@ -13,6 +13,7 @@ const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy')
 const { findKauflandCategory, getKauflandAttributes } = require('../lib/kaufland-taxonomy');
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
 const { isValidGtin } = require('../lib/gtin');
+const { coerceTitleToPolicy } = require('../lib/title-policy');
 
 // Clean JSON schema to be compatible with Gemini responseSchema
 function cleanSchemaForGemini(schema) {
@@ -140,8 +141,8 @@ const marketingCopySchema = {
   additionalProperties: false,
   required: ['title', 'description', 'highlights'],
   properties: {
-    // eBay title policy: 70–80 characters for SEO density, without exceeding platform limits.
-    title: { type: 'string', minLength: 70, maxLength: 80 },
+    // Keep schema flexible to avoid blocked generations; enforce 70–80 in code after parsing.
+    title: { type: 'string', minLength: 20, maxLength: 140 },
     description: { type: 'string', minLength: 300 },
     highlights: {
       type: 'array',
@@ -995,8 +996,8 @@ const DATASHEET_REVIEW_SCHEMA = {
   additionalProperties: false,
   required: ['title', 'short_description', 'highlights', 'attributes', 'warnings'],
   properties: {
-    // eBay title policy: 70–80 characters for SEO density, without exceeding platform limits.
-    title: { type: 'string', minLength: 70, maxLength: 80 },
+    // Keep schema flexible to avoid blocked generations; enforce 70–80 in code after parsing.
+    title: { type: 'string', minLength: 15, maxLength: 140 },
     short_description: { type: 'string', minLength: 180, maxLength: 2000 },
     highlights: {
       type: 'array',
@@ -1042,7 +1043,7 @@ function buildReviewPrompt(product, locale) {
   return [
     'Du bist ein Marketplace-Quality-Inspector für eBay und Amazon. Deine Aufgabe: prüfe das vorliegende Produktdatenblatt und liefere eine korrigierte, maximal verkaufsstarke Version.',
     'Richtlinien:',
-    '- Titel (TECHNISCH): 70–80 Zeichen (nicht mehr als 80). Wähle das passende Schema je Kategorie (siehe Schema-Leitfaden unten). Keine Marketingfloskeln, keine Dubletten, keine SKU/IDs im Titel.',
+    '- Titel (TECHNISCH): Ziel 70–80 Zeichen (nie > 80). Falls du unter 70 bleibst: ergänze weitere vorhandene Fakten aus dem Datensatz (z. B. MPN, Material, Maße, Einbauposition, Format/Einband, Sprache, Jahr). Keine Dubletten, keine SKU/IDs, nichts erfinden.',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Enthält Nutzen, Ausstattung, Materialien, Lieferumfang, Service/Hinweise. Keine Aufzählungen.',
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
     '- Attribute: strukturierte Key-Value-Paare (kundenverständlich). Entferne Wiederholungen und halte die Sprache konsistent.',
@@ -1111,7 +1112,7 @@ function applyReviewResult(product, review) {
       : '';
 
   if (typeof review.title === 'string' && review.title.trim().length >= 10) {
-    product.identification.name = review.title.trim();
+    product.identification.name = coerceTitleToPolicy(product, review.title, { minLen: 70, maxLen: 80 });
   }
   if (typeof review.short_description === 'string' && review.short_description.trim().length > 0) {
     product.details.short_description = review.short_description.trim();
@@ -1250,7 +1251,7 @@ function buildMarketingPrompt(product, locale = 'de-DE') {
 
   parts.push(
     `Anforderungen:`,
-    `- Titel (SEO, TECHNISCH): 70–80 Zeichen (nicht mehr als 80). Wähle das beste Schema passend zur Kategorie (z. B. Schuhe/Bekleidung/Autoteile/Bücher etc.). Keine Marketingfloskeln, keine Dubletten, keine SKU/IDs im Titel.`,
+    `- Titel (SEO, TECHNISCH): Ziel 70–80 Zeichen (nie > 80). Falls du unter 70 bleibst: ergänze weitere vorhandene Fakten aus dem Datensatz (z. B. MPN, Material, Maße, Einbauposition, Format/Einband, Sprache, Jahr). KEINE SKU/IDs, KEINE erfundenen Daten.`,
     `- Kurzbeschreibung: 3 Absätze à 2 Sätze, verkaufsstark, Nutzen & Materialien, Pflege/Montage, Social Proof/Trust, klarer CTA ("Jetzt kaufen", "Nur begrenzte Stückzahl").`,
     `- Highlights: 6-8 Bullets, 6-12 Wörter, nutzenorientiert. Enthalten: Versanddetails (DHL, kostenloser Versand, Versand bis 14 Uhr am selben Werktag), Rückgaberecht 14 Tage, Sonderangebote/Limitierung. Keine Wiederholungen, kein Verpackungstext.`,
     `- Ton: aggressiv verkaufsfördernd, faktenbasiert, aber ohne Übertreibungen; klare Kaufaufforderung.`,
@@ -1339,7 +1340,7 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
 
         product.identification = {
           ...product.identification,
-          name: rewrite.title.trim(),
+          name: coerceTitleToPolicy(product, rewrite.title, { minLen: 70, maxLen: 80 }),
         };
         product.details = product.details || {};
         product.details.short_description = rewrite.description.trim();

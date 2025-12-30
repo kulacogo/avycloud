@@ -9,6 +9,7 @@ const { resolveModel } = require('../lib/model-select');
 const { fetchMarketingImages } = require('../lib/marketing-images');
 const { generateImagesForProduct } = require('./image-generation');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
+const { coerceTitleToPolicy } = require('../lib/title-policy');
 
 const MAX_CHAT_ITERATIONS = 5;
 const DEEP_MODE_REGEX =
@@ -73,8 +74,8 @@ const updateDatasheetTool = {
     type: 'object',
     properties: {
       summary: { type: 'string' },
-      // Title policy (Improve/Chat): 70–80 characters, schema-based by category.
-      title: { type: 'string', minLength: 70, maxLength: 80 },
+      // Title policy is enforced in code; keep schema flexible to avoid blocking tool calls.
+      title: { type: 'string', minLength: 10, maxLength: 140 },
       short_description: { type: 'string' },
       key_features: {
         type: 'array',
@@ -862,7 +863,7 @@ function sanitizeImageSuggestions(entry) {
     }));
 }
 
-function sanitizeDatasheetChange(entry) {
+function sanitizeDatasheetChange(entry, product) {
   const result = {};
   const isValidSku = (value) => {
     if (typeof value !== 'string') return false;
@@ -903,19 +904,24 @@ function sanitizeDatasheetChange(entry) {
   if (Array.isArray(entry.barcodes)) {
     entry.barcodes.forEach(pushBarcode);
   }
+  const coerceTitle = (raw) => coerceTitleToPolicy(product, raw, { minLen: 70, maxLen: 80 });
+
   if (typeof entry.title === 'string' && entry.title.trim()) {
-    identityPatch.name = entry.title.trim();
+    const coerced = coerceTitle(entry.title);
+    identityPatch.name = coerced;
     // Keep an explicit title field so the frontend can display/apply it directly.
-    result.title = entry.title.trim();
+    result.title = coerced;
   }
   if (entry.identity && typeof entry.identity === 'object') {
     if (typeof entry.identity.title === 'string' && entry.identity.title.trim()) {
-      identityPatch.name = entry.identity.title.trim();
-      result.title = entry.identity.title.trim();
+      const coerced = coerceTitle(entry.identity.title);
+      identityPatch.name = coerced;
+      result.title = coerced;
     }
     if (typeof entry.identity.name === 'string' && entry.identity.name.trim()) {
-      identityPatch.name = entry.identity.name.trim();
-      result.title = entry.identity.name.trim();
+      const coerced = coerceTitle(entry.identity.name);
+      identityPatch.name = coerced;
+      result.title = coerced;
     }
     if (typeof entry.identity.brand === 'string' && entry.identity.brand.trim()) {
       identityPatch.brand = entry.identity.brand.trim();
@@ -1011,7 +1017,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
 
   TITLE / HIGHLIGHTS QUALITY BAR:
-  - Titles must be TECHNICAL & searchable (max ~80 chars): Brand + ProductType + Model/MPN + 1–2 key specs (Size/Voltage/Power/Volume) if available. No marketing fluff, no duplicates.
+  - Titles must be TECHNICAL & searchable (70–80 chars, never exceed 80): choose the best schema by category, start with Brand/ProductType, add Model/MPN + 1–2 key specs if available. No marketing fluff, no duplicates, no SKU/IDs.
   - Key features must be non-duplicative, factual, and short.
   `;
 
@@ -1114,7 +1120,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
           toolResult = result;
         }
         else if (name === 'update_product_datasheet') {
-          const sanitized = sanitizeDatasheetChange(args);
+          const sanitized = sanitizeDatasheetChange(args, product);
           datasheetChanges.push(sanitized);
           toolResult = { acknowledged: true, applied_fields: Object.keys(sanitized) };
         }
@@ -1219,7 +1225,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         const updateCalls = updateResponse.response.functionCalls?.() || [];
         const updateCall = updateCalls.find((call) => call?.name === 'update_product_datasheet');
         if (updateCall?.args && typeof updateCall.args === 'object') {
-          const sanitized = sanitizeDatasheetChange(updateCall.args);
+          const sanitized = sanitizeDatasheetChange(updateCall.args, product);
           if (sanitized && Object.keys(sanitized).length > 0) {
             datasheetChanges.push(sanitized);
           }
