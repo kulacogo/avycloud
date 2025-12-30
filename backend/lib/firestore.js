@@ -1085,7 +1085,10 @@ async function saveProduct(product, options = {}) {
     if (!productWithEbay.details) productWithEbay.details = {};
     productWithEbay.details.key_features = normalizedKeyFeatures;
     if (!productWithEbay.identification) productWithEbay.identification = {};
-    if (technicalTitle) {
+    // IMPORTANT: Do not overwrite a manually edited title.
+    // We still generate a technical title for automation paths (identify/improve/import),
+    // but UI saves must persist exactly what the user entered.
+    if (!isManualSave && technicalTitle) {
       productWithEbay.identification.name = technicalTitle;
     }
 
