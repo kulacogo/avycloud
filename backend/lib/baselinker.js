@@ -278,7 +278,7 @@ async function getInventoryAvailableTextFieldKeyIds(inventoryId) {
       parseInt(process.env.BASELINKER_TEXT_FIELDS_MAX_ACCOUNTS || '30', 10)
     );
 
-    const fields = ['name', 'description', 'description_extra1'];
+    const fields = ['name', 'description', 'description_extra1', 'extra_field_18699'];
 
     for (const entry of list) {
       if (!entry || typeof entry !== 'object') continue;
@@ -367,6 +367,8 @@ async function expandTextFieldsForInventory(inventoryId, textFields, values, lan
       out[keyId] = values.description;
     if (field === 'description_extra1' && values?.description_extra1 && out[keyId] == null)
       out[keyId] = values.description_extra1;
+    if (field === 'extra_field_18699' && values?.extra_field_18699 && out[keyId] == null)
+      out[keyId] = values.extra_field_18699;
   }
 
   return out;
@@ -855,7 +857,16 @@ function buildTextFields(product, name) {
     // Avoid syncing technical/ambiguous keys as Parameters.
     // "SKU" must come from the actual SKU field, not from arbitrary source attributes.
     const keyLower = key.toLowerCase();
-    if (keyLower === 'sku' || keyLower === 'product_id' || keyLower === 'id') return;
+    if (
+      keyLower === 'sku' ||
+      keyLower === 'product_id' ||
+      keyLower === 'id' ||
+      keyLower === 'k-typ' ||
+      keyLower === 'ktyp' ||
+      keyLower === 'k typ'
+    ) {
+      return;
+    }
     const value =
       typeof rawVal === 'object' ? JSON.stringify(rawVal) : rawVal;
     addFeature(key, value);
@@ -885,6 +896,22 @@ function buildTextFields(product, name) {
     [`name|${defaultLang}`]: name,
     [`description|${defaultLang}`]: desc,
   };
+
+  // --- BaseLinker extra fields ---
+  // K-Typ is stored in AvyCloud as details.attributes["K-Typ"] (vehicle compatibility).
+  // BaseLinker extra field target: extra_field_18699.
+  const ktypKey = Object.keys(attributes || {}).find((k) => {
+    const lower = String(k || '').trim().toLowerCase();
+    return lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ';
+  });
+  const ktypRaw = ktypKey ? attributes[ktypKey] : null;
+  const ktypValue = ktypRaw === undefined || ktypRaw === null ? '' : String(ktypRaw).trim();
+  if (ktypValue) {
+    const blKey = 'extra_field_18699';
+    textFields[blKey] = ktypValue;
+    // Also set language-specific variant (allowed by BaseLinker text_fields key format).
+    textFields[`${blKey}|${defaultLang}`] = ktypValue;
+  }
 
   // Extra Beschreibung 1 = Highlights/Bullets für BL
   const highlights = Array.isArray(product?.details?.key_features)
@@ -1364,6 +1391,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
         name: payload?.text_fields?.name,
         description: payload?.text_fields?.description,
         description_extra1: payload?.text_fields?.description_extra1,
+        extra_field_18699: payload?.text_fields?.extra_field_18699,
       },
       defaultLang
     );

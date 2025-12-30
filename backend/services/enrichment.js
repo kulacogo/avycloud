@@ -1044,6 +1044,7 @@ function buildReviewPrompt(product, locale) {
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Enthält Nutzen, Ausstattung, Materialien, Lieferumfang, Service/Hinweise. Keine Aufzählungen.',
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
     '- Attribute: strukturierte Key-Value-Paare (kundenverständlich). Entferne Wiederholungen und halte die Sprache konsistent.',
+    '- K-Typ (nur Auto/KFZ/Motorrad-Teile): Wenn im Datensatz vorhanden, beibehalten. Wenn du es eindeutig ableiten kannst, setze Attribut "K-Typ" im Format "19974|57446|57448" (optional je Eintrag "19974,Kommentar"). Wenn unsicher: NICHT raten; stattdessen in warnings markieren.',
     '- WICHTIG: Keine internen/technischen Meta-Keys als Attribute ausgeben (z. B. product-id, Produkt-ID, category_id, *_id, ebay_category_id/path, kaufland_category_id/path, text_*, features|*). Solche Daten gehören NICHT in die Attribut-Tabelle.',
     '- WICHTIG: Keine Platzhalter-Werte erzeugen (z. B. "Not Provided, EU", "info@example.com"). Wenn etwas fehlt: weglassen und als warning markieren.',
     '- Ergänze technische Daten nur, wenn sie aus dem Datensatz eindeutig ableitbar sind. Wenn unsicher: warning statt raten.',

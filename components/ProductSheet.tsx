@@ -739,6 +739,22 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     return parts.join(' ').trim() || 'Für dieses Produkt liegt noch keine ausführliche Beschreibung vor.';
   }, [localProduct.details?.short_description, localProduct.details?.pricing?.lowest_price, localProduct.identification, attributesMap]);
 
+  const requiresKTyp = useMemo(() => {
+    const cat = (localProduct?.identification?.category || '').toString().toLowerCase();
+    return cat.includes('auto') || cat.includes('kfz') || cat.includes('motorrad');
+  }, [localProduct?.identification?.category]);
+
+  const ktypValue = useMemo(() => {
+    const attrs = localProduct?.details?.attributes || {};
+    const key = Object.keys(attrs).find((k) => {
+      const lower = String(k || '').trim().toLowerCase();
+      return lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ';
+    });
+    if (!key) return '';
+    const raw = attrs[key];
+    return raw == null ? '' : String(raw).trim();
+  }, [localProduct?.details?.attributes]);
+
   return (
     <section
       id="product-sheet"
@@ -1022,6 +1038,55 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
           <section id="attributes" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.attributes')}</h3>
+
+            <div className="mb-4 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-semibold text-slate-200">K-Typ</div>
+                    {requiresKTyp && !ktypValue && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-600/30 text-amber-200 border border-amber-500/30">
+                        Pflicht (Auto/KFZ/Motorrad)
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Format: <span className="font-mono">19974|57446|57448</span> (optional mit Kommentar nach Komma je Eintrag).
+                  </p>
+                </div>
+              </div>
+
+              {isEditing ? (
+                <textarea
+                  defaultValue={ktypValue}
+                  placeholder="19974|57446|57448"
+                  onBlur={(e) => {
+                    const nextVal = e.target.value.trim();
+                    setLocalProduct((prev) => {
+                      const nextAttrs = { ...(prev.details.attributes || {}) } as Record<string, any>;
+                      if (!nextVal) {
+                        Object.keys(nextAttrs).forEach((k) => {
+                          const lower = String(k || '').trim().toLowerCase();
+                          if (lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ') {
+                            delete nextAttrs[k];
+                          }
+                        });
+                      } else {
+                        nextAttrs['K-Typ'] = nextVal;
+                      }
+                      return { ...prev, details: { ...prev.details, attributes: nextAttrs } };
+                    });
+                    setIsDirty(true);
+                  }}
+                  className="mt-3 w-full min-h-[70px] bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200"
+                />
+              ) : (
+                <div className="mt-3 text-sm text-slate-200 whitespace-pre-wrap break-words">
+                  {ktypValue ? ktypValue : <span className="text-slate-500">—</span>}
+                </div>
+              )}
+            </div>
+
             <AttributeTable
               attributes={localProduct.details.attributes}
               isEditing={isEditing}
