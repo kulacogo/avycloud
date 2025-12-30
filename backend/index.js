@@ -2199,8 +2199,19 @@ app.post('/api/save', async (req, res) => {
     }
 
     // Save to Firestore
-    // Manual UI saves are allowed to change category; automation pipelines are not.
-    const result = await saveProduct(product, { allowCategoryChange: true });
+    // Manual UI saves:
+    // - allowed to change category
+    // - allowed to overwrite descriptions
+    // - allowed to delete/replace attributes
+    // - should sync identifiers (ean/gtin) from edited barcodes
+    const result = await saveProduct(product, {
+      allowCategoryChange: true,
+      mode: 'manual',
+      source: 'ui',
+      overwriteTextFields: true,
+      replaceAttributes: true,
+      syncIdentifiersFromBarcodes: true,
+    });
 
     res.json({
       ok: true,

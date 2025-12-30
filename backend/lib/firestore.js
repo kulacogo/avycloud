@@ -781,6 +781,7 @@ async function saveProduct(product, options = {}) {
     const existingData = existingSnap.exists ? existingSnap.data() || {} : null;
     const hasExisting = Boolean(existingData);
     const allowWarehouseFields = options && options.allowWarehouseFields === true;
+    const saveSource = (options && options.source) || null; // e.g. 'ui', 'job', 'script'
 
     const pickStableSku = (data) => {
       const idSku = typeof data?.identification?.sku === 'string' ? data.identification.sku.trim() : '';
@@ -813,6 +814,12 @@ async function saveProduct(product, options = {}) {
     const existingDetails = existingData?.details || {};
     const incomingDetails = product?.details || {};
     const allowCategoryChange = options && options.allowCategoryChange === true;
+    const isManualSave = (options && options.mode === 'manual') || saveSource === 'ui';
+    // Manual UI saves should be allowed to overwrite text + remove attributes.
+    const overwriteTextFields = Boolean(options && options.overwriteTextFields === true) || isManualSave;
+    const replaceAttributes = Boolean(options && options.replaceAttributes === true) || isManualSave;
+    const syncIdentifiersFromBarcodes =
+      Boolean(options && options.syncIdentifiersFromBarcodes === true) || isManualSave;
 
     const pickStableCategoryId = (data) => {
       const details = data?.details || {};
@@ -825,9 +832,14 @@ async function saveProduct(product, options = {}) {
       return candidate ? String(candidate).trim() : null;
     };
 
-    const mergeString = (incomingVal, existingVal) => {
+    const mergeString = (incomingVal, existingVal, { incomingPresent = false } = {}) => {
       const normalizedIncoming = typeof incomingVal === 'string' ? incomingVal.trim() : '';
       const normalizedExisting = typeof existingVal === 'string' ? existingVal.trim() : '';
+      // Automation: preserve existing text once filled (avoid accidental overwrites).
+      // Manual: if the UI explicitly sent the field, allow overwriting (including shortening).
+      if (overwriteTextFields && incomingPresent) {
+        return normalizedIncoming;
+      }
       return normalizedExisting || normalizedIncoming || '';
     };
 
@@ -861,11 +873,21 @@ async function saveProduct(product, options = {}) {
       mergedImages.push(img);
     });
 
-    // Merge attributes (existing wins if incoming missing; incoming overrides same key if provided)
-    const mergedAttributes = {
-      ...(existingDetails.attributes || {}),
-      ...(incomingDetails.attributes || {}),
-    };
+    const incomingHasAttributes =
+      product?.details && Object.prototype.hasOwnProperty.call(product.details, 'attributes');
+    const normalizedIncomingAttributes =
+      incomingDetails.attributes && typeof incomingDetails.attributes === 'object' && !Array.isArray(incomingDetails.attributes)
+        ? incomingDetails.attributes
+        : {};
+    // Attributes:
+    // - Automation: merge (existing survives if incoming omits keys).
+    // - Manual: treat incoming as authoritative to support deletions/overwrites.
+    const mergedAttributes = replaceAttributes && incomingHasAttributes
+      ? { ...normalizedIncomingAttributes }
+      : {
+          ...(existingDetails.attributes || {}),
+          ...normalizedIncomingAttributes,
+        };
 
     // Merge pricing with guard (do not drop existing valid price)
     const existingPrice = existingDetails?.pricing?.lowest_price;
@@ -888,11 +910,15 @@ async function saveProduct(product, options = {}) {
     }
 
     // Build merged details
+    const incomingHasShortDescription =
+      product?.details && Object.prototype.hasOwnProperty.call(product.details, 'short_description');
+    const incomingHasDescription =
+      product?.details && Object.prototype.hasOwnProperty.call(product.details, 'description');
     const mergedDetails = {
       ...existingDetails,
       ...incomingDetails,
-      short_description: mergeString(incomingDetails.short_description, existingDetails.short_description),
-      description: mergeString(incomingDetails.description, existingDetails.description),
+      short_description: mergeString(incomingDetails.short_description, existingDetails.short_description, { incomingPresent: incomingHasShortDescription }),
+      description: mergeString(incomingDetails.description, existingDetails.description, { incomingPresent: incomingHasDescription }),
       attributes: mergedAttributes,
       images: mergedImages,
       pricing: Object.keys(mergedPricing).length ? mergedPricing : undefined,
@@ -908,6 +934,50 @@ async function saveProduct(product, options = {}) {
       ...(existingData?.ops || {}),
       ...(product?.ops || {}),
     };
+
+    // Optional: keep identifiers in sync with barcodes (UI edits barcodes; BaseLinker sync reads identifiers.ean first).
+    if (syncIdentifiersFromBarcodes) {
+      const normalizeBarcode = (value) => (value || '').toString().replace(/\D+/g, '');
+      const GTIN_LENGTHS = new Set([8, 12, 13, 14]);
+      const computeCheckDigit = (code) => {
+        const digits = code.split('').map((char) => parseInt(char, 10));
+        if (digits.some((digit) => Number.isNaN(digit))) return -1;
+        let sum = 0;
+        for (let i = digits.length - 2, weightIdx = 0; i >= 0; i -= 1, weightIdx += 1) {
+          const weight = weightIdx % 2 === 0 ? 3 : 1;
+          sum += digits[i] * weight;
+        }
+        return (10 - (sum % 10)) % 10;
+      };
+      const isValidGtin = (value) => {
+        const digits = normalizeBarcode(value);
+        if (!GTIN_LENGTHS.has(digits.length)) return false;
+        if (!/^\d+$/.test(digits)) return false;
+        const expected = computeCheckDigit(digits);
+        const actual = parseInt(digits.slice(-1), 10);
+        return expected === actual;
+      };
+      const summarizeBarcodes = (values = []) => {
+        const normalized = Array.from(new Set(values.map(normalizeBarcode).filter(Boolean)));
+        const valid = normalized.filter(isValidGtin);
+        const ean = valid.find((v) => v.length === 13) || null;
+        const gtin = valid.find((v) => v.length === 14) || null;
+        return { all: normalized, valid, ean, gtin };
+      };
+
+      const rawBarcodes = Array.isArray(mergedIdentification?.barcodes) ? mergedIdentification.barcodes : [];
+      const summary = summarizeBarcodes(rawBarcodes);
+      if (summary.all.length) {
+        mergedIdentification.barcodes = summary.all;
+      }
+      if (!mergedDetails.identifiers) mergedDetails.identifiers = {};
+      if (summary.ean) {
+        mergedDetails.identifiers.ean = summary.ean;
+      }
+      if (summary.gtin) {
+        mergedDetails.identifiers.gtin = summary.gtin;
+      }
+    }
 
     // Category invariants:
     // - eBay category assignment must be stable and NEVER jump across unrelated branches due to ambiguous strings.
@@ -1028,6 +1098,7 @@ async function saveProduct(product, options = {}) {
         identity_aliases: mergedAliases.length ? mergedAliases : undefined,
         pending_intake_quantity: pendingIntake,
         last_saved_iso: new Date().toISOString(),
+        last_saved_source: saveSource || (isManualSave ? 'ui' : 'system'),
         revision: ((mergedOps.revision || 0)) + 1,
       },
     };
