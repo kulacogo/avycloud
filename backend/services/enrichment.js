@@ -423,9 +423,11 @@ function buildUserPrompt({
     `Aufgabe (ohne externe Suche):`,
     `1. Analysiere Bilder/OCR/Barcodes, um Marke/Modell zu erkennen.`,
     `2. Titel & Copy marketplace-ready:`,
-    `   - Titel: <=70 Zeichen, Marke + Produkttyp + Nutzen.`,
+    `   - Titel: 70-80 Zeichen (nie > 80), Marke + Produkttyp + wichtigste Fakten.`,
+    `   - Zustand: Wenn nicht explizit vorhanden, setze Attribut "Zustand" = "NEU". "Gebraucht" nur wenn im Datensatz gesetzt.`,
     `   - short_description: mind. 3 Absätze à 2 Sätze (Einsatz, Nutzen, Ausstattung, Material/Verarbeitung, Lieferumfang, Bedienung/Pflege).`,
     `   - key_features: 5-7 Nutzen-Bullets (6-12 Wörter).`,
+    `   - Keine Preisangaben oder Preisorientierung in Titel/Beschreibung/Highlights.`,
     `3. Bilder: nur eindeutige, Dubletten entfernen.`,
     `4. Attribute als Liste ausgeben: [{ "key": "Material", "value": "100% Baumwolle", "value_type": "string" }, ...].`,
     `5. Bei mehreren Produkten: für jedes ein separates Objekt im products-Array (eindeutige id, bevorzugt EAN/GTIN).`,
@@ -998,7 +1000,7 @@ const DATASHEET_REVIEW_SCHEMA = {
   properties: {
     // Keep schema flexible to avoid blocked generations; enforce 70–80 in code after parsing.
     title: { type: 'string', minLength: 15, maxLength: 140 },
-    short_description: { type: 'string', minLength: 180, maxLength: 2000 },
+    short_description: { type: 'string', minLength: 300, maxLength: 2000 },
     highlights: {
       type: 'array',
       minItems: 5,
@@ -1045,6 +1047,8 @@ function buildReviewPrompt(product, locale) {
     'Richtlinien:',
     '- Titel (TECHNISCH): Ziel 70–80 Zeichen (nie > 80). Falls du unter 70 bleibst: ergänze weitere vorhandene Fakten aus dem Datensatz (z. B. MPN, Material, Maße, Einbauposition, Format/Einband, Sprache, Jahr). Keine Dubletten, keine SKU/IDs, nichts erfinden.',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Enthält Nutzen, Ausstattung, Materialien, Lieferumfang, Service/Hinweise. Keine Aufzählungen.',
+    '- Keine Preise/Preisorientierung/€ oder EUR in Titel, Beschreibung oder Highlights.',
+    "- Zustand: Standard 'NEU'. Abweichend nur, wenn im Datensatz ein Attribut 'Zustand' explizit gesetzt ist.",
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
     '- Attribute: strukturierte Key-Value-Paare (kundenverständlich). Entferne Wiederholungen und halte die Sprache konsistent.',
     '- K-Typ (nur Auto/KFZ/Motorrad-Teile): Wenn im Datensatz vorhanden, beibehalten. Wenn du es eindeutig ableiten kannst, setze Attribut "K-Typ" im Format "19974|57446|57448" (optional je Eintrag "19974,Kommentar"). Wenn unsicher: NICHT raten; stattdessen in warnings markieren.',
@@ -1115,7 +1119,10 @@ function applyReviewResult(product, review) {
     product.identification.name = coerceTitleToPolicy(product, review.title, { minLen: 70, maxLen: 80 });
   }
   if (typeof review.short_description === 'string' && review.short_description.trim().length > 0) {
-    product.details.short_description = review.short_description.trim();
+    const cleanedDescription = stripPriceMentions(review.short_description);
+    if (cleanedDescription) {
+      product.details.short_description = cleanedDescription;
+    }
   }
   if (Array.isArray(review.highlights) && review.highlights.length) {
     product.details.key_features = sanitizeKeyFeatures(review.highlights);
@@ -1192,6 +1199,35 @@ function containsPackagingReference(text = '') {
   return /(etikett|karton|verpackung|sichtbar)/i.test(text || '');
 }
 
+function containsPriceReference(text = '') {
+  return /(?:€|\beur\b|\bpreis(?:orientierung|empfehlung)?\b|\bprice\b)/i.test(text || '');
+}
+
+function stripPriceMentions(text = '') {
+  if (typeof text !== 'string') return text;
+  const stripped = text
+    .replace(
+      /\bpreis(?:orientierung|empfehlung|:)?\s*(?:ab|ca\.?|circa|etwa|bei)?\s*[\d.,]+(?:\s*(?:€|eur))?/gi,
+      ''
+    )
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([.!?])/g, '$1')
+    .trim();
+
+  const paragraphs = stripped.split(/\n\s*\n/);
+  const cleaned = paragraphs
+    .map((para) => {
+      const sentences = (para.match(/[^.!?]+[.!?]?/g) || [])
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const kept = sentences.filter((sentence) => !containsPriceReference(sentence));
+      return kept.join(' ').replace(/\s{2,}/g, ' ').trim();
+    })
+    .filter(Boolean);
+
+  return cleaned.join('\n\n').trim();
+}
+
 function looksLikePlaceholderTitle(text = '') {
   if (!text) return true;
   const trimmed = text.trim();
@@ -1220,7 +1256,7 @@ function needsMarketingRewrite(product) {
     }
   }
 
-  if (desc.trim().length < 300 || containsPackagingReference(desc)) return true;
+  if (desc.trim().length < 300 || containsPackagingReference(desc) || containsPriceReference(desc)) return true;
   if (features.length < 5) return true;
   if (features.some((item) => containsPackagingReference(item))) return true;
   return false;
@@ -1252,8 +1288,10 @@ function buildMarketingPrompt(product, locale = 'de-DE') {
   parts.push(
     `Anforderungen:`,
     `- Titel (SEO, TECHNISCH): Ziel 70–80 Zeichen (nie > 80). Falls du unter 70 bleibst: ergänze weitere vorhandene Fakten aus dem Datensatz (z. B. MPN, Material, Maße, Einbauposition, Format/Einband, Sprache, Jahr). KEINE SKU/IDs, KEINE erfundenen Daten.`,
+    `- Zustand: Standard 'NEU'. Abweichend nur, wenn im Datensatz ein Attribut 'Zustand' explizit gesetzt ist.`,
     `- Kurzbeschreibung: 3 Absätze à 2 Sätze, verkaufsstark, Nutzen & Materialien, Pflege/Montage, Social Proof/Trust, klarer CTA ("Jetzt kaufen", "Nur begrenzte Stückzahl").`,
     `- Highlights: 6-8 Bullets, 6-12 Wörter, nutzenorientiert. Enthalten: Versanddetails (DHL, kostenloser Versand, Versand bis 14 Uhr am selben Werktag), Rückgaberecht 14 Tage, Sonderangebote/Limitierung. Keine Wiederholungen, kein Verpackungstext.`,
+    `- Keine Preise/Preisorientierung/€ oder EUR in Titel, Beschreibung oder Highlights.`,
     `- Ton: aggressiv verkaufsfördernd, faktenbasiert, aber ohne Übertreibungen; klare Kaufaufforderung.`,
     `- Schema-Leitfaden (Best-Effort, je nach Kategorie):`,
     `  1) Schuhe: {Marke} {Modell} {Zielgruppe} Sneaker {Farbe} Gr. {Größe} {Zustand}`,
@@ -1343,7 +1381,10 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
           name: coerceTitleToPolicy(product, rewrite.title, { minLen: 70, maxLen: 80 }),
         };
         product.details = product.details || {};
-        product.details.short_description = rewrite.description.trim();
+        const cleanedDescription = stripPriceMentions(rewrite.description || '');
+        if (cleanedDescription) {
+          product.details.short_description = cleanedDescription;
+        }
         product.details.key_features = sanitizeKeyFeatures(rewrite.highlights.map((item) => item.trim()));
       } catch (error) {
         console.warn(

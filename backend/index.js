@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const crypto = require('crypto');
+const path = require('path');
 const {
   saveProduct,
   getProduct,
@@ -154,6 +155,93 @@ const normalizeSkuKey = (val) =>
     .toLowerCase()
     .replace(/^sku[-_\s]*/i, '')
     .replace(/\s+/g, '');
+
+let EBAY_CATEGORY_ENTRIES = null;
+let EBAY_CATEGORY_BY_ID = null;
+
+const normalizeCategoryText = (value = '') =>
+  value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/ä/g, 'a')
+    .replace(/ö/g, 'o')
+    .replace(/ü/g, 'u')
+    .replace(/ß/g, 'ss')
+    .replace(/[\u2010-\u2015-]/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const getEbayCategoryEntries = () => {
+  if (EBAY_CATEGORY_ENTRIES && EBAY_CATEGORY_BY_ID) {
+    return { entries: EBAY_CATEGORY_ENTRIES, byId: EBAY_CATEGORY_BY_ID };
+  }
+  const filePath = path.join(__dirname, 'ebay-data', 'categories.json');
+  // eslint-disable-next-line import/no-dynamic-require, global-require
+  const raw = require(filePath);
+  const entries = [];
+  const byId = new Map();
+  Object.keys(raw || {}).forEach((key) => {
+    const cat = raw[key];
+    if (!cat) return;
+    const id = cat.id ?? cat.categoryId ?? key;
+    const breadcrumb = cat.breadcrumb || cat.path || cat.name || '';
+    if (!id || !breadcrumb) return;
+    const entry = {
+      id: String(id),
+      name: cat.name ? String(cat.name) : '',
+      breadcrumb: String(breadcrumb),
+    };
+    entry.search = normalizeCategoryText(`${entry.breadcrumb} ${entry.name}`);
+    entries.push(entry);
+    byId.set(entry.id, entry);
+  });
+  EBAY_CATEGORY_ENTRIES = entries;
+  EBAY_CATEGORY_BY_ID = byId;
+  return { entries, byId };
+};
+
+const getEbayCategoryById = (id) => {
+  if (!id) return null;
+  const { byId } = getEbayCategoryEntries();
+  const entry = byId.get(String(id));
+  if (!entry) return null;
+  return { id: entry.id, name: entry.name, breadcrumb: entry.breadcrumb };
+};
+
+const searchEbayCategories = (query, limit = 50) => {
+  const needle = normalizeCategoryText(query);
+  if (!needle || needle.length < 2) return [];
+  const tokens = needle.split(' ').filter(Boolean);
+  if (!tokens.length) return [];
+  const { entries } = getEbayCategoryEntries();
+  const results = [];
+  for (const entry of entries) {
+    const hay = entry.search || '';
+    if (!hay) continue;
+    let ok = true;
+    for (const token of tokens) {
+      if (!hay.includes(token)) {
+        ok = false;
+        break;
+      }
+    }
+    if (!ok) continue;
+    const score = hay.indexOf(needle);
+    results.push({
+      entry,
+      score: score === -1 ? 9999 : score,
+      len: hay.length,
+    });
+  }
+  results.sort((a, b) => a.score - b.score || a.len - b.len);
+  return results.slice(0, limit).map(({ entry }) => ({
+    id: entry.id,
+    name: entry.name,
+    breadcrumb: entry.breadcrumb,
+  }));
+};
 
 async function buildReservedOpenOrderMap() {
   const map = new Map(); // normalizeSkuKey -> qty
@@ -1536,6 +1624,35 @@ app.post('/api/ktype/upload', ktypeUploadMiddleware, async (req, res) => {
       ok: false,
       error: { code: 500, message: 'Failed to process K-Type upload', details: error.message },
     });
+  }
+});
+
+// Search eBay categories (breadcrumb-based)
+app.get('/api/ebay/categories', (req, res) => {
+  try {
+    const query = (req.query.q || '').toString().trim();
+    const id = (req.query.id || '').toString().trim();
+    const limitRaw = parseInt(req.query.limit || '50', 10);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
+
+    const items = [];
+    if (id) {
+      const found = getEbayCategoryById(id);
+      if (found) items.push(found);
+    }
+    if (query && query.length >= 2) {
+      const matches = searchEbayCategories(query, limit);
+      matches.forEach((item) => {
+        if (!items.find((existing) => existing.id === item.id)) {
+          items.push(item);
+        }
+      });
+    }
+
+    res.json({ items });
+  } catch (error) {
+    console.error('Failed to search eBay categories:', error);
+    res.status(500).json({ error: { message: 'Failed to search categories.' } });
   }
 });
 

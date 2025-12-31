@@ -72,6 +72,15 @@ function stripSkuNoise(text = '') {
     .trim();
 }
 
+function stripUsedCondition(text = '') {
+  return normalizeSpaces(
+    safeString(text).replace(
+      /\b(gebraucht|used|pre[-\s]?owned|second hand|b-ware|refurb(?:ished)?|renewed)\b/gi,
+      ' '
+    )
+  );
+}
+
 function normalizeMatch(text = '') {
   return safeString(text)
     .toLowerCase()
@@ -216,24 +225,22 @@ function collectPaddingTokens(product) {
   return tokens.filter(Boolean);
 }
 
-function inferCondition(product, ...texts) {
+function inferCondition(product) {
   const attrs =
     product?.details?.attributes && typeof product.details.attributes === 'object'
       ? product.details.attributes
       : {};
   const explicit = pickAttr(attrs, 'Zustand');
-  if (explicit) return explicit;
-  const haystack = normalizeSpaces(
-    [product?.identification?.name, product?.details?.short_description, ...texts].filter(Boolean).join(' ')
-  ).toLowerCase();
-  if (!haystack) return '';
-  const hasNew = /\bneu\b|\bnew\b/.test(haystack);
-  const hasOvp = /\bovp\b|originalverpack/i.test(haystack);
-  const hasUsed = /\bgebraucht\b|\bused\b/.test(haystack);
-  if (hasNew && hasOvp) return 'NEU OVP';
-  if (hasNew) return 'NEU';
-  if (hasUsed) return 'Gebraucht';
-  return '';
+  if (explicit) {
+    const normalized = explicit.toString().trim().toLowerCase();
+    if (/ovp|originalverpack/.test(normalized)) return 'NEU OVP';
+    if (/\bneu\b|\bnew\b/.test(normalized)) return 'NEU';
+    if (/\bgebraucht\b|\bused\b|\bpre[-\s]?owned\b|\bsecond hand\b|\bb-ware\b|\brefurb/.test(normalized)) {
+      return 'Gebraucht';
+    }
+    return explicit;
+  }
+  return 'NEU';
 }
 
 function inferSchemaId(product) {
@@ -356,10 +363,17 @@ function coerceTitleToPolicy(product, proposedTitle, { minLen = 70, maxLen = 80 
     product?.details?.attributes && typeof product.details.attributes === 'object'
       ? product.details.attributes
       : {};
+  const explicitCondition = pickAttr(attrs, 'Zustand');
 
   let title = stripSkuNoise(proposedTitle || '');
+  if (!explicitCondition) {
+    title = stripUsedCondition(title);
+  }
   if (!title) {
     title = stripSkuNoise(product?.identification?.name || '');
+  }
+  if (!explicitCondition) {
+    title = stripUsedCondition(title);
   }
 
   // If the provided title is too short, prefer a deterministic schema-based build from known fields.
@@ -384,6 +398,15 @@ function coerceTitleToPolicy(product, proposedTitle, { minLen = 70, maxLen = 80 
     normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '');
   if (productType && !containsToken(title, productType)) {
     const tentative = normalizeSpaces(`${title} ${productType}`);
+    if (tentative.length <= maxLen) {
+      title = tentative;
+    }
+  }
+
+  // Ensure condition appears (default to NEU when not explicitly set)
+  const condition = inferCondition(product);
+  if (condition && !containsToken(title, condition)) {
+    const tentative = normalizeSpaces(`${title} ${condition}`);
     if (tentative.length <= maxLen) {
       title = tentative;
     }
@@ -454,5 +477,3 @@ function coerceTitleToPolicy(product, proposedTitle, { minLen = 70, maxLen = 80 
 module.exports = {
   coerceTitleToPolicy,
 };
-
-

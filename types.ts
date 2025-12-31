@@ -335,6 +335,12 @@ export interface MarketplaceAttribute {
   value: string;
 }
 
+export interface EbayCategoryOption {
+  id: string;
+  breadcrumb: string;
+  name?: string;
+}
+
 export interface ProductEnrichmentRecord {
   input_mode: ProductEnrichmentInputMode;
   brand: string;

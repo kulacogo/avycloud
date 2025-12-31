@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Product, DatasheetChange, ProductImage, WarehouseBin } from '../types';
+import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption } from '../types';
 import {
   saveProduct,
   syncToBaseLinker,
@@ -11,6 +11,7 @@ import {
   generateProductImages,
   setProductInventoryId,
   openInventoryLabelWindow,
+  fetchEbayCategories,
 } from '../api/client';
 import { EditIcon, SaveIcon, SyncIcon, PrintIcon, MagicIcon, RefreshIcon, BarcodeIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
@@ -96,6 +97,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [barcodeInput, setBarcodeInput] = useState<string>(() => (product.identification?.barcodes || []).join('\n'));
   const latestBarcodeInputRef = useRef<string>(barcodeInput);
   latestBarcodeInputRef.current = barcodeInput;
+  const [categoryQuery, setCategoryQuery] = useState('');
+  const [categoryQueryDebounced, setCategoryQueryDebounced] = useState('');
+  const [categoryOptions, setCategoryOptions] = useState<EbayCategoryOption[]>([]);
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
   const [assigningInventory, setAssigningInventory] = useState(false);
   const [inventoryMessage, setInventoryMessage] = useState<string | null>(null);
   const [syncInventoryId] = useState('78659');
@@ -184,6 +190,54 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   }, [binsLoading, productBins, localProduct.storage?.binCode]);
 
   useEffect(() => {}, []);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    setCategoryQuery((prev) => prev || localProduct.identification?.category || '');
+  }, [isEditing, localProduct.identification?.category]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setCategoryQueryDebounced(categoryQuery.trim());
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [categoryQuery]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const query = categoryQueryDebounced;
+    const params: { query?: string; id?: string; limit?: number } = { limit: 60 };
+    if (query.length >= 2) params.query = query;
+    if (localProduct.details?.categoryId) {
+      params.id = String(localProduct.details.categoryId);
+    }
+    if (!params.query && !params.id) {
+      setCategoryOptions([]);
+      setCategoryError(null);
+      setCategoryLoading(false);
+      return;
+    }
+    let active = true;
+    setCategoryLoading(true);
+    setCategoryError(null);
+    fetchEbayCategories(params)
+      .then((items) => {
+        if (!active) return;
+        setCategoryOptions(items);
+      })
+      .catch((error: any) => {
+        if (!active) return;
+        setCategoryOptions([]);
+        setCategoryError(error?.message || 'Kategorien konnten nicht geladen werden.');
+      })
+      .finally(() => {
+        if (!active) return;
+        setCategoryLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isEditing, categoryQueryDebounced, localProduct.details?.categoryId]);
 
   const referenceImages = useMemo(
     () => filterReferenceCandidates(localProduct.details?.images || []),
@@ -705,7 +759,46 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsDirty(true);
   };
 
+  const handleCategorySelect = useCallback(
+    (breadcrumb: string) => {
+      if (!breadcrumb) return;
+      setLocalProduct((prev) => {
+        const next = JSON.parse(JSON.stringify(prev));
+        next.identification = next.identification || {};
+        next.details = next.details || {};
+        next.identification.category = breadcrumb;
+        const match = categoryOptions.find((opt) => opt.breadcrumb === breadcrumb);
+        if (match?.id) {
+          next.details.categoryId = String(match.id);
+        }
+        return next;
+      });
+      setCategoryQuery(breadcrumb);
+      setIsDirty(true);
+    },
+    [categoryOptions]
+  );
+
   const attributesMap = useMemo(() => localProduct.details?.attributes || {}, [localProduct.details?.attributes]);
+
+  const categorySelectOptions = useMemo(() => {
+    const options: EbayCategoryOption[] = [];
+    const seen = new Set<string>();
+    categoryOptions.forEach((opt) => {
+      if (!opt?.breadcrumb) return;
+      if (seen.has(opt.breadcrumb)) return;
+      seen.add(opt.breadcrumb);
+      options.push(opt);
+    });
+    const current = localProduct.identification?.category;
+    if (current && !seen.has(current)) {
+      options.unshift({
+        id: localProduct.details?.categoryId || 'current',
+        breadcrumb: current,
+      });
+    }
+    return options;
+  }, [categoryOptions, localProduct.identification?.category, localProduct.details?.categoryId]);
 
   const highlightList = useMemo(() => {
     const rawFeatures = Array.isArray(localProduct.details?.key_features)
@@ -827,7 +920,32 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   className={`bg-transparent inline-block outline-none ${isEditing ? 'border-b border-sky-500' : ''}`}
                 />
                 {' · '}
-                <span className="text-sky-400">{localProduct.identification.category}</span>
+                {isEditing ? (
+                  <span className="inline-flex flex-col gap-1 text-xs text-slate-200">
+                    <input
+                      value={categoryQuery}
+                      onChange={(e) => setCategoryQuery(e.target.value)}
+                      className="bg-transparent border-b border-sky-500 outline-none"
+                      placeholder="Kategorie suchen..."
+                    />
+                    <select
+                      value={localProduct.identification.category || ''}
+                      onChange={(e) => handleCategorySelect(e.target.value)}
+                      className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200"
+                    >
+                      <option value="">Kategorie auswählen...</option>
+                      {categorySelectOptions.map((option) => (
+                        <option key={option.id} value={option.breadcrumb}>
+                          {option.breadcrumb}
+                        </option>
+                      ))}
+                    </select>
+                    {categoryLoading && <span className="text-[10px] text-slate-500">Lade Kategorien…</span>}
+                    {categoryError && <span className="text-[10px] text-red-400">{categoryError}</span>}
+                  </span>
+                ) : (
+                  <span className="text-sky-400">{localProduct.identification.category}</span>
+                )}
               </p>
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-2">
                 <span>

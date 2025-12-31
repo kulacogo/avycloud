@@ -66,10 +66,6 @@ function buildImproveContext(product) {
       );
     }
   }
-  const price = product?.details?.pricing?.lowest_price;
-  if (price?.amount) {
-    lines.push(`Aktueller Preis: ${price.amount} ${price.currency || 'EUR'}`);
-  }
   return lines.join('\n');
 }
 
@@ -736,4 +732,3 @@ async function improveExistingProduct(productId, onProgress) {
 module.exports = {
   improveExistingProduct,
 };
-

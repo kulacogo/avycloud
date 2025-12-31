@@ -13,6 +13,7 @@ import {
   IdentificationJob,
   ProductEnrichmentRecord,
   InventoryRecord,
+  EbayCategoryOption,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -416,6 +417,26 @@ export const fetchProducts = async (): Promise<Product[]> => {
     return result.data.map(normalizeProduct);
   }
   return [];
+};
+
+export const fetchEbayCategories = async (params: {
+  query?: string;
+  id?: string;
+  limit?: number;
+} = {}): Promise<EbayCategoryOption[]> => {
+  const query = new URLSearchParams();
+  if (params.query) query.set('q', params.query);
+  if (params.id) query.set('id', params.id);
+  if (params.limit) query.set('limit', String(params.limit));
+  const url = query.toString()
+    ? `${BACKEND_URL}/api/ebay/categories?${query.toString()}`
+    : `${BACKEND_URL}/api/ebay/categories`;
+  const response = await fetch(url);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Kategorien konnten nicht geladen werden.');
+  }
+  return Array.isArray(result?.items) ? result.items : [];
 };
 
 // This function now makes a REAL API call to the live backend server.
