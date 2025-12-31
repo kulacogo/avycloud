@@ -13,6 +13,7 @@ const {
   listOrders,
   getOrderSummary,
   findProductIdsByAliases,
+  findProductByStrictIdentifier,
   deleteProductsByIdentityAlias,
   listInventories,
   getInventoryRecord,
@@ -1558,6 +1559,26 @@ app.post('/api/ktype/upload', ktypeUploadMiddleware, async (req, res) => {
       },
     };
 
+    const buildSkuCandidates = (value) => {
+      const raw = String(value || '').trim();
+      if (!raw) return [];
+      const withoutPrefix = raw.replace(/^sku[-_\\s]*/i, '').trim();
+      const withPrefix = withoutPrefix ? `SKU-${withoutPrefix}` : '';
+      const candidates = [raw, withoutPrefix, withPrefix].filter(Boolean);
+      return Array.from(new Set(candidates));
+    };
+
+    const resolveProductForSku = async (sku) => {
+      const candidates = buildSkuCandidates(sku);
+      for (const candidate of candidates) {
+        const direct = await getProduct(candidate);
+        if (direct) return direct;
+        const bySku = await findProductByStrictIdentifier({ sku: candidate });
+        if (bySku) return bySku;
+      }
+      return null;
+    };
+
     // Simple concurrency-limited worker pool
     let cursor = 0;
     const concurrency = 10;
@@ -1566,7 +1587,7 @@ app.post('/api/ktype/upload', ktypeUploadMiddleware, async (req, res) => {
         const idx = cursor++;
         const [sku, ktyp] = entries[idx];
         try {
-          const product = await getProduct(sku);
+          const product = await resolveProductForSku(sku);
           if (!product) {
             report.notFound.push(sku);
             if (report.samples.notFound.length < 10) report.samples.notFound.push(sku);
@@ -1586,7 +1607,7 @@ app.post('/api/ktype/upload', ktypeUploadMiddleware, async (req, res) => {
           }
 
           if (!dryRun) {
-            const docRef = firestore.collection('products').doc(String(sku));
+            const docRef = firestore.collection('products').doc(String(product.id || sku));
             await docRef.set(
               {
                 details: {
