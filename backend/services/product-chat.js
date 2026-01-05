@@ -10,6 +10,7 @@ const { fetchMarketingImages } = require('../lib/marketing-images');
 const { generateImagesForProduct } = require('./image-generation');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
+const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 
 const MAX_CHAT_ITERATIONS = 5;
 const DEEP_MODE_REGEX =
@@ -1008,6 +1009,8 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   // Enhanced System Prompt for Autononomy
   const systemPromptText = buildSystemPrompt(locale) + `
   
+  ${buildCommonPolicyText({ locale, allowWebEvidence: true })}
+
   CRITICAL RULES:
   1. DO NOT ASK the user for search queries or "what marketplace to check". derivation of queries is YOUR job.
   2. If the user asks for data (like an EAN/Barcode) and it is missing, you MUST immediately call 'serpapi_web_search' with a query like "Brand ModelNumber EAN" or "Brand Name Barcode".

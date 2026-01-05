@@ -1,0 +1,632 @@
+[
+  {
+    "sku": "SKU-1844691476",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "085854258548",
+    "current": "Sammeln & Seltenes > Militaria > NATO-Shop > Rucksäcke & Taschen",
+    "proposedPath": "Reisen > Reisegepäck > Rucksäcke"
+  },
+  {
+    "sku": "SKU-4310621602",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "0196214105119",
+    "current": "Sammeln & Seltenes > Sammelkartenspiele/TCGs",
+    "proposedPath": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > Pokémon > Displays & Boxen",
+    "resolvedId": "183462",
+    "canonical": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Deck-Boxen, Blechdosen & Kartentrenner",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-0545917168",
+    "status": "noop",
+    "query": "655302158944",
+    "current": "Business & Industrie > Werkzeuge & Werkstattbedarf > Mess- & Prüfwerkzeuge > Messschieber",
+    "resolvedId": "131261",
+    "canonical": "Business & Industrie > Werkzeuge & Werkstattbedarf > Mess- & Prüfwerkzeuge > Messschieber",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-9947386415",
+    "status": "skip",
+    "reason": "no_leaf_evidence",
+    "query": "Weber 711004",
+    "current": "Business & Industrie > Agrar, Forst & Kommune > Spezial-Landwirtschaft > Fischwirtschaft > Räucheröfen",
+    "proposedPath": "Haus & Garten > Grills, Heizstrahler & Picknickzubehör > Grills > Smoker",
+    "resolvedId": "169137",
+    "canonical": "Business & Industrie > Agrar, Forst & Kommune > Spezial-Landwirtschaft > Imkerei > Smoker",
+    "resolvedBy": "marketplaceLookup_leaf"
+  },
+  {
+    "sku": "SKU-0922374624",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "195166279855",
+    "current": "Sammeln & Seltenes > Sammelkartenspiele/TCGs",
+    "proposedPath": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > Decks & Kits",
+    "resolvedId": "183462",
+    "canonical": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Deck-Boxen, Blechdosen & Kartentrenner",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4303462818",
+    "status": "noop",
+    "query": "3154020086005",
+    "current": "Business & Industrie > Metallbearbeitung & Schlosserei > Schweißen & Löten > Schweißen > Elektroden, Drähte & Leitungen",
+    "resolvedId": "182905",
+    "canonical": "Business & Industrie > Metallbearbeitung & Schlosserei > Schweißen & Löten > Schweißen > Elektroden, Drähte & Leitungen",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-8850596846",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4003318620911",
+    "current": "Antiquitäten & Kunst > Restaurierungsbedarf > Schlösser",
+    "proposedPath": "Sport > Radsport > Fahrradzubehör > Fahrradschlösser",
+    "resolvedId": "58100",
+    "canonical": "Sport > Radsport > Fahrradzubehör > Schlösser & Sicherheit",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4401248629",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4009384458304",
+    "current": "Sammeln & Seltenes > Comics & Comic-Fanartikel",
+    "proposedPath": "Sport > Fußball > Fanartikel > Nationalmannschaften > Deutschland",
+    "resolvedId": "123493",
+    "canonical": "Sport > Fußball > Fußball-Trikots > Ausländische Vereine > Englische Vereine",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-5410787453",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4013556577007",
+    "current": "Antiquitäten & Kunst > Historische Baustoffe > Garten- & Parkeinrichtung > Original, vor 1960 gefertigt > Gartenmöbel",
+    "proposedPath": "Haus & Garten > Garten & Terrasse > Gartenmöbel > Gartenmöbel-Zubehör"
+  },
+  {
+    "sku": "SKU-5928571392",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4013556592796",
+    "current": "Antiquitäten & Kunst > Historische Baustoffe > Garten- & Parkeinrichtung > Original, vor 1960 gefertigt > Gartenmöbel",
+    "proposedPath": "Garten & Terrasse > Gartenmöbel > Schutzhüllen & Abdeckplanen"
+  },
+  {
+    "sku": "SKU-8927251416",
+    "status": "noop",
+    "query": "fischer Quattric II 24/450/400",
+    "current": "Business & Industrie > Werkzeuge & Werkstattbedarf > Elektrowerkzeug-Zubehör > Bohrer",
+    "resolvedId": "124425",
+    "canonical": "Business & Industrie > Werkzeuge & Werkstattbedarf > Elektrowerkzeug-Zubehör > Bohrer",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-8735317765",
+    "status": "noop",
+    "query": "5060570201660",
+    "current": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Deck-Boxen, Blechdosen & Kartentrenner",
+    "resolvedId": "183462",
+    "canonical": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Deck-Boxen, Blechdosen & Kartentrenner",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-1784585629",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4250454729170",
+    "current": "Sammeln & Seltenes > Ansichtskarten & Zubehör",
+    "proposedPath": "Büro & Schreibwaren > Papier, Hefte & Blöcke > Grußkarten & Einladungen > Grußkarten"
+  },
+  {
+    "sku": "SKU-9904325113",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "5702017567501",
+    "current": "Antiquitäten & Kunst > Antikspielzeug > Baukästen",
+    "proposedPath": "Spielzeug > Baukästen & Konstruktionsspielzeug > LEGO > LEGO City"
+  },
+  {
+    "sku": "SKU-5753016417",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "Audi Audi Fußmatten Set Vorne, Hinten NEU Q5",
+    "current": "Sammeln & Seltenes > Reklame & Werbung > Branchen & Marken > Auto & Motorrad",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Anbau- & -Zubehörteile > Innenausstattung > Fußmatten",
+    "resolvedId": "99044",
+    "canonical": "Auto & Motorrad: Teile > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Lackschutzfolien",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-6860111834",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "Qunsheng 61921411800024",
+    "current": "Antiquitäten & Kunst > Kleidung & Access. vor 1900 > Accessoires > Handschuhe",
+    "proposedPath": "Haus & Garten > Haushalt > Reinigung > Reinigungshilfen > Handschuhe"
+  },
+  {
+    "sku": "SKU-0735099796",
+    "status": "noop",
+    "query": "6954850111741",
+    "current": "Business & Industrie > Gebäudereinigung > Manuelle Reinigungsgeräte > Einmal-Reinigungshandschuhe",
+    "resolvedId": "184002",
+    "canonical": "Business & Industrie > Gebäudereinigung > Manuelle Reinigungsgeräte > Einmal-Reinigungshandschuhe",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-1423771699",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "3615984567431",
+    "current": "Business & Industrie > Baugewerbe > Baumaschinenteile & Zubehör > Antrieb, Motor & Getriebe > Keilriemen",
+    "proposedPath": "Auto & Motorrad: Teile > Roller-Teile > Motoren & Motorteile > Keilriemen"
+  },
+  {
+    "sku": "SKU-9905416565",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "7290006780805",
+    "current": "Sammeln & Seltenes > Reklame & Werbung > Bier & Brauerei > Bierflaschen",
+    "proposedPath": "Haushalt > Küche, Kochen & Genießen > Kleingeräte Küche > Wassersprudler & Zubehör"
+  },
+  {
+    "sku": "SKU-3606468262",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4019722112706",
+    "current": "Business & Industrie > Agrar, Forst & Kommune > Ersatzteile, Teile & Zubehör > Teile & Zubehör Traktoren > Antrieb, Motor & Getriebe > Bremsscheiben & -zubehör",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Bremsenteile > Bremsscheiben"
+  },
+  {
+    "sku": "SKU-2930571748",
+    "status": "noop",
+    "query": "3165140564250",
+    "current": "Business & Industrie > Werkzeuge & Werkstattbedarf > Elektrowerkzeug-Zubehör > Bohrer",
+    "resolvedId": "124425",
+    "canonical": "Business & Industrie > Werkzeuge & Werkstattbedarf > Elektrowerkzeug-Zubehör > Bohrer",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-6480044357",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "7325549884427",
+    "current": "Sammeln & Seltenes > Transport > Fahrrad",
+    "proposedPath": "Sport > Radsport > Fahrradzubehör > Helme",
+    "resolvedId": "22689",
+    "canonical": "Sport > Radsport > Fahrradzubehör > Beleuchtung & Reflektoren",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-3988740005",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4250983259612",
+    "current": "Business & Industrie > Elektronik & Messtechnik > Kabel & Leitungen > Kabelverbinder & Anschlussklemmen > Leitungs- & Kabelverbinder",
+    "proposedPath": "Business & Industrie > Elektronik & Messtechnik > Stromversorgung > Stromverteilung & Schutz > Sammelschienen",
+    "resolvedId": "66995",
+    "canonical": "Business & Industrie > Elektronik & Messtechnik > Netzteile > Unterbrechungsfreie N. (USV)",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-0785869755",
+    "status": "would_update",
+    "query": "4260477074874",
+    "current": "Sammeln & Seltenes > Transport > Fahrrad",
+    "currentId": "420",
+    "proposedPath": "Sport > Radsport > Fahrradteile & -komponenten > Sättel",
+    "resolvedId": "177822",
+    "canonical": "Sport > Radsport > Fahrradteile & -komponenten > Sättel",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-1040274599",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "9783417288889",
+    "current": "Sammeln & Seltenes > Science-Fiction > Star Trek > Poster & Bilder",
+    "proposedPath": "Bücher > Kinder- & Jugendliteratur > Bilderbücher"
+  },
+  {
+    "sku": "SKU-0974179694",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "2230510001022",
+    "current": "Sammeln & Seltenes > Militaria > NATO-Shop > Werkzeuge & Tools",
+    "proposedPath": "Heimwerker > Werkzeuge > Handwerkzeuge > Zwingen & Schraubzwingen",
+    "resolvedId": "20761",
+    "canonical": "Heimwerker > Werkzeuge > Handwerkzeuge > Klemmzwingen & Schraubstöcke",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-1066852367",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "3800235261590",
+    "current": "Business & Industrie > Elektronik & Messtechnik > Schalter > Kippschalter",
+    "proposedPath": "Haus & Garten > Smart Home & Überwachung > Smart Home-Systeme > Schalter & Steckdosen"
+  },
+  {
+    "sku": "SKU-1566313678",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "9783036957814",
+    "current": "Sammeln & Seltenes > DDR & Ostalgie > DDR > Bücher & Zeitschriften > Kinder- & Jugendliteratur",
+    "proposedPath": "Bücher > Kinder- & Jugendliteratur > Bilderbücher"
+  },
+  {
+    "sku": "SKU-1612836881",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4013288220592",
+    "current": "Sammeln & Seltenes > Militaria > NATO-Shop > Werkzeuge & Tools",
+    "proposedPath": "Sport > Radsport > Fahrradzubehör > Werkzeuge & Reparatur",
+    "resolvedId": "22689",
+    "canonical": "Sport > Radsport > Fahrradzubehör > Beleuchtung & Reflektoren",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-1789286937",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "Engelbert Strauss Engelbert Strauss T-Shirt: Robust, bequem & vielseitig",
+    "current": "Sammeln & Seltenes > Science-Fiction > Star Trek > Bekleidung",
+    "proposedPath": "Business & Industrie > Arbeitskleidung & Arbeitsschutz > Arbeitskleidung > T-Shirts & Poloshirts"
+  },
+  {
+    "sku": "SKU-2135446963",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "Dexcom STS-GS-003",
+    "current": "Business & Industrie > Automation, Antriebe & Motoren > Sensoren",
+    "proposedPath": "Gesundheit & Schönheit > Medizin & Pflege > Diabetes-Bedarf > Blutzuckermessgeräte & Zubehör"
+  },
+  {
+    "sku": "SKU-2789683373",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4061474039602",
+    "current": "Sammeln & Seltenes > Haushalt & Küche > Kleingeräte > Elektrische Ventilatoren",
+    "proposedPath": "Heizen, Klima & Lüftung > Ventilatoren > Standventilatoren"
+  },
+  {
+    "sku": "SKU-2804135383",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "7445038719723",
+    "current": "Sammeln & Seltenes > Beleuchtung > Lampenteile",
+    "proposedPath": "Elektronik & Foto > Kabel & Adapter > Kabelzubehör > Entstörfilter"
+  },
+  {
+    "sku": "SKU-3047799035",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4003318877841",
+    "current": "Sammeln & Seltenes > Transport > Fahrrad",
+    "proposedPath": "Sport > Radsport > Fahrradteile & -zubehör > Fahrradschlösser",
+    "resolvedId": "58100",
+    "canonical": "Sport > Radsport > Fahrradzubehör > Schlösser & Sicherheit",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-3149269291",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "Nidec Sankyo 445-0765157A",
+    "current": "Sammeln & Seltenes > Technik & Geräte > Automaten > Geldspielautomaten > Geldspielautomaten",
+    "proposedPath": "Business & Industrie > Büro & Schreibwaren > Kassensysteme & POS-Hardware > Kartenleser"
+  },
+  {
+    "sku": "SKU-3588671475",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4710069708958",
+    "current": "Sammeln & Seltenes > Militaria > NATO-Shop > Werkzeuge & Tools",
+    "proposedPath": "Sport > Radsport > Fahrradzubehör > Fahrradwerkzeuge",
+    "resolvedId": "22689",
+    "canonical": "Sport > Radsport > Fahrradzubehör > Beleuchtung & Reflektoren",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4212491486",
+    "status": "would_update",
+    "query": "Unbekannt SKU-4212491486",
+    "current": "Antiquitäten & Kunst > Musikinstrumente > Schlaginstrumente",
+    "currentId": "37976",
+    "proposedPath": "Musikinstrumente > Schlaginstrumente > Handpans",
+    "resolvedId": "181236",
+    "canonical": "Musikinstrumente > Drums & Percussion > Folklore & Welt > Handpans",
+    "resolvedBy": "marketplaceLookup_leaf"
+  },
+  {
+    "sku": "SKU-3963918245",
+    "status": "noop",
+    "query": "Success Courier DSK-1",
+    "current": "Business & Industrie > Hydraulik, Pneumatik & Pumpen > Strömungswächter & Steuerungen > Pumpensteuerungen",
+    "resolvedId": "184059",
+    "canonical": "Business & Industrie > Hydraulik, Pneumatik & Pumpen > Strömungswächter & Steuerungen > Pumpensteuerungen",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4304000683",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4002541707024",
+    "current": "Sammeln & Seltenes > Transport > Luftfahrt & Zeppelin > Geschirr & Besteck",
+    "proposedPath": "Möbel & Wohnen > Kochen & Genießen > Gläser > Trinkgläser",
+    "resolvedId": "20654",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Ordnung & Aufbewahrung > Vorratsgefäße & -gläser",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4349960147",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4000530650139",
+    "current": "Sammeln & Seltenes > Haushalt & Küche > Töpfe & Pfannen",
+    "proposedPath": "Haushalt > Küche, Helfer & Kochzubehör > Töpfe & Pfannen"
+  },
+  {
+    "sku": "SKU-4358173575",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "196852765508",
+    "current": "Sammeln & Seltenes > Sammelkartenspiele/TCGs",
+    "proposedPath": "Spielzeug > Gesellschaftsspiele > Kartenspiele"
+  },
+  {
+    "sku": "SKU-4488972962",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4262448172770",
+    "current": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Gastronomie-Küchenausstattung > Gastronomie-Kochgeschirr- & zubehör",
+    "proposedPath": "Sport > Camping & Outdoor > Camping-Küchenausstattung > Töpfe & Pfannen",
+    "resolvedId": "181357",
+    "canonical": "Sport > Camping & Outdoor > Bekleidung > Herren > Unterwäsche",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4541378818",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "Longking LKA003WGuk",
+    "current": "Business & Industrie > Werkzeuge & Werkstattbedarf > Spezial-Handwerkzeuge > Fliesenlegerwerkzeuge",
+    "proposedPath": "Heimwerker > Baustoffe & Holz > Fliesen > Fliesenaufkleber & -folien",
+    "resolvedId": "83847",
+    "canonical": "Heimwerker > Baustoffe & Holz > Kleber & Leime",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4561934561",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "GLOCK SKU-4561934561",
+    "current": "Sammeln & Seltenes > Rollenspiele & Tabletops > LARP & Reenactment > Waffen > Schaumstoff- & Latexwaffen",
+    "proposedPath": "Sport > Jagd & Sport > Schießsport > Waffenzubehör > Waffenkoffer & -taschen"
+  },
+  {
+    "sku": "SKU-4990478200",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4260532291215",
+    "current": "Antiquitäten & Kunst > Metallobjekte > Eisen > Gefertigt nach 1945 > Gusseisen",
+    "proposedPath": "Haushalt > Küche, Kochen & Genießen > Töpfe & Pfannen > Woks"
+  },
+  {
+    "sku": "SKU-4820097368",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4255700108594",
+    "current": "Sammeln & Seltenes > Militaria > NATO-Shop > Rucksäcke & Taschen",
+    "proposedPath": "Koffer, Taschen & Reise-Accessoires > Rucksäcke"
+  },
+  {
+    "sku": "SKU-4996518676",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4710069709269",
+    "current": "Sammeln & Seltenes > Transport > Fahrrad",
+    "proposedPath": "Sport > Radsport > Fahrradteile & -komponenten > Taschen & Körbe",
+    "resolvedId": "36137",
+    "canonical": "Sport > Radsport > Fahrradteile & -komponenten > Pedale",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-5403685857",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4007123624386",
+    "current": "Business & Industrie > Elektronik & Messtechnik > Schalter",
+    "proposedPath": "Heimwerker > Elektromaterial > Steckdosen, Schalter & Zubehör > Steckdosenleisten",
+    "resolvedId": "185060",
+    "canonical": "Heimwerker > Elektromaterial > Steckdosen, Schalter & Zubehör > Smart-Steckdosen, -Wandschalter & -Zwischenstecker > Smart-Steckdosen",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-5729537867",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "9783789141256",
+    "current": "Sammeln & Seltenes > DDR & Ostalgie > DDR > Bücher & Zeitschriften > Kinder- & Jugendliteratur",
+    "proposedPath": "Bücher & Zeitschriften > Kinder- & Jugendliteratur > Bilderbücher"
+  },
+  {
+    "sku": "SKU-5740939127",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4002541666529",
+    "current": "Sammeln & Seltenes > Haushalt & Küche > Gedeckter Tisch > Salzschalen",
+    "proposedPath": "Haushalt & Küche > Gedeckter Tisch > Schalen & Servierplatten"
+  },
+  {
+    "sku": "SKU-5799111421",
+    "status": "noop",
+    "query": "8720707001286",
+    "current": "Business & Industrie > Sicherheit & Gebäudeinstandhaltung > Gebäude-Beleuchtungen > Industrielle Beleuchtungen",
+    "resolvedId": "26219",
+    "canonical": "Business & Industrie > Sicherheit & Gebäudeinstandhaltung > Gebäude-Beleuchtungen > Industrielle Beleuchtungen",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-5814356347",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "3168430357914",
+    "current": "Sammeln & Seltenes > Haushalt & Küche > Töpfe & Pfannen",
+    "proposedPath": "Haushalt & Wohnen > Küche, Kochen & Genießen > Töpfe & Pfannen"
+  },
+  {
+    "sku": "SKU-5946216503",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "6971763600575",
+    "current": "Business & Industrie > Medizin & Labor > Medizinische Geräte",
+    "proposedPath": "Gesundheit & Schönheit > Massage & Entspannung > TENS- & EMS-Geräte"
+  },
+  {
+    "sku": "SKU-6427883146",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "8720648699382",
+    "current": "Antiquitäten & Kunst > Restaurierungsbedarf > Schlösser",
+    "proposedPath": "Sport > Radsport > Fahrradteile & -komponenten > Schlösser",
+    "resolvedId": "36137",
+    "canonical": "Sport > Radsport > Fahrradteile & -komponenten > Pedale",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-6614383452",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "Leonardo Leonardo Karaffe Swing Transparent Glas NEU Gr.",
+    "current": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Bar- & Ausschankausstattung > Gastronomie-Kaffee-, Kakao- & Teeausstattung > Kaffee- & Teespender > Karaffen & Dekanter",
+    "proposedPath": "Möbel & Wohnen > Kochen & Genießen > Geschirr & Besteck > Karaffen & Krüge",
+    "resolvedId": "115729",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Krüge & Kannen",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-7270723982",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "Kitchen Sink SKU-7270723982",
+    "current": "Sammeln & Seltenes > DDR & Ostalgie > DDR > Haushalt & Küche",
+    "proposedPath": "Haus & Garten > Küche & Esszimmer > Küchengeräte & Zubehör > Spülen"
+  },
+  {
+    "sku": "SKU-7998641824",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "Rohema Rohema Drumsticks Premium Holz NEU Präzision Langlebigkeit",
+    "current": "Antiquitäten & Kunst > Musikinstrumente > Schlaginstrumente",
+    "proposedPath": "Musikinstrumente > Schlaginstrumente > Zubehör für Schlaginstrumente > Drumsticks"
+  },
+  {
+    "sku": "SKU-8004480244",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4052138013946",
+    "current": "Sammeln & Seltenes > Disneyana > Vintage > Haushaltsartikel",
+    "proposedPath": "Haushalt > Klimaanlagen & Heizgeräte > Ventilatoren"
+  },
+  {
+    "sku": "SKU-8779940575",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4013236948097",
+    "current": "Sammeln & Seltenes > Reklame & Werbung > Branchen & Marken > Coca-Cola & Softdrinks > Coca-Cola > Tassen & Becher",
+    "proposedPath": "Sport > Camping & Outdoor > Camping-Küchenausstattung > Tassen & Becher",
+    "resolvedId": "181357",
+    "canonical": "Sport > Camping & Outdoor > Bekleidung > Herren > Unterwäsche",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-8310896573",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "IKEA SKU-8310896573",
+    "current": "Sammeln & Seltenes > Esoterik, Mystik & Magie > Orakel & Tarot > Pendel",
+    "proposedPath": "Möbel & Wohnen > Beleuchtung > Pendelleuchten",
+    "resolvedId": "185045",
+    "canonical": "Möbel & Wohnen > Beleuchtung > Smart Home-Beleuchtungen > Smart-Leuchtmittel",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-8919591829",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4030913982243",
+    "current": "Sammeln & Seltenes > Science-Fiction > Star Trek > Bekleidung",
+    "proposedPath": "Sport > Outdoorsport > Outdoor-Bekleidung > Kinder-Outdoorhosen"
+  },
+  {
+    "sku": "SKU-9073986145",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4014835742154",
+    "current": "Business & Industrie > Agrar, Forst & Kommune > Ersatzteile, Teile & Zubehör > Teile & Zubehör Motorsägen > Sägeketten",
+    "proposedPath": "Business & Industrie > Agrar, Forst & Kommune > Ersatzteile, Teile & Zubehör > Teile & Zubehör Motorsägen > Öle & Schmiermittel",
+    "resolvedId": "123054",
+    "canonical": "Business & Industrie > Agrar, Forst & Kommune > Ersatzteile, Teile & Zubehör > Teile & Zubehör Motorsägen > Schmier- & Kraftstoffkanister",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-9091395294",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4002541707024",
+    "current": "Sammeln & Seltenes > Haushalt & Küche > Bar- & Wein-Accessoires > Schnapsgläser",
+    "proposedPath": "Möbel & Wohnen > Kochen & Genießen > Gläser > Trinkgläser & Becher",
+    "resolvedId": "20654",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Ordnung & Aufbewahrung > Vorratsgefäße & -gläser",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-9289261489",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "9783785556740",
+    "current": "Sammeln & Seltenes > DDR & Ostalgie > DDR > Bücher & Zeitschriften > Kinder- & Jugendliteratur",
+    "proposedPath": "Bücher > Kinder- & Jugendliteratur > Kinderbücher"
+  },
+  {
+    "sku": "SKU-9876441475",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "9783845118116",
+    "current": "Sammeln & Seltenes > Rollenspiele & Tabletops > LARP & Reenactment > Kleidung & Accessoires > Kinder",
+    "proposedPath": "Bücher > Kinder- & Jugendliteratur > Bilderbücher"
+  },
+  {
+    "sku": "SKU-9787450821",
+    "status": "would_update",
+    "query": "4057993570030",
+    "current": "Sammeln & Seltenes > DDR & Ostalgie > DDR > Haushalt & Küche",
+    "currentId": "8759",
+    "proposedPath": "Haushalt & Wohnen > Küche & Esszimmer > Kleine Küchengeräte > Nudelmaschinen",
+    "resolvedId": "20680",
+    "canonical": "Haushaltsgeräte > Kleingeräte Küche > Nudelmaschinen",
+    "resolvedBy": "marketplaceLookup_leaf"
+  },
+  {
+    "sku": "SKU-9912977908",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "0386270002273",
+    "current": "Business & Industrie > Medizin & Labor > Medizinische Geräte",
+    "proposedPath": "Gesundheit & Schönheit > Medizinische Geräte & Hilfsmittel > Diabetes-Bedarf > Blutzuckermessgeräte"
+  },
+  {
+    "sku": "SKU-6854747447",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "220653541150",
+    "current": "Sammeln & Seltenes > Militaria > 1918-1945 > Helme & Kopfbedeckungen",
+    "proposedPath": "Auto & Motorrad: Teile > Motorradteile > Helme & Kopfbedeckungen > Helme"
+  }
+]

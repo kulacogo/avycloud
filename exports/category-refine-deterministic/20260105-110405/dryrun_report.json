@@ -1,0 +1,622 @@
+[
+  {
+    "docId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Tierbedarf",
+    "leaf": "Hundepool"
+  },
+  {
+    "docId": "1011190149611",
+    "sku": "SKU-3023625088",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Unkategorisiert",
+    "leaf": "Gewindereparaturset"
+  },
+  {
+    "docId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Handyhüllen",
+    "leaf": "Schutzhülle"
+  },
+  {
+    "docId": "20240129000072",
+    "sku": "SKU-4603086544",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto-Monitore",
+    "leaf": "CarPlay Display"
+  },
+  {
+    "docId": "2312388888888",
+    "sku": "SKU-5446097686",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Haushalt & Wohnen",
+    "leaf": "Ultraschallreiniger"
+  },
+  {
+    "docId": "247e01a5-fa99-4b01-be0a-fefbe97a145d",
+    "sku": "SKU-3050715048",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker",
+    "leaf": "Steckschlüsselsatz"
+  },
+  {
+    "docId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "sku": "SKU-7753504850",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Tierbedarf",
+    "leaf": "Calcium Bolus"
+  },
+  {
+    "docId": "3322937241712",
+    "sku": "SKU-5868736484",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad: Teile",
+    "leaf": "Bremsbelagsatz"
+  },
+  {
+    "docId": "3558380099390",
+    "sku": "SKU-2522561568",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kartenspiel",
+    "leaf": "Kartenspiel"
+  },
+  {
+    "docId": "3662775243128",
+    "sku": "SKU-5896801162",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad: Teile",
+    "leaf": "Batterien"
+  },
+  {
+    "docId": "4005414511612",
+    "sku": "SKU-4715041854",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Bettwäsche",
+    "leaf": "Bettwäsche-Set"
+  },
+  {
+    "docId": "4006094887004",
+    "sku": "SKU-1892441877",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Holzbausatz",
+    "leaf": "Holzbausatz"
+  },
+  {
+    "docId": "4013556577076",
+    "sku": "SKU-2724878095",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Garten & Terrasse",
+    "leaf": "Schutzhülle"
+  },
+  {
+    "docId": "4013594537810",
+    "sku": "SKU-3704607179",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Holzspielzeug",
+    "leaf": "Murmelbahn"
+  },
+  {
+    "docId": "4016417025303",
+    "sku": "SKU-3586300359",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Haushaltsgeräte",
+    "leaf": "Ablaufschlauch"
+  },
+  {
+    "docId": "4034144003036",
+    "sku": "SKU-3097738026",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Anhängerspiegel",
+    "leaf": "Anhängerspiegel"
+  },
+  {
+    "docId": "4040074122754",
+    "sku": "SKU-0945605804",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad: Teile",
+    "leaf": "Getriebeöl"
+  },
+  {
+    "docId": "4040074137246",
+    "sku": "SKU-9078406333",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad: Teile",
+    "leaf": "Filter-Satz"
+  },
+  {
+    "docId": "4040074266946",
+    "sku": "SKU-6074840029",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Antriebswellen & Gelenke",
+    "leaf": "Gelenksatz"
+  },
+  {
+    "docId": "4063541990120",
+    "sku": "SKU-4973901806",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Herrenbekleidung",
+    "leaf": "Sweatjacke"
+  },
+  {
+    "docId": "4063544208888",
+    "sku": "SKU-1747542074",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Herren T-Shirts",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "4078500055604",
+    "sku": "SKU-1803692252",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Gartengeräte Zubehör",
+    "leaf": "Akku- & Ladegerät-Set"
+  },
+  {
+    "docId": "4251806427775",
+    "sku": "SKU-8942698934",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Bettwäsche",
+    "leaf": "Bettwäsche-Set"
+  },
+  {
+    "docId": "4260443571086",
+    "sku": "SKU-9713309170",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Netzwerkdosen",
+    "leaf": "Netzwerkdose"
+  },
+  {
+    "docId": "4260532290669",
+    "sku": "SKU-7226847075",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Grillpfanne",
+    "leaf": "Grillpfanne"
+  },
+  {
+    "docId": "4262427090057",
+    "sku": "SKU-0135090467",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sicherheit & Pannenhilfe",
+    "leaf": "Warnwesten Set"
+  },
+  {
+    "docId": "4262472110243",
+    "sku": "SKU-7909541265",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Pfanne",
+    "leaf": "Bratpfanne"
+  },
+  {
+    "docId": "45005591930000",
+    "sku": "SKU-6587967689",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kleidung & Accessoires",
+    "leaf": "Trunks"
+  },
+  {
+    "docId": "48fe16c6-bdc6-42f6-862e-fc9eb4962c93",
+    "sku": "SKU-3756924465",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Tierbedarf",
+    "leaf": "Heizstab"
+  },
+  {
+    "docId": "4906958001464",
+    "sku": "SKU-2966583160",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Motorradbatterie",
+    "leaf": "Batterien"
+  },
+  {
+    "docId": "5010996282880",
+    "sku": "SKU-4519918204",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Actionfigur",
+    "leaf": "Actionfigur"
+  },
+  {
+    "docId": "5055350248140",
+    "sku": "SKU-7417485934",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Angeln",
+    "leaf": "Pop-Up Gewichte"
+  },
+  {
+    "docId": "54c1a366-798b-42bf-9014-95729468c623",
+    "sku": "SKU-4252129103",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Hygieneartikel",
+    "leaf": "Schuhüberzieher"
+  },
+  {
+    "docId": "5702017153599",
+    "sku": "SKU-9272258811",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Spielzeug",
+    "leaf": "Badespielzeug"
+  },
+  {
+    "docId": "5713487061253",
+    "sku": "SKU-3782469631",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Dekofigur",
+    "leaf": "Dekofigur"
+  },
+  {
+    "docId": "5713487061277",
+    "sku": "SKU-1466301102",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Dekofigur",
+    "leaf": "Dekofigur"
+  },
+  {
+    "docId": "5715335047020",
+    "sku": "SKU-8921872481",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kinderspielzeug",
+    "leaf": "Kindertrommel"
+  },
+  {
+    "docId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "sku": "SKU-5329605855",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Musikinstrumente",
+    "leaf": "E-Gitarrensaiten"
+  },
+  {
+    "docId": "5901532626087",
+    "sku": "SKU-1746174206",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad: Teile",
+    "leaf": "Außenspiegel"
+  },
+  {
+    "docId": "59151383083624",
+    "sku": "SKU-8684520981",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Beistelltische",
+    "leaf": "Beistelltisch"
+  },
+  {
+    "docId": "61cb13b8-ef09-4959-821e-c2d63fcd8038",
+    "sku": "SKU-9014992269",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sport",
+    "leaf": "Rücklicht"
+  },
+  {
+    "docId": "6941057422886",
+    "sku": "SKU-6216530722",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Luftmatratze",
+    "leaf": "Luftmatratze"
+  },
+  {
+    "docId": "6957303824717",
+    "sku": "SKU-9003235487",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Computer, Tablets & Netzwerk",
+    "leaf": "Vertikaler Laptop Ständer"
+  },
+  {
+    "docId": "76a7cc4f-9aa4-4149-ad6b-9cc4ef1dc1df",
+    "sku": "SKU-7200941317",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Autozubehör",
+    "leaf": "Sonnenschutz"
+  },
+  {
+    "docId": "8004815313234",
+    "sku": "SKU-1316800430",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Wohnmobil- & Wohnwagenzubehör",
+    "leaf": "Nivellierkeil"
+  },
+  {
+    "docId": "8088208802015",
+    "sku": "SKU-6543182729",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimtextilien",
+    "leaf": "Spannbettlaken"
+  },
+  {
+    "docId": "81715585302754",
+    "sku": "SKU-3938831828",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Baby & Kind",
+    "leaf": "Esslernset"
+  },
+  {
+    "docId": "81717285233178",
+    "sku": "SKU-5764056320",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimtextilien & Bettwaren",
+    "leaf": "Bettwäsche-Set"
+  },
+  {
+    "docId": "849e919f-0898-4df7-8fbb-e141c351cba4",
+    "sku": "SKU-2969022222",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Badematten & Badteppiche",
+    "leaf": "Badteppich"
+  },
+  {
+    "docId": "8712013813820",
+    "sku": "SKU-8805500495",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Geschirr-Sets",
+    "leaf": "Geschirrset"
+  },
+  {
+    "docId": "8717475102703",
+    "sku": "SKU-7333529126",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Fahrzeugteile",
+    "leaf": "Außenspiegel"
+  },
+  {
+    "docId": "8719115000028",
+    "sku": "SKU-8798489036",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Herrenmode",
+    "leaf": "Boxershorts"
+  },
+  {
+    "docId": "9e35f9b4-5df8-4db7-9dd7-31e4491488ef",
+    "sku": "SKU-6469360404",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimtextilien",
+    "leaf": "Spannbettlaken"
+  },
+  {
+    "docId": "SKU-2019125675",
+    "sku": "SKU-2019125675",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Beauty & Gesundheit",
+    "leaf": "derma"
+  },
+  {
+    "docId": "SKU-2151943751",
+    "sku": "SKU-2151943751",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Bastel- & Künstlerbedarf",
+    "leaf": "Harte Pastellkreiden"
+  },
+  {
+    "docId": "SKU-2633108165",
+    "sku": "SKU-2633108165",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad: Fahrzeuge",
+    "leaf": "Hagelschutzplane"
+  },
+  {
+    "docId": "SKU-2636479706",
+    "sku": "SKU-2636479706",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Garten & Terrasse",
+    "leaf": "Winterschutz Frost-Schutzhaus"
+  },
+  {
+    "docId": "SKU-2841208491",
+    "sku": "SKU-2841208491",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Bücher & Zeitschriften",
+    "leaf": "Bilderbuch"
+  },
+  {
+    "docId": "SKU-2965430996",
+    "sku": "SKU-2965430996",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Möbel & Wohnen",
+    "leaf": "Beistelltisch"
+  },
+  {
+    "docId": "SKU-4017783375",
+    "sku": "SKU-4017783375",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker",
+    "leaf": "LED Strahler"
+  },
+  {
+    "docId": "SKU-4434702791",
+    "sku": "SKU-4434702791",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Computer, Tablets & Netzwerk",
+    "leaf": "lexar"
+  },
+  {
+    "docId": "SKU-4607569519",
+    "sku": "SKU-4607569519",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad: Fahrzeuge",
+    "leaf": "Scheinwerfer AufbereitungsSet"
+  },
+  {
+    "docId": "SKU-4743695203",
+    "sku": "SKU-4743695203",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Bücher & Zeitschriften",
+    "leaf": "Bilderbuch"
+  },
+  {
+    "docId": "SKU-6830410442",
+    "sku": "SKU-6830410442",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker",
+    "leaf": "Ofenrohr"
+  },
+  {
+    "docId": "SKU-8367978772",
+    "sku": "SKU-8367978772",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Büro & Schreibwaren",
+    "leaf": "pelikan"
+  },
+  {
+    "docId": "SKU-8843412443",
+    "sku": "SKU-8843412443",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Business & Industrie",
+    "leaf": "Verkehrsspiegel"
+  },
+  {
+    "docId": "SKU-8857013241",
+    "sku": "SKU-8857013241",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kleidung & Accessoires",
+    "leaf": "Schnürschuhe"
+  },
+  {
+    "docId": "SKU-9142845763",
+    "sku": "SKU-9142845763",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad: Fahrzeuge",
+    "leaf": "Hagelschutzplane"
+  },
+  {
+    "docId": "ad08f46f-d233-4c4f-b5c5-bc803ce5018e",
+    "sku": "SKU-5748131128",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad: Teile",
+    "leaf": "Querlenkersatz"
+  },
+  {
+    "docId": "b82f2e03-f4e9-4cef-8984-364a6a8cfc8e",
+    "sku": "SKU-3350934915",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Garten & Freizeit",
+    "leaf": "Gartenstecker"
+  },
+  {
+    "docId": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+    "sku": "SKU-0716100821",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Motorrad-Teile & -Zubehör",
+    "leaf": "Integralhelm"
+  },
+  {
+    "docId": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+    "sku": "SKU-1536365981",
+    "status": "update",
+    "root": "Haushalt & Wohnen",
+    "leaf": "Backform Einsatz",
+    "match": {
+      "id": "63784",
+      "breadcrumb": "Sammeln & Seltenes > Haushalt & Küche > Backbleche & -formen > Backformen",
+      "score": 154,
+      "margin": 9
+    },
+    "updates": {
+      "details.categoryId": "63784",
+      "identification.category": "Sammeln & Seltenes > Haushalt & Küche > Backbleche & -formen > Backformen",
+      "ops.data_quality": {
+        "condition_sanitized_v1": {
+          "after": "NEU",
+          "iso": "2026-01-05T09:06:12.046Z",
+          "before": "Gebraucht",
+          "locked": false
+        },
+        "title_policy_v1": {
+          "after": "Unbekannt Backform Einsatz Schwarz Silikon NEU Airfryer 2er Set Haushalt",
+          "before_len": 73,
+          "iso": "2026-01-05T09:06:12.046Z",
+          "after_len": 72,
+          "before": "Unbekannt Backform Einsatz Schwarz Silikon NEU Gebraucht Airfryer 2er Set"
+        },
+        "category_refined_by": "rules",
+        "category_refined_iso": "2026-01-05T10:04:08.736Z",
+        "category_refined_from": "Haushalt & Wohnen > Küche, Kochen & Genießen > Küchengeräte > Fritteusen & Heißluftfritteusen Zubehör",
+        "category_refined_to": "Sammeln & Seltenes > Haushalt & Küche > Backbleche & -formen > Backformen"
+      }
+    }
+  },
+  {
+    "docId": "f2028097-7287-47f8-b694-d663960758ec",
+    "sku": "SKU-2204782559",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Spielzeug",
+    "leaf": "Magnetspielzeug"
+  },
+  {
+    "docId": "f8fc404d-90b9-408f-a0a5-53038fdbd793",
+    "sku": "SKU-7447779999",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Basteln & Handarbeiten",
+    "leaf": "Kalligrafie-Set"
+  }
+]

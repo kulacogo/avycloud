@@ -1,0 +1,14 @@
+{
+  "preCount": 420,
+  "targets": 68,
+  "processed": 68,
+  "would_update": 3,
+  "update": 0,
+  "noop": 8,
+  "skip": 57,
+  "skipReasons": {
+    "not_in_taxonomy": 34,
+    "leaf_incompatible": 22,
+    "no_leaf_evidence": 1
+  }
+}

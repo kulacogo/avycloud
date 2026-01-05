@@ -1,0 +1,114 @@
+[
+  {
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "COZII X001Y0BTE9",
+    "current": "",
+    "proposedPath": "Tierbedarf > Hunde > Betten & Möbel > Hundepools"
+  },
+  {
+    "sku": "SKU-1844691476",
+    "status": "would_update",
+    "query": "085854258548",
+    "current": "Sammeln & Seltenes > Militaria > NATO-Shop > Rucksäcke & Taschen",
+    "currentId": "37412",
+    "proposedPath": "Sport > Outdoorsport > Wandern & Klettern > Rucksäcke & Taschen > Trekkingrucksäcke",
+    "resolvedId": "181379",
+    "canonical": "Sport > Camping & Outdoor > Rucksäcke > Trekkingrucksäcke",
+    "resolvedBy": "marketplaceLookup_leaf"
+  },
+  {
+    "sku": "SKU-4310621602",
+    "status": "would_update",
+    "query": "0196214105119",
+    "current": "Sammeln & Seltenes > Sammelkartenspiele/TCGs",
+    "currentId": "2536",
+    "proposedPath": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > Zubehör > Ordner & Alben",
+    "resolvedId": "183465",
+    "canonical": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Ordner, Sammelmappen & -hüllen",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-9947386415",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "Weber 711004",
+    "current": "Business & Industrie > Agrar, Forst & Kommune > Spezial-Landwirtschaft > Fischwirtschaft > Räucheröfen",
+    "proposedPath": "Garten & Terrasse > Grills, Öfen & Heizstrahler > Räucheröfen & Smoker"
+  },
+  {
+    "sku": "SKU-3023625088",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "8719558505043",
+    "current": "",
+    "proposedPath": "Auto & Motorrad: Teile > Werkzeuge & Werkstattbedarf > Handwerkzeuge > Gewindeschneider & -bohrer"
+  },
+  {
+    "sku": "SKU-2064038107",
+    "status": "would_update",
+    "query": "FNTCASE FNTCASE Schutzhülle für Apple iPhone 16 Pro",
+    "current": "",
+    "currentId": "",
+    "proposedPath": "Handys & Kommunikation > Handy-Zubehör > Handyhüllen & Schutzfolien > Handyhüllen",
+    "resolvedId": "9394",
+    "canonical": "Handys & Kommunikation > Handy-Zubehör",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-0545917168",
+    "status": "noop",
+    "query": "655302158944",
+    "current": "Business & Industrie > Werkzeuge & Werkstattbedarf > Mess- & Prüfwerkzeuge > Messschieber",
+    "resolvedId": "131261",
+    "canonical": "Business & Industrie > Werkzeuge & Werkstattbedarf > Mess- & Prüfwerkzeuge > Messschieber",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4603086544",
+    "status": "would_update",
+    "query": "6933783712522",
+    "current": "",
+    "currentId": "",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Innenausstattung > Autoradios & -multimedia > Autoradios",
+    "resolvedId": "174119",
+    "canonical": "Auto & Motorrad: Teile > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Autoradios",
+    "resolvedBy": "marketplaceLookup_leaf"
+  },
+  {
+    "sku": "SKU-0922374624",
+    "status": "skip",
+    "reason": "no_leaf_evidence",
+    "query": "195166279855",
+    "current": "Sammeln & Seltenes > Sammelkartenspiele/TCGs",
+    "proposedPath": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > Magic: The Gathering > Decks & Kits",
+    "resolvedId": "183462",
+    "canonical": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Deck-Boxen, Blechdosen & Kartentrenner",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-5446097686",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "6915451823150",
+    "current": "",
+    "proposedPath": "Haushalt & Wohnen > Reinigung > Ultraschallreiniger"
+  },
+  {
+    "sku": "SKU-7753504850",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "PerformaNat QDENI400127",
+    "current": "",
+    "proposedPath": "Tierbedarf > Nutztiere > Rinder > Futter & Ergänzungsmittel"
+  },
+  {
+    "sku": "SKU-3050715048",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "3698752406811",
+    "current": "",
+    "proposedPath": "Heimwerker > Handwerkzeuge > Steckschlüssel & -sätze"
+  }
+]

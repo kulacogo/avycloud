@@ -687,7 +687,9 @@ async function improveExistingProduct(productId, onProgress) {
     locale: product.locale || 'de-DE',
     modelOverride: null,
     improveContext: buildImproveContext(product),
-    skipExternalSearch: true,
+    // Allow external search for better identification quality (web evidence, images, pricing),
+    // consistent with Identify + Chat policies. Use env flags if you need to disable globally.
+    skipExternalSearch: false,
     onProgress,
   });
       improvedOutput = result?.bundle?.products?.[0] || null;

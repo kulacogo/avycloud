@@ -66,9 +66,11 @@ const productSchema = {
           type: 'array',
           items: { type: 'string', minLength: 3 },
         },
-        name: { type: 'string', minLength: 1 },
-        brand: { type: 'string', minLength: 1 },
-        category: { type: 'string', minLength: 1 },
+        // Allow empty strings; downstream stages (web-enrich/marketing/review) will fill when possible.
+        // This prevents persisting placeholder tokens like "unknown/unbekannt" into Firestore.
+        name: { type: 'string', minLength: 0 },
+        brand: { type: 'string', minLength: 0 },
+        category: { type: 'string', minLength: 0 },
         confidence: { type: 'number', minimum: 0, maximum: 1 },
       },
     },
@@ -77,11 +79,11 @@ const productSchema = {
       required: ['short_description', 'key_features', 'attributes', 'identifiers', 'images', 'pricing'],
       additionalProperties: false,
       properties: {
-        short_description: { type: 'string', minLength: 1 },
+        short_description: { type: 'string', minLength: 0 },
         key_features: {
           type: 'array',
-          minItems: 3,
-          items: { type: 'string', minLength: 2 },
+          minItems: 0,
+          items: { type: 'string', minLength: 0 },
         },
         attributes: {
           type: 'array',

@@ -15,6 +15,7 @@ const { MarketplaceLookup } = require('../lib/marketplace-lookup');
 const { isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { sanitizeListingText } = require('../lib/listing-sanitize');
+const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 
 // Clean JSON schema to be compatible with Gemini responseSchema
 function cleanSchemaForGemini(schema) {
@@ -357,13 +358,12 @@ async function fetchBarcodeSerpData(barcode, serpTrace = []) {
 function buildSystemPrompt(locale = 'de-DE') {
   return [
     `Du bist GPT-5 mini (Release 2025-08-07) und agierst als Product Intelligence Brain.`,
-    `Pflichtregeln:`,
-    `1. Nutze ausschließlich bereitgestellte Bilder/Barcodes/OCR (keine Halluzinationen, keine externen Web- oder SerpAPI-Calls).`,
-    `2. Wenn Informationen fehlen, setze das Feld leer und füge eine Notiz in notes.unsure hinzu.`,
-    `3. Gib die Ausgabe strikt im ProductBundle-Schema zurück (keine Freitexte).`,
-    `4. Sprache Deutsch (${locale}), Währung EUR. Preise nur, wenn aus den gelieferten Daten sicher ableitbar, sonst leer lassen.`,
-    `5. Produktbilder nur übernehmen, wenn Quelle eindeutig verifiziert ist; Dubletten vermeiden.`,
-    `6. Ordne das Produkt einer passenden eBay.de Kategorie zu (Breadcrumb) und liefere die Pflichtattribute (Item Specifics) als Keys OHNE Prefix (Werte leer wenn unbekannt).`,
+    buildCommonPolicyText({ locale, allowWebEvidence: true }),
+    '',
+    `Zusatzregeln für Identify:`,
+    `- Du darfst KEINE eigenen Web-/SerpAPI-Calls ausführen. Wenn WEB-EVIDENZ im Prompt enthalten ist, darfst du sie nutzen.`,
+    `- Wenn Informationen fehlen: Feld leer lassen + in notes.unsure dokumentieren.`,
+    `- Ausgabe strikt im ProductBundle-Schema (kein Markdown, keine Freitexte).`,
   ].join('\n');
 }
 
@@ -375,6 +375,7 @@ function buildUserPrompt({
   improveContext = null,
   ocrTextSnippets = [],
   ocrNumericValues = [],
+  webEvidence = null,
 }) {
   const parts = [];
   if (barcodeList.length) {
@@ -428,8 +429,15 @@ function buildUserPrompt({
     );
   }
 
+  if (webEvidence) {
+    parts.push(
+      'WEB-EVIDENZ (aus SerpAPI; nur als zusätzliche Quelle verwenden, nicht halluzinieren):',
+      typeof webEvidence === 'string' ? webEvidence : JSON.stringify(webEvidence, null, 2)
+    );
+  }
+
   parts.push(
-    `Aufgabe (ohne externe Suche):`,
+    `Aufgabe (mit optionaler WEB-EVIDENZ im Prompt):`,
     `1. Analysiere Bilder/OCR/Barcodes, um Marke/Modell zu erkennen.`,
     `2. Titel & Copy marketplace-ready:`,
     `   - Titel: 70-80 Zeichen (nie > 80), Marke + Produkttyp + wichtigste Fakten.`,
@@ -458,6 +466,88 @@ function buildUserPrompt({
   return parts.join('\n\n');
 }
 
+function looksUnknown(value) {
+  const v = (value || '').toString().trim().toLowerCase();
+  if (!v) return true;
+  if (v === 'unknown' || v === 'unbekannt') return true;
+  if (v.startsWith('unknown')) return true;
+  if (v.startsWith('unbekannt')) return true;
+  return false;
+}
+
+function isLowQualityIdentifyProduct(p) {
+  const brand = p?.identification?.brand || '';
+  const title = p?.identification?.name || '';
+  const cat = p?.identification?.category || '';
+  const desc = p?.details?.short_description || '';
+  const features = Array.isArray(p?.details?.key_features) ? p.details.key_features : [];
+  const hasBarcode =
+    Array.isArray(p?.identification?.barcodes) && p.identification.barcodes.length > 0;
+  const score =
+    (looksUnknown(brand) ? 2 : 0) +
+    (title.trim().length < 45 || looksUnknown(title) ? 2 : 0) +
+    (desc.trim().length < 200 ? 1 : 0) +
+    (features.length < 4 ? 1 : 0) +
+    (!cat.includes('>') ? 1 : 0) +
+    (!hasBarcode ? 1 : 0);
+  return score >= 3;
+}
+
+async function prefetchWebEvidenceForIdentify({ barcodeList = [], ocrTextSnippets = [], locale = 'de-DE' } = {}) {
+  const queries = [];
+  barcodeList.slice(0, 3).forEach((code) => {
+    if (code && String(code).trim().length >= 8) queries.push(String(code).trim());
+  });
+  const ocrLine = (ocrTextSnippets || []).find((l) => typeof l === 'string' && l.trim().length >= 8) || '';
+  if (ocrLine) {
+    queries.push(ocrLine.trim().slice(0, 120));
+  }
+
+  const unique = Array.from(new Set(queries)).slice(0, 3);
+  if (!unique.length) return null;
+
+  const blocks = [];
+  for (const q of unique) {
+    try {
+      const raw = await callSerpApi('google', { q, num: 8 });
+      const items = summarizeSerpEntries('google', raw, 6);
+      const compact = items.map((it) => ({
+        title: it.title,
+        source: it.source,
+        url: it.url,
+        snippet: it.snippet,
+      }));
+      blocks.push({ engine: 'google', query: q, items: compact });
+    } catch (err) {
+      blocks.push({ engine: 'google', query: q, error: err?.message || String(err) });
+    }
+    // Optional: marketplace-specific context
+    try {
+      const raw = await callSerpApi('ebay_product', { q, num: 6 });
+      const items = summarizeSerpEntries('ebay_product', raw, 4);
+      const compact = items.map((it) => ({
+        title: it.title,
+        source: it.source,
+        url: it.url,
+        snippet: it.snippet,
+      }));
+      blocks.push({ engine: 'ebay_product', query: q, items: compact });
+    } catch (err) {
+      // ignore if unsupported for a query
+    }
+  }
+
+  return JSON.stringify(
+    {
+      locale,
+      fetched_at: new Date().toISOString(),
+      blocks,
+    },
+    null,
+    2
+  );
+}
+
 function parseModelJson(response) {
   if (response.refusal) {
     throw new Error(`Model refusal: ${response.refusal}`);
@@ -482,9 +572,15 @@ function normalizeBundle(bundle) {
     const cloned = { ...product };
     // Ensure identification exists and required strings are non-empty
     cloned.identification = cloned.identification || {};
-    cloned.identification.brand = (cloned.identification.brand || '').trim() || 'unknown';
-    cloned.identification.name =
-      (cloned.identification.name || '').trim() || 'Unbekanntes Produkt';
+    // Keep empty strings instead of placeholder tokens; later stages may fill.
+    cloned.identification.brand = (cloned.identification.brand || '').trim();
+    cloned.identification.name = (cloned.identification.name || '').trim();
+    cloned.identification.category = (cloned.identification.category || '').trim();
+    if (looksUnknown(cloned.identification.brand)) cloned.identification.brand = '';
+    if (looksUnknown(cloned.identification.name) || /^unbekanntes produkt$/i.test(cloned.identification.name)) {
+      cloned.identification.name = '';
+    }
+    if (looksUnknown(cloned.identification.category)) cloned.identification.category = '';
     if (Array.isArray(cloned.details?.attributes)) {
       const attrObj = {};
       for (const entry of cloned.details.attributes) {
@@ -1057,54 +1153,17 @@ function buildReviewPrompt(product, locale) {
     highlights: product?.details?.key_features,
     attributes: product?.details?.attributes,
     ebayCategoryId: product?.details?.ebayCategoryId,
+    condition_locked: Boolean(product?.ops?.condition_locked),
   };
 
   return [
     'Du bist ein Marketplace-Quality-Inspector für eBay und Amazon. Deine Aufgabe: prüfe das vorliegende Produktdatenblatt und liefere eine korrigierte, maximal verkaufsstarke Version.',
-    'Richtlinien:',
-    '- Titel (TECHNISCH): Ziel 70–80 Zeichen (nie > 80). Falls du unter 70 bleibst: ergänze weitere vorhandene Fakten aus dem Datensatz (z. B. MPN, Material, Maße, Einbauposition, Format/Einband, Sprache, Jahr). Keine Dubletten, keine SKU/IDs, nichts erfinden.',
-    '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Enthält Nutzen, Ausstattung, Materialien, Lieferumfang, Service/Hinweise. Keine Aufzählungen.',
-    '- Keine Preise/Preisorientierung/€ oder EUR in Titel, Beschreibung oder Highlights.',
-    "- Zustand: Standard 'NEU'. Abweichend nur, wenn im Datensatz ein Attribut 'Zustand' explizit gesetzt ist.",
+    buildCommonPolicyText({ locale, allowWebEvidence: false }),
+    '',
+    'Zusatzregeln für Review:',
+    '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Keine Aufzählungen.',
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
-    '- Attribute: strukturierte Key-Value-Paare (kundenverständlich). Entferne Wiederholungen und halte die Sprache konsistent.',
-    '- K-Typ (nur Auto/KFZ/Motorrad-Teile): Wenn im Datensatz vorhanden, beibehalten. Wenn du es eindeutig ableiten kannst, setze Attribut "K-Typ" im Format "19974|57446|57448" (optional je Eintrag "19974,Kommentar"). Wenn unsicher: NICHT raten; stattdessen in warnings markieren.',
-    '- WICHTIG: Keine internen/technischen Meta-Keys als Attribute ausgeben (z. B. product-id, Produkt-ID, category_id, *_id, ebay_category_id/path, kaufland_category_id/path, text_*, features|*). Solche Daten gehören NICHT in die Attribut-Tabelle.',
-    '- WICHTIG: Keine Platzhalter-Werte erzeugen (z. B. "Not Provided, EU", "info@example.com"). Wenn etwas fehlt: weglassen und als warning markieren.',
-    '- Ergänze technische Daten nur, wenn sie aus dem Datensatz eindeutig ableitbar sind. Wenn unsicher: warning statt raten.',
-    '- Entferne widersprüchliche oder doppelte Aussagen. Markiere offene Punkte in warnings.',
-    `- Sprache: ${locale}.`,
-    'Schema-Leitfaden (Best-Effort, je nach Kategorie):',
-    '1) Schuhe: {Marke} {Modell} {Zielgruppe} Sneaker {Farbe} Gr. {Größe} {Zustand}',
-    '2) Bekleidung: {Marke} {Produktart} {Zielgruppe} {Farbe} Gr. {Größe} {Material} {Zustand}',
-    '3) Taschen: {Marke} {Taschenart} {Modell} {Farbe} {Material} {Zustand}',
-    '4) Schmuck: {Marke} {Schmuckart} {Material} {Stein/Farbe} {Größe} {Zustand}',
-    '5) Uhren: {Marke} {Modell} {Zielgruppe} {Anzeige} {Material} {Zustand}',
-    '6) Autoteile mechanisch: {Marke} {Teil} {MPN} für {Hersteller} {Maß} {Merkmal}',
-    '7) Autoteile Zubehör: {Produktart} passgenau für {Marke} {Modell} {Baureihe} {Zustand}',
-    '8) Motorradteile: {Marke} {Teil} für {Motorrad} {Baujahr} {Position} {Zustand}',
-    '9) Fahrradteile: {Marke} {Teil} {Modell} {Maß} {Kompatibilität} {Zustand}',
-    '10) Fahrrad Zubehör: {Produktart} für Fahrrad {Typ} {Eigenschaft} {Maß} {Zustand}',
-    '11) Elektronik: {Marke} {Produkt} {Modell} {Variante} {Farbe} {Zustand}',
-    '12) Elektronik Zubehör: {Produktart} für {Gerät} {Modell} {Eigenschaft} {Zustand}',
-    '13) Smartphones: {Marke} {Modell} {Speicher} {Farbe} ohne Simlock {Zustand}',
-    '14) Laptops: {Marke} {Modell} {CPU} {RAM} {SSD} {Zustand}',
-    '15) PC Hardware: {Marke} {Komponente} {Modell} {Spezifikation} {Zustand}',
-    '16) Haushalt: {Marke} {Produktart} {Modell} {Kapazität/Größe} {Zustand}',
-    '17) Werkzeuge: {Marke} {Werkzeug} {Modell} {Leistung} {Zustand}',
-    '18) Garten: {Marke} {Gerät} {Modell} {Leistung/Fläche} {Zustand}',
-    '19) Spielzeug: {Marke} {Spielzeugart} {Serie/Thema} {Alter} {Zustand}',
-    '20) Brettspiele: {Spielname} {Edition} {Spieleranzahl} {Sprache} {Zustand}',
-    '21) Videospiele: {Titel} für {Plattform} {Edition} deutsch {Zustand}',
-    '22) Konsolen: {Marke} {Konsole} {Modell} {Speicher} {Zustand}',
-    '23) Filme: {Titel} {Format} {Edition} {Sprache} {Zustand}',
-    '24) Musik: {Künstler} – {Album} {Format} {Edition} {Zustand}',
-    '25) Bücher: {Autor} – {Titel} {Zeitraum/Ausgabe} {Einband} {Zustand}',
-    '26) Bürobedarf: {Marke} {Produkt} {Modell} {Menge/Format} {Zustand}',
-    '27) Sportartikel: {Marke} {Sportart} {Produkt} {Größe} {Zustand}',
-    '28) Outdoor: {Marke} {Produkt} {Modell} {Kapazität/Größe} {Zustand}',
-    '29) Beauty: {Marke} {Produkt} {Variante} {Inhalt} {Zustand}',
-    '30) Sammelartikel: {Marke/Thema} {Objekt} {Serie/Jahr} {Edition} {Zustand}',
+    '- Zustand: Wenn condition_locked=false, ist "Gebraucht/Used" nicht erlaubt (auf NEU normalisieren).',
     'Rückgabe ausschließlich gemäß JSON Schema.',
     'Vorliegender Datensatz:',
     JSON.stringify(snapshot, null, 2),
@@ -1285,43 +1344,9 @@ function buildMarketingPrompt(product, locale = 'de-DE') {
 
   parts.push(
     `Anforderungen:`,
-    `- Titel (SEO, TECHNISCH): Ziel 70–80 Zeichen (nie > 80). Falls du unter 70 bleibst: ergänze weitere vorhandene Fakten aus dem Datensatz (z. B. MPN, Material, Maße, Einbauposition, Format/Einband, Sprache, Jahr). KEINE SKU/IDs, KEINE erfundenen Daten.`,
-    `- Zustand: Standard 'NEU'. Abweichend nur, wenn im Datensatz ein Attribut 'Zustand' explizit gesetzt ist.`,
-    `- Kurzbeschreibung: 3 Absätze à 2 Sätze, verkaufsstark, Nutzen & Materialien, Pflege/Montage, Social Proof/Trust, klarer CTA ("Jetzt kaufen", "Nur begrenzte Stückzahl").`,
-    `- Highlights: 6-8 Bullets, 6-12 Wörter, nutzenorientiert. Enthalten: Versanddetails (DHL, kostenloser Versand, Versand bis 14 Uhr am selben Werktag), Rückgaberecht 14 Tage, Sonderangebote/Limitierung. Keine Wiederholungen, kein Verpackungstext.`,
-    `- Keine Preise/Preisorientierung/€ oder EUR in Titel, Beschreibung oder Highlights.`,
-    `- Ton: aggressiv verkaufsfördernd, faktenbasiert, aber ohne Übertreibungen; klare Kaufaufforderung.`,
-    `- Schema-Leitfaden (Best-Effort, je nach Kategorie):`,
-    `  1) Schuhe: {Marke} {Modell} {Zielgruppe} Sneaker {Farbe} Gr. {Größe} {Zustand}`,
-    `  2) Bekleidung: {Marke} {Produktart} {Zielgruppe} {Farbe} Gr. {Größe} {Material} {Zustand}`,
-    `  3) Taschen: {Marke} {Taschenart} {Modell} {Farbe} {Material} {Zustand}`,
-    `  4) Schmuck: {Marke} {Schmuckart} {Material} {Stein/Farbe} {Größe} {Zustand}`,
-    `  5) Uhren: {Marke} {Modell} {Zielgruppe} {Anzeige} {Material} {Zustand}`,
-    `  6) Autoteile mechanisch: {Marke} {Teil} {MPN} für {Hersteller} {Maß} {Merkmal}`,
-    `  7) Autoteile Zubehör: {Produktart} passgenau für {Marke} {Modell} {Baureihe} {Zustand}`,
-    `  8) Motorradteile: {Marke} {Teil} für {Motorrad} {Baujahr} {Position} {Zustand}`,
-    `  9) Fahrradteile: {Marke} {Teil} {Modell} {Maß} {Kompatibilität} {Zustand}`,
-    `  10) Fahrrad Zubehör: {Produktart} für Fahrrad {Typ} {Eigenschaft} {Maß} {Zustand}`,
-    `  11) Elektronik: {Marke} {Produkt} {Modell} {Variante} {Farbe} {Zustand}`,
-    `  12) Elektronik Zubehör: {Produktart} für {Gerät} {Modell} {Eigenschaft} {Zustand}`,
-    `  13) Smartphones: {Marke} {Modell} {Speicher} {Farbe} ohne Simlock {Zustand}`,
-    `  14) Laptops: {Marke} {Modell} {CPU} {RAM} {SSD} {Zustand}`,
-    `  15) PC Hardware: {Marke} {Komponente} {Modell} {Spezifikation} {Zustand}`,
-    `  16) Haushalt: {Marke} {Produktart} {Modell} {Kapazität/Größe} {Zustand}`,
-    `  17) Werkzeuge: {Marke} {Werkzeug} {Modell} {Leistung} {Zustand}`,
-    `  18) Garten: {Marke} {Gerät} {Modell} {Leistung/Fläche} {Zustand}`,
-    `  19) Spielzeug: {Marke} {Spielzeugart} {Serie/Thema} {Alter} {Zustand}`,
-    `  20) Brettspiele: {Spielname} {Edition} {Spieleranzahl} {Sprache} {Zustand}`,
-    `  21) Videospiele: {Titel} für {Plattform} {Edition} deutsch {Zustand}`,
-    `  22) Konsolen: {Marke} {Konsole} {Modell} {Speicher} {Zustand}`,
-    `  23) Filme: {Titel} {Format} {Edition} {Sprache} {Zustand}`,
-    `  24) Musik: {Künstler} – {Album} {Format} {Edition} {Zustand}`,
-    `  25) Bücher: {Autor} – {Titel} {Zeitraum/Ausgabe} {Einband} {Zustand}`,
-    `  26) Bürobedarf: {Marke} {Produkt} {Modell} {Menge/Format} {Zustand}`,
-    `  27) Sportartikel: {Marke} {Sportart} {Produkt} {Größe} {Zustand}`,
-    `  28) Outdoor: {Marke} {Produkt} {Modell} {Kapazität/Größe} {Zustand}`,
-    `  29) Beauty: {Marke} {Produkt} {Variante} {Inhalt} {Zustand}`,
-    `  30) Sammelartikel: {Marke/Thema} {Objekt} {Serie/Jahr} {Edition} {Zustand}`,
+    buildCommonPolicyText({ locale, allowWebEvidence: false }),
+    `- Kurzbeschreibung: 3 Absätze à 2 Sätze, klar & faktenbasiert. Keine erfundenen Versand-/Service-Versprechen.`,
+    `- Highlights: 5–7 Bullets, 6–12 Wörter, faktenbasiert (keine erfundenen Versandzeiten, keine Preis-/Rabattaussagen).`,
     `Gib das Ergebnis als JSON mit { "title": "...", "description": "...", "highlights": ["...", ...] } zurück.`
   );
 
@@ -1742,7 +1767,7 @@ async function runProductIdentification({
   }
 
   // 3. Add Context (Accessory Text)
-  const userPrompt = buildUserPrompt({
+  let userPrompt = buildUserPrompt({
     barcodeList,
     hostedImages,
     locale,
@@ -1818,6 +1843,45 @@ async function runProductIdentification({
   } catch (error) {
     console.error("Gemini Identification Failed:", error);
     throw new Error(`Gemini Identification failed: ${error.message}`);
+  }
+
+  // If identification quality is poor and external search is allowed, run a second pass with WEB-EVIDENZ injected.
+  if (!skipExternalSearch && bundle?.products?.some(isLowQualityIdentifyProduct)) {
+    try {
+      if (onProgress) await onProgress('web_enrich');
+      const webEvidence = await prefetchWebEvidenceForIdentify({
+        barcodeList,
+        ocrTextSnippets: ocrPayload.textSnippets || [],
+        locale,
+      });
+      if (webEvidence) {
+        const secondParts = [];
+        secondParts.push({ text: buildSystemPrompt(locale) });
+        // reuse image parts from the first run (same files)
+        for (const part of geminiParts) {
+          if (part && part.inline_data) secondParts.push(part);
+        }
+        userPrompt = buildUserPrompt({
+          barcodeList,
+          hostedImages,
+          locale,
+          fileCount: files.length,
+          improveContext,
+          ocrTextSnippets: ocrPayload.textSnippets || [],
+          ocrNumericValues: ocrPayload.numericValues || [],
+          webEvidence,
+        });
+        secondParts.push({ text: userPrompt });
+        const retry = await model.generateContent({
+          contents: [{ role: 'user', parts: secondParts }],
+          generationConfig,
+        });
+        const responseText = retry.response.text();
+        bundle = JSON.parse(responseText);
+      }
+    } catch (err) {
+      console.warn('[identify] web-enrich retry failed:', err?.message || err);
+    }
   }
 
   // Pre-Validation Sanitization to handle AI artifacts
