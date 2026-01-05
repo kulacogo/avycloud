@@ -1,5 +1,6 @@
 const { getProduct, saveProduct } = require('../lib/firestore');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
+const { sanitizeListingText, PRICE_SENTENCE_RE } = require('../lib/listing-sanitize');
 const {
   runProductIdentification,
   runDatasheetReview,
@@ -23,6 +24,9 @@ const ATTRIBUTE_BLACKLIST = new Set([
   'beschreibung',
   'kurzbeschreibung',
   'features',
+  'sku',
+  'product_id',
+  'id',
 ]);
 
 function collectBarcodes(product) {
@@ -125,6 +129,7 @@ function sanitizeKeyFeatures(features = [], limit = 7) {
     if (typeof raw !== 'string') continue;
     const trimmed = raw.replace(/\s+/g, ' ').trim();
     if (trimmed.length < 8) continue;
+    if (PRICE_SENTENCE_RE.test(trimmed)) continue;
     if (PACKAGING_REGEX.test(trimmed)) continue;
     const normalized = trimmed.toLowerCase();
     if (seen.has(normalized)) continue;
@@ -723,7 +728,17 @@ async function improveExistingProduct(productId, onProgress) {
     mergedProduct.identification.name,
     { minLen: 70, maxLen: 80 }
   );
-  await saveProduct(mergedProduct);
+
+  // Deterministic sanitization: never persist price/placeholder/template text,
+  // even if the review step fails or the model violates instructions.
+  mergedProduct.details = mergedProduct.details || {};
+  if (typeof mergedProduct.details.short_description === 'string') {
+    mergedProduct.details.short_description = sanitizeListingText(mergedProduct.details.short_description);
+  }
+  if (Array.isArray(mergedProduct.details.key_features)) {
+    mergedProduct.details.key_features = sanitizeKeyFeatures(mergedProduct.details.key_features, 7);
+  }
+  await saveProduct(mergedProduct, { source: 'job-improve', overwriteTextFields: true });
 
   console.log('[improve] SUCCESS.');
   return mergedProduct;

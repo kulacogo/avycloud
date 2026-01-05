@@ -14,6 +14,7 @@ const { findKauflandCategory, getKauflandAttributes } = require('../lib/kaufland
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
 const { isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
+const { sanitizeListingText } = require('../lib/listing-sanitize');
 
 // Clean JSON schema to be compatible with Gemini responseSchema
 function cleanSchemaForGemini(schema) {
@@ -67,6 +68,7 @@ const ATTRIBUTE_BLACKLIST = new Set([
   'description',
   'kurzbeschreibung',
   'features',
+  'sku',
 ]);
 const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);
@@ -959,6 +961,7 @@ function sanitizeKeyFeatures(features = [], limit = 7) {
     const trimmed = raw.replace(/\s+/g, ' ').trim();
     if (trimmed.length < 8) continue;
     if (containsPackagingReference(trimmed)) continue;
+    if (containsPriceReference(trimmed)) continue;
     const normalized = trimmed.toLowerCase();
     if (seen.has(normalized)) continue;
     seen.add(normalized);
@@ -1119,7 +1122,7 @@ function applyReviewResult(product, review) {
     product.identification.name = coerceTitleToPolicy(product, review.title, { minLen: 70, maxLen: 80 });
   }
   if (typeof review.short_description === 'string' && review.short_description.trim().length > 0) {
-    const cleanedDescription = stripPriceMentions(review.short_description);
+    const cleanedDescription = sanitizeListingText(review.short_description);
     if (cleanedDescription) {
       product.details.short_description = cleanedDescription;
     }
@@ -1204,28 +1207,9 @@ function containsPriceReference(text = '') {
 }
 
 function stripPriceMentions(text = '') {
-  if (typeof text !== 'string') return text;
-  const stripped = text
-    .replace(
-      /\bpreis(?:orientierung|empfehlung|:)?\s*(?:ab|ca\.?|circa|etwa|bei)?\s*[\d.,]+(?:\s*(?:€|eur))?/gi,
-      ''
-    )
-    .replace(/\s{2,}/g, ' ')
-    .replace(/\s+([.!?])/g, '$1')
-    .trim();
-
-  const paragraphs = stripped.split(/\n\s*\n/);
-  const cleaned = paragraphs
-    .map((para) => {
-      const sentences = (para.match(/[^.!?]+[.!?]?/g) || [])
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const kept = sentences.filter((sentence) => !containsPriceReference(sentence));
-      return kept.join(' ').replace(/\s{2,}/g, ' ').trim();
-    })
-    .filter(Boolean);
-
-  return cleaned.join('\n\n').trim();
+  // Backwards-compatible helper kept for logs/older call sites.
+  // Central implementation lives in backend/lib/listing-sanitize.js
+  return sanitizeListingText(text);
 }
 
 function looksLikePlaceholderTitle(text = '') {
@@ -1381,7 +1365,7 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
           name: coerceTitleToPolicy(product, rewrite.title, { minLen: 70, maxLen: 80 }),
         };
         product.details = product.details || {};
-        const cleanedDescription = stripPriceMentions(rewrite.description || '');
+        const cleanedDescription = sanitizeListingText(rewrite.description || '');
         if (cleanedDescription) {
           product.details.short_description = cleanedDescription;
         }

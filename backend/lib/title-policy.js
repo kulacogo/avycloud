@@ -236,7 +236,9 @@ function inferCondition(product) {
     if (/ovp|originalverpack/.test(normalized)) return 'NEU OVP';
     if (/\bneu\b|\bnew\b/.test(normalized)) return 'NEU';
     if (/\bgebraucht\b|\bused\b|\bpre[-\s]?owned\b|\bsecond hand\b|\bb-ware\b|\brefurb/.test(normalized)) {
-      return 'Gebraucht';
+      // User requirement: "Gebraucht" only when explicitly curated by humans.
+      const locked = Boolean(product?.ops?.condition_locked);
+      return locked ? 'Gebraucht' : 'NEU';
     }
     return explicit;
   }

@@ -1,0 +1,1946 @@
+[
+  {
+    "docId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "0060cdec-9193-411b-af64-4754ca0226bd",
+    "sku": "SKU-1844691476",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "03142017000003",
+    "sku": "SKU-9947386415",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "04052938000016",
+    "sku": "SKU-4641833225",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "0700153955478",
+    "sku": "SKU-2014012963",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 2 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "07901010300000",
+    "sku": "SKU-2097206690",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "0810123671069",
+    "sku": "SKU-1890172110",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "09be7756-7b4f-4dda-bda0-799754052fff",
+    "sku": "SKU-3671103995",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "14006633314036",
+    "sku": "SKU-7591395419",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "1472920275814",
+    "sku": "SKU-7995751556",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "1507000192029",
+    "sku": "SKU-6705970836",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 2 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "1e369bf5-e5e6-460c-b595-8a08a2bbaf2d",
+    "sku": "SKU-7736193220",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 5 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "20220424000047",
+    "sku": "SKU-6511282128",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "cleaned_short_description"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "20221212000014",
+    "sku": "SKU-3806532980",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "20240129000072",
+    "sku": "SKU-4603086544",
+    "changed": [
+      "details.short_description",
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder",
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "2312388888888",
+    "sku": "SKU-5446097686",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "2452014202112",
+    "sku": "SKU-6761538665",
+    "changed": [
+      "details.short_description",
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder",
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "247e01a5-fa99-4b01-be0a-fefbe97a145d",
+    "sku": "SKU-3050715048",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "2810449728013",
+    "sku": "SKU-3982672342",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 6 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "3154020086005",
+    "sku": "SKU-4303462818",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "3558380099390",
+    "sku": "SKU-2522561568",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "3770010398363",
+    "sku": "SKU-6722573428",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4003318620911",
+    "sku": "SKU-8850596846",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4009384458304",
+    "sku": "SKU-4401248629",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4013556577007",
+    "sku": "SKU-5410787453",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4013556592796",
+    "sku": "SKU-5928571392",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4013594537810",
+    "sku": "SKU-3704607179",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "4040074053454",
+    "sku": "SKU-0333689520",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "4040074137246",
+    "sku": "SKU-9078406333",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "4041248450864",
+    "sku": "SKU-7321712010",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 4 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4043962306996",
+    "sku": "SKU-8927251416",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 4 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4063544208888",
+    "sku": "SKU-1747542074",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "4078500055604",
+    "sku": "SKU-1803692252",
+    "changed": [
+      "details.key_features",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_highlights"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "4082300855241",
+    "sku": "SKU-1353005263",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4100420206474",
+    "sku": "SKU-4309949637",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "4251175827556",
+    "sku": "SKU-2902386366",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 2 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4260499852344",
+    "sku": "SKU-3933851468",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 11 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4260526472194",
+    "sku": "SKU-7139254013",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 2 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4270001051905",
+    "sku": "SKU-9268872444",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "45005591930000",
+    "sku": "SKU-6587967689",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "4806633149839",
+    "sku": "SKU-5619085780",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "4906958001464",
+    "sku": "SKU-2966583160",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "4909500898543",
+    "sku": "SKU-2019632072",
+    "changed": [
+      "details.short_description",
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder",
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 4 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "5010996282880",
+    "sku": "SKU-4519918204",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "54c1a366-798b-42bf-9014-95729468c623",
+    "sku": "SKU-4252129103",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "5702017567501",
+    "sku": "SKU-9904325113",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "5713487061277",
+    "sku": "SKU-1466301102",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "sku": "SKU-5329605855",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "cleaned_short_description"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "578c3341-658b-46d1-b419-b4ce60b534a5",
+    "sku": "SKU-9688561402",
+    "changed": [
+      "details.short_description",
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder",
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "5820082016105",
+    "sku": "SKU-5753016417",
+    "changed": [
+      "details.short_description",
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder",
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 5 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "6078c5f0-fb52-4c9c-b795-12a136ba6c79",
+    "sku": "SKU-2708761114",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "61921411800024",
+    "sku": "SKU-6860111834",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 5 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "61cb13b8-ef09-4959-821e-c2d63fcd8038",
+    "sku": "SKU-9014992269",
+    "changed": [
+      "details.key_features",
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_highlights",
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "6be95318-1354-4b38-9526-aab48b727982",
+    "sku": "SKU-6954275739",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "7082024102510",
+    "sku": "SKU-1423771699",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "7316577150929",
+    "sku": "SKU-8906682806",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 4 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "7325549884427",
+    "sku": "SKU-6480044357",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "74429111967912",
+    "sku": "SKU-6162434731",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "7649988997723",
+    "sku": "SKU-3130743576",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "7778bbb4-0a11-414b-a323-1573ab313f48",
+    "sku": "SKU-6044260478",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 9 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "7b442083-e5d5-43c0-92ef-76c6432fe919",
+    "sku": "SKU-5120624450",
+    "changed": [
+      "details.short_description",
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder",
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 6 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "8088208802015",
+    "sku": "SKU-6543182729",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 2 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "849e919f-0898-4df7-8fbb-e141c351cba4",
+    "sku": "SKU-2969022222",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "8717475102703",
+    "sku": "SKU-7333529126",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "8718042150288",
+    "sku": "SKU-3341294632",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "8719115000028",
+    "sku": "SKU-8798489036",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "8b41bda6-bc97-4d34-8644-f081c7d180cb",
+    "sku": "SKU-2629282795",
+    "changed": [
+      "details.short_description",
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder",
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "8bc07ed5-5cee-4d00-abb3-00dd4f20439d",
+    "sku": "SKU-2930571748",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 4 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "90090043468127",
+    "sku": "SKU-3310911465",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "9132580602006",
+    "sku": "SKU-8036579486",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "9aff4795-bed9-4a09-ba98-77c2e138b511",
+    "sku": "SKU-2439653897",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-0236764953",
+    "sku": "SKU-0236764953",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 4 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-0611814591",
+    "sku": "SKU-0611814591",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 2 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-0974179694",
+    "sku": "SKU-0974179694",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-1230781227",
+    "sku": "SKU-1230781227",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 13 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-1612836881",
+    "sku": "SKU-1612836881",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-2114384722",
+    "sku": "SKU-2114384722",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-2151943751",
+    "sku": "SKU-2151943751",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-2566552410",
+    "sku": "SKU-2566552410",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 4 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-2638568297",
+    "sku": "SKU-2638568297",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-2789683373",
+    "sku": "SKU-2789683373",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-2841208491",
+    "sku": "SKU-2841208491",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-3047799035",
+    "sku": "SKU-3047799035",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 4 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-3095199472",
+    "sku": "SKU-3095199472",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-3588671475",
+    "sku": "SKU-3588671475",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-4212491486",
+    "sku": "SKU-4212491486",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 6 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-4488972962",
+    "sku": "SKU-4488972962",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 2 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-4541378818",
+    "sku": "SKU-4541378818",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-4541440236",
+    "sku": "SKU-4541440236",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 6 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-4561934561",
+    "sku": "SKU-4561934561",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-4743695203",
+    "sku": "SKU-4743695203",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-4820097368",
+    "sku": "SKU-4820097368",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-4990478200",
+    "sku": "SKU-4990478200",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-5032047149",
+    "sku": "SKU-5032047149",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-5598085433",
+    "sku": "SKU-5598085433",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-5701110636",
+    "sku": "SKU-5701110636",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-5869700759",
+    "sku": "SKU-5869700759",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 9 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-6099130668",
+    "sku": "SKU-6099130668",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-6307001376",
+    "sku": "SKU-6307001376",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 8 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-6315915149",
+    "sku": "SKU-6315915149",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 6 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-6614383452",
+    "sku": "SKU-6614383452",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-7234186083",
+    "sku": "SKU-7234186083",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-7245071607",
+    "sku": "SKU-7245071607",
+    "changed": [
+      "details.short_description",
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "cleaned_short_description",
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-7270723982",
+    "sku": "SKU-7270723982",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 6 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-7290912165",
+    "sku": "SKU-7290912165",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 7 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-7473377331",
+    "sku": "SKU-7473377331",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-7721659409",
+    "sku": "SKU-7721659409",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-8004480244",
+    "sku": "SKU-8004480244",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-8245288059",
+    "sku": "SKU-8245288059",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-8835594725",
+    "sku": "SKU-8835594725",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-8843412443",
+    "sku": "SKU-8843412443",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-8919591829",
+    "sku": "SKU-8919591829",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-9091395294",
+    "sku": "SKU-9091395294",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-9142845763",
+    "sku": "SKU-9142845763",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 8 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-9317337160",
+    "sku": "SKU-9317337160",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 2 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-9428729031",
+    "sku": "SKU-9428729031",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-9671499764",
+    "sku": "SKU-9671499764",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 2 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "SKU-9876441475",
+    "sku": "SKU-9876441475",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+    "sku": "SKU-0716100821",
+    "changed": [
+      "details.short_description",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder"
+    ],
+    "notes": []
+  },
+  {
+    "docId": "c6d932e0-cd68-4d66-8212-d98f5d10e8d2",
+    "sku": "SKU-7957694387",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 4 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "e29c131f-ec89-434c-b216-90f28330918d",
+    "sku": "SKU-6854747447",
+    "changed": [
+      "details.short_description",
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "short_description_had_banned_content",
+      "deleted_short_description_placeholder",
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 3 attribute keys to attributes_extra."
+    ]
+  },
+  {
+    "docId": "fad41e15-2900-414a-b739-2ed02d4394fe",
+    "sku": "SKU-9297459968",
+    "changed": [
+      "details.attributes",
+      "details.attributes_extra",
+      "ops.data_quality.last_cleanup_iso",
+      "ops.data_quality.cleanup_v1"
+    ],
+    "flags": [
+      "cleaned_attributes_meta_keys"
+    ],
+    "notes": [
+      "Moved 1 attribute keys to attributes_extra."
+    ]
+  }
+]

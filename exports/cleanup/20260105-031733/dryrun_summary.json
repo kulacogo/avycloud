@@ -1,0 +1,20 @@
+{
+  "preCount": 420,
+  "total": 420,
+  "touched": 123,
+  "flags": {
+    "short_description_had_banned_content": 34,
+    "deleted_short_description_placeholder": 31,
+    "cleaned_attributes_meta_keys": 97,
+    "cleaned_short_description": 3,
+    "cleaned_highlights": 2
+  },
+  "changedFields": {
+    "details.short_description": 34,
+    "ops.data_quality.last_cleanup_iso": 123,
+    "ops.data_quality.cleanup_v1": 123,
+    "details.attributes": 97,
+    "details.attributes_extra": 97,
+    "details.key_features": 2
+  }
+}

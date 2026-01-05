@@ -1,0 +1,11 @@
+{
+  "total": 420,
+  "flags": {
+    "title_lt_70": 158,
+    "barcode_invalid_checkdigit": 61,
+    "barcode_nonstandard_length": 36,
+    "title_mentions_used_without_lock": 6,
+    "title_gt_80": 16,
+    "barcode_missing": 37
+  }
+}

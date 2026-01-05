@@ -377,6 +377,8 @@ function enforceEbayAspects(product) {
       'kategorie pfad',
       'kategoriepfad',
       // Generic IDs that should NEVER be displayed as user-facing attributes
+      // NOTE: SKU is derived from identification/details.identifiers and must not be taken from arbitrary imports/LLM output.
+      'sku',
       'category_id',
       'categoryid',
       'produkt-id',
@@ -914,6 +916,25 @@ async function saveProduct(product, options = {}) {
           ...normalizedIncomingAttributes,
         };
 
+    // Condition lock:
+    // - Default listing condition is NEU.
+    // - "Gebraucht" should only be possible when explicitly set by a human in the UI.
+    // We track that with ops.condition_locked.
+    const pickZustand = (attrsObj) => {
+      if (!attrsObj || typeof attrsObj !== 'object') return '';
+      const key = Object.keys(attrsObj).find((k) => String(k || '').trim().toLowerCase() === 'zustand');
+      if (!key) return '';
+      const val = attrsObj[key];
+      return typeof val === 'string' ? val.trim() : val == null ? '' : String(val).trim();
+    };
+    const normalizeZustand = (val) => String(val || '').trim().toLowerCase();
+    const existingZustand = pickZustand(existingDetails.attributes || {});
+    const incomingZustand = pickZustand(mergedAttributes || {});
+    const shouldLockCondition =
+      isManualSave &&
+      Boolean(incomingZustand) &&
+      normalizeZustand(incomingZustand) !== normalizeZustand(existingZustand);
+
     // Merge pricing with guard (do not drop existing valid price)
     const existingPrice = existingDetails?.pricing?.lowest_price;
     const incomingPrice = incomingDetails?.pricing?.lowest_price;
@@ -959,6 +980,12 @@ async function saveProduct(product, options = {}) {
       ...(existingData?.ops || {}),
       ...(product?.ops || {}),
     };
+    // Preserve existing lock; set it only when the UI explicitly changes Zustand.
+    if (shouldLockCondition) {
+      mergedOps.condition_locked = true;
+    } else if (typeof mergedOps.condition_locked !== 'boolean') {
+      mergedOps.condition_locked = Boolean(existingData?.ops?.condition_locked);
+    }
 
     // Optional: keep identifiers in sync with barcodes (UI edits barcodes; BaseLinker sync reads identifiers.ean first).
     if (syncIdentifiersFromBarcodes) {

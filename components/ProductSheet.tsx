@@ -820,11 +820,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     if (attr['Programme']) addExtra(`Programme: ${attr['Programme']}`);
     if (attr['Fassungsvermögen gesamt']) addExtra(`Fassungsvermögen ${attr['Fassungsvermögen gesamt']}`);
 
-    const lowestPrice = localProduct.details?.pricing?.lowest_price;
-    if (lowestPrice?.amount) {
-      addExtra(`Preisempfehlung: ab ${lowestPrice.amount.toFixed(2)} ${lowestPrice.currency || 'EUR'}`);
-    }
-
     if (unique.length === 0 && localProduct.identification?.brand && localProduct.identification?.category) {
       addExtra(`${localProduct.identification.brand} ${localProduct.identification.category} für den Alltag`);
     }
@@ -840,32 +835,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const descriptionText = useMemo(() => {
     const raw = (localProduct.details?.short_description || '').trim();
-    if (raw.length >= 120) {
+    if (raw) {
       return raw;
     }
-    const parts: string[] = [];
-    const brand = localProduct.identification?.brand;
-    const name = localProduct.identification?.name;
-    if (name) {
-      parts.push(
-        `${name}${brand ? ` von ${brand}` : ''} bringt moderne Küchentechnik und komfortable Bedienung zusammen.`
-      );
-    }
-    if (attributesMap['Besondere Funktionen']) {
-      parts.push(`Highlights: ${attributesMap['Besondere Funktionen']}.`);
-    }
-    if (attributesMap['Programme']) {
-      parts.push(`Programme: ${attributesMap['Programme']}.`);
-    }
-    if (attributesMap['Leistung']) {
-      parts.push(`Leistung: ${attributesMap['Leistung']}.`);
-    }
-    const price = localProduct.details?.pricing?.lowest_price;
-    if (price?.amount) {
-      parts.push(`Preisorientierung ab ${price.amount.toFixed(2)} ${price.currency || 'EUR'}.`);
-    }
-    return parts.join(' ').trim() || 'Für dieses Produkt liegt noch keine ausführliche Beschreibung vor.';
-  }, [localProduct.details?.short_description, localProduct.details?.pricing?.lowest_price, localProduct.identification, attributesMap]);
+    // Never fabricate placeholder/price text in the UI. If we don't have a description yet, say so plainly.
+    return t('sheet.description.empty');
+  }, [localProduct.details?.short_description, t]);
 
   const requiresKTyp = useMemo(() => {
     const cat = (localProduct?.identification?.category || '').toString().toLowerCase();
