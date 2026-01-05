@@ -1,0 +1,18 @@
+{
+  "preCount": 420,
+  "total": 420,
+  "touched": 347,
+  "flags": {
+    "category_breadcrumb_unresolved": 37,
+    "category_normalized_from_id": 337,
+    "category_resolved_from_unique_leaf": 9,
+    "category_leaf_only_unresolved": 36,
+    "category_resolved_id_no_breadcrumb": 1
+  },
+  "changedFields": {
+    "details.attributes.ebay_category_id": 347,
+    "details.attributes.ebay_category_path": 346,
+    "details.categoryId": 10,
+    "identification.category": 58
+  }
+}

@@ -1,0 +1,5998 @@
+[
+  {
+    "docId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "0060cdec-9193-411b-af64-4754ca0226bd",
+    "sku": "SKU-1844691476",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "37412",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Militaria > NATO-Shop > Rucksäcke & Taschen"
+    }
+  },
+  {
+    "docId": "0099557e-b9f0-45a4-9c7c-d6418e7daac5",
+    "sku": "SKU-2250869990",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "0196214105119",
+    "sku": "SKU-4310621602",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2536",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Sammelkartenspiele/TCGs"
+    }
+  },
+  {
+    "docId": "03142017000003",
+    "sku": "SKU-9947386415",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "169124",
+      "details.attributes.ebay_category_path": "Business & Industrie > Agrar, Forst & Kommune > Spezial-Landwirtschaft > Fischwirtschaft > Räucheröfen"
+    }
+  },
+  {
+    "docId": "04052938000016",
+    "sku": "SKU-4641833225",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "39057",
+      "details.attributes.ebay_category_path": "Heimwerker > Werkzeuge > Handwerkzeuge > Messer"
+    }
+  },
+  {
+    "docId": "0700153955478",
+    "sku": "SKU-2014012963",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "156104",
+      "details.attributes.ebay_category_path": "Spielzeug > Holzspielzeug > Musikinstrumente"
+    }
+  },
+  {
+    "docId": "07901010300000",
+    "sku": "SKU-2097206690",
+    "flags": [
+      "category_resolved_from_unique_leaf"
+    ],
+    "changed": [
+      "details.categoryId",
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.categoryId": "174119",
+      "identification.category": "Auto & Motorrad: Teile > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Autoradios",
+      "details.attributes.ebay_category_id": "174119",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Autoradios"
+    }
+  },
+  {
+    "docId": "0810123671069",
+    "sku": "SKU-1890172110",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "69197",
+      "details.attributes.ebay_category_path": "Haushaltsgeräte > Klimaanlagen & Heizgeräte"
+    }
+  },
+  {
+    "docId": "09be7756-7b4f-4dda-bda0-799754052fff",
+    "sku": "SKU-3671103995",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "1004200304684",
+    "sku": "SKU-4955195373",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "1011190149611",
+    "sku": "SKU-3023625088",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "14006633314036",
+    "sku": "SKU-7591395419",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "1472920275814",
+    "sku": "SKU-7995751556",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3199",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Möbel > Regale & Aufbewahrung"
+    }
+  },
+  {
+    "docId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "1507000192029",
+    "sku": "SKU-6705970836",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "178934",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Quad-, SSV- & UTV-Teile & -Zubehör > Ansaug- & Kraftstoffsysteme"
+    }
+  },
+  {
+    "docId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "1900201150572",
+    "sku": "SKU-8902752253",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "1900201900525",
+    "sku": "SKU-4873494474",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177807",
+      "details.attributes.ebay_category_path": "Sport > Radsport > Fahrradteile & -komponenten > Bremsscheiben"
+    }
+  },
+  {
+    "docId": "1e369bf5-e5e6-460c-b595-8a08a2bbaf2d",
+    "sku": "SKU-7736193220",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "29523",
+      "details.attributes.ebay_category_path": "Heimwerker > Werkzeuge > Messwerkzeuge & Messgeräte"
+    }
+  },
+  {
+    "docId": "20220424000047",
+    "sku": "SKU-6511282128",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "20221212000014",
+    "sku": "SKU-3806532980",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "47075",
+      "details.attributes.ebay_category_path": "Musikinstrumente > Gitarren & Bässe > Zubehör > Kabel"
+    }
+  },
+  {
+    "docId": "20240129000072",
+    "sku": "SKU-4603086544",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "2024080701046",
+    "sku": "SKU-0545917168",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "2074133001002",
+    "sku": "SKU-0922374624",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2536",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Sammelkartenspiele/TCGs"
+    }
+  },
+  {
+    "docId": "2290601009009",
+    "sku": "SKU-2511182802",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "2312388888888",
+    "sku": "SKU-5446097686",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "2452014202112",
+    "sku": "SKU-6761538665",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33694",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Innenausstattung"
+    }
+  },
+  {
+    "docId": "247e01a5-fa99-4b01-be0a-fefbe97a145d",
+    "sku": "SKU-3050715048",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "2810449728013",
+    "sku": "SKU-3982672342",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "174119",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Autoradios"
+    }
+  },
+  {
+    "docId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "sku": "SKU-7753504850",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "31080024102010",
+    "sku": "SKU-2941051529",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "3154020086005",
+    "sku": "SKU-4303462818",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "3165143111321",
+    "sku": "SKU-6206509150",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "3322937241712",
+    "sku": "SKU-5868736484",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "3374650257716",
+    "sku": "SKU-2267173123",
+    "flags": [
+      "category_resolved_from_unique_leaf"
+    ],
+    "changed": [
+      "details.categoryId",
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.categoryId": "179496",
+      "identification.category": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl",
+      "details.attributes.ebay_category_id": "179496",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+    }
+  },
+  {
+    "docId": "3558380099390",
+    "sku": "SKU-2522561568",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "3662775243128",
+    "sku": "SKU-5896801162",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "3770010398363",
+    "sku": "SKU-6722573428",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "101428",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kochen & Genießen > Ordnung & Aufbewahrung > Brotdosen"
+    }
+  },
+  {
+    "docId": "4003318620911",
+    "sku": "SKU-8850596846",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "167468",
+      "details.attributes.ebay_category_path": "Antiquitäten & Kunst > Restaurierungsbedarf > Schlösser"
+    }
+  },
+  {
+    "docId": "4004133669093",
+    "sku": "SKU-0200958470",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "158950",
+      "details.attributes.ebay_category_path": "Sport > Fitness & Jogging > Kleingeräte & Zubehör > Trinkflaschen"
+    }
+  },
+  {
+    "docId": "4005414511612",
+    "sku": "SKU-4715041854",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4006094887004",
+    "sku": "SKU-1892441877",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4006387029807",
+    "sku": "SKU-5978798764",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "54145",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kochen & Genießen > Wasseraufbereitung & Trinkwassersprudler > Wasserfilter-Kartuschen"
+    }
+  },
+  {
+    "docId": "4006633310222",
+    "sku": "SKU-4616386559",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "4009384341071",
+    "sku": "SKU-2859032659",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "238",
+      "details.attributes.ebay_category_path": "Spielzeug > Puppen & Zubehör"
+    }
+  },
+  {
+    "docId": "4009384458304",
+    "sku": "SKU-4401248629",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "63",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Comics & Comic-Fanartikel"
+    }
+  },
+  {
+    "docId": "4010886516256",
+    "sku": "SKU-0963183292",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "84237",
+      "details.attributes.ebay_category_path": "Heimwerker > Werkzeuge > Handwerkzeuge > Schraubenschlüssel > Steckschlüssel"
+    }
+  },
+  {
+    "docId": "4013556577007",
+    "sku": "SKU-5410787453",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "39080",
+      "details.attributes.ebay_category_path": "Antiquitäten & Kunst > Historische Baustoffe > Garten- & Parkeinrichtung > Original, vor 1960 gefertigt > Gartenmöbel"
+    }
+  },
+  {
+    "docId": "4013556577076",
+    "sku": "SKU-2724878095",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Garten & Terrasse",
+      "details.attributes.ebay_category_id": "159912",
+      "details.attributes.ebay_category_path": "Garten & Terrasse"
+    }
+  },
+  {
+    "docId": "4013556577120",
+    "sku": "SKU-7700165856",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "261011",
+      "details.attributes.ebay_category_path": "Garten & Terrasse > Gartenbauten & Sonnenschutz > Sonnenschirmzubehör"
+    }
+  },
+  {
+    "docId": "4013556577144",
+    "sku": "SKU-0139597304",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "261011",
+      "details.attributes.ebay_category_path": "Garten & Terrasse > Gartenbauten & Sonnenschutz > Sonnenschirmzubehör"
+    }
+  },
+  {
+    "docId": "4013556592796",
+    "sku": "SKU-5928571392",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "39080",
+      "details.attributes.ebay_category_path": "Antiquitäten & Kunst > Historische Baustoffe > Garten- & Parkeinrichtung > Original, vor 1960 gefertigt > Gartenmöbel"
+    }
+  },
+  {
+    "docId": "4013594537810",
+    "sku": "SKU-3704607179",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4016417025303",
+    "sku": "SKU-3586300359",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Haushaltsgeräte",
+      "details.attributes.ebay_category_id": "20710",
+      "details.attributes.ebay_category_path": "Haushaltsgeräte"
+    }
+  },
+  {
+    "docId": "4023103244009",
+    "sku": "SKU-9885764249",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20622",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Haushalt > Wäsche > Wäscheständer"
+    }
+  },
+  {
+    "docId": "4027816273868",
+    "sku": "SKU-1137525213",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "4027816321033",
+    "sku": "SKU-1609202291",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33661",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile > Ölfilter"
+    }
+  },
+  {
+    "docId": "4030434105633",
+    "sku": "SKU-9182883969",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4034144003036",
+    "sku": "SKU-3097738026",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4040074053454",
+    "sku": "SKU-0333689520",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "4040074122754",
+    "sku": "SKU-0945605804",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4040074137246",
+    "sku": "SKU-9078406333",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4040074266946",
+    "sku": "SKU-6074840029",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4041248145418",
+    "sku": "SKU-8581934036",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33612",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile"
+    }
+  },
+  {
+    "docId": "4041248434536",
+    "sku": "SKU-8529588380",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "262128",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile > Dichtungen & Montageteile > Dichtungssätze"
+    }
+  },
+  {
+    "docId": "4041248450864",
+    "sku": "SKU-7321712010",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33665",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile > Dichtungen & Montageteile > Dichtungen & Dichtungsringe"
+    }
+  },
+  {
+    "docId": "4041248450871",
+    "sku": "SKU-4780318569",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33612",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile"
+    }
+  },
+  {
+    "docId": "4041248450888",
+    "sku": "SKU-1948960316",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33612",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile"
+    }
+  },
+  {
+    "docId": "4043962306996",
+    "sku": "SKU-8927251416",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "124425",
+      "details.attributes.ebay_category_path": "Business & Industrie > Werkzeuge & Werkstattbedarf > Elektrowerkzeug-Zubehör > Bohrer"
+    }
+  },
+  {
+    "docId": "4046001447266",
+    "sku": "SKU-3016364513",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "4047059413104",
+    "sku": "SKU-6068074259",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Haustierbedarf",
+      "details.attributes.ebay_category_id": "1281",
+      "details.attributes.ebay_category_path": "Haustierbedarf"
+    }
+  },
+  {
+    "docId": "4052138007280",
+    "sku": "SKU-8414659629",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4053202268477",
+    "sku": "SKU-2191775022",
+    "flags": [
+      "category_resolved_from_unique_leaf"
+    ],
+    "changed": [
+      "details.categoryId",
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.categoryId": "179501",
+      "identification.category": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Automatikgetriebeöl",
+      "details.attributes.ebay_category_id": "179501",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Automatikgetriebeöl"
+    }
+  },
+  {
+    "docId": "4053479285122",
+    "sku": "SKU-0534200636",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3244",
+      "details.attributes.ebay_category_path": "Heimwerker > Werkzeuge > Handwerkzeuge"
+    }
+  },
+  {
+    "docId": "4063217299953",
+    "sku": "SKU-4885995332",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "66728",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kindermöbel & Wohnen > Bettwaren & -wäsche > Bettdecken"
+    }
+  },
+  {
+    "docId": "4063541990120",
+    "sku": "SKU-4973901806",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4063544208888",
+    "sku": "SKU-1747542074",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4069092282370",
+    "sku": "SKU-8382768165",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "37644",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettwäsche"
+    }
+  },
+  {
+    "docId": "4078500055604",
+    "sku": "SKU-1803692252",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4082300855241",
+    "sku": "SKU-1353005263",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177699",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Autoelektrik > Anlasser"
+    }
+  },
+  {
+    "docId": "4100420037405",
+    "sku": "SKU-0694979094",
+    "flags": [
+      "category_resolved_from_unique_leaf"
+    ],
+    "changed": [
+      "details.categoryId",
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.categoryId": "179496",
+      "identification.category": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl",
+      "details.attributes.ebay_category_id": "179496",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+    }
+  },
+  {
+    "docId": "4100420037412",
+    "sku": "SKU-7902875633",
+    "flags": [
+      "category_resolved_from_unique_leaf"
+    ],
+    "changed": [
+      "details.categoryId",
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.categoryId": "179496",
+      "identification.category": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl",
+      "details.attributes.ebay_category_id": "179496",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+    }
+  },
+  {
+    "docId": "4100420206474",
+    "sku": "SKU-4309949637",
+    "flags": [
+      "category_resolved_from_unique_leaf"
+    ],
+    "changed": [
+      "details.categoryId",
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.categoryId": "179496",
+      "identification.category": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl",
+      "details.attributes.ebay_category_id": "179496",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+    }
+  },
+  {
+    "docId": "4250153617556",
+    "sku": "SKU-4649569251",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "238",
+      "details.attributes.ebay_category_path": "Spielzeug > Puppen & Zubehör"
+    }
+  },
+  {
+    "docId": "4250358601817",
+    "sku": "SKU-1964286581",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "22670",
+      "details.attributes.ebay_category_path": "Musikinstrumente > Gitarren & Bässe > Zubehör > Teile > Pickups"
+    }
+  },
+  {
+    "docId": "4250454729170",
+    "sku": "SKU-1784585629",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "914",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Ansichtskarten & Zubehör"
+    }
+  },
+  {
+    "docId": "4251175827556",
+    "sku": "SKU-2902386366",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "180407",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Auto-Tuning & -Styling > Sport-Getriebe > Antriebswellen"
+    }
+  },
+  {
+    "docId": "4251806427775",
+    "sku": "SKU-8942698934",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4260443571086",
+    "sku": "SKU-9713309170",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4260499852344",
+    "sku": "SKU-3933851468",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "174119",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Autoradios"
+    }
+  },
+  {
+    "docId": "4260526472194",
+    "sku": "SKU-7139254013",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "175769",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Accessoires > Geldbörsen & Etuis"
+    }
+  },
+  {
+    "docId": "4260532290669",
+    "sku": "SKU-7226847075",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4262405220148",
+    "sku": "SKU-2431535372",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20740",
+      "details.attributes.ebay_category_path": "Haustierbedarf > Katzen > Kratzbäume & Möbel"
+    }
+  },
+  {
+    "docId": "4262427090057",
+    "sku": "SKU-0135090467",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4262472110243",
+    "sku": "SKU-7909541265",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4270001051905",
+    "sku": "SKU-9268872444",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "64642",
+      "details.attributes.ebay_category_path": "Sport > Weitere Ballsportarten > Basketball > Trainingshilfen"
+    }
+  },
+  {
+    "docId": "45005591930000",
+    "sku": "SKU-6587967689",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4806633149839",
+    "sku": "SKU-5619085780",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177806",
+      "details.attributes.ebay_category_path": "Sport > Radsport > Fahrradteile & -komponenten > Bremsbeläge"
+    }
+  },
+  {
+    "docId": "48fe16c6-bdc6-42f6-862e-fc9eb4962c93",
+    "sku": "SKU-3756924465",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4906958001464",
+    "sku": "SKU-2966583160",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "4909500898543",
+    "sku": "SKU-2019632072",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33579",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Federung & Lenkung"
+    }
+  },
+  {
+    "docId": "4960999610955",
+    "sku": "SKU-4090290612",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "171961",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör"
+    }
+  },
+  {
+    "docId": "4dd32c21-2afe-4c13-b354-605f97e6f590",
+    "sku": "SKU-1306047599",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "5010996282880",
+    "sku": "SKU-4519918204",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "5011987005952",
+    "sku": "SKU-9425624573",
+    "flags": [
+      "category_resolved_from_unique_leaf"
+    ],
+    "changed": [
+      "details.categoryId",
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.categoryId": "179496",
+      "identification.category": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl",
+      "details.attributes.ebay_category_id": "179496",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+    }
+  },
+  {
+    "docId": "5055350245538",
+    "sku": "SKU-9039614531",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "5055350248140",
+    "sku": "SKU-7417485934",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "5060570201660",
+    "sku": "SKU-8735317765",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "5060941713129",
+    "sku": "SKU-1031821522",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "32525",
+      "details.attributes.ebay_category_path": "Sport > Tauchen > Instrumente & Uhren > Konsolen"
+    }
+  },
+  {
+    "docId": "52820776-34bb-4776-b728-06c521593d3a",
+    "sku": "SKU-1489693054",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "54c1a366-798b-42bf-9014-95729468c623",
+    "sku": "SKU-4252129103",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "56cdbf05-ce59-43c9-be15-6cc63c6dae93",
+    "sku": "SKU-0874304411",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3205",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Feste & Besondere Anlässe > Party- & Eventdekoration"
+    }
+  },
+  {
+    "docId": "5702017153599",
+    "sku": "SKU-9272258811",
+    "flags": [
+      "category_resolved_id_no_breadcrumb"
+    ],
+    "changed": [
+      "details.categoryId",
+      "details.attributes.ebay_category_id"
+    ],
+    "updates": {
+      "details.categoryId": "220",
+      "details.attributes.ebay_category_id": "220"
+    }
+  },
+  {
+    "docId": "5702017567501",
+    "sku": "SKU-9904325113",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "5713487061253",
+    "sku": "SKU-3782469631",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "5713487061277",
+    "sku": "SKU-1466301102",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "5715335047020",
+    "sku": "SKU-8921872481",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "sku": "SKU-5329605855",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Musikinstrumente",
+      "details.attributes.ebay_category_id": "619",
+      "details.attributes.ebay_category_path": "Musikinstrumente"
+    }
+  },
+  {
+    "docId": "578c3341-658b-46d1-b419-b4ce60b534a5",
+    "sku": "SKU-9688561402",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "259858",
+      "details.attributes.ebay_category_path": "Heimwerker > Heizen, Klima & Sanitär > Wasser > Ventile"
+    }
+  },
+  {
+    "docId": "5820082016105",
+    "sku": "SKU-5753016417",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "62844",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Reklame & Werbung > Branchen & Marken > Auto & Motorrad"
+    }
+  },
+  {
+    "docId": "5900811829102",
+    "sku": "SKU-8404970287",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "387",
+      "details.attributes.ebay_category_path": "Spielzeug > Bären, -kleidung & Zubehör > Bärenkleidung & Accessoires"
+    }
+  },
+  {
+    "docId": "5901532626087",
+    "sku": "SKU-1746174206",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "5904270013775",
+    "sku": "SKU-5437386727",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "5908242693453",
+    "sku": "SKU-6816251293",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "59151383083624",
+    "sku": "SKU-8684520981",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "60539f7f-f556-4103-bc2c-cc17f5a455c3",
+    "sku": "SKU-6274769815",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "6078c5f0-fb52-4c9c-b795-12a136ba6c79",
+    "sku": "SKU-2708761114",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "61921411800024",
+    "sku": "SKU-6860111834",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "14075",
+      "details.attributes.ebay_category_path": "Antiquitäten & Kunst > Kleidung & Access. vor 1900 > Accessoires > Handschuhe"
+    }
+  },
+  {
+    "docId": "61cb13b8-ef09-4959-821e-c2d63fcd8038",
+    "sku": "SKU-9014992269",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "6922738000364",
+    "sku": "SKU-9041995991",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2994",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herren-Accessoires > Handschuhe & Fäustlinge"
+    }
+  },
+  {
+    "docId": "6941057422886",
+    "sku": "SKU-6216530722",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "6954850111741",
+    "sku": "SKU-0735099796",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "184002",
+      "details.attributes.ebay_category_path": "Business & Industrie > Gebäudereinigung > Manuelle Reinigungsgeräte > Einmal-Reinigungshandschuhe"
+    }
+  },
+  {
+    "docId": "6957303824717",
+    "sku": "SKU-9003235487",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "6be95318-1354-4b38-9526-aab48b727982",
+    "sku": "SKU-6954275739",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "261012",
+      "details.attributes.ebay_category_path": "Garten & Terrasse > Motor-Gartengeräte & -zubehör > Kettensägen-Zubehör"
+    }
+  },
+  {
+    "docId": "7082024102510",
+    "sku": "SKU-1423771699",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "124487",
+      "details.attributes.ebay_category_path": "Business & Industrie > Baugewerbe > Baumaschinenteile & Zubehör > Antrieb, Motor & Getriebe > Keilriemen"
+    }
+  },
+  {
+    "docId": "7212913647233",
+    "sku": "SKU-3606468262",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "7290006780805",
+    "sku": "SKU-9905416565",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "8736",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Reklame & Werbung > Bier & Brauerei > Bierflaschen"
+    }
+  },
+  {
+    "docId": "7290116742380",
+    "sku": "SKU-0225495136",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "25845",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kochen & Genießen > Wasseraufbereitung & Trinkwassersprudler > Trinkwassersprudler"
+    }
+  },
+  {
+    "docId": "7316577150929",
+    "sku": "SKU-8906682806",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "36624",
+      "details.attributes.ebay_category_path": "Sport > Funsport > Skateboarding > Boards > Lager"
+    }
+  },
+  {
+    "docId": "7325549884427",
+    "sku": "SKU-6480044357",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "420",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Transport > Fahrrad"
+    }
+  },
+  {
+    "docId": "74429111967912",
+    "sku": "SKU-6162434731",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "72576",
+      "details.attributes.ebay_category_path": "Sport > Weitere Sportarten > Dart > Scheiben"
+    }
+  },
+  {
+    "docId": "7611916163227",
+    "sku": "SKU-1703368789",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177767",
+      "details.attributes.ebay_category_path": "Beauty & Gesundheit > Hautpflege > Gesichtspflegegeräte"
+    }
+  },
+  {
+    "docId": "7649988997723",
+    "sku": "SKU-3130743576",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "76a7cc4f-9aa4-4149-ad6b-9cc4ef1dc1df",
+    "sku": "SKU-7200941317",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "7778bbb4-0a11-414b-a323-1573ab313f48",
+    "sku": "SKU-6044260478",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "174030",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Motorkühlung > Ausgleichsbehälter"
+    }
+  },
+  {
+    "docId": "7b442083-e5d5-43c0-92ef-76c6432fe919",
+    "sku": "SKU-5120624450",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33694",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Innenausstattung"
+    }
+  },
+  {
+    "docId": "8004815313234",
+    "sku": "SKU-1316800430",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "8052694010041",
+    "sku": "SKU-2801069572",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "62559",
+      "details.attributes.ebay_category_path": "Büro & Schreibwaren > Schulbedarf"
+    }
+  },
+  {
+    "docId": "8088208802015",
+    "sku": "SKU-6543182729",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "81715585302754",
+    "sku": "SKU-3938831828",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "81717285233178",
+    "sku": "SKU-5764056320",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "83e404aa-90ab-4ebe-a933-039625bb1df9",
+    "sku": "SKU-7193466241",
+    "flags": [
+      "category_resolved_from_unique_leaf"
+    ],
+    "changed": [
+      "details.categoryId",
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.categoryId": "16191",
+      "identification.category": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier > Tintenpatronen",
+      "details.attributes.ebay_category_id": "16191",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier > Tintenpatronen"
+    }
+  },
+  {
+    "docId": "849e919f-0898-4df7-8fbb-e141c351cba4",
+    "sku": "SKU-2969022222",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "85020cb2-38be-42d7-a2d1-bb5aa92d9e36",
+    "sku": "SKU-5952589845",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "27653",
+      "details.attributes.ebay_category_path": "Modellbau > Modellbausätze > Werkzeuge, Zubehör & Motoren > Werkzeuge > Elektrowerkzeuge"
+    }
+  },
+  {
+    "docId": "8712013813820",
+    "sku": "SKU-8805500495",
+    "flags": [
+      "category_leaf_only_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "8717475102703",
+    "sku": "SKU-7333529126",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "8718042150288",
+    "sku": "SKU-3341294632",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "174093",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Federung & Lenkung > Lenksäulen"
+    }
+  },
+  {
+    "docId": "8719076052258",
+    "sku": "SKU-9132277490",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "32109",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Klein- & Leichtkraftradteile > Leichtkraftradteile > Elektrik & Zündung"
+    }
+  },
+  {
+    "docId": "8719115000028",
+    "sku": "SKU-8798489036",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "8720828172452",
+    "sku": "SKU-3692000771",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20445",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Kopfkissen & Körperkissen"
+    }
+  },
+  {
+    "docId": "8b41bda6-bc97-4d34-8644-f081c7d180cb",
+    "sku": "SKU-2629282795",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "8bc07ed5-5cee-4d00-abb3-00dd4f20439d",
+    "sku": "SKU-2930571748",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "124425",
+      "details.attributes.ebay_category_path": "Business & Industrie > Werkzeuge & Werkstattbedarf > Elektrowerkzeug-Zubehör > Bohrer"
+    }
+  },
+  {
+    "docId": "90090043468127",
+    "sku": "SKU-3310911465",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "9132580602006",
+    "sku": "SKU-8036579486",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "29508",
+      "details.attributes.ebay_category_path": "Heimwerker > Bad & Küche > Küche > Küchenarmaturen"
+    }
+  },
+  {
+    "docId": "914f7e36-2a57-4a6c-94e3-441532afad65",
+    "sku": "SKU-3988740005",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "260835",
+      "details.attributes.ebay_category_path": "Business & Industrie > Elektronik & Messtechnik > Kabel & Leitungen > Kabelverbinder & Anschlussklemmen > Leitungs- & Kabelverbinder"
+    }
+  },
+  {
+    "docId": "9aff4795-bed9-4a09-ba98-77c2e138b511",
+    "sku": "SKU-2439653897",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "123417",
+      "details.attributes.ebay_category_path": "Handys & Kommunikation > Handy-Zubehör > Ladegeräte & Dockingstationen"
+    }
+  },
+  {
+    "docId": "9e35f9b4-5df8-4db7-9dd7-31e4491488ef",
+    "sku": "SKU-6469360404",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "SKU-0000524938",
+    "sku": "SKU-0000524938",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3676",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing"
+    }
+  },
+  {
+    "docId": "SKU-0058749943",
+    "sku": "SKU-0058749943",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "117385",
+      "details.attributes.ebay_category_path": "Baby > Ernährung > Kindergeschirr & -besteck > Kinderbesteck"
+    }
+  },
+  {
+    "docId": "SKU-0110888325",
+    "sku": "SKU-0110888325",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3034",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Damen > Damenschuhe"
+    }
+  },
+  {
+    "docId": "SKU-0114729665",
+    "sku": "SKU-0114729665",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15709",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    }
+  },
+  {
+    "docId": "SKU-0152828115",
+    "sku": "SKU-0152828115",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20442",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Badezimmer > Badezimmerzubehör > Handtuchhalter"
+    }
+  },
+  {
+    "docId": "SKU-0172791378",
+    "sku": "SKU-0172791378",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "158928",
+      "details.attributes.ebay_category_path": "Sport > Fitness & Jogging > Yoga & Pilates > Yogamatten"
+    }
+  },
+  {
+    "docId": "SKU-0236764953",
+    "sku": "SKU-0236764953",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33589",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Federung & Lenkung > Lenkgetriebe & -gehäuse"
+    }
+  },
+  {
+    "docId": "SKU-0280699295",
+    "sku": "SKU-0280699295",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "11484",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenmode > Pullover & Strick"
+    }
+  },
+  {
+    "docId": "SKU-0310087435",
+    "sku": "SKU-0310087435",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20444",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen"
+    }
+  },
+  {
+    "docId": "SKU-0362404564",
+    "sku": "SKU-0362404564",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "25668",
+      "details.attributes.ebay_category_path": "Baby > Auto-Kindersitze & Zubehör"
+    }
+  },
+  {
+    "docId": "SKU-0403766178",
+    "sku": "SKU-0403766178",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "13999",
+      "details.attributes.ebay_category_path": "Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Füllfederhalter"
+    }
+  },
+  {
+    "docId": "SKU-0411747828",
+    "sku": "SKU-0411747828",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "57357",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsbeläge"
+    }
+  },
+  {
+    "docId": "SKU-0522930788",
+    "sku": "SKU-0522930788",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3247",
+      "details.attributes.ebay_category_path": "Heimwerker > Werkzeuge > Elektrowerkzeuge"
+    }
+  },
+  {
+    "docId": "SKU-0611814591",
+    "sku": "SKU-0611814591",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "1059",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenmode"
+    }
+  },
+  {
+    "docId": "SKU-0619911931",
+    "sku": "SKU-0619911931",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2662",
+      "details.attributes.ebay_category_path": "Spielzeug > Elektrisches Spielzeug > Roboter"
+    }
+  },
+  {
+    "docId": "SKU-0651722148",
+    "sku": "SKU-0651722148",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177833",
+      "details.attributes.ebay_category_path": "Sport > Radsport > Fahrradzubehör > Fahrradtaschen"
+    }
+  },
+  {
+    "docId": "SKU-0698797502",
+    "sku": "SKU-0698797502",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2996",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herren-Accessoires > Geldbörsen & Etuis"
+    }
+  },
+  {
+    "docId": "SKU-0785869755",
+    "sku": "SKU-0785869755",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "420",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Transport > Fahrrad"
+    }
+  },
+  {
+    "docId": "SKU-0808524453",
+    "sku": "SKU-0808524453",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15709",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    }
+  },
+  {
+    "docId": "SKU-0871959830",
+    "sku": "SKU-0871959830",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20635",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kochen & Genießen > Küchenhelfer"
+    }
+  },
+  {
+    "docId": "SKU-0974179694",
+    "sku": "SKU-0974179694",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "515",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Militaria > NATO-Shop > Werkzeuge & Tools"
+    }
+  },
+  {
+    "docId": "SKU-0982370040",
+    "sku": "SKU-0982370040",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "151621",
+      "details.attributes.ebay_category_path": "Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör > Grills"
+    }
+  },
+  {
+    "docId": "SKU-0989494543",
+    "sku": "SKU-0989494543",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15709",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    }
+  },
+  {
+    "docId": "SKU-1040274599",
+    "sku": "SKU-1040274599",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "8694",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Science-Fiction > Star Trek > Poster & Bilder"
+    }
+  },
+  {
+    "docId": "SKU-1066852367",
+    "sku": "SKU-1066852367",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "26211",
+      "details.attributes.ebay_category_path": "Business & Industrie > Elektronik & Messtechnik > Schalter > Kippschalter"
+    }
+  },
+  {
+    "docId": "SKU-1153910217",
+    "sku": "SKU-1153910217",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "119019",
+      "details.attributes.ebay_category_path": "Musikinstrumente > Pro-Audio Equipment > Vintage Pro-Audio Equipment"
+    }
+  },
+  {
+    "docId": "SKU-1181918814",
+    "sku": "SKU-1181918814",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Büro & Schreibwaren",
+      "details.attributes.ebay_category_id": "9815",
+      "details.attributes.ebay_category_path": "Büro & Schreibwaren"
+    }
+  },
+  {
+    "docId": "SKU-1230781227",
+    "sku": "SKU-1230781227",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20460",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettlaken"
+    }
+  },
+  {
+    "docId": "SKU-1419839651",
+    "sku": "SKU-1419839651",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15709",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    }
+  },
+  {
+    "docId": "SKU-1483282001",
+    "sku": "SKU-1483282001",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "19265",
+      "details.attributes.ebay_category_path": "Beauty & Gesundheit > Hilfsmittel > Mobilitäts- & Gehhilfen > Rollstühle"
+    }
+  },
+  {
+    "docId": "SKU-1566313678",
+    "sku": "SKU-1566313678",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "60033",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > DDR & Ostalgie > DDR > Bücher & Zeitschriften > Kinder- & Jugendliteratur"
+    }
+  },
+  {
+    "docId": "SKU-1612836881",
+    "sku": "SKU-1612836881",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "515",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Militaria > NATO-Shop > Werkzeuge & Tools"
+    }
+  },
+  {
+    "docId": "SKU-1618101796",
+    "sku": "SKU-1618101796",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20770",
+      "details.attributes.ebay_category_path": "Heimwerker > Werkzeuge > Handwerkzeuge > Schraubenschlüssel"
+    }
+  },
+  {
+    "docId": "SKU-1782951292",
+    "sku": "SKU-1782951292",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "11854",
+      "details.attributes.ebay_category_path": "Beauty & Gesundheit > Haarpflege & Haarstyling"
+    }
+  },
+  {
+    "docId": "SKU-1789286937",
+    "sku": "SKU-1789286937",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "8697",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Science-Fiction > Star Trek > Bekleidung"
+    }
+  },
+  {
+    "docId": "SKU-1825816304",
+    "sku": "SKU-1825816304",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177005",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kochen & Genießen > Küchenmesser"
+    }
+  },
+  {
+    "docId": "SKU-1887574140",
+    "sku": "SKU-1887574140",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "181383",
+      "details.attributes.ebay_category_path": "Sport > Camping & Outdoor > Camping-Küchenbedarf > Campinggeschirr"
+    }
+  },
+  {
+    "docId": "SKU-1937479862",
+    "sku": "SKU-1937479862",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "14070",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Accessoires > Krawatten, -schals & Fliegen"
+    }
+  },
+  {
+    "docId": "SKU-1961998362",
+    "sku": "SKU-1961998362",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20677",
+      "details.attributes.ebay_category_path": "Haushaltsgeräte > Kleingeräte Küche > Entsafter & Saftpressen"
+    }
+  },
+  {
+    "docId": "SKU-2019125675",
+    "sku": "SKU-2019125675",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Beauty & Gesundheit",
+      "details.attributes.ebay_category_id": "26395",
+      "details.attributes.ebay_category_path": "Beauty & Gesundheit"
+    }
+  },
+  {
+    "docId": "SKU-2114384722",
+    "sku": "SKU-2114384722",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "45246",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Damen > Damen-Accessoires > Sonnenbrillen & Zubehör > Sonnenbrillen"
+    }
+  },
+  {
+    "docId": "SKU-2123165909",
+    "sku": "SKU-2123165909",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "134642",
+      "details.attributes.ebay_category_path": "Heimwerker > Schrankbeschläge & -teile > Schubladenschienen"
+    }
+  },
+  {
+    "docId": "SKU-2135446963",
+    "sku": "SKU-2135446963",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "181784",
+      "details.attributes.ebay_category_path": "Business & Industrie > Automation, Antriebe & Motoren > Sensoren"
+    }
+  },
+  {
+    "docId": "SKU-2151943751",
+    "sku": "SKU-2151943751",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Bastel- & Künstlerbedarf",
+      "details.attributes.ebay_category_id": "14339",
+      "details.attributes.ebay_category_path": "Bastel- & Künstlerbedarf"
+    }
+  },
+  {
+    "docId": "SKU-2152217706",
+    "sku": "SKU-2152217706",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177008",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kochen & Genießen > Küchenhelfer > Gewürzmühlen & -streuer"
+    }
+  },
+  {
+    "docId": "SKU-2384085318",
+    "sku": "SKU-2384085318",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20625",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kochen & Genießen"
+    }
+  },
+  {
+    "docId": "SKU-2384804976",
+    "sku": "SKU-2384804976",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15709",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    }
+  },
+  {
+    "docId": "SKU-2388529978",
+    "sku": "SKU-2388529978",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "1245",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Drucker"
+    }
+  },
+  {
+    "docId": "SKU-2391228513",
+    "sku": "SKU-2391228513",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15709",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    }
+  },
+  {
+    "docId": "SKU-2417212434",
+    "sku": "SKU-2417212434",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "28829",
+      "details.attributes.ebay_category_path": "Spielzeug > Playmobil > Freizeit"
+    }
+  },
+  {
+    "docId": "SKU-2561166298",
+    "sku": "SKU-2561166298",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Kleidung & Accessoires > Herren > Herren-Accessoires > Geldbörsen & Etuis",
+      "details.attributes.ebay_category_id": "2996",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herren-Accessoires > Geldbörsen & Etuis"
+    }
+  },
+  {
+    "docId": "SKU-2566552410",
+    "sku": "SKU-2566552410",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "4296",
+      "details.attributes.ebay_category_path": "Sport > Weitere Sportarten > Boxen > Boxsets"
+    }
+  },
+  {
+    "docId": "SKU-2609353370",
+    "sku": "SKU-2609353370",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15456",
+      "details.attributes.ebay_category_path": "Baby > Pflege"
+    }
+  },
+  {
+    "docId": "SKU-2611077541",
+    "sku": "SKU-2611077541",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33614",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile > Ventilsteuerungsteile > Nockenwellen"
+    }
+  },
+  {
+    "docId": "SKU-2621538468",
+    "sku": "SKU-2621538468",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20612",
+      "details.attributes.ebay_category_path": "Haushaltsgeräte > Klimaanlagen & Heizgeräte > Ventilatoren & Luftbehandlung > Stand- & Tischventilatoren"
+    }
+  },
+  {
+    "docId": "SKU-2633108165",
+    "sku": "SKU-2633108165",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Fahrzeuge",
+      "details.attributes.ebay_category_id": "9800",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Fahrzeuge"
+    }
+  },
+  {
+    "docId": "SKU-2636479706",
+    "sku": "SKU-2636479706",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Garten & Terrasse",
+      "details.attributes.ebay_category_id": "159912",
+      "details.attributes.ebay_category_path": "Garten & Terrasse"
+    }
+  },
+  {
+    "docId": "SKU-2638568297",
+    "sku": "SKU-2638568297",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "158916",
+      "details.attributes.ebay_category_path": "Sport > Fitness & Jogging > Fitness- & Laufschuhe"
+    }
+  },
+  {
+    "docId": "SKU-2638580995",
+    "sku": "SKU-2638580995",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "176988",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kindermöbel & Wohnen"
+    }
+  },
+  {
+    "docId": "SKU-2690684566",
+    "sku": "SKU-2690684566",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33612",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile"
+    }
+  },
+  {
+    "docId": "SKU-2789683373",
+    "sku": "SKU-2789683373",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "4037",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Haushalt & Küche > Kleingeräte > Elektrische Ventilatoren"
+    }
+  },
+  {
+    "docId": "SKU-2804135383",
+    "sku": "SKU-2804135383",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "1407",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Beleuchtung > Lampenteile"
+    }
+  },
+  {
+    "docId": "SKU-2841208491",
+    "sku": "SKU-2841208491",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Bücher & Zeitschriften",
+      "details.attributes.ebay_category_id": "267",
+      "details.attributes.ebay_category_path": "Bücher & Zeitschriften"
+    }
+  },
+  {
+    "docId": "SKU-2965430996",
+    "sku": "SKU-2965430996",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Möbel & Wohnen",
+      "details.attributes.ebay_category_id": "11700",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen"
+    }
+  },
+  {
+    "docId": "SKU-3046032177",
+    "sku": "SKU-3046032177",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "166779",
+      "details.attributes.ebay_category_path": "Briefmarken > Afrika > Niger"
+    }
+  },
+  {
+    "docId": "SKU-3047799035",
+    "sku": "SKU-3047799035",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "420",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Transport > Fahrrad"
+    }
+  },
+  {
+    "docId": "SKU-3086033338",
+    "sku": "SKU-3086033338",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "57357",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsbeläge"
+    }
+  },
+  {
+    "docId": "SKU-3093460977",
+    "sku": "SKU-3093460977",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "185033",
+      "details.attributes.ebay_category_path": "Haushaltsgeräte > Kleingeräte Küche > Fritteusen"
+    }
+  },
+  {
+    "docId": "SKU-3095199472",
+    "sku": "SKU-3095199472",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "181136",
+      "details.attributes.ebay_category_path": "Sport > Golf > Golfbekleidung > Herren-Golfbekleidung > Golfschuhe"
+    }
+  },
+  {
+    "docId": "SKU-3132130051",
+    "sku": "SKU-3132130051",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Kleidung & Accessoires",
+      "details.attributes.ebay_category_id": "11450",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires"
+    }
+  },
+  {
+    "docId": "SKU-3149269291",
+    "sku": "SKU-3149269291",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3948",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Technik & Geräte > Automaten > Geldspielautomaten > Geldspielautomaten"
+    }
+  },
+  {
+    "docId": "SKU-3190070125",
+    "sku": "SKU-3190070125",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3199",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Möbel > Regale & Aufbewahrung"
+    }
+  },
+  {
+    "docId": "SKU-3210037840",
+    "sku": "SKU-3210037840",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "37644",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettwäsche"
+    }
+  },
+  {
+    "docId": "SKU-3213392901",
+    "sku": "SKU-3213392901",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "13340",
+      "details.attributes.ebay_category_path": "Sport > Weitere Ballsportarten > Tennis"
+    }
+  },
+  {
+    "docId": "SKU-3226209432",
+    "sku": "SKU-3226209432",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3199",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Möbel > Regale & Aufbewahrung"
+    }
+  },
+  {
+    "docId": "SKU-3368481451",
+    "sku": "SKU-3368481451",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3034",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Damen > Damenschuhe"
+    }
+  },
+  {
+    "docId": "SKU-3475457190",
+    "sku": "SKU-3475457190",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "180916",
+      "details.attributes.ebay_category_path": "Baby > Kinderwagen & Zubehör > Kinderwagenzubehör > Sitzauflagen"
+    }
+  },
+  {
+    "docId": "SKU-3566484007",
+    "sku": "SKU-3566484007",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20835",
+      "details.attributes.ebay_category_path": "Sport > Weitere Sportarten > Bogenschießen"
+    }
+  },
+  {
+    "docId": "SKU-3588671475",
+    "sku": "SKU-3588671475",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Sammeln & Seltenes > Militaria > NATO-Shop > Werkzeuge & Tools",
+      "details.attributes.ebay_category_id": "515",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Militaria > NATO-Shop > Werkzeuge & Tools"
+    }
+  },
+  {
+    "docId": "SKU-3622017850",
+    "sku": "SKU-3622017850",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "14970",
+      "details.attributes.ebay_category_path": "TV, Video & Audio > Heim-Audio & HiFi > Verstärker & Vorverstärker"
+    }
+  },
+  {
+    "docId": "SKU-3734657776",
+    "sku": "SKU-3734657776",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20601",
+      "details.attributes.ebay_category_path": "Heimwerker > Bad & Küche"
+    }
+  },
+  {
+    "docId": "SKU-3783198734",
+    "sku": "SKU-3783198734",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "11838",
+      "details.attributes.ebay_category_path": "Beauty & Gesundheit > Körperpflege"
+    }
+  },
+  {
+    "docId": "SKU-3818412905",
+    "sku": "SKU-3818412905",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Beauty & Gesundheit > Parfums > Herren",
+      "details.attributes.ebay_category_id": "29585",
+      "details.attributes.ebay_category_path": "Beauty & Gesundheit > Parfums > Herren"
+    }
+  },
+  {
+    "docId": "SKU-3963918245",
+    "sku": "SKU-3963918245",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "184059",
+      "details.attributes.ebay_category_path": "Business & Industrie > Hydraulik, Pneumatik & Pumpen > Strömungswächter & Steuerungen > Pumpensteuerungen"
+    }
+  },
+  {
+    "docId": "SKU-3992211748",
+    "sku": "SKU-3992211748",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2994",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herren-Accessoires > Handschuhe & Fäustlinge"
+    }
+  },
+  {
+    "docId": "SKU-4008377248",
+    "sku": "SKU-4008377248",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "158927",
+      "details.attributes.ebay_category_path": "Sport > Fitness & Jogging > Yoga & Pilates"
+    }
+  },
+  {
+    "docId": "SKU-4017783375",
+    "sku": "SKU-4017783375",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Heimwerker",
+      "details.attributes.ebay_category_id": "3187",
+      "details.attributes.ebay_category_path": "Heimwerker"
+    }
+  },
+  {
+    "docId": "SKU-4069701323",
+    "sku": "SKU-4069701323",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "120",
+      "details.attributes.ebay_category_path": "Spielzeug > Basteln & Kreativität"
+    }
+  },
+  {
+    "docId": "SKU-4118229261",
+    "sku": "SKU-4118229261",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "57262",
+      "details.attributes.ebay_category_path": "Sport > Radsport > Fahrradteile & -komponenten"
+    }
+  },
+  {
+    "docId": "SKU-4204090012",
+    "sku": "SKU-4204090012",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20460",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettlaken"
+    }
+  },
+  {
+    "docId": "SKU-4212491486",
+    "sku": "SKU-4212491486",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "37976",
+      "details.attributes.ebay_category_path": "Antiquitäten & Kunst > Musikinstrumente > Schlaginstrumente"
+    }
+  },
+  {
+    "docId": "SKU-4264334297",
+    "sku": "SKU-4264334297",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2988",
+      "details.attributes.ebay_category_path": "Baby > Möbel > Laufgitter"
+    }
+  },
+  {
+    "docId": "SKU-4304000683",
+    "sku": "SKU-4304000683",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "59212",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Transport > Luftfahrt & Zeppelin > Geschirr & Besteck"
+    }
+  },
+  {
+    "docId": "SKU-4349960147",
+    "sku": "SKU-4349960147",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "974",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Haushalt & Küche > Töpfe & Pfannen"
+    }
+  },
+  {
+    "docId": "SKU-4358173575",
+    "sku": "SKU-4358173575",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2536",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Sammelkartenspiele/TCGs"
+    }
+  },
+  {
+    "docId": "SKU-4391085581",
+    "sku": "SKU-4391085581",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15709",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    }
+  },
+  {
+    "docId": "SKU-4433223955",
+    "sku": "SKU-4433223955",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "158928",
+      "details.attributes.ebay_category_path": "Sport > Fitness & Jogging > Yoga & Pilates > Yogamatten"
+    }
+  },
+  {
+    "docId": "SKU-4434702791",
+    "sku": "SKU-4434702791",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Computer, Tablets & Netzwerk",
+      "details.attributes.ebay_category_id": "58058",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk"
+    }
+  },
+  {
+    "docId": "SKU-4488972962",
+    "sku": "SKU-4488972962",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "25357",
+      "details.attributes.ebay_category_path": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Gastronomie-Küchenausstattung > Gastronomie-Kochgeschirr- & zubehör"
+    }
+  },
+  {
+    "docId": "SKU-4541378818",
+    "sku": "SKU-4541378818",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "45686",
+      "details.attributes.ebay_category_path": "Business & Industrie > Werkzeuge & Werkstattbedarf > Spezial-Handwerkzeuge > Fliesenlegerwerkzeuge"
+    }
+  },
+  {
+    "docId": "SKU-4541440236",
+    "sku": "SKU-4541440236",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "18276",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Fahrzeuge > Automobile > Smart"
+    }
+  },
+  {
+    "docId": "SKU-4561934561",
+    "sku": "SKU-4561934561",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "23658",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Rollenspiele & Tabletops > LARP & Reenactment > Waffen > Schaumstoff- & Latexwaffen"
+    }
+  },
+  {
+    "docId": "SKU-4607569519",
+    "sku": "SKU-4607569519",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Fahrzeuge",
+      "details.attributes.ebay_category_id": "9800",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Fahrzeuge"
+    }
+  },
+  {
+    "docId": "SKU-4660262942",
+    "sku": "SKU-4660262942",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15709",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    }
+  },
+  {
+    "docId": "SKU-4679981655",
+    "sku": "SKU-4679981655",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Büro & Schreibwaren",
+      "details.attributes.ebay_category_id": "9815",
+      "details.attributes.ebay_category_path": "Büro & Schreibwaren"
+    }
+  },
+  {
+    "docId": "SKU-4743695203",
+    "sku": "SKU-4743695203",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Bücher & Zeitschriften",
+      "details.attributes.ebay_category_id": "267",
+      "details.attributes.ebay_category_path": "Bücher & Zeitschriften"
+    }
+  },
+  {
+    "docId": "SKU-4802639881",
+    "sku": "SKU-4802639881",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "36155",
+      "details.attributes.ebay_category_path": "Sport > Fitness & Jogging > Krafttraining & Gewichte > Gewichthebergürtel"
+    }
+  },
+  {
+    "docId": "SKU-4820097368",
+    "sku": "SKU-4820097368",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Sammeln & Seltenes > Militaria > NATO-Shop > Rucksäcke & Taschen",
+      "details.attributes.ebay_category_id": "37412",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Militaria > NATO-Shop > Rucksäcke & Taschen"
+    }
+  },
+  {
+    "docId": "SKU-4846525236",
+    "sku": "SKU-4846525236",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "263193",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Elektromotorrad- & Elektrorollerteile & -zubehör"
+    }
+  },
+  {
+    "docId": "SKU-4919757592",
+    "sku": "SKU-4919757592",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Freizeithemden & Shirts",
+      "details.attributes.ebay_category_id": "57990",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Freizeithemden & Shirts"
+    }
+  },
+  {
+    "docId": "SKU-4930006198",
+    "sku": "SKU-4930006198",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33544",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Klima- & Heizungsanlagen > Klimaleitungen, -schläuche & Anschlüsse"
+    }
+  },
+  {
+    "docId": "SKU-4949389854",
+    "sku": "SKU-4949389854",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "85040",
+      "details.attributes.ebay_category_path": "Sport > Radsport > Fahrradzubehör > Fahrradanhänger"
+    }
+  },
+  {
+    "docId": "SKU-4990478200",
+    "sku": "SKU-4990478200",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "19396",
+      "details.attributes.ebay_category_path": "Antiquitäten & Kunst > Metallobjekte > Eisen > Gefertigt nach 1945 > Gusseisen"
+    }
+  },
+  {
+    "docId": "SKU-4996518676",
+    "sku": "SKU-4996518676",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "420",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Transport > Fahrrad"
+    }
+  },
+  {
+    "docId": "SKU-5017039989",
+    "sku": "SKU-5017039989",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "181391",
+      "details.attributes.ebay_category_path": "Sport > Camping & Outdoor > Bekleidung > Wanderschuhe"
+    }
+  },
+  {
+    "docId": "SKU-5032047149",
+    "sku": "SKU-5032047149",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "260625",
+      "details.attributes.ebay_category_path": "Heimwerker > Bad & Küche > Bad"
+    }
+  },
+  {
+    "docId": "SKU-5037405516",
+    "sku": "SKU-5037405516",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "29518",
+      "details.attributes.ebay_category_path": "Garten & Terrasse > Motor-Gartengeräte & -zubehör"
+    }
+  },
+  {
+    "docId": "SKU-5091393302",
+    "sku": "SKU-5091393302",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "11195",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier"
+    }
+  },
+  {
+    "docId": "SKU-5127373339",
+    "sku": "SKU-5127373339",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "175673",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Computer-Komponenten & -Teile"
+    }
+  },
+  {
+    "docId": "SKU-5320447988",
+    "sku": "SKU-5320447988",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "84904",
+      "details.attributes.ebay_category_path": "Spielzeug > Basteln & Kreativität > Malen & Zeichnen"
+    }
+  },
+  {
+    "docId": "SKU-5392843955",
+    "sku": "SKU-5392843955",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "238",
+      "details.attributes.ebay_category_path": "Spielzeug > Puppen & Zubehör"
+    }
+  },
+  {
+    "docId": "SKU-5403685857",
+    "sku": "SKU-5403685857",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "181845",
+      "details.attributes.ebay_category_path": "Business & Industrie > Elektronik & Messtechnik > Schalter"
+    }
+  },
+  {
+    "docId": "SKU-5427858806",
+    "sku": "SKU-5427858806",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "19656",
+      "details.attributes.ebay_category_path": "TV, Video & Audio > DJ-Equipment > Mikrofone"
+    }
+  },
+  {
+    "docId": "SKU-5462953053",
+    "sku": "SKU-5462953053",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "9939",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Fahrzeuge > Motorräder > Roller"
+    }
+  },
+  {
+    "docId": "SKU-5582443660",
+    "sku": "SKU-5582443660",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "261186",
+      "details.attributes.ebay_category_path": "Bücher & Zeitschriften > Bücher"
+    }
+  },
+  {
+    "docId": "SKU-5598085433",
+    "sku": "SKU-5598085433",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "175669",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Laufwerke & Speichermedien > Festplatten (HDD, SSD & NAS) > Solid State Drives (SSD)"
+    }
+  },
+  {
+    "docId": "SKU-5633394973",
+    "sku": "SKU-5633394973",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "13386",
+      "details.attributes.ebay_category_path": "Sport > Weitere Wintersportarten"
+    }
+  },
+  {
+    "docId": "SKU-5638382329",
+    "sku": "SKU-5638382329",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "9047",
+      "details.attributes.ebay_category_path": "Modellbau > Modelleisenbahn > Sachbücher & Ratgeber"
+    }
+  },
+  {
+    "docId": "SKU-5658638116",
+    "sku": "SKU-5658638116",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "127504",
+      "details.attributes.ebay_category_path": "Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Filzstifte"
+    }
+  },
+  {
+    "docId": "SKU-5674295862",
+    "sku": "SKU-5674295862",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177832",
+      "details.attributes.ebay_category_path": "Sport > Radsport > Fahrradzubehör"
+    }
+  },
+  {
+    "docId": "SKU-5687802687",
+    "sku": "SKU-5687802687",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "30251",
+      "details.attributes.ebay_category_path": "Baby > Badezubehör > Badewannen"
+    }
+  },
+  {
+    "docId": "SKU-5701110636",
+    "sku": "SKU-5701110636",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "65643",
+      "details.attributes.ebay_category_path": "Haushaltsgeräte > Kaffee-, Tee- & Espressomaschinen > Kaffeevollautomaten"
+    }
+  },
+  {
+    "docId": "SKU-5722168408",
+    "sku": "SKU-5722168408",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "387",
+      "details.attributes.ebay_category_path": "Spielzeug > Bären, -kleidung & Zubehör > Bärenkleidung & Accessoires"
+    }
+  },
+  {
+    "docId": "SKU-5729537867",
+    "sku": "SKU-5729537867",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "60033",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > DDR & Ostalgie > DDR > Bücher & Zeitschriften > Kinder- & Jugendliteratur"
+    }
+  },
+  {
+    "docId": "SKU-5740515403",
+    "sku": "SKU-5740515403",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "158916",
+      "details.attributes.ebay_category_path": "Sport > Fitness & Jogging > Fitness- & Laufschuhe"
+    }
+  },
+  {
+    "docId": "SKU-5740939127",
+    "sku": "SKU-5740939127",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "580",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Haushalt & Küche > Gedeckter Tisch > Salzschalen"
+    }
+  },
+  {
+    "docId": "SKU-5780092798",
+    "sku": "SKU-5780092798",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20770",
+      "details.attributes.ebay_category_path": "Heimwerker > Werkzeuge > Handwerkzeuge > Schraubenschlüssel"
+    }
+  },
+  {
+    "docId": "SKU-5795572847",
+    "sku": "SKU-5795572847",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "179011",
+      "details.attributes.ebay_category_path": "Sport > Camping & Outdoor > Zelte & Strandmuscheln > Strandmuscheln"
+    }
+  },
+  {
+    "docId": "SKU-5799111421",
+    "sku": "SKU-5799111421",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "26219",
+      "details.attributes.ebay_category_path": "Business & Industrie > Sicherheit & Gebäudeinstandhaltung > Gebäude-Beleuchtungen > Industrielle Beleuchtungen"
+    }
+  },
+  {
+    "docId": "SKU-5814356347",
+    "sku": "SKU-5814356347",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "974",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Haushalt & Küche > Töpfe & Pfannen"
+    }
+  },
+  {
+    "docId": "SKU-5842899450",
+    "sku": "SKU-5842899450",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "134642",
+      "details.attributes.ebay_category_path": "Heimwerker > Schrankbeschläge & -teile > Schubladenschienen"
+    }
+  },
+  {
+    "docId": "SKU-5869700759",
+    "sku": "SKU-5869700759",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "1244",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Computer-Komponenten & -Teile > Mainboards"
+    }
+  },
+  {
+    "docId": "SKU-5943400007",
+    "sku": "SKU-5943400007",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "28108",
+      "details.attributes.ebay_category_path": "Bastel- & Künstlerbedarf > Künstler- & Zeichenbedarf > Zeichnen > Farbstifte & Zeichenkohle"
+    }
+  },
+  {
+    "docId": "SKU-5946216503",
+    "sku": "SKU-5946216503",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "30807",
+      "details.attributes.ebay_category_path": "Business & Industrie > Medizin & Labor > Medizinische Geräte"
+    }
+  },
+  {
+    "docId": "SKU-6099130668",
+    "sku": "SKU-6099130668",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "11195",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier"
+    }
+  },
+  {
+    "docId": "SKU-6148008788",
+    "sku": "SKU-6148008788",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "158928",
+      "details.attributes.ebay_category_path": "Sport > Fitness & Jogging > Yoga & Pilates > Yogamatten"
+    }
+  },
+  {
+    "docId": "SKU-6307001376",
+    "sku": "SKU-6307001376",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15709",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    }
+  },
+  {
+    "docId": "SKU-6315915149",
+    "sku": "SKU-6315915149",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Büro & Schreibwaren",
+      "details.attributes.ebay_category_id": "9815",
+      "details.attributes.ebay_category_path": "Büro & Schreibwaren"
+    }
+  },
+  {
+    "docId": "SKU-6346907299",
+    "sku": "SKU-6346907299",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "33557",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Luft- & Kraftstoffversorgung > Lufteinlass- & Kraftstoffsensoren"
+    }
+  },
+  {
+    "docId": "SKU-6369067650",
+    "sku": "SKU-6369067650",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "47931",
+      "details.attributes.ebay_category_path": "Beauty & Gesundheit > Enthaarung & Rasur > Rasierer & Rasierklingen > Herren Rasierklingen"
+    }
+  },
+  {
+    "docId": "SKU-6427883146",
+    "sku": "SKU-6427883146",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "167468",
+      "details.attributes.ebay_category_path": "Antiquitäten & Kunst > Restaurierungsbedarf > Schlösser"
+    }
+  },
+  {
+    "docId": "SKU-6537574821",
+    "sku": "SKU-6537574821",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "30255",
+      "details.attributes.ebay_category_path": "Baby > Badezubehör > Kinderwaschbecken"
+    }
+  },
+  {
+    "docId": "SKU-6544112261",
+    "sku": "SKU-6544112261",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "185033",
+      "details.attributes.ebay_category_path": "Haushaltsgeräte > Kleingeräte Küche > Fritteusen"
+    }
+  },
+  {
+    "docId": "SKU-6558668236",
+    "sku": "SKU-6558668236",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "387",
+      "details.attributes.ebay_category_path": "Spielzeug > Bären, -kleidung & Zubehör > Bärenkleidung & Accessoires"
+    }
+  },
+  {
+    "docId": "SKU-6586579725",
+    "sku": "SKU-6586579725",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "66728",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kindermöbel & Wohnen > Bettwaren & -wäsche > Bettdecken"
+    }
+  },
+  {
+    "docId": "SKU-6603765179",
+    "sku": "SKU-6603765179",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177832",
+      "details.attributes.ebay_category_path": "Sport > Radsport > Fahrradzubehör"
+    }
+  },
+  {
+    "docId": "SKU-6614383452",
+    "sku": "SKU-6614383452",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "258510",
+      "details.attributes.ebay_category_path": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Bar- & Ausschankausstattung > Gastronomie-Kaffee-, Kakao- & Teeausstattung > Kaffee- & Teespender > Karaffen & Dekanter"
+    }
+  },
+  {
+    "docId": "SKU-6673544963",
+    "sku": "SKU-6673544963",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15709",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    }
+  },
+  {
+    "docId": "SKU-6830410442",
+    "sku": "SKU-6830410442",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Heimwerker",
+      "details.attributes.ebay_category_id": "3187",
+      "details.attributes.ebay_category_path": "Heimwerker"
+    }
+  },
+  {
+    "docId": "SKU-6847456474",
+    "sku": "SKU-6847456474",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "62492",
+      "details.attributes.ebay_category_path": "Büro & Schreibwaren > Büromöbel > Sitzmöbel"
+    }
+  },
+  {
+    "docId": "SKU-6965414859",
+    "sku": "SKU-6965414859",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "84904",
+      "details.attributes.ebay_category_path": "Spielzeug > Basteln & Kreativität > Malen & Zeichnen"
+    }
+  },
+  {
+    "docId": "SKU-7049665224",
+    "sku": "SKU-7049665224",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "175774",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Mode für Herren > Pullover & Strickjacken"
+    }
+  },
+  {
+    "docId": "SKU-7151143475",
+    "sku": "SKU-7151143475",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "11504",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sandalen"
+    }
+  },
+  {
+    "docId": "SKU-7209250640",
+    "sku": "SKU-7209250640",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "238",
+      "details.attributes.ebay_category_path": "Spielzeug > Puppen & Zubehör"
+    }
+  },
+  {
+    "docId": "SKU-7234186083",
+    "sku": "SKU-7234186083",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Schuhe & Boots > Herrenschuhe & -boots",
+      "details.attributes.ebay_category_id": "16061",
+      "details.attributes.ebay_category_path": "Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Schuhe & Boots > Herrenschuhe & -boots"
+    }
+  },
+  {
+    "docId": "SKU-7237772440",
+    "sku": "SKU-7237772440",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177832",
+      "details.attributes.ebay_category_path": "Sport > Radsport > Fahrradzubehör"
+    }
+  },
+  {
+    "docId": "SKU-7245071607",
+    "sku": "SKU-7245071607",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "16191",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier > Tintenpatronen"
+    }
+  },
+  {
+    "docId": "SKU-7270723982",
+    "sku": "SKU-7270723982",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "8759",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > DDR & Ostalgie > DDR > Haushalt & Küche"
+    }
+  },
+  {
+    "docId": "SKU-7290912165",
+    "sku": "SKU-7290912165",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Kleidung & Accessoires > Damen > Damenschuhe",
+      "details.attributes.ebay_category_id": "3034",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Damen > Damenschuhe"
+    }
+  },
+  {
+    "docId": "SKU-7350795017",
+    "sku": "SKU-7350795017",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "4672",
+      "details.attributes.ebay_category_path": "Handys & Kommunikation > Funktechnik > Antennen > Amateurfunkantennen"
+    }
+  },
+  {
+    "docId": "SKU-7473377331",
+    "sku": "SKU-7473377331",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "8012",
+      "details.attributes.ebay_category_path": "Münzen > Historische Wertpapiere > USA & Kanada > Elektronik & Computer"
+    }
+  },
+  {
+    "docId": "SKU-7499091535",
+    "sku": "SKU-7499091535",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "260931",
+      "details.attributes.ebay_category_path": "Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör > Grillzubehör"
+    }
+  },
+  {
+    "docId": "SKU-7543211550",
+    "sku": "SKU-7543211550",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "11498",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Stiefel"
+    }
+  },
+  {
+    "docId": "SKU-7627745924",
+    "sku": "SKU-7627745924",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "158928",
+      "details.attributes.ebay_category_path": "Sport > Fitness & Jogging > Yoga & Pilates > Yogamatten"
+    }
+  },
+  {
+    "docId": "SKU-7680238839",
+    "sku": "SKU-7680238839",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15709",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    }
+  },
+  {
+    "docId": "SKU-7721659409",
+    "sku": "SKU-7721659409",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "8012",
+      "details.attributes.ebay_category_path": "Münzen > Historische Wertpapiere > USA & Kanada > Elektronik & Computer"
+    }
+  },
+  {
+    "docId": "SKU-7800997883",
+    "sku": "SKU-7800997883",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3034",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Damen > Damenschuhe"
+    }
+  },
+  {
+    "docId": "SKU-7892887285",
+    "sku": "SKU-7892887285",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "11195",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier"
+    }
+  },
+  {
+    "docId": "SKU-7926913408",
+    "sku": "SKU-7926913408",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177832",
+      "details.attributes.ebay_category_path": "Sport > Radsport > Fahrradzubehör"
+    }
+  },
+  {
+    "docId": "SKU-7948301538",
+    "sku": "SKU-7948301538",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "11195",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier"
+    }
+  },
+  {
+    "docId": "SKU-7961309823",
+    "sku": "SKU-7961309823",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "87443",
+      "details.attributes.ebay_category_path": "Sport > Reit- & Fahrsport > Reithelme & Schutzkleidung"
+    }
+  },
+  {
+    "docId": "SKU-7998641824",
+    "sku": "SKU-7998641824",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "37976",
+      "details.attributes.ebay_category_path": "Antiquitäten & Kunst > Musikinstrumente > Schlaginstrumente"
+    }
+  },
+  {
+    "docId": "SKU-8004480244",
+    "sku": "SKU-8004480244",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "1152",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Disneyana > Vintage > Haushaltsartikel"
+    }
+  },
+  {
+    "docId": "SKU-8035511646",
+    "sku": "SKU-8035511646",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "28107",
+      "details.attributes.ebay_category_path": "Bastel- & Künstlerbedarf > Künstler- & Zeichenbedarf > Zeichnen > Pastell"
+    }
+  },
+  {
+    "docId": "SKU-8064565799",
+    "sku": "SKU-8064565799",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "11505",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herrenschuhe > Hausschuhe"
+    }
+  },
+  {
+    "docId": "SKU-8112287411",
+    "sku": "SKU-8112287411",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "59325",
+      "details.attributes.ebay_category_path": "Sport > Fitness & Jogging > Bekleidung > Damen > Sweatshirts & Kapuzenpullover"
+    }
+  },
+  {
+    "docId": "SKU-8133187753",
+    "sku": "SKU-8133187753",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20460",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettlaken"
+    }
+  },
+  {
+    "docId": "SKU-8151275535",
+    "sku": "SKU-8151275535",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20614",
+      "details.attributes.ebay_category_path": "Haushaltsgeräte > Staubsauger & Zubehör > Staubsauger"
+    }
+  },
+  {
+    "docId": "SKU-8197874459",
+    "sku": "SKU-8197874459",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2994",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herren-Accessoires > Handschuhe & Fäustlinge"
+    }
+  },
+  {
+    "docId": "SKU-8236064906",
+    "sku": "SKU-8236064906",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3244",
+      "details.attributes.ebay_category_path": "Heimwerker > Werkzeuge > Handwerkzeuge"
+    }
+  },
+  {
+    "docId": "SKU-8245288059",
+    "sku": "SKU-8245288059",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2994",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herren-Accessoires > Handschuhe & Fäustlinge"
+    }
+  },
+  {
+    "docId": "SKU-8249181407",
+    "sku": "SKU-8249181407",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "14985",
+      "details.attributes.ebay_category_path": "TV, Video & Audio > DJ-Equipment > DJ-Kopfhörer"
+    }
+  },
+  {
+    "docId": "SKU-8310896573",
+    "sku": "SKU-8310896573",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "39216",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Esoterik, Mystik & Magie > Orakel & Tarot > Pendel"
+    }
+  },
+  {
+    "docId": "SKU-8317603092",
+    "sku": "SKU-8317603092",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Baby > Bettausstattung > Matratzenschoner & -auflagen",
+      "details.attributes.ebay_category_id": "162041",
+      "details.attributes.ebay_category_path": "Baby > Bettausstattung > Matratzenschoner & -auflagen"
+    }
+  },
+  {
+    "docId": "SKU-8367978772",
+    "sku": "SKU-8367978772",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Büro & Schreibwaren",
+      "details.attributes.ebay_category_id": "9815",
+      "details.attributes.ebay_category_path": "Büro & Schreibwaren"
+    }
+  },
+  {
+    "docId": "SKU-8380347833",
+    "sku": "SKU-8380347833",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "62471",
+      "details.attributes.ebay_category_path": "Büro & Schreibwaren > Büromöbel > Leuchten & Leuchtmittel > Stehleuchten"
+    }
+  },
+  {
+    "docId": "SKU-8462375603",
+    "sku": "SKU-8462375603",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3034",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Damen > Damenschuhe"
+    }
+  },
+  {
+    "docId": "SKU-8483173682",
+    "sku": "SKU-8483173682",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "68098",
+      "details.attributes.ebay_category_path": "Briefmarken > Motive > Geschichte"
+    }
+  },
+  {
+    "docId": "SKU-8605082485",
+    "sku": "SKU-8605082485",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "6747",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Kleidung, Schutzausrüstung & Merchandise"
+    }
+  },
+  {
+    "docId": "SKU-8640590578",
+    "sku": "SKU-8640590578",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "37644",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettwäsche"
+    }
+  },
+  {
+    "docId": "SKU-8689351772",
+    "sku": "SKU-8689351772",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "15277",
+      "details.attributes.ebay_category_path": "Sport > Fitness & Jogging > Sportelektronik > Herzfrequenzmesser"
+    }
+  },
+  {
+    "docId": "SKU-8742112863",
+    "sku": "SKU-8742112863",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "21240",
+      "details.attributes.ebay_category_path": "Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Schuhe & Boots > Kinderschuhe & -boots"
+    }
+  },
+  {
+    "docId": "SKU-8747609895",
+    "sku": "SKU-8747609895",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "9939",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Fahrzeuge > Motorräder > Roller"
+    }
+  },
+  {
+    "docId": "SKU-8779940575",
+    "sku": "SKU-8779940575",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "62864",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Reklame & Werbung > Branchen & Marken > Coca-Cola & Softdrinks > Coca-Cola > Tassen & Becher"
+    }
+  },
+  {
+    "docId": "SKU-8835594725",
+    "sku": "SKU-8835594725",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "11183",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Heimnetzwerke & Zubehör > Kabelgebundene Router"
+    }
+  },
+  {
+    "docId": "SKU-8843412443",
+    "sku": "SKU-8843412443",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Business & Industrie",
+      "details.attributes.ebay_category_id": "12576",
+      "details.attributes.ebay_category_path": "Business & Industrie"
+    }
+  },
+  {
+    "docId": "SKU-8857013241",
+    "sku": "SKU-8857013241",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Kleidung & Accessoires",
+      "details.attributes.ebay_category_id": "11450",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires"
+    }
+  },
+  {
+    "docId": "SKU-8919591829",
+    "sku": "SKU-8919591829",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "8697",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Science-Fiction > Star Trek > Bekleidung"
+    }
+  },
+  {
+    "docId": "SKU-9031958971",
+    "sku": "SKU-9031958971",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "133704",
+      "details.attributes.ebay_category_path": "Haushaltsgeräte > Kleingeräte Küche > Standmixer"
+    }
+  },
+  {
+    "docId": "SKU-9035689627",
+    "sku": "SKU-9035689627",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "62559",
+      "details.attributes.ebay_category_path": "Büro & Schreibwaren > Schulbedarf"
+    }
+  },
+  {
+    "docId": "SKU-9073986145",
+    "sku": "SKU-9073986145",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Business & Industrie > Agrar, Forst & Kommune > Ersatzteile, Teile & Zubehör > Teile & Zubehör Motorsägen > Sägeketten",
+      "details.attributes.ebay_category_id": "131252",
+      "details.attributes.ebay_category_path": "Business & Industrie > Agrar, Forst & Kommune > Ersatzteile, Teile & Zubehör > Teile & Zubehör Motorsägen > Sägeketten"
+    }
+  },
+  {
+    "docId": "SKU-9091395294",
+    "sku": "SKU-9091395294",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3273",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Haushalt & Küche > Bar- & Wein-Accessoires > Schnapsgläser"
+    }
+  },
+  {
+    "docId": "SKU-9142845763",
+    "sku": "SKU-9142845763",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Fahrzeuge",
+      "details.attributes.ebay_category_id": "9800",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Fahrzeuge"
+    }
+  },
+  {
+    "docId": "SKU-9146759920",
+    "sku": "SKU-9146759920",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "3034",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Damen > Damenschuhe"
+    }
+  },
+  {
+    "docId": "SKU-9289261489",
+    "sku": "SKU-9289261489",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "60033",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > DDR & Ostalgie > DDR > Bücher & Zeitschriften > Kinder- & Jugendliteratur"
+    }
+  },
+  {
+    "docId": "SKU-9317337160",
+    "sku": "SKU-9317337160",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "177005",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kochen & Genießen > Küchenmesser"
+    }
+  },
+  {
+    "docId": "SKU-9335260557",
+    "sku": "SKU-9335260557",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "58100",
+      "details.attributes.ebay_category_path": "Sport > Radsport > Fahrradzubehör > Schlösser & Sicherheit"
+    }
+  },
+  {
+    "docId": "SKU-9428729031",
+    "sku": "SKU-9428729031",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "47931",
+      "details.attributes.ebay_category_path": "Beauty & Gesundheit > Enthaarung & Rasur > Rasierer & Rasierklingen > Herren Rasierklingen"
+    }
+  },
+  {
+    "docId": "SKU-9431798499",
+    "sku": "SKU-9431798499",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "16191",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier > Tintenpatronen"
+    }
+  },
+  {
+    "docId": "SKU-9436640030",
+    "sku": "SKU-9436640030",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2994",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herren-Accessoires > Handschuhe & Fäustlinge"
+    }
+  },
+  {
+    "docId": "SKU-9454243198",
+    "sku": "SKU-9454243198",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "120",
+      "details.attributes.ebay_category_path": "Spielzeug > Basteln & Kreativität"
+    }
+  },
+  {
+    "docId": "SKU-9458628509",
+    "sku": "SKU-9458628509",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2662",
+      "details.attributes.ebay_category_path": "Spielzeug > Elektrisches Spielzeug > Roboter"
+    }
+  },
+  {
+    "docId": "SKU-9564743151",
+    "sku": "SKU-9564743151",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "46036",
+      "details.attributes.ebay_category_path": "Reisen > Reiseaccessoires > Regenschirme"
+    }
+  },
+  {
+    "docId": "SKU-9603350817",
+    "sku": "SKU-9603350817",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "13999",
+      "details.attributes.ebay_category_path": "Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Füllfederhalter"
+    }
+  },
+  {
+    "docId": "SKU-9627368343",
+    "sku": "SKU-9627368343",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "175757",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Rollos, Gardinen & Vorhänge > Fensterfolien"
+    }
+  },
+  {
+    "docId": "SKU-9671499764",
+    "sku": "SKU-9671499764",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "138995",
+      "details.attributes.ebay_category_path": "Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör > Servierwagen"
+    }
+  },
+  {
+    "docId": "SKU-9787450821",
+    "sku": "SKU-9787450821",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "8759",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > DDR & Ostalgie > DDR > Haushalt & Küche"
+    }
+  },
+  {
+    "docId": "SKU-9804667250",
+    "sku": "SKU-9804667250",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "387",
+      "details.attributes.ebay_category_path": "Spielzeug > Bären, -kleidung & Zubehör > Bärenkleidung & Accessoires"
+    }
+  },
+  {
+    "docId": "SKU-9820031170",
+    "sku": "SKU-9820031170",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "9939",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Fahrzeuge > Motorräder > Roller"
+    }
+  },
+  {
+    "docId": "SKU-9834509499",
+    "sku": "SKU-9834509499",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "259327",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Kindermöbel & Wohnen > Badzubehör & -textilien"
+    }
+  },
+  {
+    "docId": "SKU-9876441475",
+    "sku": "SKU-9876441475",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "49177",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Rollenspiele & Tabletops > LARP & Reenactment > Kleidung & Accessoires > Kinder"
+    }
+  },
+  {
+    "docId": "SKU-9912977908",
+    "sku": "SKU-9912977908",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "30807",
+      "details.attributes.ebay_category_path": "Business & Industrie > Medizin & Labor > Medizinische Geräte"
+    }
+  },
+  {
+    "docId": "SKU-9933881904",
+    "sku": "SKU-9933881904",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "2994",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires > Herren > Herren-Accessoires > Handschuhe & Fäustlinge"
+    }
+  },
+  {
+    "docId": "SKU-9968230318",
+    "sku": "SKU-9968230318",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "179466",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile > Werkzeuge > Reparatur-Sets & Teile > Reifenreparatur"
+    }
+  },
+  {
+    "docId": "SKU-9979752242",
+    "sku": "SKU-9979752242",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  },
+  {
+    "docId": "SKU-9988960743",
+    "sku": "SKU-9988960743",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Kleidung & Accessoires",
+      "details.attributes.ebay_category_id": "11450",
+      "details.attributes.ebay_category_path": "Kleidung & Accessoires"
+    }
+  },
+  {
+    "docId": "a7fbf83a-10da-453f-974b-4d71c9e7e626",
+    "sku": "SKU-1848228084",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "8504",
+      "details.attributes.ebay_category_path": "Sport > Camping & Outdoor > Sonstiges Camping & Outdoor"
+    }
+  },
+  {
+    "docId": "ad08f46f-d233-4c4f-b5c5-bc803ce5018e",
+    "sku": "SKU-5748131128",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "b82f2e03-f4e9-4cef-8984-364a6a8cfc8e",
+    "sku": "SKU-3350934915",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "b9682eb9-a9aa-415e-898f-7b9bf915e42f",
+    "sku": "SKU-8203474346",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "20445",
+      "details.attributes.ebay_category_path": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Kopfkissen & Körperkissen"
+    }
+  },
+  {
+    "docId": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+    "sku": "SKU-0716100821",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "c6d932e0-cd68-4d66-8212-d98f5d10e8d2",
+    "sku": "SKU-7957694387",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "8012",
+      "details.attributes.ebay_category_path": "Münzen > Historische Wertpapiere > USA & Kanada > Elektronik & Computer"
+    }
+  },
+  {
+    "docId": "d2649d99-ae7a-4b45-bca9-e6c452843d93",
+    "sku": "SKU-3442148631",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier > Tintenpatronen",
+      "details.attributes.ebay_category_id": "16191",
+      "details.attributes.ebay_category_path": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier > Tintenpatronen"
+    }
+  },
+  {
+    "docId": "d26c1381-e411-4bd2-a9fd-fdd8e408a28a",
+    "sku": "SKU-3178068699",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "99697",
+      "details.attributes.ebay_category_path": "Haushaltsgeräte > Waschmaschinen & Trockner > Waschmaschinen- & Trocknerteile"
+    }
+  },
+  {
+    "docId": "e29c131f-ec89-434c-b216-90f28330918d",
+    "sku": "SKU-6854747447",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "18671",
+      "details.attributes.ebay_category_path": "Sammeln & Seltenes > Militaria > 1918-1945 > Helme & Kopfbedeckungen"
+    }
+  },
+  {
+    "docId": "e73c69ce-6582-4454-adab-52b418a775d0",
+    "sku": "SKU-5599844775",
+    "flags": [
+      "category_resolved_from_unique_leaf"
+    ],
+    "changed": [
+      "details.categoryId",
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.categoryId": "11731",
+      "identification.category": "Spielzeug > Lernspielzeug",
+      "details.attributes.ebay_category_id": "11731",
+      "details.attributes.ebay_category_path": "Spielzeug > Lernspielzeug"
+    }
+  },
+  {
+    "docId": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+    "sku": "SKU-1536365981",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "f2028097-7287-47f8-b694-d663960758ec",
+    "sku": "SKU-2204782559",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "f20fc23c-f6dc-476a-9070-d943caec409f",
+    "sku": "SKU-3481827893",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "1188",
+      "details.attributes.ebay_category_path": "Modellbau > Modellbausätze"
+    }
+  },
+  {
+    "docId": "f7a5bb4a-9e13-4a67-8065-996f9a809f26",
+    "sku": "SKU-0107097519",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "details.attributes.ebay_category_id": "19839",
+      "details.attributes.ebay_category_path": "Modellbau > RC-Modellbau > RC Modellbau Teile & Zubehör > Fernsteuerung & Elektronik"
+    }
+  },
+  {
+    "docId": "f8fc404d-90b9-408f-a0a5-53038fdbd793",
+    "sku": "SKU-7447779999",
+    "flags": [
+      "category_breadcrumb_unresolved"
+    ],
+    "changed": [],
+    "updates": {}
+  },
+  {
+    "docId": "fad41e15-2900-414a-b739-2ed02d4394fe",
+    "sku": "SKU-9297459968",
+    "flags": [
+      "category_normalized_from_id"
+    ],
+    "changed": [
+      "identification.category",
+      "details.attributes.ebay_category_id",
+      "details.attributes.ebay_category_path"
+    ],
+    "updates": {
+      "identification.category": "Auto & Motorrad: Teile",
+      "details.attributes.ebay_category_id": "131090",
+      "details.attributes.ebay_category_path": "Auto & Motorrad: Teile"
+    }
+  }
+]
