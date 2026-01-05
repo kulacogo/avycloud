@@ -346,6 +346,9 @@ const normalizeJobStatuses = (raw) => {
 
 // --- Helper: order sync best-effort in background; never block responses ---
 const ORDER_SYNC_TIMEOUT_MS = parseInt(process.env.ORDER_SYNC_TIMEOUT_MS || '8000', 10);
+const ORDER_SYNC_THROTTLE_MS = parseInt(process.env.ORDER_SYNC_THROTTLE_MS || '60000', 10);
+let ordersSyncInFlight = false;
+let lastOrdersSyncAtMs = 0;
 const BASELINKER_AUTO_STOCK_SYNC = (process.env.BASELINKER_AUTO_STOCK_SYNC ?? 'true') === 'true';
 const BASELINKER_AUTO_STOCK_SYNC_THROTTLE_MS = parseInt(
   process.env.BASELINKER_AUTO_STOCK_SYNC_THROTTLE_MS || '15000',
@@ -354,11 +357,25 @@ const BASELINKER_AUTO_STOCK_SYNC_THROTTLE_MS = parseInt(
 const lastAutoStockSyncAtMs = new Map(); // productId -> epoch ms
 
 function backgroundSyncOrders() {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ORDER_SYNC_TIMEOUT_MS);
+  const now = Date.now();
+  if (ordersSyncInFlight) return;
+  if (Number.isFinite(lastOrdersSyncAtMs) && now - lastOrdersSyncAtMs < ORDER_SYNC_THROTTLE_MS) {
+    return;
+  }
+  ordersSyncInFlight = true;
+  lastOrdersSyncAtMs = now;
+
+  const timer = setTimeout(() => {
+    // best-effort safety: release lock even if something hangs
+    ordersSyncInFlight = false;
+  }, ORDER_SYNC_TIMEOUT_MS);
+
   syncNewOrders()
     .catch((err) => console.warn('Background order sync failed:', err?.message || err))
-    .finally(() => clearTimeout(timer));
+    .finally(() => {
+      clearTimeout(timer);
+      ordersSyncInFlight = false;
+    });
 }
 
 function backgroundSyncProductStockToBaseLinker(product, reason = 'warehouse') {

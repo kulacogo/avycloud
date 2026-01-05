@@ -1,0 +1,823 @@
+{
+  "stamp": "20260105-121645",
+  "input": "/Users/oguz/Dev/avycloud/exports/category_review_suspicious_roots_20260105-120301.csv",
+  "output": "/Users/oguz/Dev/avycloud/exports/category_review_suspicious_roots_20260105-120301__llm_suggested.csv",
+  "rows": [
+    {
+      "sku": "SKU-5410787453",
+      "status": "suggested",
+      "query": "4013556577007",
+      "imageUrl": "https://storage.googleapis.com/prodsandjobs/products/4013556577007/lifestyle_front_4637050b1b073d073617f33b2e421134.png",
+      "chosen": "177031",
+      "breadcrumb": "Garten & Terrasse > Möbel > Möbelschutzhüllen",
+      "chosenRoot": "Garten & Terrasse",
+      "rationale": "Das Produkt ist eine Schutzhülle für einen Hängesessel, der zu Gartenmöbeln gehört. Die Kategorie \"Garten & Terrasse > Möbel > Möbelschutzhüllen\" ist die präziseste und passendste Wahl aus der Liste, da sie direkt den Produkttyp und den Verwendungszweck abdeckt.",
+      "candidates": [
+        {
+          "id": "183142",
+          "name": "Pflege & Schutz",
+          "breadcrumb": "Bastel- & Künstlerbedarf > Lederbearbeitung > Lederpflege & -farben > Pflege & Schutz",
+          "score": 2651.8
+        },
+        {
+          "id": "70313",
+          "name": "Arbeitskleidung & -schutz",
+          "breadcrumb": "Business & Industrie > Medizin & Labor > Labor, Mess- & Prüftechnik > Laborzubehör > Arbeitskleidung & -schutz",
+          "score": 2646.8
+        },
+        {
+          "id": "33654",
+          "name": "Schutz- & Zierleisten",
+          "breadcrumb": "Auto & Motorrad: Teile > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Schutz- & Zierleisten",
+          "score": 2632.6
+        },
+        {
+          "id": "180468",
+          "name": "Hitzeschilder & Schutz",
+          "breadcrumb": "Auto & Motorrad: Teile > Auto-Tuning & -Styling > Luftversorgung > Hitzeschilder & Schutz",
+          "score": 2632.6
+        },
+        {
+          "id": "177660",
+          "name": "Haartherapien, -öle & -schutz",
+          "breadcrumb": "Beauty & Gesundheit > Haarpflege & Haarstyling > Haartherapien, -öle & -schutz",
+          "score": 2631.6
+        },
+        {
+          "id": "179735",
+          "name": "Pflege, Reinigung & Schutz",
+          "breadcrumb": "Auto & Motorrad: Teile > Motorradwartung, -ständer & -transport > Pflege, Reinigung & Schutz",
+          "score": 2631.6
+        },
+        {
+          "id": "40476",
+          "name": "Arbeitskleidung & -schutz",
+          "breadcrumb": "Business & Industrie > Baugewerbe > Arbeitskleidung & -schutz",
+          "score": 2625.6
+        },
+        {
+          "id": "57462",
+          "name": "Arbeitskleidung & -schutz",
+          "breadcrumb": "Business & Industrie > Agrar, Forst & Kommune > Arbeitskleidung & -schutz",
+          "score": 2625.6
+        },
+        {
+          "id": "165156",
+          "name": "Arbeitskleidung & -schutz",
+          "breadcrumb": "Business & Industrie > Metallbearbeitung & Schlosserei > Arbeitskleidung & -schutz",
+          "score": 2625.6
+        },
+        {
+          "id": "108428",
+          "name": "Sitzsäcke & aufblasbare Sessel",
+          "breadcrumb": "Möbel & Wohnen > Kindermöbel & Wohnen > Möbel > Sitzsäcke & aufblasbare Sessel",
+          "score": 2257.8
+        },
+        {
+          "id": "134648",
+          "name": "Sofas & Sessel",
+          "breadcrumb": "Möbel & Wohnen > Kindermöbel & Wohnen > Möbel > Sofas & Sessel",
+          "score": 2257.8
+        },
+        {
+          "id": "38208",
+          "name": "Sofas & Sessel",
+          "breadcrumb": "Möbel & Wohnen > Möbel > Sofas & Sessel",
+          "score": 2256.8
+        },
+        {
+          "id": "48319",
+          "name": "Sitzsäcke & aufblasbare Sessel",
+          "breadcrumb": "Möbel & Wohnen > Möbel > Sitzsäcke & aufblasbare Sessel",
+          "score": 2256.8
+        },
+        {
+          "id": "261584",
+          "name": "Sofas & Sessel",
+          "breadcrumb": "Antiquitäten & Kunst > Mobiliar & Interieur > Sofas & Sessel",
+          "score": 2224.4
+        },
+        {
+          "id": "131720",
+          "name": "Waschbecken & -sessel",
+          "breadcrumb": "Business & Industrie > Sonstige Branchen & Produkte > Friseursalon & Kosmetikstudio > Waschbecken & -sessel",
+          "score": 2211
+        }
+      ]
+    },
+    {
+      "sku": "SKU-9904325113",
+      "status": "suggested",
+      "query": "5702017567501",
+      "imageUrl": "https://storage.googleapis.com/prodsandjobs/products/5702017567501/studio_angle_952ef5b8ce5692e430fac878c6034d8a.png",
+      "chosen": "19006",
+      "breadcrumb": "Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge > LEGO (R) Komplette Sets & Packs",
+      "chosenRoot": "Spielzeug",
+      "rationale": "Das Produkt ist ein neues, komplettes LEGO Baukasten-Set. Die Kategorie 'Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge > LEGO (R) Komplette Sets & Packs' ist die spezifischste und passendste Wahl für ein solches Produkt. Die aktuelle Kategorie 'Antiquitäten & Kunst > Antikspielzeug > Baukästen' ist für ein modernes LEGO-Set nicht korrekt.",
+      "candidates": [
+        {
+          "id": "183447",
+          "name": "LEGO (R) Konstruktionsspielzeuge",
+          "breadcrumb": "Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge",
+          "score": 5878.8
+        },
+        {
+          "id": "263011",
+          "name": "LEGO (R) Power Elemente",
+          "breadcrumb": "Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge > LEGO (R) Power Elemente",
+          "score": 5596
+        },
+        {
+          "id": "263012",
+          "name": "LEGO (R) Minifiguren",
+          "breadcrumb": "Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge > LEGO (R) Minifiguren",
+          "score": 5596
+        },
+        {
+          "id": "183448",
+          "name": "LEGO (R) Bausteine & Einzelteile",
+          "breadcrumb": "Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge > LEGO (R) Bausteine & Einzelteile",
+          "score": 5485.4
+        },
+        {
+          "id": "19006",
+          "name": "LEGO (R) Komplette Sets & Packs",
+          "breadcrumb": "Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge > LEGO (R) Komplette Sets & Packs",
+          "score": 5374.8
+        },
+        {
+          "id": "183449",
+          "name": "LEGO (R) Bauanleitungen & Kataloge",
+          "breadcrumb": "Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge > LEGO (R) Bauanleitungen & Kataloge",
+          "score": 5374.8
+        },
+        {
+          "id": "263015",
+          "name": "LEGO (R) Aufbewahrung & Display",
+          "breadcrumb": "Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge > LEGO (R) Aufbewahrung & Display",
+          "score": 5374.8
+        },
+        {
+          "id": "4108",
+          "name": "Rest der Welt",
+          "breadcrumb": "Sammeln & Seltenes > Geschichte & Politik > Politik > Rest der Welt",
+          "score": 3325.6
+        },
+        {
+          "id": "8800",
+          "name": "Restliche Welt",
+          "breadcrumb": "Sammeln & Seltenes > Polizei & Behörden > Feuerwehr > Restliche Welt",
+          "score": 3325.6
+        },
+        {
+          "id": "8845",
+          "name": "Restliche Welt",
+          "breadcrumb": "Sammeln & Seltenes > Polizei & Behörden > Polizei & Spezialeinheiten > Restliche Welt",
+          "score": 3325.6
+        },
+        {
+          "id": "34661",
+          "name": "Restliche Welt",
+          "breadcrumb": "Sammeln & Seltenes > Militaria > 1871-1918 > Restliche Welt",
+          "score": 3325.6
+        },
+        {
+          "id": "34708",
+          "name": "Restliche Welt",
+          "breadcrumb": "Sammeln & Seltenes > Militaria > Ab 1945 > Restliche Welt",
+          "score": 3325.6
+        },
+        {
+          "id": "181179",
+          "name": "Folklore & Welt Drums",
+          "breadcrumb": "Musikinstrumente > Vintage Musikinstrumente > Vintage Drums > Folklore & Welt Drums",
+          "score": 3322
+        },
+        {
+          "id": "181210",
+          "name": "Folklore & Welt",
+          "breadcrumb": "Musikinstrumente > Vintage Musikinstrumente > Vintage Blasinstrumente > Folklore & Welt",
+          "score": 3322
+        },
+        {
+          "id": "181260",
+          "name": "Folklore & Welt",
+          "breadcrumb": "Musikinstrumente > Vintage Musikinstrumente > Vintage Streich- & Zupfinstr. > Folklore & Welt",
+          "score": 3322
+        }
+      ]
+    },
+    {
+      "sku": "SKU-6860111834",
+      "status": "suggested",
+      "query": "Qunsheng 61921411800024",
+      "imageUrl": "https://storage.googleapis.com/prodsandjobs/products/serpapi-free/v2_1766328690451_0_9b9bc98228ab214c18f0e3c3bb816123.jpeg",
+      "chosen": "116745",
+      "breadcrumb": "Möbel & Wohnen > Haushalt > Wäsche > Mottenkugeln",
+      "chosenRoot": "Möbel & Wohnen",
+      "rationale": "Das Produkt sind 'Haushaltshandschuhe'. Die Kategorie 'Möbel & Wohnen > Haushalt > Wäsche' ist die einzige verfügbare Option, die den Produktbereich 'Haushalt' korrekt abbildet und einen funktional verwandten Bereich (Wäsche/Haushaltsaufgaben) enthält. Obwohl die spezifische Unterkategorie 'Mottenkugeln' nicht ideal ist, ist dies die logisch sinnvollste Wahl aus den gegebenen Kandidaten, da alle anderen 'Handschuhe'-Kategorien (z.B. Mode, Kostüm, Militaria, Antiquitäten) oder andere 'Haushalt'-Kategorien (z.B. Garten, Industrie) unzutreffend sind. Die aktuelle Kategorie 'Antiquitäten & Kunst' ist völlig falsch.",
+      "candidates": [
+        {
+          "id": "184367",
+          "name": "Geocaching-Label & -Sticker",
+          "breadcrumb": "Sport > Weitere Sportarten > Geocaching > Cache-Versteckzubehör > Geocaching-Label & -Sticker",
+          "score": 2659.4
+        },
+        {
+          "id": "37378",
+          "name": "NATO-Shop",
+          "breadcrumb": "Sammeln & Seltenes > Militaria > NATO-Shop",
+          "score": 1324.2
+        },
+        {
+          "id": "20381",
+          "name": "Walkie-Talkies & PMR-Funkgeräte",
+          "breadcrumb": "Handys & Kommunikation > Funktechnik > Walkie-Talkies & PMR-Funkgeräte",
+          "score": 998.4
+        },
+        {
+          "id": "156086",
+          "name": "Walkie-Talkies",
+          "breadcrumb": "Spielzeug > Elektrisches Spielzeug > Walkie-Talkies",
+          "score": 666.6
+        },
+        {
+          "id": "135762",
+          "name": "Kirchliches Gerät & Inventar",
+          "breadcrumb": "Antiquitäten & Kunst > Volkskunst > Religiöse Volkskunst > Kirchliches Gerät & Inventar",
+          "score": 575
+        },
+        {
+          "id": "37400",
+          "name": "Funk- & Fernmeldetechnik",
+          "breadcrumb": "Sammeln & Seltenes > Militaria > NATO-Shop > Funk- & Fernmeldetechnik",
+          "score": 555.6
+        },
+        {
+          "id": "33164",
+          "name": "Anti-Faltenprodukte",
+          "breadcrumb": "Beauty & Gesundheit > Hautpflege > Anti-Faltenprodukte",
+          "score": 547.4
+        },
+        {
+          "id": "159039",
+          "name": "Hand- und Körperwärmer",
+          "breadcrumb": "Sport > Weitere Sportarten > Jagen & Schützensport > Jagdzubehör > Hand- und Körperwärmer",
+          "score": 532.2
+        },
+        {
+          "id": "159183",
+          "name": "Hand- und Fußwärmer",
+          "breadcrumb": "Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Zubehör > Hand- und Fußwärmer",
+          "score": 532.2
+        },
+        {
+          "id": "137862",
+          "name": "Hand- & Fingertrainer",
+          "breadcrumb": "Sport > Fitness & Jogging > Kleingeräte & Zubehör > Hand- & Fingertrainer",
+          "score": 531.2
+        },
+        {
+          "id": "137866",
+          "name": "Hand- & Fußgelenkgewichte",
+          "breadcrumb": "Sport > Fitness & Jogging > Krafttraining & Gewichte > Hand- & Fußgelenkgewichte",
+          "score": 531.2
+        },
+        {
+          "id": "181180",
+          "name": "Hand Percussion",
+          "breadcrumb": "Musikinstrumente > Vintage Musikinstrumente > Vintage Drums > Hand Percussion",
+          "score": 531.2
+        },
+        {
+          "id": "263147",
+          "name": "Hand- & Lenkstangenprotektoren",
+          "breadcrumb": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Protektoren & Spritzschutze > Hand- & Lenkstangenprotektoren",
+          "score": 531.2
+        },
+        {
+          "id": "263169",
+          "name": "Hand- & Lenkstangenprotektoren",
+          "breadcrumb": "Auto & Motorrad: Teile > Quad-, SSV- & UTV-Teile & -Zubehör > Protektoren & Schmutzfänger > Hand- & Lenkstangenprotektoren",
+          "score": 531.2
+        },
+        {
+          "id": "181246",
+          "name": "Hand Percussion",
+          "breadcrumb": "Musikinstrumente > Drums & Percussion > Hand Percussion",
+          "score": 530.2
+        }
+      ]
+    },
+    {
+      "sku": "SKU-5928571392",
+      "status": "suggested",
+      "query": "4013556592796",
+      "imageUrl": "https://storage.googleapis.com/prodsandjobs/products/4013556592796/lifestyle_inuse_49d29e5596e913070403f531ce4a4703.png",
+      "chosen": "177031",
+      "breadcrumb": "Garten & Terrasse > Möbel > Möbelschutzhüllen",
+      "chosenRoot": "Garten & Terrasse",
+      "rationale": "Das Produkt ist eine Schutzhülle für einen Strandkorb. Ein Strandkorb ist ein Möbelstück für Garten und Terrasse. Die Kategorie 'Garten & Terrasse > Möbel > Möbelschutzhüllen' ist die präziseste und passendste Kategorie für diesen Artikel.",
+      "candidates": [
+        {
+          "id": "183142",
+          "name": "Pflege & Schutz",
+          "breadcrumb": "Bastel- & Künstlerbedarf > Lederbearbeitung > Lederpflege & -farben > Pflege & Schutz",
+          "score": 3314.4
+        },
+        {
+          "id": "33654",
+          "name": "Schutz- & Zierleisten",
+          "breadcrumb": "Auto & Motorrad: Teile > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Schutz- & Zierleisten",
+          "score": 3304.8
+        },
+        {
+          "id": "180468",
+          "name": "Hitzeschilder & Schutz",
+          "breadcrumb": "Auto & Motorrad: Teile > Auto-Tuning & -Styling > Luftversorgung > Hitzeschilder & Schutz",
+          "score": 3304.8
+        },
+        {
+          "id": "177660",
+          "name": "Haartherapien, -öle & -schutz",
+          "breadcrumb": "Beauty & Gesundheit > Haarpflege & Haarstyling > Haartherapien, -öle & -schutz",
+          "score": 3303.8
+        },
+        {
+          "id": "179735",
+          "name": "Pflege, Reinigung & Schutz",
+          "breadcrumb": "Auto & Motorrad: Teile > Motorradwartung, -ständer & -transport > Pflege, Reinigung & Schutz",
+          "score": 3303.8
+        },
+        {
+          "id": "70313",
+          "name": "Arbeitskleidung & -schutz",
+          "breadcrumb": "Business & Industrie > Medizin & Labor > Labor, Mess- & Prüftechnik > Laborzubehör > Arbeitskleidung & -schutz",
+          "score": 3299.8
+        },
+        {
+          "id": "40476",
+          "name": "Arbeitskleidung & -schutz",
+          "breadcrumb": "Business & Industrie > Baugewerbe > Arbeitskleidung & -schutz",
+          "score": 3297.8
+        },
+        {
+          "id": "57462",
+          "name": "Arbeitskleidung & -schutz",
+          "breadcrumb": "Business & Industrie > Agrar, Forst & Kommune > Arbeitskleidung & -schutz",
+          "score": 3297.8
+        },
+        {
+          "id": "165156",
+          "name": "Arbeitskleidung & -schutz",
+          "breadcrumb": "Business & Industrie > Metallbearbeitung & Schlosserei > Arbeitskleidung & -schutz",
+          "score": 3297.8
+        },
+        {
+          "id": "167220",
+          "name": "Kutschen",
+          "breadcrumb": "Sport > Reit- & Fahrsport > Fahrsport > Kutschen",
+          "score": 2769
+        },
+        {
+          "id": "93154",
+          "name": "Kutschen & Schlitten",
+          "breadcrumb": "Sammeln & Seltenes > Transport > Kutschen & Schlitten",
+          "score": 2762
+        },
+        {
+          "id": "177031",
+          "name": "Möbelschutzhüllen",
+          "breadcrumb": "Garten & Terrasse > Möbel > Möbelschutzhüllen",
+          "score": 2029.4
+        },
+        {
+          "id": "259148",
+          "name": "Kartenschutzhüllen & -beutel",
+          "breadcrumb": "Sammeln & Seltenes > Trading Cards > Non-Sport Trading Cards > Non-Sport Trading Card Zubehör > Kartenschutzhüllen & -beutel",
+          "score": 1991.8
+        },
+        {
+          "id": "261944",
+          "name": "Schutzhüllen",
+          "breadcrumb": "Spielzeug > Action-Figuren & Zubehör > Action- & Spielfiguren Aufbewahrung > Schutzhüllen",
+          "score": 1987.2
+        },
+        {
+          "id": "183437",
+          "name": "Kartenschutzhüllen & -beutel",
+          "breadcrumb": "Sammeln & Seltenes > Trading Cards > Sport Trading Cards > Aufbewahrung & Ausstellung > Kartenschutzhüllen & -beutel",
+          "score": 1982.2
+        }
+      ]
+    },
+    {
+      "sku": "SKU-4212491486",
+      "status": "suggested",
+      "query": "Unbekannt SKU-4212491486",
+      "imageUrl": "https://storage.googleapis.com/avycloud-product-images/products/unknown-ean-1/other_5263a0b0de93dd25705f69b82fc38398.png",
+      "chosen": "181236",
+      "breadcrumb": "Musikinstrumente > Drums & Percussion > Folklore & Welt > Handpans",
+      "chosenRoot": "Musikinstrumente",
+      "rationale": "The product is a 'Handpan', which is a musical instrument. The category 'Musikinstrumente > Drums & Percussion > Folklore & Welt > Handpans' is the most specific and accurate match for this product, directly naming 'Handpans'. Other 'Hand Percussion' categories are either too general, include 'Vintage' (which is incorrect for a NEW item), or are 'Sonstige' (which should be avoided if a more precise category exists).",
+      "candidates": [
+        {
+          "id": "181180",
+          "name": "Hand Percussion",
+          "breadcrumb": "Musikinstrumente > Vintage Musikinstrumente > Vintage Drums > Hand Percussion",
+          "score": 2653.2
+        },
+        {
+          "id": "181246",
+          "name": "Hand Percussion",
+          "breadcrumb": "Musikinstrumente > Drums & Percussion > Hand Percussion",
+          "score": 2652.2
+        },
+        {
+          "id": "181248",
+          "name": "Sonstige Hand Percussion",
+          "breadcrumb": "Musikinstrumente > Drums & Percussion > Hand Percussion > Sonstige Hand Percussion",
+          "score": 2645.2
+        },
+        {
+          "id": "159039",
+          "name": "Hand- und Körperwärmer",
+          "breadcrumb": "Sport > Weitere Sportarten > Jagen & Schützensport > Jagdzubehör > Hand- und Körperwärmer",
+          "score": 2642.2
+        },
+        {
+          "id": "159183",
+          "name": "Hand- und Fußwärmer",
+          "breadcrumb": "Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Zubehör > Hand- und Fußwärmer",
+          "score": 2642.2
+        },
+        {
+          "id": "137862",
+          "name": "Hand- & Fingertrainer",
+          "breadcrumb": "Sport > Fitness & Jogging > Kleingeräte & Zubehör > Hand- & Fingertrainer",
+          "score": 2641.2
+        },
+        {
+          "id": "137866",
+          "name": "Hand- & Fußgelenkgewichte",
+          "breadcrumb": "Sport > Fitness & Jogging > Krafttraining & Gewichte > Hand- & Fußgelenkgewichte",
+          "score": 2641.2
+        },
+        {
+          "id": "263147",
+          "name": "Hand- & Lenkstangenprotektoren",
+          "breadcrumb": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Protektoren & Spritzschutze > Hand- & Lenkstangenprotektoren",
+          "score": 2641.2
+        },
+        {
+          "id": "263169",
+          "name": "Hand- & Lenkstangenprotektoren",
+          "breadcrumb": "Auto & Motorrad: Teile > Quad-, SSV- & UTV-Teile & -Zubehör > Protektoren & Schmutzfänger > Hand- & Lenkstangenprotektoren",
+          "score": 2641.2
+        },
+        {
+          "id": "263111",
+          "name": "Hand- & Fußhebel & -rasten",
+          "breadcrumb": "Auto & Motorrad: Teile > Quad-, SSV- & UTV-Teile & -Zubehör > Hand- & Fußhebel & -rasten",
+          "score": 2640.2
+        },
+        {
+          "id": "181033",
+          "name": "Hand-Gartengeräte & Zubehör",
+          "breadcrumb": "Garten & Terrasse > Hand-Gartengeräte & Zubehör",
+          "score": 2636.2
+        },
+        {
+          "id": "184309",
+          "name": "Hand-Dampfreiniger",
+          "breadcrumb": "Business & Industrie > Gebäudereinigung > Sanitärdampfreiniger & -sauger > Hand-Dampfreiniger",
+          "score": 2635.2
+        },
+        {
+          "id": "181236",
+          "name": "Handpans",
+          "breadcrumb": "Musikinstrumente > Drums & Percussion > Folklore & Welt > Handpans",
+          "score": 2552.2
+        },
+        {
+          "id": "37378",
+          "name": "NATO-Shop",
+          "breadcrumb": "Sammeln & Seltenes > Militaria > NATO-Shop",
+          "score": 439.4
+        },
+        {
+          "id": "139869",
+          "name": "Sägen",
+          "breadcrumb": "Garten & Terrasse > Hand-Gartengeräte & Zubehör > Sägen",
+          "score": 348.8
+        }
+      ]
+    },
+    {
+      "sku": "SKU-4990478200",
+      "status": "suggested",
+      "query": "4260532291215",
+      "imageUrl": "https://storage.googleapis.com/trendocean/products/4260532291215/other_381711cf2b8a21a2f945f6c5e34591d3.png",
+      "chosen": "37421",
+      "breadcrumb": "Sammeln & Seltenes > Militaria > NATO-Shop > Verpflegung & Essenzubereitung > Kocher & Grill",
+      "chosenRoot": "Sammeln & Seltenes",
+      "rationale": "Das Produkt ist ein Wok für die Essenszubereitung und kann auf Kochern oder Grills verwendet werden. Obwohl die übergeordneten Kategorien „Sammeln & Seltenes > Militaria > NATO-Shop“ nicht zutreffend sind, ist „Verpflegung & Essenzubereitung > Kocher & Grill“ die einzige Option in der Kandidatenliste, die die Funktion des Produkts beschreibt. Alle anderen Kandidaten sind entweder völlig irrelevant oder klassifizieren das Produkt fälschlicherweise als Antiquität oder Kunstobjekt.",
+      "candidates": [
+        {
+          "id": "37378",
+          "name": "NATO-Shop",
+          "breadcrumb": "Sammeln & Seltenes > Militaria > NATO-Shop",
+          "score": 1766.6
+        },
+        {
+          "id": "44562",
+          "name": "Eisen",
+          "breadcrumb": "Antiquitäten & Kunst > Metallobjekte > Eisen",
+          "score": 1555.6
+        },
+        {
+          "id": "21803",
+          "name": "5 Pfennig 1915-1922 Eisen",
+          "breadcrumb": "Münzen > Münzen Dt. Reich 1871-1945 > Ersatzmünzen 1. Weltkrieg > 5 Pfennig 1915-1922 Eisen",
+          "score": 1538.6
+        },
+        {
+          "id": "21804",
+          "name": "10 Pfennig 1916-1922 Eisen",
+          "breadcrumb": "Münzen > Münzen Dt. Reich 1871-1945 > Ersatzmünzen 1. Weltkrieg > 10 Pfennig 1916-1922 Eisen",
+          "score": 1538.6
+        },
+        {
+          "id": "136275",
+          "name": "Bügeltische & -eisen",
+          "breadcrumb": "Business & Industrie > Textilgewerbe & Schneiderei > Maschinen & Geräte > Bügeltische & -eisen",
+          "score": 1520.6
+        },
+        {
+          "id": "19396",
+          "name": "Gusseisen",
+          "breadcrumb": "Antiquitäten & Kunst > Metallobjekte > Eisen > Gefertigt nach 1945 > Gusseisen",
+          "score": 1513.2
+        },
+        {
+          "id": "99467",
+          "name": "eBay Car Check",
+          "breadcrumb": "Auto & Motorrad: Teile > Kfz-Services & -Reparaturen > Checks > eBay Car Check",
+          "score": 778.2
+        },
+        {
+          "id": "184769",
+          "name": "eBay Services",
+          "breadcrumb": "Verschiedenes > Produktbezogene Services > eBay Services",
+          "score": 695.4
+        },
+        {
+          "id": "178479",
+          "name": "eBay Test Only",
+          "breadcrumb": "Verschiedenes > Testbereich > eBay Test Only",
+          "score": 666.6
+        },
+        {
+          "id": "183050",
+          "name": "Trading Card Einzelkarten",
+          "breadcrumb": "Sammeln & Seltenes > Trading Cards > Non-Sport Trading Cards > Trading Card Einzelkarten",
+          "score": 661.6
+        },
+        {
+          "id": "183051",
+          "name": "Trading Card Sammlungen & Lots",
+          "breadcrumb": "Sammeln & Seltenes > Trading Cards > Non-Sport Trading Cards > Trading Card Sammlungen & Lots",
+          "score": 661.6
+        },
+        {
+          "id": "183052",
+          "name": "Trading Card Sets",
+          "breadcrumb": "Sammeln & Seltenes > Trading Cards > Non-Sport Trading Cards > Trading Card Sets",
+          "score": 661.6
+        },
+        {
+          "id": "183053",
+          "name": "OVP Trading Card Packs",
+          "breadcrumb": "Sammeln & Seltenes > Trading Cards > Non-Sport Trading Cards > OVP Trading Card Packs",
+          "score": 661.6
+        },
+        {
+          "id": "183056",
+          "name": "Non-Sport Trading Card Zubehör",
+          "breadcrumb": "Sammeln & Seltenes > Trading Cards > Non-Sport Trading Cards > Non-Sport Trading Card Zubehör",
+          "score": 661.6
+        },
+        {
+          "id": "261035",
+          "name": "OVP Trading Card Displays",
+          "breadcrumb": "Sammeln & Seltenes > Trading Cards > Non-Sport Trading Cards > OVP Trading Card Displays",
+          "score": 661.6
+        }
+      ]
+    },
+    {
+      "sku": "SKU-7998641824",
+      "status": "suggested",
+      "query": "Rohema Drumsticks",
+      "imageUrl": "https://storage.googleapis.com/prodsandjobs/products/2d04e11c-2c30-40e4-958d-b0ec03de0da5/gemini_render_studio_front_1765046116935_0_e4bbcf8c04ad84bd2d12df7c0a42585e.png",
+      "chosen": "41456",
+      "breadcrumb": "Musikinstrumente > Drums & Percussion > Ersatzteile > Sticks, Besen & Schlägel",
+      "chosenRoot": "Musikinstrumente",
+      "rationale": "Das Produkt sind \"Rohema Drumsticks\", die laut Titel, Produktart und Web-Evidenz Schlagzeugstöcke für Musikinstrumente sind. Die Kategorie \"Musikinstrumente > Drums & Percussion > Ersatzteile > Sticks, Besen & Schlägel\" (ID 41456) ist die präziseste und passendste Wahl für dieses Produkt. Die Erwähnung von \"Antiquitäten\" im Titel ist irreführend, da das Produkt als \"NEU\" beschrieben wird und die Web-Evidenz auf aktuelle Produkte hinweist.",
+      "candidates": [
+        {
+          "id": "41456",
+          "name": "Sticks, Besen & Schlägel",
+          "breadcrumb": "Musikinstrumente > Drums & Percussion > Ersatzteile > Sticks, Besen & Schlägel",
+          "score": 3134
+        },
+        {
+          "id": "149097",
+          "name": "Sticks & Pellets",
+          "breadcrumb": "Haustierbedarf > Reptilien > Futter > Sticks & Pellets",
+          "score": 3083.6
+        },
+        {
+          "id": "183124",
+          "name": "Heißklebepistolen & -sticks",
+          "breadcrumb": "Bastel- & Künstlerbedarf > Bastelmaterialien > Klebstoff & Klebeband > Heißklebepistolen & -sticks",
+          "score": 3083.6
+        },
+        {
+          "id": "51071",
+          "name": "USB-Sticks",
+          "breadcrumb": "Computer, Tablets & Netzwerk > Laufwerke & Speichermedien > USB-Sticks",
+          "score": 3082.6
+        },
+        {
+          "id": "181170",
+          "name": "Vintage Drums",
+          "breadcrumb": "Musikinstrumente > Vintage Musikinstrumente > Vintage Drums",
+          "score": 2762.8
+        },
+        {
+          "id": "181173",
+          "name": "Bass Drums",
+          "breadcrumb": "Musikinstrumente > Vintage Musikinstrumente > Vintage Drums > Drums > Bass Drums",
+          "score": 2562.8
+        },
+        {
+          "id": "181175",
+          "name": "Snare-Drums",
+          "breadcrumb": "Musikinstrumente > Vintage Musikinstrumente > Vintage Drums > Drums > Snare-Drums",
+          "score": 2562.8
+        },
+        {
+          "id": "181172",
+          "name": "Drums",
+          "breadcrumb": "Musikinstrumente > Vintage Musikinstrumente > Vintage Drums > Drums",
+          "score": 2561.8
+        },
+        {
+          "id": "181179",
+          "name": "Folklore & Welt Drums",
+          "breadcrumb": "Musikinstrumente > Vintage Musikinstrumente > Vintage Drums > Folklore & Welt Drums",
+          "score": 2561.8
+        },
+        {
+          "id": "181227",
+          "name": "Drums",
+          "breadcrumb": "Musikinstrumente > Drums & Percussion > Drums",
+          "score": 2541.6
+        },
+        {
+          "id": "180012",
+          "name": "Drums & Percussion",
+          "breadcrumb": "Musikinstrumente > Drums & Percussion",
+          "score": 2537.6
+        },
+        {
+          "id": "10175",
+          "name": "Sonstige Drums",
+          "breadcrumb": "Musikinstrumente > Drums & Percussion > Drums > Sonstige Drums",
+          "score": 2534.6
+        },
+        {
+          "id": "183788",
+          "name": "Schlag- & Klebefallen",
+          "breadcrumb": "Business & Industrie > Gebäudereinigung > Schädlingsbekämpfung > Nagetierfallen > Schlag- & Klebefallen",
+          "score": 1317.6
+        },
+        {
+          "id": "159489",
+          "name": "1/2 Mark",
+          "breadcrumb": "Münzen > Münzen Dt. Reich 1871-1945 > Inflation & Weimarer Republik > Kursmünzen > 1/2 Mark",
+          "score": 1221.6
+        },
+        {
+          "id": "159490",
+          "name": "1 Mark",
+          "breadcrumb": "Münzen > Münzen Dt. Reich 1871-1945 > Inflation & Weimarer Republik > Kursmünzen > 1 Mark",
+          "score": 1221.6
+        }
+      ]
+    },
+    {
+      "sku": "SKU-6427883146",
+      "status": "suggested",
+      "query": "8720648699382",
+      "imageUrl": "https://storage.googleapis.com/prodsandjobs/products/YY-4RPW-M2TR/gemini_render_studio_front_1765207975349_0_2ce21a87ad1a54392a8947499b193f31.png",
+      "chosen": "177832",
+      "breadcrumb": "Sport > Radsport > Fahrradzubehör",
+      "chosenRoot": "Sport",
+      "rationale": "Das Produkt ist ein Faltschloss für Fahrräder, wie aus dem Titel und der Web-Evidenz (z.B. 'NEXTCOVER Faltschloss Fahrrad FoldOne') eindeutig hervorgeht. Die Kategorie 'Sport > Radsport > Fahrradzubehör' ist die passendste und spezifischste Option unter den gegebenen Kandidaten für ein Fahrradschloss.",
+      "candidates": [
+        {
+          "id": "183833",
+          "name": "Schloss-Ersatzteile",
+          "breadcrumb": "Business & Industrie > Sicherheit & Gebäudeinstandhaltung > Zutrittskontrolle > Schlosser-Zubehör > Schloss-Ersatzteile",
+          "score": 3310.4
+        },
+        {
+          "id": "175669",
+          "name": "Solid State Drives (SSD)",
+          "breadcrumb": "Computer, Tablets & Netzwerk > Laufwerke & Speichermedien > Festplatten (HDD, SSD & NAS) > Solid State Drives (SSD)",
+          "score": 2658.4
+        },
+        {
+          "id": "173830",
+          "name": "Fahrrad- & E-Bike-Träger",
+          "breadcrumb": "Auto & Motorrad: Teile > Autoteile & Zubehör > Transportsysteme > Fahrrad- & E-Bike-Träger",
+          "score": 2216
+        },
+        {
+          "id": "110781",
+          "name": "Fahr- & Chauffeurdienste",
+          "breadcrumb": "Business & Industrie > Dienstleistungen > Transport & Logistik > Fahr- & Chauffeurdienste",
+          "score": 2099.4
+        },
+        {
+          "id": "420",
+          "name": "Fahrrad",
+          "breadcrumb": "Sammeln & Seltenes > Transport > Fahrrad",
+          "score": 1987.8
+        },
+        {
+          "id": "3242",
+          "name": "Falt- & Pop-Up-Displays",
+          "breadcrumb": "Business & Industrie > Ladenausstattung & -werbung > Messebau > Falt- & Pop-Up-Displays",
+          "score": 1971.6
+        },
+        {
+          "id": "37378",
+          "name": "NATO-Shop",
+          "breadcrumb": "Sammeln & Seltenes > Militaria > NATO-Shop",
+          "score": 1877.2
+        },
+        {
+          "id": "74158",
+          "name": "Fahrräder & Zubehör",
+          "breadcrumb": "Business & Industrie > Großhandel & Sonderposten > Sport & Freizeit (Posten) > Fahrräder & Zubehör",
+          "score": 1253
+        },
+        {
+          "id": "177831",
+          "name": "Fahrräder",
+          "breadcrumb": "Sport > Radsport > Fahrräder",
+          "score": 1238.8
+        },
+        {
+          "id": "136885",
+          "name": "Kinderfahrräder",
+          "breadcrumb": "Spielzeug > Kinderfahrzeuge > Kinderfahrräder",
+          "score": 1219.6
+        },
+        {
+          "id": "30108",
+          "name": "Fahrradcomputer & GPS",
+          "breadcrumb": "Sport > Radsport > Fahrradelektronik > Fahrradcomputer & GPS",
+          "score": 1018.6
+        },
+        {
+          "id": "46453",
+          "name": "Fahrradkörbe & -anhänger",
+          "breadcrumb": "Haustierbedarf > Hunde > Transport & Reisen > Fahrradkörbe & -anhänger",
+          "score": 1018.6
+        },
+        {
+          "id": "85040",
+          "name": "Fahrradanhänger",
+          "breadcrumb": "Sport > Radsport > Fahrradzubehör > Fahrradanhänger",
+          "score": 1018.6
+        },
+        {
+          "id": "111264",
+          "name": "Fahrradspiegel",
+          "breadcrumb": "Sport > Radsport > Fahrradzubehör > Fahrradspiegel",
+          "score": 1018.6
+        },
+        {
+          "id": "158997",
+          "name": "Fahrradständer & Aufbewahrung",
+          "breadcrumb": "Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung",
+          "score": 1018.6
+        }
+      ]
+    }
+  ]
+}

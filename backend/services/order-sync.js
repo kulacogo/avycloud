@@ -154,9 +154,9 @@ async function syncNewOrders() {
     get_unconfirmed_orders: false,
   };
 
-  // Fetch all confirmed orders in the window (no status filter) so picked/shipped are included
-  const statusList = await callBaseLinker('getOrderStatusList', {})?.then((r) => r?.statuses || []).catch(() => []);
-  const statusNameById = new Map(statusList.map((s) => [String(s.id), s.name || '']));
+  // We keep open orders up-to-date. BaseLinker getOrders supports filtering by status_id (official docs).
+  // If "new" status id is resolved, use it to avoid scanning all statuses every time.
+  const shouldFilterStatus = Boolean(baseOrderStatusNew);
 
   const orders = [];
   let cursor = dateFrom;
@@ -169,7 +169,7 @@ async function syncNewOrders() {
     const response = await callBaseLinker('getOrders', {
       ...baseParams,
       date_confirmed_from: cursor,
-      limit: BASELINKER_ORDER_PAGE_LIMIT,
+      ...(shouldFilterStatus ? { status_id: Number(baseOrderStatusNew) } : {}),
     });
 
     const pageOrdersRaw = Array.isArray(response?.orders) ? response.orders : [];
@@ -195,8 +195,7 @@ async function syncNewOrders() {
   // Post-process statuses using resolved names to classify picked/closed
   const pickedId = ORDER_STATUS_ID_CACHE.picked || DEFAULT_PICKED_STATUS_ID;
   orders.forEach((order) => {
-    const rawLabel = statusNameById.get(order.statusId || '') || order.statusLabel || order.orderStatus || '';
-    order.statusLabel = rawLabel || order.statusLabel;
+    const rawLabel = order.statusLabel || order.orderStatus || '';
     const normalized = (rawLabel || '').toLowerCase();
     const isPickedId = order.statusId && String(order.statusId) === String(pickedId);
     const looksCancelled =

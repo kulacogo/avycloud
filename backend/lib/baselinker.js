@@ -86,12 +86,21 @@ Attribute: ${Object.entries(attrs)
 }
 
 /**
- * BaseLinker API – request limiter (100 RPM ⇒ max 5 parallel calls)
+ * BaseLinker API – request limiter
+ *
+ * Official docs (https://api.baselinker.com/index.php): 100 requests per minute.
+ * Use conservative defaults because the limit is global per API token (Cloud Run may scale horizontally).
  */
-// Konservativer: weniger Parallelität, stabiler gegen 429/Timeouts
-const MAX_PARALLEL_REQUESTS = 3;
-// Mindestabstand zwischen Requests in ms (zusätzlich zur Parallelitätsbremse)
-const MIN_REQUEST_INTERVAL_MS = 250;
+const MAX_PARALLEL_REQUESTS = Math.max(
+  1,
+  parseInt(process.env.BASELINKER_MAX_PARALLEL_REQUESTS || '1', 10)
+);
+// Minimum spacing between requests in ms.
+// Default 800ms ≈ 75 RPM per instance (safety margin vs 100 RPM global token limit).
+const MIN_REQUEST_INTERVAL_MS = Math.max(
+  0,
+  parseInt(process.env.BASELINKER_MIN_REQUEST_INTERVAL_MS || '800', 10)
+);
 
 // --- Reserved stock (open orders) ---
 // BaseLinker reduces "available" stock on sale (open orders).
@@ -481,7 +490,8 @@ async function callBaseLinker(method, parameters = {}, retries = 4) {
         response.status === 429 ||
         errCode === 'RATE_LIMIT' ||
         errCode === 'ERROR_BLOCKED_TOKEN' ||
-        /token blocked/i.test(errMsg)
+        /token blocked/i.test(errMsg) ||
+        /maximale anzahl von anrufen pro minute/i.test(errMsg)
       ) {
         // Wenn explizit "blocked until" im Text steht, 60s warten, sonst exponentiell
         const waitMs = /blocked until/i.test(errMsg)
@@ -1173,6 +1183,8 @@ function __buildPayloadForDebug(product, inventoryId) {
 async function findProductBySku(inventoryId, skuOrEan) {
   let page = 1;
   const MAX_PAGES = 2000;
+  // BaseLinker docs: getInventoryProductsList returns up to 1000 products per page.
+  const PRODUCTS_PER_PAGE = 1000;
   const targetSku = normalizeSkuValue(skuOrEan);
   const targetEan = normalizeEanValue(skuOrEan);
 
@@ -1234,7 +1246,7 @@ async function findProductBySku(inventoryId, skuOrEan) {
     const match = pickMatchFromList(products);
 
     if (match) return match;
-    if (products.length < 100) break;
+    if (products.length < PRODUCTS_PER_PAGE) break;
     page += 1;
   }
 

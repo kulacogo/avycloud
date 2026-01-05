@@ -36,6 +36,14 @@ const EBAY_CATEGORIES = JSON.parse(fs.readFileSync(EBAY_CATEGORIES_JSON, 'utf8')
 
 const SUSPICIOUS_ROOTS = new Set(['Sammeln & Seltenes', 'Antiquitäten & Kunst', 'Business & Industrie']);
 
+const EBAY_CATEGORY_LIST = Object.values(EBAY_CATEGORIES || {})
+  .map((c) => ({
+    id: c?.id != null ? String(c.id) : '',
+    name: safeString(c?.name),
+    breadcrumb: safeString(c?.breadcrumb),
+  }))
+  .filter((c) => c.id && c.breadcrumb && c.breadcrumb.includes('>'));
+
 // Gemini function/response schemas reject some JSON Schema keywords (e.g. additionalProperties/default).
 function cleanSchemaForGemini(schema) {
   if (!schema || typeof schema !== 'object') return schema;
@@ -85,6 +93,21 @@ function normalizeText(text = '') {
     .trim();
 }
 
+const SHORT_OK_TOKENS = new Set([
+  'wok',
+  'tens',
+  'ean',
+  'gtin',
+  'upc',
+  'dvd',
+  'cd',
+  'ps5',
+  'ps4',
+  'usb',
+  'dvr',
+  'dvb',
+]);
+
 function tokenize(text = '') {
   const t = normalizeText(text);
   if (!t) return [];
@@ -95,7 +118,26 @@ function tokenize(text = '') {
   return t
     .split(/\s+/g)
     .map((w) => w.trim())
-    .filter((w) => w.length >= 4 && !stop.has(w));
+    .filter((w) => (w.length >= 4 || SHORT_OK_TOKENS.has(w)) && !stop.has(w));
+}
+
+function deriveTokens(tokens = []) {
+  const out = new Set(tokens);
+  for (const raw of tokens) {
+    const t = safeString(raw).toLowerCase();
+    if (!t) continue;
+    if (t.startsWith('haushalt')) out.add('haushalt');
+    if (t.includes('reinig')) out.add('reinigung');
+    if (t.includes('handschuh')) {
+      out.add('handschuhe');
+      out.add('handschuh');
+    }
+    if (t.endsWith('woks')) out.add('wok');
+    if (t.includes('schutzhull') || t.includes('schutzhull')) out.add('schutzhulle');
+    if (t.includes('faltschloss') || (t.includes('schloss') && t.includes('fahrrad'))) out.add('schloss');
+    if (t.includes('rucksack')) out.add('rucksack');
+  }
+  return Array.from(out);
 }
 
 function canonicalBreadcrumb(id) {
@@ -192,13 +234,51 @@ function buildEvidenceText(blocks = []) {
   return lines.join('\n');
 }
 
+function buildEvidenceTextFiltered(blocks = [], anchorTokens = []) {
+  const anchors = (anchorTokens || []).map((t) => safeString(t).toLowerCase()).filter(Boolean);
+  const matchAnchor = (text = '') => {
+    const hay = normalizeText(text);
+    if (!hay) return false;
+    if (!anchors.length) return true;
+    return anchors.some((a) => a && (hay.includes(a) || a.includes(hay)));
+  };
+  const lines = [];
+  for (const b of blocks) {
+    lines.push(`ENGINE=${b.engine} QUERY=${b.query}`);
+    if (b.error) {
+      lines.push(`ERROR: ${b.error}`);
+      lines.push('');
+      continue;
+    }
+    const items = Array.isArray(b.items) ? b.items : [];
+    const filtered = items.filter((it) => matchAnchor(it?.title || '') || matchAnchor(it?.snippet || ''));
+    const chosen = filtered.length ? filtered : items.slice(0, 4); // avoid dumping irrelevant results when anchors don't match
+    chosen.slice(0, 8).forEach((it, idx) => {
+      lines.push(`${idx + 1}. ${safeString(it.title)} | ${safeString(it.source)} | ${safeString(it.url)}`);
+      if (it.snippet) lines.push(`   ${safeString(it.snippet)}`);
+    });
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+function allowSuspiciousRootsByEvidence(productText = '') {
+  const t = normalizeText(productText);
+  if (!t) return false;
+  // TCG/collectibles genuinely live under "Sammeln & Seltenes".
+  if (/\b(tcgs?|sammelkart|pokemon|magic|yu-gi-oh|mtg|comics?)\b/i.test(t)) return true;
+  // True antiques might belong under antiquities.
+  if (/\b(antik|antiquitat|antiquitäten|vintage)\b/i.test(t)) return true;
+  return false;
+}
+
 function scoreCategory(category, evidenceTokens, productTokens) {
   const breadcrumb = safeString(category?.breadcrumb);
   if (!breadcrumb || !breadcrumb.includes('>')) return -Infinity;
   const leaf = safeString(breadcrumb.split('>').pop() || '');
-  const leafTokens = tokenize(leaf);
-  const bcTokens = tokenize(breadcrumb);
-  const nameTokens = tokenize(category?.name || '');
+  const leafTokens = deriveTokens(tokenize(leaf));
+  const bcTokens = deriveTokens(tokenize(breadcrumb));
+  const nameTokens = deriveTokens(tokenize(category?.name || ''));
 
   const overlap = (a, b) => {
     const setB = new Set(b);
@@ -223,26 +303,80 @@ function scoreCategory(category, evidenceTokens, productTokens) {
 
   let penalty = 0;
   if (/sonstige/i.test(leaf)) penalty += 8;
-  if (SUSPICIOUS_ROOTS.has(root)) penalty += 6;
   if (depth <= 2) penalty += 3;
 
-  return leafOverlap * 80 + bcOverlap * 12 + nameOverlap * 10 + depth - penalty;
+  // Affinity bonuses for common misclassified items (household gloves, cookware woks, etc.)
+  const normBc = normalizeText(breadcrumb);
+  let bonus = 0;
+  const has = (tok) => productTokens.includes(tok);
+  if (has('haushalt')) {
+    if (normBc.includes('haushalt') || normBc.includes('putz') || normBc.includes('reinigung')) bonus += 35;
+    if (normBc.includes('handschuhe') && (normBc.includes('damen') || normBc.includes('herren') || normBc.includes('mode'))) bonus -= 35;
+  }
+  if (has('reinigung')) {
+    if (normBc.includes('reinigung')) bonus += 25;
+    if (normBc.includes('handschuhe') && (normBc.includes('damen') || normBc.includes('herren') || normBc.includes('mode'))) bonus -= 30;
+  }
+  if (has('wok')) {
+    if (normBc.includes('wok')) bonus += 45;
+    if (normBc.includes('werkzeug') || normBc.includes('zubehor') || normBc.includes('zubehör')) bonus -= 10;
+  }
+
+  return leafOverlap * 80 + bcOverlap * 12 + nameOverlap * 10 + depth + bonus - penalty;
 }
 
-function buildCandidateShortlist({ productText, evidenceText }, { limit = 60 } = {}) {
-  const evidenceTokens = tokenize(evidenceText);
-  const productTokens = tokenize(productText);
+// Inverted index: token -> category entries (small arrays).
+const TAX_TOKEN_INDEX = (() => {
+  const map = new Map();
+  for (const c of EBAY_CATEGORY_LIST) {
+    const leaf = safeString(c.breadcrumb.split('>').pop() || '');
+    const tokens = deriveTokens([
+      ...tokenize(c.name),
+      ...tokenize(c.breadcrumb),
+      ...tokenize(leaf),
+    ]);
+    for (const t of tokens) {
+      if (!t) continue;
+      if (!map.has(t)) map.set(t, []);
+      map.get(t).push(c);
+    }
+  }
+  return map;
+})();
 
-  const list = Object.values(EBAY_CATEGORIES || {})
-    .map((c) => ({
-      id: c?.id != null ? String(c.id) : '',
-      name: safeString(c?.name),
-      breadcrumb: safeString(c?.breadcrumb),
-    }))
-    .filter((c) => c.id && c.breadcrumb && c.breadcrumb.includes('>'));
+function buildCandidateShortlist({ productText, evidenceText }, { limit = 60 } = {}) {
+  const evidenceTokens = deriveTokens(tokenize(evidenceText));
+  const productTokens = deriveTokens(tokenize(productText));
+  const allowSuspicious = allowSuspiciousRootsByEvidence(`${productText} ${evidenceText}`);
+
+  // Candidate pool from token index first (more reliable than scoring across the whole taxonomy).
+  const pool = new Map(); // id -> entry
+  const seedTokens = Array.from(new Set([...productTokens, ...evidenceTokens])).slice(0, 160);
+  // Process rare/specific tokens first so we don't blow the pool cap on generic matches.
+  seedTokens.sort((a, b) => {
+    const la = (TAX_TOKEN_INDEX.get(a) || []).length || 999999;
+    const lb = (TAX_TOKEN_INDEX.get(b) || []).length || 999999;
+    return la - lb;
+  });
+  for (const t of seedTokens) {
+    const listForToken = TAX_TOKEN_INDEX.get(t);
+    if (!listForToken) continue;
+    for (const entry of listForToken) {
+      if (!entry?.id) continue;
+      pool.set(entry.id, entry);
+      if (pool.size > 4000) break; // cap
+    }
+    if (pool.size > 4000) break;
+  }
+  const list = pool.size ? Array.from(pool.values()) : EBAY_CATEGORY_LIST;
 
   const scored = [];
   for (const c of list) {
+    const root = rootOfBreadcrumb(c.breadcrumb);
+    if (!allowSuspicious && SUSPICIOUS_ROOTS.has(root)) {
+      // Drop suspicious roots unless evidence suggests collectibles/antiques are intended.
+      continue;
+    }
     const score = scoreCategory(c, evidenceTokens, productTokens);
     if (!Number.isFinite(score)) continue;
     scored.push({ ...c, score: Number(score.toFixed(3)) });
@@ -432,11 +566,13 @@ async function main() {
         productSnapshot.currentBreadcrumb,
       ].filter(Boolean).join(' ');
 
-      const candidates = buildCandidateShortlist({ productText, evidenceText }, { limit: 70 });
+      const anchorTokens = deriveTokens(tokenize([productSnapshot.title, productSnapshot.brand, productSnapshot.produktart, productSnapshot.mpn].filter(Boolean).join(' ')));
+      const evidenceFiltered = buildEvidenceTextFiltered(blocks, anchorTokens);
+      const candidates = buildCandidateShortlist({ productText, evidenceText: evidenceFiltered || evidenceText }, { limit: 70 });
       const { categoryId, rationale } = await chooseCategoryWithGemini({
         locale,
         productSnapshot,
-        evidenceText,
+        evidenceText: evidenceFiltered || evidenceText,
         candidates,
       });
 

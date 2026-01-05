@@ -1,0 +1,9 @@
+{
+  "total": 420,
+  "flags": {
+    "barcode_missing": 82,
+    "category_id_missing": 52,
+    "category_text_not_breadcrumb": 50,
+    "category_too_broad": 22
+  }
+}
