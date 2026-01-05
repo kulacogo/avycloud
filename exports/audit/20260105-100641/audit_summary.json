@@ -1,0 +1,11 @@
+{
+  "total": 420,
+  "flags": {
+    "barcode_invalid_checkdigit": 61,
+    "category_id_missing": 52,
+    "barcode_nonstandard_length": 36,
+    "category_text_not_breadcrumb": 50,
+    "category_too_broad": 22,
+    "barcode_missing": 37
+  }
+}

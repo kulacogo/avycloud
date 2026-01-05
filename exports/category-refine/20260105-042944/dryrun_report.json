@@ -1,0 +1,72 @@
+[
+  {
+    "docId": "0099557e-b9f0-45a4-9c7c-d6418e7daac5",
+    "sku": "SKU-2250869990",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Sport > Radsport > Fahrradteile & -komponenten > Fahrradständer"
+  },
+  {
+    "docId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Tierbedarf > Hunde > Betten & Möbel > Hundepools"
+  },
+  {
+    "docId": "09be7756-7b4f-4dda-bda0-799754052fff",
+    "sku": "SKU-3671103995",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Federung & Lenkung > Federbeinlager & Domlager"
+  },
+  {
+    "docId": "1004200304684",
+    "sku": "SKU-4955195373",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Motorrad: Teile > Öle, Schmier- & Betriebsstoffe > Motoröl"
+  },
+  {
+    "docId": "14006633314036",
+    "sku": "SKU-7591395419",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Bremsen > Bremsscheiben"
+  },
+  {
+    "docId": "1011190149611",
+    "sku": "SKU-3023625088",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Heimwerker > Werkzeuge > Handwerkzeuge > Gewindewerkzeuge > Gewindereparatursets"
+  },
+  {
+    "docId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Wassersport > Tauchen & Schnorcheln > Flossen > Schnorchelflossen"
+  },
+  {
+    "docId": "1900201150572",
+    "sku": "SKU-8902752253",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Bremsenteile > Bremsscheiben"
+  },
+  {
+    "docId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Handys & Kommunikation > Handy-Zubehör > Handyhüllen & Schutzfolien > Hüllen & Schutzhüllen > Für Apple > Für iPhone"
+  },
+  {
+    "docId": "20220424000047",
+    "sku": "SKU-6511282128",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing > Mauspads"
+  }
+]

@@ -15,6 +15,7 @@ const path = require('path');
 const { getAllProducts } = require('../lib/firestore');
 const { isValidGtin } = require('../lib/gtin');
 const { containsBannedListingText, PRICE_SENTENCE_RE, PLACEHOLDER_RE, UI_TEMPLATE_RE } = require('../lib/listing-sanitize');
+const { findEbayCategory } = require('../lib/ebay-taxonomy');
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -78,6 +79,8 @@ function buildFlags(product) {
   const shortDesc = safeString(product?.details?.short_description);
   const highlights = Array.isArray(product?.details?.key_features) ? product.details.key_features : [];
   const attrs = product?.details?.attributes && typeof product.details.attributes === 'object' ? product.details.attributes : {};
+  const category = safeString(product?.identification?.category);
+  const categoryId = safeString(product?.details?.categoryId);
 
   const titleLen = title.length;
   if (titleLen < 70) flags.push('title_lt_70');
@@ -104,6 +107,23 @@ function buildFlags(product) {
   if (invalid.length) flags.push('barcode_invalid_checkdigit');
   const weirdLength = codes.filter((c) => ![8, 12, 13, 14].includes(c.length));
   if (weirdLength.length) flags.push('barcode_nonstandard_length');
+
+  // Category quality:
+  // - Prefer having a canonical eBay categoryId
+  // - Prefer having a breadcrumb path (>=2 levels) for listing/category consistency
+  if (!categoryId) {
+    flags.push('category_id_missing');
+  } else {
+    const resolved = findEbayCategory(categoryId);
+    const breadcrumb = safeString(resolved?.breadcrumb);
+    if (!breadcrumb) {
+      flags.push('category_id_unknown');
+    } else if (!breadcrumb.includes('>')) {
+      flags.push('category_too_broad');
+    }
+  }
+  if (!category) flags.push('category_text_missing');
+  if (category && !category.includes('>')) flags.push('category_text_not_breadcrumb');
 
   return { flags, invalidBarcodes: invalid, nonstandardBarcodes: weirdLength };
 }

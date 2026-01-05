@@ -1,0 +1,249 @@
+[
+  {
+    "docId": "04052938000016",
+    "sku": "SKU-4641833225",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "Pierburg Luftmassenmesser 7.22184.39.0 Schwarz Kunststoff NEU Nein Gebraucht",
+    "before_len": 76,
+    "after": "Pierburg Luftmassenmesser 7.22184.39.0 Schwarz Kunststoff NEU Nein Heimwerker",
+    "after_len": 77,
+    "updates": {
+      "identification.name": "Pierburg Luftmassenmesser 7.22184.39.0 Schwarz Kunststoff NEU Nein Heimwerker",
+      "ops.last_saved_source": "title-normalize",
+      "ops.last_saved_iso": "2026-01-05T09:06:02.741Z",
+      "ops.data_quality": {
+        "last_cleanup_iso": "2026-01-05T02:18:38.515Z",
+        "cleanup_v1": {
+          "flags": [
+            "cleaned_attributes_meta_keys"
+          ],
+          "note": "Moved 3 attribute keys to attributes_extra."
+        },
+        "title_policy_v1": {
+          "iso": "2026-01-05T09:06:02.741Z",
+          "before": "Pierburg Luftmassenmesser 7.22184.39.0 Schwarz Kunststoff NEU Nein Gebraucht",
+          "after": "Pierburg Luftmassenmesser 7.22184.39.0 Schwarz Kunststoff NEU Nein Heimwerker",
+          "before_len": 76,
+          "after_len": 77
+        },
+        "condition_sanitized_v1": {
+          "iso": "2026-01-05T09:06:02.741Z",
+          "before": "Gebraucht",
+          "after": "NEU",
+          "locked": false
+        }
+      },
+      "details.attributes.Zustand": "NEU"
+    }
+  },
+  {
+    "docId": "2024080701046",
+    "sku": "SKU-0545917168",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "SPURTAR Messschieber 0-150mm NEU gebraucht used DIN 862 Präzision 0.02mm",
+    "before_len": 72,
+    "after": "SPURTAR Messschieber 0-150mm NEU DIN 862 Präzision 0.02mm Business Industrie",
+    "after_len": 76,
+    "updates": {
+      "identification.name": "SPURTAR Messschieber 0-150mm NEU DIN 862 Präzision 0.02mm Business Industrie",
+      "ops.last_saved_source": "title-normalize",
+      "ops.last_saved_iso": "2026-01-05T09:06:02.744Z",
+      "ops.data_quality": {
+        "title_policy_v1": {
+          "iso": "2026-01-05T09:06:02.744Z",
+          "before": "SPURTAR Messschieber 0-150mm NEU gebraucht used DIN 862 Präzision 0.02mm",
+          "after": "SPURTAR Messschieber 0-150mm NEU DIN 862 Präzision 0.02mm Business Industrie",
+          "before_len": 72,
+          "after_len": 76
+        },
+        "category_refined_to": "Business & Industrie > Werkzeuge & Werkstattbedarf > Mess- & Prüfwerkzeuge > Messschieber",
+        "category_refined_by": "gemini",
+        "category_refined_from": "Messwerkzeuge",
+        "category_refined_iso": "2026-01-05T03:58:05.050Z",
+        "condition_sanitized_v1": {
+          "iso": "2026-01-05T09:06:02.744Z",
+          "before": "gebraucht",
+          "after": "NEU",
+          "locked": false
+        }
+      },
+      "details.attributes.Zustand": "NEU"
+    }
+  },
+  {
+    "docId": "2810449728013",
+    "sku": "SKU-3982672342",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "Unbekannt Autoradio 6S9701P NEU Schwarz Android used Motorrad Teile GPS",
+    "before_len": 71,
+    "after": "Unbekannt Autoradio 6S9701P NEU Schwarz Android Motorrad Teile GPS Autoradios",
+    "after_len": 77,
+    "updates": {
+      "identification.name": "Unbekannt Autoradio 6S9701P NEU Schwarz Android Motorrad Teile GPS Autoradios",
+      "ops.last_saved_source": "title-normalize",
+      "ops.last_saved_iso": "2026-01-05T09:06:02.745Z",
+      "ops.data_quality": {
+        "last_cleanup_iso": "2026-01-05T02:18:38.518Z",
+        "title_policy_v1": {
+          "iso": "2026-01-05T09:06:02.745Z",
+          "before": "Unbekannt Autoradio 6S9701P NEU Schwarz Android used Motorrad Teile GPS",
+          "after": "Unbekannt Autoradio 6S9701P NEU Schwarz Android Motorrad Teile GPS Autoradios",
+          "before_len": 71,
+          "after_len": 77
+        },
+        "cleanup_v1": {
+          "flags": [
+            "cleaned_attributes_meta_keys"
+          ],
+          "note": "Moved 6 attribute keys to attributes_extra."
+        },
+        "condition_sanitized_v1": {
+          "iso": "2026-01-05T09:06:02.745Z",
+          "before": "used",
+          "after": "NEU",
+          "locked": false
+        }
+      },
+      "details.attributes.Zustand": "NEU"
+    }
+  },
+  {
+    "docId": "5060570201660",
+    "sku": "SKU-8735317765",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "VaultX Deck Box Schwarz NEU Sammelkarten Gebraucht Exo-Tec Toploading 80+",
+    "before_len": 73,
+    "after": "VaultX Deck Box Schwarz NEU Sammelkarten Exo-Tec Toploading 80+ Sammeln",
+    "after_len": 71,
+    "updates": {
+      "identification.name": "VaultX Deck Box Schwarz NEU Sammelkarten Exo-Tec Toploading 80+ Sammeln",
+      "ops.last_saved_source": "title-normalize",
+      "ops.last_saved_iso": "2026-01-05T09:06:02.752Z",
+      "ops.data_quality": {
+        "title_policy_v1": {
+          "iso": "2026-01-05T09:06:02.752Z",
+          "before": "VaultX Deck Box Schwarz NEU Sammelkarten Gebraucht Exo-Tec Toploading 80+",
+          "after": "VaultX Deck Box Schwarz NEU Sammelkarten Exo-Tec Toploading 80+ Sammeln",
+          "before_len": 73,
+          "after_len": 71
+        },
+        "category_refined_by": "rules",
+        "category_refined_iso": "2026-01-05T03:55:16.167Z",
+        "category_refined_to": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Deck-Boxen, Blechdosen & Kartentrenner",
+        "category_refined_from": "Sammelkarten Zubehör",
+        "condition_sanitized_v1": {
+          "iso": "2026-01-05T09:06:02.752Z",
+          "before": "Gebraucht",
+          "after": "NEU",
+          "locked": false
+        }
+      },
+      "details.attributes.Zustand": "NEU"
+    }
+  },
+  {
+    "docId": "SKU-1153910217",
+    "sku": "SKU-1153910217",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "Shure Vintage Pro-Audio Equipment SM58-LCE SM58-LCE Schwarz NEU Gebraucht",
+    "before_len": 73,
+    "after": "Shure Vintage Pro-Audio Equipment SM58-LCE SM58-LCE Schwarz NEU Musikinstrumente",
+    "after_len": 80,
+    "updates": {
+      "identification.name": "Shure Vintage Pro-Audio Equipment SM58-LCE SM58-LCE Schwarz NEU Musikinstrumente",
+      "ops.last_saved_source": "title-normalize",
+      "ops.last_saved_iso": "2026-01-05T09:06:02.755Z",
+      "ops.data_quality": {
+        "title_policy_v1": {
+          "iso": "2026-01-05T09:06:02.755Z",
+          "before": "Shure Vintage Pro-Audio Equipment SM58-LCE SM58-LCE Schwarz NEU Gebraucht",
+          "after": "Shure Vintage Pro-Audio Equipment SM58-LCE SM58-LCE Schwarz NEU Musikinstrumente",
+          "before_len": 73,
+          "after_len": 80
+        },
+        "condition_sanitized_v1": {
+          "iso": "2026-01-05T09:06:02.755Z",
+          "before": "Gebraucht",
+          "after": "NEU",
+          "locked": false
+        }
+      },
+      "details.attributes.Zustand": "NEU"
+    }
+  },
+  {
+    "docId": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+    "sku": "SKU-0716100821",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "SOMAN Integralhelm A154956/202401/03705 NEU Pink, Schwarz, Lila Gr. S Gebraucht",
+    "before_len": 79,
+    "after": "SOMAN Integralhelm A154956/202401/03705 NEU Pink, Schwarz, Lila Gr. S -Zubehör",
+    "after_len": 78,
+    "updates": {
+      "identification.name": "SOMAN Integralhelm A154956/202401/03705 NEU Pink, Schwarz, Lila Gr. S -Zubehör",
+      "ops.last_saved_source": "title-normalize",
+      "ops.last_saved_iso": "2026-01-05T09:06:02.762Z",
+      "ops.data_quality": {
+        "cleanup_v1": {
+          "flags": [
+            "short_description_had_banned_content",
+            "deleted_short_description_placeholder"
+          ],
+          "note": ""
+        },
+        "last_cleanup_iso": "2026-01-05T02:18:38.528Z",
+        "title_policy_v1": {
+          "iso": "2026-01-05T09:06:02.762Z",
+          "before": "SOMAN Integralhelm A154956/202401/03705 NEU Pink, Schwarz, Lila Gr. S Gebraucht",
+          "after": "SOMAN Integralhelm A154956/202401/03705 NEU Pink, Schwarz, Lila Gr. S -Zubehör",
+          "before_len": 79,
+          "after_len": 78
+        },
+        "condition_sanitized_v1": {
+          "iso": "2026-01-05T09:06:02.762Z",
+          "before": "Gebraucht",
+          "after": "NEU",
+          "locked": false
+        }
+      },
+      "details.attributes.Zustand": "NEU"
+    }
+  },
+  {
+    "docId": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+    "sku": "SKU-1536365981",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "Unbekannt Backform Einsatz Schwarz Silikon NEU Gebraucht Airfryer 2er Set",
+    "before_len": 73,
+    "after": "Unbekannt Backform Einsatz Schwarz Silikon NEU Airfryer 2er Set Haushalt",
+    "after_len": 72,
+    "updates": {
+      "identification.name": "Unbekannt Backform Einsatz Schwarz Silikon NEU Airfryer 2er Set Haushalt",
+      "ops.last_saved_source": "title-normalize",
+      "ops.last_saved_iso": "2026-01-05T09:06:02.762Z",
+      "ops.data_quality": {
+        "title_policy_v1": {
+          "iso": "2026-01-05T09:06:02.762Z",
+          "before": "Unbekannt Backform Einsatz Schwarz Silikon NEU Gebraucht Airfryer 2er Set",
+          "after": "Unbekannt Backform Einsatz Schwarz Silikon NEU Airfryer 2er Set Haushalt",
+          "before_len": 73,
+          "after_len": 72
+        },
+        "condition_sanitized_v1": {
+          "iso": "2026-01-05T09:06:02.762Z",
+          "before": "Gebraucht",
+          "after": "NEU",
+          "locked": false
+        }
+      },
+      "details.attributes.Zustand": "NEU"
+    }
+  }
+]

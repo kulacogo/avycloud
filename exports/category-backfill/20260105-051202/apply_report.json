@@ -1,0 +1,194 @@
+[
+  {
+    "docId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Tierbedarf > Hunde > Betten & Möbel > Hundepools"
+  },
+  {
+    "docId": "20220424000047",
+    "sku": "SKU-6511282128",
+    "status": "update",
+    "catText": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing > Mauspads",
+    "match": {
+      "id": "23895",
+      "breadcrumb": "Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Mauspads & Handgelenkauflagen",
+      "score": 183,
+      "margin": 183
+    }
+  },
+  {
+    "docId": "2312388888888",
+    "sku": "SKU-5446097686",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haushalt & Wohnen > Reinigung > Ultraschallreiniger"
+  },
+  {
+    "docId": "247e01a5-fa99-4b01-be0a-fefbe97a145d",
+    "sku": "SKU-3050715048",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker > Handwerkzeuge > Werkzeugsets"
+  },
+  {
+    "docId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "sku": "SKU-7753504850",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Tierbedarf > Nutztiere > Rinderzubehör > Futterergänzungsmittel"
+  },
+  {
+    "docId": "4040074122754",
+    "sku": "SKU-0945605804",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad: Teile > Öle, Flüssigkeiten & Additive > Getriebeöle"
+  },
+  {
+    "docId": "4040074137246",
+    "sku": "SKU-9078406333",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Filter > Filter-Sets"
+  },
+  {
+    "docId": "4063541990120",
+    "sku": "SKU-4973901806",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Herrenbekleidung > Sweatshirts & Hoodies"
+  },
+  {
+    "docId": "45005591930000",
+    "sku": "SKU-6587967689",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > Unterwäsche > Boxershorts & Trunks"
+  },
+  {
+    "docId": "48fe16c6-bdc6-42f6-862e-fc9eb4962c93",
+    "sku": "SKU-3756924465",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Tierbedarf > Aquaristik > Aquarienheizungen"
+  },
+  {
+    "docId": "61cb13b8-ef09-4959-821e-c2d63fcd8038",
+    "sku": "SKU-9014992269",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport > Radsport > Fahrradteile & -komponenten > Beleuchtung > Rücklichter"
+  },
+  {
+    "docId": "6957303824717",
+    "sku": "SKU-9003235487",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Computer, Tablets & Netzwerk > Laptop- & Desktop-Zubehör > Laptop-Ständer & -Halter"
+  },
+  {
+    "docId": "8004815313234",
+    "sku": "SKU-1316800430",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Wohnmobil- & Wohnwagenzubehör > Nivellierkeile"
+  },
+  {
+    "docId": "8088208802015",
+    "sku": "SKU-6543182729",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimtextilien > Bettwäsche & Bettlaken > Spannbettlaken"
+  },
+  {
+    "docId": "81715585302754",
+    "sku": "SKU-3938831828",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Baby & Kind > Essen & Trinken > Geschirr & Besteck > Esslernbesteck"
+  },
+  {
+    "docId": "81717285233178",
+    "sku": "SKU-5764056320",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimtextilien & Bettwaren > Bettwäsche"
+  },
+  {
+    "docId": "8717475102703",
+    "sku": "SKU-7333529126",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Fahrzeugteile > Karosserie & Exterieur > Spiegel & Zubehör > Außenspiegel"
+  },
+  {
+    "docId": "8719115000028",
+    "sku": "SKU-8798489036",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Herrenmode > Unterwäsche > Boxershorts"
+  },
+  {
+    "docId": "8b41bda6-bc97-4d34-8644-f081c7d180cb",
+    "sku": "SKU-2629282795",
+    "status": "update",
+    "catText": "Büro & Schreibwaren > Büromöbel > Aktenschränke",
+    "match": {
+      "id": "127551",
+      "breadcrumb": "Büro & Schreibwaren > Büromöbel > Schränke & Regale > Aktenschränke",
+      "score": 164,
+      "margin": 164
+    }
+  },
+  {
+    "docId": "9e35f9b4-5df8-4db7-9dd7-31e4491488ef",
+    "sku": "SKU-6469360404",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimtextilien > Bettwäsche & Bettwaren > Spannbettlaken"
+  },
+  {
+    "docId": "ad08f46f-d233-4c4f-b5c5-bc803ce5018e",
+    "sku": "SKU-5748131128",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Federung & Lenkung > Querlenker & Teile"
+  },
+  {
+    "docId": "b82f2e03-f4e9-4cef-8984-364a6a8cfc8e",
+    "sku": "SKU-3350934915",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Garten & Freizeit > Gartenbeleuchtung > Solarleuchten"
+  },
+  {
+    "docId": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+    "sku": "SKU-0716100821",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Motorrad-Teile & -Zubehör > Helme & Kopfbedeckungen > Helme"
+  },
+  {
+    "docId": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+    "sku": "SKU-1536365981",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haushalt & Wohnen > Küche, Kochen & Genießen > Küchengeräte > Fritteusen & Heißluftfritteusen Zubehör"
+  },
+  {
+    "docId": "f2028097-7287-47f8-b694-d663960758ec",
+    "sku": "SKU-2204782559",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Spielzeug > Baukästen & Konstruktion > Magnetspielzeug"
+  },
+  {
+    "docId": "f8fc404d-90b9-408f-a0a5-53038fdbd793",
+    "sku": "SKU-7447779999",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Basteln & Handarbeiten > Malen & Zeichnen > Kalligrafie & Lettering > Kalligrafie-Sets"
+  }
+]

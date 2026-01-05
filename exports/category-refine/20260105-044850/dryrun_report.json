@@ -1,0 +1,162 @@
+[
+  {
+    "docId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Tierbedarf > Hunde > Betten & Möbel > Hundepools"
+  },
+  {
+    "docId": "0099557e-b9f0-45a4-9c7c-d6418e7daac5",
+    "sku": "SKU-2250869990",
+    "status": "update",
+    "proposedPath": "Sport > Radsport > Fahrradteile & -komponenten > Fahrradständer",
+    "resolvedId": "158997",
+    "canonical": "Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung",
+    "updates": {
+      "details.categoryId": "158997",
+      "identification.category": "Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:48:54.871Z",
+        "category_refined_from": "Sport > Radsport > Fahrradteile & -komponenten > Fahrradständer",
+        "category_refined_to": "Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung"
+      }
+    }
+  },
+  {
+    "docId": "1004200304684",
+    "sku": "SKU-4955195373",
+    "status": "update",
+    "proposedPath": "Motorrad: Teile > Öle, Schmier- & Betriebsstoffe > Motoröl",
+    "resolvedId": "179496",
+    "canonical": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl",
+    "updates": {
+      "details.categoryId": "179496",
+      "identification.category": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:48:57.929Z",
+        "category_refined_from": "Auto & Motorrad: Teile > Öle, Schmier- & Betriebsstoffe > Motoröl",
+        "category_refined_to": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+      }
+    }
+  },
+  {
+    "docId": "09be7756-7b4f-4dda-bda0-799754052fff",
+    "sku": "SKU-3671103995",
+    "status": "update",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Federung & Lenkung > Stoßdämpfer & Federbeine > Federbeinlager & Domlager",
+    "resolvedId": "180391",
+    "canonical": "Auto & Motorrad: Teile > Auto-Tuning & -Styling > Sportfederung > Domlager",
+    "updates": {
+      "details.categoryId": "180391",
+      "identification.category": "Auto & Motorrad: Teile > Auto-Tuning & -Styling > Sportfederung > Domlager",
+      "ops.data_quality": {
+        "last_cleanup_iso": "2026-01-05T02:18:38.516Z",
+        "cleanup_v1": {
+          "flags": [
+            "cleaned_attributes_meta_keys"
+          ],
+          "note": "Moved 1 attribute keys to attributes_extra."
+        },
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:48:58.973Z",
+        "category_refined_from": "Auto & Motorrad: Teile",
+        "category_refined_to": "Auto & Motorrad: Teile > Auto-Tuning & -Styling > Sportfederung > Domlager"
+      }
+    }
+  },
+  {
+    "docId": "14006633314036",
+    "sku": "SKU-7591395419",
+    "status": "update",
+    "proposedPath": "Auto & Motorrad: Teile > Autoteile > Bremsen > Bremsscheiben",
+    "resolvedId": "33564",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben",
+    "updates": {
+      "details.categoryId": "33564",
+      "identification.category": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben",
+      "ops.data_quality": {
+        "last_cleanup_iso": "2026-01-05T02:18:38.516Z",
+        "cleanup_v1": {
+          "flags": [
+            "cleaned_attributes_meta_keys"
+          ],
+          "note": "Moved 3 attribute keys to attributes_extra."
+        },
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:49:01.076Z",
+        "category_refined_from": "Auto & Motorrad: Teile",
+        "category_refined_to": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben"
+      }
+    }
+  },
+  {
+    "docId": "1011190149611",
+    "sku": "SKU-3023625088",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Heimwerker > Werkzeuge > Handwerkzeuge > Gewindewerkzeuge"
+  },
+  {
+    "docId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Handys & Kommunikation > Handy-Zubehör > Handyhüllen & Schutzfolien > Handyhüllen > Für Apple"
+  },
+  {
+    "docId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "status": "update",
+    "proposedPath": "Wassersport > Tauchen & Schnorcheln > Flossen > Schnorchelflossen",
+    "resolvedId": "44647",
+    "canonical": "Sport > Tauchen > ABC & Blei > Schnorchelflossen",
+    "updates": {
+      "details.categoryId": "44647",
+      "identification.category": "Sport > Tauchen > ABC & Blei > Schnorchelflossen",
+      "ops.data_quality": {
+        "last_cleanup_iso": "2026-01-05T02:18:38.517Z",
+        "cleanup_v1": {
+          "note": "",
+          "flags": [
+            "short_description_had_banned_content",
+            "deleted_short_description_placeholder"
+          ]
+        },
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:49:07.405Z",
+        "category_refined_from": "Wassersport > Tauchen & Schnorcheln > Flossen",
+        "category_refined_to": "Sport > Tauchen > ABC & Blei > Schnorchelflossen"
+      }
+    }
+  },
+  {
+    "docId": "1900201150572",
+    "sku": "SKU-8902752253",
+    "status": "update",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Bremsenteile > Bremsscheiben",
+    "resolvedId": "33564",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben",
+    "updates": {
+      "details.categoryId": "33564",
+      "identification.category": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:49:08.562Z",
+        "category_refined_from": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Bremsenteile > Bremsscheiben",
+        "category_refined_to": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben"
+      }
+    }
+  },
+  {
+    "docId": "20220424000047",
+    "sku": "SKU-6511282128",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing > Mauspads > Gaming Mauspads",
+    "resolvedId": "23895",
+    "canonical": "Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Mauspads & Handgelenkauflagen"
+  }
+]

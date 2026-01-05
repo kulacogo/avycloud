@@ -1,0 +1,104 @@
+[
+  {
+    "docId": "0099557e-b9f0-45a4-9c7c-d6418e7daac5",
+    "sku": "SKU-2250869990",
+    "status": "skip",
+    "reason": "no_product_evidence_for_leaf",
+    "proposedPath": "Sport > Radsport > Fahrradteile & -komponenten > Fahrradständer",
+    "resolvedId": "36137",
+    "canonical": "Sport > Radsport > Fahrradteile & -komponenten > Pedale"
+  },
+  {
+    "docId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Tierbedarf > Hunde > Betten & Möbel > Hundepools"
+  },
+  {
+    "docId": "09be7756-7b4f-4dda-bda0-799754052fff",
+    "sku": "SKU-3671103995",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Federung & Lenkung > Federung > Federbeine & Stoßdämpfer > Domlager & Federbeinlager"
+  },
+  {
+    "docId": "1004200304684",
+    "sku": "SKU-4955195373",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Motorradteile > Öle, Schmier- & Betriebsstoffe > Motoröl"
+  },
+  {
+    "docId": "1011190149611",
+    "sku": "SKU-3023625088",
+    "status": "skip",
+    "reason": "no_product_evidence_for_leaf",
+    "proposedPath": "Heimwerker > Werkzeuge > Handwerkzeuge > Gewindeschneidwerkzeuge",
+    "resolvedId": "19785",
+    "canonical": "Heimwerker > Werkzeuge > Handwerkzeuge > Schraubenschlüssel > Sonstige"
+  },
+  {
+    "docId": "14006633314036",
+    "sku": "SKU-7591395419",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Bremsen > Bremsscheiben"
+  },
+  {
+    "docId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Sport > Wassersport > Tauchen & Schnorcheln > Flossen > Schnorchelflossen"
+  },
+  {
+    "docId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "update",
+    "resolvedId": "9394",
+    "canonical": "Handys & Kommunikation > Handy-Zubehör",
+    "updates": {
+      "details.categoryId": "9394",
+      "identification.category": "Handys & Kommunikation > Handy-Zubehör",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:33:49.307Z",
+        "category_refined_from": "Handyhüllen",
+        "category_refined_to": "Handys & Kommunikation > Handy-Zubehör"
+      }
+    }
+  },
+  {
+    "docId": "1900201150572",
+    "sku": "SKU-8902752253",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Bremsenteile > Bremsscheiben"
+  },
+  {
+    "docId": "20220424000047",
+    "sku": "SKU-6511282128",
+    "status": "update",
+    "resolvedId": "47779",
+    "canonical": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing > Tastatur- & Maus-Sets",
+    "updates": {
+      "details.categoryId": "47779",
+      "identification.category": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing > Tastatur- & Maus-Sets",
+      "ops.data_quality": {
+        "last_cleanup_iso": "2026-01-05T02:18:38.517Z",
+        "cleanup_v1": {
+          "note": "",
+          "flags": [
+            "short_description_had_banned_content",
+            "cleaned_short_description"
+          ]
+        },
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:33:53.228Z",
+        "category_refined_from": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing > Mauspads",
+        "category_refined_to": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing > Tastatur- & Maus-Sets"
+      }
+    }
+  }
+]

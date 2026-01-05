@@ -143,6 +143,12 @@ function extractWords(text = '', { max = 60 } = {}) {
   return out;
 }
 
+function isUsedWordToken(word = '') {
+  const w = safeString(word);
+  if (!w) return false;
+  return /\b(gebraucht|used|pre[-\s]?owned|secondhand|second|hand|b-ware|refurb(?:ished)?|renewed)\b/i.test(w);
+}
+
 function pickAttr(attrs, ...keys) {
   for (const key of keys) {
     const val = attrs?.[key];
@@ -219,8 +225,12 @@ function collectPaddingTokens(product) {
   uniqPush(tokens, pickAttr(attrs, 'Edition', 'Ausgabe'));
 
   // Condition (only if explicitly present)
-  const condition = pickAttr(attrs, 'Zustand');
-  if (condition) uniqPush(tokens, condition);
+  const explicitCondition = pickAttr(attrs, 'Zustand');
+  if (explicitCondition) {
+    // IMPORTANT: Do not allow "used/gebraucht" to leak into titles unless condition is explicitly locked by humans.
+    // inferCondition() already enforces that rule.
+    uniqPush(tokens, inferCondition(product));
+  }
 
   return tokens.filter(Boolean);
 }
@@ -365,16 +375,17 @@ function coerceTitleToPolicy(product, proposedTitle, { minLen = 70, maxLen = 80 
     product?.details?.attributes && typeof product.details.attributes === 'object'
       ? product.details.attributes
       : {};
-  const explicitCondition = pickAttr(attrs, 'Zustand');
+  const conditionLocked = Boolean(product?.ops?.condition_locked);
 
   let title = stripSkuNoise(proposedTitle || '');
-  if (!explicitCondition) {
+  // Remove used-condition leakage unless explicitly curated by humans (condition_locked).
+  if (!conditionLocked) {
     title = stripUsedCondition(title);
   }
   if (!title) {
     title = stripSkuNoise(product?.identification?.name || '');
   }
-  if (!explicitCondition) {
+  if (!conditionLocked) {
     title = stripUsedCondition(title);
   }
 
@@ -431,12 +442,15 @@ function coerceTitleToPolicy(product, proposedTitle, { minLen = 70, maxLen = 80 
   if (title.length < minLen) {
     const categoryText = normalizeSpaces(String(product?.identification?.category || ''));
     const shortDesc = safeString(product?.details?.short_description || '');
-    const fallbackWords = [
+    let fallbackWords = [
       ...extractWords(proposedTitle || ''),
       ...extractWords(product?.identification?.name || ''),
       ...extractWords(categoryText, { max: 160 }),
       ...extractWords(shortDesc, { max: 120 }),
     ];
+    if (!conditionLocked) {
+      fallbackWords = fallbackWords.filter((w) => !isUsedWordToken(w));
+    }
     title = appendTokens(title, fallbackWords, { minLen, maxLen });
   }
 
@@ -467,7 +481,10 @@ function coerceTitleToPolicy(product, proposedTitle, { minLen = 70, maxLen = 80 
   if (title.length < minLen) {
     const categoryAll = safeString(product?.identification?.category || '');
     const shortDesc = safeString(product?.details?.short_description || '');
-    const rescue = [...extractWords(categoryAll, { max: 200 }), ...extractWords(shortDesc, { max: 200 })];
+    let rescue = [...extractWords(categoryAll, { max: 200 }), ...extractWords(shortDesc, { max: 200 })];
+    if (!conditionLocked) {
+      rescue = rescue.filter((w) => !isUsedWordToken(w));
+    }
     title = appendTokens(title, rescue, { minLen, maxLen });
     title = normalizeSpaces(title);
     if (title.length > maxLen) title = truncateToMax(title, maxLen);

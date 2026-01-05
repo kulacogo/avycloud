@@ -1,0 +1,831 @@
+[
+  {
+    "docId": "09be7756-7b4f-4dda-bda0-799754052fff",
+    "sku": "SKU-3671103995",
+    "status": "update",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Federung & Lenkung > Federbeine & Stoßdämpfer > Federbeinlager & Domlager",
+    "resolvedId": "180391",
+    "canonical": "Auto & Motorrad: Teile > Auto-Tuning & -Styling > Sportfederung > Domlager",
+    "updates": {
+      "details.categoryId": "180391",
+      "identification.category": "Auto & Motorrad: Teile > Auto-Tuning & -Styling > Sportfederung > Domlager",
+      "ops.data_quality": {
+        "last_cleanup_iso": "2026-01-05T02:18:38.516Z",
+        "cleanup_v1": {
+          "flags": [
+            "cleaned_attributes_meta_keys"
+          ],
+          "note": "Moved 1 attribute keys to attributes_extra."
+        },
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:57:55.965Z",
+        "category_refined_from": "Auto & Motorrad: Teile",
+        "category_refined_to": "Auto & Motorrad: Teile > Auto-Tuning & -Styling > Sportfederung > Domlager"
+      }
+    }
+  },
+  {
+    "docId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Tierbedarf > Hunde > Betten & Möbel > Hundepools"
+  },
+  {
+    "docId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Handys & Kommunikation > Handy-Zubehör > Handyhüllen & Schutzfolien > Handyhüllen > Für Apple > Für Apple iPhone"
+  },
+  {
+    "docId": "1011190149611",
+    "sku": "SKU-3023625088",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Heimwerker > Werkzeuge > Handwerkzeuge > Gewindeschneider & -bohrer",
+    "resolvedId": "50382",
+    "canonical": "Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör > Bohrer-Bits"
+  },
+  {
+    "docId": "20220424000047",
+    "sku": "SKU-6511282128",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing > Mauspads > Gaming-Mauspads",
+    "resolvedId": "23895",
+    "canonical": "Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Mauspads & Handgelenkauflagen"
+  },
+  {
+    "docId": "2312388888888",
+    "sku": "SKU-5446097686",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Haushalt & Wohnen > Reinigung > Ultraschallreiniger"
+  },
+  {
+    "docId": "247e01a5-fa99-4b01-be0a-fefbe97a145d",
+    "sku": "SKU-3050715048",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Heimwerker > Handwerkzeuge > Steckschlüsselsätze"
+  },
+  {
+    "docId": "2024080701046",
+    "sku": "SKU-0545917168",
+    "status": "update",
+    "proposedPath": "Business & Industrie > Werkzeuge & Werkstattbedarf > Mess-, Prüf- & Inspektionsgeräte > Messschieber",
+    "resolvedId": "131261",
+    "canonical": "Business & Industrie > Werkzeuge & Werkstattbedarf > Mess- & Prüfwerkzeuge > Messschieber",
+    "updates": {
+      "details.categoryId": "131261",
+      "identification.category": "Business & Industrie > Werkzeuge & Werkstattbedarf > Mess- & Prüfwerkzeuge > Messschieber",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:58:05.050Z",
+        "category_refined_from": "Messwerkzeuge",
+        "category_refined_to": "Business & Industrie > Werkzeuge & Werkstattbedarf > Mess- & Prüfwerkzeuge > Messschieber"
+      }
+    }
+  },
+  {
+    "docId": "31080024102010",
+    "sku": "SKU-2941051529",
+    "status": "update",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Bremsenteile > Bremsscheiben",
+    "resolvedId": "33564",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben",
+    "updates": {
+      "details.categoryId": "33564",
+      "identification.category": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:58:09.671Z",
+        "category_refined_from": "Bremsscheiben",
+        "category_refined_to": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben"
+      }
+    }
+  },
+  {
+    "docId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "sku": "SKU-7753504850",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Tierbedarf > Nutztiere > Rinderzubehör > Futterergänzungsmittel"
+  },
+  {
+    "docId": "3165143111321",
+    "sku": "SKU-6206509150",
+    "status": "skip",
+    "reason": "no_product_evidence_for_leaf",
+    "proposedPath": "Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile > Wasserpumpen",
+    "resolvedId": "261425",
+    "canonical": "Auto & Motorrad: Teile > Spezielle Fahrzeug-Teile > Wohnmobil- & Wohnwagenteile & Zubehör > Wasser- & Sanitärsysteme > Wasserpumpen"
+  },
+  {
+    "docId": "3322937241712",
+    "sku": "SKU-5868736484",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Bremsen > Bremsbeläge"
+  },
+  {
+    "docId": "20240129000072",
+    "sku": "SKU-4603086544",
+    "status": "skip",
+    "reason": "no_product_evidence_for_leaf",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Hi-Fi & Navigation > Multimedia-Player",
+    "resolvedId": "258035",
+    "canonical": "Auto & Motorrad: Teile > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Multimedia Player"
+  },
+  {
+    "docId": "3558380099390",
+    "sku": "SKU-2522561568",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Spielzeug > Spiele > Gesellschaftsspiele > Kartenspiele"
+  },
+  {
+    "docId": "3662775243128",
+    "sku": "SKU-5896801162",
+    "status": "skip",
+    "reason": "no_product_evidence_for_leaf",
+    "proposedPath": "Auto & Motorrad: Teile > Motorradteile > Elektrik & Zündungen > Batterien",
+    "resolvedId": "49782",
+    "canonical": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Elektrik & Zündungen > Batterien"
+  },
+  {
+    "docId": "4005414511612",
+    "sku": "SKU-4715041854",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Haus & Garten > Heimtextilien, Teppiche & Vorhänge > Bettwaren & -wäsche > Bettwäsche > Bettwäsche-Sets"
+  },
+  {
+    "docId": "4013556577076",
+    "sku": "SKU-2724878095",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Garten & Terrasse > Gartenmöbel & Zubehör > Schutzhüllen für Gartenmöbel"
+  },
+  {
+    "docId": "4013594537810",
+    "sku": "SKU-3704607179",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Spielzeug > Holzspielspielzeug > Murmelbahnen"
+  },
+  {
+    "docId": "4006094887004",
+    "sku": "SKU-1892441877",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Spielzeug > Modellbau > Bausätze > Holzbausätze"
+  },
+  {
+    "docId": "4027816273868",
+    "sku": "SKU-1137525213",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Fahrwerk & Lenkung > Radlager & -naben > Radlagersätze"
+  },
+  {
+    "docId": "4030434105633",
+    "sku": "SKU-9182883969",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Federung & Lenkung > Radlager & Radnaben > Radlagersätze"
+  },
+  {
+    "docId": "4016417025303",
+    "sku": "SKU-3586300359",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Haushaltsgeräte > Ersatzteile & Zubehör > Schläuche"
+  },
+  {
+    "docId": "4040074053454",
+    "sku": "SKU-0333689520",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Federung & Lenkung > Federbeinstützlager"
+  },
+  {
+    "docId": "4040074137246",
+    "sku": "SKU-9078406333",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Filter > Filter-Sets"
+  },
+  {
+    "docId": "4034144003036",
+    "sku": "SKU-3097738026",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Wohnmobil- & Caravan-Teile & Zubehör > Spiegel > Anhängerspiegel"
+  },
+  {
+    "docId": "4040074122754",
+    "sku": "SKU-0945605804",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Öle, Flüssigkeiten & Additive > Getriebeöle"
+  },
+  {
+    "docId": "4040074266946",
+    "sku": "SKU-6074840029",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Antrieb & Getriebe > Antriebswellen & Gelenke > Gelenksätze"
+  },
+  {
+    "docId": "4063541990120",
+    "sku": "SKU-4973901806",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Bekleidung & Accessoires > Herrenbekleidung > Sweatshirts & Hoodies > Sweatjacken"
+  },
+  {
+    "docId": "4052138007280",
+    "sku": "SKU-8414659629",
+    "status": "update",
+    "proposedPath": "Haushaltsgeräte > Raumklima > Luftreiniger > Filter",
+    "resolvedId": "184665",
+    "canonical": "Haushaltsgeräte > Kaffee-, Tee- & Espressomaschinen > Filter-Kaffeemaschinen",
+    "updates": {
+      "details.categoryId": "184665",
+      "identification.category": "Haushaltsgeräte > Kaffee-, Tee- & Espressomaschinen > Filter-Kaffeemaschinen",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:58:34.786Z",
+        "category_refined_from": "Luftreiniger-Filter",
+        "category_refined_to": "Haushaltsgeräte > Kaffee-, Tee- & Espressomaschinen > Filter-Kaffeemaschinen"
+      }
+    }
+  },
+  {
+    "docId": "4063544208888",
+    "sku": "SKU-1747542074",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Kleidung & Accessoires > Herrenmode > T-Shirts"
+  },
+  {
+    "docId": "4078500055604",
+    "sku": "SKU-1803692252",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Garten & Terrasse > Gartengeräte > Gartengeräte Zubehör > Akkus & Ladegeräte"
+  },
+  {
+    "docId": "4260443571086",
+    "sku": "SKU-9713309170",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Computer, Tablets & Netzwerk > Netzwerk & Server-Hardware > Netzwerkkomponenten > Netzwerkdosen"
+  },
+  {
+    "docId": "4251806427775",
+    "sku": "SKU-8942698934",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Haus & Garten > Möbel & Wohnen > Bettwaren & -wäsche > Bettwäsche > Bettwäsche-Sets"
+  },
+  {
+    "docId": "4260532290669",
+    "sku": "SKU-7226847075",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Haus & Garten > Grillen & Picknicken > Grillzubehör > Grillpfannen & -platten"
+  },
+  {
+    "docId": "4262427090057",
+    "sku": "SKU-0135090467",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Pannenhilfe & Sicherheit > Warnwesten"
+  },
+  {
+    "docId": "45005591930000",
+    "sku": "SKU-6587967689",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Kleidung & Accessoires > Herrenmode > Unterwäsche > Boxershorts & Trunks"
+  },
+  {
+    "docId": "48fe16c6-bdc6-42f6-862e-fc9eb4962c93",
+    "sku": "SKU-3756924465",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Tierbedarf > Aquaristik > Aquarienheizungen"
+  },
+  {
+    "docId": "4262472110243",
+    "sku": "SKU-7909541265",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Haushalt & Wohnen > Küche & Esszimmer > Kochen & Genießen > Töpfe & Pfannen > Pfannen > Bratpfannen"
+  },
+  {
+    "docId": "4906958001464",
+    "sku": "SKU-2966583160",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Fahrzeugteile & Zubehör > Motorradteile > Elektrik & Zündungen > Batterien > Motorradbatterien"
+  },
+  {
+    "docId": "4dd32c21-2afe-4c13-b354-605f97e6f590",
+    "sku": "SKU-1306047599",
+    "status": "update",
+    "proposedPath": "Auto & Motorrad: Teile > Öle, Schmier- & Betriebsstoffe > Getriebeöl > Hypoid Getriebeöl",
+    "resolvedId": "179494",
+    "canonical": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Getriebeöl",
+    "updates": {
+      "details.categoryId": "179494",
+      "identification.category": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Getriebeöl",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:58:47.220Z",
+        "category_refined_from": "Auto & Motorrad: Teile > Öle, Schmier- & Betriebsstoffe > Getriebeöl",
+        "category_refined_to": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Getriebeöl"
+      }
+    }
+  },
+  {
+    "docId": "5055350248140",
+    "sku": "SKU-7417485934",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Sport > Angeln > Karpfenangeln > Kleinteile & Zubehör > Bleie & Gewichte",
+    "resolvedId": "28066",
+    "canonical": "Sport > Fitness & Jogging > Krafttraining & Gewichte"
+  },
+  {
+    "docId": "5010996282880",
+    "sku": "SKU-4519918204",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Spielzeug > Actionfiguren > Comic- & Filmfiguren > Marvel"
+  },
+  {
+    "docId": "54c1a366-798b-42bf-9014-95729468c623",
+    "sku": "SKU-4252129103",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Business & Industrie > Medizin & Labor > Arbeitsschutz > Schutzkleidung > Schuhüberzieher"
+  },
+  {
+    "docId": "5702017153599",
+    "sku": "SKU-9272258811",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Spielzeug > Baby- & Kleinkindspielzeug > Badespielzeug"
+  },
+  {
+    "docId": "5713487061253",
+    "sku": "SKU-3782469631",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Möbel & Wohnen > Dekoration > Dekofiguren & -skulpturen",
+    "resolvedId": "36025",
+    "canonical": "Möbel & Wohnen > Dekoration > Figuren, Skulpturen & Statuen"
+  },
+  {
+    "docId": "5713487061277",
+    "sku": "SKU-1466301102",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Haus & Garten > Dekoration > Dekofiguren > Tiere"
+  },
+  {
+    "docId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "sku": "SKU-5329605855",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Musikinstrumente > Gitarren & Bässe > Gitarren-Zubehör > Saiten > E-Gitarrensaiten"
+  },
+  {
+    "docId": "5715335047020",
+    "sku": "SKU-8921872481",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Spielzeug > Musikinstrumente für Kinder"
+  },
+  {
+    "docId": "5901532626087",
+    "sku": "SKU-1746174206",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatzteile > Karosserie & Exterieur > Außenspiegel"
+  },
+  {
+    "docId": "5904270013775",
+    "sku": "SKU-5437386727",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Fahrwerk & Lenkung > Radlager & -naben > Radlagersätze"
+  },
+  {
+    "docId": "5908242693453",
+    "sku": "SKU-6816251293",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Fahrwerk & Lenkung > Radlager & Radnaben > Radlagersätze"
+  },
+  {
+    "docId": "61cb13b8-ef09-4959-821e-c2d63fcd8038",
+    "sku": "SKU-9014992269",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Sport > Radsport > Fahrradteile & -komponenten > Beleuchtung > Rücklichter"
+  },
+  {
+    "docId": "59151383083624",
+    "sku": "SKU-8684520981",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Möbel & Wohnen > Möbel > Tische > Beistelltische"
+  },
+  {
+    "docId": "6957303824717",
+    "sku": "SKU-9003235487",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Computer, Tablets & Netzwerk > Laptop- & Desktop-Zubehör > Laptop-Ständer & -Halter",
+    "resolvedId": "116346",
+    "canonical": "Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Ständer, Halter & Autohalterungen"
+  },
+  {
+    "docId": "7212913647233",
+    "sku": "SKU-3606468262",
+    "status": "update",
+    "proposedPath": "Auto & Motorrad > Ersatz- & Tuningteile > Auto-Ersatz- & -Reparaturteile > Bremsen > Bremsscheiben",
+    "resolvedId": "123059",
+    "canonical": "Business & Industrie > Agrar, Forst & Kommune > Ersatzteile, Teile & Zubehör > Teile & Zubehör Traktoren > Antrieb, Motor & Getriebe > Bremsscheiben & -zubehör",
+    "updates": {
+      "details.categoryId": "123059",
+      "identification.category": "Business & Industrie > Agrar, Forst & Kommune > Ersatzteile, Teile & Zubehör > Teile & Zubehör Traktoren > Antrieb, Motor & Getriebe > Bremsscheiben & -zubehör",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:59:04.945Z",
+        "category_refined_from": "Auto & Motorrad > Ersatz- & Tuningteile > Bremsen > Bremsscheiben",
+        "category_refined_to": "Business & Industrie > Agrar, Forst & Kommune > Ersatzteile, Teile & Zubehör > Teile & Zubehör Traktoren > Antrieb, Motor & Getriebe > Bremsscheiben & -zubehör"
+      }
+    }
+  },
+  {
+    "docId": "6941057422886",
+    "sku": "SKU-6216530722",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Haus & Garten > Möbel > Betten & Wasserbetten > Luftbetten"
+  },
+  {
+    "docId": "7649988997723",
+    "sku": "SKU-3130743576",
+    "status": "update",
+    "proposedPath": "Auto & Motorrad > Auto-Anbau- & Zubehörteile > Innenausstattung > Lufterfrischer",
+    "resolvedId": "108782",
+    "canonical": "Auto & Motorrad: Teile > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Lufterfrischer",
+    "updates": {
+      "details.categoryId": "108782",
+      "identification.category": "Auto & Motorrad: Teile > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Lufterfrischer",
+      "ops.data_quality": {
+        "last_cleanup_iso": "2026-01-05T02:18:38.522Z",
+        "cleanup_v1": {
+          "note": "",
+          "flags": [
+            "short_description_had_banned_content",
+            "deleted_short_description_placeholder"
+          ]
+        },
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:59:07.004Z",
+        "category_refined_from": "Auto & Motorrad > Auto-Anbau- & Zubehörteile > Innenausstattung > Lufterfrischer",
+        "category_refined_to": "Auto & Motorrad: Teile > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Lufterfrischer"
+      }
+    }
+  },
+  {
+    "docId": "8004815313234",
+    "sku": "SKU-1316800430",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Fahrzeuge, Teile & Zubehör > Wohnmobile & Wohnwagen > Zubehör > Nivellierkeile"
+  },
+  {
+    "docId": "8088208802015",
+    "sku": "SKU-6543182729",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Heimtextilien > Bettwäsche & Bettlaken > Spannbettlaken"
+  },
+  {
+    "docId": "81717285233178",
+    "sku": "SKU-5764056320",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Heimtextilien & Bettwaren > Bettwäsche > Bettwäsche-Sets"
+  },
+  {
+    "docId": "76a7cc4f-9aa4-4149-ad6b-9cc4ef1dc1df",
+    "sku": "SKU-7200941317",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Tuning & -Styling > Innenausstattung > Sonnenschutz"
+  },
+  {
+    "docId": "81715585302754",
+    "sku": "SKU-3938831828",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Baby & Kind > Essen & Trinken > Geschirr & Besteck > Esslern-Sets",
+    "resolvedId": "117386",
+    "canonical": "Baby > Ernährung > Kindergeschirr & -besteck > Kindergeschirr-Sets"
+  },
+  {
+    "docId": "8712013813820",
+    "sku": "SKU-8805500495",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Sport > Camping & Outdoor > Camping-Küchenausstattung > Geschirr & Besteck > Geschirr-Sets"
+  },
+  {
+    "docId": "8717475102703",
+    "sku": "SKU-7333529126",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Fahrzeugteile > Karosserie & Exterieur > Spiegel & Zubehör > Außenspiegel"
+  },
+  {
+    "docId": "849e919f-0898-4df7-8fbb-e141c351cba4",
+    "sku": "SKU-2969022222",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Haus & Garten > Badezimmer > Badematten & Badteppiche"
+  },
+  {
+    "docId": "9e35f9b4-5df8-4db7-9dd7-31e4491488ef",
+    "sku": "SKU-6469360404",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Heimtextilien > Bettwäsche & Bettwaren > Spannbettlaken"
+  },
+  {
+    "docId": "8719115000028",
+    "sku": "SKU-8798489036",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Herrenmode > Unterwäsche > Boxershorts"
+  },
+  {
+    "docId": "SKU-1181918814",
+    "sku": "SKU-1181918814",
+    "status": "update",
+    "proposedPath": "Büro & Schreibwaren > Schreibgeräte > Füllfederhalter",
+    "resolvedId": "13999",
+    "canonical": "Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Füllfederhalter",
+    "updates": {
+      "details.categoryId": "13999",
+      "identification.category": "Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Füllfederhalter",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:59:18.884Z",
+        "category_refined_from": "Büro & Schreibwaren",
+        "category_refined_to": "Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Füllfederhalter"
+      }
+    }
+  },
+  {
+    "docId": "8b41bda6-bc97-4d34-8644-f081c7d180cb",
+    "sku": "SKU-2629282795",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Büro & Schreibwaren > Büroorganisation & -ablage > Schubladenboxen"
+  },
+  {
+    "docId": "SKU-2633108165",
+    "sku": "SKU-2633108165",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad > Teile & Zubehör > Auto-Anbau- & Zubehörteile > Karosserie & Exterieur > Autoabdeckungen"
+  },
+  {
+    "docId": "SKU-2019125675",
+    "sku": "SKU-2019125675",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Beauty & Gesundheit > Hautpflege > Geräte & Zubehör > Microneedling-Geräte"
+  },
+  {
+    "docId": "SKU-2151943751",
+    "sku": "SKU-2151943751",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Bastel- & Künstlerbedarf > Malen & Zeichnen > Pastellkreiden"
+  },
+  {
+    "docId": "SKU-2841208491",
+    "sku": "SKU-2841208491",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Bücher & Zeitschriften > Bücher > Kinder- & Jugendliteratur > Bilderbücher"
+  },
+  {
+    "docId": "SKU-2965430996",
+    "sku": "SKU-2965430996",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Möbel & Wohnen > Möbel > Tische > Beistelltische"
+  },
+  {
+    "docId": "SKU-3132130051",
+    "sku": "SKU-3132130051",
+    "status": "update",
+    "proposedPath": "Kleidung & Accessoires > Herrenschuhe > Sneaker",
+    "resolvedId": "15709",
+    "canonical": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker",
+    "updates": {
+      "details.categoryId": "15709",
+      "identification.category": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:59:28.249Z",
+        "category_refined_from": "Kleidung & Accessoires",
+        "category_refined_to": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+      }
+    }
+  },
+  {
+    "docId": "SKU-2636479706",
+    "sku": "SKU-2636479706",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Garten & Terrasse > Pflanzenschutz > Winterschutz"
+  },
+  {
+    "docId": "SKU-4017783375",
+    "sku": "SKU-4017783375",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Heimwerker > Beleuchtung > Außenbeleuchtung > Strahler & Fluter"
+  },
+  {
+    "docId": "SKU-4607569519",
+    "sku": "SKU-4607569519",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Anbau- & Zubehörteile > Beleuchtung & Blinker > Scheinwerfer & Teile > Scheinwerfer-Reparatursätze",
+    "resolvedId": "262207",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Beleuchtung > Scheinwerfer-Vorschaltgeräte & -Zündgeräte"
+  },
+  {
+    "docId": "SKU-4743695203",
+    "sku": "SKU-4743695203",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Bücher & Zeitschriften > Bücher > Kinder- & Jugendliteratur > Bilderbücher"
+  },
+  {
+    "docId": "SKU-4434702791",
+    "sku": "SKU-4434702791",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Computer, Tablets & Netzwerk > Computer-Komponenten & -Teile > Arbeitsspeicher (RAM) > Laptop-Arbeitsspeicher",
+    "resolvedId": "170083",
+    "canonical": "Computer, Tablets & Netzwerk > Computer-Komponenten & -Teile > Arbeitsspeicher (RAM)"
+  },
+  {
+    "docId": "SKU-4679981655",
+    "sku": "SKU-4679981655",
+    "status": "update",
+    "proposedPath": "Büro & Schreibwaren > Schulbedarf > Bleistifte",
+    "resolvedId": "127605",
+    "canonical": "Büro & Schreibwaren > Schulbedarf > Schul- & Jugendschreibgeräte > Bleistifte",
+    "updates": {
+      "details.categoryId": "127605",
+      "identification.category": "Büro & Schreibwaren > Schulbedarf > Schul- & Jugendschreibgeräte > Bleistifte",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:59:35.842Z",
+        "category_refined_from": "Büro & Schreibwaren",
+        "category_refined_to": "Büro & Schreibwaren > Schulbedarf > Schul- & Jugendschreibgeräte > Bleistifte"
+      }
+    }
+  },
+  {
+    "docId": "SKU-6315915149",
+    "sku": "SKU-6315915149",
+    "status": "update",
+    "proposedPath": "Büro & Schreibwaren > Schreibwaren > Schreiben & Korrigieren > Bleistifte",
+    "resolvedId": "25354",
+    "canonical": "Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Bleistifte & Druckbleistifte",
+    "updates": {
+      "details.categoryId": "25354",
+      "identification.category": "Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Bleistifte & Druckbleistifte",
+      "ops.data_quality": {
+        "last_cleanup_iso": "2026-01-05T02:18:38.526Z",
+        "cleanup_v1": {
+          "note": "Moved 6 attribute keys to attributes_extra.",
+          "flags": [
+            "cleaned_attributes_meta_keys"
+          ]
+        },
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:59:37.525Z",
+        "category_refined_from": "Büro & Schreibwaren",
+        "category_refined_to": "Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Bleistifte & Druckbleistifte"
+      }
+    }
+  },
+  {
+    "docId": "SKU-6830410442",
+    "sku": "SKU-6830410442",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Heimwerker > Heizung, Klima & Lüftung > Heizungs- & Ofenzubehör > Ofenrohre & Zubehör"
+  },
+  {
+    "docId": "SKU-8367978772",
+    "sku": "SKU-8367978772",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Büro & Schreibwaren > Büromaschinen > Schreibmaschinen & Zubehör > Farbbänder"
+  },
+  {
+    "docId": "SKU-8843412443",
+    "sku": "SKU-8843412443",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Business & Industrie > Sicherheits- & Überwachungstechnik > Verkehrssicherheit > Verkehrsspiegel"
+  },
+  {
+    "docId": "SKU-8857013241",
+    "sku": "SKU-8857013241",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Kleidung & Accessoires > Damenschuhe > Schnürschuhe"
+  },
+  {
+    "docId": "ad08f46f-d233-4c4f-b5c5-bc803ce5018e",
+    "sku": "SKU-5748131128",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Federung & Lenkung > Querlenker & Teile",
+    "resolvedId": "33580",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Federung & Lenkung > Querlenker & Kugelgelenke"
+  },
+  {
+    "docId": "b82f2e03-f4e9-4cef-8984-364a6a8cfc8e",
+    "sku": "SKU-3350934915",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Garten & Freizeit > Gartenbeleuchtung > Solarleuchten > Gartenstecker"
+  },
+  {
+    "docId": "SKU-9142845763",
+    "sku": "SKU-9142845763",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad > Teile & Zubehör > Auto-Anbau- & -Tuningteile > Exterieur > Autoabdeckungen"
+  },
+  {
+    "docId": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+    "sku": "SKU-0716100821",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Motorrad-Teile & -Zubehör > Helme & Kopfbedeckungen > Helme > Integralhelme"
+  },
+  {
+    "docId": "f2028097-7287-47f8-b694-d663960758ec",
+    "sku": "SKU-2204782559",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Spielzeug > Baukästen & Konstruktion > Magnetspielzeug"
+  },
+  {
+    "docId": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+    "sku": "SKU-1536365981",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Haushalt & Wohnen > Küche, Kochen & Genießen > Küchengeräte > Fritteusen & Heißluftfritteusen Zubehör",
+    "resolvedId": "258599",
+    "canonical": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Gastronomie-Küchenausstattung > Küchengeräte > Teile & Zubehör für Gastronomie-Austattung > Teile & Zubehör für Fritteusen"
+  },
+  {
+    "docId": "f8fc404d-90b9-408f-a0a5-53038fdbd793",
+    "sku": "SKU-7447779999",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Basteln & Handarbeiten > Malen & Zeichnen > Kalligrafie & Lettering > Kalligrafie-Sets",
+    "resolvedId": "84909",
+    "canonical": "Spielzeug > Basteln & Kreativität > Malen & Zeichnen > Sets"
+  },
+  {
+    "docId": "fad41e15-2900-414a-b739-2ed02d4394fe",
+    "sku": "SKU-9297459968",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Scheibenreinigung > Scheibenwaschpumpen"
+  }
+]

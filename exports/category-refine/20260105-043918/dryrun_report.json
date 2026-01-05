@@ -1,0 +1,89 @@
+[
+  {
+    "docId": "0099557e-b9f0-45a4-9c7c-d6418e7daac5",
+    "sku": "SKU-2250869990",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Sport > Radsport > Fahrradteile & -komponenten > Fahrradständer"
+  },
+  {
+    "docId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Tierbedarf > Hunde > Betten & Möbel > Hundepools",
+    "resolvedId": "20742",
+    "canonical": "Haustierbedarf > Hunde"
+  },
+  {
+    "docId": "09be7756-7b4f-4dda-bda0-799754052fff",
+    "sku": "SKU-3671103995",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Federung & Lenkung > Federbeinlager & -stützlager"
+  },
+  {
+    "docId": "1004200304684",
+    "sku": "SKU-4955195373",
+    "status": "update",
+    "proposedPath": "Auto & Motorrad: Teile > Motorradteile > Öle, Schmier- & Betriebsstoffe > Motoröl",
+    "resolvedId": "179496",
+    "canonical": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl",
+    "updates": {
+      "details.categoryId": "179496",
+      "identification.category": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl",
+      "ops.data_quality": {
+        "category_refined_by": "gemini",
+        "category_refined_iso": "2026-01-05T03:39:29.216Z",
+        "category_refined_from": "Auto & Motorrad: Teile > Öle, Schmier- & Betriebsstoffe > Motoröl",
+        "category_refined_to": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+      }
+    }
+  },
+  {
+    "docId": "14006633314036",
+    "sku": "SKU-7591395419",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Bremssystem > Bremsscheiben"
+  },
+  {
+    "docId": "1011190149611",
+    "sku": "SKU-3023625088",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Auto & Motorrad: Teile > Werkzeuge & Werkstattbedarf > Handwerkzeuge > Gewindeschneider & -bohrer",
+    "resolvedId": "179414",
+    "canonical": "Auto & Motorrad: Teile > Werkzeuge > Druckluftwerkzeuge > Druckluftbohrer"
+  },
+  {
+    "docId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Sport > Wassersport > Tauchen & Schnorcheln > Flossen > Schnorchelflossen"
+  },
+  {
+    "docId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Handys & Kommunikation > Handy-Zubehör > Handyhüllen & Schutzfolien > Handyhüllen > Für Apple > Apple iPhone 16 Pro"
+  },
+  {
+    "docId": "1900201150572",
+    "sku": "SKU-8902752253",
+    "status": "skip",
+    "reason": "path_not_in_taxonomy",
+    "proposedPath": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Bremsenteile > Bremsscheiben"
+  },
+  {
+    "docId": "20220424000047",
+    "sku": "SKU-6511282128",
+    "status": "skip",
+    "reason": "leaf_mismatch",
+    "proposedPath": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing > Mauspads > Gaming-Mauspads",
+    "resolvedId": "47779",
+    "canonical": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing > Tastatur- & Maus-Sets"
+  }
+]

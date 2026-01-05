@@ -27,6 +27,7 @@ const fs = require('fs');
 const path = require('path');
 const { getAllProducts } = require('../lib/firestore');
 const { getProductBinSummaryMap } = require('../lib/warehouse');
+const { findEbayCategory } = require('../lib/ebay-taxonomy');
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -129,7 +130,16 @@ function pickDescription(product) {
 }
 
 function pickCategory(product) {
-  return safeString(product?.identification?.category) || safeString(product?.details?.categoryId) || '';
+  const cat = safeString(product?.identification?.category);
+  // Prefer full breadcrumb paths in exports. Leaf-only categories are ambiguous and should not be emitted as-is.
+  if (cat && cat.includes('>')) return cat;
+  const catId = safeString(product?.details?.categoryId);
+  if (catId) {
+    const resolved = findEbayCategory(catId);
+    const breadcrumb = resolved?.breadcrumb ? String(resolved.breadcrumb) : '';
+    if (breadcrumb && breadcrumb.includes('>')) return breadcrumb;
+  }
+  return '';
 }
 
 function parseArgs(argv) {

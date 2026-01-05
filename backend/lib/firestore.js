@@ -1,4 +1,5 @@
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
+const { isValidGtin: isValidGtinShared, normalizeDigits: normalizeDigitsShared } = require('./gtin');
 const {
   computeProductIdentityKey,
   buildIdentityAliasSet,
@@ -120,7 +121,10 @@ const collectSkuIndexKeys = (product = {}) => {
   };
   const addEan = (value) => {
     const normalized = normalizeEanValue(value);
-    if (normalized && normalized.length >= 6) {
+    // Only index valid GTIN/EAN/UPC values. Invalid codes cause incorrect dedupe matches.
+    const digits = normalizeDigitsShared(normalized);
+    const validLength = digits && [8, 12, 13, 14].includes(digits.length);
+    if (validLength && isValidGtinShared(digits)) {
       keys.add(buildSkuIndexKey('ean', normalized));
     }
   };
@@ -988,46 +992,76 @@ async function saveProduct(product, options = {}) {
     }
 
     // Optional: keep identifiers in sync with barcodes (UI edits barcodes; BaseLinker sync reads identifiers.ean first).
-    if (syncIdentifiersFromBarcodes) {
-      const normalizeBarcode = (value) => (value || '').toString().replace(/\D+/g, '');
-      const GTIN_LENGTHS = new Set([8, 12, 13, 14]);
-      const computeCheckDigit = (code) => {
-        const digits = code.split('').map((char) => parseInt(char, 10));
-        if (digits.some((digit) => Number.isNaN(digit))) return -1;
-        let sum = 0;
-        for (let i = digits.length - 2, weightIdx = 0; i >= 0; i -= 1, weightIdx += 1) {
-          const weight = weightIdx % 2 === 0 ? 3 : 1;
-          sum += digits[i] * weight;
-        }
-        return (10 - (sum % 10)) % 10;
-      };
-      const isValidGtin = (value) => {
-        const digits = normalizeBarcode(value);
-        if (!GTIN_LENGTHS.has(digits.length)) return false;
-        if (!/^\d+$/.test(digits)) return false;
-        const expected = computeCheckDigit(digits);
-        const actual = parseInt(digits.slice(-1), 10);
-        return expected === actual;
-      };
-      const summarizeBarcodes = (values = []) => {
+    // Barcode + Identifier invariants:
+    // - Only keep valid GTIN/EAN/UPC codes (correct checkdigit).
+    // - Never persist invalid codes in identification.barcodes (they poison dedupe and exports).
+    // - Prefer identifiers (details.identifiers.ean/gtin/upc) derived from barcodes when enabled.
+    {
+      const normalizeBarcode = (value) => normalizeDigitsShared((value || '').toString());
+      const summarize = (values = []) => {
         const normalized = Array.from(new Set(values.map(normalizeBarcode).filter(Boolean)));
-        const valid = normalized.filter(isValidGtin);
-        const ean = valid.find((v) => v.length === 13) || null;
-        const gtin = valid.find((v) => v.length === 14) || null;
-        return { all: normalized, valid, ean, gtin };
+        const valid = normalized.filter((v) => [8, 12, 13, 14].includes(v.length) && isValidGtinShared(v));
+        const invalid = normalized.filter((v) => !valid.includes(v));
+        const gtin14 = valid.find((v) => v.length === 14) || null;
+        let ean13 = valid.find((v) => v.length === 13) || null;
+        const upc12 = valid.find((v) => v.length === 12) || null;
+        const ean8 = valid.find((v) => v.length === 8) || null;
+        // If we only have GTIN14 starting with 0, derive EAN13 (safe equivalence)
+        if (!ean13 && gtin14 && gtin14.startsWith('0')) {
+          const derived = gtin14.slice(1);
+          if (derived.length === 13 && isValidGtinShared(derived)) {
+            ean13 = derived;
+          }
+        }
+        return { normalized, valid, invalid, ean13, gtin14, upc12, ean8 };
       };
 
+      // Always validate identifiers + barcodes to prevent storing garbage, even when not syncing.
       const rawBarcodes = Array.isArray(mergedIdentification?.barcodes) ? mergedIdentification.barcodes : [];
-      const summary = summarizeBarcodes(rawBarcodes);
-      if (summary.all.length) {
-        mergedIdentification.barcodes = summary.all;
+      const rawIds = mergedDetails?.identifiers || {};
+      const candidates = [
+        ...rawBarcodes,
+        rawIds.ean,
+        rawIds.gtin,
+        rawIds.upc,
+      ].filter(Boolean);
+      const summary = summarize(candidates);
+
+      if (summary.valid.length) {
+        mergedIdentification.barcodes = summary.valid;
+      } else if (Array.isArray(mergedIdentification?.barcodes) && mergedIdentification.barcodes.length) {
+        delete mergedIdentification.barcodes;
       }
+
       if (!mergedDetails.identifiers) mergedDetails.identifiers = {};
-      if (summary.ean) {
-        mergedDetails.identifiers.ean = summary.ean;
+
+      // If enabled, keep identifiers aligned with valid barcodes.
+      if (syncIdentifiersFromBarcodes) {
+        if (summary.ean13) mergedDetails.identifiers.ean = summary.ean13; else delete mergedDetails.identifiers.ean;
+        if (summary.gtin14) mergedDetails.identifiers.gtin = summary.gtin14; else delete mergedDetails.identifiers.gtin;
+        if (summary.upc12) mergedDetails.identifiers.upc = summary.upc12; else delete mergedDetails.identifiers.upc;
+      } else {
+        // Even if we don't sync, delete invalid identifiers (never persist invalid codes).
+        const curEan = normalizeBarcode(mergedDetails.identifiers.ean);
+        if (curEan && !([8, 12, 13, 14].includes(curEan.length) && isValidGtinShared(curEan))) {
+          delete mergedDetails.identifiers.ean;
+        }
+        const curGtin = normalizeBarcode(mergedDetails.identifiers.gtin);
+        if (curGtin && !([8, 12, 13, 14].includes(curGtin.length) && isValidGtinShared(curGtin))) {
+          delete mergedDetails.identifiers.gtin;
+        }
+        const curUpc = normalizeBarcode(mergedDetails.identifiers.upc);
+        if (curUpc && !([8, 12, 13, 14].includes(curUpc.length) && isValidGtinShared(curUpc))) {
+          delete mergedDetails.identifiers.upc;
+        }
       }
-      if (summary.gtin) {
-        mergedDetails.identifiers.gtin = summary.gtin;
+
+      if (summary.invalid.length) {
+        mergedOps.data_quality = mergedOps.data_quality || {};
+        mergedOps.data_quality.barcode_rejected_v1 = {
+          iso: new Date().toISOString(),
+          invalid: summary.invalid.slice(0, 50),
+        };
       }
     }
 

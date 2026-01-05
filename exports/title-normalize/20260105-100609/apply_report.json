@@ -1,0 +1,72 @@
+[
+  {
+    "docId": "04052938000016",
+    "sku": "SKU-4641833225",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "Pierburg Luftmassenmesser 7.22184.39.0 Schwarz Kunststoff NEU Nein Gebraucht",
+    "before_len": 76,
+    "after": "Pierburg Luftmassenmesser 7.22184.39.0 Schwarz Kunststoff NEU Nein Heimwerker",
+    "after_len": 77
+  },
+  {
+    "docId": "2024080701046",
+    "sku": "SKU-0545917168",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "SPURTAR Messschieber 0-150mm NEU gebraucht used DIN 862 Präzision 0.02mm",
+    "before_len": 72,
+    "after": "SPURTAR Messschieber 0-150mm NEU DIN 862 Präzision 0.02mm Business Industrie",
+    "after_len": 76
+  },
+  {
+    "docId": "2810449728013",
+    "sku": "SKU-3982672342",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "Unbekannt Autoradio 6S9701P NEU Schwarz Android used Motorrad Teile GPS",
+    "before_len": 71,
+    "after": "Unbekannt Autoradio 6S9701P NEU Schwarz Android Motorrad Teile GPS Autoradios",
+    "after_len": 77
+  },
+  {
+    "docId": "5060570201660",
+    "sku": "SKU-8735317765",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "VaultX Deck Box Schwarz NEU Sammelkarten Gebraucht Exo-Tec Toploading 80+",
+    "before_len": 73,
+    "after": "VaultX Deck Box Schwarz NEU Sammelkarten Exo-Tec Toploading 80+ Sammeln",
+    "after_len": 71
+  },
+  {
+    "docId": "SKU-1153910217",
+    "sku": "SKU-1153910217",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "Shure Vintage Pro-Audio Equipment SM58-LCE SM58-LCE Schwarz NEU Gebraucht",
+    "before_len": 73,
+    "after": "Shure Vintage Pro-Audio Equipment SM58-LCE SM58-LCE Schwarz NEU Musikinstrumente",
+    "after_len": 80
+  },
+  {
+    "docId": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+    "sku": "SKU-0716100821",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "SOMAN Integralhelm A154956/202401/03705 NEU Pink, Schwarz, Lila Gr. S Gebraucht",
+    "before_len": 79,
+    "after": "SOMAN Integralhelm A154956/202401/03705 NEU Pink, Schwarz, Lila Gr. S -Zubehör",
+    "after_len": 78
+  },
+  {
+    "docId": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+    "sku": "SKU-1536365981",
+    "lastSource": "title-normalize",
+    "status": "update",
+    "before": "Unbekannt Backform Einsatz Schwarz Silikon NEU Gebraucht Airfryer 2er Set",
+    "before_len": 73,
+    "after": "Unbekannt Backform Einsatz Schwarz Silikon NEU Airfryer 2er Set Haushalt",
+    "after_len": 72
+  }
+]

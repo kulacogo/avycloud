@@ -115,10 +115,17 @@ Attribute: ${Object.entries(attrs)
     const json = JSON.parse(match[0]);
     const pathText = json.path || json.category || json.category_path;
     if (!pathText) return null;
-    const id =
-      target === 'ebay'
-        ? marketplaceLookup.lookupEbay(pathText)
-        : marketplaceLookup.lookupKaufland(pathText);
+    let id = null;
+    if (target === 'ebay') {
+      id = marketplaceLookup.lookupEbay(pathText);
+      // Fallback: accept breadcrumb-like variants by using taxonomy matcher (more robust than exact path lookup).
+      if (!id) {
+        const cat = findEbayCategory(pathText);
+        if (cat?.id) id = String(cat.id);
+      }
+    } else {
+      id = marketplaceLookup.lookupKaufland(pathText);
+    }
     if (id) return { id: String(id), path: pathText };
   } catch (e) {
     console.warn('Gemini category resolution failed:', e.message);
@@ -684,13 +691,13 @@ function processEbayProduct(product) {
   if (resolved) {
     cloned.details = {
       ...(cloned.details || {}),
+      categoryId: resolved.id,
       ebayCategoryId: resolved.id,
       ebayCategoryBreadcrumb: resolved.path || cloned.details?.ebayCategoryBreadcrumb || resolved.id,
       ebayCategoryPath: resolved.path || cloned.details?.ebayCategoryPath || resolved.id,
     };
 
-    attributes.ebay_category_id = resolved.id;
-    attributes.ebay_category_path = resolved.path || resolved.id;
+    // Do NOT write eBay meta keys into user attributes. These are treated as meta and moved to attributes_extra on save.
 
     cloned.identification = {
       ...(cloned.identification || {}),
@@ -729,13 +736,22 @@ async function ensureCategories(products = []) {
     if (!p || !p.details) continue;
     const attrs = p.details.attributes || {};
 
-    if (!p.details.ebayCategoryId || !marketplaceLookup.isValidEbayId(String(p.details.ebayCategoryId))) {
+    const existingEbayIdRaw = p.details.categoryId || p.details.ebayCategoryId;
+    const existingEbayId = existingEbayIdRaw ? String(existingEbayIdRaw).trim() : '';
+    const ebayIdOk = existingEbayId && marketplaceLookup.isValidEbayId(existingEbayId);
+    const existingCat = ebayIdOk ? findEbayCategory(existingEbayId) : null;
+    const existingBreadcrumb = existingCat?.breadcrumb ? String(existingCat.breadcrumb) : '';
+    // Prevent overly generic top-level categories (no '>' breadcrumb). We want a real category tree path.
+    const ebayTooBroad = Boolean(existingBreadcrumb) && !existingBreadcrumb.includes('>');
+
+    if (!ebayIdOk || ebayTooBroad) {
       const g = await resolveCategoryWithGemini(p, 'ebay');
       if (g?.id) {
+        // Canonical category id is details.categoryId (single-category system).
+        p.details.categoryId = g.id;
+        // Legacy fields for backward compatibility (some scripts still read them)
         p.details.ebayCategoryId = g.id;
         p.details.ebayCategoryPath = g.path;
-        attrs.ebay_category_id = g.id;
-        attrs.ebay_category_path = g.path;
       }
     }
 
@@ -747,8 +763,6 @@ async function ensureCategories(products = []) {
       if (g?.id) {
         p.details.kauflandCategoryId = g.id;
         p.details.kauflandCategoryPath = g.path;
-        attrs.kaufland_category_id = g.id;
-        attrs.kaufland_category_path = g.path;
       }
     }
 
