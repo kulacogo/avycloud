@@ -5,6 +5,7 @@ const {
   buildIdentityAliasSet,
   sanitizeIdentityValue,
 } = require('./product-identity');
+const { coerceTitleToPolicy } = require('./title-policy');
 
 function isFirestoreSpecialValue(value) {
   if (!value) return false;
@@ -433,7 +434,7 @@ function enforceEbayAspects(product) {
 
   // Single category system (canonical): details.categoryId
   // Backwards compatible reads from legacy fields.
-  const catId =
+  let catId =
     (details.categoryId && String(details.categoryId).trim()) ||
     (details.ebayCategoryId && String(details.ebayCategoryId).trim()) ||
     (attrs.ebay_category_id && String(attrs.ebay_category_id).trim()) ||
@@ -457,6 +458,20 @@ function enforceEbayAspects(product) {
     if (breadcrumb) {
       if (!product.identification) product.identification = {};
       product.identification.category = String(breadcrumb);
+    } else {
+      // Prevent invalid/unknown category IDs (LLM hallucinations or bad imports).
+      // We do NOT guess a replacement here.
+      const invalidCategoryId = String(catId).trim();
+      catId = null;
+      delete details.categoryId;
+      if (!product.ops) product.ops = {};
+      product.ops.data_quality = {
+        ...(product.ops.data_quality || {}),
+        category_invalid_id_v1: {
+          at_iso: new Date().toISOString(),
+          value: invalidCategoryId || null,
+        },
+      };
     }
   }
 
@@ -1169,7 +1184,6 @@ async function saveProduct(product, options = {}) {
     const normalizedKeyFeatures = sanitizeKeyFeatures(productWithEbay?.details?.key_features || [], { max: 8 });
     const AUTO_TITLE_MIN_LEN = 70;
     const AUTO_TITLE_MAX_LEN = 80;
-    const technicalTitle = ensureTechnicalTitle(productWithEbay, { minLen: AUTO_TITLE_MIN_LEN, maxLen: AUTO_TITLE_MAX_LEN });
     if (!productWithEbay.details) productWithEbay.details = {};
     productWithEbay.details.key_features = normalizedKeyFeatures;
     if (!productWithEbay.identification) productWithEbay.identification = {};
@@ -1177,23 +1191,11 @@ async function saveProduct(product, options = {}) {
     // We still generate a technical title for automation paths (identify/improve/import),
     // but UI saves must persist exactly what the user entered.
     if (!isManualSave) {
-      const safeString = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
-      const stripSkuNoise = (val) =>
-        safeString(val)
-          .replace(/\bSKU[\s\-_]?\d+\b/gi, '')
-          .replace(/\s+/g, ' ')
-          .trim();
-      const incomingTitle = stripSkuNoise(productWithEbay.identification.name);
-      // Keep AI-generated titles if they already satisfy 70–80 chars and don't contain SKU noise.
-      const keepIncoming =
-        incomingTitle &&
-        incomingTitle.length >= AUTO_TITLE_MIN_LEN &&
-        incomingTitle.length <= AUTO_TITLE_MAX_LEN;
-      if (keepIncoming) {
-        productWithEbay.identification.name = incomingTitle;
-      } else if (technicalTitle) {
-        productWithEbay.identification.name = technicalTitle;
-      }
+      productWithEbay.identification.name = coerceTitleToPolicy(
+        productWithEbay,
+        productWithEbay.identification.name,
+        { minLen: AUTO_TITLE_MIN_LEN, maxLen: AUTO_TITLE_MAX_LEN }
+      );
     }
 
     const productData = {

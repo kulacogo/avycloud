@@ -1,0 +1,612 @@
+[
+  {
+    "sku": "SKU-5410787453",
+    "docId": "4013556577007",
+    "status": "applied",
+    "productId": "4013556577007",
+    "from": "39080",
+    "to": "177031",
+    "canonical": "Garten & Terrasse > Möbel > Möbelschutzhüllen"
+  },
+  {
+    "sku": "SKU-9904325113",
+    "docId": "5702017567501",
+    "status": "applied",
+    "productId": "5702017567501",
+    "from": "31066",
+    "to": "19006",
+    "canonical": "Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge > LEGO (R) Komplette Sets & Packs"
+  },
+  {
+    "sku": "SKU-5928571392",
+    "docId": "4013556592796",
+    "status": "applied",
+    "productId": "4013556592796",
+    "from": "39080",
+    "to": "177031",
+    "canonical": "Garten & Terrasse > Möbel > Möbelschutzhüllen"
+  },
+  {
+    "sku": "SKU-6860111834",
+    "docId": "61921411800024",
+    "status": "applied",
+    "productId": "61921411800024",
+    "from": "14075",
+    "to": "259347",
+    "canonical": "Möbel & Wohnen > Haushalt > Putzgeräte > Reinigungshandschuhe"
+  },
+  {
+    "sku": "SKU-4212491486",
+    "docId": "SKU-4212491486",
+    "status": "applied",
+    "productId": "SKU-4212491486",
+    "from": "37976",
+    "to": "181236",
+    "canonical": "Musikinstrumente > Drums & Percussion > Folklore & Welt > Handpans"
+  },
+  {
+    "sku": "SKU-4990478200",
+    "docId": "SKU-4990478200",
+    "status": "applied",
+    "productId": "SKU-4990478200",
+    "from": "19396",
+    "to": "109065",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Töpfe & Pfannen > Woks"
+  },
+  {
+    "sku": "SKU-7998641824",
+    "docId": "SKU-7998641824",
+    "status": "applied",
+    "productId": "SKU-7998641824",
+    "from": "37976",
+    "to": "41456",
+    "canonical": "Musikinstrumente > Drums & Percussion > Ersatzteile > Sticks, Besen & Schlägel"
+  },
+  {
+    "sku": "SKU-6427883146",
+    "docId": "SKU-6427883146",
+    "status": "applied",
+    "productId": "SKU-6427883146",
+    "from": "167468",
+    "to": "58100",
+    "canonical": "Sport > Radsport > Fahrradzubehör > Schlösser & Sicherheit"
+  },
+  {
+    "sku": "SKU-8850596846",
+    "docId": "4003318620911",
+    "status": "applied",
+    "productId": "4003318620911",
+    "from": "167468",
+    "to": "58100",
+    "canonical": "Sport > Radsport > Fahrradzubehör > Schlösser & Sicherheit"
+  },
+  {
+    "sku": "SKU-9073986145",
+    "docId": "SKU-9073986145",
+    "status": "applied",
+    "productId": "SKU-9073986145",
+    "from": "131252",
+    "to": "85915",
+    "canonical": "Garten & Terrasse > Motor-Gartengeräte & -zubehör > Kettensägen-Ersatzteile"
+  },
+  {
+    "sku": "SKU-9947386415",
+    "docId": "03142017000003",
+    "status": "applied",
+    "productId": "03142017000003",
+    "from": "169124",
+    "to": "81464",
+    "canonical": "Sport > Angelsport > Zubehör > Räucheröfen & -utensilien"
+  },
+  {
+    "sku": "SKU-3606468262",
+    "docId": "7212913647233",
+    "status": "applied",
+    "productId": "7212913647233",
+    "from": "123059",
+    "to": "33564",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben"
+  },
+  {
+    "sku": "SKU-2135446963",
+    "docId": "SKU-2135446963",
+    "status": "applied",
+    "productId": "SKU-2135446963",
+    "from": "181784",
+    "to": "11778",
+    "canonical": "Beauty & Gesundheit > Hilfsmittel"
+  },
+  {
+    "sku": "SKU-1423771699",
+    "docId": "7082024102510",
+    "status": "applied",
+    "productId": "7082024102510",
+    "from": "124487",
+    "to": "180031",
+    "canonical": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Endantriebsriemen & -ketten & Zahnriemensätze > Endantriebsriemen & -ketten"
+  },
+  {
+    "sku": "SKU-3988740005",
+    "docId": "914f7e36-2a57-4a6c-94e3-441532afad65",
+    "status": "applied",
+    "productId": "914f7e36-2a57-4a6c-94e3-441532afad65",
+    "from": "260835",
+    "to": "179675",
+    "canonical": "Auto & Motorrad: Teile > Autoelektronik, GPS & Sicherheitstechnik > Klemmen & Verkabelung > Kabel & Kabelbäume"
+  },
+  {
+    "sku": "SKU-5403685857",
+    "docId": "SKU-5403685857",
+    "status": "applied",
+    "productId": "SKU-5403685857",
+    "from": "181845",
+    "to": "259273",
+    "canonical": "Heimwerker > Elektromaterial > Steckdosen, Schalter & Zubehör"
+  },
+  {
+    "sku": "SKU-6614383452",
+    "docId": "SKU-6614383452",
+    "status": "applied",
+    "productId": "SKU-6614383452",
+    "from": "258510",
+    "to": "103428",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Bar & Wein-Accessoires > Dekanter"
+  },
+  {
+    "sku": "SKU-1066852367",
+    "docId": "SKU-1066852367",
+    "status": "applied",
+    "productId": "SKU-1066852367",
+    "from": "26211",
+    "to": "185059",
+    "canonical": "Heimwerker > Elektromaterial > Steckdosen, Schalter & Zubehör > Smart-Steckdosen, -Wandschalter & -Zwischenstecker > Smart-Wandschalter"
+  },
+  {
+    "sku": "SKU-4488972962",
+    "docId": "SKU-4488972962",
+    "status": "applied",
+    "productId": "SKU-4488972962",
+    "from": "25357",
+    "to": "87141",
+    "canonical": "Sport > Camping & Outdoor > Camping-Küchenbedarf > Kochgeschirr"
+  },
+  {
+    "sku": "SKU-0735099796",
+    "docId": "6954850111741",
+    "status": "applied",
+    "productId": "6954850111741",
+    "from": "184002",
+    "to": "259347",
+    "canonical": "Möbel & Wohnen > Haushalt > Putzgeräte > Reinigungshandschuhe"
+  },
+  {
+    "sku": "SKU-3963918245",
+    "docId": "SKU-3963918245",
+    "status": "applied",
+    "productId": "SKU-3963918245",
+    "from": "184059",
+    "to": "260588",
+    "canonical": "Heimwerker > Heizen, Klima & Sanitär > Wasser > Pumpen & Wasserfiltersysteme"
+  },
+  {
+    "sku": "SKU-5946216503",
+    "docId": "SKU-5946216503",
+    "status": "applied",
+    "productId": "SKU-5946216503",
+    "from": "30807",
+    "to": "67588",
+    "canonical": "Beauty & Gesundheit > Pflege- & Medizinischer Bedarf"
+  },
+  {
+    "sku": "SKU-9912977908",
+    "docId": "SKU-9912977908",
+    "status": "applied",
+    "productId": "SKU-9912977908",
+    "from": "30807",
+    "to": "15052",
+    "canonical": "TV, Video & Audio > Tragbare Geräte & Kopfhörer"
+  },
+  {
+    "sku": "SKU-4303462818",
+    "docId": "3154020086005",
+    "status": "applied",
+    "productId": "3154020086005",
+    "from": "182905",
+    "to": "260176",
+    "canonical": "Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör"
+  },
+  {
+    "sku": "SKU-5799111421",
+    "docId": "SKU-5799111421",
+    "status": "applied",
+    "productId": "SKU-5799111421",
+    "from": "26219",
+    "to": "20697",
+    "canonical": "Möbel & Wohnen > Beleuchtung"
+  },
+  {
+    "sku": "SKU-2930571748",
+    "docId": "8bc07ed5-5cee-4d00-abb3-00dd4f20439d",
+    "status": "applied",
+    "productId": "8bc07ed5-5cee-4d00-abb3-00dd4f20439d",
+    "from": "124425",
+    "to": "50382",
+    "canonical": "Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör > Bohrer-Bits"
+  },
+  {
+    "sku": "SKU-8927251416",
+    "docId": "4043962306996",
+    "status": "applied",
+    "productId": "4043962306996",
+    "from": "124425",
+    "to": "50382",
+    "canonical": "Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör > Bohrer-Bits"
+  },
+  {
+    "sku": "SKU-0545917168",
+    "docId": "2024080701046",
+    "status": "applied",
+    "productId": "2024080701046",
+    "from": "131261",
+    "to": "29525",
+    "canonical": "Heimwerker > Werkzeuge > Messwerkzeuge & Messgeräte > Messschieber"
+  },
+  {
+    "sku": "SKU-4541378818",
+    "docId": "SKU-4541378818",
+    "status": "applied",
+    "productId": "SKU-4541378818",
+    "from": "45686",
+    "to": "180981",
+    "canonical": "Heimwerker > Farben, Tapeten & Zubehör > Tapeten, Werkzeuge & Zubehör"
+  },
+  {
+    "sku": "SKU-1784585629",
+    "docId": "4250454729170",
+    "status": "applied",
+    "productId": "4250454729170",
+    "from": "914",
+    "to": "138910",
+    "canonical": "Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Papier, Hefte & Blöcke > Briefpapier & Karten"
+  },
+  {
+    "sku": "SKU-2804135383",
+    "docId": "SKU-2804135383",
+    "status": "applied",
+    "productId": "SKU-2804135383",
+    "from": "1407",
+    "to": "175736",
+    "canonical": "Handys & Kommunikation > Funktechnik > Teile & Zubehör > Filter"
+  },
+  {
+    "sku": "SKU-4401248629",
+    "docId": "4009384458304",
+    "status": "applied",
+    "productId": "4009384458304",
+    "from": "63",
+    "to": "2024",
+    "canonical": "Sport > Weitere Ballsportarten > Football > Fanartikel"
+  },
+  {
+    "sku": "SKU-1566313678",
+    "docId": "SKU-1566313678",
+    "status": "applied",
+    "productId": "SKU-1566313678",
+    "from": "60033",
+    "to": "15480",
+    "canonical": "Baby > Bücher & Zeitschriften > Bücher"
+  },
+  {
+    "sku": "SKU-5729537867",
+    "docId": "SKU-5729537867",
+    "status": "applied",
+    "productId": "SKU-5729537867",
+    "from": "60033",
+    "to": "15480",
+    "canonical": "Baby > Bücher & Zeitschriften > Bücher"
+  },
+  {
+    "sku": "SKU-9289261489",
+    "docId": "SKU-9289261489",
+    "status": "applied",
+    "productId": "SKU-9289261489",
+    "from": "60033",
+    "to": "261186",
+    "canonical": "Bücher & Zeitschriften > Bücher"
+  },
+  {
+    "sku": "SKU-7270723982",
+    "docId": "SKU-7270723982",
+    "status": "applied",
+    "productId": "SKU-7270723982",
+    "from": "8759",
+    "to": "260627",
+    "canonical": "Heimwerker > Bad & Küche > Küche"
+  },
+  {
+    "sku": "SKU-9787450821",
+    "docId": "SKU-9787450821",
+    "status": "applied",
+    "productId": "SKU-9787450821",
+    "from": "8759",
+    "to": "20680",
+    "canonical": "Haushaltsgeräte > Kleingeräte Küche > Nudelmaschinen"
+  },
+  {
+    "sku": "SKU-8004480244",
+    "docId": "SKU-8004480244",
+    "status": "applied",
+    "productId": "SKU-8004480244",
+    "from": "1152",
+    "to": "20612",
+    "canonical": "Haushaltsgeräte > Klimaanlagen & Heizgeräte > Ventilatoren & Luftbehandlung > Stand- & Tischventilatoren"
+  },
+  {
+    "sku": "SKU-8310896573",
+    "docId": "SKU-8310896573",
+    "status": "applied",
+    "productId": "SKU-8310896573",
+    "from": "39216",
+    "to": "3199",
+    "canonical": "Möbel & Wohnen > Möbel > Regale & Aufbewahrung"
+  },
+  {
+    "sku": "SKU-9091395294",
+    "docId": "SKU-9091395294",
+    "status": "applied",
+    "productId": "SKU-9091395294",
+    "from": "3273",
+    "to": "20696",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Gläser & Glaswaren"
+  },
+  {
+    "sku": "SKU-5740939127",
+    "docId": "SKU-5740939127",
+    "status": "applied",
+    "productId": "SKU-5740939127",
+    "from": "580",
+    "to": "45503",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Servierplatten & -schalen"
+  },
+  {
+    "sku": "SKU-2789683373",
+    "docId": "SKU-2789683373",
+    "status": "applied",
+    "productId": "SKU-2789683373",
+    "from": "4037",
+    "to": "20612",
+    "canonical": "Haushaltsgeräte > Klimaanlagen & Heizgeräte > Ventilatoren & Luftbehandlung > Stand- & Tischventilatoren"
+  },
+  {
+    "sku": "SKU-4349960147",
+    "docId": "SKU-4349960147",
+    "status": "applied",
+    "productId": "SKU-4349960147",
+    "from": "974",
+    "to": "98847",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Töpfe & Pfannen > Sets"
+  },
+  {
+    "sku": "SKU-5814356347",
+    "docId": "SKU-5814356347",
+    "status": "applied",
+    "productId": "SKU-5814356347",
+    "from": "974",
+    "to": "259322",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Töpfe & Pfannen"
+  },
+  {
+    "sku": "SKU-6854747447",
+    "docId": "e29c131f-ec89-434c-b216-90f28330918d",
+    "status": "applied",
+    "productId": "e29c131f-ec89-434c-b216-90f28330918d",
+    "from": "18671",
+    "to": "177075",
+    "canonical": "Auto & Motorrad: Teile > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör"
+  },
+  {
+    "sku": "SKU-1844691476",
+    "docId": "0060cdec-9193-411b-af64-4754ca0226bd",
+    "status": "applied",
+    "productId": "0060cdec-9193-411b-af64-4754ca0226bd",
+    "from": "37412",
+    "to": "181379",
+    "canonical": "Sport > Camping & Outdoor > Rucksäcke > Trekkingrucksäcke"
+  },
+  {
+    "sku": "SKU-4820097368",
+    "docId": "SKU-4820097368",
+    "status": "applied",
+    "productId": "SKU-4820097368",
+    "from": "37412",
+    "to": "68814",
+    "canonical": "Sport > Sporttaschen & Rucksäcke > Rucksäcke"
+  },
+  {
+    "sku": "SKU-0974179694",
+    "docId": "SKU-0974179694",
+    "status": "applied",
+    "productId": "SKU-0974179694",
+    "from": "515",
+    "to": "3244",
+    "canonical": "Heimwerker > Werkzeuge > Handwerkzeuge"
+  },
+  {
+    "sku": "SKU-1612836881",
+    "docId": "SKU-1612836881",
+    "status": "applied",
+    "productId": "SKU-1612836881",
+    "from": "515",
+    "to": "177846",
+    "canonical": "Sport > Radsport > Fahrradreparatur & Werkzeug > Werkzeug"
+  },
+  {
+    "sku": "SKU-3588671475",
+    "docId": "SKU-3588671475",
+    "status": "applied",
+    "productId": "SKU-3588671475",
+    "from": "515",
+    "to": "177846",
+    "canonical": "Sport > Radsport > Fahrradreparatur & Werkzeug > Werkzeug"
+  },
+  {
+    "sku": "SKU-9905416565",
+    "docId": "7290006780805",
+    "status": "applied",
+    "productId": "7290006780805",
+    "from": "8736",
+    "to": "20696",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Gläser & Glaswaren"
+  },
+  {
+    "sku": "SKU-5753016417",
+    "docId": "5820082016105",
+    "status": "applied",
+    "productId": "5820082016105",
+    "from": "62844",
+    "to": "33697",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Innenausstattung > Fußmatten, Teppiche & Laderaumwannen"
+  },
+  {
+    "sku": "SKU-8779940575",
+    "docId": "SKU-8779940575",
+    "status": "applied",
+    "productId": "SKU-8779940575",
+    "from": "62864",
+    "to": "181383",
+    "canonical": "Sport > Camping & Outdoor > Camping-Küchenbedarf > Campinggeschirr"
+  },
+  {
+    "sku": "SKU-9876441475",
+    "docId": "SKU-9876441475",
+    "status": "applied",
+    "productId": "SKU-9876441475",
+    "from": "49177",
+    "to": "163890",
+    "canonical": "Filme & Serien > Film-Fanartikel > Bücher & Skripte"
+  },
+  {
+    "sku": "SKU-4561934561",
+    "docId": "SKU-4561934561",
+    "status": "applied",
+    "productId": "SKU-4561934561",
+    "from": "23658",
+    "to": "64637",
+    "canonical": "Sport > Funsport > Airsoft > Waffen > Pistolen"
+  },
+  {
+    "sku": "SKU-0922374624",
+    "docId": "2074133001002",
+    "status": "applied",
+    "productId": "2074133001002",
+    "from": "2536",
+    "to": "183457",
+    "canonical": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG OVP Decks & Starter"
+  },
+  {
+    "sku": "SKU-4310621602",
+    "docId": "0196214105119",
+    "status": "applied",
+    "productId": "0196214105119",
+    "from": "2536",
+    "to": "183465",
+    "canonical": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Ordner, Sammelmappen & -hüllen"
+  },
+  {
+    "sku": "SKU-8735317765",
+    "docId": "5060570201660",
+    "status": "noop",
+    "productId": "5060570201660",
+    "targetId": "183462"
+  },
+  {
+    "sku": "SKU-4358173575",
+    "docId": "SKU-4358173575",
+    "status": "applied",
+    "productId": "SKU-4358173575",
+    "from": "2536",
+    "to": "13518",
+    "canonical": "Sammeln & Seltenes > Rollenspiele & Tabletops > Kartenspiele"
+  },
+  {
+    "sku": "SKU-8919591829",
+    "docId": "SKU-8919591829",
+    "status": "applied",
+    "productId": "SKU-8919591829",
+    "from": "8697",
+    "to": "181370",
+    "canonical": "Sport > Camping & Outdoor > Bekleidung > Kinder"
+  },
+  {
+    "sku": "SKU-1789286937",
+    "docId": "SKU-1789286937",
+    "status": "applied",
+    "productId": "SKU-1789286937",
+    "from": "8697",
+    "to": "15687",
+    "canonical": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > T-Shirts"
+  },
+  {
+    "sku": "SKU-1040274599",
+    "docId": "SKU-1040274599",
+    "status": "applied",
+    "productId": "SKU-1040274599",
+    "from": "8694",
+    "to": "184644",
+    "canonical": "Bücher & Zeitschriften > Fachbücher, Lernen & Nachschlagen"
+  },
+  {
+    "sku": "SKU-3149269291",
+    "docId": "SKU-3149269291",
+    "status": "applied",
+    "productId": "SKU-3149269291",
+    "from": "3948",
+    "to": "44932",
+    "canonical": "Computer, Tablets & Netzwerk > Kabel & Steckverbinder > USB-Kabel, -Hubs & -Adapter"
+  },
+  {
+    "sku": "SKU-0785869755",
+    "docId": "SKU-0785869755",
+    "status": "applied",
+    "productId": "SKU-0785869755",
+    "from": "420",
+    "to": "177822",
+    "canonical": "Sport > Radsport > Fahrradteile & -komponenten > Sättel"
+  },
+  {
+    "sku": "SKU-3047799035",
+    "docId": "SKU-3047799035",
+    "status": "applied",
+    "productId": "SKU-3047799035",
+    "from": "420",
+    "to": "58100",
+    "canonical": "Sport > Radsport > Fahrradzubehör > Schlösser & Sicherheit"
+  },
+  {
+    "sku": "SKU-4996518676",
+    "docId": "SKU-4996518676",
+    "status": "applied",
+    "productId": "SKU-4996518676",
+    "from": "420",
+    "to": "177835",
+    "canonical": "Sport > Radsport > Fahrradzubehör > Transportkoffer/-taschen"
+  },
+  {
+    "sku": "SKU-6480044357",
+    "docId": "7325549884427",
+    "status": "applied",
+    "productId": "7325549884427",
+    "from": "420",
+    "to": "70911",
+    "canonical": "Sport > Radsport > Helme & Protektoren > Helme"
+  },
+  {
+    "sku": "SKU-4304000683",
+    "docId": "SKU-4304000683",
+    "status": "applied",
+    "productId": "SKU-4304000683",
+    "from": "59212",
+    "to": "20696",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Gläser & Glaswaren"
+  }
+]

@@ -1081,6 +1081,8 @@ function buildPayload(
   // Marketplace-spezifische Kategorien (falls als IDs im Produkt hinterlegt)
   const attrs = product?.details?.attributes || {};
   const ebayCategoryId =
+    // Canonical field in AvyCloud:
+    product?.details?.categoryId ||
     product?.details?.ebayCategoryId ||
     attrs.ebay_category_id ||
     attrs.ebayCategoryId ||

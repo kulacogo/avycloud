@@ -1,0 +1,32 @@
+[
+  {
+    "docId": "SKU-1066852367",
+    "sku": "SKU-1066852367",
+    "lastSource": "category-review-csv",
+    "status": "update",
+    "before": "Shelly Smart Switch SKU-1066852367 1PM Mini Gen3 110-240 V 2000 W Rot",
+    "before_len": 69,
+    "after": "Shelly Smart Switch 1PM Mini Gen3 SKU-1066852367 Rot NEU 110-240 2000 Heimwerker",
+    "after_len": 80
+  },
+  {
+    "docId": "SKU-4212491486",
+    "sku": "SKU-4212491486",
+    "lastSource": "category-review-csv",
+    "status": "update",
+    "before": "Unbekannt Handpan SKU-4212491486 Schwarz matt Lackierter Stahl",
+    "before_len": 62,
+    "after": "Unbekannt Handpan SKU-4212491486 Schwarz matt Lackierter Stahl NEU Gr. 58 cm",
+    "after_len": 76
+  },
+  {
+    "docId": "SKU-7270723982",
+    "sku": "SKU-7270723982",
+    "lastSource": "category-review-csv",
+    "status": "update",
+    "before": "Kitchen Sink Einbauspüle SKU-7270723982 Silber Edelstahl",
+    "before_len": 56,
+    "after": "Kitchen Sink Einbauspüle SKU-7270723982 Silber Edelstahl NEU Heimwerker",
+    "after_len": 71
+  }
+]
