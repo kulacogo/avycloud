@@ -1,0 +1,182 @@
+[
+  {
+    "productId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "COZII X001Y0BTE9 EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "COZII X001Y0BTE9 EAN",
+        "ok": false,
+        "url": "https://duckduckgo.com/html/?q=COZII%20X001Y0BTE9%20EAN",
+        "via": "direct",
+        "status": 202,
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "03142017000003",
+    "sku": "SKU-9947386415",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Weber 711004 EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "Weber 711004 EAN",
+        "ok": false,
+        "url": "https://duckduckgo.com/html/?q=Weber%20711004%20EAN",
+        "via": "direct",
+        "status": 202,
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "07901010300000",
+    "sku": "SKU-2097206690",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Generisch JSD 520 EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "Generisch JSD 520 EAN",
+        "ok": false,
+        "url": "https://duckduckgo.com/html/?q=Generisch%20JSD%20520%20EAN",
+        "via": "direct",
+        "status": 202,
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "FNTCASE FNTCASE Schutzhülle für Apple iPhone 16 Pro Grau EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "FNTCASE FNTCASE Schutzhülle für Apple iPhone 16 Pro Grau EAN",
+        "ok": false,
+        "url": "https://duckduckgo.com/html/?q=FNTCASE%20FNTCASE%20Schutzh%C3%BClle%20f%C3%BCr%20Apple%20iPhone%2016%20Pro%20Grau%20EAN",
+        "via": "direct",
+        "status": 202,
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "CAPAS CAPAS Schnorchelflossen Travel Fins Grün Gr. S/M für EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "CAPAS CAPAS Schnorchelflossen Travel Fins Grün Gr. S/M für EAN",
+        "ok": false,
+        "url": "https://duckduckgo.com/html/?q=CAPAS%20CAPAS%20Schnorchelflossen%20Travel%20Fins%20Gr%C3%BCn%20Gr.%20S%2FM%20f%C3%BCr%20EAN",
+        "via": "direct",
+        "status": 202,
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "sku": "SKU-7753504850",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "PerformaNat QDENI400127 EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "PerformaNat QDENI400127 EAN",
+        "ok": false,
+        "url": "https://duckduckgo.com/html/?q=PerformaNat%20QDENI400127%20EAN",
+        "via": "direct",
+        "status": 202,
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "4043962306996",
+    "sku": "SKU-8927251416",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "fischer Quattric II 24/450/400 EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "fischer Quattric II 24/450/400 EAN",
+        "ok": false,
+        "url": "https://duckduckgo.com/html/?q=fischer%20Quattric%20II%2024%2F450%2F400%20EAN",
+        "via": "direct",
+        "status": 202,
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "52820776-34bb-4776-b728-06c521593d3a",
+    "sku": "SKU-1489693054",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Unbekannt 16er Pack Gastgeschenke Salbeigrün für Brautparty Hochzeit Deko EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "Unbekannt 16er Pack Gastgeschenke Salbeigrün für Brautparty Hochzeit Deko EAN",
+        "ok": false,
+        "url": "https://duckduckgo.com/html/?q=Unbekannt%2016er%20Pack%20Gastgeschenke%20Salbeigr%C3%BCn%20f%C3%BCr%20Brautparty%20Hochzeit%20Deko%20EAN",
+        "via": "direct",
+        "status": 202,
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "sku": "SKU-5329605855",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Ernie Ball 3221 EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "Ernie Ball 3221 EAN",
+        "ok": false,
+        "url": "https://duckduckgo.com/html/?q=Ernie%20Ball%203221%20EAN",
+        "via": "direct",
+        "status": 202,
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "5820082016105",
+    "sku": "SKU-5753016417",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Audi Audi Fußmatten Set Vorne, Hinten NEU Q5 8R EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "Audi Audi Fußmatten Set Vorne, Hinten NEU Q5 8R EAN",
+        "ok": false,
+        "url": "https://duckduckgo.com/html/?q=Audi%20Audi%20Fu%C3%9Fmatten%20Set%20Vorne%2C%20Hinten%20NEU%20Q5%208R%20EAN",
+        "via": "direct",
+        "status": 202,
+        "results": []
+      }
+    ]
+  }
+]

@@ -1,0 +1,668 @@
+[
+  {
+    "sku": "SKU-0945605804",
+    "docId": "4040074122754",
+    "status": "applied",
+    "productId": "4040074122754",
+    "from": null,
+    "to": "179501",
+    "canonical": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Automatikgetriebeöl"
+  },
+  {
+    "sku": "SKU-5748131128",
+    "docId": "ad08f46f-d233-4c4f-b5c5-bc803ce5018e",
+    "status": "applied",
+    "productId": "ad08f46f-d233-4c4f-b5c5-bc803ce5018e",
+    "from": null,
+    "to": "82103",
+    "canonical": "Auto & Motorrad: Teile > Spezielle Fahrzeug-Teile > Pkw-Anhänger Ersatzteile > Karosserie & Fahrwerk"
+  },
+  {
+    "sku": "SKU-9078406333",
+    "docId": "4040074137246",
+    "status": "applied",
+    "productId": "4040074137246",
+    "from": null,
+    "to": "174087",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile > Inspektionspakete & -kits"
+  },
+  {
+    "sku": "SKU-3938831828",
+    "docId": "81715585302754",
+    "status": "applied",
+    "productId": "81715585302754",
+    "from": null,
+    "to": "157325",
+    "canonical": "Baby > Ernährung > Kindergeschirr & -besteck"
+  },
+  {
+    "sku": "SKU-7447779999",
+    "docId": "f8fc404d-90b9-408f-a0a5-53038fdbd793",
+    "status": "applied",
+    "productId": "f8fc404d-90b9-408f-a0a5-53038fdbd793",
+    "from": null,
+    "to": "28113",
+    "canonical": "Bastel- & Künstlerbedarf > Künstler- & Zeichenbedarf > Malen > Aquarell"
+  },
+  {
+    "sku": "SKU-9003235487",
+    "docId": "6957303824717",
+    "status": "applied",
+    "productId": "6957303824717",
+    "from": null,
+    "to": "116346",
+    "canonical": "Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Ständer, Halter & Autohalterungen"
+  },
+  {
+    "sku": "SKU-7333529126",
+    "docId": "8717475102703",
+    "status": "applied",
+    "productId": "8717475102703",
+    "from": null,
+    "to": "262161",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Außenspiegel & Teile > Außenspiegel"
+  },
+  {
+    "sku": "SKU-3350934915",
+    "docId": "b82f2e03-f4e9-4cef-8984-364a6a8cfc8e",
+    "status": "applied",
+    "productId": "b82f2e03-f4e9-4cef-8984-364a6a8cfc8e",
+    "from": null,
+    "to": "183391",
+    "canonical": "Garten & Terrasse > Beleuchtung > Garten- & Terrassenfackeln"
+  },
+  {
+    "sku": "SKU-1536365981",
+    "docId": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+    "status": "applied",
+    "productId": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+    "from": null,
+    "to": "259321",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Backbleche & -formen"
+  },
+  {
+    "sku": "SKU-5446097686",
+    "docId": "2312388888888",
+    "status": "applied",
+    "productId": "2312388888888",
+    "from": null,
+    "to": "67720",
+    "canonical": "Uhren & Schmuck > Juwelierbedarf > Reinigungsgeräte & -materialien"
+  },
+  {
+    "sku": "SKU-6469360404",
+    "docId": "9e35f9b4-5df8-4db7-9dd7-31e4491488ef",
+    "status": "applied",
+    "productId": "9e35f9b4-5df8-4db7-9dd7-31e4491488ef",
+    "from": null,
+    "to": "20460",
+    "canonical": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettlaken"
+  },
+  {
+    "sku": "SKU-6543182729",
+    "docId": "8088208802015",
+    "status": "applied",
+    "productId": "8088208802015",
+    "from": null,
+    "to": "20460",
+    "canonical": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettlaken"
+  },
+  {
+    "sku": "SKU-5764056320",
+    "docId": "81717285233178",
+    "status": "applied",
+    "productId": "81717285233178",
+    "from": null,
+    "to": "37644",
+    "canonical": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettwäsche"
+  },
+  {
+    "sku": "SKU-3050715048",
+    "docId": "247e01a5-fa99-4b01-be0a-fefbe97a145d",
+    "status": "applied",
+    "productId": "247e01a5-fa99-4b01-be0a-fefbe97a145d",
+    "from": null,
+    "to": "84237",
+    "canonical": "Heimwerker > Werkzeuge > Handwerkzeuge > Schraubenschlüssel > Steckschlüssel"
+  },
+  {
+    "sku": "SKU-4973901806",
+    "docId": "4063541990120",
+    "status": "applied",
+    "productId": "4063541990120",
+    "from": null,
+    "to": "57990",
+    "canonical": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Freizeithemden & Shirts"
+  },
+  {
+    "sku": "SKU-8798489036",
+    "docId": "8719115000028",
+    "status": "applied",
+    "productId": "8719115000028",
+    "from": null,
+    "to": "181133",
+    "canonical": "Sport > Golf > Golfbekleidung > Herren-Golfbekleidung > Unterkleidung"
+  },
+  {
+    "sku": "SKU-6587967689",
+    "docId": "45005591930000",
+    "status": "applied",
+    "productId": "45005591930000",
+    "from": null,
+    "to": "177937",
+    "canonical": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Kupplungsteile & -sätze > Kupplungsgeber- & -nehmerzylinder"
+  },
+  {
+    "sku": "SKU-0716100821",
+    "docId": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+    "status": "applied",
+    "productId": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+    "from": null,
+    "to": "177076",
+    "canonical": "Auto & Motorrad: Teile > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör > Motorrad- & Motorsporthelme"
+  },
+  {
+    "sku": "SKU-2204782559",
+    "docId": "f2028097-7287-47f8-b694-d663960758ec",
+    "status": "applied",
+    "productId": "f2028097-7287-47f8-b694-d663960758ec",
+    "from": null,
+    "to": "182180",
+    "canonical": "PC- & Videospiele > Zubehör > Toys to Life"
+  },
+  {
+    "sku": "SKU-9014992269",
+    "docId": "61cb13b8-ef09-4959-821e-c2d63fcd8038",
+    "status": "applied",
+    "productId": "61cb13b8-ef09-4959-821e-c2d63fcd8038",
+    "from": null,
+    "to": "22689",
+    "canonical": "Sport > Radsport > Fahrradzubehör > Beleuchtung & Reflektoren"
+  },
+  {
+    "sku": "SKU-3756924465",
+    "docId": "48fe16c6-bdc6-42f6-862e-fc9eb4962c93",
+    "status": "applied",
+    "productId": "48fe16c6-bdc6-42f6-862e-fc9eb4962c93",
+    "from": null,
+    "to": "174021",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremskraftverstärker & -regler"
+  },
+  {
+    "sku": "SKU-7225351886",
+    "docId": "00442039661193",
+    "status": "applied",
+    "productId": "00442039661193",
+    "from": null,
+    "to": "20660",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Tischsets"
+  },
+  {
+    "sku": "SKU-7753504850",
+    "docId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "status": "applied",
+    "productId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "from": null,
+    "to": "180501",
+    "canonical": "Beauty & Gesundheit > Medikamente von Apothekern > Tiergesundheit"
+  },
+  {
+    "sku": "SKU-1316800430",
+    "docId": "8004815313234",
+    "status": "applied",
+    "productId": "8004815313234",
+    "from": null,
+    "to": "19456",
+    "canonical": "Auto & Motorrad: Teile > Spezielle Fahrzeug-Teile > Pkw-Anhänger Ersatzteile > Stützen & Keile"
+  },
+  {
+    "sku": "SKU-4519918204",
+    "docId": "5010996282880",
+    "status": "applied",
+    "productId": "5010996282880",
+    "from": null,
+    "to": "261068",
+    "canonical": "Spielzeug > Action-Figuren & Zubehör > Action- & Spielfiguren"
+  },
+  {
+    "sku": "SKU-7417485934",
+    "docId": "5055350248140",
+    "status": "applied",
+    "productId": "5055350248140",
+    "from": null,
+    "to": "161826",
+    "canonical": "Sport > Angelsport > Kleines Angelzubehör > Bleie"
+  },
+  {
+    "sku": "SKU-3097738026",
+    "docId": "4034144003036",
+    "status": "applied",
+    "productId": "4034144003036",
+    "from": null,
+    "to": "263094",
+    "canonical": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Spiegel"
+  },
+  {
+    "sku": "SKU-6074840029",
+    "docId": "4040074266946",
+    "status": "applied",
+    "productId": "4040074266946",
+    "from": null,
+    "to": "33729",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Getriebe & Antriebstechnik > Antriebswellengelenke, Achsmanschetten & Teile"
+  },
+  {
+    "sku": "SKU-4603086544",
+    "docId": "20240129000072",
+    "status": "applied",
+    "productId": "20240129000072",
+    "from": null,
+    "to": "122188",
+    "canonical": "Auto & Motorrad: Teile > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Auto DVD Player"
+  },
+  {
+    "sku": "SKU-7200941317",
+    "docId": "76a7cc4f-9aa4-4149-ad6b-9cc4ef1dc1df",
+    "status": "applied",
+    "productId": "76a7cc4f-9aa4-4149-ad6b-9cc4ef1dc1df",
+    "from": null,
+    "to": "262204",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Innenausstattung > Sonnen- & Sichtschutze"
+  },
+  {
+    "sku": "SKU-2969022222",
+    "docId": "849e919f-0898-4df7-8fbb-e141c351cba4",
+    "status": "applied",
+    "productId": "849e919f-0898-4df7-8fbb-e141c351cba4",
+    "from": null,
+    "to": "133696",
+    "canonical": "Möbel & Wohnen > Badezimmer > Badezimmerzubehör > Badvorleger, Teppiche & Toilettensitzabdeckungen"
+  },
+  {
+    "sku": "SKU-8684520981",
+    "docId": "59151383083624",
+    "status": "applied",
+    "productId": "59151383083624",
+    "from": null,
+    "to": "112590",
+    "canonical": "Garten & Terrasse > Möbel > Tische"
+  },
+  {
+    "sku": "SKU-8942698934",
+    "docId": "4251806427775",
+    "status": "applied",
+    "productId": "4251806427775",
+    "from": null,
+    "to": "37644",
+    "canonical": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettwäsche"
+  },
+  {
+    "sku": "SKU-4715041854",
+    "docId": "4005414511612",
+    "status": "applied",
+    "productId": "4005414511612",
+    "from": null,
+    "to": "37644",
+    "canonical": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettwäsche"
+  },
+  {
+    "sku": "SKU-1466301102",
+    "docId": "5713487061277",
+    "status": "applied",
+    "productId": "5713487061277",
+    "from": null,
+    "to": "262984",
+    "canonical": "Möbel & Wohnen > Dekoration > Deko-Accessoires"
+  },
+  {
+    "sku": "SKU-3782469631",
+    "docId": "5713487061253",
+    "status": "applied",
+    "productId": "5713487061253",
+    "from": null,
+    "to": "36025",
+    "canonical": "Möbel & Wohnen > Dekoration > Figuren, Skulpturen & Statuen"
+  },
+  {
+    "sku": "SKU-1803692252",
+    "docId": "4078500055604",
+    "status": "applied",
+    "productId": "4078500055604",
+    "from": null,
+    "to": "29518",
+    "canonical": "Garten & Terrasse > Motor-Gartengeräte & -zubehör"
+  },
+  {
+    "sku": "SKU-8805500495",
+    "docId": "8712013813820",
+    "status": "applied",
+    "productId": "8712013813820",
+    "from": null,
+    "to": "181383",
+    "canonical": "Sport > Camping & Outdoor > Camping-Küchenbedarf > Campinggeschirr"
+  },
+  {
+    "sku": "SKU-2064038107",
+    "docId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "status": "applied",
+    "productId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "from": null,
+    "to": "20349",
+    "canonical": "Handys & Kommunikation > Handy-Zubehör > Taschen & Schutzhüllen"
+  },
+  {
+    "sku": "SKU-7226847075",
+    "docId": "4260532290669",
+    "status": "applied",
+    "productId": "4260532290669",
+    "from": null,
+    "to": "98844",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Töpfe & Pfannen > Gartöpfe & Bräter"
+  },
+  {
+    "sku": "SKU-1747542074",
+    "docId": "4063544208888",
+    "status": "applied",
+    "productId": "4063544208888",
+    "from": null,
+    "to": "15687",
+    "canonical": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > T-Shirts"
+  },
+  {
+    "sku": "SKU-1892441877",
+    "docId": "4006094887004",
+    "status": "applied",
+    "productId": "4006094887004",
+    "from": null,
+    "to": "156105",
+    "canonical": "Spielzeug > Holzspielzeug > Ritterburgen"
+  },
+  {
+    "sku": "SKU-3704607179",
+    "docId": "4013594537810",
+    "status": "applied",
+    "productId": "4013594537810",
+    "from": null,
+    "to": "22449",
+    "canonical": "Baby > Spielzeug > Holzspielzeug"
+  },
+  {
+    "sku": "SKU-4252129103",
+    "docId": "54c1a366-798b-42bf-9014-95729468c623",
+    "status": "applied",
+    "productId": "54c1a366-798b-42bf-9014-95729468c623",
+    "from": null,
+    "to": "259347",
+    "canonical": "Möbel & Wohnen > Haushalt > Putzgeräte > Reinigungshandschuhe"
+  },
+  {
+    "sku": "SKU-2522561568",
+    "docId": "3558380099390",
+    "status": "applied",
+    "productId": "3558380099390",
+    "from": null,
+    "to": "19082",
+    "canonical": "Spielzeug > Spiele > Kartenspiele > Moderne Kartenspiele"
+  },
+  {
+    "sku": "SKU-8921872481",
+    "docId": "5715335047020",
+    "status": "applied",
+    "productId": "5715335047020",
+    "from": null,
+    "to": "25959",
+    "canonical": "Spielzeug > Musik & Instrumente > Trommeln & Co."
+  },
+  {
+    "sku": "SKU-6216530722",
+    "docId": "6941057422886",
+    "status": "applied",
+    "productId": "6941057422886",
+    "from": null,
+    "to": "36114",
+    "canonical": "Sport > Camping & Outdoor > Outdoor Schlafausrüstung > Luftmatratzen & Isomatten"
+  },
+  {
+    "sku": "SKU-2966583160",
+    "docId": "4906958001464",
+    "status": "applied",
+    "productId": "4906958001464",
+    "from": null,
+    "to": "49782",
+    "canonical": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Elektrik & Zündungen > Batterien"
+  },
+  {
+    "sku": "SKU-9713309170",
+    "docId": "4260443571086",
+    "status": "applied",
+    "productId": "4260443571086",
+    "from": null,
+    "to": "182094",
+    "canonical": "Computer, Tablets & Netzwerk > Kabel & Steckverbinder"
+  },
+  {
+    "sku": "SKU-7909541265",
+    "docId": "4262472110243",
+    "status": "applied",
+    "productId": "4262472110243",
+    "from": null,
+    "to": "79656",
+    "canonical": "Haushaltsgeräte > Kleingeräte Haushalt > Dampfreiniger"
+  },
+  {
+    "sku": "SKU-0135090467",
+    "docId": "4262427090057",
+    "status": "applied",
+    "productId": "4262427090057",
+    "from": null,
+    "to": "99404",
+    "canonical": "Auto & Motorrad: Teile > Erste Hilfe- & Notfallausrüstungen > Sicherheit > Sicherheitsjacken & -westen"
+  },
+  {
+    "sku": "SKU-3023625088",
+    "docId": "1011190149611",
+    "status": "applied",
+    "productId": "1011190149611",
+    "from": null,
+    "to": "99405",
+    "canonical": "Auto & Motorrad: Teile > Kfz-Services & -Reparaturen"
+  },
+  {
+    "sku": "SKU-2633108165",
+    "docId": "SKU-2633108165",
+    "status": "applied",
+    "productId": "SKU-2633108165",
+    "from": "9800",
+    "to": "50457",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Schutzvorrichtungen & Schmutzfänger > Weitere Schutzvorrichtungen & Protektoren"
+  },
+  {
+    "sku": "SKU-4607569519",
+    "docId": "SKU-4607569519",
+    "status": "applied",
+    "productId": "SKU-4607569519",
+    "from": "9800",
+    "to": "179448",
+    "canonical": "Auto & Motorrad: Teile > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung"
+  },
+  {
+    "sku": "SKU-9142845763",
+    "docId": "SKU-9142845763",
+    "status": "applied",
+    "productId": "SKU-9142845763",
+    "from": "9800",
+    "to": "50457",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Schutzvorrichtungen & Schmutzfänger > Weitere Schutzvorrichtungen & Protektoren"
+  },
+  {
+    "sku": "SKU-1746174206",
+    "docId": "5901532626087",
+    "status": "applied",
+    "productId": "5901532626087",
+    "from": "131090",
+    "to": "262161",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Außenspiegel & Teile > Außenspiegel"
+  },
+  {
+    "sku": "SKU-5868736484",
+    "docId": "3322937241712",
+    "status": "applied",
+    "productId": "3322937241712",
+    "from": "131090",
+    "to": "57357",
+    "canonical": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsbeläge"
+  },
+  {
+    "sku": "SKU-5896801162",
+    "docId": "3662775243128",
+    "status": "applied",
+    "productId": "3662775243128",
+    "from": "131090",
+    "to": "49782",
+    "canonical": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Elektrik & Zündungen > Batterien"
+  },
+  {
+    "sku": "SKU-2151943751",
+    "docId": "SKU-2151943751",
+    "status": "applied",
+    "productId": "SKU-2151943751",
+    "from": "14339",
+    "to": "28107",
+    "canonical": "Bastel- & Künstlerbedarf > Künstler- & Zeichenbedarf > Zeichnen > Pastell"
+  },
+  {
+    "sku": "SKU-2019125675",
+    "docId": "SKU-2019125675",
+    "status": "applied",
+    "productId": "SKU-2019125675",
+    "from": "26395",
+    "to": "33164",
+    "canonical": "Beauty & Gesundheit > Hautpflege > Anti-Faltenprodukte"
+  },
+  {
+    "sku": "SKU-2841208491",
+    "docId": "SKU-2841208491",
+    "status": "applied",
+    "productId": "SKU-2841208491",
+    "from": "267",
+    "to": "15480",
+    "canonical": "Baby > Bücher & Zeitschriften > Bücher"
+  },
+  {
+    "sku": "SKU-4743695203",
+    "docId": "SKU-4743695203",
+    "status": "applied",
+    "productId": "SKU-4743695203",
+    "from": "267",
+    "to": "15480",
+    "canonical": "Baby > Bücher & Zeitschriften > Bücher"
+  },
+  {
+    "sku": "SKU-8367978772",
+    "docId": "SKU-8367978772",
+    "status": "applied",
+    "productId": "SKU-8367978772",
+    "from": "9815",
+    "to": "9606",
+    "canonical": "Büro & Schreibwaren > Bürotechnik > Schreibmaschinen-Zubehör"
+  },
+  {
+    "sku": "SKU-8843412443",
+    "docId": "SKU-8843412443",
+    "status": "applied",
+    "productId": "SKU-8843412443",
+    "from": "12576",
+    "to": "180136",
+    "canonical": "Auto & Motorrad: Teile > Erste Hilfe- & Notfallausrüstungen > Sicherheit"
+  },
+  {
+    "sku": "SKU-4434702791",
+    "docId": "SKU-4434702791",
+    "status": "applied",
+    "productId": "SKU-4434702791",
+    "from": "58058",
+    "to": "170083",
+    "canonical": "Computer, Tablets & Netzwerk > Computer-Komponenten & -Teile > Arbeitsspeicher (RAM)"
+  },
+  {
+    "sku": "SKU-2636479706",
+    "docId": "SKU-2636479706",
+    "status": "applied",
+    "productId": "SKU-2636479706",
+    "from": "159912",
+    "to": "139001",
+    "canonical": "Garten & Terrasse > Pflanzenpflege, Boden & Zubehör > Frostschutz"
+  },
+  {
+    "sku": "SKU-2724878095",
+    "docId": "4013556577076",
+    "status": "applied",
+    "productId": "4013556577076",
+    "from": "159912",
+    "to": "177031",
+    "canonical": "Garten & Terrasse > Möbel > Möbelschutzhüllen"
+  },
+  {
+    "sku": "SKU-3586300359",
+    "docId": "4016417025303",
+    "status": "applied",
+    "productId": "4016417025303",
+    "from": "20710",
+    "to": "260307",
+    "canonical": "Haushaltsgeräte > Geschirrspülmaschinen"
+  },
+  {
+    "sku": "SKU-4017783375",
+    "docId": "SKU-4017783375",
+    "status": "applied",
+    "productId": "SKU-4017783375",
+    "from": "3187",
+    "to": "183393",
+    "canonical": "Garten & Terrasse > Beleuchtung > Strahler & Flutlichter"
+  },
+  {
+    "sku": "SKU-6830410442",
+    "docId": "SKU-6830410442",
+    "status": "applied",
+    "productId": "SKU-6830410442",
+    "from": "3187",
+    "to": "260457",
+    "canonical": "Heimwerker > Heizen, Klima & Sanitär > Heizungs-, Klima- & Sanitärprüfgeräte > Rohrinstallations-Sets"
+  },
+  {
+    "sku": "SKU-8857013241",
+    "docId": "SKU-8857013241",
+    "status": "applied",
+    "productId": "SKU-8857013241",
+    "from": "11450",
+    "to": "45333",
+    "canonical": "Kleidung & Accessoires > Damen > Damenschuhe > Halbschuhe & Ballerinas"
+  },
+  {
+    "sku": "SKU-2965430996",
+    "docId": "SKU-2965430996",
+    "status": "applied",
+    "productId": "SKU-2965430996",
+    "from": "11700",
+    "to": "38204",
+    "canonical": "Möbel & Wohnen > Möbel > Tische & Stehtische"
+  },
+  {
+    "sku": "SKU-5329605855",
+    "docId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "status": "applied",
+    "productId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "from": "619",
+    "to": "41431",
+    "canonical": "Musikinstrumente > Gitarren & Bässe > Zubehör > Saiten"
+  },
+  {
+    "sku": "SKU-9272258811",
+    "docId": "5702017153599",
+    "status": "applied",
+    "productId": "5702017153599",
+    "from": "220",
+    "to": "23609",
+    "canonical": "Baby > Spielzeug > Badespielzeug"
+  }
+]

@@ -1,0 +1,331 @@
+[
+  {
+    "productId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "COZII X001Y0BTE9 COZII Hundepool X001Y0BTE9 Blau EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 2,
+        "url": "https://www.google.com/search?q=COZII%20X001Y0BTE9%20COZII%20Hundepool%20X001Y0BTE9%20Blau%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://royalinsignia.com/120-X-30c-Hundepool-Fur-Gro-e-Kleine-Hunde-Faltbare/538993"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/COZII-Hundebadewanne-Planschbecken-Rutschfestem-Badeb%C3%BCrste/dp/B0DP9FZY34"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "03142017000003",
+    "sku": "SKU-9947386415",
+    "status": "would_apply",
+    "query": "Weber 711004 Weber Räucherofen Smokey Mountain EAN",
+    "chosen": "077924021268",
+    "candidate": {
+      "code": "077924021268",
+      "type": "upc12",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://gartenwelt.de/smokey-mountain-cooker-smoker",
+          "hasLabel": true,
+          "contexts": [
+            "Konto Eigenschaften Eigenschaften Artikelnummer 711004 EAN 077924021268 Marke Weber Produktgewicht 13,653 Produktbreite in cm 37,4"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "077924021268",
+      "rationale": "fast_path_single_candidate",
+      "sources": [
+        "https://gartenwelt.de/smokey-mountain-cooker-smoker"
+      ]
+    }
+  },
+  {
+    "productId": "07901010300000",
+    "sku": "SKU-2097206690",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "Generisch JSD 520 Generisch Autoradios passgenau für EAN",
+    "candidates": [
+      {
+        "code": "43388837",
+        "type": "ean8",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/115666241507?srsltid=AfmBOoqSUoe-TJ_nsbZKjuKhaTp2zZi8UsHLMLWDKeQRTMJxK5O6zbnH",
+            "hasLabel": false,
+            "contexts": [
+              "en Gesetzen und Vorschriften der EU erfolgen. USt-IdNr.: RO 43388837 CRN: J123951 EPR-Nummern (Extended Producer Responsibility)"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Der einzige Kandidat '43388837' ist eine USt-IdNr. (VAT ID) und kein Produkt-Barcode (EAN/GTIN/UPC). Es wurde kein gültiger Produkt-Barcode in den bereitgestellten Quellen gefunden, der eindeutig dem Produkt zugeordnet werden kann.",
+      "sources": [
+        "https://www.ebay.de/itm/115666241507?srsltid=AfmBOoqSUoe-TJ_nsbZKjuKhaTp2zZi8UsHLMLWDKeQRTMJxK5O6zbnH",
+        "https://german.alibaba.com/product-detail/JSD-520-12v-V2-0-FM-62122611039.html",
+        "https://drivetech24.de/Autoradios-MP3-player-Bluetooth-USB-SD-Auto-Stereo-Audio-In-Dash-FM-Radio-MMC-WMA-12V/154155763777"
+      ]
+    }
+  },
+  {
+    "productId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "FNTCASE FNTCASE Schutzhülle für Apple iPhone 16 Pro Grau EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=FNTCASE%20FNTCASE%20Schutzh%C3%BClle%20f%C3%BCr%20Apple%20iPhone%2016%20Pro%20Grau%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.google.com.mx/intl/de/about/products?tab=wh"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/FNTCASE-iPhone-16-Pro-H%C3%BClle-Grau/dp/B0DJ4QWQCN"
+          },
+          {
+            "title": "",
+            "url": "https://fntcase.com/de/collections/iphone-16-series?srsltid=AfmBOorpz01ixitOv0Gl8UuJ1KJily8N_r0Q5LdYcCl0LqsrGDV2rIoM"
+          },
+          {
+            "title": "",
+            "url": "https://fntcase.com/de/collections/iphone-case?srsltid=AfmBOop64ZIzBXeeSFvoVF5A1Gj4AuZCjJAqtLTCCDgLzTi2RfJlA8LK"
+          },
+          {
+            "title": "",
+            "url": "https://fntcase.com/de/products/fntcase-iphone-16-pro-phone-case-rugged-protective-phone-case-with-belt-clip-holster-and-kickstand?srsltid=AfmBOorr_wYyES1tGJkJiotm2abyPqHntvGqcrSudUl41h_pVTRolktM"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "CAPAS CAPAS Schnorchelflossen Travel Fins Grün Gr. S/M für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=CAPAS%20CAPAS%20Schnorchelflossen%20Travel%20Fins%20Gr%C3%BCn%20Gr.%20S%2FM%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.amazon.de/CAPAS-schnorchel-schwimmflossen-einstellbar-Schnorcheln/dp/B08L4WNSWQ"
+          },
+          {
+            "title": "",
+            "url": "https://xtremebassseries.com/Schnorchelflossen-Schwimmflossen-Reisegr-e-Kurz/881803"
+          },
+          {
+            "title": "",
+            "url": "https://lacasa-allgaeu.de/Schnorchelflossen-Schwimmflossen-Reisegr-e-Kurz-Einstellbar-507963"
+          },
+          {
+            "title": "",
+            "url": "https://www.ebay.com/itm/395737212699"
+          },
+          {
+            "title": "",
+            "url": "https://www.foot-map.com/722237/Schwimmflossen-Reisegr-e-Kurz-Einstellbar-Zum-Schnorcheln"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "sku": "SKU-7753504850",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "PerformaNat QDENI400127 PerformaNat Calcium Bolus für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=PerformaNat%20QDENI400127%20PerformaNat%20Calcium%20Bolus%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.performanat.de/shop/pn-calciumbolus-8stk"
+          },
+          {
+            "title": "",
+            "url": "https://www.performanat.de/loesungen/calcium-bolus"
+          },
+          {
+            "title": "",
+            "url": "https://ja-boe24.de/PerformaNat-3-x-8-Bolis"
+          },
+          {
+            "title": "",
+            "url": "https://www.agrarshop-allgaeu.de/Produkte/Bolus-Zubehoer/PerformaNat-CalciumBolus-8-Stk.html"
+          },
+          {
+            "title": "",
+            "url": "https://www.performanat.de/shop"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "4043962306996",
+    "sku": "SKU-8927251416",
+    "status": "would_apply",
+    "query": "fischer Quattric II 24/450/400 fischer Hammerbohrer Quattric SDS-plus EAN",
+    "chosen": "4048962306996",
+    "candidate": {
+      "code": "4048962306996",
+      "type": "ean13",
+      "sourceCount": 2,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://baunativ-shop.de/fischer-Hammerbohrer-SDS-Plus-Quattric-II-24-400-450?srsltid=AfmBOoqqaXAZz3N0xgVL4muZhHpDIkmbqUrKVmFk3VAwvXyk41OEyezV",
+          "hasLabel": true,
+          "contexts": [
+            "lus Quattric II 24/400/450 Artikelnummer: FISQII24400 GTIN: 4048962306996 Kategorie: Bohrer Hersteller: fischer Der fischer Hammerboh"
+          ]
+        },
+        {
+          "url": "https://www.amazon.de/Fischer-549963-Bohrer-Trapano-400/dp/B07GBFF4LK",
+          "hasLabel": true,
+          "contexts": [
+            "messer - d - [mm]: 24 Lieferumfang: 1 Stück. Referenz: EAN: 4048962306996 Pfeifencode: 549963 Rechtliche Hinweise WARNHINWEIS Um die",
+            "messer - d - [mm]: 24 Lieferumfang: 1 Stück. Referenz: EAN: 4048962306996 Pfeifencode: 549963 Rechtliche Hinweise WARNHINWEIS Um die"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4048962306996",
+      "rationale": "fast_path_single_candidate",
+      "sources": [
+        "https://baunativ-shop.de/fischer-Hammerbohrer-SDS-Plus-Quattric-II-24-400-450?srsltid=AfmBOoqqaXAZz3N0xgVL4muZhHpDIkmbqUrKVmFk3VAwvXyk41OEyezV",
+        "https://www.amazon.de/Fischer-549963-Bohrer-Trapano-400/dp/B07GBFF4LK"
+      ]
+    }
+  },
+  {
+    "productId": "52820776-34bb-4776-b728-06c521593d3a",
+    "sku": "SKU-1489693054",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Unbekannt 16er Pack Gastgeschenke Salbeigrün für Brautparty Hochzeit Deko EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 2,
+        "url": "https://www.google.com/search?q=Unbekannt%2016er%20Pack%20Gastgeschenke%20Salbeigr%C3%BCn%20f%C3%BCr%20Brautparty%20Hochzeit%20Deko%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.google.cl/intl/de/about/products?tab=wh"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/hochzeit-salbeigr%C3%BCn/s?k=hochzeit+salbeigr%C3%BCn"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "sku": "SKU-5329605855",
+    "status": "would_apply",
+    "query": "Ernie Ball 3221 Ernie Ball E-Gitarrensaiten Regular EAN",
+    "chosen": "749699132219",
+    "candidate": {
+      "code": "749699132219",
+      "type": "upc12",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.zoundhouse.de/eb3221-regular-slinky-3er-pack-010-046/0010283",
+          "hasLabel": true,
+          "contexts": [
+            "ieferbar, ca. 1-3 Tage In den Korb Artikel-Nr: 0010283 EAN: 749699132219 Herstellernummer: EB3221 Merken Frage zum Artikel? Zubehör"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "749699132219",
+      "rationale": "fast_path_single_candidate",
+      "sources": [
+        "https://www.zoundhouse.de/eb3221-regular-slinky-3er-pack-010-046/0010283"
+      ]
+    }
+  },
+  {
+    "productId": "5820082016105",
+    "sku": "SKU-5753016417",
+    "status": "would_apply",
+    "query": "Audi Audi Fußmatten Set Vorne, Hinten NEU Q5 8R EAN",
+    "chosen": "4039378396282",
+    "candidate": {
+      "code": "4039378396282",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.avp-shop.de/Original-Audi-Gummifussmatten-SET-Q5-8R-Allwettermatten-Gummimatten/8R0061511-041-8R1061501-041?srsltid=AfmBOopw0pQJss_TEm9frqk8nh2B3oln3ESM5wKT2wR7ZhhK24uTGjIo",
+          "hasLabel": true,
+          "contexts": [
+            "Warenkorb Produktnummer: 8R0061511 041 / 8R1061501 041 EAN: 4039378396282 Passt das zu meinem Auto? Passt das zu meinem Auto? Fahrges"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4039378396282",
+      "rationale": "Der Barcode 4039378396282 ist auf der Webseite avp-shop.de direkt mit dem Produkt 'Original Audi Gummifussmatten SET Q5 8R Allwettermatten Gummimatten' verknüpft, was exakt dem zu verarbeitenden Produkt 'Audi Fußmatten Set ... Q5 8R' entspricht.",
+      "sources": [
+        "https://www.avp-shop.de/Original-Audi-Gummifussmatten-SET-Q5-8R-Allwettermatten-Gummimatten/8R0061511-041-8R1061501-041?srsltid=AfmBOopw0pQJss_TEm9frqk8nh2B3oln3ESM5wKT2wR7ZhhK24uTGjIo"
+      ]
+    }
+  }
+]

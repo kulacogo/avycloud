@@ -1,0 +1,80 @@
+[
+  {
+    "productId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "COZII X001Y0BTE9 EAN",
+    "trace": [
+      {
+        "type": "bing_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.bing.com/search?q=COZII%20X001Y0BTE9%20EAN",
+        "via": "direct",
+        "results": [
+          {
+            "title": "Russia Maps & Facts - World Atlas",
+            "url": "https://www.worldatlas.com/maps/russia"
+          },
+          {
+            "title": "Russia Map | Detailed Maps of Russian Federation",
+            "url": "https://ontheworldmap.com/russia/"
+          },
+          {
+            "title": "Political Map of Russia - Nations Online Project",
+            "url": "https://www.nationsonline.org/oneworld/map/russia-political-map.htm"
+          },
+          {
+            "title": "Russia Map - GIS Geography",
+            "url": "https://gisgeography.com/russia-map/"
+          },
+          {
+            "title": "Geopolitical map of Russia , Russia maps | Worldmaps.info",
+            "url": "https://www.worldmaps.info/Russia/"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "03142017000003",
+    "sku": "SKU-9947386415",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Weber 711004 EAN",
+    "trace": [
+      {
+        "type": "bing_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.bing.com/search?q=Weber%20711004%20EAN",
+        "via": "direct",
+        "results": [
+          {
+            "title": "Weber&#174; Deutschland – Grills, Zubeh&#246;r, Grillkurse & Rezepte",
+            "url": "https://www.weber.com/DE/de/start/"
+          },
+          {
+            "title": "Willkommen in der Welt des Grillens | Weber Grill Original",
+            "url": "https://www.weber.com/DE/de/homepage/cms-homepage.html"
+          },
+          {
+            "title": "Elektrogrills online kaufen | Weber&#174; Grill Original",
+            "url": "https://www.weber.com/DE/de/elektrogrills/"
+          },
+          {
+            "title": "Gasgrills online kaufen | Weber&#174; Grill Original",
+            "url": "https://www.weber.com/DE/de/gasgrills/"
+          },
+          {
+            "title": "Die Genesis Serie online kaufen | Weber&#174; Grill Original",
+            "url": "https://www.weber.com/DE/de/gasgrills/genesis/"
+          }
+        ]
+      }
+    ]
+  }
+]

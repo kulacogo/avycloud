@@ -1,0 +1,56 @@
+[
+  {
+    "productId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "COZII X001Y0BTE9 EAN",
+    "trace": [
+      {
+        "type": "bing_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.bing.com/search?q=COZII%20X001Y0BTE9%20EAN",
+        "via": "direct",
+        "results": []
+      },
+      {
+        "type": "ddg_attempt",
+        "ok": false,
+        "status": 403,
+        "url": "https://duckduckgo.com/html/?q=COZII%20X001Y0BTE9%20EAN",
+        "via": "direct",
+        "resultsCount": 0,
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "03142017000003",
+    "sku": "SKU-9947386415",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Weber 711004 EAN",
+    "trace": [
+      {
+        "type": "bing_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.bing.com/search?q=Weber%20711004%20EAN",
+        "via": "direct",
+        "results": []
+      },
+      {
+        "type": "ddg_attempt",
+        "ok": false,
+        "status": 403,
+        "url": "https://duckduckgo.com/html/?q=Weber%20711004%20EAN",
+        "via": "direct",
+        "resultsCount": 0,
+        "results": []
+      }
+    ]
+  }
+]

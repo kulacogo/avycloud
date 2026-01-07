@@ -1,0 +1,2741 @@
+[
+  {
+    "productId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "COZII X001Y0BTE9 COZII Hundepool X001Y0BTE9 Blau EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 2,
+        "url": "https://www.google.com/search?q=COZII%20X001Y0BTE9%20COZII%20Hundepool%20X001Y0BTE9%20Blau%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://royalinsignia.com/120-X-30c-Hundepool-Fur-Gro-e-Kleine-Hunde-Faltbare/538993"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/COZII-Hundebadewanne-Planschbecken-Rutschfestem-Badeb%C3%BCrste/dp/B0DP9FZY34"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "03142017000003",
+    "sku": "SKU-9947386415",
+    "status": "applied",
+    "query": "Weber 711004 Weber Räucherofen Smokey Mountain EAN",
+    "chosen": "077924021268",
+    "candidate": {
+      "code": "077924021268",
+      "type": "upc12",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://gartenwelt.de/smokey-mountain-cooker-smoker",
+          "hasLabel": true,
+          "contexts": [
+            "Konto Eigenschaften Eigenschaften Artikelnummer 711004 EAN 077924021268 Marke Weber Produktgewicht 13,653 Produktbreite in cm 37,4"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "077924021268",
+      "rationale": "fast_path_single_candidate",
+      "sources": [
+        "https://gartenwelt.de/smokey-mountain-cooker-smoker"
+      ]
+    }
+  },
+  {
+    "productId": "07901010300000",
+    "sku": "SKU-2097206690",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "Generisch JSD 520 Generisch Autoradios passgenau für EAN",
+    "candidates": [
+      {
+        "code": "43388837",
+        "type": "ean8",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/115666241507?srsltid=AfmBOorInXeQCRRTS16LXFlkySUlp7I7SL-sDY3kP6STcQbM-7mwHRmC",
+            "hasLabel": false,
+            "contexts": [
+              "en Gesetzen und Vorschriften der EU erfolgen. USt-IdNr.: RO 43388837 CRN: J123951 EPR-Nummern (Extended Producer Responsibility)"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Der einzige Kandidat \"43388837\" ist laut Web-Evidenz eine USt-IdNr. (Umsatzsteuer-Identifikationsnummer) und kein Produkt-Barcode (EAN/GTIN/UPC). Es gibt keinen eindeutig zuordenbaren Barcode für das Produkt.",
+      "sources": [
+        "https://www.ebay.de/itm/115666241507?srsltid=AfmBOorInXeQCRRTS16LXFlkySUlp7I7SL-sDY3kP6STcQbM-7mwHRmC"
+      ]
+    }
+  },
+  {
+    "productId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "FNTCASE FNTCASE Schutzhülle für Apple iPhone 16 Pro Grau EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=FNTCASE%20FNTCASE%20Schutzh%C3%BClle%20f%C3%BCr%20Apple%20iPhone%2016%20Pro%20Grau%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.amazon.de/FNTCASE-iPhone-16-Pro-H%C3%BClle-Grau/dp/B0DJ4QWQCN"
+          },
+          {
+            "title": "",
+            "url": "https://fntcase.com/de/collections/iphone-16-series?srsltid=AfmBOooYILALsmm8m94czrO6IdphvsxSJ8Fte63ItDCIUsviTIZSXG5e"
+          },
+          {
+            "title": "",
+            "url": "https://fntcase.com/de/collections/iphone-case?srsltid=AfmBOoqc41I23eWRNk9CK_dXN8XnYsXt6_h45A1mhZGekvoSA0UFuQSQ"
+          },
+          {
+            "title": "",
+            "url": "https://fntcase.com/de/products/fntcase-iphone-16-pro-phone-case-rugged-protective-phone-case-with-belt-clip-holster-and-kickstand?srsltid=AfmBOorT1LC9C0kJut40UDwvb-xeSWLMEsuBHZStpo0VJJguc7P2EgjN"
+          },
+          {
+            "title": "",
+            "url": "https://www.otterbox.de/de-de/iphone-16-pro"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "CAPAS CAPAS Schnorchelflossen Travel Fins Grün Gr. S/M für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=CAPAS%20CAPAS%20Schnorchelflossen%20Travel%20Fins%20Gr%C3%BCn%20Gr.%20S%2FM%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://xtremebassseries.com/Schnorchelflossen-Schwimmflossen-Reisegr-e-Kurz/881803"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/CAPAS-schnorchel-schwimmflossen-einstellbar-Schnorcheln/dp/B08L4WNSWQ"
+          },
+          {
+            "title": "",
+            "url": "https://lacasa-allgaeu.de/Schnorchelflossen-Schwimmflossen-Reisegr-e-Kurz-Einstellbar-507963"
+          },
+          {
+            "title": "",
+            "url": "https://www.ebay.com/itm/395737212699"
+          },
+          {
+            "title": "",
+            "url": "https://www.foot-map.com/722237/Schwimmflossen-Reisegr-e-Kurz-Einstellbar-Zum-Schnorcheln"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "sku": "SKU-7753504850",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "PerformaNat QDENI400127 PerformaNat Calcium Bolus für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=PerformaNat%20QDENI400127%20PerformaNat%20Calcium%20Bolus%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.performanat.de/shop/pn-calciumbolus-8stk"
+          },
+          {
+            "title": "",
+            "url": "https://www.performanat.de/loesungen/calcium-bolus"
+          },
+          {
+            "title": "",
+            "url": "https://ja-boe24.de/PerformaNat-3-x-8-Bolis"
+          },
+          {
+            "title": "",
+            "url": "https://www.agrarshop-allgaeu.de/Produkte/Bolus-Zubehoer/PerformaNat-CalciumBolus-8-Stk.html"
+          },
+          {
+            "title": "",
+            "url": "https://www.performanat.de/shop"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "4043962306996",
+    "sku": "SKU-8927251416",
+    "status": "applied",
+    "query": "fischer Quattric II 24/450/400 fischer Hammerbohrer Quattric SDS-plus EAN",
+    "chosen": "4048962306996",
+    "candidate": {
+      "code": "4048962306996",
+      "type": "ean13",
+      "sourceCount": 2,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://baunativ-shop.de/fischer-Hammerbohrer-SDS-Plus-Quattric-II-24-400-450?srsltid=AfmBOopZolp_FCZxmVkWYWYfvrYT5vchfYMYEEvZf-zzhTJoawXP3YeE",
+          "hasLabel": true,
+          "contexts": [
+            "lus Quattric II 24/400/450 Artikelnummer: FISQII24400 GTIN: 4048962306996 Kategorie: Bohrer Hersteller: fischer Der fischer Hammerboh"
+          ]
+        },
+        {
+          "url": "https://www.amazon.de/Fischer-549963-Bohrer-Trapano-400/dp/B07GBFF4LK",
+          "hasLabel": true,
+          "contexts": [
+            "messer - d - [mm]: 24 Lieferumfang: 1 Stück. Referenz: EAN: 4048962306996 Pfeifencode: 549963 Rechtliche Hinweise WARNHINWEIS Um die",
+            "messer - d - [mm]: 24 Lieferumfang: 1 Stück. Referenz: EAN: 4048962306996 Pfeifencode: 549963 Rechtliche Hinweise WARNHINWEIS Um die"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4048962306996",
+      "rationale": "fast_path_single_candidate",
+      "sources": [
+        "https://baunativ-shop.de/fischer-Hammerbohrer-SDS-Plus-Quattric-II-24-400-450?srsltid=AfmBOopZolp_FCZxmVkWYWYfvrYT5vchfYMYEEvZf-zzhTJoawXP3YeE",
+        "https://www.amazon.de/Fischer-549963-Bohrer-Trapano-400/dp/B07GBFF4LK"
+      ]
+    }
+  },
+  {
+    "productId": "52820776-34bb-4776-b728-06c521593d3a",
+    "sku": "SKU-1489693054",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Unbekannt 16er Pack Gastgeschenke Salbeigrün für Brautparty Hochzeit Deko EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Unbekannt%2016er%20Pack%20Gastgeschenke%20Salbeigr%C3%BCn%20f%C3%BCr%20Brautparty%20Hochzeit%20Deko%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "sku": "SKU-5329605855",
+    "status": "applied",
+    "query": "Ernie Ball 3221 Ernie Ball E-Gitarrensaiten Regular EAN",
+    "chosen": "749699132219",
+    "candidate": {
+      "code": "749699132219",
+      "type": "upc12",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.zoundhouse.de/eb3221-regular-slinky-3er-pack-010-046/0010283",
+          "hasLabel": true,
+          "contexts": [
+            "ieferbar, ca. 1-3 Tage In den Korb Artikel-Nr: 0010283 EAN: 749699132219 Herstellernummer: EB3221 Merken Frage zum Artikel? Zubehör"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "749699132219",
+      "rationale": "fast_path_single_candidate",
+      "sources": [
+        "https://www.zoundhouse.de/eb3221-regular-slinky-3er-pack-010-046/0010283"
+      ]
+    }
+  },
+  {
+    "productId": "5820082016105",
+    "sku": "SKU-5753016417",
+    "status": "applied",
+    "query": "Audi Audi Fußmatten Set Vorne, Hinten NEU Q5 8R EAN",
+    "chosen": "4039378396282",
+    "candidate": {
+      "code": "4039378396282",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.avp-shop.de/Original-Audi-Gummifussmatten-SET-Q5-8R-Allwettermatten-Gummimatten/8R0061511-041-8R1061501-041?srsltid=AfmBOorCZ6Qq3S3dnCeE3Qb-eOVzR8XB2_Ws3sCz6dTBrd_WOje1vGhR",
+          "hasLabel": true,
+          "contexts": [
+            "Warenkorb Produktnummer: 8R0061511 041 / 8R1061501 041 EAN: 4039378396282 Passt das zu meinem Auto? Passt das zu meinem Auto? Fahrges"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4039378396282",
+      "rationale": "Der Barcode '4039378396282' wird auf avp-shop.de explizit als EAN für ein 'Original Audi Gummifussmatten SET Q5 8R' angegeben. Dies stimmt mit dem Produkttyp 'Audi Fußmatten Set' und dem Modell 'Q5 8R' überein. Der andere Kandidat ist einem 'Rear Left Door Shield' zugeordnet und somit nicht relevant.",
+      "sources": [
+        "https://www.avp-shop.de/Original-Audi-Gummifussmatten-SET-Q5-8R-Allwettermatten-Gummimatten/8R0061511-041-8R1061501-041?srsltid=AfmBOorCZ6Qq3S3dnCeE3Qb-eOVzR8XB2_Ws3sCz6dTBrd_WOje1vGhR"
+      ]
+    }
+  },
+  {
+    "productId": "59151383083624",
+    "sku": "SKU-8684520981",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "home24 JI-05510-50 home24 Beistelltisch MANCHESTER Robustes EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=home24%20JI-05510-50%20home24%20Beistelltisch%20MANCHESTER%20Robustes%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.home24.de/produkt/beistelltisch-manchester-akazie-massiv-metall-akazie-anthrazit"
+          },
+          {
+            "title": "",
+            "url": "https://www.home24.de/holz-beistelltische/"
+          },
+          {
+            "title": "",
+            "url": "https://www.home24.de/produkt/beistelltisch-schwarz-holzwerkstoff-metall-45-x-55-x-45-cm"
+          },
+          {
+            "title": "",
+            "url": "https://www.home24.de/alle-beistelltische/"
+          },
+          {
+            "title": "",
+            "url": "https://www.xxxlutz.de/p/home24-beistelltisch-50-50-55-cm-furniert-eichefarben-rund-002736002515?srsltid=AfmBOorcLa3LRotYbJP3EjbAzRU7E5-Li8yk6bDhtKl8IsTX5muZ_G4h"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "61921411800024",
+    "sku": "SKU-6860111834",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Qunsheng 61921411800024 Qunsheng Haushaltshandschuhe 61921411800024 Naturlatex EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Qunsheng%2061921411800024%20Qunsheng%20Haushaltshandschuhe%2061921411800024%20Naturlatex%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "61cb13b8-ef09-4959-821e-c2d63fcd8038",
+    "sku": "SKU-9014992269",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Anqiyou AQY-0117 Anqiyou Fahrrad Rücklicht AQY-0117 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Anqiyou%20AQY-0117%20Anqiyou%20Fahrrad%20R%C3%BCcklicht%20AQY-0117%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "6be95318-1354-4b38-9526-aab48b727982",
+    "sku": "SKU-6954275739",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "SAGENSPEZI 16567432516506316 SAGENSPEZI Sägekette 16567432516506316 74TG EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=SAGENSPEZI%2016567432516506316%20SAGENSPEZI%20S%C3%A4gekette%2016567432516506316%2074TG%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.google.com.pe/intl/de/about/products?tab=wh"
+          },
+          {
+            "title": "",
+            "url": "https://shop.saegenspezi.de/Fuehrungsschiene-Saegekette-Schwert-Schiene/Stihl/028-AV-Super/45cm-Fuehrungsschiene-4-Vollmeissel-Saegeketten-325-74-16"
+          },
+          {
+            "title": "",
+            "url": "https://shop.saegenspezi.de/35cm-Schwert-Set-Drive-mit-4-Halbmeisselketten-325-56TG-13mm-passend-fuer-Stihl-025-MS250"
+          },
+          {
+            "title": "",
+            "url": "https://shop.saegenspezi.de/Fuehrungsschiene-Saegekette-Schwert-Schiene/Stihl/MS-270-MS-280/45cm-Halbmeissel-Saegekette-325-74-16"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/S%C3%A4gekette-Halbmei%C3%9Fel-Schnittl%C3%A4nge-verschiedene-Kettens%C3%A4gen/dp/B07WHZ2NCN"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "7778bbb4-0a11-414b-a323-1573ab313f48",
+    "sku": "SKU-6044260478",
+    "status": "applied",
+    "query": "MAHLE 8MA 376 783-494 MAHLE Ausgleichsbehälter 8MA 376 EAN",
+    "chosen": "4057635116510",
+    "candidate": {
+      "code": "4057635116510",
+      "type": "ean13",
+      "sourceCount": 2,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.autodoc.de/mahle-original/15296425",
+          "hasLabel": true,
+          "contexts": [
+            "NIA mit Sensor, ohne Kappe Artikelnummer: CRT 191 000S EAN: 4057635116510 Bewertungen - 1 Beschreibung Ergänzungsartikel / Ergänzende",
+            "Unser Preis: 25,99 &euro; Hersteller: MAHLE EAN-Nummer(n): 4057635116510 Zustand: Brandneu MAHLE Ausgleichsbehälter Gebrauchsnummern"
+          ]
+        },
+        {
+          "url": "https://www.autoteile-direkt.at/catalog/product/view/_ignore_category/1/id/1004010/",
+          "hasLabel": true,
+          "contexts": [
+            "3 Hersteller MAHLE Herstellerartikelnummer CRT 191 000S EAN 4057635116510 Länge [mm] 225 Breite [mm] 165 Höhe [mm] 225 Farbe weiß Mat"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4057635116510",
+      "rationale": "Der Barcode '4057635116510' (EAN13) wird in der WEB-EVIDENZ von autodoc.de und autoteile-direkt.at explizit als 'EAN' für das MAHLE Produkt '8MA 376 783-494' ausgewiesen. Der Code '70825787' wird lediglich als 'Gebrauchsnummer' oder 'Alternativer Name' aufgeführt und ist somit nicht eindeutig als primärer Barcode (EAN/GTIN) identifizierbar.",
+      "sources": [
+        "https://www.autodoc.de/mahle-original/15296425",
+        "https://www.autoteile-direkt.at/catalog/product/view/_ignore_category/1/id/1004010/"
+      ]
+    }
+  },
+  {
+    "productId": "8088208802015",
+    "sku": "SKU-6543182729",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "H&M HOME H&M HOME Spannbettlaken 140x200 cm Beige Baumwolle Recycelt EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=H%26M%20HOME%20H%26M%20HOME%20Spannbettlaken%20140x200%20cm%20Beige%20Baumwolle%20Recycelt%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "849e919f-0898-4df7-8fbb-e141c351cba4",
+    "sku": "SKU-2969022222",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "DUNSOO C04-061-04 DUNSOO Badteppich rutschfest Wasserabsorbierend EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 4,
+        "url": "https://www.google.com/search?q=DUNSOO%20C04-061-04%20DUNSOO%20Badteppich%20rutschfest%20Wasserabsorbierend%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.amazon.de/DUNSOO-Badezimmerteppich-rutschfest-Wasserabsorbierend-Badvorleger/dp/B0BWH7WS2D"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/DUNSOO-Badezimmerteppich-rutschfest-Wasserabsorbierend-Badvorleger/dp/B0BNZ38GK4"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/DUNSOO-Badezimmerteppich-rutschfeste-Wasserabsorbierend-Maschinenwaschbar/dp/B0D8BKJJ12"
+          },
+          {
+            "title": "",
+            "url": "https://www.yti.co.il/Badteppich-Wasserabsorbierend-Mikrofaser-Badvorleger-Fu00fcr-277237"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "85020cb2-38be-42d7-a2d1-bb5aa92d9e36",
+    "sku": "SKU-5952589845",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "Unbekannt 3709 Unbekannt Einhandfräse 3709 220 EAN",
+    "candidates": [
+      {
+        "code": "0088381067454",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.contorion.de/p/makita-einhandfraese-3709-51069397",
+            "hasLabel": true,
+            "contexts": [
+              "fräser 6 mm (733239-7) Spannhülse 6 mm (763662-2) EAN/GTIN: 0088381067454 Weniger anzeigen Mehr anzeigen Technische Daten Leistungsau"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4061856801599",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.euronics.de/haus-und-haushalt/werkzeuge/elektrowerkzeuge/sonstige-elektro-werkzeuge/3709-einhandfraese-4061856801599",
+            "hasLabel": false,
+            "contexts": [
+              "d Material Mit Rollenführung als Kantenfräse Artikelnummer: 4061856801599 Hersteller Artikelnummer: 3709 Informationen zu einer Herst",
+              "d Material Mit Rollenführung als Kantenfräse Artikelnummer: 4061856801599 Hersteller Artikelnummer: 3709 Informationen zu einer Herst"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Both candidate barcodes (0088381067454 and 4061856801599) are associated with a '3709 Einhandfräse' in the provided web evidence. While both appear to refer to the Makita 3709 model, there are two distinct EANs for what seems to be the same product. Without further information to distinguish or prioritize one EAN over the other for the given product (especially with the brand listed as 'Unbekannt'), the choice is not unambiguous. Therefore, an empty string is returned as per the hard rule: 'gib \"\" zurück, wenn nicht eindeutig'.",
+      "sources": [
+        "https://www.contorion.de/p/makita-einhandfraese-3709-51069397",
+        "https://www.euronics.de/haus-und-haushalt/werkzeuge/elektrowerkzeuge/sonstige-elektro-werkzeuge/3709-einhandfraese-4061856801599"
+      ]
+    }
+  },
+  {
+    "productId": "8b41bda6-bc97-4d34-8644-f081c7d180cb",
+    "sku": "SKU-2629282795",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Glosen Glosen Schubladenbox mit 7 Schubladen Silber H31,5x B35x EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Glosen%20Glosen%20Schubladenbox%20mit%207%20Schubladen%20Silber%20H31%2C5x%20B35x%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "90090043468127",
+    "sku": "SKU-3310911465",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "Nissan KE900-90043 Nissan Motoröl KE900-90043 5W-30 EAN",
+    "candidates": [
+      {
+        "code": "373067753203",
+        "type": "upc12",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/373067753203?srsltid=AfmBOoqDFYHBs0ORTW-vaTblqbKdPMOLaLtSLCSOMpiAyX_vmhsTvDyx",
+            "hasLabel": false,
+            "contexts": [
+              "fer ist für dieses Angebot verantwortlich. eBay-Artikelnr.: 373067753203 Zuletzt aktualisiert am 12. Dez. 2025 18:21:37 MEZ Alle Änd"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Der einzige Barcode-Kandidat ist eine eBay-Artikelnr. und kein Produkt-Barcode (GTIN/EAN/UPC).",
+      "sources": [
+        "https://www.ebay.de/itm/373067753203?srsltid=AfmBOoqDFYHBs0ORTW-vaTblqbKdPMOLaLtSLCSOMpiAyX_vmhsTvDyx"
+      ]
+    }
+  },
+  {
+    "productId": "9aff4795-bed9-4a09-ba98-77c2e138b511",
+    "sku": "SKU-2439653897",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "FAST A1Pro FAST Kabelloses Ladegerät A1Pro EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=FAST%20A1Pro%20FAST%20Kabelloses%20Ladeger%C3%A4t%20A1Pro%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "9e35f9b4-5df8-4db7-9dd7-31e4491488ef",
+    "sku": "SKU-6469360404",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Leevitex Leevitex Jersey Spannbettlaken Gelb 90-100x200-220cm Baumwolle OEKO-TEX Neu EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=Leevitex%20Leevitex%20Jersey%20Spannbettlaken%20Gelb%2090-100x200-220cm%20Baumwolle%20OEKO-TEX%20Neu%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.leevitex.de/products/spannbettlaken-90x200-cm"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/leevitex%C2%AE-Classic-Jersey-Spannbettlaken-90x200/dp/B0F84DFW2F"
+          },
+          {
+            "title": "",
+            "url": "https://www.leevitex.de/collections/all"
+          },
+          {
+            "title": "",
+            "url": "https://www.otto.de/heimtextilien/bettlaken/spannbettlaken/?marke=leevitex"
+          },
+          {
+            "title": "",
+            "url": "https://www.leevitex.de/collections/spannbettlaken-normale-grossen"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-0152828115",
+    "sku": "SKU-0152828115",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "STALESET TH01-BK STALESET Handtuchhalter TH01-BK TH01-BK EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=STALESET%20TH01-BK%20STALESET%20Handtuchhalter%20TH01-BK%20TH01-BK%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-0172791378",
+    "sku": "SKU-0172791378",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "lululemon LU9AVOS BLK lululemon Yogamatte Trainingsmatte Maximaler EAN",
+    "candidates": [
+      {
+        "code": "90476174",
+        "type": "ean8",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/135665230895?srsltid=AfmBOoqTPn9Snuh3inauttBhZs8K3vdMajz4OGOEMz9kSFwz83zNH3EG",
+            "hasLabel": false,
+            "contexts": [
+              "85599 Parsdorf Tel.: +49/ (0)89/ 90476173 Fax: +49/ (0)89/ 90476174 E-Mail: elsemannlagerverkaufgmbh@gmail.com ist für die pers"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Der einzige Barcode-Kandidat \"90476174\" ist laut Web-Evidenz (eBay-Link) eine Faxnummer und kein Produkt-Barcode (EAN). Es konnte kein gültiger und dem Produkt zuordenbarer Barcode gefunden werden.",
+      "sources": [
+        "https://www.ebay.de/itm/135665230895?srsltid=AfmBOoqTPn9Snuh3inauttBhZs8K3vdMajz4OGOEMz9kSFwz83zNH3EG",
+        "https://www.google.com.pe/intl/de/about/products?tab=wh",
+        "https://www.lululemon.de/de-de/c/accessoires/yogamatten"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-0280699295",
+    "sku": "SKU-0280699295",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "H&M H&M Pullover Rot Baumwolle NEU Damen Strickpullover Zeitloser EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=H%26M%20H%26M%20Pullover%20Rot%20Baumwolle%20NEU%20Damen%20Strickpullover%20Zeitloser%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-0362404564",
+    "sku": "SKU-0362404564",
+    "status": "applied",
+    "query": "UBRAVOO ACE1013 UBRAVOO Kindersitzerhöhung mit Tablett EAN",
+    "chosen": "799947786411",
+    "candidate": {
+      "code": "799947786411",
+      "type": "upc12",
+      "sourceCount": 2,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.amazon.de/-/en/UBRAVOO-Childrens-Foldable-Removable-Children/dp/B0C5DFN79W",
+          "hasLabel": true,
+          "contexts": [
+            "endation 15 Kilograms Portable No Assembly required Yes UPC 799947786411 See more About this item Every moment shared counts: UBRAVO"
+          ]
+        },
+        {
+          "url": "https://www.amazon.de/UBRAVOO-Sitzerh%C3%B6hung-Kindersitzerh%C3%B6hung-Klappbar-Abnehmbarem/dp/B0C5DFN79W",
+          "hasLabel": true,
+          "contexts": [
+            "hlung 15 Kilogramm Tragbar Nein Montage erforderlich Ja UPC 799947786411 Mehr anzeigen Info zu diesem Artikel Jeder gemeinsame Momen"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "799947786411",
+      "rationale": "Der Barcode '799947786411' wird auf zwei Amazon.de-Produktseiten für eine 'UBRAVOO Kindersitzerhöhung' aufgeführt, was direkt mit dem Produkt im Prompt übereinstimmt. Der andere Kandidat ist nur auf einer Amazon.de-Seite mit spanischem Kontext zu finden.",
+      "sources": [
+        "https://www.amazon.de/-/en/UBRAVOO-Childrens-Foldable-Removable-Children/dp/B0C5DFN79W",
+        "https://www.amazon.de/UBRAVOO-Sitzerh%C3%B6hung-Kindersitzerh%C3%B6hung-Klappbar-Abnehmbarem/dp/B0C5DFN79W"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-0611814591",
+    "sku": "SKU-0611814591",
+    "status": "applied",
+    "query": "Lacoste SH9623 Lacoste Hoodie Marineblau Gr. EAN",
+    "chosen": "3666354875601",
+    "candidate": {
+      "code": "3666354875601",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://mode.ladendirekt.de/herren/produkte/lacoste-hoodie-c0163a37",
+          "hasLabel": true,
+          "contexts": [
+            "mwolle Farbe Silber Größe Gr. 7 Mpn SH9623-CCA-007 EAN/GTIN 3666354875601 Herstellungsland Frankreich, Monaco Letztes Preisupdate 202"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "3666354875601",
+      "rationale": "fast_path_single_candidate",
+      "sources": [
+        "https://mode.ladendirekt.de/herren/produkte/lacoste-hoodie-c0163a37"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-0651722148",
+    "sku": "SKU-0651722148",
+    "status": "applied",
+    "query": "Topeak TC2333B Topeak Oberrohrtasche Bento Pack EAN",
+    "chosen": "4710069709498",
+    "candidate": {
+      "code": "4710069709498",
+      "type": "ean13",
+      "sourceCount": 2,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.ebay.de/itm/365632758665?srsltid=AfmBOoosqssiDcSG5oITZJ71CXzCRsmIrDb32nmyk-DBqVEFhgj7fC0-",
+          "hasLabel": true,
+          "contexts": [
+            "l Nylon / TPU Gewicht 159 g Sportart/Aktivität Radsport EAN 4710069709498 Kategorie Breadcrumb Sport Radsport Fahrradzubehör Fahrradt"
+          ]
+        },
+        {
+          "url": "https://martessport.eu/de/frauen/frauenzubehor/umhangetasche-bento-pack-new-2024-t-tc2333b-topeak",
+          "hasLabel": true,
+          "contexts": [
+            "nen Hersteller TOPEAK Bezeichnung Fahrrad Farbe Schwarz EAN 4710069709498 Referenz T-TC2333B Bewertungen Die Preise der Produkte im O"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4710069709498",
+      "rationale": "Der Barcode 4710069709498 wird in der WEB-EVIDENZ von ebay.de und martessport.eu explizit mit dem Hersteller Topeak und der Referenz T-TC2333B (MPN des Produkts) sowie der Produktart Fahrradzubehör in Verbindung gebracht. Der andere Kandidat ist einem Tannenbaum zugeordnet.",
+      "sources": [
+        "https://www.ebay.de/itm/365632758665?srsltid=AfmBOoosqssiDcSG5oITZJ71CXC...",
+        "https://martessport.eu/de/frauen/frauenzubehor/umhangetasche-bento-pack-new-2024-t-tc2333b-topeak"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-1230781227",
+    "sku": "SKU-1230781227",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Villa Grinario SKU-1230781227 Villa Grinario Spannbettlaken Grau EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 1,
+        "url": "https://www.google.com/search?q=Villa%20Grinario%20SKU-1230781227%20Villa%20Grinario%20Spannbettlaken%20Grau%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.awg-mode.de/wohnen/schlafzimmer/spannbetttuecher?srsltid=AfmBOop6e5-gxx2raBrnQn6g5NMq_f2nIFytunQBlU-KNu0NSSzJ7Sbb"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-1789286937",
+    "sku": "SKU-1789286937",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Engelbert Strauss Engelbert Strauss T-Shirt: Robust, bequem & vielseitig für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Engelbert%20Strauss%20Engelbert%20Strauss%20T-Shirt%3A%20Robust%2C%20bequem%20%26%20vielseitig%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-2135446963",
+    "sku": "SKU-2135446963",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Dexcom STS-GS-003 Dexcom Glukosesensoren Präzise Echtzeit-Glukosewerte EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=Dexcom%20STS-GS-003%20Dexcom%20Glukosesensoren%20Pr%C3%A4zise%20Echtzeit-Glukosewerte%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.rehadat-gkv.de/produkt/index.html?sys=30.99.02.3006&s3f=s3f"
+          },
+          {
+            "title": "",
+            "url": "https://www.dexcom.com/de-de/dexcom-shop/g6/sts-gs-003"
+          },
+          {
+            "title": "",
+            "url": "https://www.merkala.de/dexcom-g6-sensor-3-sensoren.html"
+          },
+          {
+            "title": "",
+            "url": "https://dia-log.com/dexcom-g6-sensor-sts-gs-003/0000002754.2"
+          },
+          {
+            "title": "",
+            "url": "https://www.rehadat-gkv.de/produkt/index.html?sys=30.43.01.0010&s3f=s3f"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-2609353370",
+    "sku": "SKU-2609353370",
+    "status": "applied",
+    "query": "PROGARDEN PROGARDEN Pflege Anthrazit Polypropylen (PP) NEU Gr. 110 EAN",
+    "chosen": "8009271567993",
+    "candidate": {
+      "code": "8009271567993",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.kaufland.de/product/303346333/",
+          "hasLabel": true,
+          "contexts": [
+            "erasse Farbe Grün Länge 87.5 cm Herstellernummer 987156 EAN 8009271567993 Letztes Produkt anzeigen Nächstes Produkt anzeigen Unsere E"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "8009271567993",
+      "rationale": "Der Barcode 8009271567993 wird auf der Kaufland-Produktseite (https://www.kaufland.de/product/303346333/) explizit als EAN für die 'PROGARDEN Gartenbank 'Tabolino' 2-Sitzer, Anthrazit' aufgeführt, was mit der Produktbeschreibung 'PROGARDEN Pflege Anthrazit Polypropylen (PP) NEU Gr. 110 cm Gartenbank' übereinstimmt. Andere Kandidaten sind entweder für andere Produkte oder als 'seller_id' gekennzeichnet.",
+      "sources": [
+        "https://www.kaufland.de/product/303346333/"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-2611077541",
+    "sku": "SKU-2611077541",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Glossyautoparts EBY-1000335-1342 Glossyautoparts Nockenwelle EBY-1000335-1342 Metall EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Glossyautoparts%20EBY-1000335-1342%20Glossyautoparts%20Nockenwelle%20EBY-1000335-1342%20Metall%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-2965430996",
+    "sku": "SKU-2965430996",
+    "status": "applied",
+    "query": "Beliani 407569 Beliani Beistelltisch CAORIA Eleganter EAN",
+    "chosen": "4255664833709",
+    "candidate": {
+      "code": "4255664833709",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.kaufland.de/product/477419259/",
+          "hasLabel": true,
+          "contexts": [
+            "ang 1 x Beistelltisch Form Rund Herstellernummer 407569 EAN 4255664833709 Sicherheitshinweise & Infos Sicherheitshinweise Letztes Pro"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4255664833709",
+      "rationale": "Der Barcode '4255664833709' wird in der WEB-EVIDENZ von kaufland.de explizit als EAN für das Produkt mit der Herstellernummer '407569' aufgeführt, welche mit der MPN des Produkts übereinstimmt. Die anderen Kandidaten sind entweder als 'seller_id' gekennzeichnet oder nicht eindeutig dem Produkt zuzuordnen.",
+      "sources": [
+        "https://www.kaufland.de/product/477419259/"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-3093460977",
+    "sku": "SKU-3093460977",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "LLIVEKIT KDF-5517DTW LLIVEKIT Heißluftfritteuse KDF-5517DTW Schwarz EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=LLIVEKIT%20KDF-5517DTW%20LLIVEKIT%20Hei%C3%9Fluftfritteuse%20KDF-5517DTW%20Schwarz%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.amazon.de/LLIVEKIT-Hei%C3%9Fluftfritteuse-Heissluftfriteuse-LED-Touchscreen-Sichtfenster/dp/B0BTYV49RP"
+          },
+          {
+            "title": "",
+            "url": "https://xtremebassseries.com/Llivekit-Heissluftfritteuse-2-Schubladen/1113941"
+          },
+          {
+            "title": "",
+            "url": "https://www.manualslib.de/manual/1301018/Llivekit-Kdf-5517Dtw.html"
+          },
+          {
+            "title": "",
+            "url": "https://www.deutschlandcard.de/preisvergleich/p/4054908261793-llivekit-heiluftfritteuse-240000-w-mit-2-schubladen-9-programme-schwarz"
+          },
+          {
+            "title": "",
+            "url": "https://www.testsieger.de/heissluftfritteusen/7C7RCM8FFAAHV-llivekit-heissluftfritteuse-1800-w-7l-10-programmen-timer-und-warmhalten-schwarz.html"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-3149269291",
+    "sku": "SKU-3149269291",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Nidec Sankyo 445-0765157A Nidec Sankyo Motorisierter Kartenleser EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 3,
+        "url": "https://www.google.com/search?q=Nidec%20Sankyo%20445-0765157A%20Nidec%20Sankyo%20Motorisierter%20Kartenleser%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.ebay.com/itm/186396330531"
+          },
+          {
+            "title": "",
+            "url": "https://www.ebay.com.au/itm/186396330531?srsltid=AfmBOoo49CV-PkCq5nPfHtrql4KmnIAQfwD1zFkzoLwgQtb2UuF1AcUp"
+          },
+          {
+            "title": "",
+            "url": "https://shopozz.ru/items/186396330531-ncr-atm-card-readers-nidec-sankyo-445-0765157a-new-open-box"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-3213392901",
+    "sku": "SKU-3213392901",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Nike Nike Tennisschuh Zoom Vapor 12 CLY für Herren EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Nike%20Nike%20Tennisschuh%20Zoom%20Vapor%2012%20CLY%20f%C3%BCr%20Herren%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-3226209432",
+    "sku": "SKU-3226209432",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "WOLTU RGB46ws WOLTU Standregal Weiß Kompakt EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=WOLTU%20RGB46ws%20WOLTU%20Standregal%20Wei%C3%9F%20Kompakt%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.amazon.de/-/en/RGB46ws-Standing-Bookcase-Kitchen-Freestanding/dp/B0D1KG9T75"
+          },
+          {
+            "title": "",
+            "url": "https://www.woltu.eu/c/moebel/regale/standregale/?srsltid=AfmBOoo1pQQIJITO4kERUTWnJFKNBPV_ONqzRNAITQ0MqupmsK0PkCbN"
+          },
+          {
+            "title": "",
+            "url": "https://www.woltu.eu/p/woltu-buecherregal-mit-4-faechern-wuerfelregal-weiss-standregal-aus-holzwerkstoff?srsltid=AfmBOopdLJApvP6K5U08MdINr6u-2TMX1rJQmZIBgWmjq7kOwmBee-Oe"
+          },
+          {
+            "title": "",
+            "url": "https://www.otto.de/p/woltu-buecherregal-1-tlg-weiss-mit-8-faechern-3-tueren-fuer-buero-wohnzimmer-arbeitszimmer-S040O0KX/"
+          },
+          {
+            "title": "",
+            "url": "https://www.idealo.de/preisvergleich/Liste/118165988/woltu-kuechenregal-standregal.html"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-3475457190",
+    "sku": "SKU-3475457190",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Upgrade4cars X2 Sitzauflagen Universal – Optimaler Schutz für Vordersitze EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 3,
+        "url": "https://www.google.com/search?q=Upgrade4cars%20X2%20Sitzauflagen%20Universal%20%E2%80%93%20Optimaler%20Schutz%20f%C3%BCr%20Vordersitze%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.amazon.de/Upgrade4cars-wasserdichter-Autositzschoner-Autositz-Auflage-Auto-Sitzbezug/dp/B0CBVTQ2NZ"
+          },
+          {
+            "title": "",
+            "url": "https://xtremebassseries.com/Upgrade4cars-Autostzbezug-Set-F-r-De-Vorderstze-2-telges/695499"
+          },
+          {
+            "title": "",
+            "url": "https://upgrade4cars.de/?srsltid=AfmBOooL-c7oEKsza4yqSzdv64Il9PPy9nc4fZhNckN6DSkfrM98QQla"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-3963918245",
+    "sku": "SKU-3963918245",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Success Courier DSK-1 Success Courier Pumpensteuerung DSK-1 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 3,
+        "url": "https://www.google.com/search?q=Success%20Courier%20DSK-1%20Success%20Courier%20Pumpensteuerung%20DSK-1%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.google.co.in/intl/de/about/products?tab=wh"
+          },
+          {
+            "title": "",
+            "url": "https://duggmbh.de/pumpensteuerungen/elektronische-pumpensteuerungen/pumpensteuerung-skd-1-mit-kabel.html"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/LARS360-Pumpensteuerung-Automatikschalter-Druckschalter-Gartenhausbew%C3%A4sserung/dp/B09CCSSB88"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4017783375",
+    "sku": "SKU-4017783375",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Blivrig DQTGD01300W Blivrig LED Strahler DQTGD01300W EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 2,
+        "url": "https://www.google.com/search?q=Blivrig%20DQTGD01300W%20Blivrig%20LED%20Strahler%20DQTGD01300W%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.amazon.de/Blivrig-Scheinwerfer-Wasserdicht-Aussenstrahler-Energieklasse/dp/B08XJD6Q7Z"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/Blivrig-LED-Strahler-Bewegungsmelder-LED-Au%C3%9Fenstrahler-wasserdicht/dp/B09WQM7L1L"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4204090012",
+    "sku": "SKU-4204090012",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Villa Grinario Villa Grinario Jersey-Spannbettuch 100x200 cm Blau – Bügelfrei EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=Villa%20Grinario%20Villa%20Grinario%20Jersey-Spannbettuch%20100x200%20cm%20Blau%20%E2%80%93%20B%C3%BCgelfrei%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.awg-mode.de/Spannbetttuch-100x200cm-866200-a226-13?srsltid=AfmBOoo1AMo6j5TfNwlMna1KP6RQla_lruq8RbS0TquA5ACH2ML1sc5G"
+          },
+          {
+            "title": "",
+            "url": "https://www.awg-mode.de/Spannbetttuch-100x200cm-866200-a331-15?srsltid=AfmBOorv725tQ09nDe5kSFSBTE4hn616FZXgmqX6a0c4IHVgbb_PFSxG"
+          },
+          {
+            "title": "",
+            "url": "https://www.globus-baumarkt.de/p/vario-jersey-spannbetttuch-blau-100-x-200-cm-0706200624/"
+          },
+          {
+            "title": "",
+            "url": "https://www.ebay.de/itm/126386939189?srsltid=AfmBOoqUcXoLt6Zl50RsF_xoDvs7BfXIlOFz8ua90ex7PjyMupyXisbM"
+          },
+          {
+            "title": "",
+            "url": "https://www.manomano.de/p/vario-jersey-spannbetttuch-blau-100-x-200-cm-spannbettlaken-68949990"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4212491486",
+    "sku": "SKU-4212491486",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Unbekannt SKU-4212491486 Unbekannt Handpan Schwarz matt EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Unbekannt%20SKU-4212491486%20Unbekannt%20Handpan%20Schwarz%20matt%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4433223955",
+    "sku": "SKU-4433223955",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Yogamatte The Big Mat Blau/Grau marmoriert NEU Rutschfest Lululemon Maximaler EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Yogamatte%20The%20Big%20Mat%20Blau%2FGrau%20marmoriert%20NEU%20Rutschfest%20Lululemon%20Maximaler%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4541378818",
+    "sku": "SKU-4541378818",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Longking LKA003WGuk Longking Selbstklebefliesen für Küche EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 1,
+        "url": "https://www.google.com/search?q=Longking%20LKA003WGuk%20Longking%20Selbstklebefliesen%20f%C3%BCr%20K%C3%BCche%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.amazon.de/LONGKING-Selbstklebende-K%C3%BCchenr%C3%BCckwand-Dekorative-Fliesen/dp/B08KWH3TX1"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4561934561",
+    "sku": "SKU-4561934561",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "GLOCK SKU-4561934561 GLOCK Pistolenkoffer Robuster Hartschalenkoffer EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=GLOCK%20SKU-4561934561%20GLOCK%20Pistolenkoffer%20Robuster%20Hartschalenkoffer%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.steinadler.de/de-de/shop/rucksaecke-und-taschen/waffentaschen/glock-pistolenkoffer-standard"
+          },
+          {
+            "title": "",
+            "url": "https://ha-lehmann.at/produkt/glock-pistolenkoffer-inkl-reinigungsbuerste-fuer-9-mm/?srsltid=AfmBOorQH19tqG4F741nZWXj0zdHrJ_VqV99oDTd9kY-i3UXCunTwLCv"
+          },
+          {
+            "title": "",
+            "url": "https://www.mantisx.de/products/glock-pistolenkoffer"
+          },
+          {
+            "title": "",
+            "url": "https://www.4komma5.de/Glock-Pistolenkoffer-Schwarz-27-x-24-x-6-cm-abschliessbar"
+          },
+          {
+            "title": "",
+            "url": "https://www.shoot-club.de/Original-Glock-Pistolenkoffer-FDE"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4846525236",
+    "sku": "SKU-4846525236",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "QinnFSIYANG QinnFSIYANG E-Scooter F6 – Faltbar für agile und EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=QinnFSIYANG%20QinnFSIYANG%20E-Scooter%20F6%20%E2%80%93%20Faltbar%20f%C3%BCr%20agile%20und%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4919757592",
+    "sku": "SKU-4919757592",
+    "status": "applied",
+    "query": "Flanellhemd Flanellhemd Hemd Herren Blau Gr. L 100% Baumwolle EAN",
+    "chosen": "7330509907467",
+    "candidate": {
+      "code": "7330509907467",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.gs-workfashion.de/3288-Blaklaeder-Flanellhemd-100-Baumwolle/3288-1168.5986.M",
+          "hasLabel": true,
+          "contexts": [
+            "eferzeit 4 - 6 Arbeitstage Artikelnr: 3288-1168.5986.M EAN: 7330509907467 3288 Blakläder® Flanellhemd 100% Baumwolle Lockere Passform"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "7330509907467",
+      "rationale": "Der Barcode 7330509907467 ist auf gs-workfashion.de direkt einem \"Blakläder® Flanellhemd 100% Baumwolle\" zugeordnet. Dies stimmt gut mit dem Produkttyp \"Flanellhemd\" und dem Material \"100% Baumwolle\" überein. Die Marke \"Flanellhemd\" im Ausgangsprodukt ist generisch, während \"Blakläder\" eine spezifische Marke für Arbeitskleidung ist, was die Zuordnung plausibel macht. Der andere Kandidat auf eBay.de zeigt widersprüchliche Informationen (Titel \"Flanellhemd\" aber Marke \"DEDRA\" und Kategorie \"Werkzeuge\"), was eine eindeutige Zuordnung verhindert.",
+      "sources": [
+        "https://www.gs-workfashion.de/3288-Blaklaeder-Flanellhemd-100-Baumwolle/3288-1168.5986.M"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-5462953053",
+    "sku": "SKU-5462953053",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "IPOZON IPOZON Stunt-Scooter passgenau für FOOT NEU Lila, Schwarz EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=IPOZON%20IPOZON%20Stunt-Scooter%20passgenau%20f%C3%BCr%20FOOT%20NEU%20Lila%2C%20Schwarz%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://ipozon.com/product-category/trick-scooter/"
+          },
+          {
+            "title": "",
+            "url": "https://ipozon.com/"
+          },
+          {
+            "title": "",
+            "url": "https://www.ripot.lv/en/products/ipozon-max-trampoline-scooter"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.com/stores/IPOZON/page/C1C7839B-08A2-48A8-9C44-B9678D198238"
+          },
+          {
+            "title": "",
+            "url": "https://ipozon.com/product/trampoline-scooter/"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-5674295862",
+    "sku": "SKU-5674295862",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "RHINOWALK RF260 RHINOWALK Fahrradzubehör RF260 Transporttasche EAN",
+    "candidates": [
+      {
+        "code": "325119439832",
+        "type": "upc12",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/324286096189?srsltid=AfmBOoos98K5_Vl53aZ06Km59jib7pd5k4WNPibeNxt870fH3mNN-B2T",
+            "hasLabel": false,
+            "contexts": [
+              "asche Wasserdicht mit transparentem Smartphone-Fach 5L (Nr. 325119439832) e***t (836) - Bewertung vom Käufer. Letzte 6 Monate Bestät",
+              "asche Wasserdicht mit transparentem Smartphone-Fach 5L (Nr. 325119439832) e***t (836) - Bewertung vom Käufer. Letzte 6 Monate Bestät"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "326620168303",
+        "type": "upc12",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/324286096189?srsltid=AfmBOoos98K5_Vl53aZ06Km59jib7pd5k4WNPibeNxt870fH3mNN-B2T",
+            "hasLabel": false,
+            "contexts": [
+              "enkertasche für E-Bike E-Scooter mit Tragegriff & Seil (Nr. 326620168303) o***i (1160) - Bewertung vom Käufer. Letzte 6 Monate Bestä",
+              "enkertasche für E-Bike E-Scooter mit Tragegriff & Seil (Nr. 326620168303) s***s (237) - Bewertung vom Käufer. Letzte 6 Monate Bestät",
+              "enkertasche für E-Bike E-Scooter mit Tragegriff & Seil (Nr. 326620168303) o***i (1160) - Bewertung vom Käufer. Letzte 6 Monate Bestä"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Die bereitgestellten Barcode-Kandidaten beziehen sich in ihren Kontexten auf andere Produkte (Smartphone-Tasche, Lenkertasche) und nicht eindeutig auf die RHINOWALK RF260 Fahrrad-Transporttasche für Falträder. Daher kann kein Barcode eindeutig zugeordnet werden.",
+      "sources": []
+    }
+  },
+  {
+    "productId": "SKU-5687802687",
+    "sku": "SKU-5687802687",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Homerella SKU-5687802687 Homerella UNIFLOW Badewanneneinlage für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=Homerella%20SKU-5687802687%20Homerella%20UNIFLOW%20Badewanneneinlage%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.google.com.pe/intl/de/about/products?tab=wh"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/Homerella-Badewannenmatte-Antirutschmatte-schimmelresistent-maschinenwaschbar/dp/B08TR7F9MP"
+          },
+          {
+            "title": "",
+            "url": "https://www.home24.de/produkt/badewannenmatte-uniflow"
+          },
+          {
+            "title": "",
+            "url": "https://www.hornbach.de/p/homerella-badewannenmatte-rutschfest-100-inkl-2-haken-zum-aufhaengen-100x40cm-antirutschmatte-badewanne-hautsensitiv-schimmelresistent-badematte-rutschfest-maschinenwaschbar/12232456/"
+          },
+          {
+            "title": "",
+            "url": "https://www.shop-apotheke.com/sanitaetshaus/upmCFF4LC/homerella-badewannenmatte.htm"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-5795572847",
+    "sku": "SKU-5795572847",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "ADVENTURE ADVENTURE Strandmuscheln NEU Pop-Up 50+ Schutz Blitzaufbau Sport EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=ADVENTURE%20ADVENTURE%20Strandmuscheln%20NEU%20Pop-Up%2050%2B%20Schutz%20Blitzaufbau%20Sport%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-6148008788",
+    "sku": "SKU-6148008788",
+    "status": "applied",
+    "query": "TPE YOGA TPE YOGA Yogamatten Grün TPE NEU Gr. 61 EAN",
+    "chosen": "4067628358643",
+    "candidate": {
+      "code": "4067628358643",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.pro-discount-werbeartikel.de/Virabha-Yogamatte-aus-recyceltem-TPE-121930?number=CPO12703761",
+          "hasLabel": true,
+          "contexts": [
+            "terial: Recyceltes TPE, Polyester, Recycled PET EAN / GTIN: 4067628358643 Handelsklausel: Zwischenverkauf vorbehalten Zustand: neu We"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4067628358643",
+      "rationale": "Der Barcode '4067628358643' wurde auf der Webseite 'pro-discount-werbeartikel.de' im Kontext einer 'Virabha Yogamatte aus recyceltem TPE' gefunden. Obwohl die Marke 'Virabha' nicht exakt 'TPE YOGA' entspricht, handelt es sich um eine Yogamatte aus TPE, was eine sehr gute Übereinstimmung mit dem Produkttyp darstellt. Die anderen Kandidaten beziehen sich auf eine Porzellankanne und eine Sitzcreme und sind daher irrelevant.",
+      "sources": [
+        "https://www.pro-discount-werbeartikel.de/Virabha-Yogamatte-aus-recyceltem-TPE-121930?number=CPO12703761"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-6346907299",
+    "sku": "SKU-6346907299",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "GoveeLife H5100 GoveeLife Smart Thermo-Hygrometer H5100 EAN",
+    "candidates": [
+      {
+        "code": "0726084977464",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/335733040681?srsltid=AfmBOopdNM2HJ849bAtylYRmn-B0Go3WE_yImA5OVbynS8ka6_z-5Iai",
+            "hasLabel": true,
+            "contexts": [
+              "rieart Alkalisch Modellnummer H5151 Type Does not apply EAN 0726084977464 Kategorie Breadcrumb Elektronik & Technik Haushaltsgeräte K"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "20002961",
+        "type": "ean8",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://geizhals.de/govee-bluetooth-thermometer-mit-hygrosensor-innen-h5100-a3281489.html",
+            "hasLabel": false,
+            "contexts": [
+              "& Aktoren FRITZ! FRITZ!DECT 302 Funk-Heizkörperthermostat (20002961) Bewertung: 4.7 von 5 Sternen (151) ab € 53,93 117 Angebote"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "20003050",
+        "type": "ean8",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://geizhals.de/govee-bluetooth-thermometer-mit-hygrosensor-innen-h5100-a3281489.html",
+            "hasLabel": false,
+            "contexts": [
+              "Magnetischer Tür-/Fensterkontakt, Schließ-/Öffnungssensor (20003050) Bewertung: 4.0 von 5 Sternen (44) ab € 32,90 54 Angebote F"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "335930385546",
+        "type": "upc12",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/335733040681?srsltid=AfmBOopdNM2HJ849bAtylYRmn-B0Go3WE_yImA5OVbynS8ka6_z-5Iai",
+            "hasLabel": false,
+            "contexts": [
+              "tech G935/G933/G633 – Komfortables Stirnband + Ohrpols (Nr. 335930385546) Alle Bewertungen ansehen Zurück zur Startseite Zurück zum",
+              "tech G935/G933/G633 – Komfortables Stirnband + Ohrpols (Nr. 335930385546) Alle Bewertungen ansehen Copyright © 1995–2026 eBay Inc. A"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Keiner der Barcode-Kandidaten konnte eindeutig dem Produkt \"GoveeLife Smart Thermo-Hygrometer H5100\" zugeordnet werden. Der Kandidat \"0726084977464\" bezieht sich auf das Modell H5151, nicht H5100. Die anderen Kandidaten sind eindeutig anderen Produkten zugeordnet.",
+      "sources": [
+        "https://www.amazon.de/GoveeLife-Hygrometer-Thermometer-Innen-Sensoren/dp/B0CGDF62C4",
+        "https://geizhals.de/govee-bluetooth-thermometer-mit-hygrosensor-innen-h5100-a3281489.html",
+        "https://www.ebay.de/itm/335733040681?srsltid=AfmBOopdNM2HJ849bAtylYRmn-B0Go3WE_yImA5OVbynS8ka6_z-5Iai"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-6614383452",
+    "sku": "SKU-6614383452",
+    "status": "applied",
+    "query": "Leonardo Leonardo Karaffe Swing Transparent Glas NEU Gr. ca. EAN",
+    "chosen": "4002541707154",
+    "candidate": {
+      "code": "4002541707154",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.leonardo.de/products/krug-swing-1200-ml-070715",
+          "hasLabel": true,
+          "contexts": [
+            "max. 55°C Serie SWING Stil modern Artikelnummer 070715 EAN 4002541707154 Produktbewertungen Customer Reviews Be the first to write a",
+            "max. 55°C Serie SWING Stil modern Artikelnummer 070715 EAN 4002541707154 Produktbewertungen Customer Reviews Be the first to write a"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4002541707154",
+      "rationale": "Der Barcode 4002541707154 wird auf der offiziellen Leonardo-Website (leonardo.de) direkt dem Produkt \"Krug Swing 1200 ml\" zugeordnet, was mit der Produktbeschreibung \"Leonardo Karaffe Swing ... 1.2L\" übereinstimmt.",
+      "sources": [
+        "https://www.leonardo.de/products/krug-swing-1200-ml-070715"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-7049665224",
+    "sku": "SKU-7049665224",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "H&M H&M Damen Strickjacke: Eleganter Zopfmuster Cardigan für Stil EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=H%26M%20H%26M%20Damen%20Strickjacke%3A%20Eleganter%20Zopfmuster%20Cardigan%20f%C3%BCr%20Stil%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.google.co.in/intl/de/about/products?tab=wh"
+          },
+          {
+            "title": "",
+            "url": "https://www2.hm.com/de_de/productpage.1264094001.html?srsltid=AfmBOoptskZDWuUPHC9xt-rAhbwk5BKP8l6Fxy0gsZvSOhDBS92V-kq7"
+          },
+          {
+            "title": "",
+            "url": "https://www2.hm.com/de_de/damen/produkte/cardigans-pullover/cardigans.html?srsltid=AfmBOoqy_yQHkjrYntIssbzqfX0n7M5PG6N87KWUUnWJhVjOUrQpOzwe"
+          },
+          {
+            "title": "",
+            "url": "https://www2.hm.com/de_de/productpage.1239430001.html?srsltid=AfmBOopdDEfuEYIXx7yvo8Zm9C7fkL583tORYCalWarDNJHGlMQAChZz"
+          },
+          {
+            "title": "",
+            "url": "https://www2.hm.com/de_de/productpage.1248864004.html?srsltid=AfmBOoptYqMC5YmHfYVYXPehnzVvNzXycib_0jd_am-AT8QVGYYCa6QO"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-7270723982",
+    "sku": "SKU-7270723982",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Kitchen Sink SKU-7270723982 Kitchen Sink Einbauspüle Silber EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Kitchen%20Sink%20SKU-7270723982%20Kitchen%20Sink%20Einbausp%C3%BCle%20Silber%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-7721659409",
+    "sku": "SKU-7721659409",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "db-tronic SKU-7721659409 db-tronic Raspberry Starter-Set 8GB EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=db-tronic%20SKU-7721659409%20db-tronic%20Raspberry%20Starter-Set%208GB%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-7800997883",
+    "sku": "SKU-7800997883",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Tamaris Tamaris Slingpumps Damen – Zeitloser Komfort für jeden EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": false,
+        "status": 0,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Tamaris%20Tamaris%20Slingpumps%20Damen%20%E2%80%93%20Zeitloser%20Komfort%20f%C3%BCr%20jeden%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-7998641824",
+    "sku": "SKU-7998641824",
+    "status": "applied",
+    "query": "Rohema Rohema Drumsticks Premium Holz NEU Präzision Langlebigkeit Antiquitäten EAN",
+    "chosen": "4250503844465",
+    "candidate": {
+      "code": "4250503844465",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.ebay.de/itm/166933398406?srsltid=AfmBOorujEcNDD3HrA8HGwpn9LVxa9-I-JxQiUeeVnQZC38j5AC-Oqji",
+          "hasLabel": true,
+          "contexts": [
+            "oder Tab geöffnet Marke Rohema Herstellernummer 613250 GTIN 4250503844465 Produktart Drumstick Farbe Braun Für Instrument Snaredrum E",
+            "oduktart Drumstick Farbe Braun Für Instrument Snaredrum EAN 4250503844465 Kategorie Breadcrumb Bücher Musik & Filme Musikinstrumente"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4250503844465",
+      "rationale": "Der Barcode 4250503844465 wird in der WEB-EVIDENZ (ebay.de) explizit als GTIN/EAN für ein Produkt der Marke Rohema und der Produktart Drumstick aufgeführt, was mit dem zu bearbeitenden Produkt übereinstimmt. Die anderen Kandidaten sind entweder eBay-Artikelnummern oder Barcodes, die anderen, nicht relevanten Produkten zugeordnet sind.",
+      "sources": [
+        "https://www.ebay.de/itm/166933398406?srsltid=AfmBOorujEcNDD3HrA8HGwpn9LVxa9-I-JxQiUeeVnQZC38j5AC-Oqji"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-8133187753",
+    "sku": "SKU-8133187753",
+    "status": "applied",
+    "query": "GULNABIO GULNABIO Jersey-Spannbettlaken Rot 100x200 cm – Perfekte Passform EAN",
+    "chosen": "4260525418735",
+    "candidate": {
+      "code": "4260525418735",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.kaufland.de/product/320937500/",
+          "hasLabel": true,
+          "contexts": [
+            "g 2 Spannbettlaken Gewicht 1.1 kg Herstellernummer 1987 EAN 4260525418735 Textilpflegehinweise Trocknen im Wäschetrockner möglich Nor"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4260525418735",
+      "rationale": "Der Barcode 4260525418735 wird auf kaufland.de explizit als 'EAN' für ein 'Spannbettlaken' angegeben, was mit dem Produkttyp übereinstimmt. Die anderen Kandidaten sind entweder als 'seller_id' markiert oder erscheinen in Listen ohne klare Zuordnung zum Produkt als GTIN.",
+      "sources": [
+        "https://www.kaufland.de/product/320937500/"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-8151275535",
+    "sku": "SKU-8151275535",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "FUVSHU BT-Y02 FUVSHU UV-Matratzenstaubsauger BT-Y02 für EAN",
+    "candidates": [
+      {
+        "code": "197809736633",
+        "type": "upc12",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/197195232268?srsltid=AfmBOorwG1o5H2xk0VR411oyJnPVQGQFiuF0iZchABO1iwBdeHvRktrp",
+            "hasLabel": false,
+            "contexts": [
+              "tech Pebble Mouse 2 M350s Tonal Rose Neu Rechnung MwSt (Nr. 197809736633) g***l (159) - Bewertung vom Käufer. Letzter Monat Bestätig",
+              "tech Pebble Mouse 2 M350s Tonal Rose Neu Rechnung MwSt (Nr. 197809736633) g***l (159) - Bewertung vom Käufer. Letzter Monat Bestätig"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "389323872588",
+        "type": "upc12",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/389323912821?srsltid=AfmBOoo_KBcly9aj5aKQuci2yj4-PhQyUZmS_BS8wTDtdaa6NV1p1ivd",
+            "hasLabel": false,
+            "contexts": [
+              "ROGARDEN Gartenbank wetterfest & pflegeleicht 2-Sitzer (Nr. 389323872588) x***o (17) - Bewertung vom Käufer. Letzte 6 Monate Bestäti",
+              "ROGARDEN Gartenbank wetterfest & pflegeleicht 2-Sitzer (Nr. 389323872588) x***o (17) - Bewertung vom Käufer. Letzte 6 Monate Bestäti"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Keiner der bereitgestellten Barcode-Kandidaten konnte eindeutig dem Produkt \"FUVSHU UV-Matratzenstaubsauger BT-Y02\" zugeordnet werden. Die Kandidaten waren mit einer Logitech Maus und einer Gartenbank verknüpft.",
+      "sources": [
+        "https://www.ebay.de/itm/197195232268?srsltid=AfmBOorwG1o5H2xk0VR411oyJnPVQGQFiuF0iZchABO1iwBdeHvRktrp",
+        "https://www.amazon.de/FUVSHU-Milbensauger-Matratzenreiniger-Doppelbecher-Waschbarer/dp/B0C6JVT534",
+        "https://www.ebay.de/itm/389323912821?srsltid=AfmBOoo_KBcly9aj5aKQuci2yj4-PhQyUZyMS_BS8wTDtdaa6NV1p1ivd"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-8310896573",
+    "sku": "SKU-8310896573",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "IKEA SKU-8310896573 IKEA RANARP Pendelleuchte Zeitloses EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=IKEA%20SKU-8310896573%20IKEA%20RANARP%20Pendelleuchte%20Zeitloses%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.google.ca/intl/de/about/products?tab=wh"
+          },
+          {
+            "title": "",
+            "url": "https://www.ikea.com/de/de/p/ranarp-haengeleuchte-elfenbeinweiss-20390970/"
+          },
+          {
+            "title": "",
+            "url": "https://www.ikea.com/de/de/cat/ranarp-serie-25225/"
+          },
+          {
+            "title": "",
+            "url": "https://www.ikea.com/de/de/p/ranarp-haengeleuchte-elfenbeinweiss-10390961/"
+          },
+          {
+            "title": "",
+            "url": "https://www.ikea.com/de/de/p/ranarp-haengeleuchte-schwarz-20390951/"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-8605082485",
+    "sku": "SKU-8605082485",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "Aqua Marina SKU-8605082485 Aqua Marina SUP Board EAN",
+    "candidates": [
+      {
+        "code": "05908269905997",
+        "type": "gtin14",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.amazon.de/Marina-Aufblasbar-AQUAMARINA-Komplette-330x81x15cm/dp/B08VDLWTD5",
+            "hasLabel": false,
+            "contexts": [
+              "MS Trade Consulting Global Trade Identification Number &lrm;05908269905997 Größe &lrm;330x81x15 cm Stil &lrm;FUSION + CAMPSUP PADDLE F"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Der bereitgestellte Barcode 05908269905997 ist auf Amazon.de einem Aqua Marina SUP Board mit den Maßen 330x81x15cm und dem Stil \"FUSION + CAMPSUP PADDLE F\" zugeordnet. Das Produkt im Prompt ist jedoch ein \"Aqua Marina SUP Board Unisex Grün PVC NEU SKU-8605082485 Breeze Gr. 76 cm\". Da es sich um unterschiedliche Modelle und Größen handelt, kann der Barcode nicht eindeutig dem Produkt zugeordnet werden.",
+      "sources": [
+        "https://www.amazon.de/Marina-Aufblasbar-AQUAMARINA-Komplette-330x81x15cm/dp/B08VDLWTD5"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-8640590578",
+    "sku": "SKU-8640590578",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Villa Grinario SKU-8640590578 Villa Grinario Spannbettlaken Grün EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 2,
+        "url": "https://www.google.com/search?q=Villa%20Grinario%20SKU-8640590578%20Villa%20Grinario%20Spannbettlaken%20Gr%C3%BCn%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.awg-mode.de/Spannbetttuch-100x200cm-866200-0514-5?srsltid=AfmBOooUTWeHDqoXkwJpTZUfakGgQmyWA2x3Jr7A89cBjpXJZHwlTfNv"
+          },
+          {
+            "title": "",
+            "url": "https://trendfamilie.com/product-tag/villa-grinario/"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-8742112863",
+    "sku": "SKU-8742112863",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "New Balance New Balance New Balance Kinder Sneaker Silber Gr. EAN",
+    "candidates": [
+      {
+        "code": "0194182854862",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": true,
+            "contexts": [
+              "SG MR530SG-D Mr530sg MR530 Gr530sb1 EAN-Codes 0194182854909 0194182854862 0194182854879 0194182854886 0194182854893 0194182854916 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854879",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": true,
+            "contexts": [
+              "r530sg MR530 Gr530sb1 EAN-Codes 0194182854909 0194182854862 0194182854879 0194182854886 0194182854893 0194182854916 0194182854930 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854886",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": true,
+            "contexts": [
+              "r530sb1 EAN-Codes 0194182854909 0194182854862 0194182854879 0194182854886 0194182854893 0194182854916 0194182854930 0194182854855 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854909",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": true,
+            "contexts": [
+              "ikelcode MR530SG MR530SG-D Mr530sg MR530 Gr530sb1 EAN-Codes 0194182854909 0194182854862 0194182854879 0194182854886 0194182854893 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0198686704456",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-sneaker-530-68a9cb1742b5ffc3a40674bc",
+            "hasLabel": true,
+            "contexts": [
+              "ss Schnürsenkel Artikelcode U530SUB EAN-Codes 0198686704463 0198686704456 0198686704487 0198686704470 0198686704494 0198686704517 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0198686704463",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-sneaker-530-68a9cb1742b5ffc3a40674bc",
+            "hasLabel": true,
+            "contexts": [
+              "Schuhverschluss Schnürsenkel Artikelcode U530SUB EAN-Codes 0198686704463 0198686704456 0198686704487 0198686704470 0198686704494 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0198686704470",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-sneaker-530-68a9cb1742b5ffc3a40674bc",
+            "hasLabel": true,
+            "contexts": [
+              "U530SUB EAN-Codes 0198686704463 0198686704456 0198686704487 0198686704470 0198686704494 0198686704517 0198686704500 0198686704524 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0198686704487",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-sneaker-530-68a9cb1742b5ffc3a40674bc",
+            "hasLabel": true,
+            "contexts": [
+              "l Artikelcode U530SUB EAN-Codes 0198686704463 0198686704456 0198686704487 0198686704470 0198686704494 0198686704517 0198686704500 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854787",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "817 0194182854800 0194182854947 0194182854923 0194182854794 0194182854787 0194182854954 0197375072692 0195907066027 0197375072685 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854794",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "824 0194182854817 0194182854800 0194182854947 0194182854923 0194182854794 0194182854787 0194182854954 0197375072692 0195907066027 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854800",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "855 0194182854848 0194182854831 0194182854824 0194182854817 0194182854800 0194182854947 0194182854923 0194182854794 0194182854787 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854817",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "930 0194182854855 0194182854848 0194182854831 0194182854824 0194182854817 0194182854800 0194182854947 0194182854923 0194182854794 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854824",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "916 0194182854930 0194182854855 0194182854848 0194182854831 0194182854824 0194182854817 0194182854800 0194182854947 0194182854923 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854831",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "893 0194182854916 0194182854930 0194182854855 0194182854848 0194182854831 0194182854824 0194182854817 0194182854800 0194182854947 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854848",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "886 0194182854893 0194182854916 0194182854930 0194182854855 0194182854848 0194182854831 0194182854824 0194182854817 0194182854800 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854855",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "879 0194182854886 0194182854893 0194182854916 0194182854930 0194182854855 0194182854848 0194182854831 0194182854824 0194182854817 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854893",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "des 0194182854909 0194182854862 0194182854879 0194182854886 0194182854893 0194182854916 0194182854930 0194182854855 0194182854848 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854916",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "909 0194182854862 0194182854879 0194182854886 0194182854893 0194182854916 0194182854930 0194182854855 0194182854848 0194182854831 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854923",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "831 0194182854824 0194182854817 0194182854800 0194182854947 0194182854923 0194182854794 0194182854787 0194182854954 0197375072692 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854930",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "862 0194182854879 0194182854886 0194182854893 0194182854916 0194182854930 0194182854855 0194182854848 0194182854831 0194182854824 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854947",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "848 0194182854831 0194182854824 0194182854817 0194182854800 0194182854947 0194182854923 0194182854794 0194182854787 0194182854954 019"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0194182854954",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "800 0194182854947 0194182854923 0194182854794 0194182854787 0194182854954 0197375072692 0195907066027 0197375072685 0197966512460 Wei"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0195907066027",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "923 0194182854794 0194182854787 0194182854954 0197375072692 0195907066027 0197375072685 0197966512460 Weiter shoppen Einfach zu Ihrer"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0197375072685",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+            "hasLabel": false,
+            "contexts": [
+              "794 0194182854787 0194182854954 0197375072692 0195907066027 0197375072685 0197966512460 Weiter shoppen Einfach zu Ihrer Lieblingsabte"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Die bereitgestellte WEB-EVIDENZ bezieht sich auf \"New Balance Damen und Herren Sneaker 530\" und \"New Balance Damen Sneaker 530\". Das Produkt ist jedoch ein \"New Balance Kinder Sneaker Silber Gr. 26\". Es gibt keine eindeutige Zuordnung eines Barcodes aus der Kandidatenliste zu einem Kinder-Sneaker oder der spezifischen Größe 26 in der WEB-EVIDENZ.",
+      "sources": [
+        "https://www.idealo.de/preisvergleich/ProductCategory/11595F868676-1409103.html",
+        "https://www.supersales.de/mode/sneaker/new-balance-damen-und-herren-sneaker-530-64d225562a064918d572e14f",
+        "https://www.supersales.de/mode/sneaker/new-balance-damen-sneaker-530-68a9cb1742b5ffc3a40674bc"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-8857013241",
+    "sku": "SKU-8857013241",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Paul Green 2688-00x Paul Green Schnürschuhe Damen EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Paul%20Green%202688-00x%20Paul%20Green%20Schn%C3%BCrschuhe%20Damen%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-9317337160",
+    "sku": "SKU-9317337160",
+    "status": "applied",
+    "query": "PAUDIN N5 PAUDIN Santokumesser Präzise Schnitte EAN",
+    "chosen": "6973463100065",
+    "candidate": {
+      "code": "6973463100065",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.kaufland.de/product/514342290/",
+          "hasLabel": true,
+          "contexts": [
+            "eisung, die auch direkt als Garantienachweis ausreicht. EAN 6973463100065 Letztes Produkt anzeigen Nächstes Produkt anzeigen Unsere E"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "6973463100065",
+      "rationale": "Der Barcode '6973463100065' wird auf der Kaufland-Produktseite (https://www.kaufland.de/product/514342290/) explizit als 'EAN' für das PAUDIN Santokumesser N5 ausgewiesen. Die anderen Kandidaten sind entweder als 'seller_id' identifiziert oder erscheinen in Kontexten, die keine eindeutige Zuordnung als Produkt-EAN zulassen.",
+      "sources": [
+        "https://www.kaufland.de/product/514342290/"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-9603350817",
+    "sku": "SKU-9603350817",
+    "status": "applied",
+    "query": "Universal Tablet-Bodenständer mit Schwenkarm & Höhenverstellung für alle Tablets EAN",
+    "chosen": "4016842829316",
+    "candidate": {
+      "code": "4016842829316",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.k-m.de/produkte/multimedia-equipment/halter/19790-tablet-pc-stativhalter-schwarz-3-8",
+          "hasLabel": true,
+          "contexts": [
+            "windebolzen; drehbar um 90° Breite: von 222 bis 334 mm EAN: 4016842829316 Gewicht: 0,362 kg Höhe: von 128 bis 232 mm Material: Kunsts"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4016842829316",
+      "rationale": "fast_path_single_candidate",
+      "sources": [
+        "https://www.k-m.de/produkte/multimedia-equipment/halter/19790-tablet-pc-stativhalter-schwarz-3-8"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-9820031170",
+    "sku": "SKU-9820031170",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "YOLEO 931 YOLEO Kinderroller 931 Schwarz EAN",
+    "candidates": [
+      {
+        "code": "389323872588",
+        "type": "upc12",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/389323909438?srsltid=AfmBOorp8wb4YzToCl-dJTRLEkDOq17YuU0Mxa7uATpolgLZ9bq96hhJ",
+            "hasLabel": false,
+            "contexts": [
+              "ROGARDEN Gartenbank wetterfest & pflegeleicht 2-Sitzer (Nr. 389323872588) x***o (17) - Bewertung vom Käufer. Letzte 6 Monate Bestäti",
+              "ROGARDEN Gartenbank wetterfest & pflegeleicht 2-Sitzer (Nr. 389323872588) x***o (17) - Bewertung vom Käufer. Letzte 6 Monate Bestäti"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Der bereitgestellte Barcode-Kandidat '389323872588' ist laut Web-Evidenz einer 'ROGARDEN Gartenbank' zugeordnet und passt nicht zum Produkt 'YOLEO Kinderroller'. Es wurde kein passender Barcode gefunden.",
+      "sources": [
+        "https://www.ebay.de/itm/389323909438?srsltid=AfmBOorp8wb4YzToCl-dJTRLEkDOq17YuU0Mxa7uATpolgLZ9bq96hhJ"
+      ]
+    }
+  },
+  {
+    "productId": "SKU-9933881904",
+    "sku": "SKU-9933881904",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "SCENEX SCENEX Damen Tanzschuhe – Elegant & Stabil für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=SCENEX%20SCENEX%20Damen%20Tanzschuhe%20%E2%80%93%20Elegant%20%26%20Stabil%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-9968230318",
+    "sku": "SKU-9968230318",
+    "status": "applied",
+    "query": "HOLA KIT HKDB02 HOLA KIT Reifenreparaturset für EAN",
+    "chosen": "0313049177184",
+    "candidate": {
+      "code": "0313049177184",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.ebay.de/itm/236119415035?srsltid=AfmBOorjz6eaAObFN14EVTkg99J3FY_ct7Mtqb9eoTiQDXO0lV1PkVMb",
+          "hasLabel": true,
+          "contexts": [
+            "stellers HKDB02 Modellnummer HKDB02 Type Does not apply EAN 0313049177184 Kategorie Breadcrumb Motors Auto & Motorrad: Teile Autoteil"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "0313049177184",
+      "rationale": "Der Barcode '0313049177184' (EAN13) wird in der WEB-EVIDENZ von ebay.de explizit mit der MPN 'HKDB02' verknüpft, welche der MPN des Produkts entspricht. Der UPC-Code '313049177184' ist die UPC-12-Version desselben Codes und wird ebenfalls für das Reifenreparaturset auf derselben eBay-Seite gelistet. Die EAN-Version ist für eBay.de passender und die Zuordnung ist eindeutig.",
+      "sources": [
+        "https://www.ebay.de/itm/236119415035?srsltid=AfmBOorjz6eaAObFN14EVTkg99J3FY_ct7Mtqb9eoTiQDXO0lV1PkVMb"
+      ]
+    }
+  },
+  {
+    "productId": "a7fbf83a-10da-453f-974b-4d71c9e7e626",
+    "sku": "SKU-1848228084",
+    "status": "applied",
+    "query": "Walex Walex Fäkalientank-Deodorant Tiefblau NEU Porta-Pak Max 50 geruchsfreie EAN",
+    "chosen": "742693917998",
+    "candidate": {
+      "code": "742693917998",
+      "type": "upc12",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.ebay.de/itm/275504160999?srsltid=AfmBOopr0KDLtS7QYucjTjZwsUQ9Pjh1nVsTSNq5HWnMFAAGHlxfAFge",
+          "hasLabel": true,
+          "contexts": [
+            "Brand Walex Manufacturer Part Number PPRV10, TOI-91799 UPC 742693917998 Kategorie Breadcrumb Motors Auto & Motorrad: Teile Speziell"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "742693917998",
+      "rationale": "Der Barcode '742693917998' wird in der WEB-EVIDENZ (ebay.de) explizit der Marke 'Walex' und einer Herstellerteilenummer ('PPRV10, TOI-91799') zugeordnet, was mit dem Produkt 'Walex Fäkalientank-Deodorant' übereinstimmt. Der andere Kandidat ist einem Ethernet-Kabel zugeordnet und somit irrelevant.",
+      "sources": [
+        "https://www.ebay.de/itm/275504160999?srsltid=AfmBOopr0KDLtS7QYucTjZwsUQ9Pjh1nVsTSNq5HWnMFAAGHlxfAFge"
+      ]
+    }
+  },
+  {
+    "productId": "b82f2e03-f4e9-4cef-8984-364a6a8cfc8e",
+    "sku": "SKU-3350934915",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Kibek 2201290005 Kibek Gartenstecker Molveno 2201290005 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Kibek%202201290005%20Kibek%20Gartenstecker%20Molveno%202201290005%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+    "sku": "SKU-0716100821",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "SOMAN A154956/202401/03705 SOMAN Integralhelm A154956/202401/03705 Pink EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=SOMAN%20A154956%2F202401%2F03705%20SOMAN%20Integralhelm%20A154956%2F202401%2F03705%20Pink%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "d2649d99-ae7a-4b45-bca9-e6c452843d93",
+    "sku": "SKU-3442148631",
+    "status": "applied",
+    "query": "ToMax 72239 ToMax Tintenpatrone TM-LC-223Y Gelb EAN",
+    "chosen": "4977766735926",
+    "candidate": {
+      "code": "4977766735926",
+      "type": "ean13",
+      "sourceCount": 2,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.tintenmarkt.de/LC223Y-original-Druckerpatrone-mit-einer-Kapazitaet-fuer-ca.-550-Seiten-nach-ISO/IEC-24711-gelb-7937",
+          "hasLabel": true,
+          "contexts": [
+            "ther.de Marke: Brother , Artikelnummer: LC-223Y EAN Nummer: 4977766735926 Seitenleistung (Herstellerangabe): 550 Seiten Inhalt (Herst"
+          ]
+        },
+        {
+          "url": "https://www.alternate.de/Brother/Tinte-gelb-LC-223Y/html/product/1152436?srsltid=AfmBOopmWdqQ5g76Ub9Mf7A6pz7dV5wdpQ_wPBijEMARgHaiiZZVaw75",
+          "hasLabel": true,
+          "contexts": [
+            "ter Seiten. Art.-Nr.: 1152436 Details Typ Tintenpatrone EAN 4977766735926 Hersteller-Nr. LC223Y Druckfarbe Gelb Geeignet für Herstell"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4977766735926",
+      "rationale": "fast_path_single_candidate",
+      "sources": [
+        "https://www.tintenmarkt.de/LC223Y-original-Druckerpatrone-mit-einer-Kapazitaet-fuer-ca.-550-Seiten-nach-ISO/IEC-24711-gelb-7937",
+        "https://www.alternate.de/Brother/Tinte-gelb-LC-223Y/html/product/1152436?srsltid=AfmBOopmWdqQ5g76Ub9Mf7A6pz7dV5wdpQ_wPBijEMARgHaiiZZVaw75"
+      ]
+    }
+  },
+  {
+    "productId": "e73c69ce-6582-4454-adab-52b418a775d0",
+    "sku": "SKU-5599844775",
+    "status": "applied",
+    "query": "Goffii 230404041 Goffii Montessori Lernspielzeug Bauernhof EAN",
+    "chosen": "6976304907496",
+    "candidate": {
+      "code": "6976304907496",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.handyhuellen.berlin/products/goffii-montessori-spielzeug-kinder-baby-8-in-1-holzspielzeug-bauernhof-autos-karotten-ernten-sortier-stapelspielzeug-hand-auge-koordination-motorikspielzeug-ab-3-4-5-jahr-madchen-jungen-geschenk?srsltid=AfmBOooGGO_IHg2rE3Jst6yBp9H3uH1-FjlB4R12xPgAKvzUuJm6oGoa",
+          "hasLabel": true,
+          "contexts": [
+            "_at_price\":1444,\"inventory_management\":\"shopify\",\"barcode\":\"6976304907496\",\"requires_selling_plan\":false,\"selling_plan_allocations\":[",
+            "lzeug Modellnummer: 230404041 Artikelnummer: BLB002-V0 EAN: 6976304907496 Paketmaße: 12.6 x 12.0 x 2.3 inches Verantwortliche Person"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "6976304907496",
+      "rationale": "fast_path_single_candidate",
+      "sources": [
+        "https://www.handyhuellen.berlin/products/goffii-montessori-spielzeug-kinder-baby-8-in-1-holzspielzeug-bauernhof-autos-karotten-ernten-sortier-stapelspielzeug-hand-auge-koordination-motorikspielzeug-ab-3-4-5-jahr-madchen-jungen-geschenk?srsltid=AfmBOooGGO_IHg2rE3Jst6yBp9H3uH1-FjlB4R12xPgAKvzUuJm6oGoa"
+      ]
+    }
+  },
+  {
+    "productId": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+    "sku": "SKU-1536365981",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Unbekannt Unbekannt Backform Einsatz Schwarz Silikon NEU Airfryer 2er EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=Unbekannt%20Unbekannt%20Backform%20Einsatz%20Schwarz%20Silikon%20NEU%20Airfryer%202er%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://lacasa-allgaeu.de/ck-Airfryer-Silikon-Backform-Wiederverwendbar-Silikoneinsatz-842510"
+          },
+          {
+            "title": "",
+            "url": "https://www.amazon.de/Airfryer-Silikonform-Silikoneinsatz-Hei%C3%9Fluftfritteuse-Wiederverwendbares/dp/B0F9K9YNKH"
+          },
+          {
+            "title": "",
+            "url": "https://www.ebay.de/itm/376138700563?srsltid=AfmBOopb2lR0UBeTH_rLMWmje0RMZ35jzF5FSCLTzP1FK0p725POkK_8"
+          },
+          {
+            "title": "",
+            "url": "https://www.rossmann.de/de/haushalt/kuechengeraete-und-kuechenhelfer/backen/c/olcat3_137"
+          },
+          {
+            "title": "",
+            "url": "https://www.idealo.de/preisvergleich/Liste/121566525/backform-fuer-ninja-foodi-dual-zone.html"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "f2028097-7287-47f8-b694-d663960758ec",
+    "sku": "SKU-2204782559",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Eternity Commerce LTD 2024-1 Eternity Commerce LTD Magnetspielzeug EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 1,
+        "url": "https://www.google.com/search?q=Eternity%20Commerce%20LTD%202024-1%20Eternity%20Commerce%20LTD%20Magnetspielzeug%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://picclick.it/Casa-arredamento-e-bricolage/Lotti-e-stock/"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "f7a5bb4a-9e13-4a67-8065-996f9a809f26",
+    "sku": "SKU-0107097519",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Sontheimer 10008352 Sontheimer Nockenschalter S06H 32A EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 2,
+        "url": "https://www.google.com/search?q=Sontheimer%2010008352%20Sontheimer%20Nockenschalter%20S06H%2032A%20EAN&hl=de&gl=de",
+        "via": "unlocker",
+        "results": [
+          {
+            "title": "",
+            "url": "https://sontheimer.org/Produkte/Nockenschalter/"
+          },
+          {
+            "title": "",
+            "url": "https://sontheimer.org/Nockenschalter-D0-8-ST032-8E-NS/10006105"
+          }
+        ]
+      }
+    ]
+  }
+]

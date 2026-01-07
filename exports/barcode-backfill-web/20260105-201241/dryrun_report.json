@@ -1,0 +1,331 @@
+[
+  {
+    "productId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "COZII X001Y0BTE9 EAN",
+    "candidates": [
+      {
+        "code": "8712581618025",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": true,
+            "contexts": [
+              "i vielen Anbietern verfügbar sind: EAN Bezeichnung Anbieter 8712581618025 Philips DS6600 10 Dockinglautsprecher 4 8712581543815 Phili"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0711719685388",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "erk interaktiv Östliche Bundesländer und Berlin Tafelwerk 5 0711719685388 Resistance Fall of Man 10 4960999440835 Canon EW 78BII Sonn"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "3600523880041",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean-suche.de/",
+            "hasLabel": false,
+            "contexts": [
+              "unserem API . Oft gesucht: samsung galaxy z flip5 &middot; 3600523880041 &middot; gfp gew&auml;chshaus &middot; Huawei sun2000 &midd"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4001504322540",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "Sony NWZ-B173FR Rot - 4GB 6 5060184980289 Jig a Pix Pets 4 4001504322540 Bibi Tina Das große Unwetter 10 9783898182584 Heinrich Heid"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4002051697167",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "9 4018843589053 Magnat Needle ALU Super Tower silber Paar 6 4002051697167 Kosmos 697167 KOSMOS Können Schweine fliegen Ergänzungsset"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4018843589053",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ber 9 4018843589060 Magnat Needle Alu Super Tower Schwarz 9 4018843589053 Magnat Needle ALU Super Tower silber Paar 6 4002051697167 K"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4018843589060",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ixel 9 4018843890586 Magnat Needle Alu Super Tower silber 9 4018843589060 Magnat Needle Alu Super Tower Schwarz 9 4018843589053 Magna"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4018843890586",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "L9II Smartphone NFC Touchscreen Android 4 1 8 0 Megapixel 9 4018843890586 Magnat Needle Alu Super Tower silber 9 4018843589060 Magnat"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4047443072030",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ende 8 8410779289223 Pinypon Figuren Frucht sortiert 16St 5 4047443072030 Hama Ladegerät Picco 12 V inkl USB-Ladekabel für micro USB"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4719072241193",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ama Ladegerät Picco 12 V inkl USB-Ladekabel für micro USB 6 4719072241193 Grafikkarte MSI ATI Radeon HD5450 1 GB DDR3-RAM PCIe x16 DV"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4905524836066",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "sprecher 4 8712581543815 Philips AE 2330 00 weiß-hellblau 8 4905524836066 Sony NWZ-B173FR Rot - 4GB 6 5060184980289 Jig a Pix Pets 4"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4960999440835",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "Berlin Tafelwerk 5 0711719685388 Resistance Fall of Man 10 4960999440835 Canon EW 78BII Sonnenblende 8 8410779289223 Pinypon Figuren"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "5060184980289",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "0 weiß-hellblau 8 4905524836066 Sony NWZ-B173FR Rot - 4GB 6 5060184980289 Jig a Pix Pets 4 4001504322540 Bibi Tina Das große Unwetter"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "8410779289223",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "Fall of Man 10 4960999440835 Canon EW 78BII Sonnenblende 8 8410779289223 Pinypon Figuren Frucht sortiert 16St 5 4047443072030 Hama L"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "8712581543815",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ieter 8712581618025 Philips DS6600 10 Dockinglautsprecher 4 8712581543815 Philips AE 2330 00 weiß-hellblau 8 4905524836066 Sony NWZ-B"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "8808992083153",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ikkarte MSI ATI Radeon HD5450 1 GB DDR3-RAM PCIe x16 DVI 10 8808992083153 LG D605 Optimus L9II Smartphone NFC Touchscreen Android 4 1"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "9783060407521",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "061007799 Deutsch plus 7 Arbeitsheft Neue Rechtschreibung 6 9783060407521 Barth Ludwig Frey Klaus GEOS Arbeitsheft Sachsen Anhalt Kla"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "9783061007799",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "entsch Andrea Lehmann Karlheinz Liesenberg Günter Scheibe 6 9783061007799 Deutsch plus 7 Arbeitsheft Neue Rechtschreibung 6 978306040"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "9783464571484",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "sse 7 8 RSR 4 9783898187008 Formelsammlung bis zum Abitur 5 9783464571484 Das große Tafelwerk interaktiv Östliche Bundesländer und Be"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "9783898182584",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "a Pix Pets 4 4001504322540 Bibi Tina Das große Unwetter 10 9783898182584 Heinrich Heidemarie Jentsch Andrea Lehmann Karlheinz Liesen"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "9783898187008",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "Frey Klaus GEOS Arbeitsheft Sachsen Anhalt Klasse 7 8 RSR 4 9783898187008 Formelsammlung bis zum Abitur 5 9783464571484 Das große Taf"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Keiner der bereitgestellten Barcode-Kandidaten konnte eindeutig dem Produkt \"COZII Hundepool X001Y0BTE9\" zugeordnet werden. Die Web-Evidenz für die Kandidaten bezieht sich auf andere Produkte.",
+      "sources": []
+    }
+  }
+]

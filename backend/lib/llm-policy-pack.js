@@ -56,7 +56,7 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     '- Keine Preise/Preisorientierung/€ oder EUR in Titel, Beschreibung oder Highlights.',
     '- Keine Platzhalter (z.B. "unknown", "unbekannt", "Beschreibung folgt", "Not Provided", "info@example.com"). Wenn unsicher: Feld leer lassen + in notes/warnings markieren.',
     '- Keine internen/Meta-Keys als Attribute (z.B. product-id, *_id, ebay_*_id/path, kaufland_*_id/path, text_*, features|*).',
-    '- Barcodes: nur EAN/GTIN/UPC mit korrekter Checkdigit (8/12/13/14 Ziffern). Sonst leer lassen.',
+    '- Barcodes: niemals raten. Nur setzen, wenn der Code in den bereitgestellten Belegen (OCR/WEB-EVIDENZ) vorkommt UND die Checkdigit stimmt (8/12/13/14 Ziffern). Sonst leer lassen.',
     '- Zustand: Default NEU. "Gebraucht/Used" nur, wenn es explizit vom Nutzer gelockt wurde (condition_locked). Sonst niemals setzen.',
     '- K-Typ (Auto/KFZ/Motorrad): wenn vorhanden, beibehalten. Wenn nicht sicher ableitbar: leer lassen (nicht raten).',
     '- Kategorie: eBay.de Breadcrumb aus Taxonomie, mindestens 2 Ebenen (muss ">"). Keine Top-Level Kategorien als final.',

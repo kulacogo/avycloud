@@ -1,0 +1,396 @@
+[
+  {
+    "productId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "COZII X001Y0BTE9 EAN",
+    "candidates": [
+      {
+        "code": "3600523880041",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean-suche.de/",
+            "hasLabel": false,
+            "contexts": [
+              "unserem API . Oft gesucht: samsung galaxy z flip5 &middot; 3600523880041 &middot; gfp gew&auml;chshaus &middot; Huawei sun2000 &midd"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Der Barcode \"3600523880041\" wird in der WEB-EVIDENZ von ean-suche.de als \"oft gesucht\" aufgeführt, jedoch nicht explizit mit dem Produkt \"COZII Hundepool X001Y0BTE9\" verknüpft. Es gibt keine klare Belegung, dass dieser Barcode zu dem spezifischen Produkt gehört.",
+      "sources": []
+    }
+  },
+  {
+    "productId": "03142017000003",
+    "sku": "SKU-9947386415",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "Weber 711004 EAN",
+    "candidates": [
+      {
+        "code": "077924021268",
+        "type": "upc12",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://gartenwelt.de/smokey-mountain-cooker-smoker",
+            "hasLabel": true,
+            "contexts": [
+              "Konto Eigenschaften Eigenschaften Artikelnummer 711004 EAN 077924021268 Marke Weber Produktgewicht 13,653 Produktbreite in cm 37,4"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Der bereitgestellte Barcode \"077924021268\" ist ein UPC-12 Code. Die Prüfziffer dieses Codes ist ungültig. Gemäß den Regeln darf ein Barcode nur gesetzt werden, wenn die Prüfziffer korrekt ist. Daher wird kein Barcode zurückgegeben.",
+      "sources": []
+    }
+  },
+  {
+    "productId": "07901010300000",
+    "sku": "SKU-2097206690",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "Generisch JSD 520 EAN",
+    "candidates": [
+      {
+        "code": "389323872588",
+        "type": "upc12",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/389421773873",
+            "hasLabel": false,
+            "contexts": [
+              "ROGARDEN Gartenbank wetterfest & pflegeleicht 2-Sitzer (Nr. 389323872588) x***o (17) - Bewertung vom Käufer. Letzte 6 Monate Bestäti",
+              "ROGARDEN Gartenbank wetterfest & pflegeleicht 2-Sitzer (Nr. 389323872588) x***o (17) - Bewertung vom Käufer. Letzte 6 Monate Bestäti"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4099537000009",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.kaufland.de/product/459249404/",
+            "hasLabel": false,
+            "contexts": [
+              "774318, Amtsgericht Stuttgart UST-ID-Nr.: DE340451093 ILN: 4099537000009 Kontakt Marktplatz: E-Mail: [email&#160;protected] Geschäft"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Keiner der bereitgestellten Barcode-Kandidaten kann eindeutig dem Produkt \"Generisch Autoradios passgenau für JSD 520\" zugeordnet werden. Der erste Kandidat (389323872588) ist laut Kontext einer Gartenbank zugeordnet. Der zweite Kandidat (4099537000009) stammt von einer URL, die in der WEB-SUCHE als 'ok: false' (Status 403) markiert ist, was bedeutet, dass die Seite nicht erfolgreich abgerufen werden konnte und somit keine gültige WEB-EVIDENZ darstellt. Zudem deutet der Kontext 'ILN' eher auf eine International Location Number als auf einen Produkt-EAN hin.",
+      "sources": []
+    }
+  },
+  {
+    "productId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "FNTCASE FNTCASE Schutzhülle für Apple iPhone 16 Pro Grau EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "FNTCASE FNTCASE Schutzhülle für Apple iPhone 16 Pro Grau EAN",
+        "ok": true,
+        "url": "https://duckduckgo.com/html/?q=FNTCASE%20FNTCASE%20Schutzh%C3%BClle%20f%C3%BCr%20Apple%20iPhone%2016%20Pro%20Grau%20EAN",
+        "via": "direct",
+        "status": 200,
+        "results": [
+          {
+            "title": "Apple iPhone 16 Hüllen | Kostenloser Versand",
+            "url": "https://duckduckgo.com/y.js?ad_domain=handyhuellen.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=qjhHQ96443Nooau7T2%2DrrF7hKSZBtUgOi3F_XNEwxNvm0tYK6GBsIJETrI0nD3cVC3U6r43DVZ3YYdtf%2D9vxWPODDWRbPiIQaqaTlco8O7nmqaOIeRf1OOCBBtXuKjyNkV6v13c_1bkcwtnl7ZWMUThWWBs1IZJeg8jqAtL7DhY.PTOn2HuAJmvVWZ351kpmMg&rut=f4a8d13e0ca459c779d9b5fe63bca3337fb00dfd41265474dc4a36cd4893044d&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8fshaC_ra%2DpCdXcj9IIVSfjVUCUwxweUw2UuHZRb3zgtvHdtcgGxsNnKu0C_Jpz333kXadYRzC%2Dogk21QRs3fedMxl34mACJt6WVU18yd7L7QFd6uI0H1OjpL0da%2DJWty2Z3Gx8BBv_bFwyT2zHMkr8VvB6VJvwLDKYaJL%2DTiDhQ%2DCb82MnEa19F5GCYC0galbPmFk2wYZeu%2DDO1BurwMxFvOnqc%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuaGFuZHlodWVsbGVuLmRlJTJmYXBwbGUlMmZpcGhvbmUtMTYlMmYlM2ZrYiUzZGJuX3NuYl8zNjQ4NDQ2OTBfMTE2NzY4MzIzMDk0ODA2MCUyNm1zY2xraWQlM2RiNDljMzU3Mjk0MmIxNzNkM2E4MTVjMmYzZmU1NmU1MCUyNnV0bV9zb3VyY2UlM2RiaW5nJTI2dXRtX21lZGl1bSUzZGNwYyUyNnV0bV9jYW1wYWlnbiUzZCUyNTVCREUlMjU1RCUyNTIwU2VhcmNoJTI1MjAtJTI1MjBQaG9uZSUyNTIwLSUyNTIwQ292ZXIlMjUyMC0lMjUyMEFwcGxlJTI1MjAlMjU1QkNoYW5uYWJsZSUyNTVEJTI2dXRtX3Rlcm0lM2RpcGhvbmUlMjUyMDE2JTI1MjBoYW5keWglYzMlYmNsbGUlMjZ1dG1fY29udGVudCUzZEglYzMlYmNsbGVuJTI1MjAtJTI1MjBBcHBsZSUyNTIwaVBob25lJTI1MjAxNg%26rlid%3Db49c3572942b173d3a815c2f3fe56e50&vqd=4-226220130692272316807925474509205243987&iurl=%7B1%7DIG%3D44C18858CACC4A71A745BB7AF381754D%26CID%3D069352AB1CD26E3C15FC44711D3A6FB6%26ID%3DDevEx%2C5045.1"
+          },
+          {
+            "title": "Apple iPhone 16 Pro Hüllen | Dein Elektronikhändler",
+            "url": "https://duckduckgo.com/y.js?ad_domain=coolblue.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=dVfgaGH%2D_VGWDO3JJ0agQnGgyNPtihXzroHwG6LEc928U5b2hz9lhF78aWVhmzXj5tXeST9T95%2D5SHDndZqxr5XlMQcshYwEDRqO%2DPyYdRP8aM2xnEtIBWeBETt85EdrkL_nH_KxbgKQmD9C1zfpt4%2D0gyME3wL6yOJPI54QCho.ecY7el22TX_c1zYueicWHQ&rut=7859073b26225a5d013678a91239e975e4086b21a88a04e6fea9b4b1d99216fc&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8jnZy3BHbJj2_%2DiQJ6DQkfzVUCUzSH4gGlqH1Pr1gfZWCVLPs4liNK2TU4DnH0zuWn6Fjr0KXNwXCdgJdZ5LNZXH4CTQ89TyAeUDFoa5IqI0kenxXZLk3n9vwH3noaBc0Wd9jxVRJ%2DUvlNzbM8_x1mU127UgLIVdcA8ek6HyvLdLmgAT26P70JNZ4qh00KBnkd7eIvdkkVZmvE8u2JDsWGDMnqSc%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuY29vbGJsdWUuZGUlMmZoYW5keWh1ZWxsZW4lMmZmdWVyLWRhcy1hcHBsZS1pcGhvbmUtMTYtcHJvJTNmdXRtX3NvdXJjZSUzZGJpbmclMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NvbnRlbnQlM2RzZWFyY2glMjZjbXQlM2RjX2IlMmNjcF81MzA4ODAwOTYlMmNhaWRfMTM1NDYwMDg5ODY2MzU3NCUyY3Rfa3dkLTg0NjYzNzQyMzEyNDQyJTNhbG9jLTcyJTJjbl9zJTJjZF9jJTJjbHBfMTI3OTYxJTI2bXNjbGtpZCUzZDNlZDcwNDJlNzgxODFlM2JhZjA4NmQ3M2QzZDYxNmRj%26rlid%3D3ed7042e78181e3baf086d73d3d616dc&vqd=4-259745827295881852790066154186487048357&iurl=%7B1%7DIG%3D44C18858CACC4A71A745BB7AF381754D%26CID%3D069352AB1CD26E3C15FC44711D3A6FB6%26ID%3DDevEx%2C5050.1"
+          },
+          {
+            "title": "FNTCASE für iPhone 16 Pro Hülle: iPhone 16 Pro Handyhülle Magnetische ...",
+            "url": "https://www.amazon.de/FNTCASE-iPhone-16-Pro-H%C3%BClle-Gray/dp/B0DK38Y8CK"
+          },
+          {
+            "title": "iPhone 16 Pro - FNTCASE OFFICIAL",
+            "url": "https://fntcase.com/de/collections/iphone-16-pro"
+          },
+          {
+            "title": "iPhone 16 Pro - Hüllen & Schutz - iPhone Zubehör - Apple (DE)",
+            "url": "https://www.apple.com/de/shop/iphone/accessories/cases-protection?fh=458b%2B6fdc2a"
+          },
+          {
+            "title": "Kaufen Apple iPhone 16 Pro Hüllen & Taschen zu gute Preise",
+            "url": "https://caseonline.de/apple/apple-iphone-16-pro/"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "CAPAS CAPAS Schnorchelflossen Travel Fins Grün Gr. S/M für EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "CAPAS CAPAS Schnorchelflossen Travel Fins Grün Gr. S/M für EAN",
+        "ok": true,
+        "url": "https://duckduckgo.com/html/?q=CAPAS%20CAPAS%20Schnorchelflossen%20Travel%20Fins%20Gr%C3%BCn%20Gr.%20S%2FM%20f%C3%BCr%20EAN",
+        "via": "direct",
+        "status": 200,
+        "results": [
+          {
+            "title": "Schnorchelsets | Bergfreunde.de Online Shop",
+            "url": "https://duckduckgo.com/y.js?ad_domain=bergfreunde.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=IyjShOKVs_W%2D5me4JMFjyrugyDEHX5eftDVCV8R2NfUbAWe6gRY0t8sKH_yERQQ6WDUWMkmAPLwyJyc1w0MmCmZ8IsisMyMa6uE4xTBfYZNunNnMTpqAj6ZZ1H6TgisFZFt_xe_DRCtb6h_kLIfhejnh4ipRDL2eYpl8BOaRCOM.e4JciaZYO413ipZlMde6JA&rut=2b0edf10d3ffb40b4412e1b4aa483d9a278ff1733baa8ef8440f7551f8256d7c&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8%2D9QJ6cYDoamg%2D0_U1BtQRTVUCUxdg19UMyUCtpkXONKM0kIHPbGOv5CbOhR8bge6L0QMe3tAcLolLi3HI5AIcNLnvv2Dv0Ctjv01BH%2DKfrPnuGds2UVQAzxmLeFp%2DnDya8EGc5TfH%2DaMvdgPG5wSTMMve%2DM4WNZyOSeENsg2ONx%2DAPT33G1aHs%2De1M8wQjDZok1RLvrfZJbWmZYoU3WRaS2MBBY%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuYmVyZ2ZyZXVuZGUuZGUlMmZzY2hub3JjaGVsc2V0cyUyZiUzZnBpZCUzZDEwMDA0JTI2d3RfbWMlM2RkZS5uYnBzLmJpbmdfZGUuMzMxNTY5ODk5LjExNzA5ODE3Njc5Mzc2MTUuNzMxODY2NjQ0Mjg5MjglMjZ3dF9jYzElM2RzY2hub3JjaGVsc2V0cyUyNnByb2YlM2Q0MDElMjZjYW1wJTNkNTgwNzglMjZrY3QlM2Rtc24lMjZrY2hpZCUzZDQwOCUyNmNyaXRlcmlhaWQlM2Rrd2QtNzMxODcwODM0ODUwNTQlM2Fsb2MtNzIlMjZjYW1wYWlnbmlkJTNkMzMxNTY5ODk5JTI2bG9jcGh5JTNkMTI3OTYxJTI2YWRncm91cGlkJTNkMTE3MDk4MTc2NzkzNzYxNSUyNmNpZCUzZDczMTg2NjY0NDI4OTI4JTI2a2R2JTNkYyUyNmtleHQlM2QlMjZrcGclM2QlMjZrcGlkJTNkJTI2cXVlcnlTdHIlM2RDQVBBUyUyNTIwQ0FQQVMlMjUyMFNjaG5vcmNoZWxmbG9zc2VuJTI1MjBUcmF2ZWwlMjUyMEZpbnMlMjUyMEdyJWMzJWJjbiUyNTIwR3IuJTI1MjBTJTI1MkZNJTI1MjBmJWMzJWJjciUyNTIwRUFOJTI2bXNjbGtpZCUzZGQ2NzhmMDEzZTcwOTFmN2Y3MjhhOTk0ZTRjZGU4YjJlJTI2dXRtX3NvdXJjZSUzZGJpbmclMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NhbXBhaWduJTNkNSUyNTIwLSUyNTIwYiUyNTIwLSUyNTIwS2F0ZWdvcmllJTI1MjAtJTI1MjBPdXRkb29yLUF1c3IlYzMlYmNzdHVuZyUyNnV0bV90ZXJtJTNkc2Nobm9yY2hlbHNldHMlMjZ1dG1fY29udGVudCUzZFNjaG5vcmNoZWxzZXRz%26rlid%3Dd678f013e7091f7f728a994e4cde8b2e&vqd=4-95418616610195853177521834319521290506&iurl=%7B1%7DIG%3D61646AF1FAFB4041A366B24885ECAEF8%26CID%3D0CA5A530738765682CACB3EA726F6438%26ID%3DDevEx%2C5046.1"
+          },
+          {
+            "title": "Testsieger Schnorchelmasken | Masken vom Testsieger 2025",
+            "url": "https://duckduckgo.com/y.js?ad_domain=khroom%2Dsport.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=xOd9sCQzSuaiwsx6w_AE%2DyQyYZrTBVfmPN%2Dy4zNGTrsiXlKrvY_ej3b5OGUcCMg8TghzxjGQLfGqwOuxKAx18ET4CPuJaLjdMvapAGWn8kyV1PutWaxmtkbi5ZPtNp3PQ7ZxNTS4UuZ_MUlqqqS9RSAH47Ug%2DyBSXu4gB2Qpmqg.6jkUk1wAgQhYyvTafLQ0yg&rut=cc093e67121dd2e2f565bc40da12088d0957c46fe189e068a63b5a5085bae1a0&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8uujVZ9xoVtt8sVmsg0vLizVUCUz8poEwuIAsrt90cj29kPjrxdhHAUA7RVo6ZFjHeNeCNZoE9TLz1LtM02avBJ4uAnL08AjajCamT%2DOzW0tMuFlcoA_0CWf01D1CruOy67%2DXcQtsGrBhxHavUR4jdcTn6t9MbCJV81KB25hL%2Dq5B905doRquOvdwn5rFcsvg5BMzSDv2pytjfu4xWIAzv5Lc7Ew%26u%3DaHR0cHMlM2ElMmYlMmZraHJvb20tc3BvcnQuY29tJTJmJTNmbXNjbGtpZCUzZDEyNTUzMWUwNzUwNjE0NzFiNzhiNThiZGRlZDEwNzI3JTI2dXRtX3NvdXJjZSUzZGJpbmclMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NhbXBhaWduJTNkREUlMjUyRkFUJTI1MjAlMjU3QyUyNTIwcE1heCUyNTIwJTI1N0MlMjUyMFNob3BwaW5nJTI1MjAlMjU3QyUyNTIwTWFza2VuJTI1MjAlMjU3QyUyNTIwQ1BBJTI1MjA4JTJjNSVlMiU4MiVhYyUyNTIwJTI1N0MlMjUyMDE2LjA4LjI1JTI2dXRtX3Rlcm0lM2RraHJvb20tc3BvcnQuY29tJTI2dXRtX2NvbnRlbnQlM2RUYXVjaGVybWFza2Vu%26rlid%3D125531e075061471b78b58bdded10727&vqd=4-54085520669824823791813058996450979484&iurl=%7B1%7DIG%3D61646AF1FAFB4041A366B24885ECAEF8%26CID%3D0CA5A530738765682CACB3EA726F6438%26ID%3DDevEx%2C5050.1"
+          },
+          {
+            "title": "CAPAS Schnorchelflossen, Schwimmflossen Reisegröße Kurz Einstellbar zum ...",
+            "url": "https://www.amazon.de/CAPAS-schnorchel-schwimmflossen-einstellbar-Schnorcheln/dp/B08L4WNSWQ"
+          },
+          {
+            "title": "CAPAS Schnorchelflossen Reisegröße Kurz - guenstiger.de",
+            "url": "https://www.guenstiger.de/Produkt/CAPAS/Schnorchelflossen_Reisegroesse_Kurz.html"
+          },
+          {
+            "title": "CAPAS Schwimmflossen, Schnorchelflossen mit Reisegröße, kurze Flossen ...",
+            "url": "https://schnorchelmasken.org/produkt/capas-schwimmflossen-schnorchelflossen-mit-reisegroesse-kurze-flossen-zum-schnorcheln-tauchen-verstellbare-flossen-mit-offener-ferse-fuer-maenner-frauen-jugendliche/"
+          },
+          {
+            "title": "CAPAS Schnorchelflossen, Schwimmflossen Reisegröße Kurz Einstellbar zum ...",
+            "url": "https://www.tauchen-und-schnorcheln-geschenke.de/product/capas-schnorchelflossen-schwimmflossen-reisegroesse-kurz-einstellbar-zum-schnorcheln-tauchen-erwachsene-maenner-frauen-kinder-offene-ferse-tauchflossen-gruen-kids-jr/"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "sku": "SKU-7753504850",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "PerformaNat QDENI400127 EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "PerformaNat QDENI400127 EAN",
+        "ok": true,
+        "url": "https://duckduckgo.com/html/?q=PerformaNat%20QDENI400127%20EAN",
+        "via": "direct",
+        "status": 200,
+        "results": [
+          {
+            "title": "EAN & GTIN-Suche - ean-code.eu",
+            "url": "https://ean-code.eu/ean-suche"
+          },
+          {
+            "title": "EAN-Code Suche | Produkte finden - EAN Hilfe Portal",
+            "url": "https://ean-hilfe.org/ean-code-suche/"
+          },
+          {
+            "title": "EAN-Code Suche: Einfach Produkte finden",
+            "url": "http://www.ean-suche.info/ean-code-suche/"
+          },
+          {
+            "title": "EAN Suche | Datenbank für EAN (GTIN) Produktsuche - GTINsuche.de",
+            "url": "https://www.gtinsuche.de/"
+          },
+          {
+            "title": "Innovative Stoffwechselprophylaxe für Milchkühe - PerformaNat",
+            "url": "https://www.performanat.de/"
+          },
+          {
+            "title": "EAN-Code suchen & Produkte finden - Jetzt kostenlos testen",
+            "url": "https://www.ean-code-suche.com/"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "4043962306996",
+    "sku": "SKU-8927251416",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "fischer Quattric II 24/450/400 EAN",
+    "candidates": [
+      {
+        "code": "4048962306996",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.fischer.de/p/549963",
+            "hasLabel": true,
+            "contexts": [
+              "Home Produkte Home Support Art.-Nr. 549963 GTIN (EAN-Code): 4048962306996 fischer Hammerbohrer Quattric II 24/400/450 Produktvariante",
+              "kungsvariante Kunststoffröhre Menge 1 Stück GTIN (EAN-Code) 4048962306996 Dokumente zum Download Verkaufsunterlagen Verkaufsunterlage"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4048962462296",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://duckduckgo.com/y.js?ad_domain=contorion.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=wEFeqaOffj8Fu8edRT%2DmvPTLEDiE3_8Ec4XebiUHRgJ2gy41SZp%2Dx2r9jsYLP4G6fbY%2DqzurIohxC_xmzU8_sDLLhgHozt18ejEOTKEeEj9O2lSoD99TxQps0IcrhUXoNjj0CpPNjs_Yx%2DyEXXUNqNwj1U9eABQIignkgOBxmtI.Uq%2DL6V7jQrUiu7NcsLhWPA&rut=0245c089e301ce7ce39a1349591d3190e286f498911e34a6d5837cb483619ebc&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8OXxFkFLFLxM5BTEqtj4CCTVUCUzh0qQuSsUl3xBqWgYxF7gn4Gyabn0iGVDVnubjpiElPAFvP4m%2DOpyBN2r9luRunmuiiXJRNLIBnr6vhZOdWLRqoK3y7aMxThposjWCAMdXEN8o5Chhv%2D9dtyrD6Srm8dvj67ITNiSy5TY9gP0svM9PW9fv5bKG9Ki9NI%2Dasv3Sn_EPV9MTG72WlkcLjaHHUnI%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuY29udG9yaW9uLmRlJTJmcCUyZmZpc2NoZXItYm9semVuYW5rZXItZmF6LWlpLXBsdXMtMjAtMTYwLTgxMjQyMzU0JTNmdXRtX21lZGl1bSUzZGNwYyUyNnV0bV9zb3VyY2UlM2RiaW5nJTI2dXRtX2NhbXBhaWduJTNkJTI1NUIxJTI1NURfU2VhcmNoX0RTQV9TY29yZSUyNTIwRmVlZCUyNnV0bV9jb250ZW50JTNkc2VhcmNoJTI2YWlkJTNkNzI5MTE1NTA2MjQ4ODIlMjZtc2Nsa2lkJTNkNjJiZTYyMTdmOGVmMTQ4YmMzZmEwYjRhNTMzMDQzMjAlMjZ1dG1fdGVybSUzZGNvbnRvcmlvbg%26rlid%3D62be6217f8ef148bc3fa0b4a53304320&vqd=4-20461391985475728408334625364054101205&iurl=%7B1%7DIG%3DB7E82E6448364B1CAB3FB6591060BF38%26CID%3D1BF7A751FF0761F42D86B18BFEEF6012%26ID%3DDevEx%2C5046.1",
+            "hasLabel": true,
+            "contexts": [
+              ", FIS EM Plus, FIS HB oder FIS SB) verfüllt wird. EAN/GTIN: 4048962462296 Weniger anzeigen Mehr anzeigen Technische Daten ETA-Zulassu"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Keiner der bereitgestellten Barcodes stimmt eindeutig mit der genauen Produktvariante 'fischer Hammerbohrer Quattric II SDS-plus Ø 24mm 450mm Quattric II 24/450/400' überein. Der Barcode '4048962306996' ist für die Variante 'Quattric II 24/400/450', was eine andere Spezifikation darstellt. Der Barcode '4048962462296' ist für ein anderes Produkt (Bolzenanker).",
+      "sources": []
+    }
+  },
+  {
+    "productId": "52820776-34bb-4776-b728-06c521593d3a",
+    "sku": "SKU-1489693054",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Unbekannt 16er Pack Gastgeschenke Salbeigrün für Brautparty Hochzeit Deko EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "Unbekannt 16er Pack Gastgeschenke Salbeigrün für Brautparty Hochzeit Deko EAN",
+        "ok": true,
+        "url": "https://duckduckgo.com/html/?q=Unbekannt%2016er%20Pack%20Gastgeschenke%20Salbeigr%C3%BCn%20f%C3%BCr%20Brautparty%20Hochzeit%20Deko%20EAN",
+        "via": "direct",
+        "status": 200,
+        "results": [
+          {
+            "title": "das besondere Geschenk | Looping mitfliegen | mitfliegen",
+            "url": "https://duckduckgo.com/y.js?ad_domain=kunstflugzentrale.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=q3yDys51zmWiR0tUuCCrLvKY%2Dxs6pzPrYgIjygXvJi3iVQP9nBZLHcUQ_ywpFraZUFmtwFFp4F4fis_9L73z1j3yk%2DM6zkrCZI2k6sRFv3sWQ8yQkUffNF8x2SbT9qi7feHK8cIS2pt1HBTJkIpfmNAwV3wg7oZlciUr1XS28CA.yrvqHbYIHPjfCyz%2DwxlQxw&rut=ff0caccb8dca010c508a31b88608d0a917ad0507e869cfce661197c0eaa7f79c&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8CwRT370TTHIm0QW5qDVqpjVUCUx1vzk0LunEeT0kNWSlbw75AXqe729re1Ffnr7xM00J41eAKpnnXxg7JrWpewxWMftHha6jhpnsHJjLtywBHJ23DvpeHt2gQ7vEeV%2Df_VIQvG4fmzbDwag31w%2DIzvgByFlU%2D6tujtmW9uqqe6ZxH16J9o485ZUUDEe5VF%2DGDT3%2DVeMo5_bUdUxFDeR8aunPa7o%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cua3Vuc3RmbHVnemVudHJhbGUuZGU%26rlid%3D6597029a9f291bc4c90a6bc734cea55a&vqd=4-270522277604564609882189260634652492087&iurl=%7B1%7DIG%3D282EF05CF27247238605D9E19B0C16C2%26CID%3D3AF585073BA462303EC093DD3A4C630F%26ID%3DDevEx%2C5046.1"
+          },
+          {
+            "title": "Marken zu attraktiven Preisen | Gastgeschenke Geburtstag",
+            "url": "https://duckduckgo.com/y.js?ad_domain=guenstiger.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=ChvhIP5fm0tRVFKulgwiErPm7xzzMvEYRxmSRuDryLTYvFeBootLhMXvR9KIVZL%2DSX5A%2DD%2D8_oKNt2kfEG2fptQVAJ2_G5PtsMQc5KPWPR0lFqUqas6nQaM7NqRlWpGnRbJ1dr5LaUseJAhsXU3y%2D_K2RHmwDYxFmNNQl8T1XMo.6ii5DJKlPlljAhO3QP2tEQ&rut=48b94f24b1309536eb7b4205579d360ff4eb2b92499311bd4a43b2159f6d7606&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8BhG2NbitdZwN2dkN3WdZKjVUCUyjXpFUM0qk%2Dvf4YadBo4UtjyRG0XTo9kEYK%2D2TmXSW64Kk_u6pBas70RP21OYcS3E_B8RR7tnOjzEkBT8EM_TpiYfdkg9JuJvLcyB1qMVrIvoQS77fqM4dnf4Ue1J8wFVskGr0GsdPMl56fMTel0BqtNWX3i6fwz4qGb7N8n9MVOBMoUWfMDZZ_qBnZzPZJN0%26u%3DaHR0cCUzYSUyZiUyZnN1Y2hlLmd1ZW5zdGlnZXIuZGUlMmZzaG9wcGluZyUyZnByb2R1Y3RzJTNmcCUzZDM2NDQyOCUyNnNlYXJjaCUzZEdhc3RnZXNjaGVua2UrR2VidXJ0c3RhZyUyNnQlM2RhZyUyNTNEMTIyOTI1NTA3NTEwMzc5NiUyNmNyaWQlM2QxMjA0MTQzMzElMjZmb3JjZXZzdCUzZHRydWUlMjZsb2NfaW50JTNkJTI2bG9jX3BoeSUzZDEyNzk2MSUyNm1fZGV2JTNkYyUyNm1fbnclM2RzJTI2bXNjbGtpZCUzZDQ0ZjRlMDJhZTFjZjE0ZmZlYmUyODk3NzRhMjhhZDI0JTI2bXNuX2FpZCUzZDc2ODI4NTc1NzIyNDA0JTI2bXNuX210JTNkcCUyNm1zbl9vaWQlM2Q3NjgyODgxNTY1NTQwMiUyNm1zbl9xcyUzZFVuYmVrYW5udCUyNTIwMTZlciUyNTIwUGFjayUyNTIwR2FzdGdlc2NoZW5rZSUyNTIwU2FsYmVpZ3IlYzMlYmNuJTI1MjBmJWMzJWJjciUyNTIwQnJhdXRwYXJ0eSUyNTIwSG9jaHplaXQlMjUyMERla28lMjUyMEVBTg%26rlid%3D44f4e02ae1cf14ffebe289774a28ad24&vqd=4-30040902571436848798559100721634481488&iurl=%7B1%7DIG%3D282EF05CF27247238605D9E19B0C16C2%26CID%3D3AF585073BA462303EC093DD3A4C630F%26ID%3DDevEx%2C5049.1"
+          },
+          {
+            "title": "Suchergebnis Auf Amazon.de Für: Hochzeitsdeko Salbeigrün",
+            "url": "https://www.amazon.de/hochzeitsdeko-salbeigr%C3%BCn/s?k=hochzeitsdeko+salbeigr%C3%BCn"
+          },
+          {
+            "title": "Salbeigrün Party Gastgeschenke Hochzeit | Zazzle.de",
+            "url": "https://www.zazzle.de/salbeigr%C3%BCn+party+hochzeit+gastgeschenke"
+          },
+          {
+            "title": "Gastgeschenk Tüte transparent + Etikett \"Blätter Salbei\"",
+            "url": "https://www.meine-hochzeitsdeko.de/gastgeschenk-tuete-transparent-mit-etikett-blaetter-salbei"
+          },
+          {
+            "title": "Hochzeit salbeigrün - Etsy.de",
+            "url": "https://www.etsy.com/de/market/hochzeit_salbeigr%C3%BCn"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "sku": "SKU-5329605855",
+    "status": "would_apply",
+    "query": "Ernie Ball 3221 EAN",
+    "chosen": "0749699132219",
+    "candidate": {
+      "code": "0749699132219",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://ean-shopping.de/ean/0749699132219.htm",
+          "hasLabel": true,
+          "contexts": [
+            "0749699132219 - ERNIE BALL 3221 Regular Slinky 3er Pack 010046 - Saiten f",
+            "Regular Slinky 3er Pack 010046 - Saiten für E-Gitarren EAN: 0749699132219 Produktdaten aktualisiert am: 03.01.2026 Bilder-Quelle: sho",
+            ".01.2026 Bilder-Quelle: shopping24.de EAN-Shopping.de > - > 0749699132219 ERNIE BALL 3221 REGULAR SLINKY 3ER PACK 010046 ... Herstell"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "0749699132219",
+      "rationale": "Der Barcode '0749699132219' (EAN-13) wird auf ean-shopping.de explizit für 'ERNIE BALL 3221 Regular Slinky 3er Pack' aufgeführt, was mit dem Produkt 'Ernie Ball E-Gitarrensaiten Regular Slinky 3221 - Saitenstärke 10-46, 3er-Pack' übereinstimmt. Die Prüfziffer des Barcodes ist korrekt.",
+      "sources": [
+        "https://ean-shopping.de/ean/0749699132219.htm"
+      ]
+    }
+  },
+  {
+    "productId": "5820082016105",
+    "sku": "SKU-5753016417",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Audi Audi Fußmatten Set Vorne, Hinten NEU Q5 8R EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "Audi Audi Fußmatten Set Vorne, Hinten NEU Q5 8R EAN",
+        "ok": true,
+        "url": "https://duckduckgo.com/html/?q=Audi%20Audi%20Fu%C3%9Fmatten%20Set%20Vorne%2C%20Hinten%20NEU%20Q5%208R%20EAN",
+        "via": "direct",
+        "status": 200,
+        "results": [
+          {
+            "title": "Automattenland - Passgenaue Automatten",
+            "url": "https://duckduckgo.com/y.js?ad_domain=automattenland.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=m_MTtwUGiiVILmN_xDMj9hj5NOPa9fQVotID36%2DqzBoGd1vJpq8Ti_GLiPpoxM6JMJMTcbBVv5WWREZMRz%2DtfFI%2DDeiE72V08EI9syewdCAKJwfsg9XyzE8iWtvIEVWiZCyI_hp5%2DCdbsqOGBRQNqFbQaMCk3kYZoQttgozqQII.2fyQe0k5o8CAYzOpcMdSnw&rut=2f163d77e94eb1be575145accea0b04cfce9e43595f3ee711fef36f72ed3a3d0&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De81jA2qbpuBuasB0YrfYMPDjVUCUyp8fFWQpD9uhtEGQfdNtsQ7t8O2yBQk9U7KDnAkqjoACUS8mkNtrHL0CUc3gk%2Dm7MGAvzlViJJDiv_psTKhyxLIJ0q1qXLV91E9AZpqnAn%2DUCEqaAi%2DYsrKX%2D5hL7JAWSPPmgg1C1mZToMhAh4_x_ag5wPyzjHa_c9y354BFR94fP92DZmA7aXd3YVKuZZjbg%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuYXV0b21hdHRlbmxhbmQuZGUlMmYlM2Ztc2Nsa2lkJTNkNWQ1NjJjZmI4ZDBiMTBmY2Q0Y2Y0NWE2MjZmZDAzZTYlMjZ1dG1fc291cmNlJTNkYmluZyUyNnV0bV9tZWRpdW0lM2RjcGMlMjZ1dG1fY2FtcGFpZ24lM2RERSUyNTIwJTI1MkIlMjUyMEFUJTI1MjAlMjU3QyUyNTIwRFNBJTI2dXRtX3Rlcm0lM2RodHRwcyUyNTNBJTI1MkYlMjUyRnd3dy5hdXRvbWF0dGVubGFuZC5kZSUyNTJGJTI2dXRtX2NvbnRlbnQlM2RBbGxlJTI1MjBXZWJzZWl0ZW4%26rlid%3D5d562cfb8d0b10fcd4cf45a626fd03e6&vqd=4-71804887546691077642437929514397770392&iurl=%7B1%7DIG%3D3AD119E2511E4915B500B1BB00AD5562%26CID%3D3A62BEB12A306D320A8FA86B2BD86CC9%26ID%3DDevEx%2C5045.1"
+          },
+          {
+            "title": "Gummimatten für Audi Q5 - Original Walser Gummimatten",
+            "url": "https://duckduckgo.com/y.js?ad_domain=walser%2Dshop.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=5JhUf2wsAMNMIgjk4YNFqzhYR68ZgyVvfgdY9NGIrRKUGvsMtrwGZ2jswAZWrz5Es8fxKSzK8NTW_dHFpktx_KZSYpvJTvsGYcGpMNBmT304V_CkRFZ7TnEI4QP4KRg6jVBPvcQbB7nTpjrnp48TKHnji910oZeJTodsWw1%2DaV4.NLENrBvrgo17VgktO_27Zw&rut=dad4c65ff0c2befa23a2d7f661e631eaf7154169769606c670b378c108fbe8a9&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8AG4_RTKbPcqhukb5yuLavDVUCUxtH6Q58%2DP5iMvog2rbIRUFNgtWzRtdlgJN2j9t7supvqaQMhkVI8qHSt231IEV5XBSMSYgDp1HdjFXrE8GkneE5hoeGMJzhasyeEp9OzHcxDXtHh5pQyhtHLVWAXaESVT5XPYVtwWKswQCFc0NrW5QoLEH1G6z8o6qHoT_Yg0yhjq92qSA_woK56JCZoIk0TQ%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cud2Fsc2VyLXNob3AuY29tJTJmZ3VtbWltYXR0ZW4lMmZhdWRpJTJmcTUlMmYlM2Ztc2Nsa2lkJTNkYjU3NGUxNjA1Yjg4MTBiZDE3MGE4ODNkZjA3ZTcwYmMlMjZ1dG1fc291cmNlJTNkYmluZyUyNnV0bV9tZWRpdW0lM2RjcGMlMjZ1dG1fY2FtcGFpZ24lM2REQUNIJTI1MjAlMjU3QyUyNTIwRFNBJTI1MjAlMjU3QyUyNTIwMTguMDkuJTI1MjBlQ1BDJTI1MjAlMjU3QyUyNTIwUk9BUyUyNTIwNTAwJTI1MjBtYXgxJTI1MjAyNC4wOC4lMjZ1dG1fdGVybSUzZCUyNTJGZ3VtbWltYXR0ZW4lMjZ1dG1fY29udGVudCUzZCUyNTJGZ3VtbWltYXR0ZW4%26rlid%3Db574e1605b8810bd170a883df07e70bc&vqd=4-77782950375757166497063969039006856250&iurl=%7B1%7DIG%3D3AD119E2511E4915B500B1BB00AD5562%26CID%3D3A62BEB12A306D320A8FA86B2BD86CC9%26ID%3DDevEx%2C5050.1"
+          },
+          {
+            "title": "Fußmatten - Audi Q5 - Audi Original Zubehör - Audi",
+            "url": "https://shop.audi-zentrum-goettingen.de/audi/audi-original-zubehor/q5/fussmatten.html"
+          },
+          {
+            "title": "Fußmatten für Audi - Schutz & Stil",
+            "url": "https://audi-shop.com/de/de/c/komfort-schutz/fussmatten/197261321/"
+          },
+          {
+            "title": "Suchergebnis Auf Amazon.de Für: Fußmatten Audi Q5",
+            "url": "https://www.amazon.de/fu%C3%9Fmatten-audi-q5/s?k=fu%C3%9Fmatten+audi+q5"
+          },
+          {
+            "title": "Fußmatten für Audi Q5 | Passgenau - Online Fussmatten",
+            "url": "https://www.onlinefussmatten.de/fussmatte/audi/q5/"
+          }
+        ]
+      }
+    ]
+  }
+]

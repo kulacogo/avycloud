@@ -1,0 +1,666 @@
+[
+  {
+    "productId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "COZII X001Y0BTE9 EAN",
+    "candidates": [
+      {
+        "code": "8712581618025",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": true,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": true,
+            "contexts": [
+              "i vielen Anbietern verfügbar sind: EAN Bezeichnung Anbieter 8712581618025 Philips DS6600 10 Dockinglautsprecher 4 8712581543815 Phili"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "0711719685388",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "erk interaktiv Östliche Bundesländer und Berlin Tafelwerk 5 0711719685388 Resistance Fall of Man 10 4960999440835 Canon EW 78BII Sonn"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4001504322540",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "Sony NWZ-B173FR Rot - 4GB 6 5060184980289 Jig a Pix Pets 4 4001504322540 Bibi Tina Das große Unwetter 10 9783898182584 Heinrich Heid"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4002051697167",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "9 4018843589053 Magnat Needle ALU Super Tower silber Paar 6 4002051697167 Kosmos 697167 KOSMOS Können Schweine fliegen Ergänzungsset"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4018843589053",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ber 9 4018843589060 Magnat Needle Alu Super Tower Schwarz 9 4018843589053 Magnat Needle ALU Super Tower silber Paar 6 4002051697167 K"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4018843589060",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ixel 9 4018843890586 Magnat Needle Alu Super Tower silber 9 4018843589060 Magnat Needle Alu Super Tower Schwarz 9 4018843589053 Magna"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4018843890586",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "L9II Smartphone NFC Touchscreen Android 4 1 8 0 Megapixel 9 4018843890586 Magnat Needle Alu Super Tower silber 9 4018843589060 Magnat"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4047443072030",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ende 8 8410779289223 Pinypon Figuren Frucht sortiert 16St 5 4047443072030 Hama Ladegerät Picco 12 V inkl USB-Ladekabel für micro USB"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4719072241193",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ama Ladegerät Picco 12 V inkl USB-Ladekabel für micro USB 6 4719072241193 Grafikkarte MSI ATI Radeon HD5450 1 GB DDR3-RAM PCIe x16 DV"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4905524836066",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "sprecher 4 8712581543815 Philips AE 2330 00 weiß-hellblau 8 4905524836066 Sony NWZ-B173FR Rot - 4GB 6 5060184980289 Jig a Pix Pets 4"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4960999440835",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "Berlin Tafelwerk 5 0711719685388 Resistance Fall of Man 10 4960999440835 Canon EW 78BII Sonnenblende 8 8410779289223 Pinypon Figuren"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "5060184980289",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "0 weiß-hellblau 8 4905524836066 Sony NWZ-B173FR Rot - 4GB 6 5060184980289 Jig a Pix Pets 4 4001504322540 Bibi Tina Das große Unwetter"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "8410779289223",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "Fall of Man 10 4960999440835 Canon EW 78BII Sonnenblende 8 8410779289223 Pinypon Figuren Frucht sortiert 16St 5 4047443072030 Hama L"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "8712581543815",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ieter 8712581618025 Philips DS6600 10 Dockinglautsprecher 4 8712581543815 Philips AE 2330 00 weiß-hellblau 8 4905524836066 Sony NWZ-B"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "8808992083153",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "ikkarte MSI ATI Radeon HD5450 1 GB DDR3-RAM PCIe x16 DVI 10 8808992083153 LG D605 Optimus L9II Smartphone NFC Touchscreen Android 4 1"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "9783060407521",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "061007799 Deutsch plus 7 Arbeitsheft Neue Rechtschreibung 6 9783060407521 Barth Ludwig Frey Klaus GEOS Arbeitsheft Sachsen Anhalt Kla"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "9783061007799",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "entsch Andrea Lehmann Karlheinz Liesenberg Günter Scheibe 6 9783061007799 Deutsch plus 7 Arbeitsheft Neue Rechtschreibung 6 978306040"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "9783464571484",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "sse 7 8 RSR 4 9783898187008 Formelsammlung bis zum Abitur 5 9783464571484 Das große Tafelwerk interaktiv Östliche Bundesländer und Be"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "9783898182584",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "a Pix Pets 4 4001504322540 Bibi Tina Das große Unwetter 10 9783898182584 Heinrich Heidemarie Jentsch Andrea Lehmann Karlheinz Liesen"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "9783898187008",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ean1.de/ean-suche/",
+            "hasLabel": false,
+            "contexts": [
+              "Frey Klaus GEOS Arbeitsheft Sachsen Anhalt Klasse 7 8 RSR 4 9783898187008 Formelsammlung bis zum Abitur 5 9783464571484 Das große Taf"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Keiner der bereitgestellten Barcode-Kandidaten konnte eindeutig dem Produkt \"COZII Hundepool X001Y0BTE9\" zugeordnet werden. Die Web-Evidenz enthielt keine direkt belegbaren EANs für dieses spezifische Produkt.",
+      "sources": []
+    }
+  },
+  {
+    "productId": "03142017000003",
+    "sku": "SKU-9947386415",
+    "status": "would_apply",
+    "query": "Weber 711004 EAN",
+    "chosen": "077924021268",
+    "candidate": {
+      "code": "077924021268",
+      "type": "upc12",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://gartenwelt.de/smokey-mountain-cooker-smoker",
+          "hasLabel": true,
+          "contexts": [
+            "Konto Eigenschaften Eigenschaften Artikelnummer 711004 EAN 077924021268 Marke Weber Produktgewicht 13,653 Produktbreite in cm 37,4"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "077924021268",
+      "rationale": "Der Barcode '077924021268' (UPC-A) wurde in der WEB-EVIDENZ von 'gartenwelt.de' gefunden und die Prüfziffer ist gültig.",
+      "sources": [
+        "https://gartenwelt.de/smokey-mountain-cooker-smoker"
+      ]
+    }
+  },
+  {
+    "productId": "07901010300000",
+    "sku": "SKU-2097206690",
+    "status": "skip",
+    "reason": "llm_no_choice",
+    "query": "Generisch JSD 520 EAN",
+    "candidates": [
+      {
+        "code": "389323872588",
+        "type": "upc12",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.ebay.de/itm/389421773873",
+            "hasLabel": false,
+            "contexts": [
+              "ROGARDEN Gartenbank wetterfest & pflegeleicht 2-Sitzer (Nr. 389323872588) x***o (17) - Bewertung vom Käufer. Letzte 6 Monate Bestäti",
+              "ROGARDEN Gartenbank wetterfest & pflegeleicht 2-Sitzer (Nr. 389323872588) x***o (17) - Bewertung vom Käufer. Letzte 6 Monate Bestäti"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4099537000009",
+        "type": "ean13",
+        "sourceCount": 1,
+        "hasLabel": false,
+        "sources": [
+          {
+            "url": "https://www.kaufland.de/product/459249404/",
+            "hasLabel": false,
+            "contexts": [
+              "774318, Amtsgericht Stuttgart UST-ID-Nr.: DE340451093 ILN: 4099537000009 Kontakt Marktplatz: E-Mail: [email&#160;protected] Geschäft"
+            ]
+          }
+        ]
+      }
+    ],
+    "choice": {
+      "barcode": "",
+      "rationale": "Keiner der gefundenen Barcodes in den Kandidaten ist eindeutig dem Produkt \"Generisch Autoradios passgenau für JSD 520\" zuzuordnen. Der Code \"389323872588\" bezieht sich auf eine Gartenbank. Der Code \"4099537000009\" ist eine ILN (International Location Number) und kein Produkt-Barcode (EAN/GTIN/UPC).",
+      "sources": []
+    }
+  },
+  {
+    "productId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "FNTCASE FNTCASE Schutzhülle für Apple iPhone 16 Pro Grau EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "FNTCASE FNTCASE Schutzhülle für Apple iPhone 16 Pro Grau EAN",
+        "ok": true,
+        "url": "https://duckduckgo.com/html/?q=FNTCASE%20FNTCASE%20Schutzh%C3%BClle%20f%C3%BCr%20Apple%20iPhone%2016%20Pro%20Grau%20EAN",
+        "via": "direct",
+        "status": 200,
+        "results": [
+          {
+            "title": "Apple iPhone 16 Hülle | Kostenloser Versand",
+            "url": "https://duckduckgo.com/y.js?ad_domain=handyhuellen.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=hLYIsqh2MF6kk6F3dv26FrkxpRHvHxIhzghvqoOP2EBaJHc7l3pXrLFeQV1Arxwd5o9IYfVCe1fGAcb4xtUEJ8FfUM7SWk8QSqPO4KsLJurszoPZmsaTRrh2bcCRqhBIWCio0PzAbpdedhrmI8pYoRG2y5AZDApBVjKVw8RUoC0.MmYj9ztnOzlujuJnX24pBQ&rut=8acee9d387f2a144f9d7112f06f6ee47cc9a2059d3b5a7f8ac3045271b3638e3&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8l5dumdWTkZxnIcy9DvnwTjVUCUxU5oQapomTdNeiLeFYELvZl%2DRJRCf0_%2D1%2DYHVSd9xiuaOe5It9AqOf3sv0%2DO3btB4hY6HHNahPj%2DmRH6XRmZX5tRmOilhmu%2D3YN00pWWrq6IC%2DGq_nU6s9zSrZpNLlyEiIKPqy5sGXaCeFw4ybe8D66ZRaLKivfKCLuqkYWChhWkFkjnTcpCSp8DhNmAkRxS4%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuaGFuZHlodWVsbGVuLmRlJTJmYXBwbGUlMmZpcGhvbmUtMTYlMmYlM2ZrYiUzZGJuX3NuYl8zNjQ4NDQ2OTBfMTE2NzY4MzIzMDk0ODA2MCUyNm1zY2xraWQlM2RjYmU0NTQ1MjBhMGIxOTY0NjY5MDNkMGZhMTM3NmU0OCUyNnV0bV9zb3VyY2UlM2RiaW5nJTI2dXRtX21lZGl1bSUzZGNwYyUyNnV0bV9jYW1wYWlnbiUzZCUyNTVCREUlMjU1RCUyNTIwU2VhcmNoJTI1MjAtJTI1MjBQaG9uZSUyNTIwLSUyNTIwQ292ZXIlMjUyMC0lMjUyMEFwcGxlJTI1MjAlMjU1QkNoYW5uYWJsZSUyNTVEJTI2dXRtX3Rlcm0lM2RhcHBsZSUyNTIwaXBob25lJTI1MjAxNiUyNTIwY292ZXIlMjZ1dG1fY29udGVudCUzZEglYzMlYmNsbGVuJTI1MjAtJTI1MjBBcHBsZSUyNTIwaVBob25lJTI1MjAxNg%26rlid%3Dcbe454520a0b196466903d0fa1376e48&vqd=4-90032495020636158620116011123482237212&iurl=%7B1%7DIG%3D7E28B141E45844ED948B1F078DE7577F%26CID%3D3326A0970D1F68213F0AB64D0CF76976%26ID%3DDevEx%2C5045.1"
+          },
+          {
+            "title": "Handyhüllen für das iPhone 16 | Apple iPhone 16 Hülle",
+            "url": "https://duckduckgo.com/y.js?ad_domain=handyhuellen%2D24.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=kJDjiKxoQA0CV68o5n%2DHUmY36cayOUKGunY16E3KioA9Br2R6fEfoe_ShtthUrr7aqUb336rsCAd2y%2D4EahAL9XIojhbybPCXqfNNo9pHhOQ9eTQ%2DiHcL_5SUM7uzTiVunLtaSSw9lOnxwtdtK9C9lngjIWjCfIhLaIBv4YbyFw.ePt5iBE_I4xM0jdDd8ktCw&rut=844e0310253f27bcf7c610ea60a9f2a010aaf7a1f57d7e05b68655f6ab03c0af&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8KgxtaMLFrauluMEXbJKX2TVUCUzl03KGw8U5FHMnoSbgVWSPfuxk8UN2chbqBuBH%2DMyriyZI%2DGUNnThAEQrXgLLiPftSOE4cjLzhlelOuZ2BFQ7dZT%2DONMP2HM3ea0uhkRwrd_cq27z7XKginjk4lewWIwrkQ3E3kFWbodFg8mrF91E4hajkLWLTNOtEgf53NNaHctDvETBu9qOKCVANbYTYC1s%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuaGFuZHlodWVsbGVuLTI0LmRlJTJmYXBwbGUlMmZpcGhvbmUtMTYlMmZsJTJmY29sb3IlM2F0cmFuc3BhcmVudC13ZWlzcy5odG1sJTNmbXNjbGtpZCUzZDlkODg2MjQ5ZmYzNjFhZTYzZmY1MGIxNDU0MGE0NmNiJTI2dXRtX3NvdXJjZSUzZGJpbmclMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NhbXBhaWduJTNkMTAwMDEtR28tTUFYLVRvcC1Qcm9kdWt0ZSUyNnV0bV90ZXJtJTNkd3d3LmhhbmR5aHVlbGxlbi0yNC5kZSUyNnV0bV9jb250ZW50JTNkUE0lMjUyMCUyNTdDJTI1MjBBcHBsZSUyNTIwJTI1N0MlMjUyMEJlc3QlMjUyMCUyNTdDJTI1MjBpUGhvbmUlMjUyMDE2JTI1MjAlMjU3QyUyNTIwVHJhbnNwYXJlbnQ%26rlid%3D9d886249ff361ae63ff50b14540a46cb&vqd=4-297986761602217862602925150795000765235&iurl=%7B1%7DIG%3D7E28B141E45844ED948B1F078DE7577F%26CID%3D3326A0970D1F68213F0AB64D0CF76976%26ID%3DDevEx%2C5049.1"
+          },
+          {
+            "title": "FNTCASE für iPhone 16 Pro Hülle: iPhone 16 Pro Handyhülle Magnetische ...",
+            "url": "https://www.amazon.de/FNTCASE-iPhone-16-Pro-H%C3%BClle-Gray/dp/B0DK38Y8CK"
+          },
+          {
+            "title": "iPhone 16 Pro - FNTCASE OFFICIAL",
+            "url": "https://fntcase.com/de/collections/iphone-16-pro"
+          },
+          {
+            "title": "iPhone 16 Pro - Hüllen & Schutz - iPhone Zubehör - Apple (DE)",
+            "url": "https://www.apple.com/de/shop/iphone/accessories/cases-protection?fh=458b%2B6fdc2a"
+          },
+          {
+            "title": "Kaufen Apple iPhone 16 Pro Hüllen & Taschen zu gute Preise",
+            "url": "https://caseonline.de/apple/apple-iphone-16-pro/"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "CAPAS CAPAS Schnorchelflossen Travel Fins Grün Gr. S/M für EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "CAPAS CAPAS Schnorchelflossen Travel Fins Grün Gr. S/M für EAN",
+        "ok": true,
+        "url": "https://duckduckgo.com/html/?q=CAPAS%20CAPAS%20Schnorchelflossen%20Travel%20Fins%20Gr%C3%BCn%20Gr.%20S%2FM%20f%C3%BCr%20EAN",
+        "via": "direct",
+        "status": 200,
+        "results": [
+          {
+            "title": "Testsieger Schnorchelmasken | Masken vom Testsieger 2025",
+            "url": "https://duckduckgo.com/y.js?ad_domain=khroom%2Dsport.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=14gvwuhEYWwRS2vaTpJJirkxKbSou11JSpyxgtsw_S8xETaStngIoBA1lyPR9224wjjI%2DnbUlV6e6t04KqoQVnsh4ajuwR6oBgcVjjQ7YWRuvgNEyr6to4gi3Ucrl2Ezi4g96W0FEoQnFNjU3o2H9cy_i7mO8M8yl%2D4miu9psVc.6SII6JEvHuWTadtZpKeytw&rut=88746ee6fcf60650d65e918a44eccadf5633890a4816670dc9cad3869a93e580&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8GzSot4kW2LznAJaqnYqPvTVUCUyZf2%2DTaovcYbk8U1KxKfFN%2Dwbpt76UjyHlZe1S08fKDRHQrsLpM9MYvY_oVLdhahEkH8O%2DzScSo73XOQv52hLKFxSvWq1B_j1cO6pllhPxNmM69KRBr_uxeK3ju6_bU8kepYR1V82DO6sFYjFdMeji2dD7BcaMEaTnfXDurY%2DsO0AWuaDnKeoyocbWszW1f_U%26u%3DaHR0cHMlM2ElMmYlMmZraHJvb20tc3BvcnQuY29tJTJmcHJvZHVjdHMlMmZzY2hub3JjaGVsbWFza2Utc2Vhdmlldy15JTNmbXNjbGtpZCUzZGQ3YTAwYmIyNDM1NzE5YzE2MjFkNjJlZmU4MTYwOTFkJTI2dXRtX3NvdXJjZSUzZGJpbmclMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NhbXBhaWduJTNkREUlMjUyRkFUJTI1MjAlMjU3QyUyNTIwcE1heCUyNTIwJTI1N0MlMjUyMFNob3BwaW5nJTI1MjAlMjU3QyUyNTIwTWFza2VuJTI1MjAlMjU3QyUyNTIwQ1BBJTI1MjA4JTJjNSVlMiU4MiVhYyUyNTIwJTI1N0MlMjUyMDE2LjA4LjI1JTI2dXRtX3Rlcm0lM2RraHJvb20tc3BvcnQuY29tJTI2dXRtX2NvbnRlbnQlM2RUYXVjaGVybWFza2Vu%26rlid%3Dd7a00bb2435719c1621d62efe816091d&vqd=4-270103531324617122106357272210693288699&iurl=%7B1%7DIG%3D7C0048B916804EE980C1FDFB44A18EEA%26CID%3D36CD39EF898E65EB30722F35886664DA%26ID%3DDevEx%2C5046.1"
+          },
+          {
+            "title": "Schnorchelsets | Bergfreunde.de Online Shop",
+            "url": "https://duckduckgo.com/y.js?ad_domain=bergfreunde.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=IoFVUOPIoh3lL7ChjCT1_iDlpgAQyepYq8MbvM9MLiN_roADA7nm_RhMqHor8ZZ2dAOscMsjpQ8QWjdtFAlI010s5GTR1Ftv1je5EndirOzE53jH5qepJxhP2ATQ8UeEvkAB7Ut7dxzhb%2DLWjDx_V8BdbaUDZW%2DLVjC6tMIUUqY.DzkeGxy2tKGg4KocQHkbbw&rut=17341c3ff08338ec48f1fc9ec1d213ee08887dd6ce9081af95686d06298d0d28&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8Eg9nlt8I0SDMR3oMlGzCGjVUCUzgOYp214fvAeky4h1CYrN1ZfYEMbQwn0XkP6IJ7KhXIX2fh%2DN6J4_FcHr7w1WmRMU2DXPufUUYaRYXvKg4wDIq7TJwW2RTn%2DDjGoAfJvXo_XlezOOqUNsUoxhIc3KhoRe1nL1LOisdsv3A8MZeZIzFKsP6pHM%2D9qDxZAGYKw7sKpky21mf0aJbTkJfOY7O_8E%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuYmVyZ2ZyZXVuZGUuZGUlMmZzY2hub3JjaGVsc2V0cyUyZiUzZnBpZCUzZDEwMDA0JTI2d3RfbWMlM2RkZS5uYnBzLmJpbmdfZGUuMzMxNTY5MDIxLjExNzA5ODE3Njc5Mzc2MzEuNzMxODY2NjQ0Mjg5MzAlMjZ3dF9jYzElM2RzY2hub3JjaGVsc2V0cyUyNnByb2YlM2Q0MDElMjZjYW1wJTNkNTY0NTYlMjZrY3QlM2Rtc24lMjZrY2hpZCUzZDQwOCUyNmNyaXRlcmlhaWQlM2Rrd2QtNzMxODcwODM0ODUwNTYlM2Fsb2MtNzIlMjZjYW1wYWlnbmlkJTNkMzMxNTY5MDIxJTI2bG9jcGh5JTNkMTI4NDQwJTI2YWRncm91cGlkJTNkMTE3MDk4MTc2NzkzNzYzMSUyNmNpZCUzZDczMTg2NjY0NDI4OTMwJTI2a2R2JTNkYyUyNmtleHQlM2QlMjZrcGclM2QlMjZrcGlkJTNkJTI2cXVlcnlTdHIlM2RDQVBBUyUyNTIwQ0FQQVMlMjUyMFNjaG5vcmNoZWxmbG9zc2VuJTI1MjBUcmF2ZWwlMjUyMEZpbnMlMjUyMEdyJWMzJWJjbiUyNTIwR3IuJTI1MjBTJTI1MkZNJTI1MjBmJWMzJWJjciUyNTIwRUFOJTI2bXNjbGtpZCUzZDVmZjU2ZjIwZmY2YjFmNmJmZTNhMDY3ZDU0MmFhYWM1JTI2dXRtX3NvdXJjZSUzZGJpbmclMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NhbXBhaWduJTNkNSUyNTIwLSUyNTIwYSUyNTIwLSUyNTIwS2F0ZWdvcmllJTI1MjAtJTI1MjBPdXRkb29yLUF1c3IlYzMlYmNzdHVuZyUyNnV0bV90ZXJtJTNkc2Nobm9yY2hlbHNldHMlMjZ1dG1fY29udGVudCUzZFNjaG5vcmNoZWxzZXRz%26rlid%3D5ff56f20ff6b1f6bfe3a067d542aaac5&vqd=4-115301212762621315643922718521429632447&iurl=%7B1%7DIG%3D7C0048B916804EE980C1FDFB44A18EEA%26CID%3D36CD39EF898E65EB30722F35886664DA%26ID%3DDevEx%2C5049.1"
+          },
+          {
+            "title": "CAPAS Schnorchelflossen, Schwimmflossen Reisegröße Kurz Einstellbar zum ...",
+            "url": "https://www.amazon.de/CAPAS-schnorchel-schwimmflossen-einstellbar-Schnorcheln/dp/B08L4WNSWQ"
+          },
+          {
+            "title": "CAPAS Schnorchelflossen Reisegröße Kurz - guenstiger.de",
+            "url": "https://www.guenstiger.de/Produkt/CAPAS/Schnorchelflossen_Reisegroesse_Kurz.html"
+          },
+          {
+            "title": "CAPAS Schwimmflossen, Schnorchelflossen mit Reisegröße, kurze Flossen ...",
+            "url": "https://schnorchelmasken.org/produkt/capas-schwimmflossen-schnorchelflossen-mit-reisegroesse-kurze-flossen-zum-schnorcheln-tauchen-verstellbare-flossen-mit-offener-ferse-fuer-maenner-frauen-jugendliche/"
+          },
+          {
+            "title": "CAPAS Schnorchelflossen, Schwimmflossen Reisegröße Kurz Einstellbar zum ...",
+            "url": "https://www.tauchen-und-schnorcheln-geschenke.de/product/capas-schnorchelflossen-schwimmflossen-reisegroesse-kurz-einstellbar-zum-schnorcheln-tauchen-erwachsene-maenner-frauen-kinder-offene-ferse-tauchflossen-gruen-kids-jr/"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "sku": "SKU-7753504850",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "PerformaNat QDENI400127 EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "PerformaNat QDENI400127 EAN",
+        "ok": true,
+        "url": "https://duckduckgo.com/html/?q=PerformaNat%20QDENI400127%20EAN",
+        "via": "direct",
+        "status": 200,
+        "results": [
+          {
+            "title": "Offizielle UPC/EAN-Barcodes | Barcodes schon ab €0,10",
+            "url": "https://duckduckgo.com/y.js?ad_domain=barcodelove.eu&ad_provider=bingv7aa&ad_type=txad&click_metadata=qETETEkMbhrzh0XIQRCFTCAoggN_EkmPFcLMba3dvPUC5YO38qM6cyGeZflL8z4E4sq8zZ2JMUl_wWSA0n0P53x201qOEDzv0w9j%2DdMGHt1TxqC4Zbec4d2Vj5S3COiJVeFziV14ETy22_cmnXXLCJ%2DGYvMXUncBT_zVLlctC8Q.PnBbB0VCLK1Q7CWANDJhkA&rut=3a7b26668f458d7e92a9e0d853aff8007699d7fd0a9c2db349bb072a99465115&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8vUvzOS6Vw44UnE6JWzzEETVUCUzPkYfOvoCVZjvbtAHfRFKmTgJitZR56kchnthXPG9LrA3ztSfrESMu6S1wCm1XMV1GKoimMen%2Dr4NQEf_VhNcgZrvIONHZ_l00Odk3NAb2TLQd%2Dm83746tJ3KxZoccSBkVaKF0SKi8wKDf%2DmLcoQOdAtM2R0cUhgJdFCRuZ_wgbCeIC1rcU7nu3YOyaK1ladk%26u%3DaHR0cHMlM2ElMmYlMmZiYXJjb2RlbG92ZS5ldSUyZmRlJTNmbXNjbGtpZCUzZDE2YTNhZjg5NGFkNDFjYjg5NWY3YzZkNGUxOTJkYjgwJTI2dXRtX3NvdXJjZSUzZGJpbmclMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NhbXBhaWduJTNkQmFyY29kZSUyNTIwTG92ZSUyNTIwREUlMjZ1dG1fdGVybSUzZHVwYyUyNTIwY29kZSUyNnV0bV9jb250ZW50JTNkR2VuZXJhbCUyNTIwQWQlMjUyMEdyb3Vw%26rlid%3D16a3af894ad41cb895f7c6d4e192db80&vqd=4-313947210460820550270116589689352842569&iurl=%7B1%7DIG%3D6BFAD21D859B43B980DC1082E0C789DB%26CID%3D2EFF3F6BCCA9633F282E29B1CD4162A0%26ID%3DDevEx%2C5046.1"
+          },
+          {
+            "title": "EAN & GTIN-Suche - ean-code.eu",
+            "url": "https://ean-code.eu/ean-suche"
+          },
+          {
+            "title": "EAN-Code Suche | Produkte finden - EAN Hilfe Portal",
+            "url": "https://ean-hilfe.org/ean-code-suche/"
+          },
+          {
+            "title": "EAN-Code Suche: Einfach Produkte finden",
+            "url": "http://www.ean-suche.info/ean-code-suche/"
+          },
+          {
+            "title": "EAN Suche | Datenbank für EAN (GTIN) Produktsuche - GTINsuche.de",
+            "url": "https://www.gtinsuche.de/"
+          },
+          {
+            "title": "Innovative Stoffwechselprophylaxe für Milchkühe - PerformaNat",
+            "url": "https://www.performanat.de/"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "4043962306996",
+    "sku": "SKU-8927251416",
+    "status": "would_apply",
+    "query": "fischer Quattric II 24/450/400 EAN",
+    "chosen": "4048962306996",
+    "candidate": {
+      "code": "4048962306996",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://www.fischer.de/p/549963",
+          "hasLabel": true,
+          "contexts": [
+            "Home Produkte Home Support Art.-Nr. 549963 GTIN (EAN-Code): 4048962306996 fischer Hammerbohrer Quattric II 24/400/450 Produktvariante",
+            "kungsvariante Kunststoffröhre Menge 1 Stück GTIN (EAN-Code) 4048962306996 Dokumente zum Download Verkaufsunterlagen Verkaufsunterlage"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "4048962306996",
+      "rationale": "Der Barcode 4048962306996 wird auf der offiziellen fischer.de Produktseite (https://www.fischer.de/p/549963) für den 'fischer Hammerbohrer Quattric II 24/400/450' angegeben. Die technischen Daten auf dieser Seite bestätigen einen Bohrdurchmesser von 24 mm, eine Nutzlänge von 400 mm und eine Gesamtlänge von 450 mm. Diese Spezifikationen stimmen mit dem Produkt 'fischer Hammerbohrer Quattric II SDS-plus Ø 24mm 450mm Quattric II 24/450/400' überein, wobei '24/450/400' als (Durchmesser/Gesamtlänge/Nutzlänge) interpretiert wird. Der zweite Kandidat (4048962463170) ist für einen Bolzenanker und somit nicht relevant.",
+      "sources": [
+        "https://www.fischer.de/p/549963"
+      ]
+    }
+  },
+  {
+    "productId": "52820776-34bb-4776-b728-06c521593d3a",
+    "sku": "SKU-1489693054",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Unbekannt 16er Pack Gastgeschenke Salbeigrün für Brautparty Hochzeit Deko EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "Unbekannt 16er Pack Gastgeschenke Salbeigrün für Brautparty Hochzeit Deko EAN",
+        "ok": true,
+        "url": "https://duckduckgo.com/html/?q=Unbekannt%2016er%20Pack%20Gastgeschenke%20Salbeigr%C3%BCn%20f%C3%BCr%20Brautparty%20Hochzeit%20Deko%20EAN",
+        "via": "direct",
+        "status": 200,
+        "results": [
+          {
+            "title": "Gastgeschenke zur Hochzeit - Geschenke für Hochzeitsgäste",
+            "url": "https://duckduckgo.com/y.js?ad_domain=geschenke%2Donline.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=t5LaiIO8mJlkD39Li3o0iO3oTkreyyDG3PpV4pk3zfQgc02LTRepor1R5rNVl3lGWldoJsuQ9SPaJN9ck6%2DfQpKmwK315k%2DhwYwgphp_XIg_WlX9DdNxjpCAHP2XUn%2DnBbyPILuniB4tBm9xOoLbwaqFl%2Dze66Thsa7tTUej6zg.i3eLWkiimcQ8IxHmz2jb5w&rut=d336f4cb6c0f2b85824d6564fb5602a8433406aa0813729ca584eb14f24cfae7&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8sZxpz_xROFeVdUV5th6y7DVUCUypK68FlAFFTZzf8dyFu853W9Pu77g1QWeNZfnnhL2svePrUM0QkyhUP66fWsmXQ8GaXSACe_Q9UK0_TkRN4NkQc_LYOb4wytB%2DlYtdkEbPtECgqTx0C7_d_TXk8pv4Fw3KQfS1HqeSlk3UwqtWQLPbulqBOUpNyCLXME8GLXqeXtg3fTOU1zvgWSxSKPJqYdI%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuZ2VzY2hlbmtlLW9ubGluZS5kZSUyZmdhc3RnZXNjaGVua2UtenVyLWhvY2h6ZWl0JTNmcCUzZDElMjZhZHdvcmQlM2RiaW5nJTI1MkZob2NoemVpdCUyNm1zY2xraWQlM2RjMGMxNmM1ZjQyNGExMGQ2NDNlMjA1MDJlOTFmNmU3ZQ%26rlid%3Dc0c16c5f424a10d643e20502e91f6e7e&vqd=4-145838468261848010843203387263125553902&iurl=%7B1%7DIG%3D729C2BDEDB8C469BBA084FF3EEFFE8D7%26CID%3D10C88FB69B1062142BB2996C9AF863D9%26ID%3DDevEx%2C5046.1"
+          },
+          {
+            "title": "Auf Etsy, dem weltweiten Markt | Etsy | Etsy hat sie",
+            "url": "https://duckduckgo.com/y.js?ad_domain=etsy.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=mODScxG0MmAoIriVSU%2DL4C_PLRAmCssWHiwlKSYKg%2Dz8ZRous08n3f5pLQdNzUm3rGj3CRRyduUvEhXgyGiVhluNo5bZ9iPvFvYQ4rUpwxUdjsYo2BSU_Nhii34vIjjGB2C7_RlJkf4_jkt9IH4Y_xSJGMmHeXUx4ZNTl6Y6iG0._IlTbxdw4acmnvzDNZBnJA&rut=2e0c7c823d0d68fcc57286a201a9cca6ee77896de3f7a3f55b6807271b88721e&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De81kafeXctID8yatIWnhuIAzVUCUz3xoVLIoACBPatkm%2DSXwCaniTNpWGuTfdYx4lF2bK%2DK3q6Kbmh4ZjqESQ3r3vIzIULqq2Ah3amMcqNxoHJRpqcYXX_r5Rxs5t3m%2Dh4O76FOPB1SvUDI8UumNgRy%2DG9zQ3toc7Wc6Iku63fnq%2DfPGgxz_oSYgVKJcdHUeXODFi9nw_bRcxTjgsQmsrVdKOH8tc%26u%3DaHR0cHMlM2ElMmYlMmY2MDA4LnhnNGtlbi5jb20lMmZ0cmslMmZ2MSUzZnByb2YlM2Q0MzUlMjZjYW1wJTNkNzM5NzUlMjZrY3QlM2Rtc24lMjZrY2hpZCUzZDE0NDAwNDg0MCUyNmNyaXRlcmlhaWQlM2Rrd2QtODEyMjY3NTU1MjU3MjUlM2Fsb2MtNzIlMjZjYW1wYWlnbmlkJTNkNjI3NDAxMjkxJTI2bG9jcGh5JTNkMTMwMTQyJTI2YWRncm91cGlkJTNkMTI5OTYyMzg5NTYyMzczMiUyNmNpZCUzZDgxMjI2NTQ5MjQ1MTczJTI2a2R2JTNkYyUyNmtleHQlM2QlMjZrcGclM2QlMjZrcGlkJTNkJTI2cXVlcnlTdHIlM2RVbmJla2FubnQlMjUyMDE2ZXIlMjUyMFBhY2slMjUyMEdhc3RnZXNjaGVua2UlMjUyMFNhbGJlaWdyJWMzJWJjbiUyNTIwZiVjMyViY3IlMjUyMEJyYXV0cGFydHklMjUyMEhvY2h6ZWl0JTI1MjBEZWtvJTI1MjBFQU4lMjZ1cmwlM2RodHRwcyUzYSUyZiUyZnd3dy5ldHN5LmNvbSUyZmRlJTJmbWFya2V0JTJmZ2FzdGdlc2NoZW5rZV9nJWMzJWJjbnN0aWclM2Z1dG1fc291cmNlJTNkYmluZyUyNnV0bV9tZWRpdW0lM2RjcGMlMjZ1dG1fdGVybSUzZGdhc3RnZXNjaGVua2UlMjUyMGclYzMlYmNuc3RpZ19iJTI2dXRtX2NhbXBhaWduJTNkU2VhcmNoX0RFX05vbmJyYW5kX0JOR19HRVJfR2lmdHNfQVVUT19BbGxfTWlycm9yZWQlMjZ1dG1fYWclM2RDYXRjaCUyNTJCQWxsJTI2dXRtX2N1c3RvbTElM2Rfa19iYzY2ZmZhYTJiMzMxZWRkMDMyYjk2Zjc4MDY2ZWEzN19rXyUyNnV0bV9jb250ZW50JTNkYmluZ182Mjc0MDEyOTFfMTI5OTYyMzg5NTYyMzczMl84MTIyNjU0OTI0NTE3M19rd2QtODEyMjY3NTU1MjU3MjUlM2Fsb2MtNzJfY18lMjZ1dG1fY3VzdG9tMiUzZDYyNzQwMTI5MSUyNm1zY2xraWQlM2RiYzY2ZmZhYTJiMzMxZWRkMDMyYjk2Zjc4MDY2ZWEzNw%26rlid%3Dbc66ffaa2b331edd032b96f78066ea37&vqd=4-157300779299914862711164978637119312875&iurl=%7B1%7DIG%3D729C2BDEDB8C469BBA084FF3EEFFE8D7%26CID%3D10C88FB69B1062142BB2996C9AF863D9%26ID%3DDevEx%2C5050.1"
+          },
+          {
+            "title": "Suchergebnis Auf Amazon.de Für: Hochzeitsdeko Salbeigrün",
+            "url": "https://www.amazon.de/hochzeitsdeko-salbeigr%C3%BCn/s?k=hochzeitsdeko+salbeigr%C3%BCn"
+          },
+          {
+            "title": "Salbeigrün Party Gastgeschenke Hochzeit | Zazzle.de",
+            "url": "https://www.zazzle.de/salbeigr%C3%BCn+party+hochzeit+gastgeschenke"
+          },
+          {
+            "title": "Gastgeschenk Tüte transparent + Etikett \"Blätter Salbei\"",
+            "url": "https://www.meine-hochzeitsdeko.de/gastgeschenk-tuete-transparent-mit-etikett-blaetter-salbei"
+          },
+          {
+            "title": "Hochzeit salbeigrün - Etsy.de",
+            "url": "https://www.etsy.com/de/market/hochzeit_salbeigr%C3%BCn"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "sku": "SKU-5329605855",
+    "status": "would_apply",
+    "query": "Ernie Ball 3221 EAN",
+    "chosen": "0749699132219",
+    "candidate": {
+      "code": "0749699132219",
+      "type": "ean13",
+      "sourceCount": 1,
+      "hasLabel": true,
+      "sources": [
+        {
+          "url": "https://ean-shopping.de/ean/0749699132219.htm",
+          "hasLabel": true,
+          "contexts": [
+            "0749699132219 - ERNIE BALL 3221 Regular Slinky 3er Pack 010046 - Saiten f",
+            "Regular Slinky 3er Pack 010046 - Saiten für E-Gitarren EAN: 0749699132219 Produktdaten aktualisiert am: 03.01.2026 Bilder-Quelle: sho",
+            ".01.2026 Bilder-Quelle: shopping24.de EAN-Shopping.de > - > 0749699132219 ERNIE BALL 3221 REGULAR SLINKY 3ER PACK 010046 ... Herstell"
+          ]
+        }
+      ]
+    },
+    "choice": {
+      "barcode": "0749699132219",
+      "rationale": "Der Barcode '0749699132219' ist ein gültiger EAN13-Code mit korrekter Prüfziffer. Er wird in der WEB-EVIDENZ von ean-shopping.de explizit dem Produkt 'ERNIE BALL 3221 Regular Slinky 3er Pack' zugeordnet, was mit den Produktdaten übereinstimmt.",
+      "sources": [
+        "https://ean-shopping.de/ean/0749699132219.htm"
+      ]
+    }
+  },
+  {
+    "productId": "5820082016105",
+    "sku": "SKU-5753016417",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Audi Audi Fußmatten Set Vorne, Hinten NEU Q5 8R EAN",
+    "trace": [
+      {
+        "type": "ddg",
+        "query": "Audi Audi Fußmatten Set Vorne, Hinten NEU Q5 8R EAN",
+        "ok": true,
+        "url": "https://duckduckgo.com/html/?q=Audi%20Audi%20Fu%C3%9Fmatten%20Set%20Vorne%2C%20Hinten%20NEU%20Q5%208R%20EAN",
+        "via": "direct",
+        "status": 200,
+        "results": [
+          {
+            "title": "Fußmatten von Automattenland | Kostenloser Versand",
+            "url": "https://duckduckgo.com/y.js?ad_domain=automattenland.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=hqODWakGrNNlJRTOOA3IVXwbgLEXRRSBz_X89U6Nb%2Dah_9C2nKoLGI86K%2Dnd4Dwh7wYvZE1CpPRkmgrXgMJEZQBEnZkrU3GW_kS%2DIx24ONqiw59Yaz3S8lb0D6__Kvc2nfDuy1QCIlu4xxbH3t0v5C781Q0PWu4xa1IGb9IxiXo.GhIeN%2DzA4eYa0TRZCImNyg&rut=e903bcebe770c0d625797f5244e436ecb3ae14ad5b4dfabbfcdeeae84ade96c0&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De83MfultxeqjOgiBWISna6sjVUCUwG31sos7l9j5PmaoOUOzGz0qPMnGv7C98HhKVX%2DKaxE_A79G4oRjJOHFZoNSRsCOqLwvnHQF0nxtfEmVAxz6xLlz0ivIySDzxjqPY38bHY2VXiHAErhuufIM3wHfsvA8JDbIsvNdw70nYx_9VyuNE2ASv_J9dVxjyzAQJYajUUOd_NRlEIE2%2Dr0PmYzl_GHDc%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuYXV0b21hdHRlbmxhbmQuZGUlMmYlM2Ztc2Nsa2lkJTNkZmFlYWQyYmY0YTRhMTIwNjRkM2RiYmUyZTEyZWM1NWQlMjZ1dG1fc291cmNlJTNkYmluZyUyNnV0bV9tZWRpdW0lM2RjcGMlMjZ1dG1fY2FtcGFpZ24lM2RERSUyNTJCJTI1MjBBVCUyNTIwJTI1N0MlMjUyMEJyYW5kJTI1MjAlMjUyQiUyNTIwR2VuZXJpYyUyNnV0bV90ZXJtJTNkQXV0b21hdHRlbmxhbmQlMjUyMEZ1JWMzJTlmbWF0dGVuJTI2dXRtX2NvbnRlbnQlM2RBdXRvbWF0dGVubGFuZCUyNTIwJTI1MkIlMjUyMEZ1JWMzJTlmbWF0dGVu%26rlid%3Dfaead2bf4a4a12064d3dbbe2e12ec55d&vqd=4-118136442093759330150114574139095284135&iurl=%7B1%7DIG%3DC93DA323EB7B44FCB3DC3264ECEDF88E%26CID%3D21AFB13FE56D6DF8335CA7E5E4856CAE%26ID%3DDevEx%2C5045.1"
+          },
+          {
+            "title": "WÜRTH Bodenmatten | Qualitäts-Produkte",
+            "url": "https://duckduckgo.com/y.js?ad_domain=wuerth.de&ad_provider=bingv7aa&ad_type=txad&click_metadata=f5xBsE1a8tqg3KQWe7wIUoCD0NOckzdRSIm1j9iRRLj_AqF%2D_N_5k6ouHvyLnOGVKsjsxMe9u4WmqLn%2Da0ALVXAFZUWo9JHxCCiNWyJQKxGW7o82Qq8O7uiZ9e2dFn3Dc_7OhqP2X7HwOz6YH6uX390Qfe7fgHC0G%2DZgm1F%2DUyo.pSVUjlXPvP%2D1zHQ6nPqjGQ&rut=3f55140c435fb639b99741d97e9a1018d473f0f41f1db12d899714cc716e890b&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8FpdLdxlf18zohQtrKlExSDVUCUyNb9TTMmbigM24mXaFCJk9i_klzjvY7VeuRPFb_xPJmL4ISPQuzWiifx9Bh89bbxS2X9K_ubXReAxKY5nSJ411o8CiYsLjhaao8TyAq2d91VsE4Jtkg%2DfLQbEKBKyWD2eAZuUbzA%2DVFHnMdEZMbH_XtraJQw8SzlO_iP8EbIH1CKV4wWt_Ba3NnayzBTuXxeQ%26u%3DaHR0cHMlM2ElMmYlMmZlc2hvcC53dWVydGguZGUlMmYtJTJmLSUyZjE0MDEyMDAyMjIuY3lpZCUyZjE0MDEuY2dpZCUyZmRlJTJmREUlMmZFVVIlMmYlM2Zwa19zb3VyY2UlM2RiaW5nJTI2cGtfbWVkaXVtJTNkY3BjJTI2cGtfY2FtcGFpZ24lM2RCQV8wMV9ERV9ERV9XRl9CQV9CZXRyaWVic2F1c3J1ZXN0dW5nJTI2cGtfY29udGVudCUzZDIwMDIyMl9Cb2Rlbm1hdHRlbiUyNnBrX2t3ZCUzZGJvZGVubWF0dGVuJTI2cGtfY2lkJTNkMzc3ODQyNDMzJTI2dXRtX2lkJTNkMzc3ODQyNDMzJTI2bXNjbGtpZCUzZDlkMWY0ZGVkOTI4NzE5NDYxZThiMjRiMDM5ZTNiNzRlJTI2dXRtX3NvdXJjZSUzZGJpbmclMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NhbXBhaWduJTNkQkFfMDFfREVfREVfV0ZfQkFfQmV0cmllYnNhdXNydWVzdHVuZyUyNnV0bV90ZXJtJTNkYm9kZW5tYXR0ZW4lMjZ1dG1fY29udGVudCUzZDIwMDIyMl9Cb2Rlbm1hdHRlbg%26rlid%3D9d1f4ded928719461e8b24b039e3b74e&vqd=4-107373277214546761322459248236045659949&iurl=%7B1%7DIG%3DC93DA323EB7B44FCB3DC3264ECEDF88E%26CID%3D21AFB13FE56D6DF8335CA7E5E4856CAE%26ID%3DDevEx%2C5048.1"
+          },
+          {
+            "title": "Fußmatten - Audi Q5 - Audi Original Zubehör - Audi",
+            "url": "https://shop.audi-zentrum-goettingen.de/audi/audi-original-zubehor/q5/fussmatten.html"
+          },
+          {
+            "title": "Suchergebnis Auf Amazon.de Für: Fußmatten Audi Q5",
+            "url": "https://www.amazon.de/fu%C3%9Fmatten-audi-q5/s?k=fu%C3%9Fmatten+audi+q5"
+          },
+          {
+            "title": "Fußmatten für Audi - Schutz & Stil",
+            "url": "https://audi-shop.com/de/de/c/komfort-schutz/fussmatten/197261321/"
+          },
+          {
+            "title": "Audi Q5 (8r) Neue Originale Schwarze Gummi Fußmatten Set Vorne+Hinten",
+            "url": "https://www.ebay.de/itm/136162996252"
+          }
+        ]
+      }
+    ]
+  }
+]
