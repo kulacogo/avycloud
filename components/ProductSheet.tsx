@@ -575,6 +575,28 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     console.log('Applying Assistant Change:', change);
     let incomingBarcodes: string[] | null = null;
 
+    const normalizeLower = (v: any) => (v == null ? '' : String(v).trim().toLowerCase());
+    const isMarketplaceKey = (key: string) => {
+      const k = normalizeLower(key);
+      if (!k) return false;
+      return k.includes('ebay') || k.includes('kaufland');
+    };
+    const isBarcodeAttrKey = (key: string) => {
+      const k = normalizeLower(key);
+      if (!k) return false;
+      return (
+        k === 'ean' ||
+        k === 'gtin' ||
+        k === 'upc' ||
+        k === 'barcode' ||
+        k === 'barcodes' ||
+        k === 'ean/gtin' ||
+        k.includes('ean') ||
+        k.includes('gtin') ||
+        k.includes('upc')
+      );
+    };
+
     setLocalProduct((prev) => {
       const next = JSON.parse(JSON.stringify(prev)) as Product;
 
@@ -633,9 +655,27 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       // 4. Attributes (Merge)
       if (change.attributes && Object.keys(change.attributes).length > 0) {
         next.details = next.details || {};
+        const cleanedIncoming: Record<string, any> = {};
+        Object.entries(change.attributes).forEach(([key, value]) => {
+          if (!key) return;
+          // Never allow marketplace-specific attributes.
+          if (isMarketplaceKey(key)) return;
+          // Never store barcode identifiers as regular attributes; move them into barcodes.
+          if (isBarcodeAttrKey(key)) {
+            const digits = normalizeBarcode(String(value ?? ''));
+            if (digits && isValidGtin(digits)) {
+              next.identification = next.identification || {};
+              const merged = new Set([...(next.identification.barcodes || []), digits]);
+              next.identification.barcodes = Array.from(merged);
+              incomingBarcodes = next.identification.barcodes;
+            }
+            return;
+          }
+          cleanedIncoming[key] = value as any;
+        });
         next.details.attributes = {
           ...next.details.attributes,
-          ...change.attributes,
+          ...cleanedIncoming,
         };
       }
 

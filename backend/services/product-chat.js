@@ -77,6 +77,26 @@ const updateDatasheetTool = {
       summary: { type: 'string' },
       // Title policy is enforced in code; keep schema flexible to avoid blocking tool calls.
       title: { type: 'string', minLength: 10, maxLength: 140 },
+      // Identity patches (used for title/brand/category/sku/barcodes; EAN/GTIN/UPC are accepted and mapped to barcodes).
+      identity: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          title: { type: 'string', minLength: 10, maxLength: 140 },
+          name: { type: 'string', minLength: 10, maxLength: 140 },
+          brand: { type: 'string' },
+          category: { type: 'string' },
+          sku: { type: 'string' },
+          barcodes: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          // Allow direct barcode identifiers; we normalize+validate and store them in barcodes.
+          ean: { type: 'string' },
+          gtin: { type: 'string' },
+          upc: { type: 'string' },
+        },
+      },
       short_description: { type: 'string' },
       key_features: {
         type: 'array',
@@ -902,6 +922,31 @@ function sanitizeDatasheetChange(entry, product) {
     }
   };
 
+  const normalizeLower = (v) => (v == null ? '' : String(v).trim().toLowerCase());
+  const isMarketplaceKey = (key) => {
+    const k = normalizeLower(key);
+    if (!k) return false;
+    // Any marketplace-specific attribute must never be stored.
+    if (k.includes('ebay')) return true;
+    if (k.includes('kaufland')) return true;
+    return false;
+  };
+  const isBarcodeAttrKey = (key) => {
+    const k = normalizeLower(key);
+    if (!k) return false;
+    return (
+      k === 'ean' ||
+      k === 'gtin' ||
+      k === 'upc' ||
+      k === 'barcode' ||
+      k === 'barcodes' ||
+      k === 'ean/gtin' ||
+      k.includes('ean') ||
+      k.includes('gtin') ||
+      k.includes('upc')
+    );
+  };
+
   if (Array.isArray(entry.barcodes)) {
     entry.barcodes.forEach(pushBarcode);
   }
@@ -948,6 +993,27 @@ function sanitizeDatasheetChange(entry, product) {
   }
   if (entry.sku && isValidSku(entry.sku)) {
     identityPatch.sku = entry.sku.trim();
+  }
+
+  // Sanitize attributes:
+  // - Drop marketplace-specific keys (ebay/kaufland*)
+  // - Move barcode-like attribute keys into barcodes (never keep them as attributes)
+  if (result.attributes && typeof result.attributes === 'object') {
+    const cleaned = {};
+    for (const [key, value] of Object.entries(result.attributes)) {
+      if (!key) continue;
+      if (isMarketplaceKey(key)) continue;
+      if (isBarcodeAttrKey(key)) {
+        pushBarcode(value);
+        continue;
+      }
+      cleaned[key] = value;
+    }
+    if (Object.keys(cleaned).length) {
+      result.attributes = cleaned;
+    } else {
+      delete result.attributes;
+    }
   }
 
   if (Object.keys(identityPatch).length) {

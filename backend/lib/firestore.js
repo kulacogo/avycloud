@@ -422,6 +422,8 @@ function enforceEbayAspects(product) {
   const isMetaKey = (lowerKey) => {
     if (!lowerKey) return false;
     if (META_ATTRIBUTE_KEYS.has(lowerKey)) return true;
+    // Any marketplace-specific keys must never be stored as user-facing attributes.
+    if (lowerKey.includes('ebay')) return true;
     if (lowerKey.includes('kaufland')) return true;
     // Generic patterns we never want in end-user attribute tables
     if (lowerKey.startsWith('text_')) return true;

@@ -115,6 +115,27 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
       barcodeSet.add(digits);
     }
   };
+  const normalizeLower = (v?: any) => (v == null ? '' : String(v).trim().toLowerCase());
+  const isMarketplaceKey = (key: string) => {
+    const k = normalizeLower(key);
+    if (!k) return false;
+    return k.includes('ebay') || k.includes('kaufland');
+  };
+  const isBarcodeAttrKey = (key: string) => {
+    const k = normalizeLower(key);
+    if (!k) return false;
+    return (
+      k === 'ean' ||
+      k === 'gtin' ||
+      k === 'upc' ||
+      k === 'barcode' ||
+      k === 'barcodes' ||
+      k === 'ean/gtin' ||
+      k.includes('ean') ||
+      k.includes('gtin') ||
+      k.includes('upc')
+    );
+  };
   if (Array.isArray(entry.barcodes)) {
     entry.barcodes.forEach((value: string) => pushBarcode(value));
   }
@@ -156,6 +177,28 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
   }
   if (Object.keys(identityPatch).length) {
     result.identity = identityPatch;
+  }
+
+  // Sanitize attributes: drop marketplace keys; move barcode-like keys into barcodes.
+  if (result.attributes && typeof result.attributes === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(result.attributes)) {
+      if (!key) continue;
+      if (isMarketplaceKey(key)) continue;
+      if (isBarcodeAttrKey(key)) {
+        pushBarcode(String(value ?? ''));
+        continue;
+      }
+      cleaned[key] = value;
+    }
+    result.attributes = cleaned;
+    if (Object.keys(cleaned).length === 0) {
+      delete (result as any).attributes;
+    }
+    // If we found barcodes via attributes, ensure they end up in identityPatch as well.
+    if (barcodeSet.size) {
+      result.identity = { ...(result.identity || {}), barcodes: Array.from(barcodeSet) };
+    }
   }
   return result;
 };
