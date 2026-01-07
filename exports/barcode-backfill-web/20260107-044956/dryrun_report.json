@@ -1,0 +1,1463 @@
+[
+  {
+    "productId": "00442039661193",
+    "sku": "SKU-7225351886",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "COZII X001Y0BTE9 COZII Hundepool X001Y0BTE9 Blau EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=COZII%20X001Y0BTE9%20COZII%20Hundepool%20X001Y0BTE9%20Blau%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "03142017000003",
+    "sku": "SKU-9947386415",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Weber 711004 Weber Räucherofen Smokey Mountain EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Weber%20711004%20Weber%20R%C3%A4ucherofen%20Smokey%20Mountain%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "07901010300000",
+    "sku": "SKU-2097206690",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Generisch JSD 520 Generisch Autoradios passgenau für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Generisch%20JSD%20520%20Generisch%20Autoradios%20passgenau%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "14f93c3a-6902-4da3-8a00-991a13958570",
+    "sku": "SKU-2064038107",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "FNTCASE FNTCASE Schutzhülle für Apple iPhone 16 Pro Grau EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=FNTCASE%20FNTCASE%20Schutzh%C3%BClle%20f%C3%BCr%20Apple%20iPhone%2016%20Pro%20Grau%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "182c0593-5b66-4304-80fa-d1a56eb08210",
+    "sku": "SKU-0533124796",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "CAPAS CAPAS Schnorchelflossen für Tauchen & Schnorcheln S/M Schwarz EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=CAPAS%20CAPAS%20Schnorchelflossen%20f%C3%BCr%20Tauchen%20%26%20Schnorcheln%20S%2FM%20Schwarz%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "30c418b6-000b-47e9-8252-3478b4693cda",
+    "sku": "SKU-7753504850",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "PerformaNat QDENI400127 PerformaNat Calcium Bolus für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=PerformaNat%20QDENI400127%20PerformaNat%20Calcium%20Bolus%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "4043962306996",
+    "sku": "SKU-8927251416",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "fischer Quattric II 24/450/400 fischer Hammerbohrer Quattric SDS-plus EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=fischer%20Quattric%20II%2024%2F450%2F400%20fischer%20Hammerbohrer%20Quattric%20SDS-plus%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "52820776-34bb-4776-b728-06c521593d3a",
+    "sku": "SKU-1489693054",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Unbekannt 16er Pack Gastgeschenke Salbeigrün für Brautparty Hochzeit Deko EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Unbekannt%2016er%20Pack%20Gastgeschenke%20Salbeigr%C3%BCn%20f%C3%BCr%20Brautparty%20Hochzeit%20Deko%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "57380a89-b13c-470c-8167-aa51b43eb78e",
+    "sku": "SKU-5329605855",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Ernie Ball 3221 Ernie Ball E-Gitarrensaiten Regular EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Ernie%20Ball%203221%20Ernie%20Ball%20E-Gitarrensaiten%20Regular%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "5820082016105",
+    "sku": "SKU-5753016417",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Audi Audi Fußmatten Set Vorne, Hinten NEU Q5 8R EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Audi%20Audi%20Fu%C3%9Fmatten%20Set%20Vorne%2C%20Hinten%20NEU%20Q5%208R%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "59151383083624",
+    "sku": "SKU-8684520981",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "home24 JI-05510-50 home24 Beistelltisch MANCHESTER Robustes EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=home24%20JI-05510-50%20home24%20Beistelltisch%20MANCHESTER%20Robustes%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "61921411800024",
+    "sku": "SKU-6860111834",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Qunsheng 61921411800024 Qunsheng Haushaltshandschuhe 61921411800024 Naturlatex EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Qunsheng%2061921411800024%20Qunsheng%20Haushaltshandschuhe%2061921411800024%20Naturlatex%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "61cb13b8-ef09-4959-821e-c2d63fcd8038",
+    "sku": "SKU-9014992269",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Anqiyou AQY-0117 Anqiyou Fahrrad Rücklicht AQY-0117 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Anqiyou%20AQY-0117%20Anqiyou%20Fahrrad%20R%C3%BCcklicht%20AQY-0117%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "6be95318-1354-4b38-9526-aab48b727982",
+    "sku": "SKU-6954275739",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "SAGENSPEZI 16567432516506316 SAGENSPEZI Sägekette 16567432516506316 74TG EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=SAGENSPEZI%2016567432516506316%20SAGENSPEZI%20S%C3%A4gekette%2016567432516506316%2074TG%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "7778bbb4-0a11-414b-a323-1573ab313f48",
+    "sku": "SKU-6044260478",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "MAHLE 8MA 376 783-494 MAHLE Ausgleichsbehälter 8MA 376 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=MAHLE%208MA%20376%20783-494%20MAHLE%20Ausgleichsbeh%C3%A4lter%208MA%20376%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "849e919f-0898-4df7-8fbb-e141c351cba4",
+    "sku": "SKU-2969022222",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "DUNSOO C04-061-04 DUNSOO Badteppich rutschfest Wasserabsorbierend EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=DUNSOO%20C04-061-04%20DUNSOO%20Badteppich%20rutschfest%20Wasserabsorbierend%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "8088208802015",
+    "sku": "SKU-6543182729",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "H&M HOME H&M HOME Spannbettlaken 140x200 cm Beige Baumwolle Recycelt EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=H%26M%20HOME%20H%26M%20HOME%20Spannbettlaken%20140x200%20cm%20Beige%20Baumwolle%20Recycelt%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "8b41bda6-bc97-4d34-8644-f081c7d180cb",
+    "sku": "SKU-2629282795",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Glosen Glosen Schubladenbox mit 7 Schubladen Silber H31,5x B35x EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Glosen%20Glosen%20Schubladenbox%20mit%207%20Schubladen%20Silber%20H31%2C5x%20B35x%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "85020cb2-38be-42d7-a2d1-bb5aa92d9e36",
+    "sku": "SKU-5952589845",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Unbekannt 3709 Unbekannt Einhandfräse 3709 220 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Unbekannt%203709%20Unbekannt%20Einhandfr%C3%A4se%203709%20220%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "9aff4795-bed9-4a09-ba98-77c2e138b511",
+    "sku": "SKU-2439653897",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "FAST A1Pro FAST Kabelloses Ladegerät A1Pro EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=FAST%20A1Pro%20FAST%20Kabelloses%20Ladeger%C3%A4t%20A1Pro%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "90090043468127",
+    "sku": "SKU-3310911465",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Nissan KE900-90043 Nissan Motoröl KE900-90043 5W-30 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Nissan%20KE900-90043%20Nissan%20Motor%C3%B6l%20KE900-90043%205W-30%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-0152828115",
+    "sku": "SKU-0152828115",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "STALESET TH01-BK STALESET Handtuchhalter TH01-BK TH01-BK EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=STALESET%20TH01-BK%20STALESET%20Handtuchhalter%20TH01-BK%20TH01-BK%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "9e35f9b4-5df8-4db7-9dd7-31e4491488ef",
+    "sku": "SKU-6469360404",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Leevitex Leevitex Jersey Spannbettlaken Gelb 90-100x200-220cm Baumwolle OEKO-TEX Neu EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Leevitex%20Leevitex%20Jersey%20Spannbettlaken%20Gelb%2090-100x200-220cm%20Baumwolle%20OEKO-TEX%20Neu%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-0172791378",
+    "sku": "SKU-0172791378",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "lululemon LU9AVOS BLK lululemon Yogamatte Trainingsmatte Maximaler EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=lululemon%20LU9AVOS%20BLK%20lululemon%20Yogamatte%20Trainingsmatte%20Maximaler%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-0280699295",
+    "sku": "SKU-0280699295",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "H&M H&M Pullover Rot Baumwolle NEU Damen Strickpullover Zeitloser EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=H%26M%20H%26M%20Pullover%20Rot%20Baumwolle%20NEU%20Damen%20Strickpullover%20Zeitloser%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-0362404564",
+    "sku": "SKU-0362404564",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "UBRAVOO ACE1013 UBRAVOO Kindersitzerhöhung mit Tablett EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=UBRAVOO%20ACE1013%20UBRAVOO%20Kindersitzerh%C3%B6hung%20mit%20Tablett%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-0611814591",
+    "sku": "SKU-0611814591",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Lacoste SH9623 Lacoste Hoodie Marineblau Gr. EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Lacoste%20SH9623%20Lacoste%20Hoodie%20Marineblau%20Gr.%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-0651722148",
+    "sku": "SKU-0651722148",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Topeak TC2333B Topeak Oberrohrtasche Bento Pack EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Topeak%20TC2333B%20Topeak%20Oberrohrtasche%20Bento%20Pack%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-1230781227",
+    "sku": "SKU-1230781227",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Villa Grinario SKU-1230781227 Villa Grinario Spannbettlaken Grau EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Villa%20Grinario%20SKU-1230781227%20Villa%20Grinario%20Spannbettlaken%20Grau%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-1789286937",
+    "sku": "SKU-1789286937",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Engelbert Strauss Engelbert Strauss T-Shirt: Robust, bequem & vielseitig für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Engelbert%20Strauss%20Engelbert%20Strauss%20T-Shirt%3A%20Robust%2C%20bequem%20%26%20vielseitig%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-2135446963",
+    "sku": "SKU-2135446963",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Dexcom STS-GS-003 Dexcom Glukosesensoren Präzise Echtzeit-Glukosewerte EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Dexcom%20STS-GS-003%20Dexcom%20Glukosesensoren%20Pr%C3%A4zise%20Echtzeit-Glukosewerte%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-2609353370",
+    "sku": "SKU-2609353370",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "PROGARDEN PROGARDEN Pflege Anthrazit Polypropylen (PP) NEU Gr. 110 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=PROGARDEN%20PROGARDEN%20Pflege%20Anthrazit%20Polypropylen%20(PP)%20NEU%20Gr.%20110%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-2611077541",
+    "sku": "SKU-2611077541",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Glossyautoparts EBY-1000335-1342 Glossyautoparts Nockenwelle EBY-1000335-1342 Metall EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Glossyautoparts%20EBY-1000335-1342%20Glossyautoparts%20Nockenwelle%20EBY-1000335-1342%20Metall%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-2965430996",
+    "sku": "SKU-2965430996",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Beliani 407569 Beliani Beistelltisch CAORIA Eleganter EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Beliani%20407569%20Beliani%20Beistelltisch%20CAORIA%20Eleganter%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-3149269291",
+    "sku": "SKU-3149269291",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Nidec Sankyo 445-0765157A Nidec Sankyo Motorisierter Kartenleser EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Nidec%20Sankyo%20445-0765157A%20Nidec%20Sankyo%20Motorisierter%20Kartenleser%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-3093460977",
+    "sku": "SKU-3093460977",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "LLIVEKIT KDF-5517DTW LLIVEKIT Heißluftfritteuse KDF-5517DTW Schwarz EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=LLIVEKIT%20KDF-5517DTW%20LLIVEKIT%20Hei%C3%9Fluftfritteuse%20KDF-5517DTW%20Schwarz%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-3213392901",
+    "sku": "SKU-3213392901",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Nike Nike Tennisschuh Zoom Vapor 12 CLY für Herren EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Nike%20Nike%20Tennisschuh%20Zoom%20Vapor%2012%20CLY%20f%C3%BCr%20Herren%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-3226209432",
+    "sku": "SKU-3226209432",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "WOLTU RGB46ws WOLTU Standregal Weiß Kompakt EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=WOLTU%20RGB46ws%20WOLTU%20Standregal%20Wei%C3%9F%20Kompakt%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-3963918245",
+    "sku": "SKU-3963918245",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Success Courier DSK-1 Success Courier Pumpensteuerung DSK-1 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Success%20Courier%20DSK-1%20Success%20Courier%20Pumpensteuerung%20DSK-1%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-3475457190",
+    "sku": "SKU-3475457190",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Upgrade4cars X2 Sitzauflagen Universal – Optimaler Schutz für Vordersitze EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Upgrade4cars%20X2%20Sitzauflagen%20Universal%20%E2%80%93%20Optimaler%20Schutz%20f%C3%BCr%20Vordersitze%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4204090012",
+    "sku": "SKU-4204090012",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Villa Grinario Villa Grinario Jersey-Spannbettuch 100x200 cm Blau – Bügelfrei EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Villa%20Grinario%20Villa%20Grinario%20Jersey-Spannbettuch%20100x200%20cm%20Blau%20%E2%80%93%20B%C3%BCgelfrei%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4017783375",
+    "sku": "SKU-4017783375",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Blivrig DQTGD01300W Blivrig LED Strahler DQTGD01300W EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Blivrig%20DQTGD01300W%20Blivrig%20LED%20Strahler%20DQTGD01300W%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4212491486",
+    "sku": "SKU-4212491486",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Unbekannt SKU-4212491486 Unbekannt Handpan Schwarz matt EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Unbekannt%20SKU-4212491486%20Unbekannt%20Handpan%20Schwarz%20matt%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4541378818",
+    "sku": "SKU-4541378818",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Longking LKA003WGuk Longking Selbstklebefliesen für Küche EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Longking%20LKA003WGuk%20Longking%20Selbstklebefliesen%20f%C3%BCr%20K%C3%BCche%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4561934561",
+    "sku": "SKU-4561934561",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "GLOCK SKU-4561934561 GLOCK Pistolenkoffer Robuster Hartschalenkoffer EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=GLOCK%20SKU-4561934561%20GLOCK%20Pistolenkoffer%20Robuster%20Hartschalenkoffer%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4846525236",
+    "sku": "SKU-4846525236",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "QinnFSIYANG QinnFSIYANG E-Scooter F6 – Faltbar für agile und EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=QinnFSIYANG%20QinnFSIYANG%20E-Scooter%20F6%20%E2%80%93%20Faltbar%20f%C3%BCr%20agile%20und%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4919757592",
+    "sku": "SKU-4919757592",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Flanellhemd Flanellhemd Hemd Herren Blau Gr. L 100% Baumwolle EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Flanellhemd%20Flanellhemd%20Hemd%20Herren%20Blau%20Gr.%20L%20100%25%20Baumwolle%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-5462953053",
+    "sku": "SKU-5462953053",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "IPOZON IPOZON Stunt-Scooter passgenau für FOOT NEU Lila, Schwarz EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=IPOZON%20IPOZON%20Stunt-Scooter%20passgenau%20f%C3%BCr%20FOOT%20NEU%20Lila%2C%20Schwarz%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-5674295862",
+    "sku": "SKU-5674295862",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "RHINOWALK RF260 RHINOWALK Fahrradzubehör RF260 Transporttasche EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=RHINOWALK%20RF260%20RHINOWALK%20Fahrradzubeh%C3%B6r%20RF260%20Transporttasche%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-5687802687",
+    "sku": "SKU-5687802687",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Homerella SKU-5687802687 Homerella UNIFLOW Badewanneneinlage für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Homerella%20SKU-5687802687%20Homerella%20UNIFLOW%20Badewanneneinlage%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-5795572847",
+    "sku": "SKU-5795572847",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "ADVENTURE ADVENTURE Strandmuscheln NEU Pop-Up 50+ Schutz Blitzaufbau Sport EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=ADVENTURE%20ADVENTURE%20Strandmuscheln%20NEU%20Pop-Up%2050%2B%20Schutz%20Blitzaufbau%20Sport%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-6148008788",
+    "sku": "SKU-6148008788",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "TPE YOGA TPE YOGA Yogamatten Grün TPE NEU Gr. 61 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=TPE%20YOGA%20TPE%20YOGA%20Yogamatten%20Gr%C3%BCn%20TPE%20NEU%20Gr.%2061%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-4433223955",
+    "sku": "SKU-4433223955",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Yogamatte The Big Mat Blau/Grau marmoriert NEU Rutschfest Lululemon Maximaler EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 6,
+        "url": "https://www.google.com/search?q=Yogamatte%20The%20Big%20Mat%20Blau%2FGrau%20marmoriert%20NEU%20Rutschfest%20Lululemon%20Maximaler%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": [
+          {
+            "title": "",
+            "url": "https://www.lululemon.de/de-de/p/the-(big)-mat-5%C2%A0mm-aus-fsc%E2%84%A2-zertifiziertem-kautschuk/154125195.html"
+          },
+          {
+            "title": "",
+            "url": "https://css.klarna.com/de/?utm_source=google&utm_medium=css"
+          },
+          {
+            "title": "",
+            "url": "https://www.lululemon.de/de-de/p/the-towel-handtuch-printed/157793522.html"
+          },
+          {
+            "title": "",
+            "url": "https://www.lululemon.de/de-de/p/the-mat-5%C2%A0mm-aus-fsc%E2%84%A2-zertifiziertem-kautschuk/153878854.html"
+          },
+          {
+            "title": "",
+            "url": "https://www.zalando.de/lululemon-schneehose-black-lls44e049-q11.html?ssku=LLS44E049-Q110ONE000&lang=de&otid=default"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "SKU-6346907299",
+    "sku": "SKU-6346907299",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "GoveeLife H5100 GoveeLife Smart Thermo-Hygrometer H5100 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=GoveeLife%20H5100%20GoveeLife%20Smart%20Thermo-Hygrometer%20H5100%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-6614383452",
+    "sku": "SKU-6614383452",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Leonardo Leonardo Karaffe Swing Transparent Glas NEU Gr. ca. EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Leonardo%20Leonardo%20Karaffe%20Swing%20Transparent%20Glas%20NEU%20Gr.%20ca.%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-7049665224",
+    "sku": "SKU-7049665224",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "H&M H&M Damen Strickjacke: Eleganter Zopfmuster Cardigan für Stil EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=H%26M%20H%26M%20Damen%20Strickjacke%3A%20Eleganter%20Zopfmuster%20Cardigan%20f%C3%BCr%20Stil%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-7721659409",
+    "sku": "SKU-7721659409",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "db-tronic SKU-7721659409 db-tronic Raspberry Starter-Set 8GB EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=db-tronic%20SKU-7721659409%20db-tronic%20Raspberry%20Starter-Set%208GB%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-7270723982",
+    "sku": "SKU-7270723982",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Kitchen Sink SKU-7270723982 Kitchen Sink Einbauspüle Silber EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Kitchen%20Sink%20SKU-7270723982%20Kitchen%20Sink%20Einbausp%C3%BCle%20Silber%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-7800997883",
+    "sku": "SKU-7800997883",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Tamaris Tamaris Slingpumps Damen – Zeitloser Komfort für jeden EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Tamaris%20Tamaris%20Slingpumps%20Damen%20%E2%80%93%20Zeitloser%20Komfort%20f%C3%BCr%20jeden%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-7998641824",
+    "sku": "SKU-7998641824",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Rohema Rohema Drumsticks Premium Holz NEU Präzision Langlebigkeit Antiquitäten EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Rohema%20Rohema%20Drumsticks%20Premium%20Holz%20NEU%20Pr%C3%A4zision%20Langlebigkeit%20Antiquit%C3%A4ten%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-8133187753",
+    "sku": "SKU-8133187753",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "GULNABIO GULNABIO Jersey-Spannbettlaken Rot 100x200 cm – Perfekte Passform EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=GULNABIO%20GULNABIO%20Jersey-Spannbettlaken%20Rot%20100x200%20cm%20%E2%80%93%20Perfekte%20Passform%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-8151275535",
+    "sku": "SKU-8151275535",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "FUVSHU BT-Y02 FUVSHU UV-Matratzenstaubsauger BT-Y02 für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=FUVSHU%20BT-Y02%20FUVSHU%20UV-Matratzenstaubsauger%20BT-Y02%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-8605082485",
+    "sku": "SKU-8605082485",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Aqua Marina SKU-8605082485 Aqua Marina SUP Board EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Aqua%20Marina%20SKU-8605082485%20Aqua%20Marina%20SUP%20Board%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-8310896573",
+    "sku": "SKU-8310896573",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "IKEA SKU-8310896573 IKEA RANARP Pendelleuchte Zeitloses EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=IKEA%20SKU-8310896573%20IKEA%20RANARP%20Pendelleuchte%20Zeitloses%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-8640590578",
+    "sku": "SKU-8640590578",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Villa Grinario SKU-8640590578 Villa Grinario Spannbettlaken Grün EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Villa%20Grinario%20SKU-8640590578%20Villa%20Grinario%20Spannbettlaken%20Gr%C3%BCn%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-8742112863",
+    "sku": "SKU-8742112863",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "New Balance New Balance New Balance Kinder Sneaker Silber Gr. EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=New%20Balance%20New%20Balance%20New%20Balance%20Kinder%20Sneaker%20Silber%20Gr.%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-9317337160",
+    "sku": "SKU-9317337160",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "PAUDIN N5 PAUDIN Santokumesser Präzise Schnitte EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=PAUDIN%20N5%20PAUDIN%20Santokumesser%20Pr%C3%A4zise%20Schnitte%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-8857013241",
+    "sku": "SKU-8857013241",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Paul Green 2688-00x Paul Green Schnürschuhe Damen EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Paul%20Green%202688-00x%20Paul%20Green%20Schn%C3%BCrschuhe%20Damen%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-9603350817",
+    "sku": "SKU-9603350817",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Universal Tablet-Bodenständer mit Schwenkarm & Höhenverstellung für alle Tablets EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Universal%20Tablet-Bodenst%C3%A4nder%20mit%20Schwenkarm%20%26%20H%C3%B6henverstellung%20f%C3%BCr%20alle%20Tablets%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-9820031170",
+    "sku": "SKU-9820031170",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "YOLEO 931 YOLEO Kinderroller 931 Schwarz EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=YOLEO%20931%20YOLEO%20Kinderroller%20931%20Schwarz%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-9933881904",
+    "sku": "SKU-9933881904",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "SCENEX SCENEX Damen Tanzschuhe – Elegant & Stabil für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=SCENEX%20SCENEX%20Damen%20Tanzschuhe%20%E2%80%93%20Elegant%20%26%20Stabil%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "SKU-9968230318",
+    "sku": "SKU-9968230318",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "HOLA KIT HKDB02 HOLA KIT Reifenreparaturset für EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=HOLA%20KIT%20HKDB02%20HOLA%20KIT%20Reifenreparaturset%20f%C3%BCr%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "b82f2e03-f4e9-4cef-8984-364a6a8cfc8e",
+    "sku": "SKU-3350934915",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Kibek 2201290005 Kibek Gartenstecker Molveno 2201290005 EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Kibek%202201290005%20Kibek%20Gartenstecker%20Molveno%202201290005%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "a7fbf83a-10da-453f-974b-4d71c9e7e626",
+    "sku": "SKU-1848228084",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Walex Walex Fäkalientank-Deodorant Tiefblau NEU Porta-Pak Max 50 geruchsfreie EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Walex%20Walex%20F%C3%A4kalientank-Deodorant%20Tiefblau%20NEU%20Porta-Pak%20Max%2050%20geruchsfreie%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+    "sku": "SKU-0716100821",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "SOMAN A154956/202401/03705 SOMAN Integralhelm A154956/202401/03705 Pink EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=SOMAN%20A154956%2F202401%2F03705%20SOMAN%20Integralhelm%20A154956%2F202401%2F03705%20Pink%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "d2649d99-ae7a-4b45-bca9-e6c452843d93",
+    "sku": "SKU-3442148631",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "ToMax 72239 ToMax Tintenpatrone TM-LC-223Y Gelb EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=ToMax%2072239%20ToMax%20Tintenpatrone%20TM-LC-223Y%20Gelb%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+    "sku": "SKU-1536365981",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Unbekannt Unbekannt Backform Einsatz Schwarz Silikon NEU Airfryer 2er EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Unbekannt%20Unbekannt%20Backform%20Einsatz%20Schwarz%20Silikon%20NEU%20Airfryer%202er%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "e73c69ce-6582-4454-adab-52b418a775d0",
+    "sku": "SKU-5599844775",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Goffii 230404041 Goffii Montessori Lernspielzeug Bauernhof EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Goffii%20230404041%20Goffii%20Montessori%20Lernspielzeug%20Bauernhof%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "f2028097-7287-47f8-b694-d663960758ec",
+    "sku": "SKU-2204782559",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Eternity Commerce LTD 2024-1 Eternity Commerce LTD Magnetspielzeug EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Eternity%20Commerce%20LTD%202024-1%20Eternity%20Commerce%20LTD%20Magnetspielzeug%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  },
+  {
+    "productId": "f7a5bb4a-9e13-4a67-8065-996f9a809f26",
+    "sku": "SKU-0107097519",
+    "status": "skip",
+    "reason": "no_valid_candidates",
+    "query": "Sontheimer 10008352 Sontheimer Nockenschalter S06H 32A EAN",
+    "trace": [
+      {
+        "type": "google_attempt",
+        "ok": true,
+        "status": 200,
+        "resultsCount": 0,
+        "url": "https://www.google.com/search?q=Sontheimer%2010008352%20Sontheimer%20Nockenschalter%20S06H%2032A%20EAN&hl=de&gl=de",
+        "via": "direct",
+        "results": []
+      }
+    ]
+  }
+]

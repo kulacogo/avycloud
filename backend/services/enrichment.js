@@ -12,7 +12,7 @@ const path = require('path');
 const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
 const { findKauflandCategory, getKauflandAttributes } = require('../lib/kaufland-taxonomy');
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
-const { isValidGtin } = require('../lib/gtin');
+const { isValidGtin, normalizeDigits, getGtinType } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { sanitizeListingText } = require('../lib/listing-sanitize');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
@@ -942,16 +942,41 @@ function enforceSingleBarcode(product) {
     if (val) candidateList.push(String(val).trim());
   });
 
-  const primary = candidateList.find((v) => v.length >= 6) || null;
+  // Normalize + validate (checkdigit) and only keep valid GTIN/UPC lengths.
+  const normalized = candidateList
+    .map((v) => normalizeDigits(String(v || '')))
+    .filter(Boolean)
+    .filter((v) => [8, 12, 13, 14].includes(v.length) && isValidGtin(v));
+
+  const primary = normalized[0] || null;
   const unique = primary ? [primary] : [];
 
-  // Write back a single barcode everywhere
+  // Write back a single barcode (if valid), but do NOT force it into all identifier keys.
   if (cloned.identification) {
     cloned.identification.barcodes = unique;
   }
+
+  // Only set the matching identifier slot for the GTIN type; never clone into ean+gtin+upc.
   PRIMARY_BARCODE_KEYS.forEach((key) => {
-    identifiers[key] = primary || null;
+    if (identifiers[key] != null && identifiers[key] !== '') {
+      // keep existing non-empty values; they'll be validated by saveProduct later
+      return;
+    }
   });
+  if (primary) {
+    const type = getGtinType(primary);
+    if (type === 'ean13') identifiers.ean = primary;
+    if (type === 'gtin14') identifiers.gtin = primary;
+    if (type === 'upc12') identifiers.upc = primary;
+    // If we got only GTIN14 starting with 0, derive EAN13 too (safe equivalence)
+    if (type === 'gtin14' && primary.startsWith('0')) {
+      const derived = primary.slice(1);
+      if (derived.length === 13 && isValidGtin(derived)) {
+        identifiers.ean = identifiers.ean || derived;
+      }
+    }
+  }
+
   if (cloned.details) {
     cloned.details.identifiers = identifiers;
   }

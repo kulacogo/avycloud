@@ -1126,10 +1126,6 @@ async function saveProduct(product, options = {}) {
     if (!mergedDetails.attributes) mergedDetails.attributes = {};
     mergedDetails.attributes.weight = bucketedWeight;
     mergedDetails.weight = bucketedWeight;
-    // Keep attribute ordering consistent after injecting derived keys like `weight`.
-    if (productWithEbay?.details?.attributes && typeof productWithEbay.details.attributes === 'object') {
-      productWithEbay.details.attributes = normalizeAttributesOrder(productWithEbay.details.attributes);
-    }
 
     // Warehouse invariants:
     // - General product saves (LLM pipelines, admin edits, reconciliation scripts, etc.) must NEVER wipe warehouse state.

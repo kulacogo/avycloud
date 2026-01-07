@@ -18,8 +18,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { firestore } = require('../lib/firebase');
-const { getAllProducts } = require('../lib/firestore');
+const { getAllProducts, firestore } = require('../lib/firestore');
 const { sanitizeFirestoreValue } = require('../lib/firestore'); // exported? (if not, we fall back to raw update)
 
 function nowStamp() {

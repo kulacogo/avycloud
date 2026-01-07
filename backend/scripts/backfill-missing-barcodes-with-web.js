@@ -195,6 +195,10 @@ async function searchDuckDuckGo(query, { limit = 6 } = {}) {
     try {
       const host = new URL(outUrl).host.toLowerCase();
       if (DOMAIN_BLOCKLIST.has(host)) continue;
+      // Skip DDG internal ad/click trackers and other redirectors.
+      if (host.endsWith('duckduckgo.com')) continue;
+      if (host === 'bing.com' || host === 'www.bing.com') continue;
+      if (/\/aclick/i.test(outUrl)) continue;
     } catch {
       // ignore
     }
@@ -268,31 +272,89 @@ async function searchGoogle(query, { limit = 6 } = {}) {
 }
 
 function buildAnchorTokens(productSnapshot) {
-  const toks = [];
-  const push = (v) => {
-    const s = safeString(v);
+  const STOP = new Set([
+    'neu',
+    'ovp',
+    'original',
+    'gebraucht',
+    'used',
+    'refurb',
+    'refurbished',
+    'rot',
+    'schwarz',
+    'weiß',
+    'weiss',
+    'blau',
+    'grün',
+    'gruen',
+    'gelb',
+    'grau',
+    'beige',
+    'pink',
+    'lila',
+    'gold',
+    'silber',
+    'braun',
+    'cm',
+    'mm',
+    'm',
+    'gr',
+    'größe',
+    'groesse',
+    'ean',
+    'gtin',
+    'upc',
+  ]);
+
+  const strong = [];
+  const weak = [];
+
+  const pushTokens = (value, target) => {
+    const s = safeString(value);
     if (!s) return;
-    s.split(/\s+/).forEach((t) => {
-      const w = t.trim();
+    // Split on non-alphanumeric boundaries too (hyphens, slashes, etc.)
+    s.split(/[^\\p{L}\\p{N}]+/gu).forEach((raw) => {
+      const w = raw.trim().toLowerCase();
       if (!w) return;
       if (w.length < 3) return;
-      toks.push(w.toLowerCase());
+      if (STOP.has(w)) return;
+      // Skip pure numbers and common dimension-ish patterns (e.g. 100x200)
+      if (/^\\d+$/.test(w)) return;
+      if (/^\\d{2,4}x\\d{2,4}$/.test(w)) return;
+      target.push(w);
     });
   };
-  push(productSnapshot?.brand);
-  push(productSnapshot?.mpn);
-  push(productSnapshot?.model);
-  // first words of title tend to be stable
-  push(safeString(productSnapshot?.title).split(/\s+/).slice(0, 8).join(' '));
-  return Array.from(new Set(toks)).slice(0, 30);
+
+  // Strong anchors: brand / mpn / model (prefer these)
+  pushTokens(productSnapshot?.brand, strong);
+  pushTokens(productSnapshot?.mpn, strong);
+  pushTokens(productSnapshot?.model, strong);
+
+  // Weak anchors: product type + early title tokens (only as fallback)
+  pushTokens(productSnapshot?.produktart, weak);
+  const titleLead = safeString(productSnapshot?.title).split(/\s+/).slice(0, 10).join(' ');
+  pushTokens(titleLead, weak);
+
+  return {
+    strong: Array.from(new Set(strong)).slice(0, 12),
+    weak: Array.from(new Set(weak)).slice(0, 24),
+  };
 }
 
-function pageHasAnchor(text = '', anchorTokens = []) {
+function pageHasAnchor(text = '', { strong = [], weak = [] } = {}) {
   const t = String(text || '').toLowerCase();
   if (!t) return false;
-  for (const tok of anchorTokens) {
+  const hasStrong = strong.some((tok) => tok && t.includes(tok));
+  if (strong.length) {
+    // If we have strong anchors, require at least one to match to avoid poisoning.
+    return hasStrong;
+  }
+  // Fallback: require at least 2 weak anchors to match.
+  let weakHits = 0;
+  for (const tok of weak) {
     if (!tok) continue;
-    if (t.includes(tok)) return true;
+    if (t.includes(tok)) weakHits += 1;
+    if (weakHits >= 2) return true;
   }
   return false;
 }
@@ -322,7 +384,7 @@ function buildCandidateIndex(pages = [], { anchorTokens = [] } = {}) {
     const url = page.url;
     const text = page.text || '';
     // Drop pages that do not mention any anchor token for the product.
-    if (anchorTokens.length && !pageHasAnchor(text, anchorTokens)) return;
+    if ((anchorTokens?.strong?.length || anchorTokens?.weak?.length) && !pageHasAnchor(text, anchorTokens)) return;
     const found = extractGtinCandidatesFromText(text);
     found.forEach((hit) => {
       if (!byCode.has(hit.code)) byCode.set(hit.code, { code: hit.code, sources: new Map() });
@@ -546,6 +608,16 @@ async function main() {
       const query = pickQuery(product);
       const trace = [];
       // Explicit search attempts for diagnostics + stability.
+      const ddgAttempt = await searchDuckDuckGo(query, { limit: Math.max(1, args.maxSearchResults || 6) });
+      trace.push({
+        type: 'ddg_attempt',
+        ok: ddgAttempt.ok,
+        status: ddgAttempt.status,
+        resultsCount: Array.isArray(ddgAttempt.results) ? ddgAttempt.results.length : 0,
+        url: ddgAttempt.url,
+        via: ddgAttempt.via,
+        results: (ddgAttempt.results || []).slice(0, 5),
+      });
       const googleAttempt = await searchGoogle(query, { limit: Math.max(1, args.maxSearchResults || 6) });
       trace.push({
         type: 'google_attempt',
@@ -557,7 +629,10 @@ async function main() {
         results: (googleAttempt.results || []).slice(0, 5),
       });
 
-      const search = googleAttempt;
+      const search =
+        (ddgAttempt && ddgAttempt.ok && Array.isArray(ddgAttempt.results) && ddgAttempt.results.length)
+          ? ddgAttempt
+          : googleAttempt;
 
       const urls = (search.results || []).map((r) => r.url).filter(Boolean).slice(0, Math.max(1, args.maxPages || 4));
       const pages = [];
@@ -580,7 +655,15 @@ async function main() {
       // Fast path: exactly one candidate and it has strong evidence → accept without LLM.
       if (candidates.length === 1) {
         const only = candidates[0];
-        const strong = Boolean(only?.hasLabel) || Number(only?.sourceCount || 0) >= 2;
+        const strongAnchors = Array.isArray(anchorTokens?.strong) ? anchorTokens.strong : [];
+        const contextText = (only?.sources || [])
+          .flatMap((s) => (Array.isArray(s?.contexts) ? s.contexts : []))
+          .join(' ')
+          .toLowerCase();
+        const hasStrongInContext = strongAnchors.length
+          ? strongAnchors.some((tok) => tok && contextText.includes(tok))
+          : true;
+        const strong = (Boolean(only?.hasLabel) || Number(only?.sourceCount || 0) >= 2) && hasStrongInContext;
         if (strong) {
           if (!args.apply) {
             wouldApply += 1;
@@ -588,7 +671,7 @@ async function main() {
             return;
           }
           const next = applyBarcodeToProduct(product, only.code);
-          await saveProduct(next, { source: 'barcode-web', syncIdentifiersFromBarcodes: true });
+          await saveProduct(next, { source: 'barcode-web', syncIdentifiersFromBarcodes: false });
           applied += 1;
           report.push({ productId, sku: snapshot.sku, status: 'applied', query, chosen: only.code, candidate: only, choice: { barcode: only.code, rationale: 'fast_path_single_candidate', sources: only.sources?.map((s) => s.url).filter(Boolean) || [] } });
           return;
@@ -622,14 +705,22 @@ async function main() {
 
       // Extra guard: require label context OR 2+ sources.
       const cand = candidates.find((c) => c.code === chosen);
-      const okEvidence = Boolean(cand?.hasLabel) || Number(cand?.sourceCount || 0) >= 2;
+      const strongAnchors = Array.isArray(anchorTokens?.strong) ? anchorTokens.strong : [];
+      const contextText = (cand?.sources || [])
+        .flatMap((s) => (Array.isArray(s?.contexts) ? s.contexts : []))
+        .join(' ')
+        .toLowerCase();
+      const hasStrongInContext = strongAnchors.length
+        ? strongAnchors.some((tok) => tok && contextText.includes(tok))
+        : true; // if we have no strong anchors, don't block on it
+      const okEvidence = (Boolean(cand?.hasLabel) || Number(cand?.sourceCount || 0) >= 2) && hasStrongInContext;
       if (!okEvidence) {
         skipped += 1;
         report.push({
           productId,
           sku: snapshot.sku,
           status: 'skip',
-          reason: 'insufficient_evidence',
+          reason: strongAnchors.length && !hasStrongInContext ? 'insufficient_anchor_match' : 'insufficient_evidence',
           query,
           chosen,
           candidate: cand,
@@ -653,7 +744,8 @@ async function main() {
       }
 
       const next = applyBarcodeToProduct(product, chosen);
-      await saveProduct(next, { source: 'barcode-web', syncIdentifiersFromBarcodes: true });
+      // IMPORTANT: never auto-populate identifiers from web-derived barcodes (avoid poisoning).
+      await saveProduct(next, { source: 'barcode-web', syncIdentifiersFromBarcodes: false });
       applied += 1;
       report.push({
         productId,
