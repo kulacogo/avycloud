@@ -20,17 +20,19 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
     }
   };
 
-  const priority = (key: string) => {
-    const lower = (key || '').toLowerCase();
-    if (lower === 'kategorie') return -1000;
-    if (lower.startsWith('gpsr ')) return 1000;
-    return 0;
+  const sortAttributes = (input: Record<string, any>) => {
+    const entries = Object.entries(input || {}).sort((a, b) => {
+      const aKey = (a[0] || '').toLowerCase();
+      const bKey = (b[0] || '').toLowerCase();
+      return aKey.localeCompare(bKey, 'de', { sensitivity: 'base' });
+    });
+    return entries.reduce((acc: Record<string, any>, [k, v]) => {
+      acc[k] = v;
+      return acc;
+    }, {});
   };
 
   const attributeEntries = Object.entries(attributes || {}).sort((a, b) => {
-    const pa = priority(a[0]);
-    const pb = priority(b[0]);
-    if (pa !== pb) return pa - pb;
     const aKey = (a[0] || '').toLowerCase();
     const bKey = (b[0] || '').toLowerCase();
     return aKey.localeCompare(bKey, 'de', { sensitivity: 'base' });
@@ -67,7 +69,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
     if (!onChange) return;
     const next = { ...(attributes || {}) };
     next[key] = value;
-    onChange(next);
+    onChange(sortAttributes(next));
   };
 
   const renameKey = (oldKey: string, newKey: string) => {
@@ -76,7 +78,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
     if (oldKey !== newKey) {
       next[newKey] = next[oldKey];
       delete next[oldKey];
-      onChange(next);
+      onChange(sortAttributes(next));
     }
   };
 
@@ -84,7 +86,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
     if (!onChange) return;
     const next = { ...(attributes || {}) } as Record<string, any>;
     delete next[key];
-    onChange(next);
+    onChange(sortAttributes(next));
   };
 
   const addRow = () => {
@@ -97,7 +99,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
       newKey = `${base} ${idx++}`;
     }
     next[newKey] = '';
-    onChange(next);
+    onChange(sortAttributes(next));
   };
 
   if (displayEntries.length === 0) {

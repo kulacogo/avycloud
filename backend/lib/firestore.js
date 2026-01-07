@@ -221,26 +221,13 @@ function parseWeightKg(value) {
   return num > 50 ? num / 1000 : num;
 }
 
-function normalizeAttributesOrder(attrs = {}, catId, requiredMap) {
+function normalizeAttributesOrder(attrs = {}) {
   const entries = Object.entries(attrs || {});
   if (!entries.length) return {};
-  const order = Array.isArray(requiredMap?.[catId]) ? requiredMap[catId] : [];
-  const orderIndex = new Map(order.map((name, idx) => [name.toLowerCase(), idx]));
   entries.sort((a, b) => {
-    const aKey = a[0] ? a[0].toLowerCase() : '';
-    const bKey = b[0] ? b[0].toLowerCase() : '';
-    const aIsKategorie = aKey === 'kategorie';
-    const bIsKategorie = bKey === 'kategorie';
-    if (aIsKategorie !== bIsKategorie) return aIsKategorie ? -1 : 1;
-
-    const aIsGpsr = aKey.startsWith('gpsr ');
-    const bIsGpsr = bKey.startsWith('gpsr ');
-    if (aIsGpsr !== bIsGpsr) return aIsGpsr ? 1 : -1;
-
-    const aIdx = orderIndex.has(aKey) ? orderIndex.get(aKey) : Number.POSITIVE_INFINITY;
-    const bIdx = orderIndex.has(bKey) ? orderIndex.get(bKey) : Number.POSITIVE_INFINITY;
-    if (aIdx !== bIdx) return aIdx - bIdx;
-    return aKey.localeCompare(bKey);
+    const aKey = a[0] ? String(a[0]).toLowerCase() : '';
+    const bKey = b[0] ? String(b[0]).toLowerCase() : '';
+    return aKey.localeCompare(bKey, 'de', { sensitivity: 'base' });
   });
   return entries.reduce((acc, [k, v]) => {
     acc[k] = v;
@@ -272,6 +259,10 @@ function enforceEbayAspects(product) {
       // Normalize other noisy eBay-* attribute prefixes from exports
       // Examples: "eBay_Marke" / "eBay-Produktart" -> "Marke" / "Produktart"
       .replace(/^eBay[\s-_]+/i, '')
+      // Normalize noisy Kaufland-* attribute prefixes from exports
+      // Examples: "Kaufland_Marke" / "Kaufland-Produktart" -> "Marke" / "Produktart"
+      .replace(/^Kaufland[\s-_]*Item[\s-_]*Specifics[\s:_-]*\s*/i, '')
+      .replace(/^Kaufland[\s-_]+/i, '')
       .trim();
 
   // Canonical key aliases (cross-category + multilingual).
@@ -510,7 +501,7 @@ function enforceEbayAspects(product) {
       ...product,
       details: {
         ...details,
-        attributes: normalizeAttributesOrder(nextAttrs, null, requiredMap),
+        attributes: normalizeAttributesOrder(nextAttrs),
         attributes_extra: Object.keys(nextExtra).length ? nextExtra : undefined,
       },
     };
@@ -545,12 +536,21 @@ function enforceEbayAspects(product) {
       const incoming = normalizeKey(val);
       const canonical = categoryPath ? String(categoryPath) : '';
       if (incoming && canonical && incoming !== canonical) {
-        nextExtra[originalKey] = val;
+        // Never keep marketplace-specific keys anywhere (including attributes_extra).
+        const originalLower = normalizeLower(originalKey);
+        if (!(originalLower.includes('ebay') || originalLower.includes('kaufland'))) {
+          nextExtra[originalKey] = val;
+        }
       }
       return;
     }
 
     if (isMetaKey(lower)) {
+      // Never keep marketplace-specific keys anywhere (including attributes_extra).
+      const originalLower = normalizeLower(originalKey);
+      if (originalLower.includes('ebay') || originalLower.includes('kaufland') || lowerPre.includes('ebay') || lowerPre.includes('kaufland')) {
+        return;
+      }
       nextExtra[originalKey] = val;
       return;
     }
@@ -638,11 +638,7 @@ function enforceEbayAspects(product) {
     keptAspects.Kategorie = String(categoryPath);
   }
 
-  const sortedAspects = normalizeAttributesOrder(keptAspects, catId, requiredMap);
-  const sortedCompliance = Object.fromEntries(
-    Object.entries(keptCompliance).sort((a, b) => normalizeLower(a[0]).localeCompare(normalizeLower(b[0])))
-  );
-  const sortedAttrs = { ...sortedAspects, ...sortedCompliance };
+  const sortedAttrs = normalizeAttributesOrder({ ...keptAspects, ...keptCompliance });
 
   return {
     ...product,
@@ -1130,6 +1126,10 @@ async function saveProduct(product, options = {}) {
     if (!mergedDetails.attributes) mergedDetails.attributes = {};
     mergedDetails.attributes.weight = bucketedWeight;
     mergedDetails.weight = bucketedWeight;
+    // Keep attribute ordering consistent after injecting derived keys like `weight`.
+    if (productWithEbay?.details?.attributes && typeof productWithEbay.details.attributes === 'object') {
+      productWithEbay.details.attributes = normalizeAttributesOrder(productWithEbay.details.attributes);
+    }
 
     // Warehouse invariants:
     // - General product saves (LLM pipelines, admin edits, reconciliation scripts, etc.) must NEVER wipe warehouse state.
