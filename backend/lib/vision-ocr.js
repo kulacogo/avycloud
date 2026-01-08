@@ -14,6 +14,7 @@ const OCR_NUMERIC_LIMIT = parseInt(process.env.OCR_NUMERIC_LIMIT || '60', 10);
 const MIN_BARCODE_LENGTH = 8;
 const MAX_BARCODE_LENGTH = 18;
 const MAX_PREPROCESS_EDGE = parseInt(process.env.OCR_MAX_EDGE || '2200', 10);
+const BARCODE_LABEL_RE = /\b(ean|gtin|upc|barcode|bar\s*code|strichcode)\b/i;
 
 function normalizeLine(line = '') {
   return line.replace(/\s+/g, ' ').trim();
@@ -37,37 +38,65 @@ function extractNumericTokens(text = '', { minLength = 4, maxItems = OCR_NUMERIC
 
 function extractBarcodeCandidates(text = '') {
   if (!text) return [];
-  const candidates = [];
-  const seen = new Set();
+  // HARD RULE:
+  // OCR contains many random numeric sequences (serials, dates, sizes, order numbers).
+  // We only accept a barcode candidate when it is:
+  // - digits-only, length 8/12/13/14, and checkdigit-valid
+  // - AND it is either on a labeled line (EAN/GTIN/UPC/Barcode/Strichcode) OR repeated across OCR text.
+
+  const allowedLen = new Set([8, 12, 13, 14]);
+  const occurrences = new Map();
+  const labeled = new Set();
+  const seenFromLines = new Set();
+
   const lines = text.split(/\r?\n/);
   for (const rawLine of lines) {
-    const normalizedLine = normalizeDigits(rawLine);
-    if (
-      normalizedLine.length >= MIN_BARCODE_LENGTH &&
-      normalizedLine.length <= MAX_BARCODE_LENGTH &&
-      /^\d+$/.test(normalizedLine)
-    ) {
-      if (seen.has(normalizedLine)) continue;
-      seen.add(normalizedLine);
-      candidates.push({
-        code: normalizedLine,
-        priority: isValidGtin(normalizedLine) ? 0 : 1,
-      });
+    const line = normalizeLine(rawLine);
+    if (!line) continue;
+
+    // Collect any digit blocks from this line
+    const matches = line.match(/\b\d[\d\s\-\.]{6,}\b/g) || [];
+    for (const raw of matches) {
+      const code = normalizeDigits(raw);
+      if (!code || !/^\d+$/.test(code)) continue;
+      if (!allowedLen.has(code.length)) continue;
+      if (!isValidGtin(code)) continue;
+      seenFromLines.add(code);
+      occurrences.set(code, (occurrences.get(code) || 0) + 1);
+      if (BARCODE_LABEL_RE.test(line)) {
+        labeled.add(code);
+      }
     }
   }
 
-  const joinedMatches = text.match(/\b\d{8,18}\b/g) || [];
-  for (const match of joinedMatches) {
-    if (seen.has(match)) continue;
-    seen.add(match);
-    candidates.push({
-      code: match,
-      priority: isValidGtin(match) ? 0 : 1,
-    });
+  // Also catch joined tokens (single-line OCR blocks without separators)
+  const joinedMatches = text.match(/\b\d{8,14}\b/g) || [];
+  for (const raw of joinedMatches) {
+    const code = normalizeDigits(raw);
+    if (!code || !/^\d+$/.test(code)) continue;
+    if (!allowedLen.has(code.length)) continue;
+    if (!isValidGtin(code)) continue;
+    // Avoid double-counting the same occurrence that was already captured in the line-pass.
+    if (seenFromLines.has(code)) continue;
+    occurrences.set(code, (occurrences.get(code) || 0) + 1);
   }
 
-  candidates.sort((a, b) => a.priority - b.priority);
-  return candidates.map((entry) => entry.code);
+  const strong = [];
+  for (const [code, count] of occurrences.entries()) {
+    if (labeled.has(code) || count >= 2) {
+      strong.push(code);
+    }
+  }
+
+  // Prefer labeled, then most frequent
+  strong.sort((a, b) => {
+    const aL = labeled.has(a) ? 1 : 0;
+    const bL = labeled.has(b) ? 1 : 0;
+    if (aL !== bL) return bL - aL;
+    return (occurrences.get(b) || 0) - (occurrences.get(a) || 0);
+  });
+
+  return strong;
 }
 
 async function fetchAccessToken() {

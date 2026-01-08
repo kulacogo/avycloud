@@ -671,7 +671,15 @@ function injectMissingBarcodes(products = [], barcodeList = []) {
   if (!Array.isArray(products) || !products.length || !barcodeList.length) {
     return;
   }
-  const remaining = [...new Set(barcodeList.map((code) => code.trim()).filter(Boolean))];
+  // Only accept checkdigit-valid GTIN/UPC lengths from upstream OCR/manual sources.
+  // This prevents random OCR numbers from being injected as "barcodes".
+  const remaining = [
+    ...new Set(
+      barcodeList
+        .map((code) => normalizeDigits(String(code || '')))
+        .filter((code) => [8, 12, 13, 14].includes(code.length) && isValidGtin(code))
+    ),
+  ];
   products.forEach((product) => {
     if (remaining.length === 0) return;
     const hasBarcode =
@@ -685,16 +693,9 @@ function injectMissingBarcodes(products = [], barcodeList = []) {
       ...(product.identification || {}),
       barcodes: [nextBarcode],
     };
-    product.details = product.details || {};
-    product.details.identifiers = {
-      ...(product.details.identifiers || {}),
-    };
-    if (!product.details.identifiers.ean) {
-      product.details.identifiers.ean = nextBarcode;
-    }
-    if (!product.details.identifiers.gtin) {
-      product.details.identifiers.gtin = nextBarcode;
-    }
+    // IMPORTANT:
+    // Do NOT write identifiers.ean/gtin/upc here. We only set identifiers from validated barcodes
+    // in saveProduct() when syncIdentifiersFromBarcodes is enabled, after all invariants and audits.
   });
 }
 

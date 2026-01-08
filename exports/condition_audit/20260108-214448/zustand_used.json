@@ -1,0 +1,316 @@
+{
+  "at_iso": "2026-01-08T20:44:52.183Z",
+  "count": 31,
+  "hits": [
+    {
+      "id": "00442039661193",
+      "sku": "SKU-7225351886",
+      "title": "COZII Hundepool X001Y0BTE9 Blau Gr. 120x30cm PVC, PP NEU Faltbar Tierbedarf",
+      "brand": "COZII",
+      "category": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Tischsets",
+      "zustand": "used",
+      "condition_locked": false,
+      "last_saved_source": "category-review-csv"
+    },
+    {
+      "id": "00872299043330",
+      "sku": "SKU-9129624671",
+      "title": "Gepäckträger für Thule Chariot Doppel-Kinderanhänger 2,3kg Traglast Gebraucht",
+      "brand": "Thule",
+      "category": "Baby > Kinderwagen & Zubehör > Kinderwagen-Zubehör",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "job-improve"
+    },
+    {
+      "id": "07901010300000",
+      "sku": "SKU-2097206690",
+      "title": "Generisch Autoradios passgenau für JSD 520 NEU Schwarz 1 DIN Bluetooth",
+      "brand": "Generisch",
+      "category": "Auto & Motorrad: Teile > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Autoradios",
+      "zustand": "used",
+      "condition_locked": false,
+      "last_saved_source": "title-normalize"
+    },
+    {
+      "id": "0840353901100",
+      "sku": "SKU-4747629782",
+      "title": "Fitbit Charge 6 Fitness-Tracker GPS Herzfrequenz Coral Champagne Gebraucht",
+      "brand": "Fitbit",
+      "category": "Sportelektronik > Fitness-Tracker",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "job-improve"
+    },
+    {
+      "id": "1507000192029",
+      "sku": "SKU-6705970836",
+      "title": "BOOST TOWN Ladeluftrohr Ansaugrohr Kit 1507000192029 Hyundai Kona/i30N Rot Gebr.",
+      "brand": "BOOST TOWN",
+      "category": "Auto & Motorrad: Teile > Quad-, SSV- & UTV-Teile & -Zubehör > Ansaug- & Kraftstoffsysteme",
+      "zustand": "Gebraucht – Voll funktionsfähig",
+      "condition_locked": false,
+      "last_saved_source": "ui"
+    },
+    {
+      "id": "1bdce1f7-aa59-4b85-a9a8-3488141ae012",
+      "sku": "SKU-0789448642",
+      "title": "Kalahari Shades of Ocean Wassergläser Set 300ml 6 Stück Spülmaschinenfest",
+      "brand": "Kalahari",
+      "category": "Küche & Haushalt > Geschirr & Besteck > Gläser",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "ui"
+    },
+    {
+      "id": "3f55c3c8-0603-4563-be53-8591b104d26e",
+      "sku": "SKU-7357361636",
+      "title": "ROHO SELECT Sitzkissenbezug für Rollstuhl-Sitzkissen 50.5x46.5x10.5 cm Gebraucht",
+      "brand": "ROHO",
+      "category": "Gesundheit & Schönheit > Mobilität & Alltagshilfen > Rollstuhl-Zubehör > Rollstuhl-Sitzkissen",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "ui"
+    },
+    {
+      "id": "4006094887004",
+      "sku": "SKU-1892441877",
+      "title": "PEBARO Holzbausatz Ritterburg Burgen & Schlösser für Kinder ab 6 Jahre, 61 NEU",
+      "brand": "PEBARO",
+      "category": "Spielzeug > Holzspielzeug > Ritterburgen",
+      "zustand": "Gebraucht",
+      "condition_locked": false,
+      "last_saved_source": "category-review-csv"
+    },
+    {
+      "id": "4034144003036",
+      "sku": "SKU-3097738026",
+      "title": "EMUK Anhängerspiegel 2-Punkt-Bügel Aluminium für Renault Kadjar Espace Scénic",
+      "brand": "EMUK",
+      "category": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Spiegel",
+      "zustand": "used",
+      "condition_locked": false,
+      "last_saved_source": "category-review-csv"
+    },
+    {
+      "id": "4052138007280",
+      "sku": "SKU-8414659629",
+      "title": "Trotec HEPA Carbon Kombifilter für AirgoClean 170 E Luftreiniger Schwarz",
+      "brand": "Trotec",
+      "category": "Haushaltsgeräte > Kaffee-, Tee- & Espressomaschinen > Filter-Kaffeemaschinen",
+      "zustand": "Gebraucht",
+      "condition_locked": false,
+      "last_saved_source": "ui"
+    },
+    {
+      "id": "4055333068964",
+      "sku": "SKU-3855746092",
+      "title": "PARKSIDE Benzin-Rucksack-Kombigerät PBRK 700 A1 1.5 kW 6-in-1 Gebraucht",
+      "brand": "PARKSIDE",
+      "category": "Garten & Terrasse > Gartengeräte > Motor- & Elektrogeräte > Multifunktionsgeräte",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "ui"
+    },
+    {
+      "id": "4063544208888",
+      "sku": "SKU-1747542074",
+      "title": "BOSS Herren T-Shirt 3er Pack Classic Crew Neck Regular Fit Bio-Baumwolle Gr. M",
+      "brand": "BOSS",
+      "category": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > T-Shirts",
+      "zustand": "Gebraucht",
+      "condition_locked": false,
+      "last_saved_source": "category-review-csv"
+    },
+    {
+      "id": "4260755120385",
+      "sku": "SKU-1377750386",
+      "title": "Valuents Camping Teppich CampCarp-250-350 Outdoor Vorzeltteppich 250x350 cm",
+      "brand": "Valuents",
+      "category": "Sport & Freizeit > Camping & Outdoor > Zelte & Zubehör > Zeltteppiche",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "ui"
+    },
+    {
+      "id": "45005591930000",
+      "sku": "SKU-6587967689",
+      "title": "Calvin Klein Herren Trunks 3er Pack Baumwoll-Stretch Classic Fit Low Rise Gr. L",
+      "brand": "Calvin Klein",
+      "category": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Kupplungsteile & -sätze > Kupplungsgeber- & -nehmerzylinder",
+      "zustand": "Gebraucht",
+      "condition_locked": false,
+      "last_saved_source": "category-review-csv"
+    },
+    {
+      "id": "48fe16c6-bdc6-42f6-862e-fc9eb4962c93",
+      "sku": "SKU-3756924465",
+      "title": "FEDOUR Heizstab HP-608 50W mit Temperaturregler für Süß- & Meerwasser 20-34°C",
+      "brand": "FEDOUR",
+      "category": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremskraftverstärker & -regler",
+      "zustand": "Gebraucht",
+      "condition_locked": false,
+      "last_saved_source": "category-review-csv"
+    },
+    {
+      "id": "5702017153599",
+      "sku": "SKU-9272258811",
+      "title": "LEGO Duplo 10965 Badespaß: Schwimmender Tierzug für Kleinkinder ab 1,5 Jahren",
+      "brand": "LEGO",
+      "category": "Baby > Spielzeug > Badespielzeug",
+      "zustand": "Gebraucht",
+      "condition_locked": false,
+      "last_saved_source": "category-review-csv"
+    },
+    {
+      "id": "5702017567501",
+      "sku": "SKU-9904325113",
+      "title": "LEGO City Space Raumschiff & Asteroiden-Entdeckung Baukasten Set 60429 ab 4+",
+      "brand": "LEGO",
+      "category": "Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge > LEGO (R) Komplette Sets & Packs",
+      "zustand": "Gebraucht",
+      "condition_locked": false,
+      "last_saved_source": "category-review-csv"
+    },
+    {
+      "id": "7325549884427",
+      "sku": "SKU-6480044357",
+      "title": "POC Fahrradhelm Axion Race MIPS Gr. M – MTB Schutz mit MIPS-Technologie",
+      "brand": "POC",
+      "category": "Sport > Radsport > Helme & Protektoren > Helme",
+      "zustand": "Gebraucht (optisch sehr gut)",
+      "condition_locked": false,
+      "last_saved_source": "category-review-csv"
+    },
+    {
+      "id": "7613136901818",
+      "sku": "SKU-4208989688",
+      "title": "Sloggi Start Hipster Herren Mehrfarbig Gr. EU 6 Stretch-Baumwolle Gebraucht",
+      "brand": "Sloggi",
+      "category": "Bekleidung > Herren > Unterwäsche > Boxershorts & Slips",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "job-improve"
+    },
+    {
+      "id": "7630751727135",
+      "sku": "SKU-1055381582",
+      "title": "Nespresso Barista Recipe Kaffeegläser Set Klein 2 Stück für kreative Rezepte",
+      "brand": "Nespresso",
+      "category": "Küche & Haushalt > Gläser > Kaffeegläser",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "ui"
+    },
+    {
+      "id": "8003558071647",
+      "sku": "SKU-7025517137",
+      "title": "Widmann Piratenmantel Damen Schwarz Gr. XL Karneval Fasching Kostüm Gebraucht",
+      "brand": "Widmann",
+      "category": "Kostüme & Verkleidungen > Historische & Fantasy-Kostüme > Piraten & Seefahrer",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "ui"
+    },
+    {
+      "id": "8719114322466",
+      "sku": "SKU-4961159565",
+      "title": "Calvin Klein Boxershorts Herren Schwarz Gr. M Baumwollmischung Gebraucht",
+      "brand": "Calvin Klein",
+      "category": "Kleidung & Accessoires > Herrenmode > Unterwäsche > Boxershorts",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "job-improve"
+    },
+    {
+      "id": "8720245556002",
+      "sku": "SKU-7977735758",
+      "title": "Puma Boxershorts Herren Grau, Schwarz Gr. XL Baumwolle Gebraucht 701226387003040",
+      "brand": "Puma",
+      "category": "Bekleidung",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "job-improve"
+    },
+    {
+      "id": "8720676510376",
+      "sku": "SKU-2005525534",
+      "title": "Hunkemöller Shapewear Body Damen Schwarz Gr. M Polyamid Elasthan Gebraucht",
+      "brand": "Hunkemöller",
+      "category": "Damen Shapewear",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "job-improve"
+    },
+    {
+      "id": "a52ad537-120e-426d-9887-f873d36bcdaa",
+      "sku": "SKU-3264592188",
+      "title": "Thule Bodenmatte für Chariot Double Fahrradanhänger robuster Gummischutz",
+      "brand": "Thule",
+      "category": "Fahrradzubehör",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "ui"
+    },
+    {
+      "id": "ab8921aa-074a-4d89-beb7-b4236133851e",
+      "sku": "SKU-8463577445",
+      "title": "KSIBNW LED Streifen 7-D347=RGB-20M RGB Milchweißes PVC Gebraucht Gr. 20 m",
+      "brand": "KSIBNW",
+      "category": "Heimwerker > Elektromaterial > LED Streifen",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "ui"
+    },
+    {
+      "id": "acbaf936-25b4-4850-a552-4af9871abe8c",
+      "sku": "SKU-5736916285",
+      "title": "PANORAMA24 Rolllattenrost BXL Premium Holz Gebraucht Gr. 80 cm 80x200 NEU",
+      "brand": "PANORAMA24",
+      "category": "Möbel & Wohnen > Betten & Zubehör > Lattenroste",
+      "zustand": "Gebraucht",
+      "condition_locked": true,
+      "last_saved_source": "job-improve"
+    },
+    {
+      "id": "b9682eb9-a9aa-415e-898f-7b9bf915e42f",
+      "sku": "SKU-8203474346",
+      "title": "Sabeatex Kopfkissen & Körperkissen Weiß Gr. 70 x 35 x 13 cm NEU Optimale",
+      "brand": "Sabeatex",
+      "category": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Kopfkissen & Körperkissen",
+      "zustand": "used",
+      "condition_locked": false,
+      "last_saved_source": "title-normalize"
+    },
+    {
+      "id": "c6d932e0-cd68-4d66-8212-d98f5d10e8d2",
+      "sku": "SKU-7957694387",
+      "title": "SIRUS Mikrofonständer 516480 Desktop, Zinkdruckguss, höhenverstellbar 27-41cm",
+      "brand": "SIRUS",
+      "category": "Münzen > Historische Wertpapiere > USA & Kanada > Elektronik & Computer",
+      "zustand": "Gebraucht",
+      "condition_locked": false,
+      "last_saved_source": ""
+    },
+    {
+      "id": "e73c69ce-6582-4454-adab-52b418a775d0",
+      "sku": "SKU-5599844775",
+      "title": "Goffii Montessori Lernspielzeug Bauernhof Angeln Gemüse Holz Mehrfarbig ab 3 NEU",
+      "brand": "Goffii",
+      "category": "Spielzeug > Lernspielzeug",
+      "zustand": "Gebraucht",
+      "condition_locked": false,
+      "last_saved_source": "barcode-rollback"
+    },
+    {
+      "id": "f8fc404d-90b9-408f-a0a5-53038fdbd793",
+      "sku": "SKU-7447779999",
+      "title": "ONLINE Calli.Brush Lettering & Aquareell Set 'Das Leben ist Schön' DIN A5 NEU",
+      "brand": "ONLINE",
+      "category": "Bastel- & Künstlerbedarf > Künstler- & Zeichenbedarf > Malen > Aquarell",
+      "zustand": "Gebraucht",
+      "condition_locked": false,
+      "last_saved_source": "category-review-csv"
+    }
+  ]
+}

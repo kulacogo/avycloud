@@ -1004,6 +1004,38 @@ async function saveProduct(product, options = {}) {
       mergedOps.condition_locked = Boolean(existingData?.ops?.condition_locked);
     }
 
+    // Condition invariants (business rule):
+    // - Automated pipelines (Improve/Enrich/Imports/Jobs) must NEVER create/propagate "Gebraucht/Used".
+    // - If a non-UI save attempts to persist Zustand=Gebraucht/used (often inferred from titles/marketplaces),
+    //   normalize it to "NEU" and clear accidental locks.
+    //
+    // NOTE: Manual UI saves may still set Zustand explicitly; the lock mechanism exists for that.
+    {
+      const USED_CONDITION_RE =
+        /\b(gebraucht|used|pre[-\s]?owned|second hand|secondhand|b-ware|refurb(?:ished)?|renewed|open box|openbox)\b/i;
+      const zustandKey =
+        mergedDetails?.attributes && typeof mergedDetails.attributes === 'object'
+          ? Object.keys(mergedDetails.attributes).find(
+              (k) => String(k || '').trim().toLowerCase() === 'zustand'
+            )
+          : null;
+      if (!isManualSave && zustandKey) {
+        const raw = mergedDetails.attributes[zustandKey];
+        const val = typeof raw === 'string' ? raw.trim() : raw == null ? '' : String(raw).trim();
+        if (val && USED_CONDITION_RE.test(val)) {
+          mergedDetails.attributes[zustandKey] = 'NEU';
+          // Clear lock if it was introduced outside UI or if an old lock would keep leaking "Gebraucht" into titles.
+          mergedOps.condition_locked = false;
+          mergedOps.data_quality = mergedOps.data_quality || {};
+          mergedOps.data_quality.condition_normalized_neu_v1 = {
+            at_iso: new Date().toISOString(),
+            previous: val,
+            source: saveSource || (isManualSave ? 'ui' : 'system'),
+          };
+        }
+      }
+    }
+
     // Optional: keep identifiers in sync with barcodes (UI edits barcodes; BaseLinker sync reads identifiers.ean first).
     // Barcode + Identifier invariants:
     // - Only keep valid GTIN/EAN/UPC codes (correct checkdigit).
