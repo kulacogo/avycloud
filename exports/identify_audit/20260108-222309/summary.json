@@ -1,0 +1,50 @@
+{
+  "at_iso": "2026-01-08T21:23:11.602Z",
+  "summary": {
+    "script-condition-normalize": {
+      "total": 30,
+      "ebay_ready": 17,
+      "not_ready": 13
+    },
+    "ui": {
+      "total": 62,
+      "ebay_ready": 40,
+      "not_ready": 22
+    },
+    "category-review-csv": {
+      "total": 115,
+      "ebay_ready": 74,
+      "not_ready": 41
+    },
+    "job-improve": {
+      "total": 15,
+      "ebay_ready": 15,
+      "not_ready": 0
+    },
+    "barcode-rollback": {
+      "total": 19,
+      "ebay_ready": 15,
+      "not_ready": 4
+    },
+    "title-normalize": {
+      "total": 129,
+      "ebay_ready": 108,
+      "not_ready": 21
+    },
+    "unknown": {
+      "total": 87,
+      "ebay_ready": 73,
+      "not_ready": 14
+    },
+    "ktype-upload": {
+      "total": 2,
+      "ebay_ready": 2,
+      "not_ready": 0
+    },
+    "bulk-table": {
+      "total": 10,
+      "ebay_ready": 8,
+      "not_ready": 2
+    }
+  }
+}

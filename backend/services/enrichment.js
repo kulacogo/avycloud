@@ -16,6 +16,9 @@ const { isValidGtin, normalizeDigits, getGtinType } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { sanitizeListingText } = require('../lib/listing-sanitize');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
+const { filterBarcodesByWebConfirm } = require('../lib/barcode-web-confirm');
+const { searchWeb, fetchPageText } = require('../lib/web-search-html');
+const { evaluateEbayReady } = require('../lib/datasheet-quality');
 
 // Clean JSON schema to be compatible with Gemini responseSchema
 function cleanSchemaForGemini(schema) {
@@ -357,13 +360,14 @@ async function fetchBarcodeSerpData(barcode, serpTrace = []) {
 
 function buildSystemPrompt(locale = 'de-DE') {
   return [
-    `Du bist GPT-5 mini (Release 2025-08-07) und agierst als Product Intelligence Brain.`,
+    `Du bist Gemini (Google) und agierst als Product Intelligence Brain.`,
     buildCommonPolicyText({ locale, allowWebEvidence: true }),
     '',
     `Zusatzregeln für Identify:`,
-    `- Du darfst KEINE eigenen Web-/SerpAPI-Calls ausführen. Wenn WEB-EVIDENZ im Prompt enthalten ist, darfst du sie nutzen.`,
+    `- Du darfst KEINE eigenen Web-Calls ausführen. Wenn WEB-EVIDENZ im Prompt enthalten ist, darfst du sie nutzen.`,
     `- Wenn Informationen fehlen: Feld leer lassen + in notes.unsure dokumentieren.`,
     `- Ausgabe strikt im ProductBundle-Schema (kein Markdown, keine Freitexte).`,
+    `- Ziel: ein eBay-fertiges Produktdatenblatt (Titel 70–80 Zeichen, Beschreibung >= 300 Zeichen, 5–7 Highlights, Breadcrumb-Kategorie).`,
   ].join('\n');
 }
 
@@ -431,7 +435,7 @@ function buildUserPrompt({
 
   if (webEvidence) {
     parts.push(
-      'WEB-EVIDENZ (aus SerpAPI; nur als zusätzliche Quelle verwenden, nicht halluzinieren):',
+      'WEB-EVIDENZ (aus HTML-Websuche/Fetch; nur als zusätzliche Quelle verwenden, nicht halluzinieren):',
       typeof webEvidence === 'string' ? webEvidence : JSON.stringify(webEvidence, null, 2)
     );
   }
@@ -452,9 +456,7 @@ function buildUserPrompt({
     `7. Preise nur, wenn sicher aus gelieferten Daten ableitbar, sonst leer lassen.`,
     `8. Unsicherheiten in notes.unsure dokumentieren.`,
     `9. Ordne eBay.de Kategorie (Breadcrumb) zu und füge die Pflichtattribute (Item Specifics) als Keys OHNE Prefix (leer bei Unbekannt) hinzu.`,
-    `10. Bestimme eine passende Kaufland-Kategorie (z.B. "Küche & Haushalt > ...") UND wähle passende Attribute aus der folgenden Liste gültiger Kaufland-Attribute (Format: "key (Label)") aus:`,
-    getKauflandAttributes().map(a => `- ${a.name} (${a.label})`).join('\n'),
-    `   Füge diese als Attribute hinzu (nur wenn sie zum Produkt passen).`,
+    `10. OPTIONAL: Kaufland-Kategorie/Attribute werden nachgelagert im System ergänzt (du musst sie hier nicht erzwingen).`,
     `Sprache: Deutsch (${locale}).`
   );
   if (improveContext) {
@@ -483,69 +485,63 @@ function isLowQualityIdentifyProduct(p) {
   const features = Array.isArray(p?.details?.key_features) ? p.details.key_features : [];
   const hasBarcode =
     Array.isArray(p?.identification?.barcodes) && p.identification.barcodes.length > 0;
+  const attrs = p?.details?.attributes;
+  const attrCount =
+    attrs && typeof attrs === 'object'
+      ? (Array.isArray(attrs) ? attrs.length : Object.keys(attrs).length)
+      : 0;
   const score =
     (looksUnknown(brand) ? 2 : 0) +
-    (title.trim().length < 45 || looksUnknown(title) ? 2 : 0) +
-    (desc.trim().length < 200 ? 1 : 0) +
-    (features.length < 4 ? 1 : 0) +
+    (title.trim().length < 60 || looksUnknown(title) ? 2 : 0) +
+    (desc.trim().length < 260 ? 2 : 0) +
+    (features.length < 5 ? 1 : 0) +
     (!cat.includes('>') ? 1 : 0) +
+    (attrCount < 5 ? 1 : 0) +
     (!hasBarcode ? 1 : 0);
   return score >= 3;
 }
 
 async function prefetchWebEvidenceForIdentify({ barcodeList = [], ocrTextSnippets = [], locale = 'de-DE' } = {}) {
+  // SerpAPI-free web evidence (best-effort).
+  // We only provide URL/title plus a tiny excerpt from fetched pages (no hallucinations).
   const queries = [];
   barcodeList.slice(0, 3).forEach((code) => {
-    if (code && String(code).trim().length >= 8) queries.push(String(code).trim());
+    const c = String(code || '').trim();
+    if (c && c.length >= 8) queries.push(c);
   });
   const ocrLine = (ocrTextSnippets || []).find((l) => typeof l === 'string' && l.trim().length >= 8) || '';
-  if (ocrLine) {
-    queries.push(ocrLine.trim().slice(0, 120));
-  }
+  if (ocrLine) queries.push(ocrLine.trim().slice(0, 120));
 
   const unique = Array.from(new Set(queries)).slice(0, 3);
   if (!unique.length) return null;
 
   const blocks = [];
   for (const q of unique) {
-    try {
-      const raw = await callSerpApi('google', { q, num: 8 });
-      const items = summarizeSerpEntries('google', raw, 6);
-      const compact = items.map((it) => ({
-        title: it.title,
-        source: it.source,
-        url: it.url,
-        snippet: it.snippet,
-      }));
-      blocks.push({ engine: 'google', query: q, items: compact });
-    } catch (err) {
-      blocks.push({ engine: 'google', query: q, error: err?.message || String(err) });
+    const search = await searchWeb(q, { limit: 6, locale });
+    const items = [];
+    for (const r of (search.results || []).slice(0, 4)) {
+      const url = r?.url;
+      if (!url) continue;
+      const page = await fetchPageText(url, { timeoutMs: 25_000 });
+      const excerpt = page.ok ? String(page.text || '').slice(0, 600) : '';
+      items.push({
+        title: r.title || '',
+        url,
+        via: page.via,
+        status: page.status,
+        excerpt,
+      });
     }
-    // Optional: marketplace-specific context
-    try {
-      const raw = await callSerpApi('ebay_product', { q, num: 6 });
-      const items = summarizeSerpEntries('ebay_product', raw, 4);
-      const compact = items.map((it) => ({
-        title: it.title,
-        source: it.source,
-        url: it.url,
-        snippet: it.snippet,
-      }));
-      blocks.push({ engine: 'ebay_product', query: q, items: compact });
-    } catch (err) {
-      // ignore if unsupported for a query
-    }
+    blocks.push({
+      engine: search.engine,
+      query: q,
+      search_url: search.url,
+      items,
+      error: search.ok ? null : (search.error || 'search_failed'),
+    });
   }
 
-  return JSON.stringify(
-    {
-      locale,
-      fetched_at: new Date().toISOString(),
-      blocks,
-    },
-    null,
-    2
-  );
+  return JSON.stringify({ locale, fetched_at: new Date().toISOString(), blocks }, null, 2);
 }
 
 function parseModelJson(response) {
@@ -1169,7 +1165,7 @@ const DATASHEET_REVIEW_SCHEMA = {
   },
 };
 
-function buildReviewPrompt(product, locale) {
+function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues = [] } = {}) {
   const snapshot = {
     id: product?.id,
     brand: product?.identification?.brand,
@@ -1184,16 +1180,21 @@ function buildReviewPrompt(product, locale) {
 
   return [
     'Du bist ein Marketplace-Quality-Inspector für eBay und Amazon. Deine Aufgabe: prüfe das vorliegende Produktdatenblatt und liefere eine korrigierte, maximal verkaufsstarke Version.',
-    buildCommonPolicyText({ locale, allowWebEvidence: false }),
+    buildCommonPolicyText({ locale, allowWebEvidence: Boolean(webEvidence) }),
     '',
     'Zusatzregeln für Review:',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Keine Aufzählungen.',
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
     '- Zustand: Wenn condition_locked=false, ist "Gebraucht/Used" nicht erlaubt (auf NEU normalisieren).',
+    '- Wenn das Datenblatt nicht eBay-ready ist, musst du es reparieren (fehlende Felder ergänzen, Mindestlängen erfüllen).',
+    qualityIssues && qualityIssues.length
+      ? `Quality-Issues (müssen behoben werden): ${qualityIssues.join(', ')}`
+      : null,
+    webEvidence ? 'WEB-EVIDENZ (nur wenn enthalten):\n' + (typeof webEvidence === 'string' ? webEvidence : JSON.stringify(webEvidence, null, 2)) : null,
     'Rückgabe ausschließlich gemäß JSON Schema.',
     'Vorliegender Datensatz:',
     JSON.stringify(snapshot, null, 2),
-  ].join('\n\n');
+  ].filter(Boolean).join('\n\n');
 }
 
 function applyReviewResult(product, review) {
@@ -1262,7 +1263,7 @@ function applyReviewResult(product, review) {
   }
 }
 
-async function runDatasheetReview(products = [], { locale = 'de-DE' } = {}) {
+async function runDatasheetReview(products = [], { locale = 'de-DE', webEvidence = null, qualityIssuesById = null } = {}) {
   if (!Array.isArray(products) || !products.length) return;
   // Use Thinking model for deep quality assurance
   const reviewModel = resolveModel(null, 'REVIEW_MODEL', 'gemini-2.5-flash');
@@ -1282,7 +1283,15 @@ async function runDatasheetReview(products = [], { locale = 'de-DE' } = {}) {
       };
 
       const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: buildReviewPrompt(product, locale) }] }],
+        contents: [{
+          role: "user",
+          parts: [{
+            text: buildReviewPrompt(product, locale, {
+              webEvidence,
+              qualityIssues: qualityIssuesById && product?.id ? (qualityIssuesById[product.id] || []) : [],
+            })
+          }]
+        }],
         generationConfig
       });
 
@@ -1750,7 +1759,40 @@ async function runProductIdentification({
 
   const manualBarcodes = normalizeBarcodeList(parseBarcodes(barcodes));
   const ocrPayload = await extractOcrPayload(files);
-  const barcodeList = mergeBarcodeLists(manualBarcodes, ocrPayload.barcodes || []);
+
+  // WEB CONFIRM (strict): OCR barcodes are only accepted when confirmed by web evidence.
+  // This prevents random OCR numbers (dates/serials) from poisoning identifiers.
+  const WEB_CONFIRM = (process.env.BARCODE_WEB_CONFIRM || 'true').toString().toLowerCase() !== 'false';
+  const productHints = {
+    brand: '',
+    mpn: '',
+    title: '',
+  };
+  if (improveContext && typeof improveContext === 'string') {
+    // best-effort: improveContext includes "Aktueller Titel"/"Marke"
+    const brandLine = improveContext.match(/Marke:\s*(.+)/i);
+    const titleLine = improveContext.match(/Aktueller Titel:\s*(.+)/i);
+    if (brandLine?.[1]) productHints.brand = String(brandLine[1]).trim();
+    if (titleLine?.[1]) productHints.title = String(titleLine[1]).trim();
+  }
+
+  let ocrBarcodes = Array.isArray(ocrPayload?.barcodes) ? ocrPayload.barcodes : [];
+  let webConfirmTrace = null;
+  if (WEB_CONFIRM && !skipExternalSearch && ocrBarcodes.length) {
+    if (onProgress) await onProgress('barcode_web_confirm');
+    const { confirmed, trace } = await filterBarcodesByWebConfirm({
+      barcodes: ocrBarcodes,
+      brand: productHints.brand,
+      mpn: productHints.mpn,
+      title: productHints.title,
+      locale,
+      maxCandidates: parseInt(process.env.BARCODE_WEB_CONFIRM_MAX_CANDIDATES || '3', 10),
+    });
+    ocrBarcodes = confirmed;
+    webConfirmTrace = trace;
+  }
+
+  const barcodeList = mergeBarcodeLists(manualBarcodes, ocrBarcodes || []);
   const { imageParts, hostedImages } = await prepareImages(files);
 
   // Gemini Multimodal Input Preparation
@@ -1801,6 +1843,7 @@ async function runProductIdentification({
     improveContext,
     ocrTextSnippets: ocrPayload.textSnippets || [],
     ocrNumericValues: ocrPayload.numericValues || [],
+    webEvidence: webConfirmTrace ? JSON.stringify({ type: 'barcode_web_confirm', trace: webConfirmTrace }, null, 2) : null,
   });
   geminiParts.push({ text: userPrompt });
 
@@ -1966,10 +2009,53 @@ async function runProductIdentification({
   // Final Review
   await runDatasheetReview(bundle.products, { locale });
 
+  // Post-review repair pass (only for failing products).
+  // Goal: make Identify strong enough so Improve isn't needed just to fill basic listing fields.
+  const qualityById = {};
+  const issuesById = {};
+  const failing = [];
+  for (const p of bundle.products || []) {
+    const q = evaluateEbayReady(p);
+    qualityById[p?.id || Math.random().toString(36)] = q;
+    if (!q.ok) {
+      failing.push(p);
+      if (p?.id) issuesById[p.id] = q.issues;
+    }
+  }
+
+  if (!skipExternalSearch && failing.length) {
+    // Provide additional web evidence for the repair pass (based on OCR + any confirmed barcodes).
+    let repairWebEvidence = null;
+    try {
+      repairWebEvidence = await prefetchWebEvidenceForIdentify({
+        barcodeList,
+        ocrTextSnippets: ocrPayload.textSnippets || [],
+        locale,
+      });
+    } catch {
+      repairWebEvidence = null;
+    }
+
+    await runDatasheetReview(failing, {
+      locale,
+      webEvidence: repairWebEvidence,
+      qualityIssuesById: issuesById,
+    });
+  }
+
   return {
     bundle,
     serpTrace,
     modelUsed: targetModelName,
+    qualityReport: (bundle.products || []).map((p) => {
+      const q = evaluateEbayReady(p);
+      return {
+        id: p?.id,
+        ok: q.ok,
+        issues: q.issues,
+        snapshot: q.snapshot,
+      };
+    }),
   };
 }
 

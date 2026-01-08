@@ -25,7 +25,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const fetch = require('node-fetch');
+// Node 18+ provides global fetch. Keep node-fetch optional for older runtimes.
+const fetch = global.fetch || require('node-fetch');
 const PQueue = require('p-queue').default || require('p-queue');
 const { getAllProducts, getProduct, saveProduct } = require('../lib/firestore');
 const { isValidGtin, getGtinType, normalizeDigits } = require('../lib/gtin');

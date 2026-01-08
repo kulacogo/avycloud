@@ -17,6 +17,7 @@ const {
 } = require('../lib/firestore');
 const { ensureProductSku } = require('../lib/sku');
 const { computeProductIdentityKey, buildIdentityAliasSet } = require('../lib/product-identity');
+const { evaluateEbayReady } = require('../lib/datasheet-quality');
 
 const CONCURRENCY = parseInt(process.env.ID_QUEUE_CONCURRENCY || '3', 10);
 const MAX_ATTEMPTS = parseInt(process.env.ID_JOB_MAX_ATTEMPTS || '3', 10);
@@ -33,16 +34,13 @@ const normalizeBarcodeValue = (value) =>
     .trim();
 
 function hasMinimalIdentification(product = {}) {
+  // kept for legacy debugging; Identify jobs now require ebay-ready outputs before saving.
   const name = product.identification?.name?.trim() || '';
-  const brand = product.identification?.brand?.trim() || '';
   const hasName = name.length >= 3 && !/^unbekannt$/i.test(name);
-  const hasBrand = brand.length >= 2 && !/^unbekannt$/i.test(brand);
-  const hasBarcode =
-    Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0;
   const hasImage =
     Array.isArray(product.details?.images) &&
     product.details.images.some((img) => img && (img.url_or_base64 || img.url || img.href));
-  return hasName && (hasBrand || hasBarcode || hasImage);
+  return hasName && hasImage;
 }
 
 function buildDedupeKey(product) {
@@ -296,9 +294,15 @@ async function processJob(jobId) {
           }
           dedupeKeys.add(dedupeKey);
 
-          if (!hasMinimalIdentification(product)) {
+          // HARD QUALITY GATE:
+          // We do NOT persist identify outputs that are not "eBay-ready".
+          // This prevents a workflow where empty datasheets are created and later "fixed" by Improve.
+          const quality = evaluateEbayReady(product);
+          if (!quality.ok) {
+            const hint = JSON.stringify(quality.snapshot);
+            const issues = quality.issues.join(',');
             throw new Error(
-              `Identification incomplete (name/brand/barcode/image missing or 'Unbekannt') for product ${product.id || 'n/a'}`
+              `Identify output not ebay-ready for product ${product.id || 'n/a'} (issues=${issues}) snapshot=${hint}`
             );
           }
 

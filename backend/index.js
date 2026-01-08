@@ -1277,6 +1277,7 @@ app.post('/api/identify', upload.array('images'), async (req, res) => {
       model: result.modelUsed,
       data: result.bundle,
       serpTrace: result.serpTrace,
+      qualityReport: result.qualityReport || [],
     });
   } catch (error) {
     console.error('Error in /api/identify:', error);

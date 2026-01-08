@@ -1,0 +1,118 @@
+id,sku,last_saved_source,issues,title_len,desc_len,features,attrs,category
+00442039661193,SKU-7225351886,script-condition-normalize,description_missing,75,0,7,15,Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Tischsets
+0099557e-b9f0-45a4-9c7c-d6418e7daac5,SKU-2250869990,ui,description_too_short,74,177,5,9,Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung
+07901010300000,SKU-2097206690,script-condition-normalize,description_missing,70,0,7,19,"Auto & Motorrad: Teile > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Autoradios"
+1004200304684,SKU-4955195373,ui,description_too_short,77,240,6,12,"Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+14f93c3a-6902-4da3-8a00-991a13958570,SKU-2064038107,category-review-csv,description_too_short,80,233,5,12,Handys & Kommunikation > Handy-Zubehör > Taschen & Schutzhüllen
+20220424000047,SKU-6511282128,title-normalize,description_too_short,74,54,7,18,"Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Mauspads & Handgelenkauflagen"
+20240129000072,SKU-4603086544,category-review-csv,description_missing,77,0,6,14,"Auto & Motorrad: Teile > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Auto DVD Player"
+2024080701046,SKU-0545917168,category-review-csv,description_too_short,76,167,7,12,Heimwerker > Werkzeuge > Messwerkzeuge & Messgeräte > Messschieber
+2312388888888,SKU-5446097686,category-review-csv,description_missing,79,0,7,15,Uhren & Schmuck > Juwelierbedarf > Reinigungsgeräte & -materialien
+2452014202112,SKU-6761538665,unknown,description_missing,76,0,7,25,Auto & Motorrad: Teile > Autoteile & Zubehör > Innenausstattung
+247e01a5-fa99-4b01-be0a-fefbe97a145d,SKU-3050715048,category-review-csv,description_missing,76,0,6,13,Heimwerker > Werkzeuge > Handwerkzeuge > Schraubenschlüssel > Steckschlüssel
+31080024102010,SKU-2941051529,ui,description_too_short,78,190,5,13,Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben
+3154020086005,SKU-4303462818,category-review-csv,description_missing,78,0,6,15,Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör
+3558380099390,SKU-2522561568,category-review-csv,description_missing,77,0,6,15,Spielzeug > Spiele > Kartenspiele > Moderne Kartenspiele
+4004133669093,SKU-0200958470,unknown,attributes_too_few,70,851,6,4,Sport > Fitness & Jogging > Kleingeräte & Zubehör > Trinkflaschen
+4006094887004,SKU-1892441877,script-condition-normalize,description_too_short,78,238,6,34,Spielzeug > Holzspielzeug > Ritterburgen
+4013594537810,SKU-3704607179,category-review-csv,description_missing,70,0,5,12,Baby > Spielzeug > Holzspielzeug
+4040074053454,SKU-0333689520,ui,description_missing,80,0,7,35,Auto & Motorrad: Teile > Autoteile & Zubehör > Federung & Lenkung > Stoßdämpfer- & Federbeinhalterungen
+4040074137246,SKU-9078406333,category-review-csv,description_missing,74,0,5,17,Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile > Inspektionspakete & -kits
+4040074266946,SKU-6074840029,category-review-csv,description_too_short,77,187,5,18,"Auto & Motorrad: Teile > Autoteile & Zubehör > Getriebe & Antriebstechnik > Antriebswellengelenke, Achsmanschetten & Tei"
+4052138007280,SKU-8414659629,script-condition-normalize,description_too_short,76,253,6,16,"Haushaltsgeräte > Kaffee-, Tee- & Espressomaschinen > Filter-Kaffeemaschinen"
+4053202268477,SKU-2191775022,ui,description_too_short,78,244,5,12,"Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Automatikgetriebeöl"
+4063541990120,SKU-4973901806,category-review-csv,description_too_short,76,174,7,15,Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Freizeithemden & Shirts
+4063544208888,SKU-1747542074,script-condition-normalize,description_missing,78,0,6,28,Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > T-Shirts
+4078500055604,SKU-1803692252,category-review-csv,description_too_short,79,145,6,13,Garten & Terrasse > Motor-Gartengeräte & -zubehör
+4100420037412,SKU-7902875633,ui,description_too_short,80,248,7,14,"Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+4100420206474,SKU-4309949637,title-normalize,description_missing,73,0,7,13,"Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+4260443571086,SKU-9713309170,category-review-csv,description_too_short,74,242,7,17,"Computer, Tablets & Netzwerk > Kabel & Steckverbinder"
+45005591930000,SKU-6587967689,script-condition-normalize,description_missing,79,0,7,21,Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Kupplungsteile & -sätze > Kup
+48fe16c6-bdc6-42f6-862e-fc9eb4962c93,SKU-3756924465,script-condition-normalize,description_too_short,77,200,6,11,Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremskraftverstärker & -regler
+4906958001464,SKU-2966583160,category-review-csv,description_missing,70,0,6,15,Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Elektrik & Zündungen > Batterien
+4909500898543,SKU-2019632072,title-normalize,description_missing,70,0,6,16,Auto & Motorrad: Teile > Autoteile & Zubehör > Federung & Lenkung
+5010996282880,SKU-4519918204,category-review-csv,description_missing,77,0,6,12,Spielzeug > Action-Figuren & Zubehör > Action- & Spielfiguren
+5011987005952,SKU-9425624573,ui,description_too_short,71,174,6,12,"Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+5055350245538,SKU-9039614531,ui,description_too_short,79,241,5,13,"Auto & Motorrad: Teile > Quad-, SSV- & UTV-Teile & -Zubehör > Verkleidungen & Rahmen > Verkleidungen, Türen & Kotflügel "
+5055350248140,SKU-7417485934,category-review-csv,description_too_short,77,239,6,14,Sport > Angelsport > Kleines Angelzubehör > Bleie
+52820776-34bb-4776-b728-06c521593d3a,SKU-1489693054,ui,description_too_short|highlights_too_few,76,221,3,8,Möbel & Wohnen > Hochzeitsdekoration > Gastgeschenke
+54c1a366-798b-42bf-9014-95729468c623,SKU-4252129103,category-review-csv,description_missing,78,0,6,17,Möbel & Wohnen > Haushalt > Putzgeräte > Reinigungshandschuhe
+5702017153599,SKU-9272258811,script-condition-normalize,description_too_short,77,255,7,17,Baby > Spielzeug > Badespielzeug
+5702017567501,SKU-9904325113,script-condition-normalize,description_missing,80,0,7,15,Spielzeug > Bausets & Konstruktion > LEGO (R) Konstruktionsspielzeuge > LEGO (R) Komplette Sets & Packs
+5713487061277,SKU-1466301102,category-review-csv,description_missing,78,0,7,26,Möbel & Wohnen > Dekoration > Deko-Accessoires
+5715335047020,SKU-8921872481,category-review-csv,description_too_short,78,184,5,8,Spielzeug > Musik & Instrumente > Trommeln & Co.
+578c3341-658b-46d1-b419-b4ce60b534a5,SKU-9688561402,ui,description_missing,76,0,6,19,"Heimwerker > Heizen, Klima & Sanitär > Wasser > Ventile"
+5820082016105,SKU-5753016417,barcode-rollback,description_missing,74,0,6,22,"Auto & Motorrad: Teile > Autoteile & Zubehör > Innenausstattung > Fußmatten, Teppiche & Laderaumwannen"
+60539f7f-f556-4103-bc2c-cc17f5a455c3,SKU-6274769815,ui,description_too_short,79,172,7,12,"Computer, Tablets & Netzwerk > Kabel & Steckverbinder > Netzwerkkabel & Adapter > Splitter, Koppler & Adapter"
+61cb13b8-ef09-4959-821e-c2d63fcd8038,SKU-9014992269,category-review-csv,description_too_short|highlights_too_few,78,173,4,21,Sport > Radsport > Fahrradzubehör > Beleuchtung & Reflektoren
+6941057422886,SKU-6216530722,ui,description_too_short,74,194,6,16,Sport > Camping & Outdoor > Outdoor Schlafausrüstung > Luftmatratzen & Isomatten
+6957303824717,SKU-9003235487,category-review-csv,description_too_short,80,229,6,15,"Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Ständer, Halter & Autohalterungen"
+7212913647233,SKU-3606468262,ui,description_too_short,75,199,5,23,Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben
+7649988997723,SKU-3130743576,ui,description_missing,78,0,7,12,Auto & Motorrad: Teile > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Lufterfrischer
+7b442083-e5d5-43c0-92ef-76c6432fe919,SKU-5120624450,unknown,description_missing,77,0,6,23,Auto & Motorrad: Teile > Autoteile & Zubehör > Innenausstattung
+8004815313234,SKU-1316800430,category-review-csv,description_too_short,77,240,6,12,Auto & Motorrad: Teile > Spezielle Fahrzeug-Teile > Pkw-Anhänger Ersatzteile > Stützen & Keile
+8052694010041,SKU-2801069572,unknown,attributes_too_few,78,774,6,2,Büro & Schreibwaren > Schulbedarf
+8088208802015,SKU-6543182729,category-review-csv,description_too_short,79,213,6,14,"Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettlaken"
+81715585302754,SKU-3938831828,category-review-csv,description_too_short,78,229,7,16,Baby > Ernährung > Kindergeschirr & -besteck
+81717285233178,SKU-5764056320,category-review-csv,description_too_short,78,211,7,13,"Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettwäsche"
+83e404aa-90ab-4ebe-a933-039625bb1df9,SKU-7193466241,ui,description_too_short,77,208,5,12,"Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier > Tintenpatronen"
+849e919f-0898-4df7-8fbb-e141c351cba4,SKU-2969022222,category-review-csv,description_too_short,76,160,7,11,"Möbel & Wohnen > Badezimmer > Badezimmerzubehör > Badvorleger, Teppiche & Toilettensitzabdeckungen"
+8712013813820,SKU-8805500495,category-review-csv,description_too_short,73,115,6,21,Sport > Camping & Outdoor > Camping-Küchenbedarf > Campinggeschirr
+8717475102703,SKU-7333529126,category-review-csv,description_missing,80,0,5,20,"Auto & Motorrad: Teile > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Außenspiegel & Teile > Außenspiegel"
+8719115000028,SKU-8798489036,ui,description_too_short,79,216,6,21,Business & Industrie > Großhandel & Sonderposten > Kleidung & Accessoires(Posten) > Herrenbekleidung > Unterwäsche
+8720245556002,SKU-7977735758,script-condition-normalize,category_not_breadcrumb,74,662,7,18,Bekleidung
+8720676510376,SKU-2005525534,script-condition-normalize,category_not_breadcrumb,75,821,6,13,Damen Shapewear
+8b41bda6-bc97-4d34-8644-f081c7d180cb,SKU-2629282795,ui,description_missing,70,0,6,11,Büro & Schreibwaren > Büromöbel > Schränke & Regale > Aktenschränke
+90090043468127,SKU-3310911465,title-normalize,description_missing,70,0,6,11,"Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+9e35f9b4-5df8-4db7-9dd7-31e4491488ef,SKU-6469360404,category-review-csv,description_too_short,75,207,7,22,"Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettlaken"
+SKU-0310087435,SKU-0310087435,title-normalize,highlights_too_few,72,757,0,18,"Möbel & Wohnen > Bettwaren, -wäsche & Matratzen"
+SKU-1181918814,SKU-1181918814,title-normalize,attributes_too_few,70,889,6,2,"Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Füllfederhalter"
+SKU-1618101796,SKU-1618101796,unknown,highlights_too_few,73,787,0,14,Heimwerker > Werkzeuge > Handwerkzeuge > Schraubenschlüssel
+SKU-1887574140,SKU-1887574140,title-normalize,attributes_too_few,79,896,6,4,Sport > Camping & Outdoor > Camping-Küchenbedarf > Campinggeschirr
+SKU-1937479862,SKU-1937479862,title-normalize,highlights_too_few,77,809,0,26,"Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Accessoires > Krawatten, -schals & Fliegen"
+SKU-2114384722,SKU-2114384722,title-normalize,highlights_too_few,71,770,0,19,Kleidung & Accessoires > Damen > Damen-Accessoires > Sonnenbrillen & Zubehör > Sonnenbrillen
+SKU-2417212434,SKU-2417212434,unknown,highlights_too_few,71,877,0,18,Spielzeug > Playmobil > Freizeit
+SKU-2636479706,SKU-2636479706,category-review-csv,highlights_too_few,78,792,0,17,"Garten & Terrasse > Pflanzenpflege, Boden & Zubehör > Frostschutz"
+SKU-2638568297,SKU-2638568297,unknown,highlights_too_few,73,924,0,26,Sport > Fitness & Jogging > Fitness- & Laufschuhe
+SKU-3095199472,SKU-3095199472,title-normalize,highlights_too_few,75,986,0,25,Sport > Golf > Golfbekleidung > Herren-Golfbekleidung > Golfschuhe
+SKU-3149269291,SKU-3149269291,category-review-csv,highlights_too_few,78,842,0,16,"Computer, Tablets & Netzwerk > Kabel & Steckverbinder > USB-Kabel, -Hubs & -Adapter"
+SKU-3475457190,SKU-3475457190,unknown,highlights_too_few,73,824,0,17,Baby > Kinderwagen & Zubehör > Kinderwagenzubehör > Sitzauflagen
+SKU-4008377248,SKU-4008377248,title-normalize,highlights_too_few,73,730,0,5,Sport > Fitness & Jogging > Yoga & Pilates
+SKU-4433223955,SKU-4433223955,title-normalize,highlights_too_few,77,714,0,6,Sport > Fitness & Jogging > Yoga & Pilates > Yogamatten
+SKU-4660262942,SKU-4660262942,title-normalize,highlights_too_few,79,877,0,29,Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker
+SKU-4679981655,SKU-4679981655,title-normalize,highlights_too_few|attributes_too_few,71,892,0,3,Büro & Schreibwaren > Schulbedarf > Schul- & Jugendschreibgeräte > Bleistifte
+SKU-4919757592,SKU-4919757592,barcode-rollback,highlights_too_few,77,765,0,20,Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Freizeithemden & Shirts
+SKU-4930006198,SKU-4930006198,ui,highlights_too_few,74,865,0,16,"Auto & Motorrad: Teile > Autoteile & Zubehör > Klima- & Heizungsanlagen > Klimaleitungen, -schläuche & Anschlüsse"
+SKU-4990478200,SKU-4990478200,category-review-csv,highlights_too_few,71,917,0,25,Möbel & Wohnen > Kochen & Genießen > Töpfe & Pfannen > Woks
+SKU-5462953053,SKU-5462953053,title-normalize,highlights_too_few,76,984,0,10,Auto & Motorrad: Fahrzeuge > Motorräder > Roller
+SKU-5658638116,SKU-5658638116,unknown,highlights_too_few|attributes_too_few,80,802,0,2,"Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Filzstifte"
+SKU-5674295862,SKU-5674295862,title-normalize,attributes_too_few,77,935,6,3,Sport > Radsport > Fahrradzubehör
+SKU-5740939127,SKU-5740939127,category-review-csv,highlights_too_few,76,831,0,22,Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Servierplatten & -schalen
+SKU-5795572847,SKU-5795572847,title-normalize,attributes_too_few,72,859,6,3,Sport > Camping & Outdoor > Zelte & Strandmuscheln > Strandmuscheln
+SKU-6427883146,SKU-6427883146,category-review-csv,highlights_too_few,73,806,0,22,Sport > Radsport > Fahrradzubehör > Schlösser & Sicherheit
+SKU-6673544963,SKU-6673544963,bulk-table,highlights_too_few,80,803,0,31,Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker
+SKU-6830410442,SKU-6830410442,category-review-csv,highlights_too_few,76,838,0,24,"Heimwerker > Heizen, Klima & Sanitär > Heizungs-, Klima- & Sanitärprüfgeräte > Rohrinstallations-Sets"
+SKU-6847456474,SKU-6847456474,title-normalize,attributes_too_few,72,687,6,2,Büro & Schreibwaren > Büromöbel > Sitzmöbel
+SKU-7237772440,SKU-7237772440,unknown,attributes_too_few,77,807,6,4,Sport > Radsport > Fahrradzubehör
+SKU-7543211550,SKU-7543211550,unknown,highlights_too_few,75,822,0,29,Kleidung & Accessoires > Herren > Herrenschuhe > Stiefel
+SKU-7961309823,SKU-7961309823,unknown,highlights_too_few,73,845,0,15,Sport > Reit- & Fahrsport > Reithelme & Schutzkleidung
+SKU-7998641824,SKU-7998641824,barcode-rollback,highlights_too_few,71,835,0,10,"Musikinstrumente > Drums & Percussion > Ersatzteile > Sticks, Besen & Schlägel"
+SKU-8004480244,SKU-8004480244,category-review-csv,highlights_too_few,77,904,0,17,Haushaltsgeräte > Klimaanlagen & Heizgeräte > Ventilatoren & Luftbehandlung > Stand- & Tischventilatoren
+SKU-8317603092,SKU-8317603092,unknown,highlights_too_few,70,1418,0,29,Baby > Bettausstattung > Matratzenschoner & -auflagen
+SKU-8483173682,SKU-8483173682,ui,highlights_too_few,70,858,0,21,Briefmarken > Motive > Geschichte
+SKU-8747609895,SKU-8747609895,unknown,highlights_too_few,72,943,0,15,Auto & Motorrad: Fahrzeuge > Motorräder > Roller
+SKU-9035689627,SKU-9035689627,title-normalize,attributes_too_few,74,857,6,2,Büro & Schreibwaren > Schulbedarf
+SKU-9146759920,SKU-9146759920,bulk-table,highlights_too_few,71,921,0,34,Kleidung & Accessoires > Damen > Damenschuhe
+SKU-9428729031,SKU-9428729031,title-normalize,highlights_too_few,76,809,0,20,Beauty & Gesundheit > Enthaarung & Rasur > Rasierer & Rasierklingen > Herren Rasierklingen
+SKU-9603350817,SKU-9603350817,barcode-rollback,highlights_too_few|attributes_too_few,80,815,0,4,"Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Schreiben & Korrigieren > Füllfederhalter"
+SKU-9787450821,SKU-9787450821,category-review-csv,highlights_too_few,77,919,0,15,Haushaltsgeräte > Kleingeräte Küche > Nudelmaschinen
+SKU-9834509499,SKU-9834509499,title-normalize,highlights_too_few,77,787,0,14,Möbel & Wohnen > Kindermöbel & Wohnen > Badzubehör & -textilien
+a52ad537-120e-426d-9887-f873d36bcdaa,SKU-3264592188,ui,category_not_breadcrumb,76,741,6,10,Fahrradzubehör
+ab8921aa-074a-4d89-beb7-b4236133851e,SKU-8463577445,script-condition-normalize,description_too_short,78,227,7,21,Heimwerker > Elektromaterial > LED Streifen
+ad08f46f-d233-4c4f-b5c5-bc803ce5018e,SKU-5748131128,ui,description_too_short,78,177,6,7,Auto & Motorrad: Teile > Spezielle Fahrzeug-Teile > Pkw-Anhänger Ersatzteile > Karosserie & Fahrwerk
+b17bc8c9-7097-40af-ba51-02491a3cb01e,SKU-8799542495,ui,title_too_short,65,725,6,14,Kostüme & Verkleidungen > Kinderkostüme
+b82f2e03-f4e9-4cef-8984-364a6a8cfc8e,SKU-3350934915,category-review-csv,description_too_short,73,179,6,27,Garten & Terrasse > Beleuchtung > Garten- & Terrassenfackeln
+c02f6527-8651-429c-8022-31eb90f6aaaa,SKU-0716100821,category-review-csv,description_missing,78,0,7,15,"Auto & Motorrad: Teile > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör > Motorrad- & Motorsporthelme"
+e29c131f-ec89-434c-b216-90f28330918d,SKU-6854747447,category-review-csv,description_missing,70,0,7,26,"Auto & Motorrad: Teile > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör"
+e73c69ce-6582-4454-adab-52b418a775d0,SKU-5599844775,script-condition-normalize,description_too_short,80,225,6,16,Spielzeug > Lernspielzeug
+ea75ec18-8ebd-4623-8b72-bdc796af7bfb,SKU-1536365981,category-review-csv,description_too_short,72,161,6,12,Möbel & Wohnen > Kochen & Genießen > Backbleche & -formen
