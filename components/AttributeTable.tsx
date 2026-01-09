@@ -5,9 +5,10 @@ interface AttributeTableProps {
   attributes: Record<string, any>;
   isEditing?: boolean;
   onChange?: (next: Record<string, any>) => void;
+  highlightKeys?: Set<string> | string[];
 }
 
-const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing = false, onChange }) => {
+const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing = false, onChange, highlightKeys }) => {
   const formatValue = (value: any) => {
     if (value === null || value === undefined) return '';
     if (typeof value === 'string') return value;
@@ -53,6 +54,12 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
   ];
   const ALWAYS_HIDE_KEYS = ['k-typ', 'ktyp', 'k typ'];
   const MAX_VALUE_LENGTH = 160;
+  const highlightSet = (() => {
+    if (!highlightKeys) return new Set<string>();
+    if (highlightKeys instanceof Set) return new Set(Array.from(highlightKeys).map((k) => String(k || '').toLowerCase()));
+    if (Array.isArray(highlightKeys)) return new Set(highlightKeys.map((k) => String(k || '').toLowerCase()));
+    return new Set<string>();
+  })();
   const displayEntries = isEditing
     ? attributeEntries.filter(([key]) => !ALWAYS_HIDE_KEYS.includes((key || '').toLowerCase()))
     : attributeEntries.filter(([key, value]) => {
@@ -118,15 +125,28 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
       <table className="w-full">
         <tbody className="divide-y divide-slate-700">
           {displayEntries.map(([key, value]) => (
-            <tr key={key}>
-              <td className="py-3 pr-4 font-medium text-slate-400 w-1/3">
+            <tr key={key} className={highlightSet.has(String(key || '').toLowerCase()) ? 'bg-amber-500/10' : ''}>
+              <td
+                className={`py-3 pr-4 font-medium w-1/3 ${highlightSet.has(String(key || '').toLowerCase()) ? 'text-amber-200' : 'text-slate-400'
+                  }`}
+              >
                 {isEditing ? (
-                  <input defaultValue={key} onBlur={(e) => renameKey(key, e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-slate-200" />
+                  <input
+                    defaultValue={key}
+                    onBlur={(e) => renameKey(key, e.target.value)}
+                    className={`w-full bg-slate-700 border rounded px-2 py-1 text-slate-200 ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-slate-600'
+                      }`}
+                  />
                 ) : key}
               </td>
               <td className="py-3 pl-4 text-slate-200">
                 {isEditing ? (
-                  <input defaultValue={formatValue(value)} onBlur={(e) => updateAttr(key, e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-slate-200" />
+                  <input
+                    defaultValue={formatValue(value)}
+                    onBlur={(e) => updateAttr(key, e.target.value)}
+                    className={`w-full bg-slate-700 border rounded px-2 py-1 text-slate-200 ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-slate-600'
+                      }`}
+                  />
                 ) : formatValue(value)}
               </td>
               {isEditing && (

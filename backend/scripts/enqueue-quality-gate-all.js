@@ -5,6 +5,7 @@
  * Usage:
  *   node backend/scripts/enqueue-quality-gate-all.js --limit 50
  *   node backend/scripts/enqueue-quality-gate-all.js --all
+ *   node backend/scripts/enqueue-quality-gate-all.js --all --force
  *
  * Notes:
  * - Requires backend/services/quality-runner.js to be running (backend server starts it).
@@ -16,10 +17,11 @@ const { createJob } = require('../lib/quality-jobs');
 const crypto = require('crypto');
 
 function parseArgs(argv) {
-  const out = { all: false, limit: 100 };
+  const out = { all: false, limit: 100, force: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--all') out.all = true;
+    if (a === '--force') out.force = true;
     if (a === '--limit') out.limit = parseInt(argv[i + 1], 10), (i += 1);
   }
   return out;
@@ -42,14 +44,14 @@ async function main() {
         locale: p.locale || 'de-DE',
         reason: 'bulk',
         requestedBy: 'script',
-        force: false,
+        force: Boolean(args.force),
       },
       jobId
     );
     enqueued += 1;
   }
 
-  console.log(`[enqueue-quality-gate-all] enqueued ${enqueued} quality jobs (limit=${limit})`);
+  console.log(`[enqueue-quality-gate-all] enqueued ${enqueued} quality jobs (limit=${limit}, force=${Boolean(args.force)})`);
 }
 
 main().catch((err) => {

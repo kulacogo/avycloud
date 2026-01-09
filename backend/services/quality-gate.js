@@ -50,6 +50,61 @@ function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
 }
 
+function normalizeLower(v) {
+  return safeString(v).toLowerCase();
+}
+
+function isUnknownValue(v) {
+  const s = normalizeLower(v);
+  return (
+    !s ||
+    s === 'unbekannt' ||
+    s === 'unknown' ||
+    s === 'n/a' ||
+    s === 'na' ||
+    s === '-' ||
+    s === '—' ||
+    s === '--' ||
+    s === 'null' ||
+    s === 'undefined'
+  );
+}
+
+function findAttrValue(attrs, candidatesLower = []) {
+  const obj = attrs && typeof attrs === 'object' ? attrs : {};
+  const wanted = new Set((candidatesLower || []).map((x) => String(x || '').trim().toLowerCase()).filter(Boolean));
+  for (const key of Object.keys(obj)) {
+    const lower = String(key || '').trim().toLowerCase();
+    if (!wanted.has(lower)) continue;
+    const value = safeString(obj[key]);
+    if (!value) continue;
+    return { key, value };
+  }
+  return null;
+}
+
+function normalizeAttrValue(v) {
+  return safeString(v).replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function extractWeightsKgFromText(text) {
+  const out = [];
+  const t = String(text || '').replace(/\u00a0/g, ' ');
+  // kg / kilogramm
+  for (const m of t.matchAll(/(\d{1,3}(?:[.,]\d{1,3})?)\s*(kg|kilogramm)\b/gi)) {
+    const raw = (m[1] || '').replace(',', '.');
+    const n = Number.parseFloat(raw);
+    if (Number.isFinite(n) && n > 0 && n < 500) out.push(n);
+  }
+  // g → kg (ignore tiny values)
+  for (const m of t.matchAll(/(\d{2,6}(?:[.,]\d{1,3})?)\s*g\b/gi)) {
+    const raw = (m[1] || '').replace(',', '.');
+    const n = Number.parseFloat(raw);
+    if (Number.isFinite(n) && n > 10 && n < 500000) out.push(n / 1000);
+  }
+  return out;
+}
+
 function sanitizeValue(value) {
   if (value === undefined) return undefined;
   if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
@@ -83,13 +138,27 @@ function pickPrimaryBarcode(product) {
 
 function buildEvidenceQuery(product) {
   const ids = product?.details?.identifiers || {};
-  const brand = safeString(product?.identification?.brand);
-  const mpn = safeString(ids.mpn) || safeString(product?.details?.attributes?.Herstellernummer);
+  const attrs = product?.details?.attributes || {};
+  const idBrandRaw = safeString(product?.identification?.brand);
+  const attrBrand = findAttrValue(attrs, ['marke', 'brand', 'hersteller', 'manufacturer']);
+  const brand = !isUnknownValue(idBrandRaw)
+    ? idBrandRaw
+    : attrBrand?.value && !isUnknownValue(attrBrand.value)
+      ? attrBrand.value
+      : '';
+
+  const mpn =
+    safeString(ids.mpn) ||
+    safeString(findAttrValue(attrs, ['herstellernummer', 'mpn', 'modellnummer', 'model', 'modell'])?.value);
   const barcode = pickPrimaryBarcode(product);
-  const title = safeString(product?.identification?.name).replace(/\bSKU[\s\-_]?\d+\b/gi, ' ').slice(0, 120);
+  const title = safeString(product?.identification?.name)
+    .replace(/\bSKU[\s\-_]?\d+\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120);
   if (barcode) return `${barcode} ${brand} ${mpn}`.trim();
   if (brand && mpn) return `${brand} ${mpn}`.trim();
-  if (mpn) return `${mpn} ${brand}`.trim();
+  if (mpn) return `${mpn} ${brand} ${title}`.trim().slice(0, 160);
   return `${brand} ${title}`.trim();
 }
 
@@ -168,9 +237,14 @@ async function compressImagePart({ base64, mimeType }) {
   }
 }
 
-function buildRuleIssues(product) {
+function buildRuleIssues(product, { webEvidence } = {}) {
   const q = evaluateEbayReady(product);
   const issues = [];
+  const details = product?.details || {};
+  const attrs = details?.attributes && typeof details.attributes === 'object' ? details.attributes : {};
+  const titleLower = normalizeLower(product?.identification?.name);
+  const categoryLower = normalizeLower(product?.identification?.category);
+  const descLower = normalizeLower(details?.short_description || details?.description);
 
   const map = (code) => {
     const base = { code, source: 'rule', confidence: 0.95 };
@@ -208,6 +282,145 @@ function buildRuleIssues(product) {
       source: 'rule',
       confidence: 0.9,
     });
+  }
+
+  // Category plausibility (high-signal): prevent obvious branch mistakes like E‑Scooter under "Fahrzeuge > Automobile"
+  const isAutomobileBranch = categoryLower.includes('fahrzeuge') && categoryLower.includes('automobile');
+  const looksLikeEScooter =
+    /\be[-\s]?scooter\b/.test(titleLower) ||
+    /\bescooter\b/.test(titleLower) ||
+    /\be[-\s]?roller\b/.test(titleLower) ||
+    /\btrottinett\b/.test(titleLower) ||
+    /\bscooter\b/.test(titleLower) ||
+    /\be[-\s]?scooter\b/.test(descLower) ||
+    /\be[-\s]?roller\b/.test(descLower);
+  if (isAutomobileBranch && looksLikeEScooter) {
+    issues.push({
+      code: 'category_implausible_vehicle_branch',
+      severity: 'error',
+      fields: ['identification.category', 'details.categoryId'],
+      message: 'Kategorie wirkt wie PKW/Automobile, aber Produkt/Titel deutet klar auf E‑Scooter/Scooter hin. Bitte Kategorie prüfen.',
+      source: 'rule',
+      confidence: 0.9,
+    });
+  }
+
+  // Duplicate / redundant attributes with identical values (e.g. "Schutzart=IPX5" and "Spritzwasserschutz=IPX5")
+  if (attrs && typeof attrs === 'object') {
+    const ignoredKeys = new Set(['ean', 'gtin', 'upc', 'sku', 'k-typ', 'ktyp', 'k typ', 'weight']);
+    const groups = new Map();
+    for (const [k, v] of Object.entries(attrs)) {
+      const keyLower = String(k || '').trim().toLowerCase();
+      if (!k || ignoredKeys.has(keyLower)) continue;
+      const norm = normalizeAttrValue(v);
+      if (!norm || norm.length < 3) continue;
+      const g = groups.get(norm) || { value: safeString(v), keys: [] };
+      g.keys.push(String(k));
+      groups.set(norm, g);
+    }
+    for (const [valNorm, g] of groups.entries()) {
+      if (!g?.keys || g.keys.length < 2) continue;
+      const keys = g.keys.slice(0, 6);
+      const isIpRating = /^ipx?\d/i.test(valNorm) || /^ip\d{2}/i.test(valNorm);
+      issues.push({
+        code: isIpRating ? 'attributes_duplicate_ip_rating' : 'attributes_duplicate_value',
+        severity: 'warn',
+        fields: keys.map((k) => `details.attributes.${k}`),
+        message: `Redundante Attribute: gleicher Wert "${g.value}" in ${keys.join(', ')}.`,
+        source: 'rule',
+        confidence: 0.85,
+      });
+    }
+  }
+
+  // Brand plausibility: mismatch between identification.brand and attribute brand / unverified brand without evidence
+  const attrBrand = findAttrValue(attrs, ['marke', 'brand', 'hersteller', 'manufacturer']);
+  const idBrandRaw = safeString(product?.identification?.brand);
+  if (idBrandRaw && isUnknownValue(idBrandRaw)) {
+    issues.push({
+      code: 'brand_unknown',
+      severity: 'warn',
+      fields: ['identification.brand'],
+      message: 'Marke/Hersteller ist "Unbekannt" – bitte prüfen/ergänzen.',
+      source: 'rule',
+      confidence: 0.8,
+    });
+  }
+  if (attrBrand?.value) {
+    const idBrandNorm = normalizeLower(idBrandRaw);
+    const attrBrandNorm = normalizeLower(attrBrand.value);
+    if (!idBrandRaw || isUnknownValue(idBrandRaw) || (idBrandNorm && attrBrandNorm && idBrandNorm !== attrBrandNorm)) {
+      issues.push({
+        code: 'brand_inconsistent',
+        severity: 'warn',
+        fields: ['identification.brand', `details.attributes.${attrBrand.key}`],
+        message: `Marke inkonsistent: identification.brand="${idBrandRaw || '—'}", ${attrBrand.key}="${attrBrand.value}".`,
+        source: 'rule',
+        confidence: 0.85,
+      });
+    }
+  }
+  const candidateBrand = !isUnknownValue(idBrandRaw) ? idBrandRaw : safeString(attrBrand?.value);
+  if (candidateBrand && !isUnknownValue(candidateBrand) && !bar) {
+    const pages = Array.isArray(webEvidence?.pages) ? webEvidence.pages : [];
+    const evidenceText = pages
+      .filter((p) => p?.ok)
+      .map((p) => String(p?.excerpt || ''))
+      .join('\n')
+      .toLowerCase();
+    if (evidenceText && !evidenceText.includes(candidateBrand.toLowerCase())) {
+      issues.push({
+        code: 'brand_unverified_web',
+        severity: 'warn',
+        fields: ['identification.brand', 'identification.name'],
+        message: `Marke "${candidateBrand}" ist ohne Barcode nicht durch Web-Evidenz bestätigt (Brand nicht in Quellen gefunden).`,
+        evidence_urls: pages.filter((p) => p?.ok && p?.url).slice(0, 5).map((p) => p.url),
+        source: 'rule',
+        confidence: 0.45,
+      });
+    }
+  }
+
+  // Weight plausibility: compare stored bucket weight with web evidence or high-signal keywords.
+  const storedWeight = Number(attrs?.weight || details?.weight || 0);
+  const hasStoredWeight = Number.isFinite(storedWeight) && storedWeight > 0;
+  const pages = Array.isArray(webEvidence?.pages) ? webEvidence.pages : [];
+  const weightHits = [];
+  for (const p of pages.filter((x) => x?.ok)) {
+    const weights = extractWeightsKgFromText(p?.excerpt || '');
+    for (const kg of weights.slice(0, 3)) {
+      if (Number.isFinite(kg) && kg > 0) weightHits.push({ kg, url: p?.url });
+    }
+  }
+  const bestEvidenceKg = weightHits.length ? Math.max(...weightHits.map((h) => h.kg)) : null;
+  if (hasStoredWeight && bestEvidenceKg && (bestEvidenceKg >= storedWeight * 3 || bestEvidenceKg - storedWeight >= 5)) {
+    issues.push({
+      code: 'weight_mismatch_web',
+      severity: 'warn',
+      fields: ['details.attributes.weight'],
+      message: `Gewicht wirkt unplausibel: gespeichert ~${storedWeight}kg, Web-Evidenz ~${bestEvidenceKg.toFixed(2)}kg.`,
+      evidence_urls: Array.from(new Set(weightHits.map((h) => h.url).filter(Boolean))).slice(0, 5),
+      source: 'rule',
+      confidence: 0.7,
+    });
+  } else if (hasStoredWeight && storedWeight <= 2) {
+    const heavyKeyword =
+      /\bräucher/.test(titleLower) ||
+      /\bsmoker\b/.test(titleLower) ||
+      /\bgrill\b/.test(titleLower) ||
+      /\bofen\b/.test(titleLower) ||
+      /\bkamin\b/.test(titleLower) ||
+      /\bweber\b/.test(titleLower);
+    if (heavyKeyword) {
+      issues.push({
+        code: 'weight_suspicious_low',
+        severity: 'warn',
+        fields: ['details.attributes.weight'],
+        message: `Gewicht wirkt zu niedrig (${storedWeight}kg) für Produkt-Typ (z.B. Ofen/Smoker/Grill). Bitte prüfen.`,
+        source: 'rule',
+        confidence: 0.65,
+      });
+    }
   }
 
   return { ok: q.ok && issues.filter((i) => i.severity === 'error').length === 0, issues, snapshot: q.snapshot };
@@ -283,6 +496,10 @@ function buildLlmPrompt({ product, webEvidence, ruleIssues, locale }) {
     '',
     'AUFGABE:',
     '- Prüfe das Datenblatt ganzheitlich auf Fehler, fehlende Pflichtinfos, falsche Bilder, unplausible Werte.',
+    '- Prüfe, ob die Kategorie plausibel zum Produkttyp passt (z.B. E‑Scooter darf nicht unter "Fahrzeuge > Automobile" landen).',
+    '- Prüfe, ob Marke/Hersteller/Modell durch Web-Evidenz oder Barcode/Label belegbar ist; sonst WARN mit niedriger confidence.',
+    '- Erkenne redundante Attribute (gleicher Inhalt in mehreren Keys) und widersprüchliche Angaben.',
+    '- Prüfe Plausibilität typischer Zahlenwerte (z.B. Gewicht, Maße, Spannung/Leistung) gegen Web-Evidenz.',
     '- Vergleiche ausschließlich mit der beigefügten WEB-EVIDENZ (URLs + Excerpts) und den beigefügten Bildern.',
     '- Wenn du etwas nicht sicher verifizieren kannst: issue mit severity="warn" und niedriger confidence, KEINE Behauptungen.',
     '',
@@ -371,7 +588,7 @@ async function runQualityGateForProduct(productId, { locale = 'de-DE', reason = 
     return null;
   });
 
-  const rule = buildRuleIssues(product);
+  const rule = buildRuleIssues(product, { webEvidence });
 
   let llm = null;
   if (USE_LLM) {

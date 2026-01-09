@@ -134,10 +134,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return window.sessionStorage.getItem('avystock:admin-table:filterCategory') || 'all';
   });
-  const [filterInventoryId, setFilterInventoryId] = useState(() => {
-    if (typeof window === 'undefined') return 'all';
-    return window.sessionStorage.getItem('avystock:admin-table:filterInventoryId') || 'all';
-  });
   const [filterStock, setFilterStock] = useState<'all' | 'inStock' | 'outOfStock'>(() => {
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterStock') as 'all' | 'inStock' | 'outOfStock') || 'all';
@@ -174,9 +170,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterAvailable') as any) || 'all';
   });
-  const [filterEbayCategory, setFilterEbayCategory] = useState<'all' | 'withEbayCategory' | 'missingEbayCategory'>(() => {
+  const [filterQuality, setFilterQuality] = useState<
+    'all' | 'notChecked' | 'ok' | 'warn' | 'error' | 'issues'
+  >(() => {
     if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterEbayCategory') as any) || 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterQuality') as any) || 'all';
   });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(() => {
     if (typeof window === 'undefined') return { key: 'ops.last_saved_iso', direction: 'desc' };
@@ -184,7 +182,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
       const raw = window.sessionStorage.getItem('avystock:admin-table:sort');
       if (!raw) return { key: 'ops.last_saved_iso', direction: 'desc' };
       const parsed = JSON.parse(raw);
-      if (parsed?.key && parsed?.direction) return parsed;
+      if (parsed?.key && parsed?.direction) {
+        const migratedKey =
+          parsed.key === 'ops.data_quality.last_quality_gate_iso' ? 'qualityGate.sort_score' : parsed.key;
+        return { key: migratedKey, direction: parsed.direction };
+      }
       return { key: 'ops.last_saved_iso', direction: 'desc' };
     } catch {
       return { key: 'ops.last_saved_iso', direction: 'desc' };
@@ -399,7 +401,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       {
         id: 'qualityGate',
         label: 'Quality',
-        sortKey: 'ops.data_quality.last_quality_gate_iso',
+        sortKey: 'qualityGate.sort_score',
         defaultVisible: true,
         widthClass: 'w-28',
         render: ({ product }) => {
@@ -410,12 +412,22 @@ const AdminTable: React.FC<AdminTableProps> = ({
           const issues = Array.isArray(gate.issues) ? gate.issues : [];
           const errors = issues.filter((i: any) => i?.severity === 'error').length;
           const warns = issues.filter((i: any) => i?.severity === 'warn').length;
-          const ok = gate.ok === true && errors === 0;
+          const ok = errors === 0 && warns === 0 && issues.length === 0;
           const title = gate.summary || (issues.length ? `Issues: ${issues.map((i: any) => i?.code).filter(Boolean).slice(0, 6).join(', ')}` : 'OK');
           if (ok) {
             return (
               <span title={title} className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                 OK
+              </span>
+            );
+          }
+          if (errors === 0 && warns > 0) {
+            return (
+              <span
+                title={title}
+                className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/15 text-amber-200 border border-amber-500/30"
+              >
+                W{warns}
               </span>
             );
           }
@@ -718,10 +730,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
       const matchesStatus = filterStatus === 'all' || normalizedStatus === filterStatus;
       const productCategory = p.identification?.category || 'Unbekannt';
       const matchesCategory = filterCategory === 'all' || productCategory === filterCategory;
-      const matchesInventory =
-        filterInventoryId === 'all' ||
-        (p.inventory?.inventoryId != null &&
-          String(p.inventory.inventoryId).trim() === String(filterInventoryId).trim());
       const quantity = getProductQuantity(p) || 0;
       const matchesStock =
         filterStock === 'all' ||
@@ -785,12 +793,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterAvailable === 'available' && availableQuantity > 0) ||
         (filterAvailable === 'notAvailable' && availableQuantity <= 0);
 
-      const hasEbayCategory = Boolean((p.details as any)?.categoryId);
-      const matchesEbayCategory =
-        filterEbayCategory === 'all' ||
-        (filterEbayCategory === 'withEbayCategory' && hasEbayCategory) ||
-        (filterEbayCategory === 'missingEbayCategory' && !hasEbayCategory);
-
       const percent = p.completeness?.percent ?? 0;
       const isComplete = p.completeness?.complete === true;
       const matchesCompleteness =
@@ -800,11 +802,25 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterCompleteness === 'lt80' && percent < 80) ||
         (filterCompleteness === 'lt50' && percent < 50);
 
+      const gate: any = (p as any)?.ops?.data_quality?.quality_gate_v1;
+      const gateIssues = Array.isArray(gate?.issues) ? gate.issues : [];
+      const gateErrors = gateIssues.filter((i: any) => i?.severity === 'error').length;
+      const gateWarns = gateIssues.filter((i: any) => i?.severity === 'warn').length;
+      const gateHas = Boolean(gate);
+      const gateOk = gateHas && gateErrors === 0 && gateWarns === 0 && gateIssues.length === 0;
+      const gateHasIssues = gateHas && gateIssues.length > 0;
+      const matchesQuality =
+        filterQuality === 'all' ||
+        (filterQuality === 'notChecked' && !gateHas) ||
+        (filterQuality === 'ok' && gateOk) ||
+        (filterQuality === 'warn' && gateHas && gateErrors === 0 && gateWarns > 0) ||
+        (filterQuality === 'error' && gateHas && gateErrors > 0) ||
+        (filterQuality === 'issues' && gateHasIssues);
+
       return (
         matchesSearch &&
         matchesStatus &&
         matchesCategory &&
-        matchesInventory &&
         matchesStock &&
         matchesBin &&
         matchesBinSplit &&
@@ -813,8 +829,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         matchesWeight &&
         matchesReserved &&
         matchesAvailable &&
-        matchesEbayCategory &&
-        matchesCompleteness
+        matchesCompleteness &&
+        matchesQuality
       );
     });
 
@@ -822,6 +838,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
         const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
       const getSortValue = (product: Product, key: string) => {
         switch (key) {
+          case 'qualityGate.sort_score': {
+            const gate: any = (product as any)?.ops?.data_quality?.quality_gate_v1;
+            if (!gate) return 100000; // "nicht geprüft" → last in asc, first in desc
+            const issues = Array.isArray(gate.issues) ? gate.issues : [];
+            const errors = issues.filter((i: any) => i?.severity === 'error').length;
+            const warns = issues.filter((i: any) => i?.severity === 'warn').length;
+            // Higher = worse. errors dominate, then warns.
+            return errors * 1000 + warns * 10 + (issues.length ? 1 : 0);
+          }
           case 'details.pricing.lowest_price.amount':
             return Number(product.details?.pricing?.lowest_price?.amount || 0);
           case 'inventory.quantity':
@@ -861,7 +886,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     searchTerm,
     filterStatus,
     filterCategory,
-    filterInventoryId,
     filterStock,
     filterBin,
     filterBinSplit,
@@ -870,8 +894,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     filterWeight,
     filterReserved,
     filterAvailable,
-    filterEbayCategory,
     filterCompleteness,
+    filterQuality,
     sortConfig,
   ]);
 
@@ -1171,7 +1195,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setSearchTerm('');
     setFilterStatus('all');
     setFilterCategory('all');
-    setFilterInventoryId('all');
     setFilterStock('all');
     setFilterBin('all');
     setFilterBinSplit('all');
@@ -1181,7 +1204,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterWeight('all');
     setFilterReserved('all');
     setFilterAvailable('all');
-    setFilterEbayCategory('all');
+    setFilterQuality('all');
     setPageSize(50);
     setCurrentPage(1);
   };
@@ -1199,8 +1222,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, [filterCategory]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterInventoryId', filterInventoryId);
-  }, [filterInventoryId]);
+    window.sessionStorage.setItem('avystock:admin-table:filterQuality', filterQuality);
+  }, [filterQuality]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterStock', filterStock);
@@ -1237,10 +1260,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterAvailable', filterAvailable);
   }, [filterAvailable]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterEbayCategory', filterEbayCategory);
-  }, [filterEbayCategory]);
+  // Note: legacy filters (inventoryId, eBay category) removed to reduce UI clutter.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:pageSize', String(pageSize));
@@ -1324,17 +1344,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
           <option value="lt50">&lt; 50%</option>
         </select>
         <select
-          id="table-filter-inventory"
-          value={filterInventoryId}
-          onChange={(e) => setFilterInventoryId(e.target.value)}
+          id="table-filter-quality"
+          value={filterQuality}
+          onChange={(e) => setFilterQuality(e.target.value as any)}
           className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
         >
-          <option value="all">{t('table.inventoryFilter.all')}</option>
-          {inventories.map((inv) => (
-            <option key={inv.inventoryId} value={inv.inventoryId}>
-              {inv.name} ({inv.inventoryId})
-            </option>
-          ))}
+          <option value="all">Quality: Alle</option>
+          <option value="notChecked">Quality: nicht geprüft</option>
+          <option value="ok">Quality: OK</option>
+          <option value="warn">Quality: WARN</option>
+          <option value="error">Quality: ERROR</option>
+          <option value="issues">Quality: Issues</option>
         </select>
         <select
           value={columnPreset}
@@ -1422,16 +1442,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <option value="all">Bins: Alle</option>
             <option value="singleBin">Bins: 1 BIN</option>
             <option value="multiBin">Bins: mehrere BINs</option>
-          </select>
-          <select
-            id="table-filter-ebay-category"
-            value={filterEbayCategory}
-            onChange={(e) => setFilterEbayCategory(e.target.value as any)}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-          >
-            <option value="all">eBay-Kategorie: Alle</option>
-            <option value="withEbayCategory">eBay-Kategorie: vorhanden</option>
-            <option value="missingEbayCategory">eBay-Kategorie: fehlt</option>
           </select>
         </div>
       </details>

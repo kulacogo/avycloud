@@ -905,7 +905,29 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const qualityGate = (localProduct as any)?.ops?.data_quality?.quality_gate_v1;
   const qualityIssues = Array.isArray(qualityGate?.issues) ? qualityGate.issues : [];
-  const qualityHasErrors = qualityIssues.some((i: any) => i?.severity === 'error');
+  const qualityErrorCount = useMemo(
+    () => qualityIssues.filter((i: any) => i?.severity === 'error').length,
+    [qualityIssues]
+  );
+  const qualityWarnCount = useMemo(
+    () => qualityIssues.filter((i: any) => i?.severity === 'warn').length,
+    [qualityIssues]
+  );
+  const qualityHasErrors = qualityErrorCount > 0;
+  const qualityHasWarns = qualityErrorCount === 0 && qualityWarnCount > 0;
+  const qualityAttributeHighlightKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const issue of qualityIssues) {
+      const fields = Array.isArray(issue?.fields) ? issue.fields : [];
+      for (const f of fields) {
+        if (typeof f !== 'string') continue;
+        if (!f.startsWith('details.attributes.')) continue;
+        const key = f.slice('details.attributes.'.length);
+        if (key) set.add(key);
+      }
+    }
+    return set;
+  }, [qualityIssues]);
   const hasQualityIssue = useCallback(
     (prefix: string) =>
       qualityIssues.some((issue: any) =>
@@ -1091,14 +1113,19 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       ) : (
                         <span className="text-[11px] text-slate-500">noch nicht geprüft</span>
                       )}
-                      {qualityGate?.ok === true && (
+                      {qualityGate && qualityErrorCount === 0 && qualityWarnCount === 0 && qualityIssues.length === 0 && (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/30 text-[11px]">
                           OK
                         </span>
                       )}
-                      {qualityGate?.ok === false && (
+                      {qualityGate && qualityHasWarns && (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 border border-amber-500/30 text-[11px]">
+                          W{qualityWarnCount}
+                        </span>
+                      )}
+                      {qualityGate && qualityHasErrors && (
                         <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-200 border border-red-500/30 text-[11px]">
-                          {qualityIssues.length} Issues
+                          E{qualityErrorCount}{qualityWarnCount ? ` W${qualityWarnCount}` : ''}
                         </span>
                       )}
                     </div>
@@ -1109,7 +1136,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     onClick={runQualityGate}
                     disabled={qualityBusy}
                     className={`px-3 py-1.5 rounded-md text-xs font-semibold ${
-                      qualityHasErrors ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-slate-700 text-slate-100 hover:bg-slate-600'
+                      qualityHasErrors
+                        ? 'bg-red-600 text-white hover:bg-red-500'
+                        : qualityHasWarns
+                          ? 'bg-amber-600 text-white hover:bg-amber-500'
+                          : 'bg-slate-700 text-slate-100 hover:bg-slate-600'
                     } ${qualityBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
                     title="Quality Gate manuell ausführen"
                   >
@@ -1403,6 +1434,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             <AttributeTable
               attributes={localProduct.details.attributes}
               isEditing={isEditing}
+              highlightKeys={qualityAttributeHighlightKeys}
               onChange={(next) => {
                 setLocalProduct(prev => ({ ...prev, details: { ...prev.details, attributes: next } }));
                 setIsDirty(true);
