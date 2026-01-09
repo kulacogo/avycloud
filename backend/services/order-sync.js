@@ -1,6 +1,6 @@
 const { callBaseLinker } = require('../lib/baselinker');
 const { getSecrets } = require('../lib/secrets');
-const { saveOrders, getOrderById, updateOrder } = require('../lib/firestore');
+const { saveOrders, getOrderById, updateOrder, listOrdersByStatus } = require('../lib/firestore');
 const { decrementProductByIdOrSku } = require('../lib/warehouse');
 
 // Increase lookback to ensure older shipped/picked orders are included for stock cleanup
@@ -256,6 +256,33 @@ async function syncNewOrders() {
   const pickedDateFrom = Math.floor(Date.now() / 1000) - pickedLookback * 24 * 60 * 60;
   if (baseOrderStatusPicked) {
     orders.push(...(await fetchByStatus({ statusId: baseOrderStatusPicked, dateFromCursor: pickedDateFrom })));
+  }
+
+  // IMPORTANT (official docs):
+  // getOrders supports "order_id" to fetch exactly one specific order.
+  // We use this to refresh any cached "open/new" orders that might have moved to another status
+  // (e.g. cancelled) and would otherwise stay stuck in Firestore.
+  try {
+    const openCached = await listOrdersByStatus('new', 200);
+    const uniqueIds = Array.from(
+      new Set(
+        (openCached || [])
+          .map((o) => o?.baselinkerId || o?.id)
+          .filter(Boolean)
+          .map((v) => String(v))
+      )
+    ).slice(0, 200);
+
+    for (const id of uniqueIds) {
+      const numericId = Number(id);
+      if (!Number.isFinite(numericId) || numericId <= 0) continue;
+      const response = await callBaseLinker('getOrders', { order_id: numericId, get_unconfirmed_orders: false });
+      const raw = Array.isArray(response?.orders) ? response.orders : [];
+      if (!raw.length) continue;
+      orders.push(...raw.map(mapBaseLinkerOrder));
+    }
+  } catch (error) {
+    console.warn('Failed to refresh open orders by order_id:', error?.message || error);
   }
 
   // Post-process statuses using resolved names to classify picked/closed

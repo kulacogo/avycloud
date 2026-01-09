@@ -72,6 +72,12 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
         return true;
       });
 
+  const formatKeyLabel = (key: string) => {
+    const lower = String(key || '').trim().toLowerCase();
+    if (lower === 'weight') return 'Gewicht';
+    return key;
+  };
+
   const updateAttr = (key: string, value: string) => {
     if (!onChange) return;
     const next = { ...(attributes || {}) };
@@ -137,7 +143,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
                     className={`w-full bg-slate-700 border rounded px-2 py-1 text-slate-200 ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-slate-600'
                       }`}
                   />
-                ) : key}
+                ) : formatKeyLabel(key)}
               </td>
               <td className="py-3 pl-4 text-slate-200">
                 {isEditing ? (

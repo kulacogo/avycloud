@@ -1715,6 +1715,21 @@ async function listOrders(limit = 50) {
   return snapshot.docs.map((doc) => doc.data());
 }
 
+async function listOrdersByStatus(status, limit = 200) {
+  const normalized = String(status || '').trim();
+  if (!normalized) return [];
+  const capped = Math.min(Math.max(Number(limit) || 0, 1), 500);
+  const snapshot = await firestore
+    .collection(ORDERS_COLLECTION)
+    .where('status', '==', normalized)
+    .limit(capped)
+    .get();
+  const rows = snapshot.docs.map((doc) => doc.data());
+  // Best-effort stable ordering without requiring a composite index.
+  rows.sort((a, b) => String(b?.createdAt || '').localeCompare(String(a?.createdAt || '')));
+  return rows;
+}
+
 /**
  * Aggregate order counts across the entire orders collection.
  * Picks are detected by:
@@ -2133,6 +2148,7 @@ module.exports = {
   removeProductIdentityAliases,
   saveOrders,
   listOrders,
+  listOrdersByStatus,
   getOrderSummary,
   getDashboardMetrics,
   getOrderById,
