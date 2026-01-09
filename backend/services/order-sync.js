@@ -1,6 +1,6 @@
 const { callBaseLinker } = require('../lib/baselinker');
 const { getSecrets } = require('../lib/secrets');
-const { saveOrders, getOrderById, updateOrder, listOrdersByStatus } = require('../lib/firestore');
+const { saveOrders, getOrderById, updateOrder, listOrders, listOrdersByStatus } = require('../lib/firestore');
 const { decrementProductByIdOrSku } = require('../lib/warehouse');
 
 // Increase lookback to ensure older shipped/picked orders are included for stock cleanup
@@ -10,9 +10,11 @@ const MAX_ORDER_PAGES = 1000; // safety guard
 const ORDER_STATUS_ID_CACHE = {
   new: null,
   picked: null,
+  cancelled: null,
 };
 
 const DEFAULT_PICKED_STATUS_ID = '363183'; // BaseLinker status "Kommissioniert"
+const DEFAULT_CANCELLED_LABEL = 'Storniert';
 const ORDER_STATUS_NAME_CACHE = {
   byId: new Map(), // string id -> name
   loadedAtMs: 0,
@@ -147,11 +149,9 @@ function mapBaseLinkerOrder(entry) {
     // IMPORTANT:
     // - order_source_id is the SOURCE/SHOP id (often constant), NOT an order number.
     // - Prefer external_order_id / shop_order_id when available; otherwise fallback to BaseLinker order_id.
-    number:
-      entry?.external_order_id ||
-      entry?.shop_order_id ||
-      entry?.external_invoice_number ||
-      String(entry.order_id),
+    // Display order number: always unique and stable.
+    // Prefer external_order_id when present, otherwise fallback to BaseLinker order_id.
+    number: entry?.external_order_id || entry?.external_invoice_number || String(entry.order_id),
     customer: {
       name: entry?.delivery_fullname || entry?.invoice_fullname || entry?.buyer || 'Unbekannt',
       city: entry?.delivery_city || entry?.invoice_city || null,
@@ -203,6 +203,25 @@ async function syncNewOrders() {
     console.warn(
       'No BaseLinker status for "new" orders could be resolved – falling back to all confirmed orders within the lookback window.'
     );
+  }
+
+  // Resolve "cancelled" status to ensure cancelled orders are removed from "open" UI.
+  let baseOrderStatusCancelled = normalizeStatusIdInput(secrets.baseOrderStatusCancelled);
+  if (baseOrderStatusCancelled) {
+    ORDER_STATUS_ID_CACHE.cancelled = baseOrderStatusCancelled;
+  } else if (!ORDER_STATUS_ID_CACHE.cancelled) {
+    const labelFallback =
+      typeof secrets.baseOrderStatusCancelled === 'string' && secrets.baseOrderStatusCancelled.trim()
+        ? secrets.baseOrderStatusCancelled.trim()
+        : null;
+    baseOrderStatusCancelled = await resolveOrderStatusIdByName(
+      'cancelled',
+      labelFallback ? undefined : 'BASE_ORDER_STATUS_CANCELLED_NAME',
+      labelFallback || DEFAULT_CANCELLED_LABEL
+    );
+    if (baseOrderStatusCancelled) {
+      ORDER_STATUS_ID_CACHE.cancelled = baseOrderStatusCancelled;
+    }
   }
 
   const dateFrom = Math.floor(Date.now() / 1000) - DEFAULT_ORDER_LOOKBACK_DAYS * 24 * 60 * 60;
@@ -258,6 +277,14 @@ async function syncNewOrders() {
     orders.push(...(await fetchByStatus({ statusId: baseOrderStatusPicked, dateFromCursor: pickedDateFrom })));
   }
 
+  // Optional: refresh recently cancelled orders, so they no longer appear as open.
+  const CANCELLED_REFRESH_DAYS = parseInt(process.env.ORDER_SYNC_CANCELLED_REFRESH_DAYS || '30', 10);
+  const cancelledLookback = Math.max(1, Math.min(CANCELLED_REFRESH_DAYS, DEFAULT_ORDER_LOOKBACK_DAYS));
+  const cancelledDateFrom = Math.floor(Date.now() / 1000) - cancelledLookback * 24 * 60 * 60;
+  if (baseOrderStatusCancelled) {
+    orders.push(...(await fetchByStatus({ statusId: baseOrderStatusCancelled, dateFromCursor: cancelledDateFrom })));
+  }
+
   // IMPORTANT (official docs):
   // getOrders supports "order_id" to fetch exactly one specific order.
   // We use this to refresh any cached "open/new" orders that might have moved to another status
@@ -287,10 +314,12 @@ async function syncNewOrders() {
 
   // Post-process statuses using resolved names to classify picked/closed
   const pickedId = ORDER_STATUS_ID_CACHE.picked || DEFAULT_PICKED_STATUS_ID;
+  const cancelledId = ORDER_STATUS_ID_CACHE.cancelled || null;
   orders.forEach((order) => {
     const rawLabel = order.statusLabel || order.orderStatus || '';
     const normalized = (rawLabel || '').toLowerCase();
     const isPickedId = order.statusId && String(order.statusId) === String(pickedId);
+    const isCancelledId = cancelledId && order.statusId && String(order.statusId) === String(cancelledId);
     const looksCancelled =
       normalized.includes('storniert') ||
       normalized.includes('cancelled') ||
@@ -301,7 +330,7 @@ async function syncNewOrders() {
     // If we know the explicit "NEW" status id, only treat matching orders as open/new.
     if (baseOrderStatusNew && order.statusId && !isNewId) {
       // Closed/picked statuses stay picked, everything else becomes "other" (not open).
-      if (isPickedId || looksCancelled) {
+      if (isPickedId || isCancelledId || looksCancelled) {
         order.status = 'picked';
       } else if (
         normalized.includes('kommissioniert') ||
@@ -326,7 +355,7 @@ async function syncNewOrders() {
 
     if (looksNew) {
       order.status = 'new';
-    } else if (isPickedId || looksCancelled) {
+    } else if (isPickedId || isCancelledId || looksCancelled) {
       order.status = 'picked';
     } else if (
       normalized.includes('kommissioniert') ||
@@ -346,6 +375,56 @@ async function syncNewOrders() {
   });
 
   await saveOrders(orders);
+
+  // Repair pass for historical cache artifacts:
+  // Older versions mistakenly stored the constant "order_source_id" (shop/source id) as order.number (e.g. 10129).
+  // This breaks UI because multiple orders appear to have the same number.
+  try {
+    const recent = await listOrders(500);
+    const fixes = (recent || [])
+      .filter((o) => o && o.id && o.raw)
+      .map((o) => ({
+        id: String(o.id),
+        number: o.number,
+        status: o.status,
+        statusLabel: o.statusLabel,
+        statusId: o.statusId,
+        rawSourceId: o.raw?.order_source_id,
+        rawExternal: o.raw?.external_order_id,
+        rawOrderId: o.raw?.order_id,
+      }))
+      .filter((o) => {
+        const sourceId = o.rawSourceId != null ? String(o.rawSourceId) : '';
+        const num = o.number != null ? String(o.number) : '';
+        return sourceId && num && num === sourceId;
+      })
+      .slice(0, 200);
+
+    for (const f of fixes) {
+      const replacement = f.rawExternal ? String(f.rawExternal) : f.rawOrderId ? String(f.rawOrderId) : f.id;
+      await updateOrder(f.id, { number: replacement });
+    }
+  } catch (error) {
+    console.warn('Order number repair pass failed:', error?.message || error);
+  }
+
+  // Repair pass for "stuck open" cancelled orders:
+  // If an order is still cached as status=new but the status label indicates cancellation, close it locally.
+  try {
+    const openCached = await listOrdersByStatus('new', 200);
+    for (const o of openCached || []) {
+      const label = (o?.statusLabel || '').toString().toLowerCase();
+      const looksCancelled =
+        label.includes('storniert') ||
+        label.includes('cancelled') ||
+        label.includes('canceled') ||
+        label.includes('abgebrochen');
+      if (!looksCancelled) continue;
+      await updateOrder(String(o.id), { status: 'picked' });
+    }
+  } catch (error) {
+    console.warn('Cancelled-open repair pass failed:', error?.message || error);
+  }
 
   // IMPORTANT:
   // Do NOT decrement warehouse stock during order sync.

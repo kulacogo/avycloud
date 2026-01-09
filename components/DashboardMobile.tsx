@@ -371,7 +371,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
                       <div key={d.date} className="h-full flex flex-col items-center justify-end gap-1">
                         <div
                           title={`${d.date}: ${count} Orders · Umsatz ${formatCurrency(revenue, metrics?.currency || 'EUR')}`}
-                          className="w-full rounded-sm bg-sky-500/70"
+                          className="w-full rounded-[2px] bg-sky-500/70"
                           style={{ height: `${barPx}px` }}
                         />
                         <div className="text-[11px] text-slate-300 font-semibold tabular-nums">{count}</div>

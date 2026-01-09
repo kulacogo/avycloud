@@ -138,8 +138,15 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
               >
                 {isEditing ? (
                   <input
-                    defaultValue={key}
-                    onBlur={(e) => renameKey(key, e.target.value)}
+                    defaultValue={formatKeyLabel(key)}
+                    onBlur={(e) => {
+                      const nextKey = e.target.value;
+                      // Keep internal storage key stable ("weight"), but never show "weight" in UI.
+                      if (String(key || '').trim().toLowerCase() === 'weight' && String(nextKey || '').trim().toLowerCase() === 'gewicht') {
+                        return;
+                      }
+                      renameKey(key, nextKey);
+                    }}
                     className={`w-full bg-slate-700 border rounded px-2 py-1 text-slate-200 ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-slate-600'
                       }`}
                   />
