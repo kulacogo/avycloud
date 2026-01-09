@@ -178,23 +178,6 @@ function getEbayCategories() {
   return EBAY_CATEGORIES;
 }
 
-const WEIGHT_BUCKETS = [1, 3, 6, 9, 12, 15];
-function bucketWeight(value) {
-  if (value === null || value === undefined) return null;
-  const num = Number(value);
-  if (!Number.isFinite(num) || num <= 0) return null;
-  let best = WEIGHT_BUCKETS[0];
-  let bestDiff = Math.abs(num - best);
-  for (const b of WEIGHT_BUCKETS) {
-    const d = Math.abs(num - b);
-    if (d < bestDiff) {
-      best = b;
-      bestDiff = d;
-    }
-  }
-  return Number(best.toFixed(2));
-}
-
 function parseWeightKg(value) {
   if (value === null || value === undefined) return null;
   if (typeof value === 'number') {
@@ -219,6 +202,18 @@ function parseWeightKg(value) {
   }
   // No unit: apply the same heuristic as numeric inputs.
   return num > 50 ? num / 1000 : num;
+}
+
+function normalizeWeightKgNumber(value) {
+  const kg = parseWeightKg(value);
+  if (kg === null) return null;
+  if (!Number.isFinite(kg) || kg <= 0) return null;
+  // Keep as a pure number in KG (no units). Round to 2 decimals for stability.
+  const rounded = Math.round(kg * 100) / 100;
+  if (!Number.isFinite(rounded) || rounded <= 0) return null;
+  // Prefer integers when exact after rounding (e.g. 1kg -> 1).
+  if (Number.isInteger(rounded)) return rounded;
+  return Number(rounded.toFixed(2));
 }
 
 function normalizeAttributesOrder(attrs = {}) {
@@ -1142,22 +1137,32 @@ async function saveProduct(product, options = {}) {
     const existingAliases = Array.isArray(mergedOps.identity_aliases) ? mergedOps.identity_aliases.filter(Boolean) : [];
     const mergedAliases = Array.from(new Set([...existingAliases, ...aliasSet])).slice(0, 100);
 
-    // Weight bucket (overwrite as requested)
+    // Weight invariant:
+    // - Always store weight in KG as a NUMBER (no "kg" suffix, no strings).
+    // - Never invent a weight if unknown; keep it empty so Quality Gate can flag it.
     const incomingWeight =
       mergedDetails?.attributes?.weight ??
       mergedDetails?.weight ??
       mergedOps?.weight ??
       mergedAttributes?.weight;
-    const weightKg =
-      parseWeightKg(incomingWeight) ??
-      parseWeightKg(existingDetails?.attributes?.weight) ??
-      null;
-    // Guarantee: every product has an approximate shipping weight in kg (bucketed).
-    // Buckets are intentionally coarse for reliability.
-    const bucketedWeight = bucketWeight(weightKg) ?? WEIGHT_BUCKETS[0];
     if (!mergedDetails.attributes) mergedDetails.attributes = {};
-    mergedDetails.attributes.weight = bucketedWeight;
-    mergedDetails.weight = bucketedWeight;
+    const normalizedWeight =
+      normalizeWeightKgNumber(incomingWeight) ??
+      normalizeWeightKgNumber(existingDetails?.attributes?.weight) ??
+      normalizeWeightKgNumber(existingDetails?.weight) ??
+      null;
+    if (normalizedWeight === null) {
+      // Delete invalid/non-normalizable values (never persist "1 kg" or "1000g" strings).
+      if (Object.prototype.hasOwnProperty.call(mergedDetails.attributes, 'weight')) {
+        delete mergedDetails.attributes.weight;
+      }
+      if (Object.prototype.hasOwnProperty.call(mergedDetails, 'weight')) {
+        delete mergedDetails.weight;
+      }
+    } else {
+      mergedDetails.attributes.weight = normalizedWeight;
+      mergedDetails.weight = normalizedWeight;
+    }
 
     // Warehouse invariants:
     // - General product saves (LLM pipelines, admin edits, reconciliation scripts, etc.) must NEVER wipe warehouse state.
