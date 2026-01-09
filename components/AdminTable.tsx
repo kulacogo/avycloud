@@ -23,6 +23,7 @@ type ColumnId =
   | 'barcode'
   | 'price'
   | 'completeness'
+  | 'qualityGate'
   | 'inventory'
   | 'pendingIntake'
   | 'storage'
@@ -36,10 +37,10 @@ type ColumnId =
 
 type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'syncStatus', 'lastSaved'],
-  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'syncStatus', 'saveStatus'],
-  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'baselinker', 'syncStatus', 'lastSynced'],
-  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'baselinker', 'syncStatus'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'syncStatus', 'lastSaved'],
+  warehouse: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'syncStatus', 'saveStatus'],
+  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'qualityGate', 'pendingIntake', 'baselinker', 'syncStatus', 'lastSynced'],
+  minimal: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'baselinker', 'syncStatus'],
 };
 
 interface ColumnDefinition {
@@ -392,6 +393,39 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 />
               </div>
             </div>
+          );
+        },
+      },
+      {
+        id: 'qualityGate',
+        label: 'Quality',
+        sortKey: 'ops.data_quality.last_quality_gate_iso',
+        defaultVisible: true,
+        widthClass: 'w-28',
+        render: ({ product }) => {
+          const gate: any = (product as any)?.ops?.data_quality?.quality_gate_v1;
+          if (!gate) {
+            return <span className="text-[11px] text-slate-500">—</span>;
+          }
+          const issues = Array.isArray(gate.issues) ? gate.issues : [];
+          const errors = issues.filter((i: any) => i?.severity === 'error').length;
+          const warns = issues.filter((i: any) => i?.severity === 'warn').length;
+          const ok = gate.ok === true && errors === 0;
+          const title = gate.summary || (issues.length ? `Issues: ${issues.map((i: any) => i?.code).filter(Boolean).slice(0, 6).join(', ')}` : 'OK');
+          if (ok) {
+            return (
+              <span title={title} className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                OK
+              </span>
+            );
+          }
+          return (
+            <span
+              title={title}
+              className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-500/15 text-red-200 border border-red-500/30"
+            >
+              {errors ? `E${errors}` : ''}{warns ? ` W${warns}` : issues.length ? ` ${issues.length}` : ''}
+            </span>
           );
         },
       },

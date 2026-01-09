@@ -17,6 +17,8 @@ const {
 } = require('../lib/firestore');
 const { ensureProductSku } = require('../lib/sku');
 const { computeProductIdentityKey, buildIdentityAliasSet } = require('../lib/product-identity');
+const { createJob: createQualityJob } = require('../lib/quality-jobs');
+const { enqueueQualityJob } = require('./quality-runner');
 const { evaluateEbayReady } = require('../lib/datasheet-quality');
 
 const CONCURRENCY = parseInt(process.env.ID_QUEUE_CONCURRENCY || '3', 10);
@@ -307,6 +309,27 @@ async function processJob(jobId) {
           }
 
           await saveProduct(product);
+
+          // Auto-trigger Quality Gate for newly identified products.
+          try {
+            const jobId = require('crypto').randomUUID();
+            await createQualityJob(
+              {
+                payload: { productId: product.id },
+                productId: product.id,
+                productName: product.identification?.name || '',
+                locale: jobSnapshot.payload?.locale || 'de-DE',
+                reason: 'auto_after_identify',
+                requestedBy: 'identify-job',
+                force: false,
+              },
+              jobId
+            );
+            enqueueQualityJob(jobId, true);
+          } catch (qErr) {
+            console.warn(`Failed to enqueue quality job for ${product.id}:`, qErr?.message || qErr);
+          }
+
           bundleProducts[index] = product;
         } catch (saveError) {
           console.error(`Auto-Save failed for product ${product?.id || 'unknown'} in job ${jobId}:`, saveError);

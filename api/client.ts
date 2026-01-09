@@ -400,6 +400,76 @@ export const pollImproveJob = async (
   }
 };
 
+export const createQualityJobs = async (
+  productIds: string[],
+  options?: { force?: boolean; reason?: string; requestedBy?: string }
+): Promise<{ ok: boolean; data?: { jobs: Array<{ jobId: string; productId: string }>; missing?: string[] }; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/quality/jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productIds,
+        force: Boolean(options?.force),
+        reason: options?.reason || 'manual',
+        requestedBy: options?.requestedBy || 'ui',
+      }),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: {
+          code: response.status,
+          message: result?.error?.message || response.statusText || 'Quality-Jobs konnten nicht erstellt werden.',
+        },
+      };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+const fetchQualityJobStatus = async (jobId: string, signal?: AbortSignal) => {
+  const response = await fetch(`${BACKEND_URL}/api/quality/jobs/${jobId}?t=${Date.now()}`, {
+    method: 'GET',
+    signal,
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || `Failed to load quality job (${response.status})`);
+  }
+  return result?.data;
+};
+
+export const pollQualityJob = async (
+  jobId: string,
+  options?: { signal?: AbortSignal; timeoutMs?: number; pollIntervalMs?: number }
+): Promise<any> => {
+  const timeoutMs = typeof options?.timeoutMs === 'number' ? options.timeoutMs : JOB_TIMEOUT_MS;
+  const pollIntervalMs = typeof options?.pollIntervalMs === 'number' ? options.pollIntervalMs : JOB_POLL_INTERVAL_MS;
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    const job = await fetchQualityJobStatus(jobId, options?.signal);
+    if (!job) {
+      throw new Error('Quality-Job wurde nicht gefunden.');
+    }
+    if (job.status === 'done') {
+      return job.result || job;
+    }
+    if (job.status === 'failed') {
+      throw new Error(job.error?.message || 'Quality-Job ist fehlgeschlagen.');
+    }
+    if (Date.now() > deadline) {
+      throw new Error('Quality-Job hat das Zeitlimit überschritten.');
+    }
+    await wait(pollIntervalMs, options?.signal);
+  }
+};
+
 export const fetchProducts = async (): Promise<Product[]> => {
   const response = await fetch(`${BACKEND_URL}/api/products`);
   const result = await parseResponse(response);
@@ -417,6 +487,19 @@ export const fetchProducts = async (): Promise<Product[]> => {
     return result.data.map(normalizeProduct);
   }
   return [];
+};
+
+export const fetchProductById = async (productId: string): Promise<Product> => {
+  const response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}?t=${Date.now()}`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Produkt konnte nicht geladen werden.');
+  }
+  const raw = result?.product || result?.data?.product || result?.data || null;
+  if (!raw) {
+    throw new Error('Produkt konnte nicht geladen werden (empty payload).');
+  }
+  return normalizeProduct(raw);
 };
 
 export const fetchEbayCategories = async (params: {

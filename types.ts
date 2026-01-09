@@ -14,6 +14,39 @@ export interface Completeness {
   complete: boolean;
 }
 
+export type QualitySeverity = 'error' | 'warn' | 'info';
+
+export interface QualityIssue {
+  code: string;
+  severity: QualitySeverity;
+  message: string;
+  fields: string[];
+  evidence_urls?: string[];
+  confidence?: number;
+  source?: string;
+}
+
+export interface QualityGateV1 {
+  id: string;
+  version: number;
+  checked_at_iso: string;
+  duration_ms?: number;
+  ok: boolean;
+  summary?: string;
+  issues: QualityIssue[];
+  evidence?: any;
+  modelUsed?: string | null;
+  reason?: string;
+  requestedBy?: string;
+  revision_checked?: number | null;
+}
+
+export interface DataQualityOps {
+  quality_gate_v1?: QualityGateV1;
+  last_quality_gate_iso?: string;
+  [key: string]: any;
+}
+
 export interface PriceSource {
   name: string;
   url: string;
@@ -87,6 +120,8 @@ export interface Ops {
   };
   pending_intake_quantity?: number;
   revision: number;
+  data_quality?: DataQualityOps;
+  condition_locked?: boolean;
 }
 
 export interface Notes {

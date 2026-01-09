@@ -49,6 +49,8 @@ const { getSecretValue } = require('./lib/secret-values');
 const { fetchWithUnlocker } = require('./lib/web-unlocker');
 const { enqueueJob, startJobRunner } = require('./services/job-runner');
 const { enqueueImproveJob, startImproveRunner } = require('./services/improve-runner');
+const { enqueueQualityJob, startQualityRunner } = require('./services/quality-runner');
+const { createJob: createQualityJob, getJob: getQualityJob, Timestamp: QualityTimestamp, updateJob: updateQualityJob } = require('./lib/quality-jobs');
 const {
   createWarehouseLayout,
   listWarehouseZones,
@@ -727,6 +729,7 @@ const ktypeUploadMiddleware = (req, res, next) =>
 
 startJobRunner();
 startImproveRunner();
+startQualityRunner();
 syncInventoriesFromBaseLinker()
   .then((result) => {
     console.log(`Initial inventory sync completed (${result.fetched} entries)`);
@@ -2527,6 +2530,26 @@ app.post('/api/save', async (req, res) => {
       syncIdentifiersFromBarcodes: true,
     });
 
+    // Auto-trigger Quality Gate after every UI save (async via runner).
+    try {
+      const jobId = crypto.randomUUID();
+      await createQualityJob(
+        {
+          payload: { productId: product.id },
+          productId: product.id,
+          productName: product.identification?.name || '',
+          locale: product.locale || 'de-DE',
+          reason: 'auto_after_save',
+          requestedBy: 'ui',
+          force: false,
+        },
+        jobId
+      );
+      enqueueQualityJob(jobId, true);
+    } catch (qErr) {
+      console.warn('Failed to enqueue quality job after save:', qErr?.message || qErr);
+    }
+
     res.json({
       ok: true,
       data: {
@@ -3144,6 +3167,87 @@ app.get('/api/improve/jobs/:id', async (req, res) => {
     res.status(500).json({
       ok: false,
       error: { code: 500, message: 'Improve-Job konnte nicht geladen werden.', details: error.message },
+    });
+  }
+});
+
+// --- Quality Gate Jobs ---
+const MAX_QUALITY_BATCH = parseInt(process.env.MAX_QUALITY_BATCH || '50', 10);
+app.post('/api/quality/jobs', async (req, res) => {
+  try {
+    const rawIds = Array.isArray(req.body?.productIds) ? req.body.productIds : [];
+    const uniqueIds = [...new Set(rawIds.map((id) => String(id || '').trim()))].filter(Boolean);
+    if (!uniqueIds.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Es wurden keine gültigen Produkt-IDs übermittelt.' },
+      });
+    }
+    if (uniqueIds.length > MAX_QUALITY_BATCH) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: `Maximal ${MAX_QUALITY_BATCH} Produkte können gleichzeitig geprüft werden.` },
+      });
+    }
+
+    const jobs = [];
+    const missing = [];
+    for (const productId of uniqueIds) {
+      const product = await getProduct(productId);
+      if (!product) {
+        missing.push(productId);
+        continue;
+      }
+      const jobId = crypto.randomUUID();
+      await createQualityJob(
+        {
+          payload: { productId },
+          productId,
+          productName: product.identification?.name || '',
+          locale: product.locale || 'de-DE',
+          reason: req.body?.reason || 'manual',
+          requestedBy: req.body?.requestedBy || 'ui',
+          force: Boolean(req.body?.force),
+        },
+        jobId
+      );
+      enqueueQualityJob(jobId);
+      jobs.push({ jobId, productId });
+    }
+
+    if (!jobs.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Keine Quality-Jobs konnten erstellt werden (Produkte nicht gefunden).', missing },
+      });
+    }
+
+    res.json({ ok: true, data: { jobs, missing } });
+  } catch (error) {
+    console.error('Failed to create quality jobs:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Quality-Jobs konnten nicht angelegt werden.', details: error.message },
+    });
+  }
+});
+
+app.get('/api/quality/jobs/:id', async (req, res) => {
+  try {
+    const job = await getQualityJob(req.params.id);
+    if (!job) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: 404, message: 'Quality-Job wurde nicht gefunden.' },
+      });
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true, data: job });
+  } catch (error) {
+    console.error('Failed to load quality job:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Quality-Job konnte nicht geladen werden.', details: error.message },
     });
   }
 });

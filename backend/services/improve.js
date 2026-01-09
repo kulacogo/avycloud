@@ -10,6 +10,8 @@ const {
 } = require('./enrichment');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const { executeSerpapiToolCall } = require('./toolkit');
+const { createJob: createQualityJob } = require('../lib/quality-jobs');
+const { enqueueQualityJob } = require('./quality-runner');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
@@ -741,6 +743,26 @@ async function improveExistingProduct(productId, onProgress) {
     mergedProduct.details.key_features = sanitizeKeyFeatures(mergedProduct.details.key_features, 7);
   }
   await saveProduct(mergedProduct, { source: 'job-improve', overwriteTextFields: true });
+
+  // Auto-trigger Quality Gate after improve save (async).
+  try {
+    const jobId = require('crypto').randomUUID();
+    await createQualityJob(
+      {
+        payload: { productId: mergedProduct.id },
+        productId: mergedProduct.id,
+        productName: mergedProduct.identification?.name || '',
+        locale: product.locale || 'de-DE',
+        reason: 'auto_after_improve',
+        requestedBy: 'improve-job',
+        force: false,
+      },
+      jobId
+    );
+    enqueueQualityJob(jobId, true);
+  } catch (qErr) {
+    console.warn(`Failed to enqueue quality job after improve for ${mergedProduct.id}:`, qErr?.message || qErr);
+  }
 
   console.log('[improve] SUCCESS.');
   return mergedProduct;

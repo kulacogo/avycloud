@@ -9,6 +9,9 @@ import {
   stockOutProduct,
   fetchProductBins,
   generateProductImages,
+  createQualityJobs,
+  pollQualityJob,
+  fetchProductById,
   setProductInventoryId,
   openInventoryLabelWindow,
   fetchEbayCategories,
@@ -91,6 +94,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [binsLoading, setBinsLoading] = useState(false);
 
   const [binsError, setBinsError] = useState<string | null>(null);
+  const [qualityBusy, setQualityBusy] = useState(false);
+  const [qualityMessage, setQualityMessage] = useState<string | null>(null);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [selectedReferenceIndex, setSelectedReferenceIndex] = useState<number>(-1);
   const [isUploadDragActive, setIsUploadDragActive] = useState(false);
@@ -898,6 +903,38 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     return raw == null ? '' : String(raw).trim();
   }, [localProduct?.details?.attributes]);
 
+  const qualityGate = (localProduct as any)?.ops?.data_quality?.quality_gate_v1;
+  const qualityIssues = Array.isArray(qualityGate?.issues) ? qualityGate.issues : [];
+  const qualityHasErrors = qualityIssues.some((i: any) => i?.severity === 'error');
+  const hasQualityIssue = useCallback(
+    (prefix: string) =>
+      qualityIssues.some((issue: any) =>
+        Array.isArray(issue?.fields) ? issue.fields.some((f: string) => typeof f === 'string' && f.startsWith(prefix)) : false
+      ),
+    [qualityIssues]
+  );
+
+  const runQualityGate = useCallback(async () => {
+    if (qualityBusy) return;
+    setQualityBusy(true);
+    setQualityMessage(null);
+    try {
+      const created = await createQualityJobs([localProduct.id], { force: true, reason: 'manual', requestedBy: 'ui' });
+      if (!created.ok || !created.data?.jobs?.length) {
+        throw new Error(created.error?.message || 'Quality-Job konnte nicht gestartet werden.');
+      }
+      const jobId = created.data.jobs[0].jobId;
+      await pollQualityJob(jobId, { timeoutMs: 10 * 60 * 1000 });
+      const refreshed = await fetchProductById(localProduct.id);
+      onUpdate(refreshed);
+      setQualityMessage('Quality Gate abgeschlossen.');
+    } catch (error: any) {
+      setQualityMessage(error?.message || 'Quality Gate fehlgeschlagen.');
+    } finally {
+      setQualityBusy(false);
+    }
+  }, [localProduct.id, onUpdate, qualityBusy]);
+
   return (
     <section
       id="product-sheet"
@@ -918,12 +955,19 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   id="p-name"
                   value={localProduct.identification.name}
                   onChange={(e) => handleFieldChange('identification.name', e.target.value)}
-                  className="w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none border-b border-sky-500 resize-y min-h-[3.5rem] leading-tight"
+                  className={`w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none border-b resize-y min-h-[3.5rem] leading-tight ${
+                    hasQualityIssue('identification.name') ? 'border-red-400' : 'border-sky-500'
+                  }`}
                   rows={2}
                   style={{ wordBreak: 'break-word' }}
                 />
               ) : (
-                <h1 className="text-2xl sm:text-3xl font-bold break-words leading-tight" style={{ wordBreak: 'break-word' }}>
+                <h1
+                  className={`text-2xl sm:text-3xl font-bold break-words leading-tight ${
+                    hasQualityIssue('identification.name') ? 'text-red-200' : ''
+                  }`}
+                  style={{ wordBreak: 'break-word' }}
+                >
                   {localProduct.identification.name}
                 </h1>
               )}
@@ -932,7 +976,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   value={localProduct.identification.brand}
                   onChange={(e) => handleFieldChange('identification.brand', e.target.value)}
                   readOnly={!isEditing}
-                  className={`bg-transparent inline-block outline-none ${isEditing ? 'border-b border-sky-500' : ''}`}
+                  className={`bg-transparent inline-block outline-none ${
+                    isEditing ? (hasQualityIssue('identification.brand') ? 'border-b border-red-400' : 'border-b border-sky-500') : ''
+                  }`}
                 />
                 {' · '}
                 {isEditing ? (
@@ -940,7 +986,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     <input
                       value={categoryQuery}
                       onChange={(e) => setCategoryQuery(e.target.value)}
-                      className="bg-transparent border-b border-sky-500 outline-none"
+                      className={`bg-transparent border-b outline-none ${
+                        hasQualityIssue('identification.category') ? 'border-red-400' : 'border-sky-500'
+                      }`}
                       placeholder="Kategorie suchen..."
                     />
                     <select
@@ -990,7 +1038,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       setIsDirty(true);
                     }}
                     rows={Math.min(4, Math.max(2, barcodeInput.split('\n').length || 2))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200"
+                    className={`w-full bg-slate-800 border rounded-lg p-2 text-xs text-slate-200 ${
+                      hasQualityIssue('identification.barcodes') || hasQualityIssue('details.identifiers') ? 'border-red-500/60' : 'border-slate-700'
+                    }`}
                     placeholder={t('input.barcodes.placeholder')}
                   />
                   <p className="text-[11px] text-slate-500 mt-1">{t('input.barcodes.hint')}</p>
@@ -1028,6 +1078,73 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </div>
                 </div>
               )}
+
+              <div className="mt-4 border border-slate-800 rounded-lg bg-slate-950/40 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-200">Quality Gate</span>
+                      {qualityGate?.checked_at_iso ? (
+                        <span className="text-[11px] text-slate-500">
+                          {new Date(qualityGate.checked_at_iso).toLocaleString('de-DE')}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-500">noch nicht geprüft</span>
+                      )}
+                      {qualityGate?.ok === true && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/30 text-[11px]">
+                          OK
+                        </span>
+                      )}
+                      {qualityGate?.ok === false && (
+                        <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-200 border border-red-500/30 text-[11px]">
+                          {qualityIssues.length} Issues
+                        </span>
+                      )}
+                    </div>
+                    {qualityGate?.summary && <div className="text-[12px] text-slate-300 mt-1">{qualityGate.summary}</div>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={runQualityGate}
+                    disabled={qualityBusy}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold ${
+                      qualityHasErrors ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-slate-700 text-slate-100 hover:bg-slate-600'
+                    } ${qualityBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title="Quality Gate manuell ausführen"
+                  >
+                    {qualityBusy ? 'Prüfe…' : 'Prüfen'}
+                  </button>
+                </div>
+
+                {qualityMessage && <div className="text-[11px] text-slate-400 mt-2">{qualityMessage}</div>}
+
+                {qualityIssues.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {qualityIssues.slice(0, 6).map((issue: any, idx: number) => (
+                      <div key={`${issue?.code || 'issue'}-${idx}`} className="flex items-start gap-2 text-[12px]">
+                        <span
+                          className={`mt-0.5 px-1.5 py-0.5 rounded border text-[10px] uppercase ${
+                            issue?.severity === 'error'
+                              ? 'bg-red-500/15 text-red-200 border-red-500/30'
+                              : issue?.severity === 'warn'
+                                ? 'bg-amber-500/15 text-amber-200 border-amber-500/30'
+                                : 'bg-slate-600/20 text-slate-200 border-slate-600/30'
+                          }`}
+                        >
+                          {issue?.severity || 'info'}
+                        </span>
+                        <div className="text-slate-200">
+                          <span className="font-semibold">{issue?.code}</span>: {issue?.message}
+                        </div>
+                      </div>
+                    ))}
+                    {qualityIssues.length > 6 && (
+                      <div className="text-[11px] text-slate-500">… und {qualityIssues.length - 6} weitere</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="actions flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto justify-end">
               <button
