@@ -1144,6 +1144,34 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     )}
                   </div>
                 )}
+
+                {qualityGate?.evidence?.query && (
+                  <div className="mt-3 border-t border-slate-800 pt-2">
+                    <div className="text-[11px] text-slate-500">Web-Evidenz Query:</div>
+                    <div className="text-[12px] text-slate-200 font-mono break-words">{qualityGate.evidence.query}</div>
+                    {Array.isArray(qualityGate?.evidence?.pages) && qualityGate.evidence.pages.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <div className="text-[11px] text-slate-500">Quellen:</div>
+                        {qualityGate.evidence.pages.slice(0, 3).map((p: any, idx: number) => (
+                          <div key={`qg-evidence-${idx}`} className="text-[12px]">
+                            <a
+                              href={p?.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sky-400 hover:underline break-words"
+                            >
+                              {p?.title || p?.url}
+                            </a>
+                            {p?.via && <span className="ml-2 text-[11px] text-slate-500">({p.via})</span>}
+                          </div>
+                        ))}
+                        {qualityGate.evidence.pages.length > 3 && (
+                          <div className="text-[11px] text-slate-500">… und {qualityGate.evidence.pages.length - 3} weitere</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <div className="actions flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto justify-end">
