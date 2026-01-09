@@ -171,7 +171,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
   const skippedPickItemSet = useMemo(() => new Set(skippedPickItemIds), [skippedPickItemIds]);
 
-  const openOrders = useMemo(() => orders.filter((order) => order.status !== 'picked'), [orders]);
+  // Keep behavior consistent with Mobile: only "new" orders are considered open/pickable.
+  const openOrders = useMemo(() => orders.filter((order) => order.status === 'new'), [orders]);
   const visibleOrders = useMemo(
     () => (showAllOpenOrders ? openOrders : openOrders.slice(0, 5)),
     [openOrders, showAllOpenOrders]

@@ -1769,6 +1769,170 @@ async function getOrderSummary() {
   return { total, picked, open };
 }
 
+/**
+ * Compute mobile dashboard metrics from the orders collection.
+ *
+ * Notes:
+ * - Uses best-effort heuristics for "completed" (picked/shipped/etc.) and "returns".
+ * - Returns are detected by statusLabel/status text containing "retour/return/rücksend".
+ * - Revenue is derived from totalAmount (best-effort, assumes a single currency).
+ */
+async function getDashboardMetrics({ days = 7 } = {}) {
+  const windowDays = Number.isFinite(Number(days)) ? Math.max(1, Math.min(60, Number(days))) : 7;
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
+  const windowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+  windowStart.setUTCDate(windowStart.getUTCDate() - (windowDays - 1));
+
+  const CLOSED_LABELS = new Set([
+    'kommissioniert',
+    'versendet',
+    'zugestellt',
+    'shipped',
+    'delivered',
+    'completed',
+    'erledigt',
+  ]);
+  const CANCEL_LABELS = new Set([
+    'storniert',
+    'cancelled',
+    'canceled',
+    'abgebrochen',
+  ]);
+  const pickedStatusIds = new Set(['363183']); // hard fallback BaseLinker picked status
+  const envPickedId = process.env.BASE_ORDER_STATUS_PICKED;
+  if (envPickedId) pickedStatusIds.add(String(envPickedId).trim());
+
+  const normalize = (v) => (typeof v === 'string' ? v.trim().toLowerCase() : v == null ? '' : String(v).trim().toLowerCase());
+  const dayKey = (iso) => {
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return null;
+      return d.toISOString().slice(0, 10);
+    } catch {
+      return null;
+    }
+  };
+  const isClosed = (order) => {
+    const statusId = order?.statusId != null ? String(order.statusId) : null;
+    const rawStatus = order?.status || order?.statusLabel || '';
+    const s = normalize(rawStatus);
+    if (order?.pickedAt) return true;
+    if (s === 'picked') return true;
+    if (statusId && pickedStatusIds.has(statusId)) return true;
+    if (CLOSED_LABELS.has(s)) return true;
+    if (s.includes('versendet') || s.includes('zugestellt')) return true;
+    return false;
+  };
+  const isCancelled = (order) => {
+    const raw = normalize(order?.statusLabel || order?.status || '');
+    if (CANCEL_LABELS.has(raw)) return true;
+    return raw.includes('storniert') || raw.includes('cancel');
+  };
+  const isReturn = (order) => {
+    const raw = normalize(order?.statusLabel || order?.status || '');
+    return raw.includes('retour') || raw.includes('return') || raw.includes('rücksend') || raw.includes('ruecksend');
+  };
+  const parseIso = (iso) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  // Initialize last-N-days buckets
+  const daysArr = [];
+  for (let i = 0; i < windowDays; i += 1) {
+    const d = new Date(windowStart);
+    d.setUTCDate(windowStart.getUTCDate() + i);
+    daysArr.push({ date: d.toISOString().slice(0, 10), orders: 0, revenue: 0 });
+  }
+  const dayIndex = new Map(daysArr.map((d, idx) => [d.date, idx]));
+
+  const snapshot = await firestore.collection(ORDERS_COLLECTION).get();
+
+  let currency = 'EUR';
+  let revenueTotal = 0;
+  let revenueMonth = 0;
+  let completedTotal = 0;
+  let completedMonth = 0;
+  let returnsTotal = 0;
+  let returnsMonth = 0;
+  let openCurrent = 0;
+
+  snapshot.forEach((doc) => {
+    const order = doc.data() || {};
+    const cur = (order.currency || 'EUR').toString().trim().toUpperCase();
+    if (cur) currency = cur;
+
+    const createdAt = parseIso(order.createdAt) || parseIso(order.updatedAt) || null;
+    if (!createdAt) return;
+    const totalAmount = Number(order.totalAmount || 0) || 0;
+
+    const cancelled = isCancelled(order);
+    const returned = isReturn(order);
+    const closed = isClosed(order);
+
+    if (order.status === 'new') {
+      openCurrent += 1;
+    }
+
+    // Volume (last N days) based on order creation date (incoming order volume)
+    const dk = dayKey(createdAt.toISOString());
+    if (dk && dayIndex.has(dk)) {
+      const idx = dayIndex.get(dk);
+      daysArr[idx].orders += 1;
+      if (!cancelled) {
+        daysArr[idx].revenue += totalAmount;
+      }
+    }
+
+    // Returns (best-effort)
+    if (returned) {
+      returnsTotal += 1;
+      if (createdAt >= monthStart) returnsMonth += 1;
+    }
+
+    // Completed (picked/shipped/etc.) + revenue based on completion date if available
+    if (closed && !cancelled && !returned) {
+      completedTotal += 1;
+      revenueTotal += totalAmount;
+      const completedAt = parseIso(order.pickedAt) || createdAt;
+      if (completedAt && completedAt >= monthStart) {
+        completedMonth += 1;
+        revenueMonth += totalAmount;
+      }
+    } else if (closed && !cancelled) {
+      // still count completion even if return; revenue excluded above
+      completedTotal += 1;
+      const completedAt = parseIso(order.pickedAt) || createdAt;
+      if (completedAt && completedAt >= monthStart) {
+        completedMonth += 1;
+      }
+    }
+  });
+
+  return {
+    generated_at_iso: new Date().toISOString(),
+    currency,
+    revenue: {
+      total: Number(revenueTotal.toFixed(2)),
+      month: Number(revenueMonth.toFixed(2)),
+      month_start_iso: monthStart.toISOString(),
+    },
+    orders: {
+      open_current: openCurrent,
+      completed_total: completedTotal,
+      completed_month: completedMonth,
+      returns_total: returnsTotal,
+      returns_month: returnsMonth,
+    },
+    volume_7d: {
+      window_days: windowDays,
+      days: daysArr,
+    },
+  };
+}
+
 async function getOrderById(orderId) {
   if (!orderId) return null;
   const doc = await firestore.collection(ORDERS_COLLECTION).doc(orderId).get();
@@ -1965,6 +2129,7 @@ module.exports = {
   saveOrders,
   listOrders,
   getOrderSummary,
+  getDashboardMetrics,
   getOrderById,
   updateOrder,
   getSkuIndexEntry,

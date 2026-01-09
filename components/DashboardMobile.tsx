@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Order, Product } from '../types';
+import { DashboardMetrics, Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
 import { SyncIcon } from './icons/Icons';
-import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi } from '../api/client';
+import { fetchDashboardMetrics, fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi } from '../api/client';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 
@@ -60,6 +60,8 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
   const { t, locale } = useI18n();
   const [orders, setOrders] = useState<Order[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   const dedupeOrders = useCallback((list: Order[]) => {
     const seen = new Set<string>();
@@ -106,32 +108,45 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
     [dedupeOrders]
   );
 
+  const loadMetrics = useCallback(async () => {
+    setMetricsLoading(true);
+    try {
+      const data = await fetchDashboardMetrics(7, { timeoutMs: 20000 });
+      setMetrics(data);
+    } catch (error) {
+      console.warn('Failed to load dashboard metrics', error);
+      setMetrics(null);
+    } finally {
+      setMetricsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const initial = async () => {
       if (cancelled) return;
-      await loadOrders({ sync: true });
+      await Promise.all([loadOrders({ sync: true }), loadMetrics()]);
     };
     void initial();
     const interval = setInterval(() => {
       if (cancelled) return;
-      void loadOrders({ sync: false });
+      void Promise.all([loadOrders({ sync: false }), loadMetrics()]);
     }, 60000);
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [loadOrders]);
+  }, [loadOrders, loadMetrics]);
 
   const handleRefresh = useCallback(async () => {
     if (!onRefreshProducts) return;
     setRefreshing(true);
     try {
-      await Promise.all([Promise.resolve(onRefreshProducts()), loadOrders({ sync: true })]);
+      await Promise.all([Promise.resolve(onRefreshProducts()), loadOrders({ sync: true }), loadMetrics()]);
     } finally {
       setRefreshing(false);
     }
-  }, [loadOrders, onRefreshProducts]);
+  }, [loadMetrics, loadOrders, onRefreshProducts]);
 
   const navigateTo = useCallback(
     (view: string) => {
@@ -156,6 +171,12 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
   );
 
   const openOrders = useMemo(() => orders.filter((o) => o.status === 'new'), [orders]);
+
+  const volume7d = metrics?.volume_7d?.days || [];
+  const maxVolume = useMemo(() => {
+    const max = volume7d.reduce((m, d) => Math.max(m, Number(d?.orders || 0) || 0), 0);
+    return Math.max(1, max);
+  }, [volume7d]);
 
   const summary = useMemo(() => {
     const total = products.length;
@@ -302,18 +323,66 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
               sub={t('table.binFilter.withoutBin')}
               onClick={() => navigateTo('operations-stow')}
             />
-            <ActionCard
-              label={t('nav.search')}
-              value={t('common.open')}
-              sub={t('mobile.dashboard.searchHint')}
-              onClick={() => navigateTo('search')}
-            />
-            <ActionCard
-              label={t('ops.mode.identify')}
-              value={t('common.open')}
-              sub={t('mobile.dashboard.identifyHint')}
-              onClick={() => navigateTo('operations-identify')}
-            />
+          </div>
+
+          <div className="rounded-2xl bg-slate-900/40 border border-white/5 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-slate-400">Orders & Umsatz</p>
+              <p className="text-[11px] text-slate-500">
+                {metrics?.generated_at_iso ? new Date(metrics.generated_at_iso).toLocaleString(intlLocale) : metricsLoading ? 'Lade…' : '—'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard
+                label="Umsatz (gesamt)"
+                value={metrics ? formatCurrency(metrics.revenue.total || 0, metrics.currency || 'EUR') : '—'}
+                sub={metrics ? `Monat: ${formatCurrency(metrics.revenue.month || 0, metrics.currency || 'EUR')}` : undefined}
+              />
+              <StatCard
+                label="Aufträge (abgeschlossen)"
+                value={metrics ? `${metrics.orders.completed_total}` : '—'}
+                sub={metrics ? `Monat: ${metrics.orders.completed_month}` : undefined}
+              />
+              <StatCard
+                label="Retouren"
+                value={metrics ? `${metrics.orders.returns_total}` : '—'}
+                sub={metrics ? `Monat: ${metrics.orders.returns_month}` : undefined}
+              />
+              <StatCard
+                label="Offen (aktuell)"
+                value={metrics ? `${metrics.orders.open_current}` : '—'}
+                sub="BaseLinker (Cache)"
+              />
+            </div>
+
+            <div className="rounded-2xl bg-slate-800/70 border border-white/5 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Auftragsvolumen · letzte 7 Tage</p>
+                <p className="text-[11px] text-slate-500">{volume7d.length ? `${volume7d.reduce((s, d) => s + (Number(d.orders || 0) || 0), 0)} Orders` : '—'}</p>
+              </div>
+              <div className="grid grid-cols-7 gap-2 items-end h-20">
+                {volume7d.length ? (
+                  volume7d.map((d) => {
+                    const count = Number(d.orders || 0) || 0;
+                    const barPx = Math.max(6, Math.round((count / maxVolume) * 56));
+                    const label = String(d.date || '').slice(5); // MM-DD
+                    return (
+                      <div key={d.date} className="h-full flex flex-col items-center justify-end gap-1">
+                        <div
+                          title={`${d.date}: ${count} Orders`}
+                          className="w-full rounded-md bg-sky-500/70"
+                          style={{ height: `${barPx}px` }}
+                        />
+                        <div className="text-[10px] text-slate-400 font-mono">{label}</div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-7 text-sm text-slate-400">Keine Daten</div>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -321,16 +390,6 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
               label={t('mobile.dashboard.kpi.products')}
               value={`${summary.total}`}
               sub={t('mobile.dashboard.kpi.productsSub', { count: summary.inStock })}
-            />
-            <StatCard
-              label={t('mobile.dashboard.kpi.units')}
-              value={`${summary.qtySum}`}
-              sub={t('mobile.dashboard.kpi.unitsSub')}
-            />
-            <StatCard
-              label={t('mobile.dashboard.kpi.sync')}
-              value={`${summary.pending}`}
-              sub={t('mobile.dashboard.kpi.syncSub', { count: summary.synced })}
             />
             <StatCard
               label={t('mobile.dashboard.kpi.value')}

@@ -12,6 +12,7 @@ const {
   updateProductSyncStatus,
   listOrders,
   getOrderSummary,
+  getDashboardMetrics,
   findProductIdsByAliases,
   findProductByStrictIdentifier,
   deleteProductsByIdentityAlias,
@@ -56,6 +57,9 @@ const {
   listWarehouseZones,
   getBinsForZone,
   getBinByCode,
+  deleteWarehouseGang,
+  deleteWarehouseRegal,
+  deleteWarehouseEbene,
   assignProductToBin,
   removeProductFromBin,
   refreshProductInventory,
@@ -1931,6 +1935,69 @@ app.post('/api/warehouse/layouts', async (req, res) => {
   }
 });
 
+const parseTruthy = (value) => {
+  if (value === true || value === 1) return true;
+  const v = String(value || '').trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'y';
+};
+
+app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang', async (req, res) => {
+  try {
+    const zone = req.params.zone.toUpperCase();
+    const etage = req.params.etage.toUpperCase();
+    const gang = Number(req.params.gang);
+    const dryRun = parseTruthy(req.query?.dryRun) || !parseTruthy(req.query?.confirm);
+
+    const result = await deleteWarehouseGang(zone, etage, gang, { dryRun });
+    res.json({ ok: true, data: { ...result, dryRun } });
+  } catch (error) {
+    console.error('Failed to delete warehouse gang:', error);
+    res.status(400).json({
+      ok: false,
+      error: { code: 400, message: error.message || 'Gang konnte nicht gelöscht werden.' },
+    });
+  }
+});
+
+app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang/regale/:regal', async (req, res) => {
+  try {
+    const zone = req.params.zone.toUpperCase();
+    const etage = req.params.etage.toUpperCase();
+    const gang = Number(req.params.gang);
+    const regal = Number(req.params.regal);
+    const dryRun = parseTruthy(req.query?.dryRun) || !parseTruthy(req.query?.confirm);
+
+    const result = await deleteWarehouseRegal(zone, etage, gang, regal, { dryRun });
+    res.json({ ok: true, data: { ...result, dryRun } });
+  } catch (error) {
+    console.error('Failed to delete warehouse regal:', error);
+    res.status(400).json({
+      ok: false,
+      error: { code: 400, message: error.message || 'Regal konnte nicht gelöscht werden.' },
+    });
+  }
+});
+
+app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang/regale/:regal/ebenen/:ebene', async (req, res) => {
+  try {
+    const zone = req.params.zone.toUpperCase();
+    const etage = req.params.etage.toUpperCase();
+    const gang = Number(req.params.gang);
+    const regal = Number(req.params.regal);
+    const ebene = String(req.params.ebene).toUpperCase();
+    const dryRun = parseTruthy(req.query?.dryRun) || !parseTruthy(req.query?.confirm);
+
+    const result = await deleteWarehouseEbene(zone, etage, gang, regal, ebene, { dryRun });
+    res.json({ ok: true, data: { ...result, dryRun } });
+  } catch (error) {
+    console.error('Failed to delete warehouse ebene:', error);
+    res.status(400).json({
+      ok: false,
+      error: { code: 400, message: error.message || 'Ebene konnte nicht gelöscht werden.' },
+    });
+  }
+});
+
 app.get('/api/warehouse/zones/:zone/:etage', async (req, res) => {
   try {
     const zone = req.params.zone.toUpperCase();
@@ -2756,6 +2823,25 @@ app.get('/api/orders', async (req, res) => {
       error: {
         code: 500,
         message: 'Aufträge konnten nicht geladen werden.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+app.get('/api/dashboard/metrics', async (req, res) => {
+  try {
+    const days = Math.min(Math.max(parseInt(req.query?.days || '7', 10) || 7, 1), 60);
+    const metrics = await getDashboardMetrics({ days });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true, data: metrics });
+  } catch (error) {
+    console.error('Failed to load dashboard metrics:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Dashboard-Metriken konnten nicht geladen werden.',
         details: error.message,
       },
     });

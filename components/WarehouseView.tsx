@@ -5,6 +5,9 @@ import {
   fetchWarehouseBins,
   fetchWarehouseBinDetail,
   removeProductFromBinApi,
+  deleteWarehouseGangApi,
+  deleteWarehouseRegalApi,
+  deleteWarehouseEbeneApi,
   openBinLabelWindow,
   openBinLabelsBatchWindow,
 } from '../api/client';
@@ -38,6 +41,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     ebenen: 'A-E',
   });
   const [removingProductId, setRemovingProductId] = useState<string | null>(null);
+  const [deletingStructure, setDeletingStructure] = useState(false);
 
   const loadZones = useCallback(async () => {
     try {
@@ -279,6 +283,99 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     }
   };
 
+  const handleDeleteGang = async () => {
+    if (!selectedZone || selectedGang == null) return;
+    setStatusMessage(null);
+    setDeletingStructure(true);
+    try {
+      const dry = await deleteWarehouseGangApi(selectedZone.zone, selectedZone.etage, selectedGang, { dryRun: true, timeoutMs: 25000 });
+      if (!dry.ok) {
+        setStatusMessage(dry.error?.message || 'Gang konnte nicht geprüft werden.');
+        return;
+      }
+      const codes: string[] = Array.isArray(dry.data?.binCodes) ? dry.data.binCodes : [];
+      const ok = window.confirm(`Gang ${selectedGang} löschen?\n\nBetroffene Bins: ${codes.length}\n\nNur möglich wenn alle Bins leer sind.`);
+      if (!ok) return;
+      const resp = await deleteWarehouseGangApi(selectedZone.zone, selectedZone.etage, selectedGang, { confirm: true, timeoutMs: 25000 });
+      if (!resp.ok) {
+        setStatusMessage(resp.error?.message || 'Gang löschen fehlgeschlagen.');
+        return;
+      }
+      setStatusMessage(`Gang ${selectedGang} gelöscht (${resp.data?.deleted || 0} Bins).`);
+      await loadZones();
+      await loadBins(selectedZone.zone, selectedZone.etage);
+      setSelectedGang(null);
+      setSelectedRegal(null);
+      setSelectedBin(null);
+      setBinDetail(null);
+    } finally {
+      setDeletingStructure(false);
+    }
+  };
+
+  const handleDeleteRegal = async () => {
+    if (!selectedZone || selectedGang == null || selectedRegal == null) return;
+    setStatusMessage(null);
+    setDeletingStructure(true);
+    try {
+      const dry = await deleteWarehouseRegalApi(selectedZone.zone, selectedZone.etage, selectedGang, selectedRegal, { dryRun: true, timeoutMs: 25000 });
+      if (!dry.ok) {
+        setStatusMessage(dry.error?.message || 'Regal konnte nicht geprüft werden.');
+        return;
+      }
+      const codes: string[] = Array.isArray(dry.data?.binCodes) ? dry.data.binCodes : [];
+      const ok = window.confirm(
+        `Regal ${selectedRegal} (Gang ${selectedGang}) löschen?\n\nBetroffene Bins: ${codes.length}\n\nNur möglich wenn alle Bins leer sind.`
+      );
+      if (!ok) return;
+      const resp = await deleteWarehouseRegalApi(selectedZone.zone, selectedZone.etage, selectedGang, selectedRegal, { confirm: true, timeoutMs: 25000 });
+      if (!resp.ok) {
+        setStatusMessage(resp.error?.message || 'Regal löschen fehlgeschlagen.');
+        return;
+      }
+      setStatusMessage(`Regal ${selectedRegal} gelöscht (${resp.data?.deleted || 0} Bins).`);
+      await loadZones();
+      await loadBins(selectedZone.zone, selectedZone.etage);
+      setSelectedRegal(null);
+      setSelectedBin(null);
+      setBinDetail(null);
+    } finally {
+      setDeletingStructure(false);
+    }
+  };
+
+  const handleDeleteEbene = async () => {
+    if (!selectedZone || !selectedBin) return;
+    setStatusMessage(null);
+    setDeletingStructure(true);
+    try {
+      const gang = selectedBin.gang;
+      const regal = selectedBin.regal;
+      const ebene = selectedBin.ebene;
+      const dry = await deleteWarehouseEbeneApi(selectedZone.zone, selectedZone.etage, gang, regal, ebene, { dryRun: true, timeoutMs: 25000 });
+      if (!dry.ok) {
+        setStatusMessage(dry.error?.message || 'Ebene konnte nicht geprüft werden.');
+        return;
+      }
+      const ok = window.confirm(
+        `Ebene ${ebene} (Gang ${gang} · Regal ${regal}) löschen?\n\nDies entfernt den BIN ${selectedBin.code}.\n\nNur möglich wenn der BIN leer ist.`
+      );
+      if (!ok) return;
+      const resp = await deleteWarehouseEbeneApi(selectedZone.zone, selectedZone.etage, gang, regal, ebene, { confirm: true, timeoutMs: 25000 });
+      if (!resp.ok) {
+        setStatusMessage(resp.error?.message || 'Ebene löschen fehlgeschlagen.');
+        return;
+      }
+      setStatusMessage(`Ebene ${ebene} gelöscht (${resp.data?.deleted || 0} BIN).`);
+      await loadZones();
+      await loadBins(selectedZone.zone, selectedZone.etage);
+      setSelectedBin(null);
+      setBinDetail(null);
+    } finally {
+      setDeletingStructure(false);
+    }
+  };
+
   const selectedGangBins = selectedGang != null ? binsByGang.get(selectedGang) || [] : [];
 
   return (
@@ -466,6 +563,39 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               ))}
           </div>
 
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <button
+              type="button"
+              disabled={!selectedZone || selectedGang == null || deletingStructure}
+              onClick={handleDeleteGang}
+              className="px-3 py-1.5 rounded-lg bg-rose-700 text-sm text-white disabled:opacity-40 hover:bg-rose-600"
+              title="Löscht alle leeren Bins in diesem Gang."
+            >
+              Gang löschen
+            </button>
+            <button
+              type="button"
+              disabled={!selectedZone || selectedGang == null || selectedRegal == null || deletingStructure}
+              onClick={handleDeleteRegal}
+              className="px-3 py-1.5 rounded-lg bg-rose-700 text-sm text-white disabled:opacity-40 hover:bg-rose-600"
+              title="Löscht alle leeren Bins in diesem Regal (innerhalb des gewählten Gangs)."
+            >
+              Regal löschen
+            </button>
+            <button
+              type="button"
+              disabled={!selectedZone || !selectedBin || deletingStructure}
+              onClick={handleDeleteEbene}
+              className="px-3 py-1.5 rounded-lg bg-rose-700 text-sm text-white disabled:opacity-40 hover:bg-rose-600"
+              title="Löscht den aktuell ausgewählten BIN (Ebene)."
+            >
+              Ebene löschen
+            </button>
+            <span className="text-xs text-slate-400">
+              Löschen ist nur möglich, wenn die betroffenen Bins leer sind.
+            </span>
+          </div>
+
           {isLoadingBins ? (
             <div className="text-slate-300">Lade Bins...</div>
           ) : (
@@ -534,6 +664,18 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                       {binDetail.productCount || 0} Produkte ·{' '}
                       {binDetail.firstStoredAt ? `seit ${new Date(binDetail.firstStoredAt).toLocaleString('de-DE')}` : 'leer'}
                     </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={!selectedBin || deletingStructure}
+                        onClick={handleDeleteEbene}
+                        className="px-3 py-1.5 rounded bg-rose-700 text-white text-sm disabled:opacity-40 hover:bg-rose-600"
+                        title="Löscht diesen BIN (nur wenn leer)"
+                      >
+                        Ebene löschen
+                      </button>
+                      <span className="text-xs text-slate-300">Nur möglich, wenn der BIN leer ist.</span>
+                    </div>
 
                     <div className="border-t border-slate-600 pt-3">
                       <h5 className="text-white font-semibold mb-2">Produkte</h5>
@@ -549,9 +691,10 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                               </div>
                               <button
                                 onClick={() => handleRemoveProduct(item.productId)}
+                                disabled={removingProductId === item.productId}
                                 className="text-xs text-red-300 hover:text-red-200"
                               >
-                                Entfernen
+                                {removingProductId === item.productId ? '...' : 'Entfernen'}
                               </button>
                             </li>
                           ))}

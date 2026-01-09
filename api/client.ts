@@ -14,6 +14,7 @@ import {
   ProductEnrichmentRecord,
   InventoryRecord,
   EbayCategoryOption,
+  DashboardMetrics,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -916,6 +917,23 @@ export const fetchOrders = async (limit = 200, options?: { timeoutMs?: number })
   return result?.data || [];
 };
 
+export const fetchDashboardMetrics = async (
+  days = 7,
+  options?: { timeoutMs?: number }
+): Promise<DashboardMetrics> => {
+  const d = Math.min(Math.max(parseInt(String(days), 10) || 7, 1), 60);
+  const response = await fetchWithTimeout(
+    `${BACKEND_URL}/api/dashboard/metrics?days=${encodeURIComponent(String(d))}`,
+    undefined,
+    options?.timeoutMs || 25000
+  );
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Dashboard-Metriken konnten nicht geladen werden.');
+  }
+  return result?.data;
+};
+
 export const syncOrders = async (options?: { timeoutMs?: number }): Promise<Order[]> => {
   const response = await fetchWithTimeout(
     `${BACKEND_URL}/api/orders/sync`,
@@ -1000,6 +1018,107 @@ export const createWarehouseLayoutApi = async (payload: {
     const result = await parseResponse(response);
     if (!response.ok) {
       return { ok: false, error: { code: response.status, message: result?.error?.message || 'Failed to create layout' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const deleteWarehouseGangApi = async (
+  zone: string,
+  etage: string,
+  gang: number,
+  options?: { confirm?: boolean; dryRun?: boolean; timeoutMs?: number }
+): Promise<{ ok: boolean; data?: any; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    const params = new URLSearchParams();
+    if (options?.dryRun) params.set('dryRun', '1');
+    if (options?.confirm) params.set('confirm', '1');
+    const url = `${BACKEND_URL}/api/warehouse/layouts/${encodeURIComponent(zone)}/${encodeURIComponent(etage)}/gangs/${encodeURIComponent(
+      String(gang)
+    )}?${params.toString()}`;
+    response = await fetchWithTimeout(
+      url,
+      {
+        method: 'DELETE',
+      },
+      options?.timeoutMs || 25000
+    );
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Gang löschen fehlgeschlagen' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const deleteWarehouseRegalApi = async (
+  zone: string,
+  etage: string,
+  gang: number,
+  regal: number,
+  options?: { confirm?: boolean; dryRun?: boolean; timeoutMs?: number }
+): Promise<{ ok: boolean; data?: any; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    const params = new URLSearchParams();
+    if (options?.dryRun) params.set('dryRun', '1');
+    if (options?.confirm) params.set('confirm', '1');
+    const url = `${BACKEND_URL}/api/warehouse/layouts/${encodeURIComponent(zone)}/${encodeURIComponent(
+      etage
+    )}/gangs/${encodeURIComponent(String(gang))}/regale/${encodeURIComponent(String(regal))}?${params.toString()}`;
+    response = await fetchWithTimeout(
+      url,
+      {
+        method: 'DELETE',
+      },
+      options?.timeoutMs || 25000
+    );
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Regal löschen fehlgeschlagen' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const deleteWarehouseEbeneApi = async (
+  zone: string,
+  etage: string,
+  gang: number,
+  regal: number,
+  ebene: string,
+  options?: { confirm?: boolean; dryRun?: boolean; timeoutMs?: number }
+): Promise<{ ok: boolean; data?: any; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    const params = new URLSearchParams();
+    if (options?.dryRun) params.set('dryRun', '1');
+    if (options?.confirm) params.set('confirm', '1');
+    const url = `${BACKEND_URL}/api/warehouse/layouts/${encodeURIComponent(zone)}/${encodeURIComponent(
+      etage
+    )}/gangs/${encodeURIComponent(String(gang))}/regale/${encodeURIComponent(String(regal))}/ebenen/${encodeURIComponent(
+      String(ebene)
+    )}?${params.toString()}`;
+    response = await fetchWithTimeout(
+      url,
+      {
+        method: 'DELETE',
+      },
+      options?.timeoutMs || 25000
+    );
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Ebene löschen fehlgeschlagen' } };
     }
     return { ok: true, data: result?.data };
   } catch (error) {

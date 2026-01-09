@@ -147,7 +147,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
         <div className="w-full px-3 sm:px-4 lg:px-8 py-1.5">
           <div className="flex items-center gap-3 w-full">
             <div className="flex items-center gap-3 flex-shrink-0">
-              <img src={logoSrc} alt="Avystock" className="h-11 sm:h-12 lg:h-14 w-auto object-contain" draggable={false} />
+              <img src={logoSrc} alt="Avystock" className="h-6 sm:h-10 lg:h-12 w-auto object-contain" draggable={false} />
               <span className="sr-only">Avystock Product Intelligence Hub</span>
             </div>
             <div className="hidden sm:flex flex-1 items-center justify-center gap-2">

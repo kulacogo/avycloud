@@ -13,6 +13,36 @@ const ORDER_STATUS_ID_CACHE = {
 };
 
 const DEFAULT_PICKED_STATUS_ID = '363183'; // BaseLinker status "Kommissioniert"
+const ORDER_STATUS_NAME_CACHE = {
+  byId: new Map(), // string id -> name
+  loadedAtMs: 0,
+};
+
+async function ensureOrderStatusNameCache() {
+  const now = Date.now();
+  // refresh at most every 15 minutes
+  if (ORDER_STATUS_NAME_CACHE.loadedAtMs && now - ORDER_STATUS_NAME_CACHE.loadedAtMs < 15 * 60 * 1000) {
+    return ORDER_STATUS_NAME_CACHE.byId;
+  }
+  try {
+    const response = await callBaseLinker('getOrderStatusList');
+    const statuses = Array.isArray(response?.statuses) ? response.statuses : [];
+    const next = new Map();
+    statuses.forEach((s) => {
+      if (s?.id == null) return;
+      const id = String(s.id);
+      const name = (s?.name || '').toString().trim();
+      if (!id || !name) return;
+      next.set(id, name);
+    });
+    ORDER_STATUS_NAME_CACHE.byId = next;
+    ORDER_STATUS_NAME_CACHE.loadedAtMs = now;
+    return ORDER_STATUS_NAME_CACHE.byId;
+  } catch (error) {
+    // keep existing map on failure
+    return ORDER_STATUS_NAME_CACHE.byId;
+  }
+}
 
 const normalizeStatusIdInput = (value) => {
   if (value === null || value === undefined) return null;
@@ -41,6 +71,19 @@ async function resolveOrderStatusIdByName(cacheKey, envNameKey, fallbackLabel) {
   try {
     const response = await callBaseLinker('getOrderStatusList');
     const statuses = Array.isArray(response?.statuses) ? response.statuses : [];
+    // Also warm status name cache for label rendering.
+    try {
+      statuses.forEach((s) => {
+        if (s?.id == null) return;
+        const id = String(s.id);
+        const name = (s?.name || '').toString().trim();
+        if (!id || !name) return;
+        ORDER_STATUS_NAME_CACHE.byId.set(id, name);
+      });
+      ORDER_STATUS_NAME_CACHE.loadedAtMs = Date.now();
+    } catch {
+      // ignore
+    }
     const normalizedTarget = normalizeStatusName(targetLabel);
     const match =
       statuses.find(
@@ -69,6 +112,12 @@ async function resolveOrderStatusIdByName(cacheKey, envNameKey, fallbackLabel) {
 
 function mapBaseLinkerOrder(entry) {
   const createdAt = entry?.date_add ? new Date(Number(entry.date_add) * 1000).toISOString() : new Date().toISOString();
+  const statusIdRaw = entry?.order_status_id != null ? String(entry.order_status_id) : entry?.status_id != null ? String(entry.status_id) : null;
+  const resolvedStatusLabel =
+    entry?.status_name ||
+    entry?.order_status_name ||
+    (statusIdRaw ? ORDER_STATUS_NAME_CACHE.byId.get(String(statusIdRaw)) : null) ||
+    '—';
   const items = Array.isArray(entry?.products)
     ? entry.products.map((product) => ({
       id:
@@ -91,11 +140,18 @@ function mapBaseLinkerOrder(entry) {
     baselinkerId: String(entry.order_id),
     source: 'baselinker',
     status: 'new',
-    statusLabel: entry?.status_name || entry?.order_status_name || 'Neue Bestellung',
-    statusId: entry?.order_status_id ? String(entry.order_status_id) : entry?.status_id ? String(entry.status_id) : null,
+    statusLabel: resolvedStatusLabel,
+    statusId: statusIdRaw,
     createdAt,
     updatedAt: createdAt,
-    number: entry?.order_source_id || entry?.custom_source_id || entry?.external_invoice_number || null,
+    // IMPORTANT:
+    // - order_source_id is the SOURCE/SHOP id (often constant), NOT an order number.
+    // - Prefer external_order_id / shop_order_id when available; otherwise fallback to BaseLinker order_id.
+    number:
+      entry?.external_order_id ||
+      entry?.shop_order_id ||
+      entry?.external_invoice_number ||
+      String(entry.order_id),
     customer: {
       name: entry?.delivery_fullname || entry?.invoice_fullname || entry?.buyer || 'Unbekannt',
       city: entry?.delivery_city || entry?.invoice_city || null,
@@ -111,6 +167,7 @@ function mapBaseLinkerOrder(entry) {
 
 async function syncNewOrders() {
   const secrets = await getSecrets();
+  await ensureOrderStatusNameCache().catch(() => {});
   let baseOrderStatusNew = normalizeStatusIdInput(secrets.baseOrderStatusNew);
   if (baseOrderStatusNew) {
     ORDER_STATUS_ID_CACHE.new = baseOrderStatusNew;
@@ -126,7 +183,7 @@ async function syncNewOrders() {
     );
   }
 
-  // Also resolve "picked" status to correctly classify orders if they are fetched by mistake (e.g. fallback mode)
+  // Also resolve "picked" status to classify orders and (optionally) refresh closed orders in cache.
   let baseOrderStatusPicked = normalizeStatusIdInput(secrets.baseOrderStatusPicked);
   if (baseOrderStatusPicked) {
     ORDER_STATUS_ID_CACHE.picked = baseOrderStatusPicked;
@@ -149,47 +206,56 @@ async function syncNewOrders() {
   }
 
   const dateFrom = Math.floor(Date.now() / 1000) - DEFAULT_ORDER_LOOKBACK_DAYS * 24 * 60 * 60;
-  const baseParams = {
-    date_from: dateFrom,
-    get_unconfirmed_orders: false,
-  };
 
   // We keep open orders up-to-date. BaseLinker getOrders supports filtering by status_id (official docs).
   // If "new" status id is resolved, use it to avoid scanning all statuses every time.
   const shouldFilterStatus = Boolean(baseOrderStatusNew);
 
+  const fetchByStatus = async ({ statusId, dateFromCursor }) => {
+    const out = [];
+    let cursor = dateFromCursor;
+    let page = 0;
+    while (page < MAX_ORDER_PAGES) {
+      page += 1;
+      const response = await callBaseLinker('getOrders', {
+        date_from: dateFromCursor,
+        get_unconfirmed_orders: false,
+        date_confirmed_from: cursor,
+        ...(statusId ? { status_id: Number(statusId) } : {}),
+      });
+
+      const pageOrdersRaw = Array.isArray(response?.orders) ? response.orders : [];
+      if (!pageOrdersRaw.length) {
+        break;
+      }
+
+      out.push(...pageOrdersRaw.map(mapBaseLinkerOrder));
+
+      const lastRaw = pageOrdersRaw[pageOrdersRaw.length - 1];
+      const lastConfirmed = Number(lastRaw?.date_confirmed || lastRaw?.date_add || 0);
+      if (!Number.isFinite(lastConfirmed) || lastConfirmed <= 0) {
+        break;
+      }
+      cursor = lastConfirmed + 1;
+
+      if (pageOrdersRaw.length < BASELINKER_ORDER_PAGE_LIMIT) {
+        break;
+      }
+    }
+    return out;
+  };
+
   const orders = [];
-  let cursor = dateFrom;
-  let page = 0;
 
-  // Paginate according to official guidance: date_confirmed_from cursor, limit 100, stop when <100
-  // and advance cursor to last date_confirmed (+1s).
-  while (page < MAX_ORDER_PAGES) {
-    page += 1;
-    const response = await callBaseLinker('getOrders', {
-      ...baseParams,
-      date_confirmed_from: cursor,
-      ...(shouldFilterStatus ? { status_id: Number(baseOrderStatusNew) } : {}),
-    });
+  // Fetch "new" orders (preferred: status filter).
+  orders.push(...(await fetchByStatus({ statusId: shouldFilterStatus ? baseOrderStatusNew : null, dateFromCursor: dateFrom })));
 
-    const pageOrdersRaw = Array.isArray(response?.orders) ? response.orders : [];
-    if (!pageOrdersRaw.length) {
-      break;
-    }
-
-    orders.push(...pageOrdersRaw.map(mapBaseLinkerOrder));
-
-    // Advance cursor: last confirmed date (fallback date_add) +1s
-    const lastRaw = pageOrdersRaw[pageOrdersRaw.length - 1];
-    const lastConfirmed = Number(lastRaw?.date_confirmed || lastRaw?.date_add || 0);
-    if (!Number.isFinite(lastConfirmed) || lastConfirmed <= 0) {
-      break; // cannot safely paginate, stop to avoid loop
-    }
-    cursor = lastConfirmed + 1;
-
-    if (pageOrdersRaw.length < BASELINKER_ORDER_PAGE_LIMIT) {
-      break; // no more pages
-    }
+  // Optional: refresh recently closed/picked orders in cache so they disappear from "open" UI even if they moved out of NEW.
+  const PICKED_REFRESH_DAYS = parseInt(process.env.ORDER_SYNC_PICKED_REFRESH_DAYS || '14', 10);
+  const pickedLookback = Math.max(1, Math.min(PICKED_REFRESH_DAYS, DEFAULT_ORDER_LOOKBACK_DAYS));
+  const pickedDateFrom = Math.floor(Date.now() / 1000) - pickedLookback * 24 * 60 * 60;
+  if (baseOrderStatusPicked) {
+    orders.push(...(await fetchByStatus({ statusId: baseOrderStatusPicked, dateFromCursor: pickedDateFrom })));
   }
 
   // Post-process statuses using resolved names to classify picked/closed
@@ -204,12 +270,31 @@ async function syncNewOrders() {
       normalized.includes('canceled') ||
       normalized.includes('abgebrochen');
     const isNewId = baseOrderStatusNew && order.statusId && String(order.statusId) === String(baseOrderStatusNew);
+
+    // If we know the explicit "NEW" status id, only treat matching orders as open/new.
+    if (baseOrderStatusNew && order.statusId && !isNewId) {
+      // Closed/picked statuses stay picked, everything else becomes "other" (not open).
+      if (isPickedId || looksCancelled) {
+        order.status = 'picked';
+      } else if (
+        normalized.includes('kommissioniert') ||
+        normalized.includes('versandt') ||
+        normalized.includes('versendet') ||
+        normalized.includes('zugestellt') ||
+        normalized.includes('delivered') ||
+        looksCancelled
+      ) {
+        order.status = 'picked';
+      } else {
+        order.status = 'other';
+      }
+      return;
+    }
+
     const looksNew =
       isNewId ||
       normalized.includes('neu') ||
       normalized.includes('new') ||
-      normalized.includes('bestellung') ||
-      normalized.includes('bestellungen') ||
       normalized === '';
 
     if (looksNew) {
@@ -228,8 +313,8 @@ async function syncNewOrders() {
     ) {
       order.status = 'picked';
     } else {
-      // Default: unknown status => treat as open so Picks nicht verschwinden
-      order.status = 'new';
+      // Unknown / not verifiable => not open (prevents phantom open orders).
+      order.status = 'other';
     }
   });
 

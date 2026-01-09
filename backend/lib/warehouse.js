@@ -974,6 +974,125 @@ async function getProductBinSummaryMap(productIds = [], skuToProductIdMap = new 
   return summaries;
 }
 
+async function recomputeWarehouseZoneLayout(zone, etage) {
+  if (!zone || !etage) {
+    throw new Error('Zone und Etage sind erforderlich.');
+  }
+  const zoneKey = String(zone).toUpperCase();
+  const etageKey = String(etage).toUpperCase();
+  const docId = `${zoneKey}_${etageKey}`;
+
+  const snapshot = await binsCollection.where('zone', '==', zoneKey).where('etage', '==', etageKey).get();
+  const gangs = new Set();
+  const regale = new Set();
+  const ebenen = new Set();
+  let totalProducts = 0;
+  snapshot.forEach((doc) => {
+    const data = doc.data() || {};
+    if (typeof data.gang === 'number') gangs.add(data.gang);
+    if (typeof data.regal === 'number') regale.add(data.regal);
+    if (data.ebene) ebenen.add(String(data.ebene).toUpperCase());
+    totalProducts += Number(data.productCount || 0) || 0;
+  });
+
+  const layoutPatch = {
+    zone: zoneKey,
+    etage: etageKey,
+    gangs: Array.from(gangs).sort((a, b) => a - b),
+    regale: Array.from(regale).sort((a, b) => a - b),
+    ebenen: Array.from(ebenen).sort(),
+    binCount: snapshot.size,
+    totalProducts,
+    updatedAt: Timestamp.now(),
+  };
+
+  await zonesCollection.doc(docId).set(layoutPatch, { merge: true });
+  return layoutPatch;
+}
+
+function buildBinsQueryForFilter({ zone, etage, gang, regal, ebene }) {
+  if (!zone || !etage) throw new Error('Zone und Etage sind erforderlich.');
+  let query = binsCollection.where('zone', '==', String(zone).toUpperCase()).where('etage', '==', String(etage).toUpperCase());
+  if (gang !== undefined && gang !== null) {
+    query = query.where('gang', '==', Number(gang));
+  }
+  if (regal !== undefined && regal !== null) {
+    query = query.where('regal', '==', Number(regal));
+  }
+  if (ebene !== undefined && ebene !== null) {
+    query = query.where('ebene', '==', String(ebene).toUpperCase());
+  }
+  return query;
+}
+
+async function deleteWarehouseBinsByFilter(filter, { dryRun = false } = {}) {
+  const query = buildBinsQueryForFilter(filter);
+  const snapshot = await query.get();
+  const bins = snapshot.docs.map((doc) => ({ id: doc.id, data: doc.data() || {} }));
+  if (!bins.length) {
+    return { deleted: 0, binCodes: [], layout: await recomputeWarehouseZoneLayout(filter.zone, filter.etage) };
+  }
+
+  const nonEmpty = bins
+    .filter(({ data }) => {
+      const count = Number(data.productCount || 0) || 0;
+      const products = Array.isArray(data.products) ? data.products : [];
+      return count > 0 || products.length > 0;
+    })
+    .slice(0, 10)
+    .map(({ id, data }) => ({ code: id, productCount: Number(data.productCount || 0) || 0 }));
+
+  if (nonEmpty.length) {
+    throw new Error(
+      `Kann nicht löschen: ${nonEmpty.length} BIN(s) sind nicht leer (z.B. ${nonEmpty
+        .map((b) => `${b.code}:${b.productCount}`)
+        .join(', ')}). Bitte zuerst auslagern/entfernen.`
+    );
+  }
+
+  const binCodes = bins.map((b) => b.id);
+  if (dryRun) {
+    return { deleted: 0, binCodes, layout: null, dryRun: true };
+  }
+
+  // Firestore batch writes: max 500 operations per batch (official docs).
+  const chunkSize = 450;
+  for (let i = 0; i < bins.length; i += chunkSize) {
+    const batch = firestore.batch();
+    const slice = bins.slice(i, i + chunkSize);
+    slice.forEach(({ id }) => {
+      batch.delete(binsCollection.doc(id));
+    });
+    await batch.commit();
+  }
+
+  const layout = await recomputeWarehouseZoneLayout(filter.zone, filter.etage);
+  try {
+    await warehouseEventsCollection.add({
+      type: 'layout_delete',
+      filter,
+      deletedBins: binCodes.length,
+      createdAt: Timestamp.now(),
+    });
+  } catch {
+    // best-effort
+  }
+
+  return { deleted: binCodes.length, binCodes, layout };
+}
+
+async function deleteWarehouseGang(zone, etage, gang, opts = {}) {
+  return deleteWarehouseBinsByFilter({ zone, etage, gang }, opts);
+}
+
+async function deleteWarehouseRegal(zone, etage, gang, regal, opts = {}) {
+  return deleteWarehouseBinsByFilter({ zone, etage, gang, regal }, opts);
+}
+
+async function deleteWarehouseEbene(zone, etage, gang, regal, ebene, opts = {}) {
+  return deleteWarehouseBinsByFilter({ zone, etage, gang, regal, ebene }, opts);
+}
+
 module.exports = {
   createWarehouseLayout,
   listWarehouseZones,
@@ -991,4 +1110,9 @@ module.exports = {
   bookStockOut,
   listBinsForProduct,
   getProductBinSummaryMap,
+  recomputeWarehouseZoneLayout,
+  deleteWarehouseBinsByFilter,
+  deleteWarehouseGang,
+  deleteWarehouseRegal,
+  deleteWarehouseEbene,
 };

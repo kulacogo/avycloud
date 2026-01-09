@@ -904,28 +904,30 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={!pendingPickQty || pendingPickQty <= 0}
-                onClick={() => void submitPick(pendingPick, pendingPickQty)}
-                className="rounded-lg bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
-              >
-                {t('ops.pick.submit')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPendingPick(null);
-                  setPendingPickQty(1);
-                  setActiveBin('');
-                  setActiveSku('');
-                  setHighlightKey(null);
-                }}
-                className="rounded-lg bg-slate-700 text-white font-semibold py-3"
-              >
-                {t('common.cancel')}
-              </button>
+            <div className="sticky bottom-0 z-10 -mx-3 px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+12px)] bg-slate-950/85 backdrop-blur border-t border-white/10">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={!pendingPickQty || pendingPickQty <= 0}
+                  onClick={() => void submitPick(pendingPick, pendingPickQty)}
+                  className="rounded-lg bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
+                >
+                  {t('ops.pick.submit')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingPick(null);
+                    setPendingPickQty(1);
+                    setActiveBin('');
+                    setActiveSku('');
+                    setHighlightKey(null);
+                  }}
+                  className="rounded-lg bg-slate-700 text-white font-semibold py-3"
+                >
+                  {t('common.cancel')}
+                </button>
+              </div>
             </div>
           </div>
         )}

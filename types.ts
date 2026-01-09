@@ -269,7 +269,7 @@ export interface WarehouseBin {
   lastStoredAt?: string | null;
 }
 
-export type OrderStatus = 'new' | 'picking' | 'picked';
+export type OrderStatus = 'new' | 'picking' | 'picked' | 'other';
 
 export interface OrderItemPickHint {
   productId?: string | null;
@@ -315,6 +315,33 @@ export interface Order {
   customer: OrderCustomer;
   items: OrderItem[];
   notes?: string | null;
+}
+
+export interface DashboardMetricsDay {
+  date: string; // YYYY-MM-DD (UTC)
+  orders: number;
+  revenue: number;
+}
+
+export interface DashboardMetrics {
+  generated_at_iso: string;
+  currency: string;
+  revenue: {
+    total: number;
+    month: number;
+    month_start_iso: string;
+  };
+  orders: {
+    open_current: number;
+    completed_total: number;
+    completed_month: number;
+    returns_total: number;
+    returns_month: number;
+  };
+  volume_7d: {
+    window_days: number;
+    days: DashboardMetricsDay[];
+  };
 }
 
 export type IdentifyPhase =
