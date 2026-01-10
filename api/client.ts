@@ -1438,6 +1438,51 @@ export const runSerpapiFreeEnrichment = async (
   }
 };
 
+export const resolveIntakeExisting = async (params: {
+  barcodes: string;
+  sku?: string | null;
+  inventoryId?: string | null;
+}): Promise<{
+  ok: boolean;
+  data?: { matched: boolean; product?: Product; pendingIntakeQuantity?: number };
+  error?: { code: number; message: string };
+}> => {
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/intake/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        barcodes: params.barcodes || '',
+        sku: params.sku || null,
+        inventoryId: params.inventoryId || null,
+      }),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok || result?.ok === false) {
+      return {
+        ok: false,
+        error: {
+          code: response.status || 500,
+          message: result?.error?.message || 'Intake resolve fehlgeschlagen.',
+        },
+      };
+    }
+    const data = result?.data || {};
+    return {
+      ok: true,
+      data: {
+        matched: Boolean(data.matched),
+        product: data.product ? normalizeProduct(data.product) : undefined,
+        pendingIntakeQuantity: typeof data.pendingIntakeQuantity === 'number' ? data.pendingIntakeQuantity : undefined,
+      },
+    };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
 export const scanDocument = async (): Promise<{ ok: boolean; data?: { mimeType: string; base64: string; capturedAt: string }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {

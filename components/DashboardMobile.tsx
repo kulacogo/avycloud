@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DashboardMetrics, Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
-import { SyncIcon } from './icons/Icons';
 import { fetchDashboardMetrics, fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi } from '../api/client';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
@@ -138,16 +137,6 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
     };
   }, [loadOrders, loadMetrics]);
 
-  const handleRefresh = useCallback(async () => {
-    if (!onRefreshProducts) return;
-    setRefreshing(true);
-    try {
-      await Promise.all([Promise.resolve(onRefreshProducts()), loadOrders({ sync: true }), loadMetrics()]);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [loadMetrics, loadOrders, onRefreshProducts]);
-
   const navigateTo = useCallback(
     (view: string) => {
       if (onNavigate) {
@@ -280,18 +269,8 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
     <div className="space-y-4 max-w-xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">{t('nav.home')}</h1>
-          <p className="text-slate-400 text-sm">{t('mobile.dashboard.subtitle')}</p>
+          <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
         </div>
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={!onRefreshProducts || refreshing}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100 border border-slate-700"
-        >
-          <SyncIcon className="w-4 h-4" />
-          {refreshing ? t('mobile.dashboard.refreshing') : t('actions.refresh')}
-        </button>
       </div>
 
       {isEmpty ? (
@@ -372,7 +351,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
                         <div
                           title={`${d.date}: ${count} Orders · Umsatz ${formatCurrency(revenue, metrics?.currency || 'EUR')}`}
                           className="w-full rounded-[2px] bg-sky-500/70"
-                          style={{ height: `${barPx}px` }}
+                          style={{ height: `${barPx}px`, borderRadius: '2px' }}
                         />
                         <div className="text-[11px] text-slate-300 font-semibold tabular-nums">{count}</div>
                       </div>

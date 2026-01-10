@@ -20,6 +20,11 @@ module.exports = {
       '3xl': '8px',
       full: '8px',
     },
+    fontFamily: {
+      // Override Tailwind default font-sans stack to remove "Apple Color Emoji".
+      // See: https://tailwindcss.com/docs/font-family
+      sans: ['ui-sans-serif', 'system-ui', 'sans-serif', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
+    },
     extend: {},
   },
   plugins: [],

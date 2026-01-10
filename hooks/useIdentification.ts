@@ -8,6 +8,7 @@ import {
   runSerpapiFreeEnrichment,
   refreshPrice,
   saveProduct,
+  resolveIntakeExisting,
 } from '../api/client';
 import { buildProductFromEnrichment } from '../utils/enrichmentRecord';
 
@@ -149,6 +150,34 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
             if (!hasName || !hasDesc || !hasImages) {
               throw new Error('Enrichment unvollständig: Name/Beschreibung/Bilder fehlen.');
             }
+
+            // HARD SAFETY: if product already exists (EAN/GTIN/SKU), never overwrite the datasheet.
+            // This protects "Bestandartikel" when later deliveries are processed through Identify again.
+            updateJob(localId, {
+              phase: 'enriching',
+              message: 'Bestand prüfen …',
+            });
+            try {
+              const lookup = await resolveIntakeExisting({
+                barcodes,
+                sku: product.identification?.sku || product.details?.identifiers?.sku || null,
+                inventoryId: inventoryId || null,
+              });
+              if (lookup.ok && lookup.data?.matched && lookup.data.product) {
+                const existing = lookup.data.product;
+                options?.onJobCompleted?.({ products: [existing] });
+                updateJob(localId, {
+                  phase: 'complete',
+                  message: PHASE_MESSAGES.complete,
+                  finishedAt: new Date().toISOString(),
+                });
+                return;
+              }
+            } catch (lookupErr) {
+              // Never fail the identify flow because of a lookup issue.
+              console.warn('Intake resolve failed (continuing with new product):', (lookupErr as any)?.message || lookupErr);
+            }
+
             const persisted = await persistProduct(product);
             // Ensure a Neupreis-Richtwert is available (web search)
             let pricedProduct = persisted;

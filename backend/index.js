@@ -15,6 +15,7 @@ const {
   getDashboardMetrics,
   findProductIdsByAliases,
   findProductByStrictIdentifier,
+  adjustPendingIntakeQuantity,
   deleteProductsByIdentityAlias,
   listInventories,
   getInventoryRecord,
@@ -78,6 +79,37 @@ const {
 } = require('./services/label-printer');
 const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked } = require('./services/order-sync');
+
+const normalizeIdentifyToken = (value) => String(value || '').trim();
+const extractDigitBarcode = (value) =>
+  String(value || '')
+    .replace(/\D+/g, '')
+    .trim();
+
+const parseBarcodeListFromText = (barcodesText) => {
+  const raw = normalizeIdentifyToken(barcodesText);
+  if (!raw) return [];
+  const tokens = raw
+    .split(/[\n,;|]+/)
+    .map((t) => normalizeIdentifyToken(t))
+    .filter(Boolean);
+  const digitCodes = tokens.map(extractDigitBarcode).filter(Boolean);
+  return Array.from(new Set(digitCodes));
+};
+
+const parseSkuCandidateFromText = (barcodesText) => {
+  const raw = normalizeIdentifyToken(barcodesText);
+  if (!raw) return null;
+  const tokens = raw
+    .split(/[\n,;|]+/)
+    .map((t) => normalizeIdentifyToken(t))
+    .filter(Boolean);
+  // SKU tokens are often like "SKU-123" or other non-digit identifiers.
+  const skuToken =
+    tokens.find((t) => /[a-z]/i.test(t) && !/^\d+$/.test(t)) ||
+    null;
+  return skuToken ? skuToken : null;
+};
 const { attachPickHintsToOrders } = require('./services/pick-hints');
 const { updateJob, Timestamp } = require('./lib/improve-jobs');
 
@@ -1327,6 +1359,73 @@ app.post('/api/identify', upload.array('images'), async (req, res) => {
       error: {
         code: 500,
         message: error.message,
+      },
+    });
+  }
+});
+
+// Intake resolver for Identify v2:
+// If a product already exists (strict EAN/GTIN/SKU match), we must NOT create/overwrite a new datasheet.
+// Instead, we only bump pending intake quantity (and optionally inventory) and return the canonical product.
+app.post('/api/intake/resolve', async (req, res) => {
+  try {
+    const barcodesText = req.body?.barcodes || '';
+    const sku = req.body?.sku || null;
+    const inventoryId = req.body?.inventoryId || null;
+
+    const barcodes = parseBarcodeListFromText(barcodesText);
+    const skuCandidate = normalizeIdentifyToken(sku) || parseSkuCandidateFromText(barcodesText) || null;
+
+    const match = await findProductByStrictIdentifier({ barcodes, sku: skuCandidate });
+    if (!match?.id) {
+      return res.status(200).json({
+        ok: true,
+        data: { matched: false },
+      });
+    }
+
+    let inventoryRecord = null;
+    if (inventoryId) {
+      inventoryRecord = await getInventoryRecord(String(inventoryId));
+    }
+
+    const pendingQuantity =
+      (await adjustPendingIntakeQuantity(match.id, 1)) ??
+      ((match.ops?.pending_intake_quantity || 0) + 1);
+
+    if (inventoryRecord && match.inventory?.inventoryId !== inventoryRecord.inventoryId) {
+      // Best-effort; never fail intake resolve.
+      setProductInventory(match.id, inventoryRecord).catch((err) => {
+        console.warn(`Failed to update inventory for ${match.id}:`, err?.message || err);
+      });
+    }
+
+    const canonical = (await getProduct(match.id)) || match;
+    const resolvedProduct = {
+      ...canonical,
+      id: canonical?.id || match.id,
+      ops: {
+        ...(canonical.ops || {}),
+        pending_intake_quantity: pendingQuantity,
+      },
+    };
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        matched: true,
+        product: resolvedProduct,
+        pendingIntakeQuantity: pendingQuantity,
+      },
+    });
+  } catch (error) {
+    console.error('Error in /api/intake/resolve:', error);
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Intake resolve failed.',
+        details: error?.message || 'Unknown error',
       },
     });
   }
