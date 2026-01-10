@@ -44,6 +44,15 @@ const PHASE_MESSAGES: Record<string, string> = {
   cancelled: 'Upload wurde abgebrochen.',
 };
 
+const isPlaceholderIdentifiedName = (value?: string | null) => {
+  const v = String(value || '').trim();
+  if (!v) return true;
+  if (/^unbekannt(es)? produkt/i.test(v)) return true;
+  // "Produkt 1", "Ürün 1", ...
+  if (/^(produkt|product|ürün|urun|artikel)\s*#?\s*\d+\b/i.test(v)) return true;
+  return false;
+};
+
 const createLocalId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -144,7 +153,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
               inventoryId: inventoryId || null,
               inventoryName: inventoryName || null,
             });
-            const hasName = !!product.identification?.name?.trim();
+            const hasName = !!product.identification?.name?.trim() && !isPlaceholderIdentifiedName(product.identification?.name);
             const hasDesc = !!product.details?.short_description?.trim();
             const hasImages = Array.isArray(product.details?.images) && product.details.images.length > 0;
             if (!hasName || !hasDesc || !hasImages) {

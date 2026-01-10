@@ -474,6 +474,8 @@ function looksUnknown(value) {
   if (v === 'unknown' || v === 'unbekannt') return true;
   if (v.startsWith('unknown')) return true;
   if (v.startsWith('unbekannt')) return true;
+  // Guard against placeholder titles like "Produkt 1", "Ürün 1"
+  if (/^(produkt|product|ürün|urun|artikel)\s*#?\s*\d+\b/i.test(v)) return true;
   return false;
 }
 
@@ -602,7 +604,10 @@ function assertIdentifiedProduct(product) {
   }
   const name = (product.identification?.name || '').trim();
   const brand = (product.identification?.brand || '').trim();
-  const hasName = name.length >= 3 && !/^unbekannt$/i.test(name);
+  const hasName =
+    name.length >= 3 &&
+    !/^unbekannt$/i.test(name) &&
+    !/^(produkt|product|ürün|urun|artikel)\s*#?\s*\d+\b/i.test(name);
   const hasBrand = brand.length >= 2 && !/^unbekannt$/i.test(brand);
   const hasBarcode =
     Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0;

@@ -11,6 +11,14 @@ const normalizeValue = (value?: string | null) => {
   return trimmed;
 };
 
+const isPlaceholderTitle = (value?: string | null) => {
+  const v = (value ?? '').toString().trim();
+  if (!v) return true;
+  // Common placeholder titles emitted by uncertain pipelines or default UI labels.
+  // Examples: "Produkt 1", "Product 1", "Ürün 1", "Urun 1", "Artikel 1"
+  return /^(produkt|product|ürün|urun|artikel)\s*#?\s*\d+\b/i.test(v);
+};
+
 const isUnknownToken = (value?: string | null) => {
   const trimmed = (value ?? '').toString().trim().toLowerCase();
   if (!trimmed) return true;
@@ -39,7 +47,8 @@ export const isEnrichmentRecordIdentified = (record: ProductEnrichmentRecord): b
   const hasCategory =
     category.length >= 3 && !isUnknownToken(category) && category.toLowerCase() !== 'unkategorisiert';
 
-  const titleCandidate = normalizeValue(record.title_ebay) || normalizeValue(record.title_kaufland);
+  const titleCandidateRaw = normalizeValue(record.title_ebay) || normalizeValue(record.title_kaufland);
+  const titleCandidate = isPlaceholderTitle(titleCandidateRaw) ? '' : titleCandidateRaw;
   const hasMeaningfulTitle =
     titleCandidate.length >= 6 &&
     !isUnknownToken(titleCandidate) &&
@@ -49,7 +58,6 @@ export const isEnrichmentRecordIdentified = (record: ProductEnrichmentRecord): b
   return (
     hasValidBarcode ||
     (hasBrand && (hasModel || hasVariant)) ||
-    hasCategory ||
     hasMeaningfulTitle
   );
 };
@@ -153,16 +161,18 @@ export const buildProductFromEnrichment = (
   const model = normalizeValue(record.model);
   const variant = normalizeValue(record.variant);
   const titleCandidate =
-    normalizeValue(record.title_ebay) ||
-    normalizeValue(record.title_kaufland) ||
-    '';
+    (() => {
+      const raw = normalizeValue(record.title_ebay) || normalizeValue(record.title_kaufland) || '';
+      return isPlaceholderTitle(raw) ? '' : raw;
+    })();
 
   const nameParts = [brand, model, variant].filter(Boolean);
   const namePartsJoined = nameParts.join(' ').trim();
   const canUseNameParts = Boolean(namePartsJoined) && !(isUnknownToken(brand) && !model && !variant);
   const unknownName = options?.label ? `Unbekanntes Produkt (${options.label})` : 'Unbekanntes Produkt';
   const identificationName =
-    titleCandidate || (canUseNameParts ? namePartsJoined : '') || (identified ? options?.label : unknownName) || unknownName;
+    // Never use `options.label` as product title — it's a UI group label, not identification output.
+    titleCandidate || (canUseNameParts ? namePartsJoined : '') || unknownName;
 
   const manualBarcodes = parseBarcodeString(options?.barcodes || '');
   const barcodeFromInsights =
