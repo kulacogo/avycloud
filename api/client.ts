@@ -719,16 +719,20 @@ export const syncToBaseLinker = async (
       console.log('API CALL: /api/sync-baselinker', { count: products.length, inventoryId: inv });
     }
 
-    // Cloud Run ingress limit is 32MB; keep payloads small to avoid 413/CORS failures
-    const CHUNK_SIZE = 10;
+    // Backend also chunks internally to avoid request timeouts.
+    // Keep client chunks SMALL to prevent Cloud Run / proxy timeouts and to avoid sending huge payloads.
+    const CHUNK_SIZE = 5;
     const allResults: Array<{ id: string; status: 'synced' | 'failed'; message?: string }> = [];
 
     for (let i = 0; i < products.length; i += CHUNK_SIZE) {
       const chunk = products.slice(i, i + CHUNK_SIZE);
+      // Send ONLY product IDs to keep payload tiny and stable.
+      // Backend will load canonical Firestore docs (contains latest saved description, linkage, etc.).
+      const ids = chunk.map((p) => p?.id).filter(Boolean) as string[];
       const payload =
-        chunk.length === 1
-          ? { product: chunk[0], inventoryId: inv }
-          : { products: chunk, inventoryId: inv };
+        ids.length === 1 && chunk.length === 1
+          ? { productId: ids[0], inventoryId: inv }
+          : { productIds: ids, inventoryId: inv };
 
     response = await fetch(`${BACKEND_URL}/api/sync-baselinker`, {
       method: 'POST',

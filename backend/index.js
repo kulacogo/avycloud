@@ -1502,14 +1502,14 @@ app.post('/api/sync-baselinker', async (req, res) => {
   console.log('Received request on /api/sync-baselinker');
 
   try {
-    const { product, products, inventoryId } = req.body || {};
+    const { product, products, productId, productIds, inventoryId } = req.body || {};
     // Prefer request-provided inventoryId (frontend sends it), fall back to env/default.
     const invId = String(
       (inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659')
     ).trim();
 
     // Validate input
-    if (!product && !products) {
+    if (!product && !products && !productId && !productIds) {
       return res.status(400).json({
         ok: false,
         error: { code: 400, message: 'Please provide either a product or products array' }
@@ -1518,16 +1518,40 @@ app.post('/api/sync-baselinker', async (req, res) => {
 
     let results;
 
-    // Handle single product
-    if (product && !products) {
-      // Always prefer the canonical Firestore doc (contains ops.linkage, latest saved description, etc.)
-      const canonical =
-        product?.id ? await getProduct(String(product.id)).catch(() => null) : null;
-      const sourceProduct = canonical || product;
-      const result = await syncProductToBaseLinker(sourceProduct, invId);
-      results = [result];
+    // Handle single product by ID (preferred)
+    if (productId && !products && !product) {
+      const canonical = await getProduct(String(productId)).catch(() => null);
+      if (!canonical) {
+        return res.status(404).json({ ok: false, error: { code: 404, message: `Product not found: ${productId}` } });
+      }
+      results = [await syncProductToBaseLinker(canonical, invId)];
+    }
+    // Handle single product (legacy payload)
+    else if (product && !products) {
+      const canonical = product?.id ? await getProduct(String(product.id)).catch(() => null) : null;
+      results = [await syncProductToBaseLinker(canonical || product, invId)];
     }
     // Handle multiple products
+    else if (productIds && Array.isArray(productIds)) {
+      if (productIds.length === 0) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: 400, message: 'productIds array cannot be empty' }
+        });
+      }
+
+      // Chunk klein halten, damit Request < Cloud-Run-Timeout bleibt
+      const CHUNK_SIZE = 5;
+      results = [];
+      for (let i = 0; i < productIds.length; i += CHUNK_SIZE) {
+        const chunkIds = productIds.slice(i, i + CHUNK_SIZE).map((id) => String(id));
+        const canonicalChunk = (await Promise.all(chunkIds.map((id) => getProduct(id).catch(() => null))))
+          .filter(Boolean);
+        if (!canonicalChunk.length) continue;
+        const chunkResults = await syncProductsToBaseLinker(canonicalChunk, invId);
+        results.push(...chunkResults);
+      }
+    }
     else if (products && Array.isArray(products)) {
       if (products.length === 0) {
         return res.status(400).json({
@@ -1535,8 +1559,6 @@ app.post('/api/sync-baselinker', async (req, res) => {
           error: { code: 400, message: 'Products array cannot be empty' }
         });
       }
-
-      // Chunk klein halten, damit Request < Cloud-Run-Timeout bleibt
       const CHUNK_SIZE = 5;
       results = [];
       for (let i = 0; i < products.length; i += CHUNK_SIZE) {
