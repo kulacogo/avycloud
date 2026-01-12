@@ -1,9 +1,15 @@
 const { callGeminiStructured } = require('../lib/gemini-structured');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
+const sharp = require('sharp');
 
 // Default to 4 images (not just 3) to better match "Google Lens-like" robustness on packaging/back labels.
 const MAX_MODEL_IMAGES = parseInt(process.env.PIPELINE_V2_IMAGE_LIMIT || '4', 10);
 const MAX_OCR_LINES = parseInt(process.env.PIPELINE_V2_OCR_LINE_LIMIT || '80', 10);
+// Gemini inline-data requests should stay under ~20MB (including prompt). We keep a buffer for text.
+// Source (official docs): Gemini API "Inline-Bilddaten übergeben" (image-understanding).
+const MAX_INLINE_REQUEST_BYTES = parseInt(process.env.PIPELINE_V2_INLINE_REQUEST_BYTES || `${18 * 1024 * 1024}`, 10);
+const MAX_INLINE_IMAGE_EDGE = parseInt(process.env.PIPELINE_V2_INLINE_IMAGE_EDGE || '1600', 10);
+const INLINE_JPEG_QUALITY = parseInt(process.env.PIPELINE_V2_INLINE_JPEG_QUALITY || '78', 10);
 
 const PRODUCT_RECORD_SCHEMA = {
   type: 'object',
@@ -112,25 +118,59 @@ function buildOcrContext(ocrLines = [], barcodes = []) {
   return `OCR TEXTZEILEN:\n${textBlock || '(leer)'}\n\nBARCODES:\n${barcodeList}`;
 }
 
-function buildInlineParts(files = []) {
+async function compressForInline(buffer, mimeType, remainingBudget) {
+  try {
+    if (!buffer || buffer.length === 0) return { buffer, mimeType };
+    const pipeline = sharp(buffer).rotate();
+    const meta = await pipeline.metadata();
+    const longest = Math.max(meta.width || 0, meta.height || 0);
+    let resized = pipeline;
+    if (longest && longest > MAX_INLINE_IMAGE_EDGE) {
+      resized =
+        (meta.width || 0) >= (meta.height || 0)
+          ? resized.resize({ width: MAX_INLINE_IMAGE_EDGE, fit: 'inside', withoutEnlargement: true })
+          : resized.resize({ height: MAX_INLINE_IMAGE_EDGE, fit: 'inside', withoutEnlargement: true });
+    }
+    const q = remainingBudget < 2 * 1024 * 1024 ? Math.min(INLINE_JPEG_QUALITY, 72) : INLINE_JPEG_QUALITY;
+    const out = await resized.jpeg({ quality: q, chromaSubsampling: '4:2:0' }).toBuffer();
+    return { buffer: out, mimeType: 'image/jpeg' };
+  } catch (error) {
+    // Fall back to original buffer if compression fails.
+    return { buffer, mimeType };
+  }
+}
+
+async function buildInlineParts(files = []) {
   if (!Array.isArray(files)) return [];
   const parts = [];
+  let usedBytes = 0;
   for (let idx = 0; idx < files.length && parts.length < MAX_MODEL_IMAGES; idx += 1) {
     const file = files[idx];
     if (!file?.buffer || !file?.mimetype?.startsWith('image/')) continue;
+    const remainingBudget = Math.max(0, MAX_INLINE_REQUEST_BYTES - usedBytes);
+    const candidate =
+      file.buffer.length > remainingBudget || file.buffer.length > Math.ceil(MAX_INLINE_REQUEST_BYTES / Math.max(1, MAX_MODEL_IMAGES))
+        ? await compressForInline(file.buffer, file.mimetype, remainingBudget)
+        : { buffer: file.buffer, mimeType: file.mimetype };
+
+    // If we still don't fit, skip this image (keep budget for other images + text).
+    if (candidate.buffer.length > remainingBudget) {
+      continue;
+    }
     parts.push({
       inline_data: {
-        mime_type: file.mimetype,
-        data: file.buffer.toString('base64'),
+        mime_type: candidate.mimeType,
+        data: candidate.buffer.toString('base64'),
       },
     });
+    usedBytes += candidate.buffer.length;
   }
   return parts;
 }
 
 async function generateStructuredProductRecord({ files, ocrLines, barcodes, locale, inputMode }) {
   const parts = [
-    ...buildInlineParts(files),
+    ...(await buildInlineParts(files)),
     { text: buildInstructionText({ locale, inputMode }) },
     { text: buildOcrContext(ocrLines, barcodes) },
   ];

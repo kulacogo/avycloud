@@ -170,6 +170,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
               const bestGuess = Array.isArray(response.meta?.ocr?.web?.bestGuessLabels)
                 ? response.meta.ocr.web.bestGuessLabels.filter(Boolean).slice(0, 3)
                 : [];
+              const llmError = response.meta?.llm?.error ? String(response.meta.llm.error) : '';
 
               if (uniqueValid.length >= 2) {
                 throw new Error(
@@ -187,10 +188,12 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
                 throw new Error(
                   `Identifikation unsicher (Vision-Hinweis: ${bestGuess.join(
                     ' | '
-                  )}). Bitte bessere Fotos/Barcode liefern oder pro Produkt eine eigene Gruppe nutzen.`
+                  )}).${llmError ? ` (LLM: ${llmError})` : ''} Bitte bessere Fotos/Barcode liefern oder pro Produkt eine eigene Gruppe nutzen.`
                 );
               }
-              throw new Error('Identifikation unsicher: Bitte bessere Fotos/Barcode liefern oder pro Produkt eine eigene Gruppe nutzen.');
+              throw new Error(
+                `Identifikation unsicher.${llmError ? ` (LLM: ${llmError})` : ''} Bitte bessere Fotos/Barcode liefern oder pro Produkt eine eigene Gruppe nutzen.`
+              );
             }
 
             // HARD SAFETY: if product already exists (EAN/GTIN/SKU), never overwrite the datasheet.

@@ -389,6 +389,7 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
   const inputMode = determineInputMode(files, mergedBarcodes);
   const uploadedImages = await uploadReferenceImages(files);
   let llmRecord = null;
+  let llmError = null;
 
   try {
     const filesForModel = pickBestFilesForModel(files, ocrPayload);
@@ -405,6 +406,7 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
     });
   } catch (error) {
     console.warn('Structured product generation failed, falling back to defaults:', error.message);
+    llmError = error?.message || String(error);
     llmRecord = null; // proceed with base defaults
   }
 
@@ -566,6 +568,7 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
     llm: {
       applied: Boolean(llmRecord),
       model: process.env.GEMINI_MULTIMODAL_MODEL || process.env.GEMINI_STRUCTURED_MODEL || 'gemini-2.5-flash',
+      error: llmError,
     },
     quality,
     inventoryId,
