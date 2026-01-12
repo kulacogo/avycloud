@@ -42,7 +42,6 @@ async function callGeminiStructured({
       topK,
       maxOutputTokens,
       candidateCount,
-      stopSequences,
       responseMimeType: 'application/json',
       // Official REST field name (Gemini API structured output):
       // generationConfig.responseJsonSchema
@@ -50,6 +49,11 @@ async function callGeminiStructured({
       responseJsonSchema: responseSchema,
     },
   };
+  // Only include stopSequences when non-empty. An empty array has been observed to produce
+  // unstable / truncated outputs on some deployments.
+  if (Array.isArray(stopSequences) && stopSequences.length > 0) {
+    body.generationConfig.stopSequences = stopSequences;
+  }
 
   const endpoint = `${BASE_ENDPOINT}?key=${encodeURIComponent(GEMINI_API_KEY)}`;
   const response = await fetch(endpoint, {
@@ -84,8 +88,10 @@ async function callGeminiStructured({
   // IMPORTANT:
   // Gemini can split responses across multiple content parts. If we only take the first part,
   // we can end up with incomplete JSON (e.g. just "{"), causing parse failures downstream.
-  // So we concatenate all non-empty text parts.
-  const textPayload = textParts.join('\n').trim();
+  //
+  // Also: do NOT insert newlines between parts. The split can happen *inside* a JSON string value,
+  // and inserting '\n' would create invalid JSON ("Unterminated string").
+  const textPayload = textParts.join('').trim();
   if (!textPayload) {
     throw new Error('Gemini structured call returned empty payload.');
   }
