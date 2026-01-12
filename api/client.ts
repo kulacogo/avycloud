@@ -1403,7 +1403,7 @@ export const runSerpapiFreeEnrichment = async (
   barcodes: string,
   locale = 'de-DE',
   inventoryId?: string
-): Promise<{ ok: boolean; data?: ProductEnrichmentRecord; error?: { code: number; message: string } }> => {
+): Promise<{ ok: boolean; data?: ProductEnrichmentRecord; meta?: any; error?: { code: number; message: string } }> => {
   if (!files.length && (!barcodes || !barcodes.trim())) {
     return {
       ok: false,
@@ -1435,7 +1435,7 @@ export const runSerpapiFreeEnrichment = async (
         },
       };
     }
-    return { ok: true, data: result?.data as ProductEnrichmentRecord };
+    return { ok: true, data: result?.data as ProductEnrichmentRecord, meta: result?.meta };
   } catch (error) {
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };

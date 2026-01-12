@@ -11,6 +11,10 @@ const OCR_LANGUAGE_HINTS = (process.env.OCR_LANGUAGE_HINTS || 'de,en,fr,it,es')
 const OCR_BATCH_SIZE = parseInt(process.env.OCR_BATCH_SIZE || '4', 10);
 const OCR_TEXT_SNIPPET_LIMIT = parseInt(process.env.OCR_TEXT_SNIPPET_LIMIT || '40', 10);
 const OCR_NUMERIC_LIMIT = parseInt(process.env.OCR_NUMERIC_LIMIT || '60', 10);
+const OCR_FILE_TEXT_LIMIT = parseInt(process.env.OCR_FILE_TEXT_LIMIT || '60', 10);
+const OCR_WEB_ENTITY_LIMIT = parseInt(process.env.OCR_WEB_ENTITY_LIMIT || '8', 10);
+const OCR_WEB_PAGE_LIMIT = parseInt(process.env.OCR_WEB_PAGE_LIMIT || '6', 10);
+const OCR_LOGO_LIMIT = parseInt(process.env.OCR_LOGO_LIMIT || '6', 10);
 const MIN_BARCODE_LENGTH = 8;
 const MAX_BARCODE_LENGTH = 18;
 const MAX_PREPROCESS_EDGE = parseInt(process.env.OCR_MAX_EDGE || '2200', 10);
@@ -156,6 +160,10 @@ async function buildRequests(files = []) {
     features: [
       { type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 },
       { type: 'TEXT_DETECTION', maxResults: 5 },
+      // Google Lens-like signals (official Vision feature):
+      // https://cloud.google.com/vision/docs/detecting-web
+      { type: 'WEB_DETECTION', maxResults: 10 },
+      { type: 'LOGO_DETECTION', maxResults: 5 },
     ],
     imageContext: OCR_LANGUAGE_HINTS.length ? { languageHints: OCR_LANGUAGE_HINTS } : undefined,
   }));
@@ -168,6 +176,13 @@ async function extractOcrPayload(files = []) {
       barcodeDetails: [],
       textSnippets: [],
       numericValues: [],
+      web: {
+        bestGuessLabels: [],
+        webEntities: [],
+        pagesWithMatchingImages: [],
+        logos: [],
+      },
+      byFile: [],
     };
   }
 
@@ -190,9 +205,31 @@ async function extractOcrPayload(files = []) {
     const barcodeCandidates = [];
 
     const barcodeDetails = [];
+    const byFile = Array(files.length)
+      .fill(null)
+      .map(() => ({
+        textLines: [],
+        textLen: 0,
+        barcodes: [],
+        web: {
+          bestGuessLabels: [],
+          webEntities: [],
+          pagesWithMatchingImages: [],
+          logos: [],
+        },
+      }));
+
+    const bestGuessLabels = new Set();
+    const webEntitiesByDesc = new Map(); // desc -> max score
+    const logoByDesc = new Map(); // desc -> max score
+    const pagesWithMatchingImages = new Set();
 
     for (const { response, fileIndex } of responses) {
+      const fileEntry = byFile[fileIndex] || null;
       const fullText = response?.fullTextAnnotation?.text || '';
+      if (fileEntry) {
+        fileEntry.textLen += typeof fullText === 'string' ? fullText.length : 0;
+      }
       if (fullText) {
         fullText
           .split(/\r?\n/)
@@ -201,6 +238,9 @@ async function extractOcrPayload(files = []) {
           .forEach((line) => {
             if (textSnippets.length < OCR_TEXT_SNIPPET_LIMIT) {
               textSnippets.push(line);
+            }
+            if (fileEntry && fileEntry.textLines.length < OCR_FILE_TEXT_LIMIT) {
+              fileEntry.textLines.push(line);
             }
           });
       }
@@ -225,10 +265,69 @@ async function extractOcrPayload(files = []) {
                 boundingPoly: annotation.boundingPoly || null,
                 confidence: annotation.score ?? null,
               });
+              if (fileEntry) {
+                fileEntry.barcodes.push(digitsOnly);
+              }
             }
           }
         });
       }
+
+      // WEB_DETECTION + LOGO_DETECTION (best-effort).
+      // Used to approximate Google Lens results without external search keys.
+      try {
+        const webDetection = response?.webDetection || null;
+        if (webDetection) {
+          const labels = Array.isArray(webDetection.bestGuessLabels) ? webDetection.bestGuessLabels : [];
+          labels.forEach((entry) => {
+            const label = normalizeLine(entry?.label || entry?.description || entry || '');
+            if (!label) return;
+            bestGuessLabels.add(label);
+            if (fileEntry && fileEntry.web.bestGuessLabels.length < OCR_WEB_ENTITY_LIMIT) {
+              fileEntry.web.bestGuessLabels.push(label);
+            }
+          });
+
+          const entities = Array.isArray(webDetection.webEntities) ? webDetection.webEntities : [];
+          entities.forEach((entity) => {
+            const desc = normalizeLine(entity?.description || '');
+            if (!desc) return;
+            const score = Number(entity?.score || 0) || 0;
+            const prev = webEntitiesByDesc.get(desc) || 0;
+            if (score > prev) webEntitiesByDesc.set(desc, score);
+            if (fileEntry && fileEntry.web.webEntities.length < OCR_WEB_ENTITY_LIMIT) {
+              fileEntry.web.webEntities.push({ description: desc, score });
+            }
+          });
+
+          const pages = Array.isArray(webDetection.pagesWithMatchingImages)
+            ? webDetection.pagesWithMatchingImages
+            : [];
+          pages.forEach((page) => {
+            const url = normalizeLine(page?.url || '');
+            if (!url) return;
+            pagesWithMatchingImages.add(url);
+            if (fileEntry && fileEntry.web.pagesWithMatchingImages.length < OCR_WEB_PAGE_LIMIT) {
+              fileEntry.web.pagesWithMatchingImages.push(url);
+            }
+          });
+        }
+
+        const logos = Array.isArray(response?.logoAnnotations) ? response.logoAnnotations : [];
+        logos.forEach((logo) => {
+          const desc = normalizeLine(logo?.description || '');
+          if (!desc) return;
+          const score = Number(logo?.score || 0) || 0;
+          const prev = logoByDesc.get(desc) || 0;
+          if (score > prev) logoByDesc.set(desc, score);
+          if (fileEntry && fileEntry.web.logos.length < OCR_LOGO_LIMIT) {
+            fileEntry.web.logos.push({ description: desc, score });
+          }
+        });
+      } catch {
+        // ignore web detection parsing errors
+      }
+
       const combinedText = combinedTextParts.join('\n');
       if (combinedText) {
         extractNumericTokens(combinedText).forEach((token) => {
@@ -251,11 +350,54 @@ async function extractOcrPayload(files = []) {
       }
     });
 
+    const webEntities = Array.from(webEntitiesByDesc.entries())
+      .map(([description, score]) => ({ description, score }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, OCR_WEB_ENTITY_LIMIT);
+    const logos = Array.from(logoByDesc.entries())
+      .map(([description, score]) => ({ description, score }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, OCR_LOGO_LIMIT);
+
+    const bestGuess = Array.from(bestGuessLabels).slice(0, OCR_WEB_ENTITY_LIMIT);
+    const pages = Array.from(pagesWithMatchingImages).slice(0, OCR_WEB_PAGE_LIMIT);
+
+    // Deduplicate per-file barcodes
+    byFile.forEach((entry) => {
+      if (!entry) return;
+      entry.barcodes = Array.from(new Set((entry.barcodes || []).filter(Boolean)));
+      if (Array.isArray(entry.web?.webEntities)) {
+        entry.web.webEntities = entry.web.webEntities
+          .filter((e) => e && e.description)
+          .sort((a, b) => (Number(b.score || 0) || 0) - (Number(a.score || 0) || 0))
+          .slice(0, OCR_WEB_ENTITY_LIMIT);
+      }
+      if (Array.isArray(entry.web?.logos)) {
+        entry.web.logos = entry.web.logos
+          .filter((e) => e && e.description)
+          .sort((a, b) => (Number(b.score || 0) || 0) - (Number(a.score || 0) || 0))
+          .slice(0, OCR_LOGO_LIMIT);
+      }
+      if (Array.isArray(entry.web?.bestGuessLabels)) {
+        entry.web.bestGuessLabels = Array.from(new Set(entry.web.bestGuessLabels)).slice(0, OCR_WEB_ENTITY_LIMIT);
+      }
+      if (Array.isArray(entry.web?.pagesWithMatchingImages)) {
+        entry.web.pagesWithMatchingImages = Array.from(new Set(entry.web.pagesWithMatchingImages)).slice(0, OCR_WEB_PAGE_LIMIT);
+      }
+    });
+
     return {
       barcodes: dedupedBarcodes,
       barcodeDetails,
       textSnippets,
       numericValues,
+      web: {
+        bestGuessLabels: bestGuess,
+        webEntities,
+        pagesWithMatchingImages: pages,
+        logos,
+      },
+      byFile,
     };
   } catch (error) {
     console.warn('OCR extraction failed, continuing without OCR:', error.message);
@@ -264,6 +406,13 @@ async function extractOcrPayload(files = []) {
       barcodeDetails: [],
       textSnippets: [],
       numericValues: [],
+      web: {
+        bestGuessLabels: [],
+        webEntities: [],
+        pagesWithMatchingImages: [],
+        logos: [],
+      },
+      byFile: [],
     };
   }
 }

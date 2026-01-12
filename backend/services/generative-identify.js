@@ -1,7 +1,8 @@
 const { callGeminiStructured } = require('../lib/gemini-structured');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 
-const MAX_MODEL_IMAGES = parseInt(process.env.PIPELINE_V2_IMAGE_LIMIT || '3', 10);
+// Default to 4 images (not just 3) to better match "Google Lens-like" robustness on packaging/back labels.
+const MAX_MODEL_IMAGES = parseInt(process.env.PIPELINE_V2_IMAGE_LIMIT || '4', 10);
 const MAX_OCR_LINES = parseInt(process.env.PIPELINE_V2_OCR_LINE_LIMIT || '80', 10);
 
 const PRODUCT_RECORD_SCHEMA = {

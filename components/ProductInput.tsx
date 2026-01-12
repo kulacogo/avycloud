@@ -310,6 +310,9 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
               {t('input.groups.add')}
             </button>
           </div>
+          <p className="text-xs text-slate-400">
+            Tipp: <span className="text-slate-200 font-semibold">pro Produkt eine Gruppe</span>. Wenn in einer Gruppe mehrere verschiedene Produkte gemischt sind, kann Identify sie nicht zuverlässig auseinanderhalten.
+          </p>
           <div className="space-y-4">
             {groups.map((group, index) => (
               <div key={group.id} className="rounded-2xl border border-slate-700 bg-slate-900/50 p-4 space-y-4">

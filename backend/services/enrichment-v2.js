@@ -302,6 +302,62 @@ const preferString = (primary, fallback = DEFAULT_TEXT) => {
   return fallbackClean || DEFAULT_TEXT;
 };
 
+const scoreFileForIdentify = (fileSummary) => {
+  if (!fileSummary) return 0;
+  const textLen = Number(fileSummary.textLen || 0) || 0;
+  const textScore = Math.min(textLen, 1400) / 1400 * 5; // 0..5
+
+  const rawBarcodes = Array.isArray(fileSummary.barcodes) ? fileSummary.barcodes : [];
+  const valid = rawBarcodes.filter((code) => isValidGtin(code));
+  const barcodeScore = valid.length ? 7 : rawBarcodes.length ? 2 : 0;
+
+  const webGuessScore = Array.isArray(fileSummary.web?.bestGuessLabels) && fileSummary.web.bestGuessLabels.length ? 2 : 0;
+  const webEntityScore = Array.isArray(fileSummary.web?.webEntities) && fileSummary.web.webEntities.length ? 2 : 0;
+  const logoScore = Array.isArray(fileSummary.web?.logos) && fileSummary.web.logos.length ? 2 : 0;
+  return textScore + barcodeScore + webGuessScore + webEntityScore + logoScore;
+};
+
+const pickBestFilesForModel = (files = [], ocrPayload = {}) => {
+  const summaries = Array.isArray(ocrPayload?.byFile) ? ocrPayload.byFile : [];
+  if (!files.length || !summaries.length) return files;
+  const scored = files.map((file, idx) => ({
+    file,
+    idx,
+    score: scoreFileForIdentify(summaries[idx]),
+  }));
+  scored.sort((a, b) => (b.score - a.score) || (a.idx - b.idx));
+  // If everything scores 0, keep original ordering.
+  if (!scored.length || scored[0].score <= 0) return files;
+  return scored.map((s) => s.file);
+};
+
+const buildWebHintLines = (ocrPayload = {}) => {
+  const web = ocrPayload?.web || null;
+  if (!web) return [];
+  const lines = [];
+  const bestGuess = Array.isArray(web.bestGuessLabels) ? web.bestGuessLabels.filter(Boolean).slice(0, 6) : [];
+  if (bestGuess.length) {
+    lines.push(`WEB_DETECTION BestGuessLabels: ${bestGuess.join(' | ')}`);
+  }
+  const entities = Array.isArray(web.webEntities) ? web.webEntities.filter((e) => e?.description).slice(0, 6) : [];
+  if (entities.length) {
+    lines.push(
+      `WEB_DETECTION WebEntities: ${entities
+        .map((e) => `${e.description}${typeof e.score === 'number' ? ` (${e.score.toFixed(2)})` : ''}`)
+        .join(' | ')}`
+    );
+  }
+  const logos = Array.isArray(web.logos) ? web.logos.filter((e) => e?.description).slice(0, 5) : [];
+  if (logos.length) {
+    lines.push(
+      `LOGO_DETECTION: ${logos
+        .map((e) => `${e.description}${typeof e.score === 'number' ? ` (${e.score.toFixed(2)})` : ''}`)
+        .join(' | ')}`
+    );
+  }
+  return lines;
+};
+
 async function uploadReferenceImages(files = []) {
   const uploaded = [];
   for (let idx = 0; idx < files.length; idx += 1) {
@@ -335,9 +391,14 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
   let llmRecord = null;
 
   try {
+    const filesForModel = pickBestFilesForModel(files, ocrPayload);
+    const ocrLinesForModel = [
+      ...((ocrPayload.textSnippets || []).filter(Boolean)),
+      ...buildWebHintLines(ocrPayload),
+    ];
     llmRecord = await generateStructuredProductRecord({
-      files,
-      ocrLines: ocrPayload.textSnippets || [],
+      files: filesForModel,
+      ocrLines: ocrLinesForModel,
       barcodes: mergedBarcodes,
       locale,
       inputMode,
@@ -499,6 +560,7 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
     ocr: {
       textSnippets: ocrPayload.textSnippets || [],
       numericValues: ocrPayload.numericValues || [],
+      web: ocrPayload.web || null,
     },
     record: mergedRecord,
     llm: {
