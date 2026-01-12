@@ -183,26 +183,71 @@ async function generateStructuredProductRecord({ files, ocrLines, barcodes, loca
     topK: 16,
     maxOutputTokens: 1200,
     candidateCount: 1,
-    stopSequences: ['```'],
+    // IMPORTANT:
+    // - Do NOT use stopSequences like ``` here. The model often wraps JSON in fenced blocks,
+    //   and stopping on ``` can cut the payload before the JSON is emitted.
+    // - We'll instead robustly extract JSON from the returned text.
+    stopSequences: [],
   });
 
-  // Defensive cleaning: strip Markdown fences, keep outermost JSON object only
-  const sanitizeStructuredJson = (text = '') => {
-    const withoutCode = text.replace(/```[\s\S]*?```/g, '').trim();
-    const start = withoutCode.indexOf('{');
-    const end = withoutCode.lastIndexOf('}');
-    if (start === -1 || end === -1 || end <= start) {
-      return withoutCode;
-    }
-    // Only keep the outermost JSON object
-    let slice = withoutCode.slice(start, end + 1);
-    // Remove trailing characters after the last balanced brace
-    const lastBrace = slice.lastIndexOf('}');
-    slice = slice.slice(0, lastBrace + 1);
-    return slice;
+  // Defensive extraction:
+  // Gemini sometimes prepends text like "Here is the JSON..." and/or wraps JSON in ```json fences.
+  // We should keep the JSON *content* and extract the first JSON object/array we can find.
+  const stripMarkdownFencesKeepContent = (text = '') => {
+    // Remove only the fence markers, not the enclosed content.
+    return String(text)
+      .replace(/```(?:json|javascript)?\s*/gi, '')
+      .replace(/```/g, '')
+      .trim();
   };
 
-  const cleaned = sanitizeStructuredJson(raw);
+  const extractFirstJsonValue = (text = '') => {
+    const s = stripMarkdownFencesKeepContent(text);
+    const firstObj = s.indexOf('{');
+    const firstArr = s.indexOf('[');
+    let start = -1;
+    let open = '';
+    let close = '';
+    if (firstObj === -1 && firstArr === -1) return s.trim();
+    if (firstObj !== -1 && (firstArr === -1 || firstObj < firstArr)) {
+      start = firstObj;
+      open = '{';
+      close = '}';
+    } else {
+      start = firstArr;
+      open = '[';
+      close = ']';
+    }
+    let depth = 0;
+    let inStr = false;
+    let escaped = false;
+    for (let i = start; i < s.length; i += 1) {
+      const ch = s[i];
+      if (inStr) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === '\\\\') {
+          escaped = true;
+        } else if (ch === '"') {
+          inStr = false;
+        }
+        continue;
+      }
+      if (ch === '"') {
+        inStr = true;
+        continue;
+      }
+      if (ch === open) depth += 1;
+      if (ch === close) depth -= 1;
+      if (depth === 0) {
+        return s.slice(start, i + 1).trim();
+      }
+    }
+    // If we couldn't balance, return from start as best-effort (will likely fail parse and be logged).
+    return s.slice(start).trim();
+  };
+
+  const cleaned = extractFirstJsonValue(raw);
   const fixTrailingCommas = (text = '') => text.replace(/,\s*([}\]])/g, '$1');
 
   try {
@@ -213,7 +258,7 @@ async function generateStructuredProductRecord({ files, ocrLines, barcodes, loca
     try {
       return JSON.parse(fixed);
     } catch (err2) {
-      const snippet = cleaned.slice(0, 400);
+      const snippet = String(cleaned).slice(0, 600);
       console.error(
         'Failed to parse Gemini structured JSON (cleaned snippet):',
         snippet,
