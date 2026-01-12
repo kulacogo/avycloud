@@ -81,10 +81,11 @@ async function callGeminiStructured({
   const textParts = partsResponse
     .map((p) => (typeof p?.text === 'string' ? p.text : ''))
     .filter((t) => t && t.trim().length > 0);
-  // Prefer a part that contains JSON braces
-  const withBraces = textParts.filter((t) => t.includes('{') && t.includes('}'));
-  const primaryText = (withBraces[0] || textParts[0] || '').trim();
-  const textPayload = primaryText;
+  // IMPORTANT:
+  // Gemini can split responses across multiple content parts. If we only take the first part,
+  // we can end up with incomplete JSON (e.g. just "{"), causing parse failures downstream.
+  // So we concatenate all non-empty text parts.
+  const textPayload = textParts.join('\n').trim();
   if (!textPayload) {
     throw new Error('Gemini structured call returned empty payload.');
   }
