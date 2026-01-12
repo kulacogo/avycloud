@@ -7,6 +7,7 @@ import {
   refreshPrice,
   saveProduct,
   resolveIntakeExisting,
+  improveProduct,
 } from '../api/client';
 import { buildProductFromEnrichment } from '../utils/enrichmentRecord';
 
@@ -218,20 +219,40 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
           }
 
           const persisted = await persistProduct(product);
-          let pricedProduct = persisted;
+          // Auto-improve immediately so Quality Gate rules are met by default:
+          // - title 70–80 chars, description >= 260 chars, 5–7 highlights, >=5 attributes, pricing when possible
+          let finalProduct: Product = persisted;
+          let improveSucceeded = false;
           try {
             updateJob(localId, {
               phase: 'enriching',
-              message: 'Preis wird recherchiert …',
+              message: 'Datenblatt wird vervollständigt …',
             });
-            const priceResult = await refreshPrice(persisted.id);
+            const improveResult = await improveProduct(persisted.id);
+            if (improveResult.ok && improveResult.data) {
+              finalProduct = improveResult.data;
+              improveSucceeded = true;
+            }
+          } catch (improveErr) {
+            // Never fail the identify flow because of improvement.
+            console.warn('Auto-improve failed (continuing):', (improveErr as any)?.message || improveErr);
+          }
+
+          // Ensure a Neupreis-Richtwert is available (backend persists). If improve ran,
+          // pricing was already attempted; this is a safety net.
+          try {
+            updateJob(localId, {
+              phase: 'enriching',
+              message: improveSucceeded ? 'Preis wird geprüft …' : 'Preis wird recherchiert …',
+            });
+            const priceResult = await refreshPrice(finalProduct.id);
             if (priceResult.ok && priceResult.data) {
-              pricedProduct = {
-                ...persisted,
+              finalProduct = {
+                ...finalProduct,
                 details: {
-                  ...persisted.details,
+                  ...finalProduct.details,
                   pricing: {
-                    ...(persisted.details?.pricing || {}),
+                    ...(finalProduct.details?.pricing || {}),
                     ...priceResult.data,
                   },
                 },
@@ -240,7 +261,8 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
           } catch (priceError) {
             console.warn('Price enrichment failed:', (priceError as any)?.message || priceError);
           }
-          options?.onJobCompleted?.({ products: [pricedProduct] });
+
+          options?.onJobCompleted?.({ products: [finalProduct] });
           updateJob(localId, {
             phase: 'complete',
             message: PHASE_MESSAGES.complete,

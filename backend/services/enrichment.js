@@ -1149,7 +1149,9 @@ const DATASHEET_REVIEW_SCHEMA = {
     },
     attributes: {
       type: 'array',
-      minItems: 5,
+      // We want granular, marketplace-ready datasheets by default.
+      // Quality Gate only requires >=5, but for operational quality we enforce a higher floor here.
+      minItems: 10,
       maxItems: 40,
       items: {
         type: 'object',
@@ -1190,6 +1192,7 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
     'Zusatzregeln für Review:',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Keine Aufzählungen.',
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
+    '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme).',
     '- Zustand: Wenn condition_locked=false, ist "Gebraucht/Used" nicht erlaubt (auf NEU normalisieren).',
     '- Wenn das Datenblatt nicht eBay-ready ist, musst du es reparieren (fehlende Felder ergänzen, Mindestlängen erfüllen).',
     qualityIssues && qualityIssues.length
@@ -1236,14 +1239,35 @@ function applyReviewResult(product, review) {
     product.details.key_features = sanitizeKeyFeatures(review.highlights);
   }
   if (Array.isArray(review.attributes) && review.attributes.length) {
-    const attrs = {};
+    // Deduplicate attribute keys robustly (case/whitespace) and keep the most informative value.
+    const attrsByNorm = new Map();
+    const normalizeKey = (key) => String(key || '').replace(/\s+/g, ' ').trim();
+    const normKey = (key) => normalizeKey(key).toLowerCase();
+    const valueQuality = (value) => {
+      const v = String(value || '').trim();
+      return v.length;
+    };
+
     review.attributes.forEach((entry) => {
-      const key = entry?.key?.trim();
-      const value = entry?.value?.trim();
-      if (key && value) {
-        attrs[key] = value;
+      const key = normalizeKey(entry?.key);
+      const value = String(entry?.value || '').trim();
+      if (!key || !value) return;
+      const nk = normKey(key);
+      const existing = attrsByNorm.get(nk);
+      if (!existing) {
+        attrsByNorm.set(nk, { key, value });
+        return;
+      }
+      // Keep longer/more informative value; preserve the first display key.
+      if (valueQuality(value) > valueQuality(existing.value)) {
+        attrsByNorm.set(nk, { key: existing.key || key, value });
       }
     });
+
+    const attrs = {};
+    for (const { key, value } of attrsByNorm.values()) {
+      attrs[key] = value;
+    }
 
     const hasKTyp = Object.keys(attrs).some((k) => {
       const lower = String(k || '').trim().toLowerCase();
