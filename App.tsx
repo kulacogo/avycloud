@@ -439,11 +439,10 @@ const App: React.FC = () => {
   const handleIdentification = useCallback(
     (
       groupsPayload: UploadGroupPayload[],
-      barcodes: string,
-      model: string | undefined,
-      pipeline: 'legacy' | 'v2'
+      barcodes: string
     ) => {
-      enqueueIdentification(groupsPayload, barcodes, model, pipeline, null, null);
+      // Single identify pipeline (v2) only.
+      enqueueIdentification(groupsPayload, barcodes, null, null);
     },
     [enqueueIdentification]
   );

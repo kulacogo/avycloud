@@ -8,15 +8,9 @@ import { normalizeBarcode, summarizeBarcodes } from '../utils/gtin';
 interface ProductInputProps {
   onIdentify: (
     groups: UploadGroupPayload[],
-    barcodes: string,
-    model: string | undefined,
-    pipeline: IdentifyPipeline,
-    inventoryId?: string | null,
-    inventoryName?: string | null
+    barcodes: string
   ) => void;
 }
-
-type ModelOption = 'gpt-5-mini-2025-08-07' | 'gpt-5-mini';
 
 interface GroupImage {
   id: string;
@@ -51,9 +45,6 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const { t } = useI18n();
   const [groups, setGroups] = useState<UploadGroup[]>([createGroup(0, t('input.groups.defaultName', { index: 1 }))]);
   const [barcodes, setBarcodes] = useState('');
-  const [model, setModel] = useState<ModelOption>('gpt-5-mini-2025-08-07');
-  // Force a single default pipeline: Vision + Gemini (SerpAPI-frei)
-  const pipeline: IdentifyPipeline = 'v2';
   const [cameraTargetGroup, setCameraTargetGroup] = useState<string | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -204,7 +195,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
       alert(t('input.errors.payloadRequired'));
       return;
     }
-    onIdentify(payload, barcodes, model, pipeline);
+    onIdentify(payload, barcodes);
     // Reset groups for the next run
     setGroups([createGroup(0, groupNameForIndex(0))]);
   };
@@ -444,29 +435,6 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             ) : (
               <span className="text-amber-300">{t('input.barcodes.statusMissing')}</span>
             )}
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
-            {t('input.model.title')}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {(['gpt-5-mini-2025-08-07', 'gpt-5-mini'] as ModelOption[]).map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setModel(option)}
-                aria-pressed={model === option}
-                className={`w-full px-4 py-2 rounded-xl border text-sm font-semibold transition-all ${
-                  model === option
-                    ? 'bg-sky-600 border-sky-500 text-white shadow-lg shadow-sky-900/40'
-                    : 'bg-slate-700/80 border-slate-600 text-slate-200 hover:bg-slate-600'
-                }`}
-              >
-                {option === 'gpt-5-mini-2025-08-07' ? t('input.model.default') : t('input.model.fallback')}
-              </button>
-            ))}
           </div>
         </div>
 
