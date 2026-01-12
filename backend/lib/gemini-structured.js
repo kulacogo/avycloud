@@ -44,7 +44,10 @@ async function callGeminiStructured({
       candidateCount,
       stopSequences,
       responseMimeType: 'application/json',
-      responseSchema,
+      // Official REST field name (Gemini API structured output):
+      // generationConfig.responseJsonSchema
+      // https://ai.google.dev/gemini-api/docs/structured-output
+      responseJsonSchema: responseSchema,
     },
   };
 
