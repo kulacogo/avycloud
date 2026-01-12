@@ -249,6 +249,53 @@ async function generateStructuredProductRecord({ files, ocrLines, barcodes, loca
 
   const cleaned = extractFirstJsonValue(raw);
   const fixTrailingCommas = (text = '') => text.replace(/,\s*([}\]])/g, '$1');
+  // Repair common JSON issues from LLMs:
+  // - raw newlines inside quoted strings -> escape as \n (otherwise JSON.parse throws "Unterminated string")
+  // - raw carriage returns inside quoted strings -> escape as \r
+  const escapeNewlinesInsideStrings = (text = '') => {
+    const s = String(text);
+    let out = '';
+    let inStr = false;
+    let escaped = false;
+    for (let i = 0; i < s.length; i += 1) {
+      const ch = s[i];
+      if (!inStr) {
+        if (ch === '"') {
+          inStr = true;
+          out += ch;
+          continue;
+        }
+        out += ch;
+        continue;
+      }
+      // inside string
+      if (escaped) {
+        escaped = false;
+        out += ch;
+        continue;
+      }
+      if (ch === '\\\\') {
+        escaped = true;
+        out += ch;
+        continue;
+      }
+      if (ch === '"') {
+        inStr = false;
+        out += ch;
+        continue;
+      }
+      if (ch === '\n') {
+        out += '\\n';
+        continue;
+      }
+      if (ch === '\r') {
+        out += '\\r';
+        continue;
+      }
+      out += ch;
+    }
+    return out;
+  };
 
   try {
     return JSON.parse(cleaned);
@@ -258,14 +305,20 @@ async function generateStructuredProductRecord({ files, ocrLines, barcodes, loca
     try {
       return JSON.parse(fixed);
     } catch (err2) {
-      const snippet = String(cleaned).slice(0, 600);
+      // Retry with newline/carriage-return escaping inside quoted strings
+      const repaired = escapeNewlinesInsideStrings(fixed);
+      try {
+        return JSON.parse(repaired);
+      } catch (err3) {
+        const snippet = String(repaired).slice(0, 800);
       console.error(
         'Failed to parse Gemini structured JSON (cleaned snippet):',
         snippet,
         'error:',
         error.message
       );
-      throw new Error(`Failed to parse Gemini structured JSON: ${err2.message}`);
+        throw new Error(`Failed to parse Gemini structured JSON: ${err3.message}`);
+      }
     }
   }
 }
