@@ -1,17 +1,61 @@
-const GEMINI_API_KEY = process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY;
+const { getGeminiClient } = require('./gemini-client');
+
 const GEMINI_MULTIMODAL_MODEL =
   process.env.GEMINI_MULTIMODAL_MODEL ||
   process.env.GEMINI_STRUCTURED_MODEL ||
   'gemini-2.5-flash';
 
-const BASE_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MULTIMODAL_MODEL}:generateContent`;
+// Keep the schema compatible with Gemini responseSchema constrained decoding.
+// Inspired by the (working) legacy identify pipeline in backend/services/enrichment.js.
+function cleanSchemaForGemini(schema = {}) {
+  if (!schema || typeof schema !== 'object') return schema;
+  const cleaned = Array.isArray(schema) ? schema.map(cleanSchemaForGemini) : { ...schema };
 
-function ensureConfig() {
-  if (!GEMINI_API_KEY) {
-    throw new Error(
-      'GEMINI_API_KEY (or GOOGLE_GENAI_API_KEY) must be configured for multimodal structured generation.'
-    );
+  // Fix type arrays: type: ["string", "null"] -> type: "string"
+  if (Array.isArray(cleaned.type)) {
+    const validTypes = cleaned.type.filter((t) => t !== 'null');
+    cleaned.type = validTypes.length === 1 ? validTypes[0] : validTypes[0] || 'string';
   }
+
+  if (cleaned.properties) {
+    const next = {};
+    for (const [key, val] of Object.entries(cleaned.properties)) {
+      next[key] = cleanSchemaForGemini(val);
+    }
+    cleaned.properties = next;
+  }
+  if (cleaned.items) {
+    cleaned.items = cleanSchemaForGemini(cleaned.items);
+  }
+
+  // Remove keys Gemini rejects/ignores in strict schemas
+  delete cleaned.additionalProperties;
+  delete cleaned.default;
+  delete cleaned.anyOf;
+
+  return cleaned;
+}
+
+function toSdkParts(parts = []) {
+  if (!Array.isArray(parts)) return [];
+  return parts
+    .map((part) => {
+      if (!part) return null;
+      // REST format -> SDK format
+      if (part.inline_data?.data) {
+        return {
+          inlineData: {
+            data: String(part.inline_data.data),
+            mimeType: String(part.inline_data.mime_type || 'application/octet-stream'),
+          },
+        };
+      }
+      if (typeof part.text === 'string') {
+        return { text: part.text };
+      }
+      return null;
+    })
+    .filter(Boolean);
 }
 
 async function callGeminiStructured({
@@ -24,73 +68,45 @@ async function callGeminiStructured({
   candidateCount = 1,
   stopSequences = ['```'],
 }) {
-  ensureConfig();
   if (!Array.isArray(parts) || parts.length === 0) {
     throw new Error('Structured Gemini call requires at least one part (text or inline_data).');
   }
 
-  const body = {
-    contents: [
-      {
-        role: 'user',
-        parts,
-      },
-    ],
-    generationConfig: {
-      temperature,
-      topP,
-      topK,
-      maxOutputTokens,
-      candidateCount,
-      responseMimeType: 'application/json',
-      // Official REST field name (Gemini API structured output):
-      // generationConfig.responseJsonSchema
-      // https://ai.google.dev/gemini-api/docs/structured-output
-      responseJsonSchema: responseSchema,
-    },
+  const client = await getGeminiClient();
+  const model = client.getGenerativeModel({ model: GEMINI_MULTIMODAL_MODEL });
+
+  const generationConfig = {
+    temperature,
+    topP,
+    topK,
+    maxOutputTokens,
+    candidateCount,
+    responseMimeType: 'application/json',
+    // SDK uses responseSchema (constrained decoding); this is the same approach as the legacy pipeline.
+    responseSchema: cleanSchemaForGemini(responseSchema),
   };
-  // Only include stopSequences when non-empty. An empty array has been observed to produce
-  // unstable / truncated outputs on some deployments.
   if (Array.isArray(stopSequences) && stopSequences.length > 0) {
-    body.generationConfig.stopSequences = stopSequences;
+    generationConfig.stopSequences = stopSequences;
   }
 
-  const endpoint = `${BASE_ENDPOINT}?key=${encodeURIComponent(GEMINI_API_KEY)}`;
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
+  const sdkParts = toSdkParts(parts);
+  const result = await model.generateContent({
+    contents: [{ role: 'user', parts: sdkParts }],
+    generationConfig,
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    let reason = errorText;
-    try {
-      const parsed = JSON.parse(errorText);
-      reason = parsed.error?.message || JSON.stringify(parsed.error) || reason;
-    } catch (err) {
-      // fall back to raw
-    }
-    throw new Error(`Gemini structured call failed (${response.status}): ${reason}`);
-  }
-
-  const data = await response.json();
-  const candidates = data?.candidates;
-  if (!Array.isArray(candidates) || !candidates.length) {
-    throw new Error('Gemini structured call returned no candidates.');
-  }
-  const partsResponse = candidates[0]?.content?.parts || [];
-  const textParts = partsResponse
-    .map((p) => (typeof p?.text === 'string' ? p.text : ''))
-    .filter((t) => t && t.trim().length > 0);
   // IMPORTANT:
-  // Gemini can split responses across multiple content parts. If we only take the first part,
-  // we can end up with incomplete JSON (e.g. just "{"), causing parse failures downstream.
-  //
-  // Also: do NOT insert newlines between parts. The split can happen *inside* a JSON string value,
-  // and inserting '\n' would create invalid JSON ("Unterminated string").
+  // @google/generative-ai can return multiple content parts. Some deployments have shown
+  // response.text() not containing the full concatenation for structured JSON use-cases.
+  // We therefore concatenate parts manually (without inserting separators).
+  const resp = result?.response;
+  const candidates = Array.isArray(resp?.candidates) ? resp.candidates : [];
+  const partsResponse = candidates[0]?.content?.parts || [];
+  const textParts = Array.isArray(partsResponse)
+    ? partsResponse
+        .map((p) => (typeof p?.text === 'string' ? p.text : ''))
+        .filter((t) => t && t.trim().length > 0)
+    : [];
   const textPayload = textParts.join('').trim();
   if (!textPayload) {
     throw new Error('Gemini structured call returned empty payload.');

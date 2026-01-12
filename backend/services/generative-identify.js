@@ -297,6 +297,81 @@ async function generateStructuredProductRecord({ files, ocrLines, barcodes, loca
     return out;
   };
 
+  const salvageFlatFieldsFromJsonLike = (text = '') => {
+    const s = String(text || '');
+    const out = {};
+
+    const unescapeJsonString = (value = '') =>
+      String(value || '')
+        .replace(/\\\\/g, '\\')
+        .replace(/\\"/g, '"')
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r')
+        .replace(/\\t/g, '\t')
+        .trim();
+
+    const getString = (key) => {
+      // Prefer closed-quote matches
+      const closed = s.match(new RegExp(`"${key}"\\s*:\\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`));
+      if (closed?.[1] != null) return unescapeJsonString(closed[1]);
+      // Fallback: allow truncated strings (no closing quote). Capture until newline.
+      const open = s.match(new RegExp(`"${key}"\\s*:\\s*"([^\\n\\r]*)`));
+      if (open?.[1] != null) {
+        return unescapeJsonString(open[1].replace(/[\\s,}]*$/, ''));
+      }
+      return '';
+    };
+
+    const getNumber = (key) => {
+      const match = s.match(new RegExp(`"${key}"\\s*:\\s*([-+]?\\d+(?:\\.\\d+)?)`));
+      if (!match?.[1]) return null;
+      const num = Number(match[1]);
+      return Number.isFinite(num) ? num : null;
+    };
+
+    // Only salvage scalar fields that we actually use downstream for identification success.
+    const scalarKeys = [
+      'brand',
+      'model',
+      'sku',
+      'variant',
+      'gtin',
+      'ean',
+      'upc',
+      'color',
+      'size',
+      'material',
+      'condition',
+      'internalCategory',
+      'title_ebay',
+      'title_kaufland',
+      'description_ebay',
+      'description_kaufland',
+      'hero_caption',
+      'notes',
+    ];
+    for (const key of scalarKeys) {
+      const value = getString(key);
+      if (value) out[key] = value;
+    }
+    const eanConf = getNumber('ean_confidence');
+    const gtinConf = getNumber('gtin_confidence');
+    if (eanConf != null) out.ean_confidence = eanConf;
+    if (gtinConf != null) out.gtin_confidence = gtinConf;
+
+    const hasMeaningful =
+      Boolean(out.brand) ||
+      Boolean(out.model) ||
+      Boolean(out.sku) ||
+      Boolean(out.gtin) ||
+      Boolean(out.ean) ||
+      Boolean(out.upc) ||
+      Boolean(out.title_ebay) ||
+      Boolean(out.title_kaufland);
+
+    return hasMeaningful ? out : null;
+  };
+
   try {
     return JSON.parse(cleaned);
   } catch (error) {
@@ -310,6 +385,15 @@ async function generateStructuredProductRecord({ files, ocrLines, barcodes, loca
       try {
         return JSON.parse(repaired);
       } catch (err3) {
+        // Last resort: salvage partial scalar fields from truncated JSON-like output.
+        // This prevents losing strong signals (brand/model/sku) when the model output is cut mid-string.
+        const salvaged = salvageFlatFieldsFromJsonLike(repaired);
+        if (salvaged) {
+          salvaged.notes = salvaged.notes
+            ? `${salvaged.notes} | json_parse_salvaged=true`
+            : 'json_parse_salvaged=true';
+          return salvaged;
+        }
         const snippet = String(repaired).slice(0, 800);
       console.error(
         'Failed to parse Gemini structured JSON (cleaned snippet):',
