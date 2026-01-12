@@ -3,8 +3,6 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { ProductBundle, IdentifyPhase, Product } from '../types';
 import { MAX_IDENTIFY_FILES, MAX_IDENTIFY_FILE_BYTES, MAX_IDENTIFY_TOTAL_BYTES } from '../constants';
 import {
-  createIdentificationJob,
-  pollIdentificationJob,
   runSerpapiFreeEnrichment,
   refreshPrice,
   saveProduct,
@@ -17,8 +15,6 @@ export interface UploadGroupPayload {
   label: string;
   images: File[];
 }
-
-export type IdentifyPipeline = 'legacy' | 'v2';
 
 export interface IdentificationJobStatus {
   localId: string;
@@ -117,8 +113,6 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
     (
       group: UploadGroupPayload,
       barcodes: string,
-      model: string | undefined,
-      pipeline: IdentifyPipeline,
       inventoryId?: string | null,
       inventoryName?: string | null
     ) => {
@@ -137,152 +131,116 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
 
       (async () => {
         try {
-          if (pipeline === 'v2') {
-            updateJob(localId, {
-              phase: 'processing',
-              message: 'Vision/Gemini analysiert das Produkt …',
-            });
-            const response = await runSerpapiFreeEnrichment(group.images, barcodes, 'de-DE', inventoryId || undefined);
-            if (!response.ok || !response.data) {
-              throw new Error(response.error?.message || 'SerpAPI-freies Enrichment fehlgeschlagen.');
-            }
-            const product = buildProductFromEnrichment(response.data, {
-              fallbackId: group.id,
-              barcodes,
-              label: group.label,
-              inventoryId: inventoryId || null,
-              inventoryName: inventoryName || null,
-            });
-            const hasName =
-              !!product.identification?.name?.trim() && !isPlaceholderIdentifiedName(product.identification?.name);
-            const hasDesc = !!product.details?.short_description?.trim();
-            const hasImages = Array.isArray(product.details?.images) && product.details.images.length > 0;
+          updateJob(localId, {
+            phase: 'processing',
+            message: 'Vision/Gemini analysiert das Produkt …',
+          });
+          const response = await runSerpapiFreeEnrichment(group.images, barcodes, 'de-DE', inventoryId || undefined);
+          if (!response.ok || !response.data) {
+            throw new Error(response.error?.message || 'SerpAPI-freies Enrichment fehlgeschlagen.');
+          }
+          const product = buildProductFromEnrichment(response.data, {
+            fallbackId: group.id,
+            barcodes,
+            label: group.label,
+            inventoryId: inventoryId || null,
+            inventoryName: inventoryName || null,
+          });
+          const hasName =
+            !!product.identification?.name?.trim() && !isPlaceholderIdentifiedName(product.identification?.name);
+          const hasDesc = !!product.details?.short_description?.trim();
+          const hasImages = Array.isArray(product.details?.images) && product.details.images.length > 0;
 
-            if (!hasName || !hasDesc || !hasImages) {
-              const ranked = Array.isArray(response.meta?.barcodeInsights?.ranked)
-                ? response.meta.barcodeInsights.ranked
-                : [];
-              const valid = ranked
-                .filter((entry: any) => entry && entry.isValid && entry.code)
-                .map((entry: any) => String(entry.code))
-                .filter(Boolean);
-              const uniqueValid = Array.from(new Set(valid)).slice(0, 6);
-              const bestGuess = Array.isArray(response.meta?.ocr?.web?.bestGuessLabels)
-                ? response.meta.ocr.web.bestGuessLabels.filter(Boolean).slice(0, 3)
-                : [];
-              const llmError = response.meta?.llm?.error ? String(response.meta.llm.error) : '';
+          if (!hasName || !hasDesc || !hasImages) {
+            const ranked = Array.isArray(response.meta?.barcodeInsights?.ranked)
+              ? response.meta.barcodeInsights.ranked
+              : [];
+            const valid = ranked
+              .filter((entry: any) => entry && entry.isValid && entry.code)
+              .map((entry: any) => String(entry.code))
+              .filter(Boolean);
+            const uniqueValid = Array.from(new Set(valid)).slice(0, 6);
+            const bestGuess = Array.isArray(response.meta?.ocr?.web?.bestGuessLabels)
+              ? response.meta.ocr.web.bestGuessLabels.filter(Boolean).slice(0, 3)
+              : [];
+            const llmError = response.meta?.llm?.error ? String(response.meta.llm.error) : '';
 
-              if (uniqueValid.length >= 2) {
-                throw new Error(
-                  `Mehrere Produkte in einem Upload erkannt (mehrere Barcodes: ${uniqueValid.join(
-                    ', '
-                  )}). Bitte pro Produkt eine Gruppe anlegen und die Bilder trennen.`
-                );
-              }
-              if (uniqueValid.length === 1) {
-                throw new Error(
-                  `Barcode erkannt (${uniqueValid[0]}), aber Titel/Marke konnten nicht sicher abgeleitet werden. Bitte ein schärferes Frontfoto/Label hochladen oder Barcode separat scannen.`
-                );
-              }
-              if (bestGuess.length) {
-                throw new Error(
-                  `Identifikation unsicher (Vision-Hinweis: ${bestGuess.join(
-                    ' | '
-                  )}).${llmError ? ` (LLM: ${llmError})` : ''} Bitte bessere Fotos/Barcode liefern oder pro Produkt eine eigene Gruppe nutzen.`
-                );
-              }
+            if (uniqueValid.length >= 2) {
               throw new Error(
-                `Identifikation unsicher.${llmError ? ` (LLM: ${llmError})` : ''} Bitte bessere Fotos/Barcode liefern oder pro Produkt eine eigene Gruppe nutzen.`
+                `Mehrere Produkte in einem Upload erkannt (mehrere Barcodes: ${uniqueValid.join(
+                  ', '
+                )}). Bitte pro Produkt eine Gruppe anlegen und die Bilder trennen.`
               );
             }
+            if (uniqueValid.length === 1) {
+              throw new Error(
+                `Barcode erkannt (${uniqueValid[0]}), aber Titel/Marke konnten nicht sicher abgeleitet werden. Bitte ein schärferes Frontfoto/Label hochladen oder Barcode separat scannen.`
+              );
+            }
+            if (bestGuess.length) {
+              throw new Error(
+                `Identifikation unsicher (Vision-Hinweis: ${bestGuess.join(
+                  ' | '
+                )}).${llmError ? ` (LLM: ${llmError})` : ''} Bitte bessere Fotos/Barcode liefern oder pro Produkt eine eigene Gruppe nutzen.`
+              );
+            }
+            throw new Error(
+              `Identifikation unsicher.${llmError ? ` (LLM: ${llmError})` : ''} Bitte bessere Fotos/Barcode liefern oder pro Produkt eine eigene Gruppe nutzen.`
+            );
+          }
 
-            // HARD SAFETY: if product already exists (EAN/GTIN/SKU), never overwrite the datasheet.
-            // This protects "Bestandartikel" when later deliveries are processed through Identify again.
+          // HARD SAFETY: if product already exists (EAN/GTIN/SKU), never overwrite the datasheet.
+          updateJob(localId, {
+            phase: 'enriching',
+            message: 'Bestand prüfen …',
+          });
+          try {
+            const lookup = await resolveIntakeExisting({
+              barcodes,
+              sku: product.identification?.sku || product.details?.identifiers?.sku || null,
+              inventoryId: inventoryId || null,
+            });
+            if (lookup.ok && lookup.data?.matched && lookup.data.product) {
+              const existing = lookup.data.product;
+              options?.onJobCompleted?.({ products: [existing] });
+              updateJob(localId, {
+                phase: 'complete',
+                message: PHASE_MESSAGES.complete,
+                finishedAt: new Date().toISOString(),
+              });
+              return;
+            }
+          } catch (lookupErr) {
+            console.warn(
+              'Intake resolve failed (continuing with new product):',
+              (lookupErr as any)?.message || lookupErr
+            );
+          }
+
+          const persisted = await persistProduct(product);
+          let pricedProduct = persisted;
+          try {
             updateJob(localId, {
               phase: 'enriching',
-              message: 'Bestand prüfen …',
+              message: 'Preis wird recherchiert …',
             });
-            try {
-              const lookup = await resolveIntakeExisting({
-                barcodes,
-                sku: product.identification?.sku || product.details?.identifiers?.sku || null,
-                inventoryId: inventoryId || null,
-              });
-              if (lookup.ok && lookup.data?.matched && lookup.data.product) {
-                const existing = lookup.data.product;
-                options?.onJobCompleted?.({ products: [existing] });
-                updateJob(localId, {
-                  phase: 'complete',
-                  message: PHASE_MESSAGES.complete,
-                  finishedAt: new Date().toISOString(),
-                });
-                return;
-              }
-            } catch (lookupErr) {
-              // Never fail the identify flow because of a lookup issue.
-              console.warn('Intake resolve failed (continuing with new product):', (lookupErr as any)?.message || lookupErr);
-            }
-
-            const persisted = await persistProduct(product);
-            // Ensure a Neupreis-Richtwert is available (web search)
-            let pricedProduct = persisted;
-            try {
-              updateJob(localId, {
-                phase: 'enriching',
-                message: 'Preis wird recherchiert …',
-              });
-              const priceResult = await refreshPrice(persisted.id);
-              if (priceResult.ok && priceResult.data) {
-                pricedProduct = {
-                  ...persisted,
-                  details: {
-                    ...persisted.details,
-                    pricing: {
-                      ...(persisted.details?.pricing || {}),
-                      ...priceResult.data,
-                    },
+            const priceResult = await refreshPrice(persisted.id);
+            if (priceResult.ok && priceResult.data) {
+              pricedProduct = {
+                ...persisted,
+                details: {
+                  ...persisted.details,
+                  pricing: {
+                    ...(persisted.details?.pricing || {}),
+                    ...priceResult.data,
                   },
-                };
-              }
-            } catch (priceError) {
-              // Never fail the identify flow because of pricing
-              console.warn('Price enrichment failed:', (priceError as any)?.message || priceError);
+                },
+              };
             }
-            options?.onJobCompleted?.({ products: [pricedProduct] });
-            updateJob(localId, {
-              phase: 'complete',
-              message: PHASE_MESSAGES.complete,
-              finishedAt: new Date().toISOString(),
-            });
-            return;
+          } catch (priceError) {
+            console.warn('Price enrichment failed:', (priceError as any)?.message || priceError);
           }
-          const creation = await createIdentificationJob(group.images, barcodes, {
-            model,
-            signal: controller.signal,
-            inventoryId: inventoryId || undefined,
-          });
-          if (!creation.ok || !creation.jobId) {
-            throw new Error(creation.error?.message || 'Job konnte nicht erstellt werden.');
-          }
-          updateJob(localId, {
-            jobId: creation.jobId,
-            phase: 'queued',
-            message: PHASE_MESSAGES.queued,
-          });
-
-          const bundle = await pollIdentificationJob(creation.jobId, {
-            signal: controller.signal,
-            onStatus: (phase) => {
-              const message = PHASE_MESSAGES[phase] || 'Job wird verarbeitet …';
-              updateJob(localId, { phase, message });
-        },
-      });
-
-          if (!bundle?.products?.length) {
-            throw new Error('Job abgeschlossen, aber keine Produkte erhalten.');
-      }
-
-          options?.onJobCompleted?.(bundle);
+          options?.onJobCompleted?.({ products: [pricedProduct] });
           updateJob(localId, {
             phase: 'complete',
             message: PHASE_MESSAGES.complete,
@@ -320,8 +278,6 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
     async (
       groups: UploadGroupPayload[],
       barcodes: string,
-      model: string | undefined,
-      pipeline: IdentifyPipeline = 'legacy',
       inventoryId?: string | null,
       inventoryName?: string | null
     ) => {
@@ -357,7 +313,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
 
       setError(null);
       groupsToProcess.forEach((group) => {
-        startJobForGroup(group, barcodes, model, pipeline, inventoryId, inventoryName);
+        startJobForGroup(group, barcodes, inventoryId, inventoryName);
       });
     },
     [startJobForGroup, validateGroup]

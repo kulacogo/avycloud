@@ -800,61 +800,13 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/jobs', upload.array('images'), async (req, res) => {
-  try {
-    const files = req.files || [];
-    const barcodes = req.body?.barcodes || '';
-    if (files.length === 0 && (!barcodes || !barcodes.trim())) {
-      return res.status(400).json({
-        ok: false,
-        error: {
-          code: 400,
-          message: 'Bitte mindestens ein Bild oder einen Barcode bereitstellen.',
-        },
-      });
-    }
-
-    // Inventory wird für Identify nicht mehr benötigt/akzeptiert
-
-    const locale = req.body?.locale || 'de-DE';
-    const model = req.body?.model || null;
-    const jobId = crypto.randomUUID();
-
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        uploadJobFile(file.buffer, file.mimetype, jobId, file.originalname)
-      )
-    );
-
-    await createJob(
-      {
-        payload: {
-          files: uploadedFiles,
-          barcodes,
-          locale,
-          model,
-          inventoryId,
-        },
-      },
-      jobId
-    );
-
-    enqueueJob(jobId);
-
-    res.json({
-      ok: true,
-      jobId,
-    });
-  } catch (error) {
-    console.error('Error creating job:', error);
-    res.status(500).json({
-      ok: false,
-      error: {
-        code: 500,
-        message: 'Failed to create identification job',
-        details: error.message,
-      },
-    });
-  }
+  return res.status(410).json({
+    ok: false,
+    error: {
+      code: 410,
+      message: 'Legacy Identify-Jobs werden nicht mehr unterstützt. Bitte /api/v2/enrich verwenden.',
+    },
+  });
 });
 
 app.get('/api/inventories', async (req, res) => {
@@ -1298,70 +1250,13 @@ app.get('/api/image-proxy', async (req, res) => {
 });
 
 app.post('/api/identify', upload.array('images'), async (req, res) => {
-  try {
-    const files = req.files || [];
-    const barcodes = req.body?.barcodes || '';
-    const locale = req.body?.locale || 'de-DE';
-    const modelOverride = req.query?.model || req.body?.model || null;
-
-    const result = await runProductIdentification({
-      files,
-      barcodes,
-      locale,
-      modelOverride,
-    });
-
-    res.status(200).json({
-      ok: true,
-      model: result.modelUsed,
-      data: result.bundle,
-      serpTrace: result.serpTrace,
-      qualityReport: result.qualityReport || [],
-    });
-  } catch (error) {
-    console.error('Error in /api/identify:', error);
-    if (error.code === BARCODE_LIMIT_ERROR) {
-      return res.status(400).json({
-        ok: false,
-        error: {
-          code: 400,
-          message: `Zu viele Barcodes übermittelt. Maximal ${MAX_BARCODE_COUNT} Barcodes pro Anfrage sind erlaubt.`,
-        },
-      });
-    }
-    if (error.code === IMAGE_PAYLOAD_ERROR) {
-      return res.status(413).json({
-        ok: false,
-        error: {
-          code: 413,
-          message: `Bildupload überschreitet das ${Math.floor(
-            MAX_IMAGE_PAYLOAD_BYTES / (1024 * 1024)
-          )} MB-Gesamtkontingent (Konfiguration: ${MAX_IMAGE_FILES} Dateien à ca. ${Math.floor(
-            MAX_IMAGE_FILE_SIZE / (1024 * 1024)
-          )} MB).`,
-        },
-      });
-    }
-    if (error.code === TOOL_ITERATION_ERROR) {
-      return res.status(503).json({
-        ok: false,
-        model: error.modelUsed,
-        error: {
-          code: 503,
-          message: 'SerpAPI/GPT Workflow hat zu viele Tool-Aufrufe benötigt. Bitte Eingabe verfeinern oder erneut versuchen.',
-        },
-        serpTrace: error.serpTrace || [],
-      });
-    }
-
-    res.status(500).json({
-      ok: false,
-      error: {
-        code: 500,
-        message: error.message,
-      },
-    });
-  }
+  return res.status(410).json({
+    ok: false,
+    error: {
+      code: 410,
+      message: 'Legacy /api/identify wird nicht mehr unterstützt. Bitte /api/v2/enrich verwenden.',
+    },
+  });
 });
 
 // Intake resolver for Identify v2:
