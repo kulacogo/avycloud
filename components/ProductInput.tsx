@@ -24,7 +24,11 @@ interface UploadGroup {
   images: GroupImage[];
 }
 
-const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+// iPadOS 13+ reports "Macintosh" in the UA; detect via touch points.
+const isIOSDevice =
+  typeof navigator !== 'undefined' &&
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
 const supportsBrowserCamera =
   typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
@@ -44,6 +48,7 @@ const createGroup = (index: number, name?: string): UploadGroup => ({
 const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const { t } = useI18n();
   const [groups, setGroups] = useState<UploadGroup[]>([createGroup(0, t('input.groups.defaultName', { index: 1 }))]);
+  const groupsRef = useRef<UploadGroup[]>(groups);
   const [barcodes, setBarcodes] = useState('');
   const [cameraTargetGroup, setCameraTargetGroup] = useState<string | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
@@ -62,8 +67,6 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
     [manualBarcodeList]
   );
   const videoRef = useRef<HTMLVideoElement>(null);
-  const captureInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const groupNameForIndex = useCallback(
     (index: number) => t('input.groups.defaultName', { index: index + 1 }),
     [t]
@@ -233,19 +236,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
 
   const handleCameraButtonClick = (groupId: string) => {
     setCameraTargetGroup(groupId);
-    if (isIOSDevice || !supportsBrowserCamera) {
-      captureInputRef.current?.click();
-      return;
-    }
     toggleCamera(groupId);
-  };
-
-  const handleCaptureFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files.length > 0) {
-      const target = cameraTargetGroup || groups[0].id;
-      addImagesToGroup(target, Array.from(event.target.files));
-    }
-    event.target.value = '';
   };
 
   const captureImage = () => {
@@ -268,12 +259,18 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   };
 
   useEffect(() => {
-    return () => {
-      groups.forEach((group) =>
-        group.images.forEach((image) => URL.revokeObjectURL(image.preview))
-      );
-    };
+    groupsRef.current = groups;
   }, [groups]);
+
+  // Cleanup preview object URLs on unmount only (avoid revoking previews during state updates,
+  // which can break image loading on slower/mobile browsers).
+  useEffect(() => {
+    return () => {
+      groupsRef.current.forEach((group) => {
+        group.images.forEach((image) => URL.revokeObjectURL(image.preview));
+      });
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -325,33 +322,45 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                   className="flex flex-col gap-4 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/40 p-4 transition-colors hover:border-sky-500"
                 >
                   <div className="flex flex-col lg:flex-row gap-3">
-              <button
-                type="button"
-                      onClick={() => fileInputRefs.current[group.id]?.click()}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors"
-              >
+                    {/* Mobile-safe file picker: use an overlay input instead of programmatic click() */}
+                    <label className="relative flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors cursor-pointer">
                       <UploadIcon className="w-5 h-5" />
                       {t('input.groups.files')}
-              </button>
-              <button
-                type="button"
-                      onClick={() => handleCameraButtonClick(group.id)}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors"
-              >
-                      <CameraIcon className="w-5 h-5" />
-                      {isCameraOn && cameraTargetGroup === group.id ? t('input.groups.cameraClose') : t('input.groups.cameraOpen')}
-              </button>
-            </div>
-            <input
-                    ref={(el) => {
-                      fileInputRefs.current[group.id] = el;
-                    }}
-              type="file"
-              multiple
-              accept="image/*"
-              className="hidden"
-                    onChange={(event) => handleFileChange(group.id, event)}
-            />
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        onChange={(event) => handleFileChange(group.id, event)}
+                      />
+                    </label>
+
+                    {/* Camera: on iOS (or when getUserMedia isn't available), use a capture file input. */}
+                    {isIOSDevice || !supportsBrowserCamera ? (
+                      <label className="relative flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors cursor-pointer">
+                        <CameraIcon className="w-5 h-5" />
+                        {t('input.groups.cameraOpen')}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                          onChange={(event) => handleFileChange(group.id, event)}
+                        />
+                      </label>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleCameraButtonClick(group.id)}
+                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors"
+                      >
+                        <CameraIcon className="w-5 h-5" />
+                        {isCameraOn && cameraTargetGroup === group.id
+                          ? t('input.groups.cameraClose')
+                          : t('input.groups.cameraOpen')}
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {group.images.map((image) => (
                       <div
@@ -446,14 +455,6 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             {t('input.submit')}
           </button>
         </div>
-        <input
-          ref={captureInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handleCaptureFileChange}
-        />
       </form>
     </div>
   );
