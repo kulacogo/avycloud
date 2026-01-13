@@ -37,6 +37,9 @@ const { parseKTypeEbayCsvToSkuMap } = require('./lib/ktype');
 const {
   runProductIdentification,
   ensurePriceCoverage,
+  runDatasheetReview,
+  applyEbayTaxonomy,
+  applyKauflandTaxonomy,
   BARCODE_LIMIT_ERROR,
   IMAGE_PAYLOAD_ERROR,
   MAX_BARCODE_COUNT,
@@ -44,6 +47,7 @@ const {
   TOOL_ITERATION_ERROR,
 } = require('./services/enrichment');
 const { runSerpapiFreePipeline } = require('./services/enrichment-v2');
+const { buildProductFromV2Record } = require('./lib/v2-product-builder');
 const { syncInventoriesFromBaseLinker } = require('./services/inventory-sync');
 const { runProductChat } = require('./services/product-chat');
 const { improveExistingProduct } = require('./services/improve');
@@ -993,6 +997,137 @@ app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
       error: {
         code: 500,
         message: 'SerpAPI-freies Enrichment fehlgeschlagen.',
+        details: error?.message || 'Unknown error',
+      },
+    });
+  }
+});
+
+// v2 Identify (single pipeline): runs serpapi-free pipeline + server-side datasheet review,
+// persists product in SYSTEM mode (so invariants like title policy + condition rules apply),
+// and returns the saved product (already ready for Quality Gate).
+app.post('/api/v2/identify', upload.array('images'), async (req, res) => {
+  try {
+    const files = req.files || [];
+    const barcodes = req.body?.barcodes || '';
+    const locale = req.body?.locale || 'de-DE';
+    const inventoryId = req.body?.inventoryId || null;
+
+    if (!files.length && (!barcodes || !barcodes.trim())) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Bitte mindestens ein Bild oder einen Barcode bereitstellen.' },
+      });
+    }
+
+    // 1) Identify + OCR + record
+    const result = await runSerpapiFreePipeline({ files, barcodes, locale, inventoryId });
+
+    // 2) Stock protection: if this identifier already exists, never overwrite datasheet.
+    const strictBarcodes = []
+      .concat(Array.isArray(result?.barcodeInsights?.ranked) ? result.barcodeInsights.ranked.map((r) => r?.code) : [])
+      .concat([result?.barcodeInsights?.selected?.ean, result?.barcodeInsights?.selected?.gtin])
+      .concat(Array.isArray(result?.barcodes) ? result.barcodes : [])
+      .filter(Boolean)
+      .map((c) => String(c).trim())
+      .filter(Boolean)
+      .slice(0, 8);
+    const strictSku =
+      result?.record?.sku && typeof result.record.sku === 'string' && result.record.sku.trim() && result.record.sku.trim().toLowerCase() !== 'unknown'
+        ? result.record.sku.trim()
+        : null;
+
+    const existing = await findProductByStrictIdentifier({ barcodes: strictBarcodes, sku: strictSku });
+    if (existing?.id) {
+      // Best-effort: mark incoming stock as pending intake (do not touch the datasheet)
+      try {
+        await adjustPendingIntakeQuantity(existing.id, 1);
+      } catch (e) {
+        console.warn('Failed to adjust pending intake for existing product:', e?.message || e);
+      }
+      const refreshed = await getProduct(existing.id);
+      return res.json({
+        ok: true,
+        data: refreshed || existing,
+        meta: {
+          reused_existing: true,
+          locale: result.locale,
+          barcodes: result.barcodes,
+          ocr: result.ocr,
+          llm: result.llm,
+          barcodeInsights: result.barcodeInsights,
+          quality: result.quality,
+        },
+      });
+    }
+
+    // 3) Build initial product (server-side), then run taxonomy + datasheet review using OCR evidence.
+    let product = buildProductFromV2Record(result.record, {
+      fallbackId: crypto.randomUUID(),
+      barcodes,
+      locale,
+      inventoryId: inventoryId || null,
+    });
+
+    product = applyEbayTaxonomy(product);
+    product = applyKauflandTaxonomy(product);
+
+    // Provide evidence to the review step (OCR/web hints). This avoids "invented" specs and helps granularity.
+    const evidence = {
+      ocr: result.ocr || null,
+      barcodes: result.barcodes || [],
+      barcodeInsights: result.barcodeInsights || null,
+      llm: result.llm || null,
+    };
+
+    await runDatasheetReview([product], { locale, webEvidence: evidence });
+
+    // Retry once if still not eBay-ready (title/desc/highlights/attrs). This keeps Identify outputs stable.
+    try {
+      const { evaluateEbayReady } = require('./lib/datasheet-quality');
+      const eval1 = evaluateEbayReady(product);
+      if (!eval1.ok && eval1.issues && eval1.issues.length) {
+        await runDatasheetReview([product], {
+          locale,
+          webEvidence: evidence,
+          qualityIssuesById: { [product.id]: eval1.issues },
+        });
+      }
+    } catch (e) {
+      console.warn('Identify post-review evaluation failed (continuing):', e?.message || e);
+    }
+
+    // 4) Persist (SYSTEM mode => invariants enforced; never treated as manual UI edit).
+    await saveProduct(product, {
+      allowCategoryChange: true,
+      mode: 'system',
+      source: 'identify',
+      overwriteTextFields: true,
+      replaceAttributes: true,
+      syncIdentifiersFromBarcodes: true,
+    });
+
+    const saved = await getProduct(product.id);
+    return res.json({
+      ok: true,
+      data: saved || product,
+      meta: {
+        reused_existing: false,
+        locale: result.locale,
+        barcodes: result.barcodes,
+        ocr: result.ocr,
+        llm: result.llm,
+        barcodeInsights: result.barcodeInsights,
+        quality: result.quality,
+      },
+    });
+  } catch (error) {
+    console.error('v2 identify failed:', error);
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Identify (v2) fehlgeschlagen.',
         details: error?.message || 'Unknown error',
       },
     });

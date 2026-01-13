@@ -3,13 +3,9 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { ProductBundle, IdentifyPhase, Product } from '../types';
 import { MAX_IDENTIFY_FILES, MAX_IDENTIFY_FILE_BYTES, MAX_IDENTIFY_TOTAL_BYTES } from '../constants';
 import {
-  runSerpapiFreeEnrichment,
+  identifyProductV2,
   refreshPrice,
-  saveProduct,
-  resolveIntakeExisting,
-  improveProduct,
 } from '../api/client';
-import { buildProductFromEnrichment } from '../utils/enrichmentRecord';
 
 export interface UploadGroupPayload {
   id: string;
@@ -93,22 +89,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
     }
   }, []);
 
-  const persistProduct = useCallback(async (product: Product) => {
-    const saveResult = await saveProduct(product);
-    if (!saveResult.ok) {
-      throw new Error(saveResult.error?.message || 'Produkt konnte nicht gespeichert werden.');
-    }
-    const now = new Date().toISOString();
-    return {
-      ...product,
-      id: saveResult.data?.id || product.id,
-      ops: {
-        ...product.ops,
-        revision: saveResult.data?.revision ?? product.ops.revision ?? 0,
-        last_saved_iso: now,
-      },
-    };
-  }, []);
+  // Persisting is handled server-side by /api/v2/identify (includes stock protection + review).
 
   const startJobForGroup = useCallback(
     (
@@ -136,118 +117,34 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
             phase: 'processing',
             message: 'Vision/Gemini analysiert das Produkt …',
           });
-          const response = await runSerpapiFreeEnrichment(group.images, barcodes, 'de-DE', inventoryId || undefined);
-          if (!response.ok || !response.data) {
-            throw new Error(response.error?.message || 'SerpAPI-freies Enrichment fehlgeschlagen.');
-          }
-          const product = buildProductFromEnrichment(response.data, {
-            fallbackId: group.id,
-            barcodes,
-            label: group.label,
-            inventoryId: inventoryId || null,
-            inventoryName: inventoryName || null,
-          });
-          const hasName =
-            !!product.identification?.name?.trim() && !isPlaceholderIdentifiedName(product.identification?.name);
-          const hasDesc = !!product.details?.short_description?.trim();
-          const hasImages = Array.isArray(product.details?.images) && product.details.images.length > 0;
-
-          if (!hasName || !hasDesc || !hasImages) {
-            const ranked = Array.isArray(response.meta?.barcodeInsights?.ranked)
-              ? response.meta.barcodeInsights.ranked
-              : [];
-            const valid = ranked
-              .filter((entry: any) => entry && entry.isValid && entry.code)
-              .map((entry: any) => String(entry.code))
-              .filter(Boolean);
-            const uniqueValid = Array.from(new Set(valid)).slice(0, 6);
-            const bestGuess = Array.isArray(response.meta?.ocr?.web?.bestGuessLabels)
-              ? response.meta.ocr.web.bestGuessLabels.filter(Boolean).slice(0, 3)
-              : [];
-            const llmError = response.meta?.llm?.error ? String(response.meta.llm.error) : '';
-
-            if (uniqueValid.length >= 2) {
-              throw new Error(
-                `Mehrere Produkte in einem Upload erkannt (mehrere Barcodes: ${uniqueValid.join(
-                  ', '
-                )}). Bitte pro Produkt eine Gruppe anlegen und die Bilder trennen.`
-              );
-            }
-            if (uniqueValid.length === 1) {
-              throw new Error(
-                `Barcode erkannt (${uniqueValid[0]}), aber Titel/Marke konnten nicht sicher abgeleitet werden. Bitte ein schärferes Frontfoto/Label hochladen oder Barcode separat scannen.`
-              );
-            }
-            if (bestGuess.length) {
-              throw new Error(
-                `Identifikation unsicher (Vision-Hinweis: ${bestGuess.join(
-                  ' | '
-                )}).${llmError ? ` (LLM: ${llmError})` : ''} Bitte bessere Fotos/Barcode liefern oder pro Produkt eine eigene Gruppe nutzen.`
-              );
-            }
-            throw new Error(
-              `Identifikation unsicher.${llmError ? ` (LLM: ${llmError})` : ''} Bitte bessere Fotos/Barcode liefern oder pro Produkt eine eigene Gruppe nutzen.`
-            );
-          }
-
-          // HARD SAFETY: if product already exists (EAN/GTIN/SKU), never overwrite the datasheet.
           updateJob(localId, {
             phase: 'enriching',
-            message: 'Bestand prüfen …',
+            message: 'Datenblatt wird erstellt …',
           });
-          try {
-            const lookup = await resolveIntakeExisting({
-              barcodes,
-              sku: product.identification?.sku || product.details?.identifiers?.sku || null,
-              inventoryId: inventoryId || null,
-            });
-            if (lookup.ok && lookup.data?.matched && lookup.data.product) {
-              const existing = lookup.data.product;
-              options?.onJobCompleted?.({ products: [existing] });
-              updateJob(localId, {
-                phase: 'complete',
-                message: PHASE_MESSAGES.complete,
-                finishedAt: new Date().toISOString(),
-              });
-              return;
-            }
-          } catch (lookupErr) {
-            console.warn(
-              'Intake resolve failed (continuing with new product):',
-              (lookupErr as any)?.message || lookupErr
-            );
+          const identifyResult = await identifyProductV2(group.images, barcodes, 'de-DE', inventoryId || undefined);
+          if (!identifyResult.ok || !identifyResult.data) {
+            throw new Error(identifyResult.error?.message || 'Identify (v2) fehlgeschlagen.');
           }
 
-          const persisted = await persistProduct(product);
-          // Auto-improve immediately so Quality Gate rules are met by default:
-          // - title 70–80 chars, description >= 260 chars, 5–7 highlights, >=5 attributes, pricing when possible
-          let finalProduct: Product = persisted;
-          let improveSucceeded = false;
+          const finalProduct: Product = identifyResult.data;
+          const hasName =
+            !!finalProduct.identification?.name?.trim() &&
+            !isPlaceholderIdentifiedName(finalProduct.identification?.name);
+          const hasDesc = !!finalProduct.details?.short_description?.trim();
+          const hasImages =
+            Array.isArray(finalProduct.details?.images) && finalProduct.details.images.length > 0;
+          if (!hasName || !hasDesc || !hasImages) {
+            throw new Error('Identify hat ein unvollständiges Datenblatt geliefert. Bitte erneut versuchen.');
+          }
+
           try {
             updateJob(localId, {
               phase: 'enriching',
-              message: 'Datenblatt wird vervollständigt …',
-            });
-            const improveResult = await improveProduct(persisted.id);
-            if (improveResult.ok && improveResult.data) {
-              finalProduct = improveResult.data;
-              improveSucceeded = true;
-            }
-          } catch (improveErr) {
-            // Never fail the identify flow because of improvement.
-            console.warn('Auto-improve failed (continuing):', (improveErr as any)?.message || improveErr);
-          }
-
-          // Ensure a Neupreis-Richtwert is available (backend persists). If improve ran,
-          // pricing was already attempted; this is a safety net.
-          try {
-            updateJob(localId, {
-              phase: 'enriching',
-              message: improveSucceeded ? 'Preis wird geprüft …' : 'Preis wird recherchiert …',
+              message: 'Preis wird geprüft …',
             });
             const priceResult = await refreshPrice(finalProduct.id);
             if (priceResult.ok && priceResult.data) {
-              finalProduct = {
+              const withPrice: Product = {
                 ...finalProduct,
                 details: {
                   ...finalProduct.details,
@@ -257,12 +154,14 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
                   },
                 },
               };
+              options?.onJobCompleted?.({ products: [withPrice] });
+            } else {
+              options?.onJobCompleted?.({ products: [finalProduct] });
             }
           } catch (priceError) {
             console.warn('Price enrichment failed:', (priceError as any)?.message || priceError);
+            options?.onJobCompleted?.({ products: [finalProduct] });
           }
-
-          options?.onJobCompleted?.({ products: [finalProduct] });
           updateJob(localId, {
             phase: 'complete',
             message: PHASE_MESSAGES.complete,
@@ -293,7 +192,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
         }
       })();
     },
-    [addJob, options?.onJobCompleted, persistProduct, updateJob]
+    [addJob, options?.onJobCompleted, updateJob]
   );
 
   const enqueueIdentification = useCallback(

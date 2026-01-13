@@ -1442,6 +1442,51 @@ export const runSerpapiFreeEnrichment = async (
   }
 };
 
+export const identifyProductV2 = async (
+  files: File[],
+  barcodes: string,
+  locale = 'de-DE',
+  inventoryId?: string
+): Promise<{ ok: boolean; data?: Product; meta?: any; error?: { code: number; message: string } }> => {
+  if (!files.length && (!barcodes || !barcodes.trim())) {
+    return {
+      ok: false,
+      error: { code: 400, message: 'Bitte mindestens ein Bild oder einen Barcode bereitstellen.' },
+    };
+  }
+
+  const formData = new FormData();
+  files.forEach((file) => formData.append('images', file));
+  formData.append('barcodes', barcodes);
+  formData.append('locale', locale);
+  if (inventoryId) {
+    formData.append('inventoryId', inventoryId);
+  }
+
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${BACKEND_URL}/api/v2/identify`, {
+      method: 'POST',
+      body: formData,
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: {
+          code: response.status,
+          message: result?.error?.message || 'Identify (v2) fehlgeschlagen.',
+        },
+      };
+    }
+    const product = result?.data ? normalizeProduct(result.data) : undefined;
+    return { ok: true, data: product, meta: result?.meta };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
 export const resolveIntakeExisting = async (params: {
   barcodes: string;
   sku?: string | null;

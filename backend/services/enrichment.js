@@ -1300,6 +1300,58 @@ async function runDatasheetReview(products = [], { locale = 'de-DE', webEvidence
   const client = await getGeminiClient();
   const model = client.getGenerativeModel({ model: reviewModel });
 
+  const stripMarkdownFencesKeepContent = (text = '') => {
+    return String(text)
+      .replace(/```(?:json|javascript)?\s*/gi, '')
+      .replace(/```/g, '')
+      .trim();
+  };
+
+  const extractJsonPayload = (text = '') => {
+    const s = stripMarkdownFencesKeepContent(text);
+    const firstObj = s.indexOf('{');
+    const firstArr = s.indexOf('[');
+    if (firstObj === -1 && firstArr === -1) return s.trim();
+    let start = -1;
+    let open = '';
+    let close = '';
+    if (firstObj !== -1 && (firstArr === -1 || firstObj < firstArr)) {
+      start = firstObj;
+      open = '{';
+      close = '}';
+    } else {
+      start = firstArr;
+      open = '[';
+      close = ']';
+    }
+    let depth = 0;
+    let inStr = false;
+    let escaped = false;
+    for (let i = start; i < s.length; i += 1) {
+      const ch = s[i];
+      if (inStr) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === '\\\\') {
+          escaped = true;
+        } else if (ch === '"') {
+          inStr = false;
+        }
+        continue;
+      }
+      if (ch === '"') {
+        inStr = true;
+        continue;
+      }
+      if (ch === open) depth += 1;
+      if (ch === close) depth -= 1;
+      if (depth === 0) {
+        return s.slice(start, i + 1).trim();
+      }
+    }
+    return s.slice(start).trim();
+  };
+
   for (const product of products) {
     if (!product) continue;
     try {
@@ -1324,7 +1376,17 @@ async function runDatasheetReview(products = [], { locale = 'de-DE', webEvidence
         generationConfig
       });
 
-      const review = JSON.parse(result.response.text());
+      // @google/generative-ai can return multi-part text. Concatenate parts (no separators)
+      // to avoid truncated JSON payloads.
+      const resp = result?.response;
+      const candidates = Array.isArray(resp?.candidates) ? resp.candidates : [];
+      const parts = candidates[0]?.content?.parts || [];
+      const textParts = Array.isArray(parts)
+        ? parts.map((p) => (typeof p?.text === 'string' ? p.text : '')).filter((t) => t && t.trim().length > 0)
+        : [];
+      const rawText = (textParts.join('') || (typeof resp?.text === 'function' ? resp.text() : '') || '').trim();
+      const jsonPayload = extractJsonPayload(rawText);
+      const review = JSON.parse(jsonPayload);
       applyReviewResult(product, review);
     } catch (error) {
       console.warn(
