@@ -1,4 +1,6 @@
 const { normalizeSpaces } = require('./web-search-html');
+const { validateTitleToPolicy } = require('./title-policy');
+const { getRequiredAspects } = require('./ebay-taxonomy');
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -32,12 +34,13 @@ function evaluateEbayReady(product) {
   const features = Array.isArray(product?.details?.key_features) ? product.details.key_features.filter(Boolean) : [];
   const attrsCount = countAttributes(product?.details?.attributes);
 
-  // eBay title policy in this system: 70–80 chars
-  if (!title) issues.push('title_missing');
-  else {
-    if (title.length < 70) issues.push('title_too_short');
-    if (title.length > 80) issues.push('title_too_long');
-  }
+  // eBay title policy (mobile-first): hard max 80 + Priority A (Brand/ProductType/Model/MPN) inside first 60 chars.
+  const titlePolicyIssues = validateTitleToPolicy(product, title, { maxLen: 80, mobileMaxLen: 60 });
+  titlePolicyIssues.forEach((code) => {
+    if (code && !issues.includes(code)) issues.push(code);
+  });
+  // Keep legacy "too_short" signal only for extremely short titles.
+  if (title && title.length > 0 && title.length < 20) issues.push('title_too_short');
 
   // Text quality (from review rules)
   if (!desc) issues.push('description_missing');
@@ -52,6 +55,26 @@ function evaluateEbayReady(product) {
 
   if (attrsCount < 5) issues.push('attributes_too_few');
 
+  // Required eBay item specifics (Pflichtmerkmale) must not be empty.
+  const catId = safeString(product?.details?.categoryId || product?.details?.ebayCategoryId);
+  const required = catId ? getRequiredAspects(catId) : [];
+  const attrs = product?.details?.attributes && typeof product.details.attributes === 'object' ? product.details.attributes : {};
+  let missingRequiredCount = 0;
+  if (Array.isArray(required) && required.length) {
+    const missing = required.filter((key) => {
+      const k = typeof key === 'string' ? key.trim() : '';
+      if (!k) return false;
+      const val = attrs[k];
+      return val == null || String(val).trim() === '';
+    });
+    if (missing.length) {
+      missingRequiredCount = missing.length;
+      const preview = missing.slice(0, 15);
+      const suffix = missing.length > preview.length ? ` … (+${missing.length - preview.length} mehr)` : '';
+      issues.push(`missing_required_aspects: ${preview.join(', ')}${suffix}`);
+    }
+  }
+
   return {
     ok: issues.length === 0,
     issues,
@@ -61,6 +84,7 @@ function evaluateEbayReady(product) {
       features: features.length,
       attrs: attrsCount,
       category: normalizeSpaces(category).slice(0, 120),
+      required_aspects_missing: missingRequiredCount,
     },
   };
 }

@@ -725,12 +725,26 @@ async function improveExistingProduct(productId, onProgress) {
   if (onProgress) await onProgress('reviewing');
   await runDatasheetReview([mergedProduct], { locale: product.locale || 'de-DE' });
 
+  // Retry once if still not eBay-ready (incl. missing required aspects).
+  try {
+    const { evaluateEbayReady } = require('../lib/datasheet-quality');
+    const eval1 = evaluateEbayReady(mergedProduct);
+    if (!eval1.ok && eval1.issues && eval1.issues.length) {
+      await runDatasheetReview([mergedProduct], {
+        locale: product.locale || 'de-DE',
+        qualityIssuesById: { [mergedProduct.id]: eval1.issues },
+      });
+    }
+  } catch (e) {
+    console.warn('[improve] Post-review evaluation failed (continuing):', e?.message || e);
+  }
+
   // Enforce title policy even if the model skipped title updates.
   mergedProduct.identification = mergedProduct.identification || {};
   mergedProduct.identification.name = coerceTitleToPolicy(
     mergedProduct,
     mergedProduct.identification.name,
-    { minLen: 70, maxLen: 80 }
+    { minLen: 65, maxLen: 80, softMaxLen: 75 }
   );
 
   // Deterministic sanitization: never persist price/placeholder/template text,

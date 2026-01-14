@@ -90,15 +90,18 @@ Du erhältst:
 Aufgabe:
 1. Identifiziere den Artikel anhand der bereitgestellten Beweise (Bilder/OCR/Barcodes) und ggf. zusätzlicher WEB-EVIDENZ, wenn sie im Prompt enthalten ist.
 2. Leite Marke, Modell, Varianten, Farbe, Größe, Material, Zustand und Produkttyp ab.
-3. Formuliere vollständige, marketplacespezifische Titel und Beschreibungen auf Deutsch (${locale}).
-   - eBay-Titel max. 80 Zeichen (TECHNISCH & suchbar).
-   - Kaufland-Titel max. 100 Zeichen (TECHNISCH & suchbar).
-   - Titel-Struktur: Marke + Produkttyp/Produktart + Modell/Herstellernummer + 1–2 technische Kerndaten (z. B. Spannung/Leistung/Größe/Volumen), soweit aus Label/OCR ableitbar. Keine Marketingfloskeln, keine Dubletten.
-   - Beschreibungen als kurzer Absatz mit Features / Nutzen (faktenbasiert, keine Wiederholungen).
-4. Priorisiere Barcodes: EAN = exakt 13 Ziffern, GTIN = exakt 14 Ziffern. Verwende nur Codes mit korrekter Checkdigit. Wenn keiner sicher ist, lasse EAN/GTIN/UPC leer.
-5. Bestimme eine passende Kategoriebezeichnung (interner Kategorie-String), z. B. "Schuhe > Sandalen".
-6. Erstelle Attribute/Item-Specifics als Liste aus { key, value } mit deutschen Schlüsseln (z. B. "Farbe": "Marineblau"). WICHTIG: technische Daten aus OCR/Label (Spannung/Leistung/Größe/Volumen/Modell/Herstellernummer) explizit als Attribute aufnehmen, wenn vorhanden.
-7. Wenn eine Information nicht sicher ermittelbar ist, lasse das Feld leer und dokumentiere die Unsicherheit in notes.
+3. Titel-Policy (WICHTIG): Der finale eBay Titel wird serverseitig deterministisch gebaut (maschinen-/regelbasiert).
+   - Du lieferst dafür die Bausteine: brand, internalCategory (Produkttyp), model/mpn/teilenummer, sowie technische Kerndaten als item_specifics/attributes.
+   - Falls du title_ebay / title_kaufland ausfüllst, dann nur als ENTWURF und strikt nach Regeln:
+     - Reihenfolge: [MARKE] [PRODUKTART] [MODELL/MPN] [KERNMERKMAL] [VARIANTE] [ZUSTAND]
+     - Priorität A muss in den ersten 60 Zeichen sein: Marke + Produkttyp + Modell/MPN.
+     - Keine Marketingfloskeln, keine Emojis, keine Dubletten.
+     - eBay-Titel: optimal 65–75 Zeichen, Hard-Max 80.
+4. Beschreibungen: kurzer Absatz mit Features / Nutzen (faktenbasiert, keine Wiederholungen).
+5. Priorisiere Barcodes: EAN = exakt 13 Ziffern, GTIN = exakt 14 Ziffern. Verwende nur Codes mit korrekter Checkdigit. Wenn keiner sicher ist, lasse EAN/GTIN/UPC leer.
+6. Bestimme eine passende Kategoriebezeichnung (interner Kategorie-String), z. B. "Schuhe > Sandalen".
+7. Erstelle Attribute/Item-Specifics als Liste aus { key, value } mit deutschen Schlüsseln (z. B. "Farbe": "Marineblau"). WICHTIG: technische Daten aus OCR/Label (Spannung/Leistung/Größe/Volumen/Modell/Herstellernummer) explizit als Attribute aufnehmen, wenn vorhanden.
+8. Wenn eine Information nicht sicher ermittelbar ist, lasse das Feld leer und dokumentiere die Unsicherheit in notes.
 
 ${buildCommonPolicyText({ locale, allowWebEvidence: true })}
 

@@ -815,39 +815,10 @@ function buildSystemPrompt(locale = 'de-DE') {
     'Never recycle the customer’s existing gallery URLs for marketing-image answers; prefer fresh web sources or new AI renders and state if none exist.',
     'When proposing product updates, explain briefly (1–2 sentences) and include a minimal JSON snippet called "edit" that only contains the changed fields.',
     'TITLE POLICY (when proposing a new title):',
-    '- Always generate a technical marketplace title with 70–80 characters (never exceed 80).',
-    '- Choose the best matching schema by category and available attributes; do not invent facts; never include SKU/IDs.',
-    '- Schema guide (best-effort):',
-    '  1) Schuhe: {Marke} {Modell} {Zielgruppe} Sneaker {Farbe} Gr. {Größe} {Zustand}',
-    '  2) Bekleidung: {Marke} {Produktart} {Zielgruppe} {Farbe} Gr. {Größe} {Material} {Zustand}',
-    '  3) Taschen: {Marke} {Taschenart} {Modell} {Farbe} {Material} {Zustand}',
-    '  4) Schmuck: {Marke} {Schmuckart} {Material} {Stein/Farbe} {Größe} {Zustand}',
-    '  5) Uhren: {Marke} {Modell} {Zielgruppe} {Anzeige} {Material} {Zustand}',
-    '  6) Autoteile mechanisch: {Marke} {Teil} {MPN} für {Hersteller} {Maß} {Merkmal}',
-    '  7) Autoteile Zubehör: {Produktart} passgenau für {Marke} {Modell} {Baureihe} {Zustand}',
-    '  8) Motorradteile: {Marke} {Teil} für {Motorrad} {Baujahr} {Position} {Zustand}',
-    '  9) Fahrradteile: {Marke} {Teil} {Modell} {Maß} {Kompatibilität} {Zustand}',
-    '  10) Fahrrad Zubehör: {Produktart} für Fahrrad {Typ} {Eigenschaft} {Maß} {Zustand}',
-    '  11) Elektronik: {Marke} {Produkt} {Modell} {Variante} {Farbe} {Zustand}',
-    '  12) Elektronik Zubehör: {Produktart} für {Gerät} {Modell} {Eigenschaft} {Zustand}',
-    '  13) Smartphones: {Marke} {Modell} {Speicher} {Farbe} ohne Simlock {Zustand}',
-    '  14) Laptops: {Marke} {Modell} {CPU} {RAM} {SSD} {Zustand}',
-    '  15) PC Hardware: {Marke} {Komponente} {Modell} {Spezifikation} {Zustand}',
-    '  16) Haushalt: {Marke} {Produktart} {Modell} {Kapazität/Größe} {Zustand}',
-    '  17) Werkzeuge: {Marke} {Werkzeug} {Modell} {Leistung} {Zustand}',
-    '  18) Garten: {Marke} {Gerät} {Modell} {Leistung/Fläche} {Zustand}',
-    '  19) Spielzeug: {Marke} {Spielzeugart} {Serie/Thema} {Alter} {Zustand}',
-    '  20) Brettspiele: {Spielname} {Edition} {Spieleranzahl} {Sprache} {Zustand}',
-    '  21) Videospiele: {Titel} für {Plattform} {Edition} deutsch {Zustand}',
-    '  22) Konsolen: {Marke} {Konsole} {Modell} {Speicher} {Zustand}',
-    '  23) Filme: {Titel} {Format} {Edition} {Sprache} {Zustand}',
-    '  24) Musik: {Künstler} – {Album} {Format} {Edition} {Zustand}',
-    '  25) Bücher: {Autor} – {Titel} {Zeitraum/Ausgabe} {Einband} {Zustand}',
-    '  26) Bürobedarf: {Marke} {Produkt} {Modell} {Menge/Format} {Zustand}',
-    '  27) Sportartikel: {Marke} {Sportart} {Produkt} {Größe} {Zustand}',
-    '  28) Outdoor: {Marke} {Produkt} {Modell} {Kapazität/Größe} {Zustand}',
-    '  29) Beauty: {Marke} {Produkt} {Variante} {Inhalt} {Zustand}',
-    '  30) Sammelartikel: {Marke/Thema} {Objekt} {Serie/Jahr} {Edition} {Zustand}',
+    '- Mobile-first: first ~55–60 chars matter. Priority A must be inside first 60 chars (Brand + ProductType + Model/MPN).',
+    '- Fixed order: [BRAND] [PRODUCT TYPE] [MODEL/MPN] [CORE SPEC] [VARIANT] [CONDITION].',
+    '- Length: optimal 65–75 chars, never exceed 80.',
+    '- No marketing fluff, no emojis, no duplicates, no leading symbols, never include SKU/internal IDs.',
     'You can craft new render prompts and call generate_ai_images when fresh material would help; note variant and intent.',
     'Default language: ' + locale + '. Keep responses direct, avoid filler, offer deeper details only on request.',
   ].join('\n');
@@ -950,7 +921,7 @@ function sanitizeDatasheetChange(entry, product) {
   if (Array.isArray(entry.barcodes)) {
     entry.barcodes.forEach(pushBarcode);
   }
-  const coerceTitle = (raw) => coerceTitleToPolicy(product, raw, { minLen: 70, maxLen: 80 });
+  const coerceTitle = (raw) => coerceTitleToPolicy(product, raw, { minLen: 65, maxLen: 80, softMaxLen: 75 });
 
   if (typeof entry.title === 'string' && entry.title.trim()) {
     const coerced = coerceTitle(entry.title);
@@ -1086,7 +1057,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
 
   TITLE / HIGHLIGHTS QUALITY BAR:
-  - Titles must be TECHNICAL & searchable (70–80 chars, never exceed 80): choose the best schema by category, start with Brand/ProductType, add Model/MPN + 1–2 key specs if available. No marketing fluff, no duplicates, no SKU/IDs.
+  - Titles must be TECHNICAL & searchable (optimal 65–75 chars, never exceed 80): Priority A inside first 60 chars (Brand + ProductType + Model/MPN), then 1–2 key specs. No marketing fluff, no emojis, no duplicates, no SKU/IDs.
   - Key features must be non-duplicative, factual, and short.
   `;
 
@@ -1304,7 +1275,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       }
     }
 
-    // Make the user-visible message reflect the final coerced title (70–80 chars),
+    // Make the user-visible message reflect the final coerced title (optimal 65–75, hard max 80),
     // otherwise the model might *say* a short title while the structured change contains the coerced one.
     const lastTitleChange = [...(datasheetChanges || [])]
       .reverse()

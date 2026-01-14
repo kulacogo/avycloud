@@ -10,36 +10,22 @@
 
 function buildTitleSchemaLines() {
   return [
-    '1) Schuhe: {Marke} {Modell} {Zielgruppe} Sneaker {Farbe} Gr. {Größe} {Zustand}',
-    '2) Bekleidung: {Marke} {Produktart} {Zielgruppe} {Farbe} Gr. {Größe} {Material} {Zustand}',
-    '3) Taschen: {Marke} {Taschenart} {Modell} {Farbe} {Material} {Zustand}',
-    '4) Schmuck: {Marke} {Schmuckart} {Material} {Stein/Farbe} {Größe} {Zustand}',
-    '5) Uhren: {Marke} {Modell} {Zielgruppe} {Anzeige} {Material} {Zustand}',
-    '6) Autoteile mechanisch: {Marke} {Teil} {MPN} für {Hersteller} {Maß} {Merkmal}',
-    '7) Autoteile Zubehör: {Produktart} passgenau für {Marke} {Modell} {Baureihe} {Zustand}',
-    '8) Motorradteile: {Marke} {Teil} für {Motorrad} {Baujahr} {Position} {Zustand}',
-    '9) Fahrradteile: {Marke} {Teil} {Modell} {Maß} {Kompatibilität} {Zustand}',
-    '10) Fahrrad Zubehör: {Produktart} für Fahrrad {Typ} {Eigenschaft} {Maß} {Zustand}',
-    '11) Elektronik: {Marke} {Produkt} {Modell} {Variante} {Farbe} {Zustand}',
-    '12) Elektronik Zubehör: {Produktart} für {Gerät} {Modell} {Eigenschaft} {Zustand}',
-    '13) Smartphones: {Marke} {Modell} {Speicher} {Farbe} ohne Simlock {Zustand}',
-    '14) Laptops: {Marke} {Modell} {CPU} {RAM} {SSD} {Zustand}',
-    '15) PC Hardware: {Marke} {Komponente} {Modell} {Spezifikation} {Zustand}',
-    '16) Haushalt: {Marke} {Produktart} {Modell} {Kapazität/Größe} {Zustand}',
-    '17) Werkzeuge: {Marke} {Werkzeug} {Modell} {Leistung} {Zustand}',
-    '18) Garten: {Marke} {Gerät} {Modell} {Leistung/Fläche} {Zustand}',
-    '19) Spielzeug: {Marke} {Spielzeugart} {Serie/Thema} {Alter} {Zustand}',
-    '20) Brettspiele: {Spielname} {Edition} {Spieleranzahl} {Sprache} {Zustand}',
-    '21) Videospiele: {Titel} für {Plattform} {Edition} deutsch {Zustand}',
-    '22) Konsolen: {Marke} {Konsole} {Modell} {Speicher} {Zustand}',
-    '23) Filme: {Titel} {Format} {Edition} {Sprache} {Zustand}',
-    '24) Musik: {Künstler} – {Album} {Format} {Edition} {Zustand}',
-    '25) Bücher: {Autor} – {Titel} {Zeitraum/Ausgabe} {Einband} {Zustand}',
-    '26) Bürobedarf: {Marke} {Produkt} {Modell} {Menge/Format} {Zustand}',
-    '27) Sportartikel: {Marke} {Sportart} {Produkt} {Größe} {Zustand}',
-    '28) Outdoor: {Marke} {Produkt} {Modell} {Kapazität/Größe} {Zustand}',
-    '29) Beauty: {Marke} {Produkt} {Variante} {Inhalt} {Zustand}',
-    '30) Sammelartikel: {Marke/Thema} {Objekt} {Serie/Jahr} {Edition} {Zustand}',
+    // MASTER: 90% of items
+    '1) Master: [MARKE] [PRODUKTART] [MODELL/MPN] [KERNMERKMAL] [VARIANTE] [ZUSTAND]',
+    // Auto parts
+    '2) Autoteile: [MARKE] [BAUTEIL] [MPN/OE] [FAHRZEUG/BAUREIHE] [TECHDATEN] [ZUSTAND]  (Fahrzeug immer vor Maße)',
+    // Fashion
+    '3) Mode/Textil: [MARKE] [ARTIKELTYP] [MODELL] [GESCHLECHT] Gr. [GRÖSSE] [FARBE] [ZUSTAND]  (Farbe nie vor Artikeltyp)',
+    '4) Schuhe: [MARKE] [SCHUHART] [MODELL] [GESCHLECHT] EU [GRÖSSE] [FARBE] [ZUSTAND]',
+    // Tech
+    '5) Elektronik/Tech: [MARKE] [PRODUKT] [MODELL] [SCHLÜSSEL-SPEC] [FARBE] [ZUSTAND]  (Specs > Marketing)',
+    '6) Computer/Komponenten: [MARKE] [KOMPONENTE] [MODELL] [SCHLÜSSEL-SPEC] [ZUSTAND]',
+    // Home / tools
+    '7) Haushalt/Wohnen: [MARKE] [PRODUKTART] [MODELL] [MAẞE/KAPAZITÄT] [MATERIAL] [FARBE] [ZUSTAND]',
+    '8) Werkzeug/Bau/Garten: [MARKE] [WERKZEUGART] [MODELL] [MAẞE/LEISTUNG/SET] [ZUSTAND]',
+    // Misc
+    '9) Tierbedarf: [MARKE] [PRODUKTART] [TIERART] [GRÖSSE/VOLUMEN] [MATERIAL] [FARBE]',
+    '10) Bücher/Medien: [AUTOR/KÜNSTLER] – [TITEL] [FORMAT] [SPRACHE] [ZUSTAND]',
   ];
 }
 
@@ -52,9 +38,14 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     `Sprache: ${locale}.`,
     '',
     'HARD RULES (immer):',
-    '- Titel: TECHNISCH & suchbar, Ziel 70–80 Zeichen (nie > 80), keine SKU/IDs.',
+    '- Titel: Mobile-first. Die ersten ~55–60 Zeichen zählen (eBay App). Alles Wichtige MUSS vorne stehen.',
+    '- Titel: Feste Reihenfolge (nie ändern): [MARKE] [PRODUKTART] [MODELL/MPN] [KERNMERKMAL] [VARIANTE] [ZUSTAND].',
+    '- Titel: Priorität A muss in den ersten 60 Zeichen sein: Marke + Produkttyp + Modell/MPN/Teilenummer.',
+    '- Titel: Länge: optimal 65–75 Zeichen, Hard-Max eBay: 80 Zeichen (nie > 80). Wenn >75: erst low-prio Tokens streichen.',
+    '- Titel: Keine Marketingfloskeln, keine Emojis, keine Wiederholungen, keine Sonderzeichen am Anfang.',
     '- Keine Preise/Preisorientierung/€ oder EUR in Titel, Beschreibung oder Highlights.',
-    '- Keine Platzhalter (z.B. "unknown", "unbekannt", "Beschreibung folgt", "Not Provided", "info@example.com"). Wenn unsicher: Feld leer lassen + in notes/warnings markieren.',
+    '- Keine Platzhalter (z.B. "unknown", "unbekannt", "Beschreibung folgt", "Not Provided", "info@example.com").',
+    '- Wenn unsicher: Feld leer lassen + in notes/warnings markieren. AUSNAHME: eBay Pflicht-Item-Specifics (required aspects) sollen nach bestem Wissen aus den Belegen ausgefüllt werden; nur wenn wirklich unbelegbar: "Unbekannt" + Warning.',
     '- Attribute müssen neutral sein (nicht marktplatz-spezifisch). KEINE Attribute/Keys, die "ebay" oder "kaufland" enthalten (z.B. ebay_*_id/path, ebayCategory*, kaufland_*_id/path).',
     '- Keine internen/Meta-Keys als Attribute (z.B. product-id, *_id, text_*, features|*).',
     '- Barcodes: niemals raten. Nur setzen, wenn der Code in den bereitgestellten Belegen (OCR/WEB-EVIDENZ) vorkommt UND die Checkdigit stimmt (8/12/13/14 Ziffern). Sonst leer lassen.',

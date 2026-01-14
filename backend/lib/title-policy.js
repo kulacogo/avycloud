@@ -1,15 +1,20 @@
 /* eslint-disable no-console */
 /**
- * Title policy enforcement for AI generated titles (Improve/Chat):
- * - Target length: 70–80 characters (inclusive)
- * - Never include SKU / internal IDs
- * - Do not invent facts: only reuse existing product data (attrs/identifiers/category/description/title text)
+ * STRICT eBay title policy enforcement (Identify / Improve / Chat / Imports).
  *
- * We "coerce" a proposed title by:
- * 1) normalizing/cleaning it
- * 2) ensuring brand + product type presence when available
- * 3) padding with known tokens (mpn/oem/model/size/color/material/etc)
- * 4) as last resort, padding with keywords from existing title and short_description (not inventing)
+ * 🔒 Non‑negotiable rules (mobile-first + SEO):
+ * - Mobile-first: first ~55–60 chars matter. Priority A MUST be inside first 60 chars:
+ *   - Brand
+ *   - Product type
+ *   - Model / MPN / Part number
+ * - Fixed order (always):
+ *   [BRAND] [PRODUCT TYPE] [MODEL/MPN] [CORE SPEC] [VARIANT] [CONDITION]
+ * - No marketing fluff, no emojis, no duplicates.
+ * - Length:
+ *   - Optimal: 65–75 chars
+ *   - Hard max (eBay): 80 chars
+ *
+ * LLM output is treated only as a hint-source for specs; final titles are built deterministically here.
  */
 
 const STOP_WORDS = new Set([
@@ -39,12 +44,208 @@ const SHORT_OK_WORDS = new Set([
   'uhd',
 ]);
 
+// Marketing / fluff words that must not appear in titles (especially not early).
+// We keep this conservative to avoid removing meaningful technical tokens.
+const MARKETING_WORDS = new Set([
+  'hochwertig',
+  'robust',
+  'vielseitig',
+  'nachhaltig',
+  'stilvoll',
+  'stylish',
+  'premium',
+  'top',
+  'super',
+  'mega',
+  'perfekt',
+  'ideal',
+  'sale',
+  'angebot',
+  'original',
+]);
+
+const DEFAULT_TITLE_MAX_LEN = 80;
+const DEFAULT_TITLE_SOFT_MAX_LEN = 75;
+const DEFAULT_TITLE_TARGET_MIN_LEN = 65;
+const DEFAULT_TITLE_MOBILE_PRIORITY_MAX_LEN = 60;
+
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
 }
 
 function normalizeSpaces(text = '') {
   return safeString(text).replace(/\s+/g, ' ').trim();
+}
+
+function stripEmojis(text = '') {
+  // Remove emojis/pictographic symbols (mobile titles must be clean).
+  return String(text || '').replace(/\p{Extended_Pictographic}/gu, ' ');
+}
+
+function stripLeadingNonAlnum(text = '') {
+  // No bullets/emojis/dashes/special chars at the beginning.
+  return String(text || '').replace(/^[^\p{L}\p{N}]+/gu, '');
+}
+
+function normalizeForSearch(text = '') {
+  // Similar to normalizeMatch but keeps spaces to allow rough order checks.
+  return safeString(text)
+    .toLowerCase()
+    .replace(/[\-_/.,:;()\\[\]{}'"`´’“”!?+*=<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function compactUnitToken(value = '') {
+  // Make common patterns more compact: "120 x 30 cm" -> "120x30cm", "314 mm" -> "314mm"
+  let s = safeString(value);
+  if (!s) return '';
+  s = s
+    .replace(/×/g, 'x')
+    .replace(/\s*x\s*/gi, 'x')
+    .replace(/(\d)\s+(mm|cm|m|l|ml|kg|g|w|kw|v|mah|gb|tb|mhz|ghz|rpm)\b/gi, '$1$2')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return s;
+}
+
+function stripMarketingWords(text = '') {
+  const raw = safeString(text);
+  if (!raw) return '';
+  const words = raw.split(/\s+/g);
+  const kept = [];
+  const roots = ['hochwert', 'robust', 'vielseit', 'nachhalt', 'stilvoll', 'stylish', 'premium', 'angebot', 'original'];
+  for (const w of words) {
+    const cleaned = String(w).toLowerCase().replace(/[^a-z0-9äöüß\-]/gi, '');
+    if (!cleaned) continue;
+    if (MARKETING_WORDS.has(cleaned)) continue;
+    if (roots.some((r) => cleaned.startsWith(r))) continue;
+    kept.push(w);
+  }
+  return normalizeSpaces(kept.join(' '));
+}
+
+function normalizeTitleToken(token = '') {
+  let t = safeString(token);
+  if (!t) return '';
+  t = stripEmojis(t);
+  t = stripMarkdownDecorations(t);
+  t = stripMarketingWords(t);
+  // Remove bullet-like chars inside tokens (keep dots/hyphens for MPNs).
+  t = t.replace(/[•·]/g, ' ');
+  // Convert decimal comma to dot (avoid "8 5cm" after comma removal).
+  t = t.replace(/(\d),(\d)/g, '$1.$2');
+  // Replace comma/semicolon separators with spaces to avoid CSV-breaking punctuation and trailing commas
+  t = t.replace(/[,;]+/g, ' ');
+  // Replace ampersands with spaces (no marketing style "X & Y")
+  t = t.replace(/&/g, ' ');
+  // Trim separators at ends (ASCII + Unicode punctuation/symbols)
+  t = t.replace(/^[-–—,:;|]+/g, '').replace(/[-–—,:;|]+$/g, '');
+  t = t.replace(/^[\p{P}\p{S}]+/gu, '').replace(/[\p{P}\p{S}]+$/gu, '');
+  t = normalizeSpaces(t);
+  return t;
+}
+
+function isSkuLikeToken(token = '') {
+  const t = safeString(token);
+  if (!t) return false;
+  if (/\bSKU[\s\-_]?\d+\b/i.test(t)) return true;
+  if (/^sku[\s\-_]?\d+/i.test(t)) return true;
+  return false;
+}
+
+function isPureBarcodeToken(token = '') {
+  const digits = safeString(token).replace(/[^\d]/g, '');
+  if (!digits) return false;
+  if (!/^\d+$/.test(digits)) return false;
+  return digits.length === 8 || digits.length === 12 || digits.length === 13 || digits.length === 14;
+}
+
+function extractModelCandidatesFromText(text = '') {
+  const raw = safeString(text);
+  if (!raw) return [];
+  const parts = raw
+    .split(/\s+/g)
+    .map((p) => p.replace(/^[("'“”‘’`]+|[)"'“”‘’`,.]+$/g, ''))
+    .filter(Boolean);
+  const candidates = [];
+  for (const part of parts) {
+    const p = safeString(part);
+    if (!p) continue;
+    if (isSkuLikeToken(p)) continue;
+    if (isPureBarcodeToken(p)) continue;
+    // Exclude obvious dimension tokens like 120x30cm
+    if (/\b\d{1,4}x\d{1,4}(?:x\d{1,4})?\s*(mm|cm|m)\b/i.test(p)) continue;
+    if (/^\d{1,5}(?:[.,]\d+)?(mm|cm|m|l|ml|kg|g|w|kw|v|mah|gb|tb)\b/i.test(p)) continue;
+    // Keep tokens that look like model/mpn (letters+digits and/or separators)
+    if (/^[a-z0-9][a-z0-9._\-\/]{3,}$/i.test(p) && (/[a-z]/i.test(p) || /[._\-\/]/.test(p))) {
+      candidates.push(p);
+    }
+  }
+  const seen = new Set();
+  const out = [];
+  for (const c of candidates) {
+    const key = normalizeMatch(c);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(c);
+  }
+  return out.slice(0, 6);
+}
+
+function extractSpecTokensFromText(text = '') {
+  const raw = safeString(text);
+  if (!raw) return [];
+  const s = stripEmojis(raw);
+  const found = [];
+
+  const push = (val) => {
+    const t = normalizeTitleToken(compactUnitToken(val));
+    if (!t) return;
+    if (isSkuLikeToken(t)) return;
+    if (isPureBarcodeToken(t)) return;
+    uniqPush(found, t);
+  };
+
+  // Dimensions like 120x30cm or 120 x 30 x 40 cm
+  const dimRe = /\b\d{1,4}\s*(?:x|×)\s*\d{1,4}(?:\s*(?:x|×)\s*\d{1,4})?\s*(?:mm|cm|m)\b/gi;
+  let m;
+  while ((m = dimRe.exec(s)) !== null) {
+    push(m[0]);
+  }
+
+  // Numeric units
+  const unitRe =
+    /\b\d{1,5}(?:[.,]\d+)?\s*(?:mm|cm|m|l|ml|kg|g|w|kw|v|mah|gb|tb|mhz|ghz|rpm)\b/gi;
+  while ((m = unitRe.exec(s)) !== null) {
+    push(m[0]);
+  }
+
+  // Common tech keywords that matter for search
+  const keywordTokens = [
+    'm.2',
+    'pcie',
+    'gen3',
+    'gen4',
+    'ddr3',
+    'ddr4',
+    'ddr5',
+    'sata',
+    'nvme',
+    'wifi',
+    'bluetooth',
+    'gps',
+    'uhd',
+    '4k',
+  ];
+  const lower = s.toLowerCase();
+  keywordTokens.forEach((kw) => {
+    if (lower.includes(kw)) {
+      push(kw);
+    }
+  });
+
+  return found.slice(0, 10);
 }
 
 function stripMarkdownDecorations(text = '') {
@@ -293,7 +494,307 @@ function inferSchemaId(product) {
   if (category.includes('brettspiel') || category.includes('gesellschaftsspiel')) return 'boardgames';
   if (category.includes('film') || category.includes('blu-ray') || category.includes('dvd')) return 'movies';
   if (category.includes('musik') || category.includes('vinyl') || category.includes('cd')) return 'music';
+  if (category.includes('küche') || category.includes('tafel') || category.includes('haushaltsger')) return 'kitchen';
+  if (category.includes('möbel') || category.includes('wohnen') || category.includes('haushalt')) return 'home';
+  if (category.includes('garten') || category.includes('bau') || category.includes('werkzeug')) return 'tools';
+  if (category.includes('tier') || category.includes('haustier')) return 'pet';
+  if (category.includes('beauty') || category.includes('gesundheit')) return 'beauty';
+  if (category.includes('sport') || category.includes('fitness')) return 'sport';
+  if (category.includes('outdoor') || category.includes('camping')) return 'outdoor';
+  if (category.includes('büro') || category.includes('schreibwaren')) return 'office';
   return 'generic';
+}
+
+function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) {
+  const attrs =
+    product?.details?.attributes && typeof product.details.attributes === 'object'
+      ? product.details.attributes
+      : {};
+
+  const brand =
+    normalizeTitleToken(safeString(product?.identification?.brand)) ||
+    normalizeTitleToken(pickAttr(attrs, 'Marke', 'Brand')) ||
+    '';
+
+  const productTypeRaw =
+    pickAttr(attrs, 'Produktart', 'Produkttyp', 'Produkttyp (Produktart)') ||
+    normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '');
+  const productType = normalizeTitleToken(productTypeRaw);
+
+  const mpn =
+    normalizeTitleToken(safeString(product?.details?.identifiers?.mpn)) ||
+    normalizeTitleToken(pickAttr(attrs, 'Herstellernummer', 'MPN')) ||
+    '';
+  const model = normalizeTitleToken(pickAttr(attrs, 'Modell', 'Model', 'Model Number'));
+  const oem = normalizeTitleToken(
+    pickAttr(attrs, 'OE/OEM Referenznummer(n)', 'Referenznummer(n) OEM', 'Referenznummer', 'OEM-Referenznummer')
+  );
+
+  const hintText = [proposedTitle, product?.identification?.name, product?.details?.short_description]
+    .map((x) => safeString(x))
+    .filter(Boolean)
+    .join(' ');
+  const extractedCodes = extractModelCandidatesFromText(hintText);
+  const modelOrMpn = mpn || model || oem || normalizeTitleToken(extractedCodes[0] || '');
+
+  const condition = normalizeTitleToken(inferCondition(product));
+
+  const color = normalizeTitleToken(pickAttr(attrs, 'Farbe', 'Color'));
+  const sizeRaw = pickAttr(attrs, 'EU-Schuhgröße', 'US-Schuhgröße', 'UK-Schuhgröße', 'Größe', 'Size');
+  const size = sizeRaw ? (/\b(gr\.?|größe)\b/i.test(sizeRaw) ? sizeRaw : `Gr. ${sizeRaw}`) : '';
+  const normSize = normalizeTitleToken(compactUnitToken(size));
+  const material = normalizeTitleToken(pickAttr(attrs, 'Material', 'Obermaterial', 'Gewebeart', 'Futtermaterial'));
+
+  const vehicleMake = normalizeTitleToken(pickAttr(attrs, 'Fahrzeugmarke', 'Hersteller'));
+  const vehicleModel = normalizeTitleToken(pickAttr(attrs, 'Fahrzeugmodell'));
+  const vehicleSeries = normalizeTitleToken(pickAttr(attrs, 'Baureihe'));
+  const position = normalizeTitleToken(pickAttr(attrs, 'Einbauposition', 'Position'));
+
+  const measure = normalizeTitleToken(
+    compactUnitToken(
+      pickAttr(attrs, 'Maße', 'Abmessungen', 'Durchmesser', 'Länge', 'Breite', 'Höhe', 'Tiefe', 'Lochkreis', 'Einbaugröße')
+    )
+  );
+  const capacity = normalizeTitleToken(
+    compactUnitToken(pickAttr(attrs, 'Fassungsvermögen gesamt', 'Fassungsvermögen', 'Volumen', 'Kapazität', 'Speicherkapazität', 'Speicher'))
+  );
+  const power = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Leistung', 'Power')));
+  const voltage = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Spannung', 'Volt', 'Voltage')));
+  const audience = normalizeTitleToken(pickAttr(attrs, 'Abteilung', 'Zielgruppe', 'Geschlecht'));
+
+  const specsFromText = extractSpecTokensFromText(
+    [proposedTitle, product?.identification?.name, productTypeRaw, modelOrMpn].filter(Boolean).join(' ')
+  );
+
+  const a = [];
+  uniqPush(a, brand);
+  uniqPush(a, productType);
+  uniqPush(a, modelOrMpn);
+
+  const b = [];
+  const c = [];
+
+  const pushB = (v) => uniqPush(b, normalizeTitleToken(compactUnitToken(v)));
+  const pushC = (v) => uniqPush(c, normalizeTitleToken(compactUnitToken(v)));
+
+  switch (schemaId) {
+    case 'auto_mech': {
+      // Priority B: vehicle always BEFORE measures/specs
+      pushB(vehicleMake);
+      pushB(vehicleModel);
+      pushB(vehicleSeries);
+      pushB(position);
+      pushB(measure);
+      specsFromText.forEach((t) => pushB(t));
+      // Priority C
+      pushC(color);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'auto_accessory': {
+      pushB(vehicleMake);
+      pushB(vehicleModel);
+      pushB(vehicleSeries);
+      pushB(position);
+      pushB(measure);
+      specsFromText.forEach((t) => pushB(t));
+      pushC(color);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'shoes':
+    case 'clothing': {
+      // Fashion: gender/department + size after model/mpn; color last.
+      pushB(audience);
+      pushB(normSize);
+      pushB(material);
+      pushC(color);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'electronics':
+    case 'smartphones':
+    case 'laptops':
+    case 'pc_hardware': {
+      pushB(capacity);
+      pushB(power);
+      pushB(voltage);
+      specsFromText.forEach((t) => pushB(t));
+      pushC(color);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'books': {
+      const author = normalizeTitleToken(pickAttr(attrs, 'Autor'));
+      const bookTitle =
+        normalizeTitleToken(pickAttr(attrs, 'Buchtitel', 'Titel')) ||
+        normalizeTitleToken(stripSkuNoise(product?.identification?.name || ''));
+      const year = normalizeTitleToken(pickAttr(attrs, 'Erscheinungsjahr'));
+      const binding = normalizeTitleToken(pickAttr(attrs, 'Einband', 'Format'));
+      const a2 = [];
+      uniqPush(a2, author ? `${author} – ${bookTitle}` : bookTitle);
+      const b2 = [];
+      uniqPush(b2, year);
+      uniqPush(b2, binding);
+      const c2 = [];
+      uniqPush(c2, condition);
+      return { schemaId, a: a2, b: b2, c: c2 };
+    }
+    default: {
+      // Generic master schema
+      pushB(measure);
+      pushB(capacity);
+      pushB(power);
+      pushB(voltage);
+      pushB(audience);
+      pushB(normSize);
+      pushB(material);
+      specsFromText.forEach((t) => pushB(t));
+      pushC(color);
+      pushC(condition);
+      return { schemaId: schemaId || 'generic', a, b, c };
+    }
+  }
+}
+
+function assembleTitleFromPlan(plan, { targetMinLen, softMaxLen, maxLen } = {}) {
+  const hardMax = Number.isFinite(maxLen) ? maxLen : DEFAULT_TITLE_MAX_LEN;
+  const softMax = Number.isFinite(softMaxLen) ? softMaxLen : DEFAULT_TITLE_SOFT_MAX_LEN;
+  const targetMin = Number.isFinite(targetMinLen) ? targetMinLen : DEFAULT_TITLE_TARGET_MIN_LEN;
+
+  const parts = [];
+
+  const add = (token) => {
+    const t = normalizeTitleToken(token);
+    if (!t) return;
+    if (parts.some((p) => normalizeMatch(p) === normalizeMatch(t))) return;
+    const tentative = normalizeSpaces([...parts, t].join(' '));
+    if (!tentative) return;
+    if (tentative.length > hardMax) return;
+    parts.push(t);
+  };
+
+  // Priority A (must be first)
+  (plan?.a || []).forEach((t) => add(t));
+
+  // Priority B (reach targetMin if possible, but prefer staying <= softMax)
+  for (const t of plan?.b || []) {
+    const current = normalizeSpaces(parts.join(' '));
+    if (current.length >= softMax && current.length >= targetMin) break;
+    add(t);
+  }
+
+  // Priority C (end tokens)
+  for (const t of plan?.c || []) {
+    const current = normalizeSpaces(parts.join(' '));
+    if (current.length >= softMax && current.length >= targetMin) break;
+    add(t);
+  }
+
+  // Token-level cleanup (avoid word-level truncation artifacts)
+  if (parts.length) {
+    parts[0] = normalizeSpaces(stripLeadingNonAlnum(parts[0]));
+  }
+
+  // Remove repeated words across tokens, but preserve token boundaries
+  const seenWords = new Set();
+  const cleanedTokens = [];
+  for (const token of parts) {
+    const words = safeString(token).split(/\s+/g).filter(Boolean);
+    const kept = [];
+    for (const w of words) {
+      const key = normalizeMatch(w);
+      if (!key) continue;
+      if (seenWords.has(key)) continue;
+      seenWords.add(key);
+      kept.push(w);
+    }
+    const rebuilt = normalizeSpaces(kept.join(' '));
+    if (rebuilt) cleanedTokens.push(rebuilt);
+  }
+
+  const aCount = Array.isArray(plan?.a) ? plan.a.filter(Boolean).length : 0;
+
+  // If > softMax, drop tail TOKENS (never drop A tokens)
+  while (normalizeSpaces(cleanedTokens.join(' ')).length > softMax && cleanedTokens.length > aCount) {
+    cleanedTokens.pop();
+  }
+
+  let title = normalizeSpaces(cleanedTokens.join(' '));
+  if (title.length > hardMax) {
+    title = truncateToMax(title, hardMax);
+  }
+  // Final: no trailing punctuation/symbols
+  title = title.replace(/[\p{P}\p{S}]+$/gu, '').trim();
+  return title;
+}
+
+function validateTitleToPolicy(
+  product,
+  title,
+  { maxLen = DEFAULT_TITLE_MAX_LEN, mobileMaxLen = DEFAULT_TITLE_MOBILE_PRIORITY_MAX_LEN } = {}
+) {
+  const issues = [];
+  const raw = safeString(title);
+  const t = normalizeSpaces(stripEmojis(raw));
+
+  if (!t) return ['title_missing'];
+  if (t.length > maxLen) issues.push('title_too_long');
+
+  if (raw && raw.match(/^[^\p{L}\p{N}]+/u)) {
+    issues.push('title_starts_with_symbol');
+  }
+  const firstWord = safeString(t.split(/\s+/g)[0] || '').toLowerCase();
+  if (MARKETING_WORDS.has(firstWord) || ['hochwert', 'robust', 'vielseit', 'nachhalt', 'stilvoll', 'stylish', 'premium', 'angebot', 'original'].some((r) => firstWord.startsWith(r))) {
+    issues.push('title_starts_with_marketing');
+  }
+
+  const schemaId = inferSchemaId(product);
+  const plan = buildTitlePlanBySchema(product, schemaId, { proposedTitle: '' });
+  const aTokens = Array.isArray(plan?.a) ? plan.a.filter(Boolean) : [];
+
+  // Books/media use a different schema; do not enforce Brand/ProductType/Model in those cases.
+  if (schemaId !== 'books') {
+    // Source-data presence (strict)
+    if (!aTokens[0] || /^unbekannt$/i.test(aTokens[0])) issues.push('brand_missing');
+    if (!aTokens[1] || /^unbekannt$/i.test(aTokens[1])) issues.push('product_type_missing');
+    if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('model_or_mpn_missing');
+
+    const firstN = t.slice(0, mobileMaxLen);
+    for (const tok of aTokens) {
+      if (!tok) continue;
+      if (!containsToken(t, tok)) issues.push('priority_a_missing_in_title');
+      if (!containsToken(firstN, tok)) issues.push('priority_a_not_in_first_60');
+    }
+
+    // Order check (brand -> product type -> model/mpn)
+    const norm = normalizeForSearch(t);
+    const idx = (token) => {
+      const q = normalizeForSearch(token);
+      if (!q) return -1;
+      return norm.indexOf(q);
+    };
+    const i1 = aTokens[0] ? idx(aTokens[0]) : -1;
+    const i2 = aTokens[1] ? idx(aTokens[1]) : -1;
+    const i3 = aTokens[2] ? idx(aTokens[2]) : -1;
+    if (i1 !== -1 && i2 !== -1 && i1 > i2) issues.push('order_brand_after_producttype');
+    if (i2 !== -1 && i3 !== -1 && i2 > i3) issues.push('order_producttype_after_model');
+  }
+
+  // Duplicate words
+  const words = t.split(/\s+/g).filter(Boolean);
+  const seenWords = new Set();
+  for (const w of words) {
+    const key = normalizeMatch(w);
+    if (!key) continue;
+    if (seenWords.has(key)) {
+      issues.push('duplicate_word');
+      break;
+    }
+    seenWords.add(key);
+  }
+
+  return Array.from(new Set(issues));
 }
 
 function buildBaseTitleBySchema(product, schemaId) {
@@ -370,129 +871,42 @@ function appendTokens(title, tokens, { minLen, maxLen }) {
   return out;
 }
 
-function coerceTitleToPolicy(product, proposedTitle, { minLen = 70, maxLen = 80 } = {}) {
-  const attrs =
-    product?.details?.attributes && typeof product.details.attributes === 'object'
-      ? product.details.attributes
-      : {};
+function coerceTitleToPolicy(
+  product,
+  proposedTitle,
+  { minLen = DEFAULT_TITLE_TARGET_MIN_LEN, maxLen = DEFAULT_TITLE_MAX_LEN, softMaxLen = DEFAULT_TITLE_SOFT_MAX_LEN } = {}
+) {
   const conditionLocked = Boolean(product?.ops?.condition_locked);
 
-  let title = stripSkuNoise(proposedTitle || '');
-  // Remove used-condition leakage unless explicitly curated by humans (condition_locked).
+  // Clean the incoming title: we only use it as a hint source for specs.
+  let hintTitle = stripSkuNoise(proposedTitle || '');
+  hintTitle = stripEmojis(hintTitle);
+  hintTitle = stripMarketingWords(hintTitle);
   if (!conditionLocked) {
-    title = stripUsedCondition(title);
+    hintTitle = stripUsedCondition(hintTitle);
   }
-  if (!title) {
-    title = stripSkuNoise(product?.identification?.name || '');
-  }
-  if (!conditionLocked) {
-    title = stripUsedCondition(title);
-  }
+  hintTitle = normalizeSpaces(hintTitle);
 
-  // If the provided title is too short, prefer a deterministic schema-based build from known fields.
   const schemaId = inferSchemaId(product);
-  if (title.length < minLen) {
-    const built = buildBaseTitleBySchema(product, schemaId);
-    if (built) title = built;
-  }
+  const plan = buildTitlePlanBySchema(product, schemaId, { proposedTitle: hintTitle });
 
-  // Ensure brand appears (schema expects brand leading)
-  const brand = safeString(product?.identification?.brand);
-  if (brand && !containsToken(title, brand)) {
-    const prefixed = normalizeSpaces(`${brand} ${title}`);
-    if (prefixed.length <= maxLen) {
-      title = prefixed;
-    }
-  }
+  let title = assembleTitleFromPlan(plan, {
+    targetMinLen: Math.min(Math.max(20, Number(minLen) || DEFAULT_TITLE_TARGET_MIN_LEN), maxLen),
+    softMaxLen,
+    maxLen,
+  });
 
-  // Ensure product type appears (if known)
-  const productType =
-    pickAttr(attrs, 'Produktart', 'Produkttyp', 'Produkttyp (Produktart)') ||
-    normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '');
-  if (productType && !containsToken(title, productType)) {
-    const tentative = normalizeSpaces(`${title} ${productType}`);
-    if (tentative.length <= maxLen) {
-      title = tentative;
-    }
-  }
-
-  // Ensure condition appears (default to NEU when not explicitly set)
-  const condition = inferCondition(product);
-  if (condition && !containsToken(title, condition)) {
-    const tentative = normalizeSpaces(`${title} ${condition}`);
-    if (tentative.length <= maxLen) {
-      title = tentative;
-    }
-  }
-
-  title = normalizeSpaces(title);
-  if (title.length > maxLen) {
-    title = truncateToMax(title, maxLen);
-  }
-
-  if (title.length >= minLen && title.length <= maxLen) {
-    return title;
-  }
-
-  // Pad with structured tokens first
-  const tokens = collectPaddingTokens(product);
-  title = appendTokens(title, tokens, { minLen, maxLen });
-
-  // If still short, pad with keywords from proposed title + existing title + category + short description
-  if (title.length < minLen) {
-    const categoryText = normalizeSpaces(String(product?.identification?.category || ''));
-    const shortDesc = safeString(product?.details?.short_description || '');
-    let fallbackWords = [
-      ...extractWords(proposedTitle || ''),
-      ...extractWords(product?.identification?.name || ''),
-      ...extractWords(categoryText, { max: 160 }),
-      ...extractWords(shortDesc, { max: 120 }),
-    ];
-    if (!conditionLocked) {
-      fallbackWords = fallbackWords.filter((w) => !isUsedWordToken(w));
-    }
-    title = appendTokens(title, fallbackWords, { minLen, maxLen });
-  }
-
-  // If STILL short, add last-resort safe category segments (derived facts).
-  if (title.length < minLen) {
-    const segments = String(product?.identification?.category || '')
-      .split('>')
-      .map((s) => normalizeSpaces(s))
-      .filter(Boolean)
-      .slice(-4);
-    title = appendTokens(title, segments, { minLen, maxLen });
-  }
-
-  // Absolute fallback: append generic but non-factual fillers to hit minLen (rare).
-  if (title.length < minLen) {
-    const fillers = ['Artikel', 'Produkt'].filter((t) => t && !containsToken(title, t));
-    title = appendTokens(title, fillers, { minLen, maxLen });
-  }
-
-  // Final clamp
-  title = normalizeSpaces(title);
-  if (title.length > maxLen) {
-    title = truncateToMax(title, maxLen);
-  }
-
-  // Hard guarantee: if we couldn't reach minLen, keep appending safe extracted words from the full category + description.
-  // This avoids returning short titles which the UI considers invalid for Improve/Chat.
-  if (title.length < minLen) {
-    const categoryAll = safeString(product?.identification?.category || '');
-    const shortDesc = safeString(product?.details?.short_description || '');
-    let rescue = [...extractWords(categoryAll, { max: 200 }), ...extractWords(shortDesc, { max: 200 })];
-    if (!conditionLocked) {
-      rescue = rescue.filter((w) => !isUsedWordToken(w));
-    }
-    title = appendTokens(title, rescue, { minLen, maxLen });
+  if (!conditionLocked) {
+    title = stripUsedCondition(title);
     title = normalizeSpaces(title);
-    if (title.length > maxLen) title = truncateToMax(title, maxLen);
   }
-
+  title = stripLeadingNonAlnum(title);
+  title = normalizeSpaces(title);
+  if (title.length > maxLen) title = truncateToMax(title, maxLen);
   return title;
 }
 
 module.exports = {
   coerceTitleToPolicy,
+  validateTitleToPolicy,
 };

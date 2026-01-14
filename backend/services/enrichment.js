@@ -154,7 +154,7 @@ const marketingCopySchema = {
   additionalProperties: false,
   required: ['title', 'description', 'highlights'],
   properties: {
-    // Keep schema flexible to avoid blocked generations; enforce 70–80 in code after parsing.
+    // Keep schema flexible to avoid blocked generations; enforce title policy in code after parsing (optimal 65–75, hard max 80).
     title: { type: 'string', minLength: 20, maxLength: 140 },
     description: { type: 'string', minLength: 300 },
     highlights: {
@@ -367,7 +367,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     `- Du darfst KEINE eigenen Web-Calls ausführen. Wenn WEB-EVIDENZ im Prompt enthalten ist, darfst du sie nutzen.`,
     `- Wenn Informationen fehlen: Feld leer lassen + in notes.unsure dokumentieren.`,
     `- Ausgabe strikt im ProductBundle-Schema (kein Markdown, keine Freitexte).`,
-    `- Ziel: ein eBay-fertiges Produktdatenblatt (Titel 70–80 Zeichen, Beschreibung >= 300 Zeichen, 5–7 Highlights, Breadcrumb-Kategorie).`,
+    `- Ziel: ein eBay-fertiges Produktdatenblatt (Titel optimal 65–75 Zeichen, Hard-Max 80, Beschreibung >= 300 Zeichen, 5–7 Highlights, Breadcrumb-Kategorie).`,
   ].join('\n');
 }
 
@@ -444,7 +444,7 @@ function buildUserPrompt({
     `Aufgabe (mit optionaler WEB-EVIDENZ im Prompt):`,
     `1. Analysiere Bilder/OCR/Barcodes, um Marke/Modell zu erkennen.`,
     `2. Titel & Copy marketplace-ready:`,
-    `   - Titel: 70-80 Zeichen (nie > 80), Marke + Produkttyp + wichtigste Fakten.`,
+    `   - Titel: Mobile-first. Priorität A in den ersten 60 Zeichen (Marke + Produkttyp + Modell/MPN). Optimal 65–75, Hard-Max 80.`,
     `   - Zustand: Wenn nicht explizit vorhanden, setze Attribut "Zustand" = "NEU". "Gebraucht" nur wenn im Datensatz gesetzt.`,
     `   - short_description: mind. 3 Absätze à 2 Sätze (Einsatz, Nutzen, Ausstattung, Material/Verarbeitung, Lieferumfang, Bedienung/Pflege).`,
     `   - key_features: 5-7 Nutzen-Bullets (6-12 Wörter).`,
@@ -1138,7 +1138,7 @@ const DATASHEET_REVIEW_SCHEMA = {
   additionalProperties: false,
   required: ['title', 'short_description', 'highlights', 'attributes', 'warnings'],
   properties: {
-    // Keep schema flexible to avoid blocked generations; enforce 70–80 in code after parsing.
+    // Keep schema flexible to avoid blocked generations; enforce title policy in code after parsing (optimal 65–75, hard max 80).
     title: { type: 'string', minLength: 15, maxLength: 140 },
     short_description: { type: 'string', minLength: 300, maxLength: 2000 },
     highlights: {
@@ -1185,11 +1185,19 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
     condition_locked: Boolean(product?.ops?.condition_locked),
   };
 
+  const catIdRaw = product?.details?.categoryId || product?.details?.ebayCategoryId || null;
+  const requiredAspects = catIdRaw ? getRequiredAspects(String(catIdRaw).trim()) : [];
+  const requiredPreview = Array.isArray(requiredAspects) ? requiredAspects.slice(0, 40) : [];
+  const requiredLine = requiredPreview.length
+    ? `Pflicht-Item-Specifics (nicht leer lassen): ${requiredPreview.join(', ')}${requiredAspects.length > requiredPreview.length ? ` … (+${requiredAspects.length - requiredPreview.length} mehr)` : ''}`
+    : null;
+
   return [
     'Du bist ein Marketplace-Quality-Inspector für eBay und Amazon. Deine Aufgabe: prüfe das vorliegende Produktdatenblatt und liefere eine korrigierte, maximal verkaufsstarke Version.',
     buildCommonPolicyText({ locale, allowWebEvidence: Boolean(webEvidence) }),
     '',
     'Zusatzregeln für Review:',
+    requiredLine,
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Keine Aufzählungen.',
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
     '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme).',
@@ -1227,7 +1235,7 @@ function applyReviewResult(product, review) {
       : '';
 
   if (typeof review.title === 'string' && review.title.trim().length >= 10) {
-    product.identification.name = coerceTitleToPolicy(product, review.title, { minLen: 70, maxLen: 80 });
+    product.identification.name = coerceTitleToPolicy(product, review.title, { minLen: 65, maxLen: 80, softMaxLen: 75 });
   }
   if (typeof review.short_description === 'string' && review.short_description.trim().length > 0) {
     const cleanedDescription = sanitizeListingText(review.short_description);
@@ -1418,7 +1426,8 @@ function looksLikePlaceholderTitle(text = '') {
   if (/^(sku|item|model)?[-\w\s]+$/i.test(trimmed) && !/\s/.test(trimmed.replace(/[A-Za-z]+/g, ''))) {
     return true;
   }
-  if (/unbekannt|unknown|neu|new/i.test(trimmed)) return true;
+  // "NEU" is a valid condition token and must NOT mark a title as placeholder.
+  if (/unbekannt|unknown/i.test(trimmed)) return true;
   return false;
 }
 
@@ -1527,7 +1536,7 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
 
         product.identification = {
           ...product.identification,
-          name: coerceTitleToPolicy(product, rewrite.title, { minLen: 70, maxLen: 80 }),
+          name: coerceTitleToPolicy(product, rewrite.title, { minLen: 65, maxLen: 80, softMaxLen: 75 }),
         };
         product.details = product.details || {};
         const cleanedDescription = sanitizeListingText(rewrite.description || '');

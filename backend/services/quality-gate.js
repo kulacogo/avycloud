@@ -248,11 +248,29 @@ function buildRuleIssues(product, { webEvidence } = {}) {
 
   const map = (code) => {
     const base = { code, source: 'rule', confidence: 0.95 };
+    if (typeof code === 'string' && code.startsWith('missing_required_aspects:')) {
+      return {
+        ...base,
+        severity: 'error',
+        fields: ['details.attributes'],
+        message: `Pflicht-Item-Specifics fehlen/leer: ${code.replace(/^missing_required_aspects:\s*/i, '')}`,
+      };
+    }
     switch (code) {
       case 'title_missing':
       case 'title_too_short':
       case 'title_too_long':
-        return { ...base, severity: 'error', fields: ['identification.name'], message: 'Titel entspricht nicht der 70–80 Zeichen Policy.' };
+      case 'title_starts_with_symbol':
+      case 'title_starts_with_marketing':
+      case 'priority_a_not_in_first_60':
+      case 'priority_a_missing_in_title':
+      case 'brand_missing':
+      case 'product_type_missing':
+      case 'model_or_mpn_missing':
+      case 'order_brand_after_producttype':
+      case 'order_producttype_after_model':
+      case 'duplicate_word':
+        return { ...base, severity: 'error', fields: ['identification.name'], message: 'Titel verstößt gegen die Titel-Regeln (≤80 Zeichen, Mobile-first/Priorität A vorne).' };
       case 'description_missing':
       case 'description_too_short':
         return { ...base, severity: 'error', fields: ['details.short_description'], message: 'Beschreibung fehlt/zu kurz (mind. 3 Absätze à 2 Sätze).' };

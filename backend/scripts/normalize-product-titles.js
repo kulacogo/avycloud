@@ -1,8 +1,10 @@
 /* eslint-disable no-console */
 /**
  * Normalize product titles to policy:
- * - length 70–80 chars
- * - no SKU/internal ids
+ * - Mobile-first + SEO: Brand + ProductType + Model/MPN must be within first ~60 chars
+ * - Fixed order: [BRAND] [PRODUCT TYPE] [MODEL/MPN] [CORE SPEC] [VARIANT] [CONDITION]
+ * - Optimal length 65–75 chars, hard max 80
+ * - no SKU/internal ids, no emojis, no marketing fluff
  * - no "Gebraucht/Used" unless ops.condition_locked
  *
  * Safety:
@@ -20,7 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Firestore } = require('@google-cloud/firestore');
-const { coerceTitleToPolicy } = require('../lib/title-policy');
+const { coerceTitleToPolicy, validateTitleToPolicy } = require('../lib/title-policy');
 
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 'avycloud';
 const firestore = new Firestore({ projectId: PROJECT_ID });
@@ -57,14 +59,9 @@ function pickSku(product, docId) {
   );
 }
 
-function needsFix(title = '') {
-  const t = safeString(title);
-  if (!t) return true;
-  if (t.length < 70) return true;
-  if (t.length > 80) return true;
-  if (/\b(gebraucht|used|pre[-\s]?owned|second hand|b-ware|refurb|renewed)\b/i.test(t)) return true;
-  if (/\bSKU[\s\-_]?\d+\b/i.test(t)) return true;
-  return false;
+function needsFix(product, title = '') {
+  const issues = validateTitleToPolicy(product, title, { maxLen: 80, mobileMaxLen: 60 });
+  return Array.isArray(issues) && issues.length > 0;
 }
 
 function findZustandKey(attributes) {
@@ -78,7 +75,7 @@ function isUsedWord(text = '') {
 }
 
 function parseArgs(argv) {
-  const args = { dryRun: true, apply: false, expectedCount: 420, includeUi: false };
+  const args = { dryRun: true, apply: false, expectedCount: 0, includeUi: false };
   for (let i = 2; i < argv.length; i += 1) {
     const t = argv[i];
     if (t === '--apply') {
@@ -111,8 +108,13 @@ async function main() {
   const snap = await firestore.collection('products').get();
   const preCount = snap.size;
   console.log(`[title-normalize] preCount=${preCount}`);
-  if (args.apply && preCount !== args.expectedCount) {
-    throw new Error(`[title-normalize] ABORT: expected preCount=${args.expectedCount} but got ${preCount}`);
+  if (args.apply) {
+    if (!Number.isFinite(args.expectedCount) || args.expectedCount <= 0) {
+      throw new Error('[title-normalize] ABORT: --apply requires --expected-count <number>');
+    }
+    if (preCount !== args.expectedCount) {
+      throw new Error(`[title-normalize] ABORT: expected preCount=${args.expectedCount} but got ${preCount}`);
+    }
   }
 
   const report = [];
@@ -139,11 +141,13 @@ async function main() {
     }
 
     summary.considered += 1;
-    if (!needsFix(currentTitle)) continue;
+    const beforeIssues = validateTitleToPolicy(data, currentTitle, { maxLen: 80, mobileMaxLen: 60 });
+    if (!needsFix(data, currentTitle)) continue;
 
-    const nextTitle = coerceTitleToPolicy(data, currentTitle, { minLen: 70, maxLen: 80 });
+    const nextTitle = coerceTitleToPolicy(data, currentTitle, { minLen: 65, maxLen: 80, softMaxLen: 75 });
     const nextLen = safeString(nextTitle).length;
-    if (!nextTitle || nextLen < 70 || nextLen > 80) {
+    const afterIssues = validateTitleToPolicy(data, nextTitle, { maxLen: 80, mobileMaxLen: 60 });
+    if (!nextTitle || nextLen === 0 || nextLen > 80) {
       summary.invalid_after += 1;
       summary.reasons.could_not_coerce = (summary.reasons.could_not_coerce || 0) + 1;
       report.push({
@@ -154,8 +158,10 @@ async function main() {
         reason: 'could_not_coerce',
         before: currentTitle,
         before_len: currentTitle.length,
+        before_issues: Array.isArray(beforeIssues) ? beforeIssues.join('|') : '',
         after: nextTitle,
         after_len: nextLen,
+        after_issues: Array.isArray(afterIssues) ? afterIssues.join('|') : '',
       });
       continue;
     }
@@ -178,16 +184,18 @@ async function main() {
 
     const updates = {
       'identification.name': nextTitle,
-      'ops.last_saved_source': 'title-normalize',
+      'ops.last_saved_source': 'title-normalize-v2',
       'ops.last_saved_iso': new Date().toISOString(),
       'ops.data_quality': {
         ...(data?.ops?.data_quality || {}),
-        title_policy_v1: {
+        title_policy_v2: {
           iso: new Date().toISOString(),
           before: currentTitle,
           after: nextTitle,
           before_len: currentTitle.length,
           after_len: nextLen,
+          before_issues: Array.isArray(beforeIssues) ? beforeIssues : [],
+          after_issues: Array.isArray(afterIssues) ? afterIssues : [],
         },
       },
     };
@@ -212,8 +220,10 @@ async function main() {
       status: 'update',
       before: currentTitle,
       before_len: currentTitle.length,
+      before_issues: Array.isArray(beforeIssues) ? beforeIssues.join('|') : '',
       after: nextTitle,
       after_len: nextLen,
+      after_issues: Array.isArray(afterIssues) ? afterIssues.join('|') : '',
       updates: args.apply ? undefined : updates,
     });
   }
@@ -230,7 +240,7 @@ async function main() {
   );
 
   // Also write a small CSV preview for easy filtering
-  const headers = ['sku', 'docId', 'lastSource', 'status', 'before_len', 'after_len', 'before', 'after', 'reason'];
+  const headers = ['sku', 'docId', 'lastSource', 'status', 'before_len', 'after_len', 'before_issues', 'after_issues', 'before', 'after', 'reason'];
   const lines = [headers.join(',')];
   for (const row of report) {
     lines.push(
@@ -264,8 +274,8 @@ async function main() {
     // Recompute updates from the snapshot we already have (stable for this run)
     const docData = snap.docs.find((d) => d.id === item.docId)?.data() || {};
     const currentTitle = safeString(docData?.identification?.name);
-    const nextTitle = coerceTitleToPolicy(docData, currentTitle, { minLen: 70, maxLen: 80 });
-    if (!nextTitle || nextTitle.length < 70 || nextTitle.length > 80) continue;
+    const nextTitle = coerceTitleToPolicy(docData, currentTitle, { minLen: 65, maxLen: 80, softMaxLen: 75 });
+    if (!nextTitle || nextTitle.length === 0 || nextTitle.length > 80) continue;
     if (nextTitle === currentTitle) continue;
     const attrs =
       docData?.details?.attributes && typeof docData.details.attributes === 'object'
@@ -277,16 +287,18 @@ async function main() {
     const shouldSanitizeZustand = Boolean(zustandKey) && !conditionLocked && isUsedWord(zustandVal);
     const updates = {
       'identification.name': nextTitle,
-      'ops.last_saved_source': 'title-normalize',
+      'ops.last_saved_source': 'title-normalize-v2',
       'ops.last_saved_iso': new Date().toISOString(),
       'ops.data_quality': {
         ...(docData?.ops?.data_quality || {}),
-        title_policy_v1: {
+        title_policy_v2: {
           iso: new Date().toISOString(),
           before: currentTitle,
           after: nextTitle,
           before_len: currentTitle.length,
           after_len: nextTitle.length,
+          before_issues: validateTitleToPolicy(docData, currentTitle, { maxLen: 80, mobileMaxLen: 60 }),
+          after_issues: validateTitleToPolicy(docData, nextTitle, { maxLen: 80, mobileMaxLen: 60 }),
         },
       },
     };

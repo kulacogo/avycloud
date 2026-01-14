@@ -604,6 +604,19 @@ function enforceEbayAspects(product) {
     let derived = null;
     if (lower === 'marke') {
       derived = product?.identification?.brand || details?.brand || null;
+    } else if (lower === 'hersteller') {
+      // Many categories require "Hersteller" (manufacturer). Use Brand when we don't have a separate field.
+      derived = product?.identification?.brand || details?.brand || null;
+    } else if (lower === 'produktart') {
+      // Derive product type from breadcrumb leaf (no guessing beyond existing category path).
+      const leaf =
+        categoryPath && String(categoryPath).includes('>')
+          ? String(categoryPath).split('>').pop()?.trim()
+          : (categoryPath ? String(categoryPath).trim() : '');
+      derived = leaf || null;
+    } else if (lower === 'zustand' || lower === 'condition') {
+      // Default condition (system invariant): NEU unless manually locked otherwise elsewhere.
+      derived = (product?.details?.attributes && product.details.attributes.Zustand) || 'NEU';
     } else if (lower === 'ean') {
       derived =
         details?.identifiers?.ean ||
@@ -796,7 +809,7 @@ function ensureTechnicalTitle(product, { minLen = 70, maxLen = 80 } = {}) {
     }
   }
 
-  // Best-effort: try to hit the SEO range 70–80 chars by appending technical candidates.
+  // Best-effort: try to keep titles in the SEO-friendly range (optimal 65–75, hard max 80) by appending technical candidates.
   // Never invent tokens; only use known attributes/candidates.
   if (title.length < minLen) {
     for (const token of candidates) {
@@ -1217,8 +1230,9 @@ async function saveProduct(product, options = {}) {
     // - no duplicate highlights
     // - stable, technical title (eBay safe length)
     const normalizedKeyFeatures = sanitizeKeyFeatures(productWithEbay?.details?.key_features || [], { max: 8 });
-    const AUTO_TITLE_MIN_LEN = 70;
+    const AUTO_TITLE_MIN_LEN = 65;
     const AUTO_TITLE_MAX_LEN = 80;
+    const AUTO_TITLE_SOFT_MAX_LEN = 75;
     if (!productWithEbay.details) productWithEbay.details = {};
     productWithEbay.details.key_features = normalizedKeyFeatures;
     if (!productWithEbay.identification) productWithEbay.identification = {};
@@ -1229,7 +1243,7 @@ async function saveProduct(product, options = {}) {
       productWithEbay.identification.name = coerceTitleToPolicy(
         productWithEbay,
         productWithEbay.identification.name,
-        { minLen: AUTO_TITLE_MIN_LEN, maxLen: AUTO_TITLE_MAX_LEN }
+        { minLen: AUTO_TITLE_MIN_LEN, maxLen: AUTO_TITLE_MAX_LEN, softMaxLen: AUTO_TITLE_SOFT_MAX_LEN }
       );
     }
 
