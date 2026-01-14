@@ -322,32 +322,42 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                   className="flex flex-col gap-4 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/40 p-4 transition-colors hover:border-sky-500"
                 >
                   <div className="flex flex-col lg:flex-row gap-3">
-                    {/* Mobile-safe file picker: use an overlay input instead of programmatic click() */}
-                    <label className="relative flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors cursor-pointer">
+                    {/* Mobile-safe file picker: label(htmlFor)+input(sr-only) is the most reliable across iOS/PWA shells */}
+                    <input
+                      id={`group-files-${group.id}`}
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(event) => handleFileChange(group.id, event)}
+                    />
+                    <label
+                      htmlFor={`group-files-${group.id}`}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors cursor-pointer"
+                    >
                       <UploadIcon className="w-5 h-5" />
                       {t('input.groups.files')}
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        onChange={(event) => handleFileChange(group.id, event)}
-                      />
                     </label>
 
                     {/* Camera: on iOS (or when getUserMedia isn't available), use a capture file input. */}
                     {isIOSDevice || !supportsBrowserCamera ? (
-                      <label className="relative flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors cursor-pointer">
-                        <CameraIcon className="w-5 h-5" />
-                        {t('input.groups.cameraOpen')}
+                      <>
                         <input
+                          id={`group-camera-${group.id}`}
                           type="file"
                           accept="image/*"
                           capture="environment"
-                          className="absolute inset-0 opacity-0 cursor-pointer"
+                          className="sr-only"
                           onChange={(event) => handleFileChange(group.id, event)}
                         />
-                      </label>
+                        <label
+                          htmlFor={`group-camera-${group.id}`}
+                          className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-slate-100 font-semibold hover:bg-slate-600 transition-colors cursor-pointer"
+                        >
+                          <CameraIcon className="w-5 h-5" />
+                          {t('input.groups.cameraOpen')}
+                        </label>
+                      </>
                     ) : (
                       <button
                         type="button"
