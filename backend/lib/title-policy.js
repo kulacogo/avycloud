@@ -68,6 +68,7 @@ const DEFAULT_TITLE_MAX_LEN = 80;
 const DEFAULT_TITLE_SOFT_MAX_LEN = 75;
 const DEFAULT_TITLE_TARGET_MIN_LEN = 65;
 const DEFAULT_TITLE_MOBILE_PRIORITY_MAX_LEN = 60;
+const { normalizeBrandDisplayCase } = require('./brand-normalize');
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -587,7 +588,11 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       : {};
 
   const brand =
-    normalizeTitleToken(safeString(product?.identification?.brand)) ||
+    normalizeTitleToken(
+      normalizeBrandDisplayCase(safeString(product?.identification?.brand), {
+        titleHint: safeString(product?.identification?.name),
+      })
+    ) ||
     normalizeTitleToken(pickAttr(attrs, 'Marke', 'Brand')) ||
     '';
 

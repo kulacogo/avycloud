@@ -6,6 +6,7 @@ const {
   sanitizeIdentityValue,
 } = require('./product-identity');
 const { coerceTitleToPolicy } = require('./title-policy');
+const { normalizeBrandDisplayCase } = require('./brand-normalize');
 
 function isFirestoreSpecialValue(value) {
   if (!value) return false;
@@ -1039,6 +1040,15 @@ async function saveProduct(product, options = {}) {
       ...(existingData?.identification || {}),
       ...(product?.identification || {}),
     };
+    // Normalize brand casing deterministically (UI + title consistency)
+    if (mergedIdentification?.brand) {
+      const normalizedBrand = normalizeBrandDisplayCase(mergedIdentification.brand, {
+        titleHint: mergedIdentification?.name || product?.identification?.name || '',
+      });
+      if (normalizedBrand) {
+        mergedIdentification.brand = normalizedBrand;
+      }
+    }
 
     const mergedOps = {
       ...(existingData?.ops || {}),
@@ -1264,6 +1274,41 @@ async function saveProduct(product, options = {}) {
       storageBins: preservedStorageBins,
       inventory: preservedInventory,
     });
+
+    // Keep attribute "Marke"/"Hersteller" in sync (case-only) with identification.brand for UI consistency.
+    try {
+      const brand = normalizeBrandDisplayCase(productWithEbay?.identification?.brand || '', {
+        titleHint: productWithEbay?.identification?.name || '',
+      });
+      if (brand) {
+        productWithEbay.identification = productWithEbay.identification || {};
+        productWithEbay.identification.brand = brand;
+        const attrs =
+          productWithEbay?.details?.attributes && typeof productWithEbay.details.attributes === 'object'
+            ? productWithEbay.details.attributes
+            : null;
+        if (attrs) {
+          const findKey = (needle) =>
+            Object.keys(attrs).find((k) => String(k || '').trim().toLowerCase() === needle) || null;
+          const markeKey = findKey('marke');
+          if (markeKey && typeof attrs[markeKey] === 'string') {
+            const v = String(attrs[markeKey]).trim();
+            if (v && v.toLowerCase() === brand.toLowerCase() && v !== brand) {
+              attrs[markeKey] = brand;
+            }
+          }
+          const herstellerKey = findKey('hersteller');
+          if (herstellerKey && typeof attrs[herstellerKey] === 'string') {
+            const v = String(attrs[herstellerKey]).trim();
+            if (v && v.toLowerCase() === brand.toLowerCase() && v !== brand) {
+              attrs[herstellerKey] = brand;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[saveProduct] brand normalization failed (non-blocking):', e?.message || e);
+    }
 
     // Normalize generated fields consistently across Identify / Improve / Chat saves.
     // - no duplicate highlights
