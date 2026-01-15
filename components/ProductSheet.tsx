@@ -71,7 +71,54 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   } = useInventoryContext();
   const [isEditing, setIsEditing] = useState(false);
   const normalizeProduct = useCallback(
-    (input: Product): Product => input,
+    (input: Product): Product => {
+      // Normalize legacy GPSR attributes into structured details.gpsr (backend now stores GPSR there).
+      // This prevents redundant attribute rows like "GPSR Manufacturer name" duplicating "Marke".
+      const next: Product = JSON.parse(JSON.stringify(input));
+      const attrs = next?.details?.attributes && typeof next.details.attributes === 'object' ? next.details.attributes : {};
+      const gpsr = next?.details?.gpsr && typeof next.details.gpsr === 'object' ? { ...next.details.gpsr } : {};
+
+      for (const [rawKey, rawVal] of Object.entries(attrs)) {
+        const key = String(rawKey || '').trim();
+        const keyLower = key.toLowerCase();
+        if (!keyLower.startsWith('gpsr ')) continue;
+
+        const value =
+          rawVal === null || rawVal === undefined ? '' : typeof rawVal === 'string' ? rawVal.trim() : String(rawVal).trim();
+        // Always remove from attributes to avoid duplicates in UI.
+        delete (attrs as any)[rawKey];
+        if (!value) continue;
+
+        if (keyLower.includes('manufacturer') && keyLower.includes('name')) {
+          if (!gpsr.manufacturer_name) gpsr.manufacturer_name = value;
+          continue;
+        }
+        if (
+          keyLower.includes('manufacturer') &&
+          (keyLower.includes('address') || keyLower.includes('adresse'))
+        ) {
+          if (!gpsr.manufacturer_address) gpsr.manufacturer_address = value;
+          continue;
+        }
+        if (keyLower.includes('email') || keyLower.includes('e-mail')) {
+          if (!gpsr.email) gpsr.email = value;
+          continue;
+        }
+        if (keyLower.includes('url') || keyLower.includes('website') || keyLower.includes('webseite')) {
+          if (!gpsr.url) gpsr.url = value;
+          continue;
+        }
+      }
+
+      if (Object.keys(gpsr).length) {
+        next.details = next.details || ({} as any);
+        next.details.gpsr = gpsr;
+      }
+      if (next.details) {
+        next.details.attributes = attrs as any;
+      }
+      return next;
+    },
     []
   );
   const [localProduct, setLocalProduct] = useState<Product>(() => normalizeProduct(product));
@@ -663,6 +710,34 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         const cleanedIncoming: Record<string, any> = {};
         Object.entries(change.attributes).forEach(([key, value]) => {
           if (!key) return;
+          // GPSR/compliance keys are stored under details.gpsr (not as regular attributes) to avoid duplicates.
+          const keyLowerRaw = String(key || '').trim().toLowerCase();
+          if (keyLowerRaw.startsWith('gpsr ')) {
+            const v = value === null || value === undefined ? '' : String(value).trim();
+            next.details.gpsr = next.details.gpsr || {};
+            if (keyLowerRaw.includes('manufacturer') && keyLowerRaw.includes('name') && v) {
+              next.details.gpsr.manufacturer_name = v;
+              return;
+            }
+            if (
+              keyLowerRaw.includes('manufacturer') &&
+              (keyLowerRaw.includes('address') || keyLowerRaw.includes('adresse')) &&
+              v
+            ) {
+              next.details.gpsr.manufacturer_address = v;
+              return;
+            }
+            if ((keyLowerRaw.includes('email') || keyLowerRaw.includes('e-mail')) && v) {
+              next.details.gpsr.email = v;
+              return;
+            }
+            if ((keyLowerRaw.includes('url') || keyLowerRaw.includes('website') || keyLowerRaw.includes('webseite')) && v) {
+              next.details.gpsr.url = v;
+              return;
+            }
+            // Unknown GPSR-* key -> ignore for now (kept server-side in attributes_extra if needed).
+            return;
+          }
           // Never allow marketplace-specific attributes.
           if (isMarketplaceKey(key)) return;
           // Never store barcode identifiers as regular attributes; move them into barcodes.

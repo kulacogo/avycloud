@@ -54,6 +54,12 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     '- K-Typ (Auto/KFZ/Motorrad): wenn vorhanden, beibehalten. Wenn nicht sicher ableitbar: leer lassen (nicht raten).',
     '- Kategorie: eBay.de Breadcrumb aus Taxonomie, mindestens 2 Ebenen (muss ">"). Keine Top-Level Kategorien als final.',
     '',
+    'DATASHEET FORMAT (wenn du Datenblattfelder erzeugst/änderst):',
+    '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Keine Aufzählungen/Bullets.',
+    '- Highlights: 5–7 Bulletpoints mit je 6–12 Wörtern, technisch/faktenbasiert, keine Verpackung, keine Dubletten.',
+    '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme) und keine redundanten Keys mit identischem Wert.',
+    '- Pflicht-Item-Specifics (required aspects): wenn Kategorie gesetzt ist, alle Pflicht-Aspekte vollständig ausfüllen (nur mit Belegen; sonst "Unbekannt" + Warning).',
+    '',
     allowWebEvidence ? 'WEB-EVIDENZ:' : null,
     allowWebEvidence
       ? '- Du darfst WEB-EVIDENZ NUR verwenden, wenn sie dir im Prompt bereitgestellt wird oder über ein Tool geliefert wurde.'

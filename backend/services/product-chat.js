@@ -11,6 +11,7 @@ const { generateImagesForProduct } = require('./image-generation');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
+const { getRequiredAspects } = require('../lib/ebay-taxonomy');
 
 const MAX_CHAT_ITERATIONS = 5;
 const DEEP_MODE_REGEX =
@@ -699,6 +700,9 @@ function hasValidLocalBarcode(product) {
 function buildProductContext(product, { attachments = [], mode = 'short', marketingFocus = false } = {}) {
   const attributes = toAttributesObject(product?.details?.attributes);
   const dimensions = extractDimensionsFromAttributes(attributes);
+  const categoryIdRaw =
+    (product?.details?.categoryId && String(product.details.categoryId).trim()) || null;
+  const requiredAspects = categoryIdRaw ? getRequiredAspects(categoryIdRaw) : [];
   const identifiers = {
     sku: product?.identification?.sku || product?.details?.identifiers?.sku || null,
     ean: product?.details?.identifiers?.ean || null,
@@ -714,7 +718,12 @@ function buildProductContext(product, { attachments = [], mode = 'short', market
       title: product?.identification?.name || null,
       brand: product?.identification?.brand || null,
       category: product?.identification?.category || null,
+      categoryId: categoryIdRaw,
       sku: identifiers.sku,
+    },
+    ebay: {
+      categoryId: categoryIdRaw,
+      required_aspects: Array.isArray(requiredAspects) ? requiredAspects : [],
     },
     copy: {
       short_description: product?.details?.short_description || '',

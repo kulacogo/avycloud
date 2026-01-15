@@ -547,11 +547,18 @@ async function getInventoryMeta(inventoryId) {
     );
   }
 
+  const normalizeWarehouseKey = (value) => {
+    if (value === null || value === undefined) return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+    // BaseLinker API expects warehouse keys like "bl_206"
+    if (/^\d+$/.test(raw)) return `bl_${raw}`;
+    return raw;
+  };
+
   const meta = {
     inventoryId: String(inventoryId),
-    warehouseKey: match.default_warehouse
-      ? String(match.default_warehouse)
-      : null,
+    warehouseKey: normalizeWarehouseKey(match.default_warehouse),
     priceGroupKey:
       match.default_price_group != null
         ? String(match.default_price_group)
@@ -850,6 +857,15 @@ function buildEbay9800Fields(product, featuresFromTextFields = {}) {
  */
 function buildTextFields(product, name) {
   const features = {};
+  const clampShortText = (value) => {
+    if (value === null || value === undefined) return '';
+    const raw = String(value).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+    // BaseLinker docs: name + short additional fields have a 200-char limit
+    if (trimmed.length <= 200) return trimmed;
+    return trimmed.slice(0, 200).trim();
+  };
 
   const addFeature = (key, value) => {
     if (!key || value === undefined || value === null) return;
@@ -900,10 +916,10 @@ function buildTextFields(product, name) {
 
   const textFields = {
     // Default (catalog default language)
-    name,
+    name: clampShortText(name),
     description: desc,
     // Explicit language (e.g. DE tab in BaseLinker UI)
-    [`name|${defaultLang}`]: name,
+    [`name|${defaultLang}`]: clampShortText(name),
     [`description|${defaultLang}`]: desc,
   };
 
@@ -929,9 +945,11 @@ function buildTextFields(product, name) {
     : [];
   if (highlights.length) {
     // BaseLinker erwartet description_extra1 (nicht extra_description_1)
-    const extra1 = highlights.map((h) => `• ${h}`).join('\n');
-    textFields.description_extra1 = extra1;
-    textFields[`description_extra1|${defaultLang}`] = extra1;
+    const extra1 = clampShortText(highlights.map((h) => `• ${h}`).join('\n'));
+    if (extra1) {
+      textFields.description_extra1 = extra1;
+      textFields[`description_extra1|${defaultLang}`] = extra1;
+    }
   }
 
   if (Object.keys(features).length) {
@@ -1183,12 +1201,21 @@ function __buildPayloadForDebug(product, inventoryId) {
  * Existierendes Produkt anhand SKU finden
  */
 async function findProductBySku(inventoryId, skuOrEan) {
+  // IMPORTANT:
+  // BaseLinker supports filtered lookups (filter_sku / filter_ean / filter_id / filter_name).
+  // A full inventory scan can be extremely slow (and risks hitting rate limits), so we only do it
+  // when explicitly enabled for one-off migrations/debugging.
+  const ALLOW_FULL_SCAN =
+    (process.env.BASELINKER_ALLOW_FULL_SCAN ?? 'false').toString().toLowerCase() === 'true';
+
   let page = 1;
   const MAX_PAGES = 2000;
   // BaseLinker docs: getInventoryProductsList returns up to 1000 products per page.
   const PRODUCTS_PER_PAGE = 1000;
-  const targetSku = normalizeSkuValue(skuOrEan);
-  const targetEan = normalizeEanValue(skuOrEan);
+  const rawIdentifier = safeString(skuOrEan);
+  const looksLikePureDigits = /^\d+$/.test(rawIdentifier);
+  const targetSku = normalizeSkuValue(rawIdentifier);
+  const targetEan = normalizeEanValue(rawIdentifier);
 
   const pickMatchFromList = (products = []) =>
     products.find((entry) => {
@@ -1226,17 +1253,20 @@ async function findProductBySku(inventoryId, skuOrEan) {
     }
   };
 
-  if (targetSku) {
-    const directMatch = await tryFilteredLookup('filter_sku', skuOrEan);
-    if (directMatch) {
-      return directMatch;
-    }
+  // Filtered lookups (fast path)
+  // - Only use filter_sku when identifier is not a pure barcode string.
+  // - Always try filter_ean when we have digits (this prevents accidental "EAN treated as SKU" full scans).
+  if (targetSku && !looksLikePureDigits) {
+    const directMatch = await tryFilteredLookup('filter_sku', rawIdentifier);
+    if (directMatch) return directMatch;
   }
-  if (!targetSku && targetEan) {
-    const eanMatch = await tryFilteredLookup('filter_ean', skuOrEan);
-    if (eanMatch) {
-      return eanMatch;
-    }
+  if (targetEan) {
+    const eanMatch = await tryFilteredLookup('filter_ean', targetEan);
+    if (eanMatch) return eanMatch;
+  }
+
+  if (!ALLOW_FULL_SCAN) {
+    return null;
   }
 
   while (page <= MAX_PAGES) {
@@ -1641,6 +1671,8 @@ async function syncProductsToBaseLinker(products, inventoryId) {
   const results = new Array(products.length);
   const concurrency = Math.max(1, parseInt(process.env.BASELINKER_SYNC_CONCURRENCY || '3', 10));
   let index = 0;
+  const logProgress =
+    (process.env.BASELINKER_SYNC_LOG_PROGRESS ?? 'false').toString().toLowerCase() === 'true';
 
   const worker = async () => {
     while (true) {
@@ -1648,6 +1680,10 @@ async function syncProductsToBaseLinker(products, inventoryId) {
       index += 1;
       if (current >= products.length) break;
       const product = products[current];
+      if (logProgress) {
+        const sku = pickSku(product) || '';
+        console.log(`[baselinker] (${current + 1}/${products.length}) syncing id=${product?.id || ''} sku=${sku}`);
+      }
       results[current] = await syncProductToBaseLinker(product, inventoryId);
     }
   };

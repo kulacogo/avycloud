@@ -213,7 +213,12 @@ function mergeAttributes(existing, incoming) {
 
   const ingest = (pairs, isIncoming) => {
     for (const [rawKey, rawValue] of normalizeAttributePairs(pairs)) {
-      const normalizedKey = rawKey.trim().toLowerCase();
+      // Normalize key for robust dedupe (case + whitespace + dash variants)
+      const normalizedKey = rawKey
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/[‐‑‒–—−]/g, '-')
+        .toLowerCase();
       if (!normalizedKey) continue;
       if (ATTRIBUTE_BLACKLIST.has(normalizedKey)) continue;
       const displayKey = rawKey.trim().replace(/\s+/g, ' ');

@@ -420,6 +420,48 @@ function enforceEbayAspects(product) {
 
   const isGpsrKey = (key) => normalizeLower(key).startsWith('gpsr ');
 
+  // GPSR (EU compliance) fields should be stored in a dedicated structured object, not in the user-facing
+  // attributes table. This avoids duplicated values like "Marke" == "GPSR Manufacturer name" and makes
+  // downstream mappings (BaseLinker, etc.) deterministic.
+  const gpsr =
+    details.gpsr && typeof details.gpsr === 'object' ? { ...details.gpsr } : {};
+  const ingestGpsrAttribute = (finalKey, val, nextExtra, originalKey) => {
+    if (!isGpsrKey(finalKey)) return false;
+    const keyLower = normalizeLower(finalKey);
+    const rawValue =
+      val === null || val === undefined ? '' : typeof val === 'string' ? val.trim() : String(val).trim();
+
+    // Preserve placeholders/empty/objects for forensics, but never show as attributes.
+    if (!rawValue || isPlaceholder(rawValue) || (val && typeof val === 'object')) {
+      nextExtra[originalKey] = val;
+      return true;
+    }
+
+    if (keyLower.includes('manufacturer') && keyLower.includes('name')) {
+      gpsr.manufacturer_name = rawValue;
+      return true;
+    }
+    if (
+      keyLower.includes('manufacturer') &&
+      (keyLower.includes('address') || keyLower.includes('adresse'))
+    ) {
+      gpsr.manufacturer_address = rawValue;
+      return true;
+    }
+    if (keyLower.includes('email') || keyLower.includes('e-mail')) {
+      gpsr.email = rawValue;
+      return true;
+    }
+    if (keyLower.includes('url') || keyLower.includes('website') || keyLower.includes('webseite')) {
+      gpsr.url = rawValue;
+      return true;
+    }
+
+    // Unknown GPSR-* keys: keep in extra, never as attributes.
+    nextExtra[originalKey] = val;
+    return true;
+  };
+
   // Single category system (canonical): details.categoryId
   // Backwards compatible reads from legacy fields.
   let catId =
@@ -476,6 +518,11 @@ function enforceEbayAspects(product) {
     const aliased = KEY_ALIASES.get(lowerPre) || preKey;
     const finalKey = aliased;
     const lowerKey = normalizeLower(finalKey);
+
+      // GPSR/compliance keys are stored separately (details.gpsr), never as attributes.
+      if (ingestGpsrAttribute(finalKey, val, nextExtra, originalKey)) {
+        return;
+      }
       if (isMetaKey(lowerKey)) {
         nextExtra[originalKey] = val;
         return;
@@ -496,6 +543,7 @@ function enforceEbayAspects(product) {
       ...product,
       details: {
         ...details,
+        gpsr: Object.keys(gpsr).length ? gpsr : details.gpsr,
         attributes: normalizeAttributesOrder(nextAttrs),
         attributes_extra: Object.keys(nextExtra).length ? nextExtra : undefined,
       },
@@ -512,7 +560,6 @@ function enforceEbayAspects(product) {
   );
 
   const keptAspects = {};
-  const keptCompliance = {};
   const nextExtra = { ...(existingExtra || {}) };
 
   Object.entries(attrs || {}).forEach(([key, val]) => {
@@ -550,17 +597,8 @@ function enforceEbayAspects(product) {
       return;
     }
 
-    // Keep GPSR/compliance keys regardless of category allowlist
-    if (isGpsrKey(finalKey)) {
-      if (val && typeof val === 'object') {
-        nextExtra[originalKey] = val;
-        return;
-      }
-      if (isPlaceholder(val)) {
-        nextExtra[originalKey] = val;
-        return;
-      }
-      keptCompliance[finalKey] = normalizeBooleanishValue(val);
+    // GPSR/compliance keys are stored separately (details.gpsr), never as attributes.
+    if (ingestGpsrAttribute(finalKey, val, nextExtra, originalKey)) {
       return;
     }
 
@@ -646,13 +684,14 @@ function enforceEbayAspects(product) {
     keptAspects.Kategorie = String(categoryPath);
   }
 
-  const sortedAttrs = normalizeAttributesOrder({ ...keptAspects, ...keptCompliance });
+  const sortedAttrs = normalizeAttributesOrder({ ...keptAspects });
 
   return {
     ...product,
     details: {
       ...details,
       categoryId: String(catId),
+      gpsr: Object.keys(gpsr).length ? gpsr : details.gpsr,
       attributes: sortedAttrs,
       attributes_extra: Object.keys(nextExtra).length ? nextExtra : undefined,
     },

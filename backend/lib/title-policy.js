@@ -517,7 +517,20 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
     '';
 
   const productTypeRaw =
-    pickAttr(attrs, 'Produktart', 'Produkttyp', 'Produkttyp (Produktart)') ||
+    pickAttr(
+      attrs,
+      'Produktart',
+      'Produkttyp',
+      'Produkttyp (Produktart)',
+      // Common real-world variants across categories (Beauty/Tech/Tools/Auto)
+      'Gerätetyp',
+      'Artikeltyp',
+      'Artikel-Typ',
+      'Bauteil',
+      'Komponente',
+      'Werkzeugart',
+      'Schuhart'
+    ) ||
     normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '');
   const productType = normalizeTitleToken(productTypeRaw);
 
@@ -764,7 +777,10 @@ function validateTitleToPolicy(
     for (const tok of aTokens) {
       if (!tok) continue;
       if (!containsToken(t, tok)) issues.push('priority_a_missing_in_title');
-      if (!containsToken(firstN, tok)) issues.push('priority_a_not_in_first_60');
+      // Mobile-first: it's enough that the token STARTS within the first ~60 chars.
+      // Using the full token causes false negatives when the token crosses the 60-char boundary.
+      const anchor = safeString(tok).split(/\s+/g).filter(Boolean)[0] || tok;
+      if (!containsToken(firstN, anchor)) issues.push('priority_a_not_in_first_60');
     }
 
     // Order check (brand -> product type -> model/mpn)

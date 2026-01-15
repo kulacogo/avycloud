@@ -95,6 +95,12 @@ export interface Details {
   pricing: Pricing;
   // canonical eBay category id (see backend enforceEbayAspects)
   categoryId?: string;
+  gpsr?: {
+    manufacturer_name?: string;
+    manufacturer_address?: string;
+    email?: string;
+    url?: string;
+  };
 }
 
 export interface Identification {
