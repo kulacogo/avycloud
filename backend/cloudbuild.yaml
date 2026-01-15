@@ -14,6 +14,22 @@ steps:
     entrypoint: node
     args: ["--check", "index.js"]
 
+  # Quick syntax checks for frequently-touched modules (catch runtime ReferenceErrors early)
+  - name: gcr.io/cloud-builders/npm
+    dir: backend
+    entrypoint: node
+    args: ["--check", "lib/baselinker.js"]
+
+  - name: gcr.io/cloud-builders/npm
+    dir: backend
+    entrypoint: node
+    args: ["--check", "lib/title-policy.js"]
+
+  - name: gcr.io/cloud-builders/npm
+    dir: backend
+    entrypoint: node
+    args: ["--check", "services/product-chat.js"]
+
   - name: gcr.io/cloud-builders/docker
     dir: .
     args:

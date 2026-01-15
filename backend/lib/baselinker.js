@@ -42,6 +42,14 @@ function ensureMarketplaceLookup() {
   return marketplaceLookup;
 }
 
+function safeString(value) {
+  return typeof value === 'string'
+    ? value.trim()
+    : value == null
+      ? ''
+      : String(value).trim();
+}
+
 async function resolveCategoryWithGemini(product, invId) {
   try {
     const client = await getGeminiClient();
