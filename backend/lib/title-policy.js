@@ -248,6 +248,81 @@ function extractSpecTokensFromText(text = '') {
   return found.slice(0, 10);
 }
 
+function extractAutoSpecTokensFromText(text = '') {
+  const raw = safeString(text);
+  if (!raw) return [];
+  const s = stripEmojis(raw);
+  const lower = s.toLowerCase();
+  const found = [];
+
+  const push = (val) => {
+    const t = normalizeTitleToken(compactUnitToken(val));
+    if (!t) return;
+    if (isSkuLikeToken(t)) return;
+    if (isPureBarcodeToken(t)) return;
+    uniqPush(found, t);
+  };
+
+  // Poles / pins (high-signal for electrical car parts)
+  const poligRe = /\b(\d{1,2})\s*[-\s]?\s*polig\b/gi;
+  let m;
+  while ((m = poligRe.exec(s)) !== null) {
+    push(`${m[1]}-polig`);
+  }
+  const pinRe = /\b(\d{1,2})\s*[-\s]?\s*pin(?:s)?\b/gi;
+  while ((m = pinRe.exec(s)) !== null) {
+    push(`${m[1]}-Pin`);
+  }
+
+  // Common auto-part specs (keep list short + high-signal)
+  if (/\belektrisch\b/.test(lower) || /\belectric(?:al)?\b/.test(lower)) push('elektrisch');
+  if (/\bmanuell\b/.test(lower) || /\bmanual\b/.test(lower)) push('manuell');
+  if (/\bbeheizt\b/.test(lower) || /\bheizbar\b/.test(lower) || /\bheated\b/.test(lower)) push('beheizt');
+  if (/\b(anklappbar|klappbar)\b/.test(lower) || /\bfold(?:ing|able)\b/.test(lower)) push('anklappbar');
+  if (/\b(asph[aä]risch|konvex|toter\s+w(?:i|ie)nkel|dead\s+angle)\b/i.test(s)) {
+    // Keep localized tokens when present in the source text
+    if (/\b(asph[aä]risch)\b/i.test(s)) push('asphärisch');
+    if (/\bkonvex\b/i.test(s)) push('konvex');
+    if (/\btoter\s+w(?:i|ie)nkel\b/i.test(s) || /\bdead\s+angle\b/i.test(s)) push('toter Winkel');
+  }
+  // Side / position (very high-signal for auto parts)
+  if (/\brechts\b/.test(lower)) push('rechts');
+  if (/\blinks\b/.test(lower)) push('links');
+
+  return found.slice(0, 8);
+}
+
+function extractAutoCompatibilityFromTitle(titleText = '') {
+  const raw = safeString(titleText);
+  if (!raw) return '';
+
+  // Generic compatibility phrasing (only if explicitly present)
+  if (/\b(divers(?:e|er|es)?|verschieden(?:e|er|es)?|mehrere|viele)\s+fahrzeug(?:e|en)?\b/i.test(raw)) {
+    return 'für diverse Fahrzeuge';
+  }
+
+  // If the title already contains a "für ..." phrase, attempt to keep it (bounded),
+  // but avoid non-compatibility phrases like "für Zuhause" by requiring "für" to be followed by a likely vehicle token.
+  const m = raw.match(/\bfür\s+([^,;.\n]{2,50})/i);
+  if (m && m[1]) {
+    const phrase = normalizeSpaces(m[1]);
+    if (!phrase) return '';
+    // If it explicitly talks about vehicles/models, keep a normalized generic form.
+    if (/\bfahrzeug|fahrzeuge|modell|modelle\b/i.test(phrase)) {
+      return 'für diverse Fahrzeuge';
+    }
+    // Heuristic: Accept phrases that contain at least one digit (e.g. "Fiat Ducato 250")
+    // or at least one token starting with an uppercase letter (brand/model).
+    const hasDigit = /\d/.test(phrase);
+    const hasCapitalToken = phrase.split(/\s+/g).some((t) => /^[A-ZÄÖÜ]/.test(t));
+    if (hasDigit || hasCapitalToken) {
+      return `für ${phrase}`;
+    }
+  }
+
+  return '';
+}
+
 function stripMarkdownDecorations(text = '') {
   let t = normalizeSpaces(text);
   if (!t) return '';
@@ -596,8 +671,13 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       pushB(vehicleMake);
       pushB(vehicleModel);
       pushB(vehicleSeries);
+      const autoTitleHint = [proposedTitle, product?.identification?.name].filter(Boolean).join(' ');
+      const hasVehicle = Boolean(vehicleMake || vehicleModel || vehicleSeries);
+      const compat = !hasVehicle ? extractAutoCompatibilityFromTitle(autoTitleHint) : '';
+      if (compat) pushB(compat);
       pushB(position);
       pushB(measure);
+      extractAutoSpecTokensFromText(autoTitleHint).forEach((t) => pushB(t));
       specsFromText.forEach((t) => pushB(t));
       // Priority C
       pushC(color);
@@ -605,11 +685,16 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       return { schemaId, a, b, c };
     }
     case 'auto_accessory': {
+      const autoTitleHint = [proposedTitle, product?.identification?.name].filter(Boolean).join(' ');
       pushB(vehicleMake);
       pushB(vehicleModel);
       pushB(vehicleSeries);
+      const hasVehicle = Boolean(vehicleMake || vehicleModel || vehicleSeries);
+      const compat = !hasVehicle ? extractAutoCompatibilityFromTitle(autoTitleHint) : '';
+      if (compat) pushB(compat);
       pushB(position);
       pushB(measure);
+      extractAutoSpecTokensFromText(autoTitleHint).forEach((t) => pushB(t));
       specsFromText.forEach((t) => pushB(t));
       pushC(color);
       pushC(condition);
