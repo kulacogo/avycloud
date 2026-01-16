@@ -745,6 +745,15 @@ async function improveExistingProduct(productId, onProgress) {
     console.warn('[improve] Post-review evaluation failed (continuing):', e?.message || e);
   }
 
+  // K-Typ enrichment (AUTO/MOTO only, MVL-backed, never guessing).
+  // This acts as fallback if Identify couldn't enrich (e.g., missing part number earlier).
+  try {
+    const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
+    await enrichKTypIfPossible(mergedProduct, { reason: 'improve' });
+  } catch (e) {
+    console.warn('[improve] K-Typ enrichment failed (continuing):', e?.message || e);
+  }
+
   // Enforce title policy even if the model skipped title updates.
   mergedProduct.identification = mergedProduct.identification || {};
   mergedProduct.identification.name = coerceTitleToPolicy(

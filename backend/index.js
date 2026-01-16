@@ -1098,6 +1098,15 @@ app.post('/api/v2/identify', upload.array('images'), async (req, res) => {
       console.warn('Identify post-review evaluation failed (continuing):', e?.message || e);
     }
 
+    // 3.5) K-Typ enrichment (AUTO/MOTO only, MVL-backed, never guessing).
+    // Best-effort: do not fail Identify if enrichment can't be done.
+    try {
+      const { enrichKTypIfPossible } = require('./lib/ktype-enrichment');
+      await enrichKTypIfPossible(product, { reason: 'identify' });
+    } catch (e) {
+      console.warn('Identify K-Typ enrichment failed (continuing):', e?.message || e);
+    }
+
     // 4) Persist (SYSTEM mode => invariants enforced; never treated as manual UI edit).
     await saveProduct(product, {
       allowCategoryChange: true,

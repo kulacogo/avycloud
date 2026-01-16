@@ -1,0 +1,14 @@
+[ktype-enrich] mode= APPLY
+[ktype-enrich] mvl= exports/DE_MVL_2025_10.compact.jsonl
+[ktype-enrich] mvl_rows= 55469 hsn_tsn_keys= 37236
+Loaded 532 products from Firestore
+[ktype-enrich] candidates_total= 24 selected= 4 offset= 20
+[ktype-enrich] (1/4) sku=SKU-9142845763 mpn=30974
+Product saved to Firestore: SKU-9142845763
+[ktype-enrich] (2/4) sku=SKU-9182883969 mpn=FR490971
+Product saved to Firestore: 4030434105633
+[ktype-enrich] (3/4) sku=SKU-9425624573 mpn=600071884
+Product saved to Firestore: 5011987005952
+[ktype-enrich] (4/4) sku=SKU-9979752242 mpn=1735
+Product saved to Firestore: SKU-9979752242
+[ktype-enrich] done updated= 4 report= /Users/oguz/Dev/avycloud/exports/ktype-enrich/ktype_enrich_apply_1768603813924.json
