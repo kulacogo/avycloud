@@ -1,0 +1,23 @@
+[ktype-enrich] mode= APPLY
+[ktype-enrich] mvl= exports/DE_MVL_2025_10.compact.jsonl
+[ktype-enrich] mvl_rows= 55469 hsn_tsn_keys= 37236
+Loaded 532 products from Firestore
+[ktype-enrich] candidates_total= 31 selected= 10 offset= 10
+[ktype-enrich] (1/10) sku=SKU-4616386559 mpn=24.0112-0178.1
+Product saved to Firestore: 4006633310222
+[ktype-enrich] (2/10) sku=SKU-4780318569 mpn=150.162
+Product saved to Firestore: 4041248450871
+[ktype-enrich] (3/10) sku=SKU-4930006198 mpn=TVPS-006
+[ktype-enrich] (4/10) sku=SKU-4955195373 mpn=3046
+Product saved to Firestore: 1004200304684
+[ktype-enrich] (5/10) sku=SKU-5120624450 mpn=946921699
+[ktype-enrich] (6/10) sku=SKU-5868736484 mpn=GDB1330
+Product saved to Firestore: 3322937241712
+[ktype-enrich] (7/10) sku=SKU-5896801162 mpn=GTX5L-BS
+Product saved to Firestore: 3662775243128
+[ktype-enrich] (8/10) sku=SKU-6044260478 mpn=8MA 376 783-494
+Product saved to Firestore: 7778bbb4-0a11-414b-a323-1573ab313f48
+[ktype-enrich] (9/10) sku=SKU-6074840029 mpn=100 498 0057
+Product saved to Firestore: 4040074266946
+[ktype-enrich] (10/10) sku=SKU-6346907299 mpn=H5100
+[ktype-enrich] done updated= 7 report= /Users/oguz/Dev/avycloud/exports/ktype-enrich/ktype_enrich_apply_1768599149857.json

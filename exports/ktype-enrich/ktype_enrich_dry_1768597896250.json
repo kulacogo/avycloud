@@ -1,0 +1,36 @@
+{
+  "mode": "DRY_RUN",
+  "updated": 0,
+  "report": [
+    {
+      "id": "SKU-0236764953",
+      "sku": "SKU-0236764953",
+      "mpn": "105E-320",
+      "query": "Malossi 105E-320 Variator | Malossi 105E-320 Variator HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": [],
+      "ktypes_from_platform": []
+    },
+    {
+      "id": "SKU-0411747828",
+      "sku": "SKU-0411747828",
+      "mpn": "573429J",
+      "query": "JURID 573429J Bremsbelagsatz | JURID 573429J Bremsbelagsatz HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": [],
+      "ktypes_from_platform": []
+    },
+    {
+      "id": "4100420037405",
+      "sku": "SKU-0694979094",
+      "mpn": "3740",
+      "query": "LIQUI MOLY 3740 Motoröl | LIQUI MOLY 3740 Motoröl HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": [],
+      "ktypes_from_platform": []
+    }
+  ]
+}

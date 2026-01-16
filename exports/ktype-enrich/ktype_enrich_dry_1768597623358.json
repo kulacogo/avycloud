@@ -1,0 +1,129 @@
+{
+  "mode": "DRY_RUN",
+  "updated": 0,
+  "report": [
+    {
+      "id": "SKU-0236764953",
+      "sku": "SKU-0236764953",
+      "mpn": "105E-320",
+      "query": "Malossi 105E-320 Variator | Malossi 105E-320 Variator HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": []
+    },
+    {
+      "id": "SKU-0411747828",
+      "sku": "SKU-0411747828",
+      "mpn": "573429J",
+      "query": "JURID 573429J Bremsbelagsatz | JURID 573429J Bremsbelagsatz HSN TSN",
+      "hsn_tsn": [
+        "2026|ATP",
+        "1995|CCM",
+        "2998|CCM",
+        "1998|CCM",
+        "1496|CCM",
+        "1997|CCM",
+        "1499|CCM",
+        "2979|CCM",
+        "1598|CCM"
+      ],
+      "ktypes": [],
+      "sources": [
+        {
+          "title": "JURID Bremsbelagsatz, Scheibenbremse 573429J günstig online kaufen",
+          "link": "https://www.atp-autoteile.de/de/product/5105558-jurid-bremsbelagsatz-scheibenbremse",
+          "via": "direct"
+        },
+        {
+          "title": "Jurid 573429J Bremsbelagsatz, Scheibenbremse - Amazon.de",
+          "link": "https://www.amazon.de/Jurid-573429J-Bremsbelagsatz-Scheibenbremse/dp/B01A0JCQVG",
+          "via": "direct"
+        },
+        {
+          "title": "Bremsbelagsatz, Scheibenbremse JURID 573429J - Autoteile-Markt.de",
+          "link": "https://www.autoteile-markt.de/shop/artikel/bremsbelagsatz-scheibenbremse-jurid-573429j-78f5f5e716feace025f0f4c89dbfe92e",
+          "via": "direct"
+        },
+        {
+          "title": "Jurid Bremsbelagsatz, Scheibenbremse 573429J für BMW | eBay.de",
+          "link": "https://www.ebay.de/itm/236506501243",
+          "via": "direct"
+        },
+        {
+          "title": "JURID Bremsbelagsatz, Scheibenbremse 573429J günstig online kaufen",
+          "link": "https://www.atp-autoteile.de/de/product/5105558-jurid-bremsbelagsatz-scheibenbremse",
+          "via": "direct"
+        },
+        {
+          "title": "Jurid 573429J Bremsbelagsatz, Scheibenbremse - Amazon.de",
+          "link": "https://www.amazon.de/Jurid-573429J-Bremsbelagsatz-Scheibenbremse/dp/B01A0JCQVG",
+          "via": "direct"
+        }
+      ]
+    },
+    {
+      "id": "4100420037405",
+      "sku": "SKU-0694979094",
+      "mpn": "3740",
+      "query": "LIQUI MOLY 3740 Motoröl | LIQUI MOLY 3740 Motoröl HSN TSN",
+      "hsn_tsn": [
+        "2000|100",
+        "3740|TOP",
+        "0049|731",
+        "3740|EAN",
+        "8165|948"
+      ],
+      "ktypes": [],
+      "sources": [
+        {
+          "title": "LIQUI MOLY Top Tec 4300 5W-30 | 1 L | Synthesetechnologie Motoröl | Art ...",
+          "link": "https://www.amazon.de/LIQUI-5W-30-Synthesetechnologie-Motor%C3%B6l-Art-Nr/dp/B00481HI1G",
+          "via": "direct"
+        },
+        {
+          "title": "Liqui Moly Top Tec 4300 5W-30 Motoröl, 1 Liter - ATU",
+          "link": "https://www.atu.de/produkt/liqui-moly-top-tec-4300-5w-30-motoroel-1-liter-lm3740",
+          "via": "direct"
+        },
+        {
+          "title": "LIQUI MOLY Motoröl 3740 | Moto100",
+          "link": "https://www.moto100.de/oele-und-fluessigkeiten/motoroel/liqui-moly-motoroel-3740-10423464.html",
+          "via": "direct"
+        },
+        {
+          "title": "Liqui Moly Motoröl Top Tec 4300, 5W-30, 1-Liter - Art.Nr. 3740 - ACEA C2",
+          "link": "https://www.kfzparts24.de/de/i478824/liqui-moly-motoroel-top-tec-4300-5w-30-1-liter-art-nr-3740-acea-c2/854169",
+          "via": "direct"
+        },
+        {
+          "title": "LIQUI MOLY Motoröl 3740 | Moto100",
+          "link": "https://www.moto100.de/oele-und-fluessigkeiten/motoroel/liqui-moly-motoroel-3740-10423464.html",
+          "via": "direct"
+        },
+        {
+          "title": "Liqui Moly 3740 Top Tec 4300 5W-30 - 1 Liter, 13,20",
+          "link": "https://oeldepot24.de/Liqui-Moly-3740-Top-Tec-4300-5W-30-1-Liter",
+          "via": "direct"
+        }
+      ]
+    },
+    {
+      "id": "4027816273868",
+      "sku": "SKU-1137525213",
+      "mpn": "27386",
+      "query": "febi bilstein 27386 Radlagersatz | febi bilstein 27386 Radlagersatz HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": []
+    },
+    {
+      "id": "4082300855241",
+      "sku": "SKU-1353005263",
+      "mpn": "011 612-801",
+      "query": "HELLA 011 612-801 Anlasser | HELLA 011 612-801 Anlasser HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": []
+    }
+  ]
+}

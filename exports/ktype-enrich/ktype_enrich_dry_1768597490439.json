@@ -1,0 +1,47 @@
+{
+  "mode": "DRY_RUN",
+  "updated": 0,
+  "report": [
+    {
+      "id": "4262427090057",
+      "sku": "SKU-0135090467",
+      "mpn": "PH-WW-SET+1",
+      "query": "purahelp PH-WW-SET+1 Warnwesten Set | purahelp PH-WW-SET+1 Warnwesten Set HSN TSN",
+      "hsn_tsn": [
+        "1368|EUR",
+        "2000|180"
+      ],
+      "ktypes": [],
+      "sources": [
+        {
+          "title": "purahelp Warnwesten Set 4x XL Erwachsene + 1x Kind EN ISO 20471 Gelb PH ...",
+          "link": "https://picclick.de/purahelp-Warnwesten-Set-4x-XL-Erwachsene-1x-389478123036.html",
+          "via": "direct"
+        },
+        {
+          "title": "purahelp Warnwesten Set 4x XL Erwachsene + 1x Kind EN ISO 20471 Gelb PH ...",
+          "link": "https://picclick.de/purahelp-Warnwesten-Set-4x-XL-Erwachsene-1x-389478123036.html",
+          "via": "direct"
+        }
+      ]
+    },
+    {
+      "id": "SKU-0236764953",
+      "sku": "SKU-0236764953",
+      "mpn": "105E-320",
+      "query": "Malossi 105E-320 Variator | Malossi 105E-320 Variator HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": []
+    },
+    {
+      "id": "SKU-0362404564",
+      "sku": "SKU-0362404564",
+      "mpn": "ACE1013",
+      "query": "UBRAVOO ACE1013 Kindersitzerhöhung | UBRAVOO ACE1013 Kindersitzerhöhung HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": []
+    }
+  ]
+}

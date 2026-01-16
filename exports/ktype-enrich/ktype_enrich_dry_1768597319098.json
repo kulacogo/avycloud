@@ -1,0 +1,140 @@
+{
+  "mode": "DRY_RUN",
+  "updated": 0,
+  "report": [
+    {
+      "id": "4262427090057",
+      "sku": "SKU-0135090467",
+      "mpn": "PH-WW-SET+1",
+      "query": "purahelp PH-WW-SET+1 HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": [
+        {
+          "title": "Purahelp | Erste Hilfe und Sicherheit",
+          "link": "https://purahelp.de/"
+        }
+      ]
+    },
+    {
+      "id": "SKU-0236764953",
+      "sku": "SKU-0236764953",
+      "mpn": "105E-320",
+      "query": "Malossi 105E-320 HSN TSN",
+      "hsn_tsn": [
+        "0005|320"
+      ],
+      "ktypes": [
+        7026
+      ],
+      "sources": [
+        {
+          "title": "320I - HSN/TSN",
+          "link": "http://www.hsn-tsn.de/320i.html"
+        },
+        {
+          "title": "Herstellerschlüsselnummer (HSN) Typschlüsselnummer (TSN) Suche ...",
+          "link": "https://www.kfzversicherungsvergleich.net/kfz-versicherung/hsn-tsn"
+        },
+        {
+          "title": "Kfz-Steuer Rechner nach HSN und TSN - Der Autokostencheck",
+          "link": "https://www.autokostencheck.de/kfz-steuer-rechner/hsn-tsn/"
+        },
+        {
+          "title": "HSN, TSN, KBA - Schlüsselnummern beim Auto finden",
+          "link": "https://www.kfzteile24.de/magazin/ratgeber/hsn-tsn-finden"
+        },
+        {
+          "title": "HSN / TSN Abfrage: KBA Schlüsselnummer aus Fahrzeugschein",
+          "link": "https://fahrzeugdaten.com/"
+        }
+      ]
+    },
+    {
+      "id": "SKU-0362404564",
+      "sku": "SKU-0362404564",
+      "mpn": "ACE1013",
+      "query": "UBRAVOO ACE1013 HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": [
+        {
+          "title": "UBRAVOO Portable Booster Seat Child for Eating, Travel ...",
+          "link": "https://www.amazon.de/-/en/UBRAVOO-Portable-Booster-Adjustable-Washable/dp/B0DJ5QWL74"
+        },
+        {
+          "title": "UBRAVOO Portable High Chair 6 Months Plus, Lightweight ...",
+          "link": "https://ubravoo.com/products/https-ubravoo-com-products-ubravoo-baby-booster-seats-portable-high-chairs-for-babies-and-toddlers-highchair-for-baby-from-6-months-to-3-years-sitting-up-to-15-kg-variant-50765954515291"
+        },
+        {
+          "title": "UBRAVOO 2 in 1 Toddler Booster Seat, Portable High ...",
+          "link": "https://www.walmart.com/ip/UBRAVOO-Toddler-Booster-Seat-2-in-1-Portable-High-Chair-Baby-Dining-Table-Removable-Tray-Seat-Pad-Easy-to-Travel-Black/1985646413"
+        },
+        {
+          "title": "UBRAVOO toddler booster highchair ACE1013 - Teddie's Home",
+          "link": "https://teddieshome.com/products/ubravoo-portable-high-chair-6-months-plus-lightweight-easy-clean-folding-booster-chair-for-babies-toddlers-ace1013?srsltid=AfmBOopmGM8pDlrHeELlSZHa2emsTBP8TcLMoA6Uo-xV5x7PzxU36i_2"
+        }
+      ]
+    },
+    {
+      "id": "SKU-0411747828",
+      "sku": "SKU-0411747828",
+      "mpn": "573429J",
+      "query": "JURID 573429J HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": [
+        {
+          "title": "JURID 573429J Bremsbeläge Hinten für BMW 1 F20 F21 2 ...",
+          "link": "https://www.ebay.de/itm/266885309306?srsltid=AfmBOoprJ6VUPX_GLqSSC1tHjvr0YjCBNb0B8lWU3LM2gSrBNHANNa2N"
+        },
+        {
+          "title": "JURID BREMSBELÄGE HINTERACHSE PASSEND FÜR ...",
+          "link": "https://www.bandel-online.de/jurid-bremsbelaege-hinterachse-passend-fuer-bmw-1-2-3-4-573429j.html?srsltid=AfmBOor0nd5ldFh5cTC6aVTCrsAMblC7RjyOXu067m9UynCtxOELF8JC"
+        },
+        {
+          "title": "JURID 573429J Bremsbeläge für Verschleißwarnanzeige ...",
+          "link": "https://www.autodoc.de/jurid/7864382"
+        },
+        {
+          "title": "JURID 573429J Bremsbeläge für Verschleißwarnanzeige ...",
+          "link": "https://www.autoteiledirekt.de/jurid-7864382.html"
+        },
+        {
+          "title": "25029 JURID 573429J Bremsbeläge für 43,99",
+          "link": "https://www.autoersatzteile.de/7864382-jurid"
+        }
+      ]
+    },
+    {
+      "id": "4036021579191",
+      "sku": "SKU-0614291176",
+      "mpn": "7919",
+      "query": "MANNOL 7919 HSN TSN",
+      "hsn_tsn": [],
+      "ktypes": [],
+      "sources": [
+        {
+          "title": "MANNOL MN7919-60 – 60 L Legend Extra 0W-30 Motoröl",
+          "link": "https://www.atp-autoteile.de/de/product/4158975-mannol-60-l-legend-extra-0w-30-motoroel"
+        },
+        {
+          "title": "1 Liter Mannol 0w-30 Legend extra Motoröl online kaufen",
+          "link": "https://www.ebay.de/p/5043537822?srsltid=AfmBOooZN8LDuv-Kol5gDGFQPt2-kiQKXGkM6YHUAP_Sr_rtb9CPRpN-"
+        },
+        {
+          "title": "MANNOL Legend Extra 0W-30 7919",
+          "link": "https://www.mannol.de/de/produkte/synthetische-motorenoele/mannol-legend-extra-0w-30"
+        },
+        {
+          "title": "10l Mannol 7919 Legend Extra 0W-30 Motoröl",
+          "link": "https://www.welches-oel.de/10l-mannol-7919-legend-extra-0w-30-motoroel"
+        },
+        {
+          "title": "Motoröl 0W-30 20L SCT - MANNOL MN7919-20",
+          "link": "https://www.autoteile-markt.de/shop/artikel/motoroel-0w-30-20l-sct-mannol-mn7919-20-905f994ead09129ac5c54f9328c883d0?srsltid=AfmBOorvpTOdz_dWH6qCOeOdB9tF1vnEX1iTjU2cElitui4KzI1Ckwc9"
+        }
+      ]
+    }
+  ]
+}
