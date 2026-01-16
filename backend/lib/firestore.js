@@ -7,6 +7,7 @@ const {
 } = require('./product-identity');
 const { coerceTitleToPolicy } = require('./title-policy');
 const { normalizeBrandDisplayCase } = require('./brand-normalize');
+const { getVehicleFitmentMode } = require('./vehicle-fitment');
 
 function isFirestoreSpecialValue(value) {
   if (!value) return false;
@@ -457,6 +458,18 @@ function enforceEbayAspects(product) {
     ].map((k) => k.toLowerCase())
   );
 
+  const addWarning = (msg) => {
+    const text = (msg == null ? '' : String(msg)).replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    product.notes = product.notes || {};
+    const existing = Array.isArray(product.notes.warnings) ? product.notes.warnings : [];
+    // Preserve existing, dedupe case-insensitive.
+    const lower = new Set(existing.map((x) => String(x || '').trim().toLowerCase()).filter(Boolean));
+    if (!lower.has(text.toLowerCase())) {
+      product.notes.warnings = [...existing, text];
+    }
+  };
+
   const PLACEHOLDER_VALUES = [
     'not provided, eu',
     'info@example.com',
@@ -644,6 +657,23 @@ function enforceEbayAspects(product) {
 
   const requiredAspects = Array.isArray(requiredMap[catId]) ? requiredMap[catId] : [];
   const categoryPath = product?.identification?.category || null;
+
+  // Vehicle fitment (K-Typ) enforcement for categories where eBay supports vehicle fitment lists.
+  // We do NOT invent K-Typ here. If missing (and we have an MPN), we add a warning so automation/UI can surface it.
+  const fitmentMode = getVehicleFitmentMode(catId);
+  if (fitmentMode) {
+    const ids = product?.details?.identifiers || {};
+    const mpn = (typeof ids?.mpn === 'string' ? ids.mpn.trim() : ids?.mpn == null ? '' : String(ids.mpn).trim());
+    const hasKTyp = Object.keys(attrs || {}).some((k) => {
+      const lower = String(k || '').trim().toLowerCase();
+      return lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ';
+    });
+    if (mpn && !hasKTyp) {
+      addWarning(
+        `K-Typ fehlt: Kategorie unterstützt Fahrzeugverwendungsliste (${fitmentMode}) und Herstellernummer/MPN ist gesetzt.`
+      );
+    }
+  }
   const canonicalByLower = new Map(
     requiredAspects
       .map((n) => normalizeKey(n))

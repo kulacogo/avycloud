@@ -1,0 +1,14 @@
+progress_rows -> 5000 wrote -> 4999
+progress_rows -> 10000 wrote -> 9999
+progress_rows -> 15000 wrote -> 14999
+progress_rows -> 20000 wrote -> 19999
+progress_rows -> 25000 wrote -> 24999
+progress_rows -> 30000 wrote -> 29999
+progress_rows -> 35000 wrote -> 34999
+progress_rows -> 40000 wrote -> 39999
+progress_rows -> 45000 wrote -> 44999
+progress_rows -> 50000 wrote -> 49999
+progress_rows -> 55000 wrote -> 54999
+read_rows -> 55469
+wrote_rows -> 55469
+out -> /Users/oguz/Dev/avycloud/exports/DE_MVL_2025_10.compact.jsonl

@@ -12,6 +12,7 @@ const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { getRequiredAspects } = require('../lib/ebay-taxonomy');
+const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 
 const MAX_CHAT_ITERATIONS = 5;
 const DEEP_MODE_REGEX =
@@ -703,6 +704,7 @@ function buildProductContext(product, { attachments = [], mode = 'short', market
   const categoryIdRaw =
     (product?.details?.categoryId && String(product.details.categoryId).trim()) || null;
   const requiredAspects = categoryIdRaw ? getRequiredAspects(categoryIdRaw) : [];
+  const vehicleFitmentMode = categoryIdRaw ? getVehicleFitmentMode(categoryIdRaw) : null;
   const identifiers = {
     sku: product?.identification?.sku || product?.details?.identifiers?.sku || null,
     ean: product?.details?.identifiers?.ean || null,
@@ -724,6 +726,7 @@ function buildProductContext(product, { attachments = [], mode = 'short', market
     ebay: {
       categoryId: categoryIdRaw,
       required_aspects: Array.isArray(requiredAspects) ? requiredAspects : [],
+      vehicle_fitment_mode: vehicleFitmentMode,
     },
     copy: {
       short_description: product?.details?.short_description || '',
@@ -824,7 +827,8 @@ function buildSystemPrompt(locale = 'de-DE') {
     'Never recycle the customer’s existing gallery URLs for marketing-image answers; prefer fresh web sources or new AI renders and state if none exist.',
     'When proposing product updates, explain briefly (1–2 sentences) and include a minimal JSON snippet called "edit" that only contains the changed fields.',
     'TITLE POLICY (when proposing a new title):',
-    '- Mobile-first: first ~55–60 chars matter. Priority A must be inside first 60 chars (Brand + ProductType + Model/MPN).',
+    '- Mobile-first: first ~55–60 chars matter. Priority A must be inside first 60 chars.',
+    '- Priority A is category-specific: Auto/Tech = Brand+Produktart+MPN/OE/Modell; Clothing/Shoes = Brand+Produktart+Größe (keine kryptischen Modellcodes).',
     '- Fixed order: [BRAND] [PRODUCT TYPE] [MODEL/MPN] [CORE SPEC] [VARIANT] [CONDITION].',
     '- Length: optimal 65–75 chars, never exceed 80.',
     '- No marketing fluff, no emojis, no duplicates, no leading symbols, never include SKU/internal IDs.',
@@ -848,6 +852,7 @@ function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingF
       'Marketing images requested: respond with one short intro sentence and a bullet list of 3–6 concrete URLs labelled with 3–5 words (hero, lifestyle, detail, packshot, etc.). No extra analysis unless asked.'
     );
   }
+  lines.push('Vehicle fitment rule: If ebay.vehicle_fitment_mode is set, do NOT invent K-Typ. Only propose K-Typ if it is present in OCR/attachments or provided WEB-EVIDENZ.');
   lines.push('If you propose edits, remember the {"edit": {...}} JSON rule.');
   return lines.join('\n\n');
 }

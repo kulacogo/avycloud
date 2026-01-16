@@ -4,9 +4,9 @@
  *
  * 🔒 Non‑negotiable rules (mobile-first + SEO):
  * - Mobile-first: first ~55–60 chars matter. Priority A MUST be inside first 60 chars:
- *   - Brand
- *   - Product type
- *   - Model / MPN / Part number
+ *   - Schema-specific anchors:
+ *     - Default/Tech/Auto: Brand + Product type + Model/MPN/Part number
+ *     - Clothing/Shoes: Brand + Product type + Size (avoid meaningless code-like "models")
  * - Fixed order (always):
  *   [BRAND] [PRODUCT TYPE] [MODEL/MPN] [CORE SPEC] [VARIANT] [CONDITION]
  * - No marketing fluff, no emojis, no duplicates.
@@ -192,6 +192,25 @@ function extractModelCandidatesFromText(text = '') {
     out.push(c);
   }
   return out.slice(0, 6);
+}
+
+function isLikelyCodeLikeFashionModel(token = '') {
+  const t = safeString(token);
+  if (!t) return false;
+  const compact = t.replace(/\s+/g, '');
+  if (compact.length < 8) return false;
+  // Very typical for apparel internal model/article numbers: long, no spaces, mixed letters+digits.
+  const hasLetters = /[a-z]/i.test(compact);
+  const hasDigits = /\d/.test(compact);
+  if (!hasLetters || !hasDigits) return false;
+  // If it contains separators it's more likely meaningful (e.g. "Air-Max 90"), keep those.
+  if (/[._\-\/]/.test(compact)) return false;
+  // Heuristic: code-like when long and vowel-poor (MW0MW28046DW5)
+  const vowels = (compact.match(/[aeiouäöü]/gi) || []).length;
+  const digits = (compact.match(/\d/g) || []).length;
+  if (compact.length >= 10 && vowels <= 1 && digits >= 3) return true;
+  if (compact.length >= 12 && digits >= 4) return true;
+  return false;
 }
 
 function extractSpecTokensFromText(text = '') {
@@ -662,7 +681,17 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const a = [];
   uniqPush(a, brand);
   uniqPush(a, productType);
-  uniqPush(a, modelOrMpn);
+  // Schema-specific Priority A (third anchor differs by category).
+  if (schemaId === 'clothing') {
+    // For clothing, size is a strong purchase driver; model/article codes are usually meaningless.
+    uniqPush(a, normSize || audience);
+  } else if (schemaId === 'shoes') {
+    // For shoes, model can be meaningful, but avoid code-like tokens; size should be early.
+    const safeModel = isLikelyCodeLikeFashionModel(modelOrMpn) ? '' : modelOrMpn;
+    uniqPush(a, normSize || safeModel || audience);
+  } else {
+    uniqPush(a, modelOrMpn);
+  }
 
   const b = [];
   const c = [];
@@ -707,9 +736,17 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
     }
     case 'shoes':
     case 'clothing': {
-      // Fashion: gender/department + size after model/mpn; color last.
+      // Fashion: keep titles purchase-driven.
+      // - Clothing: avoid code-like "model"/article numbers; emphasize gender + size.
+      // - Shoes: model can be meaningful but still avoid code-like tokens.
+      const safeModel =
+        schemaId === 'shoes' && modelOrMpn && !isLikelyCodeLikeFashionModel(modelOrMpn)
+          ? modelOrMpn
+          : '';
+      // Put audience/size early; keep any safe model as a secondary token.
       pushB(audience);
       pushB(normSize);
+      pushB(safeModel);
       pushB(material);
       pushC(color);
       pushC(condition);
@@ -861,7 +898,14 @@ function validateTitleToPolicy(
     // Source-data presence (strict)
     if (!aTokens[0] || /^unbekannt$/i.test(aTokens[0])) issues.push('brand_missing');
     if (!aTokens[1] || /^unbekannt$/i.test(aTokens[1])) issues.push('product_type_missing');
-    if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('model_or_mpn_missing');
+    // Third anchor differs by schema:
+    // - Default/Tech/Auto: model/mpn
+    // - Clothing/Shoes: size (or fallback audience)
+    if ((schemaId === 'clothing' || schemaId === 'shoes')) {
+      if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('model_or_mpn_missing');
+    } else {
+      if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('model_or_mpn_missing');
+    }
 
     const firstN = t.slice(0, mobileMaxLen);
     for (const tok of aTokens) {

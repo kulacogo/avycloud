@@ -1,0 +1,124 @@
+{
+  "generated_from": "verpflichtende_artikelmerkmale_auto_motorradteile_24.10.23.xlsx",
+  "generated_at": "2026-01-16T19:44:57Z",
+  "required_aspects_by_category_id": {
+    "33566": [
+      "Produktart"
+    ],
+    "33588": [
+      "Produktart"
+    ],
+    "33602": [
+      "Produktart"
+    ],
+    "33604": [
+      "Produktart"
+    ],
+    "33632": [
+      "Im Lieferumfang enthalten",
+      "Produktart"
+    ],
+    "33645": [
+      "Produktart"
+    ],
+    "33653": [
+      "AHK-Ausführung",
+      "E-Satz Typ",
+      "Produktart"
+    ],
+    "33659": [
+      "Produktart"
+    ],
+    "33660": [
+      "Produktart"
+    ],
+    "33709": [
+      "Einbauposition",
+      "Produktart"
+    ],
+    "33710": [
+      "Einbauposition",
+      "Produktart"
+    ],
+    "33716": [
+      "Einbauposition",
+      "Produktart"
+    ],
+    "38657": [
+      "Im Lieferumfang enthalten",
+      "Produktart"
+    ],
+    "43946": [
+      "Produktart"
+    ],
+    "46095": [
+      "Produktart"
+    ],
+    "57308": [
+      "Einbauposition",
+      "Produktart"
+    ],
+    "57322": [
+      "Einbauposition",
+      "Produktart"
+    ],
+    "57357": [
+      "Anzahl pro Packung",
+      "Einbauposition",
+      "Produktart"
+    ],
+    "63276": [
+      "Sensorart"
+    ],
+    "173511": [
+      "Einbauposition",
+      "Im Lieferumfang enthalten",
+      "Produktart"
+    ],
+    "174021": [
+      "Produktart"
+    ],
+    "174028": [
+      "Produktart"
+    ],
+    "177697": [
+      "Produktart"
+    ],
+    "177699": [
+      "Produktart"
+    ],
+    "179496": [
+      "Fahrzeugkompatibilität",
+      "Volumen",
+      "Produktart"
+    ],
+    "179846": [
+      "Produktart"
+    ],
+    "180408": [
+      "Produktart"
+    ],
+    "262073": [
+      "Produktart"
+    ],
+    "262085": [
+      "Produktart"
+    ],
+    "262134": [
+      "Im Lieferumfang enthalten",
+      "Produktart"
+    ],
+    "262135": [
+      "Im Lieferumfang enthalten",
+      "Produktart"
+    ],
+    "262137": [
+      "Im Lieferumfang enthalten",
+      "Produktart"
+    ],
+    "262161": [
+      "Einbauposition",
+      "Produktart"
+    ]
+  }
+}

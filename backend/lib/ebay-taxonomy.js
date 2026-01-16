@@ -3,9 +3,16 @@ const path = require('path');
 
 const CATEGORY_PATH = path.join(__dirname, '..', 'ebay-data', 'categories.json');
 const ASPECT_PATH = path.join(__dirname, '..', 'ebay-data', 'required-aspects.json');
+const AUTO_ASPECT_PATH = path.join(
+  __dirname,
+  '..',
+  'ebay-data',
+  'required-aspects-auto-motorradteile.json'
+);
 
 let categories = {};
 let requiredAspects = {};
+let autoRequiredAspects = {};
 let uniqueNameToId = new Map();
 
 function loadJsonSafe(filePath) {
@@ -21,6 +28,11 @@ function loadJsonSafe(filePath) {
 function hydrate() {
   categories = loadJsonSafe(CATEGORY_PATH);
   requiredAspects = loadJsonSafe(ASPECT_PATH);
+  const autoRaw = loadJsonSafe(AUTO_ASPECT_PATH);
+  autoRequiredAspects =
+    autoRaw && typeof autoRaw === 'object' && autoRaw.required_aspects_by_category_id
+      ? autoRaw.required_aspects_by_category_id
+      : {};
 
   // Build a unique name index to avoid ambiguous leaf-name matches ("Sonstige", "Elektronik & Computer", ...).
   const counts = new Map(); // name -> count
@@ -143,9 +155,17 @@ function findEbayCategory(rawCategory) {
 function getRequiredAspects(categoryId) {
   if (!categoryId) return [];
   const key = typeof categoryId === 'number' ? String(categoryId) : categoryId.toString();
-  const list = requiredAspects[key];
-  if (Array.isArray(list)) return list;
-  return [];
+  const base = requiredAspects[key];
+  const auto = autoRequiredAspects[key];
+  const out = [];
+  const push = (v) => {
+    const s = v == null ? '' : String(v).trim();
+    if (!s) return;
+    if (!out.includes(s)) out.push(s);
+  };
+  if (Array.isArray(base)) base.forEach(push);
+  if (Array.isArray(auto)) auto.forEach(push);
+  return out;
 }
 
 module.exports = {

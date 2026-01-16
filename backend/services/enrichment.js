@@ -16,6 +16,7 @@ const { isValidGtin, normalizeDigits, getGtinType } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { sanitizeListingText } = require('../lib/listing-sanitize');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
+const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 const { filterBarcodesByWebConfirm } = require('../lib/barcode-web-confirm');
 const { searchWeb, fetchPageText } = require('../lib/web-search-html');
 const { evaluateEbayReady } = require('../lib/datasheet-quality');
@@ -1191,6 +1192,10 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
   const requiredLine = requiredPreview.length
     ? `Pflicht-Item-Specifics (nicht leer lassen): ${requiredPreview.join(', ')}${requiredAspects.length > requiredPreview.length ? ` … (+${requiredAspects.length - requiredPreview.length} mehr)` : ''}`
     : null;
+  const fitmentMode = catIdRaw ? getVehicleFitmentMode(String(catIdRaw).trim()) : null;
+  const fitmentLine = fitmentMode
+    ? `Fahrzeugverwendungsliste möglich (${fitmentMode}). Wenn es ein Fahrzeugteil ist: K-Typ muss als Attribut \"K-Typ\" gepflegt werden. Nie raten – nur aus WEB-EVIDENZ/OCR/Belegen.`
+    : null;
 
   return [
     'Du bist ein Marketplace-Quality-Inspector für eBay und Amazon. Deine Aufgabe: prüfe das vorliegende Produktdatenblatt und liefere eine korrigierte, maximal verkaufsstarke Version.',
@@ -1198,6 +1203,7 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
     '',
     'Zusatzregeln für Review:',
     requiredLine,
+    fitmentLine,
     '- Plausibilitätscheck: Nutze WEB-EVIDENZ (Marktplatz-Suchergebnisse, falls enthalten) um Daten zu verifizieren und fehlende Spezifikationen zu ergänzen. Erfinde keine Werte.',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Keine Aufzählungen.',
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
