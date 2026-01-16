@@ -1080,7 +1080,7 @@ app.post('/api/v2/identify', upload.array('images'), async (req, res) => {
       llm: result.llm || null,
     };
 
-    await runDatasheetReview([product], { locale, webEvidence: evidence });
+    await runDatasheetReview([product], { locale, webEvidence: evidence, marketplaceEvidence: true });
 
     // Retry once if still not eBay-ready (title/desc/highlights/attrs). This keeps Identify outputs stable.
     try {
@@ -1091,6 +1091,7 @@ app.post('/api/v2/identify', upload.array('images'), async (req, res) => {
           locale,
           webEvidence: evidence,
           qualityIssuesById: { [product.id]: eval1.issues },
+          marketplaceEvidence: true,
         });
       }
     } catch (e) {

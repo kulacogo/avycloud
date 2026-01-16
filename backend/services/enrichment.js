@@ -1198,6 +1198,7 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
     '',
     'Zusatzregeln für Review:',
     requiredLine,
+    '- Plausibilitätscheck: Nutze WEB-EVIDENZ (Marktplatz-Suchergebnisse, falls enthalten) um Daten zu verifizieren und fehlende Spezifikationen zu ergänzen. Erfinde keine Werte.',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Keine Aufzählungen.',
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
     '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme).',
@@ -1300,7 +1301,10 @@ function applyReviewResult(product, review) {
   }
 }
 
-async function runDatasheetReview(products = [], { locale = 'de-DE', webEvidence = null, qualityIssuesById = null } = {}) {
+async function runDatasheetReview(
+  products = [],
+  { locale = 'de-DE', webEvidence = null, qualityIssuesById = null, marketplaceEvidence = false } = {}
+) {
   if (!Array.isArray(products) || !products.length) return;
   // Use Thinking model for deep quality assurance
   const reviewModel = resolveModel(null, 'REVIEW_MODEL', 'gemini-2.5-flash');
@@ -1360,6 +1364,70 @@ async function runDatasheetReview(products = [], { locale = 'de-DE', webEvidence
     return s.slice(start).trim();
   };
 
+  const safeString = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
+  const pickBestBarcode = (product) => {
+    const candidates = []
+      .concat(Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : [])
+      .concat(Array.isArray(product?.barcodes) ? product.barcodes : [])
+      .concat([
+        product?.details?.identifiers?.ean,
+        product?.details?.identifiers?.gtin,
+        product?.details?.identifiers?.upc,
+        product?.identification?.ean,
+        product?.identification?.gtin,
+      ])
+      .filter(Boolean)
+      .map((c) => normalizeDigits(String(c || '')))
+      .filter((c) => [8, 12, 13, 14].includes(c.length) && isValidGtin(c));
+    return candidates[0] || '';
+  };
+
+  const pickMpn = (product) => {
+    const attrs =
+      product?.details?.attributes && typeof product.details.attributes === 'object'
+        ? product.details.attributes
+        : {};
+    return (
+      safeString(attrs?.Herstellernummer) ||
+      safeString(product?.details?.identifiers?.mpn) ||
+      safeString(attrs?.MPN) ||
+      ''
+    );
+  };
+
+  const pickProductType = (product) => {
+    const attrs =
+      product?.details?.attributes && typeof product.details.attributes === 'object'
+        ? product.details.attributes
+        : {};
+    return safeString(attrs?.Produktart || attrs?.Produkttyp || attrs?.Artikeltyp || '');
+  };
+
+  const buildMarketplaceQuery = (product) => {
+    const barcode = pickBestBarcode(product);
+    if (barcode) return barcode;
+    const brand = safeString(product?.identification?.brand);
+    const mpn = pickMpn(product);
+    const type = pickProductType(product);
+    const title = safeString(product?.identification?.name);
+    const parts = [];
+    if (brand) parts.push(brand);
+    if (type) parts.push(type);
+    if (mpn) parts.push(mpn);
+    const q = safeString(parts.join(' ')) || title || brand || mpn || '';
+    return safeString(q).slice(0, 140);
+  };
+
+  const fetchSerpSummary = async (engine, params, limit = 5) => {
+    try {
+      const raw = await callSerpApi(engine, params);
+      const summary = summarizeSerpEntries(engine, raw, limit);
+      return { engine, ok: true, summary };
+    } catch (error) {
+      return { engine, ok: false, summary: [], error: error?.message || String(error) };
+    }
+  };
+
   for (const product of products) {
     if (!product) continue;
     try {
@@ -1371,12 +1439,48 @@ async function runDatasheetReview(products = [], { locale = 'de-DE', webEvidence
         responseSchema: cleanSchemaForGemini(DATASHEET_REVIEW_SCHEMA)
       };
 
+      // Optional: attach marketplace evidence (eBay/Amazon/Kaufland/Shopping) so the LLM can validate plausibility
+      // and fill missing specs based on sources, not guesses.
+      let mergedEvidence = webEvidence;
+      if (marketplaceEvidence) {
+        const query = buildMarketplaceQuery(product);
+        const barcode = pickBestBarcode(product);
+        if (query) {
+          const [ebay, amazon, shopping, kaufland] = await Promise.all([
+            fetchSerpSummary('ebay', { _nkw: query }, 5),
+            fetchSerpSummary('amazon', { k: query }, 5),
+            fetchSerpSummary('google_shopping', { q: query, num: 10 }, 5),
+            fetchSerpSummary('google', { q: `${query} site:kaufland.de`, num: 10 }, 5),
+          ]);
+          const marketplace = {
+            query,
+            barcode: barcode || null,
+            engines: {
+              ebay: ebay.summary,
+              amazon: amazon.summary,
+              google_shopping: shopping.summary,
+              kaufland: kaufland.summary,
+            },
+            errors: {
+              ebay: ebay.ok ? null : ebay.error,
+              amazon: amazon.ok ? null : amazon.error,
+              google_shopping: shopping.ok ? null : shopping.error,
+              kaufland: kaufland.ok ? null : kaufland.error,
+            },
+          };
+          mergedEvidence =
+            webEvidence && typeof webEvidence === 'object' && !Array.isArray(webEvidence)
+              ? { ...webEvidence, marketplace }
+              : { raw: webEvidence || null, marketplace };
+        }
+      }
+
       const result = await model.generateContent({
         contents: [{
           role: "user",
           parts: [{
             text: buildReviewPrompt(product, locale, {
-              webEvidence,
+              webEvidence: mergedEvidence,
               qualityIssues: qualityIssuesById && product?.id ? (qualityIssuesById[product.id] || []) : [],
             })
           }]

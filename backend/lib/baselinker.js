@@ -295,7 +295,11 @@ async function getInventoryAvailableTextFieldKeyIds(inventoryId) {
       parseInt(process.env.BASELINKER_TEXT_FIELDS_MAX_ACCOUNTS || '30', 10)
     );
 
-    const fields = ['name', 'description', 'description_extra1', 'extra_field_18699'];
+    // IMPORTANT:
+    // Do NOT auto-expand `extra_field_*` into integration/lang variants.
+    // Some additional fields are single-language only; sending multiple language variants can trigger:
+    // "ERROR_INVALID_DATA: Additional field extra_field_XXXX does not support setting values in different languages."
+    const fields = ['name', 'description', 'description_extra1'];
 
     for (const entry of list) {
       if (!entry || typeof entry !== 'object') continue;
@@ -384,8 +388,6 @@ async function expandTextFieldsForInventory(inventoryId, textFields, values, lan
       out[keyId] = values.description;
     if (field === 'description_extra1' && values?.description_extra1 && out[keyId] == null)
       out[keyId] = values.description_extra1;
-    if (field === 'extra_field_18699' && values?.extra_field_18699 && out[keyId] == null)
-      out[keyId] = values.extra_field_18699;
   }
 
   return out;
@@ -943,8 +945,10 @@ function buildTextFields(product, name) {
   if (ktypValue) {
     const blKey = 'extra_field_18699';
     textFields[blKey] = ktypValue;
-    // Also set language-specific variant (allowed by BaseLinker text_fields key format).
-    textFields[`${blKey}|${defaultLang}`] = ktypValue;
+    // IMPORTANT:
+    // Additional fields may NOT support multilingual values. Sending `extra_field_x|de` (or any lang variant)
+    // can cause: "ERROR_INVALID_DATA: Additional field extra_field_x does not support setting values in different languages."
+    // Therefore we only set the plain key here.
   }
 
   // Extra Beschreibung 1 = Highlights/Bullets für BL

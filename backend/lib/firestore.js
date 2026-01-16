@@ -217,19 +217,79 @@ function normalizeWeightKgNumber(value) {
   return Number(rounded.toFixed(2));
 }
 
-function normalizeAttributesOrder(attrs = {}) {
+function normalizeAttributesOrder(attrs = {}, { requiredOrder = [], preferredOrder = [] } = {}) {
   const entries = Object.entries(attrs || {});
   if (!entries.length) return {};
-  entries.sort((a, b) => {
-    const aKey = a[0] ? String(a[0]).toLowerCase() : '';
-    const bKey = b[0] ? String(b[0]).toLowerCase() : '';
-    return aKey.localeCompare(bKey, 'de', { sensitivity: 'base' });
-  });
-  return entries.reduce((acc, [k, v]) => {
-    acc[k] = v;
+
+  const norm = (v) => (v == null ? '' : String(v)).trim().toLowerCase();
+  const byKey = new Map(entries);
+  const remaining = new Set(byKey.keys());
+  const lowerToKey = new Map();
+  for (const key of byKey.keys()) {
+    const lower = norm(key);
+    if (!lower) continue;
+    // Preserve first occurrence (keys should already be deduped upstream)
+    if (!lowerToKey.has(lower)) lowerToKey.set(lower, key);
+  }
+
+  const orderedKeys = [];
+  const pushKey = (name) => {
+    const lower = norm(name);
+    if (!lower) return;
+    const actual = lowerToKey.get(lower);
+    if (!actual) return;
+    if (!remaining.has(actual)) return;
+    orderedKeys.push(actual);
+    remaining.delete(actual);
+  };
+
+  // 1) Category-required aspects first (keeps the order from taxonomy file)
+  (Array.isArray(requiredOrder) ? requiredOrder : []).forEach((k) => pushKey(k));
+  // 2) Global preferred keys next (brand/identifiers/specs)
+  (Array.isArray(preferredOrder) ? preferredOrder : []).forEach((k) => pushKey(k));
+
+  // 3) The rest: alphabetic for stability
+  const rest = Array.from(remaining);
+  rest.sort((a, b) => norm(a).localeCompare(norm(b), 'de', { sensitivity: 'base' }));
+  orderedKeys.push(...rest);
+
+  return orderedKeys.reduce((acc, key) => {
+    acc[key] = byKey.get(key);
     return acc;
   }, {});
 }
+
+// Stable, cross-category attribute ordering hints (UI + exports).
+// When a category is known, requiredOrder (eBay required aspects) is applied first, then this list, then A-Z.
+const DEFAULT_ATTRIBUTE_ORDER = [
+  'Marke',
+  'Hersteller',
+  'Produktart',
+  'Produkttyp',
+  'Artikeltyp',
+  'Gerätetyp',
+  'Bauteil',
+  'Herstellernummer',
+  'Referenznummer(n) OEM',
+  'Referenznummer',
+  'OEM-Referenznummer',
+  'Modell',
+  'Fahrzeugmarke',
+  'Fahrzeugmodell',
+  'Baureihe',
+  'Einbauposition',
+  'K-Typ',
+  'Abteilung',
+  'Geschlecht',
+  'Größe',
+  'EU-Schuhgröße',
+  'Schuhgröße',
+  'Farbe',
+  'Material',
+  'weight', // internal numeric (kg) – may be mapped to a category-specific weight aspect below
+  'Zustand',
+  'Kategorie',
+];
 
 function enforceEbayAspects(product) {
   const requiredMap = getRequiredAspects();
@@ -274,9 +334,19 @@ function enforceEbayAspects(product) {
 
       // Brand / manufacturer
       'brand': 'Marke',
+      'brand name': 'Marke',
+      'brandname': 'Marke',
+      'brand_name': 'Marke',
       'marke': 'Marke',
       'manufacturer': 'Hersteller',
+      'manufacturer name': 'Hersteller',
+      'manufacturer_name': 'Hersteller',
+      'herstellername': 'Hersteller',
+      'hersteller name': 'Hersteller',
       'hersteller': 'Hersteller',
+      'department': 'Abteilung',
+      'abteilung': 'Abteilung',
+      'gender': 'Geschlecht',
 
       // Condition
       'condition': 'Zustand',
@@ -540,12 +610,33 @@ function enforceEbayAspects(product) {
       }
       nextAttrs[finalKey] = normalizeBooleanishValue(val);
     });
+
+    // Safe dedupe: collapse obvious synonym duplicates when values are identical (case/space),
+    // but NEVER drop a required aspect (none known in the no-category path).
+    const normVal = (v) =>
+      (v == null ? '' : String(v))
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+    const dropIfSame = (keepKey, dropKey) => {
+      if (!nextAttrs[keepKey] || !nextAttrs[dropKey]) return;
+      const a = normVal(nextAttrs[keepKey]);
+      const b = normVal(nextAttrs[dropKey]);
+      if (!a || !b) return;
+      if (a !== b) return;
+      // Preserve in extra for forensics, but keep UI clean.
+      nextExtra[dropKey] = nextAttrs[dropKey];
+      delete nextAttrs[dropKey];
+    };
+    dropIfSame('Marke', 'Hersteller');
+    dropIfSame('Abteilung', 'Zielgruppe');
+
     return {
       ...product,
       details: {
         ...details,
         gpsr: Object.keys(gpsr).length ? gpsr : details.gpsr,
-        attributes: normalizeAttributesOrder(nextAttrs),
+        attributes: normalizeAttributesOrder(nextAttrs, { preferredOrder: DEFAULT_ATTRIBUTE_ORDER }),
         attributes_extra: Object.keys(nextExtra).length ? nextExtra : undefined,
       },
     };
@@ -685,7 +776,49 @@ function enforceEbayAspects(product) {
     keptAspects.Kategorie = String(categoryPath);
   }
 
-  const sortedAttrs = normalizeAttributesOrder({ ...keptAspects });
+  // Avoid duplicate weight fields:
+  // - We keep the category-specific required weight aspect (e.g. "Gewicht(kg)") when present/required.
+  // - Internal numeric kg is still stored in details.weight for downstream integrations.
+  const weightAspect = (requiredAspects || []).find((name) => normalizeLower(name).includes('gewicht'));
+  if (weightAspect) {
+    const internalWeightKey = Object.keys(keptAspects).find((k) => normalizeLower(k) === 'weight') || null;
+    if (internalWeightKey) {
+      const internalVal = keptAspects[internalWeightKey];
+      const existingVal = keptAspects[weightAspect];
+      const existingEmpty = existingVal == null || String(existingVal).trim() === '';
+      const internalNonEmpty = internalVal != null && String(internalVal).trim() !== '';
+      if (existingEmpty && internalNonEmpty) {
+        keptAspects[weightAspect] = internalVal;
+      }
+      delete keptAspects[internalWeightKey];
+    }
+  }
+
+  // Safe dedupe: collapse obvious synonym duplicates when values are identical (case/space),
+  // but NEVER drop a required aspect key for this category.
+  const requiredLowerSet = new Set((requiredAspects || []).map((k) => normalizeLower(k)).filter(Boolean));
+  const normVal = (v) =>
+    (v == null ? '' : String(v))
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+  const dropIfSame = (keepKey, dropKey) => {
+    if (!keptAspects[keepKey] || !keptAspects[dropKey]) return;
+    if (requiredLowerSet.has(normalizeLower(dropKey))) return; // cannot drop required aspect
+    const a = normVal(keptAspects[keepKey]);
+    const b = normVal(keptAspects[dropKey]);
+    if (!a || !b) return;
+    if (a !== b) return;
+    nextExtra[dropKey] = keptAspects[dropKey];
+    delete keptAspects[dropKey];
+  };
+  dropIfSame('Marke', 'Hersteller');
+  dropIfSame('Abteilung', 'Zielgruppe');
+
+  const sortedAttrs = normalizeAttributesOrder(
+    { ...keptAspects },
+    { requiredOrder: requiredAspects, preferredOrder: DEFAULT_ATTRIBUTE_ORDER }
+  );
 
   return {
     ...product,

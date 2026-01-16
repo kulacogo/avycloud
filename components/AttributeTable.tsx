@@ -21,10 +21,71 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
     }
   };
 
+  const ATTRIBUTE_ORDER = [
+    'Marke',
+    'Hersteller',
+    'Produktart',
+    'Produkttyp',
+    'Artikeltyp',
+    'Gerätetyp',
+    'Bauteil',
+    'Herstellernummer',
+    'Referenznummer(n) OEM',
+    'Referenznummer',
+    'OEM-Referenznummer',
+    'Modell',
+    'Fahrzeugmarke',
+    'Fahrzeugmodell',
+    'Baureihe',
+    'Einbauposition',
+    'K-Typ',
+    'Abteilung',
+    'Geschlecht',
+    'Größe',
+    'EU-Schuhgröße',
+    'Schuhgröße',
+    'Farbe',
+    'Material',
+    'weight',
+    'Zustand',
+    'Kategorie',
+  ].map((k) => k.toLowerCase());
+
+  const normalizeKeyForSort = (key: string) => {
+    const lower = String(key || '').trim().toLowerCase();
+    if (!lower) return '';
+    // Group common weight variants together (e.g. "Gewicht(kg)", "Gewicht", internal "weight")
+    if (lower === 'weight' || lower.startsWith('gewicht')) return 'weight';
+    return lower;
+  };
+
+  const formatKeyLabel = (key: string) => {
+    const lower = String(key || '').trim().toLowerCase();
+    if (lower === 'weight') return 'Gewicht';
+    return key;
+  };
+
+  const normalizeLabelForSort = (key: string) => {
+    const label = String(formatKeyLabel(key) || '').trim().toLowerCase();
+    if (!label) return normalizeKeyForSort(key);
+    // Ensure "Gewicht" is sorted in the 'G' section even though the internal key is "weight"
+    if (label === 'gewicht') return 'gewicht';
+    return label;
+  };
+
+  const rankKey = (key: string) => {
+    const normalized = normalizeKeyForSort(key);
+    const idx = ATTRIBUTE_ORDER.indexOf(normalized);
+    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+  };
+
   const sortAttributes = (input: Record<string, any>) => {
     const entries = Object.entries(input || {}).sort((a, b) => {
-      const aKey = (a[0] || '').toLowerCase();
-      const bKey = (b[0] || '').toLowerCase();
+      const aRank = rankKey(a[0] || '');
+      const bRank = rankKey(b[0] || '');
+      if (aRank !== bRank) return aRank - bRank;
+      const aKey = normalizeLabelForSort(a[0] || '');
+      const bKey = normalizeLabelForSort(b[0] || '');
       return aKey.localeCompare(bKey, 'de', { sensitivity: 'base' });
     });
     return entries.reduce((acc: Record<string, any>, [k, v]) => {
@@ -34,8 +95,11 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
   };
 
   const attributeEntries = Object.entries(attributes || {}).sort((a, b) => {
-    const aKey = (a[0] || '').toLowerCase();
-    const bKey = (b[0] || '').toLowerCase();
+    const aRank = rankKey(a[0] || '');
+    const bRank = rankKey(b[0] || '');
+    if (aRank !== bRank) return aRank - bRank;
+    const aKey = normalizeLabelForSort(a[0] || '');
+    const bKey = normalizeLabelForSort(b[0] || '');
     return aKey.localeCompare(bKey, 'de', { sensitivity: 'base' });
   });
   // Note: some fields are edited elsewhere in the product sheet (SKU/EAN/Barcodes),
@@ -71,12 +135,6 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
         if (textValue.length > MAX_VALUE_LENGTH) return false;
         return true;
       });
-
-  const formatKeyLabel = (key: string) => {
-    const lower = String(key || '').trim().toLowerCase();
-    if (lower === 'weight') return 'Gewicht';
-    return key;
-  };
 
   const updateAttr = (key: string, value: string) => {
     if (!onChange) return;

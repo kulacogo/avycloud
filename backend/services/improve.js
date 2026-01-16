@@ -728,7 +728,7 @@ async function improveExistingProduct(productId, onProgress) {
 
   console.log('[improve] Final Review & Save...');
   if (onProgress) await onProgress('reviewing');
-  await runDatasheetReview([mergedProduct], { locale: product.locale || 'de-DE' });
+  await runDatasheetReview([mergedProduct], { locale: product.locale || 'de-DE', marketplaceEvidence: true });
 
   // Retry once if still not eBay-ready (incl. missing required aspects).
   try {
@@ -738,6 +738,7 @@ async function improveExistingProduct(productId, onProgress) {
       await runDatasheetReview([mergedProduct], {
         locale: product.locale || 'de-DE',
         qualityIssuesById: { [mergedProduct.id]: eval1.issues },
+        marketplaceEvidence: true,
       });
     }
   } catch (e) {
