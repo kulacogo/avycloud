@@ -1,0 +1,532 @@
+sku,productId,qty,bin,eligible,baselinker_linked,last_saved_source,title
+SKU-7538503265,00174600185032,0,,no,no,ui,COM40 Limited sp Ersatz-Sitzkissen C22/S02 C001746 Möbelzubehör Textil NEU
+SKU-7225351886,00442039661193,1,XGA0102D,yes,yes,ui,"COZII Hundepool X001Y0BTE9 Blau Gr. 120x30cm PVC, PP NEU Faltbar Robust"
+SKU-1844691476,0060cdec-9193-411b-af64-4754ca0226bd,1,XGA0201B,yes,yes,title-normalize-v2,Thule Rucksack 3205317 Darkest Blue NEU
+SKU-9129624671,00872299043330,1,XGA0301C,yes,yes,script-condition-normalize,Thule Gepäckträger Chariot Cargo Rack 2 20201512 Schwarz NEU 3kg Traglast
+SKU-2250869990,0099557e-b9f0-45a4-9c7c-d6418e7daac5,1,XGA0105B,yes,yes,job-improve,HENMI Fahrradständer Universal Seitenständer HMF-B03 verstellbar Schwarz NEU
+SKU-4310621602,0196214105119,0,,no,yes,category-review-csv,Pokémon Sammelordner-Kollektion 100-10011 Mehrfarbig Kunststoff NEU Deutsch
+SKU-7255766247,0198303486543,1,XGA0404A,yes,yes,title-normalize-v2,Abercrombie Fitch T-Shirt 661581842 Herren Gr. L 100% Baumwolle Mehrfarbig
+SKU-9947386415,03142017000003,1,XGA0203E,yes,yes,barcode-rollback,Weber Räucherofen Smokey Mountain Cooker 711004 Schwarz Gr. 37 cm Metall NEU
+SKU-9400450055,0402019292922,1,XGA0403C,yes,yes,script-brand-fix-manual,ALKAR Außenspiegel 9202922 für diverse Fahrzeuge 5-polig elektrisch NEU
+SKU-4641833225,04052938000016,1,XGA0106B,yes,yes,ui,Pierburg Luftmassenmesser 7.22184.39.0 Kunststoff Schwarz NEU
+SKU-2014012963,0700153955478,0,,no,yes,,"3rd Avenue Akustikgitarre STX10ASBPK2, Fichtenholz Decke, Lindenholz, Sunburst"
+SKU-2097206690,07901010300000,0,,no,yes,script-condition-normalize,Generisch Autoradios passgenau für JSD 520 NEU Schwarz 1 DIN Bluetooth
+SKU-1890172110,0810123671069,0,,no,yes,title-normalize-v2,Levoit Luftbefeuchter LUH-A251-WEU 17W 2.5L 20m NEU
+SKU-0279594894,0814914026519,1,XGA0403A,yes,yes,title-normalize-v2,Patriot Solid State Drive P300P256GM28 256GB m.2 pcie NEU
+SKU-4747629782,0840353901100,1,XGA0404A,yes,yes,title-normalize-v2,Fitbit Fitness-Tracker GA05184-EU gps Coral Champagne Gold NEU
+SKU-3671103995,09be7756-7b4f-4dda-bda0-799754052fff,1,XGA0106B,yes,yes,title-normalize-v2,SACHS Reparatursatz Federbeinstützlager 802 472 019
+SKU-4955195373,1004200304684,2,XGA0106D,yes,yes,job-improve,LIQUI MOLY Motoröl 3046 Motorbike 4T 10W-40 Mineralisch 4-Takt Motorrad NEU
+SKU-3023625088,1011190149611,1,XGA0105B,yes,yes,title-normalize-v2,Unbekannt Gewindereparaturset 15-tlg NEU
+SKU-5246852701,11850025732208,1,XGA0106A,yes,yes,title-normalize-v2,RELION Lithium Eisenphosphat Batterie 48V030-GC2 30 Ah 51.2V Blau NEU
+SKU-7591395419,14006633314036,0,,no,yes,title-normalize-v2,ATE Bremsscheibe 24.0125-0184.1 Audi 314mm 314x25mm NEU
+SKU-7995751556,1472920275814,0,,no,yes,title-normalize-v2,IKEA Standregal 202.758.14 77cm Holzwerkstoff 77x77cm Weiß NEU
+SKU-2064038107,14f93c3a-6902-4da3-8a00-991a13958570,1,XGA0105B,yes,yes,title-normalize-v2,FNTCASE Schutzhülle Grau NEU
+SKU-6705970836,1507000192029,1,XGA0106D,yes,yes,script-condition-normalize,BOOST TOWN Ladeluftrohr Ansaugrohr Kit 1507000192029 Hyundai Kona/i30N Rot Gebr.
+SKU-4026350484,1795362000001,0,,no,no,job-improve,Patagonia T-Shirt 87655 Herren Gr. 24
+SKU-7569423484,18023030150200,1,XGA0403B,yes,yes,title-normalize-v2,EUROPLAST Revisionsklappe Metall 180x230mm Weiß NEU
+SKU-0533124796,182c0593-5b66-4304-80fa-d1a56eb08210,1,XGA0105A,yes,yes,title-normalize-v2,CAPAS Schnorchelflossen Erwachsene Kinder Gr. S/M Materialien
+SKU-8073301246,1852315181124,0,,no,no,title-normalize-v2,BRUT Clothing Jacke 1852315181124 Herren Gr.xL Britische Wachsbaumwolle
+SKU-8902752253,1900201150572,1,XGA0106C,yes,yes,ui,ATE Bremsscheibe 24.0128-0248.1 321mm 28mm Hyundai KIA NEU
+SKU-4873494474,1900201900525,1,XGA0106C,yes,yes,ktype-upload,"TRW Bremsscheibe DF4982 für Honda Accord - 282mm Durchmesser, 9mm Dicke"
+SKU-0789448642,1bdce1f7-aa59-4b85-a9a8-3488141ae012,1,XGA0202B,yes,yes,title-normalize-v2,Kalahari Wassergläser Set 2195173 8.5cm Glas 300ml Mehrfarbig NEU
+SKU-4762036663,1d5b4c7f-5b0b-42ac-a3a4-1ff4ce852794,1,XGA0402B,yes,yes,ui,intelamp Solarleuchte YL005-16A LED Außenleuchte Bewegungsmelder Garten Neu
+SKU-7736193220,1e369bf5-e5e6-460c-b595-8a08a2bbaf2d,0,,no,yes,,RDINSCOS Schichtdickenmessgerät TC-100 µm/mil für Eisen- & Nichteisen-Metalle
+SKU-6511282128,20220424000047,1,XGA0105B,yes,yes,title-normalize-v2,JMIYAV Gaming Mauspad JD-80 800x300mm Rosa NEU
+SKU-3806532980,20221212000014,0,,no,no,,"SHARGE Powerbank Flow Mini SP012, 5000mAh, USB-C, 2x 5V/2.4A Ausgang Grau"
+SKU-5134751391,20221705000003,0,,no,no,title-normalize-v2,intelamp Solar-Straßenleuchte X0020KCWST NEU
+SKU-4603086544,20240129000072,1,XGA0106B,yes,yes,job-improve,URVOLAX CarPlay Display UR73C 10.26 Zoll NEU Schwarz Touchscreen Drahtlos
+SKU-0545917168,2024080701046,1,XGA0105B,yes,yes,job-improve,SPURTAR Messschieber 0-150mm Edelstahl NEU DIN 862 0.2mm Präzision Heimwerker
+SKU-0922374624,2074133001002,0,,no,yes,title-normalize-v2,Magic: The Gathering Commander Deck D41330001 Jugendliche Erwachsene Karton
+SKU-2511182802,2290601009009,1,XGA0106C,yes,yes,ui,SACHS Kupplungssatz 2290601009 240 mm ZMS Modul XTend+CSC für VW AUDI SEAT
+SKU-5446097686,2312388888888,1,XGA0101C,yes,yes,job-improve,"kecoolke Ultraschallreiniger KZ-F3 3,0L 120W Ultraschall 150W Heizung Silber Neu"
+SKU-5133324860,24196924186507,1,XGA0404B,yes,yes,title-normalize-v2,Patagonia Freizeithemd 52691 Herren Gr. L Bio-Baumwolle Salamandergrün NEU
+SKU-6761538665,2452014202112,1,XGA0202A,yes,yes,title-normalize-v2,BMW Fußmatten 2452014202112 2er F45 Active Tourer Vorne Hinten Anthrazit
+SKU-3050715048,247e01a5-fa99-4b01-be0a-fefbe97a145d,0,,no,yes,ui,"HASKYY Vielzahn Steckschlüsselsatz XZN CVN-16, 16-teilig, 1/2 Zoll, NEU"
+SKU-3476455542,2493370000004,0,,no,no,title-normalize-v2,NINTH HALL Sweatshirt N1851124048 Herren Gr. M Baumwollmischung NEU
+SKU-0704619212,25004695020111,1,XGA0403A,yes,yes,title-normalize-v2,Silicon Power SSD SP256GBSS3A55S25 256GB 7mm sata NEU
+SKU-6617431534,2640f8be-81e3-4d78-b73c-14f234d26721,1,XGA0403C,yes,no,ui,WUZECK Solarmodul 201010252 NEU Huizhoushi Jiaoxing Keji Youxian Gongsi
+SKU-3982672342,2810449728013,1,XGA0106C,yes,yes,title-normalize-v2,Unbekannt Autoradio 6S9701P gps Schwarz NEU
+SKU-6634800828,295c4789-b314-43ba-a18c-274b6ac422ef,0,,no,no,title-normalize-v2,Tommy Hilfiger Pullover Herren Gr.xL Pima Cotton-Kaschmir-Mischung NEU
+SKU-7824016126,2d3f8a0d-2c5f-4852-a241-8281d55e418a,1,XGA0404C,yes,no,title-normalize-v2,LADYHOW Handseilzug 1215 Stahl Metallisch/Schwarz NEU
+SKU-4883385910,2f144eb7-126a-43ac-90cc-c6dbf899a7d6,1,XGA0106A,yes,yes,title-normalize-v2,ZARA HOME Couchtisch 9273/072/700/99 46x70x60cm Erwachsene Mangoholz Braun
+SKU-7753504850,30c418b6-000b-47e9-8252-3478b4693cda,0,,no,yes,title-normalize-v2,PerformaNat Calcium Bolus QDENI400127 NEU
+SKU-2941051529,31080024102010,1,XGA0105C,yes,yes,ui,TRW Bremsscheibe DF4866S für Audi A4 A5 A6 innenbelüftet Vorderachse Schwarz NEU
+SKU-4303462818,3154020086005,1,XGA0106D,yes,yes,title-normalize-v2,GYS Rutil Elektrode 186005 2.5mm NEU
+SKU-6206509150,3165143111321,0,,no,yes,title-normalize-v2,Bosch Zusatzwasserpumpe 0392020073 12V NEU
+SKU-5868736484,3322937241712,1,XGA0106B,yes,yes,title-normalize-v2,TRW Bremsbelagsatz GDB1330 Hinterachse 87 NEU
+SKU-2267173123,3374650257716,1,XGA0106C,yes,yes,title-normalize-v2,MOTUL Motoröl 5W 1L NEU
+SKU-2522561568,3558380099390,1,XGA0105B,yes,yes,title-normalize-v2,Asmodee Kartenspiel Mehrfarbig NEU
+SKU-8192040791,3573994006336,3,XGA0404A,yes,no,title-normalize-v2,Dexeryl Pflegecreme 18747739 Babys Kinder Erwachsene 500g NEU
+SKU-5526640633,3613379433101,1,XGA0404B,yes,no,title-normalize-v2,Element Hemden ELYWT00119 Herren Gr. L Beige NEU
+SKU-5896801162,3662775243128,1,XGA0106B,yes,yes,category-review-csv,KYOTO Motorradbatterie GTX5L-BS SLA 12V 4Ah Wartungsfrei für Motorrad Schwarz
+SKU-3867423041,36f71981-e45d-478a-a80d-4e665f0e3352,0,,no,no,title-normalize-v2,Unbekannt BH 65169 Damen Synthetikmischung Hautfarben NEU
+SKU-6722573428,3770010398363,0,,no,yes,title-normalize-v2,Umami Bento Box B0848KVNN4-FREN 1.2L Kunststoff Bambus Schwarz NEU
+SKU-8932764822,395730b7-67d0-4880-a770-f85086b71052,0,,no,no,ui,Blue Tomato Sweatshirt Herren Gr. L NEU BTFW 2342 231/4 Placket Sweater
+SKU-7357361636,3f55c3c8-0603-4563-be53-8591b104d26e,1,XGA0201B,yes,no,title-normalize-v2,ROHO Sitzkissenbezug 61373208013 5cm Schwarz NEU
+SKU-4832582390,4001690500234,1,XGA0404A,yes,no,title-normalize-v2,BENT Markisen-Zubehör 50023 250cm Gewebe 250x10cm Dunkelblau NEU
+SKU-8850596846,4003318620911,0,,no,yes,category-review-csv,"ABUS Faltschloss BORDO 6000K/120 BK SH, 120cm, Sicherheitslevel 10 Schwarz"
+SKU-0200958470,4004133669093,0,,no,yes,title-normalize-v2,APS Trinkflaschen 66909 Glas Edelstahl 18/8 Polypropylen (PP) Silikon 1L
+SKU-4191907503,4005046205217,1,XGA0403B,yes,no,title-normalize-v2,UPMANN Revisionsklappe 20521 150x200mm Weiß NEU
+SKU-4715041854,4005414511612,1,XGA0103B,yes,yes,title-normalize-v2,ESPRIT Bettwäsche-Set 77302-080-155-220 100% Baumwolle Renforcé 155x220cm
+SKU-1892441877,4006094887004,0,,no,yes,title-normalize-v2,PEBARO Holzbausatz 887 Unisex Pappel Linde NEU
+SKU-5978798764,4006387029807,0,,no,yes,,BRITA Wasserfilter-Kartusche P 1000 für reinen Geschmack & Geräteschutz
+SKU-4616386559,4006633310222,1,XGA0106C,yes,yes,,"ATE Bremsscheiben Set 24.0112-0178.1 für Audi - 300mm Durchmesser, 12mm Dicke"
+SKU-3455080661,4007060000236,1,XGA0404A,yes,no,title-normalize-v2,SCHIESSER Taillenslip 399053 Damen Gr. 40 100% Baumwolle Weiß NEU
+SKU-1708759606,4007065867636,1,XGA0404A,yes,no,ui,"SCHIESSER Bustier 174926 Schwarz Gr. 42 95% Baumwolle (Bio), 5% Elasthan NEU"
+SKU-7707703650,4007066272026,1,XGA0404B,yes,no,title-normalize-v2,SCHIESSER Pyjama Short 179281 Damen Gr. M 100% Baumwolle Dunkelblau NEU
+SKU-2748406604,4008177077142,1,XGA0106D,yes,no,title-normalize-v2,Castrol Motoröl 5W NEU
+SKU-2859032659,4009384341071,24,XGA0204C,yes,yes,job-improve,"MFLAX Außenspiegelflagge 34107 Schwarz, Rot, Gold Textil NEU Ja Deutschland"
+SKU-4401248629,4009384458304,17,XGA0202D,yes,yes,title-normalize-v2,Fries GmbH Schal 45830 Unisex Textil Schwarz Rot Gold NEU
+SKU-0963183292,4010886516256,0,,no,yes,title-normalize,GEDORE Nusssteckleiste 5162520 Silber Federstahl NEU Sichere Werkzeugordnung
+SKU-5410787453,4013556577007,2,XGA0302D,yes,yes,title-normalize-v2,acamp Schutzhülle 57700 110cm Polyester 110x200cm Anthrazit NEU
+SKU-2724878095,4013556577076,3,XGA0302D,yes,yes,category-review-csv,acamp Schutzhülle 57707 Anthrazit Polyestergewebe NEU Gr. 160 cm Cappa
+SKU-7700165856,4013556577120,11,XGA0302E,yes,yes,title-normalize-v2,acamp Schutzhülle 57712 200cm Polyestergewebe Anthrazit NEU
+SKU-0139597304,4013556577144,4,XGA0302E,yes,yes,job-improve,acamp Schutzhülle 57714 Anthrazit Polyester NEU Ampelschirm Cappa wetterfest
+SKU-5928571392,4013556592796,4,XGA0302E,yes,yes,category-review-csv,acamp Schutzhülle 59279 Anthrazit Polyester NEU Strandkorb Cappa Optimaler
+SKU-3704607179,4013594537810,1,XGA0105B,yes,yes,title-normalize-v2,goki Murmelbahn Unisex Holz Mehrfarbig NEU
+SKU-3586300359,4016417025303,6,XGA0303D,yes,yes,title-normalize-v2,EURO PART Ablaufschlauch 10006367 19mm Kunststoff 1.5m Grau NEU
+SKU-9885764249,4023103244009,0,,no,yes,title-normalize,"Vileda Wäscheständer King UNimate Schwarz Stahl, Aluminium NEU 20m Trockenfläche"
+SKU-2879742273,4025457166471,1,XGA0402B,yes,no,title-normalize-v2,kela Heißer Stein 16647 24cm 24x16cm NEU
+SKU-7396058360,4026947097541,1,XGA0402B,yes,no,ui,BGS technic Motor-Einstellwerkzeug-Satz 9754 für GM Opel Saab Chevrolet NEU
+SKU-1137525213,4027816273868,0,,no,yes,title-normalize,"febi bilstein Radlagersatz 27386 für Opel PKW, Vorderachse beidseitig NEU"
+SKU-1609202291,4027816321033,1,XGA0106B,yes,yes,title-normalize,febi bilstein Ölfilter 32103 NEU PSA-Motoren 9818914980 Auto Motorrad Teile
+SKU-9182883969,4030434105633,2,XGA0106B,yes,yes,ui,FLENNOR Radlagersatz FR490971 für Mercedes-Benz OE 1403300051 Passgenau NEU
+SKU-3097738026,4034144003036,1,XGA0106D,yes,yes,title-normalize-v2,EMUK Anhängerspiegel 100303 Schwarz Silber NEU
+SKU-4110694191,4036021157276,2,XGA0101C,yes,no,title-normalize-v2,MANNOL Kühlerfrostschutzmittel 4115 5L NEU
+SKU-5320936983,4036021163093,1,XGA0106D,yes,no,ui,Mannol Motoröle passgenau für SCT Lubricants NEU 7511 Energy SAE 5W-30
+SKU-0614291176,4036021579191,1,XGA0106D,yes,yes,ui,MANNOL Motoröl 7919 Legend Extra SAE 0W-30 5L Synthetisch Benzin Diesel NEU
+SKU-0333689520,4040074053454,2,XGA0106C,yes,yes,ui,MEYLE Federbeinstützlager 014 641 0004 für Mercedes E-Klasse CLS Vorderachse NEU
+SKU-0945605804,4040074122754,6,XGA0106C,yes,yes,ui,MEYLE Getriebeöl 277026 ATF DCG II für Doppelkupplungsgetriebe 1L Neu
+SKU-9078406333,4040074137246,1,XGA0106D,yes,yes,job-improve,MEYLE Filter-Satz 112 330 0003/S für Audi Seat Skoda VW 1.6 2.0 TDI Motoren NEU
+SKU-6074840029,4040074266946,1,XGA0106C,yes,yes,ui,MEYLE Gelenksatz Antriebswelle 100 498 0057 radseitig mit integriertem ABS-Ring
+SKU-8581934036,4041248145418,3,XGA0106C,yes,yes,ui,Elring Zylinderkopfschraubensatz 057.240 für VW Audi Ford Seat Skoda M12 172mm
+SKU-8529588380,4041248434536,1,XGA0106B,yes,yes,title-normalize,Elring Motordichtungssatz 542.210 Leckageschutz Erstausrüsterqualität Schwarz
+SKU-7321712010,4041248450864,1,XGA0106B,yes,yes,title-normalize-v2,Elring Zylinderkopfdichtungssatz 1212188109 Motor Braun Schwarz Metallisch
+SKU-4780318569,4041248450871,1,XGA0106B,yes,yes,ui,Elring Zylinderkopfdichtung 150.162 für Volkswagen Motoren Schwarz/Bronze Neu
+SKU-1948960316,4041248450888,1,XGA0106B,yes,yes,ui,Elring Zylinderkopfdichtungssatz 150.172 Motor Erstausrüsterqualität Neu
+SKU-8927251416,4043962306996,1,XGA0102B,yes,yes,title-normalize-v2,fischer Hammerbohrer Quattric II 24/450/400 24mm Hartmetall 450mm NEU
+SKU-3016364513,4046001447266,1,XGA0106C,yes,yes,title-normalize-v2,VAICO Bremsscheibe V25-40006 Hinterachse 302mm NEU
+SKU-6068074259,4047059413104,1,XGA0201B,yes,yes,title-normalize-v2,europet bernina Trinkbrunnen 603-413104 25x20x18cm 2.1L 4W Kunststoff
+SKU-8414659629,4052138007280,3,XGA0203A,yes,yes,title-normalize-v2,Trotec Kombifilter 7.160.00.530 Filtervlies Aktivkohle Schwarz NEU
+SKU-2191775022,4053202268477,0,,no,yes,title-normalize-v2,ZF Automatikgetriebeöl 600083246 1L NEU
+SKU-0534200636,4053479285122,0,,no,yes,title-normalize-v2,Würth Klingenschaber 0714663351 Schwarz Rot NEU
+SKU-3855746092,4055333068964,3,XGA0106E,yes,no,title-normalize-v2,PARKSIDE Benzin-Rucksack-Kombigerät PBRK 700 A1 1.5kW (2 PS Grün NEU
+SKU-6154185094,4062493735872,0,,no,no,title-normalize-v2,LISAD Bekleidung 1224CO233 UnisexErwachsene Gr.xxL Dunkelgrün NEU
+SKU-4885995332,4063217299953,1,XGA0204A,yes,yes,title-normalize-v2,Heidelberger BETTWAREN Bettdecke 805067 200cm 135x200cm Weiß NEU
+SKU-3244413909,4063367064357,1,XGA0201B,yes,no,title-normalize-v2,Let's BBQ Grillkorb 8035810940 22cm Edelstahl Silber NEU
+SKU-4973901806,4063541990120,1,XSGA0103A,yes,yes,title-normalize-v2,BOSS Sweatjacke 50511709 Herren Gr. 4xL Beige NEU
+SKU-3010724612,4063543580763,0,,no,no,title-normalize-v2,HUGO BOSS Jeans 50520195 Herren Gr. 36/32 Dunkelblau NEU
+SKU-1747542074,4063544208888,1,XGA0105B,yes,yes,title-normalize-v2,BOSS T-Shirt 50517856 Herren Gr. M 100% Bio-Baumwolle NEU
+SKU-5749801311,4063544824545,0,,no,no,title-normalize-v2,HUGO Blazer 10218228 Damen Elastan 5% Polyester 64% Viskose 31 NEU
+SKU-2126872416,4063846033713,1,XGA0106E,yes,no,title-normalize-v2,CYBEX Kindersitz 520004387 115cm Deep Black-black NEU
+SKU-2733489996,4064886306904,0,,no,no,title-normalize-v2,ALTENBERG Outdoorjacke A618644161A12 Herren Gr.xL Black Olive NEU
+SKU-9824375922,4066551928015,0,,no,no,job-improve,Lawrence Grey Hose Damen Schwarz Gr. 34 NEU FW2460-22 Business Klassisch
+SKU-2312450352,4067266427367,1,XGA0403A,yes,no,title-normalize-v2,TT. BAGATT Stiefel Stiefeletten D11-AGX33-1100 Damen Gr. 36 Leder NEU
+SKU-8701402003,4067266427374,2,XGA0403A,yes,no,title-normalize-v2,TT. BAGATT Stiefelette D11-AGX33-1100 Damen Leder NEU
+SKU-3067192877,4067266427381,3,XGA0403A,yes,no,title-normalize-v2,TT. BAGATT Stiefel Stiefeletten D11-AGX33-1100 Damen Leder NEU
+SKU-5359727068,4067266427398,3,XGA0403B,yes,no,title-normalize-v2,TT. BAGATT Stiefel Stiefeletten D11-AGX33-1100 Leder NEU
+SKU-8802720534,4067266427404,2,XGA0403B,yes,no,title-normalize-v2,TT. BAGATT Stiefel Stiefeletten D11-AGX33-1100 Damen Gr. 40 Leder NEU
+SKU-1479525764,4067266427411,1,XGA0403B,yes,no,title-normalize-v2,TT. BAGATT Stiefel Stiefeletten D11-AGX33-1100 Damen Gr. 41 Echtleder NEU
+SKU-8382768165,4069092282370,1,XGA0201C,yes,yes,title-normalize-v2,Lawrence Grey Home Bettwäsche-Set 40225462-004 Gr. 135x200cm 100% Baumwolle
+SKU-1803692252,4078500055604,1,XGA0105B,yes,yes,title-normalize-v2,GARDENA Akku- Ladegerät-Set 14910 18V NEU
+SKU-1353005263,4082300855241,1,XGA0106C,yes,yes,title-normalize-v2,HELLA Anlasser 011 612-801 12V Silber Schwarz NEU
+SKU-0694979094,4100420037405,1,XGA0106C,yes,yes,ui,LIQUI MOLY Motoröl 3740 NEU TOP TEC 4300 5W-30 1L MPN ACEA C2/C3 API Benzin
+SKU-7902875633,4100420037412,1,XGA0106D,yes,yes,title-normalize-v2,LIQUI MOLY Motoröl 3741 5W 5L NEU
+SKU-4309949637,4100420206474,0,,no,yes,title-normalize,LIQUI MOLY Motoröl 20647 NEU 5W-30 Longlife III Liter Auto Motorrad Teile
+SKU-4649569251,4250153617556,1,XGA0304A,yes,yes,job-improve,Near Dark Pfeife Screen Prince 46020335 Schwarz Metall NEU Metallpfeife
+SKU-1964286581,4250358601817,1,XGA0201A,yes,yes,title-normalize,Höfner Konzertgitarre HC504-7/8 Gr. 7/8 NEU Carmencita Musikinstrumente
+SKU-1784585629,4250454729170,1,XGA0202D,yes,yes,title-normalize-v2,adeo Verlag Grußkarte 5572917 Papier Mehrfarbig NEU
+SKU-8243336834,4250518576153,1,XGA0204A,yes,no,title-normalize-v2,VENDOME Matratzenauflagen Topper 21053 200 Gelschaum 90x200cm 7.5cm NEU
+SKU-2902386366,4251175827556,1,XGA0106D,yes,yes,,"EURO DRIVELINE Antriebswelle W135 - Präzisionsgefertigt, extrem belastbar"
+SKU-8942698934,4251806427775,1,XGA0103B,yes,yes,title-normalize-v2,SCHIESSER Bettwäsche-Set Erwachsene 100% Baumwolle 80x80cm Braun NEU
+SKU-0336723314,4260168332719,1,XGA0403A,yes,yes,title-normalize-v2,TEE-UU Rettungsmesser 9892-2510 NEU
+SKU-5207774112,4260281755686,1,XGA0404C,yes,no,ui,Lana Waschbeckenunterschrank B014082/001528 Weiß Holzwerkstoff NEU Gr. 66 cm
+SKU-9713309170,4260443571086,2,XGA0105A,yes,yes,title-normalize-v2,Best Netzwerkdose LAND001 Weiß NEU
+SKU-3933851468,4260499852344,0,,no,yes,,BLAUPUNKT Autoradio VALENCIA 200 DAB+ BT BP2208M0007720 4x40W 1-DIN Schwarz
+SKU-7139254013,4260526472194,1,XGA0102D,yes,yes,ui,DONBOLSO Slim Wallet DONB-000205-PO363540-IST-TUR-05/24 Herren
+SKU-7226847075,4260532290669,0,,no,yes,title-normalize-v2,BBQ-Toro Grillpfanne 42.5cm 3.5 Liter Gusseisen 5x27cm 3.5L NEU
+SKU-0121175685,4260613499578,1,XGA0403C,yes,yes,ui,TRESKO Hundebox THDB-003 faltbar Anthrazit Gr. L Stahlrahmen Polyester NEU
+SKU-2433624992,4260716810041,1,XGA0402A,yes,no,title-normalize-v2,LionSports Badminton Netz 4m Kunststoff 1.6m Schwarz NEU
+SKU-1377750386,4260755120385,1,XGA0202D,yes,no,script-condition-normalize,Valuents Camping Teppich CampCarp-250-350 Outdoor Vorzeltteppich 250x350 cm NEU
+SKU-2431535372,4262405220148,1,XGA0301D,yes,yes,title-normalize-v2,AZANO DESIGNS Katzentreppe Katzen Holz NEU
+SKU-0135090467,4262427090057,2,XGA0201C,yes,yes,title-normalize-v2,purahelp Warnwesten Set PH-WW-SET+1 Kinder Erwachsene Gelb NEU
+SKU-7909541265,4262472110243,6,XGA0104B,yes,yes,title-normalize-v2,Grana Home Bratpfanne 24cm Schwarz NEU
+SKU-9268872444,4270001051905,2,XGA0304B,yes,yes,title-normalize-v2,Unbekannt Trainingshilfen Beschreibung Gebraucht
+SKU-2424861616,43422328612861,0,,no,no,job-improve,RAGNARÖK Gartenmöbel Set S42 Polyrattan NEU Lounge Schwarz inkl. Polster
+SKU-6587967689,45005591930000,1,XGA0105B,yes,yes,title-normalize-v2,Calvin Klein Trunks 000026640 Schwarz Weiß Marineblau NEU
+SKU-5619085780,4806633149839,1,XGA0106B,yes,yes,title-normalize-v2,ATE Bremsbeläge 602880 Reibmaterialien Schwarz/Grau NEU
+SKU-5660339205,48093417-f9ef-497f-96a7-e17838a5280f,1,XGA0201E,yes,no,ui,Enders Holzkohlegrill Mason XL Schwarz Stahl NEU großer Grillfläche Ablagen
+SKU-3756924465,48fe16c6-bdc6-42f6-862e-fc9eb4962c93,1,XGA0105B,yes,yes,job-improve,FEDOUR Aquarienheizstab HP-608 mit Temperaturregler 50W für 20-34°C NEU
+SKU-5094533501,49035818999884,5,XGA0101A,yes,no,title-normalize-v2,IsolBau Leinöl-Firnis 5L NEU
+SKU-2966583160,4906958001464,1,XGA0106B,yes,yes,job-improve,YUASA Motorradbatterie YTZ10S AGM 12V 9.1Ah für Motorräder Powersports NEU
+SKU-2019632072,4909500898543,1,XGA0106B,yes,yes,title-normalize-v2,KYB Staubschutz-Kit 910158 Schwarz NEU
+SKU-1468228360,4917616740531,1,XGA0404A,yes,no,title-normalize-v2,SPOOK TACULAR CREATIONS Kostüm Kinder Grau NEU
+SKU-4090290612,4960999610955,1,XGA0101B,yes,yes,,"Canon Tonerkartusche 716 Schwarz, MPN 1980B002, Laser-Drucktechnologie"
+SKU-1306047599,4dd32c21-2afe-4c13-b354-605f97e6f590,1,XGA0106C,yes,yes,title-normalize-v2,LIQUI MOLY Getriebeöl 1024 75W 1L NEU
+SKU-4519918204,5010996282880,0,,no,yes,title-normalize-v2,Hasbro Actionfigur Kunststoff NEU
+SKU-9425624573,5011987005952,2,XGA0106C,yes,yes,title-normalize-v2,Shell Motoröl 600071884 Deutschland GmbH 5W 1L NEU
+SKU-8223313532,5020570328828,2,XGA0405B,yes,no,title-normalize-v2,Smiffys Clown Kostüm Set Damen Gr. M Mehrfarbig NEU
+SKU-8945251431,5025155058336,1,XGA0202B,yes,no,title-normalize-v2,Dyson Reinigungsset 971440-01 Schwarz NEU
+SKU-2454152281,5050192020075,1,XGA0106A,yes,no,title-normalize-v2,H M HOME Wandspiegel 0975688 19mm 500mm Schwarz NEU
+SKU-9039614531,5055350245538,0,,no,no,title-normalize-v2,FOX Windschutz CDW004 Aluminium Schwarz NEU
+SKU-7417485934,5055350248140,1,XGA0105B,yes,yes,title-normalize-v2,FOX Pop-Up Gewichte CAC518 Angler Blei Schwarz NEU
+SKU-8447826159,5059732709403,1,XGA0404A,yes,no,title-normalize-v2,Ellesse Boxershorts SZA02765 Herren Gr. M 95% Baumwolle 5% Elastan Schwarz
+SKU-8735317765,5060570201660,1,XGA0105B,yes,yes,title-normalize-v2,VaultX Deck Box 80+ Karten Schwarz NEU
+SKU-1031821522,5060941713129,1,XGA0202D,yes,yes,title-normalize-v2,Idea Factory Konsolen HAC-P-A8SDC NEU
+SKU-8351368256,5063019974637,0,,no,no,title-normalize-v2,Regatta Shorts RMJ298 Herren Gr. 56 Golden Sand NEU
+SKU-4870064003,5265145c-c73e-4905-b442-9584eb0b5d89,1,XGA0402C,yes,no,title-normalize-v2,Köln Matratzen 200cm 100x200cm 20cm NEU
+SKU-1489693054,52820776-34bb-4776-b728-06c521593d3a,1,XGA0105C,yes,yes,title-normalize-v2,Segarids Miniaturflasche Gastgeschenk Erwachsene Glas Transparent NEU
+SKU-4252129103,54c1a366-798b-42bf-9014-95729468c623,7,XGA0102A,yes,yes,title-normalize-v2,purehelp Schuhüberzieher PH-SC-SET100 Unisex Gr. Einheitsgröße CPE Blau NEU
+SKU-0874304411,56cdbf05-ce59-43c9-be15-6cc63c6dae93,0,,no,yes,title-normalize-v2,Christian Ulbricht Figur 010876 14.5cm Erwachsene Holz Mehrfarbig NEU
+SKU-6986483321,5702015867535,1,XGA0105A,yes,no,title-normalize-v2,LEGO Creator 31058 Unisex Kunststoff 1M Grün NEU
+SKU-9272258811,5702017153599,1,XGA0105A,yes,yes,title-normalize-v2,LEGO Badespielzeug 10965 Unisex Kunststoff Mehrfarbig NEU
+SKU-9904325113,5702017567501,0,,no,yes,title-normalize-v2,LEGO Baukasten 6465033 Kinder Kunststoff Mehrfarbig NEU
+SKU-3782469631,5713487061253,1,XGA0105A,yes,yes,title-normalize-v2,Spring Copenhagen Dekofigur 102386 19x8.3x13cm (HxBxL Eichenholz 3x13cm NEU
+SKU-1466301102,5713487061277,0,,no,yes,category-review-csv,Spring Copenhagen Dekofigur Spot Rehkitz Holz braun handgefertigt von Chresten
+SKU-6033365611,5714487284420,1,XGA0404B,yes,no,title-normalize-v2,VERO MODA Rock 10210430 Damen Gr. M FauxSuede (Wildlederimitat NEU
+SKU-7334344420,5714508372894,1,XGA0404A,yes,no,title-normalize-v2,JACK JONES Socken 12172337 Herren Gr. Einheitsgröße Schwarz NEU
+SKU-8921872481,5715335047020,1,XGA0105A,yes,no,title-normalize-v2,Liewood Kindertrommel LW15104 Unisex Buchenholz lackiertes MDF NEU
+SKU-5019696431,5715422473657,0,,no,no,title-normalize-v2,Selected Homme Pullover Strickwaren 16085115 Herren Gr. L Dark Olive NEU
+SKU-4874908260,5715574371849,0,,no,no,title-normalize-v2,Blend T-Shirt 21301225ME Herren Gr. M Baumwolle Schwarz NEU
+SKU-5329605855,57380a89-b13c-470c-8167-aa51b43eb78e,0,,no,yes,barcode-rollback,"Ernie Ball E-Gitarrensaiten Regular Slinky 3221 - Saitenstärke 10-46, 3er-Pack"
+SKU-9688561402,578c3341-658b-46d1-b419-b4ce60b534a5,1,XGA0102D,yes,yes,title-normalize-v2,Oventrop Y-Schmutzfänger 1121016 Messing Gold NEU
+SKU-5753016417,5820082016105,0,,no,yes,title-normalize-v2,Audi Fußmatten Set Q5 8R Vorne Hinten Schwarz NEU
+SKU-8404970287,5900811829102,1,XGA0201C,yes,yes,title-normalize-v2,Edenfocity Verdunkelungsvorhang 396297 100% Polyester Grau NEU
+SKU-1746174206,5901532626087,1,XGA0106D,yes,yes,category-review-csv,Polcar Außenspiegel 3238522E 735480887 Kunststoff Fiat Ducato (2006-2011) NEU
+SKU-3663111562,5902811100663,1,XGA0202A,yes,no,title-normalize-v2,Texer.eu Fußmatten Set MN/R50Y01/B/0066B Vorne Hinten Schwarz NEU
+SKU-5437386727,5904270013775,1,XGA0106B,yes,yes,ui,"JPN Radlagersatz 10L0503-JPN für KIA Sportage ix35, Ø 84mm, Breite 41mm"
+SKU-6816251293,5908242693453,1,XGA0106B,yes,yes,title-normalize,"KAMOKA Radlagersatz 5600063 für KIA, Hyundai, Silber/Rot Metall NEU Vorderachse"
+SKU-8684520981,59151383083624,0,,no,yes,title-normalize-v2,home24 Beistelltisch JI-05510-50 31cm 31x63x63cm NEU
+SKU-6274769815,60539f7f-f556-4103-bc2c-cc17f5a455c3,1,XGA0105B,yes,yes,title-normalize-v2,Unbekannt RJ45 Splitter/Combiner Schwarz NEU
+SKU-2708761114,6078c5f0-fb52-4c9c-b795-12a136ba6c79,0,,no,yes,,"BITUXX Federspanner-Set MS-16319 für Federbeine, Spannweite 65-212mm Schwarz"
+SKU-6860111834,61921411800024,0,,no,no,category-review-csv,Qunsheng Haushaltshandschuhe 61921411800024 Naturlatex Zweifarbig Rot/Gelb
+SKU-9014992269,61cb13b8-ef09-4959-821e-c2d63fcd8038,1,XGA0105B,yes,no,ui,NQY Fahrrad Rücklicht Pluto AQY-0117 LED USB wiederaufladbar Schwarz NEU
+SKU-9041995991,6922738000364,5,XGA0302C,yes,yes,title-normalize-v2,Nanyang NiuJin Haushaltshandschuhe Dongfanghong Gr.xL Gelb NEU
+SKU-6216530722,6941057422886,0,,no,yes,ui,INTEX Luftmatratze Dura-Beam Plus Deluxe Pillow Rest AP620D Grau Vinyl NEU
+SKU-8049033555,6941876218462,1,XGA0403A,yes,no,title-normalize-v2,UGREEN Handyhalterung 15846 Schwarz NEU
+SKU-0735099796,6954850111741,21,XGA0302C,yes,yes,title-normalize-v2,Dong Fang Hong Haushaltshandschuhe Latex Gelb NEU
+SKU-9003235487,6957303824717,1,XGA0105B,yes,no,title-normalize-v2,UGREEN Vertikaler Laptop Ständer 20471 150mm Grau NEU
+SKU-3748510561,6acf0526-65bd-4c5a-bd00-abe9bfb5f483,1,XGA0204E,yes,no,title-normalize-v2,Casaria Gartenliege 105967 60cm Erwachsene Akazienholz Anthrazit NEU
+SKU-6954275739,6be95318-1354-4b38-9526-aab48b727982,2,XGA0106B,yes,yes,,"SAGENSPEZI Sägekette 16567432516506316, 1.6mm, 74TG, .325 Zoll Teilung"
+SKU-1423771699,7082024102510,1,XGA0106B,yes,yes,category-review-csv,Piaggio Keilriemen 102C-510 für Beverly X10 MP3 350 Roller Schwarz Gummi
+SKU-3606468262,7212913647233,1,XGA0105C,yes,yes,ui,TEXTAR Bremsscheibe 92056600 für Mercedes-Benz 320mm 30mm Vorderachse NEU
+SKU-9905416565,7290006780805,0,,no,yes,title-normalize-v2,SodaStream Glaskaraffe 0.7L Glas Transparent NEU
+SKU-0225495136,7290116742380,1,XGA0204D,yes,yes,title-normalize-v2,SodaStream Wassersprudler Crystal 3.0 0.7L Edelstahl Glas Kunststoff NEU
+SKU-8906682806,7316577150929,2,XGA0106B,yes,yes,title-normalize-v2,SKF Schrägkugellager 7315 BEGAP NEU
+SKU-6480044357,7325549884427,1,XGA0301C,yes,yes,title-normalize-v2,POC Fahrradhelm PC107438595MED1 UnisexErwachsene Gr. M NEU
+SKU-6162434731,74429111967912,0,,no,yes,title-normalize-v2,KOTO Dartständer Dartsspieler Metall Schwarz NEU
+SKU-1703368789,7611916163227,0,,no,yes,title-normalize-v2,Weleda Tagescreme 8005360055 Unisex NEU
+SKU-4208989688,7613136901818,1,XGA0404A,yes,no,title-normalize-v2,Sloggi Hipster M013/Z9 Herren Gr. EU 6 96% Baumwolle 4% Elastan Mehrfarbig
+SKU-1055381582,7630751727135,1,XGA0404A,yes,no,title-normalize-v2,Nespresso Kaffeegläser Set 130706 Glas Transparent NEU
+SKU-0500263191,7640415026184,0,,no,no,title-normalize-v2,Namuk Schneehose Crusade Kinder Gr. EU 104 Polyester Schokolade NEU
+SKU-3130743576,7649988997723,1,XGA0105B,yes,no,title-normalize-v2,MONASERA Lufterfrischer Halter Set HA-MS-B1-232097 87.5x12.5x15.5mm (LxBxH
+SKU-7200941317,76a7cc4f-9aa4-4149-ad6b-9cc4ef1dc1df,1,XGA0202A,yes,yes,title-normalize-v2,Tesla Sonnenschutz Dach Schwarz NEU
+SKU-6044260478,7778bbb4-0a11-414b-a323-1573ab313f48,1,XGA0106C,yes,yes,barcode-rollback,"MAHLE Ausgleichsbehälter 8MA 376 783-494 für VW Transporter, Kunststoff Weiß NEU"
+SKU-5120624450,7b442083-e5d5-43c0-92ef-76c6432fe919,1,XGA0202A,yes,yes,title-normalize-v2,ELUTO Sitzbezug Set 946921699 Vorne Hinten Schwarz Silber Weiß NEU
+SKU-7025517137,8003558071647,1,XGA0405B,yes,no,script-condition-normalize,Widmann Mantel Schwarz Gr. XL NEU 07164 Piraten Piratenmantel Damen Karneval
+SKU-2007106780,8003558101221,4,XGA0405B,yes,no,title-normalize-v2,WIDMANN Hemd 10122 Herren Gr. L/xL Polyester Schwarz Orange NEU
+SKU-8934718651,8003558101238,1,XGA0405B,yes,no,ui,"Widmann Kostümhemd Schwarz, Orange Gr. XXL NEU 10123 Feuer, Burning Man"
+SKU-3425228384,80035581118830,1,XGA0405B,yes,no,title-normalize-v2,Widmann Schlaghose Herren Gr. L/xL Polyester Pink NEU
+SKU-1316800430,8004815313234,1,XGA0106D,yes,no,title-normalize-v2,Fiamma Nivellierkeil 97901-038 Grau NEU
+SKU-4777479586,8019606021557,1,XGA0202E,yes,no,ui,GIVI Windschild Rauchgrau NEU D230S BMW F650 Motorrad Getönt 650F Fume
+SKU-5173627811,8026196116716,1,XGA0405B,yes,no,title-normalize-v2,DC Comics Kostüm Kinder Schwarz NEU
+SKU-2801069572,8052694010041,0,,no,yes,title-normalize-v2,LEGAMI MILANO Schulbedarf KA0015 NEU
+SKU-6543182729,8088208802015,1,XGA0103B,yes,no,title-normalize-v2,AR HOME Spannbettlaken Gr. 140x200cm 80% Baumwolle 20% Recycelte
+SKU-3938831828,81715585302754,1,XGA0105A,yes,no,title-normalize-v2,PandaEar Esslernset X0023LNTRD Unisex Silikon Beige Taupe NEU
+SKU-5764056320,81717285233178,1,XGA0103B,yes,yes,title-normalize-v2,good morning Bettwäsche-Set 20104-F 100% Baumwolle 155x220cm Sand NEU
+SKU-7193466241,83e404aa-90ab-4ebe-a933-039625bb1df9,1,XGA0105B,yes,yes,ui,HP Tintenpatrone 305 3YM61AE Schwarz NEU Original DeskJet ENVY Drucker
+SKU-9037226717,8435017325303,2,XGA0201A,yes,no,ui,JOSE TORRES Gitarrenhülle JTB-100 für Klassische Konzertgitarren 4/4 Schwarz NEU
+SKU-2969022222,849e919f-0898-4df7-8fbb-e141c351cba4,1,XGA0103B,yes,no,title-normalize-v2,DUNSOO Badteppich C04-061-04 Gr. 70x120cm Mikrofaser Grau NEU
+SKU-5952589845,85020cb2-38be-42d7-a2d1-bb5aa92d9e36,1,XGA0101C,yes,yes,title-normalize-v2,Unbekannt Einhandfräse 3709 220V Kunststoff/Metall Silber/Türkis/Schwarz
+SKU-8805500495,8712013813820,1,XGA0203A,yes,yes,title-normalize-v2,Bo-Camp Geschirrset 40-051-059-005 Melamin Blau NEU
+SKU-3582144495,8712026447449,1,XGA0405B,yes,no,title-normalize-v2,Boland Schlaghose 44744 Unisex Gr. M/L 100% Polyester Regenbogen NEU
+SKU-6835511556,8712364370409,2,XGA0405B,yes,no,title-normalize-v2,Funny Fashion Kostüm 503221 Damen Gr. EU 44-46 100% Polyester Beige NEU
+SKU-7333529126,8717475102703,1,XGA0106A,yes,yes,job-improve,TYC Außenspiegel 310-0237 für Ford Transit VI Rechts beheizbar elektrisch NEU
+SKU-3341294632,8718042150288,1,XGA0106D,yes,yes,ui,"NRF Ladeluftkühler 0030119A für BMW – Neu, optimierte Motoreffizienz, Auto"
+SKU-9132277490,8719076052258,0,,no,yes,title-normalize-v2,Victron Energy Batterieschalter 48V Schwarz Rot NEU
+SKU-4961159565,8719114322466,1,XGA0404A,yes,no,title-normalize-v2,Calvin Klein Boxershorts 4500572587 Herren Gr. M Baumwollmischung Schwarz
+SKU-8798489036,8719115000028,1,XGA0105B,yes,yes,title-normalize-v2,Calvin Klein Boxershorts U2664-4KU Herren Gr. L Baumwoll-Stretch Mehrfarbig
+SKU-7977735758,8720245556002,1,XGA0404A,yes,no,title-normalize-v2,Puma Boxershorts 701226387003040 Herren Gr.xL Baumwolle Grau Schwarz NEU
+SKU-9255560092,8720646475988,1,XGA0404B,yes,no,title-normalize-v2,Tommy Hilfiger T-Shirt MW0MW34388 DW5 Herren 100% Baumwolle Dunkelblau NEU
+SKU-1041108089,8720646487387,1,XGA0404B,yes,no,title-normalize-v2,Tommy Hilfiger T-Shirt MWOMW34388 YBR Herren Gr. L Baumwolle Weiß NEU
+SKU-2005525534,8720676510376,1,XGA0404A,yes,no,ui,Hunkemöller Shapewear Body Schwarz Gr. M NEU Damen Polyamid Elasthan Dieser
+SKU-3692000771,8720828172452,0,,no,yes,title-normalize-v2,Cloudpillo Kissen CPP10101-6 Grau NEU
+SKU-5644516401,8720892260901,1,XGA0403A,yes,no,title-normalize-v2,Supplend Nagelpilzbehandlung NEU
+SKU-3055174422,8b18f8c1-5ced-4f9d-989d-35fb729415fe,1,XGA0403A,yes,no,title-normalize-v2,Anker Powerbank A1616 5000 Schwarz NEU
+SKU-2629282795,8b41bda6-bc97-4d34-8644-f081c7d180cb,1,XGA0106A,yes,yes,title-normalize-v2,Glosen Schubladenbox 35cm Stahl Silber NEU
+SKU-2930571748,8bc07ed5-5cee-4d00-abb3-00dd4f20439d,0,,no,yes,category-review-csv,Bosch Hammerbohrer SDS max-4 2608685873 Metall NEU Gr. 30 mm 520mm Beton
+SKU-3310911465,90090043468127,0,,no,yes,job-improve,Nissan Motoröl KE900-90043 5W-30 C4 Synthetik 5L für Dieselmotoren DPF Neu
+SKU-8036579486,9132580602006,1,XGA0204B,yes,yes,title-normalize-v2,CECIRA Küchenarmaturen Messing Schwarz NEU
+SKU-3988740005,914f7e36-2a57-4a6c-94e3-441532afad65,1,XGA0106B,yes,yes,category-review-csv,Offgridtec Sammelschiene 8-01-012830 Heavy Duty mit M8/M10 Anschlussbolzen
+SKU-0457243849,9368205000005,0,,no,no,title-normalize-v2,Blue Tomato Weste BTFW2329 Herren Gr. L Polarfleece Schwarz NEU
+SKU-2574433036,992c90f7-4b46-4306-8849-68b584459a4d,1,XGA0402B,yes,no,title-normalize-v2,SUNLU 3D Drucker Filament PLA 1.75mm 0.02mm 1kg NEU
+SKU-2439653897,9aff4795-bed9-4a09-ba98-77c2e138b511,0,,no,yes,title-normalize-v2,FAST Kabelloses Ladegerät A1Pro 15W 9V NEU
+SKU-6469360404,9e35f9b4-5df8-4db7-9dd7-31e4491488ef,2,XGA0103B,yes,no,title-normalize-v2,Leevitex Spannbettlaken 100% Baumwolle 220cm Gelb NEU
+SKU-0000524938,SKU-0000524938,0,,no,yes,title-normalize-v2,Apple Maus A1657 Weiß NEU
+SKU-0058749943,SKU-0058749943,1,XGA0102B,yes,yes,job-improve,WMF Kinderbesteck-Set 3201002485 Silber Cromargan Edelstahl 18/10 NEU Knuddel
+SKU-0110888325,SKU-0110888325,1,XGA0302B,yes,yes,title-normalize-v2,ARKK Copenhagen Freizeitschuh Visuklass Leather Strat65 Damen Gr. 37 Leder
+SKU-0114729665,SKU-0114729665,1,XGA0302A,yes,yes,title-normalize-v2,Adidas Sneaker SKU-0114729665 Herren Wildleder Rot NEU
+SKU-0152828115,SKU-0152828115,1,XGA0102C,yes,yes,title-normalize-v2,STALESET Handtuchhalter TH01-BK Metall Schwarz NEU
+SKU-0172791378,SKU-0172791378,0,XGA0202C,no,yes,title-normalize-v2,lululemon Yogamatte LU9AVOS BLK 180cm Polyvinylbutyral TPE Schwarz NEU
+SKU-0236764953,SKU-0236764953,1,XGA0102B,yes,yes,title-normalize-v2,Malossi Variator 105E-320 Silber NEU
+SKU-0280699295,SKU-0280699295,1,XSGA0103A,yes,yes,title-normalize-v2,H M Pullover Damen Baumwolle Rot NEU
+SKU-0310087435,SKU-0310087435,0,XGA0201C,no,yes,title-normalize-v2,Spannbettlaken SZ01 02144001 866200 104551 Erwachsene Gr. 90-100x200cm Ecru
+SKU-0362404564,SKU-0362404564,1,XGA0101C,yes,yes,title-normalize-v2,UBRAVOO Kindersitzerhöhung ACE1013 37x14x34.5cm Rosa NEU
+SKU-0403766178,SKU-0403766178,3,XGA0204D,yes,yes,title-normalize-v2,Jolly Füllfederhalter 7090-0001 Schreibanfänger Schüler Kunststoff Blau NEU
+SKU-0411747828,SKU-0411747828,1,XGA0102B,yes,yes,ui,"JURID Bremsbelagsatz 573429J, 97.5mm Breite, 94.7mm Höhe, 17.2mm Dicke"
+SKU-0522930788,SKU-0522930788,0,,no,yes,title-normalize,Einhell Bohrschrauber TC-CD 18/35 Li Solo 45.139.27 Rot/Schwarz NEU Power
+SKU-0611814591,SKU-0611814591,1,XSGA0103A,yes,yes,title-normalize-v2,Lacoste Hoodie SH9623 Herren Gr. M (US) FR 4 84% Baumwolle 16% Polyester
+SKU-0619911931,SKU-0619911931,0,,no,yes,title-normalize,Tesvor Saugroboter S7 Pro AES Weiß NEU Wischroboter 6000 Absaugstation
+SKU-0651722148,SKU-0651722148,4,XGA0102C,yes,yes,ui,"Topeak Oberrohrtasche Bento Pack TC2333B Schwarz Robustes, wasserabweisendes NEU"
+SKU-0698797502,SKU-0698797502,1,XSGA0103B,yes,yes,ui,Police Geldbörse Herren Braun Echtleder NEU PT284.10054-03 WALDO Bifold
+SKU-0785869755,SKU-0785869755,1,XGA0102C,yes,yes,title-normalize-v2,Terry Fahrradsattel SKU-0785869755 Herren Schwarz NEU
+SKU-0808524453,SKU-0808524453,0,,no,yes,title-normalize-v2,ASICS Sneaker 1203A481-100 UnisexErwachsene Wildleder White/White NEU
+SKU-0871959830,SKU-0871959830,0,,no,yes,title-normalize-v2,Rührbecher JB-01 Edelstahl NEU
+SKU-0974179694,SKU-0974179694,1,XSGA0103B,yes,yes,title-normalize-v2,wolfcraft Eckzwinge 3051000 Kunststoff Metall Gelb Schwarz NEU
+SKU-0982370040,SKU-0982370040,1,XGA0103E,yes,yes,title-normalize-v2,GardenGrill Gasgrill Plancha Challenger III 7.5kW Edelstahl Emailliert NEU
+SKU-0989494543,SKU-0989494543,1,XGA0302A,yes,yes,title-normalize-v2,adidas Sneaker JS0254 Damen Gr. 38 2/3 Textil mit Wildleder-Overlays NEU
+SKU-1040274599,SKU-1040274599,1,XSGA0103A,yes,yes,category-review-csv,SCM Bilderbuch: Mut & Freundschaft ab 3 Jahren – Stärkt soziale Kompetenzen
+SKU-1066852367,SKU-1066852367,0,,no,yes,title-normalize,Shelly Smart Switch 1PM Mini Gen3 SKU-1066852367 Rot NEU 110-240 2000 Heimwerker
+SKU-1153910217,SKU-1153910217,1,XGA0102C,yes,yes,title-normalize-v2,Shure Vintage Pro-Audio Equipment SM58-LCE Schwarz NEU
+SKU-1181918814,SKU-1181918814,1,XSGA0103A,yes,yes,title-normalize,Kaweco Füllfederhalter 10001157 NEU Set GLOW Yellow leuchtende Akzente
+SKU-1230781227,SKU-1230781227,2,XGA0201C,yes,yes,title-normalize-v2,Villa Grinario Spannbettlaken SKU-1230781227 Gr. 100x200cm 200cm NEU
+SKU-1419839651,SKU-1419839651,1,XGA0301B,yes,yes,title-normalize-v2,Adidas Sneaker VS Switch 3 CF C Jungen Synthetik Weiß/Schwarz NEU
+SKU-1483282001,SKU-1483282001,0,,no,yes,,"DUO Collection Chefsessel Tiago XXL - Ergonomisch, Komfortabel & Robust"
+SKU-1566313678,SKU-1566313678,1,XGA0303C,yes,yes,category-review-csv,Heike Faller – Hundert: Was du im Leben lernen wirst Bilderbuch Gebunden Neu
+SKU-1612836881,SKU-1612836881,0,,no,yes,title-normalize-v2,Wera Werkzeugsatz 05004174001 Stahl Kunststoff Mehrfarbig NEU
+SKU-1618101796,SKU-1618101796,0,,no,yes,title-normalize-v2,Wera Maulschlüssel 05020198001 Gr. 6mm Chrom-Molybdän-Stahl Silber NEU
+SKU-1782951292,SKU-1782951292,4,XGA0103C,yes,yes,title-normalize-v2,Wella Professionals Shampoo 90595815 Erwachsene Lila/Weiß NEU
+SKU-1789286937,SKU-1789286937,0,,no,yes,title-normalize-v2,Engelbert Strauss T-Shirts Herren Gr. L 100% Baumwolle Anthrazit NEU
+SKU-1825816304,SKU-1825816304,1,XGA0102C,yes,yes,title-normalize-v2,ZWILLING J.A. HENCKELS Universalmesser 34910-131 130mm NEU
+SKU-1887574140,SKU-1887574140,0,,no,yes,title-normalize,GUSSKÖNIG Dutch Oven / Feuertopf NEU 9L Perfekte Hitzeverteilung Outdoor-Kochen
+SKU-1937479862,SKU-1937479862,0,XGA0104E,no,yes,title-normalize-v2,CampFeuer Campingliege Sonnenliege CALI13A
+SKU-1961998362,SKU-1961998362,0,,no,yes,title-normalize-v2,KOENIC Zitruspresse Edelstahl Silber NEU
+SKU-2019125675,SKU-2019125675,1,XGA0102B,yes,yes,ui,Derma Pen Germany Advanced Microneedling System Anti-Faltenprodukte
+SKU-2114384722,SKU-2114384722,0,XSGA0103B,no,yes,title-normalize-v2,Hawkers Sonnenbrille Romaj UnisexErwachsene NEU
+SKU-2123165909,SKU-2123165909,6,XGA0102D,yes,yes,title-normalize-v2,HLI Schubladenschienen Vollauszug Metall Silber NEU
+SKU-2135446963,SKU-2135446963,0,,no,yes,title-normalize-v2,Dexcom Glukosesensor STS-GS-003 Diabetiker Weiß Orange Grau NEU
+SKU-2151943751,SKU-2151943751,1,XGA0204D,yes,yes,title-normalize-v2,Cretacolor Harte Pastellkreiden Künstler Schüler Grautöne NEU
+SKU-2152217706,SKU-2152217706,1,XGA0102B,yes,yes,title-normalize-v2,WMF Elektrische Mühle 0667416040 Kunststoff Keramik Schwarz NEU
+SKU-2384085318,SKU-2384085318,1,XGA0203B,yes,yes,title-normalize-v2,Seltmann Weiden Kaffeeservice Lido Solid Black (10006 Erwachsene Porzellan
+SKU-2384804976,SKU-2384804976,0,,no,yes,title-normalize-v2,New Balance Sneaker 9060 Damen Wildleder Mesh Rosa/Creme/Beige NEU
+SKU-2388529978,SKU-2388529978,1,XGA0101B,yes,yes,title-normalize-v2,Unbekannt Toner-Kartusche B423K Cyan NEU
+SKU-2391228513,SKU-2391228513,1,XGA0302A,yes,yes,title-normalize-v2,adidas Sportschuh Handball Damen Gr. 38 Wildleder Grau NEU
+SKU-2417212434,SKU-2417212434,2,XGA0102C,yes,yes,title-normalize-v2,McDavid Kniebandage MD421-01-33 Unisex Gr. S Neopren Schwarz NEU
+SKU-2561166298,SKU-2561166298,98,XGA0102D,yes,yes,title-normalize-v2,Hodalump Geldbörse 1094-H Herren Echtleder Braun NEU
+SKU-2566552410,SKU-2566552410,0,,no,yes,title-normalize-v2,Wera Bit-Satz 05057909001 Stahl gehärtet Schwarz mit Wera-Logo NEU
+SKU-2609353370,SKU-2609353370,0,,no,yes,title-normalize-v2,PROGARDEN Pflege 110cm Polypropylen (PP Anthrazit NEU
+SKU-2611077541,SKU-2611077541,1,XGA0102B,yes,yes,title-normalize,Glossyautoparts Nockenwelle EBY-1000335-1342 NEU Metall optimierte Motorleistung
+SKU-2621538468,SKU-2621538468,1,XGA0202E,yes,yes,title-normalize-v2,Brandson Tischventilator SKU-2621538468 30cm 48W Metall Schwarz NEU
+SKU-2633108165,SKU-2633108165,1,XGA0201E,yes,yes,title-normalize-v2,WALSER Hagelschutzplane 30973 Silber NEU
+SKU-2636479706,SKU-2636479706,0,,no,yes,title-normalize-v2,VIDEX Garden Winterschutz Frost-Schutzhaus PALM-PROTECT classic 100cm NEU
+SKU-2638568297,SKU-2638568297,1,XGA0301B,yes,yes,title-normalize-v2,Altra Laufschuh 85010130 Herren Mesh Schwarz/Weiß NEU
+SKU-2638580995,SKU-2638580995,0,,no,yes,title-normalize-v2,Bellabino Regal BB-0046-03-01 Kinder Holz Weiß NEU
+SKU-2690684566,SKU-2690684566,0,,no,yes,ui,"MANN-FILTER Ölfilter HU 720/3 x für Motoren & Motorenteile, Neu, Made in Germany"
+SKU-2789683373,SKU-2789683373,1,XGA0203E,yes,yes,title-normalize-v2,Brandson Standventilator WDP 301480 42cm 50 Kunststoff Metall Schwarz NEU
+SKU-2804135383,SKU-2804135383,1,XGA0102B,yes,yes,title-normalize-v2,ERZEKRIM Ferritkern Entstörfilter Set Schwarz NEU
+SKU-2841208491,SKU-2841208491,1,XSGA0103A,yes,yes,title-normalize-v2,Olivia Huth Hilfst du mir? Dann teilen wir 2020 Gebundene Ausgabe NEU
+SKU-2965430996,SKU-2965430996,0,,no,yes,title-normalize-v2,Beliani Beistelltisch 407569 40cm Erwachsene
+SKU-3046032177,SKU-3046032177,0,,no,yes,title-normalize-v2,Tineco Niger FW103400EU 220W 21.6V Schwarz NEU
+SKU-3047799035,SKU-3047799035,1,XGA0102B,yes,yes,category-review-csv,ABUS Kettenschloss Iven Chain 7210/110 – Hoher Diebstahlschutz & Lackschonend
+SKU-3086033338,SKU-3086033338,1,XGA0102B,yes,yes,title-normalize-v2,JURID Bremsbelagsatz 573602J Vorne 114.6mm NEU
+SKU-3093460977,SKU-3093460977,1,XGA0202A,yes,yes,title-normalize,LLIVEKIT Heißluftfritteuse KDF-5517DTW Schwarz NEU Dual-Zone 9L Gesund
+SKU-3095199472,SKU-3095199472,0,,no,yes,title-normalize-v2,Skechers Golfschuhe 123029/GYPK Damen Mesh Synthetik Grau/Pink NEU
+SKU-3132130051,SKU-3132130051,1,XGA0301B,yes,yes,title-normalize-v2,Skechers Sneaker 12430 Herren Gr. 41 EU Synthetik Weiß NEU
+SKU-3149269291,SKU-3149269291,1,XGA0204B,yes,yes,title-normalize-v2,Nidec Sankyo Motorisierter Kartenleser 445-0765157A Silber Grün Transparent
+SKU-3190070125,SKU-3190070125,0,,no,yes,title-normalize-v2,GREELUE Aufbewahrungskorb SNK3T-WH 12cm PP 34.5cm Weiß NEU
+SKU-3210037840,SKU-3210037840,1,XGA0201C,yes,yes,title-normalize-v2,Beautex Spannbettlaken XO01W68K0B Erwachsene Gr. 90x200cm 100% Baumwolle
+SKU-3213392901,SKU-3213392901,1,XGA0302B,yes,yes,,Nike Tennisschuh Zoom Vapor 12 CLY für Herren - Top Sandplatz-Performance
+SKU-3226209432,SKU-3226209432,0,,no,yes,title-normalize-v2,WOLTU Standregal RGB46ws nicht angegeben Weiß NEU
+SKU-3368481451,SKU-3368481451,1,XGA0302A,yes,yes,title-normalize-v2,PUMA Damenschuhe 40224901 Unisex Gr. 38.5 Leder Braun NEU
+SKU-3475457190,SKU-3475457190,0,XGA0302D,no,yes,title-normalize-v2,Upgrade4cars Sitzauflage X2 Universal Polyester (Oxford Schwarz NEU
+SKU-3566484007,SKU-3566484007,0,,no,yes,title-normalize-v2,Steambow Pfeile Erwachsene Stahl Schwarz NEU
+SKU-3588671475,SKU-3588671475,0,,no,yes,title-normalize-v2,Topeak Ratschen-Werkzeug Multi-Tool (Ratchet TT2628 Stahl Textil Schwarz
+SKU-3622017850,SKU-3622017850,0,,no,yes,title-normalize-v2,Mackie Kopfhörerverstärker HM-4 Schwarz NEU
+SKU-3734657776,SKU-3734657776,0,,no,yes,title-normalize-v2,Hansgrohe Waschtischarmatur 71551000 Metall Chrom NEU
+SKU-3783198734,SKU-3783198734,0,,no,yes,title-normalize-v2,HOLMENKOL Oxydstein 20561 Unisex Rosa NEU
+SKU-3818412905,SKU-3818412905,0,,no,yes,title-normalize,Hermès Eau de Toilette 107188VQ NEU Zerstäuber Terre EDT zeitlose Eleganz
+SKU-3963918245,SKU-3963918245,2,XGA0101B,yes,yes,category-review-csv,Success Courier Pumpensteuerung DSK-1: Konstanter Druck & Trockenlaufschutz
+SKU-3992211748,SKU-3992211748,1,XGA0301B,yes,yes,title-normalize-v2,Nike Handschuhe Fäustlinge DJ1196-101 Damen Gr. 39 Leder Weiß NEU
+SKU-4008377248,SKU-4008377248,1,XGA0202C,yes,yes,title-normalize-v2,Divasya Yoga Pilates Pink NEU
+SKU-4017783375,SKU-4017783375,2,XGA0202D,yes,yes,category-review-csv,Blivrig LED Strahler DQTGD01300W Schwarz Aluminium NEU Fluter IP66 Extrem
+SKU-4069701323,SKU-4069701323,15,XGA0204D,yes,yes,title-normalize-v2,Jolly Fasermaler 44250002 Kinder Erwachsene Mehrfarbig NEU
+SKU-4118229261,SKU-4118229261,1,XSGA0103A,yes,yes,title-normalize-v2,ROCKBROS Minipumpe 806-TEAM-B Aluminiumlegierung Schwarz NEU
+SKU-4204090012,SKU-4204090012,3,XGA0201C,yes,yes,title-normalize-v2,Villa Grinario Jersey-Spannbettuch ca. 90–100x200cm Erwachsene 100x200cm
+SKU-4212491486,SKU-4212491486,0,,no,yes,title-normalize-v2,Unbekannt Handpan SKU-4212491486 58cm Lackierter Stahl Schwarz matt NEU
+SKU-4264334297,SKU-4264334297,0,,no,yes,title-normalize,"lionelo Laufgitter Willow Beige Sand NEU Gr. 20.5 cm Faltbar, Tragbar Sichere"
+SKU-4304000683,SKU-4304000683,1,XGA0202C,yes,yes,title-normalize-v2,LEONARDO Gläser Glaswaren NEU
+SKU-4349960147,SKU-4349960147,0,,no,yes,category-review-csv,WMF Topf-Set Provence Plus 07.2304.6380 Silber Edelstahl NEU Induktionsgeeignet
+SKU-4358173575,SKU-4358173575,1,XSGA0103B,yes,yes,title-normalize-v2,SEEK DISCOMFORT Kartenspiel 196852765508 Erwachsene Blau NEU
+SKU-4391085581,SKU-4391085581,0,,no,yes,title-normalize-v2,Lacoste Sneaker SKU-4391085581 Herren Gr. 10 Leder Weiß (White/White NEU
+SKU-4433223955,SKU-4433223955,0,,no,yes,title-normalize-v2,Yogamatte The Big Mat Blau/Grau marmoriert NEU
+SKU-4434702791,SKU-4434702791,1,XSGA0103B,yes,yes,title-normalize-v2,Lexar Arbeitsspeicher (RAM LD4AS008G-B3200ASST 1.2V NEU
+SKU-4488972962,SKU-4488972962,1,XGA0201E,yes,yes,ui,"Gusskönig Dutch Oven Set Gusseisen 4,5L für Outdoor Camping & Grillen NEU"
+SKU-4541378818,SKU-4541378818,2,XGA0103C,yes,yes,title-normalize-v2,Longking Selbstklebefliesen LKA003WGuk 30cm Weiß NEU
+SKU-4541440236,SKU-4541440236,0,,no,yes,title-normalize,"LEQISMART E-Scooter A11 für ShenZhen LEQI Intelligent Technology Co., Ltd. NEU"
+SKU-4561934561,SKU-4561934561,0,,no,yes,title-normalize-v2,GLOCK Waffenkoffer SKU-4561934561
+SKU-4607569519,SKU-4607569519,0,,no,yes,category-review-csv,SONAX Scheinwerfer AufbereitungsSet 04057410 NEU Klare Sicht Sicherheit
+SKU-4660262942,SKU-4660262942,0,,no,yes,title-normalize-v2,Adidas Sneaker JI1897 Herren Leder Core Black/Carbon (Schwarz NEU
+SKU-4679981655,SKU-4679981655,0,,no,yes,title-normalize-v2,Jolly Bleistifte NEU
+SKU-4743695203,SKU-4743695203,1,XGA0303B,yes,yes,category-review-csv,molino Frieder Stöckle – Hannelore: Zauberhaftes Zirkusabenteuer Hardcover NEU
+SKU-4802639881,SKU-4802639881,1,XGA0102B,yes,yes,title-normalize-v2,FITGRIFF Gewichthebergürtel FG030S4L Gr. L Leder Schwarz NEU
+SKU-4820097368,SKU-4820097368,7,XGA0104D,yes,yes,title-normalize-v2,TAN.TOMI Rolltop-Rucksack Daypack ca. 16–20 Liter (Rolltop variabel Schwarz
+SKU-4846525236,SKU-4846525236,1,XGA0101A,yes,yes,title-normalize-v2,QinnFSIYANG Elektroroller F6 Pink NEU
+SKU-4919757592,SKU-4919757592,1,XSGA0103A,yes,yes,title-normalize-v2,Flanellhemd Hemd Herren Gr. L 100% Baumwolle Blau NEU
+SKU-4930006198,SKU-4930006198,0,XGA0203B,no,yes,title-normalize-v2,tillvex Poolschlauch TVPS-006 8m 38mm Blau NEU
+SKU-4949389854,SKU-4949389854,1,XSGA0103B,yes,yes,job-improve,"evoTrek Fahrradabschleppsystem Loop B0CVL5FR3S Schwarz Aluminium, Gummi, Nylon"
+SKU-4990478200,SKU-4990478200,0,,no,yes,title-normalize-v2,BBQ-Toro Woks 35.5cm NEU
+SKU-4996518676,SKU-4996518676,6,XGA0102C,yes,yes,title-normalize-v2,Topeak Satteltasche BAG29601 0.6L Unisex 210D 420D Nylon PU-beschichtet
+SKU-5017039989,SKU-5017039989,1,XGA0302B,yes,yes,title-normalize-v2,Mountain Guide Outdoor-Schuh SKU-5017039989 Herren Mesh/Synthetik
+SKU-5032047149,SKU-5032047149,1,XGA0204C,yes,yes,title-normalize-v2,Goldhof Logistik GmbH Hochschrank SBP0020 37cm Holzwerkstoff 92x37cm Weiß
+SKU-5037405516,SKU-5037405516,1,XGA0102C,yes,yes,title-normalize-v2,LOBERON Kräuterschere 23085 Edelstahl Eisen Schwarz Silber NEU
+SKU-5091393302,SKU-5091393302,1,XGA0101B,yes,yes,title-normalize-v2,Unbekannt Laser-Tonerkartusche B423K Standard Schwarz NEU
+SKU-5127373339,SKU-5127373339,0,,no,yes,job-improve,UnionSine Externe Festplatte DataPocket HD2510 500GB USB 3.0 Schwarz Neu
+SKU-5320447988,SKU-5320447988,6,XGA0204D,yes,yes,title-normalize-v2,Jolly Pinselset Kinder Schüler Synthetik Kunststoff Mehrfarbig Neon NEU
+SKU-5392843955,SKU-5392843955,2,XGA0204D,yes,yes,job-improve,Brevillier's CRETACOLOR Zeichenset Artino Drawing Set Mehrfarbig NEU 10-teilig
+SKU-5403685857,SKU-5403685857,0,,no,yes,title-normalize-v2,Brennenstuhl Steckdosenleiste 195158 0 101 230 Kunststoff 5m Schwarz NEU
+SKU-5427858806,SKU-5427858806,1,XGA0103B,yes,yes,job-improve,Shure USB Gaming Mikrofon MV6 010-03-675 Schwarz NEU Desktop Streaming
+SKU-5462953053,SKU-5462953053,0,,no,yes,title-normalize,"IPOZON Stunt-Scooter passgenau für FOOT NEU Lila, Schwarz maximale Kontrolle"
+SKU-5582443660,SKU-5582443660,1,XGA0303C,yes,yes,job-improve,Roberto Barnai – Biologika Organ Atlas Gesundheit Sachbuch Gebundene Ausgabe NEU
+SKU-5598085433,SKU-5598085433,0,,no,yes,title-normalize,"Samsung Interne SSD 870 QVO MZ-77Q1T0BW Schwarz NEU Stoßfest, Energieeffizient"
+SKU-5633394973,SKU-5633394973,0,,no,yes,title-normalize-v2,Classic Flyer Hörnerschlitten Davos ohne Lehne SKU-5633394973 110cm NEU
+SKU-5638382329,SKU-5638382329,0,,no,yes,title-normalize-v2,Angela Merkel Freiheit: Erinnerungen 1954 2021 Hardcover NEU
+SKU-5658638116,SKU-5658638116,6,XGA0204D,yes,yes,title-normalize-v2,Jolly Filzstifte NEU
+SKU-5674295862,SKU-5674295862,1,XGA0103C,yes,yes,title-normalize,RHINOWALK Fahrradzubehör RF260 NEU Transporttasche Zoll Faltfahrrad Optimaler
+SKU-5687802687,SKU-5687802687,25,XGA0102C,yes,yes,title-normalize-v2,Homerella Badewanneneinlage SKU-5687802687 88cm Gr. 88x39cm PVC Weiß NEU
+SKU-5701110636,SKU-5701110636,0,,no,yes,title-normalize-v2,Siemens Kaffeevollautomaten TZ80002A BSH Hausgeräte GmbH Blau/Weiß NEU
+SKU-5722168408,SKU-5722168408,1,XGA0302A,yes,yes,title-normalize-v2,PUMA Sneaker SKU-5722168408 UnisexErwachsene Gr. 6 Mesh Wildleder Synthetik
+SKU-5729537867,SKU-5729537867,1,XGA0303B,yes,yes,category-review-csv,Astrid Lindgren – Oetinger Bilderbuch Papier Gebundene Ausgabe Deutsch
+SKU-5740515403,SKU-5740515403,1,XGA0301B,yes,yes,title-normalize-v2,Altra Laufschuh AL0A7R7G000-130 Erwachsene Textil Synthetik Grau/Blau NEU
+SKU-5740939127,SKU-5740939127,1,XGA0202C,yes,yes,title-normalize-v2,Leonardo Schalen-Set 066652 Glas Transparent NEU
+SKU-5780092798,SKU-5780092798,1,XGA0102C,yes,yes,title-normalize-v2,SW-Stahl Ring-Maulschlüssel 00828L Stahllegierung Silber NEU
+SKU-5795572847,SKU-5795572847,1,XGA0202B,yes,yes,title-normalize-v2,ADVENTURE Strandmuscheln NEU
+SKU-5799111421,SKU-5799111421,3,XGA0201E,yes,yes,title-normalize-v2,Philips LED High Bay Hallenleuchte LV70007 266x167mm 200W Aluminium Schwarz
+SKU-5814356347,SKU-5814356347,0,,no,yes,category-review-csv,Tefal Pfannenset Ingenio Emission Induction L8975P04 Silber Edelstahl NEU
+SKU-5842899450,SKU-5842899450,1,XGA0102B,yes,yes,title-normalize-v2,Stahlia Schubladenschiene SKU-5842899450 Stahl (verzinkt Silber NEU
+SKU-5869700759,SKU-5869700759,1,XGA0103B,yes,yes,job-improve,MSI Mainboard PRO B650M-P Schwarz NEU AMD AM5 DDR5 PCIe 4.0 Micro-ATX Computer
+SKU-5943400007,SKU-5943400007,1,XGA0102B,yes,yes,title-normalize-v2,Cretacolor Farbstifte VK280990T Künstler Schüler Hobbyisten Holz Mehrfarbig
+SKU-5946216503,SKU-5946216503,0,,no,yes,category-review-csv,reviMED TENS-Gerät Revi Tens für effektive Schmerzlinderung & Muskelstimulation
+SKU-6099130668,SKU-6099130668,2,XGA0101B,yes,yes,title-normalize-v2,Canon Tonerkartusche 718 Schwarz NEU
+SKU-6148008788,SKU-6148008788,1,XGA0202C,yes,yes,title-normalize-v2,TPE YOGA Yogamatten 183cm 61cm Grün NEU
+SKU-6307001376,SKU-6307001376,1,XGA0301B,yes,yes,title-normalize-v2,Tommy Hilfiger Sneaker Essential Runner Metallics Damen Gr. 40 Lederimitat
+SKU-6315915149,SKU-6315915149,17,XGA0303A,yes,yes,ui,Jolly Bleistifte Schul-Stifte HB 12er Set Rot bruchfest Schule Büro NEU
+SKU-6346907299,SKU-6346907299,0,,no,yes,title-normalize,GoveeLife Smart Thermo-Hygrometer H5100 NEU Weiß Kunststoff präzises Raumklima
+SKU-6369067650,SKU-6369067650,0,,no,yes,job-improve,"Philips OneBlade 360 Ersatzklingen QP430/50, 3 Stück für präzise Rasur, NEU"
+SKU-6427883146,SKU-6427883146,0,,no,yes,title-normalize-v2,NEXTCOVER Faltschloss 100cm Gehärteter Stahl Kunststoffummantelung Schwarz
+SKU-6537574821,SKU-6537574821,1,XGA0204B,yes,yes,title-normalize-v2,VCM Aufsatzwaschbecken 913794 41cm Keramik 22cm Weiß NEU
+SKU-6544112261,SKU-6544112261,0,,no,yes,,Ninja Heißluftfritteuse AF451EU: Dual Zone für 2 Gerichte gleichzeitig
+SKU-6558668236,SKU-6558668236,2,XGA0202D,yes,yes,title-normalize-v2,Blumtal Doppelrollo SKU-6558668236 100% Polyester Lila NEU
+SKU-6586579725,SKU-6586579725,4,XGA0302A,yes,yes,title-normalize-v2,CENTA-STAR Bettdecke 2450 200cm Erwachsene Gr. 135x200cm Weiß NEU
+SKU-6603765179,SKU-6603765179,0,,no,yes,title-normalize,Terry Fahrradzubehör 423 900 20 NEU Sattel Regenschutz Wasserdichter trockene
+SKU-6614383452,SKU-6614383452,0,,no,yes,barcode-rollback,Leonardo Karaffe Swing Transparent Glas NEU Gr. ca. 21 cm 1.2L Eleganz
+SKU-6673544963,SKU-6673544963,0,XGA0302A,no,yes,title-normalize-v2,PUMA Sneaker Court Classico Damen Gr. 38 Leder Weiß NEU
+SKU-6830410442,SKU-6830410442,0,XGA0102D,no,yes,title-normalize-v2,FIREFIX Ofenrohr 180mm Stahl 1000mm Schwarz NEU
+SKU-6847456474,SKU-6847456474,0,,no,yes,title-normalize,WOLTU Sitzmöbel SH69gr NEU Sitzhocker Stauraum faltbar bequem gepolstert
+SKU-6965414859,SKU-6965414859,9,XGA0204D,yes,yes,title-normalize-v2,Jolly Tempera-Malfarben-Set 10113 Kinder Schule Hobbykünstler Mehrfarbig
+SKU-7049665224,SKU-7049665224,1,XSGA0103A,yes,yes,title-normalize-v2,H M Strickjacke Damen Gr.xL Materialmix Hellblau NEU
+SKU-7151143475,SKU-7151143475,1,XGA0301B,yes,yes,title-normalize-v2,Birkenstock Pantoletten SKU-7151143475 Herren Birko-Flor Sapphire-Blau NEU
+SKU-7209250640,SKU-7209250640,1,XGA0104C,yes,yes,title-normalize-v2,Tatonka Campingtopf Kettle 4.0 Liter Edelstahl 4.0L Silber NEU
+SKU-7234186083,SKU-7234186083,1,XGA0302B,yes,yes,title-normalize-v2,ASICS Sneaker 1200A481-100 UnisexErwachsene Gr. 41.5 Wildleder
+SKU-7237772440,SKU-7237772440,1,XGA0104B,yes,yes,title-normalize-v2,Topeak Fahrradzubehör TJB-UET1 NEU
+SKU-7245071607,SKU-7245071607,1,XSGA0103A,yes,yes,title-normalize-v2,DIGITAL REVOLUTION Tintenpatrone DZ108154 Gelb NEU
+SKU-7270723982,SKU-7270723982,1,XGA0102E,yes,yes,title-normalize,Kitchen Sink Einbauspüle SKU-7270723982 Silber Edelstahl NEU Heimwerker
+SKU-7290912165,SKU-7290912165,1,XGA0302B,yes,yes,title-normalize-v2,Marco Tozzi Pumps 2-22451-43 Damen Gr. 37 Synthetik (veloursähnlich Nude
+SKU-7350795017,SKU-7350795017,1,XGA0102B,yes,yes,title-normalize-v2,Primewire Antennenkabel 302867 15m Schwarz NEU
+SKU-7473377331,SKU-7473377331,1,XGA0103B,yes,yes,job-improve,CORSAIR PC-Netzteil RM1000x 1000W ATX 3.1 PCIe 5.1 Vollmodular 80 PLUS Gold Neu
+SKU-7499091535,SKU-7499091535,0,,no,yes,title-normalize-v2,Ninja Plancha-Grillplatte XL XSKOGXLFPLTEU nicht angegeben Metall NEU
+SKU-7543211550,SKU-7543211550,1,XGA0301B,yes,yes,title-normalize-v2,CMP Stiefel 39Q4964 Kinder Textil Leder Synthetik Schwarz/Blau NEU
+SKU-7627745924,SKU-7627745924,0,,no,yes,title-normalize-v2,NEOLYMP Yogamatten 183cm Lime (Neongrün NEU
+SKU-7680238839,SKU-7680238839,0,,no,yes,title-normalize-v2,Polo Ralph Lauren Sneaker RF104105 UnisexKinder Synthetik Weiß NEU
+SKU-7721659409,SKU-7721659409,0,,no,yes,title-normalize-v2,db-tronic Einplatinen-Computer Starter-Set SKU-7721659409 8GB NEU
+SKU-7800997883,SKU-7800997883,1,XGA0301B,yes,yes,title-normalize-v2,Tamaris Damenschuhe Damen Gr. 41 Schwarz NEU
+SKU-7892887285,SKU-7892887285,2,XGA0101B,yes,yes,title-normalize-v2,Canon Tonerkartusche 3010C004 High Capacity Schwarz NEU
+SKU-7926913408,SKU-7926913408,1,XSGA0103B,yes,yes,title-normalize-v2,TOPTREK Fahrradabdeckung 846236311 200x110x70cm 210D Oxford-Gewebe Schwarz
+SKU-7948301538,SKU-7948301538,2,XGA0101B,yes,yes,title-normalize-v2,Unbekannt Tonerpatrone B423M 423M Schwarz NEU
+SKU-7961309823,SKU-7961309823,0,,no,yes,,Engelbert Strauss Bundhose e.s. motion 2020 Winter: Optimaler Kälteschutz
+SKU-7998641824,SKU-7998641824,2,XGA0202C,yes,yes,title-normalize-v2,Rohema Drumsticks Holz NEU
+SKU-8004480244,SKU-8004480244,0,XGA0203E,no,yes,category-review-csv,Trotec Standventilator TVE 16 S: Sofortige Erfrischung & angenehmes Raumklima
+SKU-8035511646,SKU-8035511646,1,XGA0204D,yes,yes,title-normalize-v2,Brevillier's CRETACOLOR Pastellkreide Künstler Hobbyzeichner Schüler
+SKU-8064565799,SKU-8064565799,0,,no,yes,title-normalize-v2,UGG Hausschuhe Tazz Damen Wildleder Sand NEU
+SKU-8112287411,SKU-8112287411,1,XSGA0103A,yes,yes,title-normalize-v2,Desigual Sweatshirt 23WMSK05/3022 Damen Gr.xxL 100% Baumwolle Rosa NEU
+SKU-8133187753,SKU-8133187753,2,XGA0201C,yes,yes,title-normalize-v2,Villa Grinario Spannbettlaken Gr. 100x200cm 100% Baumwolle (Jersey gekämmt
+SKU-8151275535,SKU-8151275535,1,XGA0203B,yes,yes,title-normalize-v2,FUVSHU UV-Matratzenstaubsauger Milbensauger BT-Y02 350W NEU
+SKU-8197874459,SKU-8197874459,0,,no,yes,title-normalize-v2,New Balance Handschuhe Fäustlinge ML515AGR Herren Textil Wildleder Schwarz
+SKU-8236064906,SKU-8236064906,0,,no,yes,title-normalize-v2,KNIPEX Zangenschlüssel 82 01 200 SB 200mm Rot Grau NEU
+SKU-8245288059,SKU-8245288059,1,XGA0302B,yes,yes,title-normalize-v2,LICO Hallenschuhe 360652 Kinder Gr. 31 Synthetik/Textil Pink Türkis NEU
+SKU-8249181407,SKU-8249181407,0,,no,yes,title-normalize-v2,Sony DJ-Kopfhörer WH-CH720N Schwarz NEU
+SKU-8310896573,SKU-8310896573,1,XGA0201C,yes,yes,title-normalize-v2,IKEA Pendelleuchte SKU-8310896573 38cm Metall Weiß NEU
+SKU-8317603092,SKU-8317603092,1,XGA0201C,yes,yes,title-normalize-v2,Setex Matratzenschoner mit Noppenstruktur Noppen 140x200cm Erwachsene
+SKU-8367978772,SKU-8367978772,3,XGA0304B,yes,yes,title-normalize-v2,Pelikan Schreibmaschinen-Zubehör 519637 NEU
+SKU-8380347833,SKU-8380347833,1,XGA0103D,yes,yes,job-improve,"Casey Stehleuchte DEL8LIT03-189 Gold / Champagner Metall (Eisen), Glas NEU"
+SKU-8462375603,SKU-8462375603,0,,no,yes,title-normalize-v2,PUMA Sportschuh 365208 02 Damen Gr. 40 Gummi Schwarz NEU
+SKU-8483173682,SKU-8483173682,1,XSGA0103A,yes,yes,ui,Reader's Digest Sachbuch: Weltgeschichte verstehen – Fundiertes Wissen
+SKU-8605082485,SKU-8605082485,3,XGA0104A,yes,yes,title-normalize,Aqua Marina SUP Board Unisex Grün PVC NEU SKU-8605082485 Breeze Gr. 76 cm
+SKU-8640590578,SKU-8640590578,1,XGA0201C,yes,yes,title-normalize-v2,Villa Grinario Spannbettlaken SKU-8640590578 Gr. 100x200cm 200cm Grün
+SKU-8689351772,SKU-8689351772,0,,no,yes,title-normalize-v2,Garmin Herzfrequenzmesser 010-12883-00 Schwarz NEU
+SKU-8742112863,SKU-8742112863,1,XGA0301B,yes,yes,title-normalize-v2,New Balance Kinderschuhe -boots Kinder Gr. 26 Mesh Silber NEU
+SKU-8747609895,SKU-8747609895,1,XGA0101E,yes,yes,title-normalize-v2,QKIDS Tretroller Pink NEU
+SKU-8779940575,SKU-8779940575,0,,no,yes,title-normalize-v2,TATONKA Campingbecher 4073.000 600 Edelstahl Silber NEU
+SKU-8835594725,SKU-8835594725,0,,no,yes,title-normalize-v2,DESKTRONIC Kabelgebundene Router Metall Schwarz NEU
+SKU-8843412443,SKU-8843412443,0,,no,yes,title-normalize-v2,ONVAYA Verkehrsspiegel 31.2cm Schwarz NEU
+SKU-8857013241,SKU-8857013241,1,XGA0302A,yes,yes,category-review-csv,Paul Green Schnürschuhe Damen Schwarz Lackleder NEU 2688-00x Zeitlose Eleganz
+SKU-8919591829,SKU-8919591829,0,,no,yes,title-normalize-v2,PLANAM Hose NORIT Kids Trousers Jungen Gr. 170/176 oliv/schwarz NEU
+SKU-9031958971,SKU-9031958971,0,,no,yes,title-normalize,Ninja Standmixer 2-in-1 BN750EU CB350EU Schwarz/Silber NEU Smoothies Eis-Crush
+SKU-9035689627,SKU-9035689627,2,XGA0204D,yes,yes,title-normalize,Jolly Schulbedarf 6110 NEU Kreidehalter Set Hygienisch bruchsicher saubere
+SKU-9073986145,SKU-9073986145,1,XGA0101C,yes,yes,category-review-csv,RAVENOL Sägekettenöl S 85 NEU Optimaler Verschleißschutz Haftung Business
+SKU-9091395294,SKU-9091395294,1,XGA0202C,yes,yes,category-review-csv,LEONARDO Trinkglas Swing Transparent Glas NEU Gr. 9 cm Trinkgläser Set
+SKU-9142845763,SKU-9142845763,0,,no,yes,title-normalize-v2,WALSER Hagelschutzplane 30974 Grau Silber Orange NEU
+SKU-9146759920,SKU-9146759920,1,XGA0302A,yes,yes,script-attr-norm-smoke,Adidas Sneaker Samba UnisexErwachsene Gr. 44 Leder Wildleder Weiß NEU
+SKU-9289261489,SKU-9289261489,10,XGA0303B,yes,yes,category-review-csv,Isabel Abedi – Lola Löwenherz Kinderbuch Abenteuer 2007 Gebundene Ausgabe Neu
+SKU-9317337160,SKU-9317337160,1,XGA0203B,yes,yes,barcode-rollback,"PAUDIN Santokumesser N5 – Präzise Schnitte, mühelos & langanhaltend scharf NEU"
+SKU-9335260557,SKU-9335260557,1,XGA0102B,yes,yes,ui,ABUS Kettenschloss IVERA Steel-O-Flex 7200 für maximalen Diebstahlschutz
+SKU-9428729031,SKU-9428729031,13,XGA0104D,yes,yes,title-normalize-v2,Derby Rasierklingen Double Edge Herren Schwedischer Stahl Silber NEU
+SKU-9431798499,SKU-9431798499,0,,no,yes,title-normalize-v2,HP Tintenpatrone 6ZD17AE Kunststoff Schwarz Dreifarbig NEU
+SKU-9436640030,SKU-9436640030,1,XGA0302A,yes,yes,title-normalize-v2,Puma Golfschuh Fusion Crush Sport Herren Synthetik Textil Weiß Grau Rot NEU
+SKU-9454243198,SKU-9454243198,7,XGA0204D,yes,yes,title-normalize-v2,Jolly Wachsmalkreiden Kinder und Erwachsene Wachs Mehrfarbig NEU
+SKU-9458628509,SKU-9458628509,0,,no,yes,title-normalize-v2,Eureka Saug- Wischroboter E10s Kunststoff Weiß NEU
+SKU-9564743151,SKU-9564743151,1,XSGA0103A,yes,yes,job-improve,Knirps Taschenschirm AS.050 9590561201W Navy Blau Strapazierfähige Materialien
+SKU-9603350817,SKU-9603350817,0,,no,yes,title-normalize-v2,Füllfederhalter Universal Metall Kunststoff NEU
+SKU-9627368343,SKU-9627368343,18,XGA0203C,yes,yes,title-normalize-v2,d-c-fix Energiesparfolie 333-0000 90x200cm Erwachsene Kunststoff NEU
+SKU-9671499764,SKU-9671499764,1,XGA0202E,yes,yes,title-normalize-v2,House Nordic Servierwagen 68cm Metall 68x79cm Schwarz NEU
+SKU-9787450821,SKU-9787450821,0,,no,yes,title-normalize-v2,bremermann Manuelle Nudelmaschine 57003
+SKU-9804667250,SKU-9804667250,1,XGA0302A,yes,yes,title-normalize-v2,adidas Sportschuh SKU-9804667250 Damen Gr. 38 2/3 Leder Grün NEU
+SKU-9820031170,SKU-9820031170,0,,no,yes,title-normalize,"YOLEO Kinderroller 931 NEU Schwarz LED-Räder, Höhenverstellbarer Lenker"
+SKU-9834509499,SKU-9834509499,1,XGA0202B,yes,yes,title-normalize-v2,MSV Handtuchhalter 42cm Metall Schwarz NEU
+SKU-9876441475,SKU-9876441475,1,XSGA0103A,yes,yes,category-review-csv,Disney – Es war einmal ein Schneemann Bilderbuch Gebundene Ausgabe Neu
+SKU-9912977908,SKU-9912977908,1,XGA0101B,yes,yes,title-normalize-v2,Dexcom Blutzuckermessgerät STK-GT-013 Schwarz NEU
+SKU-9933881904,SKU-9933881904,1,XGA0301B,yes,yes,title-normalize-v2,SCENEX Handschuhe Fäustlinge Damen Satin Schwarz NEU
+SKU-9968230318,SKU-9968230318,1,XGA0102B,yes,yes,title-normalize-v2,HOLA KIT Reifenreparaturset HKDB02 Schwarz Grün NEU
+SKU-9979752242,SKU-9979752242,0,,no,yes,title-normalize-v2,CCLIFE Lambdasonden-Steckschlüssel-Satz 1735 22mm NEU
+SKU-9988960743,SKU-9988960743,1,XGA0301B,yes,yes,title-normalize-v2,Pepe Jeans Sneaker low PLS31463 099 Damen Gr. 40 Synthetik Beige NEU
+SKU-2365442999,a18d09b8-ae6e-4114-9b82-f7cf388905d0,1,XGA0404A,yes,no,title-normalize-v2,Unbekannt Gastronormbehälter Edelstahl 176mm 2.4 Liter 2.4L 150mm Silber
+SKU-1769600457,a306ee5a-9713-4ee0-8e51-a97b458577d5,1,XGA0403A,yes,no,ui,Jesebang In-Ear Kopfhörer YT18 Schwarz NEU True Wireless Bluetooth 5.3
+SKU-3264592188,a52ad537-120e-426d-9887-f873d36bcdaa,1,XGA0301C,yes,no,title-normalize-v2,Thule Bodenmatte 20201523 Gummi Schwarz NEU
+SKU-1848228084,a7fbf83a-10da-453f-974b-4d71c9e7e626,9,XGA0104C,yes,yes,title-normalize-v2,Walex Fäkalientank-Deodorant Tiefblau NEU
+SKU-8463577445,ab8921aa-074a-4d89-beb7-b4236133851e,1,XGA0201B,yes,yes,title-normalize-v2,KSIBNW LED Streifen D347 20m Milchweißes PVC bluetooth RGB NEU
+SKU-5736916285,acbaf936-25b4-4850-a552-4af9871abe8c,1,XGA0106A,yes,no,ui,PANORAMA24 Rolllattenrost BXL Premium Holz NEU Gr. 80 cm 80x200 Möbel Wohnen
+SKU-5748131128,ad08f46f-d233-4c4f-b5c5-bc803ce5018e,0,,no,yes,title-normalize-v2,FRANKBERG Querlenkersatz 001771200 NEU
+SKU-5198272869,ad41bd2c-b32b-4f84-8e10-70a3933b51e6,1,XGA0404B,yes,no,title-normalize-v2,Street One Bekleidungsstück 302909 UnisexErwachsene Gr. EUR 44-48 Textil
+SKU-8799542495,b17bc8c9-7097-40af-ba51-02491a3cb01e,1,XGA0405B,yes,no,title-normalize-v2,Kiniris Komplett-Kostüm Kinder Gr. S M LxL Polyester Braun NEU
+SKU-3350934915,b82f2e03-f4e9-4cef-8984-364a6a8cfc8e,4,XGA0202D,yes,no,ui,"Kibek Gartenstecker Molveno 2201290005 Mattschwarz Metall, Kunststoff NEU"
+SKU-8203474346,b9682eb9-a9aa-415e-898f-7b9bf915e42f,13,XGA0101E,yes,yes,title-normalize-v2,Sabeatex Kopfkissen Körperkissen 13cm Gr. 70x35x13cm Weiß NEU
+SKU-0716100821,c02f6527-8651-429c-8022-31eb90f6aaaa,1,XGA0101E,yes,yes,title-normalize-v2,SOMAN Integralhelm A154956/202401/03705 Unisex Gr. S Pink Schwarz Lila NEU
+SKU-7957694387,c6d932e0-cd68-4d66-8212-d98f5d10e8d2,1,XGA0106B,yes,yes,script-condition-normalize,"SIRUS Mikrofonständer 516480 Desktop, Zinkdruckguss, höhenverstellbar 27-41cm"
+SKU-6703015625,c98d74fd-e1a0-42fd-ba6d-2ea526b6e643,0,,no,no,ui,Adidas Trainingshose Herren Gr. M Core Green NEU JP2314 FBIRD LOOSE TP
+SKU-4995445480,c9fb6dc8-5db9-455d-a9b6-a8cadf694909,1,XGA0404B,yes,no,title-normalize-v2,Adidas Trainingshose JC8285 Herren Gr. L Polyester Dunkelblau NEU
+SKU-3442148631,d2649d99-ae7a-4b45-bca9-e6c452843d93,1,XGA0304A,yes,yes,title-normalize-v2,ToMax Kompatible Tintenpatrone 72239 Gelb NEU
+SKU-3178068699,d26c1381-e411-4bd2-a9fd-fdd8e408a28a,43,XGA0104C,yes,yes,title-normalize-v2,Vex Zulaufschlauch 92250869 Kunststoff Metall Grau NEU
+SKU-6221197450,d5ebb4cc-55b0-4b01-a52b-14af5f5e48dd,1,XGA0404A,yes,no,title-normalize-v2,TRIGGER POINT SYSTEMS Fitnessbänder Set Textil Grau Schwarz Hellgrau
+SKU-9612106646,daff6593-8cf1-4290-b164-30ff627317a0,1,XGA0404C,yes,no,ui,"FDS GmbH Wandgarderobe HW65983WH Weiß Holz, Metall NEU Gr. ca. 31.5 cm"
+SKU-4465485856,dd602152-c85f-4a41-b405-0b04e500834f,1,XGA0404C,yes,no,ui,Mahlzeit Chafing Dish Montpellier CHAD13 Silber Edelstahl NEU Profi Set
+SKU-9445536447,e0a338cc-0fd6-4625-8c0c-054308424954,0,,no,no,ui,Adidas Trainingsanzug JI8858 Herren Gr. M Polyester Schwarz NEU
+SKU-6854747447,e29c131f-ec89-434c-b216-90f28330918d,1,XGA0101C,yes,yes,title-normalize-v2,Vinz Jethelm 220653541150 Unisex Gr.xS Schwarz NEU
+SKU-5599844775,e73c69ce-6582-4454-adab-52b418a775d0,1,XGA0105B,yes,no,title-normalize-v2,Goffii Montessori Lernspielzeug 230404041 Unisex Holz Mehrfarbig NEU
+SKU-1536365981,ea75ec18-8ebd-4623-8b72-bdc796af7bfb,0,,no,no,title-normalize-v2,Unbekannt Backform Einsatz Universal Silikon Schwarz NEU
+SKU-8261682619,f0796a2b-7a12-4f55-b343-cf8e47e35ad0,1,XSGA0103B,yes,no,title-normalize-v2,TePe Interdentalbürsten 138826 Gr. 0.45mm Biobasierter Kunststoff Orange
+SKU-6536943755,f19c6d73-628b-424c-9d89-d950ebafb74b,1,XGA0403B,yes,no,title-normalize-v2,ANYCUBIC 3D Drucker Filament AHPLPBW-102 PLA 1kg 1.75mm Hellweiß NEU
+SKU-2204782559,f2028097-7287-47f8-b694-d663960758ec,1,XGA0105B,yes,no,title-normalize-v2,Eternity Commerce LTD Magnetspielzeug 2024-1 Kunststoff Magnet Mehrfarbig
+SKU-3481827893,f20fc23c-f6dc-476a-9070-d943caec409f,0,,no,yes,,"Rolife Miniatur-Bausatz TGB06, Gartenhaus Book Nook, 176 Teile, 203x110x241mm"
+SKU-2693030055,f34aeded-183f-461f-8b6d-f899c863bddb,1,XGA0404B,yes,no,ui,Adidas Herren Jogginghose ESS Joggers Dunkelblau Gr. 2XS Baumwollmischung Neu
+SKU-0107097519,f7a5bb4a-9e13-4a67-8065-996f9a809f26,2,XGA0106B,yes,yes,title-normalize-v2,Sontheimer Nockenschalter 10008352 690V 9kW Grau Schwarz NEU
+SKU-7447779999,f8fc404d-90b9-408f-a0a5-53038fdbd793,1,XGA0105B,yes,no,title-normalize-v2,ONLINE Kalligrafie-Set Anfänger und Fortgeschrittene Mehrfarbig NEU
+SKU-9297459968,fad41e15-2900-414a-b739-2ed02d4394fe,0,,no,yes,,febi bilstein Waschwasserpumpe 26259 für Mercedes-Benz (OE 2048660221)
