@@ -589,6 +589,19 @@ const App: React.FC = () => {
     initialProductHydratedRef.current = true;
   }, [products, initialProductId, view]);
 
+  // Keep the currently opened product sheet in sync with the latest product list.
+  // This prevents stale quantities (e.g., after warehouse stock changes) from lingering in ProductSheet.
+  // ProductSheet itself will ignore prop refreshes while the user is actively editing/dirty.
+  useEffect(() => {
+    if (!currentProduct?.id) return;
+    const updated = products.find((p) => p.id === currentProduct.id) || null;
+    if (!updated) return;
+    // Avoid re-setting state if nothing materially changed (best-effort shallow check).
+    if (updated === currentProduct) return;
+    setCurrentProduct(updated);
+    setInventoryFocusId(updated.id);
+  }, [products, currentProduct?.id]);
+
   const renderView = () => {
     switch (view) {
       case 'home':

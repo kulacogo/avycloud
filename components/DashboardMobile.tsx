@@ -159,7 +159,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
     [onNavigate]
   );
 
-  const openOrders = useMemo(() => orders.filter((o) => o.status === 'new'), [orders]);
+  const openOrders = useMemo(() => orders.filter((o) => o && o.status === 'new'), [orders]);
 
   const volume7d = metrics?.volume_7d?.days || [];
   const maxVolume = useMemo(() => {
@@ -235,7 +235,8 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
     };
 
     openOrders.forEach((order) => {
-      order.items.forEach((it) => {
+      const items = Array.isArray((order as any)?.items) ? (order as any).items : [];
+      items.forEach((it: any) => {
         if (it.pickCompleted) return;
         const remaining = Number(it.quantity || 0) || 0;
         if (!remaining) return;

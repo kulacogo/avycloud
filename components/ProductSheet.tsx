@@ -25,6 +25,7 @@ import AssistantChat from './GeminiChat';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, summarizeBarcodes, isValidGtin } from '../utils/gtin';
 import { useInventoryContext } from '../context/InventoryContext';
+import { getProductAvailableQuantity, getProductPhysicalQuantity, getProductReservedQuantity } from '../utils/product';
 
 interface ProductSheetProps {
   product: Product;
@@ -1534,6 +1535,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
           <section id="storage" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.storage')}</h3>
+            <div className="mb-3 grid grid-cols-3 gap-2 text-xs">
+              <div className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2">
+                <div className="text-slate-400">physisch</div>
+                <div className="text-slate-100 font-semibold tabular-nums">{getProductPhysicalQuantity(localProduct)}</div>
+              </div>
+              <div className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2">
+                <div className="text-slate-400">reserviert</div>
+                <div className="text-slate-100 font-semibold tabular-nums">{getProductReservedQuantity(localProduct)}</div>
+              </div>
+              <div className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2">
+                <div className="text-slate-400">verfügbar</div>
+                <div className="text-slate-100 font-semibold tabular-nums">{getProductAvailableQuantity(localProduct)}</div>
+              </div>
+            </div>
             {binsLoading ? (
               <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.loading')}</p>
             ) : binsError ? (
