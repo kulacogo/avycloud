@@ -868,18 +868,47 @@ async function listBinsForProduct(productIdOrSku) {
   if (!productIdOrSku) throw new Error('Produkt-ID oder SKU fehlt.');
   const snapshot = await binsCollection.get();
   const matches = [];
+  const raw = String(productIdOrSku);
+  const rawLower = raw.trim().toLowerCase();
+  const strippedLower = rawLower.replace(/^sku[-_\\s]*/i, '');
+  const keySet = new Set(
+    [rawLower, strippedLower, strippedLower ? `sku-${strippedLower}` : null].filter(Boolean)
+  );
 
   snapshot.forEach((doc) => {
-    const data = doc.data();
+    const data = doc.data() || {};
     const products = Array.isArray(data.products) ? data.products : [];
-    const hit = products.find(
-      (p) =>
-        p?.productId === productIdOrSku ||
-        p?.sku === productIdOrSku ||
-        p?.productId === String(productIdOrSku) ||
-        p?.sku === String(productIdOrSku)
-    );
-    if (hit && (hit.quantity || 0) > 0) {
+    const hits = products.filter((p) => {
+      if (!p) return false;
+      const pid = normalizeKey(p.productId);
+      const sku = normalizeKey(p.sku);
+      const pidStripped = pid ? pid.replace(/^sku[-_\\s]*/i, '') : null;
+      const skuStripped = sku ? sku.replace(/^sku[-_\\s]*/i, '') : null;
+      return (
+        (pid && keySet.has(pid)) ||
+        (sku && keySet.has(sku)) ||
+        (pidStripped && keySet.has(pidStripped)) ||
+        (skuStripped && keySet.has(skuStripped))
+      );
+    });
+    const quantity = hits.reduce((sum, entry) => sum + (Number(entry?.quantity) || 0), 0);
+    if (quantity > 0) {
+      const first = hits[0] || {};
+      const firstStoredAt =
+        hits
+          .map((m) => toIsoString(m?.firstStoredAt))
+          .filter(Boolean)
+          .sort()[0] ||
+        toIsoString(data.firstStoredAt) ||
+        null;
+      const lastUpdatedAt =
+        hits
+          .map((m) => toIsoString(m?.lastUpdatedAt))
+          .filter(Boolean)
+          .sort()
+          .slice(-1)[0] ||
+        toIsoString(data.lastStoredAt) ||
+        null;
       matches.push({
         code: data.code || doc.id,
         zone: data.zone,
@@ -887,13 +916,13 @@ async function listBinsForProduct(productIdOrSku) {
         gang: data.gang,
         regal: data.regal,
         ebene: data.ebene,
-        quantity: hit.quantity || 0,
-        productCount: hit.quantity || 0,
-        productId: hit.productId,
-        sku: hit.sku,
-        name: hit.name,
-        firstStoredAt: hit.firstStoredAt || data.firstStoredAt || null,
-        lastUpdatedAt: hit.lastUpdatedAt || data.lastStoredAt || null,
+        quantity,
+        productCount: quantity,
+        productId: first.productId,
+        sku: first.sku,
+        name: first.name,
+        firstStoredAt,
+        lastUpdatedAt,
       });
     }
   });

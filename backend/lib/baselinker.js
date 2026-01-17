@@ -581,8 +581,17 @@ async function getInventoryMeta(inventoryId) {
 
 /**
  * Manufacturer + category caches
+ *
+ * Performance note:
+ * The old implementation called getInventoryManufacturers repeatedly for many products,
+ * which is extremely slow and can hit Cloud Run 10min timeouts.
+ * We now load manufacturers once per inventory (TTL) and keep a name->id map.
  */
-const manufacturerCache = new Map();
+const manufacturerCache = new Map(); // key: inventoryId -> { atMs, byLowerName: Map<string, number|string> }
+const MANUFACTURER_CACHE_TTL_MS = parseInt(
+  process.env.BASELINKER_MANUFACTURER_CACHE_TTL_MS || `${6 * 60 * 60 * 1000}`,
+  10
+);
 const categoryCache = new Map();
 
 /**
@@ -613,18 +622,28 @@ async function listManufacturers(inventoryId) {
 
 async function ensureManufacturerId(name, inventoryId) {
   if (!name) return null;
-  const key = `${inventoryId}:${name.toLowerCase()}`;
-  if (manufacturerCache.has(key)) {
-    return manufacturerCache.get(key);
+  const invKey = String(inventoryId || '').trim();
+  const lower = String(name).trim().toLowerCase();
+  if (!invKey || !lower) return null;
+
+  const now = Date.now();
+  const cached = manufacturerCache.get(invKey);
+  if (!cached || !cached.byLowerName || now - (cached.atMs || 0) > MANUFACTURER_CACHE_TTL_MS) {
+    // Build fresh map
+    const existing = await listManufacturers(inventoryId);
+    const byLowerName = new Map();
+    (existing || []).forEach((entry) => {
+      const n = entry?.name ? String(entry.name).trim().toLowerCase() : '';
+      const id = entry?.manufacturer_id;
+      if (!n || id == null) return;
+      byLowerName.set(n, id);
+    });
+    manufacturerCache.set(invKey, { atMs: now, byLowerName });
   }
 
-  const existing = await listManufacturers(inventoryId);
-  const match = existing.find(
-    (entry) => entry.name?.toLowerCase() === name.toLowerCase()
-  );
-  if (match?.manufacturer_id) {
-    manufacturerCache.set(key, match.manufacturer_id);
-    return match.manufacturer_id;
+  const map = manufacturerCache.get(invKey)?.byLowerName;
+  if (map && map.has(lower)) {
+    return map.get(lower);
   }
 
   const created = await callBaseLinker('addInventoryManufacturer', {
@@ -636,7 +655,12 @@ async function ensureManufacturerId(name, inventoryId) {
     throw new Error('addInventoryManufacturer returned no manufacturer_id');
   }
 
-  manufacturerCache.set(key, created.manufacturer_id);
+  // Update cache
+  const next = manufacturerCache.get(invKey) || { atMs: now, byLowerName: new Map() };
+  next.byLowerName = next.byLowerName || new Map();
+  next.byLowerName.set(lower, created.manufacturer_id);
+  next.atMs = now;
+  manufacturerCache.set(invKey, next);
   return created.manufacturer_id;
 }
 
