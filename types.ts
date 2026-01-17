@@ -336,6 +336,10 @@ export interface DashboardMetrics {
     total: number;
     month: number;
     month_start_iso: string;
+    all_non_cancelled_total?: number;
+    window_non_cancelled_total?: number;
+    window_start_iso?: string;
+    window_days?: number;
   };
   orders: {
     open_current: number;
@@ -343,6 +347,14 @@ export interface DashboardMetrics {
     completed_month: number;
     returns_total: number;
     returns_month: number;
+    status_breakdown?: {
+      neu: number;
+      kommissioniert: number;
+      versendet: number;
+      zugestellt: number;
+      cancelled: number;
+      other: number;
+    };
   };
   volume_7d: {
     window_days: number;

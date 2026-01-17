@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Product, WarehouseLayout, Order } from '../types';
-import { fetchWarehouseZones, fetchOrders as fetchOrdersApi } from '../api/client';
+import { DashboardMetrics, Product, WarehouseLayout } from '../types';
+import { fetchDashboardMetrics, fetchWarehouseZones } from '../api/client';
 import { WarehouseIcon, TableIcon, SyncIcon } from './icons/Icons';
 import { getProductAvailableQuantity, getProductPhysicalQuantity, getProductReservedQuantity, normalizeSyncStatus } from '../utils/product';
 
@@ -40,9 +40,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
   const [zones, setZones] = useState<WarehouseLayout[]>([]);
   const [zonesError, setZonesError] = useState<string | null>(null);
   const [isLoadingZones, setIsLoadingZones] = useState(false);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [ordersError, setOrdersError] = useState<string | null>(null);
-  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   const loadZones = React.useCallback(async () => {
       setIsLoadingZones(true);
@@ -57,32 +57,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
         }
   }, []);
 
-  const loadOrders = React.useCallback(async () => {
-      setOrdersLoading(true);
-      try {
-        const data = await fetchOrdersApi();
-          setOrders(data);
-          setOrdersError(null);
-      } catch (error: any) {
-          setOrdersError(error?.message || 'Aufträge konnten nicht geladen werden.');
-      } finally {
-          setOrdersLoading(false);
-        }
+  const loadMetrics = React.useCallback(async () => {
+    setMetricsLoading(true);
+    try {
+      const data = await fetchDashboardMetrics(7, { timeoutMs: 25000 });
+      setMetrics(data);
+      setMetricsError(null);
+    } catch (error: any) {
+      setMetricsError(error?.message || 'Dashboard-Metriken konnten nicht geladen werden.');
+      setMetrics(null);
+    } finally {
+      setMetricsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     loadZones();
-    loadOrders();
-  }, [loadZones, loadOrders]);
+    loadMetrics();
+  }, [loadZones, loadMetrics]);
 
   // lightweight auto-refresh every 60s to keep dashboard fresh
   useEffect(() => {
     const interval = setInterval(() => {
-      loadOrders();
+      loadMetrics();
       if (onRefreshProducts) onRefreshProducts();
     }, 60000);
     return () => clearInterval(interval);
-  }, [loadOrders, onRefreshProducts]);
+  }, [loadMetrics, onRefreshProducts]);
 
   const allProducts = products;
   const stockedProducts = useMemo(
@@ -91,123 +92,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
   );
 
   const orderMetrics = useMemo(() => {
-    const toRaw = (order: Order) => (order.statusLabel || order.status || '').toLowerCase();
-
-    const categorize = (order: Order) => {
-      const raw = toRaw(order);
-      if (raw.includes('storniert') || raw.includes('cancel')) return 'cancelled';
-      if (raw.includes('zugestellt') || raw.includes('delivered')) return 'zugestellt';
-      if (raw.includes('versendet') || raw.includes('shipped') || raw.includes('dispatched')) return 'versendet';
-      if (raw.includes('kommission') || raw.includes('picked')) return 'kommissioniert';
-      if (raw.includes('neu') || raw.includes('new')) return 'neu';
-      return 'other';
-    };
-
-    const counts = {
-      neu: 0,
-      kommissioniert: 0,
-      versendet: 0,
-      zugestellt: 0,
-      cancelled: 0,
-      other: 0,
-    };
-
-    const valueMap = new Map<string, number>();
-
-    const activeOrders: Order[] = [];
-
-    orders.forEach((order) => {
-      const cat = categorize(order);
-      if (cat === 'cancelled') {
-        counts.cancelled += 1;
-        return; // Ignore cancelled everywhere
-      }
-      switch (cat) {
-        case 'neu':
-          counts.neu += 1;
-          break;
-        case 'kommissioniert':
-          counts.kommissioniert += 1;
-          break;
-        case 'versendet':
-          counts.versendet += 1;
-          break;
-        case 'zugestellt':
-          counts.zugestellt += 1;
-          break;
-        default:
-          counts.other += 1;
-          break;
-      }
-      activeOrders.push(order);
-      const amount = Number(order.totalAmount) || 0;
-      const currency = safeCurrency(order.currency || 'EUR');
-      valueMap.set(currency, (valueMap.get(currency) || 0) + amount);
+    const breakdown = metrics?.orders?.status_breakdown || null;
+    const chartDays = metrics?.volume_7d?.days || [];
+    const maxChartCount = Math.max(1, ...chartDays.map((d) => Number(d?.orders || 0) || 0));
+    const chart = chartDays.map((d) => {
+      const label = (() => {
+        try {
+          const dt = new Date(d.date);
+          return dt.toLocaleDateString('de-DE', { weekday: 'short' });
+        } catch {
+          return d.date;
+        }
+      })();
+      return { key: d.date, label, count: Number(d?.orders || 0) || 0 };
     });
-
-    const total = activeOrders.length;
-    const open = counts.neu;
-    const picked = counts.kommissioniert + counts.versendet + counts.zugestellt;
-
-    // revenue aggregation
-    const revenueEntries = Array.from(valueMap.entries()).map(([currency, amount]) => ({
-      currency,
-      amount,
-    }));
-    revenueEntries.sort((a, b) => b.amount - a.amount);
-    const primaryRevenue = revenueEntries[0] || { currency: 'EUR', amount: 0 };
-    const otherRevenues = revenueEntries.slice(1);
-
-    // chart for last 7 days (active orders only)
-    const template: Array<{ key: string; date: Date; count: number }> = [];
-    const base = new Date();
-    base.setHours(0, 0, 0, 0);
-    for (let i = 6; i >= 0; i -= 1) {
-      const day = new Date(base);
-      day.setDate(base.getDate() - i);
-      template.push({
-        key: day.toISOString().slice(0, 10),
-        date: day,
-        count: 0,
-      });
-    }
-
-    const templateMap = new Map(template.map((entry) => [entry.key, entry]));
-
-    activeOrders.forEach((order) => {
-      if (!order.createdAt) return;
-      const date = new Date(order.createdAt);
-      date.setHours(0, 0, 0, 0);
-      const key = date.toISOString().slice(0, 10);
-      const bucket = templateMap.get(key);
-      if (bucket) {
-        bucket.count += 1;
-      }
-    });
-
-    const chart = template.map((entry) => ({
-      key: entry.key,
-      label: entry.date.toLocaleDateString('de-DE', { weekday: 'short' }),
-      count: entry.count,
-    }));
-
-    const maxChartCount = Math.max(1, ...chart.map((entry) => entry.count));
-
     return {
-      total,
-      open,
-      neu: counts.neu,
-      kommissioniert: counts.kommissioniert,
-      versendet: counts.versendet,
-      zugestellt: counts.zugestellt,
-      cancelled: counts.cancelled,
-      picked,
+      neu: breakdown?.neu ?? 0,
+      kommissioniert: breakdown?.kommissioniert ?? 0,
+      versendet: breakdown?.versendet ?? 0,
+      zugestellt: breakdown?.zugestellt ?? 0,
+      cancelled: breakdown?.cancelled ?? 0,
+      other: breakdown?.other ?? 0,
+      open: breakdown?.neu ?? 0,
+      total:
+        (breakdown?.neu ?? 0) +
+        (breakdown?.kommissioniert ?? 0) +
+        (breakdown?.versendet ?? 0) +
+        (breakdown?.zugestellt ?? 0) +
+        (breakdown?.other ?? 0),
       chart,
       maxChartCount,
-      revenuePrimary: primaryRevenue,
-      revenueOthers: otherRevenues,
+      revenueAllNonCancelled: metrics?.revenue?.all_non_cancelled_total ?? 0,
+      revenueWindowNonCancelled: metrics?.revenue?.window_non_cancelled_total ?? 0,
+      currency: safeCurrency(metrics?.currency || 'EUR'),
     };
-  }, [orders]);
+  }, [metrics]);
 
   const {
     totalProducts,
@@ -355,7 +274,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
           <button
             type="button"
             onClick={() => {
-              loadOrders();
+              loadMetrics();
               loadZones();
               if (onRefreshProducts) onRefreshProducts();
             }}
@@ -406,8 +325,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
             </div>
             <SyncIcon className="w-6 h-6 text-slate-400" />
           </div>
-          {ordersError && <p className="text-sm text-rose-300">{ordersError}</p>}
-          {ordersLoading ? (
+          {metricsError && <p className="text-sm text-rose-300">{metricsError}</p>}
+          {metricsLoading ? (
             <p className="text-sm text-slate-400">Lade Auftragszahlen …</p>
           ) : (
             <>
@@ -438,13 +357,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
                 <div className="text-right">
                   <p className="text-xs uppercase tracking-widest text-slate-400">Gesamtumsatz (alle, ohne Storniert)</p>
                   <p className="text-2xl font-semibold text-white mt-1">
-                    {formatCurrency(orderMetrics.revenuePrimary.amount, orderMetrics.revenuePrimary.currency)}
+                    {formatCurrency(orderMetrics.revenueAllNonCancelled, orderMetrics.currency)}
                   </p>
-                  {orderMetrics.revenueOthers.length > 0 && (
-                    <p className="text-xs text-slate-400 mt-1">
-                      Weitere Währungen: {orderMetrics.revenueOthers.map((r) => `${formatCurrency(r.amount, r.currency)}`).join(', ')}
-                    </p>
-                  )}
+                  <p className="text-xs text-slate-400 mt-1">
+                    letzte {metrics?.revenue?.window_days || 7} Tage (ohne Storno): {formatCurrency(orderMetrics.revenueWindowNonCancelled, orderMetrics.currency)}
+                  </p>
                 </div>
               </div>
             </>
@@ -457,7 +374,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
               <h2 className="text-xl font-semibold text-white">Letzte 7 Tage</h2>
             </div>
           </div>
-          {ordersLoading ? (
+          {metricsLoading ? (
             <p className="text-sm text-slate-400">Synchronisiere Diagramm …</p>
           ) : (
             <div className="overflow-x-auto">

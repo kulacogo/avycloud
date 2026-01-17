@@ -2134,11 +2134,31 @@ async function getDashboardMetrics({ days = 7 } = {}) {
   let currency = 'EUR';
   let revenueTotal = 0;
   let revenueMonth = 0;
+  let revenueAllNonCancelledTotal = 0;
   let completedTotal = 0;
   let completedMonth = 0;
   let returnsTotal = 0;
   let returnsMonth = 0;
   let openCurrent = 0;
+
+  const statusBreakdown = {
+    neu: 0,
+    kommissioniert: 0,
+    versendet: 0,
+    zugestellt: 0,
+    cancelled: 0,
+    other: 0,
+  };
+
+  const categorizeStatus = (order) => {
+    const raw = normalize(order?.statusLabel || order?.status || '');
+    // prefer explicit "new" state if present
+    if (order?.status === 'new' || raw.includes('neu') || raw.includes('new')) return 'neu';
+    if (raw.includes('kommission') || raw.includes('picked')) return 'kommissioniert';
+    if (raw.includes('versendet') || raw.includes('shipped') || raw.includes('dispatched')) return 'versendet';
+    if (raw.includes('zugestellt') || raw.includes('delivered')) return 'zugestellt';
+    return 'other';
+  };
 
   snapshot.forEach((doc) => {
     const order = doc.data() || {};
@@ -2153,6 +2173,14 @@ async function getDashboardMetrics({ days = 7 } = {}) {
     const returned = isReturn(order);
     const closed = isClosed(order);
 
+    // Status breakdown (for dashboards)
+    if (cancelled) {
+      statusBreakdown.cancelled += 1;
+    } else {
+      const cat = categorizeStatus(order);
+      statusBreakdown[cat] += 1;
+    }
+
     if (order.status === 'new') {
       openCurrent += 1;
     }
@@ -2165,6 +2193,11 @@ async function getDashboardMetrics({ days = 7 } = {}) {
       if (!cancelled) {
         daysArr[idx].revenue += totalAmount;
       }
+    }
+
+    // Revenue across ALL orders excluding cancelled (regardless of closed/return)
+    if (!cancelled) {
+      revenueAllNonCancelledTotal += totalAmount;
     }
 
     // Returns (best-effort)
@@ -2192,6 +2225,8 @@ async function getDashboardMetrics({ days = 7 } = {}) {
     }
   });
 
+  const revenueWindowNonCancelledTotal = daysArr.reduce((s, d) => s + (Number(d.revenue || 0) || 0), 0);
+
   return {
     generated_at_iso: new Date().toISOString(),
     currency,
@@ -2199,6 +2234,10 @@ async function getDashboardMetrics({ days = 7 } = {}) {
       total: Number(revenueTotal.toFixed(2)),
       month: Number(revenueMonth.toFixed(2)),
       month_start_iso: monthStart.toISOString(),
+      all_non_cancelled_total: Number(revenueAllNonCancelledTotal.toFixed(2)),
+      window_non_cancelled_total: Number(revenueWindowNonCancelledTotal.toFixed(2)),
+      window_start_iso: windowStart.toISOString(),
+      window_days: windowDays,
     },
     orders: {
       open_current: openCurrent,
@@ -2206,6 +2245,7 @@ async function getDashboardMetrics({ days = 7 } = {}) {
       completed_month: completedMonth,
       returns_total: returnsTotal,
       returns_month: returnsMonth,
+      status_breakdown: statusBreakdown,
     },
     volume_7d: {
       window_days: windowDays,
