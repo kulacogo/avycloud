@@ -163,12 +163,12 @@ function hasKTyp(product) {
   });
 }
 
-function formatKTyp(ids = [], { maxLen = 200 } = {}) {
+function formatKTyp(ids = [], { maxLen = 0 } = {}) {
   const parts = ids.map((id) => String(id).trim()).filter(Boolean);
   const out = [];
   for (const p of parts) {
     const tentative = out.length ? `${out.join('|')}|${p}` : p;
-    if (tentative.length > maxLen) break;
+    if (maxLen > 0 && tentative.length > maxLen) break;
     out.push(p);
   }
   return out.join('|');
@@ -270,7 +270,9 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
 
   product.details = product.details || {};
   product.details.attributes = product.details.attributes && typeof product.details.attributes === 'object' ? product.details.attributes : {};
-  product.details.attributes['K-Typ'] = formatKTyp(ids, { maxLen: 200 });
+  // Store full K-Type list (no truncation) to satisfy downstream sync + UI requirements.
+  // If a downstream system cannot accept long values, that system must be adjusted (field type) rather than truncating here.
+  product.details.attributes['K-Typ'] = formatKTyp(ids, { maxLen: 0 });
   product.ops = product.ops || {};
   product.ops.data_quality = {
     ...(product.ops.data_quality || {}),

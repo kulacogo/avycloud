@@ -130,9 +130,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterStatus') as SyncStatus | 'all') || 'all';
   });
-  const [filterCategory, setFilterCategory] = useState(() => {
-    if (typeof window === 'undefined') return 'all';
-    return window.sessionStorage.getItem('avystock:admin-table:filterCategory') || 'all';
+  const [filterCategorySelection, setFilterCategorySelection] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    const raw = window.sessionStorage.getItem('avystock:admin-table:filterCategorySelection');
+    if (!raw) {
+      const legacy = window.sessionStorage.getItem('avystock:admin-table:filterCategory');
+      return legacy && legacy !== 'all' ? [legacy] : [];
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(Boolean).map((v) => String(v)) : [];
+    } catch {
+      return [];
+    }
   });
   const [filterStock, setFilterStock] = useState<'all' | 'inStock' | 'outOfStock'>(() => {
     if (typeof window === 'undefined') return 'all';
@@ -316,10 +326,59 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, [products, baselinkerLookupInProgress, onUpdateProducts, syncInventoryId]);
 
 
-  const categories = useMemo(
-    () => ['all', ...new Set(products.map((p) => p.identification?.category || 'Unbekannt'))],
-    [products]
+  const categoryTree = useMemo(() => {
+    const tree = new Map<string, { count: number; children: Map<string, number> }>();
+    for (const p of products) {
+      const raw = (p.identification?.category || 'Unbekannt').toString();
+      const parts = raw.split('>').map((s) => s.trim()).filter(Boolean);
+      const top = parts[0] || 'Unbekannt';
+      const sub = parts.length >= 2 ? parts[1] : '';
+      const entry = tree.get(top) || { count: 0, children: new Map() };
+      entry.count += 1;
+      if (sub) {
+        entry.children.set(sub, (entry.children.get(sub) || 0) + 1);
+      }
+      tree.set(top, entry);
+    }
+    const tops = Array.from(tree.entries()).sort((a, b) => a[0].localeCompare(b[0], 'de'));
+    return tops.map(([top, entry]) => ({
+      top,
+      count: entry.count,
+      children: Array.from(entry.children.entries())
+        .sort((a, b) => a[0].localeCompare(b[0], 'de'))
+        .map(([sub, count]) => ({ sub, count })),
+    }));
+  }, [products]);
+
+  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
+
+  const categorySelectionSet = useMemo(
+    () => new Set(filterCategorySelection.map((s) => String(s).trim()).filter(Boolean)),
+    [filterCategorySelection]
   );
+
+  const isCategorySelected = (key: string) => categorySelectionSet.has(key);
+
+  const toggleCategoryKey = (key: string) => {
+    const next = new Set(categorySelectionSet);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setFilterCategorySelection(Array.from(next));
+  };
+
+  const toggleTopCategory = (top: string) => {
+    const next = new Set(categorySelectionSet);
+    const node = categoryTree.find((t) => t.top === top);
+    const childKeys = node ? node.children.map((c) => `${top} > ${c.sub}`) : [];
+    const allKeys = [top, ...childKeys];
+    const allOn = allKeys.length ? allKeys.every((k) => next.has(k)) : next.has(top);
+    if (allOn) {
+      allKeys.forEach((k) => next.delete(k));
+    } else {
+      allKeys.forEach((k) => next.add(k));
+    }
+    setFilterCategorySelection(Array.from(next));
+  };
 
   const primaryImage = (product: Product) =>
     (product.details?.images || []).find((img) => img.url_or_base64?.startsWith('http')) || null;
@@ -729,7 +788,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
         identifiers.some((idVal) => idVal.includes(term));
       const matchesStatus = filterStatus === 'all' || normalizedStatus === filterStatus;
       const productCategory = p.identification?.category || 'Unbekannt';
-      const matchesCategory = filterCategory === 'all' || productCategory === filterCategory;
+      const matchesCategory = (() => {
+        if (filterCategorySelection.length === 0) return true;
+        const raw = (productCategory || '').toString();
+        const parts = raw.split('>').map((s) => s.trim()).filter(Boolean);
+        const top = parts[0] || 'Unbekannt';
+        const sub = parts.length >= 2 ? parts[1] : '';
+        const topKey = top;
+        const subKey = sub ? `${top} > ${sub}` : '';
+        return categorySelectionSet.has(topKey) || (subKey && categorySelectionSet.has(subKey));
+      })();
       const quantity = getProductQuantity(p) || 0;
       const matchesStock =
         filterStock === 'all' ||
@@ -885,7 +953,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     products,
     searchTerm,
     filterStatus,
-    filterCategory,
+    filterCategorySelection,
     filterStock,
     filterBin,
     filterBinSplit,
@@ -1194,7 +1262,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const resetFilters = () => {
     setSearchTerm('');
     setFilterStatus('all');
-    setFilterCategory('all');
+    setFilterCategorySelection([]);
     setFilterStock('all');
     setFilterBin('all');
     setFilterBinSplit('all');
@@ -1218,8 +1286,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, [filterStatus]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterCategory', filterCategory);
-  }, [filterCategory]);
+    try {
+      window.sessionStorage.setItem('avystock:admin-table:filterCategorySelection', JSON.stringify(filterCategorySelection));
+      // Keep legacy key for backwards compatibility (best-effort).
+      window.sessionStorage.setItem(
+        'avystock:admin-table:filterCategory',
+        filterCategorySelection.length === 1 ? filterCategorySelection[0] : 'all'
+      );
+    } catch {
+      // ignore session storage errors
+    }
+  }, [filterCategorySelection]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterQuality', filterQuality);
@@ -1289,18 +1366,84 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </option>
           ))}
         </select>
-        <select
-          id="table-filter-category"
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-        >
-          {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat === 'all' ? t('table.categories.all') : cat}
-            </option>
-          ))}
-        </select>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setCategoryFilterOpen((v) => !v)}
+            className="w-full p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100 text-left"
+          >
+            {filterCategorySelection.length === 0
+              ? 'Kategorie: Alle'
+              : `Kategorie: ${filterCategorySelection.length} ausgewählt`}
+          </button>
+          {categoryFilterOpen && (
+            <div className="absolute z-30 mt-2 w-[360px] max-w-[90vw] rounded-lg border border-slate-600 bg-slate-900 p-3 shadow-xl">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-200">Kategorien</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFilterCategorySelection([])}
+                    className="text-xs text-sky-400 hover:underline"
+                  >
+                    Alle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilterOpen(false)}
+                    className="text-xs text-slate-300 hover:underline"
+                  >
+                    Schließen
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                {categoryTree.map((node) => {
+                  const topKey = node.top;
+                  const childKeys = node.children.map((c) => `${node.top} > ${c.sub}`);
+                  const allKeys = [topKey, ...childKeys];
+                  const selectedCount = allKeys.filter((k) => categorySelectionSet.has(k)).length;
+                  const isAllSelected = selectedCount === allKeys.length && allKeys.length > 0;
+                  const isIndeterminate = selectedCount > 0 && selectedCount < allKeys.length;
+                  return (
+                    <div key={node.top} className="rounded-md border border-slate-700 bg-slate-950/30">
+                      <label className="flex items-center gap-2 px-2 py-2 text-sm text-slate-100">
+                        <input
+                          type="checkbox"
+                          checked={isAllSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = isIndeterminate;
+                          }}
+                          onChange={() => toggleTopCategory(node.top)}
+                        />
+                        <span className="flex-1">{node.top}</span>
+                        <span className="text-xs text-slate-400">({node.count})</span>
+                      </label>
+                      {node.children.length > 0 && (
+                        <div className="border-t border-slate-800 px-2 py-2 space-y-1">
+                          {node.children.map((c) => {
+                            const key = `${node.top} > ${c.sub}`;
+                            return (
+                              <label key={key} className="flex items-center gap-2 pl-5 pr-2 py-1 text-sm text-slate-200">
+                                <input
+                                  type="checkbox"
+                                  checked={isCategorySelected(key)}
+                                  onChange={() => toggleCategoryKey(key)}
+                                />
+                                <span className="flex-1">{c.sub}</span>
+                                <span className="text-xs text-slate-500">({c.count})</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
         <select
           id="table-filter-stock"
           value={filterStock}

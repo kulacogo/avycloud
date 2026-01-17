@@ -944,8 +944,10 @@ function buildTextFields(product, name) {
   const ktypValue = ktypRaw === undefined || ktypRaw === null ? '' : String(ktypRaw).trim();
   if (ktypValue) {
     const blKey = 'extra_field_18699';
-    // BaseLinker "extra fields" can have short text limits. Keep this within our general short-text clamp.
-    textFields[blKey] = clampShortText(ktypValue);
+    // IMPORTANT: User requirement: K-Typ must be synced with ALL values.
+    // We therefore do NOT clamp this value. If BaseLinker rejects long values for this extra field,
+    // the sync will fail and we must change the field type in BaseLinker (short -> long) or adjust storage.
+    textFields[blKey] = ktypValue;
     // IMPORTANT:
     // Additional fields may NOT support multilingual values. Sending `extra_field_x|de` (or any lang variant)
     // can cause: "ERROR_INVALID_DATA: Additional field extra_field_x does not support setting values in different languages."
