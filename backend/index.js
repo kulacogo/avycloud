@@ -1635,6 +1635,23 @@ app.post('/api/sync-baselinker', async (req, res) => {
       });
     }
 
+    // Safety bridge: bulk sync via jobs to avoid Cloud Run 10-minute request timeouts (504/failed-to-fetch).
+    // This keeps legacy callers working even if they still hit /api/sync-baselinker.
+    if (Array.isArray(productIds) && productIds.length >= 10) {
+      const ids = Array.from(new Set(productIds.map((id) => String(id).trim()).filter(Boolean))).slice(0, 500);
+      const job = await createBaseLinkerSyncJob({
+        payload: { productIds: ids, inventoryId: invId },
+        status: 'pending',
+        stage: 'queued',
+        progress: { total: ids.length, processed: 0, synced: 0, failed: 0 },
+        requestedBy: 'legacy',
+        createdAt: BaseLinkerSyncTimestamp.now(),
+        updatedAt: BaseLinkerSyncTimestamp.now(),
+      });
+      enqueueBaseLinkerSyncJob(job.id, true);
+      return res.status(202).json({ ok: true, jobId: job.id, queued: true });
+    }
+
     let results;
 
     // Handle single product by ID (preferred)
