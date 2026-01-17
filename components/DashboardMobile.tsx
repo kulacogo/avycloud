@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DashboardMetrics, Order, Product } from '../types';
-import { getProductQuantity } from '../utils/product';
+import { getProductAvailableQuantity, getProductPhysicalQuantity } from '../utils/product';
 import { fetchDashboardMetrics, fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi } from '../api/client';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
@@ -169,16 +169,17 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
 
   const summary = useMemo(() => {
     const total = products.length;
-    const inStock = products.filter((p) => getProductQuantity(p) > 0).length;
-    const qtySum = products.reduce((s, p) => s + getProductQuantity(p), 0);
+    const inStock = products.filter((p) => getProductAvailableQuantity(p) > 0).length;
+    const qtySum = products.reduce((s, p) => s + getProductAvailableQuantity(p), 0);
     const priced = products.filter((p) => (p.details?.pricing?.lowest_price?.amount || 0) > 0);
     const value = priced.reduce(
-      (s, p) => s + getProductQuantity(p) * (p.details?.pricing?.lowest_price?.amount || 0),
+      (s, p) => s + getProductAvailableQuantity(p) * (p.details?.pricing?.lowest_price?.amount || 0),
       0
     );
     const pending = products.filter((p) => (p.ops?.sync_status || 'pending') !== 'synced').length;
     const synced = products.length - pending;
-    return { total, inStock, qtySum, value, synced, pending };
+    const physical = products.reduce((s, p) => s + getProductPhysicalQuantity(p), 0);
+    return { total, inStock, qtySum, value, synced, pending, physical };
   }, [products]);
 
   const stowBacklog = useMemo(

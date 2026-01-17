@@ -10,7 +10,22 @@ export const normalizeSyncStatus = (
   return status;
 };
 
-export const getProductQuantity = (product: Product): number => {
+const toNumber = (value: any): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/**
+ * Physical quantity (what is in the warehouse), independent of reservations.
+ * Prefers API-enriched `inventory.physicalQuantity` when present.
+ */
+export const getProductPhysicalQuantity = (product: Product): number => {
+  const physical = (product as any)?.inventory?.physicalQuantity;
+  if (typeof physical === 'number' && Number.isFinite(physical)) {
+    return Math.max(0, physical);
+  }
+
   const inventoryQty = product?.inventory?.quantity;
   if (typeof inventoryQty === 'number' && Number.isFinite(inventoryQty)) {
     return Math.max(0, inventoryQty);
@@ -22,10 +37,39 @@ export const getProductQuantity = (product: Product): number => {
   }
 
   if (Array.isArray(product.storageBins) && product.storageBins.length) {
-    return product.storageBins.reduce((sum, bin) => sum + (bin.quantity || 0), 0);
+    return product.storageBins.reduce((sum, bin) => sum + toNumber(bin?.quantity), 0);
   }
 
   return 0;
+};
+
+/**
+ * Reserved quantity from open orders (API-enriched).
+ */
+export const getProductReservedQuantity = (product: Product): number => {
+  const reserved = (product as any)?.inventory?.reservedQuantity;
+  if (typeof reserved === 'number' && Number.isFinite(reserved)) {
+    return Math.max(0, reserved);
+  }
+  return 0;
+};
+
+/**
+ * Available quantity = physical - reserved (API-enriched preferred).
+ */
+export const getProductAvailableQuantity = (product: Product): number => {
+  const available = (product as any)?.inventory?.availableQuantity;
+  if (typeof available === 'number' && Number.isFinite(available)) {
+    return Math.max(0, available);
+  }
+  const physical = getProductPhysicalQuantity(product);
+  const reserved = getProductReservedQuantity(product);
+  return Math.max(0, physical - reserved);
+};
+
+export const getProductQuantity = (product: Product): number => {
+  // Backwards-compatible alias: historically this represented "physical quantity".
+  return getProductPhysicalQuantity(product);
 };
 
 const sanitizeNumeric = (value?: string | number | null): string | null => {

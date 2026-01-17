@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Product, WarehouseLayout, Order } from '../types';
 import { fetchWarehouseZones, fetchOrders as fetchOrdersApi } from '../api/client';
 import { WarehouseIcon, TableIcon, SyncIcon } from './icons/Icons';
-import { getProductQuantity, normalizeSyncStatus } from '../utils/product';
+import { getProductAvailableQuantity, getProductPhysicalQuantity, getProductReservedQuantity, normalizeSyncStatus } from '../utils/product';
 
 interface DashboardProps {
   products: Product[];
@@ -86,7 +86,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
 
   const allProducts = products;
   const stockedProducts = useMemo(
-    () => allProducts.filter((p) => getProductQuantity(p) > 0),
+    () => allProducts.filter((p) => getProductPhysicalQuantity(p) > 0),
     [allProducts]
   );
 
@@ -217,6 +217,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
     syncCounts,
     inventoryQuantity,
     inventoryValue,
+    inventoryPhysicalQuantity,
+    inventoryReservedQuantity,
     primaryCurrency,
     valueByCurrency,
     topCategories,
@@ -228,18 +230,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
     const unsaved = allProducts.filter((p) => !p.ops?.last_saved_iso).length;
     const savedPct = total === 0 ? 0 : Math.round(((total - unsaved) / total) * 100);
     const syncBuckets = { synced: 0, pending: 0, failed: 0 };
-    let qty = 0;
+    let physicalQty = 0;
+    let reservedQty = 0;
+    let availableQty = 0;
     const valueMap = new Map<string, number>();
     const categoryMap = new Map<string, number>();
 
     const topProductList = allProducts
       .map((product) => {
-        const quantity = getProductQuantity(product);
+        const quantityPhysical = getProductPhysicalQuantity(product);
+        const quantityReserved = getProductReservedQuantity(product);
+        const quantityAvailable = getProductAvailableQuantity(product);
         const price = product.details?.pricing?.lowest_price;
-        const itemValue = quantity * (price?.amount ?? 0);
+        // Use available quantity for value (sellable stock). Physical can be higher due to reservations.
+        const itemValue = quantityAvailable * (price?.amount ?? 0);
         const currency = (price?.currency || 'EUR').toUpperCase();
 
-        qty += quantity;
+        physicalQty += quantityPhysical;
+        reservedQty += quantityReserved;
+        availableQty += quantityAvailable;
         valueMap.set(currency, (valueMap.get(currency) ?? 0) + itemValue);
 
         const category = product.identification?.category || 'Unbekannt';
@@ -255,7 +264,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
           id: product.id,
           name: product.identification?.name || product.id,
           sku: product.identification?.sku || product.details?.identifiers?.sku || '—',
-          quantity,
+          quantity: quantityAvailable,
           value: itemValue,
           currency,
         };
@@ -296,7 +305,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
       unsavedCount: unsaved,
       savedPercentage: savedPct,
       syncCounts: syncBuckets,
-      inventoryQuantity: qty,
+      inventoryQuantity: availableQty,
+      inventoryPhysicalQuantity: physicalQty,
+      inventoryReservedQuantity: reservedQty,
       inventoryValue: combinedValue,
       primaryCurrency: mostCommonCurrency,
       valueByCurrency: valueMap,
@@ -363,12 +374,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
           sublabel={`${unsavedCount} ohne Speichernachweis · ${totalStocked} mit Bestand`}
         />
         <DashboardCard
-          label="Bestandseinheiten"
+          label="Bestandseinheiten (verfügbar)"
           value={inventoryQuantity.toString()}
-          sublabel="Aufsummierte Lager­menge"
+          sublabel={`physisch ${inventoryPhysicalQuantity} · reserviert ${inventoryReservedQuantity}`}
         />
         <DashboardCard
-          label="Bestandswert"
+          label="Bestandswert (verfügbar)"
           value={formatCurrency(inventoryValue, primaryCurrency)}
           sublabel={
             valueByCurrency.size > 1
@@ -449,19 +460,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
           {ordersLoading ? (
             <p className="text-sm text-slate-400">Synchronisiere Diagramm …</p>
           ) : (
-            <div className="grid grid-cols-7 gap-3">
-              {orderMetrics.chart.map((day) => (
-                <div key={day.key} className="flex flex-col items-center gap-2">
-                  <div className="w-full h-24 bg-slate-900 rounded-full overflow-hidden flex items-end">
-                    <span
-                      className="w-full bg-sky-500 rounded-full transition-all"
-                      style={{ height: `${(day.count / orderMetrics.maxChartCount) * 100 || 4}%` }}
-                    />
+            <div className="overflow-x-auto">
+              <div className="grid grid-cols-7 gap-3 min-w-[560px]">
+                {orderMetrics.chart.map((day) => (
+                  <div key={day.key} className="flex flex-col items-center gap-2">
+                    <div className="w-full h-24 bg-slate-900 rounded-full overflow-hidden flex items-end">
+                      <span
+                        className="w-full bg-sky-500 rounded-full transition-all"
+                        style={{ height: `${(day.count / orderMetrics.maxChartCount) * 100 || 4}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-400">{day.label}</span>
+                    <span className="text-xs font-semibold text-white">{day.count}</span>
                   </div>
-                  <span className="text-xs text-slate-400">{day.label}</span>
-                  <span className="text-xs font-semibold text-white">{day.count}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>
