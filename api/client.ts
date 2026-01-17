@@ -716,51 +716,59 @@ export const syncToBaseLinker = async (
     const products = Array.isArray(productOrProducts) ? productOrProducts : [productOrProducts];
 
     if (import.meta.env.DEV) {
-      console.log('API CALL: /api/sync-baselinker', { count: products.length, inventoryId: inv });
+      console.log('API CALL: /api/baselinker/sync/jobs', { count: products.length, inventoryId: inv });
     }
 
-    // Backend also chunks internally to avoid request timeouts.
-    // Keep client chunks SMALL to prevent Cloud Run / proxy timeouts and to avoid sending huge payloads.
-    const CHUNK_SIZE = 5;
-    const allResults: Array<{ id: string; status: 'synced' | 'failed'; message?: string }> = [];
-
-    for (let i = 0; i < products.length; i += CHUNK_SIZE) {
-      const chunk = products.slice(i, i + CHUNK_SIZE);
-      // Send ONLY product IDs to keep payload tiny and stable.
-      // Backend will load canonical Firestore docs (contains latest saved description, linkage, etc.).
-      const ids = chunk.map((p) => p?.id).filter(Boolean) as string[];
-      const payload =
-        ids.length === 1 && chunk.length === 1
-          ? { productId: ids[0], inventoryId: inv }
-          : { productIds: ids, inventoryId: inv };
-
-    response = await fetch(`${BACKEND_URL}/api/sync-baselinker`, {
+    // Always use async jobs to avoid long-running HTTP requests (prevents browser/proxy "failed to fetch").
+    const ids = products.map((p) => p?.id).filter(Boolean) as string[];
+    response = await fetch(`${BACKEND_URL}/api/baselinker/sync/jobs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ productIds: ids, inventoryId: inv }),
     });
 
-    const result = await parseResponse(response);
+    const created = await parseResponse(response);
 
     if (!response.ok) {
-      throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
+      throw new Error(created?.error?.message || `Request failed with status ${response.status}`);
     }
 
-      if (Array.isArray(result?.results)) {
-        allResults.push(...result.results);
+    const jobId = created?.jobId;
+    if (!jobId) {
+      throw new Error('Backend returned invalid sync job response (jobId missing).');
+    }
+
+    // Poll job until done/failed
+    const startedAt = Date.now();
+    const TIMEOUT_MS = 12 * 60 * 1000; // 12 minutes
+    while (Date.now() - startedAt < TIMEOUT_MS) {
+      const jobRes = await fetch(`${BACKEND_URL}/api/baselinker/sync/jobs/${encodeURIComponent(jobId)}`, {
+        method: 'GET',
+      });
+      const jobPayload = await parseResponse(jobRes);
+      if (!jobRes.ok) {
+        throw new Error(jobPayload?.error?.message || 'Failed to load sync job status.');
       }
+      const job = jobPayload?.data;
+      const status = job?.status;
+      if (status === 'done' || status === 'failed') {
+        const results = Array.isArray(job?.result?.results) ? job.result.results : [];
+        const failed = results.filter((r: any) => r.status === 'failed');
+        return {
+          ok: failed.length === 0 && status === 'done',
+          results,
+          error:
+            failed.length > 0 || status === 'failed'
+              ? { code: 502, message: failed.map((f: any) => `${f.id}: ${f.message || 'Sync failed'}`).join(' | ') || (job?.error?.message || 'Sync failed') }
+              : undefined,
+        };
+      }
+      await new Promise((r) => setTimeout(r, 1200));
     }
 
-    const failed = allResults.filter((r) => r.status === 'failed');
-    return {
-      ok: failed.length === 0,
-      results: allResults,
-      error: failed.length
-        ? { code: 502, message: failed.map((f) => `${f.id}: ${f.message || 'Sync failed'}`).join(' | ') }
-        : undefined,
-    };
+    throw new Error('Sync job timed out while waiting for completion.');
 
   } catch (error) {
     console.error('Failed to sync to BaseLinker:', error);

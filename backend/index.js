@@ -56,7 +56,9 @@ const { fetchWithUnlocker } = require('./lib/web-unlocker');
 const { enqueueJob, startJobRunner } = require('./services/job-runner');
 const { enqueueImproveJob, startImproveRunner } = require('./services/improve-runner');
 const { enqueueQualityJob, startQualityRunner } = require('./services/quality-runner');
+const { enqueueBaseLinkerSyncJob, startBaseLinkerSyncRunner } = require('./services/baselinker-sync-runner');
 const { createJob: createQualityJob, getJob: getQualityJob, Timestamp: QualityTimestamp, updateJob: updateQualityJob } = require('./lib/quality-jobs');
+const { createJob: createBaseLinkerSyncJob, getJob: getBaseLinkerSyncJob, updateJob: updateBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('./lib/baselinker-sync-jobs');
 const {
   createWarehouseLayout,
   listWarehouseZones,
@@ -770,6 +772,7 @@ const ktypeUploadMiddleware = (req, res, next) =>
 startJobRunner();
 startImproveRunner();
 startQualityRunner();
+startBaseLinkerSyncRunner();
 syncInventoriesFromBaseLinker()
   .then((result) => {
     console.log(`Initial inventory sync completed (${result.fetched} entries)`);
@@ -1537,6 +1540,82 @@ app.post('/api/generate-images', async (req, res) => {
 
 // --- BaseLinker sync endpoint ---
 const { syncProductToBaseLinker, syncProductsToBaseLinker, findProductsBySkus } = require('./lib/baselinker');
+
+// --- BaseLinker sync jobs (async, resilient) ---
+app.post('/api/baselinker/sync/jobs', async (req, res) => {
+  try {
+    const { productIds, inventoryId } = req.body || {};
+    const invId = String(inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'productIds array required' },
+      });
+    }
+
+    const ids = Array.from(new Set(productIds.map((id) => String(id).trim()).filter(Boolean))).slice(0, 500);
+    const job = await createBaseLinkerSyncJob({
+      payload: { productIds: ids, inventoryId: invId },
+      status: 'pending',
+      stage: 'queued',
+      progress: { total: ids.length, processed: 0, synced: 0, failed: 0 },
+      requestedBy: 'ui',
+      createdAt: BaseLinkerSyncTimestamp.now(),
+      updatedAt: BaseLinkerSyncTimestamp.now(),
+    });
+    enqueueBaseLinkerSyncJob(job.id, true);
+    return res.status(202).json({ ok: true, jobId: job.id });
+  } catch (error) {
+    console.error('Failed to create BaseLinker sync job:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to create BaseLinker sync job', details: error.message },
+    });
+  }
+});
+
+app.get('/api/baselinker/sync/jobs/:id', async (req, res) => {
+  try {
+    const job = await getBaseLinkerSyncJob(String(req.params.id));
+    if (!job) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'Job not found' } });
+    }
+    return res.status(200).json({ ok: true, data: job });
+  } catch (error) {
+    console.error('Failed to load BaseLinker sync job:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to load BaseLinker sync job', details: error.message },
+    });
+  }
+});
+
+app.post('/api/baselinker/sync/jobs/:id/retry', async (req, res) => {
+  try {
+    const jobId = String(req.params.id);
+    const job = await getBaseLinkerSyncJob(jobId);
+    if (!job) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'Job not found' } });
+    }
+    await updateBaseLinkerSyncJob(jobId, {
+      status: 'pending',
+      stage: 'queued',
+      startedAt: null,
+      finishedAt: null,
+      error: null,
+      result: null,
+      progress: job?.progress || { total: 0, processed: 0, synced: 0, failed: 0 },
+    });
+    enqueueBaseLinkerSyncJob(jobId, true);
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('Failed to retry BaseLinker sync job:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to retry BaseLinker sync job', details: error.message },
+    });
+  }
+});
 
 app.post('/api/sync-baselinker', async (req, res) => {
   console.log('Received request on /api/sync-baselinker');
@@ -2993,6 +3072,13 @@ app.get('/api/orders', async (req, res) => {
 app.get('/api/dashboard/metrics', async (req, res) => {
   try {
     const days = Math.min(Math.max(parseInt(req.query?.days || '7', 10) || 7, 1), 60);
+    // Best-effort: trigger order sync in background so metrics converge to BaseLinker truth.
+    // Do NOT await (avoid slow dashboard loads).
+    try {
+      backgroundSyncOrders();
+    } catch {
+      // ignore
+    }
     const metrics = await getDashboardMetrics({ days });
     res.setHeader('Cache-Control', 'no-store');
     res.json({ ok: true, data: metrics });

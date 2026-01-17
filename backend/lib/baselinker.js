@@ -1682,12 +1682,13 @@ async function syncProductToBaseLinker(product, inventoryId) {
 /**
  * Mehrere Produkte synchronisieren
  */
-async function syncProductsToBaseLinker(products, inventoryId) {
+async function syncProductsToBaseLinker(products, inventoryId, options = {}) {
   const results = new Array(products.length);
   const concurrency = Math.max(1, parseInt(process.env.BASELINKER_SYNC_CONCURRENCY || '3', 10));
   let index = 0;
   const logProgress =
     (process.env.BASELINKER_SYNC_LOG_PROGRESS ?? 'false').toString().toLowerCase() === 'true';
+  const onProgress = typeof options?.onProgress === 'function' ? options.onProgress : null;
 
   const worker = async () => {
     while (true) {
@@ -1699,7 +1700,15 @@ async function syncProductsToBaseLinker(products, inventoryId) {
         const sku = pickSku(product) || '';
         console.log(`[baselinker] (${current + 1}/${products.length}) syncing id=${product?.id || ''} sku=${sku}`);
       }
-      results[current] = await syncProductToBaseLinker(product, inventoryId);
+      const result = await syncProductToBaseLinker(product, inventoryId);
+      results[current] = result;
+      if (onProgress) {
+        try {
+          await onProgress({ index: current, total: products.length, result });
+        } catch {
+          // ignore progress callback errors
+        }
+      }
     }
   };
 

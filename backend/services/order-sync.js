@@ -1,6 +1,6 @@
 const { callBaseLinker } = require('../lib/baselinker');
 const { getSecrets } = require('../lib/secrets');
-const { saveOrders, getOrderById, updateOrder, listOrders, listOrdersByStatus } = require('../lib/firestore');
+const { saveOrders, getOrderById, updateOrder, listOrders, listOrdersByStatus, firestore } = require('../lib/firestore');
 const { decrementProductByIdOrSku } = require('../lib/warehouse');
 
 // Increase lookback to ensure older shipped/picked orders are included for stock cleanup
@@ -11,10 +11,14 @@ const ORDER_STATUS_ID_CACHE = {
   new: null,
   picked: null,
   cancelled: null,
+  shipped: null,
+  delivered: null,
 };
 
 const DEFAULT_PICKED_STATUS_ID = '363183'; // BaseLinker status "Kommissioniert"
 const DEFAULT_CANCELLED_LABEL = 'Storniert';
+const DEFAULT_SHIPPED_LABEL = 'Versendet';
+const DEFAULT_DELIVERED_LABEL = 'Zugestellt';
 const ORDER_STATUS_NAME_CACHE = {
   byId: new Map(), // string id -> name
   loadedAtMs: 0,
@@ -224,6 +228,44 @@ async function syncNewOrders() {
     }
   }
 
+  // Resolve shipped + delivered statuses so cached orders get updated as they move through the pipeline.
+  // Without this, many orders remain stuck as "Kommissioniert" even after they were shipped/delivered in BaseLinker.
+  let baseOrderStatusShipped = normalizeStatusIdInput(secrets.baseOrderStatusShipped);
+  if (baseOrderStatusShipped) {
+    ORDER_STATUS_ID_CACHE.shipped = baseOrderStatusShipped;
+  } else if (!ORDER_STATUS_ID_CACHE.shipped) {
+    const labelFallback =
+      typeof secrets.baseOrderStatusShipped === 'string' && secrets.baseOrderStatusShipped.trim()
+        ? secrets.baseOrderStatusShipped.trim()
+        : null;
+    baseOrderStatusShipped = await resolveOrderStatusIdByName(
+      'shipped',
+      labelFallback ? undefined : 'BASE_ORDER_STATUS_SHIPPED_NAME',
+      labelFallback || DEFAULT_SHIPPED_LABEL
+    );
+    if (baseOrderStatusShipped) {
+      ORDER_STATUS_ID_CACHE.shipped = baseOrderStatusShipped;
+    }
+  }
+
+  let baseOrderStatusDelivered = normalizeStatusIdInput(secrets.baseOrderStatusDelivered);
+  if (baseOrderStatusDelivered) {
+    ORDER_STATUS_ID_CACHE.delivered = baseOrderStatusDelivered;
+  } else if (!ORDER_STATUS_ID_CACHE.delivered) {
+    const labelFallback =
+      typeof secrets.baseOrderStatusDelivered === 'string' && secrets.baseOrderStatusDelivered.trim()
+        ? secrets.baseOrderStatusDelivered.trim()
+        : null;
+    baseOrderStatusDelivered = await resolveOrderStatusIdByName(
+      'delivered',
+      labelFallback ? undefined : 'BASE_ORDER_STATUS_DELIVERED_NAME',
+      labelFallback || DEFAULT_DELIVERED_LABEL
+    );
+    if (baseOrderStatusDelivered) {
+      ORDER_STATUS_ID_CACHE.delivered = baseOrderStatusDelivered;
+    }
+  }
+
   const dateFrom = Math.floor(Date.now() / 1000) - DEFAULT_ORDER_LOOKBACK_DAYS * 24 * 60 * 60;
 
   // We keep open orders up-to-date. BaseLinker getOrders supports filtering by status_id (official docs).
@@ -266,23 +308,29 @@ async function syncNewOrders() {
 
   const orders = [];
 
-  // Fetch "new" orders (preferred: status filter).
-  orders.push(...(await fetchByStatus({ statusId: shouldFilterStatus ? baseOrderStatusNew : null, dateFromCursor: dateFrom })));
+  // Fetch the entire operational pipeline in the lookback window (NEW → PICKED → SHIPPED → DELIVERED + CANCELLED).
+  // This prevents stale status labels and incorrect dashboard counts.
+  const statusIdsToRefresh = Array.from(
+    new Set(
+      [
+        shouldFilterStatus ? baseOrderStatusNew : null,
+        baseOrderStatusPicked,
+        baseOrderStatusShipped,
+        baseOrderStatusDelivered,
+        baseOrderStatusCancelled,
+      ]
+        .filter(Boolean)
+        .map((v) => String(v))
+    )
+  );
 
-  // Optional: refresh recently closed/picked orders in cache so they disappear from "open" UI even if they moved out of NEW.
-  const PICKED_REFRESH_DAYS = parseInt(process.env.ORDER_SYNC_PICKED_REFRESH_DAYS || '14', 10);
-  const pickedLookback = Math.max(1, Math.min(PICKED_REFRESH_DAYS, DEFAULT_ORDER_LOOKBACK_DAYS));
-  const pickedDateFrom = Math.floor(Date.now() / 1000) - pickedLookback * 24 * 60 * 60;
-  if (baseOrderStatusPicked) {
-    orders.push(...(await fetchByStatus({ statusId: baseOrderStatusPicked, dateFromCursor: pickedDateFrom })));
-  }
-
-  // Optional: refresh recently cancelled orders, so they no longer appear as open.
-  const CANCELLED_REFRESH_DAYS = parseInt(process.env.ORDER_SYNC_CANCELLED_REFRESH_DAYS || '30', 10);
-  const cancelledLookback = Math.max(1, Math.min(CANCELLED_REFRESH_DAYS, DEFAULT_ORDER_LOOKBACK_DAYS));
-  const cancelledDateFrom = Math.floor(Date.now() / 1000) - cancelledLookback * 24 * 60 * 60;
-  if (baseOrderStatusCancelled) {
-    orders.push(...(await fetchByStatus({ statusId: baseOrderStatusCancelled, dateFromCursor: cancelledDateFrom })));
+  if (statusIdsToRefresh.length) {
+    for (const sid of statusIdsToRefresh) {
+      orders.push(...(await fetchByStatus({ statusId: sid, dateFromCursor: dateFrom })));
+    }
+  } else {
+    // fallback: no status IDs could be resolved → fetch all orders in window
+    orders.push(...(await fetchByStatus({ statusId: null, dateFromCursor: dateFrom })));
   }
 
   // IMPORTANT (official docs):
@@ -375,6 +423,35 @@ async function syncNewOrders() {
   });
 
   await saveOrders(orders);
+
+  // Prune old orders beyond lookback window to keep dashboard counts consistent and prevent unbounded growth.
+  // This is best-effort and safe: it only deletes very old orders that are outside our sync window anyway.
+  try {
+    const pruneEnabled = (process.env.ORDER_SYNC_PRUNE_OLD ?? 'true').toString().toLowerCase() === 'true';
+    if (pruneEnabled) {
+      const cutoffIso = new Date(Date.now() - DEFAULT_ORDER_LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
+      let deleted = 0;
+      // Delete in small batches to avoid timeouts.
+      while (deleted < 2000) {
+        const snap = await firestore
+          .collection('orders')
+          .where('createdAt', '<', cutoffIso)
+          .limit(200)
+          .get();
+        if (snap.empty) break;
+        const batch = firestore.batch();
+        snap.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+        deleted += snap.docs.length;
+        if (snap.docs.length < 200) break;
+      }
+      if (deleted > 0) {
+        console.log(`[order-sync] pruned old orders: ${deleted} (cutoff ${cutoffIso})`);
+      }
+    }
+  } catch (error) {
+    console.warn('Order prune pass failed:', error?.message || error);
+  }
 
   // Repair pass for historical cache artifacts:
   // Older versions mistakenly stored the constant "order_source_id" (shop/source id) as order.number (e.g. 10129).
