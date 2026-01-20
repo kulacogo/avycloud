@@ -16,7 +16,7 @@ const { getAllProducts } = require('../lib/firestore');
 const { syncProductsToBigCommerce } = require('../lib/bigcommerce');
 
 function parseArgs(argv) {
-  const args = { minStock: 0, limit: null, offset: 0 };
+  const args = { minStock: 0, limit: null, offset: 0, skipInvalid: true };
   for (let i = 2; i < argv.length; i += 1) {
     const t = argv[i];
     if (t === '--minStock') {
@@ -27,6 +27,10 @@ function parseArgs(argv) {
       i += 1;
     } else if (t === '--offset') {
       args.offset = Number(argv[i + 1] || '0');
+      i += 1;
+    } else if (t === '--skipInvalid') {
+      const v = String(argv[i + 1] || 'true').trim().toLowerCase();
+      args.skipInvalid = !(v === '0' || v === 'false' || v === 'no');
       i += 1;
     }
   }
@@ -49,16 +53,50 @@ function computeAvailableQty(product) {
   return 0;
 }
 
+function pickSku(product) {
+  return (product?.identification?.sku || product?.details?.identifiers?.sku || '').toString().trim();
+}
+
+function pickPrice(product) {
+  const a = product?.details?.pricing?.lowest_price?.amount;
+  if (typeof a === 'number' && Number.isFinite(a) && a > 0) return a;
+  const legacy = product?.details?.pricing?.price;
+  if (typeof legacy === 'number' && Number.isFinite(legacy) && legacy > 0) return legacy;
+  return null;
+}
+
+function pickWeight(product) {
+  const w = product?.details?.weight ?? product?.details?.attributes?.weight ?? product?.ops?.weight ?? null;
+  const n = typeof w === 'number' ? w : w == null ? null : Number(String(w).trim());
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 async function main() {
   const args = parseArgs(process.argv);
 
   const products = await getAllProducts();
-  const filtered = products.filter((p) => computeAvailableQty(p) >= args.minStock);
+  const stats = { total: products.length, eligible: 0, skippedInvalid: 0, skippedDisabled: 0 };
+  const filtered = products.filter((p) => {
+    if (computeAvailableQty(p) < args.minStock) return false;
+    stats.eligible += 1;
+    if (p?.ops?.bigcommerce?.disabled) {
+      stats.skippedDisabled += 1;
+      return false;
+    }
+    if (!args.skipInvalid) return true;
+    const sku = pickSku(p);
+    const name = (p?.identification?.name || '').toString().trim();
+    const price = pickPrice(p);
+    const weight = pickWeight(p);
+    const ok = Boolean(sku && name && price != null && weight != null);
+    if (!ok) stats.skippedInvalid += 1;
+    return ok;
+  });
 
   const sliced = filtered.slice(args.offset, args.limit ? args.offset + args.limit : undefined);
 
   console.log(
-    `[bigcommerce-initial-sync] loaded=${products.length} eligible=${filtered.length} syncing=${sliced.length} minStock=${args.minStock} offset=${args.offset} limit=${args.limit ?? '∞'}`
+    `[bigcommerce-initial-sync] loaded=${products.length} eligible=${filtered.length} syncing=${sliced.length} minStock=${args.minStock} offset=${args.offset} limit=${args.limit ?? '∞'} skipInvalid=${args.skipInvalid} skippedInvalid=${stats.skippedInvalid} skippedDisabled=${stats.skippedDisabled}`
   );
 
   let processed = 0;

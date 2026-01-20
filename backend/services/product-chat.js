@@ -1040,6 +1040,17 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     }
   }
 
+  // K-Typ enrichment fallback for chat (auto parts) so the assistant can propose K-Typ in updates.
+  try {
+    const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
+    await enrichKTypIfPossible(product, { reason: 'chat' });
+  } catch (e) {
+    // Never block chat due to enrichment issues.
+    if (process.env.DEBUG_KTYPE) {
+      console.warn('[chat] K-Typ enrichment failed (continuing):', e?.message || e);
+    }
+  }
+
   const productContext = buildProductContext(product, {
     attachments: attachmentPayload.summary,
     mode: conversationMode,

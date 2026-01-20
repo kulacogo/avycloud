@@ -1684,6 +1684,21 @@ async function updateProductBigCommerceSyncStatus(
   }
 }
 
+async function setProductBigCommerceDisabled(productId, disabled, { reason = '' } = {}) {
+  const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
+  const updateData = {
+    'ops.bigcommerce.disabled': Boolean(disabled),
+  };
+  if (disabled) {
+    updateData['ops.bigcommerce.disabled_at_iso'] = new Date().toISOString();
+    if (reason) updateData['ops.bigcommerce.disabled_reason'] = String(reason).trim();
+  } else {
+    updateData['ops.bigcommerce.disabled_at_iso'] = null;
+    updateData['ops.bigcommerce.disabled_reason'] = null;
+  }
+  await docRef.update(updateData);
+}
+
 async function findProductByIdentityKey(identityKey) {
   if (!identityKey) return null;
   const snapshot = await firestore
@@ -2470,6 +2485,7 @@ module.exports = {
   deleteProduct,
   updateProductSyncStatus,
   updateProductBigCommerceSyncStatus,
+  setProductBigCommerceDisabled,
   findProductByIdentityKey,
   findProductByIdentityAliases,
   findProductIdsByAliases,

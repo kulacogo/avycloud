@@ -142,11 +142,24 @@ async function findOrCreateBrandId(brandName) {
   if (match?.id) return match.id;
 
   // Docs: POST /catalog/brands requires `name`
-  const created = await callBigCommerce(`/catalog/brands`, {
-    method: 'POST',
-    body: { name },
-  });
-  return created?.data?.id || null;
+  try {
+    const created = await callBigCommerce(`/catalog/brands`, {
+      method: 'POST',
+      body: { name },
+    });
+    return created?.data?.id || null;
+  } catch (e) {
+    // Duplicate brand names can happen due to normalization rules; recover by re-querying.
+    const msg = String(e?.message || '');
+    if (msg.includes('(409)') || /duplicate brand/i.test(msg) || /duplicate/i.test(msg)) {
+      const retry = await callBigCommerce(`/catalog/brands?name=${encodeURIComponent(name)}`, { method: 'GET' });
+      const list2 = Array.isArray(retry?.data) ? retry.data : [];
+      const m2 =
+        list2.find((b) => String(b?.name || '').trim().toLowerCase() === name.toLowerCase()) || list2[0];
+      return m2?.id || null;
+    }
+    throw e;
+  }
 }
 
 async function listProductImages(productId) {
@@ -165,6 +178,15 @@ async function addProductImage(productId, image) {
     method: 'POST',
     body: image,
   });
+}
+
+async function getBigCommerceProduct(productId, { include = [] } = {}) {
+  const id = String(productId || '').trim();
+  if (!id) return null;
+  const includeParts = Array.isArray(include) ? include.filter(Boolean) : [];
+  const qs = includeParts.length ? `?include=${encodeURIComponent(includeParts.join(','))}` : '';
+  const payload = await callBigCommerce(`/catalog/products/${encodeURIComponent(id)}${qs}`, { method: 'GET' });
+  return payload?.data || null;
 }
 
 let cachedGuessedCategoryId = null;
@@ -247,6 +269,8 @@ function pickWeight(product) {
 }
 
 function pickImages(product, max = 10) {
+  const envMax = parseInt(process.env.BIGCOMMERCE_MAX_IMAGES || '', 10);
+  const effectiveMax = Number.isFinite(envMax) && envMax > 0 ? envMax : max;
   const imgs = Array.isArray(product?.details?.images) ? product.details.images : [];
   const urls = imgs
     .map((img) => safeString(img?.url_or_base64))
@@ -257,9 +281,88 @@ function pickImages(product, max = 10) {
     if (seen.has(u)) continue;
     seen.add(u);
     out.push(u);
-    if (out.length >= max) break;
+    if (out.length >= effectiveMax) break;
   }
   return out;
+}
+
+function pickHighlights(product) {
+  const list = Array.isArray(product?.details?.key_features) ? product.details.key_features : [];
+  return list.map((x) => safeString(x)).filter(Boolean);
+}
+
+function pickEanGtin(product) {
+  const ids = product?.details?.identifiers || {};
+  return {
+    ean: safeString(ids.ean),
+    gtin: safeString(ids.gtin),
+    upc: safeString(ids.upc),
+  };
+}
+
+function pickMpn(product) {
+  const ids = product?.details?.identifiers || {};
+  const attrs = product?.details?.attributes || {};
+  return safeString(ids.mpn) || safeString(attrs.Herstellernummer) || safeString(attrs.MPN) || '';
+}
+
+function pickKTyp(product) {
+  const attrs = product?.details?.attributes || {};
+  const key = Object.keys(attrs || {}).find((k) => {
+    const lower = String(k || '').trim().toLowerCase();
+    return lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ';
+  });
+  return key ? safeString(attrs[key]) : '';
+}
+
+function buildCustomFieldsFromProduct(product) {
+  const fields = [];
+  const ktyp = pickKTyp(product);
+  const mpn = pickMpn(product);
+  const { ean, gtin, upc } = pickEanGtin(product);
+  const highlights = pickHighlights(product);
+
+  const push = (name, value) => {
+    let v = safeString(value);
+    if (!v) return;
+    // BigCommerce custom_fields values are validated; keep them compact and safe.
+    v = v.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n+/g, ' | ').replace(/\s+/g, ' ').trim();
+    const MAX_LEN = 250;
+    if (v.length > MAX_LEN) v = `${v.slice(0, MAX_LEN - 1)}…`;
+    fields.push({ name, value: v });
+  };
+
+  push('K-Typ', ktyp);
+  push('MPN', mpn);
+  push('EAN', ean);
+  push('GTIN', gtin);
+  push('UPC', upc);
+  if (highlights.length) {
+    push('Highlights', highlights.join(' | '));
+  }
+  return fields;
+}
+
+function mergeCustomFields(existingFields = [], desiredFields = []) {
+  const existing = Array.isArray(existingFields) ? existingFields : [];
+  const desired = Array.isArray(desiredFields) ? desiredFields : [];
+  const byName = new Map();
+  for (const f of existing) {
+    const n = safeString(f?.name);
+    if (!n) continue;
+    // Preserve BigCommerce custom field `id` so PUT can update instead of trying to create duplicates.
+    const id = f?.id ?? null;
+    byName.set(n.toLowerCase(), { ...(id ? { id } : {}), name: n, value: safeString(f?.value) });
+  }
+  for (const f of desired) {
+    const n = safeString(f?.name);
+    if (!n) continue;
+    const key = n.toLowerCase();
+    const prev = byName.get(key) || null;
+    // If the field already exists, keep its id.
+    byName.set(key, { ...(prev?.id ? { id: prev.id } : {}), name: n, value: safeString(f?.value) });
+  }
+  return Array.from(byName.values()).filter((f) => f.name && f.value);
 }
 
 function buildCreatePayloadFromProduct(product, { categoryId = null, brandId = null } = {}) {
@@ -269,7 +372,8 @@ function buildCreatePayloadFromProduct(product, { categoryId = null, brandId = n
   const weight = pickWeight(product);
   const description = safeString(product?.details?.description) || safeString(product?.details?.short_description) || '';
   const qty = computeAvailableQty(product);
-  const images = pickImages(product, 10);
+  const images = pickImages(product, 50);
+  const customFields = buildCustomFieldsFromProduct(product);
 
   const missing = [];
   if (!sku) missing.push('sku');
@@ -297,6 +401,7 @@ function buildCreatePayloadFromProduct(product, { categoryId = null, brandId = n
     inventory_tracking: 'product',
     inventory_level: qty,
     ...(brandId ? { brand_id: brandId } : {}),
+    ...(customFields.length ? { custom_fields: customFields } : {}),
     // For create, attach images directly (docs allow `images` array on POST/PUT)
     images: images.map((url, i) => ({
       image_url: url,
@@ -316,6 +421,7 @@ function buildUpdatePayloadFromProduct(product, { categoryId = null, brandId = n
   const weight = pickWeight(product);
   const description = safeString(product?.details?.description) || safeString(product?.details?.short_description) || '';
   const qty = computeAvailableQty(product);
+  const customFields = buildCustomFieldsFromProduct(product);
 
   const missing = [];
   if (!sku) missing.push('sku');
@@ -336,6 +442,7 @@ function buildUpdatePayloadFromProduct(product, { categoryId = null, brandId = n
     inventory_level: qty,
     ...(brandId ? { brand_id: brandId } : {}),
     ...(Number.isFinite(categoryId) ? { categories: [categoryId] } : {}),
+    ...(customFields.length ? { custom_fields: customFields } : {}),
   };
 
   return { ok: missing.length === 0, missing, payload };
@@ -356,6 +463,20 @@ async function updateBigCommerceProduct(productId, payload) {
   return res?.data || null;
 }
 
+async function deleteBigCommerceProductById(productId) {
+  const id = String(productId || '').trim();
+  if (!id) throw new Error('Missing BigCommerce productId');
+  await callBigCommerce(`/catalog/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return true;
+}
+
+async function deleteBigCommerceProductBySku(sku) {
+  const existing = await findBigCommerceProductBySku(sku);
+  if (!existing?.id) return { ok: false, reason: 'not_found' };
+  await deleteBigCommerceProductById(existing.id);
+  return { ok: true, id: existing.id };
+}
+
 async function syncImagesNonDestructive(productId, imageUrls) {
   const urls = Array.isArray(imageUrls) ? imageUrls.filter(Boolean) : [];
   if (!urls.length) return { added: 0, skipped: 0 };
@@ -365,6 +486,10 @@ async function syncImagesNonDestructive(productId, imageUrls) {
   );
   let added = 0;
   let skipped = 0;
+  const isRateLimit = (err) => {
+    const msg = String(err?.message || '');
+    return msg.includes('(429)') || msg.includes('HTTP 429') || /rate/i.test(msg);
+  };
   for (let i = 0; i < urls.length; i += 1) {
     const u = safeString(urls[i]);
     if (!u) continue;
@@ -372,13 +497,34 @@ async function syncImagesNonDestructive(productId, imageUrls) {
       skipped += 1;
       continue;
     }
-    await addProductImage(productId, {
+    // Avoid rate limits: small pacing + retry on 429.
+    const payload = {
       image_url: u,
       is_thumbnail: false,
       sort_order: existing.length + added + 1,
       description: '',
-    });
-    added += 1;
+    };
+    let ok = false;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await addProductImage(productId, payload);
+        ok = true;
+        break;
+      } catch (e) {
+        if (isRateLimit(e) && attempt < 2) {
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise((r) => setTimeout(r, 2500 * (attempt + 1)));
+          continue;
+        }
+        throw e;
+      }
+    }
+    if (ok) {
+      added += 1;
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 250));
+    }
   }
   return { added, skipped };
 }
@@ -391,6 +537,10 @@ async function syncProductToBigCommerce(product) {
   const sku = pickSku(product);
   if (!sku) {
     return { id: product?.id, status: 'failed', message: 'Missing SKU (identification.sku)' };
+  }
+
+  if (product?.ops?.bigcommerce?.disabled) {
+    return { id: product?.id, status: 'failed', message: 'BigCommerce sync disabled for this product.' };
   }
 
   const cfg = getBigCommerceConfig();
@@ -409,7 +559,7 @@ async function syncProductToBigCommerce(product) {
   let existing = null;
   if (linkedId) {
     try {
-      const loaded = await callBigCommerce(`/catalog/products/${encodeURIComponent(String(linkedId))}`, { method: 'GET' });
+      const loaded = await callBigCommerce(`/catalog/products/${encodeURIComponent(String(linkedId))}?include=custom_fields`, { method: 'GET' });
       existing = loaded?.data || null;
     } catch {
       existing = null;
@@ -450,8 +600,18 @@ async function syncProductToBigCommerce(product) {
     };
   }
 
+  // Merge custom fields non-destructively: preserve existing custom fields and upsert ours.
+  if (built?.payload?.custom_fields) {
+    const existingFull =
+      existing?.custom_fields
+        ? existing
+        : await getBigCommerceProduct(existing.id, { include: ['custom_fields'] }).catch(() => existing);
+    const existingFields = Array.isArray(existingFull?.custom_fields) ? existingFull.custom_fields : [];
+    built.payload.custom_fields = mergeCustomFields(existingFields, built.payload.custom_fields);
+  }
+
   const updated = await updateBigCommerceProduct(existing.id, built.payload);
-  const imgs = pickImages(product, 10);
+  const imgs = pickImages(product, 50);
   try {
     await syncImagesNonDestructive(existing.id, imgs);
   } catch (e) {
@@ -504,6 +664,8 @@ module.exports = {
   getBigCommerceConfig,
   callBigCommerce,
   findBigCommerceProductBySku,
+  deleteBigCommerceProductBySku,
+  deleteBigCommerceProductById,
   syncProductToBigCommerce,
   syncProductsToBigCommerce,
 };
