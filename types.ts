@@ -124,6 +124,11 @@ export interface Ops {
     matched_sku?: string | null;
     matched_ean?: string | null;
   };
+  bigcommerce?: {
+    product_id?: number | string | null;
+    sync_status?: SyncStatus;
+    last_synced_iso?: string | null;
+  };
   pending_intake_quantity?: number;
   revision: number;
   data_quality?: DataQualityOps;

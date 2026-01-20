@@ -1,0 +1,53 @@
+﻿Es gibt zwei Hauptwege, um Bildern Produkten über die API zuzuordnen: Entweder direkt bei der Erstellung/Aktualisierung des Hauptproduktes oder über die dedizierten Bild-Endpunkte.
+Hier ist die granulare Dokumentation für beide Methoden.
+1. Methode: Bilder beim Erstellen/Aktualisieren des Produkts zuweisen
+Sie können das images-Array direkt im Body der Anfrage senden, wenn Sie ein Produkt erstellen (POST) oder aktualisieren (PUT). Dies ist effizient, wenn Sie ein Produkt neu anlegen und sofort mit Bildern versehen möchten.
+* Endpunkt: /catalog/products (für Erstellung) oder /catalog/products/{product_id} (für Updates)
+* Methode: POST oder PUT
+* Wichtige Limits: Ein Produkt kann bis zu 1.000 Bilder enthalten. Jede Bilddatei oder per URL hochgeladenes Bild darf maximal 8 MB groß sein 1, 2.
+Code Snippet (JSON Body):Hier wird ein Produkt erstellt und gleichzeitig ein Bild über eine öffentliche URL zugewiesen.
+{
+  "name": "Sommer T-Shirt",
+  "type": "physical",
+  "weight": 0.5,
+  "price": 19.99,
+  "images": [
+    {
+      "image_url": "https://cdn.beispiel.com/images/tshirt_front.jpg",
+      "is_thumbnail": true,
+      "sort_order": 1,
+      "description": "Vorderansicht des T-Shirts"
+    },
+    {
+      "image_url": "https://cdn.beispiel.com/images/tshirt_back.jpg",
+      "sort_order": 2,
+      "description": "Rückansicht"
+    }
+  ]
+}
+2. Methode: Nutzung der dedizierten Bild-Endpunkte
+Für eine feinere Kontrolle oder um Bilder zu einem bestehenden Produkt hinzuzufügen, ohne die Produktdaten neu zu senden, nutzen Sie die spezifischen Product Image-Ressourcen 3, 4.
+Schritt A: Ein Bild erstellen (Hinzufügen)Senden Sie eine POST-Anfrage an den Bild-Endpunkt des spezifischen Produkts.
+* Endpunkt: /catalog/products/{product_id}/images
+* Funktion: Ermöglicht das Hochladen eines Bildes per URL (image_url) oder als Datei-Upload (Multipart/Form-Data, wird oft in der API-Referenz als image_file bezeichnet, auch wenn der Text hier primär den URL-Upload hervorhebt 1).
+Code Snippet (Bild per URL hinzufügen):
+{
+  "image_url": "https://cdn.beispiel.com/neues-bild.png",
+  "is_thumbnail": false,
+  "sort_order": 3,
+  "description": "Detailansicht Stoff"
+}
+Schritt B: Bilder abrufenUm alle Bilder eines Produkts zu sehen, verwenden Sie GET.
+* Endpunkt: /catalog/products/{product_id}/images
+* Filter: Sie können spezifische Felder ein- oder ausschließen, ähnlich wie bei den Hauptprodukt-Endpunkten 5.
+Schritt C: Ein Bild löschen
+* Endpunkt: /catalog/products/{product_id}/images/{image_id}
+* Methode: DELETE
+* Dies entfernt nur das spezifische Bild, ohne das Produkt selbst zu löschen 3, 6.
+3. Unterstützte Dateitypen
+Obwohl die Quellen die Dateitypen spezifisch für Modifikatoren auflisten, gelten diese Formate in der Regel systemweit für den Katalog. Unterstützte Bildformate sind u. a.:
+* jpg, jpeg, png, gif, bmp, tiff 7.
+Zusammenfassung der Best Practices
+1. URL-Upload bevorzugen: Die API ist darauf optimiert, Bilder von einer öffentlich zugänglichen URL (image_url) abzurufen und in den BigCommerce-Speicher zu importieren 1.
+2. Batch-Updates: Wenn Sie nur Bilder aktualisieren wollen, vermeiden Sie es, das gesamte Produkt-Objekt per PUT zu senden, um unbeabsichtigte Datenüberschreibungen zu verhindern. Nutzen Sie stattdessen den dedizierten /images-Endpunkt.
+3. Sortierung: Nutzen Sie das Feld sort_order (impliziert durch die allgemeine Sortierlogik im Katalog 8), um festzulegen, in welcher Reihenfolge die Bilder in der Galerie des Shops angezeigt werden.

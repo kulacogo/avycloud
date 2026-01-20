@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv } from '../api/client';
+import { refreshPrice, syncToBaseLinker, syncToBigCommerce, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
@@ -1077,6 +1077,40 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   };
 
+  const handleBatchSyncBigCommerce = async () => {
+    if (selectedIds.size === 0) return;
+
+    const selectedProducts = products.filter(p => selectedIds.has(p.id));
+    if (selectedProducts.length === 0) return;
+
+    setSyncInProgress(true);
+    setSyncMessage(`Sync BigCommerce: ${selectedProducts.length} Produkte …`);
+
+    try {
+      const result = await syncToBigCommerce(selectedProducts);
+      if (result.results && result.results.length > 0) {
+        const successCount = result.results.filter(r => r.status === 'synced').length;
+        const failedEntries = result.results.filter(r => r.status === 'failed');
+        const failCount = failedEntries.length;
+        const failureSummary = failedEntries.map(entry => `${entry.id}: ${entry.message || 'fehlgeschlagen'}`).join('\n');
+        const baseSummary = `BigCommerce Sync abgeschlossen.\n✓ ${successCount} Produkte synchronisiert\n✗ ${failCount} fehlgeschlagen`;
+        if (failCount > 0) {
+          alert(`${baseSummary}\n\nDetails:\n${failureSummary}`);
+        } else {
+          alert(baseSummary);
+        }
+      } else {
+        alert(`BigCommerce Sync failed: ${result.error?.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      alert(`BigCommerce Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSyncInProgress(false);
+      setSyncMessage(null);
+      setSelectedIds(new Set());
+    }
+  };
+
   const runBatchPriceRefresh = async (ids: string[]) => {
     if (!ids.length) return;
     alert(`Refreshing prices for ${ids.length} products...`);
@@ -1623,6 +1657,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
           icon={<SyncIcon className="w-4 h-4" />}
           label={t('table.actions.syncSelected')}
           onClick={handleBatchSync}
+          disabled={selectedIds.size === 0}
+          tone="primary"
+        />
+        <ActionButton
+          icon={<SyncIcon className="w-4 h-4" />}
+          label="Sync BigCommerce"
+          onClick={handleBatchSyncBigCommerce}
           disabled={selectedIds.size === 0}
           tone="primary"
         />
