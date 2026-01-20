@@ -274,7 +274,20 @@ function pickImages(product, max = 10) {
   const imgs = Array.isArray(product?.details?.images) ? product.details.images : [];
   const urls = imgs
     .map((img) => safeString(img?.url_or_base64))
-    .filter((u) => u && (u.startsWith('http://') || u.startsWith('https://')));
+    .filter((u) => u && (u.startsWith('http://') || u.startsWith('https://')))
+    .filter((u) => {
+      if (!u) return false;
+      if (/\s/.test(u)) return false;
+      if (u.length > 2000) return false;
+      try {
+        // Validate URL format
+        // eslint-disable-next-line no-new
+        new URL(u);
+        return true;
+      } catch {
+        return false;
+      }
+    });
   const seen = new Set();
   const out = [];
   for (const u of urls) {
@@ -578,7 +591,24 @@ async function syncProductToBigCommerce(product) {
         message: `Missing required fields for create: ${built.missing.join(', ')} (set BIGCOMMERCE_DEFAULT_CATEGORY_ID if categories are required)`,
       };
     }
-    const created = await createBigCommerceProduct(built.payload);
+    let created;
+    try {
+      created = await createBigCommerceProduct(built.payload);
+    } catch (e) {
+      // Some external image URLs can be rejected (e.g. SVG, blocked hosts). Retry create without images.
+      const msg = String(e?.message || '');
+      if (msg.includes('image_url') || msg.includes('(400)') || msg.includes('(422)')) {
+        const retryPayload = { ...built.payload };
+        delete retryPayload.images;
+        try {
+          created = await createBigCommerceProduct(retryPayload);
+        } catch (e2) {
+          throw e;
+        }
+      } else {
+        throw e;
+      }
+    }
     const bcId = created?.id || null;
     return {
       id: product?.id,
