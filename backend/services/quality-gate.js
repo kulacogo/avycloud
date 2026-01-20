@@ -264,6 +264,8 @@ function buildRuleIssues(product, { webEvidence } = {}) {
       case 'title_starts_with_marketing':
       case 'priority_a_not_in_first_60':
       case 'priority_a_missing_in_title':
+      case 'priority_a_source_missing':
+      case 'order_priority_a':
       case 'brand_missing':
       case 'product_type_missing':
       case 'model_or_mpn_missing':

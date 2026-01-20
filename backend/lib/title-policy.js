@@ -561,57 +561,75 @@ function inferSchemaId(product) {
       : {};
   const leaf = normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '').toLowerCase();
 
+  // 13) Bücher
   if (pickAttr(attrs, 'Autor') || pickAttr(attrs, 'Buchtitel') || category.includes('bücher') || category.includes('buch')) {
     return 'books';
   }
-  // Shoes/Sneaker follow the SAME schema as textile/clothing (user requirement).
+  // 14) Musik (CDs & Vinyl)
+  if (category.includes('musik') || category.includes('vinyl') || category.includes('cd') || category.includes('schallplatte')) {
+    return 'music';
+  }
+  // 15) Filme & DVDs
+  if (category.includes('film') || category.includes('blu-ray') || category.includes('bluray') || category.includes('dvd')) {
+    return 'movies';
+  }
+  // 12) Videospiele & Konsolen
   if (
-    pickAttr(attrs, 'EU-Schuhgröße', 'US-Schuhgröße', 'UK-Schuhgröße') ||
-    category.includes('schuhe') ||
-    /sneaker|schuh/.test(leaf)
+    category.includes('videospiel') ||
+    category.includes('konsole') ||
+    /\b(ps5|ps4|ps3|xbox|switch|nintendo)\b/.test(categoryNorm)
   ) {
-    return 'clothing';
+    return 'videogames';
   }
-  if (category.includes('kleidung') || category.includes('bekleidung') || /hoodie|shirt|pullover|jacke|hose|sweat/.test(leaf)) {
-    return 'clothing';
+  // 4) Schuhe
+  if (pickAttr(attrs, 'EU-Schuhgröße', 'US-Schuhgröße', 'UK-Schuhgröße') || category.includes('schuhe') || /sneaker|schuh/.test(leaf)) {
+    return 'shoes';
   }
-  // "Haus, Bau & Ausstattung" (exact business rule): Brand + Model/Series + ProductType + Function + CoreFeature.
-  // We detect it via normalized breadcrumb text to be robust against separators/punctuation.
-  if (
-    categoryNorm.includes('haus bau ausstattung') ||
-    (categoryNorm.includes('haus') && categoryNorm.includes('bau') && categoryNorm.includes('ausstatt'))
-  ) {
-    return 'home_build';
+  // 3) Mode & Bekleidung
+  if (category.includes('mode') || category.includes('kleidung') || category.includes('bekleidung') || category.includes('textil')) {
+    return 'fashion';
   }
-  if (category.includes('auto') || category.includes('kfz') || category.includes('motorrad') || category.includes('autoteile')) {
-    // Split mech vs accessory
-    if (
-      pickAttr(attrs, 'OE/OEM Referenznummer(n)', 'Referenznummer(n) OEM', 'Herstellernummer') ||
-      pickAttr(attrs, 'Bremsscheibenart', 'Einbauposition', 'Lochkreis')
-    ) {
-      return 'auto_mech';
-    }
-    return 'auto_accessory';
-  }
-  if (category.includes('elektronik') || pickAttr(attrs, 'Betriebssystem', 'Bildschirmgröße')) {
-    return 'electronics';
-  }
-  if (category.includes('smartphone') || category.includes('handy')) return 'smartphones';
-  if (category.includes('laptop') || category.includes('notebook')) return 'laptops';
-  if (category.includes('pc') || category.includes('hardware')) return 'pc_hardware';
-  if (category.includes('spiel') && category.includes('konsole')) return 'consoles';
-  if (category.includes('spielzeug')) return 'toys';
-  if (category.includes('brettspiel') || category.includes('gesellschaftsspiel')) return 'boardgames';
-  if (category.includes('film') || category.includes('blu-ray') || category.includes('dvd')) return 'movies';
-  if (category.includes('musik') || category.includes('vinyl') || category.includes('cd')) return 'music';
-  if (category.includes('küche') || category.includes('tafel') || category.includes('haushaltsger')) return 'kitchen';
-  if (category.includes('möbel') || category.includes('wohnen') || category.includes('haushalt')) return 'home';
-  if (category.includes('garten') || category.includes('bau') || category.includes('werkzeug')) return 'tools';
-  if (category.includes('tier') || category.includes('haustier')) return 'pet';
-  if (category.includes('beauty') || category.includes('gesundheit')) return 'beauty';
-  if (category.includes('sport') || category.includes('fitness')) return 'sport';
-  if (category.includes('outdoor') || category.includes('camping')) return 'outdoor';
+  // 11) Uhren & Schmuck
+  if (category.includes('uhren') || category.includes('schmuck')) return 'watches_jewelry';
+  // 9) Spielzeug & Baby
+  if (category.includes('spielzeug') || category.includes('baby') || category.includes('kinder')) return 'toys_baby';
+  // 10) Büro & Schreibwaren
   if (category.includes('büro') || category.includes('schreibwaren')) return 'office';
+  // 16) Haustierbedarf
+  if (category.includes('tier') || category.includes('haustier')) return 'pet';
+  // 7) Beauty & Personal Care
+  if (category.includes('beauty') || category.includes('kosmetik') || category.includes('pflege') || category.includes('personal care')) return 'beauty';
+  // 8) Sport & Freizeit
+  if (category.includes('sport') || category.includes('fitness') || category.includes('freizeit')) return 'sport';
+  // 18) Foto & Camcorder
+  if (category.includes('foto') || category.includes('kamera') || category.includes('camcorder') || category.includes('objektiv')) return 'photo_camcorder';
+  // 19) Musikinstrumente
+  if (category.includes('musikinstrument') || category.includes('instrument')) return 'instruments';
+  // 17) Sammeln & Seltenes (Münzen/Briefmarken)
+  if (category.includes('sammeln') || category.includes('münz') || category.includes('briefmark')) return 'collectibles';
+  // 20) Heimwerker (Werkzeug)
+  if (category.includes('heimwerker') || category.includes('werkzeug') || (category.includes('akku') && category.includes('werkzeug'))) {
+    return 'tools_diy';
+  }
+  // 6) Küche & Haushalt
+  if (category.includes('küche') || category.includes('haushalt') || category.includes('haushaltsger')) return 'kitchen_household';
+  // 5) Haus, Garten & Baumarkt (avoid matching "Haushalt")
+  if (
+    category.includes('garten') ||
+    category.includes('baumarkt') ||
+    categoryNorm.includes('haus garten') ||
+    (category.includes('haus') && !category.includes('haushalt'))
+  ) {
+    return 'home_garden';
+  }
+  // 2) Auto & Motorrad (Teile)
+  if (category.includes('auto') || category.includes('kfz') || category.includes('motorrad') || category.includes('fahrzeug') || category.includes('autoteile')) {
+    return 'auto_parts';
+  }
+  // 1) Elektronik & Computer
+  if (category.includes('elektronik') || category.includes('computer') || category.includes('laptop') || category.includes('notebook') || category.includes('pc')) {
+    return 'electronics_computer';
+  }
   return 'generic';
 }
 
@@ -712,114 +730,277 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   );
 
   const a = [];
-  if (schemaId === 'home_build') {
-    // User requirement: Brand + Model/Series + ProductType must be early (Priority A).
-    uniqPush(a, brand);
-    uniqPush(a, modelOrSeries);
-    uniqPush(a, productType);
-  } else {
-    uniqPush(a, brand);
-    uniqPush(a, productType);
-    // Schema-specific Priority A (third anchor differs by category).
-    if (schemaId === 'clothing') {
-      // For clothing/shoes, size is a strong purchase driver; model/article codes are usually meaningless.
-      uniqPush(a, normSize || audience);
-    } else {
-      uniqPush(a, modelOrMpn);
-    }
-  }
-
   const b = [];
   const c = [];
-
+  const pushA = (v) => uniqPush(a, normalizeTitleToken(compactUnitToken(v)));
   const pushB = (v) => uniqPush(b, normalizeTitleToken(compactUnitToken(v)));
   const pushC = (v) => uniqPush(c, normalizeTitleToken(compactUnitToken(v)));
 
+  const titleHint = [proposedTitle, product?.identification?.name].filter(Boolean).join(' ');
+
+  const line = normalizeTitleToken(pickAttr(attrs, 'Linie', 'Produktlinie', 'Serie'));
+  const effect = normalizeTitleToken(pickAttr(attrs, 'Wirkung', 'Effekt', 'Anwendungsgebiet'));
+  const amount = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Menge', 'Inhalt', 'Füllmenge', 'Nettofüllmenge')));
+  const sportType = normalizeTitleToken(pickAttr(attrs, 'Sportart', 'Sport'));
+  const theme = normalizeTitleToken(pickAttr(attrs, 'Lizenz', 'Thema', 'Serie', 'Charakter'));
+  const age = normalizeTitleToken(pickAttr(attrs, 'Altersempfehlung', 'Alter'));
+  const packSize = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Menge', 'Packung', 'Stückzahl', 'Anzahl')));
+  const alloy = normalizeTitleToken(pickAttr(attrs, 'Material', 'Legierung', 'Metall'));
+  const stone = normalizeTitleToken(pickAttr(attrs, 'Stein', 'Besatz', 'Edelstein'));
+  const platform =
+    normalizeTitleToken(pickAttr(attrs, 'Plattform', 'Platform', 'System')) ||
+    normalizeTitleToken((extractWords(titleHint, { max: 20 }).find((w) => /\b(ps5|ps4|ps3|xbox|switch|nintendo)\b/i.test(w)) || ''));
+  const usk = normalizeTitleToken(pickAttr(attrs, 'USK'));
+  const edition = normalizeTitleToken(pickAttr(attrs, 'Edition', 'Ausgabe', 'Cut'));
+  const genre = normalizeTitleToken(pickAttr(attrs, 'Genre'));
+  const animal = normalizeTitleToken(pickAttr(attrs, 'Tierart', 'Haustier', 'Tier'));
+  const sizeWeight = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Größe', 'Gewicht', 'Volumen', 'Kapazität')));
+  const extraFeature = normalizeTitleToken(pickAttr(attrs, 'Feature', 'Besonderheiten', 'Eigenschaft', 'Hauptmerkmal'));
+  const country = normalizeTitleToken(pickAttr(attrs, 'Land', 'Herkunftsland'));
+  const faceValue = normalizeTitleToken(pickAttr(attrs, 'Nennwert', 'Motiv', 'Thema'));
+  const year = normalizeTitleToken(pickAttr(attrs, 'Jahr', 'Erscheinungsjahr', 'Herstellungsjahr'));
+  const grade = normalizeTitleToken(pickAttr(attrs, 'Erhaltungsgrad'));
+  const lensType = normalizeTitleToken(pickAttr(attrs, 'Objektiv', 'Objektivtyp', 'Objektiv-Typ', 'Lens'));
+  const resolution = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Auflösung', 'Megapixel', 'MP')));
+  const instrument = normalizeTitleToken(pickAttr(attrs, 'Instrument', 'Instrumententyp'));
+  const tuning = normalizeTitleToken(pickAttr(attrs, 'Stimmung', 'Tuning'));
+  const accessories = normalizeTitleToken(pickAttr(attrs, 'Zubehör', 'Lieferumfang', 'Set', 'Set-Inhalt'));
+  const energySource = normalizeTitleToken(pickAttr(attrs, 'Energiequelle', 'Energieversorgung', 'Stromversorgung', 'Akkutyp'));
+  const techCompat = normalizeTitleToken(pickAttr(attrs, 'Technologie', 'Kompatibilität', 'Betriebsart', 'Anschlüsse', 'Geeignet für'));
+
   switch (schemaId) {
-    case 'home_build': {
-      // Priority B: function + core feature
-      pushB(function1);
-      pushB(coreFeature);
-      // Priority C
-      pushC(color);
-      pushC(condition);
-      return { schemaId, a, b, c };
-    }
-    case 'auto_mech': {
-      // Priority B: vehicle always BEFORE measures/specs
-      pushB(vehicleMake);
-      pushB(vehicleModel);
-      pushB(vehicleSeries);
-      const autoTitleHint = [proposedTitle, product?.identification?.name].filter(Boolean).join(' ');
-      const hasVehicle = Boolean(vehicleMake || vehicleModel || vehicleSeries);
-      const compat = !hasVehicle ? extractAutoCompatibilityFromTitle(autoTitleHint) : '';
-      if (compat) pushB(compat);
-      pushB(position);
-      pushB(measure);
-      extractAutoSpecTokensFromText(autoTitleHint).forEach((t) => pushB(t));
-      specsFromText.forEach((t) => pushB(t));
-      // Priority C
-      pushC(color);
-      pushC(condition);
-      return { schemaId, a, b, c };
-    }
-    case 'auto_accessory': {
-      const autoTitleHint = [proposedTitle, product?.identification?.name].filter(Boolean).join(' ');
-      pushB(vehicleMake);
-      pushB(vehicleModel);
-      pushB(vehicleSeries);
-      const hasVehicle = Boolean(vehicleMake || vehicleModel || vehicleSeries);
-      const compat = !hasVehicle ? extractAutoCompatibilityFromTitle(autoTitleHint) : '';
-      if (compat) pushB(compat);
-      pushB(position);
-      pushB(measure);
-      extractAutoSpecTokensFromText(autoTitleHint).forEach((t) => pushB(t));
+    case 'electronics_computer': {
+      // [MARKE] [MODELL] [PRODUKTTYP] [HAUPT-SPEC/SPEICHER] [ZUSTAND]
+      pushA(brand);
+      pushA(modelOrMpn);
+      pushA(productType);
+      pushB(capacity);
       specsFromText.forEach((t) => pushB(t));
       pushC(color);
       pushC(condition);
       return { schemaId, a, b, c };
     }
-    case 'clothing': {
-      // Fashion: keep titles purchase-driven.
-      // - Clothing: avoid code-like "model"/article numbers; emphasize gender + size.
-      // Put audience/size early; avoid code-like models.
-      pushB(audience);
+    case 'auto_parts': {
+      // [TEILNAME] [EINBAUORT] für [FAHRZEUG/MODELL] [OE/MPN] [SPEC]
+      const vehicle = normalizeSpaces([vehicleMake, vehicleModel, vehicleSeries].filter(Boolean).join(' '));
+      const compat = vehicle ? `für ${vehicle}` : extractAutoCompatibilityFromTitle(titleHint);
+      pushA(productType);
+      pushA(position);
+      pushA(compat);
+      pushB(brand);
+      pushB(modelOrMpn);
+      extractAutoSpecTokensFromText(titleHint).forEach((t) => pushB(t));
+      specsFromText.forEach((t) => pushB(t));
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'fashion': {
+      // [MARKE] [GESCHLECHT] [PRODUKTART] [FARBE] Gr. [GRÖSSE] [SPEZIFIK]
+      pushA(brand);
+      pushA(audience);
+      pushA(productType);
+      pushB(color);
       pushB(normSize);
       pushB(material);
-      pushC(color);
+      if (modelOrMpn && !isLikelyCodeLikeFashionModel(modelOrMpn)) {
+        pushB(modelOrMpn);
+      }
       pushC(condition);
       return { schemaId, a, b, c };
     }
-    case 'electronics':
-    case 'smartphones':
-    case 'laptops':
-    case 'pc_hardware': {
-      pushB(capacity);
-      pushB(power);
-      pushB(voltage);
-      specsFromText.forEach((t) => pushB(t));
-      pushC(color);
+    case 'shoes': {
+      // [MARKE] [SCHUHART] [GESCHLECHT] Gr. [EU] [FARBE] [SPEZIFIK]
+      pushA(brand);
+      pushA(productType);
+      pushA(audience);
+      pushB(normSize);
+      pushB(color);
+      pushB(material);
+      if (modelOrMpn && !isLikelyCodeLikeFashionModel(modelOrMpn)) {
+        pushB(modelOrMpn);
+      }
       pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'home_garden': {
+      // [PRODUKTART] [MATERIAL] [MAßE] [HAUPT-ANWENDUNG/FEATURE]
+      pushA(productType);
+      pushA(material);
+      pushA(measure);
+      pushB(function1);
+      pushB(extraFeature);
+      pushB(coreFeature);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'kitchen_household': {
+      // [MARKE] [PRODUKTART] [TECHNOLOGIE/KOMPATIBILITÄT] [MAßE/VOLUMEN]
+      pushA(brand);
+      pushA(productType);
+      pushA(techCompat);
+      // If tech-compat is missing but "Induktion" is clearly present, keep it.
+      if (!techCompat && /\binduktion\b/i.test(titleHint)) pushB('Induktion');
+      pushB(measure);
+      pushB(capacity);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'beauty': {
+      // [MARKE] [LINIE] [PRODUKTART] [WIRKUNG] [MENGE]
+      pushA(brand);
+      pushA(line);
+      pushA(productType);
+      pushB(effect);
+      pushB(amount);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'sport': {
+      // [MARKE] [SPORTART] [PRODUKTART] [MODELL] [GRÖSSE]
+      pushA(brand);
+      pushA(sportType);
+      pushA(productType);
+      pushB(modelOrMpn);
+      pushB(normSize);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'toys_baby': {
+      // [MARKE] [LIZENZ/THEMA] [SET/PRODUKT] [ALTER/GRÖSSE]
+      pushA(brand);
+      pushA(theme);
+      pushA(productType);
+      pushB(modelOrMpn);
+      pushB(age);
+      pushB(normSize);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'office': {
+      // [MARKE] [PRODUKTART] [MODELL] [MENGE/PACKUNG]
+      pushA(brand);
+      pushA(productType);
+      pushA(modelOrMpn);
+      pushB(packSize);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'watches_jewelry': {
+      // [MARKE] [MATERIAL/LEGIERUNG] [PRODUKTART] [STEIN/BESATZ] [ZUSTAND]
+      pushA(brand);
+      pushA(alloy);
+      pushA(productType);
+      pushB(stone);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'videogames': {
+      // [PLATTFORM] [SPIELTITEL] [EDITION] [ZUSTAND] [USK]
+      const gameTitle =
+        normalizeTitleToken(pickAttr(attrs, 'Spieltitel', 'Titel')) ||
+        normalizeTitleToken(stripSkuNoise(product?.identification?.name || proposedTitle || ''));
+      pushA(platform);
+      pushA(gameTitle);
+      pushB(edition);
+      pushB(condition);
+      pushC(usk);
       return { schemaId, a, b, c };
     }
     case 'books': {
+      // [AUTOR] [BUCHTITEL] [FORMAT] [SPRACHE] [BESONDERHEIT]
       const author = normalizeTitleToken(pickAttr(attrs, 'Autor'));
       const bookTitle =
         normalizeTitleToken(pickAttr(attrs, 'Buchtitel', 'Titel')) ||
         normalizeTitleToken(stripSkuNoise(product?.identification?.name || ''));
-      const year = normalizeTitleToken(pickAttr(attrs, 'Erscheinungsjahr'));
-      const binding = normalizeTitleToken(pickAttr(attrs, 'Einband', 'Format'));
-      const a2 = [];
-      uniqPush(a2, author ? `${author} – ${bookTitle}` : bookTitle);
-      const b2 = [];
-      uniqPush(b2, year);
-      uniqPush(b2, binding);
-      const c2 = [];
-      uniqPush(c2, condition);
-      return { schemaId, a: a2, b: b2, c: c2 };
+      const format = normalizeTitleToken(pickAttr(attrs, 'Einband', 'Format'));
+      const language = normalizeTitleToken(pickAttr(attrs, 'Sprache'));
+      const special = normalizeTitleToken(pickAttr(attrs, 'Besonderheit', 'Edition', 'Ausgabe'));
+      pushA(author);
+      pushA(bookTitle);
+      pushB(format);
+      pushB(language);
+      pushC(special);
+      return { schemaId, a, b, c };
+    }
+    case 'music': {
+      // [INTERPRET] [ALBUMTITEL] [FORMAT] [GENRE] [BESONDERHEIT]
+      const artist = normalizeTitleToken(pickAttr(attrs, 'Künstler', 'Interpret', 'Autor'));
+      const album = normalizeTitleToken(pickAttr(attrs, 'Albumtitel', 'Titel')) || normalizeTitleToken(stripSkuNoise(product?.identification?.name || ''));
+      const format = normalizeTitleToken(pickAttr(attrs, 'Format'));
+      const special = normalizeTitleToken(pickAttr(attrs, 'Besonderheit', 'Edition', 'Ausgabe'));
+      pushA(artist);
+      pushA(album);
+      pushB(format);
+      pushB(genre);
+      pushC(special);
+      return { schemaId, a, b, c };
+    }
+    case 'movies': {
+      // [FILMTITEL] [FORMAT] [EDITION/CUT] [GENRE] [ZUSTAND]
+      const film = normalizeTitleToken(pickAttr(attrs, 'Filmtitel', 'Titel')) || normalizeTitleToken(stripSkuNoise(product?.identification?.name || ''));
+      const format = normalizeTitleToken(pickAttr(attrs, 'Format'));
+      pushA(film);
+      pushA(format);
+      pushB(edition);
+      pushB(genre);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'pet': {
+      // [MARKE] [TIERART] [PRODUKTART] [GRÖSSE/GEWICHT] [FEATURE]
+      pushA(brand);
+      pushA(animal);
+      pushA(productType);
+      pushB(sizeWeight);
+      pushB(extraFeature);
+      pushC(color);
+      return { schemaId, a, b, c };
+    }
+    case 'collectibles': {
+      // [LAND] [NENNWERT/MOTIV] [JAHR] [ERHALTUNGSGRAD] [MATERIAL]
+      pushA(country);
+      pushA(faceValue);
+      pushA(year);
+      pushB(grade);
+      pushC(material);
+      return { schemaId, a, b, c };
+    }
+    case 'photo_camcorder': {
+      // [MARKE] [MODELL] [OBJEKTIV-TYP] [AUFLÖSUNG] [ZUSTAND]
+      pushA(brand);
+      pushA(modelOrMpn);
+      pushA(lensType || productType);
+      pushB(resolution);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
+    case 'instruments': {
+      // [MARKE] [INSTRUMENT] [TYP/MODELL] [MATERIAL/STIMMUNG] [ZUBEHÖR]
+      pushA(brand);
+      pushA(instrument || productType);
+      pushA(modelOrMpn);
+      pushB(material);
+      pushB(tuning);
+      pushC(accessories);
+      return { schemaId, a, b, c };
+    }
+    case 'tools_diy': {
+      // [MARKE] [WERKZEUGART] [VOLT/LEISTUNG] [ENERGIEQUELLE] [ZUBEHÖR]
+      pushA(brand);
+      pushA(productType);
+      pushA(voltage || power);
+      pushB(power);
+      pushB(voltage);
+      pushB(energySource);
+      pushC(accessories);
+      pushC(condition);
+      return { schemaId, a, b, c };
     }
     default: {
-      // Generic master schema
+      // Generic fallback
+      pushA(brand);
+      pushA(productType);
+      pushA(modelOrMpn);
       pushB(measure);
       pushB(capacity);
       pushB(power);
@@ -931,54 +1112,34 @@ function validateTitleToPolicy(
   const plan = buildTitlePlanBySchema(product, schemaId, { proposedTitle: '' });
   const aTokens = Array.isArray(plan?.a) ? plan.a.filter(Boolean) : [];
 
-  // Books/media use a different schema; do not enforce Brand/ProductType/Model in those cases.
-  if (schemaId !== 'books') {
-    // Source-data presence (strict)
-    if (!aTokens[0] || /^unbekannt$/i.test(aTokens[0])) issues.push('brand_missing');
-    if (schemaId === 'home_build') {
-      // home_build anchors: [BRAND] [MODEL/SERIES] [PRODUCT TYPE]
-      if (!aTokens[1] || /^unbekannt$/i.test(aTokens[1])) issues.push('model_or_mpn_missing');
-      if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('product_type_missing');
-    } else {
-      if (!aTokens[1] || /^unbekannt$/i.test(aTokens[1])) issues.push('product_type_missing');
-      // Third anchor differs by schema:
-      // - Default/Tech/Auto: model/mpn
-      // - Clothing/Shoes: size (or fallback audience)
-      if (schemaId === 'clothing') {
-        if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('model_or_mpn_missing');
-      } else {
-        if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('model_or_mpn_missing');
-      }
-    }
+  // Schema-driven Priority A enforcement:
+  // - If aTokens are missing (empty/"Unbekannt"), we surface a source-quality issue.
+  // - If present, they must appear in the title and start within the first ~60 chars.
+  if (aTokens.length) {
+    const hasMissingA = aTokens.some((tok) => !tok || /^unbekannt$/i.test(tok));
+    if (hasMissingA) issues.push('priority_a_source_missing');
 
     const firstN = t.slice(0, mobileMaxLen);
     for (const tok of aTokens) {
       if (!tok) continue;
       if (!containsToken(t, tok)) issues.push('priority_a_missing_in_title');
-      // Mobile-first: it's enough that the token STARTS within the first ~60 chars.
-      // Using the full token causes false negatives when the token crosses the 60-char boundary.
       const anchor = safeString(tok).split(/\s+/g).filter(Boolean)[0] || tok;
       if (!containsToken(firstN, anchor)) issues.push('priority_a_not_in_first_60');
     }
 
-    // Order check (brand -> product type -> model/mpn)
+    // Order check: Priority A tokens must appear in the same order as the schema plan.
     const norm = normalizeForSearch(t);
     const idx = (token) => {
       const q = normalizeForSearch(token);
       if (!q) return -1;
       return norm.indexOf(q);
     };
-    const i1 = aTokens[0] ? idx(aTokens[0]) : -1;
-    const i2 = aTokens[1] ? idx(aTokens[1]) : -1;
-    const i3 = aTokens[2] ? idx(aTokens[2]) : -1;
-    if (schemaId === 'home_build') {
-      // Expected order: brand -> model/series -> product type
-      if (i1 !== -1 && i2 !== -1 && i1 > i2) issues.push('order_brand_after_model');
-      if (i2 !== -1 && i3 !== -1 && i2 > i3) issues.push('order_model_after_producttype');
-    } else {
-      // Default order: brand -> product type -> model/mpn
-      if (i1 !== -1 && i2 !== -1 && i1 > i2) issues.push('order_brand_after_producttype');
-      if (i2 !== -1 && i3 !== -1 && i2 > i3) issues.push('order_producttype_after_model');
+    const indices = aTokens.map((tok) => idx(tok)).filter((i) => i !== -1);
+    for (let i = 1; i < indices.length; i++) {
+      if (indices[i - 1] > indices[i]) {
+        issues.push('order_priority_a');
+        break;
+      }
     }
   }
 

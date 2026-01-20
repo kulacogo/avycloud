@@ -17,7 +17,6 @@ import OperationsView from './components/OperationsView';
 import MobileSearchView from './components/MobileSearchView';
 import MobileOperationsView from './components/MobileOperationsView';
 import MobileTabBar from './components/MobileTabBar';
-import IdentifyQueueView from './components/IdentifyQueueView';
 import { fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
@@ -34,8 +33,7 @@ type View =
   | 'input'
   | 'sheet'
   | 'inventory'
-  | 'warehouse'
-  | 'queue';
+  | 'warehouse';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const VIEW_PRODUCT_KEY = 'avystock:view:productId';
 const THEME_STORAGE_KEY = 'avystock:theme';
@@ -52,7 +50,6 @@ const ALLOWED_VIEWS: View[] = [
   'sheet',
   'inventory',
   'warehouse',
-  'queue',
 ];
 type Theme = 'light' | 'dark';
 
@@ -642,6 +639,7 @@ const App: React.FC = () => {
               mode={view}
               onNavigate={setView}
               onSelectProduct={handleSelectProduct}
+              onIdentify={handleIdentification}
             />
           );
         }
@@ -679,8 +677,6 @@ const App: React.FC = () => {
         );
       case 'warehouse':
         return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
-      case 'queue':
-        return <IdentifyQueueView />;
       case 'dashboard':
         return isMobile ? (
           <DashboardMobile products={products} onRefreshProducts={loadProducts} isLoading={productsLoading} />

@@ -4,6 +4,7 @@ import { getProductQuantity } from '../utils/product';
 import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, stockInProduct, stockOutProduct } from '../api/client';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
+import type { UploadGroupPayload } from '../hooks/useIdentification';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
@@ -25,8 +26,9 @@ type MobilePickTask = {
 interface MobileOperationsViewProps {
   products: Product[];
   mode: OpsMode;
-  onNavigate: (view: OpsMode | 'input' | 'queue' | 'sheet') => void;
+  onNavigate: (view: OpsMode | 'input' | 'sheet') => void;
   onSelectProduct?: (productId: string) => void;
+  onIdentify?: (groups: UploadGroupPayload[], barcodes: string) => void;
 }
 
 const SectionTitle: React.FC<{ title: string; desc?: string }> = ({ title, desc }) => (
@@ -75,7 +77,7 @@ const ProductCard: React.FC<{ product: Product; footer?: React.ReactNode }> = ({
 );
 };
 
-const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, mode, onNavigate, onSelectProduct }) => {
+const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, mode, onNavigate, onSelectProduct, onIdentify }) => {
   const { t } = useI18n();
   const stowList = useMemo(
     () => products.filter((p) => getProductQuantity(p) > 0 && !p.storage?.binCode),
@@ -116,6 +118,50 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const uploadInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const isUnmountedRef = useRef(false);
+
+  type IdentifySlotImage = { id: string; file: File; previewUrl: string };
+  const [identifyImagesBySlot, setIdentifyImagesBySlot] = useState<Record<number, IdentifySlotImage[]>>({});
+
+  const clearIdentifySlot = useCallback((slot: number) => {
+    setIdentifyImagesBySlot((prev) => {
+      const current = prev[slot] || [];
+      current.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+      const next = { ...prev };
+      delete next[slot];
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      Object.values(identifyImagesBySlot)
+        .flat()
+        .forEach((img) => URL.revokeObjectURL(img.previewUrl));
+    };
+  }, [identifyImagesBySlot]);
+
+  const handleIdentifyFilesSelected = useCallback((slot: number, fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList).filter((f) => f && f.type && f.type.startsWith('image/'));
+    if (!files.length) return;
+    setIdentifyImagesBySlot((prev) => {
+      const existing = prev[slot] || [];
+      const seen = new Set<string>(existing.map((img) => `${img.file.name}:${img.file.size}:${img.file.lastModified}`));
+      const additions: IdentifySlotImage[] = [];
+      files.forEach((file) => {
+        const key = `${file.name}:${file.size}:${file.lastModified}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        additions.push({
+          id: `${slot}_${Math.random().toString(36).slice(2, 9)}`,
+          file,
+          previewUrl: URL.createObjectURL(file),
+        });
+      });
+      if (!additions.length) return prev;
+      return { ...prev, [slot]: [...existing, ...additions] };
+    });
+  }, []);
 
   const dedupeOrders = (list: Order[]) => {
     const seen = new Set<string>();
@@ -629,6 +675,19 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         <div className="grid grid-cols-1 gap-3">
           {identifySlots.map((slot) => (
             <div key={slot} className="rounded-2xl border border-dashed border-white/15 bg-slate-800/70 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-slate-100">
+                  {t('input.groups.defaultName', { index: identifySlots.indexOf(slot) + 1 })}
+                </p>
+                <button
+                  type="button"
+                  className="rounded-full bg-slate-900/60 border border-slate-700 text-slate-100 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                  onClick={() => clearIdentifySlot(slot)}
+                  disabled={!identifyImagesBySlot[slot]?.length}
+                >
+                  {t('common.clear')}
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -645,6 +704,22 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   {t('common.upload')}
                 </button>
               </div>
+              {identifyImagesBySlot[slot]?.length ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-400">{t('identifyQueue.files', { count: identifyImagesBySlot[slot].length })}</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {identifyImagesBySlot[slot].slice(0, 8).map((img) => (
+                      <img
+                        key={img.id}
+                        src={img.previewUrl}
+                        alt=""
+                        className="w-full aspect-square object-cover rounded-lg border border-slate-700"
+                        loading="lazy"
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <input
                 ref={(el) => {
                   cameraInputRefs.current[slot] = el;
@@ -654,6 +729,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 capture="environment"
                 multiple
                 className="hidden"
+                onChange={(e) => {
+                  handleIdentifyFilesSelected(slot, e.currentTarget.files);
+                  // allow re-selecting the same image(s)
+                  e.currentTarget.value = '';
+                }}
               />
               <input
                 ref={(el) => {
@@ -663,7 +743,29 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 accept="image/*"
                 multiple
                 className="hidden"
+                onChange={(e) => {
+                  handleIdentifyFilesSelected(slot, e.currentTarget.files);
+                  e.currentTarget.value = '';
+                }}
               />
+              <button
+                type="button"
+                className="w-full rounded-2xl bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
+                disabled={!identifyImagesBySlot[slot]?.length}
+                onClick={() => {
+                  const images = (identifyImagesBySlot[slot] || []).map((img) => img.file);
+                  if (!images.length) return;
+                  const payload: UploadGroupPayload[] = [{ id: `mobile-slot-${slot}`, label: `Mobile ${slot}`, images }];
+                  if (onIdentify) {
+                    onIdentify(payload, '');
+                    clearIdentifySlot(slot);
+                  } else {
+                    onNavigate('input');
+                  }
+                }}
+              >
+                {t('ops.identify.run')}
+              </button>
             </div>
           ))}
         </div>

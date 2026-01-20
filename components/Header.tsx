@@ -16,7 +16,7 @@ interface HeaderProps {
     | 'operations-stow'
     | 'operations-pick'
     | 'operations-pack'
-    | 'queue';
+    ;
   setView: (view: HeaderProps['currentView']) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -70,12 +70,6 @@ const NAV_ICONS: NavIconConfig[] = [
     label: 'nav.operations',
     light: '/operations_brightmode.png',
     dark: '/operations_darkmode.png',
-  },
-  {
-    view: 'queue' as const,
-    label: 'nav.identifyQueue',
-    light: '/queue_brightmode.png',
-    dark: '/queue_darkmode.png',
   },
 ] as const;
 

@@ -10,23 +10,26 @@
 
 function buildTitleSchemaLines() {
   return [
-    // MASTER: 90% of items
-    '1) Master: [MARKE] [PRODUKTART] [MODELL/MPN] [KERNMERKMAL] [VARIANTE] [ZUSTAND]',
-    // Auto parts
-    '2) Autoteile: [MARKE] [BAUTEIL] [MPN/OE] [FAHRZEUG/BAUREIHE] [TECHDATEN] [ZUSTAND]  (Fahrzeug immer vor Maße)',
-    // Fashion
-    '3) Mode/Textil: [MARKE] [ARTIKELTYP] [MODELL] [GESCHLECHT] Gr. [GRÖSSE] [FARBE] [ZUSTAND]  (Farbe nie vor Artikeltyp)',
-    // Shoes follow the same schema as textile (user requirement).
-    '4) Schuhe/Sneaker: wie 3) Mode/Textil (gleiche Reihenfolge; keine Sonderregel)',
-    // Tech
-    '5) Elektronik/Tech: [MARKE] [PRODUKT] [MODELL] [SCHLÜSSEL-SPEC] [FARBE] [ZUSTAND]  (Specs > Marketing)',
-    '6) Computer/Komponenten: [MARKE] [KOMPONENTE] [MODELL] [SCHLÜSSEL-SPEC] [ZUSTAND]',
-    // Home / tools
-    '7) Haus, Bau & Ausstattung: [MARKE] [MODELL/SERIE] [PRODUKTTYP] [FUNKTION] [KERNFEATURE] [ZUSTAND]',
-    '8) Werkzeug/Bau/Garten: [MARKE] [WERKZEUGART] [MODELL] [MAẞE/LEISTUNG/SET] [ZUSTAND]',
-    // Misc
-    '9) Tierbedarf: [MARKE] [PRODUKTART] [TIERART] [GRÖSSE/VOLUMEN] [MATERIAL] [FARBE]',
-    '10) Bücher/Medien: [AUTOR/KÜNSTLER] – [TITEL] [FORMAT] [SPRACHE] [ZUSTAND]',
+    '1) Elektronik & Computer: [MARKE] [MODELL] [PRODUKTTYP] [HAUPT-SPEC/SPEICHER] [ZUSTAND]',
+    '2) Auto & Motorrad (Teile): [TEILNAME] [EINBAUORT] für [FAHRZEUG/MODELL] [OE/MPN] [SPEC]',
+    '3) Mode & Bekleidung: [MARKE] [GESCHLECHT] [PRODUKTART] [FARBE] Gr. [GRÖSSE] [SPEZIFIK]',
+    '4) Schuhe: [MARKE] [SCHUHART] [GESCHLECHT] Gr. [EU] [FARBE] [SPEZIFIK]',
+    '5) Haus, Garten & Baumarkt: [PRODUKTART] [MATERIAL] [MAßE] [HAUPT-ANWENDUNG/FEATURE]',
+    '6) Küche & Haushalt: [MARKE] [PRODUKTART] [TECHNOLOGIE/KOMPATIBILITÄT] [MAßE/VOLUMEN]',
+    '7) Beauty & Personal Care: [MARKE] [LINIE] [PRODUKTART] [WIRKUNG] [MENGE]',
+    '8) Sport & Freizeit: [MARKE] [SPORTART] [PRODUKTART] [MODELL] [GRÖSSE]',
+    '9) Spielzeug & Baby: [MARKE] [LIZENZ/THEMA] [SET/PRODUKT] [ALTER/GRÖSSE]',
+    '10) Büro & Schreibwaren: [MARKE] [PRODUKTART] [MODELL] [MENGE/PACKUNG]',
+    '11) Uhren & Schmuck: [MARKE] [MATERIAL/LEGIERUNG] [PRODUKTART] [STEIN/BESATZ] [ZUSTAND]',
+    '12) Videospiele & Konsolen: [PLATTFORM] [SPIELTITEL] [EDITION] [ZUSTAND] [USK]',
+    '13) Bücher: [AUTOR] [BUCHTITEL] [FORMAT] [SPRACHE] [BESONDERHEIT]',
+    '14) Musik (CDs & Vinyl): [INTERPRET] [ALBUMTITEL] [FORMAT] [GENRE] [BESONDERHEIT]',
+    '15) Filme & DVDs: [FILMTITEL] [FORMAT] [EDITION/CUT] [GENRE] [ZUSTAND]',
+    '16) Haustierbedarf: [MARKE] [TIERART] [PRODUKTART] [GRÖSSE/GEWICHT] [FEATURE]',
+    '17) Sammeln & Seltenes (Münzen/Briefmarken): [LAND] [NENNWERT/MOTIV] [JAHR] [ERHALTUNGSGRAD] [MATERIAL]',
+    '18) Foto & Camcorder: [MARKE] [MODELL] [OBJEKTIV-TYP] [AUFLÖSUNG] [ZUSTAND]',
+    '19) Musikinstrumente: [MARKE] [INSTRUMENT] [TYP/MODELL] [MATERIAL/STIMMUNG] [ZUBEHÖR]',
+    '20) Heimwerker (Werkzeug): [MARKE] [WERKZEUGART] [VOLT/LEISTUNG] [ENERGIEQUELLE] [ZUBEHÖR]',
   ];
 }
 
@@ -41,10 +44,7 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     'HARD RULES (immer):',
     '- Titel: Mobile-first. Die ersten ~55–60 Zeichen zählen (eBay App). Alles Wichtige MUSS vorne stehen.',
     '- Titel: Reihenfolge ist schema-/kategorieabhängig (siehe "TITLE-SCHEMA GUIDELINES"). NIE frei umsortieren.',
-    '- Titel: Priorität A muss in den ersten 60 Zeichen sein (kategorieabhängig):',
-    '  - Auto/Tech: Marke + Produkttyp + Modell/MPN/OE/Teilenummer.',
-    '  - Kleidung/Schuhe: Marke + Produkttyp + Größe (keine kryptischen Modellcodes).',
-    '  - Haus, Bau & Ausstattung: Marke + Modell/Serie + Produkttyp.',
+    '- Titel: Priorität A muss in den ersten 60 Zeichen sein (kategorieabhängig; siehe "TITLE-SCHEMA GUIDELINES").',
     '- Titel: Länge: optimal 65–75 Zeichen, Hard-Max eBay: 80 Zeichen (nie > 80). Wenn >75: erst low-prio Tokens streichen.',
     '- Titel: Keine Marketingfloskeln, keine Emojis, keine Wiederholungen, keine Sonderzeichen am Anfang.',
     '- Keine Preise/Preisorientierung/€ oder EUR in Titel, Beschreibung oder Highlights.',
