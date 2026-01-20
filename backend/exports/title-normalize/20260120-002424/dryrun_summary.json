@@ -1,0 +1,10 @@
+{
+  "preCount": 537,
+  "total": 537,
+  "considered": 454,
+  "skipped_ui": 83,
+  "update": 9,
+  "noop": 65,
+  "invalid_after": 0,
+  "reasons": {}
+}

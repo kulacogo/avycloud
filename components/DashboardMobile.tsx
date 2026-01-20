@@ -183,7 +183,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
   }, [products]);
 
   const stowBacklog = useMemo(
-    () => products.filter((p) => getProductQuantity(p) > 0 && !p.storage?.binCode).length,
+    () => products.filter((p) => getProductPhysicalQuantity(p) > 0 && !p.storage?.binCode).length,
     [products]
   );
 

@@ -1,0 +1,10 @@
+sku,docId,lastSource,status,before_len,after_len,before_issues,after_issues,before,after,reason
+SKU-3704607179,4013594537810,title-normalize-v2,update,42,42,model_or_mpn_missing,model_or_mpn_missing,goki Murmelbahn Unisex Holz Mehrfarbig NEU,Goki Murmelbahn Unisex Holz Mehrfarbig NEU,
+SKU-9268872444,4270001051905,title-normalize-v2,update,48,35,brand_missing|model_or_mpn_missing,brand_missing|model_or_mpn_missing,Unbekannt Trainingshilfen Beschreibung Gebraucht,Unbekannt Trainingshilfen Gebraucht,
+SKU-9039614531,5055350245538,title-normalize-v2,update,43,36,model_or_mpn_missing,model_or_mpn_missing,FOX Windschutz CDW004 Aluminium Schwarz NEU,FOX Windschutz Aluminium Schwarz NEU,
+SKU-8404970287,5900811829102,title-normalize-v2,update,62,55,model_or_mpn_missing,model_or_mpn_missing,Edenfocity Verdunkelungsvorhang 396297 100% Polyester Grau NEU,Edenfocity Verdunkelungsvorhang 100% Polyester Grau NEU,
+SKU-6860111834,61921411800024,title-fix-fashion,update,56,41,model_or_mpn_missing,model_or_mpn_missing,Qunsheng Haushaltshandschuhe 61921411800024 Rot Gelb NEU,Qunsheng Haushaltshandschuhe Rot Gelb NEU,
+SKU-2123165909,SKU-2123165909,title-normalize-v2,update,51,40,model_or_mpn_missing,model_or_mpn_missing,HLI Schubladenschienen Vollauszug Metall Silber NEU,HLI Schubladenschienen Metall Silber NEU,
+SKU-6558668236,SKU-6558668236,title-normalize-v2,update,58,43,model_or_mpn_missing,model_or_mpn_missing,Blumtal Doppelrollo SKU-6558668236 100% Polyester Lila NEU,Blumtal Doppelrollo 100% Polyester Lila NEU,
+SKU-2365442999,a18d09b8-ae6e-4114-9b82-f7cf388905d0,title-normalize-v2,update,72,72,brand_missing|model_or_mpn_missing,brand_missing|model_or_mpn_missing,Unbekannt Gastronormbehälter Edelstahl 176mm 2.4 Liter 2.4L 150mm Silber,Unbekannt Gastronormbehälter 176mm 2.4 Liter Edelstahl 2.4L 150mm Silber,
+SKU-1536365981,ea75ec18-8ebd-4623-8b72-bdc796af7bfb,title-normalize-v2,update,56,46,brand_missing|model_or_mpn_missing,brand_missing|model_or_mpn_missing,Unbekannt Backform Einsatz Universal Silikon Schwarz NEU,Unbekannt Backform Einsatz Silikon Schwarz NEU,

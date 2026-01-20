@@ -552,7 +552,9 @@ function inferCondition(product) {
 }
 
 function inferSchemaId(product) {
-  const category = safeString(product?.identification?.category).toLowerCase();
+  const categoryRaw = safeString(product?.identification?.category);
+  const category = categoryRaw.toLowerCase();
+  const categoryNorm = normalizeForSearch(categoryRaw);
   const attrs =
     product?.details?.attributes && typeof product.details.attributes === 'object'
       ? product.details.attributes
@@ -562,11 +564,24 @@ function inferSchemaId(product) {
   if (pickAttr(attrs, 'Autor') || pickAttr(attrs, 'Buchtitel') || category.includes('bücher') || category.includes('buch')) {
     return 'books';
   }
-  if (pickAttr(attrs, 'EU-Schuhgröße', 'US-Schuhgröße', 'UK-Schuhgröße') || category.includes('schuhe') || /sneaker|schuh/.test(leaf)) {
-    return 'shoes';
+  // Shoes/Sneaker follow the SAME schema as textile/clothing (user requirement).
+  if (
+    pickAttr(attrs, 'EU-Schuhgröße', 'US-Schuhgröße', 'UK-Schuhgröße') ||
+    category.includes('schuhe') ||
+    /sneaker|schuh/.test(leaf)
+  ) {
+    return 'clothing';
   }
   if (category.includes('kleidung') || category.includes('bekleidung') || /hoodie|shirt|pullover|jacke|hose|sweat/.test(leaf)) {
     return 'clothing';
+  }
+  // "Haus, Bau & Ausstattung" (exact business rule): Brand + Model/Series + ProductType + Function + CoreFeature.
+  // We detect it via normalized breadcrumb text to be robust against separators/punctuation.
+  if (
+    categoryNorm.includes('haus bau ausstattung') ||
+    (categoryNorm.includes('haus') && categoryNorm.includes('bau') && categoryNorm.includes('ausstatt'))
+  ) {
+    return 'home_build';
   }
   if (category.includes('auto') || category.includes('kfz') || category.includes('motorrad') || category.includes('autoteile')) {
     // Split mech vs accessory
@@ -638,6 +653,9 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
     normalizeTitleToken(pickAttr(attrs, 'Herstellernummer', 'MPN')) ||
     '';
   const model = normalizeTitleToken(pickAttr(attrs, 'Modell', 'Model', 'Model Number'));
+  const series = normalizeTitleToken(
+    pickAttr(attrs, 'Serie', 'Produktserie', 'Reihe', 'Produktlinie', 'Serienname', 'Baureihe')
+  );
   const oem = normalizeTitleToken(
     pickAttr(attrs, 'OE/OEM Referenznummer(n)', 'Referenznummer(n) OEM', 'Referenznummer', 'OEM-Referenznummer')
   );
@@ -648,6 +666,7 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
     .join(' ');
   const extractedCodes = extractModelCandidatesFromText(hintText);
   const modelOrMpn = mpn || model || oem || normalizeTitleToken(extractedCodes[0] || '');
+  const modelOrSeries = series || model || modelOrMpn;
 
   const condition = normalizeTitleToken(inferCondition(product));
 
@@ -673,24 +692,41 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const power = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Leistung', 'Power')));
   const voltage = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Spannung', 'Volt', 'Voltage')));
   const audience = normalizeTitleToken(pickAttr(attrs, 'Abteilung', 'Zielgruppe', 'Geschlecht'));
+  const function1 = normalizeTitleToken(
+    pickAttr(
+      attrs,
+      'Funktion 1',
+      'Funktion',
+      'Anwendung',
+      'Anwendungsbereich',
+      'Einsatzbereich',
+      'Verwendungszweck',
+      'Verwendung',
+      'Geeignet für'
+    )
+  );
+  const coreFeature = measure || capacity || power || voltage || material || '';
 
   const specsFromText = extractSpecTokensFromText(
     [proposedTitle, product?.identification?.name, productTypeRaw, modelOrMpn].filter(Boolean).join(' ')
   );
 
   const a = [];
-  uniqPush(a, brand);
-  uniqPush(a, productType);
-  // Schema-specific Priority A (third anchor differs by category).
-  if (schemaId === 'clothing') {
-    // For clothing, size is a strong purchase driver; model/article codes are usually meaningless.
-    uniqPush(a, normSize || audience);
-  } else if (schemaId === 'shoes') {
-    // For shoes, model can be meaningful, but avoid code-like tokens; size should be early.
-    const safeModel = isLikelyCodeLikeFashionModel(modelOrMpn) ? '' : modelOrMpn;
-    uniqPush(a, normSize || safeModel || audience);
+  if (schemaId === 'home_build') {
+    // User requirement: Brand + Model/Series + ProductType must be early (Priority A).
+    uniqPush(a, brand);
+    uniqPush(a, modelOrSeries);
+    uniqPush(a, productType);
   } else {
-    uniqPush(a, modelOrMpn);
+    uniqPush(a, brand);
+    uniqPush(a, productType);
+    // Schema-specific Priority A (third anchor differs by category).
+    if (schemaId === 'clothing') {
+      // For clothing/shoes, size is a strong purchase driver; model/article codes are usually meaningless.
+      uniqPush(a, normSize || audience);
+    } else {
+      uniqPush(a, modelOrMpn);
+    }
   }
 
   const b = [];
@@ -700,6 +736,15 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const pushC = (v) => uniqPush(c, normalizeTitleToken(compactUnitToken(v)));
 
   switch (schemaId) {
+    case 'home_build': {
+      // Priority B: function + core feature
+      pushB(function1);
+      pushB(coreFeature);
+      // Priority C
+      pushC(color);
+      pushC(condition);
+      return { schemaId, a, b, c };
+    }
     case 'auto_mech': {
       // Priority B: vehicle always BEFORE measures/specs
       pushB(vehicleMake);
@@ -734,19 +779,12 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       pushC(condition);
       return { schemaId, a, b, c };
     }
-    case 'shoes':
     case 'clothing': {
       // Fashion: keep titles purchase-driven.
       // - Clothing: avoid code-like "model"/article numbers; emphasize gender + size.
-      // - Shoes: model can be meaningful but still avoid code-like tokens.
-      const safeModel =
-        schemaId === 'shoes' && modelOrMpn && !isLikelyCodeLikeFashionModel(modelOrMpn)
-          ? modelOrMpn
-          : '';
-      // Put audience/size early; keep any safe model as a secondary token.
+      // Put audience/size early; avoid code-like models.
       pushB(audience);
       pushB(normSize);
-      pushB(safeModel);
       pushB(material);
       pushC(color);
       pushC(condition);
@@ -897,14 +935,20 @@ function validateTitleToPolicy(
   if (schemaId !== 'books') {
     // Source-data presence (strict)
     if (!aTokens[0] || /^unbekannt$/i.test(aTokens[0])) issues.push('brand_missing');
-    if (!aTokens[1] || /^unbekannt$/i.test(aTokens[1])) issues.push('product_type_missing');
-    // Third anchor differs by schema:
-    // - Default/Tech/Auto: model/mpn
-    // - Clothing/Shoes: size (or fallback audience)
-    if ((schemaId === 'clothing' || schemaId === 'shoes')) {
-      if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('model_or_mpn_missing');
+    if (schemaId === 'home_build') {
+      // home_build anchors: [BRAND] [MODEL/SERIES] [PRODUCT TYPE]
+      if (!aTokens[1] || /^unbekannt$/i.test(aTokens[1])) issues.push('model_or_mpn_missing');
+      if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('product_type_missing');
     } else {
-      if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('model_or_mpn_missing');
+      if (!aTokens[1] || /^unbekannt$/i.test(aTokens[1])) issues.push('product_type_missing');
+      // Third anchor differs by schema:
+      // - Default/Tech/Auto: model/mpn
+      // - Clothing/Shoes: size (or fallback audience)
+      if (schemaId === 'clothing') {
+        if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('model_or_mpn_missing');
+      } else {
+        if (!aTokens[2] || /^unbekannt$/i.test(aTokens[2])) issues.push('model_or_mpn_missing');
+      }
     }
 
     const firstN = t.slice(0, mobileMaxLen);
@@ -927,8 +971,15 @@ function validateTitleToPolicy(
     const i1 = aTokens[0] ? idx(aTokens[0]) : -1;
     const i2 = aTokens[1] ? idx(aTokens[1]) : -1;
     const i3 = aTokens[2] ? idx(aTokens[2]) : -1;
-    if (i1 !== -1 && i2 !== -1 && i1 > i2) issues.push('order_brand_after_producttype');
-    if (i2 !== -1 && i3 !== -1 && i2 > i3) issues.push('order_producttype_after_model');
+    if (schemaId === 'home_build') {
+      // Expected order: brand -> model/series -> product type
+      if (i1 !== -1 && i2 !== -1 && i1 > i2) issues.push('order_brand_after_model');
+      if (i2 !== -1 && i3 !== -1 && i2 > i3) issues.push('order_model_after_producttype');
+    } else {
+      // Default order: brand -> product type -> model/mpn
+      if (i1 !== -1 && i2 !== -1 && i1 > i2) issues.push('order_brand_after_producttype');
+      if (i2 !== -1 && i3 !== -1 && i2 > i3) issues.push('order_producttype_after_model');
+    }
   }
 
   // Duplicate words
@@ -977,14 +1028,30 @@ function buildBaseTitleBySchema(product, schemaId) {
       const dash = author ? `${author} – ${title}` : title;
       return join(dash, year, binding, state);
     }
-    case 'shoes': {
-      const audience = pickAttr(attrs, 'Abteilung', 'Zielgruppe');
-      const shoeModel = model || stripSkuNoise(product?.identification?.name || '').replace(new RegExp(brand, 'i'), '').trim();
-      return join(brand, shoeModel, audience, 'Sneaker', color, size, condition);
-    }
     case 'clothing': {
       const audience = pickAttr(attrs, 'Abteilung', 'Zielgruppe');
       return join(brand, productType, audience, color, size, material, condition);
+    }
+    case 'home_build': {
+      const series = pickAttr(attrs, 'Serie', 'Produktserie', 'Reihe', 'Produktlinie', 'Serienname', 'Baureihe');
+      const function1 = pickAttr(
+        attrs,
+        'Funktion 1',
+        'Funktion',
+        'Anwendung',
+        'Anwendungsbereich',
+        'Einsatzbereich',
+        'Verwendungszweck',
+        'Verwendung',
+        'Geeignet für'
+      );
+      const measure = pickAttr(attrs, 'Maße', 'Abmessungen', 'Durchmesser', 'Länge', 'Breite', 'Höhe', 'Tiefe');
+      const capacity = pickAttr(attrs, 'Fassungsvermögen gesamt', 'Fassungsvermögen', 'Volumen', 'Kapazität');
+      const power = pickAttr(attrs, 'Leistung', 'Power');
+      const voltage = pickAttr(attrs, 'Spannung', 'Volt', 'Voltage');
+      const core = measure || capacity || power || voltage || material || '';
+      const modelOrSeries = series || model || mpn || '';
+      return join(brand, modelOrSeries, productType, function1, core, condition);
     }
     case 'auto_mech': {
       const vehicleMake = pickAttr(attrs, 'Fahrzeugmarke', 'Hersteller');

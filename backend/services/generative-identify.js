@@ -93,8 +93,11 @@ Aufgabe:
 3. Titel-Policy (WICHTIG): Der finale eBay Titel wird serverseitig deterministisch gebaut (maschinen-/regelbasiert).
    - Du lieferst dafür die Bausteine: brand, internalCategory (Produkttyp), model/mpn/teilenummer, sowie technische Kerndaten als item_specifics/attributes.
    - Falls du title_ebay / title_kaufland ausfüllst, dann nur als ENTWURF und strikt nach Regeln:
-     - Reihenfolge: [MARKE] [PRODUKTART] [MODELL/MPN] [KERNMERKMAL] [VARIANTE] [ZUSTAND]
-     - Priorität A muss in den ersten 60 Zeichen sein: Marke + Produkttyp + Modell/MPN.
+     - Reihenfolge ist schema-/kategorieabhängig (siehe "TITLE-SCHEMA GUIDELINES" im Policy-Block unten). NICHT frei umsortieren.
+     - Priorität A muss in den ersten 60 Zeichen sein (schemaabhängig):
+       - Auto/Tech: Marke + Produkttyp + Modell/MPN/OE/Teilenummer.
+       - Kleidung/Schuhe/Sneaker: Marke + Produkttyp + Größe (keine kryptischen Modellcodes).
+       - Haus, Bau & Ausstattung: Marke + Modell/Serie + Produkttyp.
      - Keine Marketingfloskeln, keine Emojis, keine Dubletten.
      - eBay-Titel: optimal 65–75 Zeichen, Hard-Max 80.
 4. Beschreibungen: kurzer Absatz mit Features / Nutzen (faktenbasiert, keine Wiederholungen).

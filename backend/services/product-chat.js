@@ -828,8 +828,11 @@ function buildSystemPrompt(locale = 'de-DE') {
     'When proposing product updates, explain briefly (1–2 sentences) and include a minimal JSON snippet called "edit" that only contains the changed fields.',
     'TITLE POLICY (when proposing a new title):',
     '- Mobile-first: first ~55–60 chars matter. Priority A must be inside first 60 chars.',
-    '- Priority A is category-specific: Auto/Tech = Brand+Produktart+MPN/OE/Modell; Clothing/Shoes = Brand+Produktart+Größe (keine kryptischen Modellcodes).',
-    '- Fixed order: [BRAND] [PRODUCT TYPE] [MODEL/MPN] [CORE SPEC] [VARIANT] [CONDITION].',
+    '- Priority A is schema-/category-specific:',
+    '  - Auto/Tech: Brand+Produktart+MPN/OE/Modell',
+    '  - Clothing/Schuhe/Sneaker: Brand+Produktart+Größe (keine kryptischen Modellcodes)',
+    '  - Haus, Bau & Ausstattung: Brand+Modell/Serie+Produkttyp',
+    '- Order is schema-dependent (see TITLE-SCHEMA GUIDELINES in the policy block); never freely reorder tokens.',
     '- Length: optimal 65–75 chars, never exceed 80.',
     '- No marketing fluff, no emojis, no duplicates, no leading symbols, never include SKU/internal IDs.',
     'You can craft new render prompts and call generate_ai_images when fresh material would help; note variant and intent.',
@@ -1071,7 +1074,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
 
   TITLE / HIGHLIGHTS QUALITY BAR:
-  - Titles must be TECHNICAL & searchable (optimal 65–75 chars, never exceed 80): Priority A inside first 60 chars (Brand + ProductType + Model/MPN), then 1–2 key specs. No marketing fluff, no emojis, no duplicates, no SKU/IDs.
+  - Titles must be TECHNICAL & searchable (optimal 65–75 chars, never exceed 80): Priority A inside first 60 chars (schema-dependent; see TITLE-SCHEMA GUIDELINES), then 1–2 key specs. No marketing fluff, no emojis, no duplicates, no SKU/IDs.
   - Key features must be non-duplicative, factual, and short.
   `;
 

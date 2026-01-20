@@ -1,0 +1,996 @@
+[
+  {
+    "docId": "4013594537810",
+    "sku": "SKU-3704607179",
+    "lastSource": "title-normalize-v2",
+    "status": "update",
+    "before": "goki Murmelbahn Unisex Holz Mehrfarbig NEU",
+    "before_len": 42,
+    "before_issues": "model_or_mpn_missing",
+    "after": "Goki Murmelbahn Unisex Holz Mehrfarbig NEU",
+    "after_len": 42,
+    "after_issues": "model_or_mpn_missing",
+    "updates": {
+      "identification.name": "Goki Murmelbahn Unisex Holz Mehrfarbig NEU",
+      "ops.last_saved_source": "title-normalize-v2",
+      "ops.last_saved_iso": "2026-01-19T23:24:28.176Z",
+      "ops.data_quality": {
+        "barcode_cleanup_v1": {
+          "iso": "2026-01-05T09:17:40.839Z",
+          "invalid": [],
+          "nonstandard": [],
+          "valid_count": 1
+        },
+        "category_applied_from_review_csv": {
+          "iso": "2026-01-05T18:41:29.929Z",
+          "to": "22449",
+          "csv": "category_review_suspicious_roots__suggested_20260105-192241.csv",
+          "from": null
+        },
+        "cleanup_v1": {
+          "note": "",
+          "flags": [
+            "short_description_had_banned_content",
+            "deleted_short_description_placeholder"
+          ]
+        },
+        "last_cleanup_iso": "2026-01-05T02:18:38.519Z",
+        "last_quality_gate_iso": "2026-01-10T11:24:35.630Z",
+        "quality_gate_v1": {
+          "id": "qg_a926cb03-d5b5-4507-a4bd-ef154ac161ba",
+          "version": 1,
+          "checked_at_iso": "2026-01-10T11:24:35.630Z",
+          "duration_ms": 5687,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [
+            {
+              "code": "brand_inconsistent",
+              "severity": "warn",
+              "fields": [
+                "identification.brand",
+                "details.attributes.Hersteller"
+              ],
+              "message": "Marke inkonsistent: identification.brand=\"goki\", Hersteller=\"Gollnest & Kiesel GmbH & Co. KG\".",
+              "source": "rule",
+              "confidence": 0.85
+            }
+          ],
+          "evidence": {
+            "query": "4013594537810 goki",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=4013594537810%20goki",
+            "fetched_at_iso": "2026-01-10T11:24:31.918Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "auto_after_improve",
+          "requestedBy": "improve-job",
+          "revision_checked": 9
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-19T23:24:28.176Z",
+          "before": "goki Murmelbahn Unisex Holz Mehrfarbig NEU",
+          "after": "Goki Murmelbahn Unisex Holz Mehrfarbig NEU",
+          "before_len": 42,
+          "after_len": 42,
+          "before_issues": [
+            "model_or_mpn_missing"
+          ],
+          "after_issues": [
+            "model_or_mpn_missing"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "docId": "4270001051905",
+    "sku": "SKU-9268872444",
+    "lastSource": "title-normalize-v2",
+    "status": "update",
+    "before": "Unbekannt Trainingshilfen Beschreibung Gebraucht",
+    "before_len": 48,
+    "before_issues": "brand_missing|model_or_mpn_missing",
+    "after": "Unbekannt Trainingshilfen Gebraucht",
+    "after_len": 35,
+    "after_issues": "brand_missing|model_or_mpn_missing",
+    "updates": {
+      "identification.name": "Unbekannt Trainingshilfen Gebraucht",
+      "ops.last_saved_source": "title-normalize-v2",
+      "ops.last_saved_iso": "2026-01-19T23:24:28.197Z",
+      "ops.data_quality": {
+        "last_cleanup_iso": "2026-01-05T02:18:38.520Z",
+        "barcode_cleanup_v1": {
+          "valid_count": 1,
+          "invalid": [],
+          "iso": "2026-01-05T09:17:40.842Z",
+          "nonstandard": []
+        },
+        "cleanup_v1": {
+          "flags": [
+            "cleaned_attributes_meta_keys"
+          ],
+          "note": "Moved 3 attribute keys to attributes_extra."
+        },
+        "last_quality_gate_iso": "2026-01-10T16:10:40.852Z",
+        "quality_gate_v1": {
+          "id": "qg_24a74e64-bdae-4194-9726-7a9fb2959258",
+          "version": 1,
+          "checked_at_iso": "2026-01-10T16:10:40.852Z",
+          "duration_ms": 2387,
+          "ok": false,
+          "summary": "Quality-Issues erkannt – bitte prüfen.",
+          "issues": [
+            {
+              "code": "title_too_short",
+              "source": "rule",
+              "confidence": 0.95,
+              "severity": "error",
+              "fields": [
+                "identification.name"
+              ],
+              "message": "Titel entspricht nicht der 70–80 Zeichen Policy."
+            },
+            {
+              "code": "description_too_short",
+              "source": "rule",
+              "confidence": 0.95,
+              "severity": "error",
+              "fields": [
+                "details.short_description"
+              ],
+              "message": "Beschreibung fehlt/zu kurz (mind. 3 Absätze à 2 Sätze)."
+            },
+            {
+              "code": "highlights_too_few",
+              "source": "rule",
+              "confidence": 0.95,
+              "severity": "warn",
+              "fields": [
+                "details.key_features"
+              ],
+              "message": "Zu wenige Highlights (5–7 erforderlich)."
+            },
+            {
+              "code": "attributes_too_few",
+              "source": "rule",
+              "confidence": 0.95,
+              "severity": "warn",
+              "fields": [
+                "details.attributes"
+              ],
+              "message": "Zu wenige Attribute (min. 5 empfohlen)."
+            },
+            {
+              "code": "brand_unknown",
+              "severity": "warn",
+              "fields": [
+                "identification.brand"
+              ],
+              "message": "Marke/Hersteller ist \"Unbekannt\" – bitte prüfen/ergänzen.",
+              "source": "rule",
+              "confidence": 0.8
+            }
+          ],
+          "evidence": {
+            "query": "4270001051905",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=4270001051905",
+            "fetched_at_iso": "2026-01-10T16:10:38.628Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 1
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-19T23:24:28.197Z",
+          "before": "Unbekannt Trainingshilfen Beschreibung Gebraucht",
+          "after": "Unbekannt Trainingshilfen Gebraucht",
+          "before_len": 48,
+          "after_len": 35,
+          "before_issues": [
+            "brand_missing",
+            "model_or_mpn_missing"
+          ],
+          "after_issues": [
+            "brand_missing",
+            "model_or_mpn_missing"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "docId": "5055350245538",
+    "sku": "SKU-9039614531",
+    "lastSource": "title-normalize-v2",
+    "status": "update",
+    "before": "FOX Windschutz CDW004 Aluminium Schwarz NEU",
+    "before_len": 43,
+    "before_issues": "model_or_mpn_missing",
+    "after": "FOX Windschutz Aluminium Schwarz NEU",
+    "after_len": 36,
+    "after_issues": "model_or_mpn_missing",
+    "updates": {
+      "identification.name": "FOX Windschutz Aluminium Schwarz NEU",
+      "ops.last_saved_source": "title-normalize-v2",
+      "ops.last_saved_iso": "2026-01-19T23:24:28.200Z",
+      "ops.data_quality": {
+        "barcode_cleanup_v1": {
+          "iso": "2026-01-05T09:17:40.842Z",
+          "nonstandard": [],
+          "invalid": [],
+          "valid_count": 1
+        },
+        "category_refined_iso": "2026-01-05T03:55:16.160Z",
+        "category_refined_to": "Auto & Motorrad: Teile > Quad-, SSV- & UTV-Teile & -Zubehör > Verkleidungen & Rahmen > Verkleidungen, Türen & Kotflügel > Windschutz- & Fensterscheiben",
+        "category_refined_by": "rules",
+        "category_refined_from": "Camping & Outdoor > Kochen & Essen > Kochgeschirr-Zubehör",
+        "last_quality_gate_iso": "2026-01-09T10:10:33.268Z",
+        "quality_gate_v1": {
+          "id": "qg_f2dd6ff7-7ec4-4cc9-91d0-95bc21aafeb0",
+          "version": 1,
+          "checked_at_iso": "2026-01-09T10:10:33.268Z",
+          "duration_ms": 17850,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [
+            {
+              "code": "attributes_duplicate_value",
+              "severity": "warn",
+              "fields": [
+                "details.attributes.Hersteller-Teilenummer",
+                "details.attributes.Herstellernummer"
+              ],
+              "message": "Redundante Attribute: gleicher Wert \"CDW004\" in Hersteller-Teilenummer, Herstellernummer.",
+              "source": "rule",
+              "confidence": 0.85
+            }
+          ],
+          "evidence": {
+            "query": "5055350245538 FOX CDW004",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=5055350245538%20FOX%20CDW004",
+            "fetched_at_iso": "2026-01-09T10:10:24.414Z",
+            "results": [
+              {
+                "title": "Cookware Windshield - Fisherman&#x27;s World · Angler-Fachmärkte",
+                "url": "https://www.fishermansworld.de/product/fox-cookware-windshield-111091/"
+              },
+              {
+                "title": "Fox Cookware Windshield Standard - team-outdoors.de",
+                "url": "https://team-outdoors.de/fox-cookware-windshield-standard.html"
+              },
+              {
+                "title": "Fox Cookware Windshield - VF-Angelsport, Ihr Ausstatter für Ihr Hobby ...",
+                "url": "https://vf-angelsport.de/Fox-Cookware-Windshield"
+              },
+              {
+                "title": "Fox Cookware Windshield, 13,50",
+                "url": "https://www.carp-world.de/Fox-Cookware-Windshield"
+              },
+              {
+                "title": "Fox Cookware Windshield incl. Carry Bag - Standard, 15,99",
+                "url": "https://www.wolf-angelsport.de/fox-cookware-windshield-incl-carry-bag-standard"
+              },
+              {
+                "title": "Fox Kochgeschirr Wind Shield Inklusive Tragetasche / Fischen ... - eBay",
+                "url": "https://www.ebay.de/itm/365797922358"
+              }
+            ],
+            "pages": [
+              {
+                "title": "Cookware Windshield - Fisherman&#x27;s World · Angler-Fachmärkte",
+                "url": "https://www.fishermansworld.de/product/fox-cookware-windshield-111091/",
+                "ok": false,
+                "status": 503,
+                "via": "direct",
+                "excerpt": ""
+              },
+              {
+                "title": "Fox Cookware Windshield Standard - team-outdoors.de",
+                "url": "https://team-outdoors.de/fox-cookware-windshield-standard.html",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Fox Cookware Windshield Standard Menu Winkelwagen Unlimited 0 Custom Menu Items Menu Menu Hengelsport Karper Roofvis Meerval Bekijk meer Marine Boottenten Boot elektronica Transducerstangen Bekijk meer Verzorgen en Beschermen EHBO Insectenbestrijding Noodpakketten Bekijk meer Koken Camping Kooktoestellen Camping Pannen en Ketels Campingservies en Bestek Bekijk meer Barbecues Barbecue Accessoires Dutch Ovens en Accessoires Elektrische barbecues Bekijk meer Koelen en Isoleren Isoleerflessen en Kannen Koelboxen Koelen Accessoires Bekijk meer Tenten Afdekzeilen Binnententen Dakbekleding Bekijk meer Slapen Ligbedden en Stretchers Luchtbedden Luchtpompen Bekijk meer Outdoor en Reizen Outdoor Artikelen Outdoor Gereedschappen Picknick Bekijk meer Auto en Caravan Auto Accessoires Caravan Accessoires Caravans Bekijk meer Licht, Warmte en Elektra Elektra Verlichting Verwarming Meubelen Campingkaste"
+              },
+              {
+                "title": "Fox Cookware Windshield - VF-Angelsport, Ihr Ausstatter für Ihr Hobby ...",
+                "url": "https://vf-angelsport.de/Fox-Cookware-Windshield",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Fox Cookware Windshield - VF-Angelsport, Ihr Ausstatter für Ihr Hobby ,Großes Fachgeschäft rund ums angeln, 15,95 € VF-Angelsport E-Mail-Adresse Passwort Anmelden Passwort vergessen Neu hier? Jetzt registrieren! 0 Bitte fügen Sie mindestens zwei Artikel zur Vergleichsliste hinzu. 0 Wunschzettel erstellen 0,00 € Es befinden sich keine Artikel im Warenkorb. Menü Zurück Daiwa Mastershop Daiwa Mastershop anzeigen Daiwa Prorex Daiwa N'ZON Daiwa N'ZON anzeigen N'ZON Ruten und Rollen N'ZON Taschen und Futterale N'ZON Kleinteile N'ZON Kescher und Netze Daiwa Advantage Baits und Futter Daiwa Ruten Daiwa Ruten anzeigen Spinnruten Karpfenruten Meeresruten Feederruten Teleskopruten Spezialruten Allroundruten Daiwa Rollen Daiwa Rollen anzeigen Freilaufrollen Spinnrollen Multirollen Baitcastrollen Salzwasserrollen Karpfenrollen Daiwa Kunstköder Daiwa Kunstköder anzeigen Gummiköder Wobbler Zubehör Blin"
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_improve",
+          "requestedBy": "improve-job",
+          "revision_checked": 13
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-19T23:24:28.200Z",
+          "before": "FOX Windschutz CDW004 Aluminium Schwarz NEU",
+          "after": "FOX Windschutz Aluminium Schwarz NEU",
+          "before_len": 43,
+          "after_len": 36,
+          "before_issues": [
+            "model_or_mpn_missing"
+          ],
+          "after_issues": [
+            "model_or_mpn_missing"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "docId": "5900811829102",
+    "sku": "SKU-8404970287",
+    "lastSource": "title-normalize-v2",
+    "status": "update",
+    "before": "Edenfocity Verdunkelungsvorhang 396297 100% Polyester Grau NEU",
+    "before_len": 62,
+    "before_issues": "model_or_mpn_missing",
+    "after": "Edenfocity Verdunkelungsvorhang 100% Polyester Grau NEU",
+    "after_len": 55,
+    "after_issues": "model_or_mpn_missing",
+    "updates": {
+      "identification.name": "Edenfocity Verdunkelungsvorhang 100% Polyester Grau NEU",
+      "ops.last_saved_source": "title-normalize-v2",
+      "ops.last_saved_iso": "2026-01-19T23:24:28.204Z",
+      "ops.data_quality": {
+        "barcode_cleanup_v1": {
+          "nonstandard": [],
+          "valid_count": 1,
+          "iso": "2026-01-05T09:17:40.843Z",
+          "invalid": []
+        },
+        "last_quality_gate_iso": "2026-01-10T13:01:34.265Z",
+        "quality_gate_v1": {
+          "id": "qg_afdca758-69b8-4b6d-b170-a48267d67d51",
+          "version": 1,
+          "checked_at_iso": "2026-01-10T13:01:34.265Z",
+          "duration_ms": 8650,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [
+            {
+              "code": "attributes_duplicate_value",
+              "severity": "warn",
+              "fields": [
+                "details.attributes.GPSR Manufacturer name",
+                "details.attributes.Hersteller (GPSR)"
+              ],
+              "message": "Redundante Attribute: gleicher Wert \"Eurofirany\" in GPSR Manufacturer name, Hersteller (GPSR).",
+              "source": "rule",
+              "confidence": 0.85
+            }
+          ],
+          "evidence": {
+            "query": "5900811829102 Edenfocity 396297",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=5900811829102%20Edenfocity%20396297",
+            "fetched_at_iso": "2026-01-10T13:01:25.729Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "auto_after_improve",
+          "requestedBy": "improve-job",
+          "revision_checked": 7
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-19T23:24:28.204Z",
+          "before": "Edenfocity Verdunkelungsvorhang 396297 100% Polyester Grau NEU",
+          "after": "Edenfocity Verdunkelungsvorhang 100% Polyester Grau NEU",
+          "before_len": 62,
+          "after_len": 55,
+          "before_issues": [
+            "model_or_mpn_missing"
+          ],
+          "after_issues": [
+            "model_or_mpn_missing"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "docId": "61921411800024",
+    "sku": "SKU-6860111834",
+    "lastSource": "title-fix-fashion",
+    "status": "update",
+    "before": "Qunsheng Haushaltshandschuhe 61921411800024 Rot Gelb NEU",
+    "before_len": 56,
+    "before_issues": "model_or_mpn_missing",
+    "after": "Qunsheng Haushaltshandschuhe Rot Gelb NEU",
+    "after_len": 41,
+    "after_issues": "model_or_mpn_missing",
+    "updates": {
+      "identification.name": "Qunsheng Haushaltshandschuhe Rot Gelb NEU",
+      "ops.last_saved_source": "title-normalize-v2",
+      "ops.last_saved_iso": "2026-01-19T23:24:28.205Z",
+      "ops.data_quality": {
+        "barcode_cleanup_v1": {
+          "valid_count": 0,
+          "invalid": [
+            "61921411800024",
+            "28882010"
+          ],
+          "nonstandard": [],
+          "iso": "2026-01-05T09:17:40.844Z"
+        },
+        "category_applied_from_review_csv": {
+          "from": "14075",
+          "to": "259347",
+          "csv": "category_review_suspicious_roots__suggested_20260105-134822.csv",
+          "iso": "2026-01-05T15:01:07.853Z"
+        },
+        "last_cleanup_iso": "2026-01-05T02:18:38.521Z",
+        "cleanup_v1": {
+          "flags": [
+            "cleaned_attributes_meta_keys"
+          ],
+          "note": "Moved 5 attribute keys to attributes_extra."
+        },
+        "last_quality_gate_iso": "2026-01-09T02:19:33.231Z",
+        "quality_gate_v1": {
+          "id": "qg_734c343b-7682-4039-af6d-0a6130584981",
+          "version": 1,
+          "checked_at_iso": "2026-01-09T02:19:33.231Z",
+          "duration_ms": 1867,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [
+            {
+              "code": "barcode_missing",
+              "severity": "warn",
+              "fields": [
+                "identification.barcodes",
+                "details.identifiers"
+              ],
+              "message": "Kein validierter Barcode (EAN/GTIN/UPC) vorhanden.",
+              "source": "rule",
+              "confidence": 0.9
+            }
+          ],
+          "evidence": {
+            "query": "Qunsheng 61921411800024",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=Qunsheng%2061921411800024",
+            "fetched_at_iso": "2026-01-09T02:19:31.441Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "bulk",
+          "requestedBy": "script",
+          "revision_checked": 12
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-19T23:24:28.205Z",
+          "before": "Qunsheng Haushaltshandschuhe 61921411800024 Rot Gelb NEU",
+          "after": "Qunsheng Haushaltshandschuhe Rot Gelb NEU",
+          "before_len": 56,
+          "after_len": 41,
+          "before_issues": [
+            "model_or_mpn_missing"
+          ],
+          "after_issues": [
+            "model_or_mpn_missing"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "docId": "SKU-2123165909",
+    "sku": "SKU-2123165909",
+    "lastSource": "title-normalize-v2",
+    "status": "update",
+    "before": "HLI Schubladenschienen Vollauszug Metall Silber NEU",
+    "before_len": 51,
+    "before_issues": "model_or_mpn_missing",
+    "after": "HLI Schubladenschienen Metall Silber NEU",
+    "after_len": 40,
+    "after_issues": "model_or_mpn_missing",
+    "updates": {
+      "identification.name": "HLI Schubladenschienen Metall Silber NEU",
+      "ops.last_saved_source": "title-normalize-v2",
+      "ops.last_saved_iso": "2026-01-19T23:24:28.223Z",
+      "ops.data_quality": {
+        "barcode_cleanup_v1": {
+          "invalid": [],
+          "iso": "2026-01-05T09:17:40.848Z",
+          "nonstandard": [],
+          "valid_count": 1
+        },
+        "title_policy_v1": {
+          "before": "HLI Schubladenschienen Vollauszug für maximalen Zugriff & Komfort",
+          "after_len": 77,
+          "after": "HLI Schubladenschienen Silber Metall NEU Vollauszug maximalen Zugriff Komfort",
+          "iso": "2026-01-05T08:58:05.602Z",
+          "before_len": 65
+        },
+        "last_quality_gate_iso": "2026-01-12T17:24:13.877Z",
+        "quality_gate_v1": {
+          "id": "qg_a8f90191-ede8-4777-bb5d-cee045d3fa8a",
+          "version": 1,
+          "checked_at_iso": "2026-01-12T17:24:13.877Z",
+          "duration_ms": 9240,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "6440891157249 HLI",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=6440891157249%20HLI",
+            "fetched_at_iso": "2026-01-12T17:24:11.042Z",
+            "results": [
+              {
+                "title": "HLI 9000 Mk II Enhanced Dew Point Hygrometer - Howell Laboratories",
+                "url": "https://www.howelllabs.com/product/hli-9000-mk-ii-enhanced-dew-point-hygrometer/"
+              },
+              {
+                "title": "Commercial Lighting and Lighting Controls | Current - HLI Brands",
+                "url": "https://www.currentlighting.com/"
+              },
+              {
+                "title": "Amazon.com: Clear-Com HLI-MMFO Multi-Mode SFP LC Duplex Transceiver ...",
+                "url": "https://www.amazon.com/Clear-Com-HLI-MMFO-Multi-Mode-Duplex-Transceiver/dp/B07VXLXNFB"
+              },
+              {
+                "title": "Datasonics Inc. NSN Parts: ATS260 - HLI-287-9A",
+                "url": "https://www.parttarget.com/Datasonics-Inc_nsn-parts_ATS260_HLI-287-9A.html"
+              },
+              {
+                "title": "Helix HEXBB11 - Summit Racing",
+                "url": "https://www.summitracing.com/parts/hli-54050"
+              },
+              {
+                "title": "Products: Testing - Human Longevity Institute",
+                "url": "https://humanlongevityinstitute.com/products-testing/"
+              }
+            ],
+            "pages": [
+              {
+                "title": "HLI 9000 Mk II Enhanced Dew Point Hygrometer - Howell Laboratories",
+                "url": "https://www.howelllabs.com/product/hli-9000-mk-ii-enhanced-dew-point-hygrometer/",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "HLI 9000 Mk II Enhanced Dew Point Hygrometer - Howell Laboratories Mon-Fri: 8:00AM - 5:00PM (207) 647-3327 Contact Capabilities Products Water Treatment Seawater Treatment Potable Water Treatment Compressed Air Treatment Moisture Measurement Legacy Services Dew Point Calibration Resources Certifications &#038; Accreditations Whitepapers Generating Solutions – On Demand Calculators Seawater Chlorine Generator Sizing Dew Point Calculator Vendor Resources Supplier Information Get To Know Us Mission and Values Company History Primary Contacts Current Job Openings Contact Us Capabilities Products Water Treatment Seawater Treatment Potable Water Treatment Compressed Air Treatment Moisture Measurement Legacy Services Dew Point Calibration Resources Certifications &#038; Accreditations Whitepapers Generating Solutions – On Demand Calculators Seawater Chlorine Generator Sizing Dew Point Calculato"
+              },
+              {
+                "title": "Commercial Lighting and Lighting Controls | Current - HLI Brands",
+                "url": "https://www.currentlighting.com/",
+                "ok": false,
+                "status": 403,
+                "via": "direct",
+                "excerpt": ""
+              },
+              {
+                "title": "Amazon.com: Clear-Com HLI-MMFO Multi-Mode SFP LC Duplex Transceiver ...",
+                "url": "https://www.amazon.com/Clear-Com-HLI-MMFO-Multi-Mode-Duplex-Transceiver/dp/B07VXLXNFB",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Amazon.com: Clear-Com HLI-MMFO Multi-Mode SFP LC Duplex Transceiver : Elektronik & Foto Springe zu Hauptinhalt Informationen zu diesem Artikel Informationen zu diesem Artikel Informationen zu diesem Artikel Kaufoptionen Mit ähnlichen Artikeln vergleichen Videos Rezensionen Tastenkombinationen Suche option + / Einkaufswagen shift + option + C Startseite shift + option + H Bestellungen shift + option + O In den Einkaufswagen legen shift + option + K Kurzbefehle ein-/ausblenden shift + option + Z Verwende die Aufwärts- oder Abwärtspfeile deiner Tastatur, um zwischen Artikeln zu wechseln. .us Liefern nach Deutschland Alle Wähle die Kategorie aus, in der du suchen möchtest. Alle Kategorien Automobil Baby Bücher Computer Damenmode Elektronik Filme und Fernsehen Gepäck Gesundheit & Haushalt Haustierbedarf Heim und Küche Herrenmode Industrie und Wissenschaft Junge Mode Kindle-Shop Kunst und Hand"
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 25
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-19T23:24:28.223Z",
+          "before": "HLI Schubladenschienen Vollauszug Metall Silber NEU",
+          "after": "HLI Schubladenschienen Metall Silber NEU",
+          "before_len": 51,
+          "after_len": 40,
+          "before_issues": [
+            "model_or_mpn_missing"
+          ],
+          "after_issues": [
+            "model_or_mpn_missing"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "docId": "SKU-6558668236",
+    "sku": "SKU-6558668236",
+    "lastSource": "title-normalize-v2",
+    "status": "update",
+    "before": "Blumtal Doppelrollo SKU-6558668236 100% Polyester Lila NEU",
+    "before_len": 58,
+    "before_issues": "model_or_mpn_missing",
+    "after": "Blumtal Doppelrollo 100% Polyester Lila NEU",
+    "after_len": 43,
+    "after_issues": "model_or_mpn_missing",
+    "updates": {
+      "identification.name": "Blumtal Doppelrollo 100% Polyester Lila NEU",
+      "ops.last_saved_source": "title-normalize-v2",
+      "ops.last_saved_iso": "2026-01-19T23:24:28.245Z",
+      "ops.data_quality": {
+        "title_policy_v1": {
+          "after_len": 74,
+          "after": "Blumtal Doppelrollo Lila 100% Polyester NEU SKU-6558668236 Gr. 85 Klemmfix",
+          "before": "Blumtal Doppelrollo Klemmfix: Präzise Lichtregulierung ohne Bohren",
+          "iso": "2026-01-05T08:58:05.609Z",
+          "before_len": 66
+        },
+        "barcode_cleanup_v1": {
+          "nonstandard": [],
+          "invalid": [],
+          "iso": "2026-01-05T09:17:40.853Z",
+          "valid_count": 1
+        },
+        "last_quality_gate_iso": "2026-01-10T12:11:12.330Z",
+        "quality_gate_v1": {
+          "id": "qg_06e4370f-888f-4ae9-9b5d-0294d92fd125",
+          "version": 1,
+          "checked_at_iso": "2026-01-10T12:11:12.330Z",
+          "duration_ms": 10696,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [
+            {
+              "code": "attributes_duplicate_value",
+              "severity": "warn",
+              "fields": [
+                "details.attributes.GPSR Manufacturer name",
+                "details.attributes.Hersteller",
+                "details.attributes.Marke"
+              ],
+              "message": "Redundante Attribute: gleicher Wert \"Blumtal\" in GPSR Manufacturer name, Hersteller, Marke.",
+              "source": "rule",
+              "confidence": 0.85
+            }
+          ],
+          "evidence": {
+            "query": "4251897512916 Blumtal SKU-6558668236",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=4251897512916%20Blumtal%20SKU-6558668236",
+            "fetched_at_iso": "2026-01-10T12:11:03.344Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "auto_after_improve",
+          "requestedBy": "improve-job",
+          "revision_checked": 12
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-19T23:24:28.245Z",
+          "before": "Blumtal Doppelrollo SKU-6558668236 100% Polyester Lila NEU",
+          "after": "Blumtal Doppelrollo 100% Polyester Lila NEU",
+          "before_len": 58,
+          "after_len": 43,
+          "before_issues": [
+            "model_or_mpn_missing"
+          ],
+          "after_issues": [
+            "model_or_mpn_missing"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "docId": "a18d09b8-ae6e-4114-9b82-f7cf388905d0",
+    "sku": "SKU-2365442999",
+    "lastSource": "title-normalize-v2",
+    "status": "update",
+    "before": "Unbekannt Gastronormbehälter Edelstahl 176mm 2.4 Liter 2.4L 150mm Silber",
+    "before_len": 72,
+    "before_issues": "brand_missing|model_or_mpn_missing",
+    "after": "Unbekannt Gastronormbehälter 176mm 2.4 Liter Edelstahl 2.4L 150mm Silber",
+    "after_len": 72,
+    "after_issues": "brand_missing|model_or_mpn_missing",
+    "updates": {
+      "identification.name": "Unbekannt Gastronormbehälter 176mm 2.4 Liter Edelstahl 2.4L 150mm Silber",
+      "ops.last_saved_source": "title-normalize-v2",
+      "ops.last_saved_iso": "2026-01-19T23:24:28.260Z",
+      "ops.data_quality": {
+        "condition_normalized_neu_v1": {
+          "at_iso": "2026-01-09T18:29:46.668Z",
+          "previous": "Gebraucht",
+          "source": "job-improve"
+        },
+        "last_quality_gate_iso": "2026-01-12T16:31:55.029Z",
+        "quality_gate_v1": {
+          "id": "qg_9f96e725-8ac2-4f5b-8a03-2cb8cac5df3f",
+          "version": 1,
+          "checked_at_iso": "2026-01-12T16:31:55.029Z",
+          "duration_ms": 5494,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [
+            {
+              "code": "barcode_missing",
+              "severity": "warn",
+              "fields": [
+                "identification.barcodes",
+                "details.identifiers"
+              ],
+              "message": "Kein validierter Barcode (EAN/GTIN/UPC) vorhanden.",
+              "source": "rule",
+              "confidence": 0.9
+            },
+            {
+              "code": "brand_unknown",
+              "severity": "warn",
+              "fields": [
+                "identification.brand"
+              ],
+              "message": "Marke/Hersteller ist \"Unbekannt\" – bitte prüfen/ergänzen.",
+              "source": "rule",
+              "confidence": 0.8
+            }
+          ],
+          "evidence": {
+            "query": "Gastronormbehälter GN Behälter Edelstahl 2,4L Volumen 150mm 6er Set NEU",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=Gastronormbeh%C3%A4lter%20GN%20Beh%C3%A4lter%20Edelstahl%202%2C4L%20Volumen%20150mm%206er%20Set%20NEU",
+            "fetched_at_iso": "2026-01-12T16:31:50.731Z",
+            "results": [
+              {
+                "title": "GN Behälter und Gastronormbehälter günstig kaufen beim GN-Profi | GN-Profi",
+                "url": "https://www.gn-profi.de/"
+              },
+              {
+                "title": "GN 2/4 Behälter OnlineShop | Gastrodax®",
+                "url": "https://www.gastrodax.de/gastrobedarf/gn-behaelter/gn-2-4"
+              },
+              {
+                "title": "Gastronormbehälter Online-Shop GASTRO-HERO",
+                "url": "https://www.gastro-hero.de/Kuechenzubehoer/GN-Behaelter/"
+              },
+              {
+                "title": "GN Behälter Edelstahl | Intergastro",
+                "url": "https://www.intergastro.de/kueche/gn-behaelter/edelstahl/"
+              },
+              {
+                "title": "GN-Behälter aus Edelstahl in allen GN-Größen und GN-Tiefen kaufen ︎",
+                "url": "https://gn-behaelter24.de/gn-behaelter-aus-edelstahl"
+              },
+              {
+                "title": "Gastronormbehälter Edelstahl | GN-Behälter | Küche & Lager | LUCHS Direkt",
+                "url": "https://www.luchs-direkt.de/kueche-lager/gn-behaelter/gastronormbehaelter-edelstahl/"
+              }
+            ],
+            "pages": [
+              {
+                "title": "GN Behälter und Gastronormbehälter günstig kaufen beim GN-Profi | GN-Profi",
+                "url": "https://www.gn-profi.de/",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "GN Behälter und Gastronormbehälter günstig kaufen beim GN-Profi | GN-Profi Klicken Sie hier, um den Vorgang abzubrechen. \"> Um GN-Profi in vollem Umfang nutzen zu k&ouml;nnen, empfehlen wir Ihnen Javascript in Ihrem Browser zu aktiveren. Direkt vom Profi Rabattstaffeln ab 200.- Euro Service-Telefon: +49 (0) 511 59 29 72 48 Portofrei innerhalb Deutschlands ab € 100,- Suchen Menü schließen Mein Konto Anmelden oder registrieren Übersicht Persönliche Daten Adressen Zahlungsarten Bestellungen 0 Home GN Behälter GN Behälter perforiert GN Deckel GN Silikon Deckel GN Zubehör GN Komplettsets Angebote Cookie-Einstellungen Diese Website benutzt Cookies, die für den technischen Betrieb der Website erforderlich sind und stets gesetzt werden. Andere Cookies, die den Komfort bei Benutzung dieser Website erhöhen, der Direktwerbung dienen oder die Interaktion mit anderen Websites und sozialen Netzwerken "
+              },
+              {
+                "title": "GN 2/4 Behälter OnlineShop | Gastrodax®",
+                "url": "https://www.gastrodax.de/gastrobedarf/gn-behaelter/gn-2-4",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "✅ GN 2/4 Behälter OnlineShop | Gastrodax® Bitte aktivieren Sie Javascript in Ihren Browser. since 1990 best quality bis 20.000 € Käuferschutz Business Privat 0800 456 6000 Rational iVario Winterhalter Hobart Holdomat FRXSH MKN JURA Pacojet Panasonic Edelstahlm&ouml;bel Bartscher Marken Sale % Anmelden Zur Kasse 0 Warenkorb Startseite Konvektomat / Kombidämpfer Kombidämpfer Behälter, Bleche und Roste Untergestelle Räucheröfen Reiniger Hordengestellwagen Zubehör Dunstabzugshauben Super-Sale % Spülmaschinen Geschirrspülmaschinen Gläserspülmaschinen Besteckspülmaschinen Bistrospülmaschinen Mehrwegbecher Spülmaschinen Durchschubspülmaschinen Gerätespülmaschinen Industriespülmaschinen Osmose Spülmaschinen Besteckpoliermaschinen Gläserpoliermaschinen Spülkörbe Spülkorbwagen & Spülkorbspender Reiniger Wasseraufbereitung Zu- und Ablauftische Unterbauten Kaffeetechnik Kaffeevollautomaten Espressom"
+              },
+              {
+                "title": "Gastronormbehälter Online-Shop GASTRO-HERO",
+                "url": "https://www.gastro-hero.de/Kuechenzubehoer/GN-Behaelter/",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Gastronormbehälter Online-Shop GASTRO-HERO XXL Winter Rausverkauf - bis zu 38 % sparen! Nur bis 19.01. Versandkostenfrei ab 300€* Tiefpreisgarantie** Schnelle Lieferung Rückgabeservice 0231 1772630 Verkauf Mo-Fr (8-18 Uhr) Hilfe Schnell & einfach online Kategorien Anmelden 0 Home Küchenzubehör GN- und Lebensmittelbehälter Kategorien Küchenzubehör (1601) GN- und Lebensmittelbehälter (318) GN Behälter Edelstahl (177) GN Behälter Polypropylen (30) GN Behälter Polycarbonat (55) Sonstige GN Behälter (2) GN Lebensmittelbehälter (37) Eiscremebehälter (13) Gastronormbehälter Zubehör (6) + Mehr anzeigen Alle löschen Verfügbarkeit Verfügbarkeit Express Garantierter Versand am gleichen Tag bei Bestellung bis 14 Uhr * Sonderangebote Jubile2025 (9) Gastronormbehälter Tiefe Deckel (72) 20 mm (18) 40 mm (19) 65 mm (35) 100 mm (42) Zeige mehr Filter an GN Maß GN 1/2 (52) GN 1/1 (49) GN 1/3 (45) GN 1/4 ("
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 29
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-19T23:24:28.260Z",
+          "before": "Unbekannt Gastronormbehälter Edelstahl 176mm 2.4 Liter 2.4L 150mm Silber",
+          "after": "Unbekannt Gastronormbehälter 176mm 2.4 Liter Edelstahl 2.4L 150mm Silber",
+          "before_len": 72,
+          "after_len": 72,
+          "before_issues": [
+            "brand_missing",
+            "model_or_mpn_missing"
+          ],
+          "after_issues": [
+            "brand_missing",
+            "model_or_mpn_missing"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "docId": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+    "sku": "SKU-1536365981",
+    "lastSource": "title-normalize-v2",
+    "status": "update",
+    "before": "Unbekannt Backform Einsatz Universal Silikon Schwarz NEU",
+    "before_len": 56,
+    "before_issues": "brand_missing|model_or_mpn_missing",
+    "after": "Unbekannt Backform Einsatz Silikon Schwarz NEU",
+    "after_len": 46,
+    "after_issues": "brand_missing|model_or_mpn_missing",
+    "updates": {
+      "identification.name": "Unbekannt Backform Einsatz Silikon Schwarz NEU",
+      "ops.last_saved_source": "title-normalize-v2",
+      "ops.last_saved_iso": "2026-01-19T23:24:28.264Z",
+      "ops.data_quality": {
+        "category_applied_from_review_csv": {
+          "csv": "category_review_suspicious_roots__suggested_20260105-192241.csv",
+          "from": null,
+          "to": "259321",
+          "iso": "2026-01-05T18:41:26.335Z"
+        },
+        "condition_sanitized_v1": {
+          "locked": false,
+          "before": "Gebraucht",
+          "iso": "2026-01-05T09:06:12.046Z",
+          "after": "NEU"
+        },
+        "title_policy_v1": {
+          "before": "Unbekannt Backform Einsatz Schwarz Silikon NEU Gebraucht Airfryer 2er Set",
+          "after_len": 72,
+          "after": "Unbekannt Backform Einsatz Schwarz Silikon NEU Airfryer 2er Set Haushalt",
+          "iso": "2026-01-05T09:06:12.046Z",
+          "before_len": 73
+        },
+        "last_quality_gate_iso": "2026-01-09T10:08:21.260Z",
+        "quality_gate_v1": {
+          "id": "qg_95cf6739-dad0-4c17-976d-ef4333b7496c",
+          "version": 1,
+          "checked_at_iso": "2026-01-09T10:08:21.260Z",
+          "duration_ms": 27975,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [
+            {
+              "code": "barcode_missing",
+              "severity": "warn",
+              "fields": [
+                "identification.barcodes",
+                "details.identifiers"
+              ],
+              "message": "Kein validierter Barcode (EAN/GTIN/UPC) vorhanden.",
+              "source": "rule",
+              "confidence": 0.9
+            },
+            {
+              "code": "brand_unknown",
+              "severity": "warn",
+              "fields": [
+                "identification.brand"
+              ],
+              "message": "Marke/Hersteller ist \"Unbekannt\" – bitte prüfen/ergänzen.",
+              "source": "rule",
+              "confidence": 0.8
+            },
+            {
+              "code": "brand_inconsistent",
+              "severity": "warn",
+              "fields": [
+                "identification.brand",
+                "details.attributes.Hersteller"
+              ],
+              "message": "Marke inkonsistent: identification.brand=\"Unbekannt\", Hersteller=\"Dzpuhuojz\".",
+              "source": "rule",
+              "confidence": 0.85
+            },
+            {
+              "code": "brand_unverified_web",
+              "severity": "warn",
+              "fields": [
+                "identification.brand",
+                "identification.name"
+              ],
+              "message": "Marke \"Dzpuhuojz\" ist ohne Barcode nicht durch Web-Evidenz bestätigt (Brand nicht in Quellen gefunden).",
+              "evidence_urls": [
+                "https://www.ebay.de/itm/135593287407"
+              ],
+              "source": "rule",
+              "confidence": 0.45
+            }
+          ],
+          "evidence": {
+            "query": "Dzpuhuojz Universal Silikon Backform Einsatz 2er Set Antihaft Schwarz für Unbekannt NEU",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=Dzpuhuojz%20Universal%20Silikon%20Backform%20Einsatz%202er%20Set%20Antihaft%20Schwarz%20f%C3%BCr%20Unbekannt%20NEU",
+            "fetched_at_iso": "2026-01-09T10:08:00.087Z",
+            "results": [
+              {
+                "title": "Suchergebnis Auf Amazon.de Für: Backformen Silikon Set",
+                "url": "https://www.amazon.de/backformen-silikon-set/s?k=backformen+silikon+set"
+              },
+              {
+                "title": "Silikonform Brotbackform, 2er Set silikon backform für",
+                "url": "https://www.kaufland.de/product/507112966/"
+              },
+              {
+                "title": "Silikon Backform Set - 2x Antihaft Formen für Brot & Kuchen",
+                "url": "https://www.ebay.de/itm/135593287407"
+              },
+              {
+                "title": "Silikon Backformen-Sets online kaufen | OTTO",
+                "url": "https://www.otto.de/haushalt/koch-backzubehoer/backformen/backformen-sets/?material=silikon"
+              },
+              {
+                "title": "Silikonbackform (2025) zum Bestpreis | idealo.de",
+                "url": "https://www.idealo.de/preisvergleich/ProductCategory/25456F2916659.html"
+              },
+              {
+                "title": "Silikonformen online kaufen | Dr. Oetker Shop",
+                "url": "https://www.oetker-shop.de/backutensilien/backformen/silikonformen/"
+              }
+            ],
+            "pages": [
+              {
+                "title": "Suchergebnis Auf Amazon.de Für: Backformen Silikon Set",
+                "url": "https://www.amazon.de/backformen-silikon-set/s?k=backformen+silikon+set",
+                "ok": false,
+                "status": 503,
+                "via": "direct",
+                "excerpt": ""
+              },
+              {
+                "title": "Silikonform Brotbackform, 2er Set silikon backform für",
+                "url": "https://www.kaufland.de/product/507112966/",
+                "ok": false,
+                "status": 403,
+                "via": "direct",
+                "excerpt": ""
+              },
+              {
+                "title": "Silikon Backform Set - 2x Antihaft Formen für Brot & Kuchen",
+                "url": "https://www.ebay.de/itm/135593287407",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Bitte entschuldigen Sie die Störung... Zum Hauptinhalt eBay-Startseite Ihr Browser wird geprüft, bevor Sie auf eBay zugreifen können. Sie werden von Ihrem Browser gleich zum gewünschten Inhalt weitergeleitet. Bitte warten... Referenznummer: d4297011-4e36-4334-b6a8-6648fdb2a007"
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_improve",
+          "requestedBy": "improve-job",
+          "revision_checked": 10
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-19T23:24:28.264Z",
+          "before": "Unbekannt Backform Einsatz Universal Silikon Schwarz NEU",
+          "after": "Unbekannt Backform Einsatz Silikon Schwarz NEU",
+          "before_len": 56,
+          "after_len": 46,
+          "before_issues": [
+            "brand_missing",
+            "model_or_mpn_missing"
+          ],
+          "after_issues": [
+            "brand_missing",
+            "model_or_mpn_missing"
+          ]
+        }
+      }
+    }
+  }
+]

@@ -16,12 +16,13 @@ function buildTitleSchemaLines() {
     '2) Autoteile: [MARKE] [BAUTEIL] [MPN/OE] [FAHRZEUG/BAUREIHE] [TECHDATEN] [ZUSTAND]  (Fahrzeug immer vor Maße)',
     // Fashion
     '3) Mode/Textil: [MARKE] [ARTIKELTYP] [MODELL] [GESCHLECHT] Gr. [GRÖSSE] [FARBE] [ZUSTAND]  (Farbe nie vor Artikeltyp)',
-    '4) Schuhe: [MARKE] [SCHUHART] [MODELL] [GESCHLECHT] EU [GRÖSSE] [FARBE] [ZUSTAND]',
+    // Shoes follow the same schema as textile (user requirement).
+    '4) Schuhe/Sneaker: wie 3) Mode/Textil (gleiche Reihenfolge; keine Sonderregel)',
     // Tech
     '5) Elektronik/Tech: [MARKE] [PRODUKT] [MODELL] [SCHLÜSSEL-SPEC] [FARBE] [ZUSTAND]  (Specs > Marketing)',
     '6) Computer/Komponenten: [MARKE] [KOMPONENTE] [MODELL] [SCHLÜSSEL-SPEC] [ZUSTAND]',
     // Home / tools
-    '7) Haushalt/Wohnen: [MARKE] [PRODUKTART] [MODELL] [MAẞE/KAPAZITÄT] [MATERIAL] [FARBE] [ZUSTAND]',
+    '7) Haus, Bau & Ausstattung: [MARKE] [MODELL/SERIE] [PRODUKTTYP] [FUNKTION] [KERNFEATURE] [ZUSTAND]',
     '8) Werkzeug/Bau/Garten: [MARKE] [WERKZEUGART] [MODELL] [MAẞE/LEISTUNG/SET] [ZUSTAND]',
     // Misc
     '9) Tierbedarf: [MARKE] [PRODUKTART] [TIERART] [GRÖSSE/VOLUMEN] [MATERIAL] [FARBE]',
@@ -39,10 +40,11 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     '',
     'HARD RULES (immer):',
     '- Titel: Mobile-first. Die ersten ~55–60 Zeichen zählen (eBay App). Alles Wichtige MUSS vorne stehen.',
-    '- Titel: Feste Reihenfolge (nie ändern): [MARKE] [PRODUKTART] [MODELL/MPN] [KERNMERKMAL] [VARIANTE] [ZUSTAND].',
+    '- Titel: Reihenfolge ist schema-/kategorieabhängig (siehe "TITLE-SCHEMA GUIDELINES"). NIE frei umsortieren.',
     '- Titel: Priorität A muss in den ersten 60 Zeichen sein (kategorieabhängig):',
     '  - Auto/Tech: Marke + Produkttyp + Modell/MPN/OE/Teilenummer.',
     '  - Kleidung/Schuhe: Marke + Produkttyp + Größe (keine kryptischen Modellcodes).',
+    '  - Haus, Bau & Ausstattung: Marke + Modell/Serie + Produkttyp.',
     '- Titel: Länge: optimal 65–75 Zeichen, Hard-Max eBay: 80 Zeichen (nie > 80). Wenn >75: erst low-prio Tokens streichen.',
     '- Titel: Keine Marketingfloskeln, keine Emojis, keine Wiederholungen, keine Sonderzeichen am Anfang.',
     '- Keine Preise/Preisorientierung/€ oder EUR in Titel, Beschreibung oder Highlights.',

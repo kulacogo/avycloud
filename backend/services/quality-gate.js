@@ -269,6 +269,8 @@ function buildRuleIssues(product, { webEvidence } = {}) {
       case 'model_or_mpn_missing':
       case 'order_brand_after_producttype':
       case 'order_producttype_after_model':
+      case 'order_brand_after_model':
+      case 'order_model_after_producttype':
       case 'duplicate_word':
         return { ...base, severity: 'error', fields: ['identification.name'], message: 'Titel verstößt gegen die Titel-Regeln (≤80 Zeichen, Mobile-first/Priorität A vorne).' };
       case 'description_missing':

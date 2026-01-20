@@ -445,7 +445,7 @@ function buildUserPrompt({
     `Aufgabe (mit optionaler WEB-EVIDENZ im Prompt):`,
     `1. Analysiere Bilder/OCR/Barcodes, um Marke/Modell zu erkennen.`,
     `2. Titel & Copy marketplace-ready:`,
-    `   - Titel: Mobile-first. Priorität A in den ersten 60 Zeichen (Marke + Produkttyp + Modell/MPN). Optimal 65–75, Hard-Max 80.`,
+    `   - Titel: Mobile-first. Priorität A in den ersten 60 Zeichen (schema-/kategorieabhängig; siehe TITLE-SCHEMA GUIDELINES im Policy-Block). Optimal 65–75, Hard-Max 80.`,
     `   - Zustand: Wenn nicht explizit vorhanden, setze Attribut "Zustand" = "NEU". "Gebraucht" nur wenn im Datensatz gesetzt.`,
     `   - short_description: mind. 3 Absätze à 2 Sätze (Einsatz, Nutzen, Ausstattung, Material/Verarbeitung, Lieferumfang, Bedienung/Pflege).`,
     `   - key_features: 5-7 Nutzen-Bullets (6-12 Wörter).`,
