@@ -2037,6 +2037,134 @@ app.get('/api/ebay/categories', (req, res) => {
   }
 });
 
+// --- Category Profiles (Category Management) ---
+// Firestore collection: categoryProfiles/{ebayCategoryId}
+//
+// Purpose:
+// - Store per-category canonical attribute keys + alias mappings.
+// - These profiles are used by saveProduct() to normalize datasheet attributes consistently.
+const CATEGORY_PROFILES_COLLECTION = 'categoryProfiles';
+
+function parseCommaList(value) {
+  const raw = value == null ? '' : String(value);
+  return raw
+    .split(',')
+    .map((x) => String(x || '').trim())
+    .filter(Boolean);
+}
+
+function sanitizeStringArray(value, { max = 250 } = {}) {
+  const arr = Array.isArray(value) ? value : [];
+  const out = [];
+  const seen = new Set();
+  for (const v of arr) {
+    const s = v == null ? '' : String(v).trim();
+    if (!s) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+function sanitizeAliasMap(value, { max = 500 } = {}) {
+  const obj = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const out = {};
+  const keys = Object.keys(obj);
+  for (const k of keys) {
+    const alias = k == null ? '' : String(k).trim();
+    const canonical = obj[k] == null ? '' : String(obj[k]).trim();
+    if (!alias || !canonical) continue;
+    out[alias] = canonical;
+    if (Object.keys(out).length >= max) break;
+  }
+  return out;
+}
+
+app.get('/api/categories/profiles', async (req, res) => {
+  try {
+    const ids = parseCommaList(req.query?.ids);
+    const enabledOnly =
+      String(req.query?.enabledOnly || req.query?.enabled_only || '')
+        .trim()
+        .toLowerCase() === 'true';
+
+    // If ids are provided, fetch those docs only.
+    if (ids.length) {
+      const unique = Array.from(new Set(ids)).slice(0, 200);
+      const refs = unique.map((id) => firestore.collection(CATEGORY_PROFILES_COLLECTION).doc(String(id)));
+      const snaps = await firestore.getAll(...refs);
+      const items = [];
+      snaps.forEach((snap) => {
+        if (!snap.exists) return;
+        const data = snap.data() || {};
+        items.push({ id: snap.id, ...data });
+      });
+      return res.status(200).json({ ok: true, items });
+    }
+
+    // Otherwise: list enabled profiles (or a small default sample) for future use.
+    let query = firestore.collection(CATEGORY_PROFILES_COLLECTION);
+    if (enabledOnly) {
+      query = query.where('enabled', '==', true);
+    }
+    const snap = await query.limit(300).get();
+    const items = [];
+    snap.forEach((doc) => items.push({ id: doc.id, ...(doc.data() || {}) }));
+    return res.status(200).json({ ok: true, items });
+  } catch (error) {
+    console.error('Failed to load category profiles:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to load category profiles.' } });
+  }
+});
+
+app.put('/api/categories/profiles/:id', async (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Category id is required' } });
+    }
+
+    const ebay = getEbayCategoryById(id);
+    if (!ebay) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Unknown eBay category id (not found in taxonomy)', details: id },
+      });
+    }
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const enabled = Boolean(body.enabled);
+    const canonicalAttributes = sanitizeStringArray(body.canonicalAttributes, { max: 300 });
+    const attributeAliases = sanitizeAliasMap(body.attributeAliases, { max: 800 });
+    const notesRaw = body.notes == null ? '' : String(body.notes);
+    const notes = notesRaw.trim().slice(0, 5000);
+
+    const payload = {
+      id,
+      name: ebay.name || '',
+      breadcrumb: ebay.breadcrumb || '',
+      enabled,
+      canonicalAttributes,
+      attributeAliases,
+      notes,
+      updatedAtIso: new Date().toISOString(),
+    };
+
+    await firestore
+      .collection(CATEGORY_PROFILES_COLLECTION)
+      .doc(id)
+      .set(payload, { merge: true });
+
+    return res.status(200).json({ ok: true, data: payload });
+  } catch (error) {
+    console.error('Failed to save category profile:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to save category profile.' } });
+  }
+});
+
 // Get all products
 app.get('/api/products', async (req, res) => {
   try {

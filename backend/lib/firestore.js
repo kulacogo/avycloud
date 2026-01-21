@@ -292,6 +292,99 @@ const DEFAULT_ATTRIBUTE_ORDER = [
   'Kategorie',
 ];
 
+// --- Category Profiles (for attribute key normalization) ---
+// Stored by Category Management UI in Firestore: categoryProfiles/{ebayCategoryId}
+const CATEGORY_PROFILES_COLLECTION = 'categoryProfiles';
+let categoryProfileCache = new Map(); // id -> { atMs, data }
+const CATEGORY_PROFILE_CACHE_TTL_MS = parseInt(process.env.CATEGORY_PROFILE_CACHE_TTL_MS || '120000', 10); // 2 min
+
+async function getCategoryProfileById(categoryId) {
+  const id = categoryId == null ? '' : String(categoryId).trim();
+  if (!id) return null;
+  const now = Date.now();
+  const cached = categoryProfileCache.get(id);
+  if (cached && now - cached.atMs < CATEGORY_PROFILE_CACHE_TTL_MS) {
+    return cached.data || null;
+  }
+  try {
+    const snap = await firestore.collection(CATEGORY_PROFILES_COLLECTION).doc(id).get();
+    const data = snap.exists ? snap.data() || null : null;
+    categoryProfileCache.set(id, { atMs: now, data });
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+function normalizeAttrKeyProfile(key) {
+  return (key == null ? '' : String(key)).replace(/\s+/g, ' ').trim();
+}
+
+function lowerKeyProfile(key) {
+  return normalizeAttrKeyProfile(key).toLowerCase();
+}
+
+function applyAttributeAliasesProfile(attrs = {}, { canonicalAttributes = [], attributeAliases = {} } = {}, { onConflict } = {}) {
+  if (!attrs || typeof attrs !== 'object' || Array.isArray(attrs)) return attrs;
+
+  // Normalize whitespace in keys
+  const normalized = {};
+  Object.keys(attrs).forEach((k) => {
+    const nk = normalizeAttrKeyProfile(k);
+    if (!nk) return;
+    normalized[nk] = attrs[k];
+  });
+
+  const canonicalLowerToExact = new Map();
+  (Array.isArray(canonicalAttributes) ? canonicalAttributes : []).forEach((k) => {
+    const nk = normalizeAttrKeyProfile(k);
+    if (!nk) return;
+    canonicalLowerToExact.set(nk.toLowerCase(), nk);
+  });
+
+  const findKeyByLower = (obj, needleLower) =>
+    Object.keys(obj || {}).find((k) => lowerKeyProfile(k) === needleLower) || null;
+
+  const aliasObj =
+    attributeAliases && typeof attributeAliases === 'object' && !Array.isArray(attributeAliases) ? attributeAliases : {};
+
+  Object.keys(aliasObj).forEach((aliasRaw) => {
+    const alias = normalizeAttrKeyProfile(aliasRaw);
+    const canonicalRaw = normalizeAttrKeyProfile(aliasObj[aliasRaw]);
+    if (!alias || !canonicalRaw) return;
+
+    const aliasKey = findKeyByLower(normalized, alias.toLowerCase());
+    if (!aliasKey) return;
+
+    const canonicalExact = canonicalLowerToExact.get(canonicalRaw.toLowerCase()) || canonicalRaw;
+    const canonicalKey = findKeyByLower(normalized, canonicalExact.toLowerCase());
+
+    const aliasVal = normalized[aliasKey];
+    const canonicalVal = canonicalKey ? normalized[canonicalKey] : undefined;
+    const aliasEmpty = aliasVal == null || (typeof aliasVal === 'string' && aliasVal.trim() === '');
+    const canonicalEmpty = canonicalVal == null || (typeof canonicalVal === 'string' && canonicalVal.trim() === '');
+
+    if (!canonicalKey || canonicalEmpty) {
+      normalized[canonicalExact] = aliasVal;
+    } else if (!aliasEmpty && !canonicalEmpty && canonicalVal !== aliasVal) {
+      if (typeof onConflict === 'function') onConflict({ alias: aliasKey, canonical: canonicalKey, aliasVal, canonicalVal });
+    }
+    if (aliasKey !== canonicalExact) delete normalized[aliasKey];
+  });
+
+  // Normalize casing/spelling to exact canonical keys
+  canonicalLowerToExact.forEach((canonicalExact, canonicalLower) => {
+    const existingKey = findKeyByLower(normalized, canonicalLower);
+    if (!existingKey) return;
+    if (existingKey === canonicalExact) return;
+    const v = normalized[existingKey];
+    delete normalized[existingKey];
+    normalized[canonicalExact] = v;
+  });
+
+  return normalized;
+}
+
 function enforceEbayAspects(product) {
   const requiredMap = getRequiredAspects();
   const details = product.details || {};
@@ -1426,6 +1519,42 @@ async function saveProduct(product, options = {}) {
     const preservedInventory = canWriteWarehouseFields
       ? (incomingInventory !== undefined ? incomingInventory : existingData?.inventory || {})
       : existingData?.inventory || {};
+
+    // Attribute/Parameter consolidation:
+    // Apply category-specific alias mappings (from Category Profiles) BEFORE enforceEbayAspects(),
+    // so that downstream pipelines (Identify/Improve/Chat/UI saves) stop drifting in key names.
+    try {
+      const catIdForProfile =
+        (mergedDetails.categoryId && String(mergedDetails.categoryId).trim()) ||
+        (mergedDetails.ebayCategoryId && String(mergedDetails.ebayCategoryId).trim()) ||
+        null;
+      const profile = catIdForProfile ? await getCategoryProfileById(catIdForProfile) : null;
+      if (profile && profile.enabled) {
+        const conflicts = [];
+        mergedDetails.attributes = applyAttributeAliasesProfile(
+          mergedDetails.attributes || {},
+          {
+            canonicalAttributes: profile.canonicalAttributes || [],
+            attributeAliases: profile.attributeAliases || {},
+          },
+          {
+            onConflict: (c) => {
+              if (conflicts.length < 25) conflicts.push(c);
+            },
+          }
+        );
+        if (conflicts.length) {
+          mergedOps.data_quality = mergedOps.data_quality || {};
+          mergedOps.data_quality.attribute_alias_conflict_v1 = {
+            at_iso: new Date().toISOString(),
+            categoryId: catIdForProfile,
+            conflicts,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('[saveProduct] category profile attribute normalization failed (non-blocking):', e?.message || e);
+    }
 
     const productWithEbay = enforceEbayAspects({
       ...(existingData || {}),
