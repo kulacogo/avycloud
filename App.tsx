@@ -17,6 +17,7 @@ import OperationsView from './components/OperationsView';
 import MobileSearchView from './components/MobileSearchView';
 import MobileOperationsView from './components/MobileOperationsView';
 import MobileTabBar from './components/MobileTabBar';
+import { CategoryManagement } from './components/CategoryManagement';
 import { fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
@@ -25,6 +26,7 @@ type View =
   | 'dashboard'
   | 'home'
   | 'search'
+  | 'categories'
   | 'operations'
   | 'operations-identify'
   | 'operations-stow'
@@ -41,6 +43,7 @@ const ALLOWED_VIEWS: View[] = [
   'dashboard',
   'home',
   'search',
+  'categories',
   'operations',
   'operations-identify',
   'operations-stow',
@@ -675,6 +678,8 @@ const App: React.FC = () => {
             improvingProductIds={activeProductIds}
           />
         );
+      case 'categories':
+        return <CategoryManagement />;
       case 'warehouse':
         return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
       case 'dashboard':

@@ -10,6 +10,7 @@ interface HeaderProps {
     | 'input'
     | 'sheet'
     | 'inventory'
+    | 'categories'
     | 'warehouse'
     | 'operations'
     | 'operations-identify'
@@ -60,6 +61,34 @@ const NAV_ICONS: NavIconConfig[] = [
     dark: '/inventory_darkmode.png',
   },
   {
+    view: 'categories' as const,
+    label: 'nav.categories',
+    iconNode: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 6.5c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v4c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2v-4Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M14 6.5c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v4c0 1.1-.9 2-2 2h-4c-1.1 0-2-.9-2-2v-4Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M4 16.5c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v1c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2v-1Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M14 16.5c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v1c0 1.1-.9 2-2 2h-4c-1.1 0-2-.9-2-2v-1Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+      </svg>
+    ),
+  },
+  {
     view: 'warehouse' as const,
     label: 'nav.warehouse',
     light: '/storeage_brightmode.png',
@@ -99,6 +128,9 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   }, []);
 
   const renderNavIcon = (nav: NavIconConfig) => {
+    if (nav.iconNode) {
+      return <span className="w-6 h-6 flex items-center justify-center">{nav.iconNode}</span>;
+    }
     if (nav.dark && nav.light) {
       return (
         <img

@@ -67,6 +67,39 @@ interface IdentificationJobsResponse {
   };
 }
 
+export async function searchEbayCategories({ q, id, limit = 50 }: { q?: string; id?: string; limit?: number }) {
+  const url = new URL(`${BACKEND_URL}/api/ebay/categories`);
+  if (q) url.searchParams.set('q', q);
+  if (id) url.searchParams.set('id', id);
+  url.searchParams.set('limit', String(limit));
+  const res = await fetch(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  return (data?.items || []) as EbayCategoryOption[];
+}
+
+export async function fetchCategoryProfile(categoryId: string) {
+  const url = new URL(`${BACKEND_URL}/api/categories/profiles`);
+  url.searchParams.set('ids', String(categoryId || '').trim());
+  const res = await fetch(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  const items = Array.isArray(data?.items) ? data.items : [];
+  return items.find((x: any) => String(x?.id) === String(categoryId)) || null;
+}
+
+export async function saveCategoryProfile(categoryId: string, payload: any) {
+  const url = new URL(`${BACKEND_URL}/api/categories/profiles/${encodeURIComponent(String(categoryId || '').trim())}`);
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to save category profile');
+  }
+  return data;
+}
+
 export const buildImageProxyUrl = (sourceUrl?: string | null) => {
   if (!sourceUrl) return '';
   if (!/^https?:\/\//i.test(sourceUrl)) {
