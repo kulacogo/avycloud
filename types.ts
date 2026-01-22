@@ -275,7 +275,7 @@ export interface WarehouseBin {
   lastStoredAt?: string | null;
 }
 
-export type OrderStatus = 'new' | 'picking' | 'picked' | 'other';
+export type OrderStatus = 'new' | 'picking' | 'picked' | 'packed' | 'other';
 
 export interface OrderItemPickHint {
   productId?: string | null;
@@ -350,6 +350,7 @@ export interface DashboardMetrics {
     status_breakdown?: {
       neu: number;
       kommissioniert: number;
+      verpackt: number;
       versendet: number;
       zugestellt: number;
       cancelled: number;

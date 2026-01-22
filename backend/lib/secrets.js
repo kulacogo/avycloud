@@ -46,6 +46,8 @@ async function getSecrets() {
 
     let baseOrderStatusNew = process.env.BASE_ORDER_STATUS_NEW || null;
     let baseOrderStatusPicked = process.env.BASE_ORDER_STATUS_PICKED || null;
+    let baseOrderStatusPacked = process.env.BASE_ORDER_STATUS_PACKED || null;
+    let baseOrderStatusShipped = process.env.BASE_ORDER_STATUS_SHIPPED || null;
 
     if (!baseOrderStatusNew) {
       try {
@@ -68,6 +70,28 @@ async function getSecrets() {
         console.warn('Optional secret BASE_ORDER_STATUS_PICKED not found; falling back to env variable.');
       }
     }
+
+    if (!baseOrderStatusPacked) {
+      try {
+        const [statusPackedResponse] = await client.accessSecretVersion({
+          name: `projects/${projectId}/secrets/BASE_ORDER_STATUS_PACKED/versions/latest`,
+        });
+        baseOrderStatusPacked = statusPackedResponse.payload.data.toString('utf8').trim();
+      } catch (error) {
+        console.warn('Optional secret BASE_ORDER_STATUS_PACKED not found; falling back to env variable.');
+      }
+    }
+
+    if (!baseOrderStatusShipped) {
+      try {
+        const [statusShippedResponse] = await client.accessSecretVersion({
+          name: `projects/${projectId}/secrets/BASE_ORDER_STATUS_SHIPPED/versions/latest`,
+        });
+        baseOrderStatusShipped = statusShippedResponse.payload.data.toString('utf8').trim();
+      } catch (error) {
+        console.warn('Optional secret BASE_ORDER_STATUS_SHIPPED not found; falling back to env variable.');
+      }
+    }
     
     // Cache the results
     cachedSecrets = {
@@ -75,6 +99,8 @@ async function getSecrets() {
       baseInventoryId,
       baseOrderStatusNew,
       baseOrderStatusPicked,
+      baseOrderStatusPacked,
+      baseOrderStatusShipped,
     };
 
     console.log('Secrets loaded successfully from Secret Manager');

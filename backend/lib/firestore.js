@@ -2475,6 +2475,12 @@ async function getDashboardMetrics({ days = 7 } = {}) {
   const envPickedId = process.env.BASE_ORDER_STATUS_PICKED;
   if (envPickedId) pickedStatusIds.add(String(envPickedId).trim());
 
+  // Explicit status IDs (known in this instance)
+  const STATUS_ID_NEW = String(process.env.BASE_ORDER_STATUS_NEW || '363182').trim();
+  const STATUS_ID_PICKED = String(process.env.BASE_ORDER_STATUS_PICKED || '363183').trim(); // Kommissioniert
+  const STATUS_ID_PACKED = String(process.env.BASE_ORDER_STATUS_PACKED || '409364').trim(); // Verpackt
+  const STATUS_ID_SHIPPED = String(process.env.BASE_ORDER_STATUS_SHIPPED || '363184').trim(); // Versendet
+
   const normalize = (v) => (typeof v === 'string' ? v.trim().toLowerCase() : v == null ? '' : String(v).trim().toLowerCase());
   const dayKey = (iso) => {
     try {
@@ -2535,6 +2541,7 @@ async function getDashboardMetrics({ days = 7 } = {}) {
   const statusBreakdown = {
     neu: 0,
     kommissioniert: 0,
+    verpackt: 0,
     versendet: 0,
     zugestellt: 0,
     cancelled: 0,
@@ -2542,10 +2549,18 @@ async function getDashboardMetrics({ days = 7 } = {}) {
   };
 
   const categorizeStatus = (order) => {
+    const statusId = order?.statusId != null ? String(order.statusId).trim() : '';
+    if (statusId) {
+      if (statusId === STATUS_ID_NEW) return 'neu';
+      if (statusId === STATUS_ID_PICKED) return 'kommissioniert';
+      if (statusId === STATUS_ID_PACKED) return 'verpackt';
+      if (statusId === STATUS_ID_SHIPPED) return 'versendet';
+    }
     const raw = normalize(order?.statusLabel || order?.status || '');
     // prefer explicit "new" state if present
     if (order?.status === 'new' || raw.includes('neu') || raw.includes('new')) return 'neu';
     if (raw.includes('kommission') || raw.includes('picked')) return 'kommissioniert';
+    if (raw.includes('verpackt') || raw.includes('packed')) return 'verpackt';
     if (raw.includes('versendet') || raw.includes('shipped') || raw.includes('dispatched')) return 'versendet';
     if (raw.includes('zugestellt') || raw.includes('delivered')) return 'zugestellt';
     return 'other';
@@ -2572,7 +2587,8 @@ async function getDashboardMetrics({ days = 7 } = {}) {
       statusBreakdown[cat] += 1;
     }
 
-    if (order.status === 'new') {
+    const rawStatusId = order?.statusId != null ? String(order.statusId).trim() : '';
+    if (order.status === 'new' || (rawStatusId && rawStatusId === STATUS_ID_NEW)) {
       openCurrent += 1;
     }
 

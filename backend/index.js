@@ -84,7 +84,7 @@ const {
   buildInventoryLabelPdf,
 } = require('./services/label-printer');
 const { scanToBuffer } = require('./services/scanner');
-const { syncNewOrders, markOrderAsPicked } = require('./services/order-sync');
+const { syncNewOrders, markOrderAsPicked, markOrderAsPacked } = require('./services/order-sync');
 
 const normalizeIdentifyToken = (value) => String(value || '').trim();
 const extractDigitBarcode = (value) =>
@@ -3280,6 +3280,24 @@ app.post('/api/orders/:orderId/complete', async (req, res) => {
   }
 });
 
+app.post('/api/orders/:orderId/pack', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    await markOrderAsPacked(orderId);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Failed to mark order as packed:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Auftragsstatus konnte nicht aktualisiert werden.',
+        details: error.message,
+      },
+    });
+  }
+});
+
 // --- Price Refresh Endpoint ---
 app.post('/api/price-refresh', async (req, res) => {
   try {
@@ -3734,4 +3752,15 @@ app.get('/api/quality/jobs/:id', async (req, res) => {
 // --- Server Start ---
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
+
+  // Best-effort periodic order status refresh so BaseLinker-internal status changes
+  // (e.g. "Versendet") are reflected in AvyCloud without requiring user interaction.
+  const ORDER_SYNC_INTERVAL_MS = parseInt(process.env.ORDER_SYNC_INTERVAL_MS || String(2 * 60 * 60 * 1000), 10);
+  try {
+    setTimeout(() => backgroundSyncOrders(), 10_000);
+    setInterval(() => backgroundSyncOrders(), ORDER_SYNC_INTERVAL_MS);
+    console.log(`[order-sync] periodic refresh enabled: every ${ORDER_SYNC_INTERVAL_MS}ms`);
+  } catch (err) {
+    console.warn('[order-sync] failed to start periodic refresh:', err?.message || err);
+  }
 });

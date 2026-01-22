@@ -1004,6 +1004,16 @@ export const completeOrder = async (orderId: string): Promise<void> => {
   }
 };
 
+export const packOrder = async (orderId: string): Promise<void> => {
+  const response = await fetch(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/pack`, {
+    method: 'POST',
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Auftragsstatus konnte nicht aktualisiert werden.');
+  }
+};
+
 export const openSkuLabelWindow = (productId: string): { ok: boolean; error?: { code: number; message: string } } => {
   try {
     const url = `${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/label`;

@@ -10,12 +10,17 @@ const MAX_ORDER_PAGES = 1000; // safety guard
 const ORDER_STATUS_ID_CACHE = {
   new: null,
   picked: null,
+  packed: null,
   cancelled: null,
   shipped: null,
   delivered: null,
 };
 
+const DEFAULT_NEW_STATUS_ID = '363182'; // BaseLinker status "Neue Bestellung"
 const DEFAULT_PICKED_STATUS_ID = '363183'; // BaseLinker status "Kommissioniert"
+const DEFAULT_PACKED_STATUS_ID = '409364'; // BaseLinker status "Verpackt"
+const DEFAULT_SHIPPED_STATUS_ID = '363184'; // BaseLinker status "Versendet"
+const DEFAULT_PACKED_LABEL = 'Verpackt';
 const DEFAULT_CANCELLED_LABEL = 'Storniert';
 const DEFAULT_SHIPPED_LABEL = 'Versendet';
 const DEFAULT_DELIVERED_LABEL = 'Zugestellt';
@@ -185,6 +190,13 @@ async function syncNewOrders() {
       labelFallback ? undefined : 'BASE_ORDER_STATUS_NEW_NAME',
       labelFallback || 'Neue Bestellung'
     );
+    if (!baseOrderStatusNew) {
+      baseOrderStatusNew = DEFAULT_NEW_STATUS_ID;
+      ORDER_STATUS_ID_CACHE.new = DEFAULT_NEW_STATUS_ID;
+      console.warn(
+        `BaseLinker NEW status resolved via hard fallback DEFAULT_NEW_STATUS_ID=${DEFAULT_NEW_STATUS_ID}`
+      );
+    }
   }
 
   // Also resolve "picked" status to classify orders and (optionally) refresh closed orders in cache.
@@ -201,6 +213,38 @@ async function syncNewOrders() {
       labelFallback ? undefined : 'BASE_ORDER_STATUS_PICKED_NAME',
       labelFallback || 'Kommissioniert'
     );
+    if (!baseOrderStatusPicked) {
+      baseOrderStatusPicked = DEFAULT_PICKED_STATUS_ID;
+      ORDER_STATUS_ID_CACHE.picked = DEFAULT_PICKED_STATUS_ID;
+      console.warn(
+        `BaseLinker PICKED status resolved via hard fallback DEFAULT_PICKED_STATUS_ID=${DEFAULT_PICKED_STATUS_ID}`
+      );
+    }
+  }
+
+  // Resolve "packed" status so Kommissioniert → Verpackt transitions are visible in cached orders.
+  let baseOrderStatusPacked = normalizeStatusIdInput(secrets.baseOrderStatusPacked);
+  if (baseOrderStatusPacked) {
+    ORDER_STATUS_ID_CACHE.packed = baseOrderStatusPacked;
+  } else if (!ORDER_STATUS_ID_CACHE.packed) {
+    const labelFallback =
+      typeof secrets.baseOrderStatusPacked === 'string' && secrets.baseOrderStatusPacked.trim()
+        ? secrets.baseOrderStatusPacked.trim()
+        : null;
+    baseOrderStatusPacked = await resolveOrderStatusIdByName(
+      'packed',
+      labelFallback ? undefined : 'BASE_ORDER_STATUS_PACKED_NAME',
+      labelFallback || DEFAULT_PACKED_LABEL
+    );
+    if (!baseOrderStatusPacked) {
+      baseOrderStatusPacked = DEFAULT_PACKED_STATUS_ID;
+      ORDER_STATUS_ID_CACHE.packed = DEFAULT_PACKED_STATUS_ID;
+      console.warn(
+        `BaseLinker PACKED status resolved via hard fallback DEFAULT_PACKED_STATUS_ID=${DEFAULT_PACKED_STATUS_ID}`
+      );
+    } else {
+      ORDER_STATUS_ID_CACHE.packed = baseOrderStatusPacked;
+    }
   }
 
   if (!baseOrderStatusNew) {
@@ -243,7 +287,13 @@ async function syncNewOrders() {
       labelFallback ? undefined : 'BASE_ORDER_STATUS_SHIPPED_NAME',
       labelFallback || DEFAULT_SHIPPED_LABEL
     );
-    if (baseOrderStatusShipped) {
+    if (!baseOrderStatusShipped) {
+      baseOrderStatusShipped = DEFAULT_SHIPPED_STATUS_ID;
+      ORDER_STATUS_ID_CACHE.shipped = DEFAULT_SHIPPED_STATUS_ID;
+      console.warn(
+        `BaseLinker SHIPPED status resolved via hard fallback DEFAULT_SHIPPED_STATUS_ID=${DEFAULT_SHIPPED_STATUS_ID}`
+      );
+    } else {
       ORDER_STATUS_ID_CACHE.shipped = baseOrderStatusShipped;
     }
   }
@@ -315,6 +365,7 @@ async function syncNewOrders() {
       [
         shouldFilterStatus ? baseOrderStatusNew : null,
         baseOrderStatusPicked,
+        baseOrderStatusPacked,
         baseOrderStatusShipped,
         baseOrderStatusDelivered,
         baseOrderStatusCancelled,
@@ -362,11 +413,13 @@ async function syncNewOrders() {
 
   // Post-process statuses using resolved names to classify picked/closed
   const pickedId = ORDER_STATUS_ID_CACHE.picked || DEFAULT_PICKED_STATUS_ID;
+  const packedId = ORDER_STATUS_ID_CACHE.packed || null;
   const cancelledId = ORDER_STATUS_ID_CACHE.cancelled || null;
   orders.forEach((order) => {
     const rawLabel = order.statusLabel || order.orderStatus || '';
     const normalized = (rawLabel || '').toLowerCase();
     const isPickedId = order.statusId && String(order.statusId) === String(pickedId);
+    const isPackedId = packedId && order.statusId && String(order.statusId) === String(packedId);
     const isCancelledId = cancelledId && order.statusId && String(order.statusId) === String(cancelledId);
     const looksCancelled =
       normalized.includes('storniert') ||
@@ -374,6 +427,11 @@ async function syncNewOrders() {
       normalized.includes('canceled') ||
       normalized.includes('abgebrochen');
     const isNewId = baseOrderStatusNew && order.statusId && String(order.statusId) === String(baseOrderStatusNew);
+
+    if (isPackedId || normalized.includes('verpackt') || normalized.includes('packed')) {
+      order.status = 'packed';
+      return;
+    }
 
     // If we know the explicit "NEW" status id, only treat matching orders as open/new.
     if (baseOrderStatusNew && order.statusId && !isNewId) {
@@ -581,15 +639,103 @@ async function markOrderAsPicked(orderId) {
   return { id: orderId };
 }
 
+async function markOrderAsPacked(orderId) {
+  if (!orderId) {
+    throw new Error('Order ID is required');
+  }
+
+  const order = await getOrderById(orderId);
+  if (!order) {
+    throw new Error('Order not found');
+  }
+
+  const secrets = await getSecrets();
+
+  // Resolve picked status id to enforce the precondition (Kommissioniert).
+  let baseOrderStatusPicked = normalizeStatusIdInput(secrets.baseOrderStatusPicked);
+  if (baseOrderStatusPicked) {
+    ORDER_STATUS_ID_CACHE.picked = baseOrderStatusPicked;
+  } else {
+    const labelFallback =
+      typeof secrets.baseOrderStatusPicked === 'string' && secrets.baseOrderStatusPicked.trim()
+        ? secrets.baseOrderStatusPicked.trim()
+        : null;
+    baseOrderStatusPicked = await resolveOrderStatusIdByName(
+      'picked',
+      labelFallback ? undefined : 'BASE_ORDER_STATUS_PICKED_NAME',
+      labelFallback || 'Kommissioniert'
+    );
+    // Hard fallback to known ID if name lookup fails
+    if (!baseOrderStatusPicked) {
+      baseOrderStatusPicked = DEFAULT_PICKED_STATUS_ID;
+      ORDER_STATUS_ID_CACHE.picked = DEFAULT_PICKED_STATUS_ID;
+    }
+  }
+
+  const currentLabel = (order.statusLabel || '').toString().toLowerCase();
+  const currentStatusId = order.statusId != null ? String(order.statusId) : null;
+  const looksPicked =
+    currentLabel.includes('kommissioniert') ||
+    (currentStatusId && String(currentStatusId) === String(baseOrderStatusPicked));
+  if (!looksPicked) {
+    throw new Error(`Order is not in status "Kommissioniert" (current: "${order.statusLabel || '—'}").`);
+  }
+
+  // Resolve packed status id (Verpackt)
+  let baseOrderStatusPacked = normalizeStatusIdInput(secrets.baseOrderStatusPacked);
+  if (baseOrderStatusPacked) {
+    ORDER_STATUS_ID_CACHE.packed = baseOrderStatusPacked;
+  } else {
+    const labelFallback =
+      typeof secrets.baseOrderStatusPacked === 'string' && secrets.baseOrderStatusPacked.trim()
+        ? secrets.baseOrderStatusPacked.trim()
+        : null;
+    baseOrderStatusPacked = await resolveOrderStatusIdByName(
+      'packed',
+      labelFallback ? undefined : 'BASE_ORDER_STATUS_PACKED_NAME',
+      labelFallback || DEFAULT_PACKED_LABEL
+    );
+  }
+
+  if (!baseOrderStatusPacked) {
+    throw new Error('BASE_ORDER_STATUS_PACKED (or BASE_ORDER_STATUS_PACKED_NAME) is required to mark orders as packed.');
+  }
+
+  const baselinkerOrderId = Number(order.baselinkerId || order.id);
+  const baselinkerStatusId = Number(baseOrderStatusPacked);
+
+  const response = await callBaseLinker('setOrderStatus', {
+    order_id: baselinkerOrderId,
+    status_id: baselinkerStatusId,
+  });
+
+  if (response?.status !== 'SUCCESS') {
+    throw new Error(
+      `BaseLinker setOrderStatus failed for order ${orderId} (BL ${baselinkerOrderId}) to status ${baselinkerStatusId}: ${response?.error_message || 'unknown error'}`
+    );
+  }
+
+  await updateOrder(orderId, {
+    status: 'packed',
+    statusLabel: DEFAULT_PACKED_LABEL,
+    statusId: String(baseOrderStatusPacked),
+    packedAt: new Date().toISOString(),
+  });
+
+  return { id: orderId };
+}
+
 module.exports = {
   syncNewOrders,
   markOrderAsPicked,
+  markOrderAsPacked,
 };
 
 function isClosedStatus(statusLabel = '') {
   const raw = statusLabel.toLowerCase();
   return (
     raw.includes('kommissioniert') ||
+    raw.includes('verpackt') ||
     raw.includes('versendet') ||
     raw.includes('zugestellt') ||
     raw.includes('delivered') ||

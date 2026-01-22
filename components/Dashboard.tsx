@@ -109,6 +109,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
     return {
       neu: breakdown?.neu ?? 0,
       kommissioniert: breakdown?.kommissioniert ?? 0,
+      verpackt: (breakdown as any)?.verpackt ?? 0,
       versendet: breakdown?.versendet ?? 0,
       zugestellt: breakdown?.zugestellt ?? 0,
       cancelled: breakdown?.cancelled ?? 0,
@@ -117,6 +118,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
       total:
         (breakdown?.neu ?? 0) +
         (breakdown?.kommissioniert ?? 0) +
+        ((breakdown as any)?.verpackt ?? 0) +
         (breakdown?.versendet ?? 0) +
         (breakdown?.zugestellt ?? 0) +
         (breakdown?.other ?? 0),
@@ -316,12 +318,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-inner shadow-black/20 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-slate-800 rounded-2xl p-7 border border-white/5 shadow-inner shadow-black/20 space-y-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm uppercase tracking-wide text-slate-400">Auftragsstatus</p>
-              <h2 className="text-xl font-semibold text-white">Kommissionierung</h2>
+              <h2 className="text-2xl font-semibold text-white">Übersicht</h2>
             </div>
             <SyncIcon className="w-6 h-6 text-slate-400" />
           </div>
@@ -330,33 +332,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
             <p className="text-sm text-slate-400">Lade Auftragszahlen …</p>
           ) : (
             <>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-widest text-slate-400">Neue Bestellung</p>
-                  <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.neu}</p>
+                  <p className="text-4xl font-semibold text-white mt-1">{orderMetrics.neu}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-widest text-slate-400">Kommissioniert</p>
-                  <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.kommissioniert}</p>
+                  <p className="text-4xl font-semibold text-white mt-1">{orderMetrics.kommissioniert}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Verpackt</p>
+                  <p className="text-4xl font-semibold text-white mt-1">{orderMetrics.verpackt}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-widest text-slate-400">Versendet</p>
-                  <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.versendet}</p>
+                  <p className="text-4xl font-semibold text-white mt-1">{orderMetrics.versendet}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-widest text-slate-400">Zugestellt</p>
-                  <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.zugestellt}</p>
+                  <p className="text-4xl font-semibold text-white mt-1">{orderMetrics.zugestellt}</p>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-widest text-slate-400">Offen (nur neu)</p>
-                  <p className="text-2xl font-semibold text-white mt-1">{orderMetrics.open}</p>
+                  <p className="text-3xl font-semibold text-white mt-1">{orderMetrics.open}</p>
                   <p className="text-xs text-slate-400 mt-1">Gesamt aktiv (ohne storniert): {orderMetrics.total}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs uppercase tracking-widest text-slate-400">Gesamtumsatz (alle, ohne Storniert)</p>
-                  <p className="text-2xl font-semibold text-white mt-1">
+                  <p className="text-3xl font-semibold text-white mt-1">
                     {formatCurrency(orderMetrics.revenueAllNonCancelled, orderMetrics.currency)}
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
@@ -367,7 +373,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
             </>
           )}
         </div>
-        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-inner shadow-black/20 lg:col-span-2">
+        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-inner shadow-black/20">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm uppercase tracking-wide text-slate-400">Auftragsvolumen</p>
@@ -398,38 +404,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-inner shadow-black/20 lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-slate-400">Sync-Status</p>
-              <h2 className="text-xl font-semibold text-white">Produkt-Pipeline</h2>
-            </div>
-            <SyncIcon className="w-6 h-6 text-slate-400" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {(['synced', 'pending', 'failed'] as const).map((status) => {
-              const value = syncCounts[status];
-              const percent = totalProducts === 0 ? 0 : Math.round((value / totalProducts) * 100);
-              const colors: Record<typeof status, string> = {
-                synced: 'bg-emerald-500',
-                pending: 'bg-amber-400',
-                failed: 'bg-rose-500',
-              };
-              return (
-                <div key={status} className="bg-slate-900/40 rounded-xl p-4 border border-white/5">
-                  <p className="text-xs uppercase tracking-widest text-slate-400">{status}</p>
-                  <p className="text-2xl font-semibold text-white mt-1">{value}</p>
-                  <div className="mt-3 h-2 w-full bg-slate-700 rounded-full">
-                    <div className={`h-2 rounded-full ${colors[status]}`} style={{ width: `${percent}%` }} />
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">{percent}% des Bestands</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-inner shadow-black/20">
+        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-inner shadow-black/20 lg:col-span-3">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm uppercase tracking-wide text-slate-400">Lagerfüllstand</p>
@@ -471,7 +446,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
         <div className="bg-slate-800 rounded-2xl p-5 border border-white/5">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -493,32 +468,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
                   <div className="h-2 bg-slate-700 rounded-full mt-1">
                     <div className="h-2 bg-sky-500 rounded-full" style={{ width: `${cat.percent}%` }} />
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5">
-          <p className="text-sm uppercase tracking-wide text-slate-400">Aktivitäten</p>
-          <h2 className="text-xl font-semibold text-white mb-4">Zuletzt aktualisiert</h2>
-          {recentProducts.length === 0 ? (
-            <p className="text-slate-400 text-sm">Noch keine gespeicherten Produkte.</p>
-          ) : (
-            <ul className="space-y-3">
-              {recentProducts.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex items-center justify-between bg-slate-900/40 rounded-xl px-3 py-2 cursor-pointer hover:border-sky-500 border border-transparent"
-                  onClick={() => onSelectProduct(item.id)}
-                >
-                  <div>
-                    <p className="text-sm text-white">{item.name}</p>
-                    <p className="text-xs text-slate-400">{item.brand}</p>
-                  </div>
-                  <p className="text-xs text-slate-400">
-                    {item.savedAt ? item.savedAt.toLocaleString('de-DE') : '--'}
-                  </p>
                 </li>
               ))}
             </ul>

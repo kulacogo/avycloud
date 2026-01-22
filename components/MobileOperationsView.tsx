@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
-import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, stockInProduct, stockOutProduct } from '../api/client';
+import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, packOrder, stockInProduct, stockOutProduct } from '../api/client';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
@@ -107,6 +107,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [activeSku, setActiveSku] = useState('');
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [pickMessage, setPickMessage] = useState<string | null>(null);
+  const [packMessage, setPackMessage] = useState<string | null>(null);
   // Mobile pick progress (supports partial picks across bins)
   const [pickedByItemId, setPickedByItemId] = useState<Record<string, number>>({});
   // Local bin deltas to avoid stale product data causing repeated picks from the same BIN
@@ -214,6 +215,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       return raw.includes('storniert') || raw.includes('cancel');
     };
     return orders.filter((o) => (o.status || '').toLowerCase() === 'new' && !isCancelled(o.statusLabel));
+  }, [orders]);
+
+  const readyToPackOrders = useMemo(() => {
+    // We only want orders that are actually in BaseLinker status "Kommissioniert" (local status: picked + label contains kommissioniert)
+    return orders.filter(
+      (o) => o.status === 'picked' && (o.statusLabel || '').toLowerCase().includes('kommissioniert')
+    );
   }, [orders]);
 
   const normalizeScan = (val?: string | null) => (val || '').replace(/\s+/g, '').toUpperCase();
@@ -342,7 +350,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   }, [openOrders, pickedByItemId, resolveProductForItem, getAdjustedBinQty]);
 
   const packItems = useMemo(() => {
-    const ready = orders.filter((o) => o.status === 'picked');
+    const ready = readyToPackOrders;
     const bucket: Record<string, { orderId: string; sku: string; name: string; binCode: string; qty: number }> = {};
     ready.forEach((o) => {
       o.items.forEach((it) => {
@@ -357,7 +365,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       });
     });
     return Object.values(bucket);
-  }, [orders]);
+  }, [readyToPackOrders]);
 
   const equalsIgnoreCase = useCallback(
     (a?: string | null, b?: string | null) => normalizeScan(a) === normalizeScan(b),
@@ -544,6 +552,50 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         return;
       }
 
+      // PACK flow
+      if (mode === 'operations-pack') {
+        const normalized = normalizeScan(rawTrimmed);
+        if (!normalized) return;
+
+        const matches: Array<{ orderId: string; orderNumber?: string | null }> = [];
+        const seen = new Set<string>();
+        for (const o of readyToPackOrders) {
+          const hit = o.items.some((it) => equalsSkuScan(it.sku || '', normalized) || equalsSkuScan(it.ean || '', normalized));
+          if (!hit) continue;
+          const key = String(o.id);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          matches.push({ orderId: o.id, orderNumber: o.number });
+        }
+
+        if (matches.length === 0) {
+          setPackMessage(t('ops.mobile.pack.scan.notFound', { sku: rawTrimmed }));
+          return;
+        }
+        if (matches.length > 1) {
+          setPackMessage(t('ops.mobile.pack.scan.ambiguous', { sku: rawTrimmed, count: matches.length }));
+          return;
+        }
+
+        const target = matches[0];
+        setPackMessage(null);
+        void (async () => {
+          try {
+            await packOrder(target.orderId);
+            setPackMessage(
+              t('ops.mobile.pack.scan.success', {
+                order: target.orderNumber || target.orderId,
+                sku: rawTrimmed,
+              })
+            );
+          } catch (err: any) {
+            setPackMessage(t('ops.mobile.pack.scan.error', { message: err?.message || t('common.unknownError') }));
+          }
+          await refreshOrders();
+        })();
+        return;
+      }
+
       // PICK flow
       const normalized = normalizeScan(rawTrimmed);
       if (!normalized) return;
@@ -615,13 +667,17 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       stowQty,
       stowSku,
       equalsSkuScan,
+      mode,
+      readyToPackOrders,
+      refreshOrders,
+      t,
     ]
   );
   useEffect(() => {
     const bufferRef = { current: '' };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (mode !== 'operations-pick' && mode !== 'operations-stow') return;
+      if (mode !== 'operations-pick' && mode !== 'operations-stow' && mode !== 'operations-pack') return;
       const target = e.target as HTMLElement | null;
       if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) {
         const anyTarget = target as any;
@@ -1078,6 +1134,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     return (
       <div className="space-y-3 max-w-xl mx-auto">
         <SectionTitle title={t('ops.mode.pack')} desc={t('ops.mode.pack.subtitle')} />
+        {packMessage ? (
+          <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-3 text-sm text-slate-200">
+            {packMessage}
+          </div>
+        ) : null}
         {ordersLoading && <p className="text-sm text-slate-400">{t('ops.orders.loading')}</p>}
         {packItems.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">{t('ops.mobile.pack.none')}</p>}
         {packItems.slice(0, 100).map((item) => (
