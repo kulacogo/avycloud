@@ -607,6 +607,15 @@ function enforceEbayAspects(product) {
 
   const META_ATTRIBUTE_KEYS = new Set(
     [
+      // Human-readable category meta fields from imports/LLM output (must not live in attributes UI)
+      'kategorie',
+      'kategorie-id',
+      'kategorie id',
+      'kategorie_id',
+      'kategorie (breadcrumb)',
+      'kategorie breadcrumb',
+      'kategorie_breadcrumb',
+
       'ebay_category_id',
       'ebaycategoryid',
       'ebay_category_path',
@@ -772,6 +781,20 @@ function enforceEbayAspects(product) {
     (details.categoryId && String(details.categoryId).trim()) ||
     (details.ebayCategoryId && String(details.ebayCategoryId).trim()) ||
     (attrs.ebay_category_id && String(attrs.ebay_category_id).trim()) ||
+    // Some imports store the eBay category id under German UI-like keys.
+    // Example seen in data: "Kategorie-ID": "30251"
+    (() => {
+      const findKey = (needleLower) =>
+        Object.keys(attrs || {}).find((k) => String(k || '').trim().toLowerCase() === needleLower) || null;
+      const raw =
+        (findKey('kategorie-id') ? attrs[findKey('kategorie-id')] : null) ||
+        (findKey('kategorie id') ? attrs[findKey('kategorie id')] : null) ||
+        (findKey('kategorie_id') ? attrs[findKey('kategorie_id')] : null) ||
+        null;
+      if (raw == null) return null;
+      const digits = String(raw).replace(/\D+/g, '').trim();
+      return digits || null;
+    })() ||
     null;
 
   // Drop non-eBay category fields
