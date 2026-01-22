@@ -711,6 +711,24 @@ function enforceEbayAspects(product) {
   // downstream mappings (BaseLinker, etc.) deterministic.
   const gpsr =
     details.gpsr && typeof details.gpsr === 'object' ? { ...details.gpsr } : {};
+
+  // GPSR placeholder policy (business rule):
+  // - If manufacturer address/email cannot be found/enriched, persist placeholders so exports remain complete.
+  // - We MUST mark placeholders in ops.data_quality so they can be replaced later when real values are found.
+  const GPSR_PLACEHOLDER_ADDRESS = 'Muster Straße 123';
+  const buildGpsrPlaceholderEmail = (manufacturerHint) => {
+    const hint = (manufacturerHint == null ? '' : String(manufacturerHint)).trim();
+    const domain =
+      hint
+        .toLowerCase()
+        .replace(/ä/g, 'a')
+        .replace(/ö/g, 'o')
+        .replace(/ü/g, 'u')
+        .replace(/ß/g, 'ss')
+        .replace(/[^a-z0-9]+/g, '')
+        .trim() || 'hersteller';
+    return `musterfirma@${domain}.com`;
+  };
   const ingestGpsrAttribute = (finalKey, val, nextExtra, originalKey) => {
     if (!isGpsrKey(finalKey)) return false;
     const keyLower = normalizeLower(finalKey);
@@ -825,6 +843,39 @@ function enforceEbayAspects(product) {
       }
       nextAttrs[finalKey] = normalizeBooleanishValue(val);
     });
+
+    // GPSR placeholders (no-category path)
+    try {
+      const manufacturerHint =
+        safeString(nextAttrs.Hersteller) ||
+        safeString(nextAttrs.Marke) ||
+        safeString(product?.identification?.brand) ||
+        safeString(details?.brand) ||
+        '';
+      const changedGpsr = [];
+      if (!gpsr.manufacturer_name && manufacturerHint) {
+        gpsr.manufacturer_name = manufacturerHint;
+        changedGpsr.push('manufacturer_name');
+      }
+      if (!gpsr.manufacturer_address) {
+        gpsr.manufacturer_address = GPSR_PLACEHOLDER_ADDRESS;
+        changedGpsr.push('manufacturer_address');
+      }
+      if (!gpsr.email) {
+        gpsr.email = buildGpsrPlaceholderEmail(manufacturerHint || 'hersteller');
+        changedGpsr.push('email');
+      }
+      if (changedGpsr.length) {
+        product.ops = product.ops || {};
+        product.ops.data_quality = product.ops.data_quality || {};
+        product.ops.data_quality.gpsr_placeholder_v1 = {
+          at_iso: new Date().toISOString(),
+          fields: changedGpsr,
+        };
+      }
+    } catch (e) {
+      // non-blocking
+    }
 
     // Consolidation pass (no-category):
     // - Merge usage fields to one canonical key
@@ -1036,6 +1087,39 @@ function enforceEbayAspects(product) {
   // Add canonical Kategorie attribute for consistent UI + exports
   if (categoryPath) {
     keptAspects.Kategorie = String(categoryPath);
+  }
+
+  // GPSR placeholders (category-known path)
+  try {
+    const manufacturerHint =
+      safeString(keptAspects.Hersteller) ||
+      safeString(keptAspects.Marke) ||
+      safeString(product?.identification?.brand) ||
+      safeString(details?.brand) ||
+      '';
+    const changedGpsr = [];
+    if (!gpsr.manufacturer_name && manufacturerHint) {
+      gpsr.manufacturer_name = manufacturerHint;
+      changedGpsr.push('manufacturer_name');
+    }
+    if (!gpsr.manufacturer_address) {
+      gpsr.manufacturer_address = GPSR_PLACEHOLDER_ADDRESS;
+      changedGpsr.push('manufacturer_address');
+    }
+    if (!gpsr.email) {
+      gpsr.email = buildGpsrPlaceholderEmail(manufacturerHint || 'hersteller');
+      changedGpsr.push('email');
+    }
+    if (changedGpsr.length) {
+      product.ops = product.ops || {};
+      product.ops.data_quality = product.ops.data_quality || {};
+      product.ops.data_quality.gpsr_placeholder_v1 = {
+        at_iso: new Date().toISOString(),
+        fields: changedGpsr,
+      };
+    }
+  } catch (e) {
+    // non-blocking
   }
 
   // Consolidation pass (category-known):
