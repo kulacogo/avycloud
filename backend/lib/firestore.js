@@ -1365,6 +1365,8 @@ async function saveProduct(product, options = {}) {
     const hasExisting = Boolean(existingData);
     const allowWarehouseFields = options && options.allowWarehouseFields === true;
     const saveSource = (options && options.source) || null; // e.g. 'ui', 'job', 'script'
+    const skipTitlePolicy = options && options.skipTitlePolicy === true;
+    const skipKeyFeaturesNormalize = options && options.skipKeyFeaturesNormalize === true;
 
     const pickStableSku = (data) => {
       const idSku = typeof data?.identification?.sku === 'string' ? data.identification.sku.trim() : '';
@@ -1840,7 +1842,9 @@ async function saveProduct(product, options = {}) {
     // Normalize generated fields consistently across Identify / Improve / Chat saves.
     // - no duplicate highlights
     // - stable, technical title (eBay safe length)
-    const normalizedKeyFeatures = sanitizeKeyFeatures(productWithEbay?.details?.key_features || [], { max: 8 });
+    const normalizedKeyFeatures = skipKeyFeaturesNormalize
+      ? (Array.isArray(productWithEbay?.details?.key_features) ? productWithEbay.details.key_features : [])
+      : sanitizeKeyFeatures(productWithEbay?.details?.key_features || [], { max: 8 });
     const AUTO_TITLE_MIN_LEN = 65;
     const AUTO_TITLE_MAX_LEN = 80;
     const AUTO_TITLE_SOFT_MAX_LEN = 75;
@@ -1850,7 +1854,7 @@ async function saveProduct(product, options = {}) {
     // IMPORTANT: Do not overwrite a manually edited title.
     // We still generate a technical title for automation paths (identify/improve/import),
     // but UI saves must persist exactly what the user entered.
-    if (!isManualSave) {
+    if (!isManualSave && !skipTitlePolicy) {
       productWithEbay.identification.name = coerceTitleToPolicy(
         productWithEbay,
         productWithEbay.identification.name,

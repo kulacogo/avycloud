@@ -1,0 +1,1042 @@
+Key,Products,Cluster,Types,Sources,TopCategories,SampleValues
+identifiers.sku,200,identifiers sku,string:200,identifiers:200,179496:6 33564:5 33612:3 37644:3 174119:3,SKU-7538503265 | SKU-7225351886 | SKU-1844691476 | SKU-9129624671 | SKU-2231367173 | SKU-2250869990 | SKU-4310621602 | SKU-7255766247
+Produktart,188,produktart,string:187 null:1,attributes:188,33564:5 179496:5 33612:3 37644:3 177031:3,Ersatz-Sitzkissen | Hundepool | Rucksack | Gepäckträger | Bienengiftsalbe | Fahrradständer | Sammelordner-Kollektion | T-Shirt
+Zustand,188,zustand,string:188,attributes:188,179496:6 33564:5 33612:3 37644:3 174119:3,NEU | Neu | Ungeprüft | new | used
+Marke,181,marke,string:181,attributes:181,179496:6 33564:3 33612:3 37644:3 177031:3,COM40 Limited sp | COZII | Thule | Bedrop | HENMI | Pokémon | Quooker | Weber
+identifiers.ean,169,identifiers ean,string:169,identifiers:169,179496:6 33564:3 33612:3 37644:3 177031:3,4262479341886 | 0085854258548 | 0872299043330 | 0098931289601 | 0751677212219 | 0196214105119 | 0198303486543 | 8424445107988
+identifiers.mpn,156,identifiers mpn,string:156,identifiers:156,179496:6 33564:5 33612:3 174119:3 177031:3,C001746 | X001Y0BTE9 | 3205317 | 20201512 | HMF-B03 | 100-10011 | 661581842 | 5023700V02
+gpsr.email,155,gpsr email,string:155,gpsr:155,33564:5 179496:5 33612:3 37644:3 174119:3,info@example.com | abercrombie@cs.abercrombie.com | sales@patriotmemory.com | support@fwcsss.com | contact@evatmaster.com | Successservice2@hotmail.com | successservice2@hotmail.com | ccrepservice@hotmail.com
+gpsr.manufacturer_address,155,gpsr manufacturer address,string:155,gpsr:155,33564:5 179496:5 33612:3 37644:3 174119:3,"kocka 46, 63-460 Nowe Skalmierzyce, Poland | Borggatan 5, 33573 Hillerstorp, Sweden | Not Provided, EU | ABFICO NETHERLANDS DISTRIBUTION B.V. LAARDERHOOGTWEG 25 1101 EB AMSTERDAM THE NETHERLANDS | P.E. BOROA, PARCELA 2B4-5, 43340-AMOREBIETA (VIZCAYA) | Unit 3, Ryknild Industrial Estate, Derby Road, Burton upon Trent, DE14 1RZ | Patriot Memory, USA Office: 47027 Benicia Street, Fremont, CA 94538; Europe Office: Newtonweg 12, 5928 PN Venlo, The Netherlands | Sodener Straße 9, 65824 Schwalbach, Germany"
+gpsr.manufacturer_name,155,gpsr manufacturer name,string:155,gpsr:155,33564:5 179496:5 33612:3 37644:3 174119:3,COM40 Limited sp | Thule | Thule Sweden AB | HENMI | Pokémon | ABFICO NETHERLANDS DISTRIBUTION B.V. | Weber | ALKAR AUTOMOTIVE S.A.U.
+gpsr.url,155,gpsr url,string:155,gpsr:155,33564:5 179496:5 33612:3 37644:3 174119:3,www.thule.com | www.patriotmemory.com | relionbattery.com | www.ate.de/original | www.europlast.lv | www.haskyy.com | www.silicon-power.com | https://www.delsey.com
+weight,141,weight,number:134 string:7,attributes:141,179496:6 33564:5 33612:3 174119:3 177031:3,1 kg | 3 | 1 | 0.1 | 0.64 | 15.6 | 2.23 | 12
+Farbe,132,farbe,string:131 null:1,attributes:132,37644:3 174119:3 177031:3 238:2 261011:2,Blau | Darkest Blue | Schwarz | Mehrfarbig | Silber | Sunburst | Coral / Champagne Gold | Weiß
+Kategorie,130,kategorie,string:130,attributes:130,33564:5 179496:5 33612:3 37644:3 174119:3,"Möbel & Wohnen > Möbelzubehör > Sitzkissen | Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Tischsets | Sport > Camping & Outdoor > Rucksäcke > Trekkingrucksäcke | Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung | Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Ordner, Sammelmappen & -hüllen | Sport > Angelsport > Zubehör > Räucheröfen & -utensilien | Heimwerker > Werkzeuge > Handwerkzeuge > Messer | Heimwerker > Werkzeuge > Elektrowerkzeuge > Schleifmaschinen"
+Material,105,material,string:104 null:1,attributes:105,33612:3 37644:3 177031:3 238:2 33564:2,"Strapazierfähiges Textil | PVC, PP | Kunststoff | 100% Baumwolle | Metall | Hochwertige Verbundwerkstoffe | Hochwertiger Werkzeugstahl | Holzwerkstoff"
+Herstellernummer,103,herstellernummer,string:103,attributes:103,33564:5 179496:5 33612:3 37644:2 84237:2,C001746 | HMF-B03 | 60.237.00V02 | 9202922 | 7.22184.39.0 | LUH-A251-WEU | 802 472 019 | 3046
+Modell,101,modell,string:99 null:2,attributes:101,179496:3 49782:2 50382:2 54145:2 174119:2,"C22/S02 | Chariot Cargo Rack 2 | Bee Cream | HMF-B03 | CUBE | Smokey Mountain Cooker | Ducato, Jumper, Boxer | TX103"
+EAN,57,ean,string:57,attributes:57,179496:4 33612:2 22449:1 29518:1 33579:1,0098931289601 | 8424445107988 | 0615272916159 | 1004200304684 | 1795362000001 | 8029121951734 | 6933783712522 | 2290601009009
+Anwendungsbereich,53,anwendungsbereich,string:53,attributes:53,179496:4 3244:2 29523:1 33579:1 33612:1,"Körper | Inkontinenzversorgung | Motorrad 4-Takt | Kfz, Maschinenbau, allgemeine Reparaturen | Wartungsschächte, Hohlräume | Backpacking | Außenbereich | Lackdickenmessung, Beschichtungsdickenmessung, Automobilindustrie"
+identifiers.gtin,52,identifiers gtin,string:52,identifiers:52,179496:5 33564:4 33612:3 238:1 15687:1,00872299043330 | 8424445107988 | 04052938000016 | 04260325295246 | 4059923008019 | 1004200304684 | 14006633314036 | 1795362000001
+Herstellungsland,48,herstellungsland,string:48,attributes:48,179496:4 33612:3 50382:2 84237:2 179501:2,Taiwan | Deutschland | Polen | EU | Frankreich | Italien | Belgien | Indien
+Lieferumfang,44,lieferumfang,string:44,attributes:44,33564:3 33612:3 37644:2 3244:1 33579:1,"1 Sammelordner, 5 Boosterpacks | Räucherofen, Premium Abdeckung | 1x Luftmassenmesser | 16 Schleifpapiere | Gehäuse, Armband (klein und groß), Ladekabel | 1x Federbeinlager | 1x Bremsscheibe | Ansaugsystem, Luftfilter, Befestigungsschellen"
+Zielgruppe,40,zielgruppe,string:40,attributes:40,2024:1 11507:1 15687:1 20740:1 23895:1,"Unisex Erwachsene | Sammler, Kinder | Anfänger | Erwachsene | Erwachsene & Kinder | Herren | Gamer | Jugendliche, Erwachsene"
+Besonderheiten,39,besonderheiten,string:39,attributes:39,177031:2 3244:1 20622:1 20660:1 20740:1,"Faltbar, Tragbar, Robust | Integrierte Reißverschlusstasche | Verstellbar | Mit Boosterpacks | Mit Deckel, Integriertes Thermometer | Spülmaschinenfeste Teile | Ultraschall, Kaltnebel, Top-Fill, Leise, DualValve Anti-Leak Design | Reisefreundlich, Kompaktes Design"
+Größe,38,grosse,string:36 null:2,attributes:38,11507:1 15687:1 20660:1 22670:1 36440:1,120x30cm | L | 37 cm | 24 | S/M | XL | M | S
+GPSR Manufacturer name,36,gpsr manufacturer name,string:36,attributes:36,177031:3 238:2 261011:2 2024:1 3199:1,Thule | Pokémon | Weber | Normans (Burton on Trent Ltd) | ATE | IKEA | TRW | RDINSCOS
+Höhe,27,hohe,string:26 null:1,attributes:27,33564:2 177031:2 3199:1 33661:1 49782:1,77 cm | 11 cm | 85 mm | 53.1 cm | 52.4 mm | 71 cm | 52.9 | 365 mm
+Länge,26,lange,string:24 null:2,attributes:26,23895:1 33612:1 49782:1 50382:1 58100:1,800 mm | 190 mm | 1140 | 615 mm | 250 cm | 120 cm | 125 cm | 160 cm
+Stil,26,stil,string:26,attributes:26,15687:1 37644:1 175769:1,Basic | Casual | Vintage | Modern | Glatter BH | Bustier | Pyjamahose | Ouvert-String
+Breite,22,breite,string:21 null:1,attributes:22,3199:1 23895:1 49782:1 57357:1 66728:1,77 cm | 300 mm | 460 mm | 34.5 cm | 460 | 87 | 370 mm | 10 cm
+Hersteller,22,hersteller,string:22,attributes:22,33564:3 238:2 2024:1 15687:1 20622:1,ATE | Galileo S.p.A. | Wizards of the Coast | ALURAD SHOP GBR | Bosch | Pierre Fabre | BRITA SE | Continental Aftermarket & Services GmbH
+K-Typ,22,k typ,string:22,attributes:22,33564:3 179496:3 33612:2 170141:2 33579:1,"23302,Motorcode:CAMA,CGKA / für OE-Nummer:059 906 461 N|25455,Motorcode:CAMA,CGKA / für OE-Nummer:059 906 461 N|19124,Motorcode:CAMA,CGKA / für OE-Nummer:059 906 461 N|16077,Motorc | 4218|10319|10321|14020|16094|16095|18141|19991|19992|20676|20677|20678|20791|20792|20793|21553|24313|34970|34971|55231|57486|57487|57497|57498|106326|123021|129105|129107|129108|12 | 9135,Einbauposition Vorderachse|116960,Einbauposition Vorderachse|100972,Einbauposition Vorderachse|6647,Einbauposition Vorderachse|111969,Einbauposition Vorderachse|6649,Einbaupos | 58318,Einbauposition Hinterachse|29480,Einbauposition Hinterachse|34928,Einbauposition Hinterachse|29482,Einbauposition Hinterachse|29483,Einbauposition Hinterachse | 5062|5063|6030|6040|6516|6517|6518|6519|6520|7514|7515|7516|7517|10523|11052|17009|17172|17173|17398|17458|17577|17578|18066|18067|18068|18069|18070|18071|18082|18083|18356|18357|1 | 25|58|370|1360|2002|2003|2031|2038|2039|2040|2041|2042|3252|4613|4614|4615|4616|4617|4618|4619|4620|4621|4622|5071|5081|5125|5171|5289|5290|5305|5306|5307|5308|5310|5311|5313|5314| | 2311|4100|4101|4103|4104|4220|4221|4252|4254|4256|4257|4258|4260|4261|4284|4296|4297|5376|6974|7485|7486|8982|9358|9815|10239|10240|10349|10636|10958|11617|11645|11690|11959|14020| | 1360|1968|1969|1970|1971|5071|5081|6883|8493|8494|8600|8601|8602|8603|8861|9143|9307|11054|11058|11060|11179|11180|11986|11987|11988|11989|11990|11991|11992|11993|11994|11995|11996"
+Einsatzbereich,21,einsatzbereich,string:21,attributes:21,179496:3 20660:1 44647:1 54145:1 81464:1,"Möbelzubehör | Outdoor | Innenräume | Wassersport, Schnorcheln, Schwimmen, Tauchen | Außenbereich | Auto, Camping, LKW, Wohnmobil, Haushalt | Camping, Outdoor | Gastronomie, Catering, Vending"
+Kompatibilität,21,kompatibilitat,string:21,attributes:21,54145:2 238:1 22670:1 23895:1 29518:1,"Universal (für Stühle & Fahrzeuge) | Thule Doppel-Kinderanhänger | Universal | Alle Maussensoren | Lenkradfernbedienung (SWC) | ROHO Standard und SELECT Sitzkissenmodelle | Wohnwagen, Campingbusse, Autos | BRITA P 1000 Systeme"
+Einbauposition,19,einbauposition,string:19,attributes:19,33564:4 33612:3 170141:2 33579:1 33665:1,"Rechts | Vorderachse, Links, Rechts | Motorraum | Vorderachse | Vorne, Hinten | Hinterachse | Hinten | Vorderachse beidseitig (links und rechts)"
+Muster,19,muster,string:19,attributes:19,37644:3 11507:1 15687:1 57990:1,Logo | Logo-Print | Geometrisch | Einfarbig | Unifarben | Gestreift | Feinripp | Uni
+Geschlecht,16,geschlecht,string:16,attributes:16,22449:1 36440:1 37644:1 87122:1 109677:1,Unisex | Herren | Damen | UNISEX
+Passform,16,passform,string:16,attributes:16,11507:1 15687:1 36440:1 263094:1,Regular Fit | Optimal | Drop Fit | Big Fit | Fahrzeugspezifisch | Normal | Slim Fit | Regular Fit / Normale Passform
+Anlass,15,anlass,string:15,attributes:15,2024:1 11507:1 15687:1 57990:1,"Freizeit | Freizeit, Alltag | Freizeit, Business Casual | Sportveranstaltungen, Fan-Events | Besondere Anlässe | Dessous, Besondere Anlässe | Vielseitig | Casual"
+Durchmesser,15,durchmesser,string:14 null:1,attributes:15,33564:4 33665:1 50382:1 58100:1 79656:1,"37 cm | 314 mm | 321 mm | 8,5 cm | 240 mm | 2,5 mm | 300 mm | 110 cm"
+Form,14,form,string:14,attributes:14,177031:2 20660:1 23895:1 79656:1 81464:1,Rund | Rechteckig | Oval | Bolus
+Leistung,14,leistung,string:14,attributes:14,20754:1 42284:1 69197:1 174119:1 177699:1,5W | 350 W | 2000 Watt | 17 W | 60 | 100W | 60 W | 4 W
+Thema,14,thema,string:14,attributes:14,2024:1 11507:1 15687:1 19082:1 22449:1,"Anime & Manga | Fantasy, Zombies | Disney | Burgen & Schlösser | Basic | Deutschland | Klangkaskade | Erotik, Dessous"
+Montageart,13,montageart,string:13,attributes:13,20740:1 158997:1 182094:1 262241:1,Seitenständer | Schraubmontage | Wandmontage | nicht vormontiert | Werkzeuglos | Standmontage | Aufputz | Aufputz / Unterputz
+Verschluss,13,verschluss,string:13,attributes:13,15687:1 37644:1,"Knopfleiste | Gummizug | Reißverschluss, Zwei-Wege-Zipper | Ohne Verschluss | Knopfverschluss | Reißverschluss"
+Verschlussart,13,verschlussart,string:13,attributes:13,37644:2 11507:1 44647:1 57990:1,Verstellbarer Fersenriemen | Reißverschluss | Haken- und Ösenverschluss | Vierkantverschluss | Ohne Verschluss | Reißverschluss und Knopf | Zwei-Wege-Reißverschluss
+Besonderheit,12,besonderheit,string:12,attributes:12,29525:1 44647:1 178918:1 179496:1 261068:1,"Brusttasche | Reisefreundlich, Kompaktes Design | Upcycled | Feststellschraube | Robuste Konstruktion | DPF- und Katalysator-kompatibel | Robuste Bauweise, präzise Verarbeitung | Verdrehschutz"
+Gebindeart,12,gebindeart,string:12,attributes:12,179496:5 179501:2 179494:1,Kanister | Flasche
+identifiers.upc,12,identifiers upc,string:12,identifiers:12,23895:1 29525:1 69197:1 87122:1 179846:1,085854258548 | 872299043330 | 810123671069 | 850025732208 | 843820108804 | 727977275230 | 609832070375 | 655302158944
+Technologie,12,technologie,string:12,attributes:12,179496:2 49782:1 69197:1 179846:1,Rapid Air | Ultraschall-Kaltnebel | LiFePO4 | Intelligente Steuerung | SLA (Sealed Lead Acid) | Fluid Titanium | QuickClean | Lobrid
+Inhalt,11,inhalt,string:11,attributes:11,179496:4 171961:1 179494:1 179501:1 183457:1,"100 g | 100-Karten-Deck, 10 doppelseitige Token-Karten, Strategie-Insert, Referenzkarte, 1 Collector Booster Sample Pack, 2 legendäre traditionelle Foils | 1 Liter | 500 g | 5 | 5 Liter | 1 Tonerkartusche | 1 L"
+Modellnummer,11,modellnummer,string:11,attributes:11,20660:1 33665:1 174119:1,X001Y0BTE9 | 201010252 | 6S9701P | MW0MW28046DW5 | J20 | 7511 | 150.153 | KH121U1KW-C11
+Produktgruppe,11,produktgruppe,string:11,attributes:11,33564:2 33579:1 33612:1 33665:1 170141:1,Bremssystem | Ansaug- & Kraftstoffsysteme | Bremsenteile | Antriebsteile & Getriebe | Fahrwerk & Lenkung | Fahrwerk | Motorenteile | Federung & Lenkung
+Angebotspaket,10,angebotspaket,null:5 string:5,attributes:10,33694:1 50382:1 54145:1 58100:1 138910:1,Ja | Nein
+Besondere Merkmale,10,besondere merkmale,string:10,attributes:10,42284:1 178918:1 262128:1,"Drehzahlregelung, Staubabsaugung, Soft-Grip | Sichtfenster | Intelligente Steuerung, Lange Leuchtdauer, Hohe Helligkeit | Ohne Duftstoffe, Ohne Parabene, Hypoallergen, Ab Geburt geeignet, Medizinprodukt | Bio-Baumwolle | Leckageschutz, Erstausrüsterqualität | 6-in-1, Rucksack-Tragesystem | Doppeltank-System|Selbstreinigungsfunktion|Easy-Fill"
+Eigenschaften,10,eigenschaften,string:10,attributes:10,15687:1 20349:1 37644:1 177031:1 178918:1,"Kühlend, Wärmend, Wohltuend | Stoßfest, Präzise Aussparungen, Einfache Installation, Angenehme Haptik | Wetterfest | Wetterfest, Solarbetrieben, Fernbedienung | Wasserdicht, Frostbeständig, UV-beständig | Kraftstoffsparend, Verschleißschutz, Motorsauberkeit, Kaltstartoptimiert | Atmungsaktiv | Wasserdicht, Winddicht, Atmungsaktiv, Warm, Recycelt"
+Garantie,10,garantie,string:10,attributes:10,177031:2 261011:2 69197:1 263094:1,2 Jahre Herstellergarantie | 3 Jahre Herstellergarantie | 5 Jahre Herstellergarantie | 5 Jahre | 2 Jahre | 2 Jahre Herstellergarantie auf Material | 10 Jahre Herstellergarantie
+Maßeinheit,10,masseinheit,string:8 null:2,attributes:10,29523:1 33612:1 50382:1 54145:1 84237:1,"µm, mil | Metrisch | Einheit | Stück"
+Oberfläche,10,oberflache,string:10,attributes:10,20349:1 22670:1 33612:1,"Matt, Transparent | Pulverbeschichtet | Glänzend | Glatt | Schwarz oxidiert | Chrom | Hochglanz"
+Anzahl der Einheiten,9,anzahl der einheiten,string:7 null:2,attributes:9,3199:1 20740:1 22670:1 54145:1 138910:1,1 | 3
+Ärmellänge,9,armellange,string:9,attributes:9,15687:1 57990:1,Kurzarm | Langarm | Extralanger Arm | Lange Ärmel
+Jahreszeit,9,jahreszeit,string:9,attributes:9,11507:1 57990:1 66728:1,"Herbst, Winter | Ganzjährig | Winter | Herbst/Winter | Alle Jahreszeiten"
+Menge,9,menge,string:9,attributes:9,179496:5 33564:1 33612:1 33694:1 262228:1,4 Liter | 1 Set | 1 | 2
+Obermaterial,9,obermaterial,string:9,attributes:9,,Britische Wachsbaumwolle | Polyurethan | 100% Polyamid | Leder | Echtleder
+Oldtimer-Teil,9,oldtimer teil,string:9,attributes:9,33564:2 33729:1 39057:1 170141:1 178934:1,Nein
+Pflegehinweis,9,pflegehinweis,string:9,attributes:9,15687:1 37644:1,Feucht abwischbar | Maschinenwäsche 30°C | Maschinenwäsche | Maschinenwäsche 60°C | Pflegeleicht | Leicht zu reinigen
+Serie,9,serie,string:9,attributes:9,33694:1 54145:1 79656:1 183465:1 261068:1,Karmesin & Purpur | 2000 Series | F45 | Vernis Blend | PURITY C | EDGE TURBO DIESEL | Rebris E | Classic Line
+Volumen,9,volumen,string:9,attributes:9,179496:5 87122:1 179501:1,4 Liter | 65 L | 1 Liter | 37 L | 5 L | 5L
+Anzahl pro Packung,8,anzahl pro packung,string:8,attributes:8,11507:1 33729:1 57357:1 170141:1 177806:1,1 | 4 | 2 | 3
+Fahrzeugmarke,8,fahrzeugmarke,string:8,attributes:8,33564:2 170141:1 177699:1 177807:1 178934:1,"Fiat, Citroën, Peugeot | Audi | Hyundai | Honda | Mercedes-Benz | Mazda"
+Fahrzeugmodell,8,fahrzeugmodell,string:8,attributes:8,33564:1 33579:1 33694:1 170141:1 177699:1,"i30N | A3, Golf V | 2er F45 Active Tourer | W140, C140 | Kuga, Galaxy, Focus, Mondeo, Range Rover Evoque | CX-5 | VW Lupo, VW Polo, VW Scirocco | Mercedes E-Klasse W212 S212"
+Funktion,8,funktion,string:8,attributes:8,23895:1 33612:1 180391:1 262128:1,"Wiederherstellung Fahrwerksleistung | Plug & Play | Erweiterbar | Zuverlässige Abdichtung | Motorabdichtung | Wasserdicht, Winddicht | 3-in-1 | Eis- und Schneebeseitigung"
+Herstellerland,8,herstellerland,string:8,attributes:8,54145:1 156105:1 177806:1 179496:1 180391:1,Slowakische Republik | Frankreich | Deutschland | Tschechische Republik
+Universelle Kompatibilität,8,universelle kompatibilitat,string:8,attributes:8,33612:2 238:1 33564:1 33694:1 39057:1,Nein | Ja
+Viskosität,8,viskositat,string:8,attributes:8,179496:6 179494:1,10W-40 | SAE 5W-30 | SAE 0W-30 | 5W-30 | SAE 75W-90
+Artikelnummer,7,artikelnummer,string:7,attributes:7,33665:1 49782:1 177031:1 178934:1,1507000192029 | 512050 | 59279 | 647-203 | 50520195 | 32988205-001 | 21053
+Eigenschaft,7,eigenschaft,string:7,attributes:7,23895:1 36440:1 178918:1,"Medizinprodukt | Dornenfest | Rutschfeste Unterseite | Knickfest | Verdrehschutz | Harzfrei, doppelt gekocht, feuchtigkeitsbeständig, pilzhemmend | Faltbar, Leichtgewicht"
+Fahrzeugtyp,7,fahrzeugtyp,string:7,attributes:7,33694:1 49782:1 57357:1 170141:1 179501:1,PKW | Motorrad
+Fassungsvermögen,7,fassungsvermogen,string:7,attributes:7,67720:1 98844:1 101428:1 177784:1,"6.2 Liter | 55 L | 3,0 Liter | 20 Liter | 1.2 L | 2.1 L | 3,5 Liter"
+Füllmenge,7,fullmenge,string:7,attributes:7,179496:2 179501:2 179494:1,4 Liter | 500 g | 5 L | 1 | 1 Liter | 5 Liter
+Funktionen,7,funktionen,string:7,attributes:7,67720:1 122188:1,"Frittieren, Backen, Grillen, Braten | Bewegungsmelder | Digitalanzeige, Temperaturregelung, Tragbar, App-Steuerung, LED-Beleuchtung, Batterieschutz | Apple CarPlay, Android Auto, AirPlay, Miracast, FM Transmitter | Heizfunktion, Timer, Digitalanzeige | Braten, Garen, Servieren, Warmhalten | Rasentrimmer, Freischneider, Heckenschere, Laubbläser, Hochentaster, Rasenkantenschneider"
+Modifizierter Artikel,7,modifizierter artikel,null:4 string:3,attributes:7,50382:1 58100:1 138910:1 158997:1 177806:1,Nein
+Pflegehinweise,7,pflegehinweise,string:7,attributes:7,37644:1 180953:1,"Maschinenwäsche kalt | Maschinenwäsche 60°C, Nicht bleichen, Trocknen niedrige Temperatur, Bügeln mittlere Temperatur, Nicht chemisch reinigen | Maschinenwäsche | Schonwaschgang, Maschinenwäsche bei 30 °C | Maschinenwäsche 30°C | Maschinenwäsche 60°C | Waschbar bei 30°C"
+Spannung,7,spannung,string:7,attributes:7,49782:2 29518:1 177699:1 179846:1 261425:1,51.2 V | 12V | AC100-240 V (50/60 Hz) DC 12/24 V | 18V | 12 V
+Absatzart,6,absatzart,string:6,attributes:6,,Blockabsatz
+Absatzhöhe,6,absatzhohe,string:6,attributes:6,,"7 cm | Hoch | Hoch (7,6-10 cm) | Mittel"
+Abteilung,6,abteilung,string:6,attributes:6,175769:1,Herren | Damen
+Anzahl der Teile,6,anzahl der teile,string:6,attributes:6,50382:2 33694:1 84237:1 262128:1,6 | 4 | 16 | 1
+Dicke,6,dicke,string:6,attributes:6,33564:3 33612:1 33665:1,25 mm | 28 mm | 2.5 | 12 mm | 1.49 mm | 1.57 mm
+Fahrzeugkompatibilität,6,fahrzeugkompatibilitat,string:6,attributes:6,179496:5 261425:1,"Motorrad 4-Takt Motoren | VW Golf, Audi A3, Ford Galaxy, Porsche Cayenne | Für Fahrzeuge mit Herstellerfreigaben BMW LL-04, MB 229.51, Porsche C30, VW 504 00/507 00 | Für diverse Benzin- und Dieselfahrzeuge | PEUGEOT, CITROËN, FIAT, HONDA, HYUNDAI, KIA | Diesel- und Ottomotoren"
+Geeignet für,6,geeignet fur,string:6,attributes:6,177031:2 20754:1 22670:1 260307:1,"Wassersprudler | Hängesessel | Strandkorb | Waschmaschinen, Spülmaschinen | Anfänger, Fortgeschrittene | Süßwasser und Meerwasser"
+Hauptkategorie,6,hauptkategorie,string:6,attributes:6,33564:1 33579:1 33661:1 33665:1 39057:1,"Autoteile & Zubehör | Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Bremsen > Bremsscheiben | Garten & Terrasse | Motoren & Motorenteile | Auto & Motorrad > KFZ-Ersatzteile > Antrieb, Motoren & Getriebe > KFZ-Dichtungen | Auto & Motorrad > KFZ-Ersatzteile > KFZ-Federungen & Dämpfungen > Federbeine & Stoßdämpfer"
+Materialzusammensetzung,6,materialzusammensetzung,string:6,attributes:6,,"Upcycelte Vintage-Materialien | 92% Baumwolle, 8% Kaschmir | 84% Baumwolle, 16% Leinen | 92% Nylon, 8% Elastan | 90% Polyamid, 10% Elasthan | gewebtes Stretch-Material"
+Saison,6,saison,string:6,attributes:6,37644:2 15687:1,Ganzjährig | SP24 | Alle Jahreszeiten | A/S 9999
+Tiefe,6,tiefe,string:6,attributes:6,177031:1,69.3 cm | 20 cm | 79 mm | 95 cm | 29 cm | 19 mm
+Altersempfehlung,5,altersempfehlung,string:5,attributes:5,19082:1 22449:1 156105:1 183457:1 261068:1,13+ | Ab 6 Jahren | Ab 3 Jahre | Ab 4 Jahren
+Anzahl Teile,5,anzahl teile,string:5,attributes:5,37644:2 3244:1 33694:1 156105:1,15 | 4 | 2 | 61
+Artikelzustand,5,artikelzustand,string:5,attributes:5,33564:1 178934:1 263094:1,Neu | Gebraucht – Voll funktionsfähig | Gebraucht
+Ausschnitt,5,ausschnitt,string:5,attributes:5,15687:1,Rundhals
+Kapazität,5,kapazitat,string:5,attributes:5,49782:2 47075:1 179846:1,30 Ah | 5000 mAh | 256 GB | 4 Ah | 9.1 Ah
+Modifikationsbeschreibung,5,modifikationsbeschreibung,null:5,attributes:5,58100:1 138910:1 158997:1 177806:1 177807:1,
+Montage,5,montage,string:4 null:1,attributes:5,20622:1 177807:1 178934:1,Unkomplizierte Installation | Wandmontage | Keine Montage erforderlich | Teilmontiert
+Spezifikation,5,spezifikation,string:5,attributes:5,179496:2 179494:1 179501:1,"ACEA C3 | AF13++ | TE-ML 11 | ACEA C3, API SN, API CF | GL4/5"
+Sportart,5,sportart,string:5,attributes:5,2024:1 44647:1 158997:1 161826:1,Radsport | Tauchen | Fußball | Badminton | Angeln
+Steuerung,5,steuerung,string:5,attributes:5,23895:1 174119:1 184665:1,"Fernbedienung | Touch | Touchscreen, Sprachsteuerung, Lenkradfernbedienung (SWC) | Manuell"
+Zertifizierung,5,zertifizierung,string:5,attributes:5,33729:1 37644:1 156105:1,"CE, TÜV SÜD IE | OEKO-TEX Standard 100 | CE-zertifiziert | Carbon Neutral Product | EAC-zertifiziert"
+Anwendung,4,anwendung,string:4,attributes:4,178918:1 179496:1 179501:1,"Benzin- und Dieselmotoren | Benzinmotoren, Dieselmotoren | Doppelkupplungsgetriebe (DCT) | Camping, Outdoor-Kochen"
+Anzahl,4,anzahl,string:4,attributes:4,184665:1 262128:1 262228:1,1 Stück | 1
+Befestigung,4,befestigung,string:4,attributes:4,177031:2 261011:2,Aluminium-Ösen | Gewebebändchen zum Festschnüren | Gewebebändchen
+Beschreibung des Angebotpakets,4,beschreibung des angebotpakets,null:4,attributes:4,58100:1 158997:1 177806:1 177807:1,
+Bremsscheibenart,4,bremsscheibenart,string:4,attributes:4,33564:4,belüftet | Innenbelüftet | Voll
+Bruttogewicht,4,bruttogewicht,string:4,attributes:4,,11.5 | 6.5 | 4.1 | 0.47 kg
+Design,4,design,string:4,attributes:4,33694:1 178934:1 180953:1,Sportliches rotes Design | M Competition Logo | 231/4 Placket | Nordic Felloptik
+Fahrzeughersteller,4,fahrzeughersteller,string:4,attributes:4,33564:2 33612:1 262241:1,"Audi, VW, Seat | Audi | Audi, Ford, Seat, Skoda, VW | Ford, Land Rover"
+GTIN,4,gtin,string:4,attributes:4,36440:1,0098931289601 | 04260325295246 | 3573994006336 | 4260716810041
+Herstelleradresse,4,herstelleradresse,string:4,attributes:4,2024:1 20622:1 33661:1,"Industriestrasse 17, 55743 Idar-Oberstein | 69448 Weinheim | Wilhelmstraße 47, 58256 Ennepetal, Germany | Am Eifeltor 20, 50997 Köln, Germany"
+Herstellergarantie,4,herstellergarantie,string:4,attributes:4,,5 Jahre
+Herstellerland - und Region,4,herstellerland und region,null:3 string:1,attributes:4,58100:1 158997:1 177806:1 177807:1,Tschechische Republik
+Kragenform,4,kragenform,string:4,attributes:4,57990:1,"Kapuze, Hochabschließend | Stehkragen | Umlegekragen im Rever-Stil"
+Montage erforderlich,4,montage erforderlich,string:4,attributes:4,3199:1 81464:1 177031:1,Ja | Nein
+Motortyp,4,motortyp,string:4,attributes:4,33612:2 33661:1 262241:1,2.0 TDI | PSA-Motoren | 1.9 TDI | 1.9 TDI Pumpe-Düse PD
+Nettogewicht,4,nettogewicht,string:4,attributes:4,,10.15 kg | 5.5 | 3.4 | 0.27 kg
+Öl-Typ,4,ol typ,string:4,attributes:4,179496:2 179494:1,Mineralisch | Teilsynthetisch | HC-Synthese | Vollsynthetisch
+Passend für,4,passend fur,string:4,attributes:4,57357:1 170141:1 261011:1 262228:1,"Ford Galaxy (WGR), Citroën C4 Coupe (LA_), Skoda Octavia Combi (5E5), Citroën C4 II (B7), Seat Leon ST (5F8), Skoda Octavia (1U2) | Sonnenschirm | Opel PKW | Mercedes-Benz E-Klasse, CLS"
+Referenznummer OE,4,referenznummer oe,string:4,attributes:4,33564:1 170141:1 177699:1 262228:1,412178 | 16 03 254 | 2123230020 | P55W
+Sprache,4,sprache,string:4,attributes:4,19082:1 156105:1 183457:1 183465:1,Deutsch | Englisch
+Temperaturbereich,4,temperaturbereich,string:4,attributes:4,20754:1 260307:1,-20°C bis 20°C | -20°C bis +90°C | 20-34°C
+Viskositätsklasse,4,viskositatsklasse,string:4,attributes:4,179496:1 179501:1,5W-40 | SAE 5W-30 | ATF II | 5W-30
+Wasserdicht,4,wasserdicht,string:4,attributes:4,177031:2 261011:1,Ja
+Zulassung,4,zulassung,string:4,attributes:4,33564:1 57357:1 177806:1 260176:1,DB-Zulassung M 10.064.02 | ECE R90 | ECE R90 (E190R-02C0165/0949)
+Abmessungen,3,abmessungen,string:3,attributes:3,47075:1 177784:1,78.8 x 25.3 x 33 mm | 1140 x 460 x 2.5 mm | 25 x 20 x 18 cm
+Anschlussart,3,anschlussart,string:3,attributes:3,122188:1,Drahtlos | Konische Muttern | G 3/8
+Anschlussgewinde,3,anschlussgewinde,string:3,attributes:3,,M18x1 | G 1/2 Zoll
+Anschlusstyp,3,anschlusstyp,string:3,attributes:3,47075:1 182094:1,"USB-C | KFZ-Stecker, Schuko-Stecker | RJ45"
+Anzahl pro Achse,3,anzahl pro achse,string:3,attributes:3,33564:1 33579:1 57357:1,4 | 2 Stück | 2
+Anzahl Rollen,3,anzahl rollen,string:3,attributes:3,,4 | 4 Doppelrollen
+Ärmelart,3,armelart,string:3,attributes:3,,Kurzarm | Langarm
+Atmungsaktiv,3,atmungsaktiv,string:3,attributes:3,66728:1,Ja
+Auslaufhöhe,3,auslaufhohe,string:3,attributes:3,,59 mm | 70 mm | 109 mm
+Außendurchmesser,3,aussendurchmesser,string:3,attributes:3,33564:1 33661:1 33729:1,314 mm | 64 mm | 88
+Bedienung,3,bedienung,string:3,attributes:3,122188:1,Digitaler Touchscreen | Touchscreen | Einhebelmischer
+Befestigungsart,3,befestigungsart,string:2 null:1,attributes:3,33694:1 158997:1 263094:1,Rutschfeste Unterseite | 2-Punkt-Bügel
+Betriebsdruck,3,betriebsdruck,string:3,attributes:3,54145:2,"166.7 Bar | 2 bis max. 8,6 bar | 4-300"
+CE-Kennzeichnung,3,ce kennzeichnung,string:3,attributes:3,182094:1,CE 0459 | Ja
+Einbauort,3,einbauort,string:3,attributes:3,33694:1 170141:1,"Wand, Decke | Fahrzeuginnenraum | Vorderachse"
+Einsatzgebiet,3,einsatzgebiet,string:3,attributes:3,,"Heimwerker, Profi | PKW, LKW | Rettungseinsätze"
+Energiequelle,3,energiequelle,string:3,attributes:3,,Solarbetrieben | Solar | Holzkohle
+Frostbeständig,3,frostbestandig,string:3,attributes:3,177031:2 261011:1,Ja
+Gebindegröße,3,gebindegrosse,string:3,attributes:3,179496:1,20 L | 5 L | 5 Liter
+Gehäusematerial,3,gehausematerial,string:3,attributes:3,67720:1,Kunststoff | Edelstahl
+GPSR Manufacturer address,3,gpsr manufacturer address,string:3,attributes:3,22670:1 101428:1 156104:1,"Unit 3, Ryknild Industrial Estate, Derby Road, Burton upon Trent, DE14 1RZ | 66, avenue des Champs-Élysées, 75008 Paris, France | Hofner GmbH, Schönbacher Str. 50, 91088 Bubenreuth, Germany"
+Hersteller-Teilenummer,3,hersteller teilenummer,string:3,attributes:3,178918:1 179501:1 263094:1,100303 | 600083246 | CDW004
+Herstellerfreigaben,3,herstellerfreigaben,string:3,attributes:3,179494:1 179496:1,"BMW LL-04, MB 229.51, Porsche C30, VW 504 00/507 00 | VW TL 774-J/G, MB 325.5/325.6, MAN 324 SNF, SCANIA, DAF, LIEBHERR Minimum LH-01-COLLA | MB 235.8, MIL-PRF 2105 E, SAE J2360, Volvo 97312"
+Herstellernummer (MPN),3,herstellernummer mpn,string:3,attributes:3,170141:1 171961:1 179496:1,FR490971 | 3740 | 1980B002
+Herstellungsdatum,3,herstellungsdatum,string:3,attributes:3,57357:1,2022/09 | 04/2025 | Februar 2024
+Kompatible Fahrzeugmarke,3,kompatible fahrzeugmarke,string:3,attributes:3,33612:2 33694:1,"BMW | VW | Volkswagen, Audi, Ford, Seat, Skoda"
+Kompatible Fahrzeugmarken,3,kompatible fahrzeugmarken,string:3,attributes:3,33661:1 262128:1,"Opel, Saab, Chevrolet, Buick, Cadillac | Peugeot, Citroën, DS, Fiat, Ford, Jaguar, Land Rover, Mini, Opel | VW, Seat"
+Kompatible Fahrzeugmodelle,3,kompatible fahrzeugmodelle,string:3,attributes:3,180391:1 262128:1 263094:1,"Ford Fiesta V (JH_, JD_), Ford Fusion ju2, Mazda 2 DY, Ford Fiesta Mk5, Ford Fiesta Mk5 Kastenwagen | Kadjar (ab 06/15), Espace V (ab 03/15), Scénic IV (ab 11/16), Grand Scénic IV (ab 12/16), Koleos II (ab 11/16) | T5, Sharan, Alhambra"
+Kompatible Motortypen,3,kompatible motortypen,string:3,attributes:3,174087:1 262128:1,"2.8L V6, 3.6L V6 | 1.6 TDI, 2.0 TDI | 1.9 TDI, 2.0 TDI"
+Konfektionsgröße,3,konfektionsgrosse,string:3,attributes:3,,XL | 38 | 34
+Kraftstoffart,3,kraftstoffart,string:3,attributes:3,174087:1 179496:1,"Diesel | Benzin | Benzin, Diesel"
+Merkmale,3,merkmale,string:3,attributes:3,161826:1 262128:1,"Leckageschutz, Erstausrüsterqualität | Faltbar, Robust, Belüftung, Mehrere Öffnungen | Kwik Change, Pop-Up"
+Nachhaltigkeitsmerkmal,3,nachhaltigkeitsmerkmal,string:3,attributes:3,,Fair Trade Certified | Zertifizierte Bio-Baumwolle | 100% Recycelt
+Oberflächenbeschaffenheit,3,oberflachenbeschaffenheit,string:3,attributes:3,33564:1 178934:1 180407:1,Glänzend | Lackiert | Präzisionsbearbeitet
+Öltyp,3,oltyp,string:3,attributes:3,179496:3,Vollsynthetisch | Leichtlaufmotoröl
+Packungsinhalt,3,packungsinhalt,string:3,attributes:3,,3 T-Shirts | 2 Slips | 2 Stück
+Performance-Teil,3,performance teil,string:3,attributes:3,33612:1 39057:1 170141:1,Ja | Nein
+Produktlinie,3,produktlinie,string:3,attributes:3,11507:1,Dexeryl Emolliente | Energy | Cotton Stretch
+Prüfzeichen,3,prufzeichen,string:3,attributes:3,177806:1 177807:1,"ECE R90 | DVGW, P-IX | E90R-02A1163/0750"
+Qualität,3,qualitat,string:3,attributes:3,37644:1 54145:1 57357:1,"Erstausrüsterqualität | Deutsche Qualität & Design | Mercerisiert, gekämmt"
+Schuhgröße,3,schuhgrosse,string:3,attributes:3,,37 | 38 | 39
+Schuhschaft-Typ,3,schuhschaft typ,string:3,attributes:3,,Knöchelhoch
+Set,3,set,string:3,attributes:3,138910:1 183457:1,Aetherdrift | Ja
+Sohlenmaterial,3,sohlenmaterial,string:3,attributes:3,,Leichtes Thermoplastischer Gummi | Thermoplastischer Gummi | Synthetik
+Spezifikationen,3,spezifikationen,string:3,attributes:3,179496:3,"API SN Plus, JASO MA2 | ACEA C2/C3, API SP"
+Spülmaschinengeeignet,3,spulmaschinengeeignet,string:3,attributes:3,79656:1 101428:1,Ja
+Stromversorgung,3,stromversorgung,string:3,attributes:3,29523:1 42284:1,Kabelgebunden | Batterie | USB-Kabel
+Taschen,3,taschen,string:3,attributes:3,,"Eingrifftaschen | 2 Reißverschluss-Seitentaschen, 1 Brusttasche | Reißverschlusstaschen"
+Tierart,3,tierart,string:3,attributes:3,20660:1 177784:1 180501:1,"Hund | Milchkühe, Rinder | Hund, Katze"
+Wetterbeständigkeit,3,wetterbestandigkeit,string:3,attributes:3,,"Wind- und Wetterfest | Wetterfest | UV-beständig, Wasserabweisend"
+Zertifizierungen,3,zertifizierungen,string:3,attributes:3,58100:1 179846:1,"UN38.3, IEC, CE | CE, ROHS, FC | JCE, SBSC, FA, FG"
+Zimmer,3,zimmer,string:3,attributes:3,3199:1 37644:1 66728:1,"Wohnzimmer, Schlafzimmer, Büro, Kinderzimmer | Schlafzimmer"
+Ablaufgarnitur,2,ablaufgarnitur,string:2,attributes:2,,Zugstangen-Ablaufgarnitur | Mit Zugstange
+Achse,2,achse,string:2,attributes:2,33564:1 170141:1,vorne | Vorderachse
+Allgemeine Kategorie,2,allgemeine kategorie,string:2,attributes:2,3199:1 261425:1,Regale & Aufbewahrung | Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile
+Altersfreigabe,2,altersfreigabe,string:2,attributes:2,183465:1,Ab 6 Jahren | Ab 3 Jahren
+Altersgruppe,2,altersgruppe,string:2,attributes:2,,Kinder ab 6 Jahren | Erwachsene
+Anschlüsse,2,anschlusse,string:2,attributes:2,47075:1 174119:1,"USB-C | USB, AUX, Vorverstärkerausgang"
+Antriebsart,2,antriebsart,string:2,attributes:2,33612:1,Innenvielzahn | Benzin
+Anzahl der Fächer,2,anzahl der facher,string:2,attributes:2,3199:1 101428:1,4 | 2
+Anzahl der Griffe,2,anzahl der griffe,string:2,attributes:2,,Einhebel
+Anzahl Funktionen,2,anzahl funktionen,string:2,attributes:2,,18 | 6-in-1
+API Spezifikation,2,api spezifikation,string:2,attributes:2,179494:1,SN/CH-4 | GL4/5
+Aufnahme,2,aufnahme,string:2,attributes:2,50382:2,SDS-plus | SDS-MAX
+Ausladung,2,ausladung,string:2,attributes:2,,93 mm | 121 mm
+Auslauf schwenkbar,2,auslauf schwenkbar,string:2,attributes:2,,Ja | Nein
+Auslaufsicher,2,auslaufsicher,string:2,attributes:2,49782:1 101428:1,Ja
+Ausstattung,2,ausstattung,string:2,attributes:2,175769:1,"Außentasche, Teleskopgriff, TSA-Schloss, STRATIC Connect NFC-Chip, Innentasche, Kreuzpackgurt | Münzfach"
+Baureihe,2,baureihe,string:2,attributes:2,33694:1 178934:1,Vor-Facelift | 2er Active Tourer
+Beständigkeit,2,bestandigkeit,string:2,attributes:2,33612:1 262128:1,"Hitze, Druck, Chemische Einflüsse, aggressive Medien | Extreme Temperaturen und Drücke"
+Betriebsart,2,betriebsart,string:2,attributes:2,,Elektrisch | Warmwasser
+Betriebsspannung,2,betriebsspannung,string:2,attributes:2,67720:1,220-240 V | 16.5V
+Bremsscheibendicke,2,bremsscheibendicke,string:2,attributes:2,33564:2,25 mm | 10.9 mm
+Bügel,2,bugel,string:2,attributes:2,,Ohne Bügel
+category,2,category,string:2,attributes:2,3244:1 44647:1,Werkzeuge | Sport > Tauchen > ABC & Blei > Schnorchelflossen
+Deckel,2,deckel,string:2,attributes:2,81464:1,Ja
+Designmerkmal,2,designmerkmal,string:2,attributes:2,238:1,Zeitlos | Screen Prince Gravur
+Displaytyp,2,displaytyp,string:2,attributes:2,174119:1,Digital | HD Touchscreen
+Drucktechnologie,2,drucktechnologie,null:1 string:1,attributes:2,138910:1 171961:1,Laser
+E-Prüfzeichen,2,e prufzeichen,string:2,attributes:2,33564:1 57357:1,E1 90R-02C0115/0572 | E9 90R-01120/457
+EAC-Kennzeichnung,2,eac kennzeichnung,string:2,attributes:2,33564:1 33661:1,Ja
+Einbaugröße,2,einbaugrosse,string:2,attributes:2,174119:2,1 DIN
+Einheitentyp,2,einheitentyp,string:2,attributes:2,22670:1 33564:1,Stück
+Einsatzort,2,einsatzort,string:2,attributes:2,20622:1,"Wand, Decke | Innen- & Außenbereich"
+Einsatzzweck,2,einsatzzweck,string:2,attributes:2,178918:1,"Handgepäck | Camping, Outdoor, Angeln"
+Filtertechnologie,2,filtertechnologie,string:2,attributes:2,54145:1 184665:1,"Quell ST | HEPA, Aktivkohle"
+Filtertyp,2,filtertyp,string:2,attributes:2,33661:1 184665:1,Filtereinsatz | HEPA- und Aktivkohlefilter
+Formfaktor,2,formfaktor,string:2,attributes:2,,M.2 2280 | 2.5 Zoll
+Formulierung,2,formulierung,string:2,attributes:2,,Creme
+Freigaben,2,freigaben,string:2,attributes:2,179496:2,"BMW Longlife-04, VW 504 00/507 00, MB 229.51, Porsche C30 | MB 229.51, MB 229.31, BMW Longlife-04, API SN, ACEA C3"
+Für Fahrradtyp,2,fur fahrradtyp,null:2,attributes:2,177806:1 177807:1,
+Geräuschpegel,2,gerauschpegel,string:2,attributes:2,69197:1,< 28 dB | Geräuscharm
+Getriebeart,2,getriebeart,string:2,attributes:2,179501:1 180407:1,"Doppelkupplungsgetriebe | Automatik, Schaltgetriebe"
+Gewicht,2,gewicht,string:1 number:1,attributes:2,3199:1 58100:1,12 kg | 1
+Gewichtseinheit,2,gewichtseinheit,string:2,attributes:2,33729:1 174087:1,kg
+Griffmaterial,2,griffmaterial,string:2,attributes:2,42284:1 79656:1,Soft-Grip Gummi | Edelstahl
+Größe Bettbezug,2,grosse bettbezug,string:2,attributes:2,37644:2,155 x 220 cm | 135 x 200 cm
+Größe Kissenbezug,2,grosse kissenbezug,string:2,attributes:2,37644:2,80 x 80 cm
+Hauttyp,2,hauttyp,string:2,attributes:2,,"Alle Hauttypen | Trockene Haut, Atopische Haut, Neurodermitis"
+Hersteller-Artikelnummer,2,hersteller artikelnummer,string:2,attributes:2,11507:1 184665:1,7.160.00.530 | 000026640
+Herstellerfreigabe BMW,2,herstellerfreigabe bmw,string:2,attributes:2,,LL-98 | LL-12FE
+Herstellerfreigabe Ford,2,herstellerfreigabe ford,string:2,attributes:2,,WSS-M2M2C913-B | WSS-M2C950-A
+Herstellerfreigabe VW,2,herstellerfreigabe vw,string:2,attributes:2,,502 00/505 00 | 505.01
+Herstellungsland und -region,2,herstellungsland und region,string:1 null:1,attributes:2,138910:1 183457:1,Belgien
+Innenmaterial,2,innenmaterial,string:2,attributes:2,,Polyester | Textil
+Installation,2,installation,string:2,attributes:2,122188:1,Plug-and-Play | Einfache Montage
+Kabellänge,2,kabellange,string:2,attributes:2,23895:1,1.8 m | 4 m
+Kältemittel,2,kaltemittel,string:2,attributes:2,,R600a
+Kategorie_Pfad,2,kategorie pfad,string:2,attributes:2,3199:1 69197:1,Klimaanlagen & Heizgeräte | Möbel > Regale & Aufbewahrung > Standregale
+Knickschutz,2,knickschutz,string:2,attributes:2,,Ja
+Kompatible Marke,2,kompatible marke,string:2,attributes:2,20349:1 47075:1,Apple | Universal
+Kompatible Modelle,2,kompatible modelle,string:2,attributes:2,171961:1,"Canon i-SENSYS LBP5050, MF8030C, MF8040C, MF8050C, MF8080C | V7, V8, V10, V11, V12, V15"
+Konnektivität,2,konnektivitat,string:2,attributes:2,174119:1,"Bluetooth | Mirror Link, Bluetooth"
+Korrosionsschutz,2,korrosionsschutz,string:2,attributes:2,263094:1,Ja
+Kühltechnologie,2,kuhltechnologie,string:2,attributes:2,,Kompressor
+Lagertemperatur,2,lagertemperatur,string:2,attributes:2,,-40°C bis 85°C | Bis 30 °C
+Lieferzustand,2,lieferzustand,string:2,attributes:2,49782:1 156105:1,Unmontierter Bausatz | Säuregefüllt und geladen
+Lochanzahl,2,lochanzahl,string:2,attributes:2,33564:2,5
+Lochkreis-Ø,2,lochkreis,string:2,attributes:2,33564:2,112 mm | 108 mm
+Lochzahl,2,lochzahl,string:2,attributes:2,33564:1 33612:1,5 | 2
+Maße,2,masse,string:2,attributes:2,175769:1,46 x 70 x 60 cm
+Material Gehäuse,2,material gehause,string:2,attributes:2,,"Kunststoff | ABS-Kunststoff, Glas"
+Materialeigenschaft,2,materialeigenschaft,string:2,attributes:2,33612:1,Hochfest | Robust
+Max. Schirmdurchmesser,2,max schirmdurchmesser,string:2,attributes:2,261011:2,400 cm | 300 cm
+Menge pro Packung,2,menge pro packung,string:2,attributes:2,33564:1 33661:1,1 Stück | 1
+Mindestdicke,2,mindestdicke,string:2,attributes:2,33564:2,26 mm | 23 mm
+Mobilität,2,mobilitat,string:2,attributes:2,,Tragbar | Rollbar
+Modellreihe,2,modellreihe,string:2,attributes:2,179496:1,SOFTLINE | Top Tec 4300
+MP3-Wiedergabe,2,mp3 wiedergabe,string:2,attributes:2,174119:2,Ja
+Nachhaltigkeit,2,nachhaltigkeit,string:2,attributes:2,66728:1,"Recycelte Baumwolle, FSC-zertifiziert | Recycelte Füllung"
+Nachhaltigkeitszertifikat,2,nachhaltigkeitszertifikat,string:2,attributes:2,87122:1 181379:1,bluesign PRODUCT | bluesign Produkt
+Normen,2,normen,string:2,attributes:2,260176:1,"AWS A5.1 E6013, EN ISO 2560-A E 420 RC11 | ASTM USA D3306/D4656, SAE J1034, BS 6580:2010, VW TL 774-J/G, MB 325.5/325.6, MAN 324 SNF, SCANIA, DAF, LIEBHERR Minimum LH-01-COLLA, UNE 26-361-88/1"
+OE/OEM Referenznummer,2,oe oem referenznummer,string:2,attributes:2,33661:1 33694:1,2452014202112 | 98 189 149 80
+Referenznummer OEM,2,referenznummer oem,string:2,attributes:2,33729:1,"0402-01-9292922P, IC-C18996 | 893 498 099 MX"
+Referenznummer(n) OEM,2,referenznummer n oem,string:2,attributes:2,174087:1 180391:1,"F-5518867, F881997, 561367, 298199, BOGE 88-353-R, KYB SM1210, LEMFÖRDER 34683 01 | 03L115466, 1K0129620D, 1K1819653"
+Reinigung,2,reinigung,string:2,attributes:2,238:1,Reinigungsfreundlich | Hygienisch
+Rollentyp,2,rollentyp,string:2,attributes:2,,Doppelrollen
+Schnitt,2,schnitt,string:2,attributes:2,,Gerade | Klassisch
+Schnittstelle,2,schnittstelle,string:2,attributes:2,,PCIe Gen3 x4 | SATA III
+Sensor,2,sensor,string:2,attributes:2,,Bewegungsmelder | Dämmerungssensor
+Spiel,2,spiel,string:2,attributes:2,183457:1 183465:1,Pokémon Sammelkartenspiel | Magic: The Gathering
+Stoffart,2,stoffart,string:2,attributes:2,37644:1,Wachsbaumwolle | Satin
+Strahlart,2,strahlart,string:2,attributes:2,,Normalstrahl | AirPower
+Stückzahl,2,stuckzahl,string:2,attributes:2,177806:1,1 | 1 Satz
+Temperaturregelung,2,temperaturregelung,string:2,attributes:2,,Einstellbar | Ja
+TRIM-Unterstützung,2,trim unterstutzung,string:2,attributes:2,,Ja
+Trocknergeeignet,2,trocknergeeignet,string:2,attributes:2,66728:1,Nein | Ja
+TSA-Schloss,2,tsa schloss,string:2,attributes:2,,Ja
+UV-beständig,2,uv bestandig,string:2,attributes:2,177031:2,Nein | Ja
+Ventilart,2,ventilart,string:2,attributes:2,,Keramikventil 90° | Thermostatisch
+Verpackungsmaße,2,verpackungsmasse,string:2,attributes:2,,34 x 34 x 57 cm | 73x11x55 cm
+Vintage,2,vintage,string:2,attributes:2,15687:1 175769:1,Nein
+Wassersparfunktion,2,wassersparfunktion,string:2,attributes:2,,Ja | EcoSmart
+Wassertankkapazität,2,wassertankkapazitat,string:2,attributes:2,69197:1 184665:1,2.5 L | 1.1 L
+Widerstandsfähigkeit,2,widerstandsfahigkeit,string:2,attributes:2,180407:1,Ganzjährig einsetzbar | Extrem belastbar
+ABE vorhanden,1,abe vorhanden,string:1,attributes:1,178934:1,Ja
+Ablagen,1,ablagen,string:1,attributes:1,,Ja
+Ablesung,1,ablesung,string:1,attributes:1,29525:1,Nonius
+Abmessungen (L x B x H),1,abmessungen l x b x h,string:1,attributes:1,,190 x 460 x 85 mm
+Abmessungen (LxBxH),1,abmessungen lxbxh,string:1,attributes:1,47075:1,78.8 x 25.3 x 33 mm
+Abschaltautomatik,1,abschaltautomatik,string:1,attributes:1,180953:1,Ja
+Abstrahlwinkel,1,abstrahlwinkel,string:1,attributes:1,,270°
+Abtriebsform,1,abtriebsform,string:1,attributes:1,84237:1,Vielzahn (XZN)
+ACEA Spezifikation,1,acea spezifikation,string:1,attributes:1,,A3/B4
+Akku-Kapazität,1,akku kapazitat,string:1,attributes:1,29518:1,2.5 Ah
+Aktivität,1,aktivitat,null:1,attributes:1,158950:1,
+Ameisensäure aus Calciumformiat,1,ameisensaure aus calciumformiat,string:1,attributes:1,180501:1,495.00 mg/kg
+Anleitung,1,anleitung,string:1,attributes:1,156105:1,Ja (Online)
+Anpassung Hüftgurt,1,anpassung huftgurt,string:1,attributes:1,87122:1,Fit-on-the-Fly
+Anpassung Schultergurte,1,anpassung schultergurte,string:1,attributes:1,87122:1,Ja
+Anschluss,1,anschluss,string:1,attributes:1,23895:1,USB
+Anschlussabstand,1,anschlussabstand,string:1,attributes:1,,150 mm
+Anschlussdurchmesser Verbinder,1,anschlussdurchmesser verbinder,string:1,attributes:1,260307:1,20 mm
+Anschlussgröße,1,anschlussgrosse,string:1,attributes:1,,G 1/2 Zoll
+Anschlusskabel,1,anschlusskabel,string:1,attributes:1,174119:1,Ja
+Antrieb,1,antrieb,string:1,attributes:1,84237:1,1/2 Zoll
+Anwendungsbereiche,1,anwendungsbereiche,string:1,attributes:1,42284:1,"Metall, Holz, Lack, Rostentfernung"
+Anwendungsgebiet,1,anwendungsgebiet,string:1,attributes:1,,Steuerzeiten-Einstellung
+Anzahl Anschlüsse,1,anzahl anschlusse,string:1,attributes:1,182094:1,2
+Anzahl Befestigungselemente,1,anzahl befestigungselemente,string:1,attributes:1,,4
+Anzahl Besteckteile,1,anzahl besteckteile,string:1,attributes:1,101428:1,4
+Anzahl Boosterpacks,1,anzahl boosterpacks,string:1,attributes:1,183465:1,5
+Anzahl der Anschluss-Pins,1,anzahl der anschluss pins,string:1,attributes:1,,5
+Anzahl der Anschlüsse,1,anzahl der anschlusse,string:1,attributes:1,47075:1,2
+Anzahl der Dichtungen,1,anzahl der dichtungen,string:1,attributes:1,33612:1,1
+Anzahl der Fahrräder,1,anzahl der fahrrader,null:1,attributes:1,158997:1,
+Anzahl der Fenster,1,anzahl der fenster,string:1,attributes:1,,5
+Anzahl der Funktionen,1,anzahl der funktionen,string:1,attributes:1,,6
+Anzahl der Karten,1,anzahl der karten,string:1,attributes:1,183457:1,100
+Anzahl der Kerben,1,anzahl der kerben,string:1,attributes:1,33665:1,1
+Anzahl der Packungen,1,anzahl der packungen,string:1,attributes:1,171961:1,1
+Anzahl der Saiten,1,anzahl der saiten,string:1,attributes:1,22670:1,6
+Anzahl der Schneiden,1,anzahl der schneiden,string:1,attributes:1,50382:1,4
+Anzahl der Temperaturstufen,1,anzahl der temperaturstufen,string:1,attributes:1,180953:1,3
+Anzahl Düsen,1,anzahl dusen,string:1,attributes:1,,2
+Anzahl Geschwindigkeitsstufen,1,anzahl geschwindigkeitsstufen,string:1,attributes:1,42284:1,6
+Anzahl Griffe,1,anzahl griffe,string:1,attributes:1,,1
+Anzahl Intensitätsstufen,1,anzahl intensitatsstufen,string:1,attributes:1,,3
+Anzahl Kanäle,1,anzahl kanale,string:1,attributes:1,174119:1,4
+Anzahl Karten,1,anzahl karten,string:1,attributes:1,138910:1,10
+Anzahl Kartenfächer,1,anzahl kartenfacher,string:1,attributes:1,183465:1,378
+Anzahl Klingen gesamt,1,anzahl klingen gesamt,string:1,attributes:1,3244:1,"7 (1 im Schaber, 6 Ersatzklingen)"
+Anzahl Kräuterextrakte,1,anzahl krauterextrakte,string:1,attributes:1,,8
+Anzahl Kühlzonen,1,anzahl kuhlzonen,string:1,attributes:1,,2
+Anzahl LEDs,1,anzahl leds,string:1,attributes:1,,142
+Anzahl Motive,1,anzahl motive,string:1,attributes:1,138910:1,5
+Anzahl Netzfenster,1,anzahl netzfenster,string:1,attributes:1,,5
+Anzahl Öffnungen,1,anzahl offnungen,string:1,attributes:1,,3
+Anzahl Platten,1,anzahl platten,string:1,attributes:1,156105:1,18
+Anzahl pro Verpackungseinheit,1,anzahl pro verpackungseinheit,string:1,attributes:1,33564:1,1 Stück
+Anzahl Reifenheber,1,anzahl reifenheber,string:1,attributes:1,,2
+Anzahl Saucenbehälter,1,anzahl saucenbehalter,string:1,attributes:1,101428:1,1
+Anzahl Schrauben,1,anzahl schrauben,string:1,attributes:1,33612:1,10
+Anzahl Seiten,1,anzahl seiten,string:1,attributes:1,183465:1,21
+Anzahl Trennwände,1,anzahl trennwande,string:1,attributes:1,101428:1,2
+Anzahl Verbraucher,1,anzahl verbraucher,string:1,attributes:1,,1
+Anzahl Vibrationsmodi,1,anzahl vibrationsmodi,string:1,attributes:1,,3
+Anzahl Westen,1,anzahl westen,string:1,attributes:1,109677:1,5
+Anzahl Westen Erwachsene,1,anzahl westen erwachsene,string:1,attributes:1,109677:1,4
+Anzahl Westen Kinder,1,anzahl westen kinder,string:1,attributes:1,109677:1,1
+Anzahl Zähne,1,anzahl zahne,string:1,attributes:1,177699:1,11
+Anzahl_Taschen,1,anzahl taschen,string:1,attributes:1,,3
+Anzeige,1,anzeige,string:1,attributes:1,180953:1,Beleuchtete Temperaturstufen
+Anzugsdrehmoment,1,anzugsdrehmoment,string:1,attributes:1,33665:1,60 Nm
+Anzugswinkel,1,anzugswinkel,string:1,attributes:1,33665:1,90°
+Arbeitslänge,1,arbeitslange,string:1,attributes:1,50382:1,400 mm
+Armbandfarbe,1,armbandfarbe,string:1,attributes:1,,Coral
+Armbandgröße,1,armbandgrosse,string:1,attributes:1,,"S, L"
+Ärmel,1,armel,string:1,attributes:1,,Langarm
+Ärmelbündchen,1,armelbundchen,string:1,attributes:1,,Elastisch
+Ärmelfutter,1,armelfutter,string:1,attributes:1,,"Polyester 36%, Viskose 64%"
+Ärmellänge (Gr. 36),1,armellange gr 36,string:1,attributes:1,,62 cm
+Artikelnummer (SKU),1,artikelnummer sku,string:1,attributes:1,37644:1,4100006236
+Ascheauffangbehälter,1,ascheauffangbehalter,string:1,attributes:1,,Ja
+ATE Artikelnummer,1,ate artikelnummer,string:1,attributes:1,177806:1,602880
+Audio-Ausgabe,1,audio ausgabe,string:1,attributes:1,122188:1,FM Transmitter
+Audio-Technologie,1,audio technologie,string:1,attributes:1,174119:1,"DSP, RDS"
+Audiofunktion,1,audiofunktion,string:1,attributes:1,174119:1,DSP
+Aufbau,1,aufbau,string:1,attributes:1,,Werkzeuglos
+Ausführung,1,ausfuhrung,string:1,attributes:1,,Einlochmontage
+Ausgang (Details),1,ausgang details,string:1,attributes:1,47075:1,"USB-C1 5V=2.4A, USB-C2 5V=2.4A"
+Ausgang (USB-C),1,ausgang usb c,string:1,attributes:1,47075:1,2x 5V / 2.4A
+Ausgangsleistung,1,ausgangsleistung,string:1,attributes:1,174119:1,4 x 60 W
+Ausgangsspannung,1,ausgangsspannung,string:1,attributes:1,47075:1,5V
+Ausgangsstrom,1,ausgangsstrom,string:1,attributes:1,47075:1,2.4A
+Ausgewählte Suchfilter,1,ausgewahlte suchfilter,null:1,attributes:1,138910:1,
+Ausschnittform,1,ausschnittform,string:1,attributes:1,,Rundhals
+Außendurchmesser 1 [mm],1,aussendurchmesser 1 mm,string:1,attributes:1,170141:1,52
+Außendurchmesser 2 [mm],1,aussendurchmesser 2 mm,string:1,attributes:1,170141:1,68
+Außenmaß Breite,1,aussenmass breite,string:1,attributes:1,,180 mm
+Außenmaß Höhe,1,aussenmass hohe,string:1,attributes:1,,230 mm
+Außenmaße (B x H),1,aussenmasse b x h,string:1,attributes:1,,185 x 235 mm
+Außenmaterial,1,aussenmaterial,string:1,attributes:1,,Recyceltes Material
+Ausstattung Gürtelclip,1,ausstattung gurtelclip,string:1,attributes:1,,Ja
+Auszeichnung,1,auszeichnung,string:1,attributes:1,263094:1,German Design Award Special 2017
+Auszeichnungen,1,auszeichnungen,string:1,attributes:1,263094:1,"CARAVANING Testsieger 2/08, German Design Award Special 2017"
+AUX-Eingang,1,aux eingang,string:1,attributes:1,174119:1,Ja
+Backofengeeignet,1,backofengeeignet,string:1,attributes:1,79656:1,Ja
+barcodes,1,barcodes,string:1,attributes:1,122188:1,"[""6933783712522""]"
+Basis,1,basis,string:1,attributes:1,,Monoethylenglykol
+Batterie (Rohdaten),1,batterie rohdaten,string:1,attributes:1,47075:1,5000mAh/4900mAh 18Wh/17.64Wh
+Batteriekapazität,1,batteriekapazitat,string:1,attributes:1,,12500 mAh
+Batterien benötigt,1,batterien benotigt,string:1,attributes:1,156105:1,Nein
+Batterieschutz,1,batterieschutz,string:1,attributes:1,,3-stufig
+Batteriespannung,1,batteriespannung,string:1,attributes:1,,3.2 V
+Batterietechnologie,1,batterietechnologie,string:1,attributes:1,49782:1,AGM
+Bauhöhe,1,bauhohe,string:1,attributes:1,,7 mm
+Baujahr,1,baujahr,string:1,attributes:1,170141:1,1991-1999
+Bauteil,1,bauteil,string:1,attributes:1,262128:1,Zylinderkopf
+BCI Größe,1,bci grosse,string:1,attributes:1,179846:1,GC2
+Bearbeitung,1,bearbeitung,string:1,attributes:1,33564:1,Unbeschichtet
+Bedienungsanleitung,1,bedienungsanleitung,string:1,attributes:1,,Enthalten
+Befestigungssystem,1,befestigungssystem,string:1,attributes:1,,ISOFIX
+Behältertyp,1,behaltertyp,string:1,attributes:1,179496:1,Kanister
+Beinform,1,beinform,string:1,attributes:1,,Konisch
+Beleuchtung,1,beleuchtung,string:1,attributes:1,23895:1,RGB
+Beleuchtungsfarbe,1,beleuchtungsfarbe,string:1,attributes:1,174119:1,Rot
+Beleuchtungsmodi,1,beleuchtungsmodi,string:1,attributes:1,,4
+Belüftet,1,beluftet,string:1,attributes:1,33564:1,Ja
+Benötigtes Werkzeug,1,benotigtes werkzeug,string:1,attributes:1,156105:1,Bastelmesser
+Beschichtungsmaterial,1,beschichtungsmaterial,string:1,attributes:1,79656:1,Whitford Xylan Antihaftbeschichtung
+Beschreibung des Paketinhalts,1,beschreibung des paketinhalts,null:1,attributes:1,138910:1,
+Besondere Eigenschaften,1,besondere eigenschaften,string:1,attributes:1,11507:1,"Stretch, Atmungsaktiv, Komfort"
+Besondere Inhaltsstoffe,1,besondere inhaltsstoffe,string:1,attributes:1,,"Arnika, Aloe Vera, Rosskastanie, Ringelblume, Eukalyptus, Menthol, Brennnessel, Beinwell"
+Betriebsspannung AC,1,betriebsspannung ac,string:1,attributes:1,,110-240V
+Betriebssystem,1,betriebssystem,string:1,attributes:1,174119:1,Android
+Betriebstemperatur,1,betriebstemperatur,string:1,attributes:1,,0°C bis 70°C
+Biegbarkeit,1,biegbarkeit,string:1,attributes:1,,Bis 25 Grad
+Bildschirmgröße,1,bildschirmgrosse,string:1,attributes:1,122188:1,10.26 Zoll
+Bildschirmtechnologie,1,bildschirmtechnologie,string:1,attributes:1,122188:1,HD
+Bluetooth,1,bluetooth,string:1,attributes:1,174119:1,Ja
+Bluetooth-Funktion,1,bluetooth funktion,string:1,attributes:1,174119:1,Ja
+Boden & Zargen Holz,1,boden zargen holz,string:1,attributes:1,22670:1,Mahagoni
+Bohrdurchmesser,1,bohrdurchmesser,string:1,attributes:1,20740:1,8mm
+Borsten-Eigenschaft 1,1,borsten eigenschaft 1,string:1,attributes:1,,Stark für schweren Schnee und Eis
+Borsten-Eigenschaft 2,1,borsten eigenschaft 2,string:1,attributes:1,,Schonend für Lackschutz
+Borsten-Typ,1,borsten typ,string:1,attributes:1,,Zwei-Phasen Premium Borsten
+BPA-frei,1,bpa frei,string:1,attributes:1,101428:1,Ja
+Breite (cm),1,breite cm,string:1,attributes:1,,46.5
+Breite 1 [mm],1,breite 1 mm,string:1,attributes:1,170141:1,19
+Breite 2 [mm],1,breite 2 mm,string:1,attributes:1,170141:1,22
+Breite Flachmeißel 1,1,breite flachmeissel 1,string:1,attributes:1,50382:1,50 mm
+Breite Flachmeißel 2,1,breite flachmeissel 2,string:1,attributes:1,50382:1,25 mm
+Breite in cm,1,breite in cm,string:1,attributes:1,,16
+Bremsentyp,1,bremsentyp,string:1,attributes:1,33564:1,Scheibenbremse
+Bremssystem,1,bremssystem,string:1,attributes:1,57357:1,TRW
+Brennstoffart,1,brennstoffart,string:1,attributes:1,81464:1,Holzkohle
+Briefpapier & Karten,1,briefpapier karten,null:1,attributes:1,138910:1,
+Bundhöhe,1,bundhohe,string:1,attributes:1,11507:1,Low Rise
+Bundweite,1,bundweite,string:1,attributes:1,,36
+Calcium,1,calcium,string:1,attributes:1,180501:1,21.6%
+CE-Zertifizierung,1,ce zertifizierung,string:1,attributes:1,174119:1,Ja
+Charakter,1,charakter,string:1,attributes:1,261068:1,Wolverine
+Charaktere,1,charaktere,string:1,attributes:1,19082:1,"Mickey Maus, Stitch, Simba, Schneewittchen, Bambi, Elastigirl, Mirabel, Alien"
+Cinch-Ausgänge,1,cinch ausgange,string:1,attributes:1,174119:1,Ja
+ComfortZone,1,comfortzone,string:1,attributes:1,,70
+Controller,1,controller,string:1,attributes:1,,Phison E13T
+Cutaway,1,cutaway,string:1,attributes:1,156104:1,Ja
+Darreichungsform,1,darreichungsform,string:1,attributes:1,,Salbe
+Datenübertragungsrate USB,1,datenubertragungsrate usb,string:1,attributes:1,,
+Deckenholz,1,deckenholz,string:1,attributes:1,22670:1,Zeder massiv
+Design-Thema,1,design thema,string:1,attributes:1,,Shades of Ocean
+Designland,1,designland,string:1,attributes:1,20349:1,USA
+Designstil,1,designstil,string:1,attributes:1,,Modern
+Details,1,details,string:1,attributes:1,,Knopfleiste am Rundhalsausschnitt
+Dichtring enthalten,1,dichtring enthalten,string:1,attributes:1,33661:1,Ja
+Dichtringdurchmesser,1,dichtringdurchmesser,string:1,attributes:1,33729:1,53
+Dichtungssatz,1,dichtungssatz,string:1,attributes:1,33665:1,Ja
+Dichtungstyp,1,dichtungstyp,string:1,attributes:1,33665:1,Zylinderkopfdichtung
+Dicke/Stärke,1,dicke starke,string:1,attributes:1,57357:1,17
+Digitalanzeige,1,digitalanzeige,string:1,attributes:1,,Ja
+Diskretion,1,diskretion,string:1,attributes:1,36440:1,Ja
+Display,1,display,string:1,attributes:1,29523:1,Digital
+DPF-Kompatibilität,1,dpf kompatibilitat,string:1,attributes:1,179496:1,Ja
+DRAM-Cache,1,dram cache,string:1,attributes:1,,Nein
+Drehwirbel,1,drehwirbel,string:1,attributes:1,,Brauseseitig
+Drehzahlbereich,1,drehzahlbereich,string:1,attributes:1,42284:1,6000-13000 U/min
+Druck,1,druck,string:1,attributes:1,261425:1,"0,1bar"
+Druckentlastend,1,druckentlastend,string:1,attributes:1,,Ja
+Druckermarke,1,druckermarke,string:1,attributes:1,171961:1,Canon
+Duft,1,duft,string:1,attributes:1,,Kräuter
+Durchflussbegrenzer,1,durchflussbegrenzer,string:1,attributes:1,,10 l/min
+Durchflussbereich,1,durchflussbereich,string:1,attributes:1,54145:1,"0,2 bar bei 60 L/h"
+Durchmesser ⌀,1,durchmesser,string:1,attributes:1,,500 mm
+Durchmesser Hülle,1,durchmesser hulle,string:1,attributes:1,261011:1,30/32 cm
+Durchmesser Schutzhülle,1,durchmesser schutzhulle,string:1,attributes:1,261011:1,55/70 cm
+Düsen,1,dusen,string:1,attributes:1,,Kombidüse|2in1-Fugendüse
+EAC_Kennzeichnung,1,eac kennzeichnung,string:1,attributes:1,33564:1,Ja
+EC-Vertreter,1,ec vertreter,string:1,attributes:1,,EUREP Gmbh
+Edition,1,edition,string:1,attributes:1,19082:1,Disney Edition
+Einbau,1,einbau,string:1,attributes:1,180407:1,Sofort einbaufertig
+Einbaumaße (B x H),1,einbaumasse b x h,string:1,attributes:1,,150 x 200 mm
+Einbauseite,1,einbauseite,string:1,attributes:1,170141:1,"Links, Rechts"
+Einbautiefe min.,1,einbautiefe min,string:1,attributes:1,,25 mm
+Eingang (Details),1,eingang details,string:1,attributes:1,47075:1,USB-C1 5V=2.4A
+Eingang (USB-C),1,eingang usb c,string:1,attributes:1,47075:1,5V / 2.4A
+Eingangsspannung,1,eingangsspannung,string:1,attributes:1,47075:1,5V
+EKA-Nummer,1,eka nummer,string:1,attributes:1,,EKA-0120226
+Emissionskompatibilität,1,emissionskompatibilitat,string:1,attributes:1,179496:1,Ja
+Empfohlene Getriebe,1,empfohlene getriebe,string:1,attributes:1,179501:1,"VW DSG, BMW DKG"
+Empfohlene Raumgröße,1,empfohlene raumgrosse,string:1,attributes:1,69197:1,20 m²
+Empfohlene Speisen,1,empfohlene speisen,string:1,attributes:1,,"Fleisch, Fisch, Gemüse"
+Empfohlener Anwendungsbereich,1,empfohlener anwendungsbereich,string:1,attributes:1,49782:1,"Motorrad, Powersports-Fahrzeuge"
+Empfohlener Einsatzbereich,1,empfohlener einsatzbereich,string:1,attributes:1,,"MTB, Rennrad, Allroad"
+Empfohlener Einsatzort,1,empfohlener einsatzort,string:1,attributes:1,,"Garten, Terrasse, Eingangsbereich"
+Empfohlener Raum,1,empfohlener raum,string:1,attributes:1,37644:1,Schlafzimmer
+Empfohlenes Zimmer,1,empfohlenes zimmer,string:1,attributes:1,37644:1,Schlafzimmer
+Endgröße (L x B x H),1,endgrosse l x b x h,string:1,attributes:1,156105:1,ca. 50 x 42 x 53 cm
+Endstücke,1,endstucke,string:1,attributes:1,260307:1,gerade/gerade
+Energie,1,energie,string:1,attributes:1,179846:1,1.536 kWh
+Energieeffizienz,1,energieeffizienz,string:1,attributes:1,,Energie- & platzsparend
+Energieverbrauch_pro_24h,1,energieverbrauch pro 24h,string:1,attributes:1,,0.18 kWh
+Energieversorgung,1,energieversorgung,string:1,attributes:1,,Solarbetrieben
+Enthält Dichtringe,1,enthalt dichtringe,string:1,attributes:1,174087:1,Ja
+Enthält Innenraumfilter,1,enthalt innenraumfilter,string:1,attributes:1,174087:1,Ja
+Enthält Luftfilter,1,enthalt luftfilter,string:1,attributes:1,174087:1,Ja
+Enthält Ölfilter,1,enthalt olfilter,string:1,attributes:1,174087:1,Ja
+Entwicklungsland,1,entwicklungsland,string:1,attributes:1,,Deutschland
+Equalizer,1,equalizer,string:1,attributes:1,174119:1,Ja
+Ergänzende Info,1,erganzende info,string:1,attributes:1,33661:1,mit Dichtring
+Ergänzende Information,1,erganzende information,string:1,attributes:1,33661:1,mit Dichtring
+Erhaltungsladespannung,1,erhaltungsladespannung,string:1,attributes:1,49782:1,13.8V
+Erscheinungsjahr,1,erscheinungsjahr,string:1,attributes:1,138910:1,2013
+Ersetzt OEM Kurbelwelle,1,ersetzt oem kurbelwelle,string:1,attributes:1,,"EN-46106, EN-46111"
+Ersetzt OEM Nockenwelle,1,ersetzt oem nockenwelle,string:1,attributes:1,,"EN-48383, EN-48383-1, EN-48383-2, EN-48383-3"
+Ersetzt OEM-Nummer (Kurbelwellenfixierung),1,ersetzt oem nummer kurbelwellenfixierung,string:1,attributes:1,,EN-46106
+Ersetzt OEM-Nummer (Nockenwellenfixierung),1,ersetzt oem nummer nockenwellenfixierung,string:1,attributes:1,,EN-48383
+Ersetzt OEM-Werkzeuge,1,ersetzt oem werkzeuge,string:1,attributes:1,,"EN-46106, EN-46111, EN-48383, EN-48383-1, EN-48383-2, EN-48383-3"
+Erstausrüsterqualität,1,erstausrusterqualitat,string:1,attributes:1,262128:1,Ja
+Erweiterbar,1,erweiterbar,string:1,attributes:1,,Ja
+Erweiterung,1,erweiterung,string:1,attributes:1,183465:1,Karmesin & Purpur – Prismatische Entwicklungen
+EU-Importeur,1,eu importeur,string:1,attributes:1,,WAITCHX
+Fächer,1,facher,string:1,attributes:1,,"Geräumiges Innenfach, Handyfach"
+Fahrwerkskomponente,1,fahrwerkskomponente,string:1,attributes:1,180391:1,Federbeinstützlager
+Farbe Gestell,1,farbe gestell,string:1,attributes:1,,Schwarz
+Farbe Netz,1,farbe netz,string:1,attributes:1,,Weiß
+Farbe Polster,1,farbe polster,string:1,attributes:1,,Creme-Weiß
+Farbe Rattan,1,farbe rattan,string:1,attributes:1,,Schwarz
+Fassungsvermögen pro Glas,1,fassungsvermogen pro glas,string:1,attributes:1,,300 ml
+Fernbedienung,1,fernbedienung,string:1,attributes:1,174119:1,Ja
+Fertigung,1,fertigung,string:1,attributes:1,,Handgenäht
+Fertigungsart,1,fertigungsart,string:1,attributes:1,180407:1,Präzisionsbearbeitet
+Fettreduktion,1,fettreduktion,string:1,attributes:1,,Bis zu 90%
+Feuchtegehalt,1,feuchtegehalt,string:1,attributes:1,180501:1,<10%
+Feuchtigkeitsregulierend,1,feuchtigkeitsregulierend,string:1,attributes:1,66728:1,Ja
+Feuerbeständigkeitsstandard,1,feuerbestandigkeitsstandard,string:1,attributes:1,,"EN 1021-1, EN 1021-2"
+Filterart,1,filterart,string:1,attributes:1,184665:1,Permanentfilter
+Finish,1,finish,string:1,attributes:1,,Matt
+FM-Radio,1,fm radio,string:1,attributes:1,174119:1,Ja
+Fördermenge,1,fordermenge,string:1,attributes:1,261425:1,500l/h
+Format,1,format,null:1,attributes:1,138910:1,
+Franchise,1,franchise,string:1,attributes:1,261068:1,Marvel
+Frequenz (AC Adapter),1,frequenz ac adapter,string:1,attributes:1,,50/60 Hz
+Frostschutz bis,1,frostschutz bis,string:1,attributes:1,,-40 °C
+Füllgewicht,1,fullgewicht,string:1,attributes:1,66728:1,1600 g
+Füllmaterial,1,fullmaterial,string:1,attributes:1,66728:1,100% recycelte Polyester-Hohlfaser
+Füllmenge Einheit,1,fullmenge einheit,string:1,attributes:1,179501:1,Liter
+Füllung,1,fullung,string:1,attributes:1,,"80% Daunen, 20% Federn"
+Für Bremssystem,1,fur bremssystem,null:1,attributes:1,177806:1,
+Für Felgentyp,1,fur felgentyp,null:1,attributes:1,177806:1,
+Für Oldtimer geeignet,1,fur oldtimer geeignet,string:1,attributes:1,174087:1,Nein
+Futter,1,futter,string:1,attributes:1,,"Polyester 55%, Viskose 45%"
+Fütterungsdicke,1,futterungsdicke,string:1,attributes:1,,Warm gefüttert
+Garantiezeit,1,garantiezeit,string:1,attributes:1,,5 Jahre
+Gebindeform,1,gebindeform,string:1,attributes:1,179501:1,Flasche
+Geeignet für Fahrzeugtyp,1,geeignet fur fahrzeugtyp,string:1,attributes:1,174087:1,PKW
+Geeignet für Gerätetyp,1,geeignet fur geratetyp,string:1,attributes:1,184665:1,Luftreiniger
+Geeignet für Herdarten,1,geeignet fur herdarten,string:1,attributes:1,79656:1,"Induktion, Gas, Elektro, Ceran"
+Geeignet für Schirmtyp,1,geeignet fur schirmtyp,string:1,attributes:1,261011:1,Ampelschirm
+Geeignet_für,1,geeignet fur,string:1,attributes:1,260307:1,"Waschmaschine, Spülmaschine"
+Geeignete Materialien,1,geeignete materialien,string:1,attributes:1,260176:1,Stahl
+Gefriergeeignet,1,gefriergeeignet,string:1,attributes:1,101428:1,Ja
+Gehäusefarbe,1,gehausefarbe,string:1,attributes:1,,Champagne Gold
+Gelenkart,1,gelenkart,string:1,attributes:1,33729:1,Gleichlaufgelenk
+Genauigkeit,1,genauigkeit,string:1,attributes:1,29525:1,±0.02 mm
+Gerätetyp,1,geratetyp,string:1,attributes:1,,Benzin-Rucksack-Kombigerät
+Gesamtgewicht (Brutto),1,gesamtgewicht brutto,string:1,attributes:1,180501:1,1 kg
+Gesamthöhe,1,gesamthohe,string:1,attributes:1,,177 mm
+Gesamtlänge,1,gesamtlange,string:1,attributes:1,50382:1,450 mm
+Gesamtlänge (Gr. 36),1,gesamtlange gr 36,string:1,attributes:1,,57 cm
+Getriebetyp,1,getriebetyp,string:1,attributes:1,179501:1,Doppelkupplungsgetriebe
+Gewebeart,1,gewebeart,string:1,attributes:1,15687:1,Jersey
+Gewicht (ca.),1,gewicht ca,string:1,attributes:1,,20 kg
+Gewicht (Netto),1,gewicht netto,string:1,attributes:1,179501:1,1 kg
+Gewicht [kg],1,gewicht kg,string:1,attributes:1,170141:1,1
+Gewicht Brutto,1,gewicht brutto,string:1,attributes:1,,0.47 kg
+Gewicht Einheit,1,gewicht einheit,string:1,attributes:1,179501:1,kg
+Gewicht Netto,1,gewicht netto,string:1,attributes:1,,0.27 kg
+Gewichtsgrößen,1,gewichtsgrossen,string:1,attributes:1,161826:1,"No. 4, No. 6, No. 8, No. 10, SWA"
+Gewichtsklassen,1,gewichtsklassen,string:1,attributes:1,161826:1,"VS, S, M, L, XL"
+Gewindegröße,1,gewindegrosse,string:1,attributes:1,3244:1,"M14x1,5"
+Gewindemaß,1,gewindemass,string:1,attributes:1,33612:1,M12
+Gleichspannung (DC),1,gleichspannung dc,string:1,attributes:1,,12V / 24V
+GPSR Email,1,gpsr email,string:1,attributes:1,101428:1,contact@umami-bento.com
+GPSR EU Authorised Representative,1,gpsr eu authorised representative,string:1,attributes:1,156104:1,"AR Experts, P.O. Box 5047, 3620 AA Breukelen, The Netherlands"
+GPSR Manufacturer email,1,gpsr manufacturer email,string:1,attributes:1,22670:1,info@hofner.com
+GPSR_Manufacturer_email,1,gpsr manufacturer email,string:1,attributes:1,33564:1,info@vierol-shop.de
+GPSR_Manufacturer_name,1,gpsr manufacturer name,string:1,attributes:1,33564:1,VIEROL AG
+GPSR_url,1,gpsr url,string:1,attributes:1,33564:1,www.vierol-shop.de
+Grammatur,1,grammatur,null:1,attributes:1,138910:1,
+Griff-Eigenschaft,1,griff eigenschaft,string:1,attributes:1,,Ergonomisch und gepolstert
+Griffart,1,griffart,string:1,attributes:1,,Teleskopgriff
+Griffbrett Holz,1,griffbrett holz,string:1,attributes:1,22670:1,Palisander
+Grillfläche,1,grillflache,string:1,attributes:1,,Groß
+Grillfläche Bodenfläche,1,grillflache bodenflache,string:1,attributes:1,,ca. 15 cm x 15 cm
+Größe (EU),1,grosse eu,string:1,attributes:1,,36
+Größe (UK),1,grosse uk,string:1,attributes:1,,8
+Größe (US),1,grosse us,string:1,attributes:1,,4
+Größe Erwachsene,1,grosse erwachsene,string:1,attributes:1,109677:1,XL
+Größe Westen Erwachsene,1,grosse westen erwachsene,string:1,attributes:1,109677:1,XL
+Größen,1,grossen,string:1,attributes:1,84237:1,"8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 27, 30, 32, 34, 36 mm"
+Größenart,1,grossenart,string:1,attributes:1,,Normalgröße
+Größenbereich,1,grossenbereich,string:1,attributes:1,84237:1,8-36 mm
+Grundmaterial,1,grundmaterial,string:1,attributes:1,79656:1,"Edelstahl, Aluminium"
+Hals Holz,1,hals holz,string:1,attributes:1,22670:1,Mahagoni
+Haltbarkeit,1,haltbarkeit,string:1,attributes:1,,5 Jahre
+Handgefertigt,1,handgefertigt,string:1,attributes:1,175769:1,Ja
+Handgemacht,1,handgemacht,string:1,attributes:1,15687:1,Nein
+Handgepäcktauglich,1,handgepacktauglich,string:1,attributes:1,,Ja
+Handhabung,1,handhabung,string:1,attributes:1,238:1,Einfach
+Hauptfunktion,1,hauptfunktion,string:1,attributes:1,54145:1,Entkarbonisierung
+Hauptinhaltsstoffe,1,hauptinhaltsstoffe,string:1,attributes:1,,"Bienengift, Bienenwachs"
+Hauptmaterial,1,hauptmaterial,string:1,attributes:1,,Nylon
+Hauptverschluss,1,hauptverschluss,string:1,attributes:1,,Reißverschluss
+Hauptzusammensetzung,1,hauptzusammensetzung,string:1,attributes:1,180501:1,"Magermilchpulver, Magnesiumoxid, Kartoffelstärke, Zucker"
+Hautfreundlichkeit,1,hautfreundlichkeit,string:1,attributes:1,36440:1,Reduziert Hautirritationen
+Heißwasserbegrenzung,1,heisswasserbegrenzung,string:1,attributes:1,,Ja
+Heizleistung,1,heizleistung,string:1,attributes:1,67720:1,150 W
+Helligkeit,1,helligkeit,string:1,attributes:1,,Hoch
+Herstellenummer,1,herstellenummer,string:1,attributes:1,179496:1,111812
+Hersteller (Europa),1,hersteller europa,string:1,attributes:1,181379:1,THULE SWEDEN AB
+Hersteller (USA),1,hersteller usa,string:1,attributes:1,181379:1,THULE INC.
+Hersteller-Stilnummer,1,hersteller stilnummer,string:1,attributes:1,,PUH-PO-AW23-ACC-160
+Hersteller-Website,1,hersteller website,string:1,attributes:1,20622:1,www.vileda.de
+Herstelleradresse Schweden,1,herstelleradresse schweden,string:1,attributes:1,181379:1,"Borggatan 5, 33573 Hillerstorp, Sweden"
+Herstelleradresse USA,1,herstelleradresse usa,string:1,attributes:1,181379:1,"42 Silvermine Road, Seymour, CT, 06483 USA"
+Herstellerartikelnummer,1,herstellerartikelnummer,string:1,attributes:1,,20521
+Herstellerfreigabe,1,herstellerfreigabe,string:1,attributes:1,179501:1,ZF000020
+Herstellerfreigabe Mercedes-Benz,1,herstellerfreigabe mercedes benz,string:1,attributes:1,,MB 229.61
+Herstellerfreigabe Opel,1,herstellerfreigabe opel,string:1,attributes:1,,OV0401547
+Herstellerfreigabe PSA,1,herstellerfreigabe psa,string:1,attributes:1,,"B71 2290, B71 2312"
+Herstellerfreigabe Renault,1,herstellerfreigabe renault,string:1,attributes:1,,RN0710
+Herstellungsort,1,herstellungsort,string:1,attributes:1,,Paris
+Hitzebeständigkeit,1,hitzebestandigkeit,string:1,attributes:1,79656:1,Bis 180°C
+Höhe (cm),1,hohe cm,string:1,attributes:1,,10.5
+Höhe in cm,1,hohe in cm,string:1,attributes:1,,4
+Höhe Schutzhülle,1,hohe schutzhulle,string:1,attributes:1,261011:1,225 cm
+Höhenverstellbar,1,hohenverstellbar,string:1,attributes:1,,Ja
+Hüftumfang,1,huftumfang,string:1,attributes:1,36440:1,100-135 cm
+Inbusschlüssel Größen,1,inbusschlussel grossen,string:1,attributes:1,,"2.5 mm, 3 mm, 4 mm, 5 mm, 6 mm"
+Industriestandards,1,industriestandards,string:1,attributes:1,,"ASTM USA D3306/D4656, SAE J1034, BS 6580:2010, UNE 26-361-88/1"
+Inhaltseinheit,1,inhaltseinheit,string:1,attributes:1,,Liter
+Inhaltsstoffe,1,inhaltsstoffe,string:1,attributes:1,,Monoethylenglykol
+Inhibitor-Typ,1,inhibitor typ,string:1,attributes:1,,"Organisch, Silikat"
+Inklusive Zubehör,1,inklusive zubehor,string:1,attributes:1,156104:1,Ja
+Innenaufteilung,1,innenaufteilung,string:1,attributes:1,,"Hauptfach, Packgurte"
+Innendurchmesser,1,innendurchmesser,string:1,attributes:1,33661:1,28 mm
+Innendurchmesser 1 [mm],1,innendurchmesser 1 mm,string:1,attributes:1,170141:1,25
+Innendurchmesser 2 [mm],1,innendurchmesser 2 mm,string:1,attributes:1,170141:1,40
+Integriertes Thermometer,1,integriertes thermometer,string:1,attributes:1,81464:1,Ja
+Intelligente Steuerung,1,intelligente steuerung,string:1,attributes:1,,Ja
+Internationale Größe,1,internationale grosse,string:1,attributes:1,,M
+Interne Produkt-ID,1,interne produkt id,string:1,attributes:1,33665:1,4041248450864
+Kabelloser Ladestandard,1,kabelloser ladestandard,string:1,attributes:1,20349:1,MagSafe
+Kabelschutz,1,kabelschutz,string:1,attributes:1,42284:1,Vorhanden
+Kabeltyp,1,kabeltyp,string:1,attributes:1,23895:1,Geflochten
+Kältemittelmenge,1,kaltemittelmenge,string:1,attributes:1,,12 g
+Kaltstartstrom (CCA),1,kaltstartstrom cca,string:1,attributes:1,49782:1,190 A
+Kannenmaterial,1,kannenmaterial,string:1,attributes:1,184665:1,Thermoskanne
+Kapazität (Liter),1,kapazitat liter,string:1,attributes:1,54145:1,11500
+Kapuze,1,kapuze,string:1,attributes:1,,"Abnehmbar, Verstellbar"
+Kartenart,1,kartenart,string:1,attributes:1,138910:1,Doppelkarten
+Kartuschentyp,1,kartuschentyp,string:1,attributes:1,,Keramikkartusche
+Katalysator-Kompatibilität,1,katalysator kompatibilitat,string:1,attributes:1,179496:1,Ja
+Kategorie (allgemein),1,kategorie allgemein,string:1,attributes:1,262128:1,"Auto & Motorrad > KFZ-Ersatzteile > Antrieb, Motoren & Getriebe > KFZ-Dichtungen"
+Kategorie (generisch),1,kategorie generisch,string:1,attributes:1,180407:1,"Auto & Motorrad > KFZ-Ersatzteile > Antrieb, Motoren & Getriebe"
+Kategorie Pfad (Allgemein),1,kategorie pfad allgemein,string:1,attributes:1,33665:1,Auto & Motorrad: Teile > Autoteile & Zubehör > Motoren & Motorenteile > Dichtungen & Montageteile > Zylinderkopfdichtungen
+Kategorie_Listing,1,kategorie listing,string:1,attributes:1,156104:1,Musikinstrumente > Saiteninstrumente > Gitarren > Akustikgitarren
+Kederleiste Durchmesser,1,kederleiste durchmesser,string:1,attributes:1,,"5,8/7,2 mm"
+Kernbohrer,1,kernbohrer,string:1,attributes:1,50382:1,Nein
+Kettennieter integriert,1,kettennieter integriert,string:1,attributes:1,,Ja
+Klimaklasse,1,klimaklasse,string:1,attributes:1,,SN/N/T/ST
+Klimaregulierend,1,klimaregulierend,string:1,attributes:1,66728:1,Ja
+Kofferart,1,kofferart,string:1,attributes:1,,Trolley
+Koffertyp,1,koffertyp,string:1,attributes:1,,Weichschale
+Kohlensäure-Füllmenge,1,kohlensaure fullmenge,string:1,attributes:1,,425 g
+Kollektion,1,kollektion,string:1,attributes:1,,AW23
+Kompatibilität Lenkradfernbedienung,1,kompatibilitat lenkradfernbedienung,string:1,attributes:1,174119:1,Ja
+Kompatible Automarken,1,kompatible automarken,string:1,attributes:1,174087:1,"Audi, Seat, Skoda, VW"
+Kompatible Baujahre,1,kompatible baujahre,string:1,attributes:1,263094:1,ab 2015
+Kompatible Modellreihe,1,kompatible modellreihe,string:1,attributes:1,33694:1,2er F45 Active Tourer
+Kompatibles Fahrzeugmodell,1,kompatibles fahrzeugmodell,string:1,attributes:1,33612:1,Touran (1T2)
+Kompatibles Modell,1,kompatibles modell,string:1,attributes:1,20349:1,iPhone 16 Pro
+Kompatibles System,1,kompatibles system,string:1,attributes:1,,Quooker CUBE
+Konfektionsgröße EU,1,konfektionsgrosse eu,string:1,attributes:1,,44
+Konfektionsgröße FR,1,konfektionsgrosse fr,string:1,attributes:1,,46
+Konfektionsgröße IT,1,konfektionsgrosse it,string:1,attributes:1,,50
+Konfektionsgröße UK,1,konfektionsgrosse uk,string:1,attributes:1,,16
+Konstruktion,1,konstruktion,string:1,attributes:1,49782:1,Robust
+Konzentration,1,konzentration,string:1,attributes:1,,Konzentrat
+Kopfform,1,kopfform,string:1,attributes:1,33612:1,Zylinderkopf
+Kopfstütze,1,kopfstutze,string:1,attributes:1,,Höhenverstellbar
+Korbbeschichtung,1,korbbeschichtung,string:1,attributes:1,,Antihaft
+Körpergröße Kind,1,korpergrosse kind,string:1,attributes:1,,76 - 115 cm
+Kraftstoffeffizienz,1,kraftstoffeffizienz,string:1,attributes:1,179496:1,Verbessert
+Kragen- und Saumdetails,1,kragen und saumdetails,string:1,attributes:1,,Rippstrick
+Kühles Gehäuse,1,kuhles gehause,string:1,attributes:1,,Ja
+Künstler,1,kunstler,string:1,attributes:1,138910:1,Andreas Felger
+Ladeanschluss,1,ladeanschluss,string:1,attributes:1,47075:1,USB-C
+Ladegerät enthalten,1,ladegerat enthalten,string:1,attributes:1,29518:1,Ja
+Ladespannung (Zyklus),1,ladespannung zyklus,string:1,attributes:1,49782:1,14.5V-15V
+Ladestrom (Standard),1,ladestrom standard,string:1,attributes:1,49782:1,2.8A
+Ladezeit,1,ladezeit,string:1,attributes:1,,ca. 6 Stunden
+Ladezeit (100%),1,ladezeit 100,string:1,attributes:1,29518:1,154 Minuten
+Ladezeit (80%),1,ladezeit 80,string:1,attributes:1,29518:1,120 Minuten
+Länge (cm),1,lange cm,string:1,attributes:1,,50.5
+Länge geschlossen,1,lange geschlossen,string:1,attributes:1,,13.5 cm
+Länge in cm,1,lange in cm,string:1,attributes:1,,24
+Länge Klinge,1,lange klinge,string:1,attributes:1,,9 cm
+Lärmpegel,1,larmpegel,string:1,attributes:1,,45 dB
+Lastenmanagement,1,lastenmanagement,string:1,attributes:1,87122:1,Optimiert für schwere Lasten
+Laufzeit pro Füllung,1,laufzeit pro fullung,string:1,attributes:1,69197:1,Bis zu 25 Stunden
+Lebensmittelecht,1,lebensmittelecht,string:1,attributes:1,,Ja
+Leckageschutz,1,leckageschutz,string:1,attributes:1,262128:1,Ja
+LED Typ,1,led typ,string:1,attributes:1,,5730
+Leerlaufspannung,1,leerlaufspannung,string:1,attributes:1,260176:1,> 40 V
+Leibhöhe,1,leibhohe,string:1,attributes:1,,normal
+Leistung (PS),1,leistung ps,string:1,attributes:1,,2 PS
+Lesegeschwindigkeit,1,lesegeschwindigkeit,string:1,attributes:1,,2100 MB/s
+Leuchtdauer,1,leuchtdauer,string:1,attributes:1,,Lang
+Leuchtmittel,1,leuchtmittel,string:1,attributes:1,,LED
+Lichtstrom,1,lichtstrom,string:1,attributes:1,,1200 LM
+Lineatur,1,lineatur,null:1,attributes:1,138910:1,
+Logo-Applikation,1,logo applikation,string:1,attributes:1,,Tommy Hilfiger Flag-Stickerei
+Magnesium,1,magnesium,string:1,attributes:1,180501:1,3.3%
+Maße (ca.),1,masse ca,string:1,attributes:1,,120 x 60 x 100 cm
+Maße (cm),1,masse cm,string:1,attributes:1,,50.5 x 46.5 x 10.5
+Maße (LxBxH),1,masse lxbxh,string:1,attributes:1,,99x52x16 cm
+Maße (Zoll),1,masse zoll,string:1,attributes:1,,20 x 18.25 x 4.25
+Material Außenjacke,1,material aussenjacke,string:1,attributes:1,,100% Polyester
+Material Außenschicht,1,material aussenschicht,string:1,attributes:1,36440:1,Luftdurchlässig
+Material Bezug,1,material bezug,string:1,attributes:1,66728:1,100% Baumwolle
+Material Boden & Zargen,1,material boden zargen,string:1,attributes:1,156104:1,Lindenholz
+Material Decke,1,material decke,string:1,attributes:1,156104:1,Fichtenholz
+Material Füllung,1,material fullung,string:1,attributes:1,,100% Polyester
+Material Gestell,1,material gestell,string:1,attributes:1,,Metall
+Material Griff,1,material griff,string:1,attributes:1,3244:1,2K-Kunststoff
+Material Gürtelclip,1,material gurtelclip,string:1,attributes:1,,Federstahl
+Material Innenjacke,1,material innenjacke,string:1,attributes:1,,100% Polyester Fleece
+Material Klinge,1,material klinge,string:1,attributes:1,,Rostfreier Stahl
+Material Klingenhalter,1,material klingenhalter,string:1,attributes:1,3244:1,Edelstahl
+Material Korb,1,material korb,string:1,attributes:1,,Antihaftbeschichtetes Metall
+Material Netz,1,material netz,string:1,attributes:1,,Kunststoff
+Material Oberseite,1,material oberseite,string:1,attributes:1,,100% Polyester/Spandex
+Material Schwert und Schild,1,material schwert und schild,string:1,attributes:1,,EVA
+Material Seiten,1,material seiten,string:1,attributes:1,,100% Polyester
+Material Unterseite,1,material unterseite,string:1,attributes:1,,100% Polyolefin-beschichtetes Polyester
+Materialbasis,1,materialbasis,string:1,attributes:1,,Leinöl
+Materialspezifikation,1,materialspezifikation,string:1,attributes:1,178934:1,PPS GF40
+Max. Aststärke Hochentaster,1,max aststarke hochentaster,string:1,attributes:1,,ca. 30 cm
+Max. Ausgangsleistung pro Port,1,max ausgangsleistung pro port,string:1,attributes:1,47075:1,12W
+Max. Datenübertragungsrate,1,max datenubertragungsrate,string:1,attributes:1,,6 Gbit/s
+Max. Durchflussmenge,1,max durchflussmenge,string:1,attributes:1,,5 l/min (bei 3 bar)
+Max. Durchflussmenge bei 3 bar,1,max durchflussmenge bei 3 bar,string:1,attributes:1,,5 l/min
+Max. Luftgeschwindigkeit Laubbläser,1,max luftgeschwindigkeit laubblaser,string:1,attributes:1,,ca. 180 km/h
+Max. Schnittstärke Hochentaster,1,max schnittstarke hochentaster,string:1,attributes:1,,ca. 30 cm
+Max. Temperatur,1,max temperatur,string:1,attributes:1,,350 °C
+Max. Zugkraft,1,max zugkraft,string:1,attributes:1,,907 kg
+Maximale Belastbarkeit,1,maximale belastbarkeit,string:1,attributes:1,,88 kg
+Maximale Griffhöhe,1,maximale griffhohe,string:1,attributes:1,,105 cm
+Maximale Netzhöhe,1,maximale netzhohe,string:1,attributes:1,,1.6 m
+Maximalgewicht Kind,1,maximalgewicht kind,string:1,attributes:1,,21 kg
+Medizinprodukt,1,medizinprodukt,string:1,attributes:1,,Ja
+Meißeltyp 1,1,meisseltyp 1,string:1,attributes:1,50382:1,Spitzmeißel
+Meißeltyp 2,1,meisseltyp 2,string:1,attributes:1,50382:1,Flachmeißel
+Mensur,1,mensur,string:1,attributes:1,22670:1,63 cm
+Menthol,1,menthol,string:1,attributes:1,180501:1,1.140 mg/kg
+Merkmal,1,merkmal,string:1,attributes:1,262241:1,mit Zweimassenschwungrad (ZMS)
+Messbereich,1,messbereich,string:1,attributes:1,29525:1,0-150 mm
+Messfunktionen,1,messfunktionen,string:1,attributes:1,29525:1,"Außenmessung, Innenmessung, Tiefenmessung, Stufenmessung"
+Messprinzip,1,messprinzip,string:1,attributes:1,29523:1,"Magnetisch, Wirbelstrom"
+Messpunkt Kaltstartstrom,1,messpunkt kaltstartstrom,string:1,attributes:1,49782:1,-18 °C
+Mikrowellengeeignet,1,mikrowellengeeignet,string:1,attributes:1,101428:1,Ja
+Mindesthaltbarkeitsdatum,1,mindesthaltbarkeitsdatum,string:1,attributes:1,,2026-12
+Mischverhältnis,1,mischverhaltnis,string:1,attributes:1,,1:1 mit Wasser
+Mit ABS-Ring,1,mit abs ring,string:1,attributes:1,33729:1,Ja
+Mit Glasplatte,1,mit glasplatte,string:1,attributes:1,,Ja
+Mit Griff,1,mit griff,string:1,attributes:1,,Ja
+Modell Akku,1,modell akku,string:1,attributes:1,29518:1,PBA 18V/45
+Modell Ladegerät,1,modell ladegerat,string:1,attributes:1,29518:1,AL 1810 CV
+Modellbezeichnung,1,modellbezeichnung,string:1,attributes:1,,ICE SCRAPER
+Modelljahr,1,modelljahr,string:1,attributes:1,,2022
+Modelljahre,1,modelljahre,string:1,attributes:1,33694:1,2014-2021
+Montage notwendig,1,montage notwendig,string:1,attributes:1,156105:1,Ja
+Montagehinweis,1,montagehinweis,string:1,attributes:1,33612:1,Anzugsdrehmomente beachten
+Montagematerial enthalten,1,montagematerial enthalten,string:1,attributes:1,,Ja
+Montageposition,1,montageposition,string:1,attributes:1,263094:1,Außenspiegel
+Montageseite,1,montageseite,string:1,attributes:1,170141:1,beidseitig
+Montagezustand,1,montagezustand,string:1,attributes:1,,Zerlegt
+Motiv,1,motiv,null:1,attributes:1,138910:1,
+Motorleistung,1,motorleistung,string:1,attributes:1,178934:1,275 PS
+MTBF,1,mtbf,string:1,attributes:1,,2.000.000 Stunden
+Nachhaltig,1,nachhaltig,string:1,attributes:1,,Ja
+Nahtversiegelt,1,nahtversiegelt,string:1,attributes:1,261011:1,Ja
+NAND-Typ,1,nand typ,string:1,attributes:1,,3D TLC
+Natrium,1,natrium,string:1,attributes:1,180501:1,0%
+Navigation,1,navigation,string:1,attributes:1,174119:1,GPS integriert
+NCQ-Unterstützung,1,ncq unterstutzung,string:1,attributes:1,,Ja
+Nennspannung,1,nennspannung,string:1,attributes:1,,19.8V
+Nennweite,1,nennweite,string:1,attributes:1,,DN 15
+Nettoinhalt,1,nettoinhalt,string:1,attributes:1,180501:1,8 x 110 g
+Netzfrequenz,1,netzfrequenz,string:1,attributes:1,67720:1,50/60 Hz
+Netzhöhe,1,netzhohe,string:1,attributes:1,,1.6 m
+Netzlänge,1,netzlange,string:1,attributes:1,,4 m
+Netzwerkstandard,1,netzwerkstandard,string:1,attributes:1,182094:1,CAT5e
+Norm Erwachsene,1,norm erwachsene,string:1,attributes:1,109677:1,EN ISO 20471
+Norm Kinder,1,norm kinder,string:1,attributes:1,109677:1,EN 17353:2020
+NVMe-Protokoll,1,nvme protokoll,string:1,attributes:1,,NVMe 1.3
+Oberfläche Gestell,1,oberflache gestell,string:1,attributes:1,,Pulverbeschichtet
+Oberflächenmaterial,1,oberflachenmaterial,string:1,attributes:1,33694:1,Velours
+OE-Nummer,1,oe nummer,string:1,attributes:1,33665:1,"038103383BL, 038103383DE, 1212188109"
+OE-Referenz,1,oe referenz,string:1,attributes:1,170141:1,16 03 254
+OE-Referenznummer,1,oe referenznummer,string:1,attributes:1,170141:1,1403300051
+OE/OEM Referenznummer(n),1,oe oem referenznummer n,string:1,attributes:1,33694:1,2452014202112
+Öffnungsmechanismus,1,offnungsmechanismus,string:1,attributes:1,,Einhandöffnung
+Ölbasis,1,olbasis,string:1,attributes:1,,Bi-Synthetisch (PAO+Ester)
+Ölspezifikation,1,olspezifikation,string:1,attributes:1,179501:1,ATF DCG II
+Optische Wirkung,1,optische wirkung,string:1,attributes:1,,Raumvergrößerung
+Packungsgröße,1,packungsgrosse,string:1,attributes:1,15687:1,3er-Pack
+PAP-Kennzeichnung,1,pap kennzeichnung,string:1,attributes:1,33661:1,Ja
+Passend für Fahrzeug,1,passend fur fahrzeug,string:1,attributes:1,180391:1,"Ford Fiesta V, Ford Fusion, Mazda 2"
+Passend für Fahrzeugmarken,1,passend fur fahrzeugmarken,string:1,attributes:1,33564:1,"Hyundai, Kia"
+Passend für Modell,1,passend fur modell,string:1,attributes:1,33694:1,2er F45 Active Tourer
+Passend für Modellreihen,1,passend fur modellreihen,string:1,attributes:1,33564:1,"Audi A4, Audi A5, Audi A6"
+Passform-System,1,passform system,string:1,attributes:1,87122:1,Custom Fit
+Passgenauigkeit,1,passgenauigkeit,string:1,attributes:1,262128:1,Präzisionsgefertigt
+Personalisieren,1,personalisieren,string:1,attributes:1,15687:1,Nein
+Pflege,1,pflege,string:1,attributes:1,37644:1,"Pflegeleicht, Bügelfrei"
+Pflegehinweis 2,1,pflegehinweis 2,string:1,attributes:1,,Nicht bleichen
+Pflegehinweis 3,1,pflegehinweis 3,string:1,attributes:1,,Nicht im Trockner trocknen
+PGM-Prüfzeichen,1,pgm prufzeichen,string:1,attributes:1,50382:1,Ja
+Phosphor,1,phosphor,string:1,attributes:1,180501:1,0%
+Plattenmaße,1,plattenmasse,string:1,attributes:1,156105:1,ca. 37 x 23 cm
+Plattformhöhe,1,plattformhohe,string:1,attributes:1,,Mittel
+Platzierung am Fahrzeug,1,platzierung am fahrzeug,string:1,attributes:1,238:1,Außenspiegel
+Produkt ID,1,produkt id,string:1,attributes:1,101428:1,3770010398363
+Produktcode,1,produktcode,string:1,attributes:1,,716405
+Produktgröße (L x B x H),1,produktgrosse l x b x h,string:1,attributes:1,,615 x 370 x 365 mm
+Produktkategorie,1,produktkategorie,string:1,attributes:1,156104:1,Musikinstrumente > Saiteninstrumente > Gitarren > Akustikgitarren
+PZN,1,pzn,string:1,attributes:1,,18747739
+QuickClean-Funktion,1,quickclean funktion,string:1,attributes:1,,Ja
+Räder,1,rader,string:1,attributes:1,,Ja
+Radiofunktion,1,radiofunktion,string:1,attributes:1,174119:1,RDS
+RAID-Unterstützung,1,raid unterstutzung,string:1,attributes:1,,Ja
+Räucherebenen,1,raucherebenen,string:1,attributes:1,81464:1,Mehrere
+RDS-Funktion,1,rds funktion,string:1,attributes:1,174119:1,Ja
+Referenznummer,1,referenznummer,string:1,attributes:1,262228:1,212 323 00 20
+Referenznummer_OEM,1,referenznummer oem,string:1,attributes:1,33564:1,2 111 254
+Referenznummer(n) OE/OEM,1,referenznummer n oe oem,string:1,attributes:1,33579:1,910158
+Reinigungseigenschaft,1,reinigungseigenschaft,string:1,attributes:1,,Leicht zu reinigen
+Reinigungsfreundlich,1,reinigungsfreundlich,string:1,attributes:1,,Ja
+Reinigungssystem,1,reinigungssystem,string:1,attributes:1,,QuickClean
+Rohasche,1,rohasche,string:1,attributes:1,180501:1,60.4%
+Rohfaser,1,rohfaser,string:1,attributes:1,180501:1,2.8%
+Rohfett,1,rohfett,string:1,attributes:1,180501:1,4.7%
+Rohprotein,1,rohprotein,string:1,attributes:1,180501:1,3.7%
+RoHS-konform,1,rohs konform,string:1,attributes:1,,Ja
+RoHS-Konformität,1,rohs konformitat,string:1,attributes:1,174119:1,Ja
+Rollenanzahl,1,rollenanzahl,string:1,attributes:1,,4
+Rollenart,1,rollenart,string:1,attributes:1,,Doppelrollen
+Rostbeständig,1,rostbestandig,string:1,attributes:1,20622:1,Ja
+Rostfrei,1,rostfrei,string:1,attributes:1,,Ja
+Rostmaterial,1,rostmaterial,string:1,attributes:1,,Verchromter Stahl
+Rückenlänge,1,ruckenlange,string:1,attributes:1,87122:1,Verstellbar
+Rückenpanel,1,ruckenpanel,string:1,attributes:1,87122:1,"Spritzgegossener, gestanzter Schaumstoff"
+Rückensystem,1,ruckensystem,string:1,attributes:1,87122:1,AirScape Suspension
+Rückgaberecht,1,ruckgaberecht,string:1,attributes:1,178934:1,14 Tage
+Rückhaltesystem,1,ruckhaltesystem,string:1,attributes:1,,Airbag-System
+S.M.A.R.T.-Unterstützung,1,s m a r t unterstutzung,string:1,attributes:1,,Ja
+Sattelbreite,1,sattelbreite,string:1,attributes:1,22670:1,50 mm
+Saugkern,1,saugkern,string:1,attributes:1,36440:1,Stark
+Saugleistung,1,saugleistung,string:1,attributes:1,,11 kPa
+Schaftdurchmesser,1,schaftdurchmesser,string:1,attributes:1,50382:1,18 mm
+Schaftweite,1,schaftweite,string:1,attributes:1,,Normal
+Schaltertyp,1,schaltertyp,string:1,attributes:1,42284:1,Staubdichter Schalter
+Scheibengröße,1,scheibengrosse,string:1,attributes:1,177807:1,"282mm Durchmesser, 9mm Dicke"
+Schlauchdurchmesser,1,schlauchdurchmesser,string:1,attributes:1,260307:1,19 mm
+Schleifpapierbefestigung,1,schleifpapierbefestigung,string:1,attributes:1,42284:1,Klettverschluss
+Schleiftellerdurchmesser,1,schleiftellerdurchmesser,string:1,attributes:1,42284:1,125 mm
+Schliffart Klinge,1,schliffart klinge,string:1,attributes:1,,Wellenschliff
+Schloss,1,schloss,string:1,attributes:1,,TSA-Zahlenschloss
+Schnittbreite Freischneider,1,schnittbreite freischneider,string:1,attributes:1,,ca. 25.5 cm
+Schnittbreite Rasentrimmer,1,schnittbreite rasentrimmer,string:1,attributes:1,,ca. 45 cm
+Schnittlänge Heckenschere,1,schnittlange heckenschere,string:1,attributes:1,,ca. 48 cm
+Schnitttiefe Rasenkantenschneider,1,schnitttiefe rasenkantenschneider,string:1,attributes:1,,ca. 1-5 cm
+Schraubendreher Typen,1,schraubendreher typen,string:1,attributes:1,,"Kreuzschlitz, Schlitz"
+Schreibgeschwindigkeit,1,schreibgeschwindigkeit,string:1,attributes:1,,1100 MB/s
+Schrittlänge,1,schrittlange,string:1,attributes:1,,32
+Schutzart,1,schutzart,string:1,attributes:1,,IP65
+Schwenkbereich,1,schwenkbereich,string:1,attributes:1,,10°
+SD-Karten-Slot,1,sd karten slot,string:1,attributes:1,174119:1,Ja
+Seite,1,seite,string:1,attributes:1,170141:1,beidseitig
+Sekundärfunktion,1,sekundarfunktion,string:1,attributes:1,54145:1,Geruchs- und Geschmacksreduktion
+Sensor-Typ,1,sensor typ,string:1,attributes:1,,Bewegungsmelder
+Sensorik,1,sensorik,string:1,attributes:1,,Dämmerungssensor
+Set beinhaltet,1,set beinhaltet,string:1,attributes:1,,"Lounge Sofa, Sessel, Tisch, Polsterauflagen"
+Set enthält,1,set enthalt,string:1,attributes:1,101428:1,"Besteck (4 Teile), Trennwände (2), Saucenbehälter (1)"
+Sicherheit,1,sicherheit,string:1,attributes:1,36440:1,Hohes Maß
+Sicherheitsnorm,1,sicherheitsnorm,string:1,attributes:1,,EN ISO 7866
+Sicherheitssperre,1,sicherheitssperre,string:1,attributes:1,,Ja
+Sicherheitsstandard,1,sicherheitsstandard,string:1,attributes:1,,UN R129/03 (i-Size)
+Sicherheitsstufe,1,sicherheitsstufe,string:1,attributes:1,58100:1,10
+Sicherheitssystem,1,sicherheitssystem,string:1,attributes:1,180953:1,Beurer BSS
+Sicherheitsverriegelung,1,sicherheitsverriegelung,string:1,attributes:1,,Selbstverriegelnde Klinge
+Sicherheitszertifikate,1,sicherheitszertifikate,string:1,attributes:1,,"CE-Kennzeichnung, TÜV-geprüft, Spiel gut Siegel"
+Sicherheitszertifizierung,1,sicherheitszertifizierung,string:1,attributes:1,20660:1,EN71
+Sichtfeld,1,sichtfeld,string:1,attributes:1,263094:1,Vibrationsfrei
+Sitzrichtung,1,sitzrichtung,string:1,attributes:1,,Vorwärtsgerichtet
+Skaleneinheiten,1,skaleneinheiten,string:1,attributes:1,29525:1,"Metrisch, Imperial"
+Smarte Funktionen,1,smarte funktionen,string:1,attributes:1,,NFC Connect
+Sohlenart,1,sohlenart,string:1,attributes:1,,Plateau
+Solarpanel Leistung,1,solarpanel leistung,string:1,attributes:1,,5V/2A
+Solarpanel Typ,1,solarpanel typ,string:1,attributes:1,,Monokristallin
+Sound Presets,1,sound presets,string:1,attributes:1,174119:1,Ja
+Spannungsversorgung AC,1,spannungsversorgung ac,string:1,attributes:1,,230V
+Spannungsversorgung DC,1,spannungsversorgung dc,string:1,attributes:1,,"12V, 24V"
+Speicherkapazität,1,speicherkapazitat,string:1,attributes:1,,256 GB
+Spezifikation ACEA,1,spezifikation acea,string:1,attributes:1,,"C2, C3"
+Spezifikation API,1,spezifikation api,string:1,attributes:1,,SP/SN Plus
+Spiegeltyp,1,spiegeltyp,string:1,attributes:1,,Komplettspiegel
+Spieldauer,1,spieldauer,string:1,attributes:1,19082:1,ca. 15 Minuten
+Spieleranzahl,1,spieleranzahl,string:1,attributes:1,19082:1,2-8 Spieler
+Spielname,1,spielname,string:1,attributes:1,19082:1,Dobble
+Spieltyp,1,spieltyp,string:1,attributes:1,183457:1,Sammelkartenspiel
+Sport,1,sport,string:1,attributes:1,2024:1,Fußball
+Sportart/Aktivität,1,sportart aktivitat,string:1,attributes:1,,"Fitness, Laufen, Schwimmen, Radfahren"
+Sportarten,1,sportarten,string:1,attributes:1,,"Badminton, Tennis, Volleyball"
+Sprudelwasser-Kapazität,1,sprudelwasser kapazitat,string:1,attributes:1,,60 Liter
+Spülmaschinenfest,1,spulmaschinenfest,string:1,attributes:1,,Ja
+Spülmaschinenfestes Zubehör,1,spulmaschinenfestes zubehor,string:1,attributes:1,,Ja
+Standard,1,standard,string:1,attributes:1,29525:1,DIN 862
+Staubabsaugung,1,staubabsaugung,string:1,attributes:1,42284:1,Effizientes Staubfangsystem
+Steuerungsart,1,steuerungsart,string:1,attributes:1,,Fernbedienung
+Stilmerkmal,1,stilmerkmal,string:1,attributes:1,,Zeitlos
+Stilrichtung,1,stilrichtung,string:1,attributes:1,37644:1,Modern
+Stoffgewicht,1,stoffgewicht,string:1,attributes:1,,Mittelschwer
+Stoffqualität,1,stoffqualitat,string:1,attributes:1,37644:1,Musselin
+Stoßfestigkeit,1,stossfestigkeit,string:1,attributes:1,,1500G
+STRATIC Connect,1,stratic connect,string:1,attributes:1,,Ja
+Streaming-Protokolle,1,streaming protokolle,string:1,attributes:1,122188:1,"AirPlay, Miracast"
+Streckgrenze,1,streckgrenze,string:1,attributes:1,260176:1,440 MPa
+Stromaufnahme (AC Adapter),1,stromaufnahme ac adapter,string:1,attributes:1,,2.5 A
+Stromquelle,1,stromquelle,string:1,attributes:1,69197:1,Netzbetrieben
+Stück pro Karton,1,stuck pro karton,string:1,attributes:1,,1
+Systemtyp,1,systemtyp,string:1,attributes:1,178934:1,Offene Ansaugung
+Taillenumfang,1,taillenumfang,string:1,attributes:1,11507:1,91-97 cm
+Taillenumfang (Zoll),1,taillenumfang zoll,string:1,attributes:1,11507:1,36-38
+Taschenmerkmale,1,taschenmerkmale,string:1,attributes:1,,"Reißverschluss-Seitentaschen, Brusttasche"
+Taschenstil,1,taschenstil,string:1,attributes:1,,5-Pocket
+Tassenkapazität,1,tassenkapazitat,string:1,attributes:1,184665:1,8 Tassen
+Tastenbeleuchtung Farbe,1,tastenbeleuchtung farbe,string:1,attributes:1,174119:1,Rot
+TBW,1,tbw,string:1,attributes:1,,80 TB
+Team,1,team,string:1,attributes:1,2024:1,Deutschland
+Technologiebasis,1,technologiebasis,string:1,attributes:1,179496:1,Synthesetechnologie
+Teileanzahl,1,teileanzahl,string:1,attributes:1,156105:1,61
+Temperatur-Einstellbereich,1,temperatur einstellbereich,string:1,attributes:1,,-20 bis 20 ℃
+Temperaturbegrenzung,1,temperaturbegrenzung,string:1,attributes:1,,40°C
+Temperaturregulierend,1,temperaturregulierend,string:1,attributes:1,,Ja
+Timer,1,timer,string:1,attributes:1,,Integriert
+Timerfunktion,1,timerfunktion,string:1,attributes:1,184665:1,Ja
+Tonabnehmer,1,tonabnehmer,string:1,attributes:1,156104:1,Nein
+Torx Schlüssel Größe,1,torx schlussel grosse,string:1,attributes:1,,T25
+Tragbar,1,tragbar,string:1,attributes:1,,Ja
+Tragegriffe,1,tragegriffe,string:1,attributes:1,,"Oben, Seite"
+Tragehenkel,1,tragehenkel,string:1,attributes:1,,15 cm
+Trägertyp,1,tragertyp,string:1,attributes:1,,Spaghettiträger
+Tragesystem,1,tragesystem,string:1,attributes:1,,Rucksack-Tragesystem
+Tragfähigkeit,1,tragfahigkeit,string:1,attributes:1,,"2,3 kg"
+Transport,1,transport,string:1,attributes:1,,Tragbar
+Treibmittel,1,treibmittel,string:1,attributes:1,,C5H10
+Trinkwassergeeignet,1,trinkwassergeeignet,string:1,attributes:1,,Ja
+Trockenlänge,1,trockenlange,string:1,attributes:1,20622:1,20 Meter
+Tuner,1,tuner,string:1,attributes:1,174119:1,"DAB+, RDS"
+Tuning- & Styling-Teil,1,tuning styling teil,string:1,attributes:1,39057:1,Nein
+Typ,1,typ,string:1,attributes:1,,G13+
+Überhitzungsschutz,1,uberhitzungsschutz,string:1,attributes:1,,Ja
+Ultraschallfrequenz,1,ultraschallfrequenz,string:1,attributes:1,67720:1,40 kHz
+Ultraschallleistung,1,ultraschallleistung,string:1,attributes:1,67720:1,120 W
+Umgebungstemperatur (Betrieb),1,umgebungstemperatur betrieb,string:1,attributes:1,54145:1,4 °C bis 40 °C
+Umgebungstemperatur (Transport/Lagerung),1,umgebungstemperatur transport lagerung,string:1,attributes:1,54145:1,-20 °C bis 50 °C
+Umschläge Farbe,1,umschlage farbe,string:1,attributes:1,138910:1,Weiß
+Umwandlungsrate,1,umwandlungsrate,string:1,attributes:1,47075:1,>76%
+Universell einsetzbar,1,universell einsetzbar,string:1,attributes:1,174087:1,Nein
+Unterstützte Smartphone-Integration,1,unterstutzte smartphone integration,string:1,attributes:1,122188:1,"Apple CarPlay, Android Auto"
+Ursprungsland,1,ursprungsland,string:1,attributes:1,33661:1,Deutschland
+USB-Anschluss,1,usb anschluss,string:1,attributes:1,174119:1,Ja
+Verdrehschutz,1,verdrehschutz,string:1,attributes:1,,Ja
+Verpackung,1,verpackung,string:1,attributes:1,181379:1,Recycelbar
+Verpackungsabmessungen,1,verpackungsabmessungen,string:1,attributes:1,81464:1,"18.03"" x 18.03"" x 23.81"""
+Verpackungsgewicht,1,verpackungsgewicht,string:1,attributes:1,81464:1,30.1 LBS
+Verpackungsmaße (L x B x H),1,verpackungsmasse l x b x h,string:1,attributes:1,,57 x 34 x 34 cm
+Verpackungsmaterial,1,verpackungsmaterial,string:1,attributes:1,36440:1,50% recycelt
+Verpackungsvolumen,1,verpackungsvolumen,string:1,attributes:1,81464:1,0.483 CU.FT.
+Verpackungszertifikat,1,verpackungszertifikat,string:1,attributes:1,181379:1,FSC C166433
+Versand,1,versand,string:1,attributes:1,178934:1,Kostenloser DHL Versand
+Verschleißwarnkontakt,1,verschleisswarnkontakt,string:1,attributes:1,57357:1,Nein
+Verschlussmechanismus,1,verschlussmechanismus,string:1,attributes:1,58100:1,Schlüssel
+Versiegelung,1,versiegelung,string:1,attributes:1,49782:1,Ja
+Vibration,1,vibration,string:1,attributes:1,,20G
+Vibrationswiderstand,1,vibrationswiderstand,string:1,attributes:1,49782:1,Hoch
+Vitamin A,1,vitamin a,string:1,attributes:1,180501:1,230.000 I.E./kg
+Vitamin D3,1,vitamin d3,string:1,attributes:1,180501:1,46.000 I.E./kg
+Vitamin E,1,vitamin e,string:1,attributes:1,180501:1,4.600 mg/kg
+Volumen (Kubikzoll),1,volumen kubikzoll,string:1,attributes:1,87122:1,3967 in³
+Volumen Zylinder,1,volumen zylinder,string:1,attributes:1,,0.6 Liter
+Volumenerweiterung,1,volumenerweiterung,string:1,attributes:1,,Dehnfalte
+Vorgeladen,1,vorgeladen,string:1,attributes:1,49782:1,Ja
+Wärmeklasse,1,warmeklasse,string:1,attributes:1,66728:1,Extra Warm
+Warmhaltefunktion,1,warmhaltefunktion,string:1,attributes:1,184665:1,Ja
+Warmhalterost,1,warmhalterost,string:1,attributes:1,,Ja
+Wartungsfrei,1,wartungsfrei,string:1,attributes:1,49782:1,Ja
+Wartungsfreiheit,1,wartungsfreiheit,string:1,attributes:1,49782:1,Ja
+Waschbar,1,waschbar,string:1,attributes:1,66728:1,Ja
+Waschbarkeit,1,waschbarkeit,string:1,attributes:1,180953:1,Maschinenwaschbar
+Waschtemperatur,1,waschtemperatur,string:1,attributes:1,,30°C
+Wasserdichtigkeit,1,wasserdichtigkeit,string:1,attributes:1,,IP68
+Wasserfest,1,wasserfest,string:1,attributes:1,,Ja
+Wasserspar-Technologie,1,wasserspar technologie,string:1,attributes:1,,EcoSmart
+Wassertank,1,wassertank,string:1,attributes:1,69197:1,Top-Fill Design
+Webart,1,webart,string:1,attributes:1,,Feinstrick
+Wechselspannung (AC),1,wechselspannung ac,string:1,attributes:1,,100-240V
+weight_unit,1,weight unit,string:1,attributes:1,122188:1,kg
+Weite,1,weite,string:1,attributes:1,,18 cm
+Weitere Artikelnummer,1,weitere artikelnummer,string:1,attributes:1,262228:1,MSM0204
+Werkzeugkategorie,1,werkzeugkategorie,string:1,attributes:1,,Kfz-Spezialwerkzeug
+Wetter,1,wetter,string:1,attributes:1,,Regen
+Wetterbeständig,1,wetterbestandig,string:1,attributes:1,,Ja
+Wiederaufladbar,1,wiederaufladbar,string:1,attributes:1,,Ja
+Winddicht,1,winddicht,string:1,attributes:1,,Ja
+WVA-Nummer,1,wva nummer,string:1,attributes:1,57357:1,20960
+X-Bass,1,x bass,string:1,attributes:1,174119:1,Ja
+Zähnezahl,1,zahnezahl,string:1,attributes:1,262241:1,23
+Zentrierungsdurchmesser,1,zentrierungsdurchmesser,string:1,attributes:1,33564:1,68 mm
+Zertifikat,1,zertifikat,string:1,attributes:1,37644:1,OEKO-TEX MADE IN GREEN
+Zubehör,1,zubehor,string:1,attributes:1,156104:1,Ja
+Zugang zu,1,zugang zu,string:1,attributes:1,,"Installation, Leitungen, Verteilerkästen"
+Zugfestigkeit,1,zugfestigkeit,string:1,attributes:1,260176:1,540 MPa
+Zusatzbezeichnung,1,zusatzbezeichnung,string:1,attributes:1,262241:1,ZMS Modul XTend plus CSC
+Zusatzfunktion,1,zusatzfunktion,string:1,attributes:1,,Gurttrenner
+Zusätzliche Zertifizierung,1,zusatzliche zertifizierung,string:1,attributes:1,109677:1,CE 0598
+Zweck,1,zweck,string:1,attributes:1,180501:1,Milchfieber-Prophylaxe
+Zylindertyp,1,zylindertyp,string:1,attributes:1,58100:1,ABUS X-Plus
