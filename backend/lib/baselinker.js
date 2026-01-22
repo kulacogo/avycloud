@@ -235,6 +235,8 @@ async function ensureInventoryCategory(inventoryId, pathStr) {
  * - getInventoryAvailableTextFieldKeys (returns "text_field_keys" map of key -> label)
  */
 const inventoryTextFieldKeysCache = new Map(); // key: inventoryId -> { atMs, keys: string[] }
+// Store normalized integration meta so we can apply marketplace-specific overrides (e.g. ebay_0)
+const inventoryIntegrationsCache = new Map(); // key: inventoryId -> { atMs, integrations: Array<{ name: string, langs: string[], accounts: string[] }> }
 const TEXT_FIELD_KEYS_CACHE_TTL_MS = parseInt(
   process.env.BASELINKER_TEXT_FIELD_KEYS_CACHE_TTL_MS || `${6 * 60 * 60 * 1000}`,
   10
@@ -262,6 +264,7 @@ async function getInventoryAvailableTextFieldKeyIds(inventoryId) {
   }
 
   const keys = new Set();
+  const normalizedIntegrations = [];
 
   // 1) Default keys (without specifying integration_name)
   try {
@@ -299,7 +302,7 @@ async function getInventoryAvailableTextFieldKeyIds(inventoryId) {
     // Do NOT auto-expand `extra_field_*` into integration/lang variants.
     // Some additional fields are single-language only; sending multiple language variants can trigger:
     // "ERROR_INVALID_DATA: Additional field extra_field_XXXX does not support setting values in different languages."
-    const fields = ['name', 'description', 'description_extra1'];
+    const fields = ['name', 'description', 'description_extra1', 'features'];
 
     for (const entry of list) {
       if (!entry || typeof entry !== 'object') continue;
@@ -307,19 +310,32 @@ async function getInventoryAvailableTextFieldKeyIds(inventoryId) {
       const meta = integrationName ? entry[integrationName] : null;
       if (!integrationName || !meta || typeof meta !== 'object') continue;
 
-      const langs = Array.isArray(meta.langs)
-        ? meta.langs.map((l) => String(l).toLowerCase()).filter(Boolean)
+      const langs = Array.isArray(meta.langs || meta.languages)
+        ? (meta.langs || meta.languages).map((l) => String(l).toLowerCase()).filter(Boolean)
         : [];
-      const accountsObj = meta.accounts && typeof meta.accounts === 'object' ? meta.accounts : {};
-      const accountIds = Object.keys(accountsObj)
-        .map((id) => String(id).trim())
-        .filter(Boolean)
-        .slice(0, MAX_ACCOUNTS_PER_INTEGRATION);
+
+      const accountsObj =
+        meta.accounts && typeof meta.accounts === 'object' ? meta.accounts : {};
+      const accountIds = Array.isArray(meta.accounts)
+        ? meta.accounts
+            .map((a) => String(a?.account_id ?? a?.id ?? '').trim())
+            .filter(Boolean)
+            .slice(0, MAX_ACCOUNTS_PER_INTEGRATION)
+        : Object.keys(accountsObj)
+            .map((id) => String(id).trim())
+            .filter(Boolean)
+            .slice(0, MAX_ACCOUNTS_PER_INTEGRATION);
 
       // Add integration-wide "0" identifier (per BaseLinker docs, e.g. amazon_0)
       const integrationAccounts = Array.from(
         new Set([`${integrationName}_0`, ...accountIds.map((id) => `${integrationName}_${id}`)])
       );
+
+      normalizedIntegrations.push({
+        name: String(integrationName).trim(),
+        langs,
+        accounts: integrationAccounts,
+      });
 
       for (const field of fields) {
         for (const acc of integrationAccounts) {
@@ -361,7 +377,21 @@ async function getInventoryAvailableTextFieldKeyIds(inventoryId) {
 
   const list = Array.from(keys);
   inventoryTextFieldKeysCache.set(invKey, { atMs: now, keys: list });
+  inventoryIntegrationsCache.set(invKey, { atMs: now, integrations: normalizedIntegrations });
   return list;
+}
+
+async function getInventoryIntegrationsNormalized(inventoryId) {
+  const invKey = String(inventoryId || '');
+  if (!invKey) return [];
+  const now = Date.now();
+  const cached = inventoryIntegrationsCache.get(invKey);
+  if (cached?.integrations && now - (cached.atMs || 0) < TEXT_FIELD_KEYS_CACHE_TTL_MS) {
+    return cached.integrations;
+  }
+  // Populate caches (includes integrations) via the keys method.
+  await getInventoryAvailableTextFieldKeyIds(invKey);
+  return inventoryIntegrationsCache.get(invKey)?.integrations || [];
 }
 
 async function expandTextFieldsForInventory(inventoryId, textFields, values, lang) {
@@ -388,6 +418,32 @@ async function expandTextFieldsForInventory(inventoryId, textFields, values, lan
       out[keyId] = values.description;
     if (field === 'description_extra1' && values?.description_extra1 && out[keyId] == null)
       out[keyId] = values.description_extra1;
+  }
+
+  return out;
+}
+
+async function applyMarketplaceOverridesToTextFields(inventoryId, product, textFields, lang) {
+  if (!textFields || typeof textFields !== 'object') return textFields;
+  const defaultLang = (lang || 'de').toLowerCase();
+
+  // We only apply overrides for marketplace integrations where it is beneficial/required.
+  // Today: eBay item specifics as integration-scoped "features".
+  const features = textFields.features && typeof textFields.features === 'object' ? textFields.features : null;
+  if (!features) return textFields;
+
+  const integrations = await getInventoryIntegrationsNormalized(inventoryId);
+  const out = { ...textFields };
+
+  const ebay = integrations.find((i) => String(i?.name || '').trim().toLowerCase() === 'ebay');
+  if (ebay?.accounts?.length) {
+    const ebayFields = buildEbay9800Fields(product, features);
+    if (ebayFields && Object.keys(ebayFields).length) {
+      for (const acc of ebay.accounts) {
+        // Write explicit DE override for each eBay account (and ebay_0).
+        out[`features|${defaultLang}|${acc}`] = ebayFields;
+      }
+    }
   }
 
   return out;
@@ -995,12 +1051,6 @@ function buildTextFields(product, name) {
     textFields.features = features;
   }
 
-  // eBay Item-Specifics aus denselben Daten ableiten
-  const ebayFields = buildEbay9800Fields(product, features);
-  if (ebayFields && Object.keys(ebayFields).length) {
-    textFields['features|de|ebay_9800'] = ebayFields;
-  }
-
   // GPSR Parameters (Essential for compliance)
   const gpsr = product?.details?.gpsr;
   if (gpsr) {
@@ -1476,6 +1526,13 @@ async function syncProductToBaseLinker(product, inventoryId) {
         description_extra1: payload?.text_fields?.description_extra1,
         extra_field_18699: payload?.text_fields?.extra_field_18699,
       },
+      defaultLang
+    );
+
+    payload.text_fields = await applyMarketplaceOverridesToTextFields(
+      invId,
+      product,
+      payload.text_fields,
       defaultLang
     );
 
