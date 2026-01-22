@@ -57,10 +57,8 @@ const { enqueueJob, startJobRunner } = require('./services/job-runner');
 const { enqueueImproveJob, startImproveRunner } = require('./services/improve-runner');
 const { enqueueQualityJob, startQualityRunner } = require('./services/quality-runner');
 const { enqueueBaseLinkerSyncJob, startBaseLinkerSyncRunner } = require('./services/baselinker-sync-runner');
-const { enqueueBigCommerceSyncJob, startBigCommerceSyncRunner } = require('./services/bigcommerce-sync-runner');
 const { createJob: createQualityJob, getJob: getQualityJob, Timestamp: QualityTimestamp, updateJob: updateQualityJob } = require('./lib/quality-jobs');
 const { createJob: createBaseLinkerSyncJob, getJob: getBaseLinkerSyncJob, updateJob: updateBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('./lib/baselinker-sync-jobs');
-const { createJob: createBigCommerceSyncJob, getJob: getBigCommerceSyncJob, updateJob: updateBigCommerceSyncJob, Timestamp: BigCommerceSyncTimestamp } = require('./lib/bigcommerce-sync-jobs');
 const {
   createWarehouseLayout,
   listWarehouseZones,
@@ -775,7 +773,6 @@ startJobRunner();
 startImproveRunner();
 startQualityRunner();
 startBaseLinkerSyncRunner();
-startBigCommerceSyncRunner();
 syncInventoriesFromBaseLinker()
   .then((result) => {
     console.log(`Initial inventory sync completed (${result.fetched} entries)`);
@@ -1788,81 +1785,6 @@ app.post('/api/baselinker/lookup', async (req, res) => {
     return res.status(500).json({
       ok: false,
       error: { code: 500, message: 'Failed to lookup BaseLinker SKUs', details: error.message },
-    });
-  }
-});
-
-// --- BigCommerce sync jobs (async, resilient) ---
-app.post('/api/bigcommerce/sync/jobs', async (req, res) => {
-  try {
-    const { productIds } = req.body || {};
-    if (!Array.isArray(productIds) || productIds.length === 0) {
-      return res.status(400).json({
-        ok: false,
-        error: { code: 400, message: 'productIds array required' },
-      });
-    }
-
-    const ids = Array.from(new Set(productIds.map((id) => String(id).trim()).filter(Boolean))).slice(0, 500);
-    const job = await createBigCommerceSyncJob({
-      payload: { productIds: ids },
-      status: 'pending',
-      stage: 'queued',
-      progress: { total: ids.length, processed: 0, synced: 0, failed: 0 },
-      requestedBy: 'ui',
-      createdAt: BigCommerceSyncTimestamp.now(),
-      updatedAt: BigCommerceSyncTimestamp.now(),
-    });
-    enqueueBigCommerceSyncJob(job.id, true);
-    return res.status(202).json({ ok: true, jobId: job.id });
-  } catch (error) {
-    console.error('Failed to create BigCommerce sync job:', error);
-    return res.status(500).json({
-      ok: false,
-      error: { code: 500, message: 'Failed to create BigCommerce sync job', details: error.message },
-    });
-  }
-});
-
-app.get('/api/bigcommerce/sync/jobs/:id', async (req, res) => {
-  try {
-    const job = await getBigCommerceSyncJob(String(req.params.id));
-    if (!job) {
-      return res.status(404).json({ ok: false, error: { code: 404, message: 'Job not found' } });
-    }
-    return res.status(200).json({ ok: true, data: job });
-  } catch (error) {
-    console.error('Failed to load BigCommerce sync job:', error);
-    return res.status(500).json({
-      ok: false,
-      error: { code: 500, message: 'Failed to load BigCommerce sync job', details: error.message },
-    });
-  }
-});
-
-app.post('/api/bigcommerce/sync/jobs/:id/retry', async (req, res) => {
-  try {
-    const jobId = String(req.params.id);
-    const job = await getBigCommerceSyncJob(jobId);
-    if (!job) {
-      return res.status(404).json({ ok: false, error: { code: 404, message: 'Job not found' } });
-    }
-    await updateBigCommerceSyncJob(jobId, {
-      status: 'pending',
-      stage: 'queued',
-      startedAt: null,
-      finishedAt: null,
-      error: null,
-      result: null,
-      progress: job?.progress || { total: 0, processed: 0, synced: 0, failed: 0 },
-    });
-    enqueueBigCommerceSyncJob(jobId, true);
-    return res.status(200).json({ ok: true });
-  } catch (error) {
-    console.error('Failed to retry BigCommerce sync job:', error);
-    return res.status(500).json({
-      ok: false,
-      error: { code: 500, message: 'Failed to retry BigCommerce sync job', details: error.message },
     });
   }
 });

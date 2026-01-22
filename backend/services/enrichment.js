@@ -97,9 +97,137 @@ async function resolveCategoryWithGemini(product, target) {
     const client = await getGeminiClient();
     const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const attrs = product?.details?.attributes || {};
+
+    const safeString = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
+    const normalizeText = (text = '') =>
+      safeString(text)
+        .toLowerCase()
+        .replace(/ä/g, 'a')
+        .replace(/ö/g, 'o')
+        .replace(/ü/g, 'u')
+        .replace(/ß/g, 'ss')
+        .replace(/[\u2010-\u2015-]/g, ' ')
+        .replace(/[^\p{L}\p{N}\s>]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const tokenize = (text = '') => {
+      const t = normalizeText(text);
+      if (!t) return [];
+      const stop = new Set([
+        'und',
+        'oder',
+        'fur',
+        'fuer',
+        'für',
+        'mit',
+        'ohne',
+        'set',
+        'neu',
+        'new',
+        'original',
+        'ovp',
+        'teile',
+        'zubehor',
+        'zubehör',
+        'sonstige',
+        'der',
+        'die',
+        'das',
+        'ein',
+        'eine',
+      ]);
+      return t
+        .split(/\s+/g)
+        .map((w) => w.trim())
+        .filter((w) => w.length >= 4 && !stop.has(w));
+    };
+
+    // Deterministic candidate shortlist (prevents "nonsense" / invented paths).
+    // We only allow Gemini to choose from these candidates.
+    const buildEbayCandidates = () => {
+      // eslint-disable-next-line global-require, import/no-dynamic-require
+      const EBAY_CATEGORIES = require('../ebay-data/categories.json');
+      const entries = Object.keys(EBAY_CATEGORIES || {})
+        .map((id) => {
+          const c = EBAY_CATEGORIES[id];
+          const breadcrumb = safeString(c?.breadcrumb);
+          if (!breadcrumb || !breadcrumb.includes('>')) return null;
+          return { id: String(c?.id ?? id), breadcrumb, name: safeString(c?.name) };
+        })
+        .filter(Boolean);
+
+      const productType =
+        safeString(attrs.Produktart) ||
+        safeString(attrs.Produkttyp) ||
+        safeString(attrs['Produkttyp (Produktart)']) ||
+        safeString(attrs.Artikeltyp) ||
+        '';
+      const seedText = [
+        safeString(product?.identification?.brand),
+        safeString(product?.identification?.name),
+        productType,
+        safeString(product?.details?.short_description),
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      const tokens = Array.from(new Set(tokenize(seedText))).slice(0, 10);
+      if (!tokens.length) return [];
+
+      const scored = [];
+      for (const e of entries) {
+        const hay = normalizeText(`${e.breadcrumb} ${e.name}`);
+        let hit = 0;
+        for (const t of tokens) {
+          if (hay.includes(t)) hit += 1;
+        }
+        if (hit === 0) continue;
+        const score = hit * 1000 - hay.length; // prefer many token hits; then prefer shorter breadcrumb
+        scored.push({ ...e, score, hit });
+      }
+      scored.sort((a, b) => b.hit - a.hit || b.score - a.score);
+      return scored.slice(0, 60);
+    };
+
+    if (target === 'ebay') {
+      const candidates = buildEbayCandidates();
+      if (!candidates.length) return null;
+      const prompt = [
+        'Du bist ein Kategorisierungs-Assistent.',
+        'Aufgabe: Wähle GENAU EINE eBay Kategorie aus der vorgegebenen Kandidatenliste.',
+        'Regeln (kritisch):',
+        '- Du darfst NUR eine ID aus der Kandidatenliste zurückgeben. Keine neue ID erfinden.',
+        '- Wähle die beste Leaf-Kategorie, die zum Produkt passt.',
+        '',
+        'Produkt:',
+        `SKU: ${safeString(product?.details?.identifiers?.sku || product?.identification?.sku || product?.id)}`,
+        `Name: ${safeString(product?.identification?.name)}`,
+        `Marke: ${safeString(product?.identification?.brand)}`,
+        `Produktart: ${safeString(attrs.Produktart || attrs.Produkttyp || attrs['Produkttyp (Produktart)'] || '')}`,
+        `Beschreibung: ${safeString(product?.details?.short_description || product?.details?.description || '')}`,
+        '',
+        'Kandidaten (id | breadcrumb):',
+        ...candidates.map((c) => `- ${c.id} | ${c.breadcrumb}`),
+        '',
+        'Antworte NUR als JSON: {"id":"..."}',
+      ].join('\n');
+
+      const resp = await model.generateContent(prompt);
+      const text = resp?.response?.text() || '';
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) return null;
+      const json = JSON.parse(match[0]);
+      const pickedId = safeString(json?.id);
+      if (!pickedId) return null;
+      const picked = candidates.find((c) => String(c.id) === pickedId);
+      if (!picked) return null;
+      return { id: String(picked.id), path: picked.breadcrumb };
+    }
+
+    // Kaufland: keep existing behavior for now (separate taxonomy system).
     const prompt = `
 Du bist ein Kategorisierungs-Assistent. Finde einen passenden Kategorie-PFAD (deutsch)
-für ${target === 'ebay' ? 'eBay (inventory 85403)' : 'Kaufland (inventory 85404)'}.
+für Kaufland (inventory 85404).
 Liefere NUR ein JSON-Objekt: { "path": "..." }
 - Keine IDs erfinden, nur einen realistischen Pfadtext.
 
@@ -110,8 +238,8 @@ Marke: ${product?.identification?.brand || ''}
 Freie Kategorie: ${product?.identification?.category || ''}
 Beschreibung: ${product?.details?.description || product?.details?.short_description || ''}
 Attribute: ${Object.entries(attrs)
-        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-        .join(' | ')}
+      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+      .join(' | ')}
     `.trim();
     const resp = await model.generateContent(prompt);
     const text = resp?.response?.text() || '';
@@ -120,17 +248,7 @@ Attribute: ${Object.entries(attrs)
     const json = JSON.parse(match[0]);
     const pathText = json.path || json.category || json.category_path;
     if (!pathText) return null;
-    let id = null;
-    if (target === 'ebay') {
-      id = marketplaceLookup.lookupEbay(pathText);
-      // Fallback: accept breadcrumb-like variants by using taxonomy matcher (more robust than exact path lookup).
-      if (!id) {
-        const cat = findEbayCategory(pathText);
-        if (cat?.id) id = String(cat.id);
-      }
-    } else {
-      id = marketplaceLookup.lookupKaufland(pathText);
-    }
+    const id = marketplaceLookup.lookupKaufland(pathText);
     if (id) return { id: String(id), path: pathText };
   } catch (e) {
     console.warn('Gemini category resolution failed:', e.message);

@@ -2018,51 +2018,6 @@ async function updateProductSyncStatus(
   }
 }
 
-/**
- * Update product BigCommerce sync status (and optional BigCommerce linkage)
- */
-async function updateProductBigCommerceSyncStatus(
-  productId,
-  status,
-  lastSyncedIso = null,
-  bigCommerceProductId = undefined
-) {
-  try {
-    const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
-    const updateData = {
-      'ops.bigcommerce.sync_status': status,
-    };
-
-    if (lastSyncedIso) {
-      updateData['ops.bigcommerce.last_synced_iso'] = lastSyncedIso;
-    }
-
-    if (bigCommerceProductId !== undefined) {
-      updateData['ops.bigcommerce.product_id'] = bigCommerceProductId;
-    }
-
-    await docRef.update(updateData);
-  } catch (error) {
-    console.error('Failed to update product BigCommerce sync status:', error);
-    throw new Error(`Failed to update BigCommerce sync status: ${error.message}`);
-  }
-}
-
-async function setProductBigCommerceDisabled(productId, disabled, { reason = '' } = {}) {
-  const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
-  const updateData = {
-    'ops.bigcommerce.disabled': Boolean(disabled),
-  };
-  if (disabled) {
-    updateData['ops.bigcommerce.disabled_at_iso'] = new Date().toISOString();
-    if (reason) updateData['ops.bigcommerce.disabled_reason'] = String(reason).trim();
-  } else {
-    updateData['ops.bigcommerce.disabled_at_iso'] = null;
-    updateData['ops.bigcommerce.disabled_reason'] = null;
-  }
-  await docRef.update(updateData);
-}
-
 async function findProductByIdentityKey(identityKey) {
   if (!identityKey) return null;
   const snapshot = await firestore
@@ -2848,8 +2803,6 @@ module.exports = {
   getAllProducts,
   deleteProduct,
   updateProductSyncStatus,
-  updateProductBigCommerceSyncStatus,
-  setProductBigCommerceDisabled,
   findProductByIdentityKey,
   findProductByIdentityAliases,
   findProductIdsByAliases,

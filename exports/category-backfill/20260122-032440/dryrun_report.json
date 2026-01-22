@@ -1,0 +1,2571 @@
+[
+  {
+    "docId": "00174600185032",
+    "sku": "SKU-7538503265",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Möbel & Wohnen > Möbel > Stühle > Stuhlkissen & Auflagen"
+  },
+  {
+    "docId": "00872299043330",
+    "sku": "SKU-9129624671",
+    "status": "update",
+    "catText": "Baby > Kinderwagen & Zubehör > Kinderwagen-Zubehör",
+    "match": {
+      "id": "66698",
+      "breadcrumb": "Baby > Kinderwagen & Zubehör",
+      "score": 292,
+      "margin": 119
+    },
+    "updates": {
+      "details.categoryId": "66698",
+      "identification.category": "Baby > Kinderwagen & Zubehör",
+      "ops.data_quality": {
+        "barcode_rejected_v1": {
+          "iso": "2026-01-08T18:05:39.280Z",
+          "invalid": [
+            "20201512"
+          ]
+        },
+        "condition_bulk_normalized_neu_v1": {
+          "at_iso": "2026-01-08T20:44:52.424Z",
+          "previous": "Gebraucht"
+        },
+        "last_quality_gate_iso": "2026-01-17T19:50:37.312Z",
+        "quality_gate_v1": {
+          "id": "qg_68407b51-0343-4f40-a02a-a65e644738df",
+          "version": 1,
+          "checked_at_iso": "2026-01-17T19:50:37.312Z",
+          "duration_ms": 2416,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "00872299043330 Thule 20201512",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=00872299043330%20Thule%2020201512",
+            "fetched_at_iso": "2026-01-17T19:50:34.968Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 6
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.651Z",
+        "category_backfilled_from": "Baby > Kinderwagen & Zubehör > Kinderwagen-Zubehör",
+        "category_backfilled_to": "Baby > Kinderwagen & Zubehör"
+      }
+    }
+  },
+  {
+    "docId": "0098931289601",
+    "sku": "SKU-2231367173",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Hautpflege > Cremes"
+  },
+  {
+    "docId": "0198303486543",
+    "sku": "SKU-7255766247",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > T-Shirts"
+  },
+  {
+    "docId": "0250237001502",
+    "sku": "SKU-4846246443",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haushalt > Küche, Kochen & Genießen > Küchengeräte > Sodastream & Wassersprudler Zubehör"
+  },
+  {
+    "docId": "0402019292922",
+    "sku": "SKU-9400450055",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Karosserie & Exterieur > Außenspiegel"
+  },
+  {
+    "docId": "0652ed9b-7af0-4390-809b-ab3ae8a75fdd",
+    "sku": "SKU-1736818518",
+    "status": "update",
+    "catText": "Haushaltsgeräte > Kleine Küchengeräte > Fritteusen",
+    "match": {
+      "id": "185033",
+      "breadcrumb": "Haushaltsgeräte > Kleingeräte Küche > Fritteusen",
+      "score": 153,
+      "margin": 153
+    },
+    "updates": {
+      "details.categoryId": "185033",
+      "identification.category": "Haushaltsgeräte > Kleingeräte Küche > Fritteusen",
+      "ops.data_quality": {
+        "last_quality_gate_iso": "2026-01-20T09:13:35.007Z",
+        "quality_gate_v1": {
+          "id": "qg_f6e4dbc0-23ac-4869-a271-2d630358941a",
+          "version": 1,
+          "checked_at_iso": "2026-01-20T09:13:35.007Z",
+          "duration_ms": 21606,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [
+            {
+              "code": "barcode_missing",
+              "severity": "warn",
+              "fields": [
+                "identification.barcodes",
+                "details.identifiers"
+              ],
+              "message": "Kein validierter Barcode (EAN/GTIN/UPC) vorhanden.",
+              "source": "rule",
+              "confidence": 0.9
+            },
+            {
+              "code": "attributes_duplicate_value",
+              "severity": "warn",
+              "fields": [
+                "details.attributes.Gehäusematerial",
+                "details.attributes.Material Gehäuse"
+              ],
+              "message": "Redundante Attribute: gleicher Wert \"Kunststoff\" in Gehäusematerial, Material Gehäuse.",
+              "source": "rule",
+              "confidence": 0.85
+            }
+          ],
+          "evidence": {
+            "query": "Philips Essential",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=Philips%20Essential",
+            "fetched_at_iso": "2026-01-20T09:13:31.046Z",
+            "results": [
+              {
+                "title": "Philips Hue and Philips Hue Essential: What&#x27;s the difference?",
+                "url": "https://www.philips-hue.com/en-us/support/article/Philips-Hue-and-Philips-Hue-Essential/000014"
+              },
+              {
+                "title": "Are Philips Hue Essential bulbs the cheap smart lights we don&#x27;t need ...",
+                "url": "https://www.techradar.com/home/smart-lights/are-philips-hue-essential-bulbs-the-cheap-smart-lights-we-dont-need"
+              },
+              {
+                "title": "Hue Essential: Affordable light bulbs with different bases",
+                "url": "https://hueblog.com/2025/08/15/hue-essential-affordable-light-bulbs-with-different-bases/"
+              },
+              {
+                "title": "Philips Essential XL 6.2L Digital Air Fryer with Fry Basket - Black ...",
+                "url": "https://www.walmart.com/ip/Philips-Essential-XL-6-2L-Digital-Air-Fryer-Black/977573007"
+              },
+              {
+                "title": "Philips Hue Essential Smart LED A19 Bulb, White and Color ... - Amazon",
+                "url": "https://www.amazon.com/Philips-Hue-Essential-Ambiance-2200K-6500K/dp/B0FMGP1P6W"
+              },
+              {
+                "title": "Essential A19 - E26 smart bulb - 800 lm - 8.8W - Philips Hue",
+                "url": "https://www.philips-hue.com/en-us/p/hue-white-and-color-ambiance-essential-a19-e26-smart-bulb-800-lm-88w-4-pack/046677592592"
+              }
+            ],
+            "pages": [
+              {
+                "title": "Philips Hue and Philips Hue Essential: What&#x27;s the difference?",
+                "url": "https://www.philips-hue.com/en-us/support/article/Philips-Hue-and-Philips-Hue-Essential/000014",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Philips Hue and Philips Hue Essential: What’s the difference? | Philips Hue Skip to main content Shop Shop New Year Sale New Exclusives Top sellers Bundles Shop all New Year Sale Hue Bridge Pro Wired video doorbell Products Bulbs Starter kits Standard bulbs Filament bulbs Spotlights Lightguide bulbs All bulbs Strip lights Strip lights plus Gradient strip lights TV strip lights Outdoor strip lights String lights All strip lights Lamps Recessed lights Table & floor lamps Track lighting Ceiling lights Outdoor lights All lamps Home security Cameras Contact sensors Security bundles All security Controls Bridge Sync box Motion sensors Switches Smart plug All controls Rooms Shop by room Gaming room Bedroom Dining room Backyard Bathroom Kitchen See all Inspiration Find inspiration Secure your home Support your wellbeing Sync with media Set the mood Outdoor lights See all Learn Learn How it works"
+              },
+              {
+                "title": "Are Philips Hue Essential bulbs the cheap smart lights we don&#x27;t need ...",
+                "url": "https://www.techradar.com/home/smart-lights/are-philips-hue-essential-bulbs-the-cheap-smart-lights-we-dont-need",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Are Philips Hue Essential bulbs the cheap smart lights we don't need? | TechRadar Skip to main content Open menu TechRadar the technology experts US Edition Asia Singapore Europe Danmark Suomi Norge Sverige UK Italia Nederland Belgi&euml; (Nederlands) France Deutschland Espa&ntilde;a North America US (English) Canada M&eacute;xico Australasia Australia New Zealand RSS Sign in View Profile Sign out Search Search TechRadar Phones Popular Phone Brands iPhone Samsung Galaxy Google Pixel Nothing Motorola OnePlus Xiaomi Honor Oppo Huawei Operating Systems Android iOS More from Phones Network Carriers Phone Accessories Phone Reviews Phone Buying Guides Phone Deals Phone Coupons Phone News Computing Laptops Chromebooks MacBooks Windows Laptops Gaming Laptops PCs Desktop PCs Macs Gaming PCs Software & Security Windows macOS Windows 10 End of Life Antivirus Cyber Security Components CPUs GPUs Stor"
+              },
+              {
+                "title": "Hue Essential: Affordable light bulbs with different bases",
+                "url": "https://hueblog.com/2025/08/15/hue-essential-affordable-light-bulbs-with-different-bases/",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Hue Essential: Affordable light bulbs with different bases - Hueblog.com Zu hueblog.de wechseln Home News Sale Guide Search for: Search Search News Sale Reviews Guide Contact All News Posts Hardware Apps News Philips Hue app with a small update: better organization of scenes 11 months ago Signify illuminates the World Cup slope in Schladming 12 months ago Philips Hue Bridge: The device limit is becoming more and more of a criticism 2 years ago Member management: The function that is not a function 3 years ago Show your Hue: This LED Christmas tree creates a festive atmosphere 5 years ago Whining GU10 spots: Will there be a new hardware version after all? 6 years ago Show all posts in this category This is my first impression of the Philips Hue Essential Flex 4 days ago Segmented: New mode for Philips Hue gradient products 2 weeks ago Hue Essential Flex: New information about the neon lig"
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 7
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.656Z",
+        "category_backfilled_from": "Haushaltsgeräte > Kleine Küchengeräte > Fritteusen",
+        "category_backfilled_to": "Haushaltsgeräte > Kleingeräte Küche > Fritteusen"
+      }
+    }
+  },
+  {
+    "docId": "0814914026519",
+    "sku": "SKU-0279594894",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "PC Hardware > Solid State Drives"
+  },
+  {
+    "docId": "0840353901100",
+    "sku": "SKU-4747629782",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sportelektronik > Fitness-Tracker"
+  },
+  {
+    "docId": "1795362000001",
+    "sku": "SKU-4026350484",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > T-Shirts"
+  },
+  {
+    "docId": "18023030150200",
+    "sku": "SKU-7569423484",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Baumarkt > Bauelemente & Treppen > Revisionsklappen"
+  },
+  {
+    "docId": "1852315181124",
+    "sku": "SKU-8073301246",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Jacken & Mäntel"
+  },
+  {
+    "docId": "1bdce1f7-aa59-4b85-a9a8-3488141ae012",
+    "sku": "SKU-0789448642",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Küche & Haushalt > Geschirr & Besteck > Gläser"
+  },
+  {
+    "docId": "1d5b4c7f-5b0b-42ac-a3a4-1ff4ce852794",
+    "sku": "SKU-4762036663",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Garten > Solarleuchten"
+  },
+  {
+    "docId": "2021181818184",
+    "sku": "SKU-0997953441",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Fahrradzubehör > Fahrrad"
+  },
+  {
+    "docId": "20221705000003",
+    "sku": "SKU-5134751391",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Garten & Terrasse > Beleuchtung > Solarleuchten"
+  },
+  {
+    "docId": "2024010542503",
+    "sku": "SKU-1164276787",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad > Wohnmobil- & Caravan-Teile & Zubehör > Kühlboxen & Kühlschränke"
+  },
+  {
+    "docId": "24196924186507",
+    "sku": "SKU-5133324860",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > Hemden > Freizeithemden"
+  },
+  {
+    "docId": "2493370000004",
+    "sku": "SKU-3476455542",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren > Sweatshirts & Hoodies"
+  },
+  {
+    "docId": "25004695020111",
+    "sku": "SKU-0704619212",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Computer, Tablets & Netzwerk > Laufwerke, Speichermedien & Rohlinge > Interne SSDs"
+  },
+  {
+    "docId": "2640f8be-81e3-4d78-b73c-14f234d26721",
+    "sku": "SKU-6617431534",
+    "status": "update",
+    "catText": "Heimwerker > Elektroinstallation > Solarenergie > Solarmodule",
+    "match": {
+      "id": "41981",
+      "breadcrumb": "Heimwerker > Erneuerbare Energie > Solarenergie > Solarmodule",
+      "score": 174,
+      "margin": 10
+    },
+    "updates": {
+      "details.categoryId": "41981",
+      "identification.category": "Heimwerker > Erneuerbare Energie > Solarenergie > Solarmodule",
+      "ops.data_quality": {
+        "barcode_rejected_v1": {
+          "iso": "2026-01-09T18:29:51.841Z",
+          "invalid": [
+            "921041026469"
+          ]
+        },
+        "condition_normalized_neu_v1": {
+          "at_iso": "2026-01-09T18:29:51.841Z",
+          "previous": "Gebraucht",
+          "source": "job-improve"
+        },
+        "last_quality_gate_iso": "2026-01-19T11:13:53.522Z",
+        "quality_gate_v1": {
+          "id": "qg_bcc5ae6e-9c15-4bca-9662-a38b50f05363",
+          "version": 1,
+          "checked_at_iso": "2026-01-19T11:13:53.522Z",
+          "duration_ms": 4789,
+          "ok": false,
+          "summary": "Quality-Issues erkannt – bitte prüfen.",
+          "issues": [
+            {
+              "code": "priority_a_missing_in_title",
+              "source": "rule",
+              "confidence": 0.95,
+              "severity": "error",
+              "fields": [
+                "identification.name"
+              ],
+              "message": "Titel verstößt gegen die Titel-Regeln (≤80 Zeichen, Mobile-first/Priorität A vorne)."
+            },
+            {
+              "code": "priority_a_not_in_first_60",
+              "source": "rule",
+              "confidence": 0.95,
+              "severity": "error",
+              "fields": [
+                "identification.name"
+              ],
+              "message": "Titel verstößt gegen die Titel-Regeln (≤80 Zeichen, Mobile-first/Priorität A vorne)."
+            }
+          ],
+          "evidence": {
+            "query": "9210410264690 WUZECK 201010252",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=9210410264690%20WUZECK%20201010252",
+            "fetched_at_iso": "2026-01-19T11:13:51.762Z",
+            "results": [
+              {
+                "title": "Solarpanel, netzunabhängiges Solarpanel ... - WUZECK",
+                "url": "https://wuzeck.com/de"
+              },
+              {
+                "title": "WUZECK 100W Flexibles IP68 Solarpanel hocheffizient Solarmodule für Dächer",
+                "url": "https://www.nextpower24.de/wuzeck-100w-flexibles-ip68-solarpanel-hocheffizient-solarmodule-fuer-daecher-388797158835.html"
+              },
+              {
+                "title": "WUZECK 100W Monokristallines Solarpanel kit 19.8V 50W Solarmodul Off ...",
+                "url": "https://www.amazon.de/WUZECK-100W-Monokristallines-Solarpanel-Solar-Laderegler/dp/B0D91X58MG"
+              },
+              {
+                "title": "100W Flexibel Solarmodul Solarpanel 100 Watt 12V Mono Für ... - eBay",
+                "url": "https://www.ebay.de/itm/405284916064"
+              },
+              {
+                "title": "WUZECK 100W 12V Flexibles Solarpanel für Photovoltaik",
+                "url": "https://e-infos.de/produkt/wuzeck-schwarz-solarpanel-flexibel-100w/"
+              },
+              {
+                "title": "Wuzeck WZC0102, 580W, 400Wp | Preisvergleich Geizhals Deutschland",
+                "url": "https://geizhals.de/wuzeck-wzc0102-a2988111.html"
+              }
+            ],
+            "pages": [
+              {
+                "title": "Solarpanel, netzunabhängiges Solarpanel ... - WUZECK",
+                "url": "https://wuzeck.com/de",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Solarpanel, netzunabhängiges Solarpanel-Stromversorgungssystem, Photovoltaikanlage &ndash; WUZECK bell user minus plus bars file-lines cart-shopping magnifying-glass magnifying-glass-plus bag-shopping arrow-left arrow-right angle-down angle-up globe angle-right calendar star star-half check sliders caret-down arrow-square x exclamation box pen box-open store location-dot trash circle-play cube play tag lock twitter facebook pinterest instagram snapchat youtube vimeo shopify tumblr tiktok star-empty Alle Produkte Balkonkraftwerke PV-Kits für Zuhause Im Angebot Unterstützt Über uns Facebook Twitter Pinterest Instagram Menü Alle Produkte Solarplatten Solarplatten Off-Grid-Solarpanel-Kits Off-Grid-Solarpanel-Kits On-Grid-Solarpanel-Kits On-Grid-Solarpanel-Kits PV-Kits für Zuhause PV-Kits für Zuhause Batterien Batterien Wechselrichter Wechselrichter Laderegler Laderegler Kabel & Zubehör Kabel"
+              },
+              {
+                "title": "WUZECK 100W Flexibles IP68 Solarpanel hocheffizient Solarmodule für Dächer",
+                "url": "https://www.nextpower24.de/wuzeck-100w-flexibles-ip68-solarpanel-hocheffizient-solarmodule-fuer-daecher-388797158835.html",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "WUZECK 100W Flexibles IP68 Solarpanel hocheffizient Solarmodule für Dächer Kategorien Bioenergie Permanentmagnetgeneratoren Solarenergie Sonstige Wasserkraftturbinen Wechselrichter & Inverter Windenergie Angebote Merkliste Die Inhalte dieser Webseite enthalten Affiliate-Links, für die wir möglicherweise eine Vergütung erhalten. Solarenergie Solarmodule WUZECK 100W Flexibles... &leftarrow; \">&rightarrow; WUZECK 100W Flexibles IP68 Solarpanel hocheffizient Solarmodule für Dächer 58,30 € (5) Exquisite Details: Die Komponenten umfassen Bypass-Dioden, und die Schaltung ist mit Eingangsüberstromschutz und Verpolungsschutz ausgelegt. (4) Sehr praktisch: Lichtenergie wird in Elektrizität umgewandelt, was praktisch ist und sich für Bergregionen, Ozeane, Wüsten, abgelegene Gebiete und andere Gebiete ohne Elektrizität eignet, die Städte nicht erreichen können. Vollständige Artikelbeschreibung Jetzt"
+              },
+              {
+                "title": "WUZECK 100W Monokristallines Solarpanel kit 19.8V 50W Solarmodul Off ...",
+                "url": "https://www.amazon.de/WUZECK-100W-Monokristallines-Solarpanel-Solar-Laderegler/dp/B0D91X58MG",
+                "ok": false,
+                "status": 500,
+                "via": "direct",
+                "excerpt": ""
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 17
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.665Z",
+        "category_backfilled_from": "Heimwerker > Elektroinstallation > Solarenergie > Solarmodule",
+        "category_backfilled_to": "Heimwerker > Erneuerbare Energie > Solarenergie > Solarmodule"
+      }
+    }
+  },
+  {
+    "docId": "295c4789-b314-43ba-a18c-274b6ac422ef",
+    "sku": "SKU-6634800828",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Pullover & Strickwaren"
+  },
+  {
+    "docId": "2d3f8a0d-2c5f-4852-a241-8281d55e418a",
+    "sku": "SKU-7824016126",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker > Werkzeuge > Handwerkzeuge > Seilzüge & Winden"
+  },
+  {
+    "docId": "2f144eb7-126a-43ac-90cc-c6dbf899a7d6",
+    "sku": "SKU-4883385910",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Möbel & Wohnen > Tische > Couchtische"
+  },
+  {
+    "docId": "3219110502725",
+    "sku": "SKU-3877364215",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Koffer & Reisegepäck > Koffer"
+  },
+  {
+    "docId": "3339082c-5066-4322-a318-4b8732a19d83",
+    "sku": "SKU-8229761001",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haushalt > Kleine Küchengeräte > Kühlboxen & Mini-Kühlschränke"
+  },
+  {
+    "docId": "3573994006336",
+    "sku": "SKU-8192040791",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Beauty & Gesundheit > Hautpflege > Körperpflege > Körpercremes & -lotionen"
+  },
+  {
+    "docId": "3613379433101",
+    "sku": "SKU-5526640633",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Hemden"
+  },
+  {
+    "docId": "36f71981-e45d-478a-a80d-4e665f0e3352",
+    "sku": "SKU-3867423041",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Damenmode > Unterwäsche & Nachtwäsche > BHs"
+  },
+  {
+    "docId": "395730b7-67d0-4880-a770-f85086b71052",
+    "sku": "SKU-8932764822",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Herrenmode > Pullover & Strickwaren > Sweatshirts",
+    "match": {
+      "id": "155200",
+      "breadcrumb": "Kleidung & Accessoires > Kinder > Unisex für Kinder > Unisex-Mode > Kapuzenpullover & Sweatshirts",
+      "score": 195,
+      "margin": 8
+    },
+    "updates": {
+      "details.categoryId": "155200",
+      "identification.category": "Kleidung & Accessoires > Kinder > Unisex für Kinder > Unisex-Mode > Kapuzenpullover & Sweatshirts",
+      "ops.data_quality": {
+        "barcode_rejected_v1": {
+          "iso": "2026-01-13T13:52:28.042Z",
+          "invalid": [
+            "396253000005"
+          ]
+        },
+        "last_quality_gate_iso": "2026-01-14T00:19:04.007Z",
+        "quality_gate_v1": {
+          "id": "qg_bd11748d-abbc-4a9d-9ac0-cdf914095d7a",
+          "version": 1,
+          "checked_at_iso": "2026-01-14T00:19:04.007Z",
+          "duration_ms": 3435,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "9009044985671 Blue Tomato BTFW 2342",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=9009044985671%20Blue%20Tomato%20BTFW%202342",
+            "fetched_at_iso": "2026-01-14T00:19:01.977Z",
+            "results": [
+              {
+                "title": "Blue Tomato - dein Boardsport & Lifestyle Experte seit 1988",
+                "url": "https://www.blue-tomato.com/de-DE/"
+              },
+              {
+                "title": "Blue Tomato Sendungsverfolgung",
+                "url": "https://liveverfolgung.de/blue-tomato-sendungsverfolgung/"
+              },
+              {
+                "title": "Blue Tomato Shops",
+                "url": "https://www.blue-tomato.com/de-DE/shops/deutschland/"
+              },
+              {
+                "title": "Bewertungen zu Blue Tomato | Lesen Sie Kundenbewertungen zu www.blue ...",
+                "url": "https://de.trustpilot.com/review/www.blue-tomato.com"
+              },
+              {
+                "title": "Blue Tomato: Snowboard, Skateboard & Surfbekleidung",
+                "url": "https://www.europark.at/de/shops/blue-tomato/"
+              },
+              {
+                "title": "Blue Tomato DE Bewertungen & Erfahrungen - Geizhals Deutschland",
+                "url": "https://geizhals.de/merchants/bluetomato-de"
+              }
+            ],
+            "pages": [
+              {
+                "title": "Blue Tomato - dein Boardsport & Lifestyle Experte seit 1988",
+                "url": "https://www.blue-tomato.com/de-DE/",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Blue Tomato - dein Boardsport & Lifestyle Experte seit 1988 Gratis Versand & Retoure ab € 69 Seit 1988 21 Tage Rückgaberecht Land auswählen Deutschland Österreich Schweiz (Deutsch) Suisse (Français) Svizzera (Italiano) France Nederland Italia (Italiano) Italien (Deutsch) España Suomi United Kingdom Sverige Slovenija België (Nederlands) Belgique (Français) Danmark Norge Weitere Länder Australien Belgien Bulgarien China Deutschland Dänemark Estland Finnland Frankreich Griechenland Grönland Hongkong Irland Island Israel Italien Japan Kanada Kroatien Lettland Litauen Luxemburg Malta Monaco Neuseeland Niederlande Norwegen Polen Portugal Rumänien Schweden Schweiz Singapur Slowakei Slowenien Spanien Tschechien Ungarn Vereinigte Arabische Emirate Vereinigte Staaten von Amerika Vereinigtes Königreich Vereinigtes Königreich (Guernsey) Vereinigtes Königreich (Isle of Man) Vereinigtes Königreich (Je"
+              },
+              {
+                "title": "Blue Tomato Sendungsverfolgung",
+                "url": "https://liveverfolgung.de/blue-tomato-sendungsverfolgung/",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Blue Tomato Sendungsverfolgung Zum Inhalt springen Verfolgung Verfolgung Menü ein-/ausklappen Blue Tomato Sendungsverfolgung Geben Sie Ihre Sendungsverfolgungsnummer ein und klicken Sie auf die Schaltfläche Verfolgen Sendungsverfolgungsnummer Versandunternehmen Status Datum & Uhrzeit Blue Tomato Sendungsverfolgung Kunden verfolgen Sendungen über das Online-Portal durch Eingabe einer Trackingnummer. Das System greift auf Daten verschiedener Logistikpartner zu und zeigt den aktuellen Standort der Lieferung an. Details zu voraussichtlichen Zustellterminen werden automatisch aktualisiert. Eine Übersicht aller Bestellungen steht im persönlichen Kontobereich zur Verfügung. Weitere Informationen bietet die Website unter Paketzustellung . Lieferzeit & Versanddienstleistungen Standardlieferungen erreichen Besteller in der Regel innerhalb von 2–5 Werktagen. Ein Expressversand reduziert die Dauer a"
+              },
+              {
+                "title": "Blue Tomato Shops",
+                "url": "https://www.blue-tomato.com/de-DE/shops/deutschland/",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Blue Tomato Shops Gratis Versand & Retoure ab € 69 Seit 1988 21 Tage Rückgaberecht Land auswählen Deutschland Österreich Schweiz (Deutsch) Suisse (Français) Svizzera (Italiano) France Nederland Italia (Italiano) Italien (Deutsch) España Suomi United Kingdom Sverige Slovenija België (Nederlands) Belgique (Français) Danmark Norge Weitere Länder Australien Belgien Bulgarien China Deutschland Dänemark Estland Finnland Frankreich Griechenland Grönland Hongkong Irland Island Israel Italien Japan Kanada Kroatien Lettland Litauen Luxemburg Malta Monaco Neuseeland Niederlande Norwegen Polen Portugal Rumänien Schweden Schweiz Singapur Slowakei Slowenien Spanien Tschechien Ungarn Vereinigte Arabische Emirate Vereinigte Staaten von Amerika Vereinigtes Königreich Vereinigtes Königreich (Guernsey) Vereinigtes Königreich (Isle of Man) Vereinigtes Königreich (Jersey) Vereinigtes Königreich (Northern Ire"
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 13
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.668Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Herrenmode > Pullover & Strickwaren > Sweatshirts",
+        "category_backfilled_to": "Kleidung & Accessoires > Kinder > Unisex für Kinder > Unisex-Mode > Kapuzenpullover & Sweatshirts"
+      }
+    }
+  },
+  {
+    "docId": "3f55c3c8-0603-4563-be53-8591b104d26e",
+    "sku": "SKU-7357361636",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Gesundheit & Schönheit > Mobilität & Alltagshilfen > Rollstuhl-Zubehör > Rollstuhl-Sitzkissen"
+  },
+  {
+    "docId": "4001690500234",
+    "sku": "SKU-4832582390",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport > Camping & Outdoor > Markisen & Vorzelte > Markisen-Zubehör"
+  },
+  {
+    "docId": "4001807905976",
+    "sku": "SKU-5144694690",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Koffer & Gepäck > Koffer"
+  },
+  {
+    "docId": "4001807906881",
+    "sku": "SKU-8242720178",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Reisegepäck > Koffer & Trolleys > Koffer"
+  },
+  {
+    "docId": "4005046205217",
+    "sku": "SKU-4191907503",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Baumarkt > Bauelemente > Revision"
+  },
+  {
+    "docId": "4007060000236",
+    "sku": "SKU-3455080661",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung & Accessoires > Damenmode > Unterwäsche & Nachtwäsche > Slips"
+  },
+  {
+    "docId": "4007065867636",
+    "sku": "SKU-1708759606",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Damenwäsche & Nachtwäsche > BHs & Bustiers"
+  },
+  {
+    "docId": "4007066272026",
+    "sku": "SKU-7707703650",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren > Unterwäsche & Nachtwäsche > Schlafanzüge & Pyjamas"
+  },
+  {
+    "docId": "4008177077142",
+    "sku": "SKU-2748406604",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad > KFZ-Pflege & -Wartung > Motorreinigung & -pflege > Motoröle"
+  },
+  {
+    "docId": "4011097314013",
+    "sku": "SKU-7745371992",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haus & Garten > Bad & Küche > Bad > Duschen & Duschzubehör > Duschschläuche"
+  },
+  {
+    "docId": "4011097314037",
+    "sku": "SKU-5493501888",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haus & Garten > Badezimmer > Duschen & Duschzubehör > Duschschläuche"
+  },
+  {
+    "docId": "4011097775111",
+    "sku": "SKU-4766228789",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bad & Sanitär > Armaturen > Duscharmaturen > Duschthermostate"
+  },
+  {
+    "docId": "4013361212134",
+    "sku": "SKU-2139913486",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport & Freizeit > Wintersport > Schlitten"
+  },
+  {
+    "docId": "4025457166471",
+    "sku": "SKU-2879742273",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Küche & Haushalt > Kochgeschirr"
+  },
+  {
+    "docId": "4026947097541",
+    "sku": "SKU-7396058360",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad: Teile > Werkzeuge & Werkstattbedarf > Motorwerkzeuge & -geräte > Motor-Einstellwerkzeuge"
+  },
+  {
+    "docId": "4036021157276",
+    "sku": "SKU-4110694191",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad: Teile > Auto-Ersatz- & -Reparaturteile > Kühlung > Frostschutzmittel"
+  },
+  {
+    "docId": "4036021163093",
+    "sku": "SKU-5320936983",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad > Öle & Flüssigkeiten > Motoröle"
+  },
+  {
+    "docId": "4036021579191",
+    "sku": "SKU-0614291176",
+    "status": "update",
+    "catText": "Auto & Motorrad: Teile > Öle, Schmier- & Betriebsstoffe > Motoröl",
+    "match": {
+      "id": "179496",
+      "breadcrumb": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl",
+      "score": 173,
+      "margin": 173
+    },
+    "updates": {
+      "details.categoryId": "179496",
+      "identification.category": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl",
+      "ops.data_quality": {
+        "last_quality_gate_iso": "2026-01-17T02:29:47.006Z",
+        "quality_gate_v1": {
+          "id": "qg_cef6d858-fef1-496a-a3e6-5373753ec884",
+          "version": 1,
+          "checked_at_iso": "2026-01-17T02:29:47.006Z",
+          "duration_ms": 28199,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "4036021579191 MANNOL 7919",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=4036021579191%20MANNOL%207919",
+            "fetched_at_iso": "2026-01-17T02:29:45.139Z",
+            "results": [
+              {
+                "title": "Mannol 7919 Legend Extra 0W-30 synthetisches Motoröl 5l",
+                "url": "https://motoroeldirekt.com/pkw-motorol/sae-0w-30/mannol-7919-legend-extra-0w-30-synthetisches-motoroel-5l-kanister.html"
+              },
+              {
+                "title": "MANNOL Legend Extra 0W-30 7919",
+                "url": "https://www.mannol.de/de/produkte/motorenoele-fuer-pkw-und-kleintransporter/synthetische-motorenoele/mannol-legend-extra-0w-30"
+              },
+              {
+                "title": "Mannol 7919 | Preisvergleich bei idealo.de",
+                "url": "https://www.idealo.de/preisvergleich/Liste/117437582/mannol-7919.html"
+              },
+              {
+                "title": "MANNOL 7919 LEGEND EXTRA 5 Liter - lkw-teile24.de",
+                "url": "https://www.lkw-teile24.de/7919-legend-extra-mn7919-5"
+              },
+              {
+                "title": "MANNOL Legend Extra 0W-30 Bi-synthetisch | 5 L | MN7919-5",
+                "url": "https://b2b.sct-germany.de/MANNOL-Legend-Extra-0W-30-Bi-synthetisch-MN7919-5"
+              },
+              {
+                "title": "Mannol 7919 Legend Extra 0W-30 synthetisches Motoröl 5l Kanister",
+                "url": "https://www.carculturein.com/products/mannol-7919-legend-extra-0w-30-synthetisches-motorol-5l-kanister/"
+              }
+            ],
+            "pages": [
+              {
+                "title": "Mannol 7919 Legend Extra 0W-30 synthetisches Motoröl 5l",
+                "url": "https://motoroeldirekt.com/pkw-motorol/sae-0w-30/mannol-7919-legend-extra-0w-30-synthetisches-motoroel-5l-kanister.html",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Mannol 7919 Legend Extra 0W-30 synthetisches Motoröl 5l JavaScript scheint in Ihrem Browser deaktiviert zu sein. Sie müssen JavaScript in Ihrem Browser aktivieren, um alle Funktionen in diesem Shop nutzen zu können. links Mein Benutzerkonto Anmelden Schneller & günstiger Versand Gastbestellung möglich 400.000 zufriedene Kunden Kontakt: Kontaktformular Motoroeldirekt.com Logo --> Warenkorb 0 Item(s) Sie haben keine Artikel im Warenkorb. Suche: PKW Motoröl SAE 5W-40 SAE 10W-40 SAE 5W-30 SAE 15W-40 SAE 0W-40 SAE 5W-50 SAE 0W-20 SAE 0W-30 SAE 20W-50 SAE 15W-50 SAE 10W-60 SAE 5W-20 SAE 0W-16 SAE 10W-30 SAE 10W-50 SAE 20W-20 SAE 20W-40 SAE 20W-60 SAE 0W-12 SAE 5W-30 Motorrad/Boot/Garten Getriebeöle SAE 75W-90 SAE 75W-140 SAE 80W-90 SAE 10W-30 SAE 80W SAE 75W SAE 90 SAE 10W-40 ATF SAE 85W-90 SAE 140W 2-Takt Motoröl vollsynthetisch teilsynthetisch mineralisch Boot/Marine TCW3/2 4-Takt Motoröl SA"
+              },
+              {
+                "title": "MANNOL Legend Extra 0W-30 7919",
+                "url": "https://www.mannol.de/de/produkte/motorenoele-fuer-pkw-und-kleintransporter/synthetische-motorenoele/mannol-legend-extra-0w-30",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "MANNOL Legend Extra 0W-30 FIX FOR IPHONE, BUG FOR ANDROID--> Motorenöle für PKW und Kleintransporter Industrieöle Öle für Landwirtschaftstechnik Werkstattprodukte KFZ-Pflegemittel Betriebs- und Serviceflüssigkeiten Motorenöle für Motorräder und Außenborder Werbeartikel Motorenöle für LKW und Busse Additive Getriebeöle Schiffsmotorenöle Fette --> --> --> Produkte Motorenöle für Motorräder und Außenborder Motorcycle oils Outboard motor oils Snowmobile oils Oils for garden equipment Motorenöle für PKW und Kleintransporter Synthetische Motorenöle Teilsynthetische Motorenöle Mehrbereichsmotorenöle Getriebeöle ATF Premium quality line Öle für Automatikgetriebe Getriebeöle Motorenöle für LKW und Busse UHPD SHPD Betriebs- und Serviceflüssigkeiten Frostschutz- und Kühlmittel Bremsflüssigkeiten Hydrauliköle Fuel system additives Flüssigkeiten für Klimaanlagen Additive ESTER-Additive Oil additives "
+              },
+              {
+                "title": "Mannol 7919 | Preisvergleich bei idealo.de",
+                "url": "https://www.idealo.de/preisvergleich/Liste/117437582/mannol-7919.html",
+                "ok": false,
+                "status": 0,
+                "via": "direct",
+                "excerpt": ""
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_improve",
+          "requestedBy": "improve-job",
+          "revision_checked": 11
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.677Z",
+        "category_backfilled_from": "Auto & Motorrad: Teile > Öle, Schmier- & Betriebsstoffe > Motoröl",
+        "category_backfilled_to": "Auto & Motorrad: Teile > Öl, Pflege- & Schmiermittel > Motoröl"
+      }
+    }
+  },
+  {
+    "docId": "4055333068964",
+    "sku": "SKU-3855746092",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Garten & Terrasse > Gartengeräte > Motor- & Elektrogeräte > Multifunktionsgeräte"
+  },
+  {
+    "docId": "4059625316214",
+    "sku": "SKU-6046815482",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Badarmaturen > Wascht"
+  },
+  {
+    "docId": "4059625401927",
+    "sku": "SKU-5940997361",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker > Bad & Küche > Armaturen > Waschtischarmaturen"
+  },
+  {
+    "docId": "4061504006000",
+    "sku": "SKU-8205373469",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Damenunterwäsche > Strings &"
+  },
+  {
+    "docId": "4061504016139",
+    "sku": "SKU-0563915773",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Damenunterwäsche > String"
+  },
+  {
+    "docId": "4062493735872",
+    "sku": "SKU-6154185094",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Damenbekleidung > Jacken, Mäntel & Westen > Mäntel"
+  },
+  {
+    "docId": "4063367064357",
+    "sku": "SKU-3244413909",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Garten & Terrasse > Grills, Heizstrahler & Picknick > Grillzubehör > Grillkörbe & -schalen"
+  },
+  {
+    "docId": "4063543580763",
+    "sku": "SKU-3010724612",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > Jeans"
+  },
+  {
+    "docId": "4063544824545",
+    "sku": "SKU-5749801311",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Damenbekleidung > Blazer"
+  },
+  {
+    "docId": "4063846033713",
+    "sku": "SKU-2126872416",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Baby & Kind > Kindersitze & Zubehör > Kindersitze"
+  },
+  {
+    "docId": "4064464829931",
+    "sku": "SKU-2603681659",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Taschen > Reisetaschen & Weekender"
+  },
+  {
+    "docId": "4064886306904",
+    "sku": "SKU-2733489996",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Jacken"
+  },
+  {
+    "docId": "4066551928015",
+    "sku": "SKU-9824375922",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Damenmode > Jacken & Mäntel > Daunenjacken"
+  },
+  {
+    "docId": "4067266427367",
+    "sku": "SKU-2312450352",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Damenschuhe > Stiefel & Stiefeletten",
+    "match": {
+      "id": "53557",
+      "breadcrumb": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten",
+      "score": 314,
+      "margin": 130
+    },
+    "updates": {
+      "details.categoryId": "53557",
+      "identification.category": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten",
+      "ops.data_quality": {
+        "condition_normalized_neu_v1": {
+          "at_iso": "2026-01-09T18:20:10.117Z",
+          "previous": "Gebraucht",
+          "source": "job-improve"
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-14T02:19:30.835Z",
+          "before": "TT. BAGATT D11-AGX33-1100 Damen Stiefeletten Cognac Gr. 36 Leder Blockabsatz NEU",
+          "after": "TT. BAGATT Stiefel Stiefeletten D11-AGX33-1100 Damen Gr. 36 Leder NEU",
+          "before_len": 80,
+          "after_len": 69,
+          "before_issues": [
+            "priority_a_missing_in_title",
+            "priority_a_not_in_first_60"
+          ],
+          "after_issues": []
+        },
+        "last_quality_gate_iso": "2026-01-19T11:40:03.833Z",
+        "quality_gate_v1": {
+          "id": "qg_8278066e-9462-472c-9c95-127e0317828b",
+          "version": 1,
+          "checked_at_iso": "2026-01-19T11:40:03.833Z",
+          "duration_ms": 64295,
+          "ok": false,
+          "summary": "Quality-Issues erkannt – bitte prüfen.",
+          "issues": [
+            {
+              "code": "priority_a_missing_in_title",
+              "source": "rule",
+              "confidence": 0.95,
+              "severity": "error",
+              "fields": [
+                "identification.name"
+              ],
+              "message": "Titel verstößt gegen die Titel-Regeln (≤80 Zeichen, Mobile-first/Priorität A vorne)."
+            },
+            {
+              "code": "priority_a_not_in_first_60",
+              "source": "rule",
+              "confidence": 0.95,
+              "severity": "error",
+              "fields": [
+                "identification.name"
+              ],
+              "message": "Titel verstößt gegen die Titel-Regeln (≤80 Zeichen, Mobile-first/Priorität A vorne)."
+            }
+          ],
+          "evidence": {
+            "query": "4067266427367 TT. BAGATT D11-AGX33-1100",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=4067266427367%20TT.%20BAGATT%20D11-AGX33-1100",
+            "fetched_at_iso": "2026-01-19T11:39:39.791Z",
+            "results": [
+              {
+                "title": "TT.BAGATT Damen Stiefeletten D11-AGX33-1100 Cognac Gr.40 - eBay",
+                "url": "https://www.ebay.de/itm/336285441528"
+              },
+              {
+                "title": "TT.BAGATT Leder Stiefeletten cognac | Blockabsatz | Damen Booties",
+                "url": "https://tt.bagatt.com/de-at/products/stiefeletten-cognac-d11-agx33-1100-6300"
+              },
+              {
+                "title": "TT Bagatt Stiefelette | Preisvergleich bei idealo.de",
+                "url": "https://www.idealo.de/preisvergleich/Liste/121243584/tt-bagatt-stiefelette.html"
+              },
+              {
+                "title": "BAGATT damen Glattleder Stiefeletten - cognac braun | Robel.shoes",
+                "url": "https://www.robelshoes.at/bagatt-damen-glattleder-stiefeletten-cognac-braun-d11-agx33-1100-6300/"
+              },
+              {
+                "title": "TT.Bagatt Schuhe online kaufen | gebrüder götz",
+                "url": "https://www.gebrueder-goetz.de/schuhe/tt-bagatt/"
+              },
+              {
+                "title": "BAGATT Damen Stiefel D11-AGX33-1100 Cognac Gr.39",
+                "url": "https://picclick.de/BAGATT-Damen-Stiefel-D11-AGX33-1100-Cognac-Gr39-236309184918.html"
+              }
+            ],
+            "pages": [
+              {
+                "title": "TT.BAGATT Damen Stiefeletten D11-AGX33-1100 Cognac Gr.40 - eBay",
+                "url": "https://www.ebay.de/itm/336285441528",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Bitte entschuldigen Sie die Störung... Zum Hauptinhalt eBay-Startseite Ihr Browser wird geprüft, bevor Sie auf eBay zugreifen können. Sie werden von Ihrem Browser gleich zum gewünschten Inhalt weitergeleitet. Bitte warten... Referenznummer: 14cbb62d-8850-41d7-b425-ce8fb035a1fb"
+              },
+              {
+                "title": "TT.BAGATT Leder Stiefeletten cognac | Blockabsatz | Damen Booties",
+                "url": "https://tt.bagatt.com/de-at/products/stiefeletten-cognac-d11-agx33-1100-6300",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "TT.BAGATT Leder Stiefeletten cognac | Blockabsatz | Damen Booties Translation missing: de.accessibility.skip_to_text Translation missing: de.icons.screen_reader.instagram Translation missing: de.icons.screen_reader.facebook Translation missing: de.icons.screen_reader.youtube Translation missing: de.icons.screen_reader.pinterest Winter Sale : bis zu -50 % | JETZT SHOPPEN Newsletter abonnieren und 15 % RABATT auf Deine Bestellung erhalten Kostenloser Versand & Rückversand* Deutsch Translation missing: de.icons.screen_reader.chevron Deutsch English EUR Translation missing: de.icons.screen_reader.chevron Translation missing: de.general.localization_selector.store_front.search_title Translation missing: de.icons.screen_reader.close Belgien, EUR Dänemark, EUR Deutschland, EUR Finnland, EUR Frankreich, EUR Italien, EUR Luxemburg, EUR Niederlande, EUR Österreich, EUR Schweden, EUR Schweiz, EUR S"
+              },
+              {
+                "title": "TT Bagatt Stiefelette | Preisvergleich bei idealo.de",
+                "url": "https://www.idealo.de/preisvergleich/Liste/121243584/tt-bagatt-stiefelette.html",
+                "ok": false,
+                "status": 0,
+                "via": "direct",
+                "excerpt": ""
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 13
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.681Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Damenschuhe > Stiefel & Stiefeletten",
+        "category_backfilled_to": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten"
+      }
+    }
+  },
+  {
+    "docId": "4067266427374",
+    "sku": "SKU-8701402003",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Damenschuhe > Stiefel & Stiefeletten",
+    "match": {
+      "id": "53557",
+      "breadcrumb": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten",
+      "score": 324,
+      "margin": 130
+    },
+    "updates": {
+      "details.categoryId": "53557",
+      "identification.category": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten",
+      "ops.data_quality": {
+        "condition_normalized_neu_v1": {
+          "at_iso": "2026-01-09T18:19:32.869Z",
+          "previous": "Gebraucht",
+          "source": "job-improve"
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-14T02:19:30.836Z",
+          "before": "TT. BAGATT D11-AGX33-1100 Damen Stiefeletten Cognac Gr. 37 Leder Blockabsatz NEU",
+          "after": "TT. BAGATT Stiefelette D11-AGX33-1100 Damen Leder NEU",
+          "before_len": 80,
+          "after_len": 53,
+          "before_issues": [
+            "order_producttype_after_model"
+          ],
+          "after_issues": []
+        },
+        "last_quality_gate_iso": "2026-01-19T11:40:04.063Z",
+        "quality_gate_v1": {
+          "id": "qg_7660ba91-4c10-486b-9c1f-8e1a3d215e1a",
+          "version": 1,
+          "checked_at_iso": "2026-01-19T11:40:04.063Z",
+          "duration_ms": 67202,
+          "ok": false,
+          "summary": "Quality-Issues erkannt – bitte prüfen.",
+          "issues": [
+            {
+              "code": "priority_a_missing_in_title",
+              "source": "rule",
+              "confidence": 0.95,
+              "severity": "error",
+              "fields": [
+                "identification.name"
+              ],
+              "message": "Titel verstößt gegen die Titel-Regeln (≤80 Zeichen, Mobile-first/Priorität A vorne)."
+            },
+            {
+              "code": "priority_a_not_in_first_60",
+              "source": "rule",
+              "confidence": 0.95,
+              "severity": "error",
+              "fields": [
+                "identification.name"
+              ],
+              "message": "Titel verstößt gegen die Titel-Regeln (≤80 Zeichen, Mobile-first/Priorität A vorne)."
+            }
+          ],
+          "evidence": {
+            "query": "4067266427374 TT. BAGATT D11-AGX33-1100",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=4067266427374%20TT.%20BAGATT%20D11-AGX33-1100",
+            "fetched_at_iso": "2026-01-19T11:39:29.791Z",
+            "results": [
+              {
+                "title": "TT.BAGATT Damen Stiefeletten D11-AGX33-1100 Cognac Gr.40 - eBay",
+                "url": "https://www.ebay.de/itm/336285441528"
+              },
+              {
+                "title": "TT.BAGATT Leder Stiefeletten cognac | Blockabsatz | Damen Booties",
+                "url": "https://tt.bagatt.com/de-at/products/stiefeletten-cognac-d11-agx33-1100-6300"
+              },
+              {
+                "title": "TT.BAGATT Stiefeletten für Damen online bei ZALANDO",
+                "url": "https://www.zalando.de/damenschuhe-stiefeletten/tt-bagatt/"
+              },
+              {
+                "title": "BAGATT damen Glattleder Stiefeletten - cognac braun | Robel.shoes",
+                "url": "https://www.robelshoes.at/bagatt-damen-glattleder-stiefeletten-cognac-braun-d11-agx33-1100-6300/"
+              },
+              {
+                "title": "TT Bagatt Stiefelette | Preisvergleich bei idealo.de",
+                "url": "https://www.idealo.de/preisvergleich/Liste/121243584/tt-bagatt-stiefelette.html"
+              },
+              {
+                "title": "TT.Bagatt Stiefeletten online kaufen | gebrüder götz",
+                "url": "https://www.gebrueder-goetz.de/schuhe/stiefeletten/tt-bagatt/"
+              }
+            ],
+            "pages": [
+              {
+                "title": "TT.BAGATT Damen Stiefeletten D11-AGX33-1100 Cognac Gr.40 - eBay",
+                "url": "https://www.ebay.de/itm/336285441528",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Bitte entschuldigen Sie die Störung... Zum Hauptinhalt eBay-Startseite Ihr Browser wird geprüft, bevor Sie auf eBay zugreifen können. Sie werden von Ihrem Browser gleich zum gewünschten Inhalt weitergeleitet. Bitte warten... Referenznummer: 45f5900b-de1c-4177-afbc-48cd6c0146e7"
+              },
+              {
+                "title": "TT.BAGATT Leder Stiefeletten cognac | Blockabsatz | Damen Booties",
+                "url": "https://tt.bagatt.com/de-at/products/stiefeletten-cognac-d11-agx33-1100-6300",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "TT.BAGATT Leder Stiefeletten cognac | Blockabsatz | Damen Booties Translation missing: de.accessibility.skip_to_text Translation missing: de.icons.screen_reader.instagram Translation missing: de.icons.screen_reader.facebook Translation missing: de.icons.screen_reader.youtube Translation missing: de.icons.screen_reader.pinterest Winter Sale : bis zu -50 % | JETZT SHOPPEN Newsletter abonnieren und 15 % RABATT auf Deine Bestellung erhalten Kostenloser Versand & Rückversand* Deutsch Translation missing: de.icons.screen_reader.chevron Deutsch English EUR Translation missing: de.icons.screen_reader.chevron Translation missing: de.general.localization_selector.store_front.search_title Translation missing: de.icons.screen_reader.close Belgien, EUR Dänemark, EUR Deutschland, EUR Finnland, EUR Frankreich, EUR Italien, EUR Luxemburg, EUR Niederlande, EUR Österreich, EUR Schweden, EUR Schweiz, EUR S"
+              },
+              {
+                "title": "TT.BAGATT Stiefeletten für Damen online bei ZALANDO",
+                "url": "https://www.zalando.de/damenschuhe-stiefeletten/tt-bagatt/",
+                "ok": false,
+                "status": 0,
+                "via": "direct",
+                "excerpt": ""
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 8
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.681Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Damenschuhe > Stiefel & Stiefeletten",
+        "category_backfilled_to": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten"
+      }
+    }
+  },
+  {
+    "docId": "4067266427381",
+    "sku": "SKU-3067192877",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Damenschuhe > Stiefel & Stiefeletten",
+    "match": {
+      "id": "53557",
+      "breadcrumb": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten",
+      "score": 324,
+      "margin": 130
+    },
+    "updates": {
+      "details.categoryId": "53557",
+      "identification.category": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten",
+      "ops.data_quality": {
+        "condition_normalized_neu_v1": {
+          "at_iso": "2026-01-09T18:25:24.809Z",
+          "previous": "Gebraucht",
+          "source": "job-improve"
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-14T02:19:30.836Z",
+          "before": "TT. BAGATT D11-AGX33-1100 Damen Stiefeletten Cognac Gr. 38 Leder Blockabsatz NEU",
+          "after": "TT. BAGATT Stiefel Stiefeletten D11-AGX33-1100 Damen Leder NEU",
+          "before_len": 80,
+          "after_len": 62,
+          "before_issues": [
+            "priority_a_missing_in_title",
+            "priority_a_not_in_first_60"
+          ],
+          "after_issues": []
+        },
+        "last_quality_gate_iso": "2026-01-17T18:29:17.308Z",
+        "quality_gate_v1": {
+          "id": "qg_cfe549aa-5f53-474d-90c9-80214f7fbd74",
+          "version": 1,
+          "checked_at_iso": "2026-01-17T18:29:17.308Z",
+          "duration_ms": 2420,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "4067266427381 TT. BAGATT D11-AGX33-1100",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=4067266427381%20TT.%20BAGATT%20D11-AGX33-1100",
+            "fetched_at_iso": "2026-01-17T18:29:15.152Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 13
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.681Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Damenschuhe > Stiefel & Stiefeletten",
+        "category_backfilled_to": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten"
+      }
+    }
+  },
+  {
+    "docId": "4067266427398",
+    "sku": "SKU-5359727068",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Damenschuhe > Stiefel & Stiefeletten",
+    "match": {
+      "id": "53557",
+      "breadcrumb": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten",
+      "score": 314,
+      "margin": 120
+    },
+    "updates": {
+      "details.categoryId": "53557",
+      "identification.category": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten",
+      "ops.data_quality": {
+        "condition_normalized_neu_v1": {
+          "at_iso": "2026-01-09T18:20:56.475Z",
+          "previous": "Gebraucht",
+          "source": "job-improve"
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-14T02:19:30.836Z",
+          "before": "TT. BAGATT D11-AGX33-1100 Damen Stiefeletten Cognac Gr. 39 Leder Blockabsatz NEU",
+          "after": "TT. BAGATT Stiefel Stiefeletten D11-AGX33-1100 Leder NEU",
+          "before_len": 80,
+          "after_len": 56,
+          "before_issues": [
+            "priority_a_missing_in_title",
+            "priority_a_not_in_first_60"
+          ],
+          "after_issues": []
+        },
+        "last_quality_gate_iso": "2026-01-17T18:28:57.642Z",
+        "quality_gate_v1": {
+          "id": "qg_16e1d115-54e1-4151-8422-7b7c95291d40",
+          "version": 1,
+          "checked_at_iso": "2026-01-17T18:28:57.642Z",
+          "duration_ms": 3268,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "4067266427398 TT. BAGATT D11-AGX33-1100",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=4067266427398%20TT.%20BAGATT%20D11-AGX33-1100",
+            "fetched_at_iso": "2026-01-17T18:28:54.521Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 8
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.682Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Damenschuhe > Stiefel & Stiefeletten",
+        "category_backfilled_to": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten"
+      }
+    }
+  },
+  {
+    "docId": "4067266427404",
+    "sku": "SKU-8802720534",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Damenschuhe > Stiefel & Stiefeletten",
+    "match": {
+      "id": "53557",
+      "breadcrumb": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten",
+      "score": 324,
+      "margin": 130
+    },
+    "updates": {
+      "details.categoryId": "53557",
+      "identification.category": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten",
+      "ops.data_quality": {
+        "condition_normalized_neu_v1": {
+          "at_iso": "2026-01-09T18:24:16.447Z",
+          "previous": "Gebraucht",
+          "source": "job-improve"
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-14T02:19:30.836Z",
+          "before": "TT. BAGATT D11-AGX33-1100 Damen Stiefeletten Cognac Gr. 40 Leder Blockabsatz NEU",
+          "after": "TT. BAGATT Stiefel Stiefeletten D11-AGX33-1100 Damen Gr. 40 Leder NEU",
+          "before_len": 80,
+          "after_len": 69,
+          "before_issues": [
+            "priority_a_missing_in_title",
+            "priority_a_not_in_first_60"
+          ],
+          "after_issues": []
+        },
+        "last_quality_gate_iso": "2026-01-17T18:28:15.627Z",
+        "quality_gate_v1": {
+          "id": "qg_2395f8d8-232d-4442-86c8-2d2759715b49",
+          "version": 1,
+          "checked_at_iso": "2026-01-17T18:28:15.627Z",
+          "duration_ms": 2067,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "4067266427404 TT. BAGATT D11-AGX33-1100",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=4067266427404%20TT.%20BAGATT%20D11-AGX33-1100",
+            "fetched_at_iso": "2026-01-17T18:28:13.682Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 7
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.682Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Damenschuhe > Stiefel & Stiefeletten",
+        "category_backfilled_to": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten"
+      }
+    }
+  },
+  {
+    "docId": "4067266427411",
+    "sku": "SKU-1479525764",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Schuhe > Damen > Stiefel & Stiefeletten"
+  },
+  {
+    "docId": "4067522073659",
+    "sku": "SKU-3831935492",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haushalt > Reinigungsgeräte"
+  },
+  {
+    "docId": "4250518576153",
+    "sku": "SKU-8243336834",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haus & Garten > Möbel > Betten & Matratzen > Matratzenauflagen & Topper"
+  },
+  {
+    "docId": "4251665310447",
+    "sku": "SKU-1198160025",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Erotikartikel > Vibratoren"
+  },
+  {
+    "docId": "4260168332719",
+    "sku": "SKU-0336723314",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport > Camping & Outdoor > Messer & Werkzeuge > Rettungsmesser"
+  },
+  {
+    "docId": "4260281755686",
+    "sku": "SKU-5207774112",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Möbel > Badmöbel > Waschbeckenunterschränke"
+  },
+  {
+    "docId": "4260527480433",
+    "sku": "SKU-8650951585",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad > Autopf"
+  },
+  {
+    "docId": "4260613499578",
+    "sku": "SKU-0121175685",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Tierbedarf > Hunde > Hundeboxen & -käfige"
+  },
+  {
+    "docId": "4260716810041",
+    "sku": "SKU-2433624992",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sportartikel > Badminton > Netze"
+  },
+  {
+    "docId": "4260755120385",
+    "sku": "SKU-1377750386",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport & Freizeit > Camping & Outdoor > Zelte & Zubehör > Zeltteppiche"
+  },
+  {
+    "docId": "43422328612861",
+    "sku": "SKU-2424861616",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Garten & Terrasse > Gartenmöbel-Sets"
+  },
+  {
+    "docId": "48093417-f9ef-497f-96a7-e17838a5280f",
+    "sku": "SKU-5660339205",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Garten > Grills > Holzkohlegrill"
+  },
+  {
+    "docId": "49035818999884",
+    "sku": "SKU-5094533501",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker > Farben, Lasuren & Lacke > Holzschutzmittel"
+  },
+  {
+    "docId": "4917616740531",
+    "sku": "SKU-1468228360",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kostüme & Verkleidungen > Kinderkostüme"
+  },
+  {
+    "docId": "5020570328828",
+    "sku": "SKU-8223313532",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kostüme & Verkleidungen > Damen-Kostüme"
+  },
+  {
+    "docId": "5025155058336",
+    "sku": "SKU-8945251431",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haushaltsgeräte > Staubsauger & Zubehör > Staubsaugerzubehör"
+  },
+  {
+    "docId": "5050192020075",
+    "sku": "SKU-2454152281",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Wohnen & Einrichten > Spiegel"
+  },
+  {
+    "docId": "5059732709403",
+    "sku": "SKU-8447826159",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > Unterwäsche > Boxershorts"
+  },
+  {
+    "docId": "5063019974637",
+    "sku": "SKU-8351368256",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Hosen"
+  },
+  {
+    "docId": "5265145c-c73e-4905-b442-9584eb0b5d89",
+    "sku": "SKU-4870064003",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Möbel & Wohnen > Betten & Matratzen > Matratzen"
+  },
+  {
+    "docId": "5400585052930",
+    "sku": "SKU-7702312083",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haustierbedarf > Vogelkäfige & Volieren"
+  },
+  {
+    "docId": "5702015867535",
+    "sku": "SKU-6986483321",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Spielzeug > Baukästen & Konstruktionsspielzeug > LEGO > LEGO Creator"
+  },
+  {
+    "docId": "5713504000661",
+    "sku": "SKU-6725568671",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Gesundheit & Schönheit > Mobilitätshilfen > Rollatoren"
+  },
+  {
+    "docId": "5714487284420",
+    "sku": "SKU-6033365611",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Damen > Röcke"
+  },
+  {
+    "docId": "5714508372894",
+    "sku": "SKU-7334344420",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung & Accessoires > Herren > Socken"
+  },
+  {
+    "docId": "5715422473657",
+    "sku": "SKU-5019696431",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Herrenmode > Pullover & Strickwaren",
+    "match": {
+      "id": "11484",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Pullover & Strick",
+      "score": 204,
+      "margin": 9
+    },
+    "updates": {
+      "details.categoryId": "11484",
+      "identification.category": "Kleidung & Accessoires > Herren > Herrenmode > Pullover & Strick",
+      "ops.data_quality": {
+        "barcode_rejected_v1": {
+          "iso": "2026-01-13T13:55:50.973Z",
+          "invalid": [
+            "16085115"
+          ]
+        },
+        "last_quality_gate_iso": "2026-01-14T00:18:34.448Z",
+        "quality_gate_v1": {
+          "id": "qg_d0dd0596-7898-4082-8fcb-99120808063e",
+          "version": 1,
+          "checked_at_iso": "2026-01-14T00:18:34.448Z",
+          "duration_ms": 3448,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "5715422473657 Selected Homme 16085115",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=5715422473657%20Selected%20Homme%2016085115",
+            "fetched_at_iso": "2026-01-14T00:18:32.755Z",
+            "results": [
+              {
+                "title": "CLASSIC OVERSHIRT | Grey | SELECTED HOMME®",
+                "url": "https://www.selected.com/en-fr/homme/collection/classic-overshirt-16085115_GraniteGrey.html"
+              },
+              {
+                "title": "CLASSIC OVERSHIRT from Selected Homme Black - The Founded",
+                "url": "https://www.thefounded.com/en-no/classic-overshirt-16085115_Black.html"
+              },
+              {
+                "title": "Selected Homme Jackie Overshirt, Navy - McElhinneys",
+                "url": "https://www.mcelhinneys.com/products/selected-homme-jackie-sweat-jacket-16085115-nvb"
+              },
+              {
+                "title": "Selected Homme Classic Overshirt",
+                "url": "https://www.amazon.it/-/en/16085115-Selected-Homme-Classic-Overshirt/dp/B09ZDV5CN6"
+              },
+              {
+                "title": "Selected Homme Classic Overshirt : Amazon.fr: Fashion",
+                "url": "https://www.amazon.fr/-/en/16085115-Selected-Homme-Classic-Overshirt/dp/B09Z6YFX8B"
+              },
+              {
+                "title": "Buy Selected Homme Beige Solid Cotton Men&#x27;s Casual Wear Shirt ...",
+                "url": "https://www.shoppersstop.com/selected-homme-solid-cotton-men-s-casual-wear-shirt/p-NS16085115BGE"
+              }
+            ],
+            "pages": [
+              {
+                "title": "CLASSIC OVERSHIRT | Grey | SELECTED HOMME®",
+                "url": "https://www.selected.com/en-fr/homme/collection/classic-overshirt-16085115_GraniteGrey.html",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "CLASSIC OVERSHIRT | Grey | Selected SALE | UP TO 50% OFF* Women Women Clothing Knitwear Outerwear Dresses Tops and blouses Trousers Jeans Suits & blazers Shirts T-SHIRTS Skirts SHORTS Hoodies & sweatshirts Shoes Boots Loafers Sneakers Flats Heels Sandals Accessories Bags Scarves Belts Headwear Sunglasses Socks & tights Edits WARDROBE RESET Layering HELLO WINTER New In Premium Selection Essentials Sale Men Men Clothing Knitwear Outerwear Trousers Shirts Suits & blazers T-shirts Jeans Polo shirts Hoodies & sweatshirts SHORTS Underwear ANNARR Shoes Loafers Boots Sneakers Formal shoes Casual shoes ACCESSORIES Beanies & caps Belts Scarves Ties & Bow Ties Socks Sunglasses Edits The Suit Selection WARDROBE RESET LAYERING New In Premium Selection Essentials Multi-packs Sale Sustainability Sustainability PRODUCT CARE Cotton Denim Down Leather Linen Tailoring Viscose Wool Supply chain partners Art"
+              },
+              {
+                "title": "CLASSIC OVERSHIRT from Selected Homme Black - The Founded",
+                "url": "https://www.thefounded.com/en-no/classic-overshirt-16085115_Black.html",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "THE FOUNDED"
+              },
+              {
+                "title": "Selected Homme Jackie Overshirt, Navy - McElhinneys",
+                "url": "https://www.mcelhinneys.com/products/selected-homme-jackie-sweat-jacket-16085115-nvb",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Selected Homme Jackie Overshirt, Navy - McElhinneys Skip to content Free delivery over €89* Quick & Easy Returns Buy Now, Pay Later Open menu Close menu SALE SALE HOMEPAGE WOMEN'S SALE View all Women's Sale Joseph Ribkoff 50% Off Occasionwear Sale Women's Clothing Sale Women's Boutique Sale Women's Shoes Sale Women's Lingerie Outlet Women's Jewellery Sale MEN'S SALE View all Men's Sale Men's Clothing Sale Men's Shoes Sale BAGS SALE View all Handbags Sale Designer Hangbags Sale BEAUTY SALE View all Beauty Sale KIDS SALE View all Kids Sale Baby Boy Sale Baby Girl Sale Older Boys Sale Older Girls Sale Kids Shoes Sale JEWELLERY SALE Womens Jewellery Sale HOME SALE View all Homeware Sale Kitchen Sale Duvet Cover Sale Sheets & Pillowcases Sale Towels & Bathmats Sale GIFT SALE View all Gift Sale Womens Womens Homepage Shop Clothing View All Women's Clothing New In Shop Topshop Dresses Tops Coat"
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 14
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-14T02:19:30.848Z",
+          "before": "Selected Homme Sweatjacke SLHJACKIE Herren Dark Olive Gr. L Regular Fit Neu",
+          "after": "Selected Homme Pullover Strickwaren 16085115 Herren Gr. L Dark Olive NEU",
+          "before_len": 75,
+          "after_len": 72,
+          "before_issues": [
+            "priority_a_missing_in_title",
+            "priority_a_not_in_first_60"
+          ],
+          "after_issues": []
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.687Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Herrenmode > Pullover & Strickwaren",
+        "category_backfilled_to": "Kleidung & Accessoires > Herren > Herrenmode > Pullover & Strick"
+      }
+    }
+  },
+  {
+    "docId": "5715574371849",
+    "sku": "SKU-4874908260",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren > Jacken & Mäntel > Mäntel"
+  },
+  {
+    "docId": "5902605478275",
+    "sku": "SKU-5561398463",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Baby & Kind > Wickeln & Baden > Wickelauflagen & Wickeltische"
+  },
+  {
+    "docId": "5902811100663",
+    "sku": "SKU-3663111562",
+    "status": "update",
+    "catText": "Auto & Motorrad: Teile > Auto-Anbau- & Zubehörteile > Innenausstattung > Fußmatten",
+    "match": {
+      "id": "33697",
+      "breadcrumb": "Auto & Motorrad: Teile > Autoteile & Zubehör > Innenausstattung > Fußmatten, Teppiche & Laderaumwannen",
+      "score": 184,
+      "margin": 184
+    },
+    "updates": {
+      "details.categoryId": "33697",
+      "identification.category": "Auto & Motorrad: Teile > Autoteile & Zubehör > Innenausstattung > Fußmatten, Teppiche & Laderaumwannen",
+      "ops.data_quality": {
+        "title_policy_v2": {
+          "iso": "2026-01-14T02:19:30.850Z",
+          "before": "Texer.eu Fußmatten Set passgenau für Mini R50 R53 (2001-2006) Textil Schwarz Neu",
+          "after": "Texer.eu Fußmatten Set MN/R50Y01/B/0066B Vorne Hinten Schwarz NEU",
+          "before_len": 80,
+          "after_len": 65,
+          "before_issues": [
+            "priority_a_missing_in_title",
+            "priority_a_not_in_first_60"
+          ],
+          "after_issues": []
+        },
+        "last_quality_gate_iso": "2026-01-17T21:11:00.790Z",
+        "quality_gate_v1": {
+          "id": "qg_a9d8cab3-1a89-409a-a10f-dc337ae66b02",
+          "version": 1,
+          "checked_at_iso": "2026-01-17T21:11:00.790Z",
+          "duration_ms": 4108,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "5902811100663 Texer.eu MN/R50Y01/B/0066B",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=5902811100663%20Texer.eu%20MN%2FR50Y01%2FB%2F0066B",
+            "fetched_at_iso": "2026-01-17T21:10:59.051Z",
+            "results": [
+              {
+                "title": "TEXER Sports floor mats, colour: black, lining: nubuck with red thread ...",
+                "url": "https://www.amazon.de/-/en/TEXER-Sports-floor-mats-colour/dp/B07DX4Y5D4"
+              },
+              {
+                "title": "TEXER Fussmatten für MINI R50 R53 2001-2006 ANTHRAZIT - eBay.de",
+                "url": "https://www.ebay.de/itm/204176879158"
+              },
+              {
+                "title": "Texer",
+                "url": "https://texer-fussmatten.de/"
+              },
+              {
+                "title": "Dywaniki Texer welurowe 4 el. 5902811100663 za 79.00PLN z Porąbka ...",
+                "url": "https://allegro.pl/oferta/dywaniki-do-mini-r50-r53-2001-2006-basic-carmat-10892734588"
+              },
+              {
+                "title": "TEXER Fussmatten für MINI R50 R53 2001-2006 ANTHRAZIT • EUR 28,95",
+                "url": "https://picclick.de/TEXER-Fussmatten-f%C3%BCr-MINI-R50-R53-2001-2006-ANTHRAZIT-204176879158.html"
+              },
+              {
+                "title": "Fussmatten für MINI R50 R53 Bj. 2001-2006 Fußmatten ... - eBay",
+                "url": "https://www.ebay.at/itm/265231568805"
+              }
+            ],
+            "pages": [
+              {
+                "title": "TEXER Sports floor mats, colour: black, lining: nubuck with red thread ...",
+                "url": "https://www.amazon.de/-/en/TEXER-Sports-floor-mats-colour/dp/B07DX4Y5D4",
+                "ok": false,
+                "status": 503,
+                "via": "direct",
+                "excerpt": ""
+              },
+              {
+                "title": "TEXER Fussmatten für MINI R50 R53 2001-2006 ANTHRAZIT - eBay.de",
+                "url": "https://www.ebay.de/itm/204176879158",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "TEXER Fussmatten für MINI R50 R53 2001-2006 ANTHRAZIT | eBay.de Zum Hauptinhalt Hallo ! Hallo! Einloggen oder neu anmelden Deals Lokal Hilfe Verkaufen Verkaufen-Menü einblenden Verkaufen ist kostenlos Gebrauchte Artikel zu Geld machen. Keine Transaktionsgebühren oder Verkaufsprovision Verkäuferschutz und sichere Zahlungen Einfacher Versand und Abholung Einen Artikel einstellen Mehr erfahren zum Verkaufen Nicht für gewerbliche Verkäufer Verkaufen Beobachtungsliste Beobachtungsliste einblenden Mein eBay Mein eBay einblenden Zusammenfassung Zuletzt angesehen Gebote/Preisvorschläge Beobachtungsliste Kaufen - Übersicht Verkaufen - Übersicht Gespeicherter Feed Gespeicherte Suchen Gespeicherte Verkäufer My Garage Präferenzen Nachrichten Lokal Benachrichtigungen einblenden Bitte einloggen , um Benachrichtigungen zu sehen. Warenkorb einblenden Laden... eBay-Startseite Stöbern in Kategorien Alle K"
+              },
+              {
+                "title": "Texer",
+                "url": "https://texer-fussmatten.de/",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Konto erstellen Anmelden Warenkorb: (leer) zur Kasse insgesamt: 0,00 € --> Arten von Fussmatten Fussmatten Alfa Romeo 147 2000-2010 156 1997-2006 159 2005-2011 166 1998-2007 MiTo [955] 2008-2018 Audi A1 GB 2018- A1 8X 2010-2018 A2 8Z 1999-2005 A3 8L 1996-2003 A3 8P 2003-2013 A3 8V 2012- A4 B5 [8D] 1994-2001 A4 B6 [8E] 2000-2004 A4 B7 [8F] 2004-2008 A4 B8 [8K] 2008-2015 A4 B9 2015- A5 8T Cabrio [8F7] 2012-2016 A5 8T Coupe [8T3] 2010-2016 A5 8T SPORTBACK [8TA] 2007-2016 A5 F5 F5A F5F 2016- SPORTBACK A6 C5 335 [4B] 1997-2004 A6 C5 365 [4B] 1997-2004 A6 C6 [4F] 2004-2006 A6 C6 [4F] 2006-2011 A6 C7 [4G] 2011-2018 A7 C7 4G 2010-2018 A8 D2 [4D] 1994-2002 A8 D3 [4E] 2002-2009 A8 D4 2010-2017 Q3 8U 2011-2018 Q5 8R 2008-2017 Q7 4L 2005-2015 Q7 4M 2015- TT 8J 2006-2014 TT 8N 1998-2006 BMW 1 F20 2011- 1 E81 2004-2013 1 E87 2004-2013 1 E88 Cabrio 2007-2013 2 F45 Active Tourer 2014- 3 E36 1990-2000 3 "
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 10
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.689Z",
+        "category_backfilled_from": "Auto & Motorrad: Teile > Auto-Anbau- & Zubehörteile > Innenausstattung > Fußmatten",
+        "category_backfilled_to": "Auto & Motorrad: Teile > Autoteile & Zubehör > Innenausstattung > Fußmatten, Teppiche & Laderaumwannen"
+      }
+    }
+  },
+  {
+    "docId": "6941876218462",
+    "sku": "SKU-8049033555",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Handy-Zubehör > Halterungen & Ständer > KFZ-Halterungen"
+  },
+  {
+    "docId": "6acf0526-65bd-4c5a-bd00-abe9bfb5f483",
+    "sku": "SKU-3748510561",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Garten & Terrasse > Gartenmöbel > Gartenliegen"
+  },
+  {
+    "docId": "7313020097503",
+    "sku": "SKU-9706798890",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Autoteile > D"
+  },
+  {
+    "docId": "7325720928841",
+    "sku": "SKU-1018841553",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Damenbekleidung > Mäntel"
+  },
+  {
+    "docId": "7538f896-fb64-40ee-a606-65e08665fc2a",
+    "sku": "SKU-9166429134",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haushalt > Aufbew"
+  },
+  {
+    "docId": "76113588807201",
+    "sku": "SKU-6099828388",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Damen > Shirts und Tops"
+  },
+  {
+    "docId": "7613136901818",
+    "sku": "SKU-4208989688",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren > Unterwäsche > Boxershorts & Slips"
+  },
+  {
+    "docId": "7630751727135",
+    "sku": "SKU-1055381582",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Küche & Haushalt > Gläser > Kaffeegläser"
+  },
+  {
+    "docId": "7640415026184",
+    "sku": "SKU-0500263191",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kinderbekleidung > Hosen > Schneehosen"
+  },
+  {
+    "docId": "7c4d3bb6-e7a1-4fa0-aa88-3da9b25134d8",
+    "sku": "SKU-3324867175",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker > Bad & Küche > Badaccessoires > Handtuchhalter"
+  },
+  {
+    "docId": "8003558071647",
+    "sku": "SKU-7025517137",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kostüme & Verkleidungen > Historische & Fantasy-Kostüme > Piraten & Seefahrer"
+  },
+  {
+    "docId": "8003558101221",
+    "sku": "SKU-2007106780",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kostüme & Verkleidungen > Herrenkostüme > Hemden & Oberteile"
+  },
+  {
+    "docId": "8003558101238",
+    "sku": "SKU-8934718651",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kostüme & Verkleidungen > Herrenkostüme > Hemden & Oberteile"
+  },
+  {
+    "docId": "80035581118830",
+    "sku": "SKU-3425228384",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kostüme & Verkleidungen > Kostümzubehör"
+  },
+  {
+    "docId": "8019606021557",
+    "sku": "SKU-4777479586",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Motorradteile>Verkleidungen & Rahmen>Windschutzscheiben"
+  },
+  {
+    "docId": "8026196116716",
+    "sku": "SKU-5173627811",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kostüme & Verkleidungen > Kinder-Kostüme"
+  },
+  {
+    "docId": "8712026447449",
+    "sku": "SKU-3582144495",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Kostüme & Verkleidungen > Kostüme > 70er & 80er Jahre Kostüme"
+  },
+  {
+    "docId": "8712364370409",
+    "sku": "SKU-6835511556",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Kostüme & Verkleidungen > Kostüme",
+    "match": {
+      "id": "179321",
+      "breadcrumb": "Kleidung & Accessoires > Spezielle Anlässe > Erotik > Kostüme für Damen",
+      "score": 204,
+      "margin": 9
+    },
+    "updates": {
+      "details.categoryId": "179321",
+      "identification.category": "Kleidung & Accessoires > Spezielle Anlässe > Erotik > Kostüme für Damen",
+      "ops.data_quality": {
+        "barcode_rejected_v1": {
+          "iso": "2026-01-08T18:03:45.973Z",
+          "invalid": [
+            "50322144464244"
+          ]
+        },
+        "title_policy_v2": {
+          "iso": "2026-01-14T02:19:30.859Z",
+          "before": "Funny Fashion Kostüm Damen Beige Gr. EU 44-46 100% Polyester NEU 503221",
+          "after": "Funny Fashion Kostüm 503221 Damen Gr. EU 44-46 100% Polyester Beige NEU",
+          "before_len": 71,
+          "after_len": 71,
+          "before_issues": [
+            "priority_a_not_in_first_60"
+          ],
+          "after_issues": []
+        },
+        "last_quality_gate_iso": "2026-01-17T19:19:52.430Z",
+        "quality_gate_v1": {
+          "id": "qg_1f17501f-bebc-4202-a8f2-b94393d3696f",
+          "version": 1,
+          "checked_at_iso": "2026-01-17T19:19:52.430Z",
+          "duration_ms": 1557,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [
+            {
+              "code": "attributes_duplicate_value",
+              "severity": "warn",
+              "fields": [
+                "details.attributes.Geschlecht",
+                "details.attributes.Zielgruppe"
+              ],
+              "message": "Redundante Attribute: gleicher Wert \"Damen\" in Geschlecht, Zielgruppe.",
+              "source": "rule",
+              "confidence": 0.85
+            }
+          ],
+          "evidence": {
+            "query": "8712364370409 Funny Fashion 503221",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=8712364370409%20Funny%20Fashion%20503221",
+            "fetched_at_iso": "2026-01-17T19:19:50.949Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 7
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.691Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Kostüme & Verkleidungen > Kostüme",
+        "category_backfilled_to": "Kleidung & Accessoires > Spezielle Anlässe > Erotik > Kostüme für Damen"
+      }
+    }
+  },
+  {
+    "docId": "8719114322466",
+    "sku": "SKU-4961159565",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > Unterwäsche > Boxershorts"
+  },
+  {
+    "docId": "8720389034565",
+    "sku": "SKU-7514362439",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Küchengeräte > Heißluft"
+  },
+  {
+    "docId": "8720646475988",
+    "sku": "SKU-9255560092",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > T-Shirts"
+  },
+  {
+    "docId": "8720646487387",
+    "sku": "SKU-1041108089",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herren > Herrenmode > T-Shirts"
+  },
+  {
+    "docId": "8720672452137",
+    "sku": "SKU-9245031381",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren > Poloshirts"
+  },
+  {
+    "docId": "8720672452144",
+    "sku": "SKU-4465818458",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode > Herrenmode > Shirts & Hemden > Poloshirts"
+  },
+  {
+    "docId": "8720672452151",
+    "sku": "SKU-3102719705",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Herrenmode > Shirts & Hemden > Poloshirts",
+    "match": {
+      "id": "185101",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts",
+      "score": 215,
+      "margin": 215
+    },
+    "updates": {
+      "details.categoryId": "185101",
+      "identification.category": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts",
+      "ops.data_quality": {
+        "barcode_rejected_v1": {
+          "iso": "2026-01-21T15:42:07.363Z",
+          "invalid": [
+            "52818720672452151"
+          ]
+        },
+        "last_quality_gate_iso": "2026-01-21T22:58:33.421Z",
+        "quality_gate_v1": {
+          "id": "qg_d7a10802-0d9b-4753-88dc-c0b2ea17ed8f",
+          "version": 1,
+          "checked_at_iso": "2026-01-21T22:58:33.421Z",
+          "duration_ms": 6033,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "8720672452151 PME LEGEND PPS2408801",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=8720672452151%20PME%20LEGEND%20PPS2408801",
+            "fetched_at_iso": "2026-01-21T22:58:27.591Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 20
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.693Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Herrenmode > Shirts & Hemden > Poloshirts",
+        "category_backfilled_to": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts"
+      }
+    }
+  },
+  {
+    "docId": "8720672452168",
+    "sku": "SKU-4862349606",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Herrenmode > T-Shirts",
+    "match": {
+      "id": "260966",
+      "breadcrumb": "Kleidung & Accessoires > Kinder > Jungen > Mode für Jungen > T-Shirts, Polos & Hemden",
+      "score": 185,
+      "margin": 10
+    },
+    "updates": {
+      "details.categoryId": "260966",
+      "identification.category": "Kleidung & Accessoires > Kinder > Jungen > Mode für Jungen > T-Shirts, Polos & Hemden",
+      "ops.data_quality": {
+        "barcode_rejected_v1": {
+          "iso": "2026-01-21T15:27:08.253Z",
+          "invalid": [
+            "52818720672452168"
+          ]
+        },
+        "last_quality_gate_iso": "2026-01-21T23:13:23.069Z",
+        "quality_gate_v1": {
+          "id": "qg_ee83a7d8-dbe7-44eb-b70c-6b6ec840f5c0",
+          "version": 1,
+          "checked_at_iso": "2026-01-21T23:13:23.069Z",
+          "duration_ms": 127081,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "8720672452168 PME LEGEND PPS2408801",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=8720672452168%20PME%20LEGEND%20PPS2408801",
+            "fetched_at_iso": "2026-01-21T23:11:16.126Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "manual",
+          "requestedBy": "ui",
+          "revision_checked": 19
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.693Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Herrenmode > T-Shirts",
+        "category_backfilled_to": "Kleidung & Accessoires > Kinder > Jungen > Mode für Jungen > T-Shirts, Polos & Hemden"
+      }
+    }
+  },
+  {
+    "docId": "8720672452250",
+    "sku": "SKU-8896806933",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren-T-Shirts & Hemden > Poloshirts"
+  },
+  {
+    "docId": "8720672452267",
+    "sku": "SKU-4906689601",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode > Herrenmode > Shirts & Hemden > Poloshirts"
+  },
+  {
+    "docId": "8720672452274",
+    "sku": "SKU-4129459884",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode > Herren > Hemden & Oberteile > Poloshirts"
+  },
+  {
+    "docId": "8720672452281",
+    "sku": "SKU-4645470868",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Herrenmode > Shirts & Hemden > Poloshirts",
+    "match": {
+      "id": "185101",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts",
+      "score": 215,
+      "margin": 215
+    },
+    "updates": {
+      "details.categoryId": "185101",
+      "identification.category": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts",
+      "ops.data_quality": {
+        "barcode_rejected_v1": {
+          "iso": "2026-01-21T15:28:25.371Z",
+          "invalid": [
+            "50918720672452281"
+          ]
+        },
+        "last_quality_gate_iso": "2026-01-21T23:18:15.485Z",
+        "quality_gate_v1": {
+          "id": "qg_96d31b3c-d259-46b1-9832-643e51509d1b",
+          "version": 1,
+          "checked_at_iso": "2026-01-21T23:18:15.485Z",
+          "duration_ms": 2150,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "8720672452281 PME LEGEND PPS2408801",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=8720672452281%20PME%20LEGEND%20PPS2408801",
+            "fetched_at_iso": "2026-01-21T23:18:13.525Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 11
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.694Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Herrenmode > Shirts & Hemden > Poloshirts",
+        "category_backfilled_to": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts"
+      }
+    }
+  },
+  {
+    "docId": "8720672457576",
+    "sku": "SKU-0167269441",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > Hosen"
+  },
+  {
+    "docId": "8720672457583",
+    "sku": "SKU-0606185267",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren > Hosen > Cargohosen"
+  },
+  {
+    "docId": "8720672457590",
+    "sku": "SKU-8923961743",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode > Herrenmode > Hosen"
+  },
+  {
+    "docId": "8720672457606",
+    "sku": "SKU-2215117275",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode > Herren > Hosen"
+  },
+  {
+    "docId": "8720672457613",
+    "sku": "SKU-6508368269",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Herrenhosen > Cargohosen"
+  },
+  {
+    "docId": "8720672457620",
+    "sku": "SKU-9543142444",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > Hosen"
+  },
+  {
+    "docId": "8720672457644",
+    "sku": "SKU-9495443556",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > Hosen > Cargohosen"
+  },
+  {
+    "docId": "8720672457651",
+    "sku": "SKU-0231755176",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Herrenhosen > Cargohosen"
+  },
+  {
+    "docId": "8720672457682",
+    "sku": "SKU-7739152864",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode > Herrenmode > Hosen > Cargohosen"
+  },
+  {
+    "docId": "8720672457705",
+    "sku": "SKU-4271597760",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren > Hosen"
+  },
+  {
+    "docId": "8720672457712",
+    "sku": "SKU-7167329167",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Hosen > Cargohosen"
+  },
+  {
+    "docId": "8720672457736",
+    "sku": "SKU-2808592829",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren > Hosen > Cargohosen"
+  },
+  {
+    "docId": "8720672543033",
+    "sku": "SKU-9703955339",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Herren > Shirts & Tops > Poloshirts",
+    "match": {
+      "id": "185101",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts",
+      "score": 205,
+      "margin": 205
+    },
+    "updates": {
+      "details.categoryId": "185101",
+      "identification.category": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts",
+      "ops.data_quality": {
+        "barcode_rejected_v1": {
+          "iso": "2026-01-21T15:42:38.604Z",
+          "invalid": [
+            "720672543033",
+            "9108720672543033"
+          ]
+        },
+        "last_quality_gate_iso": "2026-01-21T19:58:13.825Z",
+        "quality_gate_v1": {
+          "id": "qg_8235b941-7885-4d37-92e3-3af365a9c63c",
+          "version": 1,
+          "checked_at_iso": "2026-01-21T19:58:13.825Z",
+          "duration_ms": 3432,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "8720672543033 PME Legend PPSS2502853",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=8720672543033%20PME%20Legend%20PPSS2502853",
+            "fetched_at_iso": "2026-01-21T19:58:12.304Z",
+            "results": [
+              {
+                "title": "Short sleeve polo cotton - PPSS2502853 - Modehaus Kutsam",
+                "url": "https://mode-erleben.at/products/351_pps2502853_1765"
+              },
+              {
+                "title": "PME Legend Short sleeve polo co 910 online kaufen",
+                "url": "https://www.modehaus-rusche.de/herren/herrenbekleidung/poloshirts-t-shirts/short-sleeve-polo-co-910.html"
+              },
+              {
+                "title": "PME Legend® DE | Lässige Herrenmode | Bis zu 40 % Rabatt",
+                "url": "https://www.pme-legend.com/de/polo-shirt-with-badge-ppss2502853-8039"
+              },
+              {
+                "title": "PME Legend Short sleeve polo cotton PPSS2502853",
+                "url": "https://www.thestone.nl/pme-legend-short-sleeve-polo-cotton-ppss2502853_lichtgrijs_77299.html"
+              },
+              {
+                "title": "PME Legend Short Sleeve Polo Trackway : Amazon.de: Fashion",
+                "url": "https://www.amazon.de/PME-Legend-Short-Sleeve-Trackway/dp/B0CXCW8FH5"
+              },
+              {
+                "title": "Kurzarm-Poloshirt aus Baumwolle ppss2502853 pme legend polo 8039 beluga ...",
+                "url": "https://www.versteeghjeansonline.nl/de/products/pme-legend-short-sleeve-polo-cotton-ppss2502853-8039"
+              }
+            ],
+            "pages": [
+              {
+                "title": "Short sleeve polo cotton - PPSS2502853 - Modehaus Kutsam",
+                "url": "https://mode-erleben.at/products/351_pps2502853_1765",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Short sleeve polo cotton - PPSS2502853 &ndash; Modehaus Kutsam Direkt zum Inhalt WhatsApp Kanal entdecken News Damen Herren Wäsche Neu Eingetroffen Über uns So finden Sie uns Personal Shopping Kontakt Einloggen Facebook Instagram Suchen News Damen Herren Wäsche Neu Eingetroffen Über uns So finden Sie uns Personal Shopping Kontakt Suchen Einloggen Warenkorb Artikel wurde in den Warenkorb gelegt zur Kasse gehen Weiter shoppen Damen | Herren Sortiment in: Schwertberg | St. Valentin | Bad Hall | Sierning | Kirchdorf Zu Produktinformationen springen Medien 1 in Modal öffnen Medien 2 in Modal öffnen 1 / von 2 Poloshirt PME Legend Short sleeve polo cotton - PPSS2502853 Normaler Preis € 89,99 Normaler Preis Verkaufspreis € 89,99 Grundpreis / pro Sale Ausverkauft inkl. MwSt. Versand wird beim Checkout berechnet Größe L Farbe Bone White Melee Produktvarianten L / Bone White Melee - € 89,99 Teilen,"
+              },
+              {
+                "title": "PME Legend Short sleeve polo co 910 online kaufen",
+                "url": "https://www.modehaus-rusche.de/herren/herrenbekleidung/poloshirts-t-shirts/short-sleeve-polo-co-910.html",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "Modehaus Rusche in Oelde | Mode-Erlebniswelten in Oelde 4.2 --> Sie haben eine Frage? 0 25 22 / 90 13 30 Unternehmen Events Services Damen Accessoires Accessoires Gürtel Schals + Tücher Schuhe Bekleidung Bermuda + Shorts Blazer Blusen Hosen + Jeans Jacken + Mäntel + Westen Kleider Röcke Shirts Strick & Sweat Herren Accessoires Accessoires Herrenbekleidung Anzüge + Sakkos Bermuda + Shorts Hemden Hosen + Jeans Jacken + Mäntel + Westen Poloshirts+T-shirts Pullover + Sweat Marken Betty Barclay Blue Monkey BRAX BRAX RAPHAELA burkely calamar CAMBIO Camel Casa Moda CATNOIR Cecil CINQUE comma desoto digel gustav ELBSAND Emily & noah Emily VAN DEN BERGH Esprit ETERNA FRANK WALDER Frieda & Freddies FUCHS SCHMITT Gabba gang GANT gieck gil bret Halsüberkopf Hugo Boss JcSophie Viele mehr... Sale Gutscheine Menü Damen Herren Marken Sale Gutscheine Suche öffnen Zum Warenkorb Anmelden Unternehmen Events"
+              },
+              {
+                "title": "PME Legend® DE | Lässige Herrenmode | Bis zu 40 % Rabatt",
+                "url": "https://www.pme-legend.com/de/polo-shirt-with-badge-ppss2502853-8039",
+                "ok": true,
+                "status": 200,
+                "via": "direct",
+                "excerpt": "PME Legend® DE | Lässige Herrenmode | Bis zu 40 % Rabatt You need to enable JavaScript to run this app. Navigate to main content Gratis Versand und kostenfreie Rücksendung An Werktagen vor 20:00 Uhr bestellt, innerhalb von 2 Werktagen versandt. Erst anprobieren, später mit Klarna bezahlen. Shop all Shop alle Kleider Shop alle Kleider Tops Jeans Hosen Jacken Schuhe Gear Neu in bekleidung Jetzt shoppen Neu in bekleidung Neu in Bekleidung Alles Entdecken Tops Jeans Hosen Jacken Schuhe Gear Jacken Jetzt Shoppen Highlights Highlights Winter Must-haves Heritage Series Cargo Heritage American Classics Classic Logo Collection Member Deals Bestsellers Grosse Grössen Entdecke Mehr Jeans Fitguide Guide zur Lederpflege The Heritage Series Geschenkkarte American Classics Jetzt Shoppen Guide Zur Lederflege Jetzt Shoppen Jeans Jeans Fit Alles Entdecken Slim Fit Jeans Regular Fit Jeans Relaxed Fit Jeans"
+              }
+            ]
+          },
+          "modelUsed": null,
+          "reason": "auto_after_save",
+          "requestedBy": "ui",
+          "revision_checked": 15
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.695Z",
+        "category_backfilled_from": "Kleidung & Accessoires > Herren > Shirts & Tops > Poloshirts",
+        "category_backfilled_to": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts"
+      }
+    }
+  },
+  {
+    "docId": "8720892260901",
+    "sku": "SKU-5644516401",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Gesundheit & Schönheit > Körperpflege > Nagelpflege > Nagelpilzbehandlung"
+  },
+  {
+    "docId": "8b18f8c1-5ced-4f9d-989d-35fb729415fe",
+    "sku": "SKU-3055174422",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Handy-Zubehör > Powerbanks"
+  },
+  {
+    "docId": "8c326f7a-d1df-447c-ab0c-c39d136ac565",
+    "sku": "SKU-0780623565",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Reisen > Reisegepäck > Koffer"
+  },
+  {
+    "docId": "9001778410887",
+    "sku": "SKU-5932239224",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Motorradzubehör > Abdeckplanen"
+  },
+  {
+    "docId": "9002759957889",
+    "sku": "SKU-5602954541",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Beleuchtung > Tischleuchte"
+  },
+  {
+    "docId": "9368205000005",
+    "sku": "SKU-0457243849",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Westen"
+  },
+  {
+    "docId": "9504579178456",
+    "sku": "SKU-1665721376",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Küche & Haushalt > Geschirr > Glas-Sets"
+  },
+  {
+    "docId": "9598aed7-fe7a-426e-afcc-08ca0d925270",
+    "sku": "SKU-0026867017",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Tattoo Zubehör > Armlehne"
+  },
+  {
+    "docId": "992c90f7-4b46-4306-8849-68b584459a4d",
+    "sku": "SKU-2574433036",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Business & Industrie > 3D-Druck & Prototypen > 3D-Drucker-Filamente"
+  },
+  {
+    "docId": "a11d13d2-573e-401e-bf44-f5eff249743f",
+    "sku": "SKU-2178359678",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Musikinstrumente > Gitarren & B"
+  },
+  {
+    "docId": "a18d09b8-ae6e-4114-9b82-f7cf388905d0",
+    "sku": "SKU-2365442999",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Gastronomie & Hotellerie > Küchentechnik & -geräte > Gastronormbehälter"
+  },
+  {
+    "docId": "a2ad1a25-85f0-4206-ba2d-f718e75b5942",
+    "sku": "SKU-2002593737",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Koffer & Reisegepäck > Koffer & Trolleys"
+  },
+  {
+    "docId": "a306ee5a-9713-4ee0-8e51-a97b458577d5",
+    "sku": "SKU-1769600457",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Elektronik & Computer > Audio & Hi-Fi > Kopfhörer"
+  },
+  {
+    "docId": "ab8921aa-074a-4d89-beb7-b4236133851e",
+    "sku": "SKU-8463577445",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haus & Garten > Beleuchtung > LED-Streifen & -Leisten"
+  },
+  {
+    "docId": "acbaf936-25b4-4850-a552-4af9871abe8c",
+    "sku": "SKU-5736916285",
+    "status": "update",
+    "catText": "Möbel & Wohnen > Betten & Zubehör > Lattenroste",
+    "match": {
+      "id": "77508",
+      "breadcrumb": "Möbel & Wohnen > Möbel > Betten > Lattenroste",
+      "score": 184,
+      "margin": 184
+    },
+    "updates": {
+      "details.categoryId": "77508",
+      "identification.category": "Möbel & Wohnen > Möbel > Betten > Lattenroste",
+      "ops.data_quality": {
+        "barcode_rejected_v1": {
+          "iso": "2026-01-08T18:05:39.033Z",
+          "invalid": [
+            "248020023"
+          ]
+        },
+        "condition_bulk_normalized_neu_v1": {
+          "at_iso": "2026-01-08T20:44:57.199Z",
+          "previous": "Gebraucht"
+        },
+        "last_quality_gate_iso": "2026-01-09T03:23:55.739Z",
+        "quality_gate_v1": {
+          "id": "qg_d5f2dcda-6691-4546-943e-9e4a0dc471be",
+          "version": 1,
+          "checked_at_iso": "2026-01-09T03:23:55.739Z",
+          "duration_ms": 12603,
+          "ok": true,
+          "summary": "Keine kritischen Quality-Issues erkannt.",
+          "issues": [],
+          "evidence": {
+            "query": "4062833011987 PANORAMA24",
+            "engine": "duckduckgo",
+            "search_url": "https://duckduckgo.com/html/?q=4062833011987%20PANORAMA24",
+            "fetched_at_iso": "2026-01-09T03:23:53.598Z",
+            "results": [],
+            "pages": []
+          },
+          "modelUsed": null,
+          "reason": "bulk",
+          "requestedBy": "script",
+          "revision_checked": 12
+        },
+        "category_backfilled_by": "breadcrumb",
+        "category_backfilled_iso": "2026-01-22T02:24:45.703Z",
+        "category_backfilled_from": "Möbel & Wohnen > Betten & Zubehör > Lattenroste",
+        "category_backfilled_to": "Möbel & Wohnen > Möbel > Betten > Lattenroste"
+      }
+    }
+  },
+  {
+    "docId": "ad41bd2c-b32b-4f84-8e10-70a3933b51e6",
+    "sku": "SKU-5198272869",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Unisex-Bekleidung"
+  },
+  {
+    "docId": "c1497bbf-f2e9-4e9a-9d75-7b31d2c0891d",
+    "sku": "SKU-9116827107",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Outdoorspiele > Wurf"
+  },
+  {
+    "docId": "c98d74fd-e1a0-42fd-ba6d-2ea526b6e643",
+    "sku": "SKU-6703015625",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren > Hosen > Trainingshosen"
+  },
+  {
+    "docId": "c9fb6dc8-5db9-455d-a9b6-a8cadf694909",
+    "sku": "SKU-4995445480",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport & Freizeit > Sportbekleidung > Hosen"
+  },
+  {
+    "docId": "d5ebb4cc-55b0-4b01-a52b-14af5f5e48dd",
+    "sku": "SKU-6221197450",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport > Fitness & Jogging > Kleingeräte & Zubehör > Fitnessbänder"
+  },
+  {
+    "docId": "daff6593-8cf1-4290-b164-30ff627317a0",
+    "sku": "SKU-9612106646",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haus & Garten > Möbel > Garderoben & Kleiderständer"
+  },
+  {
+    "docId": "dd602152-c85f-4a41-b405-0b04e500834f",
+    "sku": "SKU-4465485856",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Gastronomie & Hotellerie > Küchengeräte & Ausstattung > Speisewärmer & Chafing Dishes"
+  },
+  {
+    "docId": "ddf71447-e7dd-4f92-afa1-9fc1b7fad114",
+    "sku": "SKU-5047615558",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Computer, Tablets & Netzwerk > 3D-Druck & -Scan > 3D-Drucker-Filamente"
+  },
+  {
+    "docId": "e0a338cc-0fd6-4625-8c0c-054308424954",
+    "sku": "SKU-9445536447",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport > Sportbekleidung > Trainingsjacken"
+  },
+  {
+    "docId": "f0796a2b-7a12-4f55-b343-cf8e47e35ad0",
+    "sku": "SKU-8261682619",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Gesundheit & Körperpflege > Mundpflege"
+  },
+  {
+    "docId": "f19c6d73-628b-424c-9d89-d950ebafb74b",
+    "sku": "SKU-6536943755",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Business & Industrie > 3D-Druck & Prototyping > 3D-Drucker-Teile & Zubehör > 3D-Drucker-Filament"
+  },
+  {
+    "docId": "f34aeded-183f-461f-8b6d-f899c863bddb",
+    "sku": "SKU-2693030055",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren > Hosen > Jogginghosen"
+  },
+  {
+    "docId": "f42902e6-fbd5-40b3-ab2e-754199627da6",
+    "sku": "SKU-7676899776",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Werkzeug > Hebezeuge & Wagenheber"
+  }
+]
