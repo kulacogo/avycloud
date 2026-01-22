@@ -236,6 +236,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [activeScope, setActiveScope] = useState<string | null>(null);
   const [attachmentDrafts, setAttachmentDrafts] = useState<AttachmentDraft[]>([]);
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
@@ -515,7 +516,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   };
 
   const handleSend = useCallback(
-    async (predefinedMessage?: string) => {
+    async (predefinedMessage?: string, scopeOverride?: string | null) => {
       if (isLoading) return;
       const trimmedInput = (predefinedMessage ?? input).trim();
       if (!trimmedInput && attachmentDrafts.length === 0) return;
@@ -549,7 +550,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       const payloadMessage = trimmedInput || 'Bitte analysiere die angehängten Dateien.';
 
       try {
-        const result = await chatWithAssistant(product.id, payloadMessage, outgoingFiles);
+        const scope = scopeOverride ?? activeScope;
+        const result = await chatWithAssistant(product.id, payloadMessage, outgoingFiles, scope);
         if (!result.ok || !result.data) {
           throw new Error(result.error?.message || 'Unbekannter Fehler');
         }
@@ -586,7 +588,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         setIsLoading(false);
       }
     },
-    [attachmentDrafts, input, isLoading, product.id, t]
+    [activeScope, attachmentDrafts, input, isLoading, product.id, t]
   );
 
   return (
@@ -758,7 +760,10 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                 <button
                   key={`tray-${prompt.key}`}
                   type="button"
-                  onClick={() => setInput(prompt.value)}
+                  onClick={() => {
+                    setInput(prompt.value);
+                    setActiveScope(prompt.key);
+                  }}
                   className="rounded-full bg-slate-800 px-3 py-1 text-[12px] text-slate-200 hover:bg-slate-700"
                 >
                   {prompt.label}
@@ -773,7 +778,10 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             <button
               key={`action-${action.key}`}
               type="button"
-              onClick={() => handleSend(action.value)}
+              onClick={() => {
+                setActiveScope(action.key);
+                void handleSend(action.value, action.key);
+              }}
               className="rounded-full border border-slate-700 px-3 py-1 text-slate-200 hover:border-sky-500 hover:text-white"
             >
               {action.label}
@@ -783,8 +791,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
 
         <ChatInput
           value={input}
-          onChange={setInput}
-          onSend={() => handleSend()}
+          onChange={(v) => {
+            setInput(v);
+            // Free typing should not keep a stale scope implicitly.
+            setActiveScope(null);
+          }}
+          onSend={() => void handleSend()}
           disabled={isLoading}
           attachments={attachmentDrafts}
           onFilesSelected={handleFilesAdded}

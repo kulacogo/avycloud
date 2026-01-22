@@ -1458,7 +1458,8 @@ export interface ChatAssistantPayload {
 export const chatWithAssistant = async (
   productId: string | undefined,
   message: string,
-  attachments: File[] = []
+  attachments: File[] = [],
+  scope?: string | null
 ): Promise<{ ok: boolean; data?: ChatAssistantPayload; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
 
@@ -1480,6 +1481,9 @@ export const chatWithAssistant = async (
         formData.append('productId', productId);
       }
       formData.append('message', message);
+      if (scope) {
+        formData.append('scope', scope);
+      }
       attachments.forEach((file) => formData.append('attachments', file));
       requestInit = {
         method: 'POST',
@@ -1491,7 +1495,7 @@ export const chatWithAssistant = async (
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ productId, message }),
+        body: JSON.stringify({ productId, message, scope }),
       };
     }
 

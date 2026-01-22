@@ -468,6 +468,12 @@ function enforceEbayAspects(product) {
       'gewicht': 'weight',
       'gewicht(kg)': 'weight',
       'gewicht (kg)': 'weight',
+      'bruttogewicht': 'weight',
+      'brutto gewicht': 'weight',
+      'nettogewicht': 'weight',
+      'netto gewicht': 'weight',
+      'gross weight': 'weight',
+      'net weight': 'weight',
       'eigengewicht': 'weight',
       'eigengewicht(kg)': 'weight',
       'eigengewicht (kg)': 'weight',
@@ -475,6 +481,25 @@ function enforceEbayAspects(product) {
       'versandgewicht': 'weight',
       'shipping weight': 'weight',
       'weight': 'weight',
+
+      // Use-case / usage (mergeable)
+      'geeignet für': 'Verwendungszweck',
+      'geeignet fur': 'Verwendungszweck',
+      'geeignetfuer': 'Verwendungszweck',
+      'geeignetfuer ': 'Verwendungszweck',
+      'verwendungszweck': 'Verwendungszweck',
+      'use case': 'Verwendungszweck',
+      'usage': 'Verwendungszweck',
+
+      // Dishwasher safe (canonical)
+      'spülmaschinengeeignet': 'Spülmaschinengeeignet',
+      'spulmaschinengeeignet': 'Spülmaschinengeeignet',
+      'spülmachinengeeignet': 'Spülmaschinengeeignet',
+      'spulmachinengeeignet': 'Spülmaschinengeeignet',
+      'spülmaschinenfest': 'Spülmaschinengeeignet',
+      'spulmaschinenfest': 'Spülmaschinengeeignet',
+      'spülmachinenfest': 'Spülmaschinengeeignet',
+      'spulmachinenfest': 'Spülmaschinengeeignet',
 
       // Category path variants
       'kategorie-pfad': 'Kategorie',
@@ -484,6 +509,90 @@ function enforceEbayAspects(product) {
       'category_path': 'Kategorie',
     }).map(([k, v]) => [k.toLowerCase(), v])
   );
+
+  // Keys where multiple values should be merged (instead of keeping "duplicate" keys).
+  const MERGEABLE_KEYS = new Set(['verwendungszweck']);
+
+  const normalizeListTokens = (value) => {
+    const raw = value == null ? '' : String(value);
+    const parts = raw
+      .split(/[,;|\n]+/)
+      .map((x) => String(x || '').trim())
+      .filter(Boolean);
+    const seen = new Set();
+    const out = [];
+    for (const p of parts) {
+      const k = p.toLowerCase().replace(/\s+/g, ' ');
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      out.push(p);
+    }
+    return out;
+  };
+
+  const mergeListValues = (a, b) => {
+    const merged = [...normalizeListTokens(a), ...normalizeListTokens(b)];
+    const seen = new Set();
+    const out = [];
+    for (const p of merged) {
+      const k = p.toLowerCase().replace(/\s+/g, ' ');
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      out.push(p);
+    }
+    return out.join(', ');
+  };
+
+  const extractDishwasherFromProperties = (obj, { extraTarget }) => {
+    if (!obj || typeof obj !== 'object') return;
+    const keys = Object.keys(obj);
+    const propKeys = keys.filter((k) => {
+      const lower = normalizeLower(k);
+      return lower === 'eigenschaft' || lower === 'eigenschaften' || lower === 'property' || lower === 'properties';
+    });
+    if (!propKeys.length) return;
+
+    const dishwasherTokens = [
+      'spülmaschinenfest',
+      'spulmaschinenfest',
+      'spülmachinenfest',
+      'spulmachinenfest',
+      'spülmaschinengeeignet',
+      'spulmaschinengeeignet',
+      'spülmachinengeeignet',
+      'spulmachinengeeignet',
+    ];
+
+    for (const key of propKeys) {
+      const raw = obj[key];
+      if (raw == null) continue;
+      const parts = normalizeListTokens(raw);
+      if (!parts.length) continue;
+      const kept = [];
+      let found = false;
+      for (const p of parts) {
+        const lower = p.toLowerCase().replace(/\s+/g, '');
+        if (dishwasherTokens.some((t) => lower.includes(t.replace(/\s+/g, '')))) {
+          found = true;
+          continue;
+        }
+        kept.push(p);
+      }
+      if (found) {
+        // Set canonical dishwasher boolean-ish attribute.
+        obj['Spülmaschinengeeignet'] = 'Ja';
+        if (kept.length) {
+          obj[key] = kept.join(', ');
+        } else {
+          // remove empty property key; keep original in extra for forensics
+          if (extraTarget && typeof extraTarget === 'object') {
+            extraTarget[key] = raw;
+          }
+          delete obj[key];
+        }
+      }
+    }
+  };
 
   const normalizeBooleanishValue = (val) => {
     if (val === true) return 'Ja';
@@ -717,6 +826,28 @@ function enforceEbayAspects(product) {
       nextAttrs[finalKey] = normalizeBooleanishValue(val);
     });
 
+    // Consolidation pass (no-category):
+    // - Merge usage fields to one canonical key
+    // - Extract "Spülmaschinengeeignet" from Eigenschaft(en)
+    // - Ensure only ONE weight-like field survives (others moved to attributes_extra via aliasing)
+    extractDishwasherFromProperties(nextAttrs, { extraTarget: nextExtra });
+    if (nextAttrs.Verwendungszweck && nextAttrs['Geeignet für']) {
+      nextAttrs.Verwendungszweck = mergeListValues(nextAttrs.Verwendungszweck, nextAttrs['Geeignet für']);
+      nextExtra['Geeignet für'] = nextAttrs['Geeignet für'];
+      delete nextAttrs['Geeignet für'];
+    }
+    if (nextAttrs['Verwendungszweck'] && nextAttrs['Use case']) {
+      nextAttrs.Verwendungszweck = mergeListValues(nextAttrs.Verwendungszweck, nextAttrs['Use case']);
+      nextExtra['Use case'] = nextAttrs['Use case'];
+      delete nextAttrs['Use case'];
+    }
+    // Prefer showing a user-friendly key for weight when no required weight aspect exists.
+    if (Object.prototype.hasOwnProperty.call(nextAttrs, 'weight')) {
+      const w = nextAttrs.weight;
+      nextAttrs['Gewicht (kg)'] = w;
+      delete nextAttrs.weight;
+    }
+
     // Safe dedupe: collapse obvious synonym duplicates when values are identical (case/space),
     // but NEVER drop a required aspect (none known in the no-category path).
     const normVal = (v) =>
@@ -837,6 +968,14 @@ function enforceEbayAspects(product) {
       const nextEmpty = val === null || val === undefined || nextStr === '';
       if (prevEmpty && !nextEmpty) {
         keptAspects[canonicalName] = normalizeBooleanishValue(val);
+      } else if (
+        !prevEmpty &&
+        !nextEmpty &&
+        canonicalName &&
+        MERGEABLE_KEYS.has(normalizeLower(canonicalName))
+      ) {
+        // Merge list-like values instead of treating them as conflicting duplicates.
+        keptAspects[canonicalName] = mergeListValues(prevStr, nextStr);
       } else {
         nextExtra[originalKey] = val;
       }
@@ -899,6 +1038,11 @@ function enforceEbayAspects(product) {
     keptAspects.Kategorie = String(categoryPath);
   }
 
+  // Consolidation pass (category-known):
+  // - Extract dishwasher-safe boolean from Eigenschaft(en)
+  // - (Usage merging is handled via MERGEABLE_KEYS when aliasing maps to Verwendungszweck)
+  extractDishwasherFromProperties(keptAspects, { extraTarget: nextExtra });
+
   // Avoid duplicate weight fields:
   // - We keep the category-specific required weight aspect (e.g. "Gewicht(kg)") when present/required.
   // - Internal numeric kg is still stored in details.weight for downstream integrations.
@@ -913,6 +1057,13 @@ function enforceEbayAspects(product) {
       if (existingEmpty && internalNonEmpty) {
         keptAspects[weightAspect] = internalVal;
       }
+      delete keptAspects[internalWeightKey];
+    }
+  } else {
+    // No category-required weight aspect -> keep a user-friendly weight key in attributes (still numeric kg).
+    const internalWeightKey = Object.keys(keptAspects).find((k) => normalizeLower(k) === 'weight') || null;
+    if (internalWeightKey) {
+      keptAspects['Gewicht (kg)'] = keptAspects[internalWeightKey];
       delete keptAspects[internalWeightKey];
     }
   }

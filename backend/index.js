@@ -3206,7 +3206,7 @@ app.delete('/api/products/cleanup-by-alias/:alias', async (req, res) => {
 
 app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
   try {
-    const { productId, message, model: bodyModel } = req.body;
+    const { productId, message, model: bodyModel, scope } = req.body;
     const modelOverride = req.query?.model || bodyModel || null;
     const attachments =
       Array.isArray(req.files) && req.files.length
@@ -3244,6 +3244,7 @@ app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
     const chatResult = await runProductChat(product, normalizedMessage || 'Bitte analysiere die angehängten Dateien.', {
       modelOverride,
       attachments,
+      scope: typeof scope === 'string' ? scope.trim() : null,
     });
 
     res.json({

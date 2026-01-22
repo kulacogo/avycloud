@@ -872,7 +872,7 @@ function sanitizeImageSuggestions(entry) {
     }));
 }
 
-function sanitizeDatasheetChange(entry, product) {
+function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
   const result = {};
   const isValidSku = (value) => {
     if (typeof value !== 'string') return false;
@@ -882,22 +882,36 @@ function sanitizeDatasheetChange(entry, product) {
     return /^[A-Za-z0-9._\\-\\/]+$/.test(trimmed);
   };
 
+  const normalizedScope = scope == null ? '' : String(scope).trim().toLowerCase();
+  const allow = {
+    title: !normalizedScope || normalizedScope === 'title' || normalizedScope === 'datasheet',
+    brand: !normalizedScope || normalizedScope === 'datasheet',
+    category: !normalizedScope || normalizedScope === 'datasheet',
+    sku: !normalizedScope || normalizedScope === 'datasheet',
+    barcodes: !normalizedScope || normalizedScope === 'gtin' || normalizedScope === 'datasheet',
+    pricing: !normalizedScope || normalizedScope === 'pricing' || normalizedScope === 'datasheet',
+    description: !normalizedScope || normalizedScope === 'description' || normalizedScope === 'datasheet',
+    highlights: !normalizedScope || normalizedScope === 'highlights' || normalizedScope === 'datasheet',
+    attributes: !normalizedScope || normalizedScope === 'attributes' || normalizedScope === 'datasheet',
+    notes: !normalizedScope || normalizedScope === 'datasheet',
+  };
+
   if (entry.summary) result.summary = entry.summary;
-  if (entry.short_description) result.short_description = entry.short_description;
-  if (Array.isArray(entry.key_features)) {
+  if (allow.description && entry.short_description) result.short_description = entry.short_description;
+  if (allow.highlights && Array.isArray(entry.key_features)) {
     result.key_features = entry.key_features.filter(Boolean);
   }
-  if (entry.attributes) {
+  if (allow.attributes && entry.attributes) {
     if (Array.isArray(entry.attributes)) {
       result.attributes = attributeArrayToObject(entry.attributes);
     } else if (typeof entry.attributes === 'object') {
       result.attributes = entry.attributes;
     }
   }
-  if (entry.pricing) {
+  if (allow.pricing && entry.pricing) {
     result.pricing = entry.pricing;
   }
-  if (entry.notes) {
+  if (allow.notes && entry.notes) {
     result.notes = entry.notes;
   }
   const identityPatch = {};
@@ -935,51 +949,51 @@ function sanitizeDatasheetChange(entry, product) {
     );
   };
 
-  if (Array.isArray(entry.barcodes)) {
+  if (allow.barcodes && Array.isArray(entry.barcodes)) {
     entry.barcodes.forEach(pushBarcode);
   }
   const coerceTitle = (raw) => coerceTitleToPolicy(product, raw, { minLen: 65, maxLen: 80, softMaxLen: 75 });
 
-  if (typeof entry.title === 'string' && entry.title.trim()) {
+  if (allow.title && typeof entry.title === 'string' && entry.title.trim()) {
     const coerced = coerceTitle(entry.title);
     identityPatch.name = coerced;
     // Keep an explicit title field so the frontend can display/apply it directly.
     result.title = coerced;
   }
   if (entry.identity && typeof entry.identity === 'object') {
-    if (typeof entry.identity.title === 'string' && entry.identity.title.trim()) {
+    if (allow.title && typeof entry.identity.title === 'string' && entry.identity.title.trim()) {
       const coerced = coerceTitle(entry.identity.title);
       identityPatch.name = coerced;
       result.title = coerced;
     }
-    if (typeof entry.identity.name === 'string' && entry.identity.name.trim()) {
+    if (allow.title && typeof entry.identity.name === 'string' && entry.identity.name.trim()) {
       const coerced = coerceTitle(entry.identity.name);
       identityPatch.name = coerced;
       result.title = coerced;
     }
-    if (typeof entry.identity.brand === 'string' && entry.identity.brand.trim()) {
+    if (allow.brand && typeof entry.identity.brand === 'string' && entry.identity.brand.trim()) {
       identityPatch.brand = entry.identity.brand.trim();
     }
-    if (typeof entry.identity.category === 'string' && entry.identity.category.trim()) {
+    if (allow.category && typeof entry.identity.category === 'string' && entry.identity.category.trim()) {
       identityPatch.category = entry.identity.category.trim();
     }
-    if (typeof entry.identity.sku === 'string' && isValidSku(entry.identity.sku)) {
+    if (allow.sku && typeof entry.identity.sku === 'string' && isValidSku(entry.identity.sku)) {
       identityPatch.sku = entry.identity.sku.trim();
     }
-    if (Array.isArray(entry.identity.barcodes)) {
+    if (allow.barcodes && Array.isArray(entry.identity.barcodes)) {
       entry.identity.barcodes.forEach(pushBarcode);
     }
-    if (typeof entry.identity.gtin === 'string') {
+    if (allow.barcodes && typeof entry.identity.gtin === 'string') {
       pushBarcode(entry.identity.gtin);
     }
-    if (typeof entry.identity.ean === 'string') {
+    if (allow.barcodes && typeof entry.identity.ean === 'string') {
       pushBarcode(entry.identity.ean);
     }
-    if (typeof entry.identity.upc === 'string') {
+    if (allow.barcodes && typeof entry.identity.upc === 'string') {
       pushBarcode(entry.identity.upc);
     }
   }
-  if (entry.sku && isValidSku(entry.sku)) {
+  if (allow.sku && entry.sku && isValidSku(entry.sku)) {
     identityPatch.sku = entry.sku.trim();
   }
 
@@ -1009,7 +1023,7 @@ function sanitizeDatasheetChange(entry, product) {
       identityPatch.barcodes = Array.from(barcodeSet);
     }
     result.identity = identityPatch;
-  } else if (barcodeSet.size) {
+  } else if (barcodeSet.size && allow.barcodes) {
     result.identity = { barcodes: Array.from(barcodeSet) };
   }
   return result;
@@ -1017,7 +1031,7 @@ function sanitizeDatasheetChange(entry, product) {
 
 // --- Main Chat Function (Gemini) ---
 
-async function runProductChat(product, userMessage, { modelOverride = null, attachments = [] } = {}) {
+async function runProductChat(product, userMessage, { modelOverride = null, attachments = [], scope = null } = {}) {
   const client = await getGeminiClient();
   // Use Gemini 2.5 Flash for chat responses
   const modelName = 'gemini-2.5-flash';
@@ -1121,7 +1135,9 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   let currentMessageParts = [
     {
       text: buildUserPrompt({
-        message: userMessage,
+        message: scope && String(scope).trim()
+          ? `${userMessage}\n\nSCOPE=${String(scope).trim()} (STRICT: only propose edits inside this scope; do not change title/category unless scope=datasheet or scope=title.)`
+          : userMessage,
         locale,
         mode: conversationMode,
         marketingFocus,
@@ -1188,7 +1204,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
           toolResult = result;
         }
         else if (name === 'update_product_datasheet') {
-          const sanitized = sanitizeDatasheetChange(args, product);
+          const sanitized = sanitizeDatasheetChange(args, product, { scope });
           datasheetChanges.push(sanitized);
           toolResult = { acknowledged: true, applied_fields: Object.keys(sanitized) };
         }
@@ -1293,7 +1309,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         const updateCalls = updateResponse.response.functionCalls?.() || [];
         const updateCall = updateCalls.find((call) => call?.name === 'update_product_datasheet');
         if (updateCall?.args && typeof updateCall.args === 'object') {
-          const sanitized = sanitizeDatasheetChange(updateCall.args, product);
+          const sanitized = sanitizeDatasheetChange(updateCall.args, product, { scope });
           if (sanitized && Object.keys(sanitized).length > 0) {
             datasheetChanges.push(sanitized);
           }
