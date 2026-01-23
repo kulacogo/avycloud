@@ -1,0 +1,13 @@
+{
+  "mode": "DRY_RUN",
+  "inventoryId": "78659",
+  "minQty": 1,
+  "limit": null,
+  "offset": 0,
+  "counts": {
+    "total": 609,
+    "eligible": 435,
+    "selected": 435
+  },
+  "timestamp": "2026-01-22T23:03:14.057Z"
+}

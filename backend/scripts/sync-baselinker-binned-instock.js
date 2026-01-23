@@ -227,7 +227,51 @@ async function main() {
   }
 
   console.log(`[baselinker-sync] Syncing ${selected.length} products to BaseLinker inventory ${inventoryId}...`);
-  const results = await syncProductsToBaseLinker(selected, inventoryId);
+  const progressPath = path.join(outDir, 'progress.json');
+  const resultsJsonlPath = path.join(outDir, 'results.jsonl');
+  // Ensure file exists (tail -f friendliness)
+  try {
+    fs.writeFileSync(resultsJsonlPath, '', { encoding: 'utf8', flag: 'w' });
+  } catch {
+    // ignore
+  }
+
+  const progress = {
+    mode,
+    inventoryId,
+    total: selected.length,
+    done: 0,
+    success: 0,
+    failed: 0,
+    started_at_iso: new Date().toISOString(),
+    updated_at_iso: new Date().toISOString(),
+    last: null,
+  };
+  fs.writeFileSync(progressPath, JSON.stringify(progress, null, 2), 'utf8');
+
+  const results = await syncProductsToBaseLinker(selected, inventoryId, {
+    onProgress: async ({ index, total, result }) => {
+      try {
+        const status = result?.status || 'unknown';
+        const line = JSON.stringify({
+          index,
+          total,
+          at: new Date().toISOString(),
+          result,
+        });
+        fs.appendFileSync(resultsJsonlPath, `${line}\n`, 'utf8');
+
+        progress.done = Math.max(progress.done, (Number(index) || 0) + 1);
+        if (status === 'synced') progress.success += 1;
+        else if (status === 'failed') progress.failed += 1;
+        progress.updated_at_iso = new Date().toISOString();
+        progress.last = result || null;
+        fs.writeFileSync(progressPath, JSON.stringify(progress, null, 2), 'utf8');
+      } catch {
+        // ignore progress persistence errors
+      }
+    },
+  });
 
   const success = results.filter((r) => r && r.status === 'synced').length;
   const failed = results.filter((r) => r && r.status === 'failed').length;
