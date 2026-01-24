@@ -11,6 +11,7 @@ const { generateImagesForProduct } = require('./image-generation');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
+const { getActiveLlmConfig } = require('../lib/llm-config');
 const { getRequiredAspects } = require('../lib/ebay-taxonomy');
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 
@@ -1085,10 +1086,28 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     },
   ];
 
-  // Enhanced System Prompt for Autononomy
-  const systemPromptText = buildSystemPrompt(locale) + `
+  // Enhanced System Prompt for Autonomy (with optional admin-managed overrides)
+  const baseSystemPrompt = buildSystemPrompt(locale);
+  const baseRules = buildCommonPolicyText({ locale, allowWebEvidence: true });
+
+  const llmConfig = await getActiveLlmConfig('chat.product');
+  const promptMode = llmConfig?.promptMode === 'replace' ? 'replace' : 'append';
+  const rulesMode = llmConfig?.rulesMode === 'replace' ? 'replace' : 'append';
+  const promptOverride = typeof llmConfig?.promptText === 'string' ? llmConfig.promptText : '';
+  const rulesOverride = typeof llmConfig?.rulesText === 'string' ? llmConfig.rulesText : '';
+
+  const effectivePrompt =
+    promptOverride && promptMode === 'replace'
+      ? promptOverride
+      : [baseSystemPrompt, promptOverride].filter(Boolean).join('\n\n');
+  const effectiveRules =
+    rulesOverride && rulesMode === 'replace'
+      ? rulesOverride
+      : [baseRules, rulesOverride].filter(Boolean).join('\n\n');
+
+  const systemPromptText = effectivePrompt + `
   
-  ${buildCommonPolicyText({ locale, allowWebEvidence: true })}
+  ${effectiveRules}
 
   CRITICAL RULES:
   1. DO NOT ASK the user for search queries or "what marketplace to check". derivation of queries is YOUR job.

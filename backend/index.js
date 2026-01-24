@@ -87,8 +87,28 @@ const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked, markOrderAsPacked } = require('./services/order-sync');
 const { requireAuth } = require('./lib/auth');
 const { ensureDefaultRoles, requirePermission } = require('./lib/rbac');
-const { inviteUser, listUsers: listUsersAdmin, setUserRoles: setUserRolesAdmin, listRoles: listRolesAdmin, updateRole: updateRoleAdmin } = require('./services/admin-api');
+const {
+  inviteUser,
+  listUsers: listUsersAdmin,
+  setUserRoles: setUserRolesAdmin,
+  setUserGroups: setUserGroupsAdmin,
+  setUserOverrides: setUserOverridesAdmin,
+  listRoles: listRolesAdmin,
+  updateRole: updateRoleAdmin,
+  listGroups: listGroupsAdmin,
+  createGroup: createGroupAdmin,
+  updateGroup: updateGroupAdmin,
+  deleteGroup: deleteGroupAdmin,
+} = require('./services/admin-api');
 const { ensureBootstrapAdmin } = require('./lib/bootstrap-admin');
+const {
+  ensureDefaultLlmScopes,
+  listLlmScopes,
+  getScope,
+  listScopeVersions,
+  createScopeVersion,
+  activateScopeVersion,
+} = require('./lib/llm-config');
 
 const normalizeIdentifyToken = (value) => String(value || '').trim();
 const extractDigitBarcode = (value) =>
@@ -783,6 +803,9 @@ ensureDefaultRoles()
 ensureBootstrapAdmin()
   .then((r) => console.log(`Bootstrap admin ensured (${r.email})${r.created ? ' [created]' : ''}`))
   .catch((error) => console.error('Bootstrap admin failed:', error));
+ensureDefaultLlmScopes()
+  .then(() => console.log('LLM scopes ensured.'))
+  .catch((error) => console.error('LLM scope seeding failed:', error));
 syncInventoriesFromBaseLinker()
   .then((result) => {
     console.log(`Initial inventory sync completed (${result.fetched} entries)`);
@@ -862,6 +885,82 @@ app.put('/api/admin/users/:uid/roles', requirePermission('admin', 'users.write')
   }
 });
 
+app.put('/api/admin/users/:uid/groups', requirePermission('admin', 'users.write'), async (req, res) => {
+  try {
+    const targetUid = req.params?.uid;
+    const groupIds = Array.isArray(req.body?.groupIds) ? req.body.groupIds : [];
+    await setUserGroupsAdmin({ actorUid: req.user?.uid, targetUid, groupIds });
+    res.json({ ok: true });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin set user groups failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to set groups' } });
+  }
+});
+
+app.put('/api/admin/users/:uid/overrides', requirePermission('admin', 'users.write'), async (req, res) => {
+  try {
+    const targetUid = req.params?.uid;
+    const overrides = req.body?.overrides || req.body || {};
+    await setUserOverridesAdmin({ actorUid: req.user?.uid, targetUid, overrides });
+    res.json({ ok: true });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin set user overrides failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to set overrides' } });
+  }
+});
+
+app.get('/api/admin/groups', requirePermission('admin', 'groups.read'), async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 200, 1), 1000);
+    const groups = await listGroupsAdmin({ limit });
+    res.json({ ok: true, data: groups });
+  } catch (error) {
+    console.error('Admin list groups failed:', error);
+    res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to list groups' } });
+  }
+});
+
+app.post('/api/admin/groups', requirePermission('admin', 'groups.write'), async (req, res) => {
+  try {
+    const name = req.body?.name;
+    const groupId = req.body?.groupId;
+    const roleIds = Array.isArray(req.body?.roleIds) ? req.body.roleIds : [];
+    const created = await createGroupAdmin({ actorUid: req.user?.uid, name, groupId, roleIds });
+    res.json({ ok: true, data: created });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin create group failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to create group' } });
+  }
+});
+
+app.put('/api/admin/groups/:groupId', requirePermission('admin', 'groups.write'), async (req, res) => {
+  try {
+    const groupId = req.params?.groupId;
+    const patch = req.body || {};
+    await updateGroupAdmin({ actorUid: req.user?.uid, groupId, patch });
+    res.json({ ok: true });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin update group failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to update group' } });
+  }
+});
+
+app.delete('/api/admin/groups/:groupId', requirePermission('admin', 'groups.write'), async (req, res) => {
+  try {
+    const groupId = req.params?.groupId;
+    await deleteGroupAdmin({ actorUid: req.user?.uid, groupId });
+    res.status(204).send();
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin delete group failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to delete group' } });
+  }
+});
+
 app.get('/api/admin/roles', requirePermission('admin', 'roles.read'), async (req, res) => {
   try {
     const roles = await listRolesAdmin();
@@ -882,6 +981,59 @@ app.put('/api/admin/roles/:roleId', requirePermission('admin', 'roles.write'), a
     const code = error?.statusCode || 500;
     console.error('Admin update role failed:', error);
     res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to update role' } });
+  }
+});
+
+// --- LLM Management (RBAC-managed) ---
+app.get('/api/admin/llm/scopes', requirePermission('admin', 'llm.read'), async (req, res) => {
+  try {
+    const scopes = await listLlmScopes();
+    res.json({ ok: true, data: scopes });
+  } catch (error) {
+    console.error('Admin list LLM scopes failed:', error);
+    res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to list llm scopes' } });
+  }
+});
+
+app.get('/api/admin/llm/scopes/:scopeId', requirePermission('admin', 'llm.read'), async (req, res) => {
+  try {
+    const scopeId = req.params?.scopeId;
+    const scope = await getScope(scopeId);
+    if (!scope) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'Scope not found' } });
+    }
+    const versions = await listScopeVersions(scopeId, { limit: 25 });
+    res.json({ ok: true, data: { scope, versions } });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin get LLM scope failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to load scope' } });
+  }
+});
+
+app.post('/api/admin/llm/scopes/:scopeId/versions', requirePermission('admin', 'llm.write'), async (req, res) => {
+  try {
+    const scopeId = req.params?.scopeId;
+    const version = req.body || {};
+    const created = await createScopeVersion({ actorUid: req.user?.uid, scopeId, version });
+    res.json({ ok: true, data: created });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin create LLM version failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to create version' } });
+  }
+});
+
+app.post('/api/admin/llm/scopes/:scopeId/activate/:versionId', requirePermission('admin', 'llm.write'), async (req, res) => {
+  try {
+    const scopeId = req.params?.scopeId;
+    const versionId = req.params?.versionId;
+    await activateScopeVersion({ actorUid: req.user?.uid, scopeId, versionId });
+    res.json({ ok: true });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin activate LLM version failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to activate version' } });
   }
 });
 

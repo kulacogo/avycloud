@@ -3,9 +3,19 @@ const { FieldValue } = require('@google-cloud/firestore');
 
 const USERS_COLLECTION = 'users';
 const ROLES_COLLECTION = 'roles';
+const GROUPS_COLLECTION = 'groups';
 const AUDIT_COLLECTION = 'auditLogs';
 
 const ROLE_IDS = ['admin', 'manager', 'operation', 'catalog'];
+
+function normalizeId(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 const defaultRoles = () => ({
   admin: {
@@ -99,6 +109,104 @@ async function listUsers({ limit = 500 } = {}) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+async function listGroups({ limit = 200 } = {}) {
+  const capped = Math.min(Math.max(parseInt(String(limit || 0), 10) || 200, 1), 1000);
+  const snap = await firestore.collection(GROUPS_COLLECTION).limit(capped).get();
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+async function createGroup({ actorUid, groupId, name, roleIds = [] }) {
+  const id = groupId ? normalizeId(groupId) : normalizeId(name);
+  if (!id) throw new Error('groupId/name is required');
+  const cleanedRoles = Array.from(new Set((roleIds || []).map((r) => String(r).trim().toLowerCase()))).filter(Boolean);
+  cleanedRoles.forEach((r) => {
+    if (!ROLE_IDS.includes(r)) throw new Error(`Unknown role: ${r}`);
+  });
+
+  const ref = firestore.collection(GROUPS_COLLECTION).doc(id);
+  const snap = await ref.get();
+  if (snap.exists) {
+    const err = new Error('Group already exists');
+    err.statusCode = 409;
+    throw err;
+  }
+  await ref.set({
+    groupId: id,
+    name: String(name || id).trim(),
+    roleIds: cleanedRoles,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  await writeAuditLog({
+    actorUid: actorUid || null,
+    action: 'group.create',
+    targetUid: id,
+    diff: { name: String(name || id).trim(), roleIds: cleanedRoles },
+  });
+  return { id };
+}
+
+async function updateGroup({ actorUid, groupId, patch }) {
+  const id = normalizeId(groupId);
+  if (!id) throw new Error('groupId is required');
+  const ref = firestore.collection(GROUPS_COLLECTION).doc(id);
+
+  const nextPatch = { ...(patch || {}) };
+  if (Array.isArray(nextPatch.roleIds)) {
+    const cleanedRoles = Array.from(
+      new Set((nextPatch.roleIds || []).map((r) => String(r).trim().toLowerCase()))
+    ).filter(Boolean);
+    cleanedRoles.forEach((r) => {
+      if (!ROLE_IDS.includes(r)) throw new Error(`Unknown role: ${r}`);
+    });
+    nextPatch.roleIds = cleanedRoles;
+  }
+  if (typeof nextPatch.name === 'string') {
+    nextPatch.name = nextPatch.name.trim();
+  }
+
+  await ref.set(
+    {
+      ...nextPatch,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+  await writeAuditLog({
+    actorUid: actorUid || null,
+    action: 'group.update',
+    targetUid: id,
+    diff: nextPatch || null,
+  });
+}
+
+async function deleteGroup({ actorUid, groupId }) {
+  const id = normalizeId(groupId);
+  if (!id) throw new Error('groupId is required');
+  await firestore.collection(GROUPS_COLLECTION).doc(id).delete();
+
+  // Best-effort cleanup: remove groupId from users that reference it (limited scan).
+  const snap = await firestore
+    .collection(USERS_COLLECTION)
+    .where('groupIds', 'array-contains', id)
+    .limit(1000)
+    .get();
+  await Promise.all(
+    snap.docs.map(async (d) => {
+      const data = d.data() || {};
+      const groupIds = Array.isArray(data.groupIds) ? data.groupIds : [];
+      const next = groupIds.filter((g) => String(g).toLowerCase() !== id);
+      await d.ref.set({ groupIds: next, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    })
+  );
+
+  await writeAuditLog({
+    actorUid: actorUid || null,
+    action: 'group.delete',
+    targetUid: id,
+  });
+}
+
 async function setUserRoles({ actorUid, targetUid, roles }) {
   const cleaned = Array.from(new Set((roles || []).map((r) => String(r).trim().toLowerCase()))).filter(Boolean);
   cleaned.forEach((r) => {
@@ -116,6 +224,30 @@ async function setUserRoles({ actorUid, targetUid, roles }) {
     action: 'user.roles.update',
     targetUid: String(targetUid),
     diff: { roles: cleaned },
+  });
+}
+
+async function setUserGroups({ actorUid, targetUid, groupIds }) {
+  const cleaned = Array.from(new Set((groupIds || []).map((g) => normalizeId(g)))).filter(Boolean);
+  await upsertUserProfile(String(targetUid), { groupIds: cleaned });
+  await writeAuditLog({
+    actorUid: actorUid || null,
+    action: 'user.groups.update',
+    targetUid: String(targetUid),
+    diff: { groupIds: cleaned },
+  });
+}
+
+async function setUserOverrides({ actorUid, targetUid, overrides }) {
+  const safe = overrides && typeof overrides === 'object' ? overrides : {};
+  const allow = safe.allow && typeof safe.allow === 'object' ? safe.allow : {};
+  const deny = safe.deny && typeof safe.deny === 'object' ? safe.deny : {};
+  await upsertUserProfile(String(targetUid), { overrides: { allow, deny } });
+  await writeAuditLog({
+    actorUid: actorUid || null,
+    action: 'user.overrides.update',
+    targetUid: String(targetUid),
+    diff: { overrides: { allow, deny } },
   });
 }
 
@@ -159,6 +291,14 @@ function hasPermission(permissions, moduleName, action) {
   return modulePerm[actionKey] === true;
 }
 
+function isAllowedWithOverrides({ rolePermissions, overrides, moduleName, action }) {
+  const deny = overrides?.deny;
+  if (deny && hasPermission(deny, moduleName, action)) return false;
+  const allow = overrides?.allow;
+  if (allow && hasPermission(allow, moduleName, action)) return true;
+  return hasPermission(rolePermissions, moduleName, action);
+}
+
 async function resolvePermissionsForUser(uid) {
   const profile = await getUserProfile(uid);
   if (!profile) {
@@ -171,8 +311,20 @@ async function resolvePermissionsForUser(uid) {
     throw err;
   }
 
-  const roles = Array.isArray(profile.roles) ? profile.roles.map((r) => String(r).toLowerCase()) : [];
-  const uniqueRoles = Array.from(new Set(roles)).filter(Boolean);
+  const directRoles = Array.isArray(profile.roles) ? profile.roles.map((r) => String(r).toLowerCase()) : [];
+  const groupIds = Array.isArray(profile.groupIds) ? profile.groupIds.map((g) => normalizeId(g)) : [];
+
+  const groupDocs = await Promise.all(
+    groupIds.map(async (gid) => {
+      const snap = await firestore.collection(GROUPS_COLLECTION).doc(gid).get();
+      return snap.exists ? snap.data() : null;
+    })
+  );
+  const groupRoleIds = groupDocs
+    .flatMap((g) => (Array.isArray(g?.roleIds) ? g.roleIds : []))
+    .map((r) => String(r).toLowerCase());
+
+  const uniqueRoles = Array.from(new Set([...directRoles, ...groupRoleIds])).filter(Boolean);
 
   if (!uniqueRoles.length) {
     return { profile, permissions: null, roles: [] };
@@ -224,7 +376,12 @@ function requirePermission(moduleName, action) {
           });
         }
 
-        const allowed = hasPermission(permissions, moduleName, action);
+        const allowed = isAllowedWithOverrides({
+          rolePermissions: permissions,
+          overrides: profile.overrides || null,
+          moduleName,
+          action,
+        });
         if (!allowed) {
           return res.status(403).json({
             ok: false,
@@ -253,11 +410,18 @@ module.exports = {
   getUserProfile,
   upsertUserProfile,
   listUsers,
+  listGroups,
+  createGroup,
+  updateGroup,
+  deleteGroup,
   setUserRoles,
+  setUserGroups,
+  setUserOverrides,
   listRoles,
   updateRole,
   requirePermission,
   hasPermission,
+  isAllowedWithOverrides,
   ROLE_IDS,
 };
 

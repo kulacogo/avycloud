@@ -188,6 +188,36 @@ export type AdminRoleRecord = {
   permissions?: Record<string, Record<string, boolean>>;
 };
 
+export type AdminGroupRecord = {
+  id: string;
+  groupId?: string;
+  name?: string;
+  roleIds?: string[];
+};
+
+export type AdminLlmScopeRecord = {
+  id: string;
+  scopeId?: string;
+  name?: string;
+  purpose?: string;
+  defaultModelEnvKey?: string;
+  activeVersionId?: string | null;
+};
+
+export type AdminLlmScopeDetail = {
+  scope: AdminLlmScopeRecord;
+  versions: Array<{
+    id: string;
+    promptText?: string;
+    rulesText?: string;
+    promptMode?: 'append' | 'replace';
+    rulesMode?: 'append' | 'replace';
+    note?: string | null;
+    createdByUid?: string | null;
+    createdAt?: any;
+  }>;
+};
+
 export const adminListUsers = async (limit = 500): Promise<AdminUserRecord[]> => {
   const url = new URL(`${BACKEND_URL}/api/admin/users`);
   url.searchParams.set('limit', String(Math.min(Math.max(limit, 1), 1000)));
@@ -221,6 +251,130 @@ export const adminSetUserRoles = async (uid: string, roles: string[]) => {
   const result = await parseResponse(res);
   if (!res.ok || result?.ok === false) {
     throw new Error(result?.error?.message || 'Failed to update user roles');
+  }
+  return true;
+};
+
+export const adminSetUserGroups = async (uid: string, groupIds: string[]) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/users/${encodeURIComponent(uid)}/groups`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ groupIds }),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to update user groups');
+  }
+  return true;
+};
+
+export const adminSetUserOverrides = async (
+  uid: string,
+  overrides: { allow?: Record<string, Record<string, boolean>>; deny?: Record<string, Record<string, boolean>> }
+) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/users/${encodeURIComponent(uid)}/overrides`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ overrides }),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to update user overrides');
+  }
+  return true;
+};
+
+export const adminListGroups = async (limit = 200): Promise<AdminGroupRecord[]> => {
+  const url = new URL(`${BACKEND_URL}/api/admin/groups`);
+  url.searchParams.set('limit', String(Math.min(Math.max(limit, 1), 1000)));
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to list groups');
+  }
+  return Array.isArray(result?.data) ? (result.data as AdminGroupRecord[]) : [];
+};
+
+export const adminCreateGroup = async (payload: { name: string; groupId?: string; roleIds?: string[] }) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/groups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to create group');
+  }
+  return result?.data;
+};
+
+export const adminUpdateGroup = async (groupId: string, patch: Partial<AdminGroupRecord>) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/groups/${encodeURIComponent(groupId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch || {}),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to update group');
+  }
+  return true;
+};
+
+export const adminDeleteGroup = async (groupId: string) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/groups/${encodeURIComponent(groupId)}`, {
+    method: 'DELETE',
+  });
+  if (res.status === 204) return true;
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to delete group');
+  }
+  return true;
+};
+
+export const adminListLlmScopes = async (): Promise<AdminLlmScopeRecord[]> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/llm/scopes`, { method: 'GET' });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to list LLM scopes');
+  }
+  return Array.isArray(result?.data) ? (result.data as AdminLlmScopeRecord[]) : [];
+};
+
+export const adminGetLlmScope = async (scopeId: string): Promise<AdminLlmScopeDetail> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/llm/scopes/${encodeURIComponent(scopeId)}`, { method: 'GET' });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to load LLM scope');
+  }
+  return result?.data as AdminLlmScopeDetail;
+};
+
+export const adminCreateLlmVersion = async (
+  scopeId: string,
+  version: { promptText: string; rulesText: string; promptMode?: 'append' | 'replace'; rulesMode?: 'append' | 'replace'; note?: string }
+) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/llm/scopes/${encodeURIComponent(scopeId)}/versions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(version),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to create LLM version');
+  }
+  return result?.data;
+};
+
+export const adminActivateLlmVersion = async (scopeId: string, versionId: string) => {
+  const res = await fetchApi(
+    `${BACKEND_URL}/api/admin/llm/scopes/${encodeURIComponent(scopeId)}/activate/${encodeURIComponent(versionId)}`,
+    { method: 'POST' }
+  );
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to activate version');
   }
   return true;
 };

@@ -1,7 +1,19 @@
 const { getAdminAuth } = require('../lib/firebaseAdmin');
 const { sendMail } = require('../lib/mailer');
 const { isAllowedEmail } = require('../lib/auth');
-const { listUsers, setUserRoles, listRoles, updateRole, upsertUserProfile } = require('../lib/rbac');
+const {
+  listUsers,
+  setUserRoles,
+  setUserGroups,
+  setUserOverrides,
+  listRoles,
+  listGroups,
+  createGroup,
+  updateGroup,
+  deleteGroup,
+  updateRole,
+  upsertUserProfile,
+} = require('../lib/rbac');
 const { FieldValue } = require('@google-cloud/firestore');
 
 const DEFAULT_CONTINUE_URL = 'https://avycloud.web.app/#/dashboard';
@@ -82,7 +94,13 @@ module.exports = {
   inviteUser,
   listUsers,
   setUserRoles,
+  setUserGroups,
+  setUserOverrides,
   listRoles,
   updateRole,
+  listGroups,
+  createGroup,
+  updateGroup,
+  deleteGroup,
 };
 

@@ -4,7 +4,22 @@ import { adminListRoles, adminUpdateRole, type AdminRoleRecord } from '../../api
 type PermissionMatrix = Record<string, Record<string, boolean>>;
 
 const MODULES: Array<{ id: string; label: string; actions: string[] }> = [
-  { id: 'admin', label: 'Admin', actions: ['users.read', 'users.write', 'roles.read', 'roles.write'] },
+  {
+    id: 'admin',
+    label: 'Admin',
+    actions: [
+      'users.read',
+      'users.write',
+      'roles.read',
+      'roles.write',
+      'groups.read',
+      'groups.write',
+      'llm.read',
+      'llm.write',
+      'reports.read',
+      'reports.generate',
+    ],
+  },
   { id: 'dashboard', label: 'Dashboard', actions: ['read'] },
   { id: 'products', label: 'Products', actions: ['read', 'write', 'delete'] },
   { id: 'categories', label: 'Categories', actions: ['read', 'write'] },
