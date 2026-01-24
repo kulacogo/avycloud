@@ -24,6 +24,7 @@ import { addMediaQueryListener } from './utils/mediaQuery';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 import { AdminPanel } from './components/admin/AdminPanel';
+import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 
 type View =
   | 'dashboard'
@@ -791,6 +792,15 @@ const AppInner: React.FC = () => {
 
 const AuthGate: React.FC = () => {
   const { user, loading, isAdmin, logout } = useAuth();
+
+  // Public auth flows (password reset / email verification) must be reachable without login.
+  if (typeof window !== 'undefined') {
+    const path = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (path === '/reset-password') {
+      return <ResetPasswordScreen />;
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center">

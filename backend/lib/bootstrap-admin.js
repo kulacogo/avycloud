@@ -11,6 +11,24 @@ const getBootstrapEmail = () =>
 
 const getContinueUrl = () => process.env.AUTH_ACTION_CONTINUE_URL || DEFAULT_CONTINUE_URL;
 
+const getWebBaseUrl = () => {
+  const raw = String(getContinueUrl() || '').trim();
+  const withoutHash = raw.split('#')[0];
+  const withoutQuery = withoutHash.split('?')[0];
+  return withoutQuery.replace(/\/+$/, '') || 'https://avycloud.web.app';
+};
+
+const buildAppPasswordResetUrl = (firebaseResetLink) => {
+  try {
+    const url = new URL(firebaseResetLink);
+    const oobCode = url.searchParams.get('oobCode');
+    if (!oobCode) return firebaseResetLink;
+    return `${getWebBaseUrl()}/reset-password?oobCode=${encodeURIComponent(oobCode)}`;
+  } catch {
+    return firebaseResetLink;
+  }
+};
+
 async function ensureBootstrapAdmin() {
   const email = getBootstrapEmail();
   const auth = getAdminAuth();
@@ -45,6 +63,7 @@ async function ensureBootstrapAdmin() {
     const actionCodeSettings = { url: getContinueUrl(), handleCodeInApp: false };
     const resetLink = await auth.generatePasswordResetLink(email, actionCodeSettings);
     const verifyLink = await auth.generateEmailVerificationLink(email, actionCodeSettings);
+    const appResetLink = buildAppPasswordResetUrl(resetLink);
 
     await sendMail({
       to: email,
@@ -52,13 +71,13 @@ async function ensureBootstrapAdmin() {
       text:
         `Hallo,\n\n` +
         `der initiale AvyCloud Admin wurde angelegt.\n\n` +
-        `1) Passwort setzen:\n${resetLink}\n\n` +
+        `1) Passwort setzen:\n${appResetLink}\n\n` +
         `2) E-Mail bestätigen (optional für Admin, empfohlen):\n${verifyLink}\n\n`,
       html:
         `<p>Hallo,</p>` +
         `<p>der initiale <strong>AvyCloud Admin</strong> wurde angelegt.</p>` +
         `<ol>` +
-        `<li><p><strong>Passwort setzen</strong>:<br/><a href="${resetLink}">${resetLink}</a></p></li>` +
+        `<li><p><strong>Passwort setzen</strong>:<br/><a href="${appResetLink}">${appResetLink}</a></p></li>` +
         `<li><p><strong>E-Mail bestätigen</strong> (optional für Admin, empfohlen):<br/><a href="${verifyLink}">${verifyLink}</a></p></li>` +
         `</ol>`,
     });

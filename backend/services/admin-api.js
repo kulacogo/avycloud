@@ -26,6 +26,24 @@ const buildActionCodeSettings = () => ({
   handleCodeInApp: false,
 });
 
+const getWebBaseUrl = () => {
+  const raw = String(getContinueUrl() || '').trim();
+  const withoutHash = raw.split('#')[0];
+  const withoutQuery = withoutHash.split('?')[0];
+  return withoutQuery.replace(/\/+$/, '') || 'https://avycloud.web.app';
+};
+
+const buildAppPasswordResetUrl = (firebaseResetLink) => {
+  try {
+    const url = new URL(firebaseResetLink);
+    const oobCode = url.searchParams.get('oobCode');
+    if (!oobCode) return firebaseResetLink;
+    return `${getWebBaseUrl()}/reset-password?oobCode=${encodeURIComponent(oobCode)}`;
+  } catch {
+    return firebaseResetLink;
+  }
+};
+
 async function inviteUser({ actorUid, email, roles }) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!isAllowedEmail(normalizedEmail)) {
@@ -69,20 +87,22 @@ async function inviteUser({ actorUid, email, roles }) {
   const resetLink = await auth.generatePasswordResetLink(normalizedEmail, actionCodeSettings);
   const verifyLink = await auth.generateEmailVerificationLink(normalizedEmail, actionCodeSettings);
 
+  const appResetLink = buildAppPasswordResetUrl(resetLink);
+
   await sendMail({
     to: normalizedEmail,
     subject: 'AvyCloud Zugang – Passwort setzen & E-Mail bestätigen',
     text:
       `Hallo,\n\n` +
       `du wurdest für AvyCloud freigeschaltet.\n\n` +
-      `1) Passwort setzen:\n${resetLink}\n\n` +
+      `1) Passwort setzen:\n${appResetLink}\n\n` +
       `2) E-Mail bestätigen (Pflicht):\n${verifyLink}\n\n` +
       `Danach kannst du dich mit deiner @trendocean.de Adresse anmelden.\n`,
     html:
       `<p>Hallo,</p>` +
       `<p>du wurdest für <strong>AvyCloud</strong> freigeschaltet.</p>` +
       `<ol>` +
-      `<li><p><strong>Passwort setzen</strong>:<br/><a href="${resetLink}">${resetLink}</a></p></li>` +
+      `<li><p><strong>Passwort setzen</strong>:<br/><a href="${appResetLink}">${appResetLink}</a></p></li>` +
       `<li><p><strong>E-Mail bestätigen (Pflicht)</strong>:<br/><a href="${verifyLink}">${verifyLink}</a></p></li>` +
       `</ol>` +
       `<p>Danach kannst du dich mit deiner <code>@trendocean.de</code> Adresse anmelden.</p>`,

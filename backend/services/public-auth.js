@@ -13,6 +13,24 @@ const buildActionCodeSettings = () => ({
   handleCodeInApp: false,
 });
 
+const getWebBaseUrl = () => {
+  const raw = String(getContinueUrl() || '').trim();
+  const withoutHash = raw.split('#')[0];
+  const withoutQuery = withoutHash.split('?')[0];
+  return withoutQuery.replace(/\/+$/, '') || 'https://avycloud.web.app';
+};
+
+const buildAppPasswordResetUrl = (firebaseResetLink) => {
+  try {
+    const url = new URL(firebaseResetLink);
+    const oobCode = url.searchParams.get('oobCode');
+    if (!oobCode) return firebaseResetLink;
+    return `${getWebBaseUrl()}/reset-password?oobCode=${encodeURIComponent(oobCode)}`;
+  } catch {
+    return firebaseResetLink;
+  }
+};
+
 // Very small in-memory throttle to avoid hammering SMTP / action link generation.
 // Note: This is best-effort only (Cloud Run instances are ephemeral).
 const lastRequestByEmail = new Map(); // email -> ms
@@ -91,12 +109,14 @@ async function requestPasswordReset({ email, ip }) {
     text:
       `Hallo,\n\n` +
       `du hast einen Passwort-Reset für AvyCloud angefordert.\n\n` +
-      `Passwort zurücksetzen:\n${resetLink}\n\n` +
+      `Passwort zurücksetzen:\n${buildAppPasswordResetUrl(resetLink)}\n\n` +
       `Falls du das nicht warst, ignoriere diese E-Mail.\n`,
     html:
       `<p>Hallo,</p>` +
       `<p>du hast einen Passwort-Reset für <strong>AvyCloud</strong> angefordert.</p>` +
-      `<p><strong>Passwort zurücksetzen</strong>:<br/><a href="${resetLink}">${resetLink}</a></p>` +
+      `<p><strong>Passwort zurücksetzen</strong>:<br/><a href="${buildAppPasswordResetUrl(resetLink)}">${buildAppPasswordResetUrl(
+        resetLink
+      )}</a></p>` +
       `<p>Falls du das nicht warst, ignoriere diese E-Mail.</p>`,
   });
 
