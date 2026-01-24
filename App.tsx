@@ -21,11 +21,15 @@ import { CategoryManagement } from './components/CategoryManagement';
 import { fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { LoginScreen } from './components/LoginScreen';
+import { AdminPanel } from './components/admin/AdminPanel';
 
 type View =
   | 'dashboard'
   | 'home'
   | 'search'
+  | 'admin'
   | 'categories'
   | 'operations'
   | 'operations-identify'
@@ -43,6 +47,7 @@ const ALLOWED_VIEWS: View[] = [
   'dashboard',
   'home',
   'search',
+  'admin',
   'categories',
   'operations',
   'operations-identify',
@@ -98,6 +103,8 @@ const viewToHashPath = (view: View, productId?: string | null) => {
       return '/home';
     case 'search':
       return '/search';
+    case 'admin':
+      return '/admin';
     case 'operations-identify':
       return '/operations/identify';
     case 'operations-stow':
@@ -270,7 +277,7 @@ const readInitialTheme = (): Theme => {
   return prefersDark ? 'dark' : 'light';
 };
 
-const App: React.FC = () => {
+const AppInner: React.FC = () => {
   const { t } = useI18n();
   const [{ view: initialView, productId: initialHashProductId }] = useState(() => readInitialView());
   const [view, setView] = useState<View>(initialView);
@@ -680,6 +687,8 @@ const App: React.FC = () => {
         );
       case 'categories':
         return <CategoryManagement />;
+      case 'admin':
+        return <AdminPanel />;
       case 'warehouse':
         return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
       case 'dashboard':
@@ -779,5 +788,58 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+const AuthGate: React.FC = () => {
+  const { user, loading, isAdmin, logout } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center">
+        <div className="flex items-center gap-3 rounded-2xl bg-slate-800/70 border border-white/10 px-6 py-5 shadow-xl">
+          <Spinner className="w-6 h-6 text-sky-300" />
+          <div className="text-sm">
+            <p className="font-semibold">Authentifizierung…</p>
+            <p className="text-slate-400 text-xs">Bitte warten</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  if (!isAdmin && !user.emailVerified) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
+        <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-4">
+          <h1 className="text-xl font-bold">E-Mail bestätigen</h1>
+          <p className="text-sm text-slate-300">
+            Dein Account ist angelegt, aber die E-Mail-Adresse ist noch nicht bestätigt. Bitte nutze den Bestätigungs-Link
+            in deiner E-Mail.
+          </p>
+          <div className="text-xs text-slate-500">
+            Angemeldet als: <span className="text-slate-200">{user.email}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2.5 font-semibold text-white transition-colors"
+          >
+            Abmelden
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return <AppInner />;
+};
+
+const App: React.FC = () => (
+  <AuthProvider>
+    <AuthGate />
+  </AuthProvider>
+);
 
 export default App;

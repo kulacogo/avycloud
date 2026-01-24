@@ -85,6 +85,10 @@ const {
 } = require('./services/label-printer');
 const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked, markOrderAsPacked } = require('./services/order-sync');
+const { requireAuth } = require('./lib/auth');
+const { ensureDefaultRoles, requirePermission } = require('./lib/rbac');
+const { inviteUser, listUsers: listUsersAdmin, setUserRoles: setUserRolesAdmin, listRoles: listRolesAdmin, updateRole: updateRoleAdmin } = require('./services/admin-api');
+const { ensureBootstrapAdmin } = require('./lib/bootstrap-admin');
 
 const normalizeIdentifyToken = (value) => String(value || '').trim();
 const extractDigitBarcode = (value) =>
@@ -773,6 +777,12 @@ startJobRunner();
 startImproveRunner();
 startQualityRunner();
 startBaseLinkerSyncRunner();
+ensureDefaultRoles()
+  .then(() => console.log('RBAC default roles ensured.'))
+  .catch((error) => console.error('RBAC role seeding failed:', error));
+ensureBootstrapAdmin()
+  .then((r) => console.log(`Bootstrap admin ensured (${r.email})${r.created ? ' [created]' : ''}`))
+  .catch((error) => console.error('Bootstrap admin failed:', error));
 syncInventoriesFromBaseLinker()
   .then((result) => {
     console.log(`Initial inventory sync completed (${result.fetched} entries)`);
@@ -804,6 +814,75 @@ app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 
 app.get('/', (req, res) => {
   res.status(200).send('Product Intelligence Backend is running.');
+});
+
+// Default-deny: everything under /api requires authentication by default.
+// Allowlist endpoints that must be public for technical reasons (e.g., <img src> cannot send headers).
+app.use('/api', (req, res, next) => {
+  if (req.method === 'OPTIONS') return next();
+  if (req.path === '/image-proxy') return next();
+  return requireAuth(req, res, next);
+});
+
+// --- Admin API (RBAC-managed) ---
+app.get('/api/admin/users', requirePermission('admin', 'users.read'), async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 500, 1), 1000);
+    const users = await listUsersAdmin({ limit });
+    res.json({ ok: true, data: users });
+  } catch (error) {
+    console.error('Admin list users failed:', error);
+    res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to list users' } });
+  }
+});
+
+app.post('/api/admin/users', requirePermission('admin', 'users.write'), async (req, res) => {
+  try {
+    const email = req.body?.email;
+    const roles = Array.isArray(req.body?.roles) ? req.body.roles : [];
+    const result = await inviteUser({ actorUid: req.user?.uid, email, roles });
+    res.json({ ok: true, data: { uid: result.uid, email: result.email } });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin invite user failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Invite failed' } });
+  }
+});
+
+app.put('/api/admin/users/:uid/roles', requirePermission('admin', 'users.write'), async (req, res) => {
+  try {
+    const targetUid = req.params?.uid;
+    const roles = Array.isArray(req.body?.roles) ? req.body.roles : [];
+    await setUserRolesAdmin({ actorUid: req.user?.uid, targetUid, roles });
+    res.json({ ok: true });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin set user roles failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to set roles' } });
+  }
+});
+
+app.get('/api/admin/roles', requirePermission('admin', 'roles.read'), async (req, res) => {
+  try {
+    const roles = await listRolesAdmin();
+    res.json({ ok: true, data: roles });
+  } catch (error) {
+    console.error('Admin list roles failed:', error);
+    res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to list roles' } });
+  }
+});
+
+app.put('/api/admin/roles/:roleId', requirePermission('admin', 'roles.write'), async (req, res) => {
+  try {
+    const roleId = req.params?.roleId;
+    const patch = req.body || {};
+    await updateRoleAdmin({ actorUid: req.user?.uid, roleId, patch });
+    res.json({ ok: true });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin update role failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to update role' } });
+  }
 });
 
 app.post('/api/jobs', upload.array('images'), async (req, res) => {
@@ -964,7 +1043,7 @@ app.post('/api/products/:productId/inventory', async (req, res) => {
   }
 });
 
-app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
+app.post('/api/v2/enrich', requirePermission('identify', 'run'), upload.array('images'), async (req, res) => {
   try {
     const files = req.files || [];
     const barcodes = req.body?.barcodes || '';
@@ -1009,7 +1088,7 @@ app.post('/api/v2/enrich', upload.array('images'), async (req, res) => {
 // v2 Identify (single pipeline): runs serpapi-free pipeline + server-side datasheet review,
 // persists product in SYSTEM mode (so invariants like title policy + condition rules apply),
 // and returns the saved product (already ready for Quality Gate).
-app.post('/api/v2/identify', upload.array('images'), async (req, res) => {
+app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array('images'), async (req, res) => {
   try {
     const files = req.files || [];
     const barcodes = req.body?.barcodes || '';
@@ -1147,7 +1226,7 @@ app.post('/api/v2/identify', upload.array('images'), async (req, res) => {
   }
 });
 
-app.get('/api/jobs', async (req, res) => {
+app.get('/api/jobs', requirePermission('jobs', 'read'), async (req, res) => {
   try {
     const statuses = normalizeJobStatuses(req.query?.status) || ['pending', 'processing'];
     const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 50, 1), 100);
@@ -1198,7 +1277,7 @@ app.get('/api/jobs', async (req, res) => {
   }
 });
 
-app.get('/api/jobs/:id', async (req, res) => {
+app.get('/api/jobs/:id', requirePermission('jobs', 'read'), async (req, res) => {
   try {
     const job = await getJob(req.params.id);
     if (!job) {
@@ -1542,7 +1621,7 @@ app.post('/api/generate-images', async (req, res) => {
 const { syncProductToBaseLinker, syncProductsToBaseLinker, findProductsBySkus } = require('./lib/baselinker');
 
 // --- BaseLinker sync jobs (async, resilient) ---
-app.post('/api/baselinker/sync/jobs', async (req, res) => {
+app.post('/api/baselinker/sync/jobs', requirePermission('baselinker', 'sync'), async (req, res) => {
   try {
     const { productIds, inventoryId } = req.body || {};
     const invId = String(inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
@@ -2005,7 +2084,7 @@ function sanitizeAliasMap(value, { max = 500 } = {}) {
   return out;
 }
 
-app.get('/api/categories/profiles', async (req, res) => {
+app.get('/api/categories/profiles', requirePermission('categories', 'read'), async (req, res) => {
   try {
     const ids = parseCommaList(req.query?.ids);
     const enabledOnly =
@@ -2042,7 +2121,7 @@ app.get('/api/categories/profiles', async (req, res) => {
   }
 });
 
-app.put('/api/categories/profiles/:id', async (req, res) => {
+app.put('/api/categories/profiles/:id', requirePermission('categories', 'write'), async (req, res) => {
   try {
     const id = String(req.params.id || '').trim();
     if (!id) {
@@ -2088,7 +2167,7 @@ app.put('/api/categories/profiles/:id', async (req, res) => {
 });
 
 // Get all products
-app.get('/api/products', async (req, res) => {
+app.get('/api/products', requirePermission('products', 'read'), async (req, res) => {
   try {
     const products = await getAllProducts();
     const filteredProducts = Array.isArray(products)
@@ -2191,7 +2270,7 @@ app.get('/api/products/labels', async (req, res) => {
 });
 
 // Get single product
-app.get('/api/products/:id', async (req, res) => {
+app.get('/api/products/:id', requirePermission('products', 'read'), async (req, res) => {
   try {
     const product = await getProduct(req.params.id);
     if (!product) {
@@ -2281,7 +2360,7 @@ app.get('/api/products/:id/label', async (req, res) => {
 });
 
 // Warehouse APIs
-app.get('/api/warehouse/zones', async (req, res) => {
+app.get('/api/warehouse/zones', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
     const zones = await listWarehouseZones();
     res.json({ ok: true, data: zones });
@@ -2294,7 +2373,7 @@ app.get('/api/warehouse/zones', async (req, res) => {
   }
 });
 
-app.post('/api/warehouse/layouts', async (req, res) => {
+app.post('/api/warehouse/layouts', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
     const { zone, etage, gangs, regale, ebenen } = req.body || {};
     if (!zone || !etage || !gangs || !regale || !ebenen) {
@@ -2326,7 +2405,7 @@ const parseTruthy = (value) => {
   return v === '1' || v === 'true' || v === 'yes' || v === 'y';
 };
 
-app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang', async (req, res) => {
+app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
     const zone = req.params.zone.toUpperCase();
     const etage = req.params.etage.toUpperCase();
@@ -2344,7 +2423,7 @@ app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang', async (req, res) =
   }
 });
 
-app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang/regale/:regal', async (req, res) => {
+app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang/regale/:regal', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
     const zone = req.params.zone.toUpperCase();
     const etage = req.params.etage.toUpperCase();
@@ -2363,7 +2442,7 @@ app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang/regale/:regal', asyn
   }
 });
 
-app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang/regale/:regal/ebenen/:ebene', async (req, res) => {
+app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang/regale/:regal/ebenen/:ebene', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
     const zone = req.params.zone.toUpperCase();
     const etage = req.params.etage.toUpperCase();
@@ -2383,7 +2462,7 @@ app.delete('/api/warehouse/layouts/:zone/:etage/gangs/:gang/regale/:regal/ebenen
   }
 });
 
-app.get('/api/warehouse/zones/:zone/:etage', async (req, res) => {
+app.get('/api/warehouse/zones/:zone/:etage', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
     const zone = req.params.zone.toUpperCase();
     const etage = req.params.etage.toUpperCase();
@@ -2399,7 +2478,7 @@ app.get('/api/warehouse/zones/:zone/:etage', async (req, res) => {
 });
 
 // BIN label endpoints – define before generic /:code route to avoid shadowing
-app.get('/api/warehouse/bins/labels', async (req, res) => {
+app.get('/api/warehouse/bins/labels', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
     const codes = await resolveBinCodes({
       codesInput: req.query.codes,
@@ -2418,7 +2497,7 @@ app.get('/api/warehouse/bins/labels', async (req, res) => {
   }
 });
 
-app.post('/api/warehouse/bins/labels', async (req, res) => {
+app.post('/api/warehouse/bins/labels', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
     const { zone, etage, gang, regal } = req.body || {};
     const bodyCodes = req.body?.codes ?? req.body?.['codes[]'];
@@ -2439,7 +2518,7 @@ app.post('/api/warehouse/bins/labels', async (req, res) => {
   }
 });
 
-app.get('/api/warehouse/bins/labels.pdf', async (req, res) => {
+app.get('/api/warehouse/bins/labels.pdf', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
     const codes = await resolveBinCodes({
       codesInput: req.query.codes,
@@ -2458,7 +2537,7 @@ app.get('/api/warehouse/bins/labels.pdf', async (req, res) => {
   }
 });
 
-app.post('/api/warehouse/bins/labels.pdf', async (req, res) => {
+app.post('/api/warehouse/bins/labels.pdf', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
     const { zone, etage, gang, regal } = req.body || {};
     const bodyCodes = req.body?.codes ?? req.body?.['codes[]'];
@@ -2479,7 +2558,7 @@ app.post('/api/warehouse/bins/labels.pdf', async (req, res) => {
   }
 });
 
-app.get('/api/warehouse/bins/:code', async (req, res) => {
+app.get('/api/warehouse/bins/:code', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
     const code = req.params.code.toUpperCase();
     const bin = await getBinByCode(code);
@@ -2509,7 +2588,7 @@ app.get('/api/products/:id/bins', async (req, res) => {
   }
 });
 
-app.post('/api/warehouse/bins/:code/assign', async (req, res) => {
+app.post('/api/warehouse/bins/:code/assign', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
     const code = req.params.code.toUpperCase();
     const { productId, quantity = 1 } = req.body || {};
@@ -2531,7 +2610,7 @@ app.post('/api/warehouse/bins/:code/assign', async (req, res) => {
   }
 });
 
-app.delete('/api/warehouse/bins/:code/products/:productId', async (req, res) => {
+app.delete('/api/warehouse/bins/:code/products/:productId', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
     const code = req.params.code.toUpperCase();
     const { productId } = req.params;
@@ -2554,7 +2633,7 @@ app.delete('/api/warehouse/bins/:code/products/:productId', async (req, res) => 
   }
 });
 
-app.post('/api/warehouse/stock-in', async (req, res) => {
+app.post('/api/warehouse/stock-in', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
     const { sku, productId, barcode, binCode, quantity, meta } = req.body || {};
     if (!binCode) {
@@ -2589,7 +2668,7 @@ app.post('/api/warehouse/stock-in', async (req, res) => {
   }
 });
 
-app.post('/api/warehouse/stock-out', async (req, res) => {
+app.post('/api/warehouse/stock-out', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
     const { sku, productId, barcode, binCode, quantity, meta, orderId, orderItemId } = req.body || {};
     if (!binCode) {
@@ -2626,7 +2705,7 @@ app.post('/api/warehouse/stock-out', async (req, res) => {
   }
 });
 
-app.post('/api/warehouse/refresh-inventory', async (req, res) => {
+app.post('/api/warehouse/refresh-inventory', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
     const { productId, sku, barcode } = req.body || {};
     if (!productId && !sku && !barcode) {
@@ -2714,7 +2793,7 @@ async function sendBinLabelsPdf(res, codes) {
   return res.send(pdfBuffer);
 }
 
-app.get('/api/warehouse/bins/:code/label', async (req, res) => {
+app.get('/api/warehouse/bins/:code/label', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
     const code = String(req.params.code || '').trim().toUpperCase();
     if (!code) {
@@ -2860,7 +2939,7 @@ app.post('/api/scanner/capture', async (req, res) => {
 });
 
 // Save product
-app.post('/api/save', async (req, res) => {
+app.post('/api/save', requirePermission('products', 'write'), async (req, res) => {
   try {
     const product = req.body;
 
@@ -3022,7 +3101,7 @@ app.post('/api/save', async (req, res) => {
   }
 });
 // Delete product
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', requirePermission('products', 'delete'), async (req, res) => {
   try {
     const adminToken = process.env.ADMIN_DELETE_TOKEN;
     const provided = req.header('x-admin-delete-token');
@@ -3126,7 +3205,7 @@ app.delete('/api/products/cleanup-by-alias/:alias', async (req, res) => {
   }
 });
 
-app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
+app.post('/api/chat', requirePermission('ai', 'chat'), chatUploadMiddleware, async (req, res) => {
   try {
     const { productId, message, model: bodyModel, scope } = req.body;
     const modelOverride = req.query?.model || bodyModel || null;
@@ -3188,7 +3267,7 @@ app.post('/api/chat', chatUploadMiddleware, async (req, res) => {
   }
 });
 
-app.get('/api/orders', async (req, res) => {
+app.get('/api/orders', requirePermission('orders', 'read'), async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     // Return cached orders immediately; trigger background sync best-effort
@@ -3215,7 +3294,7 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-app.get('/api/dashboard/metrics', async (req, res) => {
+app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async (req, res) => {
   try {
     const days = Math.min(Math.max(parseInt(req.query?.days || '7', 10) || 7, 1), 60);
     // Best-effort: trigger order sync in background so metrics converge to BaseLinker truth.
@@ -3241,7 +3320,7 @@ app.get('/api/dashboard/metrics', async (req, res) => {
   }
 });
 
-app.post('/api/orders/sync', async (req, res) => {
+app.post('/api/orders/sync', requirePermission('orders', 'read'), async (req, res) => {
   try {
     // Kick off background sync, but respond immediately with cached orders
     backgroundSyncOrders();
@@ -3262,7 +3341,7 @@ app.post('/api/orders/sync', async (req, res) => {
   }
 });
 
-app.post('/api/orders/:orderId/complete', async (req, res) => {
+app.post('/api/orders/:orderId/complete', requirePermission('orders', 'pick'), async (req, res) => {
   try {
     const { orderId } = req.params;
     await markOrderAsPicked(orderId);
@@ -3280,7 +3359,7 @@ app.post('/api/orders/:orderId/complete', async (req, res) => {
   }
 });
 
-app.post('/api/orders/:orderId/pack', async (req, res) => {
+app.post('/api/orders/:orderId/pack', requirePermission('orders', 'pack'), async (req, res) => {
   try {
     const { orderId } = req.params;
     await markOrderAsPacked(orderId);
@@ -3467,7 +3546,7 @@ app.post('/api/price-refresh', async (req, res) => {
   }
 });
 
-app.post('/api/products/:id/improve', async (req, res) => {
+app.post('/api/products/:id/improve', requirePermission('ai', 'improve'), async (req, res) => {
   try {
     const productId = req.params.id;
     if (!productId) {
@@ -3567,7 +3646,7 @@ async function runImproveJobInline(jobId, productId) {
   }
 }
 
-app.post('/api/improve/jobs', async (req, res) => {
+app.post('/api/improve/jobs', requirePermission('ai', 'improve'), async (req, res) => {
   try {
     const rawIds = Array.isArray(req.body?.productIds) ? req.body.productIds : [];
     const uniqueIds = [...new Set(rawIds.map((id) => String(id || '').trim()))].filter(Boolean);

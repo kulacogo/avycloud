@@ -64,8 +64,24 @@ function normalizeSku(v) {
 
 function parseCredentialsFile(filePath) {
   const text = fs.readFileSync(filePath, 'utf8');
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  // Some exported credential files use CR-only separators (\r) instead of \n.
+  // Also, some formats are freeform; prefer robust regex extraction first.
   const out = {};
+  try {
+    const tokenMatch = text.match(/ACCESS\s+TOKEN:\s*([^\r\n]+)/i);
+    if (tokenMatch && tokenMatch[1]) out.token = tokenMatch[1].trim();
+    const apiPathMatch = text.match(/API\s+PATH:\s*([^\r\n]+)/i);
+    if (apiPathMatch && apiPathMatch[1]) out.apiPath = apiPathMatch[1].trim();
+  } catch {
+    // ignore
+  }
+
+  if (out.token && out.apiPath) return out;
+
+  const lines = text
+    .split(/\r\n|\n|\r/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   for (const line of lines) {
     const idx = line.indexOf(':');
     if (idx === -1) continue;
@@ -371,7 +387,7 @@ async function main() {
   const report = {
     mode,
     timestamp: new Date().toISOString(),
-    counts: { total: 0, selected: 0, skipped: 0, created: 0, updated: 0, failed: 0 },
+    counts: { total: 0, selected: 0, skipped: 0, created: 0, updated: 0, failed: 0, would_create: 0, would_update: 0 },
     config: {
       defaultCategoryId: args.defaultCategoryId || null,
       syncImages: args.syncImages,
@@ -414,10 +430,9 @@ async function main() {
   }
   report.counts.selected = selected.length;
 
-  // Build SKU index from BigCommerce (variant SKU -> product id)
-  const existingSkuMap = args.apply
-    ? await listAllProductsBySku({ apiBase, token })
-    : new Map();
+  // Build SKU index from BigCommerce (variant SKU -> product id).
+  // This is read-only and safe for dry-runs; it lets us accurately estimate create vs update.
+  const existingSkuMap = await listAllProductsBySku({ apiBase, token });
   console.log(`[bigcommerce] existingSkuIndex=${existingSkuMap.size}`);
 
   const progressPath = path.join(outDir, 'progress.json');
@@ -461,6 +476,8 @@ async function main() {
       }
 
       if (!args.apply) {
+        if (exists) report.counts.would_update += 1;
+        else report.counts.would_create += 1;
         fs.appendFileSync(
           resultsJsonlPath,
           JSON.stringify({ idx, sku, id: safeString(p?.id), status: exists ? 'would_update' : 'would_create' }) + '\n',
@@ -521,9 +538,10 @@ async function main() {
           const updatePayload = {
             name,
             type: 'physical',
-            // keep price at product level (BigCommerce uses base price); variant price can diverge but we keep consistent
-            price: String(price.toFixed(2)),
-            weight: Number(weight),
+            // Only send price/weight if we have values. Some existing products may be missing these in AvyCloud,
+            // and we should not crash or overwrite with guessed defaults.
+            ...(price != null ? { price: String(price.toFixed(2)) } : {}),
+            ...(weight != null ? { weight: Number(weight) } : {}),
             description: pickDescription(p),
             custom_fields: customFields,
             ...(brandId ? { brand_id: brandId } : {}),

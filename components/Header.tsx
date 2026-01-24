@@ -10,6 +10,7 @@ interface HeaderProps {
     | 'input'
     | 'sheet'
     | 'inventory'
+    | 'admin'
     | 'categories'
     | 'warehouse'
     | 'operations'
@@ -59,6 +60,27 @@ const NAV_ICONS: NavIconConfig[] = [
     label: 'nav.inventory',
     light: '/inventory_brightmode.png',
     dark: '/inventory_darkmode.png',
+  },
+  {
+    view: 'admin' as const,
+    label: 'nav.admin',
+    iconNode: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M12 3l7 4v6c0 5-3 8-7 9-4-1-7-4-7-9V7l7-4Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9.5 12.3l1.8 1.8 3.7-3.9"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
   },
   {
     view: 'categories' as const,

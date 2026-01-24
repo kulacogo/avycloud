@@ -45,6 +45,76 @@ const BACKEND_URL = (() => {
   return envUrl || 'https://product-hub-backend-79205549235.europe-west3.run.app';
 })();
 
+type TokenProvider = () => Promise<string | null>;
+
+let tokenProvider: TokenProvider | null = null;
+
+/**
+ * Register a token provider from the Auth layer so all API calls automatically attach:
+ * Authorization: Bearer <idToken>
+ */
+export function setAuthTokenProvider(provider: TokenProvider | null) {
+  tokenProvider = provider;
+}
+
+const buildHeadersWithAuth = async (base?: HeadersInit): Promise<Headers> => {
+  const headers = new Headers(base || {});
+  if (!headers.has('Authorization') && tokenProvider) {
+    try {
+      const token = await tokenProvider();
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+    } catch (error) {
+      // If token acquisition fails, proceed without token so backend returns a clear 401/403.
+      console.warn('Failed to attach auth token to request:', (error as any)?.message || error);
+    }
+  }
+  return headers;
+};
+
+const fetchApi = async (input: RequestInfo | URL, init: RequestInit = {}) => {
+  const headers = await buildHeadersWithAuth(init.headers);
+  return await fetch(input, { ...init, headers });
+};
+
+const openAuthedUrlInNewTab = (url: string, opts?: { timeoutMs?: number }) => {
+  const popup = window.open('about:blank', '_blank', 'noopener');
+  if (!popup) {
+    return { ok: false, error: { code: 0, message: 'Popup wurde blockiert. Bitte Popups erlauben.' } };
+  }
+
+  (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), opts?.timeoutMs || 25000);
+    try {
+      const res = await fetchApi(url, { method: 'GET', signal: controller.signal });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`Request failed (${res.status}) ${body?.slice(0, 120)}`);
+      }
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      popup.location.href = blobUrl;
+      // Best-effort cleanup: revoke later (cannot revoke immediately; tab would break).
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } finally {
+      clearTimeout(timeout);
+    }
+  })().catch((error) => {
+    try {
+      popup.document.title = 'AvyCloud';
+      popup.document.body.innerHTML = `<pre style="white-space:pre-wrap;font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;">${String(
+        (error as any)?.message || error
+      )}</pre>`;
+    } catch {
+      // ignore
+    }
+  });
+
+  return { ok: true } as const;
+};
+
 const JOB_POLL_INTERVAL_MS = 2000;
 const JOB_TIMEOUT_MS = 10 * 60 * 1000;
 interface FetchIdentificationJobsParams {
@@ -72,7 +142,7 @@ export async function searchEbayCategories({ q, id, limit = 50 }: { q?: string; 
   if (q) url.searchParams.set('q', q);
   if (id) url.searchParams.set('id', id);
   url.searchParams.set('limit', String(limit));
-  const res = await fetch(url.toString(), { method: 'GET' });
+  const res = await fetchApi(url.toString(), { method: 'GET' });
   const data = await parseResponse(res);
   return (data?.items || []) as EbayCategoryOption[];
 }
@@ -80,7 +150,7 @@ export async function searchEbayCategories({ q, id, limit = 50 }: { q?: string; 
 export async function fetchCategoryProfile(categoryId: string) {
   const url = new URL(`${BACKEND_URL}/api/categories/profiles`);
   url.searchParams.set('ids', String(categoryId || '').trim());
-  const res = await fetch(url.toString(), { method: 'GET' });
+  const res = await fetchApi(url.toString(), { method: 'GET' });
   const data = await parseResponse(res);
   const items = Array.isArray(data?.items) ? data.items : [];
   return items.find((x: any) => String(x?.id) === String(categoryId)) || null;
@@ -88,7 +158,7 @@ export async function fetchCategoryProfile(categoryId: string) {
 
 export async function saveCategoryProfile(categoryId: string, payload: any) {
   const url = new URL(`${BACKEND_URL}/api/categories/profiles/${encodeURIComponent(String(categoryId || '').trim())}`);
-  const res = await fetch(url.toString(), {
+  const res = await fetchApi(url.toString(), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload || {}),
@@ -99,6 +169,83 @@ export async function saveCategoryProfile(categoryId: string, payload: any) {
   }
   return data;
 }
+
+// --- Admin API ---
+export type AdminUserRecord = {
+  id: string;
+  uid?: string;
+  email?: string | null;
+  roles?: string[];
+  disabled?: boolean;
+  createdAt?: any;
+  updatedAt?: any;
+};
+
+export type AdminRoleRecord = {
+  id: string;
+  name?: string;
+  roleId?: string;
+  permissions?: Record<string, Record<string, boolean>>;
+};
+
+export const adminListUsers = async (limit = 500): Promise<AdminUserRecord[]> => {
+  const url = new URL(`${BACKEND_URL}/api/admin/users`);
+  url.searchParams.set('limit', String(Math.min(Math.max(limit, 1), 1000)));
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to list users');
+  }
+  return Array.isArray(result?.data) ? (result.data as AdminUserRecord[]) : [];
+};
+
+export const adminInviteUser = async (email: string, roles: string[] = []) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, roles }),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to invite user');
+  }
+  return result?.data;
+};
+
+export const adminSetUserRoles = async (uid: string, roles: string[]) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/users/${encodeURIComponent(uid)}/roles`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roles }),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to update user roles');
+  }
+  return true;
+};
+
+export const adminListRoles = async (): Promise<AdminRoleRecord[]> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/roles`, { method: 'GET' });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to list roles');
+  }
+  return Array.isArray(result?.data) ? (result.data as AdminRoleRecord[]) : [];
+};
+
+export const adminUpdateRole = async (roleId: string, patch: Partial<AdminRoleRecord>) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/roles/${encodeURIComponent(roleId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch || {}),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to update role');
+  }
+  return true;
+};
 
 export const buildImageProxyUrl = (sourceUrl?: string | null) => {
   if (!sourceUrl) return '';
@@ -306,14 +453,14 @@ const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit = {}
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    return await fetchApi(input, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
   }
 };
 
 const fetchJobStatus = async (jobId: string, signal?: AbortSignal) => {
-  const response = await fetch(`${BACKEND_URL}/api/jobs/${jobId}`, {
+  const response = await fetchApi(`${BACKEND_URL}/api/jobs/${jobId}`, {
     method: 'GET',
     signal,
   });
@@ -364,7 +511,7 @@ export const createImproveJobs = async (
 ): Promise<{ ok: boolean; data?: { jobs: Array<{ jobId: string; productId: string }>; missing?: string[] }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/improve/jobs`, {
+    response = await fetchApi(`${BACKEND_URL}/api/improve/jobs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productIds }),
@@ -387,7 +534,7 @@ export const createImproveJobs = async (
 };
 
 const fetchImproveJobStatus = async (jobId: string, signal?: AbortSignal) => {
-  const response = await fetch(`${BACKEND_URL}/api/improve/jobs/${jobId}?t=${Date.now()}`, {
+  const response = await fetchApi(`${BACKEND_URL}/api/improve/jobs/${jobId}?t=${Date.now()}`, {
     method: 'GET',
     signal,
   });
@@ -440,7 +587,7 @@ export const createQualityJobs = async (
 ): Promise<{ ok: boolean; data?: { jobs: Array<{ jobId: string; productId: string }>; missing?: string[] }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/quality/jobs`, {
+    response = await fetchApi(`${BACKEND_URL}/api/quality/jobs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -468,7 +615,7 @@ export const createQualityJobs = async (
 };
 
 const fetchQualityJobStatus = async (jobId: string, signal?: AbortSignal) => {
-  const response = await fetch(`${BACKEND_URL}/api/quality/jobs/${jobId}?t=${Date.now()}`, {
+  const response = await fetchApi(`${BACKEND_URL}/api/quality/jobs/${jobId}?t=${Date.now()}`, {
     method: 'GET',
     signal,
   });
@@ -505,7 +652,7 @@ export const pollQualityJob = async (
 };
 
 export const fetchProducts = async (): Promise<Product[]> => {
-  const response = await fetch(`${BACKEND_URL}/api/products`);
+  const response = await fetchApi(`${BACKEND_URL}/api/products`);
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Produkte konnten nicht geladen werden.');
@@ -524,7 +671,7 @@ export const fetchProducts = async (): Promise<Product[]> => {
 };
 
 export const fetchProductById = async (productId: string): Promise<Product> => {
-  const response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}?t=${Date.now()}`);
+  const response = await fetchApi(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}?t=${Date.now()}`);
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Produkt konnte nicht geladen werden.');
@@ -548,7 +695,7 @@ export const fetchEbayCategories = async (params: {
   const url = query.toString()
     ? `${BACKEND_URL}/api/ebay/categories?${query.toString()}`
     : `${BACKEND_URL}/api/ebay/categories`;
-  const response = await fetch(url);
+  const response = await fetchApi(url);
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Kategorien konnten nicht geladen werden.');
@@ -577,7 +724,7 @@ export const createIdentificationJob = async (
   let response: Response | undefined;
 
   try {
-    response = await fetch(`${BACKEND_URL}/api/jobs`, {
+    response = await fetchApi(`${BACKEND_URL}/api/jobs`, {
       method: 'POST',
       body: formData,
       signal: options?.signal,
@@ -649,7 +796,7 @@ export const fetchIdentificationJobs = async (
 ): Promise<IdentificationJobsResponse> => {
   const query = buildJobQueryString(params);
   const url = query ? `${BACKEND_URL}/api/jobs?${query}` : `${BACKEND_URL}/api/jobs`;
-  const response = await fetch(url, {
+  const response = await fetchApi(url, {
     method: 'GET',
     signal: params.signal,
   });
@@ -676,7 +823,7 @@ export const retryIdentificationJob = async (
 ): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/jobs/${jobId}/retry`, {
+    response = await fetchApi(`${BACKEND_URL}/api/jobs/${jobId}/retry`, {
       method: 'POST',
     });
     const result = await parseResponse(response);
@@ -707,7 +854,7 @@ export const saveProduct = async (product: Product): Promise<{ ok: boolean; data
       console.log('API CALL: /api/save', { id: product.id, name: product.identification.name });
     }
 
-    response = await fetch(`${BACKEND_URL}/api/save`, {
+    response = await fetchApi(`${BACKEND_URL}/api/save`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -754,7 +901,7 @@ export const syncToBaseLinker = async (
 
     // Always use async jobs to avoid long-running HTTP requests (prevents browser/proxy "failed to fetch").
     const ids = products.map((p) => p?.id).filter(Boolean) as string[];
-    response = await fetch(`${BACKEND_URL}/api/baselinker/sync/jobs`, {
+    response = await fetchApi(`${BACKEND_URL}/api/baselinker/sync/jobs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -777,7 +924,7 @@ export const syncToBaseLinker = async (
     const startedAt = Date.now();
     const TIMEOUT_MS = 12 * 60 * 1000; // 12 minutes
     while (Date.now() - startedAt < TIMEOUT_MS) {
-      const jobRes = await fetch(`${BACKEND_URL}/api/baselinker/sync/jobs/${encodeURIComponent(jobId)}`, {
+      const jobRes = await fetchApi(`${BACKEND_URL}/api/baselinker/sync/jobs/${encodeURIComponent(jobId)}`, {
         method: 'GET',
       });
       const jobPayload = await parseResponse(jobRes);
@@ -816,7 +963,7 @@ export const lookupBaseLinkerBySkus = async (
 ): Promise<{ ok: boolean; results?: Record<string, { product_id: number; sku?: string | null; ean?: string | null; inventoryId?: string }>; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/baselinker/lookup`, {
+    response = await fetchApi(`${BACKEND_URL}/api/baselinker/lookup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ skus }),
@@ -843,7 +990,7 @@ export const uploadKTypeCsv = async (
   const url = `${BACKEND_URL}/api/ktype/upload${options?.dryRun ? '?dryRun=1' : ''}`;
   let response: Response | undefined;
   try {
-    response = await fetch(url, {
+    response = await fetchApi(url, {
       method: 'POST',
       body: formData,
     });
@@ -870,7 +1017,7 @@ export const improveProduct = async (
 ): Promise<{ ok: boolean; data?: Product; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/improve`, {
+    response = await fetchApi(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/improve`, {
       method: 'POST',
     });
     const result = await parseResponse(response);
@@ -887,7 +1034,7 @@ export const improveProduct = async (
 export const startBulkImprovement = async (): Promise<{ ok: boolean; data?: { enqueuedParams: number; jobs: Array<{ jobId: string; productId: string }> }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/products/bulk-improve`, {
+    response = await fetchApi(`${BACKEND_URL}/api/products/bulk-improve`, {
       method: 'POST',
     });
     const result = await parseResponse(response);
@@ -916,7 +1063,7 @@ export const generateProductImages = async (
 }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/generate-images`, {
+    response = await fetchApi(`${BACKEND_URL}/api/generate-images`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -995,7 +1142,7 @@ export const syncOrders = async (options?: { timeoutMs?: number }): Promise<Orde
 };
 
 export const completeOrder = async (orderId: string): Promise<void> => {
-  const response = await fetch(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/complete`, {
+  const response = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/complete`, {
     method: 'POST',
   });
   const result = await parseResponse(response);
@@ -1005,7 +1152,7 @@ export const completeOrder = async (orderId: string): Promise<void> => {
 };
 
 export const packOrder = async (orderId: string): Promise<void> => {
-  const response = await fetch(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/pack`, {
+  const response = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/pack`, {
     method: 'POST',
   });
   const result = await parseResponse(response);
@@ -1017,14 +1164,7 @@ export const packOrder = async (orderId: string): Promise<void> => {
 export const openSkuLabelWindow = (productId: string): { ok: boolean; error?: { code: number; message: string } } => {
   try {
     const url = `${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/label`;
-    const win = window.open(url, '_blank', 'noopener');
-    if (!win) {
-      return {
-        ok: false,
-        error: { code: 0, message: 'Popup wurde blockiert. Bitte Popups erlauben.' },
-      };
-    }
-    return { ok: true };
+    return openAuthedUrlInNewTab(url, { timeoutMs: 25000 });
   } catch (error: any) {
     console.error('Failed to open label window:', error);
     return { ok: false, error: { code: 0, message: error?.message || 'Unbekannter Fehler' } };
@@ -1037,18 +1177,14 @@ export const openProductLabelBatchWindow = (productIds: string[]): { ok: boolean
   }
   try {
     const url = `${BACKEND_URL}/api/products/labels?ids=${encodeURIComponent(productIds.join(','))}`;
-    const win = window.open(url, '_blank', 'noopener');
-    if (!win) {
-      return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
-    }
-    return { ok: true };
+    return openAuthedUrlInNewTab(url, { timeoutMs: 25000 });
   } catch (error: any) {
     return { ok: false, error: { code: 0, message: error?.message || 'Unbekannter Fehler' } };
   }
 };
 
 export const fetchWarehouseZones = async (): Promise<WarehouseLayout[]> => {
-  const response = await fetch(`${BACKEND_URL}/api/warehouse/zones`);
+  const response = await fetchApi(`${BACKEND_URL}/api/warehouse/zones`);
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Failed to load zones');
@@ -1065,7 +1201,7 @@ export const createWarehouseLayoutApi = async (payload: {
 }): Promise<{ ok: boolean; data?: any; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/warehouse/layouts`, {
+    response = await fetchApi(`${BACKEND_URL}/api/warehouse/layouts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -1183,7 +1319,7 @@ export const deleteWarehouseEbeneApi = async (
 };
 
 export const fetchWarehouseBins = async (zone: string, etage: string): Promise<WarehouseBin[]> => {
-  const response = await fetch(`${BACKEND_URL}/api/warehouse/zones/${encodeURIComponent(zone)}/${encodeURIComponent(etage)}`);
+  const response = await fetchApi(`${BACKEND_URL}/api/warehouse/zones/${encodeURIComponent(zone)}/${encodeURIComponent(etage)}`);
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Failed to load bins');
@@ -1192,7 +1328,7 @@ export const fetchWarehouseBins = async (zone: string, etage: string): Promise<W
 };
 
 export const fetchWarehouseBinDetail = async (code: string): Promise<WarehouseBin> => {
-  const response = await fetch(`${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(code)}`);
+  const response = await fetchApi(`${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(code)}`);
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Failed to load bin detail');
@@ -1201,7 +1337,7 @@ export const fetchWarehouseBinDetail = async (code: string): Promise<WarehouseBi
 };
 
 export const fetchProductBins = async (productId: string): Promise<WarehouseBin[]> => {
-  const response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/bins`);
+  const response = await fetchApi(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/bins`);
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Failed to load product bins');
@@ -1216,7 +1352,7 @@ export const assignProductToBinApi = async (
 ): Promise<{ ok: boolean; data?: { bin: WarehouseBin; product: Product }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(code)}/assign`, {
+    response = await fetchApi(`${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(code)}/assign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId, quantity }),
@@ -1238,7 +1374,7 @@ export const removeProductFromBinApi = async (
 ): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(
+    response = await fetchApi(
       `${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(code)}/products/${encodeURIComponent(productId)}`,
       {
         method: 'DELETE',
@@ -1265,7 +1401,7 @@ export const stockInProduct = async (payload: {
 }): Promise<{ ok: boolean; data?: { bin: WarehouseBin; product: Product }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/warehouse/stock-in`, {
+    response = await fetchApi(`${BACKEND_URL}/api/warehouse/stock-in`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -1293,7 +1429,7 @@ export const stockOutProduct = async (payload: {
 }): Promise<{ ok: boolean; data?: { bin: WarehouseBin; product: Product }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/warehouse/stock-out`, {
+    response = await fetchApi(`${BACKEND_URL}/api/warehouse/stock-out`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -1312,11 +1448,7 @@ export const stockOutProduct = async (payload: {
 export const openBinLabelWindow = (code: string): { ok: boolean; error?: { code: number; message: string } } => {
   try {
     const url = `${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(code)}/label`;
-    const win = window.open(url, '_blank', 'noopener');
-    if (!win) {
-      return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
-    }
-    return { ok: true };
+    return openAuthedUrlInNewTab(url, { timeoutMs: 25000 });
   } catch (error: any) {
     return { ok: false, error: { code: 0, message: error?.message || 'Unbekannter Fehler' } };
   }
@@ -1347,11 +1479,7 @@ export const openBinLabelsBatchWindow = (options: {
     if (options.regal != null) params.set('regal', String(options.regal));
   }
   const url = `${BACKEND_URL}/api/warehouse/bins/labels.pdf?${params.toString()}`;
-  const popup = window.open(url, '_blank', 'noopener');
-  if (!popup) {
-    return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
-  }
-  return { ok: true };
+  return openAuthedUrlInNewTab(url, { timeoutMs: 30000 });
 };
 
 export const refreshPrice = async (productId: string): Promise<{ ok: boolean; data?: any; error?: { code: number; message: string } }> => {
@@ -1362,7 +1490,7 @@ export const refreshPrice = async (productId: string): Promise<{ ok: boolean; da
       console.log('API CALL: /api/price-refresh', { productId });
     }
 
-    response = await fetch(`${BACKEND_URL}/api/price-refresh`, {
+    response = await fetchApi(`${BACKEND_URL}/api/price-refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1436,7 +1564,7 @@ export const chatWithAssistant = async (
       };
     }
 
-    response = await fetch(`${BACKEND_URL}/api/chat`, requestInit);
+    response = await fetchApi(`${BACKEND_URL}/api/chat`, requestInit);
 
     const result = await parseResponse(response);
 
@@ -1476,7 +1604,7 @@ export const runSerpapiFreeEnrichment = async (
 
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/v2/enrich`, {
+    response = await fetchApi(`${BACKEND_URL}/api/v2/enrich`, {
       method: 'POST',
       body: formData,
     });
@@ -1520,7 +1648,7 @@ export const identifyProductV2 = async (
 
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/v2/identify`, {
+    response = await fetchApi(`${BACKEND_URL}/api/v2/identify`, {
       method: 'POST',
       body: formData,
     });
@@ -1553,7 +1681,7 @@ export const resolveIntakeExisting = async (params: {
 }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/intake/resolve`, {
+    response = await fetchApi(`${BACKEND_URL}/api/intake/resolve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1590,7 +1718,7 @@ export const resolveIntakeExisting = async (params: {
 export const scanDocument = async (): Promise<{ ok: boolean; data?: { mimeType: string; base64: string; capturedAt: string }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/scanner/capture`, {
+    response = await fetchApi(`${BACKEND_URL}/api/scanner/capture`, {
       method: 'POST',
     });
     const result = await parseResponse(response);
@@ -1608,7 +1736,7 @@ export const scanDocument = async (): Promise<{ ok: boolean; data?: { mimeType: 
 export const deleteProduct = async (productId: string): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
-    response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}`, {
+    response = await fetchApi(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}`, {
       method: 'DELETE'
     });
     if (response.status === 204) {
@@ -1633,7 +1761,7 @@ export const fetchInventories = async (params: { search?: string; vendor?: strin
   if (params.vendor) query.set('vendor', params.vendor);
   if (params.limit) query.set('limit', String(params.limit));
   const url = query.toString() ? `${BACKEND_URL}/api/inventories?${query.toString()}` : `${BACKEND_URL}/api/inventories`;
-  const response = await fetch(url);
+  const response = await fetchApi(url);
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Inventories konnten nicht geladen werden.');
@@ -1642,7 +1770,7 @@ export const fetchInventories = async (params: { search?: string; vendor?: strin
 };
 
 export const fetchInventoryById = async (inventoryId: string): Promise<InventoryRecord | null> => {
-  const response = await fetch(`${BACKEND_URL}/api/inventories/${encodeURIComponent(inventoryId)}`);
+  const response = await fetchApi(`${BACKEND_URL}/api/inventories/${encodeURIComponent(inventoryId)}`);
   if (response.status === 404) {
     return null;
   }
@@ -1654,7 +1782,7 @@ export const fetchInventoryById = async (inventoryId: string): Promise<Inventory
 };
 
 export const syncInventories = async () => {
-  const response = await fetch(`${BACKEND_URL}/api/inventories/sync`, {
+  const response = await fetchApi(`${BACKEND_URL}/api/inventories/sync`, {
     method: 'POST',
   });
   const result = await parseResponse(response);
@@ -1665,7 +1793,7 @@ export const syncInventories = async () => {
 };
 
 export const assignInventoryToProducts = async (productIds: string[], inventoryId: string) => {
-  const response = await fetch(`${BACKEND_URL}/api/inventories/assign`, {
+  const response = await fetchApi(`${BACKEND_URL}/api/inventories/assign`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1680,7 +1808,7 @@ export const assignInventoryToProducts = async (productIds: string[], inventoryI
 };
 
 export const setProductInventoryId = async (productId: string, inventoryId: string) => {
-  const response = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/inventory`, {
+  const response = await fetchApi(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/inventory`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1699,9 +1827,5 @@ export const openInventoryLabelWindow = (inventoryId: string): { ok: boolean; er
     return { ok: false, error: { code: 400, message: 'Inventory ID fehlt.' } };
   }
   const url = `${BACKEND_URL}/api/inventories/${encodeURIComponent(inventoryId)}/label.pdf`;
-  const tab = window.open(url, '_blank', 'noopener');
-  if (!tab) {
-    return { ok: false, error: { code: 0, message: 'Popup wurde blockiert.' } };
-  }
-  return { ok: true };
+  return openAuthedUrlInNewTab(url, { timeoutMs: 25000 });
 };
