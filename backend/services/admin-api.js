@@ -16,7 +16,8 @@ const {
 } = require('../lib/rbac');
 const { FieldValue } = require('@google-cloud/firestore');
 
-const DEFAULT_CONTINUE_URL = 'https://avycloud.web.app/#/dashboard';
+// Avoid hash-based routes here; some Firebase configurations reject URLs with fragments.
+const DEFAULT_CONTINUE_URL = 'https://avycloud.web.app/';
 
 const getContinueUrl = () => process.env.AUTH_ACTION_CONTINUE_URL || DEFAULT_CONTINUE_URL;
 

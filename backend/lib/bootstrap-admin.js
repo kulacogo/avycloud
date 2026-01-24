@@ -3,7 +3,8 @@ const { upsertUserProfile } = require('./rbac');
 const { sendMail } = require('./mailer');
 
 const DEFAULT_BOOTSTRAP_ADMIN_EMAIL = 'admin@trendocean.de';
-const DEFAULT_CONTINUE_URL = 'https://avycloud.web.app/#/dashboard';
+// Avoid hash-based routes here; some Firebase configurations reject URLs with fragments.
+const DEFAULT_CONTINUE_URL = 'https://avycloud.web.app/';
 
 const getBootstrapEmail = () =>
   (process.env.AUTH_BOOTSTRAP_ADMIN_EMAIL || DEFAULT_BOOTSTRAP_ADMIN_EMAIL).trim().toLowerCase();

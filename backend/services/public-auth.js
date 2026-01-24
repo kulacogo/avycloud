@@ -2,7 +2,9 @@ const { getAdminAuth } = require('../lib/firebaseAdmin');
 const { sendMail } = require('../lib/mailer');
 const { isAllowedEmail } = require('../lib/auth');
 
-const DEFAULT_CONTINUE_URL = 'https://avycloud.web.app/#/dashboard';
+// ActionCodeSettings.url must be an allowed/authorized domain in Firebase Auth settings.
+// Avoid hash-based routes here; some configurations reject URLs with fragments.
+const DEFAULT_CONTINUE_URL = 'https://avycloud.web.app/';
 
 const getContinueUrl = () => process.env.AUTH_ACTION_CONTINUE_URL || DEFAULT_CONTINUE_URL;
 
@@ -74,6 +76,12 @@ async function requestPasswordReset({ email, ip }) {
     if (code.includes('auth/user-not-found')) {
       return { ok: true, sent: false };
     }
+    // Log details server-side for debugging; do not leak internals to client.
+    console.error('Password reset link generation failed:', {
+      code: error?.code,
+      message: error?.message,
+      errorInfo: error?.errorInfo,
+    });
     throw error;
   }
 
