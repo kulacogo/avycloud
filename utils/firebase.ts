@@ -1,5 +1,12 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
+  initializeAuth,
+  type Auth,
+  type Persistence,
+} from 'firebase/auth';
 
 const getRequiredEnv = (key: keyof ImportMetaEnv): string => {
   const value = import.meta.env[key];
@@ -31,7 +38,19 @@ export function getFirebaseApp(): FirebaseApp {
 
 export function getFirebaseAuth(): Auth {
   if (!auth) {
-    auth = getAuth(getFirebaseApp());
+    const mode = import.meta.env.VITE_AUTH_PERSISTENCE || 'session';
+    const persistence: Persistence =
+      mode === 'local'
+        ? browserLocalPersistence
+        : mode === 'none'
+          ? inMemoryPersistence
+          : browserSessionPersistence;
+
+    auth = initializeAuth(getFirebaseApp(), {
+      persistence,
+      // We do not use popup/redirect flows, so we can skip the resolver to keep it minimal.
+      popupRedirectResolver: undefined,
+    });
   }
   return auth;
 }

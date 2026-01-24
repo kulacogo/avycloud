@@ -16,6 +16,7 @@ const AuthContext = React.createContext<AuthContextValue | null>(null);
 
 const ALLOWED_DOMAIN = 'trendocean.de';
 const BOOTSTRAP_ADMIN_EMAIL = 'admin@trendocean.de';
+const AUTH_MIGRATION_KEY = 'avystock:auth:migrated:v1';
 
 const isAllowedEmail = (email?: string | null) => {
   const value = String(email || '').trim().toLowerCase();
@@ -27,6 +28,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = React.useState(true);
 
   const auth = React.useMemo(() => getFirebaseAuth(), []);
+
+  // One-time migration: if older builds left a persisted session, force a clean re-login after rollout.
+  // This ensures the login screen shows up immediately after deploying the auth changes.
+  React.useEffect(() => {
+    try {
+      const already = window.localStorage.getItem(AUTH_MIGRATION_KEY) === '1';
+      if (!already) {
+        window.localStorage.setItem(AUTH_MIGRATION_KEY, '1');
+        signOut(auth).catch(() => {});
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [auth]);
 
   React.useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
