@@ -147,6 +147,20 @@ export async function searchEbayCategories({ q, id, limit = 50 }: { q?: string; 
   return (data?.items || []) as EbayCategoryOption[];
 }
 
+// --- Public Auth API ---
+export const requestPasswordReset = async (email: string) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/auth/password-reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Passwort-Reset konnte nicht gesendet werden.');
+  }
+  return true;
+};
+
 export async function fetchCategoryProfile(categoryId: string) {
   const url = new URL(`${BACKEND_URL}/api/categories/profiles`);
   url.searchParams.set('ids', String(categoryId || '').trim());

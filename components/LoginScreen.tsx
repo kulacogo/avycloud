@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { requestPasswordReset } from '../api/client';
 
 export const LoginScreen: React.FC = () => {
   const { signInWithEmailPassword } = useAuth();
@@ -7,6 +8,10 @@ export const LoginScreen: React.FC = () => {
   const [password, setPassword] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [showReset, setShowReset] = React.useState(false);
+  const [resetEmail, setResetEmail] = React.useState('');
+  const [resetSubmitting, setResetSubmitting] = React.useState(false);
+  const [resetMessage, setResetMessage] = React.useState<string | null>(null);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,6 +23,28 @@ export const LoginScreen: React.FC = () => {
       setError(err?.message || 'Login fehlgeschlagen.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const onRequestReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetMessage(null);
+    setError(null);
+
+    const value = String(resetEmail || '').trim().toLowerCase();
+    if (!value.endsWith('@trendocean.de')) {
+      setResetMessage('Bitte eine @trendocean.de E-Mail-Adresse eingeben.');
+      return;
+    }
+
+    setResetSubmitting(true);
+    try {
+      await requestPasswordReset(value);
+      setResetMessage('Wenn ein Konto existiert, wurde eine E-Mail mit einem Reset-Link gesendet.');
+    } catch (err: any) {
+      setResetMessage(err?.message || 'Reset-Link konnte nicht gesendet werden.');
+    } finally {
+      setResetSubmitting(false);
     }
   };
 
@@ -68,9 +95,46 @@ export const LoginScreen: React.FC = () => {
           </button>
         </form>
 
-        <p className="text-xs text-slate-500">
-          Passwort vergessen? Bitte Admin kontaktieren (Invite/Reset-Link wird per Mail gesendet).
-        </p>
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowReset((v) => !v);
+              setResetMessage(null);
+              setResetEmail((prev) => prev || String(email || '').trim().toLowerCase());
+            }}
+            className="text-left text-xs text-slate-400 hover:text-slate-200 underline underline-offset-4"
+          >
+            Passwort vergessen?
+          </button>
+
+          {showReset && (
+            <form onSubmit={onRequestReset} className="space-y-2">
+              <label className="block space-y-1">
+                <span className="text-xs text-slate-300">E-Mail für Reset-Link</span>
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="name@trendocean.de"
+                  autoComplete="email"
+                  className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+                  required
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={resetSubmitting}
+                className="w-full rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-60 disabled:hover:bg-slate-700 px-4 py-2.5 font-semibold text-white transition-colors"
+              >
+                {resetSubmitting ? 'Sende…' : 'Reset-Link per E-Mail senden'}
+              </button>
+
+              {resetMessage && <p className="text-xs text-slate-400">{resetMessage}</p>}
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

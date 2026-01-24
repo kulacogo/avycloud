@@ -100,6 +100,7 @@ const {
   updateGroup: updateGroupAdmin,
   deleteGroup: deleteGroupAdmin,
 } = require('./services/admin-api');
+const { requestPasswordReset } = require('./services/public-auth');
 const { ensureBootstrapAdmin } = require('./lib/bootstrap-admin');
 const {
   ensureDefaultLlmScopes,
@@ -844,7 +845,21 @@ app.get('/', (req, res) => {
 app.use('/api', (req, res, next) => {
   if (req.method === 'OPTIONS') return next();
   if (req.path === '/image-proxy') return next();
+  if (req.path === '/auth/password-reset') return next();
   return requireAuth(req, res, next);
+});
+
+// --- Public Auth API ---
+app.post('/api/auth/password-reset', async (req, res) => {
+  try {
+    const email = req.body?.email;
+    await requestPasswordReset({ email, ip: req.ip });
+    // Always return success (anti-enumeration). Rate-limit is still enforced via 429.
+    res.json({ ok: true });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Password reset failed' } });
+  }
 });
 
 // --- Admin API (RBAC-managed) ---
