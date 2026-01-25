@@ -141,14 +141,78 @@ function extractVehicleMakes(text, makeSet) {
   return Array.from(found);
 }
 
+function normalizeKeyForMatch(key = '') {
+  return safeString(key).toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function pickFromAttributes(attrs, candidateKeys = []) {
+  if (!attrs || typeof attrs !== 'object') return '';
+  const byNorm = new Map();
+  for (const k of Object.keys(attrs)) {
+    byNorm.set(normalizeKeyForMatch(k), k);
+  }
+  for (const candidate of candidateKeys) {
+    const norm = normalizeKeyForMatch(candidate);
+    const actual = byNorm.get(norm);
+    if (!actual) continue;
+    const value = safeString(attrs[actual]);
+    if (value) return value;
+  }
+  return '';
+}
+
+function pickCategoryId(product) {
+  const details = product?.details || {};
+  const attrs = details?.attributes || {};
+  const extra = details?.attributes_extra || {};
+
+  const raw =
+    safeString(details.categoryId) ||
+    safeString(details.ebayCategoryId) ||
+    // common legacy/meta keys stored either in attributes or attributes_extra
+    pickFromAttributes(attrs, ['ebay_category_id', 'ebayCategoryId', 'category_id', 'categoryId', 'Kategorie-ID', 'Kategorie ID']) ||
+    pickFromAttributes(extra, ['ebay_category_id', 'ebayCategoryId', 'category_id', 'categoryId', 'Kategorie-ID', 'Kategorie ID']) ||
+    '';
+
+  if (!raw) return '';
+  // eBay category IDs are numeric; keep digits when possible.
+  const digits = raw.replace(/\D+/g, '').trim();
+  return digits || raw;
+}
+
 function pickPartNumber(product) {
   const ids = product?.details?.identifiers || {};
   const attrs = product?.details?.attributes || {};
+  const extra = product?.details?.attributes_extra || {};
+  const mpnFromAttrs =
+    pickFromAttributes(attrs, [
+      'mpn',
+      'Herstellernummer',
+      'Hersteller-Teilenummer',
+      'Hersteller Teilenummer',
+      'Herstellerteilenummer',
+      'Teilenummer',
+      'Teile Nummer',
+      'Referenznummer(n) OEM',
+      'OEM',
+      'OE',
+    ]) ||
+    pickFromAttributes(extra, [
+      'mpn',
+      'Herstellernummer',
+      'Hersteller-Teilenummer',
+      'Hersteller Teilenummer',
+      'Herstellerteilenummer',
+      'Teilenummer',
+      'Teile Nummer',
+      'Referenznummer(n) OEM',
+      'OEM',
+      'OE',
+    ]) ||
+    '';
   return (
     safeString(ids.mpn) ||
-    safeString(attrs.Herstellernummer) ||
-    safeString(attrs['Teilenummer']) ||
-    safeString(attrs['Referenznummer(n) OEM']) ||
+    mpnFromAttrs ||
     safeString(ids.oem) ||
     ''
   );
@@ -197,7 +261,7 @@ async function resolveEvidenceUrls(query, { limit = 6 } = {}) {
 
 async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 60 } = {}) {
   // Preconditions
-  const catId = safeString(product?.details?.categoryId || product?.details?.ebayCategoryId || '');
+  const catId = pickCategoryId(product);
   const fitmentMode = catId ? getVehicleFitmentMode(catId) : null;
   if (!fitmentMode) return { ok: false, reason: 'not_fitment_category' };
   if (hasKTyp(product)) return { ok: false, reason: 'already_has_ktype' };

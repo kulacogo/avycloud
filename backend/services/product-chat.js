@@ -1057,6 +1057,10 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
 
   // K-Typ enrichment fallback for chat (auto parts) so the assistant can propose K-Typ in updates.
   try {
+    // Ensure eBay category normalization is applied (some products only have legacy category meta fields).
+    const { applyEbayTaxonomy } = require('./enrichment');
+    applyEbayTaxonomy(product);
+
     const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
     await enrichKTypIfPossible(product, { reason: 'chat' });
   } catch (e) {
