@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useI18n } from '../i18n';
+import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
   currentView:
@@ -131,6 +132,7 @@ const TOGGLE_ICONS = {
 
 export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onToggleTheme }) => {
   const { t, locale, setLocale } = useI18n();
+  const { logout } = useAuth();
   const logoSrc = theme === 'dark' ? LOGOS.dark : LOGOS.light;
   const handleHardRefresh = React.useCallback(async () => {
     try {
@@ -241,6 +243,13 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                   className="w-10 h-10 object-contain"
                   draggable={false}
                 />
+              </button>
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="hidden sm:inline-flex rounded-xl bg-slate-700 hover:bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                Logout
               </button>
             </div>
           </div>

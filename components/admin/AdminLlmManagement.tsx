@@ -42,12 +42,17 @@ export const AdminLlmManagement: React.FC = () => {
     try {
       const d = await adminGetLlmScope(scopeId);
       setDetail(d);
-      // default editor state: empty append version
-      setPromptText('');
-      setRulesText('');
-      setPromptMode('append');
-      setRulesMode('append');
-      setNote('');
+      // Prefill editor with the active version so current prompts/rules are visible.
+      const active =
+        d?.scope?.activeVersionId &&
+        Array.isArray(d?.versions) &&
+        d.versions.find((v: any) => String(v?.id) === String(d.scope.activeVersionId));
+
+      setPromptText(active?.promptText || '');
+      setRulesText(active?.rulesText || '');
+      setPromptMode(active?.promptMode === 'replace' ? 'replace' : 'append');
+      setRulesMode(active?.rulesMode === 'replace' ? 'replace' : 'append');
+      setNote(active?.note || '');
     } catch (e: any) {
       setError(e?.message || 'Failed to load scope');
       setDetail(null);
@@ -159,6 +164,19 @@ export const AdminLlmManagement: React.FC = () => {
               <code>{scope?.activeVersionId || '—'}</code>
             </div>
           </div>
+
+          {scope?.activeVersionId && (
+            <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 text-xs text-slate-300">
+              <div className="flex flex-wrap gap-3 items-center">
+                <span className="font-semibold text-slate-100">Aktive Version:</span>
+                <span className="text-slate-100">{scope.activeVersionId}</span>
+              </div>
+              <p className="mt-2 text-slate-400">
+                Felder unten sind mit der aktuell aktiven Version vorbelegt. Änderungen werden als neue Version gespeichert
+                und automatisch aktiviert.
+              </p>
+            </div>
+          )}
 
           <div className="rounded-xl border border-white/10 bg-slate-900/20 p-4 space-y-3">
             <div className="flex flex-wrap gap-3">
