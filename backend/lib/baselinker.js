@@ -201,7 +201,8 @@ async function ensureInventoryCategoriesLoaded(inventoryId) {
       byId.set(id, {
         id,
         name: (c?.name || '').toString().trim(),
-        parentId: Number(c?.parent_id || 0) || 0,
+        // API docs sometimes call this parent_category_id; responses often use parent_id.
+        parentId: Number((c?.parent_id ?? c?.parent_category_id) || 0) || 0,
       });
     });
 
