@@ -41,13 +41,15 @@ const BACKEND_URL = (() => {
     return envUrl;
   }
 
-  // In production, use env or default to production URL
-  return envUrl || 'https://product-hub-backend-79205549235.europe-west3.run.app';
+  // In production, use env or default to stable Cloud Run service URL (NOT revision-specific).
+  // This avoids stale/cached builds calling an old URL.
+  return envUrl || 'https://product-hub-backend-sa6a4cbk3q-ey.a.run.app';
 })();
 
 type TokenProvider = (forceRefresh?: boolean) => Promise<string | null>;
 
 let tokenProvider: TokenProvider | null = null;
+let defaultProviderInstalled = false;
 
 /**
  * Register a token provider from the Auth layer so all API calls automatically attach:
@@ -57,9 +59,29 @@ export function setAuthTokenProvider(provider: TokenProvider | null) {
   tokenProvider = provider;
 }
 
+function ensureDefaultFirebaseTokenProviderInstalled() {
+  if (tokenProvider || defaultProviderInstalled) return;
+  defaultProviderInstalled = true;
+  try {
+    // Lazy import to avoid coupling unless needed.
+    // This ensures early requests (e.g. inventory load) don't fire before AuthContext effect wires the provider.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getFirebaseAuth } = require('../utils/firebase');
+    const auth = getFirebaseAuth();
+    tokenProvider = async (forceRefresh?: boolean) => {
+      const current = auth?.currentUser;
+      if (!current) return null;
+      return await current.getIdToken(Boolean(forceRefresh));
+    };
+  } catch {
+    // ignore – requests will proceed without token and backend will return 401
+  }
+}
+
 const isValidBearer = (value: string | null) => /^Bearer\s+\S+$/i.test(String(value || ''));
 
 const buildHeadersWithAuth = async (base?: HeadersInit, forceRefresh = false): Promise<Headers> => {
+  ensureDefaultFirebaseTokenProviderInstalled();
   const headers = new Headers(base || {});
   const existingAuth = headers.get('Authorization');
   if ((!existingAuth || !isValidBearer(existingAuth)) && tokenProvider) {
