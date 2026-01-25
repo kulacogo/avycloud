@@ -1,6 +1,7 @@
 const { getAdminAuth } = require('../lib/firebaseAdmin');
 const { sendMail } = require('../lib/mailer');
 const { isAllowedEmail } = require('../lib/auth');
+const { rewriteActionLinkApiKey } = require('../lib/firebase-web-api-key');
 const {
   listUsers,
   setUserRoles,
@@ -84,8 +85,12 @@ async function inviteUser({ actorUid, email, roles }) {
   }
 
   const actionCodeSettings = buildActionCodeSettings();
-  const resetLink = await auth.generatePasswordResetLink(normalizedEmail, actionCodeSettings);
-  const verifyLink = await auth.generateEmailVerificationLink(normalizedEmail, actionCodeSettings);
+  const resetLink = await rewriteActionLinkApiKey(
+    await auth.generatePasswordResetLink(normalizedEmail, actionCodeSettings)
+  );
+  const verifyLink = await rewriteActionLinkApiKey(
+    await auth.generateEmailVerificationLink(normalizedEmail, actionCodeSettings)
+  );
 
   const appResetLink = buildAppPasswordResetUrl(resetLink);
 

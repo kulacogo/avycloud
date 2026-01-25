@@ -1,6 +1,7 @@
 const { getAdminAuth } = require('../lib/firebaseAdmin');
 const { sendMail } = require('../lib/mailer');
 const { isAllowedEmail } = require('../lib/auth');
+const { rewriteActionLinkApiKey } = require('../lib/firebase-web-api-key');
 
 // ActionCodeSettings.url must be an allowed/authorized domain in Firebase Auth settings.
 // Avoid hash-based routes here; some configurations reject URLs with fragments.
@@ -89,6 +90,7 @@ async function requestPasswordReset({ email, ip }) {
   let resetLink;
   try {
     resetLink = await auth.generatePasswordResetLink(normalizedEmail, actionCodeSettings);
+    resetLink = await rewriteActionLinkApiKey(resetLink);
   } catch (error) {
     const code = String(error?.code || '');
     if (code.includes('auth/user-not-found')) {

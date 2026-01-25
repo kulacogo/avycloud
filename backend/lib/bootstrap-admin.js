@@ -1,6 +1,7 @@
 const { getAdminAuth } = require('./firebaseAdmin');
 const { upsertUserProfile } = require('./rbac');
 const { sendMail } = require('./mailer');
+const { rewriteActionLinkApiKey } = require('./firebase-web-api-key');
 
 const DEFAULT_BOOTSTRAP_ADMIN_EMAIL = 'admin@trendocean.de';
 // Avoid hash-based routes here; some Firebase configurations reject URLs with fragments.
@@ -61,8 +62,8 @@ async function ensureBootstrapAdmin() {
   // If we just created the admin user, send a one-time reset + verify email to bootstrap access.
   if (created) {
     const actionCodeSettings = { url: getContinueUrl(), handleCodeInApp: false };
-    const resetLink = await auth.generatePasswordResetLink(email, actionCodeSettings);
-    const verifyLink = await auth.generateEmailVerificationLink(email, actionCodeSettings);
+    const resetLink = await rewriteActionLinkApiKey(await auth.generatePasswordResetLink(email, actionCodeSettings));
+    const verifyLink = await rewriteActionLinkApiKey(await auth.generateEmailVerificationLink(email, actionCodeSettings));
     const appResetLink = buildAppPasswordResetUrl(resetLink);
 
     await sendMail({
