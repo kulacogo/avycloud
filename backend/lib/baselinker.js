@@ -1739,6 +1739,10 @@ async function syncProductToBaseLinker(product, inventoryId) {
       ...payload,
       product_id: Number(productId) || 0,
       category_id: numericCategoryId || 0,
+      // Enable channel mapping so marketplace listing forms can auto-select categories
+      // based on BaseLinker’s category mappings (inventory category -> marketplace category).
+      // Verified: BaseLinker accepts this flag in addInventoryProduct.
+      channel_mapping_enable: true,
     });
 
     let requestPayload = buildRequest(baseProductId || 0);
