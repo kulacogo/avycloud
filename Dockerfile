@@ -17,6 +17,7 @@ COPY backend/. .
 # Copy marketplace category CSVs (needed at runtime for lookups)
 COPY ebay ./ebay
 COPY kaufland ./kaufland
+COPY exports ./exports
 
 # Expose Cloud Run port
 EXPOSE 8080
