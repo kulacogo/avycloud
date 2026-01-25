@@ -752,6 +752,17 @@ async function improveExistingProduct(productId, onProgress) {
     await enrichKTypIfPossible(mergedProduct, { reason: 'improve' });
   } catch (e) {
     console.warn('[improve] K-Typ enrichment failed (continuing):', e?.message || e);
+    try {
+      mergedProduct.notes = mergedProduct.notes || {};
+      mergedProduct.notes.warnings = Array.from(
+        new Set([
+          ...(mergedProduct.notes.warnings || []),
+          `K-Typ nicht angereichert: interner Fehler (improve).`,
+        ])
+      );
+    } catch {
+      // ignore
+    }
   }
 
   // Enforce title policy even if the model skipped title updates.

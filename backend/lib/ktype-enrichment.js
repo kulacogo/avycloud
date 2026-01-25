@@ -352,6 +352,19 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       mvl_path: mvl.jsonlPath,
     },
   };
+
+  // If enrichment succeeded now, remove stale "not enriched" warnings from previous runs.
+  // Keep other warnings intact (pricing, compliance, etc.).
+  if (product?.notes?.warnings && Array.isArray(product.notes.warnings)) {
+    product.notes.warnings = product.notes.warnings.filter((w) => {
+      const s = safeString(w);
+      if (!s) return false;
+      if (/^K-Typ nicht angereichert:/i.test(s)) return false;
+      if (/^K-Typ konnte/i.test(s)) return false;
+      return true;
+    });
+  }
+
   return { ok: true, fitmentMode, ids };
 }
 

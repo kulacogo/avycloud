@@ -1065,6 +1065,17 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     await enrichKTypIfPossible(product, { reason: 'chat' });
   } catch (e) {
     // Never block chat due to enrichment issues.
+    try {
+      product.notes = product.notes || {};
+      product.notes.warnings = Array.from(
+        new Set([
+          ...(product.notes.warnings || []),
+          `K-Typ nicht angereichert: interner Fehler (chat).`,
+        ])
+      );
+    } catch {
+      // ignore
+    }
     if (process.env.DEBUG_KTYPE) {
       console.warn('[chat] K-Typ enrichment failed (continuing):', e?.message || e);
     }
