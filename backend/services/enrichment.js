@@ -902,16 +902,16 @@ function processEbayProduct(product) {
   // IMPORTANT: Some legacy imports store marketplace meta keys under `details.attributes_extra`.
   // We need those for category resolution, but we never persist them back into user-facing attributes here.
   const attributes = {
-    ...((cloned.details?.attributes_extra &&
-      typeof cloned.details.attributes_extra === 'object' &&
-      !Array.isArray(cloned.details.attributes_extra)
+    ...(cloned.details?.attributes_extra &&
+    typeof cloned.details.attributes_extra === 'object' &&
+    !Array.isArray(cloned.details.attributes_extra)
       ? cloned.details.attributes_extra
-      : {}) as any),
-    ...((cloned.details?.attributes &&
-      typeof cloned.details.attributes === 'object' &&
-      !Array.isArray(cloned.details.attributes)
+      : {}),
+    ...(cloned.details?.attributes &&
+    typeof cloned.details.attributes === 'object' &&
+    !Array.isArray(cloned.details.attributes)
       ? cloned.details.attributes
-      : {}) as any),
+      : {}),
   };
 
   const resolved = resolveEbayCategory({
