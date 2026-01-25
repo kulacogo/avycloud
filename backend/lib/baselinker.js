@@ -355,7 +355,16 @@ async function getInventoryAvailableTextFieldKeyIds(inventoryId) {
     // Do NOT auto-expand `extra_field_*` into integration/lang variants.
     // Some additional fields are single-language only; sending multiple language variants can trigger:
     // "ERROR_INVALID_DATA: Additional field extra_field_XXXX does not support setting values in different languages."
-    const fields = ['name', 'description', 'description_extra1', 'features'];
+    // Inventory UI supports multiple additional description fields; mirror them too so accounts get full content.
+    const fields = [
+      'name',
+      'description',
+      'description_extra1',
+      'description_extra2',
+      'description_extra3',
+      'description_extra4',
+      'features',
+    ];
 
     for (const entry of list) {
       if (!entry || typeof entry !== 'object') continue;
@@ -1076,6 +1085,27 @@ function buildTextFields(product, name) {
     [`description|${defaultLang}`]: desc,
   };
 
+  // Optional additional description fields (if present in product data).
+  // We keep them as-is but clamp to 200 chars as BaseLinker UI extra fields are typically short.
+  const extra2 =
+    (product?.details?.description_extra2 || product?.details?.descriptionExtra2 || '').toString().trim();
+  const extra3 =
+    (product?.details?.description_extra3 || product?.details?.descriptionExtra3 || '').toString().trim();
+  const extra4 =
+    (product?.details?.description_extra4 || product?.details?.descriptionExtra4 || '').toString().trim();
+  if (extra2) {
+    textFields.description_extra2 = clampShortText(extra2);
+    textFields[`description_extra2|${defaultLang}`] = clampShortText(extra2);
+  }
+  if (extra3) {
+    textFields.description_extra3 = clampShortText(extra3);
+    textFields[`description_extra3|${defaultLang}`] = clampShortText(extra3);
+  }
+  if (extra4) {
+    textFields.description_extra4 = clampShortText(extra4);
+    textFields[`description_extra4|${defaultLang}`] = clampShortText(extra4);
+  }
+
   // --- BaseLinker extra fields ---
   // K-Typ is stored in AvyCloud as details.attributes["K-Typ"] (vehicle compatibility).
   // BaseLinker extra field target: extra_field_18699.
@@ -1587,6 +1617,9 @@ async function syncProductToBaseLinker(product, inventoryId) {
         name: payload?.text_fields?.name,
         description: payload?.text_fields?.description,
         description_extra1: payload?.text_fields?.description_extra1,
+        description_extra2: payload?.text_fields?.description_extra2,
+        description_extra3: payload?.text_fields?.description_extra3,
+        description_extra4: payload?.text_fields?.description_extra4,
         features: payload?.text_fields?.features,
         extra_field_18699: payload?.text_fields?.extra_field_18699,
       },

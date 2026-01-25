@@ -131,7 +131,15 @@ async function main() {
 
   const keysByIntegration = {};
   const DEFAULT_LANG = 'de';
-  const fields = ['name', 'description', 'description_extra1', 'features'];
+  const fields = [
+    'name',
+    'description',
+    'description_extra1',
+    'description_extra2',
+    'description_extra3',
+    'description_extra4',
+    'features',
+  ];
 
   // Build expected per-integration keys from integrations meta (accounts + languages),
   // then intersect with the actually available keys returned by BaseLinker.
