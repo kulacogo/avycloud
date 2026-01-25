@@ -53,12 +53,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   React.useEffect(() => {
     // Wire token provider for backend calls.
-    setAuthTokenProvider(async () => {
-      if (!user) return null;
-      return await user.getIdToken();
+    // Use auth.currentUser to avoid transient "null provider" windows between state updates.
+    setAuthTokenProvider(async (forceRefresh?: boolean) => {
+      const current = auth.currentUser;
+      if (!current) return null;
+      try {
+        return await current.getIdToken(Boolean(forceRefresh));
+      } catch (error) {
+        // Retry once with forced refresh if the first attempt fails.
+        if (!forceRefresh) {
+          return await current.getIdToken(true);
+        }
+        throw error;
+      }
     });
     return () => setAuthTokenProvider(null);
-  }, [user]);
+  }, [auth]);
 
   const signInWithEmailPassword = React.useCallback(
     async (email: string, password: string) => {

@@ -45,7 +45,7 @@ const BACKEND_URL = (() => {
   return envUrl || 'https://product-hub-backend-79205549235.europe-west3.run.app';
 })();
 
-type TokenProvider = () => Promise<string | null>;
+type TokenProvider = (forceRefresh?: boolean) => Promise<string | null>;
 
 let tokenProvider: TokenProvider | null = null;
 
@@ -57,11 +57,14 @@ export function setAuthTokenProvider(provider: TokenProvider | null) {
   tokenProvider = provider;
 }
 
-const buildHeadersWithAuth = async (base?: HeadersInit): Promise<Headers> => {
+const isValidBearer = (value: string | null) => /^Bearer\s+\S+$/i.test(String(value || ''));
+
+const buildHeadersWithAuth = async (base?: HeadersInit, forceRefresh = false): Promise<Headers> => {
   const headers = new Headers(base || {});
-  if (!headers.has('Authorization') && tokenProvider) {
+  const existingAuth = headers.get('Authorization');
+  if ((!existingAuth || !isValidBearer(existingAuth)) && tokenProvider) {
     try {
-      const token = await tokenProvider();
+      const token = await tokenProvider(forceRefresh);
       if (token) {
         headers.set('Authorization', `Bearer ${token}`);
       }
@@ -74,8 +77,22 @@ const buildHeadersWithAuth = async (base?: HeadersInit): Promise<Headers> => {
 };
 
 const fetchApi = async (input: RequestInfo | URL, init: RequestInit = {}) => {
-  const headers = await buildHeadersWithAuth(init.headers);
-  return await fetch(input, { ...init, headers });
+  const attempt = async (forceRefresh: boolean) => {
+    const headers = await buildHeadersWithAuth(init.headers, forceRefresh);
+    return await fetch(input, { ...init, headers });
+  };
+
+  const res = await attempt(false);
+  // If we get a 401, try forcing a token refresh once.
+  if (res.status === 401 && tokenProvider) {
+    try {
+      const retry = await attempt(true);
+      return retry;
+    } catch {
+      return res;
+    }
+  }
+  return res;
 };
 
 const openAuthedUrlInNewTab = (url: string, opts?: { timeoutMs?: number }) => {
