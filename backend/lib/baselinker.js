@@ -174,6 +174,18 @@ function normalizePathSegments(pathStr) {
     .filter(Boolean);
 }
 
+function normalizeSegmentKey(seg) {
+  return (seg || '').toString().replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function segmentsToPathKey(segments = []) {
+  return segments.map(normalizeSegmentKey).filter(Boolean).join('>');
+}
+
+function normalizePathKey(pathStr) {
+  return segmentsToPathKey(normalizePathSegments(pathStr));
+}
+
 async function ensureInventoryCategoriesLoaded(inventoryId) {
   const key = String(inventoryId);
   if (inventoryCategoryCache.has(key)) return;
@@ -181,11 +193,47 @@ async function ensureInventoryCategoriesLoaded(inventoryId) {
   try {
     const resp = await callBaseLinker('getInventoryCategories', { inventory_id: Number(inventoryId) });
     const cats = resp?.categories || [];
+    // BaseLinker returns flat categories with parent_id. Build full breadcrumb path -> category_id mapping.
+    const byId = new Map();
     cats.forEach((c) => {
-      if (c?.name && c?.category_id) {
-        cache.set(c.name, c.category_id);
-      }
+      const id = Number(c?.category_id);
+      if (!Number.isFinite(id) || id <= 0) return;
+      byId.set(id, {
+        id,
+        name: (c?.name || '').toString().trim(),
+        parentId: Number(c?.parent_id || 0) || 0,
+      });
     });
+
+    const memo = new Map(); // id -> segments
+    const buildSegments = (id, stack = new Set()) => {
+      if (memo.has(id)) return memo.get(id);
+      const node = byId.get(id);
+      if (!node || !node.name) {
+        memo.set(id, []);
+        return [];
+      }
+      if (stack.has(id)) {
+        // cycle guard: fall back to leaf-only
+        const segs = [node.name];
+        memo.set(id, segs);
+        return segs;
+      }
+      stack.add(id);
+      const parentSegs =
+        node.parentId && byId.has(node.parentId) ? buildSegments(node.parentId, stack) : [];
+      stack.delete(id);
+      const segs = [...parentSegs, node.name];
+      memo.set(id, segs);
+      return segs;
+    };
+
+    for (const id of byId.keys()) {
+      const segs = buildSegments(id);
+      const pathKey = segmentsToPathKey(segs);
+      if (!pathKey) continue;
+      cache.set(pathKey, id);
+    }
     inventoryCategoryCache.set(key, cache);
   } catch (e) {
     console.warn('Could not load inventory categories for', inventoryId, e.message);
@@ -200,12 +248,13 @@ async function ensureInventoryCategory(inventoryId, pathStr) {
   const cache = inventoryCategoryCache.get(key) || new Map();
   const segments = normalizePathSegments(pathStr);
   let parentId = 0;
-  let currentPath = '';
+  const currentSegments = [];
 
   for (const seg of segments) {
-    currentPath = currentPath ? `${currentPath} > ${seg}` : seg;
-    if (cache.has(currentPath)) {
-      parentId = cache.get(currentPath);
+    currentSegments.push(seg);
+    const pathKey = segmentsToPathKey(currentSegments);
+    if (cache.has(pathKey)) {
+      parentId = cache.get(pathKey);
       continue;
     }
     const resp = await callBaseLinker('addInventoryCategory', {
@@ -214,11 +263,14 @@ async function ensureInventoryCategory(inventoryId, pathStr) {
       parent_id: parentId,
     });
     if (resp?.status !== 'SUCCESS' || !resp?.category_id) {
-      console.warn(`Failed to create inventory category "${currentPath}" for ${inventoryId}:`, resp);
+      console.warn(
+        `Failed to create inventory category "${currentSegments.join(' > ')}" for ${inventoryId}:`,
+        resp
+      );
       return parentId || 0;
     }
     parentId = resp.category_id;
-    cache.set(currentPath, parentId);
+    cache.set(pathKey, parentId);
   }
   inventoryCategoryCache.set(key, cache);
   return parentId || 0;
@@ -413,9 +465,19 @@ async function expandTextFieldsForInventory(inventoryId, textFields, values, lan
     if (!field) continue;
     if (keyLang && keyLang !== targetLang) continue;
 
+    // Generic: if caller provided a value for this field id, mirror it to all supported variants
+    // (including integration-scoped keys like `features|de|ebay_0`).
+    if (values && Object.prototype.hasOwnProperty.call(values, field) && out[keyId] == null) {
+      const v = values[field];
+      if (v !== undefined && v !== null && v !== '') {
+        out[keyId] = v;
+        continue;
+      }
+    }
+
+    // Backwards compatible explicit mappings
     if (field === 'name' && values?.name && out[keyId] == null) out[keyId] = values.name;
-    if (field === 'description' && values?.description && out[keyId] == null)
-      out[keyId] = values.description;
+    if (field === 'description' && values?.description && out[keyId] == null) out[keyId] = values.description;
     if (field === 'description_extra1' && values?.description_extra1 && out[keyId] == null)
       out[keyId] = values.description_extra1;
   }
@@ -1524,6 +1586,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
         name: payload?.text_fields?.name,
         description: payload?.text_fields?.description,
         description_extra1: payload?.text_fields?.description_extra1,
+        features: payload?.text_fields?.features,
         extra_field_18699: payload?.text_fields?.extra_field_18699,
       },
       defaultLang
