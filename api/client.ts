@@ -169,6 +169,81 @@ const openAuthedUrlInNewTab = (url: string, opts?: { timeoutMs?: number }) => {
   return { ok: true } as const;
 };
 
+const openUrlFallback = (url: string) => {
+  try {
+    // Prefer an anchor click (some browsers treat it differently than window.open).
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const printAuthedHtmlUrl = async (url: string, opts?: { timeoutMs?: number }) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), opts?.timeoutMs || 25000);
+  try {
+    const res = await fetchApi(url, { method: 'GET', signal: controller.signal });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Request failed (${res.status}) ${body?.slice(0, 180)}`);
+    }
+    const html = await res.text();
+    const blob = new Blob([html], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+
+    // Render into hidden iframe and print (no popups).
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.opacity = '0';
+    iframe.src = blobUrl;
+    document.body.appendChild(iframe);
+
+    await new Promise<void>((resolve) => {
+      const done = () => resolve();
+      iframe.onload = () => done();
+      // Safety: resolve even if onload is flaky.
+      setTimeout(done, 1500);
+    });
+
+    try {
+      iframe.contentWindow?.focus?.();
+      iframe.contentWindow?.print?.();
+    } catch (err: any) {
+      // Fallback: open blob in a new tab or same tab.
+      if (!openUrlFallback(blobUrl)) {
+        window.location.assign(blobUrl);
+      }
+      throw err;
+    } finally {
+      // Cleanup after the print dialog had a chance to open.
+      setTimeout(() => {
+        try {
+          iframe.remove();
+        } catch {}
+        try {
+          URL.revokeObjectURL(blobUrl);
+        } catch {}
+      }, 10_000);
+    }
+    return { ok: true } as const;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const JOB_POLL_INTERVAL_MS = 2000;
 const JOB_TIMEOUT_MS = 10 * 60 * 1000;
 interface FetchIdentificationJobsParams {
@@ -1390,6 +1465,18 @@ export const openSkuLabelWindow = (productId: string): { ok: boolean; error?: { 
   } catch (error: any) {
     console.error('Failed to open label window:', error);
     return { ok: false, error: { code: 0, message: error?.message || 'Unbekannter Fehler' } };
+  }
+};
+
+export const printSkuLabel = async (
+  productId: string
+): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
+  try {
+    const url = `${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/label`;
+    await printAuthedHtmlUrl(url, { timeoutMs: 25000 });
+    return { ok: true };
+  } catch (error: any) {
+    return { ok: false, error: { code: 0, message: error?.message || 'Labeldruck fehlgeschlagen' } };
   }
 };
 

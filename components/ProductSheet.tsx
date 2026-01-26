@@ -5,6 +5,7 @@ import {
   saveProduct,
   syncToBaseLinker,
   openSkuLabelWindow,
+  printSkuLabel,
   stockInProduct,
   stockOutProduct,
   fetchProductBins,
@@ -559,16 +560,22 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   };
   const handlePrintLabel = () => {
     if (!localProduct?.id) return;
-    // IMPORTANT: window.open must happen in the direct click call stack (esp. Safari),
-    // otherwise the browser can return null and our UI reports "Popup blocked".
-    const result = openSkuLabelWindow(localProduct.id);
     setIsPrintingLabel(true);
-    if (!result.ok) {
-      showNotification('error', result.error?.message || t('sheet.msg.labelError'));
-    } else {
-      showNotification('success', t('sheet.msg.labelSuccess'));
-    }
-    setIsPrintingLabel(false);
+    // Popup-free print path (works even when popups are blocked).
+    void printSkuLabel(localProduct.id).then((result) => {
+      if (!result.ok) {
+        // Fallback: try opening a new tab (may still be blocked by browser settings).
+        const fallback = openSkuLabelWindow(localProduct.id);
+        if (!fallback.ok) {
+          showNotification('error', result.error?.message || fallback.error?.message || t('sheet.msg.labelError'));
+        } else {
+          showNotification('success', t('sheet.msg.labelSuccess'));
+        }
+      } else {
+        showNotification('success', t('sheet.msg.labelSuccess'));
+      }
+      setIsPrintingLabel(false);
+    });
   };
 
   const handleAssignBin = async () => {
