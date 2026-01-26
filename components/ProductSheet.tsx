@@ -557,10 +557,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       void performSave();
     }, 0);
   };
-  const handlePrintLabel = async () => {
+  const handlePrintLabel = () => {
     if (!localProduct?.id) return;
-    setIsPrintingLabel(true);
+    // IMPORTANT: window.open must happen in the direct click call stack (esp. Safari),
+    // otherwise the browser can return null and our UI reports "Popup blocked".
     const result = openSkuLabelWindow(localProduct.id);
+    setIsPrintingLabel(true);
     if (!result.ok) {
       showNotification('error', result.error?.message || t('sheet.msg.labelError'));
     } else {

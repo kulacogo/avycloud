@@ -127,7 +127,8 @@ const fetchApi = async (input: RequestInfo | URL, init: RequestInit = {}) => {
 };
 
 const openAuthedUrlInNewTab = (url: string, opts?: { timeoutMs?: number }) => {
-  const popup = window.open('about:blank', '_blank', 'noopener');
+  // IMPORTANT: include noreferrer for Safari/Chromium edge cases where 'noopener' alone may behave inconsistently.
+  const popup = window.open('about:blank', '_blank', 'noopener,noreferrer');
   if (!popup) {
     return { ok: false, error: { code: 0, message: 'Popup wurde blockiert. Bitte Popups erlauben.' } };
   }
@@ -144,6 +145,11 @@ const openAuthedUrlInNewTab = (url: string, opts?: { timeoutMs?: number }) => {
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       popup.location.href = blobUrl;
+      try {
+        popup.focus?.();
+      } catch {
+        // ignore
+      }
       // Best-effort cleanup: revoke later (cannot revoke immediately; tab would break).
       setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
     } finally {
