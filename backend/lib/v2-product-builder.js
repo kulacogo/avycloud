@@ -189,7 +189,7 @@ function computeConfidence(record = {}) {
   return identified ? Math.min(0.92, Math.max(0.55, 0.55 + barcodeConfidence * 0.35)) : 0.22;
 }
 
-function normalizeSkuCandidate(value) {
+function normalizeSkuCandidate(value, record = {}) {
   if (value === undefined || value === null) return '';
   let s = String(value).trim();
   if (!s) return '';
@@ -207,6 +207,24 @@ function normalizeSkuCandidate(value) {
   if (/^SKU-$/i.test(s)) return '';
   const rest = s.replace(/^SKU-/i, '');
   if (/^SKU-/i.test(s) && !rest) return '';
+
+  // If SKU is actually just a barcode (EAN/GTIN/UPC), do not treat it as SKU.
+  const digitsOnly = /^\d+$/.test(s);
+  if (digitsOnly) {
+    const ean = normalizeValue(record?.ean);
+    const gtin = normalizeValue(record?.gtin);
+    const upc = normalizeValue(record?.upc);
+    if (s === ean || s === gtin || s === upc) {
+      return '';
+    }
+    // Canonical SKU format: always "SKU-<token>".
+    return `SKU-${s}`;
+  }
+
+  // Canonicalize any non-prefixed token to "SKU-...".
+  if (!/^SKU-/i.test(s)) {
+    return `SKU-${s}`;
+  }
   return s;
 }
 
@@ -244,7 +262,7 @@ function buildProductFromV2Record(record, options = {}) {
       brand,
       category: normalizeValue(record?.internalCategory) || 'Unkategorisiert',
       confidence: computeConfidence(record),
-      sku: normalizeSkuCandidate(record?.sku) || undefined,
+      sku: normalizeSkuCandidate(record?.sku, record) || undefined,
     },
     details: {
       short_description: shortDescription,
@@ -254,7 +272,7 @@ function buildProductFromV2Record(record, options = {}) {
         ean: normalizeValue(record?.ean) || undefined,
         gtin: normalizeValue(record?.gtin) || undefined,
         upc: normalizeValue(record?.upc) || undefined,
-        sku: normalizeSkuCandidate(record?.sku) || undefined,
+        sku: normalizeSkuCandidate(record?.sku, record) || undefined,
       },
       images,
       pricing: {

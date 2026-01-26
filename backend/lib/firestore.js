@@ -1527,7 +1527,7 @@ async function saveProduct(product, options = {}) {
     const skipTitlePolicy = options && options.skipTitlePolicy === true;
     const skipKeyFeaturesNormalize = options && options.skipKeyFeaturesNormalize === true;
 
-    const normalizeSkuToken = (value) => {
+    const normalizeSkuToken = (value, context = {}) => {
       if (value === undefined || value === null) return '';
       let s = String(value).trim();
       if (!s) return '';
@@ -1542,12 +1542,36 @@ async function saveProduct(product, options = {}) {
       if (/^SKU-$/i.test(s)) return '';
       const rest = s.replace(/^SKU-/i, '');
       if (/^SKU-/i.test(s) && !rest) return '';
+
+      // If SKU is actually the product barcode, do not treat it as SKU.
+      const digitsOnly = /^\d+$/.test(s);
+      if (digitsOnly) {
+        const ean = typeof context?.ean === 'string' ? context.ean.trim() : '';
+        const gtin = typeof context?.gtin === 'string' ? context.gtin.trim() : '';
+        const upc = typeof context?.upc === 'string' ? context.upc.trim() : '';
+        if (s && (s === ean || s === gtin || s === upc)) {
+          return '';
+        }
+        // Canonical SKU format: always "SKU-<token>".
+        if (!/^SKU-/i.test(s)) {
+          return `SKU-${s}`;
+        }
+      }
+
+      if (!/^SKU-/i.test(s)) {
+        return `SKU-${s}`;
+      }
       return s;
     };
 
     const pickStableSku = (data) => {
-      const idSku = normalizeSkuToken(data?.identification?.sku);
-      const detSku = normalizeSkuToken(data?.details?.identifiers?.sku);
+      const ctx = {
+        ean: data?.details?.identifiers?.ean,
+        gtin: data?.details?.identifiers?.gtin,
+        upc: data?.details?.identifiers?.upc,
+      };
+      const idSku = normalizeSkuToken(data?.identification?.sku, ctx);
+      const detSku = normalizeSkuToken(data?.details?.identifiers?.sku, ctx);
       return idSku || detSku || '';
     };
 
@@ -1559,7 +1583,9 @@ async function saveProduct(product, options = {}) {
       if (!product.details.identifiers) product.details.identifiers = {};
 
       const incomingSku =
-        normalizeSkuToken(product.identification.sku) || normalizeSkuToken(product.details.identifiers.sku) || '';
+        normalizeSkuToken(product.identification.sku, product.details.identifiers) ||
+        normalizeSkuToken(product.details.identifiers.sku, product.details.identifiers) ||
+        '';
 
       if (incomingSku && incomingSku !== stableSku) {
         console.warn(
@@ -1570,7 +1596,10 @@ async function saveProduct(product, options = {}) {
       product.details.identifiers.sku = stableSku;
     } else {
       // No existing SKU: normalize incoming SKU (fixes "SKU-\\n123" etc).
-      const incomingSku = normalizeSkuToken(product?.identification?.sku) || normalizeSkuToken(product?.details?.identifiers?.sku) || '';
+      const incomingSku =
+        normalizeSkuToken(product?.identification?.sku, product?.details?.identifiers) ||
+        normalizeSkuToken(product?.details?.identifiers?.sku, product?.details?.identifiers) ||
+        '';
       if (incomingSku) {
         if (!product.identification) product.identification = {};
         if (!product.details) product.details = {};
