@@ -227,6 +227,22 @@ function hasKTyp(product) {
   });
 }
 
+function attachKTypeTrace(product, trace) {
+  try {
+    if (!product) return;
+    product.ops = product.ops || {};
+    product.ops.data_quality = {
+      ...(product.ops.data_quality || {}),
+      ktype_enrich_v1: {
+        at_iso: new Date().toISOString(),
+        ...(trace || {}),
+      },
+    };
+  } catch {
+    // ignore
+  }
+}
+
 function formatKTyp(ids = [], { maxLen = 0 } = {}) {
   const parts = ids.map((id) => String(id).trim()).filter(Boolean);
   const out = [];
@@ -263,15 +279,32 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
   // Preconditions
   const catId = pickCategoryId(product);
   const fitmentMode = catId ? getVehicleFitmentMode(catId) : null;
-  if (!fitmentMode) return { ok: false, reason: 'not_fitment_category' };
-  if (hasKTyp(product)) return { ok: false, reason: 'already_has_ktype' };
+  if (!fitmentMode) {
+    attachKTypeTrace(product, { ok: false, reason: 'not_fitment_category', catId: catId || null });
+    return { ok: false, reason: 'not_fitment_category' };
+  }
+  if (hasKTyp(product)) {
+    attachKTypeTrace(product, { ok: false, reason: 'already_has_ktype', fitment_mode: fitmentMode, catId: catId || null });
+    return { ok: false, reason: 'already_has_ktype' };
+  }
   const mpn = pickPartNumber(product);
-  if (!mpn) return { ok: false, reason: 'missing_part_number' };
+  if (!mpn) {
+    attachKTypeTrace(product, { ok: false, reason: 'missing_part_number', fitment_mode: fitmentMode, catId: catId || null });
+    return { ok: false, reason: 'missing_part_number' };
+  }
 
   const mvl = loadMvlIndex();
   if (!mvl.ok) {
     product.notes = product.notes || {};
     product.notes.warnings = Array.from(new Set([...(product.notes.warnings || []), 'K-Typ nicht angereichert: MVL Datensatz fehlt am Runtime.' ]));
+    attachKTypeTrace(product, {
+      ok: false,
+      reason: 'mvl_missing',
+      fitment_mode: fitmentMode,
+      catId: catId || null,
+      mpn,
+      mvl_path: mvl.jsonlPath || null,
+    });
     return { ok: false, reason: 'mvl_missing' };
   }
 
@@ -329,6 +362,17 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
     product.notes.warnings = Array.from(
       new Set([...(product.notes.warnings || []), `K-Typ nicht angereichert: keine MVL-Matches aus Web-Evidence (${reason}).`])
     );
+    attachKTypeTrace(product, {
+      ok: false,
+      reason: 'no_matches',
+      fitment_mode: fitmentMode,
+      catId: catId || null,
+      mpn,
+      queries,
+      hsn_tsn: Array.from(hsnTsnFound),
+      sources,
+      mvl_path: mvl.jsonlPath,
+    });
     return { ok: false, reason: 'no_matches', fitmentMode, queries };
   }
 
@@ -337,21 +381,18 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
   // Store full K-Type list (no truncation) to satisfy downstream sync + UI requirements.
   // If a downstream system cannot accept long values, that system must be adjusted (field type) rather than truncating here.
   product.details.attributes['K-Typ'] = formatKTyp(ids, { maxLen: 0 });
-  product.ops = product.ops || {};
-  product.ops.data_quality = {
-    ...(product.ops.data_quality || {}),
-    ktype_enrich_v1: {
-      at_iso: new Date().toISOString(),
-      reason,
-      fitment_mode: fitmentMode,
-      mpn,
-      queries,
-      hsn_tsn: Array.from(hsnTsnFound),
-      ktypes: ids,
-      sources,
-      mvl_path: mvl.jsonlPath,
-    },
-  };
+  attachKTypeTrace(product, {
+    ok: true,
+    reason,
+    fitment_mode: fitmentMode,
+    catId: catId || null,
+    mpn,
+    queries,
+    hsn_tsn: Array.from(hsnTsnFound),
+    ktypes: ids,
+    sources,
+    mvl_path: mvl.jsonlPath,
+  });
 
   // If enrichment succeeded now, remove stale "not enriched" warnings from previous runs.
   // Keep other warnings intact (pricing, compliance, etc.).
