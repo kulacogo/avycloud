@@ -1527,9 +1527,27 @@ async function saveProduct(product, options = {}) {
     const skipTitlePolicy = options && options.skipTitlePolicy === true;
     const skipKeyFeaturesNormalize = options && options.skipKeyFeaturesNormalize === true;
 
+    const normalizeSkuToken = (value) => {
+      if (value === undefined || value === null) return '';
+      let s = String(value).trim();
+      if (!s) return '';
+      // Remove all whitespace/newlines that may have been introduced by OCR/LLM.
+      s = s.replace(/\s+/g, '');
+      // Normalize "SKU" prefix variants.
+      if (/^sku/i.test(s)) {
+        s = `SKU-${s.replace(/^sku[-_]?/i, '')}`;
+        s = s.replace(/^SKU-(SKU-)+/i, 'SKU-');
+      }
+      // Drop empty prefix-only values.
+      if (/^SKU-$/i.test(s)) return '';
+      const rest = s.replace(/^SKU-/i, '');
+      if (/^SKU-/i.test(s) && !rest) return '';
+      return s;
+    };
+
     const pickStableSku = (data) => {
-      const idSku = typeof data?.identification?.sku === 'string' ? data.identification.sku.trim() : '';
-      const detSku = typeof data?.details?.identifiers?.sku === 'string' ? data.details.identifiers.sku.trim() : '';
+      const idSku = normalizeSkuToken(data?.identification?.sku);
+      const detSku = normalizeSkuToken(data?.details?.identifiers?.sku);
       return idSku || detSku || '';
     };
 
@@ -1541,9 +1559,7 @@ async function saveProduct(product, options = {}) {
       if (!product.details.identifiers) product.details.identifiers = {};
 
       const incomingSku =
-        (typeof product.identification.sku === 'string' && product.identification.sku.trim()) ||
-        (typeof product.details.identifiers.sku === 'string' && product.details.identifiers.sku.trim()) ||
-        '';
+        normalizeSkuToken(product.identification.sku) || normalizeSkuToken(product.details.identifiers.sku) || '';
 
       if (incomingSku && incomingSku !== stableSku) {
         console.warn(
@@ -1552,6 +1568,16 @@ async function saveProduct(product, options = {}) {
       }
       product.identification.sku = stableSku;
       product.details.identifiers.sku = stableSku;
+    } else {
+      // No existing SKU: normalize incoming SKU (fixes "SKU-\\n123" etc).
+      const incomingSku = normalizeSkuToken(product?.identification?.sku) || normalizeSkuToken(product?.details?.identifiers?.sku) || '';
+      if (incomingSku) {
+        if (!product.identification) product.identification = {};
+        if (!product.details) product.details = {};
+        if (!product.details.identifiers) product.details.identifiers = {};
+        product.identification.sku = incomingSku;
+        product.details.identifiers.sku = incomingSku;
+      }
     }
     
     // Merge existing product data to avoid overwriting enriched content (images/descriptions/attrs)

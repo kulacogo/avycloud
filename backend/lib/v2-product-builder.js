@@ -189,6 +189,27 @@ function computeConfidence(record = {}) {
   return identified ? Math.min(0.92, Math.max(0.55, 0.55 + barcodeConfidence * 0.35)) : 0.22;
 }
 
+function normalizeSkuCandidate(value) {
+  if (value === undefined || value === null) return '';
+  let s = String(value).trim();
+  if (!s) return '';
+  // Remove all whitespace including newlines (common OCR/LLM formatting artifact).
+  s = s.replace(/\s+/g, '');
+
+  // Normalize "SKU" prefix variants to "SKU-".
+  if (/^sku/i.test(s)) {
+    s = `SKU-${s.replace(/^sku[-_]?/i, '')}`;
+    // Collapse duplicate prefix if present.
+    s = s.replace(/^SKU-(SKU-)+/i, 'SKU-');
+  }
+
+  // If it's just the prefix (or empty after prefix), treat as missing.
+  if (/^SKU-$/i.test(s)) return '';
+  const rest = s.replace(/^SKU-/i, '');
+  if (/^SKU-/i.test(s) && !rest) return '';
+  return s;
+}
+
 function buildProductFromV2Record(record, options = {}) {
   const manualBarcodes = parseBarcodeString(options?.barcodes || '');
   const productId = pickProductId(record, options?.fallbackId);
@@ -223,7 +244,7 @@ function buildProductFromV2Record(record, options = {}) {
       brand,
       category: normalizeValue(record?.internalCategory) || 'Unkategorisiert',
       confidence: computeConfidence(record),
-      sku: normalizeValue(record?.sku) || undefined,
+      sku: normalizeSkuCandidate(record?.sku) || undefined,
     },
     details: {
       short_description: shortDescription,
@@ -233,7 +254,7 @@ function buildProductFromV2Record(record, options = {}) {
         ean: normalizeValue(record?.ean) || undefined,
         gtin: normalizeValue(record?.gtin) || undefined,
         upc: normalizeValue(record?.upc) || undefined,
-        sku: normalizeValue(record?.sku) || undefined,
+        sku: normalizeSkuCandidate(record?.sku) || undefined,
       },
       images,
       pricing: {
