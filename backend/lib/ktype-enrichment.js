@@ -361,7 +361,18 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       if (!s) return false;
       if (/^K-Typ nicht angereichert:/i.test(s)) return false;
       if (/^K-Typ konnte/i.test(s)) return false;
+      if (/^K-Typ fehlt:/i.test(s)) return false;
       return true;
+    });
+  }
+
+  if (process.env.DEBUG_KTYPE) {
+    console.log('[ktype] enriched', {
+      productId: product?.id || null,
+      fitmentMode,
+      count: ids.length,
+      mpn,
+      mvl: mvl.jsonlPath,
     });
   }
 
