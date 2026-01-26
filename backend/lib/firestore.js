@@ -722,21 +722,147 @@ function enforceEbayAspects(product) {
     details.gpsr && typeof details.gpsr === 'object' ? { ...details.gpsr } : {};
 
   // GPSR placeholder policy (business rule):
-  // - If manufacturer address/email cannot be found/enriched, persist placeholders so exports remain complete.
+  // - If GPSR fields cannot be found/enriched, persist placeholders so exports/listings remain complete.
   // - We MUST mark placeholders in ops.data_quality so they can be replaced later when real values are found.
-  const GPSR_PLACEHOLDER_ADDRESS = 'Muster Straße 123';
-  const buildGpsrPlaceholderEmail = (manufacturerHint) => {
-    const hint = (manufacturerHint == null ? '' : String(manufacturerHint)).trim();
-    const domain =
-      hint
-        .toLowerCase()
-        .replace(/ä/g, 'a')
-        .replace(/ö/g, 'o')
-        .replace(/ü/g, 'u')
-        .replace(/ß/g, 'ss')
-        .replace(/[^a-z0-9]+/g, '')
-        .trim() || 'hersteller';
-    return `musterfirma@${domain}.com`;
+  const GPSR_PLACEHOLDER = {
+    manufacturer_name: 'Muster Firma',
+    manufacturer_address: 'Musterstraße 1', // Street + house number ONLY (no PLZ/City/Country)
+    manufacturer_city: 'Musterstadt',
+    manufacturer_postalcode: '12345',
+    manufacturer_state_province: 'Musterbundesland',
+    manufacturer_phone: '+49 000 000000',
+    entity_country: 'Germany', // MUST be English name, not "DE"
+    email: 'info@muster-firma.com',
+  };
+
+  const normalizeCountryToEnglish = (raw) => {
+    const v = safeString(raw).trim();
+    if (!v) return '';
+    const upper = v.toUpperCase();
+    const codeMap = {
+      DE: 'Germany',
+      AT: 'Austria',
+      CH: 'Switzerland',
+      NL: 'Netherlands',
+      PL: 'Poland',
+      SE: 'Sweden',
+      FR: 'France',
+      IT: 'Italy',
+      ES: 'Spain',
+      BE: 'Belgium',
+      DK: 'Denmark',
+      NO: 'Norway',
+      FI: 'Finland',
+      GB: 'United Kingdom',
+      UK: 'United Kingdom',
+      IE: 'Ireland',
+      PT: 'Portugal',
+      CZ: 'Czechia',
+      SK: 'Slovakia',
+      HU: 'Hungary',
+      RO: 'Romania',
+      BG: 'Bulgaria',
+      GR: 'Greece',
+      TR: 'Turkey',
+    };
+    if (/^[A-Z]{2}$/.test(upper) && codeMap[upper]) return codeMap[upper];
+    const lower = v.toLowerCase();
+    if (lower === 'deutschland') return 'Germany';
+    if (lower === 'österreich' || lower === 'osterreich') return 'Austria';
+    if (lower === 'schweiz') return 'Switzerland';
+    return v;
+  };
+
+  const normalizeGpsrForListings = (gpsrObj, manufacturerHint) => {
+    const changed = [];
+    const g = gpsrObj && typeof gpsrObj === 'object' ? gpsrObj : {};
+
+    // 1) Address splitting: manufacturer_address must be only "Street HouseNo"
+    const rawAddr = safeString(g.manufacturer_address).trim();
+    if (rawAddr) {
+      const parts = rawAddr.split(',').map((p) => safeString(p).trim()).filter(Boolean);
+      const street = (parts[0] || rawAddr).trim();
+      if (street && street !== rawAddr) {
+        g.manufacturer_address = street;
+        changed.push('manufacturer_address');
+      } else if (street) {
+        g.manufacturer_address = street;
+      }
+
+      // Try to parse remaining parts for postal/city/country/state (best-effort, no guessing beyond patterns)
+      for (const part of parts.slice(1)) {
+        // postal + city pattern: "5163 Mattsee"
+        const m = part.match(/(^|\s)(\d{4,6})\s+(.+)$/);
+        if (m) {
+          const postal = String(m[2] || '').trim();
+          const city = String(m[3] || '').trim();
+          if (!g.manufacturer_postalcode && postal) {
+            g.manufacturer_postalcode = postal;
+            changed.push('manufacturer_postalcode');
+          }
+          if (!g.manufacturer_city && city) {
+            g.manufacturer_city = city;
+            changed.push('manufacturer_city');
+          }
+          continue;
+        }
+
+        // Country (code or name)
+        const maybeCountry = normalizeCountryToEnglish(part);
+        if (!g.entity_country && maybeCountry) {
+          g.entity_country = maybeCountry;
+          changed.push('entity_country');
+          continue;
+        }
+
+        // State/province (free text)
+        if (!g.manufacturer_state_province && part) {
+          g.manufacturer_state_province = part;
+          changed.push('manufacturer_state_province');
+        }
+      }
+    }
+
+    // 2) Ensure mandatory-ish listing fields exist (placeholders if missing)
+    const hintName = safeString(manufacturerHint).trim();
+    if (!g.manufacturer_name) {
+      g.manufacturer_name = hintName || GPSR_PLACEHOLDER.manufacturer_name;
+      changed.push('manufacturer_name');
+    }
+    if (!g.manufacturer_address) {
+      g.manufacturer_address = GPSR_PLACEHOLDER.manufacturer_address;
+      changed.push('manufacturer_address');
+    }
+    if (!g.manufacturer_city) {
+      g.manufacturer_city = GPSR_PLACEHOLDER.manufacturer_city;
+      changed.push('manufacturer_city');
+    }
+    if (!g.manufacturer_postalcode) {
+      g.manufacturer_postalcode = GPSR_PLACEHOLDER.manufacturer_postalcode;
+      changed.push('manufacturer_postalcode');
+    }
+    if (!g.manufacturer_state_province) {
+      g.manufacturer_state_province = GPSR_PLACEHOLDER.manufacturer_state_province;
+      changed.push('manufacturer_state_province');
+    }
+    if (!g.manufacturer_phone) {
+      g.manufacturer_phone = GPSR_PLACEHOLDER.manufacturer_phone;
+      changed.push('manufacturer_phone');
+    }
+    const normalizedCountry = normalizeCountryToEnglish(g.entity_country);
+    if (!normalizedCountry) {
+      g.entity_country = GPSR_PLACEHOLDER.entity_country;
+      changed.push('entity_country');
+    } else if (normalizedCountry !== g.entity_country) {
+      g.entity_country = normalizedCountry;
+      changed.push('entity_country');
+    }
+    if (!g.email) {
+      g.email = GPSR_PLACEHOLDER.email;
+      changed.push('email');
+    }
+
+    return { gpsr: g, changed };
   };
   const ingestGpsrAttribute = (finalKey, val, nextExtra, originalKey) => {
     if (!isGpsrKey(finalKey)) return false;
@@ -767,6 +893,34 @@ function enforceEbayAspects(product) {
     }
     if (keyLower.includes('url') || keyLower.includes('website') || keyLower.includes('webseite')) {
       gpsr.url = rawValue;
+      return true;
+    }
+
+    // --- Extended GPSR keys (marketplace mandatory fields like hood.de) ---
+    if (keyLower.includes('entity') && keyLower.includes('country')) {
+      gpsr.entity_country = rawValue;
+      return true;
+    }
+    if (keyLower.includes('manufacturer') && keyLower.includes('city')) {
+      gpsr.manufacturer_city = rawValue;
+      return true;
+    }
+    if (keyLower.includes('manufacturer') && (keyLower.includes('phone') || keyLower.includes('telefon'))) {
+      gpsr.manufacturer_phone = rawValue;
+      return true;
+    }
+    if (
+      keyLower.includes('manufacturer') &&
+      (keyLower.includes('postalcode') || keyLower.includes('post code') || keyLower.includes('postcode') || keyLower.includes('plz'))
+    ) {
+      gpsr.manufacturer_postalcode = rawValue;
+      return true;
+    }
+    if (
+      keyLower.includes('manufacturer') &&
+      (keyLower.includes('state') || keyLower.includes('province') || keyLower.includes('bundesland'))
+    ) {
+      gpsr.manufacturer_state_province = rawValue;
       return true;
     }
 
@@ -875,25 +1029,16 @@ function enforceEbayAspects(product) {
         safeString(product?.identification?.brand) ||
         safeString(details?.brand) ||
         '';
-      const changedGpsr = [];
-      if (!gpsr.manufacturer_name && manufacturerHint) {
-        gpsr.manufacturer_name = manufacturerHint;
-        changedGpsr.push('manufacturer_name');
+      const normalized = normalizeGpsrForListings(gpsr, manufacturerHint);
+      if (normalized?.gpsr) {
+        Object.assign(gpsr, normalized.gpsr);
       }
-      if (!gpsr.manufacturer_address) {
-        gpsr.manufacturer_address = GPSR_PLACEHOLDER_ADDRESS;
-        changedGpsr.push('manufacturer_address');
-      }
-      if (!gpsr.email) {
-        gpsr.email = buildGpsrPlaceholderEmail(manufacturerHint || 'hersteller');
-        changedGpsr.push('email');
-      }
-      if (changedGpsr.length) {
+      if (normalized?.changed?.length) {
         product.ops = product.ops || {};
         product.ops.data_quality = product.ops.data_quality || {};
         product.ops.data_quality.gpsr_placeholder_v1 = {
           at_iso: new Date().toISOString(),
-          fields: changedGpsr,
+          fields: normalized.changed,
         };
       }
     } catch (e) {
@@ -1120,25 +1265,16 @@ function enforceEbayAspects(product) {
       safeString(product?.identification?.brand) ||
       safeString(details?.brand) ||
       '';
-    const changedGpsr = [];
-    if (!gpsr.manufacturer_name && manufacturerHint) {
-      gpsr.manufacturer_name = manufacturerHint;
-      changedGpsr.push('manufacturer_name');
+    const normalized = normalizeGpsrForListings(gpsr, manufacturerHint);
+    if (normalized?.gpsr) {
+      Object.assign(gpsr, normalized.gpsr);
     }
-    if (!gpsr.manufacturer_address) {
-      gpsr.manufacturer_address = GPSR_PLACEHOLDER_ADDRESS;
-      changedGpsr.push('manufacturer_address');
-    }
-    if (!gpsr.email) {
-      gpsr.email = buildGpsrPlaceholderEmail(manufacturerHint || 'hersteller');
-      changedGpsr.push('email');
-    }
-    if (changedGpsr.length) {
+    if (normalized?.changed?.length) {
       product.ops = product.ops || {};
       product.ops.data_quality = product.ops.data_quality || {};
       product.ops.data_quality.gpsr_placeholder_v1 = {
         at_iso: new Date().toISOString(),
-        fields: changedGpsr,
+        fields: normalized.changed,
       };
     }
   } catch (e) {

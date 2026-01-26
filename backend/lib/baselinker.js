@@ -1140,10 +1140,6 @@ function buildTextFields(product, name) {
     }
   }
 
-  if (Object.keys(features).length) {
-    textFields.features = features;
-  }
-
   // GPSR Parameters (Essential for compliance)
   const gpsr = product?.details?.gpsr;
   if (gpsr) {
@@ -1153,6 +1149,17 @@ function buildTextFields(product, name) {
     if (gpsr.manufacturer_address) features['GPSR Manufacturer address'] = gpsr.manufacturer_address;
     if (gpsr.email) features['GPSR Manufacturer email'] = gpsr.email;
     if (gpsr.url) features['GPSR Manufacturer URL'] = gpsr.url;
+    // hood.de mandatory GPSR fields (as seen in listing UI labels)
+    if (gpsr.entity_country) features['GPSR Entity country'] = gpsr.entity_country;
+    if (gpsr.manufacturer_city) features['GPSR Manufacturer city'] = gpsr.manufacturer_city;
+    if (gpsr.manufacturer_phone) features['GPSR Manufacturer phone number'] = gpsr.manufacturer_phone;
+    if (gpsr.manufacturer_postalcode) features['GPSR Manufacturer postalcode'] = gpsr.manufacturer_postalcode;
+    if (gpsr.manufacturer_state_province) features['GPSR manufacturer state/province'] = gpsr.manufacturer_state_province;
+  }
+
+  // Ensure features are always sent if we collected anything (including GPSR-only cases)
+  if (Object.keys(features).length) {
+    textFields.features = features;
   }
 
   return textFields;
