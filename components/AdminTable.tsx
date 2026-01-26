@@ -540,7 +540,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         sortKey: 'details.identifiers.sku',
         defaultVisible: true,
         render: ({ product }) => (
-          <div className="text-slate-300 text-sm font-mono leading-tight">
+          <div className="text-slate-300 text-sm font-mono leading-tight whitespace-nowrap">
             {product.details?.identifiers?.sku || product.identification?.sku || '—'}
           </div>
         ),
