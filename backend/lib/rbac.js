@@ -27,8 +27,6 @@ const defaultRoles = () => ({
     permissions: {
       dashboard: { read: true },
       products: { read: true },
-      orders: { read: true },
-      inventories: { read: true },
     },
   },
   operation: {
@@ -419,6 +417,7 @@ module.exports = {
   setUserOverrides,
   listRoles,
   updateRole,
+  resolvePermissionsForUser,
   requirePermission,
   hasPermission,
   isAllowedWithOverrides,

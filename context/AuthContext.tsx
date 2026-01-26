@@ -3,11 +3,14 @@ import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFirebaseAuth } from '../utils/firebase';
 import { setAuthTokenProvider } from '../api/client';
+import { fetchMyPermissions, type RbacSnapshot } from '../api/client';
 
 type AuthContextValue = {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
+  rbac: RbacSnapshot | null;
+  hasPermission: (moduleName: string, action: string) => boolean;
   signInWithEmailPassword: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -26,6 +29,7 @@ const isAllowedEmail = (email?: string | null) => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = React.useState<User | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [rbac, setRbac] = React.useState<RbacSnapshot | null>(null);
 
   const auth = React.useMemo(() => getFirebaseAuth(), []);
 
@@ -50,6 +54,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     return () => unsub();
   }, [auth]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!auth.currentUser) {
+        setRbac(null);
+        return;
+      }
+      try {
+        const snapshot = await fetchMyPermissions();
+        if (!cancelled) {
+          setRbac(snapshot);
+        }
+      } catch {
+        if (!cancelled) {
+          setRbac({ roles: [], permissions: {}, profile: null });
+        }
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth, user?.uid]);
 
   React.useEffect(() => {
     // Wire token provider for backend calls.
@@ -87,15 +115,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isAdmin = Boolean(user?.email && String(user.email).toLowerCase() === BOOTSTRAP_ADMIN_EMAIL);
 
+  const hasPermission = React.useCallback(
+    (moduleName: string, action: string) => {
+      if (isAdmin) return true;
+      const mod = String(moduleName || '').trim();
+      const act = String(action || '').trim();
+      if (!mod || !act) return false;
+      const perms = rbac?.permissions || {};
+      if (perms?.['*']?.['*'] === true) return true;
+      const modPerm = perms[mod] || perms['*'] || null;
+      if (!modPerm) return false;
+      if (modPerm['*'] === true) return true;
+      return modPerm[act] === true;
+    },
+    [rbac?.permissions, isAdmin]
+  );
+
   const value: AuthContextValue = React.useMemo(
     () => ({
       user,
       loading,
       isAdmin,
+      rbac,
+      hasPermission,
       signInWithEmailPassword,
       logout,
     }),
-    [user, loading, isAdmin, signInWithEmailPassword, logout]
+    [user, loading, isAdmin, rbac, hasPermission, signInWithEmailPassword, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

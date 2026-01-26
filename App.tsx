@@ -280,6 +280,7 @@ const readInitialTheme = (): Theme => {
 
 const AppInner: React.FC = () => {
   const { t } = useI18n();
+  const { hasPermission } = useAuth();
   const [{ view: initialView, productId: initialHashProductId }] = useState(() => readInitialView());
   const [view, setView] = useState<View>(initialView);
   const [initialProductId] = useState<string | null>(initialHashProductId);
@@ -674,6 +675,9 @@ const AppInner: React.FC = () => {
           <div className="text-center p-8 text-slate-400">{t('app.sheet.empty')}</div>
         );
       case 'inventory':
+        if (!hasPermission('products', 'read')) {
+          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+        }
         return (
           <AdminTable
             products={products}
@@ -687,10 +691,27 @@ const AppInner: React.FC = () => {
           />
         );
       case 'categories':
+        if (!(hasPermission('categories', 'read') || hasPermission('categories', 'write'))) {
+          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+        }
         return <CategoryManagement />;
       case 'admin':
+        if (
+          !(
+            hasPermission('admin', 'users.read') ||
+            hasPermission('admin', 'roles.read') ||
+            hasPermission('admin', 'groups.read') ||
+            hasPermission('admin', 'llm.read') ||
+            hasPermission('admin', 'reports.read')
+          )
+        ) {
+          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+        }
         return <AdminPanel />;
       case 'warehouse':
+        if (!(hasPermission('warehouse', 'read') || hasPermission('warehouse', 'write'))) {
+          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+        }
         return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
       case 'dashboard':
         return isMobile ? (
@@ -700,6 +721,9 @@ const AppInner: React.FC = () => {
         );
       case 'input':
       default:
+        if (!hasPermission('identify', 'run')) {
+          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+        }
         return <ProductInput onIdentify={handleIdentification} />;
     }
   };

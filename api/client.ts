@@ -2008,6 +2008,21 @@ export const syncInventories = async () => {
   return result?.data;
 };
 
+export type RbacSnapshot = {
+  roles: string[];
+  permissions: Record<string, Record<string, boolean>>;
+  profile: { uid: string | null; email: string | null; roles: string[]; groupIds: string[] } | null;
+};
+
+export const fetchMyPermissions = async (): Promise<RbacSnapshot> => {
+  const response = await fetchApi(`${BACKEND_URL}/api/me/permissions?t=${Date.now()}`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'RBAC konnte nicht geladen werden.');
+  }
+  return (result?.data as RbacSnapshot) || { roles: [], permissions: {}, profile: null };
+};
+
 export const assignInventoryToProducts = async (productIds: string[], inventoryId: string) => {
   const response = await fetchApi(`${BACKEND_URL}/api/inventories/assign`, {
     method: 'POST',

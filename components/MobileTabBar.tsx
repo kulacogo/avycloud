@@ -6,6 +6,7 @@ import searchDark from '../mobile icons/mobile search dm.png';
 import opsLight from '../mobile icons/mobile operation.png';
 import opsDark from '../mobile icons/mobile operation dm.png';
 import { useI18n } from '../i18n';
+import { useAuth } from '../context/AuthContext';
 
 type MobileTab = 'home' | 'search' | 'operations';
 
@@ -36,9 +37,20 @@ const isActive = (current: string, tab: MobileTab) => {
 
 const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate, theme }) => {
   const { t } = useI18n();
+  const { hasPermission } = useAuth();
+  const visibleTabs = React.useMemo(() => {
+    const canOps =
+      hasPermission('warehouse', 'read') ||
+      hasPermission('warehouse', 'write') ||
+      hasPermission('orders', 'read') ||
+      hasPermission('orders', 'pick') ||
+      hasPermission('orders', 'pack') ||
+      hasPermission('identify', 'run');
+    return tabs.filter((tab) => (tab.id === 'operations' ? canOps : true));
+  }, [hasPermission]);
   return (
     <nav className="bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-4 py-2 flex justify-around gap-2 pb-4 safe-area-bottom shadow-2xl shadow-black/40">
-      {tabs.map((tab) => {
+      {visibleTabs.map((tab) => {
         const active = isActive(currentView, tab.id);
         const iconSrc = theme === 'dark' ? tabIcons[tab.id].dark : tabIcons[tab.id].light;
         return (

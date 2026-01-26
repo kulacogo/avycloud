@@ -132,7 +132,7 @@ const TOGGLE_ICONS = {
 
 export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onToggleTheme }) => {
   const { t, locale, setLocale } = useI18n();
-  const { logout } = useAuth();
+  const { logout, hasPermission, isAdmin } = useAuth();
   const logoSrc = theme === 'dark' ? LOGOS.dark : LOGOS.light;
   const handleHardRefresh = React.useCallback(async () => {
     try {
@@ -191,6 +191,47 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     </a>
   );
 
+  const isNavAllowed = React.useCallback(
+    (view: NavIconConfig['view']) => {
+      // Always allow dashboard.
+      if (view === 'dashboard') return true;
+      // Products list lives under "inventory" view.
+      if (view === 'inventory') return hasPermission('products', 'read');
+      // Identify / ProductInput
+      if (view === 'input') return hasPermission('identify', 'run');
+      // Categories management
+      if (view === 'categories') return hasPermission('categories', 'read') || hasPermission('categories', 'write');
+      // Warehouse module
+      if (view === 'warehouse') return hasPermission('warehouse', 'read') || hasPermission('warehouse', 'write');
+      // Operations module (any operational capability)
+      if (view === 'operations') {
+        return (
+          hasPermission('warehouse', 'read') ||
+          hasPermission('warehouse', 'write') ||
+          hasPermission('orders', 'read') ||
+          hasPermission('orders', 'pick') ||
+          hasPermission('orders', 'pack') ||
+          hasPermission('identify', 'run')
+        );
+      }
+      // Admin module
+      if (view === 'admin') {
+        if (isAdmin) return true;
+        return (
+          hasPermission('admin', 'users.read') ||
+          hasPermission('admin', 'roles.read') ||
+          hasPermission('admin', 'groups.read') ||
+          hasPermission('admin', 'llm.read') ||
+          hasPermission('admin', 'reports.read')
+        );
+      }
+      return true;
+    },
+    [hasPermission, isAdmin]
+  );
+
+  const navIcons = React.useMemo(() => NAV_ICONS.filter((nav) => isNavAllowed(nav.view)), [isNavAllowed]);
+
   return (
     <>
       <header className="safe-area-header bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-white/5">
@@ -201,7 +242,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <span className="sr-only">Avystock Product Intelligence Hub</span>
             </div>
             <div className="hidden sm:flex flex-1 items-center justify-center gap-2">
-              {NAV_ICONS.map((nav) => (
+              {navIcons.map((nav) => (
                 <DesktopNavButton key={nav.view} nav={nav} />
               ))}
             </div>
