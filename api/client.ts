@@ -50,6 +50,7 @@ type TokenProvider = (forceRefresh?: boolean) => Promise<string | null>;
 
 let tokenProvider: TokenProvider | null = null;
 let defaultProviderInstalled = false;
+let defaultProviderInstallPromise: Promise<void> | null = null;
 
 /**
  * Register a token provider from the Auth layer so all API calls automatically attach:
@@ -59,29 +60,37 @@ export function setAuthTokenProvider(provider: TokenProvider | null) {
   tokenProvider = provider;
 }
 
-function ensureDefaultFirebaseTokenProviderInstalled() {
+async function ensureDefaultFirebaseTokenProviderInstalled(): Promise<void> {
   if (tokenProvider || defaultProviderInstalled) return;
-  defaultProviderInstalled = true;
-  try {
-    // Lazy import to avoid coupling unless needed.
-    // This ensures early requests (e.g. inventory load) don't fire before AuthContext effect wires the provider.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { getFirebaseAuth } = require('../utils/firebase');
-    const auth = getFirebaseAuth();
-    tokenProvider = async (forceRefresh?: boolean) => {
-      const current = auth?.currentUser;
-      if (!current) return null;
-      return await current.getIdToken(Boolean(forceRefresh));
-    };
-  } catch {
-    // ignore – requests will proceed without token and backend will return 401
-  }
+  if (defaultProviderInstallPromise) return await defaultProviderInstallPromise;
+
+  // Lazy dynamic import (Vite-compatible). This ensures early requests (e.g. inventory load)
+  // don't fire before AuthContext effect wires the provider.
+  defaultProviderInstallPromise = (async () => {
+    try {
+      const mod = await import('../utils/firebase');
+      const auth = mod.getFirebaseAuth();
+      tokenProvider = async (forceRefresh?: boolean) => {
+        const current = auth?.currentUser;
+        if (!current) return null;
+        return await current.getIdToken(Boolean(forceRefresh));
+      };
+      defaultProviderInstalled = true;
+    } catch {
+      // ignore – requests will proceed without token and backend will return 401
+      defaultProviderInstalled = true;
+    } finally {
+      defaultProviderInstallPromise = null;
+    }
+  })();
+
+  return await defaultProviderInstallPromise;
 }
 
 const isValidBearer = (value: string | null) => /^Bearer\s+\S+$/i.test(String(value || ''));
 
 const buildHeadersWithAuth = async (base?: HeadersInit, forceRefresh = false): Promise<Headers> => {
-  ensureDefaultFirebaseTokenProviderInstalled();
+  await ensureDefaultFirebaseTokenProviderInstalled();
   const headers = new Headers(base || {});
   const existingAuth = headers.get('Authorization');
   if ((!existingAuth || !isValidBearer(existingAuth)) && tokenProvider) {
