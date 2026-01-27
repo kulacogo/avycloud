@@ -35,6 +35,10 @@ const { searchWeb } = require('../lib/web-search-html');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 
 const USE_UNLOCKER = (process.env.GPSR_WEB_USE_UNLOCKER || '').toString().toLowerCase() === 'true';
+const PER_PRODUCT_TIMEOUT_MS = Math.max(
+  10_000,
+  parseInt(process.env.GPSR_ENRICH_TIMEOUT_MS || '90000', 10) || 90_000
+);
 
 function argFlag(name) {
   return process.argv.includes(name);
@@ -411,6 +415,18 @@ async function enrichOne(product, { dryRun, debugDir }) {
   return { ok: true, productId, query, updated: !dryRun, sources: urls.slice(0, 5) };
 }
 
+async function withTimeout(promise, ms, { label = 'timeout' } = {}) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(label)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function main() {
   const apply = argFlag('--apply');
   const dryRun = !apply;
@@ -453,7 +469,9 @@ async function main() {
       queue.add(async () => {
         try {
           const fresh = await getProduct(p.id);
-          const res = await enrichOne(fresh || p, { dryRun, debugDir });
+          const res = await withTimeout(enrichOne(fresh || p, { dryRun, debugDir }), PER_PRODUCT_TIMEOUT_MS, {
+            label: 'enrich_timeout',
+          }).catch((e) => ({ ok: false, reason: 'timeout', error: e?.message || 'timeout' }));
           if (res.ok) {
             ok += 1;
           } else {
@@ -461,7 +479,7 @@ async function main() {
             const r = res.reason || 'unknown';
             reasons[r] = (reasons[r] || 0) + 1;
           }
-          if ((ok + failed) % 10 === 0) {
+          if (candidates.length < 25 || (ok + failed) % 10 === 0) {
             console.log(JSON.stringify({ progress: ok + failed, ok, failed, reasons }, null, 2));
           }
         } catch (e) {
