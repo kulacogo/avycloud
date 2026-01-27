@@ -1331,6 +1331,13 @@ function enforceEbayAspects(product) {
   };
   dropIfSame('Marke', 'Hersteller');
   dropIfSame('Abteilung', 'Zielgruppe');
+  // Auto/Moto parts often arrive with surface/compatibility synonyms that are redundant.
+  // Keep UI clean when the values are identical; preserve dropped keys in attributes_extra.
+  dropIfSame('Oberfläche', 'Oberflächenbehandlung');
+  dropIfSame('Oberfläche', 'Oberflächenbeschaffenheit');
+  dropIfSame('Passend für Fahrzeugmodell', 'Passende Modelle');
+  dropIfSame('Passend für Fahrzeugmodell', 'Passende Modellreihen');
+  dropIfSame('Passend für Fahrzeugmodell', 'Passend für Modellreihen');
 
   const sortedAttrs = normalizeAttributesOrder(
     { ...keptAspects },
