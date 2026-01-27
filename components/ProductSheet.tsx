@@ -160,6 +160,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [syncInventoryId] = useState('78659');
   const prevProductIdRef = useRef(product.id);
 
+  const updateGpsrField = useCallback((key: string, value: string) => {
+    setLocalProduct((prev) => ({
+      ...prev,
+      details: {
+        ...(prev.details || ({} as any)),
+        gpsr: {
+          ...(((prev.details || ({} as any)).gpsr || {}) as any),
+          [key]: value,
+        },
+      },
+    }));
+    setIsDirty(true);
+  }, []);
+
   const parseBarcodes = useCallback((input: string) => {
     const entries = input
       .split(/[\n,;]+/)
@@ -214,6 +228,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     loadProductBins(product.id);
     setBarcodeInput((product.identification?.barcodes || []).join('\n'));
   }, [product, loadProductBins, normalizeProduct, isDirty, isEditing, isGeneratingImages]);
+
+  const gpsr = (localProduct?.details?.gpsr || {}) as any;
+  const hasAnyGpsr = useMemo(() => {
+    return Object.values(gpsr || {}).some((v) => typeof v === 'string' && v.trim().length > 0);
+  }, [gpsr]);
 
   // Falls Storage leer, aber Bins vorhanden: erste Bin übernehmen, damit Remove-Button und Anzeige stimmen
   useEffect(() => {
@@ -1462,6 +1481,54 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             ) : (
               <p className="text-slate-300 leading-relaxed text-sm sm:text-base">{descriptionText}</p>
             )}
+          </section>
+
+          <section id="gpsr" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-xl font-semibold mb-3 text-white">GPSR</h3>
+              {!hasAnyGpsr && !isEditing ? (
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300 border border-slate-600/40">
+                  leer
+                </span>
+              ) : null}
+            </div>
+
+            <p className="text-xs text-slate-400 mb-3">
+              GPSR/Compliance Herstellerdaten (wird aus Identify/Jobs strukturiert unter <span className="font-mono">details.gpsr</span> gespeichert).
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                ['manufacturer_name', 'Hersteller Name'],
+                ['manufacturer_address', 'Adresse (Straße + Nr.)'],
+                ['manufacturer_city', 'Stadt'],
+                ['manufacturer_postalcode', 'PLZ'],
+                ['manufacturer_state_province', 'Bundesland / Province'],
+                ['entity_country', 'Land (EN)'],
+                ['email', 'E-Mail'],
+                ['manufacturer_phone', 'Telefon'],
+                ['url', 'Website'],
+              ].map(([key, label]) => {
+                const value = typeof gpsr?.[key] === 'string' ? gpsr[key] : '';
+                return (
+                  <div key={key} className="flex flex-col gap-1">
+                    <div className="text-xs font-semibold text-slate-300">{label}</div>
+                    {isEditing ? (
+                      <input
+                        value={value}
+                        onChange={(e) => updateGpsrField(String(key), e.target.value)}
+                        className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-200 text-sm"
+                        placeholder="—"
+                      />
+                    ) : (
+                      <div className="text-sm text-slate-200 break-words">
+                        {value ? value : <span className="text-slate-500">—</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </section>
 
           <section id="attributes" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">

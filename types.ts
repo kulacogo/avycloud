@@ -96,9 +96,14 @@ export interface Details {
   // canonical eBay category id (see backend enforceEbayAspects)
   categoryId?: string;
   gpsr?: {
+    entity_country?: string;
     manufacturer_name?: string;
     manufacturer_address?: string;
+    manufacturer_city?: string;
+    manufacturer_postalcode?: string;
+    manufacturer_state_province?: string;
     email?: string;
+    manufacturer_phone?: string;
     url?: string;
   };
 }

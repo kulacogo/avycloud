@@ -1045,6 +1045,24 @@ function buildTextFields(product, name) {
     // Avoid syncing technical/ambiguous keys as Parameters.
     // "SKU" must come from the actual SKU field, not from arbitrary source attributes.
     const keyLower = key.toLowerCase();
+    // Hard-block internal/meta category keys (these were polluting BaseLinker Parameters)
+    // and causing marketplace tools to break (e.g. ebay_category_id populated with a breadcrumb).
+    if (
+      keyLower === 'category_path' ||
+      keyLower === 'category id' ||
+      keyLower === 'category_id' ||
+      keyLower === 'ebay_category_id' ||
+      keyLower === 'ebay_category_path' ||
+      keyLower === 'kaufland_category_id' ||
+      keyLower === 'kaufland_category_path' ||
+      keyLower.startsWith('ebay_category') ||
+      keyLower.startsWith('kaufland_category') ||
+      keyLower.includes('category_path') ||
+      keyLower.endsWith('_category_id') ||
+      keyLower.endsWith('_category_path')
+    ) {
+      return;
+    }
     if (
       keyLower === 'sku' ||
       keyLower === 'product_id' ||
@@ -1286,43 +1304,10 @@ function buildPayload(
   const { weight, width, height, length } = pickPhysicalProperties(product);
 
   // Marketplace-spezifische Kategorien (falls als IDs im Produkt hinterlegt)
-  const attrs = product?.details?.attributes || {};
-  const ebayCategoryId =
-    // Canonical field in AvyCloud:
-    product?.details?.categoryId ||
-    product?.details?.ebayCategoryId ||
-    attrs.ebay_category_id ||
-    attrs.ebayCategoryId ||
-    attrs['ebay.category_id'] ||
-    null;
-  const ebayCategoryPath =
-    product?.details?.ebayCategoryPath ||
-    attrs.ebay_category_path ||
-    attrs.ebay_category ||
-    product?.identification?.category ||
-    null;
-  const kauflandCategoryId =
-    product?.details?.kauflandCategoryId ||
-    attrs.kaufland_category_id ||
-    attrs.kauflandCategoryId ||
-    attrs['kaufland.category_id'] ||
-    null;
-  const kauflandCategoryPath =
-    product?.details?.kauflandCategoryPath ||
-    attrs.kaufland_category_path ||
-    attrs.kaufland_category ||
-    product?.identification?.category ||
-    null;
-  if (ebayCategoryId || ebayCategoryPath) {
-    textFields.features = textFields.features || {};
-    textFields.features.ebay_category_id = ebayCategoryId || ebayCategoryPath || '';
-    textFields.features.ebay_category_path = ebayCategoryPath || '';
-  }
-  if (kauflandCategoryId || kauflandCategoryPath) {
-    textFields.features = textFields.features || {};
-    textFields.features.kaufland_category_id = kauflandCategoryId || kauflandCategoryPath || '';
-    textFields.features.kaufland_category_path = kauflandCategoryPath || '';
-  }
+  // IMPORTANT:
+  // Do NOT sync marketplace category meta keys into BaseLinker Parameters.
+  // Category mapping is handled via BaseLinker inventory categories + channel_mapping_enable.
+  // Syncing these as parameters caused "category_id" fields to contain breadcrumb strings.
 
   const payload = {
     inventory_id: inventoryId,
@@ -1569,20 +1554,11 @@ async function syncProductToBaseLinker(product, inventoryId) {
       invId
     );
 
-    const attrs = { ...(product?.details?.attributes || {}) };
     const categoryPath =
       product?.details?.ebayCategoryPath ||
       product?.details?.kauflandCategoryPath ||
       product?.identification?.category ||
-      attrs.ebay_category_path ||
-      attrs.kaufland_category_path ||
       null;
-    if (categoryPath) {
-      attrs.category_path = categoryPath;
-    }
-    if (product.details) {
-      product.details.attributes = attrs;
-    }
 
     // Quantity to send to BaseLinker must reflect AVAILABLE stock:
     // available = physical (warehouse BIN stock) - reserved (open orders).

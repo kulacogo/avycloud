@@ -492,6 +492,7 @@ async function main() {
   const debugFailures = argFlag('--debug-failures');
   const debugFailuresMax = Math.max(0, parseInt(argValue('--debug-failures-max', '3') || '3', 10));
   const minQty = Math.max(1, parseInt(argValue('--min-qty', '1') || '1', 10));
+  const onlyProductId = argValue('--product-id', null);
   // NOTE: The "target filter" is BIN + qty>=minQty only. Price filtering was removed intentionally.
 
   const debugDir = debug ? path.resolve(`backend/exports/gpsr-web-enrich/${nowStamp()}`) : null;
@@ -506,7 +507,7 @@ async function main() {
   );
 
   const all = await getAllProducts();
-  const candidates = Array.isArray(all)
+  let candidates = Array.isArray(all)
     ? all
         .filter((p) => p?.id)
         .filter((p) => hasBin(p))
@@ -514,6 +515,15 @@ async function main() {
         .filter((p) => needsGpsr(p))
         .slice(0, limit)
     : [];
+
+  if (onlyProductId) {
+    const p = await getProduct(String(onlyProductId).trim());
+    if (!p) {
+      console.error('Product not found for --product-id:', onlyProductId);
+      process.exit(1);
+    }
+    candidates = [p];
+  }
   console.log(
     JSON.stringify(
       { totalProducts: all?.length || 0, candidates: candidates.length, filter: { hasBin: true, minQty } },
