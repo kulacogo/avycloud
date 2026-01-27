@@ -221,6 +221,43 @@ const GPSR_SCHEMA = {
   required: ['entity_country', 'manufacturer_name', 'manufacturer_address', 'manufacturer_city', 'manufacturer_postalcode', 'manufacturer_state_province', 'manufacturer_email', 'manufacturer_phone', 'sources', 'confidence'],
 };
 
+function tryParseJsonLenient(text) {
+  const raw = (text == null ? '' : String(text)).trim();
+  if (!raw) return { ok: false, error: 'empty' };
+
+  const stripBOM = (s) => s.replace(/^\uFEFF/, '');
+  const stripFences = (s) =>
+    s
+      .replace(/^\s*```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/i, '')
+      .trim();
+
+  const cleaned = stripFences(stripBOM(raw));
+  const candidates = [cleaned];
+
+  // If model emitted extra prose, try extracting the first JSON object/array.
+  const firstObj = cleaned.indexOf('{');
+  const lastObj = cleaned.lastIndexOf('}');
+  if (firstObj !== -1 && lastObj !== -1 && lastObj > firstObj) {
+    candidates.push(cleaned.slice(firstObj, lastObj + 1));
+  }
+  const firstArr = cleaned.indexOf('[');
+  const lastArr = cleaned.lastIndexOf(']');
+  if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr) {
+    candidates.push(cleaned.slice(firstArr, lastArr + 1));
+  }
+
+  for (const c of candidates) {
+    try {
+      const parsed = JSON.parse(c);
+      if (parsed && typeof parsed === 'object') return { ok: true, parsed };
+    } catch {
+      // try next
+    }
+  }
+  return { ok: false, error: 'json_parse_failed', rawPreview: cleaned.slice(0, 800), rawLen: cleaned.length };
+}
+
 function buildPrompt({ product, evidenceBlocks, urls }) {
   const name = safeString(product?.identification?.name);
   const brand = safeString(product?.identification?.brand);
@@ -287,18 +324,41 @@ async function enrichOne(product, { dryRun, debugDir }) {
     fs.writeFileSync(outPath, prompt.slice(0, 200_000), 'utf8');
   }
 
-  const jsonText = await callGeminiStructured({
-    parts: [{ text: prompt }],
-    responseSchema: GPSR_SCHEMA,
-    temperature: 0.0,
-    maxOutputTokens: 1024,
-  });
+  const callOnce = async ({ reduceEvidence = false } = {}) => {
+    const prompt2 = reduceEvidence
+      ? buildPrompt({ product, evidenceBlocks: evidenceBlocks.slice(0, 2), urls: urls.slice(0, 3) })
+      : prompt;
+    const jsonText = await callGeminiStructured({
+      parts: [{ text: prompt2 }],
+      responseSchema: GPSR_SCHEMA,
+      temperature: 0.0,
+      maxOutputTokens: 2048,
+    });
+    return { jsonText, promptUsed: reduceEvidence ? 'reduced' : 'full' };
+  };
 
   let parsed = null;
-  try {
-    parsed = JSON.parse(jsonText);
-  } catch (e) {
-    return { ok: false, reason: 'json_parse_failed', error: e.message, raw: jsonText.slice(0, 800) };
+  let rawMeta = null;
+  const first = await callOnce({ reduceEvidence: false });
+  const attempt1 = tryParseJsonLenient(first.jsonText);
+  if (attempt1.ok) {
+    parsed = attempt1.parsed;
+  } else {
+    // One retry with reduced evidence to avoid truncation / oversized payloads.
+    const second = await callOnce({ reduceEvidence: true });
+    const attempt2 = tryParseJsonLenient(second.jsonText);
+    if (!attempt2.ok) {
+      return {
+        ok: false,
+        reason: 'json_parse_failed',
+        error: attempt2.error || attempt1.error || 'json_parse_failed',
+        raw: (attempt2.rawPreview || attempt1.rawPreview || '').slice(0, 800),
+        raw_len: attempt2.rawLen || attempt1.rawLen || null,
+        prompt_used: second.promptUsed,
+      };
+    }
+    parsed = attempt2.parsed;
+    rawMeta = { prompt_used: second.promptUsed };
   }
 
   const extracted = {
@@ -338,6 +398,7 @@ async function enrichOne(product, { dryRun, debugDir }) {
           query,
           sources: Array.isArray(parsed.sources) ? parsed.sources.slice(0, 8) : urls.slice(0, 8),
           confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+          ...(rawMeta || {}),
         },
       },
     },
@@ -413,7 +474,9 @@ async function main() {
   );
 
   console.log(JSON.stringify({ done: true, ok, failed, reasons }, null, 2));
-  if (!dryRun && failed > 0) process.exitCode = 2;
+  // IMPORTANT: do NOT fail the whole Cloud Run Job just because some items couldn't be enriched.
+  // This avoids endless retries + noisy alerts. The script already reports per-reason counts.
+  if (!dryRun && argFlag('--strict-exit') && failed > 0) process.exitCode = 2;
 }
 
 main().catch((err) => {
