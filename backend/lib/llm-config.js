@@ -83,6 +83,79 @@ async function ensureDefaultLlmScopes() {
   );
 }
 
+async function ensureDefaultLlmScopeVersions() {
+  // Seed minimal-but-strong defaults ONLY when a scope has no active version yet.
+  // This keeps behavior stable for new deployments while still allowing admin overrides.
+  const defaultsByScope = {
+    'identify.v2': {
+      promptMode: 'append',
+      rulesMode: 'append',
+      note: 'Default v1 (bootstrapped) – Identify-first quality rules.',
+      promptText: [
+        'IDENTIFY-FIRST: Liefere maximal vollständige, belegbare Produktdaten. Identify ist die primäre Datenquelle; Improve/Chat sind nur Fallback.',
+        'Wenn Daten fehlen (MPN/EAN/GPSR/K-Typ): Nutze WEB-EVIDENZ/Marktplatz-Suchergebnisse. Erfinde nichts; lass Felder leer, wenn nicht belegbar.',
+      ].join('\n'),
+      rulesText: [
+        'Pflichtfelder (wenn belegbar): identifiers.mpn (Herstellernummer), GPSR Herstellerdaten (Name, Adresse, Ort, PLZ, Land, E-Mail, Telefon).',
+        'Bei Fahrzeugteilen: wenn Kategorie Fahrzeugverwendungsliste erlaubt, K-Typ als Attribut "K-Typ" pflegen (nur aus Evidence).',
+        'Keine Fake-Antworten: Wenn du keine Belege findest, schreibe eine Warnung statt zu behaupten, dass Daten existieren.',
+      ].join('\n'),
+    },
+    'improve.product': {
+      promptMode: 'append',
+      rulesMode: 'append',
+      note: 'Default v1 (bootstrapped) – Improve fallback rules.',
+      promptText:
+        'IMPROVE: Verbessere vorhandene Daten, aber erfinde keine Spezifikationen. Nutze Web/Marketplace Evidence für Plausibilitätschecks.',
+      rulesText:
+        'Wenn Pflicht-Aspekte fehlen, ergänze sie nur wenn belegbar. Falls nicht belegbar: Warnung setzen; keine Halluzinationen.',
+    },
+    'chat.product': {
+      promptMode: 'append',
+      rulesMode: 'append',
+      note: 'Default v1 (bootstrapped) – Chat honesty + deep search.',
+      promptText:
+        'CHAT: Sei flexibel und handlungsorientiert. Wenn der Nutzer nach Daten fragt, führe selbstständig Web/Marketplace Searches aus und liefere Ergebnisse mit Quellen.',
+      rulesText: [
+        'Ehrlichkeit: Behaupte niemals, du hättest Daten gefunden, wenn keine Tool-Calls/Belege vorhanden sind.',
+        'Wenn du suchst: nutze mehrere Quellen (mindestens Google + eBay + Amazon; optional Shopping/weitere).',
+        'Jede neue Faktenbehauptung (EAN/MPN/GPSR etc.) muss aus Evidence stammen; sonst als "unbelegt" markieren oder leer lassen.',
+      ].join('\n'),
+    },
+  };
+
+  const defaults = listDefaultScopes();
+  for (const scope of defaults) {
+    const ref = firestore.collection(SCOPES_COLLECTION).doc(scope.id);
+    const snap = await ref.get();
+    if (!snap.exists) continue;
+    const data = snap.data() || {};
+    if (data.activeVersionId) continue;
+    const def = defaultsByScope[scope.id];
+    if (!def) continue;
+
+    const versionRef = ref.collection('versions').doc();
+    await versionRef.set({
+      promptText: String(def.promptText || ''),
+      rulesText: String(def.rulesText || ''),
+      promptMode: def.promptMode === 'replace' ? 'replace' : 'append',
+      rulesMode: def.rulesMode === 'replace' ? 'replace' : 'append',
+      note: def.note ? String(def.note).slice(0, 500) : null,
+      createdByUid: null,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    await ref.set(
+      {
+        activeVersionId: versionRef.id,
+        updatedAt: FieldValue.serverTimestamp(),
+        activatedByUid: null,
+      },
+      { merge: true }
+    );
+    cache.delete(scope.id);
+  }
+}
+
 async function listLlmScopes() {
   const snap = await firestore.collection(SCOPES_COLLECTION).get();
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -189,6 +262,7 @@ async function getActiveLlmConfig(scopeId) {
 
 module.exports = {
   ensureDefaultLlmScopes,
+  ensureDefaultLlmScopeVersions,
   listLlmScopes,
   getScope,
   listScopeVersions,

@@ -1337,7 +1337,7 @@ const DATASHEET_REVIEW_SCHEMA = {
   },
 };
 
-function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues = [] } = {}) {
+function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues = [], llmOverrides = null } = {}) {
   const snapshot = {
     id: product?.id,
     brand: product?.identification?.brand,
@@ -1365,9 +1365,27 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
   const idsLine =
     'Identifiers: Wenn WEB-EVIDENZ/OCR MPN/Herstellernummer/EAN/GTIN/UPC enthält, liefere identifiers.* und zusätzlich als Attribute (z.B. "Herstellernummer"). Keine IDs erfinden.';
 
+  const promptMode = llmOverrides?.promptMode === 'replace' ? 'replace' : 'append';
+  const rulesMode = llmOverrides?.rulesMode === 'replace' ? 'replace' : 'append';
+  const promptOverride = typeof llmOverrides?.promptText === 'string' ? llmOverrides.promptText : '';
+  const rulesOverride = typeof llmOverrides?.rulesText === 'string' ? llmOverrides.rulesText : '';
+
+  const baseIntro =
+    'Du bist ein Marketplace-Quality-Inspector für eBay und Amazon. Deine Aufgabe: prüfe das vorliegende Produktdatenblatt und liefere eine korrigierte, maximal verkaufsstarke Version.';
+  const baseRules = buildCommonPolicyText({ locale, allowWebEvidence: Boolean(webEvidence) });
+
+  const effectiveIntro =
+    promptOverride && promptMode === 'replace'
+      ? promptOverride
+      : [baseIntro, promptOverride].filter(Boolean).join('\n\n');
+  const effectiveRules =
+    rulesOverride && rulesMode === 'replace'
+      ? rulesOverride
+      : [baseRules, rulesOverride].filter(Boolean).join('\n\n');
+
   return [
-    'Du bist ein Marketplace-Quality-Inspector für eBay und Amazon. Deine Aufgabe: prüfe das vorliegende Produktdatenblatt und liefere eine korrigierte, maximal verkaufsstarke Version.',
-    buildCommonPolicyText({ locale, allowWebEvidence: Boolean(webEvidence) }),
+    effectiveIntro,
+    effectiveRules,
     '',
     'Zusatzregeln für Review:',
     requiredLine,
@@ -1517,7 +1535,13 @@ function applyReviewResult(product, review) {
 
 async function runDatasheetReview(
   products = [],
-  { locale = 'de-DE', webEvidence = null, qualityIssuesById = null, marketplaceEvidence = false } = {}
+  {
+    locale = 'de-DE',
+    webEvidence = null,
+    qualityIssuesById = null,
+    marketplaceEvidence = false,
+    llmScopeId = null,
+  } = {}
 ) {
   if (!Array.isArray(products) || !products.length) return;
   // Use Thinking model for deep quality assurance
@@ -1525,6 +1549,17 @@ async function runDatasheetReview(
 
   const client = await getGeminiClient();
   const model = client.getGenerativeModel({ model: reviewModel });
+
+  // Optional admin-managed prompt/rules overrides (Identify vs Improve can diverge).
+  let llmConfig = null;
+  try {
+    const { getActiveLlmConfig } = require('../lib/llm-config');
+    if (llmScopeId) {
+      llmConfig = await getActiveLlmConfig(String(llmScopeId));
+    }
+  } catch {
+    llmConfig = null;
+  }
 
   const stripMarkdownFencesKeepContent = (text = '') => {
     return String(text)
@@ -1704,6 +1739,14 @@ async function runDatasheetReview(
             text: buildReviewPrompt(product, locale, {
               webEvidence: mergedEvidence,
               qualityIssues: qualityIssuesById && product?.id ? (qualityIssuesById[product.id] || []) : [],
+              llmOverrides: llmConfig
+                ? {
+                    promptText: llmConfig.promptText,
+                    rulesText: llmConfig.rulesText,
+                    promptMode: llmConfig.promptMode,
+                    rulesMode: llmConfig.rulesMode,
+                  }
+                : null,
             })
           }]
         }],

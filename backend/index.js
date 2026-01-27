@@ -805,7 +805,16 @@ ensureBootstrapAdmin()
   .then((r) => console.log(`Bootstrap admin ensured (${r.email})${r.created ? ' [created]' : ''}`))
   .catch((error) => console.error('Bootstrap admin failed:', error));
 ensureDefaultLlmScopes()
-  .then(() => console.log('LLM scopes ensured.'))
+  .then(async () => {
+    console.log('LLM scopes ensured.');
+    try {
+      const { ensureDefaultLlmScopeVersions } = require('./lib/llm-config');
+      await ensureDefaultLlmScopeVersions();
+      console.log('LLM default scope versions ensured.');
+    } catch (e) {
+      console.error('LLM default version seeding failed:', e?.message || e);
+    }
+  })
   .catch((error) => console.error('LLM scope seeding failed:', error));
 syncInventoriesFromBaseLinker()
   .then((result) => {
@@ -1360,7 +1369,12 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
       llm: result.llm || null,
     };
 
-    await runDatasheetReview([product], { locale, webEvidence: evidence, marketplaceEvidence: true });
+    await runDatasheetReview([product], {
+      locale,
+      webEvidence: evidence,
+      marketplaceEvidence: true,
+      llmScopeId: 'identify.v2',
+    });
 
     // Retry once if still not eBay-ready (title/desc/highlights/attrs). This keeps Identify outputs stable.
     try {
@@ -1372,6 +1386,7 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
           webEvidence: evidence,
           qualityIssuesById: { [product.id]: eval1.issues },
           marketplaceEvidence: true,
+          llmScopeId: 'identify.v2',
         });
       }
     } catch (e) {
