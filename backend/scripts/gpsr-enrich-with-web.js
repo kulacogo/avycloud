@@ -28,7 +28,7 @@ const fs = require('fs');
 const path = require('path');
 const fetch = global.fetch || require('node-fetch');
 const PQueue = require('p-queue').default || require('p-queue');
-const { getAllProducts, getProduct, saveProduct } = require('../lib/firestore');
+const { getAllProducts, getProduct, saveProduct, firestore } = require('../lib/firestore');
 const { callGeminiStructured } = require('../lib/gemini-structured');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const { searchWeb } = require('../lib/web-search-html');
@@ -433,13 +433,21 @@ async function main() {
   const limit = Math.max(1, parseInt(argValue('--limit', '200') || '200', 10));
   const concurrency = Math.max(1, parseInt(argValue('--concurrency', '2') || '2', 10));
   const debug = argFlag('--debug');
+  const debugFailures = argFlag('--debug-failures');
+  const debugFailuresMax = Math.max(0, parseInt(argValue('--debug-failures-max', '3') || '3', 10));
   const minQty = Math.max(1, parseInt(argValue('--min-qty', '1') || '1', 10));
   const minPrice = Math.max(0, parseFloat(argValue('--min-price', '50') || '50'));
 
   const debugDir = debug ? path.resolve(`backend/exports/gpsr-web-enrich/${nowStamp()}`) : null;
   if (debugDir) ensureDir(debugDir);
 
-  console.log(JSON.stringify({ action: 'gpsr-web-enrich', dryRun, limit, concurrency, debugDir, minQty, minPrice }, null, 2));
+  console.log(
+    JSON.stringify(
+      { action: 'gpsr-web-enrich', dryRun, limit, concurrency, debugDir, debugFailures, debugFailuresMax, minQty, minPrice },
+      null,
+      2
+    )
+  );
 
   const all = await getAllProducts();
   const candidates = Array.isArray(all)
@@ -463,6 +471,7 @@ async function main() {
   let ok = 0;
   let failed = 0;
   const reasons = {};
+  let debugStored = 0;
 
   await Promise.all(
     candidates.map((p) =>
@@ -478,6 +487,50 @@ async function main() {
             failed += 1;
             const r = res.reason || 'unknown';
             reasons[r] = (reasons[r] || 0) + 1;
+
+            // Optional: persist debug info for failures (safe, truncated).
+            if (
+              debugFailures &&
+              !dryRun &&
+              debugStored < debugFailuresMax &&
+              (res.reason === 'json_parse_failed' || res.reason === 'timeout')
+            ) {
+              try {
+                const docId = String((fresh && fresh.id) || p.id || '');
+                if (docId) {
+                  const rawPreview =
+                    res.reason === 'json_parse_failed'
+                      ? safeString(res.raw || '')
+                      : res.reason === 'timeout'
+                        ? `timeout after ${PER_PRODUCT_TIMEOUT_MS}ms`
+                        : '';
+                  await firestore
+                    .collection('products')
+                    .doc(docId)
+                    .set(
+                      {
+                        ops: {
+                          data_quality: {
+                            gpsr_web_enrich_debug_v1: {
+                              at_iso: new Date().toISOString(),
+                              reason: res.reason,
+                              query: safeString(res.query || '') || null,
+                              raw_preview: rawPreview ? rawPreview.slice(0, 800) : null,
+                              raw_len: res.raw_len || null,
+                              prompt_used: res.prompt_used || null,
+                              error: res.error || null,
+                            },
+                          },
+                        },
+                      },
+                      { merge: true }
+                    );
+                  debugStored += 1;
+                }
+              } catch (e) {
+                // Do not fail the run for debug persistence issues
+              }
+            }
           }
           if (candidates.length < 25 || (ok + failed) % 10 === 0) {
             console.log(JSON.stringify({ progress: ok + failed, ok, failed, reasons }, null, 2));
