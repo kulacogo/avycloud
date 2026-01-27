@@ -34,6 +34,10 @@ function isBadSku(product) {
   if (!raw) return false;
   const trimmed = String(raw).trim();
   if (!trimmed) return false;
+  const lower = trimmed.toLowerCase();
+  if (lower === 'sku-unknown' || lower === 'unknown' || lower === 'unbekannt') {
+    return { bad: true, reason: 'placeholder_unknown' };
+  }
 
   // whitespace/newlines
   if (/\s/.test(trimmed)) return { bad: true, reason: 'whitespace' };
@@ -43,6 +47,9 @@ function isBadSku(product) {
 
   // missing prefix
   if (!/^SKU-/i.test(trimmed)) return { bad: true, reason: 'missing_prefix' };
+
+  // strict format required
+  if (!/^SKU-\d{10}$/i.test(trimmed)) return { bad: true, reason: 'invalid_format' };
 
   // SKU equals barcode (should be treated as barcode, not SKU)
   const ean = normalizeDigits(product?.details?.identifiers?.ean);
@@ -74,7 +81,7 @@ async function main() {
   let updated = 0;
   let skipped = 0;
   let failed = 0;
-  const reasons = { whitespace: 0, prefix_only: 0, missing_prefix: 0, sku_equals_barcode: 0 };
+  const reasons = { whitespace: 0, prefix_only: 0, missing_prefix: 0, invalid_format: 0, placeholder_unknown: 0, sku_equals_barcode: 0 };
 
   let lastDoc = null;
   while (processed < limitTotal) {

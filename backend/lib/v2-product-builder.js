@@ -196,36 +196,33 @@ function normalizeSkuCandidate(value, record = {}) {
   // Remove all whitespace including newlines (common OCR/LLM formatting artifact).
   s = s.replace(/\s+/g, '');
 
-  // Normalize "SKU" prefix variants to "SKU-".
+  // STRICT SKU POLICY:
+  // SKU must be exactly "SKU-[10 digits]".
+  // We do NOT accept placeholders like "unknown", and we do NOT accept arbitrary non-digit tokens.
+  const lower = s.toLowerCase();
+  if (lower === 'unknown' || lower === 'unbekannt' || lower === 'sku-unknown') return '';
+
+  // Normalize prefix variants
   if (/^sku/i.test(s)) {
     s = `SKU-${s.replace(/^sku[-_]?/i, '')}`;
-    // Collapse duplicate prefix if present.
     s = s.replace(/^SKU-(SKU-)+/i, 'SKU-');
   }
-
-  // If it's just the prefix (or empty after prefix), treat as missing.
-  if (/^SKU-$/i.test(s)) return '';
   const rest = s.replace(/^SKU-/i, '');
-  if (/^SKU-/i.test(s) && !rest) return '';
+  if (!rest) return '';
 
-  // If SKU is actually just a barcode (EAN/GTIN/UPC), do not treat it as SKU.
-  const digitsOnly = /^\d+$/.test(s);
-  if (digitsOnly) {
-    const ean = normalizeValue(record?.ean);
-    const gtin = normalizeValue(record?.gtin);
-    const upc = normalizeValue(record?.upc);
-    if (s === ean || s === gtin || s === upc) {
-      return '';
-    }
-    // Canonical SKU format: always "SKU-<token>".
-    return `SKU-${s}`;
-  }
+  // Only digits; pad to 10 if shorter; reject if longer than 10.
+  if (!/^\d+$/.test(rest)) return '';
+  const digits = rest;
+  if (digits.length > 10) return '';
 
-  // Canonicalize any non-prefixed token to "SKU-...".
-  if (!/^SKU-/i.test(s)) {
-    return `SKU-${s}`;
-  }
-  return s;
+  // Reject barcode-as-sku (EAN/GTIN/UPC) when exact match.
+  const ean = normalizeValue(record?.ean);
+  const gtin = normalizeValue(record?.gtin);
+  const upc = normalizeValue(record?.upc);
+  if (digits === ean || digits === gtin || digits === upc) return '';
+
+  const padded = digits.padStart(10, '0');
+  return `SKU-${padded}`;
 }
 
 function buildProductFromV2Record(record, options = {}) {

@@ -1540,6 +1540,9 @@ async function saveProduct(product, options = {}) {
       if (!s) return '';
       // Remove all whitespace/newlines that may have been introduced by OCR/LLM.
       s = s.replace(/\s+/g, '');
+      const lower = s.toLowerCase();
+      // Reject placeholders (these were causing persistent "SKU-unknown" records).
+      if (lower === 'unknown' || lower === 'unbekannt' || lower === 'sku-unknown') return '';
       // Normalize "SKU" prefix variants.
       if (/^sku/i.test(s)) {
         s = `SKU-${s.replace(/^sku[-_]?/i, '')}`;
@@ -1550,25 +1553,90 @@ async function saveProduct(product, options = {}) {
       const rest = s.replace(/^SKU-/i, '');
       if (/^SKU-/i.test(s) && !rest) return '';
 
-      // If SKU is actually the product barcode, do not treat it as SKU.
-      const digitsOnly = /^\d+$/.test(s);
-      if (digitsOnly) {
-        const ean = typeof context?.ean === 'string' ? context.ean.trim() : '';
-        const gtin = typeof context?.gtin === 'string' ? context.gtin.trim() : '';
-        const upc = typeof context?.upc === 'string' ? context.upc.trim() : '';
-        if (s && (s === ean || s === gtin || s === upc)) {
-          return '';
-        }
-        // Canonical SKU format: always "SKU-<token>".
-        if (!/^SKU-/i.test(s)) {
-          return `SKU-${s}`;
-        }
-      }
+      // STRICT SKU POLICY:
+      // SKU must be exactly "SKU-[10 digits]". Accept digits-only inputs (pad to 10),
+      // reject longer-than-10 and non-digit tokens.
+      const digitsOnly = /^\d+$/.test(rest);
+      if (!digitsOnly) return '';
+      if (rest.length > 10) return '';
 
-      if (!/^SKU-/i.test(s)) {
-        return `SKU-${s}`;
-      }
-      return s;
+      // If SKU is actually the product barcode, do not treat it as SKU.
+      const ean = typeof context?.ean === 'string' ? context.ean.trim() : '';
+      const gtin = typeof context?.gtin === 'string' ? context.gtin.trim() : '';
+      const upc = typeof context?.upc === 'string' ? context.upc.trim() : '';
+      if (rest && (rest === ean || rest === gtin || rest === upc)) return '';
+
+      const padded = rest.padStart(10, '0');
+      return `SKU-${padded}`;
+    };
+
+    const ensureSkuUniqueOrThrow = async (productId, sku) => {
+      const normalized = normalizeSkuValue(sku);
+      if (!normalized) return;
+      const key = buildSkuIndexKey('sku', normalized);
+      if (!key) return;
+      await firestore.runTransaction(async (tx) => {
+        const ref = firestore.collection(SKU_INDEX_COLLECTION).doc(key);
+        const snap = await tx.get(ref);
+        const existingPid = snap.exists ? (snap.data()?.productId || snap.data()?.baseProductId || null) : null;
+        if (existingPid && String(existingPid) !== String(productId)) {
+          throw new Error(`SKU already in use: ${sku} (productId=${existingPid})`);
+        }
+        tx.set(
+          ref,
+          {
+            productId: String(productId),
+            sku,
+            updated_at: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      });
+    };
+
+    const allocateSku10 = async (productId) => {
+      const counterRef = firestore.collection('metaCounters').doc('sku10');
+      const startDefault = 1000000000; // 10 digits
+      return await firestore.runTransaction(async (tx) => {
+        const counterSnap = await tx.get(counterRef);
+        let next = startDefault;
+        if (counterSnap.exists) {
+          const raw = Number(counterSnap.data()?.next || counterSnap.data()?.value || 0);
+          if (Number.isFinite(raw) && raw > 0) next = raw;
+        }
+        // Find the next free SKU in the sku index (bounded search to keep tx fast).
+        for (let i = 0; i < 500; i += 1) {
+          const digits = String(next).padStart(10, '0');
+          const sku = `SKU-${digits}`;
+          const key = buildSkuIndexKey('sku', digits);
+          const idxRef = firestore.collection(SKU_INDEX_COLLECTION).doc(key);
+          const idxSnap = await tx.get(idxRef);
+          const existingPid = idxSnap.exists ? (idxSnap.data()?.productId || idxSnap.data()?.baseProductId || null) : null;
+          if (existingPid && String(existingPid) !== String(productId)) {
+            next += 1;
+            continue;
+          }
+          tx.set(
+            idxRef,
+            {
+              productId: String(productId),
+              sku,
+              updated_at: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+          tx.set(
+            counterRef,
+            {
+              next: next + 1,
+              updated_at: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+          return sku;
+        }
+        throw new Error('Failed to allocate unique SKU (exhausted attempts)');
+      });
     };
 
     const pickStableSku = (data) => {
@@ -1601,19 +1669,22 @@ async function saveProduct(product, options = {}) {
       }
       product.identification.sku = stableSku;
       product.details.identifiers.sku = stableSku;
+      await ensureSkuUniqueOrThrow(product.id, stableSku);
     } else {
       // No existing SKU: normalize incoming SKU (fixes "SKU-\\n123" etc).
       const incomingSku =
         normalizeSkuToken(product?.identification?.sku, product?.details?.identifiers) ||
         normalizeSkuToken(product?.details?.identifiers?.sku, product?.details?.identifiers) ||
         '';
-      if (incomingSku) {
-        if (!product.identification) product.identification = {};
-        if (!product.details) product.details = {};
-        if (!product.details.identifiers) product.details.identifiers = {};
-        product.identification.sku = incomingSku;
-        product.details.identifiers.sku = incomingSku;
-      }
+      if (!product.identification) product.identification = {};
+      if (!product.details) product.details = {};
+      if (!product.details.identifiers) product.details.identifiers = {};
+
+      // If incoming SKU is invalid/missing, allocate a fresh unique SKU-[10 digits].
+      const finalSku = incomingSku || (await allocateSku10(product.id));
+      product.identification.sku = finalSku;
+      product.details.identifiers.sku = finalSku;
+      await ensureSkuUniqueOrThrow(product.id, finalSku);
     }
     
     // Merge existing product data to avoid overwriting enriched content (images/descriptions/attrs)

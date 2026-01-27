@@ -1890,5 +1890,7 @@ module.exports = {
   syncProductsToBaseLinker,
   callBaseLinker,
   findProductsBySkus,
+  // categories-only sync helper (path -> category_id)
+  ensureInventoryCategory,
   __buildPayloadForDebug,
 };

@@ -31,9 +31,14 @@ function isBadSku(product) {
   if (!raw) return false;
   const trimmed = String(raw).trim();
   if (!trimmed) return false;
+  const lower = trimmed.toLowerCase();
+  if (lower === 'sku-unknown' || lower === 'unknown' || lower === 'unbekannt') {
+    return { bad: true, reason: 'placeholder_unknown' };
+  }
   if (/\s/.test(trimmed)) return { bad: true, reason: 'whitespace' };
   if (/^SKU-\s*$/i.test(trimmed)) return { bad: true, reason: 'prefix_only' };
   if (!/^SKU-/i.test(trimmed)) return { bad: true, reason: 'missing_prefix' };
+  if (!/^SKU-\d{10}$/i.test(trimmed)) return { bad: true, reason: 'invalid_format' };
   const ean = normalizeDigits(product?.details?.identifiers?.ean);
   const gtin = normalizeDigits(product?.details?.identifiers?.gtin);
   const upc = normalizeDigits(product?.details?.identifiers?.upc);
@@ -53,7 +58,7 @@ async function main() {
 
   let processed = 0;
   let badCount = 0;
-  const reasons = { whitespace: 0, prefix_only: 0, missing_prefix: 0, sku_equals_barcode: 0 };
+  const reasons = { whitespace: 0, prefix_only: 0, missing_prefix: 0, invalid_format: 0, placeholder_unknown: 0, sku_equals_barcode: 0 };
   const samples = [];
 
   let lastDoc = null;
