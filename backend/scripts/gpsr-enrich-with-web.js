@@ -230,30 +230,83 @@ function tryParseJsonLenient(text) {
   if (!raw) return { ok: false, error: 'empty' };
 
   const stripBOM = (s) => s.replace(/^\uFEFF/, '');
-  const stripFences = (s) =>
-    s
+  const extractFirstFencedBlock = (s) => {
+    const m = String(s).match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    return m ? String(m[1]).trim() : String(s);
+  };
+  const stripOuterFences = (s) =>
+    String(s)
       .replace(/^\s*```(?:json)?\s*/i, '')
       .replace(/\s*```\s*$/i, '')
       .trim();
 
-  const cleaned = stripFences(stripBOM(raw));
+  const extractBalancedJson = (s, startIdx) => {
+    const src = String(s);
+    if (startIdx < 0 || startIdx >= src.length) return null;
+    const open = src[startIdx];
+    const close = open === '{' ? '}' : open === '[' ? ']' : null;
+    if (!close) return null;
+
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let i = startIdx; i < src.length; i += 1) {
+      const ch = src[i];
+
+      if (inString) {
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        if (ch === '\\') {
+          escape = true;
+          continue;
+        }
+        if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+      if (ch === open) depth += 1;
+      if (ch === close) depth -= 1;
+
+      if (depth === 0) {
+        return src.slice(startIdx, i + 1);
+      }
+    }
+    return null;
+  };
+
+  // Gemini sometimes returns prose + a fenced JSON block, even with responseMimeType=application/json.
+  // Extract a fenced block if present, otherwise work on full text.
+  const cleaned = stripOuterFences(extractFirstFencedBlock(stripBOM(raw)));
   const candidates = [cleaned];
 
   // If model emitted extra prose, try extracting the first JSON object/array.
   const firstObj = cleaned.indexOf('{');
-  const lastObj = cleaned.lastIndexOf('}');
-  if (firstObj !== -1 && lastObj !== -1 && lastObj > firstObj) {
-    candidates.push(cleaned.slice(firstObj, lastObj + 1));
-  }
   const firstArr = cleaned.indexOf('[');
-  const lastArr = cleaned.lastIndexOf(']');
-  if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr) {
-    candidates.push(cleaned.slice(firstArr, lastArr + 1));
+  const firstStart =
+    firstObj === -1 ? firstArr : firstArr === -1 ? firstObj : Math.min(firstObj, firstArr);
+  if (firstStart !== -1) {
+    const balanced = extractBalancedJson(cleaned, firstStart);
+    if (balanced) candidates.push(balanced);
   }
+
+  // Common normalization passes (safe-ish) to recover from trailing commas / control chars.
+  const normalizeJsonish = (s) =>
+    String(s)
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '') // keep \t \n \r
+      .replace(/,\s*([}\]])/g, '$1')
+      .trim();
 
   for (const c of candidates) {
     try {
-      const parsed = JSON.parse(c);
+      const parsed = JSON.parse(normalizeJsonish(c));
       if (parsed && typeof parsed === 'object') return { ok: true, parsed };
     } catch {
       // try next
@@ -337,6 +390,9 @@ async function enrichOne(product, { dryRun, debugDir }) {
       responseSchema: GPSR_SCHEMA,
       temperature: 0.0,
       maxOutputTokens: 2048,
+      // Do NOT stop on ``` for this job. Some Gemini outputs start a fenced JSON block
+      // (even with responseMimeType=application/json); stopping early truncates the JSON.
+      stopSequences: [],
     });
     return { jsonText, promptUsed: reduceEvidence ? 'reduced' : 'full' };
   };
