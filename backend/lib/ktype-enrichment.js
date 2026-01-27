@@ -21,6 +21,7 @@ const fs = require('fs');
 const path = require('path');
 const { callSerpApi } = require('./serpapi');
 const { fetchPageText } = require('./web-search-html');
+const { searchWeb } = require('./web-search-html');
 const { getVehicleFitmentMode } = require('./vehicle-fitment');
 
 function safeString(v) {
@@ -71,6 +72,9 @@ function extractPlatformTokens(text = '') {
 let MVL_CACHE = null; // { atMs, parsed, byHsnTsn, makes:Set, byMakePlatform:Map }
 const MVL_CACHE_TTL_MS = 10 * 60 * 1000;
 
+let MOTO_CACHE = null; // { atMs, ok, jsonlPath, parsed, byMakeModelCcmYear, makes:Set, modelsByMake:Map }
+const MOTO_CACHE_TTL_MS = 10 * 60 * 1000;
+
 function resolveMvlPath() {
   const env = safeString(process.env.MVL_JSONL_PATH || process.env.MVL_JSONL);
   if (env) return env;
@@ -78,6 +82,19 @@ function resolveMvlPath() {
   const candidates = [
     path.join(process.cwd(), 'backend', 'ebay-data', 'DE_MVL_2025_10.compact.jsonl'),
     path.join(process.cwd(), 'exports', 'DE_MVL_2025_10.compact.jsonl'),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+function resolveMotoPath() {
+  const env = safeString(process.env.MOTO_JSONL_PATH || process.env.MOTO_JSONL);
+  if (env) return env;
+  const candidates = [
+    path.join(process.cwd(), 'backend', 'ebay-data', 'DE_Motorradliste_2025_06.compact.jsonl'),
+    path.join(process.cwd(), 'exports', 'DE_Motorradliste_2025_06.compact.jsonl'),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
@@ -127,6 +144,49 @@ function loadMvlIndex() {
   }
   MVL_CACHE = { atMs: now, ok: true, jsonlPath, parsed, byHsnTsn, makes, byMakePlatform };
   return MVL_CACHE;
+}
+
+function loadMotoIndex() {
+  const now = Date.now();
+  if (MOTO_CACHE && now - (MOTO_CACHE.atMs || 0) < MOTO_CACHE_TTL_MS) return MOTO_CACHE;
+
+  const jsonlPath = resolveMotoPath();
+  if (!jsonlPath || !fs.existsSync(jsonlPath)) {
+    MOTO_CACHE = { atMs: now, ok: false, reason: 'moto_missing', jsonlPath: jsonlPath || null };
+    return MOTO_CACHE;
+  }
+
+  const text = fs.readFileSync(jsonlPath, 'utf8');
+  const byMakeModelCcmYear = new Map(); // `${makeLower}|${model}|${ccm}|${year}` -> Set<epid>
+  const makes = new Set(); // lower
+  const modelsByMake = new Map(); // makeLower -> Set<MODEL>
+  const lines = text.split('\n');
+  let parsed = 0;
+  for (const line of lines) {
+    const s = line.trim();
+    if (!s) continue;
+    parsed += 1;
+    const rec = JSON.parse(s);
+    const epid = Number(rec?.epid);
+    if (!Number.isFinite(epid)) continue;
+    const make = safeString(rec?.make);
+    const makeLower = make ? make.toLowerCase() : '';
+    const model = safeString(rec?.model).toUpperCase().replace(/[^A-Z0-9]+/g, '');
+    const ccm = Number(rec?.ccm);
+    const year = Number(rec?.year);
+    if (!makeLower || !model || !Number.isFinite(ccm) || !Number.isFinite(year)) continue;
+    makes.add(makeLower);
+    const setModels = modelsByMake.get(makeLower) || new Set();
+    setModels.add(model);
+    modelsByMake.set(makeLower, setModels);
+    const key = `${makeLower}|${model}|${ccm}|${year}`;
+    const set = byMakeModelCcmYear.get(key) || new Set();
+    set.add(epid);
+    byMakeModelCcmYear.set(key, set);
+  }
+
+  MOTO_CACHE = { atMs: now, ok: true, jsonlPath, parsed, byMakeModelCcmYear, makes, modelsByMake };
+  return MOTO_CACHE;
 }
 
 function extractVehicleMakes(text, makeSet) {
@@ -272,7 +332,84 @@ async function resolveEvidenceUrls(query, { limit = 6 } = {}) {
       // try next engine
     }
   }
+  // Fallback: best-effort HTML search without SerpAPI (DDG/Google via unlocker)
+  try {
+    const web = await searchWeb(query, { limit });
+    const urls = Array.isArray(web?.results) ? web.results.map((r) => safeString(r?.url)).filter(Boolean) : [];
+    if (urls.length) {
+      return {
+        engine: web.engine || 'web',
+        urls: urls.slice(0, limit),
+        results: (web.results || []).slice(0, limit).map((r) => ({ title: r?.title || '', link: r?.url || '' })),
+      };
+    }
+  } catch {
+    // ignore
+  }
   return { engine: null, urls: [], results: [] };
+}
+
+function extractYearCandidates(text = '') {
+  const s = String(text || '');
+  const years = new Set();
+  const single = s.match(/\b(19[5-9]\d|20[0-3]\d)\b/g) || [];
+  for (const y of single) years.add(Number(y));
+  // Ranges: 2010-2014, 2010 – 2014, 2010/2014
+  const reRange = /\b(19[5-9]\d|20[0-3]\d)\b\s*(?:-|–|—|\/|bis|to)\s*\b(19[5-9]\d|20[0-3]\d)\b/gi;
+  let m;
+  while ((m = reRange.exec(s)) !== null) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+    const start = Math.min(a, b);
+    const end = Math.max(a, b);
+    if (end - start > 20) continue; // avoid huge ranges
+    for (let y = start; y <= end; y += 1) years.add(y);
+  }
+  return Array.from(years).filter((y) => Number.isFinite(y) && y >= 1950 && y <= 2035);
+}
+
+function extractCcmCandidates(text = '') {
+  const s = String(text || '');
+  const out = new Set();
+  // Patterns like "950 ccm", "950cc", "ccm 950"
+  const re = /\b(\d{2,4})\s*(?:ccm|cc)\b/gi;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    const n = Number(m[1]);
+    if (Number.isFinite(n) && n >= 50 && n <= 3000) out.add(n);
+  }
+  return Array.from(out);
+}
+
+function extractMotoModels(text = '', modelSet) {
+  // Moto models can be short (even 1 char). We therefore tokenize more permissively
+  // but still intersect with the known modelSet for the detected make.
+  const tokens = (String(text || '').match(/\b[A-Za-z0-9]{1,6}\b/g) || []).map((t) =>
+    String(t).toUpperCase().replace(/[^A-Z0-9]+/g, '')
+  );
+  const out = new Set();
+  for (const tok of tokens) {
+    if (tok && modelSet?.has(tok)) out.add(tok);
+  }
+  return Array.from(out);
+}
+
+function extractCcmNearModel(text = '', models = []) {
+  const s = String(text || '');
+  const out = new Set();
+  for (const model of models) {
+    const mTok = String(model || '').toUpperCase().replace(/[^A-Z0-9]+/g, '');
+    if (!mTok) continue;
+    // Common pattern: "XVS 950", "R 1200", "SM 125"
+    const re = new RegExp(`\\b${mTok}\\b\\D{0,10}\\b(\\d{2,4})\\b`, 'g');
+    let m;
+    while ((m = re.exec(s)) !== null) {
+      const n = Number(m[1]);
+      if (Number.isFinite(n) && n >= 50 && n <= 3000) out.add(n);
+    }
+  }
+  return Array.from(out);
 }
 
 async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 60 } = {}) {
@@ -293,10 +430,13 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
     return { ok: false, reason: 'missing_part_number' };
   }
 
-  const mvl = loadMvlIndex();
-  if (!mvl.ok) {
+  const mvl = fitmentMode === 'auto' ? loadMvlIndex() : null;
+  const moto = fitmentMode === 'moto' ? loadMotoIndex() : null;
+  if (fitmentMode === 'auto' && mvl && !mvl.ok) {
     product.notes = product.notes || {};
-    product.notes.warnings = Array.from(new Set([...(product.notes.warnings || []), 'K-Typ nicht angereichert: MVL Datensatz fehlt am Runtime.' ]));
+    product.notes.warnings = Array.from(
+      new Set([...(product.notes.warnings || []), 'K-Typ nicht angereichert: MVL Datensatz fehlt am Runtime.'])
+    );
     attachKTypeTrace(product, {
       ok: false,
       reason: 'mvl_missing',
@@ -307,16 +447,35 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
     });
     return { ok: false, reason: 'mvl_missing' };
   }
+  if (fitmentMode === 'moto' && moto && !moto.ok) {
+    product.notes = product.notes || {};
+    product.notes.warnings = Array.from(
+      new Set([...(product.notes.warnings || []), 'K-Typ nicht angereichert: Motorrad ePID Datensatz fehlt am Runtime.'])
+    );
+    attachKTypeTrace(product, {
+      ok: false,
+      reason: 'moto_missing',
+      fitment_mode: fitmentMode,
+      catId: catId || null,
+      mpn,
+      moto_path: moto.jsonlPath || null,
+    });
+    return { ok: false, reason: 'moto_missing' };
+  }
 
   const brand = safeString(product?.identification?.brand) || safeString(product?.details?.attributes?.Marke) || '';
   const typeHint = safeString(product?.details?.attributes?.Produktart) || safeString(product?.details?.attributes?.Bauteil) || '';
   const q = [brand, mpn, typeHint].filter(Boolean).join(' ').trim();
-  const q2 = [brand, mpn, typeHint, 'HSN', 'TSN'].filter(Boolean).join(' ').trim();
+  const q2 =
+    fitmentMode === 'auto'
+      ? [brand, mpn, typeHint, 'HSN', 'TSN'].filter(Boolean).join(' ').trim()
+      : [brand, mpn, typeHint, 'Motorrad', 'ePID'].filter(Boolean).join(' ').trim();
   const queries = Array.from(new Set([q, q2].filter(Boolean))).slice(0, 2);
 
   const mpnNeedle = normalizeNeedle(mpn);
   const hsnTsnFound = new Set();
   const platformHits = new Set();
+  const motoHits = new Set();
   const sources = [];
 
   for (const query of queries) {
@@ -327,15 +486,39 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       const text = String(fetched.text);
       if (mpnNeedle && !normalizeNeedle(text).includes(mpnNeedle)) continue;
 
-      extractHsnTsnCandidates(text).forEach((p) => hsnTsnFound.add(p));
-      const makes = extractVehicleMakes(text, mvl.makes);
-      const platforms = extractPlatformTokens(text);
-      for (const make of makes) {
-        for (const pTok of platforms) {
-          const key = `${make}|${pTok}`;
-          const set = mvl.byMakePlatform.get(key);
-          if (!set) continue;
-          for (const id of set.values()) platformHits.add(id);
+      if (fitmentMode === 'auto' && mvl?.ok) {
+        extractHsnTsnCandidates(text).forEach((p) => hsnTsnFound.add(p));
+        const makes = extractVehicleMakes(text, mvl.makes);
+        const platforms = extractPlatformTokens(text);
+        for (const make of makes) {
+          for (const pTok of platforms) {
+            const key = `${make}|${pTok}`;
+            const set = mvl.byMakePlatform.get(key);
+            if (!set) continue;
+            for (const id of set.values()) platformHits.add(id);
+          }
+        }
+      }
+
+      if (fitmentMode === 'moto' && moto?.ok) {
+        const makes = extractVehicleMakes(text, moto.makes);
+        const years = extractYearCandidates(text);
+        for (const make of makes) {
+          const modelSet = moto.modelsByMake.get(make) || new Set();
+          const models = extractMotoModels(text, modelSet);
+          const ccms = Array.from(
+            new Set([...(extractCcmCandidates(text) || []), ...(extractCcmNearModel(text, models) || [])])
+          );
+          for (const model of models) {
+            for (const ccm of ccms) {
+              for (const year of years) {
+                const key = `${make}|${model}|${ccm}|${year}`;
+                const set = moto.byMakeModelCcmYear.get(key);
+                if (!set) continue;
+                for (const id of set.values()) motoHits.add(id);
+              }
+            }
+          }
         }
       }
 
@@ -346,13 +529,17 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
   }
 
   const mapped = new Set();
-  for (const pair of hsnTsnFound.values()) {
-    const set = mvl.byHsnTsn.get(pair);
-    if (!set) continue;
-    for (const id of set.values()) mapped.add(id);
-  }
-  if (mapped.size === 0) {
-    for (const id of platformHits.values()) mapped.add(id);
+  if (fitmentMode === 'auto' && mvl?.ok) {
+    for (const pair of hsnTsnFound.values()) {
+      const set = mvl.byHsnTsn.get(pair);
+      if (!set) continue;
+      for (const id of set.values()) mapped.add(id);
+    }
+    if (mapped.size === 0) {
+      for (const id of platformHits.values()) mapped.add(id);
+    }
+  } else if (fitmentMode === 'moto') {
+    for (const id of motoHits.values()) mapped.add(id);
   }
 
   const ids = Array.from(mapped).sort((a, b) => a - b).slice(0, maxKTypes);
@@ -370,8 +557,10 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       mpn,
       queries,
       hsn_tsn: Array.from(hsnTsnFound),
+      epids: Array.from(motoHits),
       sources,
-      mvl_path: mvl.jsonlPath,
+      mvl_path: mvl?.jsonlPath || null,
+      moto_path: moto?.jsonlPath || null,
     });
     return { ok: false, reason: 'no_matches', fitmentMode, queries };
   }
@@ -389,9 +578,11 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
     mpn,
     queries,
     hsn_tsn: Array.from(hsnTsnFound),
+    epids: Array.from(motoHits),
     ktypes: ids,
     sources,
-    mvl_path: mvl.jsonlPath,
+    mvl_path: mvl?.jsonlPath || null,
+    moto_path: moto?.jsonlPath || null,
   });
 
   // If enrichment succeeded now, remove stale "not enriched" warnings from previous runs.
@@ -424,5 +615,7 @@ module.exports = {
   enrichKTypIfPossible,
   loadMvlIndex,
   resolveMvlPath,
+  loadMotoIndex,
+  resolveMotoPath,
 };
 

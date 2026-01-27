@@ -14,6 +14,15 @@ steps:
     entrypoint: node
     args: ["--check", "index.js"]
 
+  # Generate motorcycle ePID compact dataset into /exports so the runtime image contains it.
+  # Source XLSX is stored at repo root (build context).
+  # We run from repo root but point NODE_PATH to backend/node_modules to resolve `xlsx`.
+  - name: gcr.io/cloud-builders/npm
+    dir: .
+    entrypoint: node
+    env: ["NODE_PATH=backend/node_modules"]
+    args: ["backend/scripts/extract-moto-epid-jsonl.js"]
+
   # Quick syntax checks for frequently-touched modules (catch runtime ReferenceErrors early)
   - name: gcr.io/cloud-builders/npm
     dir: backend
