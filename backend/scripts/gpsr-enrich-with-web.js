@@ -31,6 +31,7 @@ const PQueue = require('p-queue').default || require('p-queue');
 const { getAllProducts, getProduct, saveProduct } = require('../lib/firestore');
 const { callGeminiStructured } = require('../lib/gemini-structured');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
+const { searchWeb } = require('../lib/web-search-html');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 
 const USE_UNLOCKER = (process.env.GPSR_WEB_USE_UNLOCKER || '').toString().toLowerCase() === 'true';
@@ -116,33 +117,20 @@ async function fetchText(url) {
 }
 
 async function searchDuckDuckGo(query, { limit = 6 } = {}) {
-  const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-  const res = await fetchText(url);
-  if (!res.ok || !res.body) {
-    return { query, ok: false, url, via: res.via, status: res.status, results: [] };
-  }
-  const html = res.body;
-  const results = [];
-  const linkRe = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-  let m;
-  while ((m = linkRe.exec(html))) {
-    const href = m[1];
-    const title = normalizeSpaces(decodeHtmlEntities(m[2].replace(/<[^>]+>/g, ' ')));
-    let outUrl = href;
-    const uddg = href.match(/[?&]uddg=([^&]+)/i);
-    if (uddg && uddg[1]) {
-      try {
-        outUrl = decodeURIComponent(uddg[1]);
-      } catch {
-        outUrl = href;
-      }
-    }
-    if (!outUrl || !/^https?:\/\//i.test(outUrl)) continue;
-    if (/\.(pdf|jpg|jpeg|png|webp)(\?|$)/i.test(outUrl)) continue;
-    results.push({ url: outUrl, title });
-    if (results.length >= limit) break;
-  }
-  return { query, ok: true, url, via: res.via, status: res.status, results };
+  // Kept for backward compatibility name, but we now delegate to shared searchWeb()
+  // which can use Bright Data SERP when configured.
+  const web = await searchWeb(query, { limit, locale: 'de-DE' });
+  const results = Array.isArray(web?.results)
+    ? web.results.map((r) => ({ url: r?.url || '', title: r?.title || '' })).filter((r) => r.url)
+    : [];
+  return {
+    query,
+    ok: Boolean(web?.ok) && results.length > 0,
+    url: web?.url || '',
+    via: web?.via || web?.engine || 'searchWeb',
+    status: web?.status || 0,
+    results,
+  };
 }
 
 function pickQuery(product) {

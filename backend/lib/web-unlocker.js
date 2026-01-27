@@ -5,7 +5,8 @@ const DEFAULT_ENDPOINT = process.env.BRIGHTDATA_ENDPOINT || 'https://api.brightd
 const DEFAULT_ZONE =
   process.env.BRIGHTDATA_ZONE ||
   process.env.BRIGHTDATA_DEFAULT_ZONE ||
-  'web_unlocker1';
+  // AvyCloud default (per Bright Data control panel zone)
+  'unlocker_avy';
 const DEFAULT_FORMAT = process.env.BRIGHTDATA_FORMAT || 'raw';
 const DEFAULT_COUNTRY = process.env.BRIGHTDATA_COUNTRY || null;
 const DEFAULT_TIMEOUT_MS = parseInt(process.env.BRIGHTDATA_TIMEOUT_MS || '30000', 10);

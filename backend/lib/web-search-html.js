@@ -7,6 +7,7 @@
  */
 
 const { fetchWithUnlocker } = require('./web-unlocker');
+const { fetchSerpHtml } = require('./brightdata-serp');
 
 const USE_UNLOCKER =
   (process.env.WEB_USE_UNLOCKER || process.env.BARCODE_WEB_USE_UNLOCKER || '')
@@ -198,8 +199,77 @@ async function searchGoogle(query, { limit = 6, locale = 'de-DE' } = {}) {
   }
 }
 
+async function searchGoogleViaBrightDataSerp(query, { limit = 6, locale = 'de-DE', country = null } = {}) {
+  // Use Bright Data SERP zone if configured; this tends to be far more reliable than scraping DDG HTML in Cloud Run.
+  const serpZone = (process.env.BRIGHTDATA_SERP_ZONE || '').toString().trim();
+  const hasToken = Boolean((process.env.BRIGHTDATA_API_TOKEN || '').toString().trim());
+  // Note: token may be injected via Secret Manager at runtime; in that case env is empty.
+  // We'll still try and let fetchWithUnlocker load the secret.
+  if (!serpZone && !hasToken) {
+    return { query, ok: false, url: '', via: 'brightdata_serp_disabled', status: 0, results: [] };
+  }
+
+  const trimmedQuery = safeString(query).slice(0, 140);
+  const hl = locale.toLowerCase().startsWith('de') ? 'de' : 'en';
+  const url = `https://www.google.com/search?q=${encodeURIComponent(trimmedQuery)}&hl=${hl}&gl=de`;
+  try {
+    const fetched = await fetchSerpHtml({ url, zone: serpZone || undefined, country: country || undefined });
+    const html = String(fetched?.body || '');
+    const ok = Boolean(fetched?.ok);
+    const status = fetched?.status || 0;
+    if (!ok || !html) {
+      return { query: trimmedQuery, ok: false, url, via: 'brightdata_serp', status, results: [] };
+    }
+    const results = [];
+    const seen = new Set();
+    const re = /href="(https?:\/\/[^"]+)"/gi;
+    let m;
+    while ((m = re.exec(html))) {
+      const outUrl = decodeHtmlEntities(m[1] || '').replace(/&amp;/g, '&');
+      if (!outUrl || !/^https?:\/\//i.test(outUrl)) continue;
+      if (/\.(pdf|jpg|jpeg|png|webp)(\?|$)/i.test(outUrl)) continue;
+      if (seen.has(outUrl)) continue;
+      try {
+        const parsed = new URL(outUrl);
+        const host = parsed.host.toLowerCase();
+        if (DOMAIN_BLOCKLIST.has(host)) continue;
+        if (
+          host.endsWith('google.com') ||
+          host.endsWith('google.de') ||
+          host.endsWith('gstatic.com') ||
+          host.endsWith('googleusercontent.com') ||
+          host.endsWith('accounts.google.com') ||
+          host.endsWith('support.google.com') ||
+          host.endsWith('translate.google.com')
+        ) {
+          continue;
+        }
+        if (
+          /\/(search|webhp|preferences|policies|advanced_search|setprefs)/i.test(parsed.pathname) ||
+          /accounts\.google\.com/i.test(outUrl)
+        ) {
+          continue;
+        }
+      } catch {
+        // ignore
+      }
+      seen.add(outUrl);
+      results.push({ title: '', url: outUrl });
+      if (results.length >= limit) break;
+    }
+    return { query: trimmedQuery, ok: true, url, via: fetched?.zone ? `brightdata_serp:${fetched.zone}` : 'brightdata_serp', status, results };
+  } catch (e) {
+    return { query: trimmedQuery, ok: false, url, via: 'brightdata_serp', status: 0, results: [], error: e.message };
+  }
+}
+
 async function searchWeb(query, { limit = 6, locale = 'de-DE' } = {}) {
-  // Prefer Google via unlocker when enabled, otherwise DDG HTML.
+  // Prefer Google via Bright Data SERP zone (most reliable in Cloud Run),
+  // otherwise Google via unlocker, otherwise DDG HTML.
+  const serp = await searchGoogleViaBrightDataSerp(query, { limit, locale });
+  if (serp.ok && Array.isArray(serp.results) && serp.results.length) {
+    return { engine: 'google', ...serp };
+  }
   const google = await searchGoogle(query, { limit, locale });
   if (google.ok && Array.isArray(google.results) && google.results.length) {
     return { engine: 'google', ...google };
