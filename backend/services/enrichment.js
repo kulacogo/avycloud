@@ -1303,6 +1303,37 @@ const DATASHEET_REVIEW_SCHEMA = {
       maxItems: 10,
       items: { type: 'string', minLength: 6, maxLength: 160 },
     },
+    // Optional: identifiers (critical for auto/moto parts and downstream K-Typ enrichment).
+    // Only fill when supported by evidence; otherwise use empty string / null.
+    identifiers: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        mpn: { type: 'string', minLength: 0, maxLength: 80 },
+        ean: { type: 'string', minLength: 0, maxLength: 32 },
+        gtin: { type: 'string', minLength: 0, maxLength: 32 },
+        upc: { type: 'string', minLength: 0, maxLength: 32 },
+      },
+      required: [],
+    },
+    // Optional: GPSR manufacturer/contact data (EU compliance).
+    // IMPORTANT: do not invent values; only extract from evidence.
+    gpsr: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        entity_country: { type: 'string', minLength: 0, maxLength: 80 },
+        manufacturer_name: { type: 'string', minLength: 0, maxLength: 140 },
+        manufacturer_address: { type: 'string', minLength: 0, maxLength: 140 },
+        manufacturer_city: { type: 'string', minLength: 0, maxLength: 80 },
+        manufacturer_postalcode: { type: 'string', minLength: 0, maxLength: 20 },
+        manufacturer_state_province: { type: 'string', minLength: 0, maxLength: 80 },
+        email: { type: 'string', minLength: 0, maxLength: 140 },
+        manufacturer_phone: { type: 'string', minLength: 0, maxLength: 80 },
+        url: { type: 'string', minLength: 0, maxLength: 200 },
+      },
+      required: [],
+    },
   },
 };
 
@@ -1329,6 +1360,10 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
   const fitmentLine = fitmentMode
     ? `Fahrzeugverwendungsliste möglich (${fitmentMode}). Wenn es ein Fahrzeugteil ist: K-Typ muss als Attribut \"K-Typ\" gepflegt werden. Nie raten – nur aus WEB-EVIDENZ/OCR/Belegen.`
     : null;
+  const gpsrLine =
+    'GPSR/Compliance: Wenn WEB-EVIDENZ Hersteller/Verantwortlicher enthält, extrahiere und liefere gpsr.* (Adresse/Ort/PLZ/Land/E-Mail/Telefon/Name). Wenn nicht belegbar: Felder leer lassen (nicht raten).';
+  const idsLine =
+    'Identifiers: Wenn WEB-EVIDENZ/OCR MPN/Herstellernummer/EAN/GTIN/UPC enthält, liefere identifiers.* und zusätzlich als Attribute (z.B. "Herstellernummer"). Keine IDs erfinden.';
 
   return [
     'Du bist ein Marketplace-Quality-Inspector für eBay und Amazon. Deine Aufgabe: prüfe das vorliegende Produktdatenblatt und liefere eine korrigierte, maximal verkaufsstarke Version.',
@@ -1337,6 +1372,8 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
     'Zusatzregeln für Review:',
     requiredLine,
     fitmentLine,
+    idsLine,
+    gpsrLine,
     '- Plausibilitätscheck: Nutze WEB-EVIDENZ (Marktplatz-Suchergebnisse, falls enthalten) um Daten zu verifizieren und fehlende Spezifikationen zu ergänzen. Erfinde keine Werte.',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Keine Aufzählungen.',
     '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
@@ -1357,6 +1394,10 @@ function applyReviewResult(product, review) {
   if (!product || !review) return;
   product.identification = product.identification || {};
   product.details = product.details || {};
+  product.details.identifiers =
+    product.details.identifiers && typeof product.details.identifiers === 'object' ? product.details.identifiers : {};
+  product.details.gpsr =
+    product.details.gpsr && typeof product.details.gpsr === 'object' ? product.details.gpsr : {};
 
   // Preserve K-Typ if it already exists but the review output omits it.
   // The datasheet review currently replaces the whole attributes map, so without this,
@@ -1426,6 +1467,40 @@ function applyReviewResult(product, review) {
     }
 
     product.details.attributes = sanitizeAttributesMap(attrs);
+  }
+
+  // Optional identifiers update (only when non-empty)
+  if (review.identifiers && typeof review.identifiers === 'object') {
+    const next = {};
+    ['mpn', 'ean', 'gtin', 'upc'].forEach((k) => {
+      const v = typeof review.identifiers[k] === 'string' ? review.identifiers[k].trim() : '';
+      if (v) next[k] = v;
+    });
+    if (Object.keys(next).length) {
+      Object.assign(product.details.identifiers, next);
+    }
+  }
+
+  // Optional GPSR update (only when non-empty)
+  if (review.gpsr && typeof review.gpsr === 'object') {
+    const next = {};
+    [
+      'entity_country',
+      'manufacturer_name',
+      'manufacturer_address',
+      'manufacturer_city',
+      'manufacturer_postalcode',
+      'manufacturer_state_province',
+      'email',
+      'manufacturer_phone',
+      'url',
+    ].forEach((k) => {
+      const v = typeof review.gpsr[k] === 'string' ? review.gpsr[k].trim() : '';
+      if (v) next[k] = v;
+    });
+    if (Object.keys(next).length) {
+      Object.assign(product.details.gpsr, next);
+    }
   }
   if (Array.isArray(review.warnings) && review.warnings.length) {
     const cleaned = Array.from(
@@ -1585,11 +1660,15 @@ async function runDatasheetReview(
         const query = buildMarketplaceQuery(product);
         const barcode = pickBestBarcode(product);
         if (query) {
-          const [ebay, amazon, shopping, kaufland] = await Promise.all([
+          // At least 5 marketplace sources (user requirement): eBay, Amazon, Google Shopping,
+          // plus targeted site searches for Kaufland, hood.de and idealo.de.
+          const [ebay, amazon, shopping, kaufland, hood, idealo] = await Promise.all([
             fetchSerpSummary('ebay', { _nkw: query }, 5),
             fetchSerpSummary('amazon', { k: query }, 5),
             fetchSerpSummary('google_shopping', { q: query, num: 10 }, 5),
             fetchSerpSummary('google', { q: `${query} site:kaufland.de`, num: 10 }, 5),
+            fetchSerpSummary('google', { q: `${query} site:hood.de`, num: 10 }, 5),
+            fetchSerpSummary('google', { q: `${query} site:idealo.de`, num: 10 }, 5),
           ]);
           const marketplace = {
             query,
@@ -1599,12 +1678,16 @@ async function runDatasheetReview(
               amazon: amazon.summary,
               google_shopping: shopping.summary,
               kaufland: kaufland.summary,
+              hood: hood.summary,
+              idealo: idealo.summary,
             },
             errors: {
               ebay: ebay.ok ? null : ebay.error,
               amazon: amazon.ok ? null : amazon.error,
               google_shopping: shopping.ok ? null : shopping.error,
               kaufland: kaufland.ok ? null : kaufland.error,
+              hood: hood.ok ? null : hood.error,
+              idealo: idealo.ok ? null : idealo.error,
             },
           };
           mergedEvidence =
