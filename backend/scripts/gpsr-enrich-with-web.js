@@ -189,6 +189,33 @@ function needsGpsr(product) {
   return false;
 }
 
+function sumStorageBins(product) {
+  const bins = Array.isArray(product?.storageBins) ? product.storageBins : [];
+  return bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0);
+}
+
+function hasBin(product) {
+  const explicit = safeString(product?.storage?.binCode);
+  if (explicit) return true;
+  const bins = Array.isArray(product?.storageBins) ? product.storageBins : [];
+  return bins.some((b) => safeString(b?.code || b?.binCode) && (Number(b?.quantity) || 0) > 0);
+}
+
+function pickQuantity(product) {
+  const invQty = product?.inventory?.quantity;
+  if (typeof invQty === 'number' && Number.isFinite(invQty) && invQty >= 0) return invQty;
+  return sumStorageBins(product);
+}
+
+function pickPriceAmount(product) {
+  const lowest = product?.details?.pricing?.lowest_price;
+  const amount = lowest?.amount;
+  if (typeof amount === 'number' && Number.isFinite(amount) && amount >= 0) return amount;
+  const legacy = product?.details?.pricing?.price;
+  if (typeof legacy === 'number' && Number.isFinite(legacy) && legacy >= 0) return legacy;
+  return 0;
+}
+
 const GPSR_SCHEMA = {
   type: 'object',
   properties: {
@@ -341,15 +368,31 @@ async function main() {
   const limit = Math.max(1, parseInt(argValue('--limit', '200') || '200', 10));
   const concurrency = Math.max(1, parseInt(argValue('--concurrency', '2') || '2', 10));
   const debug = argFlag('--debug');
+  const minQty = Math.max(1, parseInt(argValue('--min-qty', '1') || '1', 10));
+  const minPrice = Math.max(0, parseFloat(argValue('--min-price', '50') || '50'));
 
   const debugDir = debug ? path.resolve(`backend/exports/gpsr-web-enrich/${nowStamp()}`) : null;
   if (debugDir) ensureDir(debugDir);
 
-  console.log(JSON.stringify({ action: 'gpsr-web-enrich', dryRun, limit, concurrency, debugDir }, null, 2));
+  console.log(JSON.stringify({ action: 'gpsr-web-enrich', dryRun, limit, concurrency, debugDir, minQty, minPrice }, null, 2));
 
   const all = await getAllProducts();
-  const candidates = Array.isArray(all) ? all.filter((p) => p?.id && needsGpsr(p)).slice(0, limit) : [];
-  console.log(JSON.stringify({ totalProducts: all?.length || 0, candidates: candidates.length }, null, 2));
+  const candidates = Array.isArray(all)
+    ? all
+        .filter((p) => p?.id)
+        .filter((p) => hasBin(p))
+        .filter((p) => pickQuantity(p) >= minQty)
+        .filter((p) => pickPriceAmount(p) > minPrice)
+        .filter((p) => needsGpsr(p))
+        .slice(0, limit)
+    : [];
+  console.log(
+    JSON.stringify(
+      { totalProducts: all?.length || 0, candidates: candidates.length, filter: { hasBin: true, minQty, minPrice } },
+      null,
+      2
+    )
+  );
 
   const queue = new PQueue({ concurrency });
   let ok = 0;
