@@ -573,7 +573,14 @@ export const adminUpdateRole = async (roleId: string, patch: Partial<AdminRoleRe
 
 export type AdminRulebookConfig = {
   version?: number;
-  title?: { minLen?: number; softMaxLen?: number; maxLen?: number; mobileMaxLen?: number; marketingWords?: string[] };
+  title?: {
+    minLen?: number;
+    softMaxLen?: number;
+    maxLen?: number;
+    mobileMaxLen?: number;
+    marketingWords?: string[];
+    rulesBySchema?: Record<string, { minLen: number; softMaxLen: number; maxLen: number; mobileMaxLen: number }>;
+  };
   highlights?: {
     rulesBySchema?: Record<string, { min: number; max: number; minLen: number; maxLen: number }>;
     requireDashTemplate?: boolean;

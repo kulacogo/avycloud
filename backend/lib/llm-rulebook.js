@@ -39,13 +39,21 @@ function normalizeProductStrict(product, { source = 'unknown' } = {}) {
   next.identification = next.identification || {};
   next.details = next.details || {};
 
-  // 1) Title policy
+  // 1) Title policy (per Titel-Kategorie bucket)
+  const { inferTitleCategory } = require('./title-policy');
   const currentTitle = safeString(next.identification.name);
-  const titleMinLen = Number(cfg?.title?.minLen || 65);
-  const titleMaxLen = Number(cfg?.title?.maxLen || 80);
-  const titleSoftMax = Number(cfg?.title?.softMaxLen || 75);
-  const titleMobileMax = Number(cfg?.title?.mobileMaxLen || 60);
-  const coercedTitle = coerceTitleToPolicy(next, currentTitle, { minLen: titleMinLen, maxLen: titleMaxLen, softMaxLen: titleSoftMax });
+  const bucket = inferTitleCategory(next);
+  const bySchema = cfg?.title?.rulesBySchema && typeof cfg.title.rulesBySchema === 'object' ? cfg.title.rulesBySchema : {};
+  const rule = (bySchema && bySchema[bucket]) || cfg?.title || {};
+  const titleMinLen = Number(rule?.minLen || 65);
+  const titleMaxLen = Number(rule?.maxLen || 80);
+  const titleSoftMax = Number(rule?.softMaxLen || 75);
+  const titleMobileMax = Number(rule?.mobileMaxLen || 60);
+  const coercedTitle = coerceTitleToPolicy(next, currentTitle, {
+    minLen: titleMinLen,
+    maxLen: titleMaxLen,
+    softMaxLen: titleSoftMax,
+  });
   const titleIssues = validateTitleToPolicy(next, coercedTitle, { maxLen: titleMaxLen, mobileMaxLen: titleMobileMax }) || [];
   if (Array.isArray(titleIssues) && titleIssues.length) {
     issues.push(...titleIssues.map((x) => `title:${x}`));

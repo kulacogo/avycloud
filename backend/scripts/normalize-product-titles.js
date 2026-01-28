@@ -23,6 +23,8 @@ const fs = require('fs');
 const path = require('path');
 const { Firestore } = require('@google-cloud/firestore');
 const { coerceTitleToPolicy, validateTitleToPolicy } = require('../lib/title-policy');
+const { getRulebookConfigCached } = require('../lib/rulebook-config');
+const { inferTitleCategory } = require('../lib/title-policy');
 
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 'avycloud';
 const firestore = new Firestore({ projectId: PROJECT_ID });
@@ -60,7 +62,13 @@ function pickSku(product, docId) {
 }
 
 function needsFix(product, title = '') {
-  const issues = validateTitleToPolicy(product, title, { maxLen: 80, mobileMaxLen: 60 });
+  const cfg = getRulebookConfigCached();
+  const bucket = inferTitleCategory(product);
+  const bySchema = cfg?.title?.rulesBySchema && typeof cfg.title.rulesBySchema === 'object' ? cfg.title.rulesBySchema : {};
+  const rule = (bySchema && bySchema[bucket]) || cfg?.title || {};
+  const maxLen = Number(rule?.maxLen || 80);
+  const mobileMaxLen = Number(rule?.mobileMaxLen || 60);
+  const issues = validateTitleToPolicy(product, title, { maxLen, mobileMaxLen });
   return Array.isArray(issues) && issues.length > 0;
 }
 
@@ -141,12 +149,21 @@ async function main() {
     }
 
     summary.considered += 1;
-    const beforeIssues = validateTitleToPolicy(data, currentTitle, { maxLen: 80, mobileMaxLen: 60 });
+    const cfg = getRulebookConfigCached();
+    const bucket = inferTitleCategory(data);
+    const bySchema = cfg?.title?.rulesBySchema && typeof cfg.title.rulesBySchema === 'object' ? cfg.title.rulesBySchema : {};
+    const rule = (bySchema && bySchema[bucket]) || cfg?.title || {};
+    const minLen = Number(rule?.minLen || 65);
+    const softMaxLen = Number(rule?.softMaxLen || 75);
+    const maxLen = Number(rule?.maxLen || 80);
+    const mobileMaxLen = Number(rule?.mobileMaxLen || 60);
+
+    const beforeIssues = validateTitleToPolicy(data, currentTitle, { maxLen, mobileMaxLen });
     if (!needsFix(data, currentTitle)) continue;
 
-    const nextTitle = coerceTitleToPolicy(data, currentTitle, { minLen: 65, maxLen: 80, softMaxLen: 75 });
+    const nextTitle = coerceTitleToPolicy(data, currentTitle, { minLen, maxLen, softMaxLen });
     const nextLen = safeString(nextTitle).length;
-    const afterIssues = validateTitleToPolicy(data, nextTitle, { maxLen: 80, mobileMaxLen: 60 });
+    const afterIssues = validateTitleToPolicy(data, nextTitle, { maxLen, mobileMaxLen });
     if (!nextTitle || nextLen === 0 || nextLen > 80) {
       summary.invalid_after += 1;
       summary.reasons.could_not_coerce = (summary.reasons.could_not_coerce || 0) + 1;

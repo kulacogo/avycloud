@@ -26,6 +26,24 @@ const DEFAULT_CONFIG = {
     mobileMaxLen: 60,
     // Additional marketing words to strip; merged with code defaults.
     marketingWords: ['neu', 'top', 'neuware'],
+    // Title categories (coarse buckets) -> per-category overrides.
+    // These are NOT marketplace/product categories; they are used to apply consistent title rules.
+    // Any product must map to one of these buckets (fallback: generic).
+    rulesBySchema: {
+      electronics_computer: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      auto_parts: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      fashion: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      shoes_accessories: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      home_garden: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      kitchen_household: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      lighting: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      office: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      beauty: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      sport: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      toys_baby: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      books_media: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      generic: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+    },
   },
   highlights: {
     // SchemaId -> rule

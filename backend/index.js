@@ -1090,7 +1090,8 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
   try {
     const { getAllProducts } = require('./lib/firestore');
     const { getVehicleFitmentMode } = require('./lib/vehicle-fitment');
-    const { coerceTitleToPolicy, validateTitleToPolicy } = require('./lib/title-policy');
+    const { coerceTitleToPolicy, validateTitleToPolicy, inferTitleCategory } = require('./lib/title-policy');
+    const { getRulebookConfigCached } = require('./lib/rulebook-config');
     const products = await getAllProducts();
 
     const safe = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
@@ -1129,10 +1130,9 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
     // Title policy (rule-conform):
     // - strict compliance: validateTitleToPolicy has NO issues AND title length is within [idealMinLen..idealMaxLen]
     // - rulebook compliance: validateTitleToPolicy has NO issues (length may vary if data is missing)
+    const cfg = getRulebookConfigCached();
     const idealMinLen = 65;
     const idealMaxLen = 75;
-    const hardMaxLen = 80;
-    const mobileMaxLen = 60;
 
     let titlePolicyOk = 0;
     let titlePolicyNotOk = 0;
@@ -1215,8 +1215,16 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
     for (const p of Array.isArray(products) ? products : []) {
       const pid = safe(p?.id);
       const currentTitle = safe(p?.identification?.name);
-      const coercedTitle = coerceTitleToPolicy(p, currentTitle, { minLen: idealMinLen, maxLen: hardMaxLen, softMaxLen: idealMaxLen });
-      const issues = validateTitleToPolicy(p, coercedTitle, { maxLen: hardMaxLen, mobileMaxLen }) || [];
+      const bucket = inferTitleCategory(p);
+      const bySchema = cfg?.title?.rulesBySchema && typeof cfg.title.rulesBySchema === 'object' ? cfg.title.rulesBySchema : {};
+      const rule = (bySchema && bySchema[bucket]) || cfg?.title || {};
+      const minLen = Number(rule?.minLen || idealMinLen);
+      const softMaxLen = Number(rule?.softMaxLen || idealMaxLen);
+      const maxLen = Number(rule?.maxLen || 80);
+      const mobileMaxLen = Number(rule?.mobileMaxLen || 60);
+
+      const coercedTitle = coerceTitleToPolicy(p, currentTitle, { minLen, maxLen, softMaxLen });
+      const issues = validateTitleToPolicy(p, coercedTitle, { maxLen, mobileMaxLen }) || [];
       const ok = Array.isArray(issues) ? issues.length === 0 : true;
       const len = safe(coercedTitle).length;
       const idealOk = ok && len >= idealMinLen && len <= idealMaxLen;

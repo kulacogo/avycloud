@@ -2128,9 +2128,16 @@ async function saveProduct(product, options = {}) {
     const normalizedKeyFeatures = skipKeyFeaturesNormalize
       ? (Array.isArray(productWithEbay?.details?.key_features) ? productWithEbay.details.key_features : [])
       : sanitizeKeyFeatures(productWithEbay?.details?.key_features || [], { max: 8 });
-    const AUTO_TITLE_MIN_LEN = 65;
-    const AUTO_TITLE_MAX_LEN = 80;
-    const AUTO_TITLE_SOFT_MAX_LEN = 75;
+    // Title policy params are driven by the rulebook's Titel-Kategorie buckets.
+    const { getRulebookConfigCached } = require('./rulebook-config');
+    const { inferTitleCategory } = require('./title-policy');
+    const cfg = getRulebookConfigCached();
+    const bucket = inferTitleCategory(productWithEbay);
+    const bySchema = cfg?.title?.rulesBySchema && typeof cfg.title.rulesBySchema === 'object' ? cfg.title.rulesBySchema : {};
+    const rule = (bySchema && bySchema[bucket]) || cfg?.title || {};
+    const AUTO_TITLE_MIN_LEN = Number(rule?.minLen || 65);
+    const AUTO_TITLE_MAX_LEN = Number(rule?.maxLen || 80);
+    const AUTO_TITLE_SOFT_MAX_LEN = Number(rule?.softMaxLen || 75);
     if (!productWithEbay.details) productWithEbay.details = {};
     productWithEbay.details.key_features = normalizedKeyFeatures;
     if (!productWithEbay.identification) productWithEbay.identification = {};

@@ -8,6 +8,7 @@ import {
 } from '../../api/client';
 
 type HighlightRuleRow = { schemaId: string; min: number; max: number; minLen: number; maxLen: number };
+type TitleRuleRow = { schemaId: string; minLen: number; softMaxLen: number; maxLen: number; mobileMaxLen: number };
 type CanonRow = { from: string; to: string };
 
 const toNumber = (v: any, fallback: number) => {
@@ -32,6 +33,7 @@ export const AdminRulebookManagement: React.FC = () => {
   });
 
   const [highlightRows, setHighlightRows] = React.useState<HighlightRuleRow[]>([]);
+  const [titleRows, setTitleRows] = React.useState<TitleRuleRow[]>([]);
   const [canonRows, setCanonRows] = React.useState<CanonRow[]>([]);
 
   const [applyJobId, setApplyJobId] = React.useState<string>('');
@@ -54,6 +56,16 @@ export const AdminRulebookManagement: React.FC = () => {
         maxLen: toNumber(rule?.maxLen, 110),
       }));
       setHighlightRows(rows.sort((a, b) => a.schemaId.localeCompare(b.schemaId)));
+
+      const trs = (data.config as any)?.title?.rulesBySchema || {};
+      const trows: TitleRuleRow[] = Object.entries(trs).map(([schemaId, rule]: any) => ({
+        schemaId,
+        minLen: toNumber(rule?.minLen, toNumber(data.config?.title?.minLen, 65)),
+        softMaxLen: toNumber(rule?.softMaxLen, toNumber(data.config?.title?.softMaxLen, 75)),
+        maxLen: toNumber(rule?.maxLen, toNumber(data.config?.title?.maxLen, 80)),
+        mobileMaxLen: toNumber(rule?.mobileMaxLen, toNumber(data.config?.title?.mobileMaxLen, 60)),
+      }));
+      setTitleRows(trows.sort((a, b) => a.schemaId.localeCompare(b.schemaId)));
 
       const cmap = data.config?.attributes?.canonicalKeyMap || {};
       const crows: CanonRow[] = Object.entries(cmap).map(([from, to]: any) => ({
@@ -85,6 +97,19 @@ export const AdminRulebookManagement: React.FC = () => {
           maxLen: toNumber(cfg?.title?.maxLen, 80),
           mobileMaxLen: toNumber(cfg?.title?.mobileMaxLen, 60),
           marketingWords: Array.isArray(cfg?.title?.marketingWords) ? cfg.title!.marketingWords : [],
+          rulesBySchema: Object.fromEntries(
+            titleRows
+              .filter((r) => r.schemaId.trim())
+              .map((r) => [
+                r.schemaId.trim(),
+                {
+                  minLen: toNumber(r.minLen, 65),
+                  softMaxLen: toNumber(r.softMaxLen, 75),
+                  maxLen: toNumber(r.maxLen, 80),
+                  mobileMaxLen: toNumber(r.mobileMaxLen, 60),
+                },
+              ])
+          ) as any,
         },
         highlights: {
           ...(cfg.highlights || {}),
@@ -158,6 +183,16 @@ export const AdminRulebookManagement: React.FC = () => {
 
   const updateHighlightCell = (idx: number, key: keyof HighlightRuleRow, value: any) => {
     setHighlightRows((prev) => {
+      const next = [...prev];
+      const row = { ...next[idx] };
+      (row as any)[key] = key === 'schemaId' ? String(value) : toNumber(value, (row as any)[key]);
+      next[idx] = row;
+      return next;
+    });
+  };
+
+  const updateTitleCell = (idx: number, key: keyof TitleRuleRow, value: any) => {
+    setTitleRows((prev) => {
       const next = [...prev];
       const row = { ...next[idx] };
       (row as any)[key] = key === 'schemaId' ? String(value) : toNumber(value, (row as any)[key]);
@@ -249,6 +284,79 @@ export const AdminRulebookManagement: React.FC = () => {
               }
             />
           </label>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-200">Titel Kategorien (pro Titel-Kategorie)</h3>
+          <button
+            type="button"
+            className="rounded-xl bg-slate-800/70 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            onClick={() =>
+              setTitleRows((prev) => [
+                ...prev,
+                { schemaId: 'generic', minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+              ])
+            }
+          >
+            + Add row
+          </button>
+        </div>
+        <p className="text-xs text-slate-400">
+          Diese Titel-Kategorien sind grobe Buckets (nicht Produkt-Kategorien). Jedes Produkt wird deterministisch einem Bucket zugeordnet (Fallback: generic).
+        </p>
+        <div className="overflow-auto rounded-xl ring-1 ring-white/10">
+          <table className="min-w-full text-xs">
+            <thead className="bg-slate-950/40 text-slate-300">
+              <tr>
+                <th className="px-3 py-2 text-left font-semibold">schemaId</th>
+                <th className="px-3 py-2 text-left font-semibold">minLen</th>
+                <th className="px-3 py-2 text-left font-semibold">softMaxLen</th>
+                <th className="px-3 py-2 text-left font-semibold">maxLen</th>
+                <th className="px-3 py-2 text-left font-semibold">mobileMaxLen</th>
+                <th className="px-3 py-2 text-left font-semibold">Remove</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {titleRows.map((r, idx) => (
+                <tr key={`${r.schemaId}-${idx}`} className="bg-slate-900/20">
+                  <td className="px-3 py-2">
+                    <input
+                      className="w-44 rounded-xl bg-slate-950/40 border border-white/10 px-3 py-2 text-slate-100"
+                      value={r.schemaId}
+                      onChange={(e) => updateTitleCell(idx, 'schemaId', e.target.value)}
+                    />
+                  </td>
+                  {(['minLen', 'softMaxLen', 'maxLen', 'mobileMaxLen'] as const).map((k) => (
+                    <td key={k} className="px-3 py-2">
+                      <input
+                        className="w-24 rounded-xl bg-slate-950/40 border border-white/10 px-3 py-2 text-slate-100"
+                        value={(r as any)[k]}
+                        onChange={(e) => updateTitleCell(idx, k, e.target.value)}
+                      />
+                    </td>
+                  ))}
+                  <td className="px-3 py-2">
+                    <button
+                      type="button"
+                      className="rounded-xl bg-red-600/80 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600"
+                      onClick={() => setTitleRows((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {titleRows.length === 0 ? (
+                <tr>
+                  <td className="px-3 py-6 text-center text-slate-500" colSpan={6}>
+                    No title category rules configured.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
         </div>
       </section>
 

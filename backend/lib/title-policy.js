@@ -652,6 +652,48 @@ function inferSchemaId(product) {
   return 'generic';
 }
 
+/**
+ * Coarse "Titel-Kategorie" bucket for rulebook title rules.
+ * This intentionally collapses fine schemas into a small set that admins manage.
+ * These are NOT product categories; they exist only to apply title rules consistently.
+ */
+function inferTitleCategory(product) {
+  const rawCategory = safeString(product?.identification?.category);
+  const categoryNorm = normalizeForSearch(rawCategory);
+  const fine = inferSchemaId(product);
+
+  // Lighting bucket (not a fine schema today, but needed for title rules)
+  if (/\b(lampe|lampen|leuchte|leuchten|beleuchtung|licht|led)\b/i.test(categoryNorm)) {
+    return 'lighting';
+  }
+
+  // Map fine schemas -> coarse buckets
+  if (fine === 'books' || fine === 'music' || fine === 'movies' || fine === 'videogames') return 'books_media';
+  if (fine === 'shoes' || fine === 'watches_jewelry') return 'shoes_accessories';
+  if (fine === 'photo_camcorder') return 'electronics_computer';
+  if (fine === 'pet' || fine === 'tools_diy') return 'home_garden';
+  if (fine === 'collectibles' || fine === 'instruments') return 'generic';
+
+  // Passthrough when already a bucket id
+  const allowed = new Set([
+    'electronics_computer',
+    'auto_parts',
+    'fashion',
+    'shoes_accessories',
+    'home_garden',
+    'kitchen_household',
+    'lighting',
+    'office',
+    'beauty',
+    'sport',
+    'toys_baby',
+    'books_media',
+    'generic',
+  ]);
+  if (allowed.has(fine)) return fine;
+  return 'generic';
+}
+
 function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) {
   const attrs =
     product?.details?.attributes && typeof product.details.attributes === 'object'
@@ -1307,4 +1349,5 @@ function coerceTitleToPolicy(
 module.exports = {
   coerceTitleToPolicy,
   validateTitleToPolicy,
+  inferTitleCategory,
 };
