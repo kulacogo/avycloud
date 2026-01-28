@@ -105,6 +105,22 @@ const updateDatasheetTool = {
         type: 'array',
         items: { type: 'string' },
       },
+      // GPSR/Compliance: MUST be stored under details.gpsr (never as attributes).
+      gpsr: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          entity_country: { type: 'string' },
+          manufacturer_name: { type: 'string' },
+          manufacturer_address: { type: 'string' },
+          manufacturer_city: { type: 'string' },
+          manufacturer_postalcode: { type: 'string' },
+          manufacturer_state_province: { type: 'string' },
+          email: { type: 'string' },
+          manufacturer_phone: { type: 'string' },
+          url: { type: 'string' },
+        },
+      },
       attributes: {
         type: 'array',
         items: {
@@ -894,6 +910,7 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
     description: !normalizedScope || normalizedScope === 'description' || normalizedScope === 'datasheet',
     highlights: !normalizedScope || normalizedScope === 'highlights' || normalizedScope === 'datasheet',
     attributes: !normalizedScope || normalizedScope === 'attributes' || normalizedScope === 'datasheet',
+    gpsr: !normalizedScope || normalizedScope === 'gpsr' || normalizedScope === 'datasheet',
     notes: !normalizedScope || normalizedScope === 'datasheet',
   };
 
@@ -914,6 +931,28 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
   }
   if (allow.notes && entry.notes) {
     result.notes = entry.notes;
+  }
+
+  // GPSR: accept only known keys, trim strings, never invent.
+  if (allow.gpsr && entry.gpsr && typeof entry.gpsr === 'object') {
+    const next = {};
+    [
+      'entity_country',
+      'manufacturer_name',
+      'manufacturer_address',
+      'manufacturer_city',
+      'manufacturer_postalcode',
+      'manufacturer_state_province',
+      'email',
+      'manufacturer_phone',
+      'url',
+    ].forEach((k) => {
+      const v = typeof entry.gpsr[k] === 'string' ? entry.gpsr[k].trim() : '';
+      if (v) next[k] = v;
+    });
+    if (Object.keys(next).length) {
+      result.gpsr = next;
+    }
   }
   const identityPatch = {};
   const barcodeSet = new Set();
@@ -1131,6 +1170,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   4. Never say "I can search if you want". JUST SEARCH.
   5. **ALWAYS** usage the 'update_product_datasheet' tool when you propose ANY data changes (title, description, attributes, etc.). Do NOT just output JSON text. The tool call IS the way to propose changes.
   6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
+  7. GPSR updates MUST be returned under the top-level "gpsr" object (not in attributes). Never create keys like "GPSR Manufacturer name" inside attributes.
 
   TITLE / HIGHLIGHTS QUALITY BAR:
   - Titles must be TECHNICAL & searchable (optimal 65–75 chars, never exceed 80): Priority A inside first 60 chars (schema-dependent; see TITLE-SCHEMA GUIDELINES), then 1–2 key specs. No marketing fluff, no emojis, no duplicates, no SKU/IDs.

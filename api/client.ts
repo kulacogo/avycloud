@@ -361,6 +361,33 @@ export type AdminLlmScopeDetail = {
   }>;
 };
 
+export type AdminJobRunResult = {
+  name?: string;
+  done?: boolean;
+  metadata?: any;
+  response?: any;
+  error?: any;
+};
+
+export const adminRunGpsrWebEnrichJob = async (params?: {
+  apply?: boolean;
+  limit?: number;
+  concurrency?: number;
+  minQty?: number;
+  debug?: boolean;
+}): Promise<AdminJobRunResult> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/jobs/gpsr-web-enrich/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params || {}),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to run GPSR Cloud Run Job');
+  }
+  return (result?.data || {}) as AdminJobRunResult;
+};
+
 export const adminListUsers = async (limit = 500): Promise<AdminUserRecord[]> => {
   const url = new URL(`${BACKEND_URL}/api/admin/users`);
   url.searchParams.set('limit', String(Math.min(Math.max(limit, 1), 1000)));

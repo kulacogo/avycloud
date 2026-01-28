@@ -32,12 +32,13 @@ const {
 const { uploadBase64Image, deleteProductImages, uploadJobFile } = require('./lib/storage');
 const { recordManualProductImage } = require('./lib/product-images');
 const { createJob, getJob, listJobs, FieldValue } = require('./lib/jobs');
-const { ensureProductSku } = require('./lib/sku');
+// SKU is allocated/validated centrally in saveProduct() (firestore) to guarantee uniqueness & format.
 const { parseKTypeEbayCsvToSkuMap } = require('./lib/ktype');
 const {
   runProductIdentification,
   ensurePriceCoverage,
   runDatasheetReview,
+  prefetchWebEvidenceForIdentify,
   applyEbayTaxonomy,
   applyKauflandTaxonomy,
   BARCODE_LIMIT_ERROR,
@@ -54,6 +55,7 @@ const { improveExistingProduct } = require('./services/improve');
 const { getSecretValue } = require('./lib/secret-values');
 const { fetchWithUnlocker } = require('./lib/web-unlocker');
 const { enqueueJob, startJobRunner } = require('./services/job-runner');
+const { runCloudRunJob } = require('./lib/cloud-run-jobs');
 const { enqueueImproveJob, startImproveRunner } = require('./services/improve-runner');
 const { enqueueQualityJob, startQualityRunner } = require('./services/quality-runner');
 const { enqueueBaseLinkerSyncJob, startBaseLinkerSyncRunner } = require('./services/baselinker-sync-runner');
@@ -1019,6 +1021,85 @@ app.get('/api/admin/llm/scopes', requirePermission('admin', 'llm.read'), async (
   }
 });
 
+// --- Admin Jobs (RBAC-managed) ---
+// Triggers the Cloud Run Job that performs initial GPSR enrichment (BIN set & qty>=1 & needsGpsr).
+app.post('/api/admin/jobs/gpsr-web-enrich/run', requirePermission('admin', 'jobs.run'), async (req, res) => {
+  try {
+    const jobName = String(process.env.GPSR_WEB_ENRICH_JOB_NAME || '').trim(); // full name preferred
+    const location = String(process.env.CLOUD_RUN_JOBS_LOCATION || '').trim();
+    const jobId = String(process.env.GPSR_WEB_ENRICH_JOB_ID || '').trim();
+
+    // If full name is not provided, require location+jobId (project is derived from GOOGLE_CLOUD_PROJECT).
+    if (!jobName && (!location || !jobId)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message:
+            'Cloud Run Job config missing. Set GPSR_WEB_ENRICH_JOB_NAME (recommended) or CLOUD_RUN_JOBS_LOCATION + GPSR_WEB_ENRICH_JOB_ID.',
+          details: {
+            GPSR_WEB_ENRICH_JOB_NAME: jobName ? 'set' : 'missing',
+            CLOUD_RUN_JOBS_LOCATION: location ? 'set' : 'missing',
+            GPSR_WEB_ENRICH_JOB_ID: jobId ? 'set' : 'missing',
+          },
+        },
+      });
+    }
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const limit = Number.isFinite(Number(body.limit)) ? Math.max(1, Math.min(20000, Number(body.limit))) : null;
+    const concurrency = Number.isFinite(Number(body.concurrency))
+      ? Math.max(1, Math.min(10, Number(body.concurrency)))
+      : null;
+    const minQty = Number.isFinite(Number(body.minQty)) ? Math.max(1, Math.min(9999, Number(body.minQty))) : null;
+    const apply = body.apply === true;
+    const debug = body.debug === true;
+
+    // Optional overrides:
+    // We use containerOverrides.env so the job can pick up run parameters without relying on args.
+    // NOTE: This requires IAM permission run.jobs.runWithOverrides.
+    const containerName = String(process.env.GPSR_WEB_ENRICH_CONTAINER || '').trim();
+    let overrides = null;
+    if (containerName && (apply || limit || concurrency || minQty || debug)) {
+      const env = [];
+      if (apply) env.push({ name: 'APPLY', value: '1' });
+      if (debug) env.push({ name: 'DEBUG', value: '1' });
+      if (limit) env.push({ name: 'LIMIT', value: String(limit) });
+      if (concurrency) env.push({ name: 'CONCURRENCY', value: String(concurrency) });
+      if (minQty) env.push({ name: 'MIN_QTY', value: String(minQty) });
+      overrides = {
+        containerOverrides: [
+          {
+            name: containerName,
+            env,
+          },
+        ],
+      };
+    }
+
+    const operation = await runCloudRunJob({
+      name: jobName || '',
+      projectId: GCP_PROJECT,
+      location,
+      jobId,
+      overrides,
+      validateOnly: false,
+    });
+
+    return res.json({ ok: true, data: operation });
+  } catch (error) {
+    console.error('Failed to run GPSR Cloud Run Job:', error);
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to run GPSR Cloud Run Job',
+        details: error?.message || String(error),
+      },
+    });
+  }
+});
+
 app.get('/api/admin/llm/scopes/:scopeId', requirePermission('admin', 'llm.read'), async (req, res) => {
   try {
     const scopeId = req.params?.scopeId;
@@ -1368,6 +1449,26 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
       barcodeInsights: result.barcodeInsights || null,
       llm: result.llm || null,
     };
+
+    // Optional: prefetch small web excerpts (BrightData-backed when configured) to push Identify towards 99% completeness.
+    // This is SerpAPI-free and is used as *evidence only* (no guessing).
+    const enablePrefetch =
+      String(process.env.IDENTIFY_PREFETCH_WEB_EVIDENCE || 'true').toLowerCase() === 'true';
+    if (enablePrefetch) {
+      try {
+        const webEnrich = await prefetchWebEvidenceForIdentify({
+          barcodeList: result.barcodes || [],
+          ocrTextSnippets: result?.ocr?.textSnippets || [],
+          locale,
+        });
+        if (webEnrich) {
+          evidence.web_enrich = webEnrich;
+        }
+      } catch (e) {
+        // Best-effort: never fail Identify because web prefetch failed.
+        console.warn('Identify web evidence prefetch failed (continuing):', e?.message || e);
+      }
+    }
 
     await runDatasheetReview([product], {
       locale,
@@ -3201,8 +3302,7 @@ app.post('/api/save', requirePermission('products', 'write'), async (req, res) =
       });
     }
 
-    // Ensure SKU is present before persisting
-    const assignedSku = ensureProductSku(product);
+    // SKU is allocated/validated in saveProduct(); do not generate here to avoid diverging behavior.
 
     // Process and upload images to Cloud Storage
     if (product.details && product.details.images) {
@@ -3298,7 +3398,7 @@ app.post('/api/save', requirePermission('products', 'write'), async (req, res) =
       ok: true,
       data: {
         ...result,
-        sku: product.identification?.sku || assignedSku || null,
+        sku: product.identification?.sku || null,
       },
     });
   } catch (error) {

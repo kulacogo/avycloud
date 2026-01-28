@@ -3,8 +3,9 @@ import { AdminUserManagement } from './AdminUserManagement';
 import { AdminRoleManagement } from './AdminRoleManagement';
 import { AdminGroupManagement } from './AdminGroupManagement';
 import { AdminLlmManagement } from './AdminLlmManagement';
+import { AdminJobsManagement } from './AdminJobsManagement';
 
-type Tab = 'users' | 'groups' | 'roles' | 'llm';
+type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'jobs';
 
 export const AdminPanel: React.FC = () => {
   const [tab, setTab] = React.useState<Tab>('users');
@@ -48,6 +49,15 @@ export const AdminPanel: React.FC = () => {
         >
           LLM
         </button>
+        <button
+          type="button"
+          onClick={() => setTab('jobs')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+            tab === 'jobs' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+          }`}
+        >
+          Jobs
+        </button>
       </div>
 
       {tab === 'users' ? (
@@ -56,6 +66,8 @@ export const AdminPanel: React.FC = () => {
         <AdminGroupManagement />
       ) : tab === 'llm' ? (
         <AdminLlmManagement />
+      ) : tab === 'jobs' ? (
+        <AdminJobsManagement />
       ) : (
         <AdminRoleManagement />
       )}

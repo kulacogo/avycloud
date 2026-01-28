@@ -15,7 +15,7 @@ const {
   getInventoryRecord,
   setProductInventory,
 } = require('../lib/firestore');
-const { ensureProductSku } = require('../lib/sku');
+// SKU is allocated/validated centrally in saveProduct() (firestore) to guarantee uniqueness & format.
 const { computeProductIdentityKey, buildIdentityAliasSet } = require('../lib/product-identity');
 const { createJob: createQualityJob } = require('../lib/quality-jobs');
 const { enqueueQualityJob } = require('./quality-runner');
@@ -116,7 +116,7 @@ async function processJob(jobId) {
       for (let index = 0; index < bundleProducts.length; index += 1) {
         const product = bundleProducts[index];
         try {
-          ensureProductSku(product);
+          // SKU is allocated/validated in saveProduct(); do not generate here to avoid diverging behavior.
           if (inventoryRecord) {
             product.inventory = {
               ...(product.inventory || {}),

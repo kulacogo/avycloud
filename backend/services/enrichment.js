@@ -7,6 +7,7 @@ const { getGeminiClient } = require('../lib/gemini-client'); // Replaced OpenAI
 const { uploadImage } = require('../lib/storage');
 const { extractOcrPayload } = require('../lib/vision-ocr');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
+const { search: searchEvidence } = require('../lib/evidence-provider');
 const { resolveModel } = require('../lib/model-select');
 const path = require('path');
 const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
@@ -1668,6 +1669,40 @@ async function runDatasheetReview(
   };
 
   const fetchSerpSummary = async (engine, params, limit = 5) => {
+    // Prefer BrightData-backed search (via evidence-provider) to avoid SerpAPI dependency in Identify/Review.
+    // Fallback to SerpAPI only if configured and the engine supports it.
+    const engineLower = String(engine || '').toLowerCase();
+    const locale = 'de-DE';
+    const buildQuery = () => {
+      if (engineLower === 'google') return String(params?.q || '').trim();
+      if (engineLower === 'google_shopping') return String(params?.q || '').trim() + ' site:shopping.google.com';
+      if (engineLower === 'ebay') return String(params?._nkw || '').trim() + ' site:ebay.de';
+      if (engineLower === 'amazon') return String(params?.k || '').trim() + ' site:amazon.de';
+      // Default: try a generic q param
+      return String(params?.q || params?._nkw || params?.k || '').trim();
+    };
+    const q = buildQuery().trim();
+    if (!q) return { engine, ok: false, summary: [], error: 'query_empty' };
+
+    try {
+      const web = await searchEvidence(q, { limit: Math.max(limit, 5), locale });
+      const summary = Array.isArray(web?.results)
+        ? web.results.slice(0, limit).map((r) => ({
+            title: r?.title || '',
+            source: engineLower,
+            price: null,
+            shipping: null,
+            url: r?.url || '',
+            snippet: r?.snippet || '',
+          }))
+        : [];
+      if (summary.length) {
+        return { engine, ok: true, summary };
+      }
+    } catch (e) {
+      // continue to serpapi fallback
+    }
+
     try {
       const raw = await callSerpApi(engine, params);
       const summary = summarizeSerpEntries(engine, raw, limit);
@@ -2566,6 +2601,7 @@ module.exports = {
   runProductIdentification,
   ensurePriceCoverage,
   runDatasheetReview,
+  prefetchWebEvidenceForIdentify,
   applyEbayTaxonomy,
   applyKauflandTaxonomy,
   BARCODE_LIMIT_ERROR,

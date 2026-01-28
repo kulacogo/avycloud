@@ -19,9 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { callSerpApi } = require('./serpapi');
-const { fetchPageText } = require('./web-search-html');
-const { searchWeb } = require('./web-search-html');
+const { search, fetchText } = require('./evidence-provider');
 const { getVehicleFitmentMode } = require('./vehicle-fitment');
 
 function safeString(v) {
@@ -315,26 +313,8 @@ function formatKTyp(ids = [], { maxLen = 0 } = {}) {
 }
 
 async function resolveEvidenceUrls(query, { limit = 6 } = {}) {
-  const engines = ['google', 'bing', 'duckduckgo'];
-  for (const engine of engines) {
-    try {
-      const data = await callSerpApi(engine, { q: query, num: limit });
-      const organic = Array.isArray(data?.organic_results) ? data.organic_results : [];
-      const urls = organic.map((r) => safeString(r?.link)).filter(Boolean);
-      if (urls.length) {
-        return {
-          engine,
-          urls: urls.slice(0, limit),
-          results: organic.slice(0, limit).map((r) => ({ title: r?.title || '', link: r?.link || '' })),
-        };
-      }
-    } catch {
-      // try next engine
-    }
-  }
-  // Fallback: best-effort HTML search without SerpAPI (DDG/Google via unlocker)
   try {
-    const web = await searchWeb(query, { limit });
+    const web = await search(query, { limit, locale: 'de-DE' });
     const urls = Array.isArray(web?.results) ? web.results.map((r) => safeString(r?.url)).filter(Boolean) : [];
     if (urls.length) {
       return {
@@ -481,7 +461,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
   for (const query of queries) {
     const serp = await resolveEvidenceUrls(query, { limit: 6 });
     for (const url of serp.urls) {
-      const fetched = await fetchPageText(url, { timeoutMs: 20_000 });
+      const fetched = await fetchText(url, { timeoutMs: 20_000 });
       if (!fetched?.ok || !fetched?.text) continue;
       const text = String(fetched.text);
       if (mpnNeedle && !normalizeNeedle(text).includes(mpnNeedle)) continue;

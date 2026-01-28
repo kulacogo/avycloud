@@ -88,6 +88,26 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
   if (Array.isArray(entry.key_features)) {
     result.key_features = entry.key_features.filter(Boolean);
   }
+  if (entry.gpsr && typeof entry.gpsr === 'object') {
+    const next: Record<string, string> = {};
+    [
+      'entity_country',
+      'manufacturer_name',
+      'manufacturer_address',
+      'manufacturer_city',
+      'manufacturer_postalcode',
+      'manufacturer_state_province',
+      'email',
+      'manufacturer_phone',
+      'url',
+    ].forEach((k) => {
+      const v = typeof entry.gpsr?.[k] === 'string' ? entry.gpsr[k].trim() : '';
+      if (v) next[k] = v;
+    });
+    if (Object.keys(next).length) {
+      (result as any).gpsr = next;
+    }
+  }
   if (entry.attributes) {
     if (Array.isArray(entry.attributes)) {
       result.attributes = entry.attributes.reduce((acc: Record<string, string | number | boolean>, item: any) => {

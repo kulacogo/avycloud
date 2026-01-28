@@ -1,4 +1,5 @@
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
+const { generateSku: generateRandomSku10NoLeadingZero } = require('./sku');
 const { isValidGtin: isValidGtinShared, normalizeDigits: normalizeDigitsShared } = require('./gtin');
 const {
   computeProductIdentityKey,
@@ -1594,49 +1595,39 @@ async function saveProduct(product, options = {}) {
       });
     };
 
-    const allocateSku10 = async (productId) => {
-      const counterRef = firestore.collection('metaCounters').doc('sku10');
-      const startDefault = 1000000000; // 10 digits
-      return await firestore.runTransaction(async (tx) => {
-        const counterSnap = await tx.get(counterRef);
-        let next = startDefault;
-        if (counterSnap.exists) {
-          const raw = Number(counterSnap.data()?.next || counterSnap.data()?.value || 0);
-          if (Number.isFinite(raw) && raw > 0) next = raw;
-        }
-        // Find the next free SKU in the sku index (bounded search to keep tx fast).
-        for (let i = 0; i < 500; i += 1) {
-          const digits = String(next).padStart(10, '0');
-          const sku = `SKU-${digits}`;
-          const key = buildSkuIndexKey('sku', digits);
-          const idxRef = firestore.collection(SKU_INDEX_COLLECTION).doc(key);
-          const idxSnap = await tx.get(idxRef);
-          const existingPid = idxSnap.exists ? (idxSnap.data()?.productId || idxSnap.data()?.baseProductId || null) : null;
-          if (existingPid && String(existingPid) !== String(productId)) {
-            next += 1;
-            continue;
-          }
-          tx.set(
-            idxRef,
-            {
-              productId: String(productId),
-              sku,
-              updated_at: new Date().toISOString(),
-            },
-            { merge: true }
-          );
-          tx.set(
-            counterRef,
-            {
-              next: next + 1,
-              updated_at: FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
+    const allocateRandomSku10NoLeadingZero = async (productId) => {
+      const maxAttempts = 25;
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const sku = generateRandomSku10NoLeadingZero();
+        const normalized = normalizeSkuValue(sku);
+        const key = buildSkuIndexKey('sku', normalized);
+        if (!key) continue;
+        try {
+          await firestore.runTransaction(async (tx) => {
+            const ref = firestore.collection(SKU_INDEX_COLLECTION).doc(key);
+            const snap = await tx.get(ref);
+            const existingPid = snap.exists ? (snap.data()?.productId || snap.data()?.baseProductId || null) : null;
+            if (existingPid && String(existingPid) !== String(productId)) {
+              throw new Error('sku_collision');
+            }
+            tx.set(
+              ref,
+              {
+                productId: String(productId),
+                sku,
+                updated_at: new Date().toISOString(),
+              },
+              { merge: true }
+            );
+          });
           return sku;
+        } catch (e) {
+          const msg = e?.message || String(e);
+          if (msg.includes('sku_collision')) continue;
+          throw e;
         }
-        throw new Error('Failed to allocate unique SKU (exhausted attempts)');
-      });
+      }
+      throw new Error('Failed to allocate unique SKU (random collisions exhausted)');
     };
 
     const pickStableSku = (data) => {
@@ -1681,7 +1672,7 @@ async function saveProduct(product, options = {}) {
       if (!product.details.identifiers) product.details.identifiers = {};
 
       // If incoming SKU is invalid/missing, allocate a fresh unique SKU-[10 digits].
-      const finalSku = incomingSku || (await allocateSku10(product.id));
+      const finalSku = incomingSku || (await allocateRandomSku10NoLeadingZero(product.id));
       product.identification.sku = finalSku;
       product.details.identifiers.sku = finalSku;
       await ensureSkuUniqueOrThrow(product.id, finalSku);

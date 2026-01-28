@@ -3,8 +3,10 @@ const crypto = require('crypto');
 const SKU_PATTERN = /^SKU-\d{10}$/;
 
 function generateSku() {
-  const digits = crypto.randomInt(0, 1_000_000_0000);
-  return `SKU-${digits.toString().padStart(10, '0')}`;
+  // Random, 10 digits, NO leading zero (business requirement).
+  // Range: 1000000000..9999999999 (both inclusive).
+  const digits = crypto.randomInt(1_000_000_000, 10_000_000_000);
+  return `SKU-${digits.toString()}`;
 }
 
 function ensureProductSku(product) {

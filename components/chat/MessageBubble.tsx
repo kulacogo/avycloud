@@ -69,6 +69,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (change.attributes && Object.keys(change.attributes).length) {
       fields.push('Attribute');
     }
+    if ((change as any).gpsr && Object.keys(((change as any).gpsr || {})).length) {
+      fields.push('GPSR');
+    }
     if (change.pricing) {
       fields.push('Preis');
     }

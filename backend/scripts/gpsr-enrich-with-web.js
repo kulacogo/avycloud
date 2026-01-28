@@ -31,7 +31,7 @@ const PQueue = require('p-queue').default || require('p-queue');
 const { getAllProducts, getProduct, saveProduct, firestore } = require('../lib/firestore');
 const { callGeminiStructured } = require('../lib/gemini-structured');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
-const { searchWeb } = require('../lib/web-search-html');
+const { search } = require('../lib/evidence-provider');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 
 const USE_UNLOCKER = (process.env.GPSR_WEB_USE_UNLOCKER || '').toString().toLowerCase() === 'true';
@@ -123,16 +123,16 @@ async function fetchText(url) {
 async function searchDuckDuckGo(query, { limit = 6 } = {}) {
   // Kept for backward compatibility name, but we now delegate to shared searchWeb()
   // which can use Bright Data SERP when configured.
-  const web = await searchWeb(query, { limit, locale: 'de-DE' });
+  const web = await search(query, { limit, locale: 'de-DE' });
   const results = Array.isArray(web?.results)
     ? web.results.map((r) => ({ url: r?.url || '', title: r?.title || '' })).filter((r) => r.url)
     : [];
   return {
     query,
     ok: Boolean(web?.ok) && results.length > 0,
-    url: web?.url || '',
-    via: web?.via || web?.engine || 'searchWeb',
-    status: web?.status || 0,
+    url: '',
+    via: web?.engine || 'evidence',
+    status: 200,
     results,
   };
 }
@@ -484,15 +484,31 @@ async function withTimeout(promise, ms, { label = 'timeout' } = {}) {
 }
 
 async function main() {
-  const apply = argFlag('--apply');
+  // Support BOTH argv and env-based triggering (for Cloud Run Job run overrides).
+  // Env flags:
+  //   APPLY=1, DEBUG=1, DEBUG_FAILURES=1
+  //   LIMIT=..., CONCURRENCY=..., MIN_QTY=..., DEBUG_FAILURES_MAX=..., PRODUCT_ID=...
+  const envApply = String(process.env.APPLY || '').trim() === '1';
+  const envDebug = String(process.env.DEBUG || '').trim() === '1';
+  const envDebugFailures = String(process.env.DEBUG_FAILURES || '').trim() === '1';
+  const envLimit = String(process.env.LIMIT || '').trim();
+  const envConcurrency = String(process.env.CONCURRENCY || '').trim();
+  const envMinQty = String(process.env.MIN_QTY || '').trim();
+  const envDebugFailuresMax = String(process.env.DEBUG_FAILURES_MAX || '').trim();
+  const envProductId = String(process.env.PRODUCT_ID || '').trim();
+
+  const apply = argFlag('--apply') || envApply;
   const dryRun = !apply;
-  const limit = Math.max(1, parseInt(argValue('--limit', '200') || '200', 10));
-  const concurrency = Math.max(1, parseInt(argValue('--concurrency', '2') || '2', 10));
-  const debug = argFlag('--debug');
-  const debugFailures = argFlag('--debug-failures');
-  const debugFailuresMax = Math.max(0, parseInt(argValue('--debug-failures-max', '3') || '3', 10));
-  const minQty = Math.max(1, parseInt(argValue('--min-qty', '1') || '1', 10));
-  const onlyProductId = argValue('--product-id', null);
+  const limit = Math.max(1, parseInt(argValue('--limit', envLimit || '200') || '200', 10));
+  const concurrency = Math.max(1, parseInt(argValue('--concurrency', envConcurrency || '2') || '2', 10));
+  const debug = argFlag('--debug') || envDebug;
+  const debugFailures = argFlag('--debug-failures') || envDebugFailures;
+  const debugFailuresMax = Math.max(
+    0,
+    parseInt(argValue('--debug-failures-max', envDebugFailuresMax || '3') || '3', 10)
+  );
+  const minQty = Math.max(1, parseInt(argValue('--min-qty', envMinQty || '1') || '1', 10));
+  const onlyProductId = argValue('--product-id', envProductId || null);
   // NOTE: The "target filter" is BIN + qty>=minQty only. Price filtering was removed intentionally.
 
   const debugDir = debug ? path.resolve(`backend/exports/gpsr-web-enrich/${nowStamp()}`) : null;

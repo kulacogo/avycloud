@@ -732,6 +732,15 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         next.details.key_features = change.key_features;
       }
 
+      // 3.5 GPSR (structured)
+      if (change.gpsr && typeof change.gpsr === 'object') {
+        next.details = next.details || {};
+        next.details.gpsr = {
+          ...(next.details.gpsr || {}),
+          ...(change.gpsr || {}),
+        };
+      }
+
       // 4. Attributes (Merge)
       if (change.attributes && Object.keys(change.attributes).length > 0) {
         next.details = next.details || {};
@@ -1581,6 +1590,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 </div>
               )}
             </div>
+
+            {localProduct?.ops?.data_quality?.ktype_enrich_v1 ? (
+              <details className="mb-4 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-slate-200">
+                  K-Typ Trace (ops.data_quality.ktype_enrich_v1)
+                </summary>
+                <pre className="mt-3 overflow-auto whitespace-pre-wrap text-xs text-slate-200">
+                  {JSON.stringify(localProduct.ops.data_quality.ktype_enrich_v1, null, 2)}
+                </pre>
+              </details>
+            ) : null}
 
             <AttributeTable
               attributes={localProduct.details.attributes}
