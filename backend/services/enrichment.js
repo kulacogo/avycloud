@@ -17,6 +17,7 @@ const { isValidGtin, normalizeDigits, getGtinType } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { sanitizeListingText } = require('../lib/listing-sanitize');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
+const { normalizeProductStrict } = require('../lib/llm-rulebook');
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 const { filterBarcodesByWebConfirm } = require('../lib/barcode-web-confirm');
 const { searchWeb, fetchPageText } = require('../lib/web-search-html');
@@ -1532,6 +1533,15 @@ function applyReviewResult(product, review) {
       );
     }
   }
+
+  // Final strict rulebook pass (no best-effort):
+  // If the LLM output caused conflicts (e.g., semantic duplicate attributes or invalid highlights),
+  // treat as an error so it cannot be propagated to saves/sync.
+  const strict = normalizeProductStrict(product, { source: 'enrichment.applyReviewResult' });
+  if (!strict.ok) {
+    throw new Error(`LLM_RULEBOOK_VIOLATION: ${strict.issues.join('; ')}`);
+  }
+  Object.assign(product, strict.product);
 }
 
 async function runDatasheetReview(

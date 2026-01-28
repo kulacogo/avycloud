@@ -1230,6 +1230,50 @@ function validateProduct(product) {
 }
 
 /**
+ * Build a minimal BaseLinker update payload that only updates the product datasheet ("text_fields").
+ *
+ * Official docs confirm that providing product_id updates an existing product:
+ * - addInventoryProduct: "Entering the product with the ID updates previously saved product."
+ *
+ * We intentionally omit prices/stock/images/category/manufacturer to avoid syncing the full product,
+ * as required for "delta sync" after rule changes.
+ */
+async function buildTextOnlyUpdatePayload(invId, product, baseProductId) {
+  const name = pickProductName(product);
+  const textFields = buildTextFields(product, name);
+  const defaultLang = (process.env.BASELINKER_TEXT_LANG || 'de').toString().trim().toLowerCase();
+
+  const expanded = await expandTextFieldsForInventory(
+    invId,
+    textFields,
+    {
+      name: textFields?.name,
+      description: textFields?.description,
+      description_extra1: textFields?.description_extra1,
+      description_extra2: textFields?.description_extra2,
+      description_extra3: textFields?.description_extra3,
+      description_extra4: textFields?.description_extra4,
+      features: textFields?.features,
+      extra_field_18699: textFields?.extra_field_18699,
+    },
+    defaultLang
+  );
+
+  const overridden = await applyMarketplaceOverridesToTextFields(
+    invId,
+    product,
+    expanded,
+    defaultLang
+  );
+
+  return {
+    inventory_id: invId,
+    product_id: Number(baseProductId) || 0,
+    text_fields: overridden,
+  };
+}
+
+/**
  * Payload für addInventoryProduct
  */
 function pickEan(product) {
@@ -1845,6 +1889,137 @@ async function syncProductToBaseLinker(product, inventoryId) {
 }
 
 /**
+ * Text-only sync: update only BaseLinker `text_fields` (title/description/highlights/features/GPSR/K-Typ extra field),
+ * without touching stock/prices/images/categories.
+ *
+ * This is used for "delta sync" after rule changes.
+ */
+async function syncProductTextOnlyToBaseLinker(product, inventoryId) {
+  const invId = String(inventoryId || TARGET_INVENTORY_ID);
+  if (!invId) {
+    const message = 'Inventory ID fehlt';
+    await logInventorySyncEvent({
+      productId: product.id,
+      inventoryId: invId,
+      status: 'failed',
+      message,
+    });
+    return { id: product.id, status: 'failed', message };
+  }
+
+  try {
+    const name = pickProductName(product);
+    const sku = pickSku(product);
+    if (!name) throw new Error('Produktname fehlt');
+    if (!sku) throw new Error('SKU fehlt');
+
+    const normalizedSku = normalizeSkuValue(sku);
+    const normalizedEan = normalizeEanValue(pickEan(product));
+
+    const hasOpsLink = Boolean(product?.ops?.base_product_id || product?.ops?.baselinker?.product_id);
+
+    // Resolve BaseLinker product_id (same precedence as full sync)
+    let baseProductId = null;
+    let baseProductIdSource = null;
+
+    const forcedPid = Number(process.env.BASELINKER_FORCE_PRODUCT_ID || 0);
+    if (Number.isFinite(forcedPid) && forcedPid > 0) {
+      baseProductId = forcedPid;
+      baseProductIdSource = 'env:BASELINKER_FORCE_PRODUCT_ID';
+    }
+
+    if (!baseProductId) {
+      const linkedRaw = product?.ops?.baselinker?.product_id ?? product?.ops?.base_product_id ?? null;
+      const linkedPid = Number(linkedRaw);
+      const linkedInv = product?.ops?.baselinker?.synced_inventory ?? null;
+      if (
+        Number.isFinite(linkedPid) &&
+        linkedPid > 0 &&
+        (!linkedInv || String(linkedInv) === String(invId))
+      ) {
+        baseProductId = linkedPid;
+        baseProductIdSource = 'product.ops';
+      }
+    }
+
+    if (!baseProductId) {
+      const indexKeys = [
+        buildSkuIndexKey('sku', normalizedSku),
+        buildSkuIndexKey('ean', normalizedEan),
+      ].filter(Boolean);
+      for (const key of indexKeys) {
+        const entry = await getSkuIndexEntry(key);
+        const pid = Number(entry?.baseProductId);
+        if (Number.isFinite(pid) && pid > 0) {
+          baseProductId = pid;
+          baseProductIdSource = `sku_index:${key}`;
+          break;
+        }
+      }
+    }
+
+    if (!baseProductId) {
+      // Final fallback: BaseLinker lookup by SKU/EAN (may require API calls)
+      const existing = await findProductBySku(invId, sku).catch(() => null);
+      if (existing?.product_id) {
+        baseProductId = existing.product_id;
+        baseProductIdSource = 'baselinker_lookup';
+      } else if (normalizedEan) {
+        const existingByEan = await findProductBySku(invId, normalizedEan).catch(() => null);
+        if (existingByEan?.product_id) {
+          baseProductId = existingByEan.product_id;
+          baseProductIdSource = 'baselinker_lookup_ean';
+        }
+      }
+    }
+
+    if (!baseProductId) {
+      // Delta sync must never create new products (would cause duplicates).
+      const msg = hasOpsLink
+        ? `BaseLinker linkage exists but product_id could not be resolved (sku=${sku}). Refusing delta sync.`
+        : `BaseLinker product_id could not be resolved (sku=${sku}). Refusing delta sync.`;
+      throw new Error(msg);
+    }
+
+    const requestPayload = await buildTextOnlyUpdatePayload(invId, product, baseProductId);
+    const result = await callBaseLinker('addInventoryProduct', requestPayload);
+    if (result.status !== 'SUCCESS') {
+      throw new Error(result.error_message || 'BaseLinker returned error');
+    }
+
+    const syncTimestamp = new Date().toISOString();
+    try {
+      await updateProductSyncStatus(product.id, 'synced', syncTimestamp, baseProductId, invId);
+    } catch (updateError) {
+      console.warn('updateProductSyncStatus failed (non-blocking):', updateError.message);
+    }
+
+    await logInventorySyncEvent({
+      productId: product.id,
+      inventoryId: invId,
+      status: 'synced',
+      message: `delta_text_only synced (pid=${baseProductId}, source=${baseProductIdSource || 'unknown'})`,
+    });
+
+    return {
+      id: product.id,
+      status: 'synced',
+      message: 'Synced (text_fields only)',
+      baseProductId,
+      baseProductIdSource,
+    };
+  } catch (error) {
+    await logInventorySyncEvent({
+      productId: product.id,
+      inventoryId: invId,
+      status: 'failed',
+      message: error.message,
+    });
+    return { id: product.id, status: 'failed', message: error.message };
+  }
+}
+
+/**
  * Mehrere Produkte synchronisieren
  */
 async function syncProductsToBaseLinker(products, inventoryId, options = {}) {
@@ -1854,6 +2029,8 @@ async function syncProductsToBaseLinker(products, inventoryId, options = {}) {
   const logProgress =
     (process.env.BASELINKER_SYNC_LOG_PROGRESS ?? 'false').toString().toLowerCase() === 'true';
   const onProgress = typeof options?.onProgress === 'function' ? options.onProgress : null;
+  const mode = (options?.mode || 'full').toString().trim().toLowerCase();
+  const syncOne = mode === 'text_only' ? syncProductTextOnlyToBaseLinker : syncProductToBaseLinker;
 
   const worker = async () => {
     while (true) {
@@ -1863,9 +2040,11 @@ async function syncProductsToBaseLinker(products, inventoryId, options = {}) {
       const product = products[current];
       if (logProgress) {
         const sku = pickSku(product) || '';
-        console.log(`[baselinker] (${current + 1}/${products.length}) syncing id=${product?.id || ''} sku=${sku}`);
+        console.log(
+          `[baselinker] (${current + 1}/${products.length}) syncing mode=${mode} id=${product?.id || ''} sku=${sku}`
+        );
       }
-      const result = await syncProductToBaseLinker(product, inventoryId);
+      const result = await syncOne(product, inventoryId);
       results[current] = result;
       if (onProgress) {
         try {
@@ -1887,6 +2066,7 @@ async function syncProductsToBaseLinker(products, inventoryId, options = {}) {
 
 module.exports = {
   syncProductToBaseLinker,
+  syncProductTextOnlyToBaseLinker,
   syncProductsToBaseLinker,
   callBaseLinker,
   findProductsBySkus,

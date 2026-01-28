@@ -25,6 +25,7 @@ async function processBaseLinkerSyncJob(jobId) {
   try {
     const invId = String(jobSnapshot?.payload?.inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
     const productIds = Array.isArray(jobSnapshot?.payload?.productIds) ? jobSnapshot.payload.productIds : [];
+    const mode = (jobSnapshot?.payload?.mode || 'full').toString().trim().toLowerCase();
     if (!productIds.length) {
       throw new Error('Job payload has no productIds');
     }
@@ -53,6 +54,7 @@ async function processBaseLinkerSyncJob(jobId) {
     const flushEveryMs = 1500;
 
     const results = await syncProductsToBaseLinker(products, invId, {
+      mode,
       onProgress: async ({ result }) => {
         processed += 1;
         if (result?.status === 'synced') synced += 1;

@@ -1,0 +1,821 @@
+{
+  "action": "gpsr-web-enrich",
+  "dryRun": false,
+  "limit": 999999,
+  "concurrency": 3,
+  "debugDir": null,
+  "debugFailures": false,
+  "debugFailuresMax": 3,
+  "minQty": 1
+}
+Loaded 631 products from Firestore
+{
+  "totalProducts": 631,
+  "candidates": 431,
+  "filter": {
+    "hasBin": true,
+    "minQty": 1
+  }
+}
+Product saved to Firestore: 0060cdec-9193-411b-af64-4754ca0226bd
+Product saved to Firestore: 00442039661193
+Product saved to Firestore: 00872299043330
+Product saved to Firestore: 0098931289601
+Product saved to Firestore: 0198303486543
+Product saved to Firestore: 0099557e-b9f0-45a4-9c7c-d6418e7daac5
+Product saved to Firestore: 03142017000003
+Product saved to Firestore: 04052938000016
+Product saved to Firestore: 0456566400136
+Product saved to Firestore: 0615272916159
+{
+  "progress": 10,
+  "ok": 10,
+  "failed": 0,
+  "reasons": {}
+}
+Product saved to Firestore: 0800633445532
+Product saved to Firestore: 0402019292922
+Product saved to Firestore: 0814914026519
+Product saved to Firestore: 1004200304684
+Product saved to Firestore: 0840353901100
+Product saved to Firestore: 09be7756-7b4f-4dda-bda0-799754052fff
+Product saved to Firestore: 1004393023135
+Product saved to Firestore: 11850025732208
+Product saved to Firestore: 12192006315063
+{
+  "progress": 20,
+  "ok": 19,
+  "failed": 1,
+  "reasons": {
+    "json_parse_failed": 1
+  }
+}
+Product saved to Firestore: 14f93c3a-6902-4da3-8a00-991a13958570
+Product saved to Firestore: 1507000192029
+Product saved to Firestore: 1795362000001
+Product saved to Firestore: 1852315181124
+Product saved to Firestore: 1853864926223
+Product saved to Firestore: 1900201150572
+Product saved to Firestore: 1900201900525
+Product saved to Firestore: 2021181818184
+Product saved to Firestore: 20220424000047
+Product saved to Firestore: 1d5b4c7f-5b0b-42ac-a3a4-1ff4ce852794
+{
+  "progress": 30,
+  "ok": 29,
+  "failed": 1,
+  "reasons": {
+    "json_parse_failed": 1
+  }
+}
+Product saved to Firestore: 19303435363740
+Product saved to Firestore: 2024080701046
+Product saved to Firestore: 2312388888888
+Product saved to Firestore: 2024010542503
+Product saved to Firestore: 24196924186507
+Product saved to Firestore: 2493370000004
+Product saved to Firestore: 2640f8be-81e3-4d78-b73c-14f234d26721
+{
+  "progress": 40,
+  "ok": 36,
+  "failed": 4,
+  "reasons": {
+    "json_parse_failed": 1,
+    "no_search_results": 3
+  }
+}
+Product saved to Firestore: 295c4789-b314-43ba-a18c-274b6ac422ef
+Product saved to Firestore: 2d3f8a0d-2c5f-4852-a241-8281d55e418a
+Product saved to Firestore: 2d1365d3-cea9-4187-8daa-ea7ed01bf2a2
+Product saved to Firestore: 30c418b6-000b-47e9-8252-3478b4693cda
+Product saved to Firestore: 2f144eb7-126a-43ac-90cc-c6dbf899a7d6
+Product saved to Firestore: 31080024102010
+Product saved to Firestore: 3219110502725
+Product saved to Firestore: 3154020086005
+Product saved to Firestore: 3374650257716
+Product saved to Firestore: 3322937241712
+{
+  "progress": 50,
+  "ok": 46,
+  "failed": 4,
+  "reasons": {
+    "json_parse_failed": 1,
+    "no_search_results": 3
+  }
+}
+Product saved to Firestore: 3613379433101
+Product saved to Firestore: 3558380099390
+Product saved to Firestore: 3339082c-5066-4322-a318-4b8732a19d83
+Product saved to Firestore: 3700436086780
+Product saved to Firestore: 3662775243128
+Product saved to Firestore: 3701425602462
+Product saved to Firestore: 395730b7-67d0-4880-a770-f85086b71052
+Product saved to Firestore: 3f55c3c8-0603-4563-be53-8591b104d26e
+Product saved to Firestore: 4001690500234
+Product saved to Firestore: 4001807905976
+{
+  "progress": 60,
+  "ok": 56,
+  "failed": 4,
+  "reasons": {
+    "json_parse_failed": 1,
+    "no_search_results": 3
+  }
+}
+Product saved to Firestore: 3f1a8ee4-8e40-4f90-af9a-deade528551c
+Product saved to Firestore: 4005046205217
+Product saved to Firestore: 4005414511612
+Product saved to Firestore: 4001807906881
+Product saved to Firestore: 4007065867636
+Product saved to Firestore: 4007060000236
+Product saved to Firestore: 4006633310222
+Product saved to Firestore: 4007066272026
+Product saved to Firestore: 4009384341071
+{
+  "progress": 70,
+  "ok": 65,
+  "failed": 5,
+  "reasons": {
+    "json_parse_failed": 1,
+    "no_search_results": 4
+  }
+}
+Product saved to Firestore: 4013556577007
+Product saved to Firestore: 4009384458304
+Product saved to Firestore: 4013556577076
+Product saved to Firestore: 4013556577120
+Product saved to Firestore: 4013556577144
+Product saved to Firestore: 4011097314037
+Product saved to Firestore: 4013556592796
+Product saved to Firestore: 4025457166471
+Product saved to Firestore: 4013594537810
+{
+  "progress": 80,
+  "ok": 74,
+  "failed": 6,
+  "reasons": {
+    "json_parse_failed": 1,
+    "no_search_results": 5
+  }
+}
+Product saved to Firestore: 4027816321033
+Product saved to Firestore: 4034144003036
+Product saved to Firestore: 4040074053454
+Product saved to Firestore: 4030434105633
+Product saved to Firestore: 4040074122754
+Product saved to Firestore: 4040074137246
+Product saved to Firestore: 4041248145418
+Product saved to Firestore: 4041248434536
+Product saved to Firestore: 4041248450864
+{
+  "progress": 90,
+  "ok": 83,
+  "failed": 7,
+  "reasons": {
+    "json_parse_failed": 1,
+    "no_search_results": 6
+  }
+}
+Product saved to Firestore: 4040074266946
+Product saved to Firestore: 4041248450871
+Product saved to Firestore: 4046001447266
+Product saved to Firestore: 4043962306996
+Product saved to Firestore: 4047059413104
+Product saved to Firestore: 4052138007280
+Product saved to Firestore: 4053838528228
+Product saved to Firestore: 4055333068964
+Product saved to Firestore: 4061275132182
+Product saved to Firestore: 4061504006000
+{
+  "progress": 100,
+  "ok": 93,
+  "failed": 7,
+  "reasons": {
+    "json_parse_failed": 1,
+    "no_search_results": 6
+  }
+}
+Product saved to Firestore: 4059625316214
+Product saved to Firestore: 4061504016139
+Product saved to Firestore: 4061393249854
+Product saved to Firestore: 4063217299953
+Product saved to Firestore: 4063543580763
+Product saved to Firestore: 4063367064357
+Product saved to Firestore: 4062493735872
+Product saved to Firestore: 4063544824545
+Product saved to Firestore: 4063544208888
+Product saved to Firestore: 4063846033713
+{
+  "progress": 110,
+  "ok": 103,
+  "failed": 7,
+  "reasons": {
+    "json_parse_failed": 1,
+    "no_search_results": 6
+  }
+}
+Product saved to Firestore: 4064464829931
+Product saved to Firestore: 4064886306904
+Product saved to Firestore: 4067266427367
+Product saved to Firestore: 4067266427374
+Product saved to Firestore: 4067266427398
+Product saved to Firestore: 4067266427381
+Product saved to Firestore: 4067266427411
+Product saved to Firestore: 4066551928015
+Product saved to Firestore: 4067266427404
+{
+  "progress": 120,
+  "ok": 112,
+  "failed": 8,
+  "reasons": {
+    "json_parse_failed": 1,
+    "no_search_results": 7
+  }
+}
+Product saved to Firestore: 4069092282370
+Product saved to Firestore: 4078500055604
+Product saved to Firestore: 4100420037405
+Product saved to Firestore: 4250358601817
+Product saved to Firestore: 4211125274160
+Product saved to Firestore: 4250153617556
+Product saved to Firestore: 4250518576153
+Product saved to Firestore: 4250454729170
+Product saved to Firestore: 4251175827556
+Product saved to Firestore: 4260168332719
+{
+  "progress": 130,
+  "ok": 122,
+  "failed": 8,
+  "reasons": {
+    "json_parse_failed": 1,
+    "no_search_results": 7
+  }
+}
+Product saved to Firestore: 4251806427775
+Product saved to Firestore: 4251665310447
+Product saved to Firestore: 4260281755686
+Product saved to Firestore: 4260443571086
+Product saved to Firestore: 4260716810041
+Product saved to Firestore: 4260527480433
+Product saved to Firestore: 4262382491098
+Product saved to Firestore: 4260755120385
+Product saved to Firestore: 4262472110243
+{
+  "progress": 140,
+  "ok": 131,
+  "failed": 9,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 7
+  }
+}
+Product saved to Firestore: 4262405220148
+Product saved to Firestore: 4262427090057
+Product saved to Firestore: 4270001051905
+Product saved to Firestore: 48fe16c6-bdc6-42f6-862e-fc9eb4962c93
+Product saved to Firestore: 49035818999884
+Product saved to Firestore: 48093417-f9ef-497f-96a7-e17838a5280f
+Product saved to Firestore: 4906958001464
+Product saved to Firestore: 4909500898543
+Product saved to Firestore: 4806633149839
+{
+  "progress": 150,
+  "ok": 140,
+  "failed": 10,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 8
+  }
+}
+Product saved to Firestore: 4917616740531
+Product saved to Firestore: 4960999610955
+Product saved to Firestore: 4dd32c21-2afe-4c13-b354-605f97e6f590
+Product saved to Firestore: 5011987005952
+Product saved to Firestore: 5020570328828
+Product saved to Firestore: 5025155058336
+Product saved to Firestore: 5055350248140
+Product saved to Firestore: 5059556144763
+Product saved to Firestore: 5059556377703
+Product saved to Firestore: 5059556377758
+{
+  "progress": 160,
+  "ok": 150,
+  "failed": 10,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 8
+  }
+}
+Product saved to Firestore: 5059732709403
+Product saved to Firestore: 5050192020075
+Product saved to Firestore: 5060570201660
+Product saved to Firestore: 5060941713129
+Product saved to Firestore: 5265145c-c73e-4905-b442-9584eb0b5d89
+Product saved to Firestore: 5111359756525
+Product saved to Firestore: 5063019974637
+Product saved to Firestore: 52c25fb6-2f7a-48b8-8f85-430a36f26fae
+Product saved to Firestore: 5400585052930
+Product saved to Firestore: 52820776-34bb-4776-b728-06c521593d3a
+{
+  "progress": 170,
+  "ok": 160,
+  "failed": 10,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 8
+  }
+}
+Product saved to Firestore: 5400898678865
+Product saved to Firestore: 5702015867535
+Product saved to Firestore: 5702017153599
+Product saved to Firestore: 54c1a366-798b-42bf-9014-95729468c623
+Product saved to Firestore: 5713504000661
+Product saved to Firestore: 5714487284420
+Product saved to Firestore: 5713487061253
+Product saved to Firestore: 5714508372894
+Product saved to Firestore: 5715422473657
+Product saved to Firestore: 5715335047020
+{
+  "progress": 180,
+  "ok": 170,
+  "failed": 10,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 8
+  }
+}
+Product saved to Firestore: 5715574371849
+Product saved to Firestore: 578c3341-658b-46d1-b419-b4ce60b534a5
+Product saved to Firestore: 5900811829102
+Product saved to Firestore: 5901532626087
+Product saved to Firestore: 5902605478275
+Product saved to Firestore: 5904270013775
+Product saved to Firestore: 5908242693453
+Product saved to Firestore: 60539f7f-f556-4103-bc2c-cc17f5a455c3
+Product saved to Firestore: 5722008213828
+{
+  "progress": 190,
+  "ok": 179,
+  "failed": 11,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 9
+  }
+}
+Product saved to Firestore: 61cb13b8-ef09-4959-821e-c2d63fcd8038
+Product saved to Firestore: 6220160202030
+Product saved to Firestore: 6941876218462
+Product saved to Firestore: 6954850111741
+Product saved to Firestore: 6acf0526-65bd-4c5a-bd00-abe9bfb5f483
+Product saved to Firestore: 6be95318-1354-4b38-9526-aab48b727982
+Product saved to Firestore: 6957303824717
+Product saved to Firestore: 7082024102510
+Product saved to Firestore: 7212913647233
+{
+  "progress": 200,
+  "ok": 188,
+  "failed": 12,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 10
+  }
+}
+Product saved to Firestore: 7313020097503
+Product saved to Firestore: 7290116742380
+Product saved to Firestore: 7316577150929
+Product saved to Firestore: 7325720928841
+Product saved to Firestore: 7325549884427
+Product saved to Firestore: 7538f896-fb64-40ee-a606-65e08665fc2a
+Product saved to Firestore: 76113588807201
+Product saved to Firestore: 7613136901818
+Product saved to Firestore: 7630751727135
+Product saved to Firestore: 7325707913594
+{
+  "progress": 210,
+  "ok": 198,
+  "failed": 12,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 10
+  }
+}
+Product saved to Firestore: 7640415026184
+Product saved to Firestore: 7649988997723
+Product saved to Firestore: 7613109117017
+Product saved to Firestore: 7b442083-e5d5-43c0-92ef-76c6432fe919
+Product saved to Firestore: 7778bbb4-0a11-414b-a323-1573ab313f48
+Product saved to Firestore: 7c4d3bb6-e7a1-4fa0-aa88-3da9b25134d8
+Product saved to Firestore: 8003558101221
+Product saved to Firestore: 76a7cc4f-9aa4-4149-ad6b-9cc4ef1dc1df
+Product saved to Firestore: 80035581118830
+{
+  "progress": 220,
+  "ok": 207,
+  "failed": 13,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 11
+  }
+}
+Product saved to Firestore: 8019606021557
+Product saved to Firestore: 8026196116716
+Product saved to Firestore: 8004815313234
+Product saved to Firestore: 8033805473085
+Product saved to Firestore: 8088208802015
+Product saved to Firestore: 81717285233178
+Product saved to Firestore: 81715585302754
+Product saved to Firestore: 8435017325303
+Product saved to Firestore: 83e404aa-90ab-4ebe-a933-039625bb1df9
+Product saved to Firestore: 849e919f-0898-4df7-8fbb-e141c351cba4
+{
+  "progress": 230,
+  "ok": 217,
+  "failed": 13,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 11
+  }
+}
+Product saved to Firestore: 85020cb2-38be-42d7-a2d1-bb5aa92d9e36
+Product saved to Firestore: 8712026447449
+Product saved to Firestore: 8712364370409
+Product saved to Firestore: 8717475102703
+Product saved to Firestore: 8712026440952
+Product saved to Firestore: 8718042150288
+Product saved to Firestore: 8719115000028
+Product saved to Firestore: 8720245556002
+Product saved to Firestore: 8720646475988
+Product saved to Firestore: 8720389034565
+{
+  "progress": 240,
+  "ok": 227,
+  "failed": 13,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 11
+  }
+}
+Product saved to Firestore: 8720644940723
+Product saved to Firestore: 8720646487387
+Product saved to Firestore: 8720672452144
+Product saved to Firestore: 8720672452137
+Product saved to Firestore: 8720672452168
+Product saved to Firestore: 8720672452151
+Product saved to Firestore: 8720672452250
+Product saved to Firestore: 8720672452267
+Product saved to Firestore: 8720672452281
+{
+  "progress": 250,
+  "ok": 236,
+  "failed": 14,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 12
+  }
+}
+Product saved to Firestore: 8720672457583
+Product saved to Firestore: 8720672457590
+Product saved to Firestore: 8720672457576
+Product saved to Firestore: 8720672457606
+Product saved to Firestore: 8720672457644
+Product saved to Firestore: 8720672457651
+Product saved to Firestore: 8720672457613
+Product saved to Firestore: 8720672457682
+Product saved to Firestore: 8720672457620
+Product saved to Firestore: 8720672457712
+{
+  "progress": 260,
+  "ok": 246,
+  "failed": 14,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 12
+  }
+}
+Product saved to Firestore: 8720672457705
+Product saved to Firestore: 8720672457736
+Product saved to Firestore: 8720672543033
+Product saved to Firestore: 8720676510376
+Product saved to Firestore: 8720892260901
+Product saved to Firestore: 8b41bda6-bc97-4d34-8644-f081c7d180cb
+Product saved to Firestore: 9002759957889
+Product saved to Firestore: 8c326f7a-d1df-447c-ab0c-c39d136ac565
+Product saved to Firestore: 9001778410887
+Product saved to Firestore: 9132580602006
+{
+  "progress": 270,
+  "ok": 256,
+  "failed": 14,
+  "reasons": {
+    "json_parse_failed": 2,
+    "no_search_results": 12
+  }
+}
+Product saved to Firestore: 914f7e36-2a57-4a6c-94e3-441532afad65
+Product saved to Firestore: 9598aed7-fe7a-426e-afcc-08ca0d925270
+Product saved to Firestore: 9504579178456
+Product saved to Firestore: 992c90f7-4b46-4306-8849-68b584459a4d
+Product saved to Firestore: 9e35f9b4-5df8-4db7-9dd7-31e4491488ef
+Product saved to Firestore: SKU-0114729665
+Product saved to Firestore: SKU-0058749943
+Product saved to Firestore: SKU-0110888325
+Product saved to Firestore: SKU-0152828115
+{
+  "progress": 280,
+  "ok": 265,
+  "failed": 15,
+  "reasons": {
+    "json_parse_failed": 3,
+    "no_search_results": 12
+  }
+}
+Product saved to Firestore: SKU-0236764953
+Product saved to Firestore: SKU-0411747828
+Product saved to Firestore: SKU-0280699295
+Product saved to Firestore: SKU-0611814591
+Product saved to Firestore: SKU-0785869755
+Product saved to Firestore: SKU-1040274599
+Product saved to Firestore: SKU-0989494543
+Product saved to Firestore: SKU-1230781227
+{
+  "progress": 290,
+  "ok": 273,
+  "failed": 17,
+  "reasons": {
+    "json_parse_failed": 3,
+    "no_search_results": 14
+  }
+}
+Product saved to Firestore: SKU-0362404564
+Product saved to Firestore: SKU-1419839651
+Product saved to Firestore: SKU-1566313678
+Product saved to Firestore: SKU-1825816304
+Product saved to Firestore: SKU-2123165909
+Product saved to Firestore: SKU-2152217706
+Product saved to Firestore: SKU-2384085318
+Product saved to Firestore: SKU-2391228513
+{
+  "progress": 300,
+  "ok": 281,
+  "failed": 19,
+  "reasons": {
+    "json_parse_failed": 4,
+    "no_search_results": 15
+  }
+}
+Product saved to Firestore: SKU-2151943751
+Product saved to Firestore: SKU-2388529978
+Product saved to Firestore: SKU-2561166298
+Product saved to Firestore: SKU-2611077541
+Product saved to Firestore: SKU-2638568297
+Product saved to Firestore: SKU-2633108165
+Product saved to Firestore: SKU-2789683373
+Product saved to Firestore: SKU-2841208491
+Product saved to Firestore: SKU-2417212434
+Product saved to Firestore: SKU-2804135383
+{
+  "progress": 310,
+  "ok": 291,
+  "failed": 19,
+  "reasons": {
+    "json_parse_failed": 4,
+    "no_search_results": 15
+  }
+}
+Product saved to Firestore: SKU-3132130051
+Product saved to Firestore: SKU-3086033338
+Product saved to Firestore: SKU-3093460977
+Product saved to Firestore: SKU-3213392901
+Product saved to Firestore: SKU-3210037840
+Product saved to Firestore: SKU-3963918245
+Product saved to Firestore: SKU-4008377248
+Product saved to Firestore: SKU-3368481451
+{
+  "progress": 320,
+  "ok": 299,
+  "failed": 21,
+  "reasons": {
+    "json_parse_failed": 5,
+    "no_search_results": 16
+  }
+}
+Product saved to Firestore: SKU-4017783375
+Product saved to Firestore: SKU-4118229261
+Product saved to Firestore: SKU-4358173575
+Product saved to Firestore: SKU-4204090012
+Product saved to Firestore: SKU-4488972962
+Product saved to Firestore: SKU-4541378818
+Product saved to Firestore: SKU-4743695203
+Product saved to Firestore: SKU-4069701323
+Product saved to Firestore: SKU-4802639881
+Product saved to Firestore: SKU-4846525236
+{
+  "progress": 330,
+  "ok": 309,
+  "failed": 21,
+  "reasons": {
+    "json_parse_failed": 5,
+    "no_search_results": 16
+  }
+}
+Product saved to Firestore: SKU-4919757592
+Product saved to Firestore: SKU-4820097368
+Product saved to Firestore: SKU-4949389854
+Product saved to Firestore: SKU-5017039989
+Product saved to Firestore: SKU-5032047149
+Product saved to Firestore: SKU-5037405516
+Product saved to Firestore: SKU-5091393302
+Product saved to Firestore: SKU-4996518676
+Product saved to Firestore: SKU-5687802687
+{
+  "progress": 340,
+  "ok": 318,
+  "failed": 22,
+  "reasons": {
+    "json_parse_failed": 5,
+    "no_search_results": 17
+  }
+}
+Product saved to Firestore: SKU-5722168408
+Product saved to Firestore: SKU-5674295862
+Product saved to Firestore: SKU-5740939127
+Product saved to Firestore: SKU-5780092798
+Product saved to Firestore: SKU-5799111421
+Product saved to Firestore: SKU-5842899450
+Product saved to Firestore: SKU-5943400007
+Product saved to Firestore: SKU-6099130668
+{
+  "progress": 350,
+  "ok": 326,
+  "failed": 24,
+  "reasons": {
+    "json_parse_failed": 5,
+    "no_search_results": 19
+  }
+}
+Product saved to Firestore: SKU-5795572847
+Product saved to Firestore: SKU-6307001376
+Product saved to Firestore: SKU-6148008788
+Product saved to Firestore: SKU-6558668236
+Product saved to Firestore: SKU-6586579725
+Product saved to Firestore: SKU-7234186083
+Product saved to Firestore: SKU-7151143475
+Product saved to Firestore: SKU-7049665224
+Product saved to Firestore: SKU-7245071607
+Product saved to Firestore: SKU-7290912165
+{
+  "progress": 360,
+  "ok": 336,
+  "failed": 24,
+  "reasons": {
+    "json_parse_failed": 5,
+    "no_search_results": 19
+  }
+}
+Product saved to Firestore: SKU-7350795017
+Product saved to Firestore: SKU-7543211550
+Product saved to Firestore: SKU-7800997883
+Product saved to Firestore: SKU-7948301538
+Product saved to Firestore: SKU-7926913408
+Product saved to Firestore: SKU-8133187753
+Product saved to Firestore: SKU-7998641824
+Product saved to Firestore: SKU-8112287411
+{
+  "progress": 370,
+  "ok": 344,
+  "failed": 26,
+  "reasons": {
+    "json_parse_failed": 5,
+    "no_search_results": 21
+  }
+}
+Product saved to Firestore: SKU-8245288059
+Product saved to Firestore: SKU-8310896573
+Product saved to Firestore: SKU-8151275535
+Product saved to Firestore: SKU-8317603092
+Product saved to Firestore: SKU-8367978772
+Product saved to Firestore: SKU-8605082485
+Product saved to Firestore: SKU-8483173682
+Product saved to Firestore: SKU-8747609895
+Product saved to Firestore: SKU-8857013241
+{
+  "progress": 380,
+  "ok": 353,
+  "failed": 27,
+  "reasons": {
+    "json_parse_failed": 6,
+    "no_search_results": 21
+  }
+}
+Product saved to Firestore: SKU-9091395294
+Product saved to Firestore: SKU-8742112863
+Product saved to Firestore: SKU-9146759920
+Product saved to Firestore: SKU-9289261489
+Product saved to Firestore: SKU-9428729031
+Product saved to Firestore: SKU-9436640030
+Product saved to Firestore: SKU-9317337160
+Product saved to Firestore: SKU-9454243198
+Product saved to Firestore: SKU-9671499764
+{
+  "progress": 390,
+  "ok": 362,
+  "failed": 28,
+  "reasons": {
+    "json_parse_failed": 6,
+    "no_search_results": 22
+  }
+}
+Product saved to Firestore: SKU-9876441475
+Product saved to Firestore: SKU-9834509499
+Product saved to Firestore: SKU-9912977908
+Product saved to Firestore: SKU-9933881904
+Product saved to Firestore: SKU-9804667250
+Product saved to Firestore: SKU-9988960743
+Product saved to Firestore: a2ad1a25-85f0-4206-ba2d-f718e75b5942
+Product saved to Firestore: SKU-9968230318
+Product saved to Firestore: a18d09b8-ae6e-4114-9b82-f7cf388905d0
+{
+  "progress": 400,
+  "ok": 371,
+  "failed": 29,
+  "reasons": {
+    "json_parse_failed": 6,
+    "no_search_results": 23
+  }
+}
+Product saved to Firestore: a7fbf83a-10da-453f-974b-4d71c9e7e626
+Product saved to Firestore: a306ee5a-9713-4ee0-8e51-a97b458577d5
+Product saved to Firestore: a52ad537-120e-426d-9887-f873d36bcdaa
+Product saved to Firestore: ad41bd2c-b32b-4f84-8e10-70a3933b51e6
+Product saved to Firestore: acbaf936-25b4-4850-a552-4af9871abe8c
+Product saved to Firestore: b17bc8c9-7097-40af-ba51-02491a3cb01e
+Product saved to Firestore: ab8921aa-074a-4d89-beb7-b4236133851e
+Product saved to Firestore: b82f2e03-f4e9-4cef-8984-364a6a8cfc8e
+Product saved to Firestore: c6d932e0-cd68-4d66-8212-d98f5d10e8d2
+{
+  "progress": 410,
+  "ok": 380,
+  "failed": 30,
+  "reasons": {
+    "json_parse_failed": 6,
+    "no_search_results": 24
+  }
+}
+Product saved to Firestore: c1497bbf-f2e9-4e9a-9d75-7b31d2c0891d
+Product saved to Firestore: d2649d99-ae7a-4b45-bca9-e6c452843d93
+Product saved to Firestore: b9682eb9-a9aa-415e-898f-7b9bf915e42f
+Product saved to Firestore: d26c1381-e411-4bd2-a9fd-fdd8e408a28a
+Product saved to Firestore: d5ebb4cc-55b0-4b01-a52b-14af5f5e48dd
+Product saved to Firestore: d7360291-deb4-4b2b-8251-b756f2572c94
+Product saved to Firestore: daff6593-8cf1-4290-b164-30ff627317a0
+Product saved to Firestore: d7fe958d-e961-4da4-841c-056d2d07081f
+Product saved to Firestore: c9fb6dc8-5db9-455d-a9b6-a8cadf694909
+Product saved to Firestore: ddf71447-e7dd-4f92-afa1-9fc1b7fad114
+{
+  "progress": 420,
+  "ok": 390,
+  "failed": 30,
+  "reasons": {
+    "json_parse_failed": 6,
+    "no_search_results": 24
+  }
+}
+Product saved to Firestore: e29c131f-ec89-434c-b216-90f28330918d
+Product saved to Firestore: dd602152-c85f-4a41-b405-0b04e500834f
+Product saved to Firestore: f0796a2b-7a12-4f55-b343-cf8e47e35ad0
+Product saved to Firestore: f19c6d73-628b-424c-9d89-d950ebafb74b
+Product saved to Firestore: e8f548b0-5b46-488a-8ea9-b525f6381ab2
+Product saved to Firestore: f34aeded-183f-461f-8b6d-f899c863bddb
+Product saved to Firestore: f2028097-7287-47f8-b694-d663960758ec
+Product saved to Firestore: f8fc404d-90b9-408f-a0a5-53038fdbd793
+Product saved to Firestore: f7a5bb4a-9e13-4a67-8065-996f9a809f26
+{
+  "progress": 430,
+  "ok": 399,
+  "failed": 31,
+  "reasons": {
+    "json_parse_failed": 6,
+    "no_search_results": 25
+  }
+}
+Product saved to Firestore: f42902e6-fbd5-40b3-ab2e-754199627da6
+{
+  "done": true,
+  "ok": 400,
+  "failed": 31,
+  "reasons": {
+    "json_parse_failed": 6,
+    "no_search_results": 25
+  }
+}
+Loaded 631 products from Firestore
+{
+  "action": "enqueue-baselinker-sync-all-products",
+  "totalProducts": 631,
+  "selected": 631,
+  "offset": 0,
+  "chunkSize": 200,
+  "jobs": 4,
+  "inventoryId": "78659"
+}
+[enqueue-baselinker-sync-all-products] done: enqueued 4 jobs (products=631, chunkSize=200, inventoryId=78659)
