@@ -12,6 +12,7 @@
  */
 
 const { containsBannedListingText, sanitizeHighlights } = require('./listing-sanitize');
+const { getRulebookConfigCached } = require('./rulebook-config');
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -64,7 +65,7 @@ function inferSchemaId(product) {
   return 'generic';
 }
 
-const RULES_BY_SCHEMA = {
+const DEFAULT_RULES_BY_SCHEMA = {
   electronics_computer: { min: 4, max: 6, minLen: 80, maxLen: 120 },
   auto_parts: { min: 4, max: 5, minLen: 70, maxLen: 110 },
   fashion: { min: 4, max: 5, minLen: 70, maxLen: 100 },
@@ -89,7 +90,16 @@ function hasDashSeparator(text) {
 
 function normalizeHighlightsStrict(product, list) {
   const schemaId = inferSchemaId(product);
-  const rules = RULES_BY_SCHEMA[schemaId] || RULES_BY_SCHEMA.generic;
+  const cfg = getRulebookConfigCached();
+  const configuredRulesBySchema =
+    cfg?.highlights?.rulesBySchema && typeof cfg.highlights.rulesBySchema === 'object'
+      ? cfg.highlights.rulesBySchema
+      : null;
+  const rules =
+    (configuredRulesBySchema && configuredRulesBySchema[schemaId]) ||
+    (configuredRulesBySchema && configuredRulesBySchema.generic) ||
+    DEFAULT_RULES_BY_SCHEMA[schemaId] ||
+    DEFAULT_RULES_BY_SCHEMA.generic;
   const issues = [];
 
   // First pass: basic cleaning (no placeholders/prices, basic dedupe, max count cap).
@@ -114,7 +124,8 @@ function normalizeHighlightsStrict(product, list) {
       continue;
     }
     seen.add(key);
-    if (!hasDashSeparator(v)) {
+    const requireDash = cfg?.highlights?.requireDashTemplate !== false; // default true
+    if (requireDash && !hasDashSeparator(v)) {
       issues.push('highlight_missing_dash_template');
       continue;
     }

@@ -4,8 +4,9 @@ import { AdminRoleManagement } from './AdminRoleManagement';
 import { AdminGroupManagement } from './AdminGroupManagement';
 import { AdminLlmManagement } from './AdminLlmManagement';
 import { AdminJobsManagement } from './AdminJobsManagement';
+import { AdminRulebookManagement } from './AdminRulebookManagement';
 
-type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'jobs';
+type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'jobs' | 'rulebook';
 
 export const AdminPanel: React.FC = () => {
   const [tab, setTab] = React.useState<Tab>('users');
@@ -58,6 +59,15 @@ export const AdminPanel: React.FC = () => {
         >
           Jobs
         </button>
+        <button
+          type="button"
+          onClick={() => setTab('rulebook')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+            tab === 'rulebook' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+          }`}
+        >
+          Rulebook
+        </button>
       </div>
 
       {tab === 'users' ? (
@@ -68,6 +78,8 @@ export const AdminPanel: React.FC = () => {
         <AdminLlmManagement />
       ) : tab === 'jobs' ? (
         <AdminJobsManagement />
+      ) : tab === 'rulebook' ? (
+        <AdminRulebookManagement />
       ) : (
         <AdminRoleManagement />
       )}

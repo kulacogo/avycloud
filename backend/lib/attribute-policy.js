@@ -98,6 +98,20 @@ const CANONICAL_KEY_MAP = new Map([
 function canonicalizeAttributeKey(rawKey) {
   const key = normalizeSpaces(rawKey);
   if (!key) return '';
+  // Allow runtime overrides from admin rulebook config.
+  try {
+    const { getRulebookConfigCached } = require('./rulebook-config');
+    const cfg = getRulebookConfigCached();
+    const map = cfg?.attributes?.canonicalKeyMap && typeof cfg.attributes.canonicalKeyMap === 'object' ? cfg.attributes.canonicalKeyMap : null;
+    const lower = normKey(key);
+    if (map && Object.prototype.hasOwnProperty.call(map, lower)) {
+      const v = normalizeSpaces(map[lower]);
+      if (v) return v;
+    }
+  } catch {
+    // ignore config read errors
+  }
+
   const mapped = CANONICAL_KEY_MAP.get(normKey(key));
   return mapped || key;
 }

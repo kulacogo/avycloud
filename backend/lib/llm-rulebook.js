@@ -17,6 +17,7 @@ const { coerceTitleToPolicy, validateTitleToPolicy } = require('./title-policy')
 const { sanitizeListingText } = require('./listing-sanitize');
 const { normalizeHighlightsStrict } = require('./highlights-policy');
 const { canonicalizeAttributesStrict } = require('./attribute-policy');
+const { getRulebookConfigCached } = require('./rulebook-config');
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -33,14 +34,19 @@ function deepClone(obj) {
 function normalizeProductStrict(product, { source = 'unknown' } = {}) {
   const issues = [];
   const next = deepClone(product);
+  const cfg = getRulebookConfigCached();
 
   next.identification = next.identification || {};
   next.details = next.details || {};
 
   // 1) Title policy
   const currentTitle = safeString(next.identification.name);
-  const coercedTitle = coerceTitleToPolicy(next, currentTitle, { minLen: 65, maxLen: 80, softMaxLen: 75 });
-  const titleIssues = validateTitleToPolicy(next, coercedTitle, { maxLen: 80, mobileMaxLen: 60 }) || [];
+  const titleMinLen = Number(cfg?.title?.minLen || 65);
+  const titleMaxLen = Number(cfg?.title?.maxLen || 80);
+  const titleSoftMax = Number(cfg?.title?.softMaxLen || 75);
+  const titleMobileMax = Number(cfg?.title?.mobileMaxLen || 60);
+  const coercedTitle = coerceTitleToPolicy(next, currentTitle, { minLen: titleMinLen, maxLen: titleMaxLen, softMaxLen: titleSoftMax });
+  const titleIssues = validateTitleToPolicy(next, coercedTitle, { maxLen: titleMaxLen, mobileMaxLen: titleMobileMax }) || [];
   if (Array.isArray(titleIssues) && titleIssues.length) {
     issues.push(...titleIssues.map((x) => `title:${x}`));
   }

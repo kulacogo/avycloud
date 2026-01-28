@@ -59,6 +59,7 @@ const { runCloudRunJob } = require('./lib/cloud-run-jobs');
 const { enqueueImproveJob, startImproveRunner } = require('./services/improve-runner');
 const { enqueueQualityJob, startQualityRunner } = require('./services/quality-runner');
 const { enqueueBaseLinkerSyncJob, startBaseLinkerSyncRunner } = require('./services/baselinker-sync-runner');
+const { startRulebookRunner } = require('./services/rulebook-runner');
 const { createJob: createQualityJob, getJob: getQualityJob, Timestamp: QualityTimestamp, updateJob: updateQualityJob } = require('./lib/quality-jobs');
 const { createJob: createBaseLinkerSyncJob, getJob: getBaseLinkerSyncJob, updateJob: updateBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('./lib/baselinker-sync-jobs');
 const {
@@ -800,6 +801,7 @@ startJobRunner();
 startImproveRunner();
 startQualityRunner();
 startBaseLinkerSyncRunner();
+startRulebookRunner();
 ensureDefaultRoles()
   .then(() => console.log('RBAC default roles ensured.'))
   .catch((error) => console.error('RBAC role seeding failed:', error));
@@ -1018,6 +1020,65 @@ app.get('/api/admin/llm/scopes', requirePermission('admin', 'llm.read'), async (
   } catch (error) {
     console.error('Admin list LLM scopes failed:', error);
     res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to list llm scopes' } });
+  }
+});
+
+// --- Rulebook Management (RBAC-managed) ---
+const { getActiveRulebook, createRulebookVersion } = require('./lib/rulebook-admin');
+const { createJob: createRulebookApplyJob, getJob: getRulebookApplyJob } = require('./lib/rulebook-apply-jobs');
+const { enqueueRulebookJob } = require('./services/rulebook-runner');
+
+app.get('/api/admin/rulebook', requirePermission('admin', 'rules.read'), async (req, res) => {
+  try {
+    const active = await getActiveRulebook();
+    return res.status(200).json({ ok: true, data: active });
+  } catch (error) {
+    console.error('Failed to load rulebook:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to load rulebook', details: error.message } });
+  }
+});
+
+app.put('/api/admin/rulebook', requirePermission('admin', 'rules.write'), async (req, res) => {
+  try {
+    const config = req.body?.config;
+    const note = req.body?.note || null;
+    const updatedBy = req.user?.email || req.user?.uid || 'admin';
+    if (!config || typeof config !== 'object') {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'config object required' } });
+    }
+    const version = await createRulebookVersion({ config, note, updatedBy });
+    return res.status(200).json({ ok: true, data: { versionId: version.id } });
+  } catch (error) {
+    console.error('Failed to update rulebook:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to update rulebook', details: error.message } });
+  }
+});
+
+app.post('/api/admin/rulebook/apply', requirePermission('admin', 'jobs.run'), async (req, res) => {
+  try {
+    const invId = String(req.body?.inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
+    const limit = Number(req.body?.limit || 0);
+    const chunkSize = Number(req.body?.chunkSize || 200);
+    const job = await createRulebookApplyJob({
+      payload: { inventoryId: invId, limit, chunkSize },
+      requestedBy: req.user?.email || req.user?.uid || 'admin',
+    });
+    enqueueRulebookJob(job.id, true);
+    return res.status(202).json({ ok: true, data: { jobId: job.id } });
+  } catch (error) {
+    console.error('Failed to enqueue rulebook apply job:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to enqueue rulebook job', details: error.message } });
+  }
+});
+
+app.get('/api/admin/rulebook/apply/:id', requirePermission('admin', 'jobs.read'), async (req, res) => {
+  try {
+    const job = await getRulebookApplyJob(String(req.params.id));
+    if (!job) return res.status(404).json({ ok: false, error: { code: 404, message: 'Job not found' } });
+    return res.status(200).json({ ok: true, data: job });
+  } catch (error) {
+    console.error('Failed to load rulebook apply job:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to load rulebook apply job', details: error.message } });
   }
 });
 

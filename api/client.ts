@@ -571,6 +571,67 @@ export const adminUpdateRole = async (roleId: string, patch: Partial<AdminRoleRe
   return true;
 };
 
+export type AdminRulebookConfig = {
+  version?: number;
+  title?: { minLen?: number; softMaxLen?: number; maxLen?: number; mobileMaxLen?: number; marketingWords?: string[] };
+  highlights?: {
+    rulesBySchema?: Record<string, { min: number; max: number; minLen: number; maxLen: number }>;
+    requireDashTemplate?: boolean;
+  };
+  attributes?: { canonicalKeyMap?: Record<string, string> };
+};
+
+export const adminGetRulebook = async () => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/rulebook`, { method: 'GET' });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to load rulebook');
+  }
+  return result?.data as {
+    id: string;
+    versionId: string | null;
+    config: AdminRulebookConfig;
+    updatedAt: string | null;
+    updatedBy: string | null;
+    note: string | null;
+  };
+};
+
+export const adminUpdateRulebook = async (payload: { config: AdminRulebookConfig; note?: string }) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/rulebook`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to update rulebook');
+  }
+  return result?.data;
+};
+
+export const adminApplyRulebook = async (payload: { inventoryId?: string; limit?: number; chunkSize?: number } = {}) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/rulebook/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to run rulebook apply job');
+  }
+  return result?.data as { jobId: string };
+};
+
+export const adminGetRulebookApplyJob = async (jobId: string) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/rulebook/apply/${encodeURIComponent(jobId)}`, { method: 'GET' });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to load rulebook job');
+  }
+  return result?.data as any;
+};
+
 export const buildImageProxyUrl = (sourceUrl?: string | null) => {
   if (!sourceUrl) return '';
   if (!/^https?:\/\//i.test(sourceUrl)) {

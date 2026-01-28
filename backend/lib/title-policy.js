@@ -54,6 +54,8 @@ const MARKETING_WORDS = new Set([
   'stilvoll',
   'stylish',
   'premium',
+  'neu',
+  'neuware',
   'top',
   'super',
   'mega',
@@ -63,6 +65,22 @@ const MARKETING_WORDS = new Set([
   'angebot',
   'original',
 ]);
+
+function getRuntimeMarketingWords() {
+  try {
+    const { getRulebookConfigCached } = require('./rulebook-config');
+    const cfg = getRulebookConfigCached();
+    const extra = Array.isArray(cfg?.title?.marketingWords) ? cfg.title.marketingWords : [];
+    const out = new Set(MARKETING_WORDS);
+    extra.forEach((w) => {
+      const v = typeof w === 'string' ? w.trim().toLowerCase() : '';
+      if (v) out.add(v);
+    });
+    return out;
+  } catch {
+    return MARKETING_WORDS;
+  }
+}
 
 const DEFAULT_TITLE_MAX_LEN = 80;
 const DEFAULT_TITLE_SOFT_MAX_LEN = 75;
@@ -115,11 +133,12 @@ function stripMarketingWords(text = '') {
   if (!raw) return '';
   const words = raw.split(/\s+/g);
   const kept = [];
-  const roots = ['hochwert', 'robust', 'vielseit', 'nachhalt', 'stilvoll', 'stylish', 'premium', 'angebot', 'original'];
+  const roots = ['hochwert', 'robust', 'vielseit', 'nachhalt', 'stilvoll', 'stylish', 'premium', 'angebot', 'original', 'neu', 'top'];
+  const runtime = getRuntimeMarketingWords();
   for (const w of words) {
     const cleaned = String(w).toLowerCase().replace(/[^a-z0-9äöüß\-]/gi, '');
     if (!cleaned) continue;
-    if (MARKETING_WORDS.has(cleaned)) continue;
+    if (runtime.has(cleaned)) continue;
     if (roots.some((r) => cleaned.startsWith(r))) continue;
     kept.push(w);
   }
@@ -1104,7 +1123,8 @@ function validateTitleToPolicy(
     issues.push('title_starts_with_symbol');
   }
   const firstWord = safeString(t.split(/\s+/g)[0] || '').toLowerCase();
-  if (MARKETING_WORDS.has(firstWord) || ['hochwert', 'robust', 'vielseit', 'nachhalt', 'stilvoll', 'stylish', 'premium', 'angebot', 'original'].some((r) => firstWord.startsWith(r))) {
+  const runtime = getRuntimeMarketingWords();
+  if (runtime.has(firstWord) || ['hochwert', 'robust', 'vielseit', 'nachhalt', 'stilvoll', 'stylish', 'premium', 'angebot', 'original', 'neu', 'top'].some((r) => firstWord.startsWith(r))) {
     issues.push('title_starts_with_marketing');
   }
 
