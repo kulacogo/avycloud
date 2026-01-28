@@ -664,34 +664,50 @@ function inferTitleCategory(product) {
 
   // Lighting bucket (not a fine schema today, but needed for title rules)
   if (/\b(lampe|lampen|leuchte|leuchten|beleuchtung|licht|led)\b/i.test(categoryNorm)) {
-    return 'lighting';
+    return 'Beleuchtung & Elektromaterial';
   }
 
   // Map fine schemas -> coarse buckets
-  if (fine === 'books' || fine === 'music' || fine === 'movies' || fine === 'videogames') return 'books_media';
-  if (fine === 'shoes' || fine === 'watches_jewelry') return 'shoes_accessories';
-  if (fine === 'photo_camcorder') return 'electronics_computer';
-  if (fine === 'pet' || fine === 'tools_diy') return 'home_garden';
-  if (fine === 'collectibles' || fine === 'instruments') return 'generic';
+  if (fine === 'books' || fine === 'music' || fine === 'movies' || fine === 'videogames') return 'Bücher & Medien';
+  if (fine === 'shoes' || fine === 'watches_jewelry') return 'Schuhe & Accessoires';
+  if (fine === 'photo_camcorder') return 'Elektronik & Computer';
+  if (fine === 'pet') return 'Haus, Garten & Baumarkt';
+  if (fine === 'tools_diy') return 'Haus, Garten & Baumarkt';
+  if (fine === 'collectibles' || fine === 'instruments') return 'Haus, Garten & Baumarkt';
 
   // Passthrough when already a bucket id
   const allowed = new Set([
-    'electronics_computer',
-    'auto_parts',
-    'fashion',
-    'shoes_accessories',
-    'home_garden',
-    'kitchen_household',
-    'lighting',
-    'office',
-    'beauty',
-    'sport',
-    'toys_baby',
-    'books_media',
-    'generic',
+    'Elektronik & Computer',
+    'Auto & Motorrad (Teile)',
+    'Mode & Bekleidung',
+    'Schuhe & Accessoires',
+    'Haus, Garten & Baumarkt',
+    'Küche & Haushalt',
+    'Beauty & Personal Care',
+    'Sport & Freizeit',
+    'Spielzeug & Baby',
+    'Büro & Schreibwaren',
+    'Beleuchtung & Elektromaterial',
+    'Bücher & Medien',
   ]);
-  if (allowed.has(fine)) return fine;
-  return 'generic';
+  // Map fine schema ids to CSV Kategorie labels
+  const mapFineToCsv = {
+    electronics_computer: 'Elektronik & Computer',
+    auto_parts: 'Auto & Motorrad (Teile)',
+    fashion: 'Mode & Bekleidung',
+    kitchen_household: 'Küche & Haushalt',
+    beauty: 'Beauty & Personal Care',
+    sport: 'Sport & Freizeit',
+    toys_baby: 'Spielzeug & Baby',
+    office: 'Büro & Schreibwaren',
+    books_media: 'Bücher & Medien',
+  };
+  const mapped = mapFineToCsv[fine] || '';
+  if (mapped && allowed.has(mapped)) return mapped;
+  // If product already uses a CSV bucket label in identification.category, allow passthrough.
+  if (allowed.has(rawCategory)) return rawCategory;
+  // Hard fallback to one of the 12 CSV categories (broad catch-all).
+  return 'Haus, Garten & Baumarkt';
 }
 
 function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) {

@@ -296,7 +296,7 @@ export const AdminRulebookManagement: React.FC = () => {
             onClick={() =>
               setTitleRows((prev) => [
                 ...prev,
-                { schemaId: 'generic', minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+                { schemaId: 'Haus, Garten & Baumarkt', minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
               ])
             }
           >
