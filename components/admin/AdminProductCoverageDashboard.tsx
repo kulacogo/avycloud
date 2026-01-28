@@ -65,7 +65,9 @@ export const AdminProductCoverageDashboard: React.FC<{
   const gpsrNeed = data?.gpsr.candidatesNeedingEnrich || 0;
   const ktyp = data?.ktyp.withValue || 0;
   const ktypFitmentTotal = data?.ktyp.fitmentTotal || 0;
-  const titleBad = data?.title.badCount || 0;
+  const titleOk = data?.title.policyOkCount || 0;
+  const titleNotOk = data?.title.policyNotOkCount || 0;
+  const titleIdealOk = data?.title.idealLenOkCount || 0;
 
   const hist = data?.gpsr.requiredFilledHistogram || {};
   const histTotal = sumHistogram(hist);
@@ -107,13 +109,31 @@ export const AdminProductCoverageDashboard: React.FC<{
           <div className="text-xs text-slate-400">Products</div>
           <div className="mt-1 text-2xl font-bold text-slate-100">{total}</div>
           <div className="mt-1 text-xs text-slate-400">
-            Titles outside {data?.title.minLen ?? 20}–{data?.title.maxLen ?? 80}:{' '}
+            Title policy ok:{' '}
             <button
               type="button"
-              onClick={() => open('Title not ok (length outside 20–80)', data?.buckets?.titleBadIds)}
+              onClick={() => open('Title policy ok', data?.buckets?.titleOkIds)}
               className="text-slate-200 underline decoration-slate-500/60 underline-offset-2 hover:decoration-slate-300"
             >
-              {titleBad}
+              {titleOk}
+            </button>
+            <span className="text-slate-500"> · </span>
+            not ok:{' '}
+            <button
+              type="button"
+              onClick={() => open('Title policy not ok', data?.buckets?.titleNotOkIds)}
+              className="text-slate-200 underline decoration-slate-500/60 underline-offset-2 hover:decoration-slate-300"
+            >
+              {titleNotOk}
+            </button>
+            <span className="text-slate-500"> · </span>
+            ideal {data?.title.idealMinLen ?? 65}–{data?.title.idealMaxLen ?? 75}:{' '}
+            <button
+              type="button"
+              onClick={() => open('Title ideal length not met', data?.buckets?.titleNotIdealLenIds)}
+              className="text-slate-200 underline decoration-slate-500/60 underline-offset-2 hover:decoration-slate-300"
+            >
+              {Math.max(0, total - titleIdealOk)}
             </button>
           </div>
         </div>

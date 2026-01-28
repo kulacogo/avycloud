@@ -634,7 +634,15 @@ export const adminGetRulebookApplyJob = async (jobId: string) => {
 
 export type AdminProductCoverageMetrics = {
   totalProducts: number;
-  title: { badCount: number; minLen: number; maxLen: number };
+  title: {
+    policyOkCount: number;
+    policyNotOkCount: number;
+    idealLenOkCount: number;
+    idealMinLen: number;
+    idealMaxLen: number;
+    hardMaxLen: number;
+    mobileMaxLen: number;
+  };
   ktyp: { withValue: number; fitmentTotal: number };
   gpsr: {
     requiredFields: string[];
@@ -656,8 +664,9 @@ export type AdminProductCoverageMetrics = {
     mainCategoryCounts: Record<string, number>;
   };
   buckets?: {
-    titleBadIds?: string[];
     titleOkIds?: string[];
+    titleNotOkIds?: string[];
+    titleNotIdealLenIds?: string[];
     ktypWithValueIds?: string[];
     ktypMissingInFitmentIds?: string[];
     gpsrFilledCountIds?: Record<string, string[]>;

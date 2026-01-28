@@ -1090,6 +1090,7 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
   try {
     const { getAllProducts } = require('./lib/firestore');
     const { getVehicleFitmentMode } = require('./lib/vehicle-fitment');
+    const { coerceTitleToPolicy, validateTitleToPolicy } = require('./lib/title-policy');
     const products = await getAllProducts();
 
     const safe = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
@@ -1125,7 +1126,17 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
     const gpsrRequiredFilledHistogramIncludingPlaceholders = {}; // filledCount(non-empty incl placeholders) -> number of products
     const totalProducts = Array.isArray(products) ? products.length : 0;
 
-    let titleBad = 0;
+    // Title policy (rule-conform):
+    // - strict compliance: validateTitleToPolicy has NO issues AND title length is within [idealMinLen..idealMaxLen]
+    // - rulebook compliance: validateTitleToPolicy has NO issues (length may vary if data is missing)
+    const idealMinLen = 65;
+    const idealMaxLen = 75;
+    const hardMaxLen = 80;
+    const mobileMaxLen = 60;
+
+    let titlePolicyOk = 0;
+    let titlePolicyNotOk = 0;
+    let titleIdealLenOk = 0;
     let ktypWithValue = 0;
     let gpsrAnyFieldPresent = 0;
     let gpsrFullRequiredPresent = 0;
@@ -1133,8 +1144,9 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
     let gpsrCandidatesNeedingEnrich = 0;
 
     // Drilldown buckets
-    const titleBadIds = [];
+    const titleNotOkIds = [];
     const titleOkIds = [];
+    const titleNotIdealLenIds = [];
     let ktypFitmentTotal = 0;
     const ktypWithValueIds = [];
     const ktypMissingInFitmentIds = [];
@@ -1202,12 +1214,24 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
 
     for (const p of Array.isArray(products) ? products : []) {
       const pid = safe(p?.id);
-      const title = safe(p?.identification?.name);
-      if (!title || title.length < 20 || title.length > 80) {
-        titleBad += 1;
-        if (pid) titleBadIds.push(pid);
+      const currentTitle = safe(p?.identification?.name);
+      const coercedTitle = coerceTitleToPolicy(p, currentTitle, { minLen: idealMinLen, maxLen: hardMaxLen, softMaxLen: idealMaxLen });
+      const issues = validateTitleToPolicy(p, coercedTitle, { maxLen: hardMaxLen, mobileMaxLen }) || [];
+      const ok = Array.isArray(issues) ? issues.length === 0 : true;
+      const len = safe(coercedTitle).length;
+      const idealOk = ok && len >= idealMinLen && len <= idealMaxLen;
+
+      if (ok) {
+        titlePolicyOk += 1;
+        if (pid) titleOkIds.push(pid);
+      } else {
+        titlePolicyNotOk += 1;
+        if (pid) titleNotOkIds.push(pid);
+      }
+      if (idealOk) {
+        titleIdealLenOk += 1;
       } else if (pid) {
-        titleOkIds.push(pid);
+        titleNotIdealLenIds.push(pid);
       }
 
       const fitment = isFitmentCategory(p);
@@ -1295,7 +1319,15 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
       ok: true,
       data: {
         totalProducts,
-        title: { badCount: titleBad, minLen: 20, maxLen: 80 },
+        title: {
+          policyOkCount: titlePolicyOk,
+          policyNotOkCount: titlePolicyNotOk,
+          idealLenOkCount: titleIdealLenOk,
+          idealMinLen,
+          idealMaxLen,
+          hardMaxLen,
+          mobileMaxLen,
+        },
         ktyp: { withValue: ktypWithValue, fitmentTotal: ktypFitmentTotal },
         gpsr: {
           requiredFields: gpsrRequired,
@@ -1317,8 +1349,9 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
           mainCategoryCounts,
         },
         buckets: {
-          titleBadIds,
           titleOkIds,
+          titleNotOkIds,
+          titleNotIdealLenIds,
           ktypWithValueIds,
           ktypMissingInFitmentIds,
           gpsrFilledCountIds,
