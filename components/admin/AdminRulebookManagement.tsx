@@ -20,6 +20,7 @@ export const AdminRulebookManagement: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [note, setNote] = React.useState<string>('');
+  const [runAfterSave, setRunAfterSave] = React.useState<boolean>(false);
 
   const [meta, setMeta] = React.useState<{ versionId: string | null; updatedAt: string | null; updatedBy: string | null } | null>(
     null
@@ -111,7 +112,15 @@ export const AdminRulebookManagement: React.FC = () => {
       await adminUpdateRulebook({ config: next, note: note || undefined });
       setNote('');
       await load();
-      alert('Rulebook gespeichert (Versionierung aktiv).');
+
+      if (runAfterSave) {
+        const r = await adminApplyRulebook({});
+        setApplyJobId(r.jobId);
+        setApplyJob(null);
+        alert('Rulebook gespeichert + Apply Job gestartet (Initial Run + BaseLinker Delta Sync).');
+      } else {
+        alert('Rulebook gespeichert (Versionierung aktiv).');
+      }
     } catch (e: any) {
       setError(e?.message || 'Failed to save rulebook');
     } finally {
@@ -182,6 +191,10 @@ export const AdminRulebookManagement: React.FC = () => {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-300 flex items-center gap-2 mr-1">
+            <input type="checkbox" checked={runAfterSave} onChange={(e) => setRunAfterSave(e.target.checked)} />
+            Run now after Save
+          </label>
           <button
             type="button"
             disabled={loading || saving}
