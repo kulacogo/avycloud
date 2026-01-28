@@ -635,19 +635,53 @@ export const adminGetRulebookApplyJob = async (jobId: string) => {
 export type AdminProductCoverageMetrics = {
   totalProducts: number;
   title: { badCount: number; minLen: number; maxLen: number };
-  ktyp: { withValue: number };
+  ktyp: { withValue: number; fitmentTotal: number };
   gpsr: {
     requiredFields: string[];
     requiredFilledHistogram: Record<string, number>;
+    requiredFilledHistogramIncludingPlaceholders?: Record<string, number>;
     anyFieldPresent: number;
     fullRequiredFieldsPresent: number;
     fullRequiredFieldsNoPlaceholders: number;
     candidatesNeedingEnrich: number;
   };
+  price?: {
+    minPrice: number | null;
+    maxPrice: number | null;
+    missingCount: number;
+    okCount: number;
+    outOfRangeCount: number;
+  };
+  categories?: {
+    mainCategoryCounts: Record<string, number>;
+  };
+  buckets?: {
+    titleBadIds?: string[];
+    titleOkIds?: string[];
+    ktypWithValueIds?: string[];
+    ktypMissingInFitmentIds?: string[];
+    gpsrFilledCountIds?: Record<string, string[]>;
+    gpsrFilledCountInclPlaceholdersIds?: Record<string, string[]>;
+    gpsrFullRequiredIds?: string[];
+    gpsrFullRequiredNoPlaceholdersIds?: string[];
+    gpsrCandidatesNeedingEnrichIds?: string[];
+    priceMissingIds?: string[];
+    priceOkIds?: string[];
+    priceOutOfRangeIds?: string[];
+    mainCategoryIds?: Record<string, string[]>;
+  };
 };
 
-export const adminGetProductCoverageMetrics = async (): Promise<AdminProductCoverageMetrics> => {
-  const res = await fetchApi(`${BACKEND_URL}/api/admin/metrics/product-coverage`, { method: 'GET' });
+export const adminGetProductCoverageMetrics = async (params?: {
+  minPrice?: number | string | null;
+  maxPrice?: number | string | null;
+}): Promise<AdminProductCoverageMetrics> => {
+  const url = new URL(`${BACKEND_URL}/api/admin/metrics/product-coverage`);
+  const min = params?.minPrice;
+  const max = params?.maxPrice;
+  if (min != null && String(min).trim() !== '') url.searchParams.set('minPrice', String(min).trim());
+  if (max != null && String(max).trim() !== '') url.searchParams.set('maxPrice', String(max).trim());
+  const res = await fetchApi(url.toString(), { method: 'GET' });
   const result = await parseResponse(res);
   if (!res.ok || result?.ok === false) {
     throw new Error(result?.error?.message || 'Failed to load product coverage metrics');

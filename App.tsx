@@ -25,6 +25,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
+import { AdminProductCoverageDashboard } from './components/admin/AdminProductCoverageDashboard';
+import { InventoryDrilldownPanel } from './components/InventoryDrilldownPanel';
 
 type View =
   | 'dashboard'
@@ -289,6 +291,7 @@ const AppInner: React.FC = () => {
   const [productsError, setProductsError] = useState<string | null>(null);
   const productsRef = useRef<Product[]>([]);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
+  const [drilldown, setDrilldown] = useState<{ title: string; ids: string[] } | null>(null);
   const {
     enqueueIdentification,
     jobStatuses,
@@ -517,6 +520,13 @@ const AppInner: React.FC = () => {
     }
   };
 
+  const openProductInNewTab = useCallback((productId: string) => {
+    if (typeof window === 'undefined') return;
+    const path = `#/sheet/${encodeURIComponent(productId)}`;
+    const url = `${window.location.origin}${window.location.pathname}${path}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, []);
+
   useEffect(() => {
     viewRef.current = view;
   }, [view]);
@@ -679,16 +689,34 @@ const AppInner: React.FC = () => {
           return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
         }
         return (
-          <AdminTable
-            products={products}
-            onSelectProduct={handleSelectProduct}
-            onUpdateProducts={setProducts}
-            focusProductId={inventoryFocusId}
-            onImproveProduct={handleImproveProduct}
-            onImproveSelected={handleImproveSelected}
-            onBulkImprove={handleBulkImprove}
-            improvingProductIds={activeProductIds}
-          />
+          <div className="space-y-6">
+            <AdminProductCoverageDashboard
+              onOpenDrilldown={(payload) => {
+                setDrilldown(payload);
+              }}
+            />
+
+            {drilldown && drilldown.ids?.length ? (
+              <InventoryDrilldownPanel
+                title={drilldown.title}
+                products={products}
+                ids={drilldown.ids}
+                onClose={() => setDrilldown(null)}
+                onOpenProductInNewTab={openProductInNewTab}
+              />
+            ) : null}
+
+            <AdminTable
+              products={products}
+              onSelectProduct={handleSelectProduct}
+              onUpdateProducts={setProducts}
+              focusProductId={inventoryFocusId}
+              onImproveProduct={handleImproveProduct}
+              onImproveSelected={handleImproveSelected}
+              onBulkImprove={handleBulkImprove}
+              improvingProductIds={activeProductIds}
+            />
+          </div>
         );
       case 'categories':
         if (!(hasPermission('categories', 'read') || hasPermission('categories', 'write'))) {

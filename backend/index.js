@@ -1089,6 +1089,7 @@ app.get('/api/admin/rulebook/apply/:id', requirePermission('admin', 'jobs.read')
 app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.read'), async (req, res) => {
   try {
     const { getAllProducts } = require('./lib/firestore');
+    const { getVehicleFitmentMode } = require('./lib/vehicle-fitment');
     const products = await getAllProducts();
 
     const safe = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
@@ -1119,7 +1120,9 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
       'manufacturer_phone',
     ];
 
-    const gpsrRequiredFilledHistogram = {}; // filledCount -> number of products
+    // Histogram uses "non-placeholder" values (so 8/8 means truly complete).
+    const gpsrRequiredFilledHistogram = {}; // filledCount(no placeholders) -> number of products
+    const gpsrRequiredFilledHistogramIncludingPlaceholders = {}; // filledCount(non-empty incl placeholders) -> number of products
     const totalProducts = Array.isArray(products) ? products.length : 0;
 
     let titleBad = 0;
@@ -1128,6 +1131,31 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
     let gpsrFullRequiredPresent = 0;
     let gpsrFullRequiredNoPlaceholders = 0;
     let gpsrCandidatesNeedingEnrich = 0;
+
+    // Drilldown buckets
+    const titleBadIds = [];
+    const titleOkIds = [];
+    let ktypFitmentTotal = 0;
+    const ktypWithValueIds = [];
+    const ktypMissingInFitmentIds = [];
+    const gpsrFilledCountIds = {}; // filledCount(no placeholders) -> ids[]
+    const gpsrFilledCountInclPlaceholdersIds = {}; // filledCount(non-empty) -> ids[]
+    const gpsrFullRequiredIds = [];
+    const gpsrFullRequiredNoPlaceholdersIds = [];
+    const gpsrCandidatesNeedingEnrichIds = [];
+
+    // Price sanity (optional bounds via query: ?minPrice=&maxPrice=)
+    const minPrice =
+      req.query?.minPrice != null && String(req.query.minPrice).trim() !== '' ? Number(req.query.minPrice) : null;
+    const maxPrice =
+      req.query?.maxPrice != null && String(req.query.maxPrice).trim() !== '' ? Number(req.query.maxPrice) : null;
+    const priceMissingIds = [];
+    const priceOkIds = [];
+    const priceOutOfRangeIds = [];
+
+    // Main categories (top-level only)
+    const mainCategoryCounts = {};
+    const mainCategoryIds = {};
 
     const hasBin = (p) => {
       const direct = safe(p?.storage?.binCode);
@@ -1141,6 +1169,17 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
       const bins = Array.isArray(p?.storageBins) ? p.storageBins : [];
       return bins.reduce((s, b) => s + (Number(b?.quantity) || 0), 0);
     };
+    const pickCategoryId = (p) =>
+      safe(p?.details?.categoryId) || safe(p?.details?.ebayCategoryId) || safe(p?.details?.ebay_category_id) || '';
+    const isFitmentCategory = (p) => {
+      const catId = pickCategoryId(p);
+      if (!catId) return false;
+      try {
+        return Boolean(getVehicleFitmentMode(String(catId)));
+      } catch {
+        return false;
+      }
+    };
     const hasKTyp = (p) => {
       const attrs = p?.details?.attributes && typeof p.details.attributes === 'object' ? p.details.attributes : {};
       const key = Object.keys(attrs).find((k) => {
@@ -1149,35 +1188,107 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
       });
       return Boolean(key && safe(attrs[key]));
     };
+    const pickPrice = (p) => {
+      const v = p?.details?.pricing?.lowest_price?.price;
+      const n = typeof v === 'string' ? Number(String(v).replace(',', '.')) : Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const pickMainCategory = (p) => {
+      const raw = safe(p?.identification?.category);
+      if (!raw) return 'Uncategorized';
+      const first = raw.split('>').map((x) => safe(x)).filter(Boolean)[0];
+      return first || 'Uncategorized';
+    };
 
     for (const p of Array.isArray(products) ? products : []) {
+      const pid = safe(p?.id);
       const title = safe(p?.identification?.name);
-      if (!title || title.length < 20 || title.length > 80) titleBad += 1;
+      if (!title || title.length < 20 || title.length > 80) {
+        titleBad += 1;
+        if (pid) titleBadIds.push(pid);
+      } else if (pid) {
+        titleOkIds.push(pid);
+      }
 
-      if (hasKTyp(p)) ktypWithValue += 1;
+      const fitment = isFitmentCategory(p);
+      if (fitment) ktypFitmentTotal += 1;
+      const ktyp = hasKTyp(p);
+      if (ktyp) {
+        ktypWithValue += 1;
+        if (pid) ktypWithValueIds.push(pid);
+      } else if (fitment && pid) {
+        ktypMissingInFitmentIds.push(pid);
+      }
 
       const g = p?.details?.gpsr && typeof p.details.gpsr === 'object' ? p.details.gpsr : {};
 
       if (gpsrRequired.some((k) => safe(g[k]))) gpsrAnyFieldPresent += 1;
 
-      const filledRequired = gpsrRequired.reduce((n, k) => (safe(g[k]) ? n + 1 : n), 0);
-      gpsrRequiredFilledHistogram[String(filledRequired)] =
-        (gpsrRequiredFilledHistogram[String(filledRequired)] || 0) + 1;
+      const filledNonEmpty = gpsrRequired.reduce((n, k) => (safe(g[k]) ? n + 1 : n), 0);
+      gpsrRequiredFilledHistogramIncludingPlaceholders[String(filledNonEmpty)] =
+        (gpsrRequiredFilledHistogramIncludingPlaceholders[String(filledNonEmpty)] || 0) + 1;
+      if (pid) {
+        gpsrFilledCountInclPlaceholdersIds[String(filledNonEmpty)] =
+          gpsrFilledCountInclPlaceholdersIds[String(filledNonEmpty)] || [];
+        gpsrFilledCountInclPlaceholdersIds[String(filledNonEmpty)].push(pid);
+      }
+
+      const filledNoPH = gpsrRequired.reduce((n, k) => {
+        const v = safe(g[k]);
+        return v && !isPlaceholder(v) ? n + 1 : n;
+      }, 0);
+      gpsrRequiredFilledHistogram[String(filledNoPH)] = (gpsrRequiredFilledHistogram[String(filledNoPH)] || 0) + 1;
+      if (pid) {
+        gpsrFilledCountIds[String(filledNoPH)] = gpsrFilledCountIds[String(filledNoPH)] || [];
+        gpsrFilledCountIds[String(filledNoPH)].push(pid);
+      }
 
       const full = gpsrRequired.every((k) => safe(g[k]));
-      if (full) gpsrFullRequiredPresent += 1;
+      if (full) {
+        gpsrFullRequiredPresent += 1;
+        if (pid) gpsrFullRequiredIds.push(pid);
+      }
 
       const fullNoPH = gpsrRequired.every((k) => {
         const v = safe(g[k]);
         return v && !isPlaceholder(v);
       });
-      if (fullNoPH) gpsrFullRequiredNoPlaceholders += 1;
+      if (fullNoPH) {
+        gpsrFullRequiredNoPlaceholders += 1;
+        if (pid) gpsrFullRequiredNoPlaceholdersIds.push(pid);
+      }
 
       const needsGpsr = gpsrRequired.some((k) => {
         const v = safe(g[k]);
         return !v || isPlaceholder(v);
       });
-      if (hasBin(p) && pickQty(p) >= 1 && needsGpsr) gpsrCandidatesNeedingEnrich += 1;
+      if (hasBin(p) && pickQty(p) >= 1 && needsGpsr) {
+        gpsrCandidatesNeedingEnrich += 1;
+        if (pid) gpsrCandidatesNeedingEnrichIds.push(pid);
+      }
+
+      // Price buckets
+      const price = pickPrice(p);
+      if (price == null || price <= 0) {
+        if (pid) priceMissingIds.push(pid);
+      } else {
+        const outOfRange =
+          (Number.isFinite(minPrice) && minPrice != null && price < minPrice) ||
+          (Number.isFinite(maxPrice) && maxPrice != null && price > maxPrice);
+        if (outOfRange) {
+          if (pid) priceOutOfRangeIds.push(pid);
+        } else {
+          if (pid) priceOkIds.push(pid);
+        }
+      }
+
+      // Main category distribution
+      const main = pickMainCategory(p);
+      mainCategoryCounts[main] = (mainCategoryCounts[main] || 0) + 1;
+      if (pid) {
+        mainCategoryIds[main] = mainCategoryIds[main] || [];
+        mainCategoryIds[main].push(pid);
+      }
     }
 
     return res.status(200).json({
@@ -1185,14 +1296,40 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
       data: {
         totalProducts,
         title: { badCount: titleBad, minLen: 20, maxLen: 80 },
-        ktyp: { withValue: ktypWithValue },
+        ktyp: { withValue: ktypWithValue, fitmentTotal: ktypFitmentTotal },
         gpsr: {
           requiredFields: gpsrRequired,
           requiredFilledHistogram: gpsrRequiredFilledHistogram,
+          requiredFilledHistogramIncludingPlaceholders: gpsrRequiredFilledHistogramIncludingPlaceholders,
           anyFieldPresent: gpsrAnyFieldPresent,
           fullRequiredFieldsPresent: gpsrFullRequiredPresent,
           fullRequiredFieldsNoPlaceholders: gpsrFullRequiredNoPlaceholders,
           candidatesNeedingEnrich: gpsrCandidatesNeedingEnrich,
+        },
+        price: {
+          minPrice: Number.isFinite(minPrice) ? minPrice : null,
+          maxPrice: Number.isFinite(maxPrice) ? maxPrice : null,
+          missingCount: priceMissingIds.length,
+          okCount: priceOkIds.length,
+          outOfRangeCount: priceOutOfRangeIds.length,
+        },
+        categories: {
+          mainCategoryCounts,
+        },
+        buckets: {
+          titleBadIds,
+          titleOkIds,
+          ktypWithValueIds,
+          ktypMissingInFitmentIds,
+          gpsrFilledCountIds,
+          gpsrFilledCountInclPlaceholdersIds,
+          gpsrFullRequiredIds,
+          gpsrFullRequiredNoPlaceholdersIds,
+          gpsrCandidatesNeedingEnrichIds,
+          priceMissingIds,
+          priceOkIds,
+          priceOutOfRangeIds,
+          mainCategoryIds,
         },
       },
     });
