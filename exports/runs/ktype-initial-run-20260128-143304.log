@@ -1,0 +1,39 @@
+[ktype-enrich] mode= APPLY
+[ktype-enrich] mvl= exports/DE_MVL_2025_10.compact.jsonl
+[ktype-enrich] mvl_rows= 55469 hsn_tsn_keys= 37236
+Loaded 631 products from Firestore
+[ktype-enrich] candidates_total= 19 selected= 19 offset= 0
+[ktype-enrich] (1/19) sku=SKU-0614291176 mpn=7919
+Product saved to Firestore: 4036021579191
+[ktype-enrich] (2/19) sku=SKU-2267173123 mpn=106376
+Product saved to Firestore: 3374650257716
+[ktype-enrich] (3/19) sku=SKU-2633108165 mpn=30973
+Product saved to Firestore: SKU-2633108165
+[ktype-enrich] (4/19) sku=SKU-2902386366 mpn=W135
+[ktype-enrich] (5/19) sku=SKU-2941051529 mpn=DF4866S
+Product saved to Firestore: 31080024102010
+[ktype-enrich] (6/19) sku=SKU-2966583160 mpn=YTZ10S
+Product saved to Firestore: 4906958001464
+[ktype-enrich] (7/19) sku=SKU-3097738026 mpn=100303
+Product saved to Firestore: 4034144003036
+[ktype-enrich] (8/19) sku=SKU-3310911465 mpn=KE900-90043
+Product saved to Firestore: 90090043468127
+[ktype-enrich] (9/19) sku=SKU-3663111562 mpn=MN/R50Y01/B/0066B
+[ktype-enrich] (10/19) sku=SKU-3671103995 mpn=802 472 019
+[ktype-enrich] (11/19) sku=SKU-4309949637 mpn=20647
+Product saved to Firestore: 4100420206474
+[ktype-enrich] (12/19) sku=SKU-5120624450 mpn=946921699
+Product saved to Firestore: 7b442083-e5d5-43c0-92ef-76c6432fe919
+[ktype-enrich] (13/19) sku=SKU-5246852701 mpn=48V030-GC2
+Product saved to Firestore: 11850025732208
+[ktype-enrich] (14/19) sku=SKU-6346907299 mpn=H5100
+[ktype-enrich] (15/19) sku=SKU-6816251293 mpn=5600063
+Product saved to Firestore: 5908242693453
+[ktype-enrich] (16/19) sku=SKU-7321712010 mpn=1212188109
+[ktype-enrich] (17/19) sku=SKU-7591395419 mpn=24.0125-0184.1
+Product saved to Firestore: 14006633314036
+[ktype-enrich] (18/19) sku=SKU-7902875633 mpn=3741
+Product saved to Firestore: 4100420037412
+[ktype-enrich] (19/19) sku=SKU-8581934036 mpn=057.240
+Product saved to Firestore: 4041248145418
+[ktype-enrich] done updated= 14 report= /Users/oguz/Dev/avycloud/exports/ktype-enrich/ktype_enrich_apply_1769607615675.json

@@ -1082,6 +1082,129 @@ app.get('/api/admin/rulebook/apply/:id', requirePermission('admin', 'jobs.read')
   }
 });
 
+// --- Admin Metrics (RBAC-managed) ---
+// Small dashboard metrics for Admin Panel (product coverage for GPSR and K-Typ, title health).
+// NOTE: This endpoint currently scans products (OK for ~hundreds). If the dataset grows,
+// we should move to an aggregated collection / scheduled job.
+app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.read'), async (req, res) => {
+  try {
+    const { getAllProducts } = require('./lib/firestore');
+    const products = await getAllProducts();
+
+    const safe = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
+    const lower = (v) => safe(v).toLowerCase();
+    const isPlaceholder = (val) => {
+      const v = lower(val);
+      if (!v) return false;
+      return (
+        v.includes('musterstraße') ||
+        v.includes('muster str') ||
+        v.includes('musterstadt') ||
+        v.includes('musterbundesland') ||
+        v === '12345' ||
+        v.includes('info@muster') ||
+        v.includes('+49 000') ||
+        v === 'germany'
+      );
+    };
+
+    const gpsrRequired = [
+      'entity_country',
+      'manufacturer_address',
+      'manufacturer_city',
+      'manufacturer_postalcode',
+      'manufacturer_state_province',
+      'manufacturer_name',
+      'email',
+      'manufacturer_phone',
+    ];
+
+    const gpsrRequiredFilledHistogram = {}; // filledCount -> number of products
+    const totalProducts = Array.isArray(products) ? products.length : 0;
+
+    let titleBad = 0;
+    let ktypWithValue = 0;
+    let gpsrAnyFieldPresent = 0;
+    let gpsrFullRequiredPresent = 0;
+    let gpsrFullRequiredNoPlaceholders = 0;
+    let gpsrCandidatesNeedingEnrich = 0;
+
+    const hasBin = (p) => {
+      const direct = safe(p?.storage?.binCode);
+      if (direct) return true;
+      const bins = Array.isArray(p?.storageBins) ? p.storageBins : [];
+      return bins.some((b) => safe(b?.code || b?.binCode) && (Number(b?.quantity) || 0) > 0);
+    };
+    const pickQty = (p) => {
+      const inv = p?.inventory?.quantity;
+      if (typeof inv === 'number' && Number.isFinite(inv) && inv >= 0) return inv;
+      const bins = Array.isArray(p?.storageBins) ? p.storageBins : [];
+      return bins.reduce((s, b) => s + (Number(b?.quantity) || 0), 0);
+    };
+    const hasKTyp = (p) => {
+      const attrs = p?.details?.attributes && typeof p.details.attributes === 'object' ? p.details.attributes : {};
+      const key = Object.keys(attrs).find((k) => {
+        const l = lower(k);
+        return l === 'k-typ' || l === 'ktyp' || l === 'k typ';
+      });
+      return Boolean(key && safe(attrs[key]));
+    };
+
+    for (const p of Array.isArray(products) ? products : []) {
+      const title = safe(p?.identification?.name);
+      if (!title || title.length < 20 || title.length > 80) titleBad += 1;
+
+      if (hasKTyp(p)) ktypWithValue += 1;
+
+      const g = p?.details?.gpsr && typeof p.details.gpsr === 'object' ? p.details.gpsr : {};
+
+      if (gpsrRequired.some((k) => safe(g[k]))) gpsrAnyFieldPresent += 1;
+
+      const filledRequired = gpsrRequired.reduce((n, k) => (safe(g[k]) ? n + 1 : n), 0);
+      gpsrRequiredFilledHistogram[String(filledRequired)] =
+        (gpsrRequiredFilledHistogram[String(filledRequired)] || 0) + 1;
+
+      const full = gpsrRequired.every((k) => safe(g[k]));
+      if (full) gpsrFullRequiredPresent += 1;
+
+      const fullNoPH = gpsrRequired.every((k) => {
+        const v = safe(g[k]);
+        return v && !isPlaceholder(v);
+      });
+      if (fullNoPH) gpsrFullRequiredNoPlaceholders += 1;
+
+      const needsGpsr = gpsrRequired.some((k) => {
+        const v = safe(g[k]);
+        return !v || isPlaceholder(v);
+      });
+      if (hasBin(p) && pickQty(p) >= 1 && needsGpsr) gpsrCandidatesNeedingEnrich += 1;
+    }
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        totalProducts,
+        title: { badCount: titleBad, minLen: 20, maxLen: 80 },
+        ktyp: { withValue: ktypWithValue },
+        gpsr: {
+          requiredFields: gpsrRequired,
+          requiredFilledHistogram: gpsrRequiredFilledHistogram,
+          anyFieldPresent: gpsrAnyFieldPresent,
+          fullRequiredFieldsPresent: gpsrFullRequiredPresent,
+          fullRequiredFieldsNoPlaceholders: gpsrFullRequiredNoPlaceholders,
+          candidatesNeedingEnrich: gpsrCandidatesNeedingEnrich,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Error in GET /api/admin/metrics/product-coverage:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to compute product coverage metrics', details: error.message },
+    });
+  }
+});
+
 // --- Admin Jobs (RBAC-managed) ---
 // Triggers the Cloud Run Job that performs initial GPSR enrichment (BIN set & qty>=1 & needsGpsr).
 app.post('/api/admin/jobs/gpsr-web-enrich/run', requirePermission('admin', 'jobs.run'), async (req, res) => {

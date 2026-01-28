@@ -1,0 +1,6 @@
+[title-normalize] project=avycloud mode=APPLY out=/Users/oguz/Dev/avycloud/exports/title-normalize/20260128-144821
+[title-normalize] preCount=631
+[title-normalize] considered=631 skipped_ui=0 update=53 noop=4 invalid_after=0
+[title-normalize] Applying updates via BulkWriter...
+[title-normalize] postCount=631
+[title-normalize] SUCCESS. Reports in /Users/oguz/Dev/avycloud/exports/title-normalize/20260128-144821

@@ -632,6 +632,29 @@ export const adminGetRulebookApplyJob = async (jobId: string) => {
   return result?.data as any;
 };
 
+export type AdminProductCoverageMetrics = {
+  totalProducts: number;
+  title: { badCount: number; minLen: number; maxLen: number };
+  ktyp: { withValue: number };
+  gpsr: {
+    requiredFields: string[];
+    requiredFilledHistogram: Record<string, number>;
+    anyFieldPresent: number;
+    fullRequiredFieldsPresent: number;
+    fullRequiredFieldsNoPlaceholders: number;
+    candidatesNeedingEnrich: number;
+  };
+};
+
+export const adminGetProductCoverageMetrics = async (): Promise<AdminProductCoverageMetrics> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/metrics/product-coverage`, { method: 'GET' });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to load product coverage metrics');
+  }
+  return result?.data as AdminProductCoverageMetrics;
+};
+
 export const buildImageProxyUrl = (sourceUrl?: string | null) => {
   if (!sourceUrl) return '';
   if (!/^https?:\/\//i.test(sourceUrl)) {

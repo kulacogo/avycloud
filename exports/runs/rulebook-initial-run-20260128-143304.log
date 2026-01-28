@@ -1,0 +1,167 @@
+Loaded 631 products from Firestore
+{
+  "action": "policy-initial-run-delta-sync",
+  "dryRun": false,
+  "total": 631,
+  "selected": 631,
+  "invId": "78659",
+  "chunkSize": 200
+}
+{
+  "done": true,
+  "total": 631,
+  "changed": 0,
+  "unchanged": 0,
+  "invalid": 631
+}
+{
+  "baselinker_jobs_enqueued": 0,
+  "products_enqueued": 0,
+  "inventoryId": "78659",
+  "mode": "text_only"
+}
+{
+  "invalid_count": 631,
+  "invalid_preview": [
+    {
+      "id": "00174600185032",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "00442039661193",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0060cdec-9193-411b-af64-4754ca0226bd",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "00872299043330",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0098931289601",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0099557e-b9f0-45a4-9c7c-d6418e7daac5",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0196214105119",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0198303486543",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0250237001502",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "03142017000003",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0402019292922",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "04052938000016",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0456566400136",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0562769421460",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0615272916159",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0652ed9b-7af0-4390-809b-ab3ae8a75fdd",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0700153955478",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "07901010300000",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0800633445532",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    },
+    {
+      "id": "0810123671069",
+      "issues": [
+        "highlights:highlight_missing_dash_template",
+        "highlights:highlights_too_few"
+      ]
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import { AdminGroupManagement } from './AdminGroupManagement';
 import { AdminLlmManagement } from './AdminLlmManagement';
 import { AdminJobsManagement } from './AdminJobsManagement';
 import { AdminRulebookManagement } from './AdminRulebookManagement';
+import { AdminProductCoverageDashboard } from './AdminProductCoverageDashboard';
 
 type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'jobs' | 'rulebook';
 
@@ -13,6 +14,8 @@ export const AdminPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <AdminProductCoverageDashboard />
+
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
