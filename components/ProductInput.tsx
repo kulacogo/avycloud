@@ -4,6 +4,7 @@ import { UploadIcon, CameraIcon, BarcodeIcon } from './icons/Icons';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, summarizeBarcodes } from '../utils/gtin';
+import { Notice } from './ui/Notice';
 
 interface ProductInputProps {
   onIdentify: (
@@ -53,6 +54,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   const [cameraTargetGroup, setCameraTargetGroup] = useState<string | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'info' | 'warning' | 'error'; title: string; details?: string } | null>(null);
   const manualBarcodeList = useMemo(
     () =>
       barcodes
@@ -187,6 +189,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
+    setNotice(null);
     const payload: UploadGroupPayload[] = groups
       .filter((group) => group.images.length > 0)
       .map((group) => ({
@@ -195,7 +198,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
         images: group.images.map((img) => img.file),
       }));
     if (!payload.length && barcodes.trim() === '') {
-      alert(t('input.errors.payloadRequired'));
+      setNotice({ tone: 'warning', title: t('input.errors.payloadRequired') });
       return;
     }
     onIdentify(payload, barcodes);
@@ -229,8 +232,8 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
     } catch (error: any) {
       console.error('Camera error:', error);
       const message = error?.message || t('input.camera.error');
-        setCameraError(message);
-        alert(message);
+      setCameraError(message);
+      setNotice({ tone: 'error', title: 'Kamera Fehler', details: message });
     }
   };
 
@@ -281,6 +284,9 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
 
   return (
     <div className="w-full p-4 sm:p-8 bg-slate-800 rounded-2xl shadow-2xl mt-4 space-y-6 pb-16 sm:pb-8 safe-area-bottom">
+      {notice ? (
+        <Notice tone={notice.tone} title={notice.title} details={notice.details} onDismiss={() => setNotice(null)} />
+      ) : null}
       <form onSubmit={handleSubmit} className="space-y-6">
         
         <div className="space-y-4">

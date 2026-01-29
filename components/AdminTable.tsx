@@ -11,6 +11,7 @@ import { useInventoryContext } from '../context/InventoryContext';
 import { PageHeader } from './ui/PageHeader';
 import { HelpDisclosure } from './ui/HelpDisclosure';
 import { Notice } from './ui/Notice';
+import { ConfirmDialog } from './ui/ConfirmDialog';
 
 const safeCurrency = (code?: string) => {
   const c = (code || '').toString().trim().toUpperCase();
@@ -246,6 +247,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
     title: string;
     message?: string;
     details?: string;
+  } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    description?: React.ReactNode;
+    details?: React.ReactNode;
+    confirmLabel: string;
+    tone?: 'default' | 'danger';
+    confirmBusy?: boolean;
+    onConfirm: () => void | Promise<void>;
   } | null>(null);
   const [baselinkerLookupInProgress, setBaselinkerLookupInProgress] = useState(false);
   const baselinkerChecked = useRef<Set<string>>(new Set());
@@ -1140,15 +1150,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const handleBatchPriceRefresh = async () => runBatchPriceRefresh(Array.from(selectedIds));
 
-  const handleBatchDelete = async () => {
-    if (selectedIds.size === 0) return;
-    if (!confirm(t('table.actions.deleteConfirm', { count: selectedIds.size } as any))) return;
+  const executeBatchDelete = async (ids: string[]) => {
+    if (!ids.length) return;
     const remaining = [...products];
     const failures: string[] = [];
-    for (const id of Array.from(selectedIds)) {
+    for (const id of ids) {
       const res = await deleteProduct(id);
       if (res.ok) {
-        const idx = remaining.findIndex(p => p.id === id);
+        const idx = remaining.findIndex((p) => p.id === id);
         if (idx > -1) remaining.splice(idx, 1);
       } else {
         failures.push(`${id}: ${res.error?.message || 'Unknown error'}`);
@@ -1160,16 +1169,38 @@ const AdminTable: React.FC<AdminTableProps> = ({
       setNotice({
         tone: 'error',
         title: 'Löschen teilweise fehlgeschlagen',
-        message: `${failures.length} / ${selectedIds.size} konnten nicht gelöscht werden.`,
+        message: `${failures.length} / ${ids.length} konnten nicht gelöscht werden.`,
         details: failures.join('\n'),
       });
     } else {
       setNotice({
         tone: 'success',
         title: 'Produkte gelöscht',
-        message: `${selectedIds.size} Produkte wurden gelöscht.`,
+        message: `${ids.length} Produkte wurden gelöscht.`,
       });
     }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    setConfirmDialog({
+      title: 'Auswahl löschen?',
+      tone: 'danger',
+      description: `Diese Aktion ist dauerhaft. ${ids.length} ${
+        ids.length === 1 ? 'Produkt wird' : 'Produkte werden'
+      } gelöscht.`,
+      details: ids.slice(0, 30).join('\n') + (ids.length > 30 ? `\n… +${ids.length - 30} mehr` : ''),
+      confirmLabel: `Löschen (${ids.length})`,
+      onConfirm: async () => {
+        setConfirmDialog((prev) => (prev ? { ...prev, confirmBusy: true } : prev));
+        try {
+          await executeBatchDelete(ids);
+        } finally {
+          setConfirmDialog(null);
+        }
+      },
+    });
   };
 
   const handleBatchLabelPrint = () => {
@@ -1729,11 +1760,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
             icon={<OperationsIcon className="w-4 h-4" />}
             label="Verbessern (alle)"
             onClick={() => {
-              const ok = window.confirm(
-                'Alle Produkte verbessern?\n\nHinweis: Das kann viele Jobs starten und dauert je nach Menge.'
-              );
-              if (!ok) return;
-              onBulkImprove();
+              setConfirmDialog({
+                title: 'Alle Produkte verbessern?',
+                tone: 'default',
+                description:
+                  'Startet KI/Improve-Jobs für alle Produkte. Das kann viele Jobs erzeugen und je nach Menge dauern.',
+                confirmLabel: 'Verbessern (alle) starten',
+                onConfirm: () => {
+                  setConfirmDialog(null);
+                  onBulkImprove();
+                },
+              });
             }}
             tone="accent"
           />
@@ -1809,6 +1846,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
           >
             {notice.message}
           </Notice>
+        ) : null}
+
+        {confirmDialog ? (
+          <ConfirmDialog
+            open
+            title={confirmDialog.title}
+            description={confirmDialog.description}
+            details={confirmDialog.details}
+            confirmLabel={confirmDialog.confirmLabel}
+            tone={confirmDialog.tone || 'default'}
+            confirmBusy={Boolean(confirmDialog.confirmBusy)}
+            onCancel={() => setConfirmDialog(null)}
+            onConfirm={confirmDialog.onConfirm}
+          />
         ) : null}
 
         <div className="space-y-3 mb-5">
@@ -1914,17 +1965,34 @@ const AdminTable: React.FC<AdminTableProps> = ({
                       <button
                         className="px-2 py-1 text-xs bg-red-600 text-white rounded-md"
                         onClick={async () => {
-                          if (!confirm(t('table.actions.deleteOne', { name: p.identification?.name || p.id } as any))) return;
-                          const res = await deleteProduct(p.id);
-                          if (res.ok) {
-                            onUpdateProducts(products.filter((x) => x.id !== p.id));
-                          } else {
-                            setNotice({
-                              tone: 'error',
-                              title: 'Löschen fehlgeschlagen',
-                              details: res.error?.message || 'Unknown error',
-                            });
-                          }
+                          setConfirmDialog({
+                            title: 'Produkt löschen?',
+                            tone: 'danger',
+                            description: (
+                              <span>
+                                <b>{p.identification?.name || p.id}</b> wird dauerhaft gelöscht.
+                              </span>
+                            ),
+                            confirmLabel: 'Löschen',
+                            onConfirm: async () => {
+                              setConfirmDialog((prev) => (prev ? { ...prev, confirmBusy: true } : prev));
+                              try {
+                                const res = await deleteProduct(p.id);
+                                if (res.ok) {
+                                  onUpdateProducts(products.filter((x) => x.id !== p.id));
+                                  setNotice({ tone: 'success', title: 'Produkt gelöscht', message: p.identification?.name || p.id });
+                                } else {
+                                  setNotice({
+                                    tone: 'error',
+                                    title: 'Löschen fehlgeschlagen',
+                                    details: res.error?.message || 'Unknown error',
+                                  });
+                                }
+                              } finally {
+                                setConfirmDialog(null);
+                              }
+                            },
+                          });
                         }}
                       >
                         {t('table.actions.delete')}

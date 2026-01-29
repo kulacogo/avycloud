@@ -6,6 +6,7 @@ import {
   adminUpdateRulebook,
   type AdminRulebookConfig,
 } from '../../api/client';
+import { Notice } from '../ui/Notice';
 
 type HighlightRuleRow = { schemaId: string; min: number; max: number; minLen: number; maxLen: number };
 type TitleRuleRow = { schemaId: string; minLen: number; softMaxLen: number; maxLen: number; mobileMaxLen: number };
@@ -22,6 +23,7 @@ export const AdminRulebookManagement: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [note, setNote] = React.useState<string>('');
   const [runAfterSave, setRunAfterSave] = React.useState<boolean>(false);
+  const [notice, setNotice] = React.useState<{ tone: 'success' | 'info' | 'warning' | 'error'; title: string; details?: string } | null>(null);
 
   const [meta, setMeta] = React.useState<{ versionId: string | null; updatedAt: string | null; updatedBy: string | null } | null>(
     null
@@ -44,6 +46,7 @@ export const AdminRulebookManagement: React.FC = () => {
   const load = React.useCallback(async () => {
     setLoading(true);
     setError(null);
+    setNotice(null);
     try {
       const data = await adminGetRulebook();
       setMeta({ versionId: data.versionId, updatedAt: data.updatedAt, updatedBy: data.updatedBy });
@@ -89,6 +92,7 @@ export const AdminRulebookManagement: React.FC = () => {
   const save = async () => {
     setSaving(true);
     setError(null);
+    setNotice(null);
     try {
       const next: AdminRulebookConfig = {
         ...(cfg || {}),
@@ -144,9 +148,9 @@ export const AdminRulebookManagement: React.FC = () => {
         const r = await adminApplyRulebook({});
         setApplyJobId(r.jobId);
         setApplyJob(null);
-        alert('Rulebook gespeichert + Apply Job gestartet (Initial Run + BaseLinker Delta Sync).');
+        setNotice({ tone: 'success', title: 'Rulebook gespeichert + Apply Job gestartet', details: `JobId: ${r.jobId}` });
       } else {
-        alert('Rulebook gespeichert (Versionierung aktiv).');
+        setNotice({ tone: 'success', title: 'Rulebook gespeichert (Versionierung aktiv)' });
       }
     } catch (e: any) {
       setError(e?.message || 'Failed to save rulebook');
@@ -158,6 +162,7 @@ export const AdminRulebookManagement: React.FC = () => {
   const runApply = async () => {
     setSaving(true);
     setError(null);
+    setNotice(null);
     try {
       const r = await adminApplyRulebook({
         minQty: Number.isFinite(Number(applyMinQty)) ? Math.max(1, Math.min(9999, Number(applyMinQty))) : 1,
@@ -165,6 +170,7 @@ export const AdminRulebookManagement: React.FC = () => {
       });
       setApplyJobId(r.jobId);
       setApplyJob(null);
+      setNotice({ tone: 'success', title: 'Apply Job gestartet', details: `JobId: ${r.jobId}` });
     } catch (e: any) {
       setError(e?.message || 'Failed to start rulebook apply job');
     } finally {
@@ -218,6 +224,9 @@ export const AdminRulebookManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {notice ? (
+        <Notice tone={notice.tone} title={notice.title} details={notice.details} onDismiss={() => setNotice(null)} />
+      ) : null}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold">Admin: Regelverwaltung (Rulebook)</h2>

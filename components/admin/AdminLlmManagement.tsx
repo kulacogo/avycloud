@@ -6,6 +6,7 @@ import {
   adminListLlmScopes,
   type AdminLlmScopeRecord,
 } from '../../api/client';
+import { Notice } from '../ui/Notice';
 
 export const AdminLlmManagement: React.FC = () => {
   const [scopes, setScopes] = React.useState<AdminLlmScopeRecord[]>([]);
@@ -20,6 +21,7 @@ export const AdminLlmManagement: React.FC = () => {
   const [rulesMode, setRulesMode] = React.useState<'append' | 'replace'>('append');
   const [note, setNote] = React.useState('');
   const [saving, setSaving] = React.useState(false);
+  const [notice, setNotice] = React.useState<{ tone: 'success' | 'info' | 'warning' | 'error'; title: string; details?: string } | null>(null);
 
   const loadScopes = React.useCallback(async () => {
     setError(null);
@@ -75,6 +77,7 @@ export const AdminLlmManagement: React.FC = () => {
     if (!selectedScopeId) return;
     setSaving(true);
     setError(null);
+    setNotice(null);
     try {
       await adminCreateLlmVersion(selectedScopeId, {
         promptText,
@@ -84,7 +87,7 @@ export const AdminLlmManagement: React.FC = () => {
         note: note || undefined,
       });
       await loadDetail(selectedScopeId);
-      alert('Neue Version gespeichert und aktiviert.');
+      setNotice({ tone: 'success', title: 'Neue Version gespeichert und aktiviert' });
     } catch (e: any) {
       setError(e?.message || 'Failed to save version');
     } finally {
@@ -123,6 +126,9 @@ export const AdminLlmManagement: React.FC = () => {
           {error}
         </div>
       )}
+      {notice ? (
+        <Notice tone={notice.tone} title={notice.title} details={notice.details} onDismiss={() => setNotice(null)} />
+      ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="rounded-2xl border border-white/10 bg-slate-800/60 p-5 space-y-3">

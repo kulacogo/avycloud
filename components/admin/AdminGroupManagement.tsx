@@ -10,6 +10,8 @@ import {
   type AdminGroupRecord,
   type AdminUserRecord,
 } from '../../api/client';
+import { Notice } from '../ui/Notice';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 const ROLE_OPTIONS = ['admin', 'manager', 'operation', 'catalog'] as const;
 
@@ -30,9 +32,12 @@ export const AdminGroupManagement: React.FC = () => {
 
   const [newGroupName, setNewGroupName] = React.useState('');
   const [newGroupId, setNewGroupId] = React.useState('');
+  const [notice, setNotice] = React.useState<{ tone: 'success' | 'info' | 'warning' | 'error'; title: string; details?: string } | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setError(null);
+    setNotice(null);
     setLoading(true);
     try {
       const [g, u] = await Promise.all([adminListGroups(500), adminListUsers(500)]);
@@ -114,12 +119,19 @@ export const AdminGroupManagement: React.FC = () => {
 
   const deleteSelectedGroup = async () => {
     if (!selectedGroupId) return;
-    if (!confirm(`Gruppe "${selectedGroupId}" wirklich löschen?`)) return;
+    setDeleteDialogOpen(true);
+    return;
+  };
+
+  const confirmDeleteSelectedGroup = async () => {
+    if (!selectedGroupId) return;
     setError(null);
+    setNotice(null);
     try {
       await adminDeleteGroup(selectedGroupId);
       setSelectedGroupId(null);
       await load();
+      setNotice({ tone: 'success', title: 'Gruppe gelöscht' });
     } catch (e: any) {
       setError(e?.message || 'Failed to delete group');
     }
@@ -140,6 +152,30 @@ export const AdminGroupManagement: React.FC = () => {
           {error}
         </div>
       )}
+      {notice ? (
+        <Notice tone={notice.tone} title={notice.title} details={notice.details} onDismiss={() => setNotice(null)} />
+      ) : null}
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Gruppe löschen?"
+        tone="danger"
+        description={
+          selectedGroupId ? (
+            <span>
+              Gruppe <b>{selectedGroupId}</b> wird dauerhaft gelöscht.
+            </span>
+          ) : (
+            'Gruppe wird dauerhaft gelöscht.'
+          )
+        }
+        confirmLabel="Löschen"
+        onCancel={() => setDeleteDialogOpen(false)}
+        onConfirm={async () => {
+          await confirmDeleteSelectedGroup();
+          setDeleteDialogOpen(false);
+        }}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="rounded-2xl border border-white/10 bg-slate-800/60 p-5 space-y-4">

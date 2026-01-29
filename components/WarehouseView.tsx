@@ -15,6 +15,8 @@ import { WarehouseBin, WarehouseLayout } from '../types';
 import { PrintIcon } from './icons/Icons';
 import { PageHeader } from './ui/PageHeader';
 import { HelpDisclosure } from './ui/HelpDisclosure';
+import { Notice } from './ui/Notice';
+import { ConfirmDialog } from './ui/ConfirmDialog';
 
 const ZONE_OPTIONS: Array<'X' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XQ'> = ['X', 'XS', 'S', 'M', 'L', 'XL', 'XQ'];
 const ETAGE_OPTIONS: Array<'GA' | 'UG' | 'EG'> = ['GA', 'UG', 'EG'];
@@ -33,6 +35,14 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
   const [selectedBin, setSelectedBin] = useState<WarehouseBin | null>(null);
   const [binDetail, setBinDetail] = useState<any>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    description?: React.ReactNode;
+    details?: React.ReactNode;
+    tone?: 'default' | 'danger';
+    confirmLabel: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
   const [isLoadingBins, setIsLoadingBins] = useState(false);
   const [selectedBinCodes, setSelectedBinCodes] = useState<Set<string>>(new Set());
   const [layoutForm, setLayoutForm] = useState({
@@ -296,20 +306,29 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
         return;
       }
       const codes: string[] = Array.isArray(dry.data?.binCodes) ? dry.data.binCodes : [];
-      const ok = window.confirm(`Gang ${selectedGang} löschen?\n\nBetroffene Bins: ${codes.length}\n\nNur möglich wenn alle Bins leer sind.`);
-      if (!ok) return;
-      const resp = await deleteWarehouseGangApi(selectedZone.zone, selectedZone.etage, selectedGang, { confirm: true, timeoutMs: 25000 });
-      if (!resp.ok) {
-        setStatusMessage(resp.error?.message || 'Gang löschen fehlgeschlagen.');
-        return;
-      }
-      setStatusMessage(`Gang ${selectedGang} gelöscht (${resp.data?.deleted || 0} Bins).`);
-      await loadZones();
-      await loadBins(selectedZone.zone, selectedZone.etage);
-      setSelectedGang(null);
-      setSelectedRegal(null);
-      setSelectedBin(null);
-      setBinDetail(null);
+      setConfirmDialog({
+        title: `Gang ${selectedGang} löschen?`,
+        tone: 'danger',
+        description: `Diese Aktion entfernt alle Bins im Gang. Nur möglich wenn alle Bins leer sind.`,
+        details: `Betroffene Bins: ${codes.length}\n${codes.slice(0, 50).join('\n')}${codes.length > 50 ? `\n… +${codes.length - 50} mehr` : ''}`,
+        confirmLabel: 'Löschen',
+        onConfirm: async () => {
+          setConfirmDialog(null);
+          const resp = await deleteWarehouseGangApi(selectedZone.zone, selectedZone.etage, selectedGang, { confirm: true, timeoutMs: 25000 });
+          if (!resp.ok) {
+            setStatusMessage(resp.error?.message || 'Gang löschen fehlgeschlagen.');
+            return;
+          }
+          setStatusMessage(`Gang ${selectedGang} gelöscht (${resp.data?.deleted || 0} Bins).`);
+          await loadZones();
+          await loadBins(selectedZone.zone, selectedZone.etage);
+          setSelectedGang(null);
+          setSelectedRegal(null);
+          setSelectedBin(null);
+          setBinDetail(null);
+        },
+      });
+      return;
     } finally {
       setDeletingStructure(false);
     }
@@ -326,21 +345,28 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
         return;
       }
       const codes: string[] = Array.isArray(dry.data?.binCodes) ? dry.data.binCodes : [];
-      const ok = window.confirm(
-        `Regal ${selectedRegal} (Gang ${selectedGang}) löschen?\n\nBetroffene Bins: ${codes.length}\n\nNur möglich wenn alle Bins leer sind.`
-      );
-      if (!ok) return;
-      const resp = await deleteWarehouseRegalApi(selectedZone.zone, selectedZone.etage, selectedGang, selectedRegal, { confirm: true, timeoutMs: 25000 });
-      if (!resp.ok) {
-        setStatusMessage(resp.error?.message || 'Regal löschen fehlgeschlagen.');
-        return;
-      }
-      setStatusMessage(`Regal ${selectedRegal} gelöscht (${resp.data?.deleted || 0} Bins).`);
-      await loadZones();
-      await loadBins(selectedZone.zone, selectedZone.etage);
-      setSelectedRegal(null);
-      setSelectedBin(null);
-      setBinDetail(null);
+      setConfirmDialog({
+        title: `Regal ${selectedRegal} löschen?`,
+        tone: 'danger',
+        description: `Gang ${selectedGang} · Regal ${selectedRegal}. Nur möglich wenn alle Bins leer sind.`,
+        details: `Betroffene Bins: ${codes.length}\n${codes.slice(0, 50).join('\n')}${codes.length > 50 ? `\n… +${codes.length - 50} mehr` : ''}`,
+        confirmLabel: 'Löschen',
+        onConfirm: async () => {
+          setConfirmDialog(null);
+          const resp = await deleteWarehouseRegalApi(selectedZone.zone, selectedZone.etage, selectedGang, selectedRegal, { confirm: true, timeoutMs: 25000 });
+          if (!resp.ok) {
+            setStatusMessage(resp.error?.message || 'Regal löschen fehlgeschlagen.');
+            return;
+          }
+          setStatusMessage(`Regal ${selectedRegal} gelöscht (${resp.data?.deleted || 0} Bins).`);
+          await loadZones();
+          await loadBins(selectedZone.zone, selectedZone.etage);
+          setSelectedRegal(null);
+          setSelectedBin(null);
+          setBinDetail(null);
+        },
+      });
+      return;
     } finally {
       setDeletingStructure(false);
     }
@@ -359,20 +385,26 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
         setStatusMessage(dry.error?.message || 'Ebene konnte nicht geprüft werden.');
         return;
       }
-      const ok = window.confirm(
-        `Ebene ${ebene} (Gang ${gang} · Regal ${regal}) löschen?\n\nDies entfernt den BIN ${selectedBin.code}.\n\nNur möglich wenn der BIN leer ist.`
-      );
-      if (!ok) return;
-      const resp = await deleteWarehouseEbeneApi(selectedZone.zone, selectedZone.etage, gang, regal, ebene, { confirm: true, timeoutMs: 25000 });
-      if (!resp.ok) {
-        setStatusMessage(resp.error?.message || 'Ebene löschen fehlgeschlagen.');
-        return;
-      }
-      setStatusMessage(`Ebene ${ebene} gelöscht (${resp.data?.deleted || 0} BIN).`);
-      await loadZones();
-      await loadBins(selectedZone.zone, selectedZone.etage);
-      setSelectedBin(null);
-      setBinDetail(null);
+      setConfirmDialog({
+        title: `Ebene ${ebene} löschen?`,
+        tone: 'danger',
+        description: `Gang ${gang} · Regal ${regal}. Dies entfernt den BIN ${selectedBin.code}. Nur möglich wenn der BIN leer ist.`,
+        confirmLabel: 'Löschen',
+        onConfirm: async () => {
+          setConfirmDialog(null);
+          const resp = await deleteWarehouseEbeneApi(selectedZone.zone, selectedZone.etage, gang, regal, ebene, { confirm: true, timeoutMs: 25000 });
+          if (!resp.ok) {
+            setStatusMessage(resp.error?.message || 'Ebene löschen fehlgeschlagen.');
+            return;
+          }
+          setStatusMessage(`Ebene ${ebene} gelöscht (${resp.data?.deleted || 0} BIN).`);
+          await loadZones();
+          await loadBins(selectedZone.zone, selectedZone.etage);
+          setSelectedBin(null);
+          setBinDetail(null);
+        },
+      });
+      return;
     } finally {
       setDeletingStructure(false);
     }
@@ -402,8 +434,23 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
       </PageHeader>
 
       {statusMessage && (
-        <div className="bg-slate-700 text-slate-100 px-4 py-2 rounded-md shadow">{statusMessage}</div>
+        <Notice tone="info" title="Status" onDismiss={() => setStatusMessage(null)}>
+          {statusMessage}
+        </Notice>
       )}
+
+      {confirmDialog ? (
+        <ConfirmDialog
+          open
+          title={confirmDialog.title}
+          description={confirmDialog.description}
+          details={confirmDialog.details}
+          tone={confirmDialog.tone || 'default'}
+          confirmLabel={confirmDialog.confirmLabel}
+          onCancel={() => setConfirmDialog(null)}
+          onConfirm={confirmDialog.onConfirm}
+        />
+      ) : null}
 
       {/* Header moved to PageHeader above */}
 

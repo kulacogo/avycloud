@@ -1,6 +1,7 @@
 import React from 'react';
 import { adminInviteUser, adminListUsers, adminSetUserRoles, type AdminUserRecord } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { Notice } from '../ui/Notice';
 
 const ROLE_OPTIONS = ['admin', 'manager', 'operation', 'catalog'] as const;
 
@@ -15,6 +16,7 @@ export const AdminUserManagement: React.FC = () => {
   const [inviteEmail, setInviteEmail] = React.useState('');
   const [inviteRoles, setInviteRoles] = React.useState<string[]>([]);
   const [inviting, setInviting] = React.useState(false);
+  const [notice, setNotice] = React.useState<{ tone: 'success' | 'info' | 'warning' | 'error'; title: string; details?: string } | null>(null);
 
   const load = React.useCallback(async () => {
     setError(null);
@@ -40,12 +42,13 @@ export const AdminUserManagement: React.FC = () => {
   const invite = async () => {
     setInviting(true);
     setError(null);
+    setNotice(null);
     try {
       await adminInviteUser(normalizeEmail(inviteEmail), inviteRoles);
       setInviteEmail('');
       setInviteRoles([]);
       await load();
-      alert('Invite wurde versendet.');
+      setNotice({ tone: 'success', title: 'Invite wurde versendet' });
     } catch (e: any) {
       setError(e?.message || 'Invite failed');
     } finally {
@@ -84,6 +87,10 @@ export const AdminUserManagement: React.FC = () => {
           {error}
         </div>
       )}
+
+      {notice ? (
+        <Notice tone={notice.tone} title={notice.title} onDismiss={() => setNotice(null)} details={notice.details} />
+      ) : null}
 
       <div className="rounded-2xl border border-white/10 bg-slate-800/60 p-5 space-y-4">
         <h3 className="font-semibold">User einladen</h3>
