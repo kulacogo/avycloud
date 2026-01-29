@@ -10,6 +10,7 @@ import { addMediaQueryListener } from '../utils/mediaQuery';
 import { useInventoryContext } from '../context/InventoryContext';
 import { PageHeader } from './ui/PageHeader';
 import { HelpDisclosure } from './ui/HelpDisclosure';
+import { Notice } from './ui/Notice';
 
 const safeCurrency = (code?: string) => {
   const c = (code || '').toString().trim().toUpperCase();
@@ -240,6 +241,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [improveInProgress, setImproveInProgress] = useState(false);
   const [improveMessage, setImproveMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{
+    tone: 'info' | 'success' | 'warning' | 'error';
+    title: string;
+    message?: string;
+    details?: string;
+  } | null>(null);
   const [baselinkerLookupInProgress, setBaselinkerLookupInProgress] = useState(false);
   const baselinkerChecked = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -1023,6 +1030,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
     // Update UI to show syncing state
     setSyncInProgress(true);
     setSyncMessage(`Synchronisiere ${selectedProducts.length} Produkte …`);
+    setNotice({
+      tone: 'info',
+      title: 'Sync gestartet',
+      message: `Synchronisiere ${selectedProducts.length} Produkte (BaseLinker Inventory ${syncInventoryId}).`,
+    });
     const updatingProducts = products.map(p =>
       selectedIds.has(p.id)
         ? { ...p, ops: { ...p.ops, sync_status: 'pending' as const } }
@@ -1055,23 +1067,33 @@ const AdminTable: React.FC<AdminTableProps> = ({
         const successCount = result.results.filter(r => r.status === 'synced').length;
         const failedEntries = result.results.filter(r => r.status === 'failed');
         const failCount = failedEntries.length;
-        const failureSummary = failedEntries.map(entry => `${entry.id}: ${entry.message || 'fehlgeschlagen'}`).join('\n');
-        const baseSummary = `Sync abgeschlossen.\n✓ ${successCount} Produkte synchronisiert\n✗ ${failCount} fehlgeschlagen`;
-
-        if (failCount > 0) {
-          alert(`${baseSummary}\n\nDetails:\n${failureSummary}`);
-        } else {
-          alert(baseSummary);
-        }
+        const failureSummary = failedEntries
+          .map(entry => `${entry.id}: ${entry.message || 'fehlgeschlagen'}`)
+          .join('\n');
+        setNotice({
+          tone: failCount > 0 ? 'warning' : 'success',
+          title: 'Sync abgeschlossen',
+          message: `✓ ${successCount} synchronisiert · ✗ ${failCount} fehlgeschlagen`,
+          details: failCount > 0 ? failureSummary : undefined,
+        });
       } else {
         // Revert to original state on error
         onUpdateProducts(products);
-        alert(`Sync failed: ${result.error?.message || 'Unknown error'}`);
+        setNotice({
+          tone: 'error',
+          title: 'Sync fehlgeschlagen',
+          message: 'Der Backend-Job hat keine Ergebnisse geliefert.',
+          details: result.error?.message || 'Unknown error',
+        });
       }
     } catch (error) {
       // Revert to original state on error
       onUpdateProducts(products);
-      alert(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setNotice({
+        tone: 'error',
+        title: 'Sync fehlgeschlagen',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
     } finally {
       setSyncInProgress(false);
       setSyncMessage(null);
@@ -1081,22 +1103,39 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const runBatchPriceRefresh = async (ids: string[]) => {
     if (!ids.length) return;
-    alert(`Refreshing prices for ${ids.length} products...`);
+    setNotice({
+      tone: 'info',
+      title: 'Preis-Refresh gestartet',
+      message: `Aktualisiere Preise für ${ids.length} Produkte …`,
+    });
     const updatedProducts = [...products];
+    let okCount = 0;
+    let failCount = 0;
     for (const id of ids) {
-      const result = await refreshPrice(id);
-      if (result.ok && result.data) {
-        const productIndex = updatedProducts.findIndex(p => p.id === id);
-        if (productIndex > -1) {
-          updatedProducts[productIndex].details.pricing = {
-            ...updatedProducts[productIndex].details.pricing,
-            ...result.data
-          };
+      try {
+        const result = await refreshPrice(id);
+        if (result.ok && result.data) {
+          const productIndex = updatedProducts.findIndex(p => p.id === id);
+          if (productIndex > -1) {
+            updatedProducts[productIndex].details.pricing = {
+              ...updatedProducts[productIndex].details.pricing,
+              ...result.data,
+            };
+          }
+          okCount += 1;
+        } else {
+          failCount += 1;
         }
+      } catch {
+        failCount += 1;
       }
     }
     onUpdateProducts(updatedProducts);
-    alert('Price refresh complete.');
+    setNotice({
+      tone: failCount > 0 ? 'warning' : 'success',
+      title: 'Preis-Refresh abgeschlossen',
+      message: `✓ ${okCount} ok · ✗ ${failCount} fehlgeschlagen`,
+    });
   };
 
   const handleBatchPriceRefresh = async () => runBatchPriceRefresh(Array.from(selectedIds));
@@ -1105,17 +1144,32 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (selectedIds.size === 0) return;
     if (!confirm(t('table.actions.deleteConfirm', { count: selectedIds.size } as any))) return;
     const remaining = [...products];
+    const failures: string[] = [];
     for (const id of Array.from(selectedIds)) {
       const res = await deleteProduct(id);
       if (res.ok) {
         const idx = remaining.findIndex(p => p.id === id);
         if (idx > -1) remaining.splice(idx, 1);
       } else {
-        alert(`Failed to delete ${id}: ${res.error?.message || 'Unknown error'}`);
+        failures.push(`${id}: ${res.error?.message || 'Unknown error'}`);
       }
     }
     setSelectedIds(new Set());
     onUpdateProducts(remaining);
+    if (failures.length > 0) {
+      setNotice({
+        tone: 'error',
+        title: 'Löschen teilweise fehlgeschlagen',
+        message: `${failures.length} / ${selectedIds.size} konnten nicht gelöscht werden.`,
+        details: failures.join('\n'),
+      });
+    } else {
+      setNotice({
+        tone: 'success',
+        title: 'Produkte gelöscht',
+        message: `${selectedIds.size} Produkte wurden gelöscht.`,
+      });
+    }
   };
 
   const handleBatchLabelPrint = () => {
@@ -1125,17 +1179,22 @@ const AdminTable: React.FC<AdminTableProps> = ({
       (p) => !(p.identification?.sku || p.details?.identifiers?.sku)
     );
     if (missingSku.length > 0) {
-      alert(
-        `Die folgenden Produkte haben noch keine SKU und können nicht gedruckt werden:\n${missingSku
-          .map((p) => `• ${p.identification?.name || p.id}`)
-          .join('\n')}`
-      );
+      setNotice({
+        tone: 'warning',
+        title: 'Labeldruck nicht möglich',
+        message: 'Einige Produkte haben keine SKU.',
+        details: missingSku.map((p) => `• ${p.identification?.name || p.id}`).join('\n'),
+      });
       return;
     }
     const orderedIds = selectedProducts.map((p) => p.id);
     const result = openProductLabelBatchWindow(orderedIds);
     if (!result.ok) {
-      alert(result.error?.message || 'Konnte Label-Ansicht nicht öffnen.');
+      setNotice({
+        tone: 'error',
+        title: 'Label-Ansicht konnte nicht geöffnet werden',
+        details: result.error?.message || 'Unbekannter Fehler',
+      });
     }
   };
 
@@ -1741,6 +1800,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
           </HelpDisclosure>
         </PageHeader>
 
+        {notice ? (
+          <Notice
+            tone={notice.tone}
+            title={notice.title}
+            details={notice.details}
+            onDismiss={() => setNotice(null)}
+          >
+            {notice.message}
+          </Notice>
+        ) : null}
+
         <div className="space-y-3 mb-5">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[220px]">
@@ -1849,7 +1919,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
                           if (res.ok) {
                             onUpdateProducts(products.filter((x) => x.id !== p.id));
                           } else {
-                            alert(`Delete failed: ${res.error?.message || 'Unknown error'}`);
+                            setNotice({
+                              tone: 'error',
+                              title: 'Löschen fehlgeschlagen',
+                              details: res.error?.message || 'Unknown error',
+                            });
                           }
                         }}
                       >

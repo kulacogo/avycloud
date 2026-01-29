@@ -11,6 +11,7 @@ import type { Product } from '../../types';
 import { InventoryDrilldownPanel } from '../InventoryDrilldownPanel';
 import { PageHeader } from '../ui/PageHeader';
 import { HelpDisclosure } from '../ui/HelpDisclosure';
+import { Notice } from '../ui/Notice';
 
 type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'jobs' | 'rulebook';
 
@@ -70,9 +71,14 @@ export const AdminPanel: React.FC = () => {
       <AdminProductCoverageDashboard onOpenDrilldown={(payload) => setDrilldown(payload)} />
 
       {productsError ? (
-        <div className="rounded-xl bg-rose-900/30 p-3 text-sm text-rose-200 ring-1 ring-rose-700/40">
-          Drilldown list unavailable: {productsError}
-        </div>
+        <Notice
+          tone="error"
+          title="Drilldown-Daten konnten nicht geladen werden"
+          onDismiss={() => setProductsError(null)}
+          details={productsError}
+        >
+          Bitte prüfe Auth/Permissions (Token) und Backend-Erreichbarkeit.
+        </Notice>
       ) : null}
 
       {drilldown && drilldown.ids?.length ? (
