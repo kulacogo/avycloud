@@ -7,7 +7,8 @@ const {
   Timestamp,
 } = require('../lib/rulebook-apply-jobs');
 const { getProduct, getAllProducts, saveProduct } = require('../lib/firestore');
-const { normalizeProductStrict } = require('../lib/llm-rulebook');
+const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
+const { getProductBinSummaryMap } = require('../lib/warehouse');
 const { createJob: createBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('../lib/baselinker-sync-jobs');
 const { enqueueBaseLinkerSyncJob } = require('./baselinker-sync-runner');
 
@@ -67,14 +68,83 @@ async function processRulebookJob(jobId) {
     const requireBin =
       typeof jobSnapshot?.payload?.requireBin === 'boolean' ? jobSnapshot.payload.requireBin : null;
 
+    // Match /api/products semantics for BIN + quantity (enrich via warehouse bin summaries)
     const safeString = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
-    const hasBin = (p) => {
-      const direct = safeString(p?.storage?.binCode);
-      if (direct) return true;
-      const bins = Array.isArray(p?.storageBins) ? p.storageBins : [];
-      return bins.some((b) => safeString(b?.code || b?.binCode) && (Number(b?.quantity) || 0) > 0);
+    const normalizeIdentityKey = (value) => {
+      if (value === undefined || value === null) return null;
+      const normalized = String(value).trim();
+      if (!normalized) return null;
+      return normalized.toLowerCase();
     };
+    const buildSkuToProductIdMap = (products = []) => {
+      const map = new Map();
+      products.forEach((product) => {
+        if (!product || !product.id) return;
+        const productId = String(product.id);
+        const addKey = (value) => {
+          const key = normalizeIdentityKey(value);
+          if (key) {
+            map.set(key, productId);
+            const trimmed = key.replace(/^sku[-_\\s]*/, '');
+            if (trimmed && !map.has(trimmed)) {
+              map.set(trimmed, productId);
+            }
+          }
+        };
+        addKey(productId);
+        addKey(product.identification?.sku);
+        addKey(product.details?.identifiers?.sku);
+        addKey(product.details?.identifiers?.ean);
+        addKey(product.details?.identifiers?.gtin);
+        addKey(product.details?.identifiers?.upc);
+      });
+      return map;
+    };
+    const enrichProductsWithBinSummaries = async (products = []) => {
+      if (!Array.isArray(products) || products.length === 0) return products;
+      const productIds = products
+        .map((product) => (product?.id ? String(product.id) : null))
+        .filter(Boolean);
+      if (!productIds.length) return products;
+      const skuMap = buildSkuToProductIdMap(products);
+      const summaryMap = await getProductBinSummaryMap(productIds, skuMap);
+      return products.map((product) => {
+        const key = product?.id ? String(product.id) : null;
+        if (!key || !summaryMap.has(key)) {
+          return product;
+        }
+        const summary = summaryMap.get(key);
+        const mergedInventory = {
+          ...(product.inventory || {}),
+          quantity: summary.totalQuantity,
+          physicalQuantity: summary.totalQuantity,
+        };
+        return {
+          ...product,
+          inventory: mergedInventory,
+          storageBins: summary.bins,
+        };
+      });
+    };
+    // Ghost/stub filter (same intent as backend/index.js)
+    const isGhostProduct = (product = {}) => {
+      const identification = product?.identification || {};
+      const details = product?.details || {};
+      const sku = safeString(details?.identifiers?.sku) || safeString(identification?.sku) || '';
+      const name = safeString(identification?.name) || safeString(details?.title) || '';
+      if (!safeString(product?.id) && !sku) return true;
+      if (!sku && !name) return true;
+      const hasAnyDetailsKey = details && typeof details === 'object' && Object.keys(details).length > 0;
+      const hasAnyIdentificationKey =
+        identification && typeof identification === 'object' && Object.keys(identification).length > 0;
+      if (!hasAnyDetailsKey && !hasAnyIdentificationKey) return true;
+      return false;
+    };
+    const hasBin = (p) =>
+      Boolean(p?.storage?.binCode) || (Array.isArray(p?.storageBins) && p.storageBins.length > 0);
     const pickQty = (p) => {
+      const physical = p?.inventory?.physicalQuantity;
+      if (typeof physical === 'number' && Number.isFinite(physical) && physical >= 0) return physical;
       const inv = p?.inventory?.quantity;
       if (typeof inv === 'number' && Number.isFinite(inv) && inv >= 0) return inv;
       const bins = Array.isArray(p?.storageBins) ? p.storageBins : [];
@@ -82,7 +152,8 @@ async function processRulebookJob(jobId) {
     };
 
     const all = await getAllProducts();
-    const products = Array.isArray(all) ? all.filter((p) => p?.id) : [];
+    const productsRaw = Array.isArray(all) ? all.filter((p) => p?.id && !isGhostProduct(p)) : [];
+    const products = await enrichProductsWithBinSummaries(productsRaw);
     const filtered = products
       .filter((p) => (requireBin == null ? true : requireBin ? hasBin(p) : true))
       .filter((p) => (minQty == null ? true : pickQty(p) >= minQty));
@@ -105,36 +176,38 @@ async function processRulebookJob(jobId) {
       processed += 1;
       const fresh = await getProduct(String(p.id)).catch(() => null);
       const current = fresh || p;
-      const strict = normalizeProductStrict(current, { source: 'rulebook-runner' });
-      if (!strict.ok) {
+      const normalized = normalizeProductForPolicyApply(current, { source: 'rulebook-runner' });
+      const next = normalized.product;
+
+      // Track issues (non-blocking) so you can see why some products are still non-compliant.
+      if (Array.isArray(normalized.issues) && normalized.issues.length) {
         invalid += 1;
-        if (invalidPreview.length < 25) invalidPreview.push({ id: current.id, issues: strict.issues });
-      } else {
-        const next = strict.product;
-        // Compare only fields we enforce here
-        const before = JSON.stringify({
-          t: current?.identification?.name || '',
-          h: Array.isArray(current?.details?.key_features) ? current.details.key_features : [],
-          a:
-            current?.details?.attributes && typeof current.details.attributes === 'object' && !Array.isArray(current.details.attributes)
-              ? current.details.attributes
-              : {},
-          d: current?.details?.short_description || '',
-        });
-        const after = JSON.stringify({
-          t: next?.identification?.name || '',
-          h: Array.isArray(next?.details?.key_features) ? next.details.key_features : [],
-          a:
-            next?.details?.attributes && typeof next.details.attributes === 'object' && !Array.isArray(next.details.attributes)
-              ? next.details.attributes
-              : {},
-          d: next?.details?.short_description || '',
-        });
-        if (before !== after) {
-          changed += 1;
-          changedIds.push(String(current.id));
-          await saveProduct(next, { source: 'rulebook-apply', overwriteTextFields: true });
-        }
+        if (invalidPreview.length < 25) invalidPreview.push({ id: current.id, issues: normalized.issues });
+      }
+
+      // Compare only fields we enforce here
+      const before = JSON.stringify({
+        t: current?.identification?.name || '',
+        h: Array.isArray(current?.details?.key_features) ? current.details.key_features : [],
+        a:
+          current?.details?.attributes && typeof current.details.attributes === 'object' && !Array.isArray(current.details.attributes)
+            ? current.details.attributes
+            : {},
+        d: current?.details?.short_description || '',
+      });
+      const after = JSON.stringify({
+        t: next?.identification?.name || '',
+        h: Array.isArray(next?.details?.key_features) ? next.details.key_features : [],
+        a:
+          next?.details?.attributes && typeof next.details.attributes === 'object' && !Array.isArray(next.details.attributes)
+            ? next.details.attributes
+            : {},
+        d: next?.details?.short_description || '',
+      });
+      if (before !== after) {
+        changed += 1;
+        changedIds.push(String(current.id));
+        await saveProduct(next, { source: 'rulebook-apply', overwriteTextFields: true });
       }
 
       if (processed % flushEvery === 0 || processed === selected.length) {

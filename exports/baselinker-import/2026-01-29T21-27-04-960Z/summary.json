@@ -1,0 +1,14 @@
+{
+  "outDir": "/Users/oguz/Dev/avycloud/exports/baselinker-import/2026-01-29T21-27-04-960Z",
+  "inventoryId": "78659",
+  "filters": {
+    "minQty": 1,
+    "requireBin": true,
+    "limit": null
+  },
+  "totalProducts": 641,
+  "exported": 440,
+  "withBaselinkerProductId": 440,
+  "missingBaselinkerProductId": 0,
+  "parts": 5
+}

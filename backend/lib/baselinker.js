@@ -1541,7 +1541,7 @@ async function findProductsBySkus(inventoryId, skuList = []) {
 /**
  * Einzelnes Produkt synchronisieren
  */
-async function syncProductToBaseLinker(product, inventoryId) {
+async function syncProductToBaseLinker(product, inventoryId, options = {}) {
   // Always use the effective inventory (we only operate on one BaseLinker inventory in production).
   const invId = String(inventoryId || TARGET_INVENTORY_ID);
   if (!invId) {
@@ -1772,6 +1772,13 @@ async function syncProductToBaseLinker(product, inventoryId) {
       channel_mapping_enable: true,
     });
 
+    const allowCreateIfStaleLinked =
+      (options?.allowCreateIfStaleLinked ??
+        process.env.BASELINKER_ALLOW_CREATE_IF_STALE_LINKED ??
+        'false')
+        .toString()
+        .toLowerCase() === 'true';
+
     let requestPayload = buildRequest(baseProductId || 0);
     let result;
     let retriedAfterResolvingId = false;
@@ -1794,11 +1801,14 @@ async function syncProductToBaseLinker(product, inventoryId) {
             requestPayload = buildRequest(baseProductId);
           } else {
             baseProductId = null;
-            // If linked, do NOT create a new product as a fallback.
-            if (hasOpsLink) {
+            // If linked, do NOT create a new product as a fallback unless explicitly allowed.
+            if (hasOpsLink && !allowCreateIfStaleLinked) {
               throw new Error(
                 `BaseLinker product_id is stale and no replacement could be resolved (sku=${payload?.sku || ''}). Refusing to create a new product.`
               );
+            }
+            if (hasOpsLink && allowCreateIfStaleLinked) {
+              baseProductIdSource = 'recreate_after_stale';
             }
             requestPayload = buildRequest(0);
           }
@@ -1894,7 +1904,7 @@ async function syncProductToBaseLinker(product, inventoryId) {
  *
  * This is used for "delta sync" after rule changes.
  */
-async function syncProductTextOnlyToBaseLinker(product, inventoryId) {
+async function syncProductTextOnlyToBaseLinker(product, inventoryId, options = {}) {
   const invId = String(inventoryId || TARGET_INVENTORY_ID);
   if (!invId) {
     const message = 'Inventory ID fehlt';
@@ -1973,12 +1983,24 @@ async function syncProductTextOnlyToBaseLinker(product, inventoryId) {
       }
     }
 
+    const allowCreateIfStaleLinked =
+      (options?.allowCreateIfStaleLinked ??
+        process.env.BASELINKER_ALLOW_CREATE_IF_STALE_LINKED ??
+        'false')
+        .toString()
+        .toLowerCase() === 'true';
+
     if (!baseProductId) {
-      // Delta sync must never create new products (would cause duplicates).
-      const msg = hasOpsLink
-        ? `BaseLinker linkage exists but product_id could not be resolved (sku=${sku}). Refusing delta sync.`
-        : `BaseLinker product_id could not be resolved (sku=${sku}). Refusing delta sync.`;
-      throw new Error(msg);
+      // Default: delta sync must never create new products (would cause duplicates).
+      // However, if the product was previously linked AND the ID is stale/missing, allowing recreate can unblock bulk runs.
+      if (!(hasOpsLink && allowCreateIfStaleLinked)) {
+        const msg = hasOpsLink
+          ? `BaseLinker linkage exists but product_id could not be resolved (sku=${sku}). Refusing delta sync.`
+          : `BaseLinker product_id could not be resolved (sku=${sku}). Refusing delta sync.`;
+        throw new Error(msg);
+      }
+      baseProductId = 0;
+      baseProductIdSource = 'recreate_after_stale';
     }
 
     const requestPayload = await buildTextOnlyUpdatePayload(invId, product, baseProductId);
@@ -2044,7 +2066,7 @@ async function syncProductsToBaseLinker(products, inventoryId, options = {}) {
           `[baselinker] (${current + 1}/${products.length}) syncing mode=${mode} id=${product?.id || ''} sku=${sku}`
         );
       }
-      const result = await syncOne(product, inventoryId);
+      const result = await syncOne(product, inventoryId, options);
       results[current] = result;
       if (onProgress) {
         try {

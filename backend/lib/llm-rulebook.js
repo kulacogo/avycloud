@@ -92,7 +92,76 @@ function normalizeProductStrict(product, { source = 'unknown' } = {}) {
   return { ok: true, product: next, issues: [], source };
 }
 
+/**
+ * Policy apply (best-effort but non-speculative):
+ * - Always coerce title via title-policy (even if other parts are invalid).
+ * - Highlights/attributes are only applied when their strict normalizers succeed.
+ * - Returns issues per section for reporting and for data-quality dashboards.
+ *
+ * This is intended for bulk runs (rulebook apply runner) where we prefer
+ * incremental improvements over "all-or-nothing" strict rejection.
+ */
+function normalizeProductForPolicyApply(product, { source = 'unknown' } = {}) {
+  const issues = [];
+  const next = deepClone(product);
+  const cfg = getRulebookConfigCached();
+
+  next.identification = next.identification || {};
+  next.details = next.details || {};
+
+  // Title policy (per Titel-Kategorie bucket)
+  const { inferTitleCategory } = require('./title-policy');
+  const currentTitle = safeString(next.identification.name);
+  const bucket = inferTitleCategory(next);
+  const bySchema =
+    cfg?.title?.rulesBySchema && typeof cfg.title.rulesBySchema === 'object' ? cfg.title.rulesBySchema : {};
+  const rule = (bySchema && bySchema[bucket]) || cfg?.title || {};
+  const titleMinLen = Number(rule?.minLen || 65);
+  const titleMaxLen = Number(rule?.maxLen || 80);
+  const titleSoftMax = Number(rule?.softMaxLen || 75);
+  const titleMobileMax = Number(rule?.mobileMaxLen || 60);
+
+  const coercedTitle = coerceTitleToPolicy(next, currentTitle, {
+    minLen: titleMinLen,
+    maxLen: titleMaxLen,
+    softMaxLen: titleSoftMax,
+  });
+  const titleIssues =
+    validateTitleToPolicy(next, coercedTitle, { maxLen: titleMaxLen, mobileMaxLen: titleMobileMax }) || [];
+  if (Array.isArray(titleIssues) && titleIssues.length) {
+    issues.push(...titleIssues.map((x) => `title:${x}`));
+  }
+  // Apply title regardless; if still invalid we keep issues so it shows up in dashboards.
+  next.identification.name = coercedTitle;
+
+  // Description sanitize (delete-only)
+  if (typeof next.details.short_description === 'string') {
+    next.details.short_description = sanitizeListingText(next.details.short_description);
+  }
+
+  // Highlights strict (apply only when valid)
+  const hi = normalizeHighlightsStrict(next, Array.isArray(next.details.key_features) ? next.details.key_features : []);
+  if (!hi.ok) {
+    issues.push(...hi.issues.map((x) => `highlights:${x}`));
+  } else {
+    next.details.key_features = hi.highlights;
+  }
+
+  // Attributes strict canonicalization (apply only when valid)
+  if (next.details.attributes && typeof next.details.attributes === 'object' && !Array.isArray(next.details.attributes)) {
+    const ca = canonicalizeAttributesStrict(next.details.attributes);
+    if (!ca.ok) {
+      issues.push(...ca.issues.map((x) => `attributes:${x}`));
+    } else {
+      next.details.attributes = ca.attributes;
+    }
+  }
+
+  return { ok: true, product: next, issues: Array.from(new Set(issues)), source };
+}
+
 module.exports = {
   normalizeProductStrict,
+  normalizeProductForPolicyApply,
 };
 
