@@ -106,6 +106,27 @@ function stripLeadingNonAlnum(text = '') {
   return String(text || '').replace(/^[^\p{L}\p{N}]+/gu, '');
 }
 
+function compactApplicationToken(value = '') {
+  // Keep "Anwendung" short so it fits in 70–75 char titles.
+  // Deterministic cleanup only (no guessing): remove parentheticals and take the first clause.
+  let s = safeString(value);
+  if (!s) return '';
+  // Drop parenthetical parts (often commentary like "(gerichtetes Licht)")
+  s = s.replace(/\([^)]*\)/g, ' ');
+  // Keep only first clause when multiple are provided
+  s = s.split(';')[0];
+  s = s.split(',')[0];
+  s = normalizeSpaces(s);
+  if (!s) return '';
+  // Prefer compact slashes without spaces
+  s = s.replace(/\s*\/\s*/g, '/');
+  // Optional "für" prefix if it looks like a target surface/area and doesn't already include it.
+  if (!/\bfür\b/i.test(s) && /(tisch|bar|theke|küche|bad|schlafzimmer|wohnzimmer|esstisch)/i.test(s)) {
+    s = `für ${s}`;
+  }
+  return s;
+}
+
 function normalizeForSearch(text = '') {
   // Similar to normalizeMatch but keeps spaces to allow rough order checks.
   return safeString(text)
@@ -119,6 +140,8 @@ function compactUnitToken(value = '') {
   // Make common patterns more compact: "120 x 30 cm" -> "120x30cm", "314 mm" -> "314mm"
   let s = safeString(value);
   if (!s) return '';
+  // Avoid leaking parentheses into titles (they get stripped inconsistently later).
+  s = s.replace(/[()]/g, ' ');
   s = s
     .replace(/×/g, 'x')
     .replace(/\s*x\s*/gi, 'x')
@@ -842,7 +865,8 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const voltage = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Spannung', 'Volt', 'Voltage')));
   const audience = normalizeTitleToken(pickAttr(attrs, 'Abteilung', 'Zielgruppe', 'Geschlecht'));
   const function1 = normalizeTitleToken(
-    pickAttr(
+    compactApplicationToken(
+      pickAttr(
       attrs,
       'Funktion 1',
       'Funktion',
@@ -852,6 +876,7 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       'Verwendungszweck',
       'Verwendung',
       'Geeignet für'
+      )
     )
   );
   const coreFeature = measure || capacity || power || voltage || material || '';
@@ -1004,22 +1029,31 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       return { schemaId, a, b, c };
     }
     case 'home_garden': {
-      // [PRODUKTART] [MATERIAL] [MAßE] [HAUPT-ANWENDUNG/FEATURE]
+      // Titel_Regeln.csv (Haus, Garten & Baumarkt):
+      // Template: [Produktart] [Material/Merkmal] [Maße/Menge] [Anwendung] [Marke]
+      // Priorities: Produktart -> Maß/Menge -> Anwendung -> Material (brand at end).
       pushA(productType);
-      pushA(material);
-      pushA(measure);
-      // Power/voltage often exist for lighting/furniture electronics; keep if present (factual only).
-      pushB(power);
-      pushB(voltage);
-      // Model/series is often essential in furniture/lighting (e.g. IKEA RANARP).
-      pushB(modelOrSeries);
+      // Material/Merkmal early (as template suggests)
+      pushA(material || extraFeature);
+      pushA(measure || capacity || packSize);
+
+      // Anwendung MUST appear for this bucket when we have it
       pushB(function1);
+      // Ensure brand is present (template ends with brand).
+      // Put it early in B so we don't accidentally fill up to softMax before reaching C.
+      pushB(brand);
+
+      // Additional factual specs if needed to reach 70–75 (no marketing, no SKU)
+      pushB(modelOrSeries);
+      pushB(power);
+      // Avoid voltage spam in home/garden titles; it's rarely part of the category search intent and crowds out Anwendung/Marke.
       pushB(extraFeature);
       pushB(coreFeature);
       specsFromText.forEach((t) => pushB(t));
+
+      // Keep color only if we still have space (it is not part of the CSV template).
+      // Note: brand already added above; keep condition last only if explicitly curated.
       pushC(color);
-      // CSV row wants brand at the end (if available).
-      pushC(brand);
       pushC(condition);
       return { schemaId, a, b, c };
     }

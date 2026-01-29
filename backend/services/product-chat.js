@@ -10,10 +10,12 @@ const { fetchMarketingImages } = require('../lib/marketing-images');
 const { generateImagesForProduct } = require('./image-generation');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
+const { inferTitleCategory } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { getActiveLlmConfig } = require('../lib/llm-config');
 const { getRequiredAspects } = require('../lib/ebay-taxonomy');
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
+const { getRulebookConfigCached } = require('../lib/rulebook-config');
 
 const MAX_CHAT_ITERATIONS = 5;
 const DEEP_MODE_REGEX =
@@ -1078,7 +1080,14 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
         attributes: mergedAttrs,
       },
     };
-    const coerced = coerceTitleToPolicy(draftProduct, rawTitleCandidate, { minLen: 65, maxLen: 80, softMaxLen: 75 });
+    const cfg = getRulebookConfigCached();
+    const bucket = inferTitleCategory(draftProduct);
+    const rule =
+      (cfg?.title?.rulesBySchema && cfg.title.rulesBySchema[bucket]) || cfg?.title || {};
+    const minLen = Number(rule?.minLen || 65);
+    const maxLen = Number(rule?.maxLen || 80);
+    const softMaxLen = Number(rule?.softMaxLen || 75);
+    const coerced = coerceTitleToPolicy(draftProduct, rawTitleCandidate, { minLen, maxLen, softMaxLen });
     identityPatch.name = coerced;
     // Keep an explicit title field so the frontend can display/apply it directly.
     result.title = coerced;

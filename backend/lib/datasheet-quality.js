@@ -1,5 +1,6 @@
 const { normalizeSpaces } = require('./web-search-html');
-const { validateTitleToPolicy } = require('./title-policy');
+const { validateTitleToPolicy, inferTitleCategory } = require('./title-policy');
+const { getRulebookConfigCached } = require('./rulebook-config');
 const { getRequiredAspects } = require('./ebay-taxonomy');
 
 function safeString(v) {
@@ -34,8 +35,16 @@ function evaluateEbayReady(product) {
   const features = Array.isArray(product?.details?.key_features) ? product.details.key_features.filter(Boolean) : [];
   const attrsCount = countAttributes(product?.details?.attributes);
 
-  // eBay title policy (mobile-first): hard max 80 + Priority A (Brand/ProductType/Model/MPN) inside first 60 chars.
-  const titlePolicyIssues = validateTitleToPolicy(product, title, { maxLen: 80, mobileMaxLen: 60 });
+  // Title policy (Titel_Regeln.csv via rulebook config):
+  // - bucket-specific minLen/softMax/maxLen
+  // - mobile-first: Priority A must be inside first 60 chars
+  const cfg = getRulebookConfigCached();
+  const bucket = inferTitleCategory(product);
+  const rule = (cfg?.title?.rulesBySchema && cfg.title.rulesBySchema[bucket]) || cfg?.title || {};
+  const minLen = Number(rule?.minLen || 65);
+  const maxLen = Number(rule?.maxLen || 80);
+  const mobileMaxLen = Number(rule?.mobileMaxLen || 60);
+  const titlePolicyIssues = validateTitleToPolicy(product, title, { minLen, maxLen, mobileMaxLen });
   titlePolicyIssues.forEach((code) => {
     if (code && !issues.includes(code)) issues.push(code);
   });

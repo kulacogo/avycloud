@@ -20,6 +20,7 @@ const ACTIVE_DOC_ID = 'active';
 const DEFAULT_CONFIG = {
   version: 1,
   title: {
+    // Global defaults; per-bucket overrides below match Titel_Regeln.csv.
     minLen: 65,
     softMaxLen: 75,
     maxLen: 80,
@@ -30,18 +31,23 @@ const DEFAULT_CONFIG = {
     // These are NOT marketplace/product categories; they are used to apply consistent title rules.
     // Any product must map to one of these buckets (fallback: generic).
     rulesBySchema: {
-      'Elektronik & Computer': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
-      'Auto & Motorrad (Teile)': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
-      'Mode & Bekleidung': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
-      'Schuhe & Accessoires': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
-      'Haus, Garten & Baumarkt': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
-      'Küche & Haushalt': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
-      'Beauty & Personal Care': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
-      'Sport & Freizeit': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
-      'Spielzeug & Baby': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
-      'Büro & Schreibwaren': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
-      'Beleuchtung & Elektromaterial': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
-      'Bücher & Medien': { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      // CSV: 70–75
+      'Elektronik & Computer': { minLen: 70, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      'Auto & Motorrad (Teile)': { minLen: 70, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      'Haus, Garten & Baumarkt': { minLen: 70, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      'Spielzeug & Baby': { minLen: 70, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      'Beleuchtung & Elektromaterial': { minLen: 70, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+      'Bücher & Medien': { minLen: 70, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+
+      // CSV: 65–70
+      'Mode & Bekleidung': { minLen: 65, softMaxLen: 70, maxLen: 80, mobileMaxLen: 60 },
+      'Schuhe & Accessoires': { minLen: 65, softMaxLen: 70, maxLen: 80, mobileMaxLen: 60 },
+      'Küche & Haushalt': { minLen: 65, softMaxLen: 70, maxLen: 80, mobileMaxLen: 60 },
+      'Sport & Freizeit': { minLen: 65, softMaxLen: 70, maxLen: 80, mobileMaxLen: 60 },
+      'Büro & Schreibwaren': { minLen: 65, softMaxLen: 70, maxLen: 80, mobileMaxLen: 60 },
+
+      // CSV: 60–70
+      'Beauty & Personal Care': { minLen: 60, softMaxLen: 70, maxLen: 80, mobileMaxLen: 60 },
     },
   },
   highlights: {
