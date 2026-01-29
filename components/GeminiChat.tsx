@@ -263,6 +263,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const [serpInsights, setSerpInsights] = useState<SerpInsight[]>([]);
   const [showPromptTray, setShowPromptTray] = useState(false);
   const [stickToBottom, setStickToBottom] = useState(true);
+  const [applyingChangeIds, setApplyingChangeIds] = useState<Set<string>>(new Set());
 
   const chatBodyRef = useRef<HTMLDivElement>(null);
   const suggestionKeysRef = useRef<Set<string>>(new Set());
@@ -481,11 +482,29 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     }
   };
 
-  const handleApplyChange = (id: string) => {
-    const match = pendingChanges.find((item) => item.id === id);
-    if (!match) return;
-    onApplyDatasheetChange?.(match.change);
-    setPendingChanges((prev) => prev.filter((item) => item.id !== id));
+  const handleApplyChange = (id: string, change: DatasheetChange) => {
+    if (!onApplyDatasheetChange) return;
+    if (applyingChangeIds.has(id)) return;
+    setApplyingChangeIds((prev) => new Set(prev).add(id));
+    try {
+      onApplyDatasheetChange(change);
+      // Remove from global pending list (bottom panel)
+      setPendingChanges((prev) => prev.filter((item) => item.id !== id));
+      // Remove from the specific assistant message card list so the UI matches the action
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (!msg.datasheetChanges?.length) return msg;
+          const next = msg.datasheetChanges.filter((entry) => entry.id !== id);
+          return next.length === msg.datasheetChanges.length ? msg : { ...msg, datasheetChanges: next };
+        })
+      );
+    } finally {
+      setApplyingChangeIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   };
 
   const handleApplyImage = (id: string) => {
@@ -639,6 +658,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               attachments={msg.attachments}
               datasheetChanges={msg.datasheetChanges}
               onApplyDatasheetChange={msg.datasheetChanges?.length ? handleApplyChange : undefined}
+              applyingChangeIds={applyingChangeIds}
             />
           ))}
           {isLoading && (
@@ -667,10 +687,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                       </p>
                       <button
                         type="button"
-                        onClick={() => handleApplyChange(item.id)}
-                        className="mt-2 rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
+                        onClick={() => handleApplyChange(item.id, item.change)}
+                        disabled={applyingChangeIds.has(item.id)}
+                        className="mt-2 rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500 disabled:cursor-wait disabled:opacity-60"
                       >
-                        {t('chat.ui.apply')}
+                        {applyingChangeIds.has(item.id) ? 'Übernehme…' : t('chat.ui.apply')}
                       </button>
                     </div>
                   ))}

@@ -475,6 +475,29 @@ function pickAttr(attrs, ...keys) {
   return '';
 }
 
+function compactVehicleCompat(makeRaw = '', seriesRaw = '', modelRaw = '') {
+  const make = normalizeTitleToken(makeRaw);
+  if (!make) return '';
+  const series = normalizeTitleToken(seriesRaw);
+  const model = normalizeTitleToken(modelRaw);
+
+  // Prefer series over raw model lists (they are usually much shorter / more user-friendly).
+  // Normalize list separators to slashes to save characters.
+  const compactList = (val) =>
+    normalizeSpaces(String(val || '').replace(/\s*,\s*/g, '/').replace(/\s*;\s*/g, '/').replace(/\s*\/\s*/g, '/'));
+
+  const seriesCompact = compactList(series);
+  const modelCompact = compactList(model);
+
+  // Keep vehicle part short to preserve room for MPN/specs under the 80 char hard limit.
+  // Heuristic: make + (series OR model), but truncate aggressively if it becomes too long.
+  const candidate = normalizeSpaces([make, seriesCompact || modelCompact].filter(Boolean).join(' '));
+  if (!candidate) return make;
+  if (candidate.length <= 28) return candidate;
+  // If it's too long, keep only the make (high-signal).
+  return make;
+}
+
 function collectPaddingTokens(product) {
   const attrs =
     product?.details?.attributes && typeof product.details.attributes === 'object'
@@ -516,6 +539,8 @@ function collectPaddingTokens(product) {
 
   // Auto parts / compatibility hints
   uniqPush(tokens, pickAttr(attrs, 'Einbauposition', 'Position'));
+  uniqPush(tokens, pickAttr(attrs, 'Bremssystem', 'Bremssystem (Hersteller)'));
+  uniqPush(tokens, pickAttr(attrs, 'Dicke', 'Dicke/Stärke'));
   uniqPush(tokens, pickAttr(attrs, 'Bremsscheibenart'));
   uniqPush(tokens, pickAttr(attrs, 'Lochkreis'));
   uniqPush(tokens, pickAttr(attrs, 'Einbaugröße'));
@@ -525,9 +550,9 @@ function collectPaddingTokens(product) {
   uniqPush(tokens, pickAttr(attrs, 'Anschlüsse'));
   uniqPush(tokens, pickAttr(attrs, 'Anzahl der Kanäle'));
   uniqPush(tokens, pickAttr(attrs, 'Besonderheiten'));
-  uniqPush(tokens, pickAttr(attrs, 'Fahrzeugmarke', 'Hersteller'));
-  uniqPush(tokens, pickAttr(attrs, 'Fahrzeugmodell', 'Modell'));
-  uniqPush(tokens, pickAttr(attrs, 'Baureihe'));
+  uniqPush(tokens, pickAttr(attrs, 'Fahrzeugmarke', 'Kompatible Fahrzeugmarke', 'Kompatible Fahrzeugmarken', 'Hersteller'));
+  uniqPush(tokens, pickAttr(attrs, 'Fahrzeugmodell', 'Kompatible Fahrzeugmodelle', 'Kompatible Fahrzeugmodel', 'Modell'));
+  uniqPush(tokens, pickAttr(attrs, 'Baureihe', 'Kompatible Fahrzeugserie', 'Kompatible Fahrzeugserien'));
   uniqPush(tokens, pickAttr(attrs, 'Universelle Kompatibilität'));
 
   // Books/media
@@ -771,9 +796,13 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const normSize = normalizeTitleToken(compactUnitToken(size));
   const material = normalizeTitleToken(pickAttr(attrs, 'Material', 'Obermaterial', 'Gewebeart', 'Futtermaterial'));
 
-  const vehicleMake = normalizeTitleToken(pickAttr(attrs, 'Fahrzeugmarke', 'Hersteller'));
-  const vehicleModel = normalizeTitleToken(pickAttr(attrs, 'Fahrzeugmodell'));
-  const vehicleSeries = normalizeTitleToken(pickAttr(attrs, 'Baureihe'));
+  const vehicleMake = normalizeTitleToken(
+    pickAttr(attrs, 'Fahrzeugmarke', 'Kompatible Fahrzeugmarke', 'Kompatible Fahrzeugmarken', 'Hersteller')
+  );
+  const vehicleModel = normalizeTitleToken(
+    pickAttr(attrs, 'Fahrzeugmodell', 'Kompatible Fahrzeugmodelle', 'Kompatible Fahrzeugmodel', 'Modell')
+  );
+  const vehicleSeries = normalizeTitleToken(pickAttr(attrs, 'Baureihe', 'Kompatible Fahrzeugserie', 'Kompatible Fahrzeugserien'));
   const position = normalizeTitleToken(pickAttr(attrs, 'Einbauposition', 'Position'));
 
   const measure = normalizeTitleToken(
@@ -859,13 +888,20 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
     }
     case 'auto_parts': {
       // [TEILNAME] [EINBAUORT] für [FAHRZEUG/MODELL] [OE/MPN] [SPEC]
-      const vehicle = normalizeSpaces([vehicleMake, vehicleModel, vehicleSeries].filter(Boolean).join(' '));
+      const vehicle = compactVehicleCompat(vehicleMake, vehicleSeries, vehicleModel);
       const compat = vehicle ? `für ${vehicle}` : extractAutoCompatibilityFromTitle(titleHint);
-      pushA(productType);
-      pushA(position);
-      pushA(compat);
-      pushB(brand);
-      pushB(modelOrMpn);
+      const brakeSystem = normalizeTitleToken(pickAttr(attrs, 'Bremssystem', 'Bremssystem (Hersteller)'));
+      const thickness = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Dicke', 'Dicke/Stärke')));
+      // Match Titel_Regeln.csv for Auto & Motorrad (Teile):
+      // [Hersteller] [Teil] [Position/Spec] für [Marke Modell] [OE/MPN]
+      const posSpec = normalizeTitleToken(
+        normalizeSpaces([position, brakeSystem, thickness].filter(Boolean).join(' '))
+      );
+      pushA(brand); // Hersteller
+      pushA(productType); // Teil
+      pushA(posSpec); // Position/Spec
+      pushA(compat); // für Marke/Modell
+      pushB(modelOrMpn); // OE/MPN
       extractAutoSpecTokensFromText(titleHint).forEach((t) => pushB(t));
       specsFromText.forEach((t) => pushB(t));
       pushC(condition);

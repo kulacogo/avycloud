@@ -22,7 +22,8 @@ type MessageBubbleProps = {
   timestamp: string;
   attachments?: MessageAttachment[];
   datasheetChanges?: InlineDatasheetChange[];
-  onApplyDatasheetChange?: (changeId: string) => void;
+  onApplyDatasheetChange?: (changeId: string, change: DatasheetChange) => void;
+  applyingChangeIds?: Set<string>;
 };
 
 const CODE_REGEX = /```([\w-]+)?\n([\s\S]*?)```/g;
@@ -45,6 +46,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   attachments = [],
   datasheetChanges = [],
   onApplyDatasheetChange,
+  applyingChangeIds,
 }) => {
   const describeChangeFields = (change: DatasheetChange): string[] => {
     const fields: string[] = [];
@@ -152,6 +154,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300">Übernehmbare Daten</p>
               {datasheetChanges.map((entry) => {
                 const fieldKeys = describeChangeFields(entry.change);
+                const proposedTitle =
+                  typeof entry.change?.title === 'string' && entry.change.title.trim()
+                    ? entry.change.title.trim()
+                    : typeof (entry.change as any)?.identity?.name === 'string' && (entry.change as any).identity.name.trim()
+                      ? (entry.change as any).identity.name.trim()
+                      : '';
+                const titleLen = proposedTitle ? proposedTitle.length : 0;
                 return (
                   <div key={entry.id} className="flex flex-col gap-2 rounded-lg bg-slate-900/80 p-3 text-xs text-slate-200">
                     <div>
@@ -159,14 +168,33 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       {fieldKeys.length > 0 && (
                         <p className="text-[11px] text-slate-400">Felder: {fieldKeys.join(', ')}</p>
                       )}
+                      {proposedTitle && (
+                        <div className="mt-2 rounded-lg bg-slate-950/30 p-2 ring-1 ring-slate-700/40">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                              Titel-Vorschlag (bereits nach Regeln)
+                            </p>
+                            <span
+                              className={`text-[11px] font-semibold ${
+                                titleLen > 80 ? 'text-rose-300' : titleLen < 55 ? 'text-amber-200' : 'text-slate-300'
+                              }`}
+                              title="eBay Hard-Limit: 80 Zeichen. Mobile-First: die ersten ~60 Zeichen zählen am meisten."
+                            >
+                              {titleLen}/80
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-slate-100">{proposedTitle}</p>
+                        </div>
+                      )}
                     </div>
                     {onApplyDatasheetChange && (
                       <button
                         type="button"
-                        onClick={() => onApplyDatasheetChange(entry.id)}
-                        className="self-start rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
+                        onClick={() => onApplyDatasheetChange(entry.id, entry.change)}
+                        disabled={Boolean(applyingChangeIds?.has(entry.id))}
+                        className="self-start rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500 disabled:cursor-wait disabled:opacity-60"
                       >
-                        Übernehmen
+                        {applyingChangeIds?.has(entry.id) ? 'Übernehme…' : 'Übernehmen'}
                       </button>
                     )}
                   </div>
