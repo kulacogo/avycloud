@@ -172,7 +172,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         <div className="mt-2 rounded-lg bg-slate-950/30 p-2 ring-1 ring-slate-700/40">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                              Titel-Vorschlag (bereits nach Regeln)
+                              Titel-Vorschlag (Policy-Coerce; kann noch Issues haben)
                             </p>
                             <span
                               className={`text-[11px] font-semibold ${

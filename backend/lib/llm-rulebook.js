@@ -54,7 +54,8 @@ function normalizeProductStrict(product, { source = 'unknown' } = {}) {
     maxLen: titleMaxLen,
     softMaxLen: titleSoftMax,
   });
-  const titleIssues = validateTitleToPolicy(next, coercedTitle, { maxLen: titleMaxLen, mobileMaxLen: titleMobileMax }) || [];
+  const titleIssues =
+    validateTitleToPolicy(next, coercedTitle, { minLen: titleMinLen, maxLen: titleMaxLen, mobileMaxLen: titleMobileMax }) || [];
   if (Array.isArray(titleIssues) && titleIssues.length) {
     issues.push(...titleIssues.map((x) => `title:${x}`));
   }
@@ -127,7 +128,7 @@ function normalizeProductForPolicyApply(product, { source = 'unknown' } = {}) {
     softMaxLen: titleSoftMax,
   });
   const titleIssues =
-    validateTitleToPolicy(next, coercedTitle, { maxLen: titleMaxLen, mobileMaxLen: titleMobileMax }) || [];
+    validateTitleToPolicy(next, coercedTitle, { minLen: titleMinLen, maxLen: titleMaxLen, mobileMaxLen: titleMobileMax }) || [];
   if (Array.isArray(titleIssues) && titleIssues.length) {
     issues.push(...titleIssues.map((x) => `title:${x}`));
   }

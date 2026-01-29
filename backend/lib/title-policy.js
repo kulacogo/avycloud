@@ -605,6 +605,22 @@ function inferSchemaId(product) {
       : {};
   const leaf = normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '').toLowerCase();
 
+  // 2) Auto & Motorrad (Teile) — must win early.
+  // Reason: some automotive category paths contain words like "Pflege" ("Öl, Pflege- & Schmiermittel")
+  // which previously caused misclassification as "beauty".
+  if (
+    category.includes('auto') ||
+    category.includes('kfz') ||
+    category.includes('motorrad') ||
+    category.includes('fahrzeug') ||
+    category.includes('autoteile') ||
+    /\b(motoröl|getriebeöl|ölfilter|luftfilter|brems|kupplung|stoßdämpfer|scheinwerfer|außenspiegel)\b/i.test(categoryNorm) ||
+    Boolean(pickAttr(attrs, 'K-Typ', 'Ktyp', 'K typ')) ||
+    Boolean(pickAttr(attrs, 'Fahrzeugtyp', 'Fahrzeugmarke', 'Kompatible Fahrzeugmarke'))
+  ) {
+    return 'auto_parts';
+  }
+
   // 13) Bücher
   if (pickAttr(attrs, 'Autor') || pickAttr(attrs, 'Buchtitel') || category.includes('bücher') || category.includes('buch')) {
     return 'books';
@@ -642,6 +658,7 @@ function inferSchemaId(product) {
   // 16) Haustierbedarf
   if (category.includes('tier') || category.includes('haustier')) return 'pet';
   // 7) Beauty & Personal Care
+  // NOTE: Do NOT match "pflege" when this is an automotive path (handled above).
   if (category.includes('beauty') || category.includes('kosmetik') || category.includes('pflege') || category.includes('personal care')) return 'beauty';
   // 8) Sport & Freizeit
   if (category.includes('sport') || category.includes('fitness') || category.includes('freizeit')) return 'sport';
@@ -665,10 +682,6 @@ function inferSchemaId(product) {
     (category.includes('haus') && !category.includes('haushalt'))
   ) {
     return 'home_garden';
-  }
-  // 2) Auto & Motorrad (Teile)
-  if (category.includes('auto') || category.includes('kfz') || category.includes('motorrad') || category.includes('fahrzeug') || category.includes('autoteile')) {
-    return 'auto_parts';
   }
   // 1) Elektronik & Computer
   if (category.includes('elektronik') || category.includes('computer') || category.includes('laptop') || category.includes('notebook') || category.includes('pc')) {
@@ -889,7 +902,20 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
     case 'auto_parts': {
       // [TEILNAME] [EINBAUORT] für [FAHRZEUG/MODELL] [OE/MPN] [SPEC]
       const vehicle = compactVehicleCompat(vehicleMake, vehicleSeries, vehicleModel);
-      const compat = vehicle ? `für ${vehicle}` : extractAutoCompatibilityFromTitle(titleHint);
+      // For motor oil / lubricants, "compat" is often engine/application scope, not a vehicle make/model.
+      const isOil =
+        /\b(motoröl|getriebeöl|öl)\b/i.test(productTypeRaw) ||
+        /\b(motoröl|getriebeöl|öl)\b/i.test(productType) ||
+        Boolean(pickAttr(attrs, 'Viskosität', 'SAE', 'ACEA Spezifikation', 'API Spezifikation'));
+      const oilScope =
+        normalizeTitleToken(
+          pickAttr(attrs, 'Einsatzbereich', 'Motortyp', 'Anwendungsbereich', 'Einsatz')
+        ) || '';
+      const compat = vehicle
+        ? `für ${vehicle}`
+        : isOil && oilScope
+          ? `für ${oilScope}`
+          : extractAutoCompatibilityFromTitle(titleHint);
       const brakeSystem = normalizeTitleToken(pickAttr(attrs, 'Bremssystem', 'Bremssystem (Hersteller)'));
       const thickness = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Dicke', 'Dicke/Stärke')));
       // Match Titel_Regeln.csv for Auto & Motorrad (Teile):
@@ -902,6 +928,28 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       pushA(posSpec); // Position/Spec
       pushA(compat); // für Marke/Modell
       pushB(modelOrMpn); // OE/MPN
+      // Motor oil specifics: prefer deterministic, factual tokens from attributes.
+      if (isOil) {
+        const viscosity = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Viskosität', 'SAE')));
+        const acea = normalizeTitleToken(pickAttr(attrs, 'ACEA Spezifikation', 'ACEA'));
+        const api = normalizeTitleToken(pickAttr(attrs, 'API Spezifikation', 'API'));
+        const volume =
+          normalizeTitleToken(
+            compactUnitToken(pickAttr(attrs, 'Inhalt', 'Volumen', 'Füllmenge', 'Nettofüllmenge', 'Menge'))
+          ) || '';
+        const bmw = normalizeTitleToken(pickAttr(attrs, 'BMW Freigabe', 'BMW-Freigabe'));
+        const mb = normalizeTitleToken(pickAttr(attrs, 'Mercedes-Benz Freigabe', 'MB Freigabe', 'Mercedes Freigabe'));
+        const gm = normalizeTitleToken(pickAttr(attrs, 'GM Freigabe', 'Dexos', 'Dexos Freigabe'));
+        // include model name for oils (e.g. Helix Ultra ECT C3)
+        pushB(model);
+        pushB(viscosity);
+        pushB(volume);
+        pushB(acea);
+        pushB(api);
+        pushB(bmw);
+        pushB(mb);
+        pushB(gm);
+      }
       extractAutoSpecTokensFromText(titleHint).forEach((t) => pushB(t));
       specsFromText.forEach((t) => pushB(t));
       pushC(condition);
@@ -1204,13 +1252,14 @@ function assembleTitleFromPlan(plan, { targetMinLen, softMaxLen, maxLen } = {}) 
 function validateTitleToPolicy(
   product,
   title,
-  { maxLen = DEFAULT_TITLE_MAX_LEN, mobileMaxLen = DEFAULT_TITLE_MOBILE_PRIORITY_MAX_LEN } = {}
+  { minLen = DEFAULT_TITLE_TARGET_MIN_LEN, maxLen = DEFAULT_TITLE_MAX_LEN, mobileMaxLen = DEFAULT_TITLE_MOBILE_PRIORITY_MAX_LEN } = {}
 ) {
   const issues = [];
   const raw = safeString(title);
   const t = normalizeSpaces(stripEmojis(raw));
 
   if (!t) return ['title_missing'];
+  if (Number.isFinite(Number(minLen)) && t.length < Number(minLen)) issues.push('title_too_short');
   if (t.length > maxLen) issues.push('title_too_long');
 
   if (raw && raw.match(/^[^\p{L}\p{N}]+/u)) {
