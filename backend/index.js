@@ -1086,7 +1086,7 @@ app.get('/api/admin/rulebook/apply/:id', requirePermission('admin', 'jobs.read')
 // Small dashboard metrics for Admin Panel (product coverage for GPSR and K-Typ, title health).
 // NOTE: This endpoint currently scans products (OK for ~hundreds). If the dataset grows,
 // we should move to an aggregated collection / scheduled job.
-app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.read'), async (req, res) => {
+app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'users.read'), async (req, res) => {
   try {
     const { getAllProducts } = require('./lib/firestore');
     const { getVehicleFitmentMode } = require('./lib/vehicle-fitment');
@@ -1133,6 +1133,8 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
     const cfg = getRulebookConfigCached();
     const idealMinLen = 65;
     const idealMaxLen = 75;
+    const hardMaxLen = Number(cfg?.title?.maxLen || 80);
+    const defaultMobileMaxLen = Number(cfg?.title?.mobileMaxLen || 60);
 
     let titlePolicyOk = 0;
     let titlePolicyNotOk = 0;
@@ -1202,7 +1204,9 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
       return Boolean(key && safe(attrs[key]));
     };
     const pickPrice = (p) => {
-      const v = p?.details?.pricing?.lowest_price?.price;
+      // Prefer canonical amount field, fallback to legacy price.
+      const lp = p?.details?.pricing?.lowest_price || {};
+      const v = lp?.amount != null ? lp.amount : lp?.price;
       const n = typeof v === 'string' ? Number(String(v).replace(',', '.')) : Number(v);
       return Number.isFinite(n) ? n : null;
     };
@@ -1222,11 +1226,11 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
       const rule = (bySchema && bySchema[bucket]) || cfg?.title || {};
       const minLen = Number(rule?.minLen || idealMinLen);
       const softMaxLen = Number(rule?.softMaxLen || idealMaxLen);
-      const maxLen = Number(rule?.maxLen || 80);
-      const mobileMaxLen = Number(rule?.mobileMaxLen || 60);
+      const maxLen = Number(rule?.maxLen || hardMaxLen);
+      const ruleMobileMaxLen = Number(rule?.mobileMaxLen || defaultMobileMaxLen);
 
       const coercedTitle = coerceTitleToPolicy(p, currentTitle, { minLen, maxLen, softMaxLen });
-      const issues = validateTitleToPolicy(p, coercedTitle, { maxLen, mobileMaxLen }) || [];
+      const issues = validateTitleToPolicy(p, coercedTitle, { maxLen, mobileMaxLen: ruleMobileMaxLen }) || [];
       const ok = Array.isArray(issues) ? issues.length === 0 : true;
       const len = safe(coercedTitle).length;
       const idealOk = ok && len >= idealMinLen && len <= idealMaxLen;
@@ -1346,7 +1350,7 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
           idealMinLen,
           idealMaxLen,
           hardMaxLen,
-          mobileMaxLen,
+          mobileMaxLen: defaultMobileMaxLen,
         },
         ktyp: { withValue: ktypWithValue, fitmentTotal: ktypFitmentTotal },
         gpsr: {

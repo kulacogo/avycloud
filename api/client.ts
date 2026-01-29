@@ -700,7 +700,9 @@ export const adminGetProductCoverageMetrics = async (params?: {
   const res = await fetchApi(url.toString(), { method: 'GET' });
   const result = await parseResponse(res);
   if (!res.ok || result?.ok === false) {
-    throw new Error(result?.error?.message || 'Failed to load product coverage metrics');
+    const message = result?.error?.message || 'Failed to load product coverage metrics';
+    const details = result?.error?.details;
+    throw new Error(details ? `${message} (${String(details)})` : message);
   }
   return result?.data as AdminProductCoverageMetrics;
 };
