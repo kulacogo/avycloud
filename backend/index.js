@@ -4158,13 +4158,15 @@ app.post('/api/price-refresh', async (req, res) => {
         const metaPrice = html.match(/property=["']?product:price:amount["']?\s*content=["']?([\d.,]+)/i)?.[1]
           || html.match(/itemprop=["']?price["']?\s*content=["']?([\d.,]+)/i)?.[1];
         if (metaPrice) {
-          return parseFloat(metaPrice.replace(',', '.'));
+          const v = parseFloat(metaPrice.replace(',', '.'));
+          return Number.isFinite(v) && v >= 1 ? v : null;
         }
         // Generic price regex (EUR 64,95 or 64,95 €)
         const m = html.match(/(\d{1,4}[.,]\d{2})\s*€|EUR\s*(\d{1,4}[.,]\d{2})/i);
         if (m) {
           const val = (m[1] || m[2]).replace(',', '.');
-          return parseFloat(val);
+          const v = parseFloat(val);
+          return Number.isFinite(v) && v >= 1 ? v : null;
         }
       } catch (e) {
         console.log('Price scrape failed for', url, e.message);
@@ -4199,7 +4201,11 @@ app.post('/api/price-refresh', async (req, res) => {
     }
 
     if (candidates.length === 0) {
-      return res.json({ ok: true, data: { lowest_price: product.details?.pricing?.lowest_price || { amount: 0, currency: 'EUR', sources: [] }, price_confidence: 0 } });
+      // Do NOT return or persist placeholder prices.
+      return res.json({
+        ok: false,
+        error: { code: 404, message: 'No reliable price candidates found (min €1, evidence required).' },
+      });
     }
 
     // Pick lowest price
@@ -4214,10 +4220,10 @@ app.post('/api/price-refresh', async (req, res) => {
       price_confidence: 0.8
     };
 
-    // Persist
+    // Persist (saveProduct has additional guardrails)
     product.details.pricing.lowest_price = data.lowest_price;
     product.details.pricing.price_confidence = data.price_confidence;
-    await saveProduct(product);
+    await saveProduct(product, { source: 'script' });
 
     res.json({ ok: true, data });
 

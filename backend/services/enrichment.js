@@ -2067,7 +2067,8 @@ function scorePriceCandidate(c) {
 function pickBestPriceCandidate(candidates = []) {
   if (!Array.isArray(candidates) || !candidates.length) return null;
   const enriched = candidates
-    .filter((c) => typeof c.amount === 'number' && Number.isFinite(c.amount) && c.amount > 0)
+    // Never accept micro/placeholder prices (e.g. 0.01) as real offers.
+    .filter((c) => typeof c.amount === 'number' && Number.isFinite(c.amount) && c.amount >= 1)
     .map((c) => ({ ...c, score: scorePriceCandidate(c) }));
 
   if (!enriched.length) return null;
@@ -2080,7 +2081,7 @@ function pickBestPriceCandidate(candidates = []) {
   const med = median(amounts);
   let filtered = top;
   if (med && amounts.length >= 3) {
-    const low = Math.max(0.5, med * 0.35);
+    const low = Math.max(1, med * 0.35);
     const high = med * 3.0;
     filtered = top.filter((c) => c.amount >= low && c.amount <= high);
     if (!filtered.length) {

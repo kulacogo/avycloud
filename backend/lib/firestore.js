@@ -1776,19 +1776,53 @@ async function saveProduct(product, options = {}) {
       Boolean(incomingZustand) &&
       normalizeZustand(incomingZustand) !== normalizeZustand(existingZustand);
 
-    // Merge pricing with guard (do not drop existing valid price)
+    // Merge pricing with guard (do not drop existing valid price, never accept placeholder prices).
     const existingPrice = existingDetails?.pricing?.lowest_price;
     const incomingPrice = incomingDetails?.pricing?.lowest_price;
+    const normalizeAmount = (v) => (typeof v === 'number' && Number.isFinite(v) ? Number(v) : NaN);
+    const existingAmount = normalizeAmount(existingPrice?.amount);
+    const incomingAmount = normalizeAmount(incomingPrice?.amount);
+    const existingSources = Array.isArray(existingPrice?.sources) ? existingPrice.sources.filter(Boolean) : [];
+    const incomingSources = Array.isArray(incomingPrice?.sources) ? incomingPrice.sources.filter(Boolean) : [];
+    const incomingHasEvidence = incomingSources.some((s) => s && typeof s.url === 'string' && s.url.trim());
+
+    // "Absurd" is relational, but we enforce hard best-practice invariants:
+    // - Never accept micro/placeholder prices (< 1 EUR) from automation.
+    // - Never accept prices without evidence URLs.
+    // - If an existing valid price exists, require stronger evidence to overwrite it.
     const incomingValid =
       incomingPrice &&
-      typeof incomingPrice.amount === 'number' &&
-      Number(incomingPrice.amount) > 0;
+      Number.isFinite(incomingAmount) &&
+      incomingAmount >= 1 &&
+      incomingHasEvidence;
+    const existingValid =
+      existingPrice &&
+      Number.isFinite(existingAmount) &&
+      existingAmount >= 1 &&
+      existingSources.some((s) => s && typeof s.url === 'string' && s.url.trim());
+
+    // If both exist and incoming is a large jump but has weak evidence, do not overwrite.
+    const incomingWeakEvidence = incomingSources.length < 2;
+    const largeDelta =
+      existingValid &&
+      incomingValid &&
+      (incomingAmount < existingAmount * 0.2 || incomingAmount > existingAmount * 5);
     const mergedPricing = {
       ...(existingDetails.pricing || {}),
       ...(incomingDetails.pricing || {}),
     };
-    if (existingPrice && !incomingValid) {
+    if (existingValid && (!incomingValid || (largeDelta && incomingWeakEvidence))) {
       mergedPricing.lowest_price = existingPrice;
+      // Track rejected overwrite attempts for debugging (best-effort; do not block save).
+      mergedOps.data_quality = mergedOps.data_quality || {};
+      mergedOps.data_quality.price_rejected_v1 = {
+        at_iso: new Date().toISOString(),
+        source: saveSource || (isManualSave ? 'ui' : 'system'),
+        existing_amount: existingAmount,
+        incoming_amount: Number.isFinite(incomingAmount) ? incomingAmount : null,
+        incoming_sources: incomingSources.slice(0, 3).map((s) => ({ name: s?.name || '', url: s?.url || '' })),
+        reason: !incomingValid ? 'incoming_invalid_or_placeholder' : 'large_delta_weak_evidence',
+      };
     } else if (incomingValid) {
       mergedPricing.lowest_price = {
         ...incomingPrice,
