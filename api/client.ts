@@ -389,6 +389,15 @@ export const adminRunGpsrWebEnrichJob = async (params?: {
   return (result?.data || {}) as AdminJobRunResult;
 };
 
+export const adminGetJobsStatus = async (): Promise<any> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/jobs/status`, { method: 'GET' });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to load admin jobs status');
+  }
+  return result?.data;
+};
+
 export const adminListUsers = async (limit = 500): Promise<AdminUserRecord[]> => {
   const url = new URL(`${BACKEND_URL}/api/admin/users`);
   url.searchParams.set('limit', String(Math.min(Math.max(limit, 1), 1000)));

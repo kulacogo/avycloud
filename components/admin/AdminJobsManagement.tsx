@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { adminRunGpsrWebEnrichJob } from '../../api/client';
+import React, { useEffect, useMemo, useState } from 'react';
+import { adminGetJobsStatus, adminRunGpsrWebEnrichJob } from '../../api/client';
 import { Spinner } from '../Spinner';
+import { Notice } from '../ui/Notice';
 
 export const AdminJobsManagement: React.FC = () => {
   const [apply, setApply] = useState(true);
@@ -12,6 +13,8 @@ export const AdminJobsManagement: React.FC = () => {
   const [running, setRunning] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [status, setStatus] = useState<any>(null);
 
   const payload = useMemo(
     () => ({
@@ -40,15 +43,69 @@ export const AdminJobsManagement: React.FC = () => {
     }
   };
 
+  const refreshStatus = async () => {
+    if (statusLoading) return;
+    setStatusLoading(true);
+    setError(null);
+    try {
+      const data = await adminGetJobsStatus();
+      setStatus(data);
+    } catch (e: any) {
+      setError(e?.message || String(e));
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
-        <h3 className="text-lg font-semibold text-white">Jobs</h3>
-        <p className="mt-1 text-sm text-slate-300">
-          Manuelle Trigger für Backend-Jobs (Cloud Run Jobs). Für GPSR gilt: Filter ist intern{' '}
-          <span className="font-mono">Menge ≥ minQty</span> &amp; <span className="font-mono">needsGpsr</span> –{' '}
-          <span className="font-mono">BIN</span> ist optional (Require BIN).
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-white">Jobs</h3>
+            <p className="mt-1 text-sm text-slate-300">
+              Manuelle Trigger für Backend-Jobs (Cloud Run Jobs). Für GPSR gilt: Filter ist intern{' '}
+              <span className="font-mono">Menge ≥ minQty</span> &amp; <span className="font-mono">needsGpsr</span> –{' '}
+              <span className="font-mono">BIN</span> ist optional (Require BIN).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={refreshStatus}
+            disabled={statusLoading}
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-800/80 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-60"
+          >
+            {statusLoading ? <Spinner className="w-4 h-4" /> : null}
+            Status aktualisieren
+          </button>
+        </div>
+        {status?.rulebookApply?.runningCount ? (
+          <div className="mt-3">
+            <Notice
+              tone="info"
+              title={`Rulebook Apply läuft: ${status.rulebookApply.runningCount} Job(s)`}
+              details={`Tipp: Admin → Rulebook → Apply Job Status zeigt Details pro Job. (Hier: Kurzstatus)`}
+            />
+          </div>
+        ) : null}
+        {status?.gpsrWebEnrich?.latestRun ? (
+          <div className="mt-3">
+            <Notice
+              tone="info"
+              title="GPSR Web Enrich: letzter Start"
+              details={`at: ${status.gpsrWebEnrich.latestRun.createdAt || '—'} | op: ${
+                status.gpsrWebEnrich.latestRun.operationName || '—'
+              } | done: ${
+                typeof status.gpsrWebEnrich.operation?.done === 'boolean' ? String(status.gpsrWebEnrich.operation.done) : '—'
+              }`}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4 space-y-4">
@@ -123,11 +180,7 @@ export const AdminJobsManagement: React.FC = () => {
           </label>
         </div>
 
-        {error ? (
-          <div className="rounded-lg border border-rose-800/40 bg-rose-950/30 p-3 text-sm text-rose-200">
-            {error}
-          </div>
-        ) : null}
+        {error ? <Notice tone="error" title="Fehler" details={error} /> : null}
 
         {lastResult ? (
           <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-3">

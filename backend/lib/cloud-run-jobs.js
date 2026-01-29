@@ -75,7 +75,48 @@ async function runCloudRunJob({
   return json || {};
 }
 
+async function getCloudRunOperation({ name = '' } = {}) {
+  const opName = safeString(name);
+  if (!opName) throw new Error('Missing operation name');
+  if (!opName.startsWith('projects/')) throw new Error('Operation name must be full resource name (projects/...)');
+
+  const auth = new GoogleAuth({ scopes: [RUN_SCOPE] });
+  const headers = await auth.getRequestHeaders();
+
+  const url = `https://run.googleapis.com/v2/${encodeURIComponent(opName)}`.replace(/%2F/g, '/');
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const text = await res.text().catch(() => '');
+  let json = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg =
+      json?.error?.message ||
+      json?.message ||
+      text?.slice(0, 500) ||
+      `Cloud Run operation fetch failed (${res.status})`;
+    const err = new Error(msg);
+    err.status = res.status;
+    err.details = json || text;
+    throw err;
+  }
+
+  return json || {};
+}
+
 module.exports = {
   runCloudRunJob,
+  getCloudRunOperation,
 };
 

@@ -1470,6 +1470,20 @@ app.post('/api/admin/jobs/gpsr-web-enrich/run', requirePermission('admin', 'jobs
       validateOnly: false,
     });
 
+    // Best-effort: persist run metadata so Admin UI can display "last run" and we can query operation status later.
+    try {
+      const { createJobRun } = require('./lib/admin-job-runs');
+      const opName = operation?.name ? String(operation.name).trim() : null;
+      await createJobRun({
+        type: 'gpsr-web-enrich',
+        operationName: opName,
+        params: { apply, limit, concurrency, minQty, requireBin, debug },
+        requestedBy: req.user?.email || req.user?.uid || 'admin',
+      });
+    } catch (e) {
+      console.warn('[admin-job-runs] failed to persist gpsr-web-enrich run (non-blocking):', e?.message || e);
+    }
+
     return res.json({ ok: true, data: operation });
   } catch (error) {
     console.error('Failed to run GPSR Cloud Run Job:', error);
@@ -1480,6 +1494,50 @@ app.post('/api/admin/jobs/gpsr-web-enrich/run', requirePermission('admin', 'jobs
         message: 'Failed to run GPSR Cloud Run Job',
         details: error?.message || String(error),
       },
+    });
+  }
+});
+
+// Aggregate status endpoint so Admin can see whether jobs are currently running without using GCP console.
+app.get('/api/admin/jobs/status', requirePermission('admin', 'jobs.read'), async (req, res) => {
+  try {
+    const { listJobsByStatus } = require('./lib/rulebook-apply-jobs');
+    const { listJobRunsByType } = require('./lib/admin-job-runs');
+    const { getCloudRunOperation } = require('./lib/cloud-run-jobs');
+
+    const rulebookRunning = await listJobsByStatus(['pending', 'processing']);
+
+    const gpsrRuns = await listJobRunsByType('gpsr-web-enrich', { limit: 5 });
+    const latestGpsr = gpsrRuns?.[0] || null;
+
+    let gpsrOperation = null;
+    if (latestGpsr?.operationName) {
+      try {
+        gpsrOperation = await getCloudRunOperation({ name: latestGpsr.operationName });
+      } catch (e) {
+        gpsrOperation = { ok: false, error: e?.message || String(e) };
+      }
+    }
+
+    res.json({
+      ok: true,
+      data: {
+        rulebookApply: {
+          runningCount: Array.isArray(rulebookRunning) ? rulebookRunning.length : 0,
+          running: Array.isArray(rulebookRunning) ? rulebookRunning.slice(0, 10) : [],
+        },
+        gpsrWebEnrich: {
+          latestRun: latestGpsr,
+          operation: gpsrOperation,
+          recentRuns: Array.isArray(gpsrRuns) ? gpsrRuns : [],
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Failed to load admin jobs status:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to load admin jobs status', details: error?.message || String(error) },
     });
   }
 });
