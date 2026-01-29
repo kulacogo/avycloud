@@ -8,6 +8,8 @@ import { useI18n } from '../i18n';
 import { Spinner } from './Spinner';
 import { addMediaQueryListener } from '../utils/mediaQuery';
 import { useInventoryContext } from '../context/InventoryContext';
+import { PageHeader } from './ui/PageHeader';
+import { HelpDisclosure } from './ui/HelpDisclosure';
 
 const safeCurrency = (code?: string) => {
   const c = (code || '').toString().trim().toUpperCase();
@@ -1184,7 +1186,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     try {
       const res = await uploadKTypeCsv(ktypeFile, { dryRun });
       if (!res.ok) {
-        setKtypeMessage(res.error?.message || 'K-Typ Upload fehlgeschlagen.');
+        setKtypeMessage(res.error?.message || 'K‑Typ Import fehlgeschlagen.');
         return;
       }
       setKtypeReport(res.report || null);
@@ -1631,7 +1633,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           label={t('table.actions.priceRefresh')}
           onClick={handleBatchPriceRefresh}
           disabled={selectedIds.size === 0}
-          tone="primary"
+          tone="secondary"
         />
         <ActionButton
           icon={<BarcodeIcon className="w-4 h-4" />}
@@ -1643,18 +1645,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
         {onImproveSelected && (
           <ActionButton
             icon={<OperationsIcon className="w-4 h-4" />}
-            label="Improve Selected"
+            label="Verbessern (Auswahl)"
             onClick={async () => {
               const ids = Array.from(selectedIds);
               if (!ids.length) return;
               setImproveInProgress(true);
-              setImproveMessage(`Improve + Price gestartet für ${ids.length} Produkte …`);
+              setImproveMessage(`Verbessern + Preischeck gestartet (${ids.length}) …`);
               try {
                 await runBatchPriceRefresh(ids);
                 onImproveSelected(ids);
               } catch (err: any) {
                 console.error('Improve Selected failed', err?.message || err);
-                setImproveMessage('Fehler beim Improve/Price');
+                setImproveMessage('Fehler beim Verbessern/Preischeck');
               } finally {
                 setTimeout(() => setImproveInProgress(false), 3000);
               }
@@ -1666,14 +1668,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
         {onBulkImprove && (
           <ActionButton
             icon={<OperationsIcon className="w-4 h-4" />}
-            label="Improve All"
-            onClick={onBulkImprove}
+            label="Verbessern (alle)"
+            onClick={() => {
+              const ok = window.confirm(
+                'Alle Produkte verbessern?\n\nHinweis: Das kann viele Jobs starten und dauert je nach Menge.'
+              );
+              if (!ok) return;
+              onBulkImprove();
+            }}
             tone="accent"
           />
         )}
         <ActionButton
           icon={<SheetIcon className="w-4 h-4" />}
-          label="K-Typ Upload"
+          label="K‑Typ importieren"
           onClick={() => {
             setKtypeModalOpen(true);
             setKtypeFile(null);
@@ -1710,10 +1718,28 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   return (
     <>
-      <section id="admin-table" className="p-6 bg-slate-800 rounded-lg shadow-lg">
-        <header className="mb-6">
-          <h2 className="text-2xl font-bold text-white">{t('inventory.title')}</h2>
-        </header>
+      <section id="admin-table" className="p-6 bg-slate-800 rounded-lg shadow-lg space-y-4">
+        <PageHeader
+          title={t('inventory.title')}
+          subtitle="Produkte finden, filtern, auswählen und Aktionen (Sync, Preischeck, Verbessern) ausführen."
+        >
+          <HelpDisclosure title="Wie nutze ich Inventar? (Kurz)">
+            <ul className="list-disc pl-5 space-y-1">
+              <li>
+                <b>Suchen</b> nach Name/Marke/SKU/EAN.
+              </li>
+              <li>
+                <b>Filter</b> setzen; “Erweiterte Filter” für BaseLinker/Gewicht/Reserviert/Verfügbar/BIN‑Split.
+              </li>
+              <li>
+                <b>Auswahl</b> via Checkbox – Aktionen oben wirken auf die Auswahl.
+              </li>
+              <li>
+                <b>Verbessern</b> startet KI‑Jobs; “alle” kann viele Jobs erzeugen → bewusst bestätigen.
+              </li>
+            </ul>
+          </HelpDisclosure>
+        </PageHeader>
 
         <div className="space-y-3 mb-5">
           <div className="flex flex-wrap items-center gap-3">
@@ -1947,7 +1973,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
           <div className="w-full max-w-2xl rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">K-Typ Upload (CSV)</h3>
+              <h3 className="text-lg font-semibold text-white">K‑Typ Import (CSV)</h3>
               <button
                 type="button"
                 className="text-slate-400 hover:text-white"
