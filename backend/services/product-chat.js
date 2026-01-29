@@ -992,24 +992,28 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
   if (allow.barcodes && Array.isArray(entry.barcodes)) {
     entry.barcodes.forEach(pushBarcode);
   }
-  const coerceTitle = (raw) => coerceTitleToPolicy(product, raw, { minLen: 65, maxLen: 80, softMaxLen: 75 });
+  // IMPORTANT:
+  // Title must be coerced AFTER we apply identity/attribute patches, otherwise we get mismatches like:
+  // - brand/model updated (e.g. IKEA/RANARP), but title still computed from old product state
+  // - SKU tokens leaking from attribute values/title hints
+  let rawTitleCandidate = null;
+  const considerTitleCandidate = (value) => {
+    if (!allow.title) return;
+    if (typeof value !== 'string') return;
+    const t = value.trim();
+    if (!t) return;
+    rawTitleCandidate = t;
+  };
 
-  if (allow.title && typeof entry.title === 'string' && entry.title.trim()) {
-    const coerced = coerceTitle(entry.title);
-    identityPatch.name = coerced;
-    // Keep an explicit title field so the frontend can display/apply it directly.
-    result.title = coerced;
+  if (typeof entry.title === 'string') {
+    considerTitleCandidate(entry.title);
   }
   if (entry.identity && typeof entry.identity === 'object') {
-    if (allow.title && typeof entry.identity.title === 'string' && entry.identity.title.trim()) {
-      const coerced = coerceTitle(entry.identity.title);
-      identityPatch.name = coerced;
-      result.title = coerced;
+    if (typeof entry.identity.title === 'string') {
+      considerTitleCandidate(entry.identity.title);
     }
-    if (allow.title && typeof entry.identity.name === 'string' && entry.identity.name.trim()) {
-      const coerced = coerceTitle(entry.identity.name);
-      identityPatch.name = coerced;
-      result.title = coerced;
+    if (typeof entry.identity.name === 'string') {
+      considerTitleCandidate(entry.identity.name);
     }
     if (allow.brand && typeof entry.identity.brand === 'string' && entry.identity.brand.trim()) {
       identityPatch.brand = entry.identity.brand.trim();
@@ -1056,6 +1060,28 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
     } else {
       delete result.attributes;
     }
+  }
+
+  // Now coerce title using a draft product with merged patches (so brand/model/category/attributes are considered).
+  if (rawTitleCandidate) {
+    const baseAttrs = toAttributesObject(product?.details?.attributes);
+    const patchAttrs = result.attributes && typeof result.attributes === 'object' ? result.attributes : {};
+    const mergedAttrs = { ...baseAttrs, ...patchAttrs };
+    const draftProduct = {
+      ...product,
+      identification: {
+        ...(product?.identification || {}),
+        ...(identityPatch || {}),
+      },
+      details: {
+        ...(product?.details || {}),
+        attributes: mergedAttrs,
+      },
+    };
+    const coerced = coerceTitleToPolicy(draftProduct, rawTitleCandidate, { minLen: 65, maxLen: 80, softMaxLen: 75 });
+    identityPatch.name = coerced;
+    // Keep an explicit title field so the frontend can display/apply it directly.
+    result.title = coerced;
   }
 
   if (Object.keys(identityPatch).length) {

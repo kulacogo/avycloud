@@ -151,6 +151,8 @@ function normalizeTitleToken(token = '') {
   t = stripEmojis(t);
   t = stripMarkdownDecorations(t);
   t = stripMarketingWords(t);
+  // Never allow internal SKU fragments into title tokens (CSV: "Nicht verwenden: SKU").
+  t = stripSkuNoise(t);
   // Remove bullet-like chars inside tokens (keep dots/hyphens for MPNs).
   t = t.replace(/[•·]/g, ' ');
   // Convert decimal comma to dot (avoid "8 5cm" after comma removal).
@@ -169,8 +171,9 @@ function normalizeTitleToken(token = '') {
 function isSkuLikeToken(token = '') {
   const t = safeString(token);
   if (!t) return false;
-  if (/\bSKU[\s\-_]?\d+\b/i.test(t)) return true;
-  if (/^sku[\s\-_]?\d+/i.test(t)) return true;
+  // Detect "SKU-123", "SKU 123" and also Unicode hyphen variants ("SKU‑123").
+  if (/\bSKU[\s\-_‑–—]?\d+\b/i.test(t)) return true;
+  if (/^sku[\s\-_‑–—]?\d+/i.test(t)) return true;
   return false;
 }
 
@@ -381,7 +384,8 @@ function stripMarkdownDecorations(text = '') {
 
 function stripSkuNoise(text = '') {
   return stripMarkdownDecorations(text)
-    .replace(/\bSKU[\s\-_]?\d+\b/gi, '')
+    // Remove SKU tokens, including common Unicode hyphen variants (e.g. "SKU‑123").
+    .replace(/\bSKU[\s\-_‑–—]?\d+\b/gi, '')
     .replace(/\bSKU\b/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -674,6 +678,10 @@ function inferSchemaId(product) {
   }
   // 6) Küche & Haushalt
   if (category.includes('küche') || category.includes('haushalt') || category.includes('haushaltsger')) return 'kitchen_household';
+  // Treat furniture/living as Home/Garden bucket for title rules (CSV: "Haus, Garten & Baumarkt").
+  if (category.includes('möbel') || category.includes('moebel') || category.includes('wohnen')) {
+    return 'home_garden';
+  }
   // 5) Haus, Garten & Baumarkt (avoid matching "Haushalt")
   if (
     category.includes('garten') ||
@@ -700,10 +708,9 @@ function inferTitleCategory(product) {
   const categoryNorm = normalizeForSearch(rawCategory);
   const fine = inferSchemaId(product);
 
-  // Lighting bucket (not a fine schema today, but needed for title rules)
-  if (/\b(lampe|lampen|leuchte|leuchten|beleuchtung|licht|led)\b/i.test(categoryNorm)) {
-    return 'Beleuchtung & Elektromaterial';
-  }
+  // IMPORTANT: Do NOT auto-force a CSV bucket purely from keywords (e.g. "Leuchte/Lampe").
+  // The user controls the CSV bucket via the product's category bucket. If they define lighting
+  // items as furniture ("Haus, Garten & Baumarkt"), we must respect that.
 
   // Map fine schemas -> coarse buckets
   if (fine === 'books' || fine === 'music' || fine === 'movies' || fine === 'videogames') return 'Bücher & Medien';
@@ -801,7 +808,12 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const modelOrMpn = mpn || model || oem || normalizeTitleToken(extractedCodes[0] || '');
   const modelOrSeries = series || model || modelOrMpn;
 
-  const condition = normalizeTitleToken(inferCondition(product));
+  // Never inject "NEU/Gebraucht" into titles by default. Only include condition when explicitly curated.
+  const condition = normalizeTitleToken(
+    (Boolean(product?.ops?.condition_locked) || Boolean(pickAttr(attrs, 'Zustand')))
+      ? inferCondition(product)
+      : ''
+  );
 
   const color = normalizeTitleToken(pickAttr(attrs, 'Farbe', 'Color'));
   const sizeRaw = pickAttr(attrs, 'EU-Schuhgröße', 'US-Schuhgröße', 'UK-Schuhgröße', 'Größe', 'Size');
@@ -845,7 +857,15 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const coreFeature = measure || capacity || power || voltage || material || '';
 
   const specsFromText = extractSpecTokensFromText(
-    [proposedTitle, product?.identification?.name, productTypeRaw, modelOrMpn].filter(Boolean).join(' ')
+    [
+      proposedTitle,
+      product?.identification?.name,
+      productTypeRaw,
+      modelOrMpn,
+      product?.details?.short_description,
+    ]
+      .filter(Boolean)
+      .join(' ')
   );
 
   const a = [];
@@ -988,9 +1008,18 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       pushA(productType);
       pushA(material);
       pushA(measure);
+      // Power/voltage often exist for lighting/furniture electronics; keep if present (factual only).
+      pushB(power);
+      pushB(voltage);
+      // Model/series is often essential in furniture/lighting (e.g. IKEA RANARP).
+      pushB(modelOrSeries);
       pushB(function1);
       pushB(extraFeature);
       pushB(coreFeature);
+      specsFromText.forEach((t) => pushB(t));
+      pushC(color);
+      // CSV row wants brand at the end (if available).
+      pushC(brand);
       pushC(condition);
       return { schemaId, a, b, c };
     }

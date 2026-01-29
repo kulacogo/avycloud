@@ -1,0 +1,18 @@
+{
+  "inventoryId": "78659",
+  "outDir": "/Users/oguz/Dev/avycloud/exports/baselinker-category-compare/2026-01-29T22-10-53-939Z",
+  "counts": {
+    "baselinker_products": 625,
+    "baselinker_distinct_skus": 625,
+    "avycloud_products": 641,
+    "avycloud_distinct_skus": 641,
+    "compared_distinct_skus": 643,
+    "matches": 1,
+    "mismatches": 622,
+    "missing_in_baselinker": 18,
+    "missing_in_avycloud": 2,
+    "category_empty_both": 1,
+    "category_empty_in_baselinker": 622,
+    "category_empty_in_avycloud": 0
+  }
+}
