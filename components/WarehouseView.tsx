@@ -13,6 +13,8 @@ import {
 } from '../api/client';
 import { WarehouseBin, WarehouseLayout } from '../types';
 import { PrintIcon } from './icons/Icons';
+import { PageHeader } from './ui/PageHeader';
+import { HelpDisclosure } from './ui/HelpDisclosure';
 
 const ZONE_OPTIONS: Array<'X' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XQ'> = ['X', 'XS', 'S', 'M', 'L', 'XL', 'XQ'];
 const ETAGE_OPTIONS: Array<'GA' | 'UG' | 'EG'> = ['GA', 'UG', 'EG'];
@@ -380,13 +382,30 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
 
   return (
     <section className="space-y-6">
+      <PageHeader
+        title="Inventory"
+        subtitle="Lagerplätze (BINs) ansehen, Labels drucken und Produkte aus BINs entfernen."
+      >
+        <HelpDisclosure title="Wie nutze ich Inventory? (2 Minuten)">
+          <ol className="list-decimal pl-5 space-y-1">
+            <li>
+              <b>Zone/Etage wählen</b> → du siehst alle BINs in diesem Bereich.
+            </li>
+            <li>
+              <b>BIN anklicken</b> → Details & enthaltene Produkte erscheinen rechts/unten.
+            </li>
+            <li>
+              <b>Labels drucken</b>: wähle BINs (Checkbox) oder nutze “Zone/Gang/Regal markieren”.
+            </li>
+          </ol>
+        </HelpDisclosure>
+      </PageHeader>
+
       {statusMessage && (
         <div className="bg-slate-700 text-slate-100 px-4 py-2 rounded-md shadow">{statusMessage}</div>
       )}
 
-      <div className="bg-slate-800 rounded-lg p-4 shadow border border-slate-700">
-        <h3 className="text-lg font-semibold text-white">Warehouse</h3>
-      </div>
+      {/* Header moved to PageHeader above */}
 
       <div className="bg-slate-800 rounded-lg p-4 shadow border border-slate-700 space-y-3">
         <h3 className="text-lg font-semibold text-white">BIN-Auswahl & Druck</h3>

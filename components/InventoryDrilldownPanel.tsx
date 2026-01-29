@@ -5,7 +5,8 @@ const safe = (v: any) => (typeof v === 'string' ? v.trim() : v == null ? '' : St
 
 const pickSku = (p: Product) => safe(p?.identification?.sku) || safe(p?.details?.identifiers?.sku) || '';
 const pickPrice = (p: Product) => {
-  const v: any = (p as any)?.details?.pricing?.lowest_price?.price;
+  const lp: any = (p as any)?.details?.pricing?.lowest_price || {};
+  const v: any = lp?.amount != null ? lp.amount : lp?.price;
   const n = typeof v === 'string' ? Number(String(v).replace(',', '.')) : Number(v);
   return Number.isFinite(n) ? n : null;
 };
@@ -73,7 +74,7 @@ export const InventoryDrilldownPanel: React.FC<{
         <div>
           <div className="text-sm font-semibold text-slate-100">{title}</div>
           <div className="text-xs text-slate-400">
-            Showing <span className="text-slate-200">{filtered.length}</span> of{' '}
+            Treffer: <span className="text-slate-200">{filtered.length}</span> /{' '}
             <span className="text-slate-200">{ids.length}</span>
           </div>
         </div>
@@ -81,14 +82,14 @@ export const InventoryDrilldownPanel: React.FC<{
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search in this list…"
+            placeholder="Suchen (Name, Marke, SKU, Kategorie)…"
             className="w-56 rounded-xl bg-slate-800/70 px-3 py-2 text-xs text-slate-100 ring-1 ring-slate-700/60 placeholder:text-slate-500"
           />
           <button
             type="button"
             onClick={onClose}
             className="rounded-xl bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
-            title="Close"
+            title="Schließen"
           >
             ✕
           </button>
@@ -99,10 +100,10 @@ export const InventoryDrilldownPanel: React.FC<{
         <table className="min-w-full text-left text-xs">
           <thead className="bg-slate-900/60 text-slate-300">
             <tr>
-              <th className="px-3 py-2 font-semibold">Name / Brand</th>
+              <th className="px-3 py-2 font-semibold">Produkt</th>
               <th className="px-3 py-2 font-semibold">SKU</th>
-              <th className="px-3 py-2 font-semibold">Category</th>
-              <th className="px-3 py-2 font-semibold">Price</th>
+              <th className="px-3 py-2 font-semibold">Kategorie</th>
+              <th className="px-3 py-2 font-semibold">Preis</th>
               <th className="px-3 py-2 font-semibold">GPSR</th>
               <th className="px-3 py-2 font-semibold">K‑Typ</th>
             </tr>
@@ -116,7 +117,7 @@ export const InventoryDrilldownPanel: React.FC<{
                   key={p.id}
                   className="cursor-pointer hover:bg-slate-900/40"
                   onClick={() => onOpenProductInNewTab(p.id)}
-                  title="Open datasheet in new tab"
+                  title="Produktdetails in neuem Tab öffnen"
                 >
                   <td className="px-3 py-2">
                     <div className="font-semibold text-slate-100">{safe(p?.identification?.name) || '—'}</div>
@@ -149,7 +150,7 @@ export const InventoryDrilldownPanel: React.FC<{
             {filtered.length === 0 ? (
               <tr>
                 <td className="px-3 py-6 text-center text-slate-500" colSpan={6}>
-                  No products match.
+                  Keine Treffer. Tipp: Suche nach SKU oder Marke.
                 </td>
               </tr>
             ) : null}
@@ -158,7 +159,7 @@ export const InventoryDrilldownPanel: React.FC<{
       </div>
 
       <div className="mt-2 text-[11px] text-slate-500">
-        Tip: click a row to open the ProductSheet in a new tab. This list auto-updates when you click a different metric.
+        Tipp: Klick auf eine Zeile öffnet das Produkt in einem neuen Tab. Die Liste aktualisiert sich automatisch, wenn du oben einen anderen KPI auswählst.
       </div>
     </div>
   );

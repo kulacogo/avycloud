@@ -9,6 +9,8 @@ import { AdminProductCoverageDashboard } from './AdminProductCoverageDashboard';
 import { fetchProducts } from '../../api/client';
 import type { Product } from '../../types';
 import { InventoryDrilldownPanel } from '../InventoryDrilldownPanel';
+import { PageHeader } from '../ui/PageHeader';
+import { HelpDisclosure } from '../ui/HelpDisclosure';
 
 type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'jobs' | 'rulebook';
 
@@ -46,6 +48,25 @@ export const AdminPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Admin"
+        subtitle="Benutzer, Rollen, Jobs und Regelwerk verwalten. Änderungen hier wirken systemweit."
+      >
+        <HelpDisclosure title="Was kann ich hier tun? (Kurz erklärt)">
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              <b>Data coverage</b>: Überblick über Datenqualität (Titel-Regeln, GPSR, K‑Typ, Preise) inkl. Drilldown.
+            </li>
+            <li>
+              <b>Jobs</b>: Backend-Jobs starten (z. B. GPSR-Web-Enrich für Menge ≥ 1).
+            </li>
+            <li>
+              <b>Rulebook</b>: Regeln ändern und anschließend “Initial Run + Delta Sync” starten, damit Produkte + BaseLinker aktualisiert werden.
+            </li>
+          </ul>
+        </HelpDisclosure>
+      </PageHeader>
+
       <AdminProductCoverageDashboard onOpenDrilldown={(payload) => setDrilldown(payload)} />
 
       {productsError ? (
