@@ -1168,6 +1168,7 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
     // Main categories (top-level only)
     const mainCategoryCounts = {};
     const mainCategoryIds = {};
+    const metricErrors = [];
 
     const hasBin = (p) => {
       const direct = safe(p?.storage?.binCode);
@@ -1213,6 +1214,7 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
     };
 
     for (const p of Array.isArray(products) ? products : []) {
+      try {
       const pid = safe(p?.id);
       const currentTitle = safe(p?.identification?.name);
       const bucket = inferTitleCategory(p);
@@ -1321,6 +1323,16 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
         mainCategoryIds[main] = mainCategoryIds[main] || [];
         mainCategoryIds[main].push(pid);
       }
+      } catch (e) {
+        // Never fail the whole dashboard due to one bad product shape.
+        // Keep only a small sample to avoid huge payloads.
+        if (metricErrors.length < 20) {
+          metricErrors.push({
+            id: safe(p?.id),
+            message: e?.message || String(e),
+          });
+        }
+      }
     }
 
     return res.status(200).json({
@@ -1356,6 +1368,7 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'jobs.
         categories: {
           mainCategoryCounts,
         },
+        errors: metricErrors.length ? { count: metricErrors.length, sample: metricErrors } : null,
         buckets: {
           titleOkIds,
           titleNotOkIds,
