@@ -374,6 +374,7 @@ export const adminRunGpsrWebEnrichJob = async (params?: {
   limit?: number;
   concurrency?: number;
   minQty?: number;
+  requireBin?: boolean;
   debug?: boolean;
 }): Promise<AdminJobRunResult> => {
   const res = await fetchApi(`${BACKEND_URL}/api/admin/jobs/gpsr-web-enrich/run`, {
@@ -617,7 +618,9 @@ export const adminUpdateRulebook = async (payload: { config: AdminRulebookConfig
   return result?.data;
 };
 
-export const adminApplyRulebook = async (payload: { inventoryId?: string; limit?: number; chunkSize?: number } = {}) => {
+export const adminApplyRulebook = async (
+  payload: { inventoryId?: string; limit?: number; chunkSize?: number; minQty?: number; requireBin?: boolean } = {}
+) => {
   const res = await fetchApi(`${BACKEND_URL}/api/admin/rulebook/apply`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

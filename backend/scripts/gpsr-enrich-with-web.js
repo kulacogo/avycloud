@@ -487,13 +487,14 @@ async function main() {
   // Support BOTH argv and env-based triggering (for Cloud Run Job run overrides).
   // Env flags:
   //   APPLY=1, DEBUG=1, DEBUG_FAILURES=1
-  //   LIMIT=..., CONCURRENCY=..., MIN_QTY=..., DEBUG_FAILURES_MAX=..., PRODUCT_ID=...
+  //   LIMIT=..., CONCURRENCY=..., MIN_QTY=..., REQUIRE_BIN=..., DEBUG_FAILURES_MAX=..., PRODUCT_ID=...
   const envApply = String(process.env.APPLY || '').trim() === '1';
   const envDebug = String(process.env.DEBUG || '').trim() === '1';
   const envDebugFailures = String(process.env.DEBUG_FAILURES || '').trim() === '1';
   const envLimit = String(process.env.LIMIT || '').trim();
   const envConcurrency = String(process.env.CONCURRENCY || '').trim();
   const envMinQty = String(process.env.MIN_QTY || '').trim();
+  const envRequireBin = String(process.env.REQUIRE_BIN || '').trim();
   const envDebugFailuresMax = String(process.env.DEBUG_FAILURES_MAX || '').trim();
   const envProductId = String(process.env.PRODUCT_ID || '').trim();
 
@@ -508,15 +509,29 @@ async function main() {
     parseInt(argValue('--debug-failures-max', envDebugFailuresMax || '3') || '3', 10)
   );
   const minQty = Math.max(1, parseInt(argValue('--min-qty', envMinQty || '1') || '1', 10));
+  // Default: keep legacy behavior (require BIN).
+  // Set REQUIRE_BIN=0 or pass --require-bin 0 to include products without BIN.
+  const requireBinRaw = String(argValue('--require-bin', envRequireBin || '1') || '1').trim();
+  const requireBin = requireBinRaw !== '0';
   const onlyProductId = argValue('--product-id', envProductId || null);
-  // NOTE: The "target filter" is BIN + qty>=minQty only. Price filtering was removed intentionally.
+  // NOTE: Target filter is (optional BIN) + qty>=minQty. Price filtering was removed intentionally.
 
   const debugDir = debug ? path.resolve(`backend/exports/gpsr-web-enrich/${nowStamp()}`) : null;
   if (debugDir) ensureDir(debugDir);
 
   console.log(
     JSON.stringify(
-      { action: 'gpsr-web-enrich', dryRun, limit, concurrency, debugDir, debugFailures, debugFailuresMax, minQty },
+      {
+        action: 'gpsr-web-enrich',
+        dryRun,
+        limit,
+        concurrency,
+        debugDir,
+        debugFailures,
+        debugFailuresMax,
+        minQty,
+        requireBin,
+      },
       null,
       2
     )
@@ -526,7 +541,7 @@ async function main() {
   let candidates = Array.isArray(all)
     ? all
         .filter((p) => p?.id)
-        .filter((p) => hasBin(p))
+        .filter((p) => (requireBin ? hasBin(p) : true))
         .filter((p) => pickQuantity(p) >= minQty)
         .filter((p) => needsGpsr(p))
         .slice(0, limit)
@@ -542,7 +557,11 @@ async function main() {
   }
   console.log(
     JSON.stringify(
-      { totalProducts: all?.length || 0, candidates: candidates.length, filter: { hasBin: true, minQty } },
+      {
+        totalProducts: all?.length || 0,
+        candidates: candidates.length,
+        filter: { requireBin, minQty },
+      },
       null,
       2
     )

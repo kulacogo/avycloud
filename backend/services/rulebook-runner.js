@@ -62,10 +62,31 @@ async function processRulebookJob(jobId) {
     const invId = String(jobSnapshot?.payload?.inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
     const limit = Number(jobSnapshot?.payload?.limit || 0);
     const chunkSize = Number(jobSnapshot?.payload?.chunkSize || 200);
+    const minQtyRaw = jobSnapshot?.payload?.minQty;
+    const minQty = typeof minQtyRaw === 'number' && Number.isFinite(minQtyRaw) ? Math.max(1, Math.min(9999, minQtyRaw)) : null;
+    const requireBin =
+      typeof jobSnapshot?.payload?.requireBin === 'boolean' ? jobSnapshot.payload.requireBin : null;
+
+    const safeString = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
+    const hasBin = (p) => {
+      const direct = safeString(p?.storage?.binCode);
+      if (direct) return true;
+      const bins = Array.isArray(p?.storageBins) ? p.storageBins : [];
+      return bins.some((b) => safeString(b?.code || b?.binCode) && (Number(b?.quantity) || 0) > 0);
+    };
+    const pickQty = (p) => {
+      const inv = p?.inventory?.quantity;
+      if (typeof inv === 'number' && Number.isFinite(inv) && inv >= 0) return inv;
+      const bins = Array.isArray(p?.storageBins) ? p.storageBins : [];
+      return bins.reduce((s, b) => s + (Number(b?.quantity) || 0), 0);
+    };
 
     const all = await getAllProducts();
     const products = Array.isArray(all) ? all.filter((p) => p?.id) : [];
-    const selected = limit && limit > 0 ? products.slice(0, limit) : products;
+    const filtered = products
+      .filter((p) => (requireBin == null ? true : requireBin ? hasBin(p) : true))
+      .filter((p) => (minQty == null ? true : pickQty(p) >= minQty));
+    const selected = limit && limit > 0 ? filtered.slice(0, limit) : filtered;
 
     await updateJob(jobId, {
       stage: 'processing',

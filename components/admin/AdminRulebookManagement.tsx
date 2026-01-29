@@ -38,6 +38,8 @@ export const AdminRulebookManagement: React.FC = () => {
 
   const [applyJobId, setApplyJobId] = React.useState<string>('');
   const [applyJob, setApplyJob] = React.useState<any>(null);
+  const [applyMinQty, setApplyMinQty] = React.useState<number>(1);
+  const [applyRequireBin, setApplyRequireBin] = React.useState<boolean>(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -157,7 +159,10 @@ export const AdminRulebookManagement: React.FC = () => {
     setSaving(true);
     setError(null);
     try {
-      const r = await adminApplyRulebook({});
+      const r = await adminApplyRulebook({
+        minQty: Number.isFinite(Number(applyMinQty)) ? Math.max(1, Math.min(9999, Number(applyMinQty))) : 1,
+        requireBin: Boolean(applyRequireBin),
+      });
       setApplyJobId(r.jobId);
       setApplyJob(null);
     } catch (e: any) {
@@ -523,6 +528,29 @@ export const AdminRulebookManagement: React.FC = () => {
             >
               Refresh status
             </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <label className="flex flex-col gap-1 text-sm text-slate-200">
+            <span className="text-[11px] uppercase tracking-wide text-slate-400">minQty (available)</span>
+            <input
+              type="number"
+              min={1}
+              max={9999}
+              value={applyMinQty}
+              onChange={(e) => setApplyMinQty(Number(e.target.value) || 1)}
+              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+            />
+          </label>
+
+          <label className="flex items-center gap-2 text-sm text-slate-200">
+            <input type="checkbox" checked={applyRequireBin} onChange={(e) => setApplyRequireBin(e.target.checked)} />
+            Require BIN
+          </label>
+
+          <div className="text-xs text-slate-400">
+            Filter wirkt nur auf diesen Apply-Run: verarbeitet nur Produkte mit Menge ≥ minQty (und optional BIN gesetzt). Ideal, um nur “verfügbare” Artikel zu korrigieren.
           </div>
         </div>
 

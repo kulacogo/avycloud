@@ -1059,8 +1059,11 @@ app.post('/api/admin/rulebook/apply', requirePermission('admin', 'jobs.run'), as
     const invId = String(req.body?.inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
     const limit = Number(req.body?.limit || 0);
     const chunkSize = Number(req.body?.chunkSize || 200);
+    const minQty =
+      req.body?.minQty != null && String(req.body.minQty).trim() !== '' ? Math.max(1, Math.min(9999, Number(req.body.minQty))) : null;
+    const requireBin = typeof req.body?.requireBin === 'boolean' ? req.body.requireBin : null;
     const job = await createRulebookApplyJob({
-      payload: { inventoryId: invId, limit, chunkSize },
+      payload: { inventoryId: invId, limit, chunkSize, minQty, requireBin },
       requestedBy: req.user?.email || req.user?.uid || 'admin',
     });
     enqueueRulebookJob(job.id, true);
@@ -1229,10 +1232,10 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'users
       const maxLen = Number(rule?.maxLen || hardMaxLen);
       const ruleMobileMaxLen = Number(rule?.mobileMaxLen || defaultMobileMaxLen);
 
-      const coercedTitle = coerceTitleToPolicy(p, currentTitle, { minLen, maxLen, softMaxLen });
-      const issues = validateTitleToPolicy(p, coercedTitle, { maxLen, mobileMaxLen: ruleMobileMaxLen }) || [];
+      // IMPORTANT: For metrics, validate the *stored* title, not a hypothetical coerced title.
+      const issues = validateTitleToPolicy(p, currentTitle, { maxLen, mobileMaxLen: ruleMobileMaxLen }) || [];
       const ok = Array.isArray(issues) ? issues.length === 0 : true;
-      const len = safe(coercedTitle).length;
+      const len = safe(currentTitle).length;
       const idealOk = ok && len >= idealMinLen && len <= idealMaxLen;
 
       if (ok) {
@@ -1431,6 +1434,7 @@ app.post('/api/admin/jobs/gpsr-web-enrich/run', requirePermission('admin', 'jobs
       ? Math.max(1, Math.min(10, Number(body.concurrency)))
       : null;
     const minQty = Number.isFinite(Number(body.minQty)) ? Math.max(1, Math.min(9999, Number(body.minQty))) : null;
+    const requireBin = body.requireBin === false ? false : true;
     const apply = body.apply === true;
     const debug = body.debug === true;
 
@@ -1446,6 +1450,7 @@ app.post('/api/admin/jobs/gpsr-web-enrich/run', requirePermission('admin', 'jobs
       if (limit) env.push({ name: 'LIMIT', value: String(limit) });
       if (concurrency) env.push({ name: 'CONCURRENCY', value: String(concurrency) });
       if (minQty) env.push({ name: 'MIN_QTY', value: String(minQty) });
+      env.push({ name: 'REQUIRE_BIN', value: requireBin ? '1' : '0' });
       overrides = {
         containerOverrides: [
           {

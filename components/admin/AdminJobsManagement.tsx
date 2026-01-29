@@ -7,6 +7,7 @@ export const AdminJobsManagement: React.FC = () => {
   const [limit, setLimit] = useState(200);
   const [concurrency, setConcurrency] = useState(2);
   const [minQty, setMinQty] = useState(1);
+  const [requireBin, setRequireBin] = useState(true);
   const [debug, setDebug] = useState(false);
   const [running, setRunning] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
@@ -18,9 +19,10 @@ export const AdminJobsManagement: React.FC = () => {
       limit,
       concurrency,
       minQty,
+      requireBin,
       debug,
     }),
-    [apply, limit, concurrency, minQty, debug]
+    [apply, limit, concurrency, minQty, requireBin, debug]
   );
 
   const runGpsrJob = async () => {
@@ -43,9 +45,9 @@ export const AdminJobsManagement: React.FC = () => {
       <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
         <h3 className="text-lg font-semibold text-white">Jobs</h3>
         <p className="mt-1 text-sm text-slate-300">
-          Manuelle Trigger für Backend-Jobs (Cloud Run Jobs). Für GPSR gilt: Filter ist intern <span className="font-mono">BIN gesetzt</span> &amp;{' '}
-          <span className="font-mono">Menge ≥ minQty</span> &amp;{' '}
-          <span className="font-mono">needsGpsr</span>.
+          Manuelle Trigger für Backend-Jobs (Cloud Run Jobs). Für GPSR gilt: Filter ist intern{' '}
+          <span className="font-mono">Menge ≥ minQty</span> &amp; <span className="font-mono">needsGpsr</span> –{' '}
+          <span className="font-mono">BIN</span> ist optional (Require BIN).
         </p>
       </div>
 
@@ -64,14 +66,14 @@ export const AdminJobsManagement: React.FC = () => {
             className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
           >
             {running ? <Spinner className="w-4 h-4" /> : null}
-            Run
+            Start
           </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <label className="flex items-center gap-2 text-sm text-slate-200">
             <input type="checkbox" checked={apply} onChange={(e) => setApply(e.target.checked)} />
-            Apply (write)
+            Änderungen speichern (write)
           </label>
 
           <label className="flex flex-col gap-1 text-sm text-slate-200">
@@ -108,6 +110,11 @@ export const AdminJobsManagement: React.FC = () => {
               onChange={(e) => setMinQty(Number(e.target.value) || 1)}
               className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
             />
+          </label>
+
+          <label className="flex items-center gap-2 text-sm text-slate-200">
+            <input type="checkbox" checked={requireBin} onChange={(e) => setRequireBin(e.target.checked)} />
+            Require BIN
           </label>
 
           <label className="flex items-center gap-2 text-sm text-slate-200">
