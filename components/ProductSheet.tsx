@@ -811,9 +811,24 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
       // 6. Notes
       if (change.notes) {
+        const mergeUnique = (a: any, b: any) => {
+          const left = Array.isArray(a) ? a : [];
+          const right = Array.isArray(b) ? b : [];
+          const out: string[] = [];
+          const seen = new Set<string>();
+          for (const item of [...left, ...right]) {
+            const s = item == null ? '' : String(item).trim();
+            if (!s) continue;
+            const key = s.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(s);
+          }
+          return out;
+        };
         next.notes = {
-          unsure: change.notes.unsure || next.notes?.unsure || [],
-          warnings: change.notes.warnings || next.notes?.warnings || [],
+          unsure: mergeUnique(next.notes?.unsure, change.notes.unsure),
+          warnings: mergeUnique(next.notes?.warnings, change.notes.warnings),
         };
       }
 

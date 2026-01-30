@@ -13,6 +13,13 @@ const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { inferTitleCategory } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { getActiveLlmConfig } = require('../lib/llm-config');
+const { sanitizeListingText } = require('../lib/listing-sanitize');
+const { normalizeHighlightsStrict } = require('../lib/highlights-policy');
+const {
+  canonicalizeAttributeKey,
+  canonicalizeAttributesStrict,
+  isBlockedAttributeKey,
+} = require('../lib/attribute-policy');
 const { getRequiredAspects } = require('../lib/ebay-taxonomy');
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 const { getRulebookConfigCached } = require('../lib/rulebook-config');
@@ -893,6 +900,7 @@ function sanitizeImageSuggestions(entry) {
 
 function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
   const result = {};
+  const policyIssues = [];
   const isValidSku = (value) => {
     if (typeof value !== 'string') return false;
     const trimmed = value.trim();
@@ -917,9 +925,13 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
   };
 
   if (entry.summary) result.summary = entry.summary;
-  if (allow.description && entry.short_description) result.short_description = entry.short_description;
-  if (allow.highlights && Array.isArray(entry.key_features)) {
-    result.key_features = entry.key_features.filter(Boolean);
+  if (allow.description && typeof entry.short_description === 'string') {
+    const cleaned = sanitizeListingText(entry.short_description, { maxLen: 2000 });
+    if (cleaned) {
+      result.short_description = cleaned;
+    } else {
+      policyIssues.push('description:rejected_empty_after_sanitize');
+    }
   }
   if (allow.attributes && entry.attributes) {
     if (Array.isArray(entry.attributes)) {
@@ -1055,12 +1067,83 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
         pushBarcode(value);
         continue;
       }
+      if (isBlockedAttributeKey(key)) {
+        // Never store internal/meta keys as attributes (delete-only).
+        continue;
+      }
       cleaned[key] = value;
     }
     if (Object.keys(cleaned).length) {
       result.attributes = cleaned;
     } else {
       delete result.attributes;
+    }
+  }
+
+  // Attributes strict: canonicalize + prevent conflicts against existing datasheet.
+  // We keep this best-effort (per-key) so one conflict doesn't block all other attribute improvements.
+  if (allow.attributes && result.attributes && typeof result.attributes === 'object' && !Array.isArray(result.attributes)) {
+    // 1) Canonicalize incoming-only first (detect self-conflicts).
+    const incomingStrict = canonicalizeAttributesStrict(result.attributes);
+    if (!incomingStrict.ok) {
+      policyIssues.push(...incomingStrict.issues.map((x) => `attributes:${x}`));
+      delete result.attributes;
+    } else {
+      const canonicalIncoming = incomingStrict.attributes || {};
+
+      // 2) Build a tolerant canonical view of existing attributes (no rejection; we just need conflict detection).
+      const existing = (product?.details?.attributes && typeof product.details.attributes === 'object' && !Array.isArray(product.details.attributes))
+        ? product.details.attributes
+        : {};
+      const existingCanonical = new Map(); // canonicalKeyLower -> valueLower
+      for (const [rawKey, rawVal] of Object.entries(existing)) {
+        if (!rawKey) continue;
+        if (isBlockedAttributeKey(rawKey)) continue;
+        const ck = canonicalizeAttributeKey(rawKey);
+        const ckLower = normalizeLower(ck);
+        if (!ckLower) continue;
+        const valLower = normalizeLower(rawVal);
+        if (!valLower) continue;
+        if (!existingCanonical.has(ckLower)) {
+          existingCanonical.set(ckLower, valLower);
+        }
+      }
+
+      // 3) Reject incoming keys that would conflict with existing canonical value.
+      const accepted = {};
+      for (const [k, v] of Object.entries(canonicalIncoming)) {
+        const ckLower = normalizeLower(k);
+        const incomingValLower = normalizeLower(v);
+        const existingValLower = existingCanonical.get(ckLower);
+        if (existingValLower && incomingValLower && existingValLower !== incomingValLower) {
+          policyIssues.push(`attributes:conflict_with_existing:${k}`);
+          continue;
+        }
+        accepted[k] = v;
+      }
+      if (Object.keys(accepted).length) {
+        result.attributes = accepted;
+      } else {
+        delete result.attributes;
+      }
+    }
+  }
+
+  // Highlights strict: enforce category-aware bullet rules (count/length/template, no banned text).
+  if (allow.highlights && Array.isArray(entry.key_features)) {
+    const list = entry.key_features.filter(Boolean);
+    const draftProduct = {
+      ...product,
+      identification: {
+        ...(product?.identification || {}),
+        ...(identityPatch || {}),
+      },
+    };
+    const hi = normalizeHighlightsStrict(draftProduct, list);
+    if (!hi.ok) {
+      policyIssues.push(...hi.issues.map((x) => `highlights:${x}`));
+    } else {
+      result.key_features = hi.highlights;
     }
   }
 
@@ -1101,7 +1184,7 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
   } else if (barcodeSet.size && allow.barcodes) {
     result.identity = { barcodes: Array.from(barcodeSet) };
   }
-  return result;
+  return { change: result, policyIssues };
 }
 
 // --- Main Chat Function (Gemini) ---
@@ -1314,8 +1397,16 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         }
         else if (name === 'update_product_datasheet') {
           const sanitized = sanitizeDatasheetChange(args, product, { scope });
-          datasheetChanges.push(sanitized);
-          toolResult = { acknowledged: true, applied_fields: Object.keys(sanitized) };
+          const nextChange = sanitized?.change && typeof sanitized.change === 'object' ? sanitized.change : {};
+          const issues = Array.isArray(sanitized?.policyIssues) ? sanitized.policyIssues : [];
+          if (issues.length) {
+            product.ops = product.ops || {};
+            product.ops.chat_policy_issues = Array.from(new Set([...(product.ops.chat_policy_issues || []), ...issues]));
+          }
+          if (Object.keys(nextChange).length) {
+            datasheetChanges.push(nextChange);
+          }
+          toolResult = { acknowledged: true, applied_fields: Object.keys(nextChange), policy_issues: issues.slice(0, 20) };
         }
         else if (name === 'suggest_product_images') {
           const chatImages = sanitizeImageSuggestions(args).filter((img) => {
@@ -1419,13 +1510,28 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         const updateCall = updateCalls.find((call) => call?.name === 'update_product_datasheet');
         if (updateCall?.args && typeof updateCall.args === 'object') {
           const sanitized = sanitizeDatasheetChange(updateCall.args, product, { scope });
-          if (sanitized && Object.keys(sanitized).length > 0) {
-            datasheetChanges.push(sanitized);
+          const nextChange = sanitized?.change && typeof sanitized.change === 'object' ? sanitized.change : {};
+          const issues = Array.isArray(sanitized?.policyIssues) ? sanitized.policyIssues : [];
+          if (issues.length) {
+            product.ops = product.ops || {};
+            product.ops.chat_policy_issues = Array.from(new Set([...(product.ops.chat_policy_issues || []), ...issues]));
+          }
+          if (nextChange && Object.keys(nextChange).length > 0) {
+            datasheetChanges.push(nextChange);
           }
         }
       } catch (fallbackError) {
         console.warn('Chat fallback update_product_datasheet conversion failed:', fallbackError?.message || fallbackError);
       }
+    }
+
+    // If we dropped/rejected parts due to policy, append a short user-visible hint.
+    const policyIssues = Array.isArray(product?.ops?.chat_policy_issues) ? product.ops.chat_policy_issues : [];
+    if (policyIssues.length) {
+      const preview = policyIssues.slice(0, 6);
+      const suffix = policyIssues.length > preview.length ? ` … (+${policyIssues.length - preview.length} mehr)` : '';
+      const note = `\n\nHinweis: Einige Vorschläge wurden wegen Regelwerk verworfen: ${preview.join(', ')}${suffix}`;
+      responseText = `${(responseText || '').trim()}${note}`;
     }
 
     // Make the user-visible message reflect the final coerced title (optimal 65–75, hard max 80),
