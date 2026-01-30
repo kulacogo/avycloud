@@ -1,0 +1,50 @@
+{
+  "inventoryId": "78659",
+  "counts": {
+    "baselinker_total": 625,
+    "mapped_to_avycloud": 623,
+    "unmapped": 2,
+    "title_mismatch": 69,
+    "brand_mismatch": 17
+  },
+  "outDir": "/Users/oguz/Dev/avycloud/exports/baselinker-audit/2026-01-29T23-58-34-263Z",
+  "search": "VILLA",
+  "searchHitsPreview": [
+    {
+      "bl_product_id": 449821041,
+      "sku": "SKU-8133187753",
+      "bl_name": "VILLA GRINARIO Spannbettlaken Gr. 100x200cm Baumwolle Rot",
+      "manufacturer": "Villa Grinario"
+    },
+    {
+      "bl_product_id": 449821704,
+      "sku": "SKU-0310087435",
+      "bl_name": "Villa Grinario Spannbettlaken SZ01 02144001 866200 104551 Erwachsene Ecru",
+      "manufacturer": "Villa Grinario"
+    },
+    {
+      "bl_product_id": 449821837,
+      "sku": "SKU-4204090012",
+      "bl_name": "Villa Grinario Jersey-Spannbettuch ca. 90–100x200cm Erwachsene 100x200cm",
+      "manufacturer": "Villa Grinario"
+    },
+    {
+      "bl_product_id": 449821878,
+      "sku": "SKU-1230781227",
+      "bl_name": "Villa Grinario Spannbettlaken SKU-1230781227 Gr. 100x200cm Grau Kiesel",
+      "manufacturer": "Villa Grinario"
+    },
+    {
+      "bl_product_id": 449821992,
+      "sku": "SKU-6928779778",
+      "bl_name": "Villa Grinario Spannbettlaken – Fester Sitz & weiche Baumwolle",
+      "manufacturer": "Villa Grinario"
+    },
+    {
+      "bl_product_id": 449822031,
+      "sku": "SKU-8640590578",
+      "bl_name": "Villa Grinario Spannbettlaken SKU-8640590578 Gr. 100x200cm Baumwolle",
+      "manufacturer": "Villa Grinario"
+    }
+  ]
+}

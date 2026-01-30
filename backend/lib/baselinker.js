@@ -1274,6 +1274,48 @@ async function buildTextOnlyUpdatePayload(invId, product, baseProductId) {
 }
 
 /**
+ * Build a BaseLinker update payload that only updates Parameters/extra fields:
+ * - text_fields.features (attributes + GPSR parameters + SKU)
+ * - extra_field_18699 (K-Typ)
+ *
+ * IMPORTANT: This intentionally does NOT update title/name/description/highlights/images/category/manufacturer/stock/prices.
+ */
+async function buildParamsOnlyUpdatePayload(invId, product, baseProductId) {
+  const name = pickProductName(product);
+  const fullTextFields = buildTextFields(product, name);
+  const defaultLang = (process.env.BASELINKER_TEXT_LANG || 'de').toString().trim().toLowerCase();
+
+  // Keep only params-related keys.
+  const picked = {};
+  if (fullTextFields?.features) picked.features = fullTextFields.features;
+  if (fullTextFields?.extra_field_18699) picked.extra_field_18699 = fullTextFields.extra_field_18699;
+
+  // Expand integration-specific keys ONLY for the keys we send (features).
+  const expanded = await expandTextFieldsForInventory(
+    invId,
+    picked,
+    { features: picked.features, extra_field_18699: picked.extra_field_18699 },
+    defaultLang
+  );
+
+  const overridden = await applyMarketplaceOverridesToTextFields(invId, product, expanded, defaultLang);
+
+  // Ensure we never accidentally include name/description keys.
+  Object.keys(overridden || {}).forEach((k) => {
+    if (!k) return;
+    if (/^name(\||$)/i.test(k)) delete overridden[k];
+    if (/^description/i.test(k)) delete overridden[k];
+    if (/^description_extra/i.test(k)) delete overridden[k];
+  });
+
+  return {
+    inventory_id: invId,
+    product_id: Number(baseProductId) || 0,
+    text_fields: overridden,
+  };
+}
+
+/**
  * Payload für addInventoryProduct
  */
 function pickEan(product) {
@@ -2042,6 +2084,90 @@ async function syncProductTextOnlyToBaseLinker(product, inventoryId, options = {
 }
 
 /**
+ * Params-only sync: update only BaseLinker Parameters + K-Typ extra field.
+ */
+async function syncProductParamsOnlyToBaseLinker(product, inventoryId, options = {}) {
+  const invId = String(inventoryId || TARGET_INVENTORY_ID);
+  if (!invId) {
+    const message = 'Inventory ID fehlt';
+    await logInventorySyncEvent({
+      productId: product.id,
+      inventoryId: invId,
+      status: 'failed',
+      message,
+    });
+    return { id: product.id, status: 'failed', message };
+  }
+  try {
+    const meta = await getInventoryMeta(invId);
+    const normalizedSku = normalizeSkuValue(pickSku(product) || product?.id || '');
+    const normalizedEan = normalizeEanValue(pickEan(product) || '');
+
+    // Resolve BaseLinker product_id (same logic as full sync)
+    let baseProductId = null;
+    const linkedRaw =
+      product?.ops?.baselinker?.product_id ??
+      product?.ops?.base_product_id ??
+      null;
+    const linkedPid = Number(linkedRaw);
+    const linkedInv = product?.ops?.baselinker?.synced_inventory ?? null;
+    if (
+      Number.isFinite(linkedPid) &&
+      linkedPid > 0 &&
+      (!linkedInv || String(linkedInv) === String(invId))
+    ) {
+      baseProductId = linkedPid;
+    }
+    if (!baseProductId) {
+      const indexKeys = [
+        buildSkuIndexKey('sku', normalizedSku),
+        buildSkuIndexKey('ean', normalizedEan),
+      ].filter(Boolean);
+      for (const key of indexKeys) {
+        const entry = await getSkuIndexEntry(key);
+        const pid = Number(entry?.baseProductId);
+        if (Number.isFinite(pid) && pid > 0) {
+          baseProductId = pid;
+          break;
+        }
+      }
+    }
+    if (!baseProductId && (normalizedSku || normalizedEan)) {
+      const existing = await findProductBySku(invId, normalizedSku || normalizedEan);
+      if (existing?.product_id) baseProductId = existing.product_id;
+    }
+    if (!baseProductId) {
+      // Do not create products in params-only mode.
+      return { id: product.id, status: 'failed', message: 'No BaseLinker product_id found for params_only sync' };
+    }
+
+    const requestPayload = await buildParamsOnlyUpdatePayload(invId, product, baseProductId);
+    const result = await callBaseLinker('addInventoryProduct', requestPayload);
+    if (result.status !== 'SUCCESS') {
+      return { id: product.id, status: 'failed', message: result?.error_message || 'BaseLinker update failed' };
+    }
+
+    await logInventorySyncEvent({
+      productId: product.id,
+      inventoryId: invId,
+      status: 'synced',
+      message: 'params_only',
+      meta: {
+        mode: 'params_only',
+        baseProductId,
+        inventoryId: invId,
+        hasGpsr: Boolean(product?.details?.gpsr),
+        hasKtyp: Boolean(product?.details?.attributes?.['K-Typ'] || product?.details?.attributes?.['k-typ']),
+      },
+    });
+
+    return { id: product.id, status: 'synced', message: 'params_only', baseProductId, inventoryId: invId };
+  } catch (e) {
+    return { id: product.id, status: 'failed', message: e.message };
+  }
+}
+
+/**
  * Mehrere Produkte synchronisieren
  */
 async function syncProductsToBaseLinker(products, inventoryId, options = {}) {
@@ -2052,7 +2178,12 @@ async function syncProductsToBaseLinker(products, inventoryId, options = {}) {
     (process.env.BASELINKER_SYNC_LOG_PROGRESS ?? 'false').toString().toLowerCase() === 'true';
   const onProgress = typeof options?.onProgress === 'function' ? options.onProgress : null;
   const mode = (options?.mode || 'full').toString().trim().toLowerCase();
-  const syncOne = mode === 'text_only' ? syncProductTextOnlyToBaseLinker : syncProductToBaseLinker;
+  const syncOne =
+    mode === 'text_only'
+      ? syncProductTextOnlyToBaseLinker
+      : mode === 'params_only'
+        ? syncProductParamsOnlyToBaseLinker
+        : syncProductToBaseLinker;
 
   const worker = async () => {
     while (true) {
@@ -2089,6 +2220,7 @@ async function syncProductsToBaseLinker(products, inventoryId, options = {}) {
 module.exports = {
   syncProductToBaseLinker,
   syncProductTextOnlyToBaseLinker,
+  syncProductParamsOnlyToBaseLinker,
   syncProductsToBaseLinker,
   callBaseLinker,
   findProductsBySkus,

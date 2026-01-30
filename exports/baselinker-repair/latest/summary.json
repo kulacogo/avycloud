@@ -1,0 +1,14 @@
+{
+  "inventoryId": "78659",
+  "applyAvy": true,
+  "applyBl": false,
+  "counts": {
+    "baselinker_total": 625,
+    "avy_total": 641,
+    "considered": 625,
+    "would_change": 79,
+    "changed_avy": 79,
+    "report_rows": 79
+  },
+  "outDir": "/Users/oguz/Dev/avycloud/exports/baselinker-repair/2026-01-30T00-07-35-167Z"
+}
