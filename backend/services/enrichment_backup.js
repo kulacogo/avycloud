@@ -330,7 +330,7 @@ function buildUserPrompt({
     `2. Titel & Copy marketplace-ready:`,
     `   - Titel: <=70 Zeichen, Marke + Produkttyp + Nutzen.`,
     `   - short_description: mind. 3 Absätze à 2 Sätze (Einsatz, Nutzen, Ausstattung, Material/Verarbeitung, Lieferumfang, Bedienung/Pflege).`,
-    `   - key_features: 5-7 Nutzen-Bullets (6-12 Wörter).`,
+    `   - key_features: 5-7 Nutzen-Bullets, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen).`,
     `3. Bilder: nur eindeutige, Dubletten entfernen.`,
     `4. Attribute als Liste ausgeben: [{ "key": "Material", "value": "100% Baumwolle", "value_type": "string" }, ...].`,
     `5. Bei mehreren Produkten: für jedes ein separates Objekt im products-Array (eindeutige id, bevorzugt EAN/GTIN).`,
@@ -758,7 +758,7 @@ function buildReviewPrompt(product, locale) {
     'Richtlinien:',
     '- Titel <= 70 Zeichen, beginnt mit Marke + Produktart + wichtigster Vorteil.',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Enthält Nutzen, Ausstattung, Materialien, Lieferumfang, Service/Hinweise. Keine Aufzählungen.',
-    '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, nur Nutzen/USPs, keine Verpackungshinweise, keine Dubletten.',
+    '- Highlights: 5-7 Bulletpoints, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen). Keine Verpackungshinweise, keine Dubletten.',
     '- Attribute: strukturierte Key-Value-Paare, keine ausschweifenden Sätze. Entferne Wiederholungen, korrigiere Schreibweisen (z. B. „Farbe“ statt „Farbton“).',
     '- Entferne widersprüchliche oder doppelte Aussagen. Markiere offene Punkte in warnings.',
     `- Sprache: ${locale}.`,
@@ -900,7 +900,7 @@ function buildMarketingPrompt(product, locale = 'de-DE') {
     `- Titel max. 70 Zeichen, beginnt mit Marke + Produktkategorie + Nutzen.`,
     `- Keine Erwähnungen von Verpackung, Etikett oder "sichtbar".`,
     `- Kurzbeschreibung mind. 3 Absätze à 2 Sätze, beschreibt Einsatzzwecke, Vorteile, Material, Lieferumfang, Montage/Pflege.`,
-    `- Hauptmerkmale: 5-7 Bulletpoints, 6-12 Wörter, nutzenorientiert (keine Wiederholungen, keine Verpackungs-Hinweise).`,
+    `- Hauptmerkmale: 5-7 Bulletpoints, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen). Nutzenorientiert (keine Wiederholungen, keine Verpackungs-Hinweise).`,
     `- Ton: verkaufsfördernd, seriös, faktenbasiert.`,
     `Gib das Ergebnis als JSON mit { "title": "...", "description": "...", "highlights": ["...", ...] } zurück.`
   );

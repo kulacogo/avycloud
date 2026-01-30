@@ -21,7 +21,7 @@ DEINE AUFGABEN:
       - Titel max. 70 Zeichen, beginnt mit Marke + Produkttyp + klarer Nutzen („WOLTU SH69gr Wandregal – Platzsparendes Metallregal für Home-Gyms“)
       - Kurzbeschreibung mind. 3 Absätze à 2 Sätze: Einsatzzweck, Vorteile, Lieferumfang, Materialien, Montage/Bedienung, Garantie/Hinweise
       - Keine Formulierungen wie „auf Etikett sichtbar“ oder „laut Verpackung“
-   e) Hauptmerkmale: 5-7 nutzenorientierte Bullets (6-12 Wörter), z.B. „IP66 wetterfest – ideal für Fassaden & Hofeinfahrten“
+   e) Hauptmerkmale: 5–7 Bullets, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format „[Nutzen] – [konkrete Eigenschaft/Spec]“ (Dash/En‑Dash mit Leerzeichen), z.B. „Wetterfest für außen – IP66 Schutz gegen Regen & Staub“
 
 3. KATEGORIE-SPEZIFISCHE ATTRIBUTE
    Fülle nur die für die jeweilige Produktkategorie relevanten Attribute aus.

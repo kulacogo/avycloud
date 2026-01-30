@@ -147,10 +147,45 @@ Do not wrap the JSON in markdown or prose.
 
 const defaultPrompts = buildDefaultPromptSet(identity, studioBackground);
 
+  const stripMarkdownFencesKeepContent = (text = '') => {
+    return String(text)
+      .replace(/```(?:json)?\s*/gi, '')
+      .replace(/```/g, '')
+      .trim();
+  };
+
+  const extractJsonObject = (text = '') => {
+    const s = stripMarkdownFencesKeepContent(text);
+    const start = s.indexOf('{');
+    if (start === -1) return null;
+    let depth = 0;
+    let inStr = false;
+    let escaped = false;
+    for (let i = start; i < s.length; i += 1) {
+      const ch = s[i];
+      if (inStr) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inStr = false;
+        continue;
+      }
+      if (ch === '"') {
+        inStr = true;
+        continue;
+      }
+      if (ch === '{') depth += 1;
+      if (ch === '}') depth -= 1;
+      if (depth === 0) {
+        return s.slice(start, i + 1).trim();
+      }
+    }
+    return null;
+  };
+
   try {
     const responseText = await generateText(prompt, { temperature: 0.6 });
-    const cleanJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
+    const jsonPayload = extractJsonObject(responseText) || '';
+    const parsed = jsonPayload ? JSON.parse(jsonPayload) : null;
 
     return {
       studio: {

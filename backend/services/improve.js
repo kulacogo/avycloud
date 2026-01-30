@@ -12,7 +12,7 @@ const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const { executeSerpapiToolCall } = require('./toolkit');
 const { createJob: createQualityJob } = require('../lib/quality-jobs');
 const { enqueueQualityJob } = require('./quality-runner');
-const { normalizeProductStrict } = require('../lib/llm-rulebook');
+const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
@@ -789,13 +789,25 @@ async function improveExistingProduct(productId, onProgress) {
     mergedProduct.details.key_features = sanitizeKeyFeatures(mergedProduct.details.key_features, 7);
   }
 
-  // Strict, shared rulebook enforcement (Identify/Improve/Chat must be identical).
-  // No best-effort: violations are treated as errors and must not be persisted or synced.
-  const strict = normalizeProductStrict(mergedProduct, { source: 'improve' });
-  if (!strict.ok) {
-    throw new Error(`LLM_RULEBOOK_VIOLATION: ${strict.issues.join('; ')}`);
+  // Shared rulebook apply:
+  // Improve must not get stuck in retries due to missing source facts (e.g. too-short title because brand/model unknown).
+  // We apply the same policy deterministically and persist issues for the Quality Gate instead of throwing.
+  const applied = normalizeProductForPolicyApply(mergedProduct, { source: 'improve' });
+  mergedProduct = applied.product;
+  if (Array.isArray(applied.issues) && applied.issues.length) {
+    mergedProduct.ops = mergedProduct.ops || {};
+    mergedProduct.ops.data_quality = mergedProduct.ops.data_quality || {};
+    mergedProduct.ops.data_quality.rulebook_apply_v1 = {
+      checked_at_iso: new Date().toISOString(),
+      source: 'improve',
+      issues: applied.issues,
+    };
+    // Also surface it as a user-visible warning (non-fatal).
+    mergedProduct.notes = mergedProduct.notes || {};
+    mergedProduct.notes.warnings = Array.from(
+      new Set([...(mergedProduct.notes.warnings || []), `Rulebook Issues (Improve): ${applied.issues.slice(0, 12).join('; ')}`])
+    );
   }
-  mergedProduct = strict.product;
 
   await saveProduct(mergedProduct, { source: 'job-improve', overwriteTextFields: true });
 
