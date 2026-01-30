@@ -26,6 +26,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const fetch = global.fetch || require('node-fetch');
 const PQueue = require('p-queue').default || require('p-queue');
 const { getAllProducts, getProduct, saveProduct, firestore } = require('../lib/firestore');
@@ -33,6 +34,7 @@ const { callGeminiStructured } = require('../lib/gemini-structured');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const { search } = require('../lib/evidence-provider');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
+const { createJob, Timestamp } = require('../lib/baselinker-sync-jobs');
 
 const USE_UNLOCKER = (process.env.GPSR_WEB_USE_UNLOCKER || '').toString().toLowerCase() === 'true';
 const PER_PRODUCT_TIMEOUT_MS = Math.max(
@@ -120,10 +122,10 @@ async function fetchText(url) {
   }
 }
 
-async function searchDuckDuckGo(query, { limit = 6 } = {}) {
+async function searchDuckDuckGo(query, { limit = 6, locale = 'de-DE' } = {}) {
   // Kept for backward compatibility name, but we now delegate to shared searchWeb()
   // which can use Bright Data SERP when configured.
-  const web = await search(query, { limit, locale: 'de-DE' });
+  const web = await search(query, { limit, locale });
   const results = Array.isArray(web?.results)
     ? web.results.map((r) => ({ url: r?.url || '', title: r?.title || '' })).filter((r) => r.url)
     : [];
@@ -145,6 +147,37 @@ function pickQuery(product) {
   const manufacturer = safeString(product?.details?.gpsr?.manufacturer_name) || brand;
   const tokens = [name, ean, manufacturer].filter(Boolean).join(' ');
   return normalizeSpaces(`${tokens} GPSR Hersteller Adresse E-Mail Telefon`);
+}
+
+function buildQueries(product) {
+  const name = safeString(product?.identification?.name);
+  const brand = safeString(product?.identification?.brand) || safeString(product?.details?.brand);
+  const ids = product?.details?.identifiers || {};
+  const ean = safeString(ids.ean || ids.gtin || ids.upc);
+  const manufacturerHint = safeString(product?.details?.gpsr?.manufacturer_name) || brand;
+
+  const queries = [];
+  if (name && manufacturerHint && ean) {
+    queries.push(`${name} ${manufacturerHint} ${ean} Hersteller Adresse E-Mail Telefon`);
+    queries.push(`${name} ${manufacturerHint} ${ean} Impressum Adresse E-Mail Telefon`);
+  }
+  if (name && manufacturerHint) {
+    queries.push(`${name} ${manufacturerHint} Hersteller Adresse E-Mail Telefon`);
+    queries.push(`${name} ${manufacturerHint} Impressum Kontakt Adresse E-Mail Telefon`);
+  }
+  if (manufacturerHint) {
+    queries.push(`${manufacturerHint} Impressum Adresse E-Mail Telefon`);
+    queries.push(`${manufacturerHint} Kontakt Adresse E-Mail Telefon`);
+    queries.push(`${manufacturerHint} manufacturer address email phone`);
+    queries.push(`${manufacturerHint} GPSR manufacturer address email phone`);
+  }
+  if (ean) {
+    queries.push(`${ean} manufacturer address email phone`);
+    if (manufacturerHint) queries.push(`${ean} ${manufacturerHint} kontakt impressum`);
+  }
+  queries.push(pickQuery(product));
+
+  return Array.from(new Set(queries.map((q) => normalizeSpaces(q)).filter(Boolean))).slice(0, 10);
 }
 
 function isPlaceholderValue(val) {
@@ -359,17 +392,34 @@ async function enrichOne(product, { dryRun, debugDir }) {
   if (!productId) return { ok: false, reason: 'missing_id' };
   if (!needsGpsr(product)) return { ok: false, reason: 'already_ok' };
 
-  const query = pickQuery(product);
-  const search = await searchDuckDuckGo(query, { limit: 6 });
-  const urls = (search.results || []).map((r) => r.url).filter(Boolean).slice(0, 5);
-  if (!urls.length) return { ok: false, reason: 'no_search_results', query };
+  const maxPages = Math.max(1, Math.min(5, parseInt(process.env.GPSR_ENRICH_MAX_PAGES || '3', 10) || 3));
+  const searchLimit = Math.max(3, Math.min(15, parseInt(process.env.GPSR_SEARCH_LIMIT || '8', 10) || 8));
 
-  const pages = [];
-  for (const url of urls) {
-    const res = await fetchText(url);
-    if (!res.ok || !res.body) continue;
-    pages.push({ url, via: res.via, status: res.status, text: htmlToText(res.body) });
+  const queries = buildQueries(product);
+  let query = queries[0] || pickQuery(product);
+  let urls = [];
+
+  for (const candidate of queries) {
+    const res = await searchDuckDuckGo(candidate, { limit: searchLimit, locale: 'de-DE' });
+    const found = (res.results || []).map((r) => r.url).filter(Boolean).slice(0, maxPages);
+    if (found.length) {
+      query = candidate;
+      urls = found;
+      break;
+    }
   }
+
+  if (!urls.length) return { ok: false, reason: 'no_search_results', query, query_tried: queries.length };
+
+  const pages = (
+    await Promise.all(
+      urls.map(async (url) => {
+        const res = await fetchText(url);
+        if (!res.ok || !res.body) return null;
+        return { url, via: res.via, status: res.status, text: htmlToText(res.body) };
+      })
+    )
+  ).filter(Boolean);
   if (!pages.length) return { ok: false, reason: 'no_pages_fetched', query, urls };
 
   const evidenceBlocks = pages.map((p) => `URL: ${p.url}\n${p.text.slice(0, 25_000)}`);
@@ -508,12 +558,22 @@ async function main() {
     0,
     parseInt(argValue('--debug-failures-max', envDebugFailuresMax || '3') || '3', 10)
   );
-  const minQty = Math.max(1, parseInt(argValue('--min-qty', envMinQty || '1') || '1', 10));
+  // Allow MIN_QTY=0 to include all products.
+  const minQty = Math.max(0, parseInt(argValue('--min-qty', envMinQty || '0') || '0', 10));
   // Default: keep legacy behavior (require BIN).
   // Set REQUIRE_BIN=0 or pass --require-bin 0 to include products without BIN.
   const requireBinRaw = String(argValue('--require-bin', envRequireBin || '1') || '1').trim();
   const requireBin = requireBinRaw !== '0';
   const onlyProductId = argValue('--product-id', envProductId || null);
+  const enqueueBaseLinker = argFlag('--enqueue-baselinker') || String(process.env.ENQUEUE_BASELINKER || '').trim() === '1';
+  const invId = String(argValue('--inventory-id', process.env.BASELINKER_INVENTORY_ID || '78659')).trim();
+  const chunkSize = Math.max(10, Math.min(500, Number(argValue('--chunk-size', '200') || 200)));
+  // If true, only retry products that have not been successfully enriched before.
+  // This is useful for iterative "dig deeper" runs without reprocessing already enriched items.
+  const onlyUnenriched =
+    argFlag('--only-unenriched') || String(process.env.ONLY_UNENRICHED || '').trim() === '1';
+  const prioritizeWorst =
+    argFlag('--prioritize-worst') || String(process.env.GPSR_PRIORITIZE_WORST || '').trim() === '1';
   // NOTE: Target filter is (optional BIN) + qty>=minQty. Price filtering was removed intentionally.
 
   const debugDir = debug ? path.resolve(`backend/exports/gpsr-web-enrich/${nowStamp()}`) : null;
@@ -531,6 +591,11 @@ async function main() {
         debugFailuresMax,
         minQty,
         requireBin,
+        enqueueBaseLinker: enqueueBaseLinker && !dryRun,
+        inventoryId: invId,
+        chunkSize,
+        onlyUnenriched,
+        prioritizeWorst,
       },
       null,
       2
@@ -544,8 +609,39 @@ async function main() {
         .filter((p) => (requireBin ? hasBin(p) : true))
         .filter((p) => pickQuantity(p) >= minQty)
         .filter((p) => needsGpsr(p))
-        .slice(0, limit)
+        .filter((p) => {
+          if (!onlyUnenriched) return true;
+          return !((p?.ops || {})?.data_quality || {})?.gpsr_web_enrich_v1;
+        })
     : [];
+
+  if (prioritizeWorst) {
+    const gpsrFields = [
+      'entity_country',
+      'manufacturer_city',
+      'manufacturer_address',
+      'manufacturer_name',
+      'email',
+      'manufacturer_phone',
+      'manufacturer_state_province',
+      'manufacturer_postalcode',
+    ];
+    const score = (p) => {
+      const g = p?.details?.gpsr && typeof p.details.gpsr === 'object' ? p.details.gpsr : {};
+      let missing = 0;
+      let placeholders = 0;
+      for (const f of gpsrFields) {
+        const v = safeString(g[f]);
+        if (!v) missing += 1;
+        if (isPlaceholderValue(v)) placeholders += 1;
+      }
+      // Heavier weight for placeholders; treat them as "must replace".
+      return missing + placeholders * 2;
+    };
+    candidates.sort((a, b) => score(b) - score(a));
+  }
+
+  candidates = candidates.slice(0, limit);
 
   if (onlyProductId) {
     const p = await getProduct(String(onlyProductId).trim());
@@ -570,6 +666,7 @@ async function main() {
   const queue = new PQueue({ concurrency });
   let ok = 0;
   let failed = 0;
+  const updatedIds = [];
   const reasons = {};
   let debugStored = 0;
 
@@ -583,6 +680,7 @@ async function main() {
           }).catch((e) => ({ ok: false, reason: 'timeout', error: e?.message || 'timeout' }));
           if (res.ok) {
             ok += 1;
+            if (!dryRun && res.updated) updatedIds.push(String(res.productId));
           } else {
             failed += 1;
             const r = res.reason || 'unknown';
@@ -645,6 +743,42 @@ async function main() {
   );
 
   console.log(JSON.stringify({ done: true, ok, failed, reasons }, null, 2));
+
+  if (!dryRun && enqueueBaseLinker && updatedIds.length) {
+    const chunkArray = (arr, n) => {
+      const out = [];
+      for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+      return out;
+    };
+    const chunks = chunkArray(Array.from(new Set(updatedIds)), chunkSize);
+    let enqueued = 0;
+    for (const ids of chunks) {
+      if (!ids.length) continue;
+      const jobId = crypto.randomUUID();
+      await createJob(
+        {
+          payload: { productIds: ids, inventoryId: invId, mode: 'text_only' },
+          status: 'pending',
+          stage: 'queued',
+          progress: { total: ids.length, processed: 0, synced: 0, failed: 0 },
+          requestedBy: 'script',
+          reason: 'gpsr_web_enrich_delta_sync',
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        },
+        jobId
+      );
+      enqueued += 1;
+    }
+    console.log(
+      JSON.stringify(
+        { baselinker_jobs_enqueued: enqueued, products_enqueued: updatedIds.length, inventoryId: invId, mode: 'text_only' },
+        null,
+        2
+      )
+    );
+  }
+
   // IMPORTANT: do NOT fail the whole Cloud Run Job just because some items couldn't be enriched.
   // This avoids endless retries + noisy alerts. The script already reports per-reason counts.
   if (!dryRun && argFlag('--strict-exit') && failed > 0) process.exitCode = 2;

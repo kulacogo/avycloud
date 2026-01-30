@@ -722,19 +722,9 @@ function enforceEbayAspects(product) {
   const gpsr =
     details.gpsr && typeof details.gpsr === 'object' ? { ...details.gpsr } : {};
 
-  // GPSR placeholder policy (business rule):
-  // - If GPSR fields cannot be found/enriched, persist placeholders so exports/listings remain complete.
-  // - We MUST mark placeholders in ops.data_quality so they can be replaced later when real values are found.
-  const GPSR_PLACEHOLDER = {
-    manufacturer_name: 'Muster Firma',
-    manufacturer_address: 'Musterstraße 1', // Street + house number ONLY (no PLZ/City/Country)
-    manufacturer_city: 'Musterstadt',
-    manufacturer_postalcode: '12345',
-    manufacturer_state_province: 'Musterbundesland',
-    manufacturer_phone: '+49 000 000000',
-    entity_country: 'Germany', // MUST be English name, not "DE"
-    email: 'info@muster-firma.com',
-  };
+  // GPSR normalization policy:
+  // - We normalize/split existing GPSR values deterministically.
+  // - We DO NOT invent or persist placeholders for missing GPSR fields.
 
   const normalizeCountryToEnglish = (raw) => {
     const v = safeString(raw).trim();
@@ -824,43 +814,20 @@ function enforceEbayAspects(product) {
       }
     }
 
-    // 2) Ensure mandatory-ish listing fields exist (placeholders if missing)
+    // 2) Normalize / best-effort fill WITHOUT placeholders.
+    // We only write values that are already present or can be derived deterministically (no guessing).
+    // - manufacturer_name: allow using manufacturerHint if present (from existing product data),
+    //   but never invent a generic placeholder.
     const hintName = safeString(manufacturerHint).trim();
-    if (!g.manufacturer_name) {
-      g.manufacturer_name = hintName || GPSR_PLACEHOLDER.manufacturer_name;
+    if (!g.manufacturer_name && hintName) {
+      g.manufacturer_name = hintName;
       changed.push('manufacturer_name');
     }
-    if (!g.manufacturer_address) {
-      g.manufacturer_address = GPSR_PLACEHOLDER.manufacturer_address;
-      changed.push('manufacturer_address');
-    }
-    if (!g.manufacturer_city) {
-      g.manufacturer_city = GPSR_PLACEHOLDER.manufacturer_city;
-      changed.push('manufacturer_city');
-    }
-    if (!g.manufacturer_postalcode) {
-      g.manufacturer_postalcode = GPSR_PLACEHOLDER.manufacturer_postalcode;
-      changed.push('manufacturer_postalcode');
-    }
-    if (!g.manufacturer_state_province) {
-      g.manufacturer_state_province = GPSR_PLACEHOLDER.manufacturer_state_province;
-      changed.push('manufacturer_state_province');
-    }
-    if (!g.manufacturer_phone) {
-      g.manufacturer_phone = GPSR_PLACEHOLDER.manufacturer_phone;
-      changed.push('manufacturer_phone');
-    }
+
     const normalizedCountry = normalizeCountryToEnglish(g.entity_country);
-    if (!normalizedCountry) {
-      g.entity_country = GPSR_PLACEHOLDER.entity_country;
-      changed.push('entity_country');
-    } else if (normalizedCountry !== g.entity_country) {
+    if (normalizedCountry && normalizedCountry !== g.entity_country) {
       g.entity_country = normalizedCountry;
       changed.push('entity_country');
-    }
-    if (!g.email) {
-      g.email = GPSR_PLACEHOLDER.email;
-      changed.push('email');
     }
 
     return { gpsr: g, changed };
@@ -1022,7 +989,7 @@ function enforceEbayAspects(product) {
       nextAttrs[finalKey] = normalizeBooleanishValue(val);
     });
 
-    // GPSR placeholders (no-category path)
+    // GPSR normalization (no-category path)
     try {
       const manufacturerHint =
         safeString(nextAttrs.Hersteller) ||
@@ -1037,7 +1004,7 @@ function enforceEbayAspects(product) {
       if (normalized?.changed?.length) {
         product.ops = product.ops || {};
         product.ops.data_quality = product.ops.data_quality || {};
-        product.ops.data_quality.gpsr_placeholder_v1 = {
+        product.ops.data_quality.gpsr_normalize_v1 = {
           at_iso: new Date().toISOString(),
           fields: normalized.changed,
         };
@@ -1273,7 +1240,7 @@ function enforceEbayAspects(product) {
     if (normalized?.changed?.length) {
       product.ops = product.ops || {};
       product.ops.data_quality = product.ops.data_quality || {};
-      product.ops.data_quality.gpsr_placeholder_v1 = {
+      product.ops.data_quality.gpsr_normalize_v1 = {
         at_iso: new Date().toISOString(),
         fields: normalized.changed,
       };

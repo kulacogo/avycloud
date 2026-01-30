@@ -110,12 +110,19 @@ async function listJobsByStatus(statuses = ['pending']) {
   return snapshot.docs.map(serializeJob).filter(Boolean);
 }
 
+async function listRecentJobs(limit = 25) {
+  const n = Math.max(1, Math.min(200, Number(limit) || 25));
+  const snapshot = await collection().orderBy('createdAt', 'desc').limit(n).get();
+  return snapshot.docs.map(serializeJob).filter(Boolean);
+}
+
 module.exports = {
   createJob,
   getJob,
   updateJob,
   claimJob,
   listJobsByStatus,
+  listRecentJobs,
   Timestamp,
 };
 

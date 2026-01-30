@@ -2045,10 +2045,56 @@ async function syncProductTextOnlyToBaseLinker(product, inventoryId, options = {
       baseProductIdSource = 'recreate_after_stale';
     }
 
-    const requestPayload = await buildTextOnlyUpdatePayload(invId, product, baseProductId);
-    const result = await callBaseLinker('addInventoryProduct', requestPayload);
-    if (result.status !== 'SUCCESS') {
-      throw new Error(result.error_message || 'BaseLinker returned error');
+    const tryDeltaSync = async (pid) => {
+      const requestPayload = await buildTextOnlyUpdatePayload(invId, product, pid);
+      const result = await callBaseLinker('addInventoryProduct', requestPayload);
+      return { pid, result };
+    };
+
+    let lastError = null;
+    let syncAttempt = await tryDeltaSync(baseProductId);
+    if (syncAttempt?.result?.status !== 'SUCCESS') {
+      const msg = syncAttempt?.result?.error_message || 'BaseLinker returned error';
+      lastError = msg;
+
+      // If the linked product_id is stale (deleted in BaseLinker), retry once by re-resolving via SKU/EAN.
+      if (/ERROR_PRODUCT_ID/i.test(msg) || /No product with ID/i.test(msg)) {
+        let retryPid = null;
+        let retrySource = null;
+        try {
+          const normalizedSkuRetry = normalizeSkuValue(sku);
+          const normalizedEanRetry = normalizeEanValue(pickEan(product));
+          const existingBySku = normalizedSkuRetry ? await findProductBySku(invId, normalizedSkuRetry).catch(() => null) : null;
+          const existingByEan =
+            !existingBySku?.product_id && normalizedEanRetry
+              ? await findProductBySku(invId, normalizedEanRetry).catch(() => null)
+              : null;
+          const foundPid = Number(existingBySku?.product_id || existingByEan?.product_id || 0);
+          if (Number.isFinite(foundPid) && foundPid > 0 && foundPid !== baseProductId) {
+            retryPid = foundPid;
+            retrySource = existingBySku?.product_id ? 'baselinker_lookup_retry_sku' : 'baselinker_lookup_retry_ean';
+          }
+        } catch {
+          // ignore lookup errors, fall through
+        }
+
+        // Optional last resort: recreate if the product was previously linked and operator explicitly allows it.
+        if (!retryPid && hasOpsLink && allowCreateIfStaleLinked) {
+          retryPid = 0;
+          retrySource = 'recreate_after_error_product_id';
+        }
+
+        if (retryPid !== null) {
+          baseProductId = retryPid;
+          baseProductIdSource = retrySource || baseProductIdSource;
+          syncAttempt = await tryDeltaSync(baseProductId);
+        }
+      }
+    }
+
+    if (syncAttempt?.result?.status !== 'SUCCESS') {
+      const msg2 = syncAttempt?.result?.error_message || lastError || 'BaseLinker returned error';
+      throw new Error(msg2);
     }
 
     const syncTimestamp = new Date().toISOString();
