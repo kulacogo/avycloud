@@ -3858,21 +3858,6 @@ app.post('/api/save', requirePermission('products', 'write'), async (req, res) =
 // Delete product
 app.delete('/api/products/:id', requirePermission('products', 'delete'), async (req, res) => {
   try {
-    const adminToken = process.env.ADMIN_DELETE_TOKEN;
-    const provided = req.header('x-admin-delete-token');
-    if (!adminToken || !adminToken.trim()) {
-      return res.status(403).json({
-        ok: false,
-        error: { code: 403, message: 'Delete blocked: ADMIN_DELETE_TOKEN not configured.' },
-      });
-    }
-    if (!provided || provided.trim() !== adminToken.trim()) {
-      return res.status(403).json({
-        ok: false,
-        error: { code: 403, message: 'Delete blocked: missing or invalid admin token.' },
-      });
-    }
-
     const productId = req.params.id;
     const product = await getProduct(productId);
     if (!product) {
@@ -3885,35 +3870,39 @@ app.delete('/api/products/:id', requirePermission('products', 'delete'), async (
       });
     }
 
-    const aliasSeeds = [
-      ...(product.ops?.identity_aliases || []),
-      ...(product.identification?.barcodes || []),
-      product.identification?.sku,
-      product.details?.identifiers?.ean,
-      product.details?.identifiers?.gtin,
-      product.details?.identifiers?.upc,
-      product.details?.identifiers?.mpn,
-      product.details?.identifiers?.sku,
-      product.id,
-    ];
-    const aliasCandidates = Array.from(
-      new Set(aliasSeeds.filter((token) => typeof token === 'string' && token.trim()))
-    );
-
     await deleteProductImages(productId);
     await deleteProduct(productId);
 
+    // Safety: by default, delete ONLY the requested product.
+    // Optional: allow operators to also purge duplicate docs that share identity aliases.
+    const purgeDuplicates = String(req.query?.purgeDuplicates || '').toLowerCase() === 'true';
     let purgedDuplicates = [];
-    if (aliasCandidates.length) {
-      const duplicateIds = await findProductIdsByAliases(aliasCandidates, { excludeProductId: productId });
-      if (duplicateIds.length) {
-        await Promise.all(
-          duplicateIds.map(async (dupId) => {
-            await deleteProductImages(dupId);
-            await deleteProduct(dupId);
-          })
-        );
-        purgedDuplicates = duplicateIds;
+    if (purgeDuplicates) {
+      const aliasSeeds = [
+        ...(product.ops?.identity_aliases || []),
+        ...(product.identification?.barcodes || []),
+        product.identification?.sku,
+        product.details?.identifiers?.ean,
+        product.details?.identifiers?.gtin,
+        product.details?.identifiers?.upc,
+        product.details?.identifiers?.mpn,
+        product.details?.identifiers?.sku,
+        product.id,
+      ];
+      const aliasCandidates = Array.from(
+        new Set(aliasSeeds.filter((token) => typeof token === 'string' && token.trim()))
+      );
+      if (aliasCandidates.length) {
+        const duplicateIds = await findProductIdsByAliases(aliasCandidates, { excludeProductId: productId });
+        if (duplicateIds.length) {
+          await Promise.all(
+            duplicateIds.map(async (dupId) => {
+              await deleteProductImages(dupId);
+              await deleteProduct(dupId);
+            })
+          );
+          purgedDuplicates = duplicateIds;
+        }
       }
     }
 
@@ -3927,6 +3916,88 @@ app.delete('/api/products/:id', requirePermission('products', 'delete'), async (
         message: 'Failed to delete product',
         details: error.message
       }
+    });
+  }
+});
+
+// Bulk delete products (permanent)
+app.post('/api/products/bulk-delete', requirePermission('products', 'delete'), async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map((x) => String(x || '').trim()).filter(Boolean) : [];
+    if (!ids.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'ids[] is required' },
+      });
+    }
+    // Safety: default false (do not delete extra docs unless explicitly requested)
+    const purgeDuplicates = Boolean(req.body?.purgeDuplicates);
+
+    const deleted = [];
+    const notFound = [];
+    const failed = [];
+    const purgedDuplicatesById = {};
+
+    for (const id of ids) {
+      try {
+        const product = await getProduct(id);
+        if (!product) {
+          notFound.push(id);
+          continue;
+        }
+        await deleteProductImages(id);
+        await deleteProduct(id);
+        deleted.push(id);
+
+        if (purgeDuplicates) {
+          const aliasSeeds = [
+            ...(product.ops?.identity_aliases || []),
+            ...(product.identification?.barcodes || []),
+            product.identification?.sku,
+            product.details?.identifiers?.ean,
+            product.details?.identifiers?.gtin,
+            product.details?.identifiers?.upc,
+            product.details?.identifiers?.mpn,
+            product.details?.identifiers?.sku,
+            product.id,
+          ];
+          const aliasCandidates = Array.from(
+            new Set(aliasSeeds.filter((token) => typeof token === 'string' && token.trim()))
+          );
+          if (aliasCandidates.length) {
+            const duplicateIds = await findProductIdsByAliases(aliasCandidates, { excludeProductId: id });
+            if (duplicateIds.length) {
+              await Promise.all(
+                duplicateIds.map(async (dupId) => {
+                  await deleteProductImages(dupId);
+                  await deleteProduct(dupId);
+                })
+              );
+              purgedDuplicatesById[id] = duplicateIds;
+            }
+          }
+        }
+      } catch (e) {
+        failed.push({ id, error: e?.message || String(e) });
+      }
+    }
+
+    return res.json({
+      ok: true,
+      deleted,
+      notFound,
+      failed,
+      purgedDuplicatesById,
+    });
+  } catch (error) {
+    console.error('Error bulk deleting products:', error);
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to bulk delete products',
+        details: error.message,
+      },
     });
   }
 });

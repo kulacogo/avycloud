@@ -2239,6 +2239,45 @@ export const deleteProduct = async (productId: string): Promise<{ ok: boolean; e
   }
 };
 
+export const deleteProductsBulk = async (
+  ids: string[],
+  opts?: { purgeDuplicates?: boolean }
+): Promise<{
+  ok: boolean;
+  deleted?: string[];
+  notFound?: string[];
+  failed?: Array<{ id: string; error: string }>;
+  error?: { code: number; message: string };
+}> => {
+  let response: Response | undefined;
+  try {
+    const cleanIds = Array.from(new Set((ids || []).map((x) => String(x || '').trim()).filter(Boolean)));
+    response = await fetchApi(`${BACKEND_URL}/api/products/bulk-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ids: cleanIds,
+        purgeDuplicates: Boolean(opts?.purgeDuplicates),
+      }),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok || result?.ok === false) {
+      const message = result?.error?.message || response.statusText || 'Bulk delete failed';
+      return { ok: false, error: { code: response.status || 500, message } };
+    }
+    return {
+      ok: true,
+      deleted: Array.isArray(result?.deleted) ? result.deleted : [],
+      notFound: Array.isArray(result?.notFound) ? result.notFound : [],
+      failed: Array.isArray(result?.failed) ? result.failed : [],
+    };
+  } catch (error) {
+    console.error('Failed to bulk delete products:', error);
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
 export const fetchInventories = async (params: { search?: string; vendor?: string; limit?: number } = {}): Promise<InventoryRecord[]> => {
   const query = new URLSearchParams();
   if (params.search) query.set('search', params.search);

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { refreshPrice, syncToBaseLinker, deleteProduct, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv } from '../api/client';
+import { refreshPrice, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
@@ -1152,16 +1152,21 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const executeBatchDelete = async (ids: string[]) => {
     if (!ids.length) return;
+    const res = await deleteProductsBulk(ids, { purgeDuplicates: false });
     const remaining = [...products];
     const failures: string[] = [];
-    for (const id of ids) {
-      const res = await deleteProduct(id);
-      if (res.ok) {
-        const idx = remaining.findIndex((p) => p.id === id);
-        if (idx > -1) remaining.splice(idx, 1);
-      } else {
-        failures.push(`${id}: ${res.error?.message || 'Unknown error'}`);
+    if (!res.ok) {
+      failures.push(res.error?.message || 'Bulk delete failed');
+    } else {
+      const deleted = new Set((res.deleted || []).map((x) => String(x)));
+      // Remove deleted from local list
+      for (let i = remaining.length - 1; i >= 0; i -= 1) {
+        if (deleted.has(remaining[i].id)) {
+          remaining.splice(i, 1);
+        }
       }
+      (res.failed || []).forEach((f) => failures.push(`${f.id}: ${f.error || 'failed'}`));
+      (res.notFound || []).forEach((id) => failures.push(`${id}: not found`));
     }
     setSelectedIds(new Set());
     onUpdateProducts(remaining);
@@ -1802,7 +1807,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           onClick={resetColumns}
         />
         <ActionButton
-          icon={<SyncIcon className="w-4 h-4 rotate-90" />}
+          icon={<TrashIcon className="w-4 h-4" />}
           label={t('table.actions.deleteSelected')}
           onClick={handleBatchDelete}
           disabled={selectedIds.size === 0}
