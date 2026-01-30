@@ -568,7 +568,7 @@ function buildUserPrompt({
     `   - Titel: Mobile-first. Priorität A in den ersten 60 Zeichen (schema-/kategorieabhängig; siehe TITLE-SCHEMA GUIDELINES im Policy-Block). Optimal 65–75, Hard-Max 80.`,
     `   - Zustand: Wenn nicht explizit vorhanden, setze Attribut "Zustand" = "NEU". "Gebraucht" nur wenn im Datensatz gesetzt.`,
     `   - short_description: mind. 3 Absätze à 2 Sätze (Einsatz, Nutzen, Ausstattung, Material/Verarbeitung, Lieferumfang, Bedienung/Pflege).`,
-    `   - key_features: 5-7 Nutzen-Bullets (6-12 Wörter).`,
+    `   - key_features: 5-7 Nutzen-Bullets, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen).`,
     `   - Keine Preisangaben oder Preisorientierung in Titel/Beschreibung/Highlights.`,
     `3. Bilder: nur eindeutige, Dubletten entfernen.`,
     `4. Attribute als Liste ausgeben: [{ "key": "Material", "value": "100% Baumwolle", "value_type": "string" }, ...].`,
@@ -1396,7 +1396,7 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
     gpsrLine,
     '- Plausibilitätscheck: Nutze WEB-EVIDENZ (Marktplatz-Suchergebnisse, falls enthalten) um Daten zu verifizieren und fehlende Spezifikationen zu ergänzen. Erfinde keine Werte.',
     '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Keine Aufzählungen.',
-    '- Highlights: 5-7 Bulletpoints mit je 6-12 Wörtern, technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
+    '- Highlights: 5-7 Bulletpoints, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen). Technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
     '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme).',
     '- Zustand: Wenn condition_locked=false, ist "Gebraucht/Used" nicht erlaubt (auf NEU normalisieren).',
     '- Wenn das Datenblatt nicht eBay-ready ist, musst du es reparieren (fehlende Felder ergänzen, Mindestlängen erfüllen).',
@@ -1895,7 +1895,7 @@ function buildMarketingPrompt(product, locale = 'de-DE') {
     `Anforderungen:`,
     buildCommonPolicyText({ locale, allowWebEvidence: false }),
     `- Kurzbeschreibung: 3 Absätze à 2 Sätze, klar & faktenbasiert. Keine erfundenen Versand-/Service-Versprechen.`,
-    `- Highlights: 5–7 Bullets, 6–12 Wörter, faktenbasiert (keine erfundenen Versandzeiten, keine Preis-/Rabattaussagen).`,
+    `- Highlights: 5–7 Bullets, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen). Faktenbasiert (keine erfundenen Versandzeiten, keine Preis-/Rabattaussagen).`,
     `Gib das Ergebnis als JSON mit { "title": "...", "description": "...", "highlights": ["...", ...] } zurück.`
   );
 
