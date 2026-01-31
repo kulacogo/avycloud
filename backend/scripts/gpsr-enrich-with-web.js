@@ -35,6 +35,7 @@ const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const { search } = require('../lib/evidence-provider');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { createJob, Timestamp } = require('../lib/baselinker-sync-jobs');
+const { getManufacturerGpsrByName, upsertManufacturerGpsr, mergePreferMoreComplete, isGpsrPlaceholderLike } = require('../lib/gpsr-manufacturer-registry');
 
 const USE_UNLOCKER = (process.env.GPSR_WEB_USE_UNLOCKER || '').toString().toLowerCase() === 'true';
 const PER_PRODUCT_TIMEOUT_MS = Math.max(
@@ -191,7 +192,9 @@ function isPlaceholderValue(val) {
     v === '12345' ||
     v.includes('info@muster') ||
     v.includes('+49 000') ||
-    v === 'germany'
+    v === 'germany' ||
+    v.includes('not provided') ||
+    v.includes('example.com')
   );
 }
 
@@ -392,6 +395,49 @@ async function enrichOne(product, { dryRun, debugDir }) {
   if (!productId) return { ok: false, reason: 'missing_id' };
   if (!needsGpsr(product)) return { ok: false, reason: 'already_ok' };
 
+  // 0) Manufacturer registry fast-path (consistency across products)
+  const manufacturerHint =
+    safeString(product?.details?.gpsr?.manufacturer_name) ||
+    safeString(product?.identification?.brand) ||
+    safeString(product?.details?.brand) ||
+    '';
+  if (manufacturerHint) {
+    const reg = await getManufacturerGpsrByName(manufacturerHint).catch(() => null);
+    const regGpsr = reg?.gpsr && typeof reg.gpsr === 'object' ? reg.gpsr : null;
+    if (regGpsr && Object.keys(regGpsr).length) {
+      const existingGpsr =
+        product?.details?.gpsr && typeof product.details.gpsr === 'object' ? { ...product.details.gpsr } : {};
+      const merged = mergePreferMoreComplete(existingGpsr, regGpsr);
+      const changed = JSON.stringify(existingGpsr) !== JSON.stringify(merged);
+      if (changed && !dryRun) {
+        const next = {
+          ...product,
+          details: {
+            ...(product.details || {}),
+            gpsr: merged,
+          },
+          ops: {
+            ...(product.ops || {}),
+            data_quality: {
+              ...((product.ops || {}).data_quality || {}),
+              gpsr_from_registry_v1: {
+                at_iso: new Date().toISOString(),
+                manufacturer: manufacturerHint,
+                registry_key: reg.key,
+                registry_confidence: reg.confidence ?? null,
+              },
+            },
+          },
+        };
+        await saveProduct(next, { source: 'script', skipTitlePolicy: true, skipKeyFeaturesNormalize: true });
+      }
+      // If registry produced a complete fill, skip web search for this product.
+      if (!needsGpsr({ ...product, details: { ...(product.details || {}), gpsr: merged } })) {
+        return { ok: true, productId, query: 'registry', updated: !dryRun && changed, sources: (reg?.sources || []).slice(0, 5) };
+      }
+    }
+  }
+
   const maxPages = Math.max(1, Math.min(5, parseInt(process.env.GPSR_ENRICH_MAX_PAGES || '3', 10) || 3));
   const searchLimit = Math.max(3, Math.min(15, parseInt(process.env.GPSR_SEARCH_LIMIT || '8', 10) || 8));
 
@@ -482,6 +528,17 @@ async function enrichOne(product, { dryRun, debugDir }) {
     manufacturer_phone: safeString(parsed.manufacturer_phone),
   };
 
+  // Reject obvious placeholders from the model output (prevent poisoning the catalog).
+  for (const [k, v] of Object.entries(extracted)) {
+    if (isGpsrPlaceholderLike(v)) extracted[k] = '';
+  }
+
+  const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
+  const minApplyConfidence = Math.max(0, Math.min(1, parseFloat(process.env.GPSR_MIN_APPLY_CONFIDENCE || '0.6') || 0.6));
+  const modelSources = Array.isArray(parsed.sources) ? parsed.sources.map((x) => safeString(x)).filter(Boolean) : [];
+  const effectiveSources = modelSources.length ? modelSources : urls.slice(0, 8);
+  const canApply = effectiveSources.length > 0 && confidence >= minApplyConfidence;
+
   // Merge into existing gpsr without dropping existing real values.
   const existingGpsr = product?.details?.gpsr && typeof product.details.gpsr === 'object' ? { ...product.details.gpsr } : {};
   const mergedGpsr = { ...existingGpsr };
@@ -506,8 +563,10 @@ async function enrichOne(product, { dryRun, debugDir }) {
         gpsr_web_enrich_v1: {
           at_iso: new Date().toISOString(),
           query,
-          sources: Array.isArray(parsed.sources) ? parsed.sources.slice(0, 8) : urls.slice(0, 8),
-          confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+          sources: effectiveSources.slice(0, 8),
+          confidence,
+          applied: canApply,
+          min_apply_confidence: minApplyConfidence,
           ...(rawMeta || {}),
         },
       },
@@ -515,10 +574,32 @@ async function enrichOne(product, { dryRun, debugDir }) {
   };
 
   if (!dryRun) {
-    await saveProduct(next, { source: 'script', skipTitlePolicy: true, skipKeyFeaturesNormalize: true });
+    if (canApply) {
+      await saveProduct(next, { source: 'script', skipTitlePolicy: true, skipKeyFeaturesNormalize: true });
+      // Upsert manufacturer registry for consistency across products (only if we have a name)
+      const mName = safeString(mergedGpsr.manufacturer_name || extracted.manufacturer_name || manufacturerHint);
+      if (mName) {
+        await upsertManufacturerGpsr({
+          manufacturer_name: mName,
+          gpsr: mergedGpsr,
+          confidence,
+          sources: effectiveSources,
+          from_product_id: productId,
+        }).catch(() => null);
+      }
+    } else {
+      // Persist attempt marker only (no GPSR overwrite)
+      await saveProduct(
+        {
+          ...product,
+          ops: next.ops,
+        },
+        { source: 'script', skipTitlePolicy: true, skipKeyFeaturesNormalize: true }
+      );
+    }
   }
 
-  return { ok: true, productId, query, updated: !dryRun, sources: urls.slice(0, 5) };
+  return { ok: true, productId, query, updated: !dryRun && canApply, sources: urls.slice(0, 5) };
 }
 
 async function withTimeout(promise, ms, { label = 'timeout' } = {}) {
