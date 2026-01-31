@@ -15,7 +15,7 @@ const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { inferTitleCategory } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { getActiveLlmConfig } = require('../lib/llm-config');
-const { sanitizeListingText } = require('../lib/listing-sanitize');
+const { sanitizeListingText, sanitizeHighlights } = require('../lib/listing-sanitize');
 const { normalizeHighlightsStrict } = require('../lib/highlights-policy');
 const {
   canonicalizeAttributeKey,
@@ -41,6 +41,15 @@ const MAX_ATTACHMENT_PREVIEW_CHARS = 6000;
 const MARKETING_MIN_RESULTS = 3;
 const MARKETING_MAX_RESULTS = 6;
 const BARCODE_INTENT_REGEX = /\b(ean|gtin|upc)\b/i;
+
+function strictRulesEnabled() {
+  // Default is "no rules" per user request. Opt-in only.
+  const b = (v) => {
+    const s = (v || '').toString().trim().toLowerCase();
+    return s === '1' || s === 'true' || s === 'yes';
+  };
+  return b(process.env.RULEBOOK_ENABLED) || b(process.env.LLM_POLICY_ENABLED) || b(process.env.TITLE_POLICY_ENABLED) || b(process.env.QUALITY_GATE_ENABLED);
+}
 
 // Helper to recursively clean JSON schema for Gemini (e.g. remove null types)
 function cleanSchemaForGemini(schema) {
@@ -906,6 +915,7 @@ function sanitizeImageSuggestions(entry) {
 function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
   const result = {};
   const policyIssues = [];
+  const strict = strictRulesEnabled();
   const isValidSku = (value) => {
     if (typeof value !== 'string') return false;
     const trimmed = value.trim();
@@ -935,7 +945,7 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
     if (cleaned) {
       result.short_description = cleaned;
     } else {
-      policyIssues.push('description:rejected_empty_after_sanitize');
+      if (strict) policyIssues.push('description:rejected_empty_after_sanitize');
     }
   }
   if (allow.attributes && entry.attributes) {
@@ -1088,6 +1098,11 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
   // Attributes strict: canonicalize + prevent conflicts against existing datasheet.
   // We keep this best-effort (per-key) so one conflict doesn't block all other attribute improvements.
   if (allow.attributes && result.attributes && typeof result.attributes === 'object' && !Array.isArray(result.attributes)) {
+    if (!strict) {
+      // No-rules mode: keep sanitized attributes as-is (we already removed marketplace/meta keys above).
+      // Do not canonicalize and do not reject conflicts.
+      // (We still prevent barcodes/marketplace keys from being stored as attributes.)
+    } else {
     // 1) Canonicalize incoming-only first (detect self-conflicts).
     const incomingStrict = canonicalizeAttributesStrict(result.attributes);
     if (!incomingStrict.ok) {
@@ -1132,23 +1147,29 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
         delete result.attributes;
       }
     }
+    }
   }
 
   // Highlights strict: enforce category-aware bullet rules (count/length/template, no banned text).
   if (allow.highlights && Array.isArray(entry.key_features)) {
     const list = entry.key_features.filter(Boolean);
-    const draftProduct = {
-      ...product,
-      identification: {
-        ...(product?.identification || {}),
-        ...(identityPatch || {}),
-      },
-    };
-    const hi = normalizeHighlightsStrict(draftProduct, list);
-    if (!hi.ok) {
-      policyIssues.push(...hi.issues.map((x) => `highlights:${x}`));
+    if (!strict) {
+      // No-rules mode: keep non-empty bullets after delete-only sanitization
+      result.key_features = sanitizeHighlights(list, { minLen: 8, maxItems: 7 });
     } else {
-      result.key_features = hi.highlights;
+      const draftProduct = {
+        ...product,
+        identification: {
+          ...(product?.identification || {}),
+          ...(identityPatch || {}),
+        },
+      };
+      const hi = normalizeHighlightsStrict(draftProduct, list);
+      if (!hi.ok) {
+        policyIssues.push(...hi.issues.map((x) => `highlights:${x}`));
+      } else {
+        result.key_features = hi.highlights;
+      }
     }
   }
 
@@ -1168,13 +1189,20 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
         attributes: mergedAttrs,
       },
     };
-    const cfg = getRulebookConfigCached();
-    const bucket = inferTitleCategory(draftProduct);
-    const rule =
-      (cfg?.title?.rulesBySchema && cfg.title.rulesBySchema[bucket]) || cfg?.title || {};
-    const minLen = Number(rule?.minLen || 65);
-    const maxLen = Number(rule?.maxLen || 80);
-    const softMaxLen = Number(rule?.softMaxLen || 75);
+    // Title policy is handled in `coerceTitleToPolicy` and is rule-free by default in this setup.
+    // In strict mode we keep historical bucket-based min/soft limits; in no-rules mode we only enforce maxLen.
+    let minLen = 0;
+    let maxLen = 80;
+    let softMaxLen = 80;
+    if (strict) {
+      const cfg = getRulebookConfigCached();
+      const bucket = inferTitleCategory(draftProduct);
+      const rule =
+        (cfg?.title?.rulesBySchema && cfg.title.rulesBySchema[bucket]) || cfg?.title || {};
+      minLen = Number(rule?.minLen || 65);
+      maxLen = Number(rule?.maxLen || 80);
+      softMaxLen = Number(rule?.softMaxLen || 75);
+    }
     const coerced = coerceTitleToPolicy(draftProduct, rawTitleCandidate, { minLen, maxLen, softMaxLen });
     identityPatch.name = coerced;
     // Keep an explicit title field so the frontend can display/apply it directly.
@@ -1549,13 +1577,15 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       }
     }
 
-    // If we dropped/rejected parts due to policy, append a short user-visible hint.
-    const policyIssues = Array.isArray(product?.ops?.chat_policy_issues) ? product.ops.chat_policy_issues : [];
-    if (policyIssues.length) {
-      const preview = policyIssues.slice(0, 6);
-      const suffix = policyIssues.length > preview.length ? ` … (+${policyIssues.length - preview.length} mehr)` : '';
-      const note = `\n\nHinweis: Einige Vorschläge wurden wegen Regelwerk verworfen: ${preview.join(', ')}${suffix}`;
-      responseText = `${(responseText || '').trim()}${note}`;
+    // Only append "policy rejection" hints when strict rules are enabled.
+    if (strictRulesEnabled()) {
+      const policyIssues = Array.isArray(product?.ops?.chat_policy_issues) ? product.ops.chat_policy_issues : [];
+      if (policyIssues.length) {
+        const preview = policyIssues.slice(0, 6);
+        const suffix = policyIssues.length > preview.length ? ` … (+${policyIssues.length - preview.length} mehr)` : '';
+        const note = `\n\nHinweis: Einige Vorschläge wurden wegen Regelwerk verworfen: ${preview.join(', ')}${suffix}`;
+        responseText = `${(responseText || '').trim()}${note}`;
+      }
     }
 
     // Make the user-visible message reflect the final coerced title (optimal 65–75, hard max 80),
