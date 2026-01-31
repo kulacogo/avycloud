@@ -38,6 +38,19 @@ function buildTitleSchemaGuideText() {
 }
 
 function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = {}) {
+  const policyEnabled = (process.env.LLM_POLICY_ENABLED || '').toString().trim().toLowerCase();
+  const enabled = policyEnabled === '1' || policyEnabled === 'true' || policyEnabled === 'yes';
+  if (!enabled) {
+    // User request: no rigid rules. Keep only the essentials: evidence-first and no hallucinations.
+    return [
+      `Sprache: ${locale}.`,
+      '',
+      'PRINZIPIEN:',
+      '- Nutze Web-Daten nur, wenn sie dir durch das System bereitgestellt werden (Tools / WEB-EVIDENZ).',
+      '- Erfinde keine Fakten. Wenn etwas nicht belegbar ist: leer lassen und als Unsicherheit markieren.',
+      '- Titel/Highlights/Beschreibung sollen faktenbasiert und suchstark sein; keine Platzhaltertexte.',
+    ].join('\n');
+  }
   return [
     `Sprache: ${locale}.`,
     '',

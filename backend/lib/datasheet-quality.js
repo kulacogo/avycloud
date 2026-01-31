@@ -27,6 +27,27 @@ function hasImages(product) {
  * This is intentionally stricter than "minimal identification".
  */
 function evaluateEbayReady(product) {
+  const enabled = (process.env.QUALITY_GATE_ENABLED || '').toString().trim().toLowerCase();
+  if (!(enabled === '1' || enabled === 'true' || enabled === 'yes')) {
+    // Default: disabled (no rule-based blocking). Still return a lightweight snapshot for UI.
+    const title = safeString(product?.identification?.name);
+    const desc = safeString(product?.details?.short_description || product?.details?.description);
+    const category = safeString(product?.identification?.category);
+    const features = Array.isArray(product?.details?.key_features) ? product.details.key_features.filter(Boolean) : [];
+    const attrsCount = countAttributes(product?.details?.attributes);
+    return {
+      ok: true,
+      issues: [],
+      snapshot: {
+        title_len: title.length,
+        desc_len: desc.length,
+        features: features.length,
+        attrs: attrsCount,
+        category: normalizeSpaces(category).slice(0, 120),
+        required_aspects_missing: 0,
+      },
+    };
+  }
   const issues = [];
 
   const title = safeString(product?.identification?.name);

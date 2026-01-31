@@ -19,6 +19,13 @@ const { normalizeHighlightsStrict } = require('./highlights-policy');
 const { canonicalizeAttributesStrict } = require('./attribute-policy');
 const { getRulebookConfigCached } = require('./rulebook-config');
 
+function isRulebookDisabled() {
+  // Default: disabled (user request: "keine Regeln").
+  // Opt-in only via RULEBOOK_ENABLED=true
+  const enabled = (process.env.RULEBOOK_ENABLED || '').toString().trim().toLowerCase();
+  return !(enabled === '1' || enabled === 'true' || enabled === 'yes');
+}
+
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
 }
@@ -32,6 +39,16 @@ function deepClone(obj) {
  * - No "best effort": if strict checks fail, returns ok=false and does NOT return a modified product.
  */
 function normalizeProductStrict(product, { source = 'unknown' } = {}) {
+  if (isRulebookDisabled()) {
+    // Minimal delete-only sanitization (still useful to prevent storing obvious placeholders/prices).
+    const next = deepClone(product);
+    next.identification = next.identification || {};
+    next.details = next.details || {};
+    if (typeof next.details.short_description === 'string') {
+      next.details.short_description = sanitizeListingText(next.details.short_description);
+    }
+    return { ok: true, product: next, issues: [], source };
+  }
   const issues = [];
   const next = deepClone(product);
   const cfg = getRulebookConfigCached();
@@ -103,6 +120,16 @@ function normalizeProductStrict(product, { source = 'unknown' } = {}) {
  * incremental improvements over "all-or-nothing" strict rejection.
  */
 function normalizeProductForPolicyApply(product, { source = 'unknown' } = {}) {
+  if (isRulebookDisabled()) {
+    // Minimal delete-only sanitization, no coercion/validation.
+    const next = deepClone(product);
+    next.identification = next.identification || {};
+    next.details = next.details || {};
+    if (typeof next.details.short_description === 'string') {
+      next.details.short_description = sanitizeListingText(next.details.short_description);
+    }
+    return { ok: true, product: next, issues: [], source };
+  }
   const issues = [];
   const next = deepClone(product);
   const cfg = getRulebookConfigCached();

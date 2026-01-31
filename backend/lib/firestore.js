@@ -9,6 +9,7 @@ const {
 const { coerceTitleToPolicy } = require('./title-policy');
 const { normalizeBrandDisplayCase } = require('./brand-normalize');
 const { getVehicleFitmentMode } = require('./vehicle-fitment');
+const { getManufacturerGpsrByName, mergePreferMoreComplete } = require('./gpsr-manufacturer-registry');
 
 function isFirestoreSpecialValue(value) {
   if (!value) return false;
@@ -2151,6 +2152,46 @@ async function saveProduct(product, options = {}) {
         productWithEbay.identification.name,
         { minLen: AUTO_TITLE_MIN_LEN, maxLen: AUTO_TITLE_MAX_LEN, softMaxLen: AUTO_TITLE_SOFT_MAX_LEN }
       );
+    }
+
+    // GPSR: manufacturer registry autofill (backend-wide consistency).
+    // Best-effort, never overwrites existing non-empty values.
+    try {
+      const attrs =
+        productWithEbay?.details?.attributes &&
+        typeof productWithEbay.details.attributes === 'object' &&
+        !Array.isArray(productWithEbay.details.attributes)
+          ? productWithEbay.details.attributes
+          : {};
+      const gpsrObj =
+        productWithEbay?.details?.gpsr && typeof productWithEbay.details.gpsr === 'object'
+          ? productWithEbay.details.gpsr
+          : {};
+      const manufacturerHint =
+        safeString(gpsrObj.manufacturer_name) ||
+        safeString(productWithEbay?.identification?.brand) ||
+        safeString(productWithEbay?.details?.brand) ||
+        safeString(attrs.Hersteller) ||
+        safeString(attrs.Marke) ||
+        '';
+      if (manufacturerHint) {
+        const reg = await getManufacturerGpsrByName(manufacturerHint).catch(() => null);
+        const regGpsr = reg?.gpsr && typeof reg.gpsr === 'object' ? reg.gpsr : null;
+        if (regGpsr && Object.keys(regGpsr).length) {
+          const mergedGpsr = mergePreferMoreComplete(gpsrObj, regGpsr);
+          productWithEbay.details.gpsr = mergedGpsr;
+          productWithEbay.ops = productWithEbay.ops || {};
+          productWithEbay.ops.data_quality = productWithEbay.ops.data_quality || {};
+          productWithEbay.ops.data_quality.gpsr_registry_autofill_v1 = {
+            at_iso: new Date().toISOString(),
+            manufacturer: manufacturerHint,
+            registry_key: reg.key || null,
+            registry_confidence: reg.confidence ?? null,
+          };
+        }
+      }
+    } catch (e) {
+      // non-blocking
     }
 
     const productData = {

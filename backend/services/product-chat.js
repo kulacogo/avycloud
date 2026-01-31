@@ -1,8 +1,10 @@
 const { getGeminiClient } = require('../lib/gemini-client');
 const {
   serpapiToolDefinition,
+  brightdataSearchToolDefinition,
   webFetchToolDefinition,
   executeSerpapiToolCall,
+  executeBrightdataSearchToolCall,
   executeWebFetchToolCall,
 } = require('./toolkit');
 const { resolveModel } = require('../lib/model-select');
@@ -842,6 +844,8 @@ function selectReferenceImage(product, { reference_image_url, reference_variant 
 }
 
 function buildSystemPrompt(locale = 'de-DE') {
+  const policyEnabled = (process.env.LLM_POLICY_ENABLED || '').toString().trim().toLowerCase();
+  const rulesOn = policyEnabled === '1' || policyEnabled === 'true' || policyEnabled === 'yes';
   return [
     'You are the AvyStock Product CoPilot.',
     'You always respond in SHORT, ACTIONABLE messages by default (≤10 short sentences or ~1000 characters, ≤3 bullets, no section headers).',
@@ -852,15 +856,16 @@ function buildSystemPrompt(locale = 'de-DE') {
     'Marketing-image requests must return exactly: one short sentence + a list of 3–6 concrete image URLs with 3–5 word labels (hero, lifestyle, detail, packshot, etc.). No long strategy unless explicitly asked.',
     'Never recycle the customer’s existing gallery URLs for marketing-image answers; prefer fresh web sources or new AI renders and state if none exist.',
     'When proposing product updates, explain briefly (1–2 sentences) and include a minimal JSON snippet called "edit" that only contains the changed fields.',
-    'TITLE POLICY (when proposing a new title):',
-    '- Mobile-first: first ~55–60 chars matter. Priority A must be inside first 60 chars.',
-    '- Priority A is schema-/category-specific:',
-    '  - Auto/Tech: Brand+Produktart+MPN/OE/Modell',
-    '  - Clothing/Schuhe/Sneaker: Brand+Produktart+Größe (keine kryptischen Modellcodes)',
-    '  - Haus, Bau & Ausstattung: Brand+Modell/Serie+Produkttyp',
-    '- Order is schema-dependent (see TITLE-SCHEMA GUIDELINES in the policy block); never freely reorder tokens.',
-    '- Length: optimal 65–75 chars, never exceed 80.',
-    '- No marketing fluff, no emojis, no duplicates, no leading symbols, never include SKU/internal IDs.',
+    ...(rulesOn
+      ? [
+          'QUALITY GOALS (non-binding):',
+          '- Title: mobile-first & searchable, preferably 65–75 chars, never exceed 80.',
+          '- No marketing fluff, no emojis, no duplicates, no leading symbols, no SKU/internal IDs.',
+        ]
+      : [
+          'QUALITY GOALS (non-binding):',
+          '- Prefer marketplace-evidence titles; keep them searchable and ≤80 chars.',
+        ]),
     'You can craft new render prompts and call generate_ai_images when fresh material would help; note variant and intent.',
     'Default language: ' + locale + '. Keep responses direct, avoid filler, offer deeper details only on request.',
   ].join('\n');
@@ -1246,10 +1251,12 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   const serializedContext = JSON.stringify(productContext, null, 2);
 
   // Prepare tools
+  const SERPAPI_ENABLED = (process.env.SERPAPI_ENABLED || '').toString().trim().toLowerCase() === 'true';
   const tools = [
     {
       functionDeclarations: [
-        toGeminiTool(serpapiToolDefinition),
+        toGeminiTool(brightdataSearchToolDefinition),
+        ...(SERPAPI_ENABLED ? [toGeminiTool(serpapiToolDefinition)] : []),
         toGeminiTool(webFetchToolDefinition),
         toGeminiTool(updateDatasheetTool),
         toGeminiTool(suggestImagesTool),
@@ -1283,16 +1290,16 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
 
   CRITICAL RULES:
   1. DO NOT ASK the user for search queries or "what marketplace to check". derivation of queries is YOUR job.
-  2. If the user asks for data (like an EAN/Barcode) and it is missing, you MUST immediately call 'serpapi_web_search' with a query like "Brand ModelNumber EAN" or "Brand Name Barcode".
-  3. Default to "google" engine for broad searches unless specific ID lookup is needed.
+  2. If data (EAN/GTIN/UPC/MPN, Specs) is missing, you MUST immediately call 'brightdata_web_search' with targeted site searches for marketplaces (sites=["ebay.de","kaufland.de","hood.de"]).
+  3. After you found candidate URLs, fetch the best 1-2 pages via 'web_fetch' and extract facts from them (no guessing).
   4. Never say "I can search if you want". JUST SEARCH.
   5. **ALWAYS** usage the 'update_product_datasheet' tool when you propose ANY data changes (title, description, attributes, etc.). Do NOT just output JSON text. The tool call IS the way to propose changes.
   6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
   7. GPSR updates MUST be returned under the top-level "gpsr" object (not in attributes). Never create keys like "GPSR Manufacturer name" inside attributes.
 
-  TITLE / HIGHLIGHTS QUALITY BAR:
-  - Titles must be TECHNICAL & searchable (optimal 65–75 chars, never exceed 80): Priority A inside first 60 chars (schema-dependent; see TITLE-SCHEMA GUIDELINES), then 1–2 key specs. No marketing fluff, no emojis, no duplicates, no SKU/IDs.
-  - Key features must be non-duplicative, factual, and short.
+  QUALITY BAR (non-binding):
+  - Titles should be searchable and ≤80 chars.
+  - Key features should be non-duplicative and factual.
   `;
 
   const model = client.getGenerativeModel({
@@ -1341,7 +1348,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     currentMessageParts.push({
       text: `
       IMPORTANT: The user explicitly wants a barcode/EAN. None is in the context.
-      ACTION REQUIRED: Do NOT ask questions. Immediately run serpapi_web_search (engine="google") for "${product?.identification?.brand || ''} ${product?.identification?.name || ''} EAN".
+      ACTION REQUIRED: Do NOT ask questions. Immediately run brightdata_web_search with sites=["ebay.de","kaufland.de","hood.de"] for "${product?.identification?.brand || ''} ${product?.identification?.name || ''} EAN".
       Then extract the EAN from results and return it via update_product_datasheet.
       `});
   }
@@ -1373,7 +1380,24 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         let toolResult = {};
         const { name, args } = call;
 
-        if (name === 'serpapi_web_search') {
+        if (name === 'brightdata_web_search') {
+          const result = await executeBrightdataSearchToolCall({ arguments: JSON.stringify(args) });
+          serpTrace.push({
+            type: 'brightdata',
+            engine: result.engine,
+            query: result.query,
+            summary: (result.results || []).slice(0, 8).map((r) => ({
+              title: r.title || '',
+              source: r.site || 'brightdata',
+              price: null,
+              url: r.url || '',
+              snippet: r.snippet || '',
+            })),
+            error: result.error || null,
+          });
+          toolResult = { results: result.results || [], error: result.error || null };
+        }
+        else if (name === 'serpapi_web_search') {
           // Map args back to tool expectations if needed, but Gemini gives object
           const result = await executeSerpapiToolCall({ arguments: JSON.stringify(args) });
           serpTrace.push({

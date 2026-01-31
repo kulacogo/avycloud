@@ -14,6 +14,9 @@ const USE_UNLOCKER =
     .toString()
     .toLowerCase() === 'true';
 
+const BRIGHTDATA_ONLY =
+  (process.env.WEB_BRIGHTDATA_ONLY || 'true').toString().trim().toLowerCase() !== 'false';
+
 // Some "EAN search" sites list unrelated codes; block them for safety.
 const DOMAIN_BLOCKLIST = new Set([
   'www.ean1.de',
@@ -75,9 +78,31 @@ async function fetchTextDirect(url, { timeoutMs = 20_000 } = {}) {
 }
 
 async function fetchText(url, { timeoutMs = 20_000 } = {}) {
-  const direct = await fetchTextDirect(url, { timeoutMs });
-  if (direct.ok && direct.body) return direct;
-  if (!USE_UNLOCKER) return direct;
+  if (!BRIGHTDATA_ONLY) {
+    const direct = await fetchTextDirect(url, { timeoutMs });
+    if (direct.ok && direct.body) return direct;
+    if (!USE_UNLOCKER) return direct;
+    try {
+      const unlocked = await fetchWithUnlocker({ url, timeoutMs: Math.max(30_000, timeoutMs) });
+      if (unlocked?.success && unlocked?.body) {
+        return { ok: true, status: unlocked.status, body: unlocked.body, via: 'unlocker' };
+      }
+      return {
+        ok: false,
+        status: unlocked?.status || 0,
+        body: unlocked?.body || '',
+        error: unlocked?.statusText || unlocked?.error || null,
+        via: 'unlocker',
+      };
+    } catch (e) {
+      return { ...direct, via: 'direct+unlocker_failed', unlockerError: e.message };
+    }
+  }
+
+  // BrightData-only mode: do NOT attempt direct fetches.
+  if (!USE_UNLOCKER) {
+    return { ok: false, status: 0, body: '', error: 'unlocker_disabled', via: 'unlocker_disabled' };
+  }
   try {
     const unlocked = await fetchWithUnlocker({ url, timeoutMs: Math.max(30_000, timeoutMs) });
     if (unlocked?.success && unlocked?.body) {
@@ -91,7 +116,7 @@ async function fetchText(url, { timeoutMs = 20_000 } = {}) {
       via: 'unlocker',
     };
   } catch (e) {
-    return { ...direct, via: 'direct+unlocker_failed', unlockerError: e.message };
+    return { ok: false, status: 0, body: '', error: e.message, via: 'unlocker_failed' };
   }
 }
 
@@ -265,7 +290,7 @@ async function searchGoogleViaBrightDataSerp(query, { limit = 6, locale = 'de-DE
 
 async function searchWeb(query, { limit = 6, locale = 'de-DE' } = {}) {
   // Prefer Google via Bright Data SERP zone (most reliable in Cloud Run),
-  // otherwise Google via unlocker, otherwise DDG HTML.
+  // otherwise Google via unlocker. In BrightData-only mode we do NOT fallback to DDG/direct scraping.
   const serp = await searchGoogleViaBrightDataSerp(query, { limit, locale });
   if (serp.ok && Array.isArray(serp.results) && serp.results.length) {
     return { engine: 'google', ...serp };
@@ -273,6 +298,9 @@ async function searchWeb(query, { limit = 6, locale = 'de-DE' } = {}) {
   const google = await searchGoogle(query, { limit, locale });
   if (google.ok && Array.isArray(google.results) && google.results.length) {
     return { engine: 'google', ...google };
+  }
+  if (BRIGHTDATA_ONLY) {
+    return { engine: 'google', query, ok: false, url: '', via: 'brightdata_only_no_results', status: 0, results: [] };
   }
   const ddg = await searchDuckDuckGo(query, { limit });
   return { engine: 'duckduckgo', ...ddg };

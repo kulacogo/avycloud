@@ -25,6 +25,25 @@ const STOP_WORDS = new Set([
   'ist', 'sind', 'war', 'waren', 'wird', 'werden',
 ]);
 
+/**
+ * Escape hatch: disable ALL title rule logic (schema priority A, ordering, marketing-word stripping, etc.).
+ * Intended for "web-only" marketplace enrichment pipelines where titles should come from evidence.
+ *
+ * When disabled, we still do minimal deterministic sanitization + hard max length enforcement.
+ */
+function isTitlePolicyDisabled() {
+  // Default: disabled. Opt-in only.
+  const enabled = (process.env.TITLE_POLICY_ENABLED || '').toString().trim().toLowerCase();
+  if (enabled === '1' || enabled === 'true' || enabled === 'yes') {
+    return false;
+  }
+  const v = (process.env.TITLE_POLICY_DISABLED || process.env.DISABLE_TITLE_POLICY || '').toString().trim().toLowerCase();
+  if (v === '0' || v === 'false' || v === 'no') {
+    return false;
+  }
+  return true;
+}
+
 const SHORT_OK_WORDS = new Set([
   'xs',
   's',
@@ -1317,6 +1336,10 @@ function validateTitleToPolicy(
   title,
   { minLen = DEFAULT_TITLE_TARGET_MIN_LEN, maxLen = DEFAULT_TITLE_MAX_LEN, mobileMaxLen = DEFAULT_TITLE_MOBILE_PRIORITY_MAX_LEN } = {}
 ) {
+  // When title policy is disabled, validation is a no-op (we rely on deterministic truncate/sanitize only).
+  if (isTitlePolicyDisabled()) {
+    return [];
+  }
   const issues = [];
   const raw = safeString(title);
   const t = normalizeSpaces(stripEmojis(raw));
@@ -1480,6 +1503,17 @@ function coerceTitleToPolicy(
   proposedTitle,
   { minLen = DEFAULT_TITLE_TARGET_MIN_LEN, maxLen = DEFAULT_TITLE_MAX_LEN, softMaxLen = DEFAULT_TITLE_SOFT_MAX_LEN } = {}
 ) {
+  // Web-only mode: do NOT apply schema rules. Keep only minimal sanitization + hard max length.
+  if (isTitlePolicyDisabled()) {
+    let t = stripEmojis(proposedTitle || '');
+    t = stripMarkdownDecorations(t);
+    t = stripSkuNoise(t);
+    t = normalizeSpaces(t);
+    t = stripLeadingNonAlnum(t);
+    t = normalizeSpaces(t);
+    if (t.length > maxLen) t = truncateToMax(t, maxLen);
+    return t;
+  }
   const conditionLocked = Boolean(product?.ops?.condition_locked);
 
   // Clean the incoming title: we only use it as a hint source for specs.

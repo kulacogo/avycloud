@@ -3,7 +3,12 @@
  * Keep one canonical GPSR record per manufacturer to avoid per-product variance.
  */
 
-const { firestore } = require('./firestore');
+const { Firestore } = require('@google-cloud/firestore');
+
+// IMPORTANT: This module must NOT import ./firestore to avoid circular dependencies.
+const firestore = new Firestore({
+  projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
+});
 
 const COLLECTION = 'gpsrManufacturers';
 
@@ -220,6 +225,7 @@ async function upsertManufacturerGpsr({
 
 module.exports = {
   normalizeManufacturerKey,
+  manufacturerKeyCandidates,
   isGpsrPlaceholderLike,
   normalizeGpsrObject,
   scoreGpsr,

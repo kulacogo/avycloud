@@ -1,5 +1,6 @@
 const { callSerpApi, summarizeSerpEntries, ALLOWED_ENGINES } = require('../lib/serpapi');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
+const { search, searchSite } = require('../lib/evidence-provider');
 
 const AMAZON_DOMAIN_BY_HINT = {
   de: 'amazon.de',
@@ -157,6 +158,29 @@ const serpapiToolDefinition = {
     },
     required: ['engine'],
     additionalProperties: false,
+  },
+};
+
+const brightdataSearchToolDefinition = {
+  type: 'function',
+  name: 'brightdata_web_search',
+  description:
+    'Websuche über BrightData SERP (und interne Evidence-Provider Logik). Nutze dies, um Marketplace-Produktseiten (ebay.de, kaufland.de, hood.de) zu finden.',
+  strict: false,
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['query'],
+    properties: {
+      query: { type: 'string', description: 'Suchanfrage (z.B. "Marke MPN EAN").' },
+      locale: { type: ['string', 'null'], description: 'Locale (z.B. de-DE).' },
+      limit: { type: ['number', 'null'], minimum: 1, maximum: 20, description: 'Max. Ergebnisse.' },
+      sites: {
+        type: ['array', 'null'],
+        description: 'Optional: Liste von Domains für site:-Suche (z.B. ["ebay.de","kaufland.de","hood.de"]).',
+        items: { type: 'string' },
+      },
+    },
   },
 };
 
@@ -509,6 +533,57 @@ async function executeSerpapiToolCall(toolCall) {
   }
 }
 
+async function executeBrightdataSearchToolCall(toolCall) {
+  let args = {};
+  try {
+    args = JSON.parse(toolCall.arguments || '{}');
+  } catch (error) {
+    return { ok: false, engine: 'brightdata', query: '', results: [], error: `Invalid arguments: ${error.message}` };
+  }
+  const q = (args.query || '').toString().trim();
+  if (!q) {
+    return { ok: false, engine: 'brightdata', query: '', results: [], error: 'query is required' };
+  }
+  const locale = (args.locale || 'de-DE').toString().trim() || 'de-DE';
+  const limit = Math.max(1, Math.min(20, Math.floor(Number(args.limit || 8))));
+  const sites = Array.isArray(args.sites) ? args.sites.map((s) => String(s || '').trim()).filter(Boolean) : [];
+
+  const combined = [];
+  const seen = new Set();
+  const push = (r, site = null) => {
+    const url = (r?.url || '').toString().trim();
+    if (!url) return;
+    if (seen.has(url)) return;
+    seen.add(url);
+    combined.push({
+      title: (r?.title || '').toString().trim(),
+      url,
+      snippet: (r?.snippet || '').toString().trim(),
+      site,
+    });
+  };
+
+  if (sites.length) {
+    for (const site of sites.slice(0, 6)) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await searchSite(q, site, { limit, locale });
+      (res?.results || []).forEach((r) => push(r, site));
+      if (combined.length >= limit) break;
+    }
+  } else {
+    const res = await search(q, { limit, locale });
+    (res?.results || []).forEach((r) => push(r, null));
+  }
+
+  return {
+    ok: combined.length > 0,
+    engine: 'brightdata',
+    query: q,
+    results: combined.slice(0, limit),
+    error: combined.length ? null : 'no_results',
+  };
+}
+
 async function executeWebFetchToolCall(toolCall) {
   let args = {};
   try {
@@ -549,7 +624,9 @@ async function executeWebFetchToolCall(toolCall) {
 
 module.exports = {
   serpapiToolDefinition,
+  brightdataSearchToolDefinition,
   webFetchToolDefinition,
   executeSerpapiToolCall,
+  executeBrightdataSearchToolCall,
   executeWebFetchToolCall,
 };

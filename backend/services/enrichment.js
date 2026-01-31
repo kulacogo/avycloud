@@ -23,6 +23,10 @@ const { filterBarcodesByWebConfirm } = require('../lib/barcode-web-confirm');
 const { searchWeb, fetchPageText } = require('../lib/web-search-html');
 const { evaluateEbayReady } = require('../lib/datasheet-quality');
 
+function safeString(v) {
+  return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
+}
+
 // Clean JSON schema to be compatible with Gemini responseSchema
 function cleanSchemaForGemini(schema) {
   if (!schema || typeof schema !== 'object') return schema;

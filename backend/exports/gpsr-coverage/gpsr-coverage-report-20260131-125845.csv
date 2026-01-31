@@ -1,0 +1,261 @@
+productId,sku,manufacturer,missingFields,gpsrScore
+0019451391762,SKU-1041822612,"Under Armour, Inc.",email,14
+00442039661193,SKU-7225351886,COSII,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+0099557e-b9f0-45a4-9c7c-d6418e7daac5,SKU-2250869990,HENMI,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+0196214105119,SKU-4310621602,Pokémon,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+0198303486543,SKU-7255766247,Abercrombie & Fitch,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+04052938000016,SKU-4641833225,Pierburg,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+0456566400136,SKU-4138606905,Stradivarius,manufacturer_address|manufacturer_postalcode|email,7
+0652ed9b-7af0-4390-809b-ab3ae8a75fdd,SKU-1736818518,Koninklijke Philips N.V.,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+07901010300000,SKU-2097206690,JARISO,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+0800633445532,SKU-4755521008,SEGUNA,email,13
+12192006315063,SKU-1000000000,Under Armour,email,14
+1294514013516,SKU-8884319986,"Under Armour, Inc.",email,14
+14006633314036,SKU-7591395419,Continental,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+1472920275814,SKU-7995751556,IKEA,manufacturer_address,13
+14f93c3a-6902-4da3-8a00-991a13958570,SKU-2064038107,"Forkan Narlan Sorfeng mobile phone accessories Co., LTD",manufacturer_postalcode,12
+182c0593-5b66-4304-80fa-d1a56eb08210,SKU-0533124796,CAPAS,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+1852315181124,SKU-8073301246,BRUT Clothing,manufacturer_postalcode|email,10
+20220424000047,SKU-6511282128,JMIYAV,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+20221212000014,SKU-3806532980,SHARGE,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+2024010542503,SKU-1164276787,WAITCHX,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+2074133001002,SKU-0922374624,Magic: The Gathering,manufacturer_address|email,10
+2312388888888,SKU-5446097686,"shenzhen qianjiugongyinglian Co., Ltd.",manufacturer_address|manufacturer_postalcode|email,7
+2452014202112,SKU-6761538665,BMW,manufacturer_address|email,11
+2493370000004,SKU-3476455542,Ninth Hall,manufacturer_postalcode,13
+25004695020111,SKU-0704619212,"SILICON POWER Computer & Communications, Inc.",manufacturer_city|manufacturer_postalcode|email,9
+2d3f8a0d-2c5f-4852-a241-8281d55e418a,SKU-7824016126,LADYHOW,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+2f144eb7-126a-43ac-90cc-c6dbf899a7d6,SKU-4883385910,ZARA HOME,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+3339082c-5066-4322-a318-4b8732a19d83,SKU-8229761001,VEVOR,entity_country|manufacturer_city|manufacturer_postalcode|email,7
+34bb265f-a1ad-4850-a2ec-71bf44c1ad68,SKU-5700317364,Hansgrohe Deutschland Vertriebs GmbH,email,15
+3573994006336,SKU-8192040791,Pierre Fabre,manufacturer_city|manufacturer_postalcode|email,8
+3613379433101,SKU-5526640633,Element,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+3662775243128,SKU-5896801162,KYOTO,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+36f71981-e45d-478a-a80d-4e665f0e3352,SKU-3867423041,EVARGST CONIBUTING LTD,entity_country|manufacturer_city|manufacturer_postalcode,9
+3770010398363,SKU-6722573428,Umami,entity_country|manufacturer_city|manufacturer_postalcode,8
+395730b7-67d0-4880-a770-f85086b71052,SKU-8932764822,Blue Tomato,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+3aaed3ff-192f-4dbf-a8da-da12514e14b8,SKU-5496567952,Snocks GmbH,manufacturer_address|manufacturer_postalcode|email,7
+3f1a8ee4-8e40-4f90-af9a-deade528551c,SKU-8897137065,VEVOR,manufacturer_city|manufacturer_postalcode|email,9
+4004133669093,SKU-0200958470,APS,manufacturer_address|email,10
+4005176388538,SKU-1186485817,Grohe AG,email,12
+4006633310222,SKU-4616386559,Continental Aftermarket & Services GmbH,manufacturer_city|manufacturer_postalcode|email,8
+4008177077142,SKU-2748406604,Castrol - a BP group brand,entity_country|manufacturer_city|manufacturer_postalcode|email,7
+4009384341071,SKU-2859032659,MFLAX,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+4016417025303,SKU-3586300359,EURO PART,manufacturer_city|manufacturer_postalcode,11
+4023103244009,SKU-9885764249,Vileda,email,15
+4030434105633,SKU-9182883969,FLENNOR,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+4058213275186,SKU-4269501540,BasicNet,email,13
+4059625316214,SKU-6046815482,Hansgrohe Deutschland Vertriebs GmbH,email,15
+4061393249854,SKU-9881775692,killtec Sport & Freizeit GmbH,email,14
+4061945368361,SKU-7924141652,TOM TAILOR,manufacturer_address|manufacturer_postalcode,11
+4062493735872,SKU-6154185094,Khujo,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+4063217299953,SKU-4885995332,Heidelberger BETTWAREN,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+4063367064357,SKU-3244413909,Kaufland,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,4
+4064464829931,SKU-2603681659,Pier One,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+4064886306904,SKU-2733489996,Jack Wolfskin,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+4082300855241,SKU-1353005263,HELLA,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+4250358601817,SKU-1964286581,Höfner,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+4251175827556,SKU-2902386366,EURO DRIVELINE,entity_country|manufacturer_city|manufacturer_postalcode|email,6
+4251665310447,SKU-1198160025,AMORELIE,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+4260526472194,SKU-7139254013,Razor Group Acquisition XIII GMBH,entity_country|manufacturer_city|manufacturer_postalcode,9
+4260532290669,SKU-7226847075,BBQ-Toro,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+4260613499578,SKU-0121175685,DWD-Company GmbH & Co. KG,manufacturer_city|manufacturer_postalcode|email,8
+4260716810041,SKU-2433624992,LionSports,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+4260755120385,SKU-1377750386,valuents,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+4262382491098,SKU-4703570843,BAUBECK GmbH,manufacturer_address|manufacturer_city|manufacturer_postalcode,8
+4262405220148,SKU-2431535372,AZANO DESIGNS,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+4262472110243,SKU-7909541265,GRANA HOME,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+45005591930000,SKU-6587967689,Calvin Klein,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+48fe16c6-bdc6-42f6-862e-fc9eb4962c93,SKU-3756924465,Zhongshanshiyibeidianqiyouxiangongsi,entity_country|manufacturer_city|manufacturer_postalcode,8
+4917616740531,SKU-1468228360,Joyin UK Corp Limited,entity_country|manufacturer_city|manufacturer_postalcode,8
+5020570328828,SKU-8223313532,RH Smith & Sons LTD,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+5025155058336,SKU-8945251431,Dyson Technology Limited,manufacturer_city|manufacturer_postalcode|email,9
+5055350248140,SKU-7417485934,Fox International Group Limited,email,12
+5059732709403,SKU-8447826159,Ellesse,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+5060570201660,SKU-8735317765,Vault X Ltd,email,14
+56cdbf05-ce59-43c9-be15-6cc63c6dae93,SKU-0874304411,Christian Ulbricht,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+5702017567501,SKU-9904325113,LEGO Group,email,13
+5715422473657,SKU-5019696431,Selected Homme,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+57380a89-b13c-470c-8167-aa51b43eb78e,SKU-5329605855,Ernie Ball,email,12
+5900811829102,SKU-8404970287,Eurofirany,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+5901532626087,SKU-1746174206,Polcar,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+5902811100663,SKU-3663111562,Carmat,manufacturer_address|manufacturer_city|manufacturer_postalcode,8
+5908242693453,SKU-6816251293,KAMOKA,entity_country|manufacturer_city|manufacturer_postalcode,9
+6078c5f0-fb52-4c9c-b795-12a136ba6c79,SKU-2708761114,M&S Vertrieb Service GmbH,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+61921411800024,SKU-6860111834,广东省阳春群生橡胶制品有限公司,entity_country|manufacturer_city|manufacturer_postalcode|email,6
+61cb13b8-ef09-4959-821e-c2d63fcd8038,SKU-9014992269,NQY,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+6922738000364,SKU-9041995991,Nanyang NiuJin,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+6941057422886,SKU-6216530722,INTEx,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+6954850111741,SKU-0735099796,Dong Fang Hong,manufacturer_address|manufacturer_postalcode|email,9
+6acf0526-65bd-4c5a-bd00-abe9bfb5f483,SKU-3748510561,Casaria,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+7082024102510,SKU-1423771699,Piaggio,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode,5
+7290006780805,SKU-9905416565,SodaStream Deutschland GmbH,entity_country|manufacturer_city|manufacturer_postalcode|email,7
+7290116742380,SKU-0225495136,SodaStream Industries Ltd.,email,13
+7325549884427,SKU-6480044357,POC,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+7325706169114,SKU-6810770905,GANT,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+7325707913594,SKU-1000000007,GANT,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+74429111967912,SKU-6162434731,KOTO,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+7538f896-fb64-40ee-a606-65e08665fc2a,SKU-9166429134,Peridan's,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+7630751727135,SKU-1055381582,Nespresso,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+7640415026184,SKU-0500263191,Namuk,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+76a7cc4f-9aa4-4149-ad6b-9cc4ef1dc1df,SKU-7200941317,ClimAir PLAVA Kunststoffe GmbH,email,13
+7778bbb4-0a11-414b-a323-1573ab313f48,SKU-6044260478,MAHLE,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+7c4d3bb6-e7a1-4fa0-aa88-3da9b25134d8,SKU-3324867175,Auledio,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+8026196116716,SKU-5173627811,CIAO,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+8033805473085,SKU-1000000008,Calzedonia Germany GmbH,email,13
+8051385880857,SKU-2552797972,Diesel,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+8052694010041,SKU-2801069572,LEGAMI MILANO,email,14
+8088208802015,SKU-6543182729,AR HOME,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+81717285233178,SKU-5764056320,Good Morning,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+8445623762195,SKU-6388963375,Stradivarius,manufacturer_address|manufacturer_postalcode|email,7
+8445623774655,SKU-5530631035,Stradivarius,manufacturer_address|manufacturer_postalcode|email,7
+849e919f-0898-4df7-8fbb-e141c351cba4,SKU-2969022222,DUNSOO,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+8712364370409,SKU-6835511556,NV ESPA / Funny Fashion Inc.,manufacturer_city|manufacturer_postalcode|email,10
+8718042150288,SKU-3341294632,NRF,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+8719076052258,SKU-9132277490,Victron Energy,entity_country|manufacturer_city|manufacturer_postalcode|email,7
+8719114322466,SKU-4961159565,Calvin Klein,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+8719115000028,SKU-8798489036,Calvin Klein,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+8720245556002,SKU-7977735758,Puma,manufacturer_address|email,9
+8720636438269,SKU-5980539717,Tommy Hilfiger,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,4
+8720644940723,SKU-4500500397,Tommy Hilfiger,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,4
+8720646487387,SKU-1041108089,Tommy Hilfiger,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,4
+8720646885909,SKU-6560672722,Tommy Hilfiger,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,4
+8720646885916,SKU-3825799024,TOMMY HILFIGER,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,4
+8720676510376,SKU-2005525534,Hunkemöller,entity_country|manufacturer_city|manufacturer_postalcode|email,7
+8720828172452,SKU-3692000771,Cloudpillo,manufacturer_address|email,10
+8b41bda6-bc97-4d34-8644-f081c7d180cb,SKU-2629282795,Glosen,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+8c326f7a-d1df-447c-ab0c-c39d136ac565,SKU-0780623565,Tantomi,manufacturer_address|manufacturer_city|manufacturer_postalcode,8
+9002759957889,SKU-5602954541,EGLO,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+9368205000005,SKU-0457243849,Blue Tomato,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+9598aed7-fe7a-426e-afcc-08ca0d925270,SKU-0026867017,LESBJFDM,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+SKU-0000524938,SKU-0000524938,Apple,manufacturer_address|email,9
+SKU-0152828115,SKU-0152828115,Unbekannt,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-0172791378,SKU-0172791378,lululemon,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+SKU-0236764953,SKU-0236764953,Malossi S.p.A.,email,15
+SKU-0280699295,SKU-0280699295,H&M,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+SKU-0310087435,SKU-0310087435,Villa Grinario,entity_country|manufacturer_city|manufacturer_postalcode|email,6
+SKU-0362404564,SKU-0362404564,UBRAVOO,manufacturer_postalcode,14
+SKU-0611814591,SKU-0611814591,Lacoste,manufacturer_city|manufacturer_postalcode|email,9
+SKU-0619911931,SKU-0619911931,Tesvor,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode,5
+SKU-0651722148,SKU-0651722148,Topeak,email,13
+SKU-0785869755,SKU-0785869755,Terry,manufacturer_address|email,10
+SKU-0808524453,SKU-0808524453,ASICS,manufacturer_address|email,10
+SKU-0871959830,SKU-0871959830,Ruian Menglai Craft Gift Firm,entity_country|manufacturer_city|manufacturer_postalcode,8
+SKU-0982370040,SKU-0982370040,GardenGrill,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-1066852367,SKU-1066852367,Shelly,manufacturer_address|email,10
+SKU-1153910217,SKU-1153910217,Shure,email,13
+SKU-1181918814,SKU-1181918814,Kaweco,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-1230781227,SKU-1230781227,Villa Grinario,entity_country|manufacturer_city|manufacturer_postalcode|email,6
+SKU-1483282001,SKU-1483282001,DUO Collection,manufacturer_address|email,10
+SKU-1961998362,SKU-1961998362,KOENIC,manufacturer_address|email,11
+SKU-2019125675,SKU-2019125675,Derma Pen Germany,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+SKU-2114384722,SKU-2114384722,Hawkers,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+SKU-2123165909,SKU-2123165909,HLI,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-2388529978,SKU-2388529978,SAD,manufacturer_address|email,10
+SKU-2561166298,SKU-2561166298,Hodalump,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+SKU-2609353370,SKU-2609353370,PROGARDEN,manufacturer_address|email,10
+SKU-2638568297,SKU-2638568297,Altra,email,12
+SKU-2690684566,SKU-2690684566,MANN-FILTER,manufacturer_address|email,10
+SKU-3093460977,SKU-3093460977,LLIVEKIT,manufacturer_address|email,10
+SKU-3095199472,SKU-3095199472,Skechers,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-3132130051,SKU-3132130051,Skechers,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-3190070125,SKU-3190070125,GREELUE,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-3368481451,SKU-3368481451,Puma,manufacturer_address|email,9
+SKU-3475457190,SKU-3475457190,upgrade4cars,manufacturer_city|manufacturer_postalcode|email,8
+SKU-3588671475,SKU-3588671475,Topeak,email,13
+SKU-3818412905,SKU-3818412905,Hermès Parfums,entity_country|manufacturer_city|manufacturer_postalcode|email,6
+SKU-4212491486,SKU-4212491486,Unbekannt,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+SKU-4264334297,SKU-4264334297,lionelo,email,12
+SKU-4304000683,SKU-4304000683,LEONARDO,manufacturer_address|email,9
+SKU-4358173575,SKU-4358173575,SEEK DISCOMFORT,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-4391085581,SKU-4391085581,Lacoste,manufacturer_city|manufacturer_postalcode|email,9
+SKU-4433223955,SKU-4433223955,Lululemon,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+SKU-4434702791,SKU-4434702791,Lexar,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-4541378818,SKU-4541378818,Longking,manufacturer_address|email,11
+SKU-4607569519,SKU-4607569519,SONAX GmbH,manufacturer_address|email,11
+SKU-4802639881,SKU-4802639881,FITGRIFF,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+SKU-4820097368,SKU-4820097368,Aboutbags NV,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+SKU-4846525236,SKU-4846525236,QinnFSIYANG,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-4919757592,SKU-4919757592,Clockhouse Fashion,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+SKU-4949389854,SKU-4949389854,evoTrek,entity_country|manufacturer_city|manufacturer_postalcode|email,6
+SKU-4990478200,SKU-4990478200,BBQ-Toro,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+SKU-5017039989,SKU-5017039989,Mountain Guide,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-5037405516,SKU-5037405516,LOBERON,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+SKU-5091393302,SKU-5091393302,JOIDWAY,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-5127373339,SKU-5127373339,UnionSine,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-5427858806,SKU-5427858806,Shure,email,13
+SKU-5462953053,SKU-5462953053,IPOZON,manufacturer_postalcode,14
+SKU-5582443660,SKU-5582443660,Biologika,manufacturer_address|manufacturer_postalcode|email,7
+SKU-5598085433,SKU-5598085433,Samsung,manufacturer_address,11
+SKU-5633394973,SKU-5633394973,Classic Flyer,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-5701110636,SKU-5701110636,Siemens,manufacturer_address|email,11
+SKU-5722168408,SKU-5722168408,PUMA,manufacturer_address|email,9
+SKU-5740515403,SKU-5740515403,Altra,email,12
+SKU-5780092798,SKU-5780092798,SW-Stahl,email,13
+SKU-5814356347,SKU-5814356347,Tefal,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-5869700759,SKU-5869700759,MSI,email,12
+SKU-5946216503,SKU-5946216503,reviMED,manufacturer_address|email,11
+SKU-6346907299,SKU-6346907299,GoveeLife,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-6427883146,SKU-6427883146,NEXTCOVER,email,13
+SKU-6537574821,SKU-6537574821,VCM,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-6603765179,SKU-6603765179,Terry,manufacturer_address|email,10
+SKU-6614383452,SKU-6614383452,LEONARDO,manufacturer_address|email,9
+SKU-6673544963,SKU-6673544963,PUMA,manufacturer_address|email,9
+SKU-7237772440,SKU-7237772440,Topeak,email,13
+SKU-7270723982,SKU-7270723982,Kitchen Sink,manufacturer_address|email,11
+SKU-7290912165,SKU-7290912165,Marco Tozzi,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-7473377331,SKU-7473377331,CORSAIR,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+SKU-7543211550,SKU-7543211550,CMP,email,13
+SKU-7627745924,SKU-7627745924,NEOLYMP,manufacturer_address|email,10
+SKU-7680238839,SKU-7680238839,Polo Ralph Lauren,manufacturer_address|manufacturer_city|manufacturer_postalcode,8
+SKU-7926913408,SKU-7926913408,toptrek,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-8064565799,SKU-8064565799,UGG,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-8112287411,SKU-8112287411,Desigual,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+SKU-8133187753,SKU-8133187753,Villa Grinario,entity_country|manufacturer_city|manufacturer_postalcode|email,6
+SKU-8151275535,SKU-8151275535,E-CrossStu GmbH,manufacturer_city|manufacturer_postalcode|email,8
+SKU-8236064906,SKU-8236064906,KNIPEX,manufacturer_address|email,10
+SKU-8245288059,SKU-8245288059,LICO,email,14
+SKU-8249181407,SKU-8249181407,Sony,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+SKU-8310896573,SKU-8310896573,IKEA,manufacturer_address,13
+SKU-8367978772,SKU-8367978772,Pelikan,manufacturer_address|email,10
+SKU-8380347833,SKU-8380347833,Westwing,manufacturer_address|manufacturer_city|manufacturer_postalcode,8
+SKU-8462375603,SKU-8462375603,Puma,manufacturer_address|email,9
+SKU-8640590578,SKU-8640590578,Villa Grinario,entity_country|manufacturer_city|manufacturer_postalcode|email,6
+SKU-8689351772,SKU-8689351772,Garmin,manufacturer_address|email,9
+SKU-8843412443,SKU-8843412443,ONVAYA,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-8857013241,SKU-8857013241,Paul Green GmbH,email,14
+SKU-8919591829,SKU-8919591829,PLANAM,manufacturer_address|email,10
+SKU-9428729031,SKU-9428729031,Azmüsebat Celik Sanayi ve Ticaret A.S.,manufacturer_address|manufacturer_postalcode,10
+SKU-9431798499,SKU-9431798499,HP,manufacturer_address|email,10
+SKU-9436640030,SKU-9436640030,Puma,manufacturer_address,11
+SKU-9458628509,SKU-9458628509,Eureka,manufacturer_postalcode,14
+SKU-9603350817,SKU-9603350817,,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+SKU-9627368343,SKU-9627368343,d-c-fix,manufacturer_address|email,10
+SKU-9820031170,SKU-9820031170,YOLEO,manufacturer_postalcode,14
+SKU-9876441475,SKU-9876441475,Random House Disney,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+SKU-9933881904,SKU-9933881904,SCENEx,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+SKU-9988960743,SKU-9988960743,Pepe Jeans London,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+a11d13d2-573e-401e-bf44-f5eff249743f,SKU-2178359678,Suhr,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+a2ad1a25-85f0-4206-ba2d-f718e75b5942,SKU-2002593737,LEVEL8,email,13
+a7fbf83a-10da-453f-974b-4d71c9e7e626,SKU-1848228084,"Walex Products Company, Inc.",manufacturer_address,13
+ac5a1129-af86-4956-9a3b-ad732f8788bf,SKU-7123124767,AMERICAN NIKE S.A.,email,13
+adb302b7-663c-4f2d-931d-b633f3745d62,SKU-6625137611,Nike Retail B.V.,email,14
+aea6179e-a548-4891-8239-a986e778094a,SKU-5500133555,New Balance Germany GmbH,manufacturer_city|manufacturer_postalcode|email,9
+b17bc8c9-7097-40af-ba51-02491a3cb01e,SKU-8799542495,Kiniris,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+b5c12f09-3a02-42fe-b848-a62da3ce4474,SKU-5059471242,Tommy Hilfiger,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,4
+b9682eb9-a9aa-415e-898f-7b9bf915e42f,SKU-8203474346,Sabeatex,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+c02f6527-8651-429c-8022-31eb90f6aaaa,SKU-0716100821,SOMAN,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+c6d932e0-cd68-4d66-8212-d98f5d10e8d2,SKU-7957694387,SIRUS,manufacturer_address|email,10
+d26c1381-e411-4bd2-a9fd-fdd8e408a28a,SKU-3178068699,Vex,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+d5ebb4cc-55b0-4b01-a52b-14af5f5e48dd,SKU-6221197450,TRIGGER POINT SYSTEMS,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+d7360291-deb4-4b2b-8251-b756f2572c94,SKU-2215132526,ELOMACKE,entity_country|manufacturer_name|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,0
+d7fe958d-e961-4da4-841c-056d2d07081f,SKU-1000000009,TOM TAILOR,manufacturer_address|manufacturer_postalcode,11
+ddf71447-e7dd-4f92-afa1-9fc1b7fad114,SKU-5047615558,Sunlu,manufacturer_address|email,10
+e29c131f-ec89-434c-b216-90f28330918d,SKU-6854747447,Vinz,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,5
+e73c69ce-6582-4454-adab-52b418a775d0,SKU-5599844775,"Yunhe Du Smart Toy Co., LTD",entity_country|manufacturer_city|manufacturer_postalcode|email,6
+e8f548b0-5b46-488a-8ea9-b525f6381ab2,SKU-1000000010,Calvin Klein,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+ea75ec18-8ebd-4623-8b72-bdc796af7bfb,SKU-1536365981,Dzpuhuojz,manufacturer_city|manufacturer_postalcode,10
+f19c6d73-628b-424c-9d89-d950ebafb74b,SKU-6536943755,ANYCUBIC,manufacturer_address|manufacturer_city|manufacturer_postalcode|email,6
+f2028097-7287-47f8-b694-d663960758ec,SKU-2204782559,Eternity Commerce LTD,entity_country|manufacturer_address|manufacturer_city|manufacturer_postalcode|email,3
+f20fc23c-f6dc-476a-9070-d943caec409f,SKU-3481827893,ROBOTIME,entity_country|manufacturer_city|manufacturer_postalcode|email,7
+f42902e6-fbd5-40b3-ab2e-754199627da6,SKU-7676899776,Newland D-A-CH,manufacturer_address|manufacturer_postalcode,10

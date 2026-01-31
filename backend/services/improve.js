@@ -9,7 +9,6 @@ const {
   applyKauflandTaxonomy,
 } = require('./enrichment');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
-const { executeSerpapiToolCall } = require('./toolkit');
 const { createJob: createQualityJob } = require('../lib/quality-jobs');
 const { enqueueQualityJob } = require('./quality-runner');
 const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
@@ -76,44 +75,7 @@ function buildImproveContext(product) {
   return lines.join('\n');
 }
 
-async function fetchCheapestPrice({ barcodes = [], brand = '', model = '', title = '' }) {
-  // Build search queries prioritized by precision
-  const queries = [];
-  const barcode = barcodes.find((b) => b && b.length >= 8);
-  if (barcode) queries.push(barcode);
-  const brandModel = [brand, model].filter(Boolean).join(' ');
-  if (brandModel) queries.push(brandModel);
-  if (title) queries.push(title);
-
-  for (const q of queries) {
-    try {
-      const toolCall = {
-        name: 'search_cheapest_price',
-        arguments: JSON.stringify({ query: q, locale: 'de-DE' }),
-      };
-      const result = await executeSerpapiToolCall(toolCall);
-      if (result && Array.isArray(result.offers) && result.offers.length) {
-        // pick cheapest new price
-        const sorted = result.offers
-          .filter((o) => typeof o.price === 'number' && o.price > 0)
-          .sort((a, b) => a.price - b.price);
-        if (sorted.length) {
-          const best = sorted[0];
-          return {
-            amount: best.price,
-            currency: best.currency || 'EUR',
-            source: best.source || best.seller || 'serpapi',
-            url: best.link || best.url || '',
-            checked_at: new Date().toISOString(),
-          };
-        }
-      }
-    } catch (err) {
-      console.warn('Price lookup failed for query', q, err.message);
-    }
-  }
-  return null;
-}
+// NOTE: fetchCheapestPrice removed (SerpAPI dependency). Pricing is handled elsewhere and is opt-in.
 
 function cleanAttributeValue(value) {
   if (typeof value === 'string') {
@@ -712,14 +674,19 @@ async function improveExistingProduct(productId, onProgress) {
   if (onProgress) await onProgress('merging');
   let mergedProduct = improvedOutput ? mergeProductRecords(product, improvedOutput) : JSON.parse(JSON.stringify(product));
 
-  // Price enrichment:
-  // Use the shared pricing logic (robust candidate selection + outlier guards).
-  if (onProgress) await onProgress('pricing');
-  try {
-    const serpTrace = [];
-    await ensurePriceCoverage([mergedProduct], serpTrace);
-  } catch (err) {
-    console.warn('[improve] Pricing enrichment failed:', err?.message || err);
+  // Web-only mode: NO pricing enrichment (SerpAPI) and NO model-generated inference.
+  // Pricing can be added later via dedicated marketplace parsers if needed.
+  // Price enrichment currently depends on SerpAPI in this codebase. Keep it opt-in.
+  const PRICE_ENRICH =
+    (process.env.PRICE_ENRICHMENT_ENABLED || '').toString().trim().toLowerCase() === 'true';
+  if (PRICE_ENRICH) {
+    if (onProgress) await onProgress('pricing');
+    try {
+      const serpTrace = [];
+      await ensurePriceCoverage([mergedProduct], serpTrace);
+    } catch (err) {
+      console.warn('[improve] Pricing enrichment failed:', err?.message || err);
+    }
   }
 
   console.log('[improve] Applying Taxonomy...');
