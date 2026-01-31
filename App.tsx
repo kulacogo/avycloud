@@ -816,7 +816,7 @@ const AppInner: React.FC = () => {
 };
 
 const AuthGate: React.FC = () => {
-  const { user, loading, isAdmin, logout } = useAuth();
+  const { user, loading, initError, isAdmin, logout } = useAuth();
 
   // Public auth flows (password reset / email verification) must be reachable without login.
   if (typeof window !== 'undefined') {
@@ -834,6 +834,30 @@ const AuthGate: React.FC = () => {
           <div className="text-sm">
             <p className="font-semibold">Authentifizierung…</p>
             <p className="text-slate-400 text-xs">Bitte warten</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (initError) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
+        <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-4">
+          <h1 className="text-xl font-bold">Dev Setup erforderlich</h1>
+          <p className="text-sm text-slate-300">
+            Firebase ist nicht konfiguriert, daher kann die App nicht starten.
+          </p>
+          <div className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+            {initError}
+          </div>
+          <div className="text-sm text-slate-200 space-y-2">
+            <p className="font-semibold">Fix:</p>
+            <ol className="list-decimal list-inside text-slate-300 space-y-1">
+              <li>Lege eine Datei <span className="font-mono">.env.local</span> im Projekt-Root an.</li>
+              <li>Setze mindestens: <span className="font-mono">VITE_FIREBASE_API_KEY</span>, <span className="font-mono">VITE_FIREBASE_AUTH_DOMAIN</span>, <span className="font-mono">VITE_FIREBASE_PROJECT_ID</span>, <span className="font-mono">VITE_FIREBASE_APP_ID</span>.</li>
+              <li>Dev-Server neu starten.</li>
+            </ol>
           </div>
         </div>
       </div>
