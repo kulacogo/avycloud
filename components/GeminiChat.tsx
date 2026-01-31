@@ -261,66 +261,140 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [serpInsights, setSerpInsights] = useState<SerpInsight[]>([]);
-  const [showPromptTray, setShowPromptTray] = useState(false);
   const [stickToBottom, setStickToBottom] = useState(true);
   const [applyingChangeIds, setApplyingChangeIds] = useState<Set<string>>(new Set());
+
+  const [promptConfig, setPromptConfig] = useState(() => ({
+    // What to improve
+    title: true,
+    attributes: true,
+    highlights: true,
+    description: true,
+    pricing: false,
+    gtin: false,
+    images: false,
+    gpsr: false,
+    category: false,
+    // Research strategy
+    marketplaceFirst: true,
+    broadFallback: true,
+    maxPagesToFetch: 2,
+  }));
+
+  const applyPromptScene = useCallback((scene: string) => {
+    const base = {
+      // default research behavior
+      marketplaceFirst: true,
+      broadFallback: true,
+      maxPagesToFetch: 2,
+      // default content goals
+      title: false,
+      attributes: false,
+      highlights: false,
+      description: false,
+      pricing: false,
+      gtin: false,
+      images: false,
+      gpsr: false,
+      category: false,
+    };
+
+    const next: any = { ...base };
+    switch (scene) {
+      case 'full':
+        next.title = true;
+        next.attributes = true;
+        next.highlights = true;
+        next.description = true;
+        break;
+      case 'title':
+        next.title = true;
+        break;
+      case 'gtin':
+        next.gtin = true;
+        break;
+      case 'gpsr':
+        next.gpsr = true;
+        break;
+      case 'images':
+        next.images = true;
+        next.maxPagesToFetch = 3;
+        break;
+      case 'pricing':
+        next.pricing = true;
+        break;
+      case 'category':
+        next.category = true;
+        next.attributes = true;
+        break;
+      default:
+        next.title = true;
+        next.attributes = true;
+        next.highlights = true;
+        next.description = true;
+        break;
+    }
+
+    setPromptConfig((prev) => ({
+      ...prev,
+      ...next,
+    }));
+  }, []);
 
   const chatBodyRef = useRef<HTMLDivElement>(null);
   const suggestionKeysRef = useRef<Set<string>>(new Set());
   const objectUrlStore = useRef<string[]>([]);
 
-  const promptTemplates: PromptTemplate[] = useMemo(
-    () => [
-      {
-        key: 'pricing',
-        label: t('chat.prompts.pricing'),
-        value: 'Preis korrigieren (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
-      },
-      {
-        key: 'title',
-        label: t('chat.prompts.title'),
-        value:
-          'Titel verbessern (TECHNISCH & suchbar, keine Marketingfloskeln/Adjektive, keine Dubletten, max. 80 Zeichen, inkl. wichtiger technischer Daten wie Modell/Herstellernummer/Größe/Spannung/Leistung/Volumen – wenn vorhanden).',
-      },
-      {
-        key: 'attributes',
-        label: t('chat.prompts.attributes'),
-        value:
-          'Attribute korrigieren/ergänzen (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
-      },
-      {
-        key: 'gtin',
-        label: t('chat.prompts.gtin'),
-        value:
-          'Ermittele den zuverlässigsten Barcode (EAN = 13 Stellen, GTIN = 14 Stellen, jeweils mit gültiger Prüfziffer). Antworte ausschließlich mit JSON im DatasheetChange-Schema, z. B.: ```json\n{"identity":{"ean":"1234567890123","gtin":null}}\n``` Verwende nur Codes mit korrekter Prüfziffer. Wenn kein valider Code gefunden wird, gib {"identity":{}} zurück und nichts weiter.',
-      },
-      {
-        key: 'datasheet',
-        label: t('chat.prompts.datasheet'),
-        value:
-          'Datenblatt komplett verbessern: Titel (TECHNISCH, max. 80 Zeichen, inkl. Modell/Herstellernummer/Größe/Spannung/Leistung/Volumen wenn vorhanden; keine Marketingfloskeln), Beschreibung, Highlights/Attribute, Preis, Identifikatoren und Bilder prüfen, korrigieren und auffüllen (keine Duplikate). Setze exakt EINE Kategorie („Kategorie“) anhand der Liste in backend/ebay-data/categories.json und fülle alle Pflicht-Attribute für diese Kategorie anhand backend/ebay-data/required-aspects.json vollständig aus. Ergebnis e-commerce-ready und stilistisch konsistent liefern.',
-      },
-      {
-        key: 'webImages',
-        label: t('chat.prompts.webImages'),
-        value:
-          'Finde 3–6 Referenzbilder/Produktbilder im Internet (NUR Web-Quellen, KEINE AI-Generierung). Antworte mit konkreten URLs und liefere sie als Bild-Vorschläge, damit ich sie direkt übernehmen kann.',
-      },
-      {
-        key: 'highlights',
-        label: t('chat.prompts.highlights'),
-        value:
-          'Highlights verbessern (6–8 kurze Bullets, technisch/faktenbasiert, keine Dubletten, keine Verpackungstexte).',
-      },
-      {
-        key: 'description',
-        label: t('chat.prompts.description'),
-        value:
-          'Beschreibung korrigieren/ergänzen (auf Korrektur und Plausibilität prüfen und entsprechend füllen, Duplikate vermeiden)',
-      },
-    ],
-    [t]
-  );
+  const buildSmartPrompt = useCallback(() => {
+    const goals: string[] = [];
+    if (promptConfig.title) goals.push('Titel');
+    if (promptConfig.attributes) goals.push('Attribute/Parameter');
+    if (promptConfig.highlights) goals.push('Highlights');
+    if (promptConfig.description) goals.push('Beschreibung');
+    if (promptConfig.pricing) goals.push('Preis');
+    if (promptConfig.gtin) goals.push('EAN/GTIN/UPC');
+    if (promptConfig.images) goals.push('Web-Produktbilder');
+    if (promptConfig.gpsr) goals.push('GPSR/Herstellerdaten');
+    if (promptConfig.category) goals.push('Kategorie');
+
+    const research = [
+      promptConfig.marketplaceFirst ? 'Marketplace-first (ebay.de/kaufland.de/hood.de)' : null,
+      promptConfig.broadFallback ? 'Fallback: breite Websuche (ohne site-Limit)' : null,
+      `Fetch: max. ${Math.max(1, Math.min(3, Number(promptConfig.maxPagesToFetch) || 2))} Seiten lesen`,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    return [
+      `Ziel: ${goals.length ? goals.join(', ') : 'Datenblatt verbessern'}.`,
+      `Recherche: ${research}.`,
+      'Bitte arbeite evidenzbasiert: erst suchen, dann 1–2 passende Seiten laden, dann Änderungen vorschlagen.',
+      'Gib Änderungen immer als update_product_datasheet aus (damit ich sie direkt übernehmen kann).',
+    ].join(' ');
+  }, [promptConfig]);
+
+  const derivedScope = useMemo(() => {
+    const keys: Array<keyof typeof promptConfig> = [
+      'title',
+      'attributes',
+      'highlights',
+      'description',
+      'pricing',
+      'gtin',
+      'gpsr',
+    ];
+    const selected = keys.filter((k) => Boolean((promptConfig as any)[k]));
+    if (selected.length !== 1) return 'datasheet';
+    const only = selected[0];
+    if (only === 'title') return 'title';
+    if (only === 'pricing') return 'pricing';
+    if (only === 'gtin') return 'gtin';
+    if (only === 'description') return 'description';
+    if (only === 'highlights') return 'highlights';
+    if (only === 'attributes') return 'attributes';
+    if (only === 'gpsr') return 'gpsr';
+    return 'datasheet';
+  }, [promptConfig]);
 
   const normalizeImageKey = (value?: string | null) => {
     if (!value) return null;
@@ -640,10 +714,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         </div>
         <button
           type="button"
-          onClick={() => setShowPromptTray((prev) => !prev)}
+          onClick={() => {
+            setInput(buildSmartPrompt());
+            setActiveScope(derivedScope);
+          }}
           className="rounded-full border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:border-sky-500 hover:text-white"
+          title="Erzeugt einen smarten Prompt aus den Optionen."
         >
-          {showPromptTray ? t('chat.ui.promptsHide') : t('chat.ui.promptsShow')}
+          Prompt bauen
         </button>
       </header>
 
@@ -790,45 +868,116 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       </div>
 
       <div className="space-y-3 border-t border-slate-800 px-4 py-4">
-        {showPromptTray && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
-              <span>{t('chat.ui.quickTitle')}</span>
-              <span>{t('chat.ui.quickHint')}</span>
+        <details className="rounded-2xl border border-slate-800 bg-slate-950/30 p-3">
+          <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+            Assistant Optionen
+          </summary>
+          <div className="mt-3 grid grid-cols-1 gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-2 text-[12px]">
+                {[
+                  ['full', 'Vollständig'],
+                  ['title', 'Nur Titel'],
+                  ['gtin', 'Nur EAN/GTIN'],
+                  ['gpsr', 'Nur GPSR'],
+                  ['images', 'Nur Web-Bilder'],
+                  ['pricing', 'Preischeck'],
+                  ['category', 'Kategorie + Pflichtattribute'],
+                ].map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => applyPromptScene(String(key))}
+                    className="rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500 hover:text-white"
+                    title="Setzt nur die Optionen (kein starrer Prompt)."
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const smart = buildSmartPrompt();
+                  setInput(smart);
+                  setActiveScope(derivedScope);
+                }}
+                className="rounded-full bg-slate-800 px-3 py-1 text-[12px] text-slate-200 hover:bg-slate-700"
+                title="Schreibt den smarten Prompt in die Eingabe."
+              >
+                Vorschau in Eingabe
+              </button>
             </div>
-            <div className="flex flex-wrap gap-2 pb-1">
-              {promptTemplates.map((prompt) => (
-                <button
-                  key={`tray-${prompt.key}`}
-                  type="button"
-                  onClick={() => {
-                    setInput(prompt.value);
-                    setActiveScope(prompt.key);
-                  }}
-                  className="rounded-full bg-slate-800 px-3 py-1 text-[12px] text-slate-200 hover:bg-slate-700"
+
+            <div className="flex flex-wrap gap-2 text-[12px]">
+              {[
+                ['title', 'Titel'],
+                ['attributes', 'Attribute'],
+                ['highlights', 'Highlights'],
+                ['description', 'Beschreibung'],
+                ['pricing', 'Preis'],
+                ['gtin', 'EAN/GTIN'],
+                ['images', 'Web-Bilder'],
+                ['gpsr', 'GPSR'],
+                ['category', 'Kategorie'],
+              ].map(([key, label]) => (
+                <label
+                  key={key}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500"
                 >
-                  {prompt.label}
-                </button>
+                  <input
+                    type="checkbox"
+                    checked={(promptConfig as any)[key]}
+                    onChange={(e) => setPromptConfig((prev) => ({ ...prev, [key]: e.target.checked } as any))}
+                  />
+                  {label}
+                </label>
               ))}
             </div>
-          </div>
-        )}
 
-        <div className="flex flex-wrap gap-2 pb-1 text-[12px]">
-          {promptTemplates.map((action) => (
-            <button
-              key={`action-${action.key}`}
-              type="button"
-              onClick={() => {
-                setActiveScope(action.key);
-                void handleSend(action.value, action.key);
-              }}
-              className="rounded-full border border-slate-700 px-3 py-1 text-slate-200 hover:border-sky-500 hover:text-white"
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
+            <div className="flex flex-wrap gap-2 text-[12px]">
+              <label className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
+                <input
+                  type="checkbox"
+                  checked={promptConfig.marketplaceFirst}
+                  onChange={(e) => setPromptConfig((prev) => ({ ...prev, marketplaceFirst: e.target.checked }))}
+                />
+                Marketplace-first
+              </label>
+              <label className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
+                <input
+                  type="checkbox"
+                  checked={promptConfig.broadFallback}
+                  onChange={(e) => setPromptConfig((prev) => ({ ...prev, broadFallback: e.target.checked }))}
+                />
+                Broad-Fallback
+              </label>
+              <label className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
+                Fetch-Seiten
+                <select
+                  value={promptConfig.maxPagesToFetch}
+                  onChange={(e) => setPromptConfig((prev) => ({ ...prev, maxPagesToFetch: Number(e.target.value) }))}
+                  className="rounded-md bg-slate-800 px-2 py-1 text-slate-200"
+                >
+                  <option value={1}>1</option>
+                  <option value={2}>2</option>
+                  <option value={3}>3</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  const smart = buildSmartPrompt();
+                  setActiveScope(derivedScope);
+                  void handleSend(smart, derivedScope);
+                }}
+                className="rounded-full bg-sky-600 px-3 py-1 text-[12px] font-semibold text-white hover:bg-sky-500"
+              >
+                Jetzt ausführen
+              </button>
+            </div>
+          </div>
+        </details>
 
         <ChatInput
           value={input}

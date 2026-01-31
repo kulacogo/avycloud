@@ -9,13 +9,16 @@
 const { fetchWithUnlocker } = require('./web-unlocker');
 const { fetchSerpHtml } = require('./brightdata-serp');
 
-const USE_UNLOCKER =
-  (process.env.WEB_USE_UNLOCKER || process.env.BARCODE_WEB_USE_UNLOCKER || '')
-    .toString()
-    .toLowerCase() === 'true';
-
 const BRIGHTDATA_ONLY =
   (process.env.WEB_BRIGHTDATA_ONLY || 'true').toString().trim().toLowerCase() !== 'false';
+
+// In BrightData-only mode we must be able to fetch pages; default to enabled unless explicitly disabled.
+const USE_UNLOCKER = (() => {
+  const raw = (process.env.WEB_USE_UNLOCKER || process.env.BARCODE_WEB_USE_UNLOCKER || '').toString().trim().toLowerCase();
+  if (raw === '0' || raw === 'false' || raw === 'no') return false;
+  if (raw === '1' || raw === 'true' || raw === 'yes') return true;
+  return BRIGHTDATA_ONLY ? true : false;
+})();
 
 // Some "EAN search" sites list unrelated codes; block them for safety.
 const DOMAIN_BLOCKLIST = new Set([
@@ -227,12 +230,8 @@ async function searchGoogle(query, { limit = 6, locale = 'de-DE' } = {}) {
 async function searchGoogleViaBrightDataSerp(query, { limit = 6, locale = 'de-DE', country = null } = {}) {
   // Use Bright Data SERP zone if configured; this tends to be far more reliable than scraping DDG HTML in Cloud Run.
   const serpZone = (process.env.BRIGHTDATA_SERP_ZONE || '').toString().trim();
-  const hasToken = Boolean((process.env.BRIGHTDATA_API_TOKEN || '').toString().trim());
-  // Note: token may be injected via Secret Manager at runtime; in that case env is empty.
-  // We'll still try and let fetchWithUnlocker load the secret.
-  if (!serpZone && !hasToken) {
-    return { query, ok: false, url: '', via: 'brightdata_serp_disabled', status: 0, results: [] };
-  }
+  // Note: token is typically injected via Secret Manager at runtime (env may be empty).
+  // We should still try; `fetchWithUnlocker()` loads secrets as needed.
 
   const trimmedQuery = safeString(query).slice(0, 140);
   const hl = locale.toLowerCase().startsWith('de') ? 'de' : 'en';

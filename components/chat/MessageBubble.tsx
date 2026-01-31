@@ -172,13 +172,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         <div className="mt-2 rounded-lg bg-slate-950/30 p-2 ring-1 ring-slate-700/40">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                              Titel-Vorschlag (Policy-Coerce; kann noch Issues haben)
+                              Titel-Vorschlag
                             </p>
                             <span
                               className={`text-[11px] font-semibold ${
                                 titleLen > 80 ? 'text-rose-300' : titleLen < 55 ? 'text-amber-200' : 'text-slate-300'
                               }`}
-                              title="eBay Hard-Limit: 80 Zeichen. Mobile-First: die ersten ~60 Zeichen zählen am meisten."
+                              title="eBay Hard-Limit: 80 Zeichen."
                             >
                               {titleLen}/80
                             </span>

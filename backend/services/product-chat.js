@@ -25,6 +25,7 @@ const {
 const { getRequiredAspects } = require('../lib/ebay-taxonomy');
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 const { getRulebookConfigCached } = require('../lib/rulebook-config');
+const { htmlToText } = require('../lib/web-search-html');
 
 const MAX_CHAT_ITERATIONS = 5;
 const DEEP_MODE_REGEX =
@@ -49,6 +50,205 @@ function strictRulesEnabled() {
     return s === '1' || s === 'true' || s === 'yes';
   };
   return b(process.env.RULEBOOK_ENABLED) || b(process.env.LLM_POLICY_ENABLED) || b(process.env.TITLE_POLICY_ENABLED) || b(process.env.QUALITY_GATE_ENABLED);
+}
+
+const MARKETPLACE_SITES = ['ebay.de', 'kaufland.de', 'hood.de'];
+
+function safeString(v) {
+  return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
+}
+
+function preferMarketplaceUrl(url = '') {
+  const u = safeString(url).toLowerCase();
+  if (!u) return 0;
+  if (u.includes('ebay.de')) return 3;
+  if (u.includes('kaufland.de')) return 3;
+  if (u.includes('hood.de')) return 3;
+  return 0;
+}
+
+function pickBestUrl(results = []) {
+  const list = Array.isArray(results) ? results : [];
+  const scored = list
+    .map((r) => ({ url: r?.url || '', title: r?.title || '', snippet: r?.snippet || '', score: preferMarketplaceUrl(r?.url) }))
+    .filter((r) => safeString(r.url).startsWith('http'));
+  scored.sort((a, b) => (b.score || 0) - (a.score || 0));
+  return scored[0] || null;
+}
+
+async function forceOneEvidencePass(product, userMessage, { scope = null, notesOnly = false } = {}) {
+  const locale = 'de-DE';
+  const title = safeString(product?.identification?.name);
+  const brand = safeString(product?.identification?.brand);
+  const sku = safeString(product?.identification?.sku || product?.details?.identifiers?.sku);
+  const barcodes = Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : [];
+  const barcode = safeString(barcodes.find(Boolean));
+  const userHint = safeString(userMessage);
+
+  // Build product-specific query candidates (do NOT rely on userMessage, which may be generic like "Titel verbessern").
+  // Prefer short, high-signal queries to reduce SERP failures.
+  const candidates = [
+    barcode || null,
+    barcode && brand ? `${barcode} ${brand}` : null,
+    brand && title ? `${brand} ${title}` : null,
+    title || null,
+    sku || null,
+    userHint || null,
+  ]
+    .filter(Boolean)
+    .map((q) => String(q).trim())
+    .filter(Boolean)
+    .map((q) => q.slice(0, 120));
+  const traces = [];
+
+  let results = [];
+  let usedQuery = '';
+
+  for (const query of candidates) {
+    // 1) Marketplace-first search
+    const primary = await executeBrightdataSearchToolCall({
+      arguments: JSON.stringify({ query, locale, limit: 8, sites: MARKETPLACE_SITES }),
+    });
+    traces.push({
+      type: 'brightdata',
+      engine: primary.engine,
+      query: primary.query,
+      summary: (primary.results || []).slice(0, 8).map((r) => ({
+        title: r.title || '',
+        source: r.site || 'marketplace',
+        url: r.url || '',
+        snippet: r.snippet || '',
+        price: null,
+      })),
+      error: primary.error || null,
+    });
+    results = primary?.results || [];
+    usedQuery = query;
+
+    // 2) Fallback: unrestricted web search (still BrightData-backed)
+    if (!Array.isArray(results) || results.length < 2) {
+      const broad = await executeBrightdataSearchToolCall({
+        arguments: JSON.stringify({ query, locale, limit: 8 }),
+      });
+      traces.push({
+        type: 'brightdata',
+        engine: broad.engine,
+        query: broad.query,
+        summary: (broad.results || []).slice(0, 8).map((r) => ({
+          title: r.title || '',
+          source: r.site || 'web',
+          url: r.url || '',
+          snippet: r.snippet || '',
+          price: null,
+        })),
+        error: broad.error || null,
+      });
+      if (Array.isArray(broad?.results) && broad.results.length) {
+        results = broad.results;
+      }
+    }
+
+    if (Array.isArray(results) && results.length > 0) {
+      break;
+    }
+  }
+
+  const best = pickBestUrl(results);
+  if (!best?.url) {
+    // Ensure we still return *one* structured change (notes) so the UI always has "Übernehmen".
+    return {
+      datasheetChanges: [
+        {
+          summary: 'Web-Recherche (BrightData): keine Treffer',
+          notes: {
+            unsure: [
+              `Keine verwertbaren Web-Treffer gefunden (Marketplace-first + broad web search). Query candidates tried: ${candidates.slice(0, 4).join(' | ')}`,
+            ],
+            warnings: [],
+          },
+        },
+      ],
+      traces,
+    };
+  }
+
+  // 3) Fetch 1 page via Unlocker
+  const fetched = await executeWebFetchToolCall({
+    arguments: JSON.stringify({ url: best.url, method: 'GET', format: 'raw', timeout_ms: 45000 }),
+  });
+  traces.push({
+    type: 'web_fetch',
+    url: fetched.url,
+    status: fetched.status,
+    error: fetched.error || null,
+  });
+
+  const html = typeof fetched?.body === 'string' ? fetched.body : '';
+  const text = html ? htmlToText(html).slice(0, 8000) : '';
+
+  // 4) Deterministic: force ONE update_product_datasheet tool call using evidence
+  const client = await getGeminiClient();
+  const updateOnlyTools = [{ functionDeclarations: [toGeminiTool(updateDatasheetTool)] }];
+  const updateOnlyModel = client.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    tools: updateOnlyTools,
+    toolConfig: {
+      functionCallingConfig: {
+        mode: 'ANY',
+        allowedFunctionNames: ['update_product_datasheet'],
+      },
+    },
+    systemInstruction: [
+      'You are a strict executor.',
+      'You MUST call update_product_datasheet exactly once.',
+      'Do not output any plain text.',
+      'Use only facts you can back with the provided WEB EVIDENCE snippet.',
+      ...(notesOnly
+        ? [
+            'IMPORTANT: notesOnly=true. You MUST ONLY write to the top-level "notes" field (unsure/warnings).',
+            'Do not change title, identity, attributes, pricing, key_features, short_description, gpsr, images, category.',
+          ]
+        : ['If evidence is insufficient, set notes.unsure and avoid changing title/attributes/specs.']),
+    ].join('\n'),
+  });
+
+  const prompt = [
+    `User goal: ${safeString(userMessage)}`,
+    scope ? `SCOPE=${String(scope)}` : '',
+    '',
+    'WEB EVIDENCE SOURCE URL:',
+    best.url,
+    '',
+    'WEB EVIDENCE (text excerpt):',
+    text || '(empty)',
+  ].filter(Boolean).join('\n');
+
+  const updateResp = await updateOnlyModel.generateContent({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+  });
+  const calls = updateResp.response.functionCalls?.() || [];
+  const call = calls.find((c) => c?.name === 'update_product_datasheet');
+  const changeArgs = call?.args && typeof call.args === 'object' ? call.args : {};
+  const sanitized = sanitizeDatasheetChange(changeArgs, product, { scope });
+  const nextChange = sanitized?.change && typeof sanitized.change === 'object' ? sanitized.change : {};
+  if (!Object.keys(nextChange).length) {
+    // Ensure at least notes exist
+    return {
+      datasheetChanges: [
+        {
+          summary: 'Web-Recherche (BrightData): keine sicheren Änderungen',
+          notes: {
+            unsure: [
+              `Quelle gelesen, aber keine sicheren extrahierbaren Daten gefunden: ${best.url}`,
+            ],
+            warnings: [],
+          },
+        },
+      ],
+      traces,
+    };
+  }
+  return { datasheetChanges: [nextChange], traces };
 }
 
 // Helper to recursively clean JSON schema for Gemini (e.g. remove null types)
@@ -1318,7 +1518,9 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
 
   CRITICAL RULES:
   1. DO NOT ASK the user for search queries or "what marketplace to check". derivation of queries is YOUR job.
-  2. If data (EAN/GTIN/UPC/MPN, Specs) is missing, you MUST immediately call 'brightdata_web_search' with targeted site searches for marketplaces (sites=["ebay.de","kaufland.de","hood.de"]).
+  2. Web research strategy (BrightData):
+     - FIRST: call brightdata_web_search with sites=["ebay.de","kaufland.de","hood.de"] (marketplace-first).
+     - IF results are empty/insufficient: call brightdata_web_search again WITHOUT sites (unrestricted web).
   3. After you found candidate URLs, fetch the best 1-2 pages via 'web_fetch' and extract facts from them (no guessing).
   4. Never say "I can search if you want". JUST SEARCH.
   5. **ALWAYS** usage the 'update_product_datasheet' tool when you propose ANY data changes (title, description, attributes, etc.). Do NOT just output JSON text. The tool call IS the way to propose changes.
@@ -1574,6 +1776,43 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         }
       } catch (fallbackError) {
         console.warn('Chat fallback update_product_datasheet conversion failed:', fallbackError?.message || fallbackError);
+      }
+    }
+
+    const hasWebFetch = Array.isArray(serpTrace) && serpTrace.some((t) => t?.type === 'web_fetch');
+
+    // Guarantee: if the model proposed changes without fetching any page, attach at least one fetched-evidence note.
+    // We do not overwrite its changes; we only add a notes-only card + traces.
+    if (!hasWebFetch && Array.isArray(datasheetChanges) && datasheetChanges.length > 0) {
+      try {
+        const forcedNotes = await forceOneEvidencePass(product, userMessage, { scope, notesOnly: true });
+        if (forcedNotes?.traces?.length) serpTrace.push(...forcedNotes.traces);
+        if (Array.isArray(forcedNotes?.datasheetChanges) && forcedNotes.datasheetChanges.length) {
+          datasheetChanges.push(...forcedNotes.datasheetChanges);
+        }
+      } catch (e) {
+        // ignore; we still return the original changes
+      }
+    }
+
+    // Hard guarantee: if we STILL have no datasheetChanges, run one forced BrightData search+fetch+update pass.
+    // This ensures the UI always gets an actionable "Übernehmen" card (’at least notes’).
+    if (!datasheetChanges || datasheetChanges.length === 0) {
+      try {
+        const forced = await forceOneEvidencePass(product, userMessage, { scope });
+        if (forced?.traces?.length) serpTrace.push(...forced.traces);
+        if (Array.isArray(forced?.datasheetChanges) && forced.datasheetChanges.length) {
+          forced.datasheetChanges.forEach((c) => datasheetChanges.push(c));
+        }
+      } catch (e) {
+        // As a last resort, still return notes.
+        datasheetChanges.push({
+          summary: 'Web-Recherche (BrightData): interner Fehler',
+          notes: {
+            unsure: ['Automatischer Evidence-Fallback ist fehlgeschlagen. Bitte erneut versuchen.'],
+            warnings: [String(e?.message || e)],
+          },
+        });
       }
     }
 
