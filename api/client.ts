@@ -434,6 +434,39 @@ export const adminGetBulkJob = async (jobId: string): Promise<any> => {
   return result?.data;
 };
 
+export type ProductBulkActionName = 'title' | 'price' | 'category' | 'ktype';
+
+export const runProductBulkAction = async (params: {
+  action: ProductBulkActionName;
+  productIds: string[];
+  apply?: boolean; // default true
+  debug?: boolean;
+  maxAgeDays?: number; // price
+  includeUi?: boolean; // title
+}): Promise<{ jobId: string }> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/products/bulk/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params || {}),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to enqueue product bulk job');
+  }
+  const jobId = result?.data?.jobId;
+  if (!jobId) throw new Error('Bulk job enqueued but jobId missing');
+  return { jobId };
+};
+
+export const getProductBulkJob = async (jobId: string): Promise<any> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/products/bulk/jobs/${encodeURIComponent(jobId)}`, { method: 'GET' });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Failed to load product bulk job');
+  }
+  return result?.data;
+};
+
 export const adminListUsers = async (limit = 500): Promise<AdminUserRecord[]> => {
   const url = new URL(`${BACKEND_URL}/api/admin/users`);
   url.searchParams.set('limit', String(Math.min(Math.max(limit, 1), 1000)));

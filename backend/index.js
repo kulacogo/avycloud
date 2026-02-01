@@ -1571,6 +1571,51 @@ app.get('/api/admin/bulk/jobs/:id', requirePermission('admin', 'jobs.read'), asy
   }
 });
 
+// --- Product Bulk Actions (selected products from Inventory table) ---
+// Same engine as AdminBulk, but permission is products.write (so Catalog/Admin can use it from inventory UI).
+app.post('/api/products/bulk/run', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const action = String(body.action || '').trim().toLowerCase();
+    const productIds = Array.isArray(body.productIds) ? body.productIds : [];
+    if (!action) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing action' } });
+    }
+    if (!productIds.length) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing productIds' } });
+    }
+    const payload = {
+      action,
+      productIds,
+      apply: body.apply !== false, // default true
+      debug: Boolean(body.debug),
+      maxAgeDays: Number.isFinite(Number(body.maxAgeDays)) ? Number(body.maxAgeDays) : undefined,
+      includeUi: Boolean(body.includeUi),
+      requestedBy: req.user?.email || req.user?.uid || 'user',
+    };
+    const job = await createAdminBulkJob({ payload, requestedBy: payload.requestedBy, action });
+    enqueueAdminBulkJob(job.id, true);
+    return res.status(202).json({ ok: true, data: { jobId: job.id } });
+  } catch (error) {
+    console.error('Failed to enqueue product bulk job:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to enqueue bulk job', details: error.message },
+    });
+  }
+});
+
+app.get('/api/products/bulk/jobs/:id', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const job = await getAdminBulkJob(String(req.params.id));
+    if (!job) return res.status(404).json({ ok: false, error: { code: 404, message: 'Job not found' } });
+    return res.status(200).json({ ok: true, data: job });
+  } catch (error) {
+    console.error('Failed to load product bulk job:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to load job', details: error.message } });
+  }
+});
+
 // --- Admin Jobs (RBAC-managed) ---
 // Triggers the Cloud Run Job that performs initial GPSR enrichment (BIN set & qty>=1 & needsGpsr).
 app.post('/api/admin/jobs/gpsr-web-enrich/run', requirePermission('admin', 'jobs.run'), async (req, res) => {

@@ -4,6 +4,7 @@ const { firestore, getAllProducts, getProduct, saveProduct } = require('../lib/f
 const { ensurePriceCoverage } = require('./enrichment');
 const { coerceTitleToPolicy, validateTitleToPolicy, inferTitleCategory } = require('../lib/title-policy');
 const { getRulebookConfigCached } = require('../lib/rulebook-config');
+const fs = require('fs');
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -58,10 +59,91 @@ function normalizePath(value) {
   return value.toString().trim();
 }
 
-async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays = 0, debug = false } = {}) {
+function normalizeHsnTsn(raw) {
+  const s = safeString(raw);
+  if (!s) return '';
+  // common formats: "0588 AFK", "0588/AFK", "HSN:0588 TSN:AFK"
+  const m = s.match(/\b(\d{4})\b[^\p{L}\p{N}]+([a-z0-9]{3})\b/i);
+  if (!m) return '';
+  return `${m[1]}|${m[2].toUpperCase()}`;
+}
+
+function extractHsnTsnCandidates(text = '') {
+  const s = String(text || '');
+  const out = new Set();
+  const push = (hsn, tsn) => {
+    const h = String(hsn || '').trim();
+    const t = String(tsn || '').trim().toUpperCase();
+    if (!/^\d{4}$/.test(h)) return;
+    if (!/^[A-Z0-9]{3}$/.test(t)) return;
+    out.add(`${h}|${t}`);
+  };
+  // Strict extraction only: require explicit HSN and TSN labels nearby.
+  const re2 = /\bHSN\b[^0-9]{0,40}(\d{4}).{0,120}?\bTSN\b[^A-Z0-9]{0,40}([A-Z0-9]{3})\b/gi;
+  let m;
+  while ((m = re2.exec(s)) !== null) {
+    push(m[1], m[2]);
+  }
+  return Array.from(out);
+}
+
+function pickKTypeKey(attrs) {
+  if (!attrs || typeof attrs !== 'object') return null;
+  const keys = Object.keys(attrs);
+  return keys.find((k) => ['k-typ', 'ktyp', 'k typ', 'ktyp id', 'ktypids', 'k-typ id'].includes(String(k).trim().toLowerCase())) || null;
+}
+
+function loadMvlIndex(jsonlPath) {
+  const text = fs.readFileSync(jsonlPath, 'utf8');
+  const byHsnTsn = new Map(); // "0588|AFK" -> Set<ktype>
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const s = line.trim();
+    if (!s) continue;
+    const rec = JSON.parse(s);
+    const k = Number(rec?.k);
+    if (!Number.isFinite(k)) continue;
+    const raw = safeString(rec?.hsn_tsn);
+    if (!raw) continue;
+    // MVL may contain multiple pairs separated by "<>"
+    const parts = raw.split('<>').map((p) => normalizeHsnTsn(p)).filter(Boolean);
+    for (const h of parts) {
+      const set = byHsnTsn.get(h) || new Set();
+      set.add(k);
+      byHsnTsn.set(h, set);
+    }
+  }
+  return { byHsnTsn };
+}
+
+function getMvlPath() {
+  const env = safeString(process.env.MVL_JSONL);
+  if (env && fs.existsSync(env)) return env;
+  const fallback = path.join(process.cwd(), 'exports', 'DE_MVL_2025_10.compact.jsonl');
+  if (fs.existsSync(fallback)) return fallback;
+  return null;
+}
+
+async function resolveTargetProducts({ productIds, limit, offset }) {
+  const ids = Array.isArray(productIds) ? Array.from(new Set(productIds.map((x) => safeString(x)).filter(Boolean))) : [];
+  if (ids.length) {
+    const selected = ids.slice(0, Math.max(1, limit || ids.length));
+    const out = [];
+    for (const id of selected) {
+      const p = await getProduct(String(id));
+      if (p?.id) out.push(p);
+    }
+    return out;
+  }
   const products = await getAllProducts();
   const list = Array.isArray(products) ? products.filter((p) => p?.id) : [];
-  const selected = list.slice(Math.max(0, offset), Math.max(0, offset) + Math.max(1, limit));
+  const off = Math.max(0, Number(offset) || 0);
+  const lim = Math.max(1, Number(limit) || 500);
+  return list.slice(off, off + lim);
+}
+
+async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays = 0, debug = false, productIds = null } = {}) {
+  const selected = await resolveTargetProducts({ productIds, limit, offset });
 
   const summary = {
     action: 'price',
@@ -134,10 +216,8 @@ async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays
   return { summary, samples };
 }
 
-async function runBulkTitle({ apply = false, limit = 500, offset = 0, includeUi = false, debug = false } = {}) {
-  const products = await getAllProducts();
-  const list = Array.isArray(products) ? products.filter((p) => p?.id) : [];
-  const selected = list.slice(Math.max(0, offset), Math.max(0, offset) + Math.max(1, limit));
+async function runBulkTitle({ apply = false, limit = 500, offset = 0, includeUi = false, debug = false, productIds = null } = {}) {
+  const selected = await resolveTargetProducts({ productIds, limit, offset });
 
   const summary = {
     action: 'title',
@@ -229,11 +309,9 @@ async function runBulkTitle({ apply = false, limit = 500, offset = 0, includeUi 
   return { summary, samples };
 }
 
-async function runBulkCategory({ apply = false, limit = 500, offset = 0, debug = false } = {}) {
+async function runBulkCategory({ apply = false, limit = 500, offset = 0, debug = false, productIds = null } = {}) {
   const lookup = buildMarketplaceLookup();
-  const products = await getAllProducts();
-  const list = Array.isArray(products) ? products.filter((p) => p?.id) : [];
-  const selected = list.slice(Math.max(0, offset), Math.max(0, offset) + Math.max(1, limit));
+  const selected = await resolveTargetProducts({ productIds, limit, offset });
 
   const summary = {
     action: 'category',
@@ -374,28 +452,139 @@ async function runBulkCategory({ apply = false, limit = 500, offset = 0, debug =
   return { summary, samples };
 }
 
+async function runBulkKType({ apply = false, limit = 500, offset = 0, debug = false, productIds = null } = {}) {
+  const selected = await resolveTargetProducts({ productIds, limit, offset });
+
+  const summary = {
+    action: 'ktype',
+    apply: Boolean(apply),
+    limit,
+    offset,
+    selected: selected.length,
+    updated: 0,
+    skipped_already_set: 0,
+    skipped_not_auto: 0,
+    skipped_no_hsn_tsn: 0,
+    skipped_no_mvl: 0,
+    failed: 0,
+  };
+  const samples = [];
+
+  const mvlPath = getMvlPath();
+  if (!mvlPath) {
+    summary.skipped_no_mvl = selected.length;
+    return {
+      summary,
+      samples: [
+        {
+          status: 'no_mvl',
+          message: 'MVL_JSONL not configured (and default exports/DE_MVL_2025_10.compact.jsonl not present). K‑Typ enrichment skipped.',
+        },
+      ],
+    };
+  }
+
+  const mvl = loadMvlIndex(mvlPath);
+
+  for (const p of selected) {
+    const id = p.id;
+    const sku = pickSku(p);
+    try {
+      const cur = await getProduct(String(id));
+      if (!cur) continue;
+
+      const catId = safeString(cur?.details?.categoryId || cur?.details?.ebayCategoryId || '');
+      // Only attempt for fitment categories (same rule as existing scripts).
+      let isAuto = false;
+      try {
+        const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
+        isAuto = Boolean(catId && getVehicleFitmentMode(String(catId)));
+      } catch {
+        isAuto = false;
+      }
+      if (!isAuto) {
+        summary.skipped_not_auto += 1;
+        continue;
+      }
+
+      const attrs = cur?.details?.attributes && typeof cur.details.attributes === 'object' ? cur.details.attributes : {};
+      const kKey = pickKTypeKey(attrs);
+      if (kKey && safeString(attrs[kKey])) {
+        summary.skipped_already_set += 1;
+        continue;
+      }
+
+      const blob = [
+        safeString(cur?.identification?.name),
+        safeString(cur?.identification?.brand),
+        safeString(cur?.details?.identifiers?.mpn),
+        JSON.stringify(attrs || {}),
+      ].filter(Boolean).join(' ');
+
+      const candidates = extractHsnTsnCandidates(blob);
+      if (!candidates.length) {
+        summary.skipped_no_hsn_tsn += 1;
+        continue;
+      }
+
+      const hits = new Set();
+      for (const c of candidates) {
+        const set = mvl.byHsnTsn.get(c);
+        if (!set) continue;
+        for (const k of set) hits.add(k);
+      }
+      if (!hits.size) {
+        summary.skipped_no_hsn_tsn += 1;
+        continue;
+      }
+
+      const chosen = Array.from(hits).sort((a, b) => a - b)[0];
+      const nextAttrs = { ...(attrs || {}) };
+      nextAttrs['K-Typ'] = String(chosen);
+      nextAttrs['HSN/TSN'] = nextAttrs['HSN/TSN'] || candidates[0];
+
+      if (apply) {
+        cur.details = cur.details || {};
+        cur.details.attributes = nextAttrs;
+        cur.ops = cur.ops || {};
+        cur.ops.data_quality = cur.ops.data_quality || {};
+        cur.ops.data_quality.ktype_bulk_v1 = { at_iso: nowIso(), source: 'mvl_hsn_tsn', hsn_tsn: candidates[0] };
+        await saveProduct(cur, { source: 'admin-bulk', skipTitlePolicy: true, skipKeyFeaturesNormalize: true });
+      }
+      summary.updated += 1;
+      if (debug && samples.length < 15) {
+        samples.push({ id, sku, ktype: String(chosen), hsnTsn: candidates[0] });
+      }
+    } catch (e) {
+      summary.failed += 1;
+      if (samples.length < 10) samples.push({ id, sku, status: 'error', message: e?.message || String(e) });
+    }
+  }
+
+  return { summary, samples };
+}
+
 async function runBulkAction(action, payload = {}) {
   const a = String(action || '').trim().toLowerCase();
   const apply = parseBool(payload.apply, false);
   const limit = Math.max(1, Math.min(20000, Number(payload.limit) || 500));
   const offset = Math.max(0, Number(payload.offset) || 0);
   const debug = parseBool(payload.debug, false);
+  const productIds = Array.isArray(payload.productIds) ? payload.productIds : null;
 
   if (a === 'price') {
     const maxAgeDays = Math.max(0, Number(payload.maxAgeDays) || 0);
-    return runBulkPrice({ apply, limit, offset, maxAgeDays, debug });
+    return runBulkPrice({ apply, limit, offset, maxAgeDays, debug, productIds });
   }
   if (a === 'title') {
     const includeUi = parseBool(payload.includeUi, false);
-    return runBulkTitle({ apply, limit, offset, includeUi, debug });
+    return runBulkTitle({ apply, limit, offset, includeUi, debug, productIds });
   }
   if (a === 'category') {
-    return runBulkCategory({ apply, limit, offset, debug });
+    return runBulkCategory({ apply, limit, offset, debug, productIds });
   }
   if (a === 'ktype' || a === 'k-typ') {
-    // Intentionally not implemented here yet (requires MVL dataset + strict evidence rules).
-    // Keep as a first-class action name so we can consolidate later without breaking UI.
-    throw new Error('K‑Typ bulk action is not yet consolidated. Use existing ktype scripts for now.');
+    return runBulkKType({ apply, limit, offset, debug, productIds });
   }
   if (a === 'gpsr') {
     throw new Error('GPSR bulk action is not exposed here (use GPSR jobs/scripts).');

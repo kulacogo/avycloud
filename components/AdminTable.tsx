@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { refreshPrice, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv } from '../api/client';
+import { getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
@@ -258,6 +258,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     onConfirm: () => void | Promise<void>;
   } | null>(null);
   const [baselinkerLookupInProgress, setBaselinkerLookupInProgress] = useState(false);
+  const [bulkJobId, setBulkJobId] = useState<string | null>(null);
+  const [bulkJobLoading, setBulkJobLoading] = useState(false);
   const baselinkerChecked = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1111,44 +1113,77 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   };
 
-  const runBatchPriceRefresh = async (ids: string[]) => {
+  const enqueueBulkForSelection = async (action: 'price' | 'title' | 'category' | 'ktype') => {
+    const ids = Array.from(selectedIds);
     if (!ids.length) return;
+    setBulkJobLoading(true);
     setNotice({
       tone: 'info',
-      title: 'Preis-Refresh gestartet',
-      message: `Aktualisiere Preise für ${ids.length} Produkte …`,
+      title: 'Bulk Action gestartet',
+      message: `${action.toUpperCase()} für ${ids.length} Produkte wird im Backend ausgeführt …`,
     });
-    const updatedProducts = [...products];
-    let okCount = 0;
-    let failCount = 0;
-    for (const id of ids) {
-      try {
-        const result = await refreshPrice(id);
-        if (result.ok && result.data) {
-          const productIndex = updatedProducts.findIndex(p => p.id === id);
-          if (productIndex > -1) {
-            updatedProducts[productIndex].details.pricing = {
-              ...updatedProducts[productIndex].details.pricing,
-              ...result.data,
-            };
-          }
-          okCount += 1;
-        } else {
-          failCount += 1;
-        }
-      } catch {
-        failCount += 1;
-      }
+    try {
+      const res = await runProductBulkAction({
+        action,
+        productIds: ids,
+        apply: true,
+        debug: false,
+        // price: default to "missing only"; set >0 in Admin → Bulk if you want "stale refresh"
+        maxAgeDays: action === 'price' ? 0 : undefined,
+      });
+      setBulkJobId(res.jobId);
+      setNotice({
+        tone: 'info',
+        title: 'Bulk Job enqueued',
+        message: `Job: ${res.jobId} (läuft asynchron).`,
+      });
+    } catch (err: any) {
+      setNotice({
+        tone: 'error',
+        title: 'Bulk Action fehlgeschlagen',
+        details: err?.message || String(err),
+      });
+    } finally {
+      setBulkJobLoading(false);
     }
-    onUpdateProducts(updatedProducts);
-    setNotice({
-      tone: failCount > 0 ? 'warning' : 'success',
-      title: 'Preis-Refresh abgeschlossen',
-      message: `✓ ${okCount} ok · ✗ ${failCount} fehlgeschlagen`,
-    });
   };
 
-  const handleBatchPriceRefresh = async () => runBatchPriceRefresh(Array.from(selectedIds));
+  useEffect(() => {
+    if (!bulkJobId) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const job = await getProductBulkJob(bulkJobId);
+        if (cancelled) return;
+        const status = String(job?.status || '');
+        if (status === 'done') {
+          setNotice({
+            tone: 'success',
+            title: 'Bulk Job abgeschlossen',
+            message: 'Aktion abgeschlossen. Bitte Produkte neu laden, um Änderungen zu sehen.',
+            details: JSON.stringify(job?.result?.summary || job?.result || {}, null, 2),
+          });
+          setSelectedIds(new Set());
+          setBulkJobId(null);
+        } else if (status === 'failed') {
+          setNotice({
+            tone: 'error',
+            title: 'Bulk Job fehlgeschlagen',
+            details: job?.error?.message || JSON.stringify(job?.error || {}, null, 2),
+          });
+          setBulkJobId(null);
+        }
+      } catch {
+        // ignore polling errors
+      }
+    };
+    tick();
+    const t = window.setInterval(tick, 2500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, [bulkJobId]);
 
   const executeBatchDelete = async (ids: string[]) => {
     if (!ids.length) return;
@@ -1726,8 +1761,29 @@ const AdminTable: React.FC<AdminTableProps> = ({
         <ActionButton
           icon={<RefreshIcon className="w-4 h-4" />}
           label={t('table.actions.priceRefresh')}
-          onClick={handleBatchPriceRefresh}
+          onClick={() => enqueueBulkForSelection('price')}
           disabled={selectedIds.size === 0}
+          tone="secondary"
+        />
+        <ActionButton
+          icon={<SheetIcon className="w-4 h-4" />}
+          label="Titel fix (Auswahl)"
+          onClick={() => enqueueBulkForSelection('title')}
+          disabled={selectedIds.size === 0 || bulkJobLoading}
+          tone="secondary"
+        />
+        <ActionButton
+          icon={<SearchIcon className="w-4 h-4" />}
+          label="Kategorie fix (Auswahl)"
+          onClick={() => enqueueBulkForSelection('category')}
+          disabled={selectedIds.size === 0 || bulkJobLoading}
+          tone="secondary"
+        />
+        <ActionButton
+          icon={<SheetIcon className="w-4 h-4" />}
+          label="K‑Typ enrich (Auswahl)"
+          onClick={() => enqueueBulkForSelection('ktype')}
+          disabled={selectedIds.size === 0 || bulkJobLoading}
           tone="secondary"
         />
         <ActionButton
@@ -1747,7 +1803,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               setImproveInProgress(true);
               setImproveMessage(`Verbessern + Preischeck gestartet (${ids.length}) …`);
               try {
-                await runBatchPriceRefresh(ids);
+                await enqueueBulkForSelection('price');
                 onImproveSelected(ids);
               } catch (err: any) {
                 console.error('Improve Selected failed', err?.message || err);
