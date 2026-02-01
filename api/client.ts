@@ -442,6 +442,7 @@ export const runProductBulkAction = async (params: {
   apply?: boolean; // default true
   debug?: boolean;
   maxAgeDays?: number; // price
+  force?: boolean; // price
   includeUi?: boolean; // title
 }): Promise<{ jobId: string }> => {
   const res = await fetchApi(`${BACKEND_URL}/api/products/bulk/run`, {

@@ -2362,7 +2362,7 @@ async function fetchPriceTrace(product, keywords) {
   return null;
 }
 
-async function ensurePriceCoverage(products = [], serpTrace = []) {
+async function ensurePriceCoverage(products = [], serpTrace = [], options = {}) {
   // Price enrichment requires SerpAPI in this codebase.
   // Make it opt-in and skip entirely when SerpAPI is disabled (default in BrightData-only setups).
   const SERPAPI_ENABLED = (process.env.SERPAPI_ENABLED || '').toString().trim().toLowerCase() === 'true';
@@ -2371,10 +2371,13 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
   if (!SERPAPI_ENABLED || !PRICE_ENRICH) return;
   if (!Array.isArray(products) || !products.length) return;
 
+  const force = Boolean(options?.force);
   const maxAgeDays =
-    process.env.PRICE_MAX_AGE_DAYS != null && String(process.env.PRICE_MAX_AGE_DAYS).trim() !== ''
-      ? Math.max(0, Number(process.env.PRICE_MAX_AGE_DAYS) || 0)
-      : 0;
+    options?.maxAgeDays != null && String(options.maxAgeDays).trim() !== ''
+      ? Math.max(0, Number(options.maxAgeDays) || 0)
+      : process.env.PRICE_MAX_AGE_DAYS != null && String(process.env.PRICE_MAX_AGE_DAYS).trim() !== ''
+        ? Math.max(0, Number(process.env.PRICE_MAX_AGE_DAYS) || 0)
+        : 0;
   const daysSinceIso = (iso) => {
     if (!iso) return Infinity;
     const t = Date.parse(String(iso));
@@ -2392,7 +2395,7 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
       Array.isArray(lowest.sources) &&
       lowest.sources.length > 0;
     const stale = maxAgeDays > 0 && lowest && daysSinceIso(lowest.last_checked_iso) > maxAgeDays;
-    if (hasPrice && !stale) continue;
+    if (!force && hasPrice && !stale) continue;
 
     // Deterministic query building (more robust than a single LLM-crafted query).
     const negativeTerms = '-gebraucht -used -refurb -refurbished -renewed -b-ware -openbox';

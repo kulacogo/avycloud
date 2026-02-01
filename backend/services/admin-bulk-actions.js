@@ -263,7 +263,7 @@ async function runExportMarketplace({ jobId, productIds = null, limit = 500, off
   };
 }
 
-async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays = 0, debug = false, productIds = null } = {}) {
+async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays = 0, force = false, debug = false, productIds = null } = {}) {
   const selected = await resolveTargetProducts({ productIds, limit, offset });
 
   const summary = {
@@ -290,7 +290,7 @@ async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays
       const hasPrice =
         typeof lp.amount === 'number' && Number.isFinite(lp.amount) && lp.amount > 0 && Array.isArray(lp.sources) && lp.sources.length > 0;
       const stale = maxAgeDays > 0 && daysSinceIso(lp.last_checked_iso) > maxAgeDays;
-      if (hasPrice && !stale) {
+      if (!force && hasPrice && !stale) {
         summary.skipped_fresh += 1;
         continue;
       }
@@ -299,7 +299,7 @@ async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays
       const before = JSON.stringify(cur?.details?.pricing?.lowest_price || {});
       const serpTrace = [];
       // ensurePriceCoverage is opt-in via env flags; we still call it (no-op if disabled)
-      await ensurePriceCoverage([cur], serpTrace);
+      await ensurePriceCoverage([cur], serpTrace, { force, maxAgeDays });
       const afterObj = cur?.details?.pricing?.lowest_price || {};
       const after = JSON.stringify(afterObj);
       const hasNow =
@@ -696,7 +696,8 @@ async function runBulkAction(action, payload = {}) {
 
   if (a === 'price') {
     const maxAgeDays = Math.max(0, Number(payload.maxAgeDays) || 0);
-    return runBulkPrice({ apply, limit, offset, maxAgeDays, debug, productIds });
+    const force = parseBool(payload.force, false);
+    return runBulkPrice({ apply, limit, offset, maxAgeDays, force, debug, productIds });
   }
   if (a === 'title') {
     const includeUi = parseBool(payload.includeUi, false);

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv } from '../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
@@ -1133,6 +1133,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         debug: false,
         // price: default to "missing only"; set >0 in Admin → Bulk if you want "stale refresh"
         maxAgeDays: action === 'price' ? 0 : undefined,
+        force: action === 'price',
       });
       setBulkJobId(res.jobId);
       setBulkJobAction(action);
@@ -1166,6 +1167,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
           if (bulkJobAction === 'export_marketplace' && csvUrl) {
             try {
               window.open(String(csvUrl), '_blank', 'noopener,noreferrer');
+            } catch {
+              // ignore
+            }
+          }
+          if (bulkJobAction && bulkJobAction !== 'export_marketplace') {
+            try {
+              const list = await fetchProducts();
+              if (Array.isArray(list)) {
+                onUpdateProducts(list);
+              }
             } catch {
               // ignore
             }

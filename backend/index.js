@@ -1590,6 +1590,7 @@ app.post('/api/products/bulk/run', requirePermission('products', 'write'), async
       apply: body.apply !== false, // default true
       debug: Boolean(body.debug),
       maxAgeDays: Number.isFinite(Number(body.maxAgeDays)) ? Number(body.maxAgeDays) : undefined,
+      force: Boolean(body.force),
       includeUi: Boolean(body.includeUi),
       requestedBy: req.user?.email || req.user?.uid || 'user',
     };

@@ -10,45 +10,38 @@
     "selected": 448
   },
   "started_at_iso": "2026-02-01T01:22:21.140Z",
-  "done": 341,
-  "improved_ok": 335,
+  "done": 345,
+  "improved_ok": 339,
   "improved_failed": 6,
-  "synced_ok": 334,
+  "synced_ok": 338,
   "synced_failed": 1,
   "last": {
-    "productId": "8720389034565",
-    "sku": "SKU-7514362439",
+    "productId": "5400585052930",
+    "sku": "SKU-7702312083",
     "improve": {
       "ok": true,
-      "title": "Philips Airfryer 3000 Series NA331/00 Heißluftfritteuse mit RapidAir Plus",
+      "title": "Flamingo Vogelvoliere Nevada Cottage Holz Grau Wetterfest für Innen & Außen",
       "warnings": [
+        "Montage durch Erwachsene erforderlich, Werkzeug nicht enthalten.",
+        "Regelmäßige Reinigung zur Aufrechterhaltung der Hygiene empfohlen.",
+        "Nicht für alle Vogelarten geeignet, bitte die Größe der Voliere prüfen.",
+        "Vor direkter Sonneneinstrahlung und extremen Wetterbedingungen schützen.",
+        "Kinder sollten nur unter Aufsicht mit der Voliere interagieren.",
+        "Pricing information could not be extracted from provided evidence. Placeholder values used for 'lowest_price' to satisfy schema requirements. Actual price may vary.",
         "Preis konnte nicht zuverlässig ermittelt werden – bitte prüfen.",
-        "Gerät während des Betriebs nicht unbeaufsichtigt lassen.",
-        "Vor der Reinigung stets den Netzstecker ziehen und abkühlen lassen.",
-        "Nicht in Wasser oder andere Flüssigkeiten tauchen.",
-        "Außerhalb der Reichweite von Kindern aufbewahren.",
-        "Nur für den Hausgebrauch bestimmt.",
-        "Lesen Sie vor der ersten Inbetriebnahme die beiliegende Bedienungsanleitung vollständig durch.",
-        "Gerät nicht in Wasser oder andere Flüssigkeiten tauchen, um Stromschläge zu vermeiden.",
-        "Heiße Oberflächen können Verbrennungen verursachen; Vorsicht beim Berühren während des Betriebs.",
-        "Dieses Gerät ist ausschließlich für den privaten Gebrauch bestimmt und nicht für gewerbliche Zwecke.",
-        "Halten Sie Kinder und Haustiere von dem Gerät fern, insbesondere während des Betriebs und Abkühlens.",
-        "Keine Preisinformationen in den Belegen gefunden.",
-        "Der ursprüngliche Zustand 'used' wurde auf 'Neu' korrigiert, da 'condition_locked' auf 'false' gesetzt war.",
-        "Die Produktbeschreibung war ursprünglich leer und wurde gemäß den Vorgaben neu erstellt.",
-        "Einige Attribute enthielten Platzhalter ('unknown') und wurden entfernt oder präzisiert.",
-        "Die Produktkategorie wurde aus den Attributen übernommen und präzisiert, da die ursprüngliche Angabe zu allgemein war.",
-        "Die bereitgestellte WEB-EVIDENZ enthält einen Barcode, der nicht zum Produkt passt und wurde daher ignoriert.",
-        "Bitte lesen Sie vor der ersten Inbetriebnahme die Bedienungsanleitung sorgfältig durch.",
-        "Wichtiger Hinweis: Herstellerinformationen (GPSR) konnten nicht verifiziert werden und sind daher nicht vollständig."
+        "Preisinformationen waren nicht verfügbar; für die erforderlichen Felder wurden Platzhalterwerte verwendet.",
+        "Die Anzahl der Sitzstangen wurde basierend auf der Web-Evidenz (Amazon) auf '8' korrigiert.",
+        "Das Material der Schublade wurde basierend auf der Web-Evidenz (Amazon) auf 'Galvanisiertes Metall' präzisiert.",
+        "Gewicht wurde aus externer Web-Evidenz (Amazon) entnommen.",
+        "Bitte beachten Sie die Abmessungen der Voliere, um die Eignung für Ihre Vogelarten sicherzustellen."
       ]
     },
     "baselinker": {
       "ok": true,
-      "id": "8720389034565",
+      "id": "5400585052930",
       "status": "synced",
       "message": "Successfully synced to BaseLinker"
     }
   },
-  "updated_at_iso": "2026-02-01T21:52:39.491Z"
+  "updated_at_iso": "2026-02-01T21:57:01.681Z"
 }
