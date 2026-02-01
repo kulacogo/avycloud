@@ -18,9 +18,10 @@ import MobileSearchView from './components/MobileSearchView';
 import MobileOperationsView from './components/MobileOperationsView';
 import MobileTabBar from './components/MobileTabBar';
 import { CategoryManagement } from './components/CategoryManagement';
-import { fetchProducts, refreshPrice } from './api/client';
+import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
+import { isInventoryItem, isProductBacklogItem } from './utils/inventorySplit';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 import { AdminPanel } from './components/admin/AdminPanel';
@@ -40,6 +41,7 @@ type View =
   | 'input'
   | 'sheet'
   | 'inventory'
+  | 'products'
   | 'warehouse';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const VIEW_PRODUCT_KEY = 'avystock:view:productId';
@@ -58,6 +60,7 @@ const ALLOWED_VIEWS: View[] = [
   'input',
   'sheet',
   'inventory',
+  'products',
   'warehouse',
 ];
 type Theme = 'light' | 'dark';
@@ -96,6 +99,13 @@ const parseHash = (): { view: View; productId: string | null } => {
   }
 
   return { view: 'dashboard', productId: null };
+};
+
+const parseHashQuery = (): URLSearchParams => {
+  if (typeof window === 'undefined') return new URLSearchParams();
+  const raw = window.location.hash.replace(/^#/, '').replace(/^\/+/, '');
+  const queryPart = raw.split('?')[1] || '';
+  return new URLSearchParams(queryPart);
 };
 
 const viewToHashPath = (view: View, productId?: string | null) => {
@@ -246,7 +256,10 @@ const mergeIdentifiedProducts = (
 };
 
 const VIEW_MIGRATIONS: Partial<Record<string, View>> = {
-  admin: 'inventory',
+  // Historical: "admin" used to be the product list; keep behavior stable.
+  admin: 'products',
+  // Historical: "inventory" used to be the full product list; keep behavior stable.
+  inventory: 'products',
   home: 'home',
   search: 'search',
 };
@@ -319,6 +332,12 @@ const AppInner: React.FC = () => {
   const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
   const [warehouseRefresh, setWarehouseRefresh] = useState<WarehouseBin | null>(null);
   const [inventoryFocusId, setInventoryFocusId] = useState<string | null>(null);
+  const [hashQueryString, setHashQueryString] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const raw = window.location.hash.replace(/^#/, '').replace(/^\/+/, '');
+    return raw.split('?')[1] || '';
+  });
+  const [drilldownProductIds, setDrilldownProductIds] = useState<Set<string> | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
   );
@@ -356,7 +375,10 @@ const AppInner: React.FC = () => {
     if (typeof window === 'undefined') return;
     const target = viewToHashPath(view, currentProduct?.id).replace(/^#/, '').replace(/^\/+/, '');
     const current = window.location.hash.replace(/^#/, '').replace(/^\/+/, '');
-    if (current !== target) {
+    const currentPath = current.split('?')[0] || '';
+    const targetPath = target.split('?')[0] || '';
+    // Preserve hash query params (e.g. drilldowns like ?orderStatus=neu) when staying on same view.
+    if (currentPath !== targetPath) {
       window.location.hash = `#${target}`;
     }
     try {
@@ -522,6 +544,15 @@ const AppInner: React.FC = () => {
     viewRef.current = view;
   }, [view]);
 
+  // Operations desktop gating: keep mobile flow intact, but avoid using OperationsView on desktop.
+  useEffect(() => {
+    if (isMobile) return;
+    if (!view || typeof view !== 'string') return;
+    if (view.startsWith('operations')) {
+      setView('dashboard');
+    }
+  }, [isMobile, view]);
+
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
@@ -554,6 +585,8 @@ const AppInner: React.FC = () => {
 
     const applyHash = () => {
       const { view: nextView, productId } = parseHash();
+      const q = window.location.hash.replace(/^#/, '').replace(/^\/+/, '').split('?')[1] || '';
+      setHashQueryString((prev) => (prev === q ? prev : q));
       if (nextView !== viewRef.current) {
         setView(nextView);
       }
@@ -573,6 +606,104 @@ const AppInner: React.FC = () => {
       mq.removeEventListener('change', mqHandler);
     };
   }, []);
+
+  const orderStatusParam = useMemo(() => {
+    const qs = new URLSearchParams(hashQueryString || '');
+    const raw = qs.get('orderStatus');
+    return raw ? String(raw).trim().toLowerCase() : '';
+  }, [hashQueryString]);
+
+  const skuEanToProductId = useMemo(() => {
+    const map = new Map<string, string>();
+    const normSku = (v: any) =>
+      String(v || '')
+        .trim()
+        .toLowerCase()
+        .replace(/^sku[-\s]*/i, '')
+        .replace(/\s+/g, '');
+    const normEan = (v: any) => String(v || '').replace(/\D+/g, '').trim();
+    for (const p of products) {
+      const sku = normSku(p?.identification?.sku || p?.details?.identifiers?.sku || '');
+      if (sku) map.set(`sku:${sku}`, p.id);
+      const ean = normEan(p?.details?.identifiers?.ean || p?.details?.identifiers?.gtin || p?.details?.identifiers?.upc || '');
+      if (ean) map.set(`ean:${ean}`, p.id);
+      const barcodes = Array.isArray(p?.identification?.barcodes) ? p.identification.barcodes : [];
+      for (const b of barcodes) {
+        const bn = normEan(b);
+        if (bn) map.set(`ean:${bn}`, p.id);
+      }
+    }
+    return map;
+  }, [products]);
+
+  useEffect(() => {
+    // Dashboard drilldown: #/inventory?orderStatus=neu or #/products?orderStatus=kommissioniert ...
+    if (!(view === 'inventory' || view === 'products')) {
+      if (drilldownProductIds) setDrilldownProductIds(null);
+      return;
+    }
+    if (!orderStatusParam) {
+      if (drilldownProductIds) setDrilldownProductIds(null);
+      return;
+    }
+    if (!hasPermission('orders', 'read')) {
+      // If user can't read orders, keep list usable (no filter).
+      if (drilldownProductIds) setDrilldownProductIds(null);
+      return;
+    }
+
+    let cancelled = false;
+    const normalize = (v: any) => String(v || '').toLowerCase();
+    const categorize = (order: any): string => {
+      const raw = normalize(order?.statusLabel || order?.status || '');
+      if (order?.status === 'new' || raw.includes('neu') || raw.includes('new')) return 'neu';
+      if (raw.includes('kommission') || raw.includes('picked') || order?.status === 'picked') return 'kommissioniert';
+      if (raw.includes('verpackt') || raw.includes('packed') || order?.status === 'packed') return 'verpackt';
+      if (raw.includes('versendet') || raw.includes('shipped') || raw.includes('dispatched')) return 'versendet';
+      if (raw.includes('zugestellt') || raw.includes('delivered')) return 'zugestellt';
+      return 'other';
+    };
+
+    (async () => {
+      try {
+        const orders = await fetchOrders(200, { timeoutMs: 25000 });
+        if (cancelled) return;
+        const ids = new Set<string>();
+        for (const order of orders || []) {
+          if (categorize(order) !== orderStatusParam) continue;
+          const items = Array.isArray((order as any)?.items) ? (order as any).items : [];
+          for (const item of items) {
+            const fromHint = (item as any)?.pickHint?.productId;
+            const direct = (item as any)?.productId;
+            const pid = (fromHint || direct) ? String(fromHint || direct) : '';
+            if (pid) {
+              ids.add(pid);
+              continue;
+            }
+            const sku = String((item as any)?.sku || '').trim();
+            const ean = String((item as any)?.ean || '').trim();
+            const normSkuKey = sku
+              ? `sku:${sku.toLowerCase().replace(/^sku[-\s]*/i, '').replace(/\s+/g, '')}`
+              : '';
+            const normEanKey = ean ? `ean:${ean.replace(/\D+/g, '').trim()}` : '';
+            const mapped =
+              (normSkuKey && skuEanToProductId.get(normSkuKey)) ||
+              (normEanKey && skuEanToProductId.get(normEanKey)) ||
+              null;
+            if (mapped) ids.add(mapped);
+          }
+        }
+        setDrilldownProductIds(ids);
+      } catch (e) {
+        // Best-effort: drilldown is optional; keep table usable.
+        if (!cancelled) setDrilldownProductIds(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [view, orderStatusParam, hasPermission, skuEanToProductId]);
 
   const toggleTheme = useCallback(() => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
@@ -676,12 +807,19 @@ const AppInner: React.FC = () => {
           <div className="text-center p-8 text-slate-400">{t('app.sheet.empty')}</div>
         );
       case 'inventory':
+      case 'products':
         if (!hasPermission('products', 'read')) {
           return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
         }
+        const baseList =
+          view === 'inventory' ? products.filter(isInventoryItem) : products.filter(isProductBacklogItem);
+        const drilldownFiltered =
+          drilldownProductIds && drilldownProductIds.size
+            ? baseList.filter((p) => drilldownProductIds.has(p.id))
+            : baseList;
         return (
           <AdminTable
-            products={products}
+            products={drilldownFiltered}
             onSelectProduct={handleSelectProduct}
             onUpdateProducts={setProducts}
             focusProductId={inventoryFocusId}
@@ -689,6 +827,7 @@ const AppInner: React.FC = () => {
             onImproveSelected={handleImproveSelected}
             onBulkImprove={handleBulkImprove}
             improvingProductIds={activeProductIds}
+            mode={view}
           />
         );
       case 'categories':

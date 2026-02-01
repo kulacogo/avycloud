@@ -2594,7 +2594,12 @@ app.post('/api/generate-images', async (req, res) => {
 });
 
 // --- BaseLinker sync endpoint ---
-const { syncProductToBaseLinker, syncProductsToBaseLinker, findProductsBySkus } = require('./lib/baselinker');
+const {
+  syncProductToBaseLinker,
+  syncProductsToBaseLinker,
+  findProductsBySkus,
+  getInventoryProductLinksSummary,
+} = require('./lib/baselinker');
 
 // --- BaseLinker sync jobs (async, resilient) ---
 app.post('/api/baselinker/sync/jobs', requirePermission('baselinker', 'sync'), async (req, res) => {
@@ -3162,7 +3167,31 @@ app.get('/api/products', requirePermission('products', 'read'), async (req, res)
       };
     });
 
-    res.json({ ok: true, products: withCompletenessFiltered });
+    // BaseLinker marketplace links ("listed on at least one marketplace") enrichment.
+    // This is cached + chunked in baselinker.js to keep /api/products responsive.
+    const baseProductIds = withCompletenessFiltered
+      .map((p) => p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null)
+      .filter(Boolean);
+    const linksSummary = await getInventoryProductLinksSummary(null, baseProductIds);
+    const withLinksFiltered = withCompletenessFiltered.map((p) => {
+      const pidRaw = p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null;
+      const pid = pidRaw != null ? String(Number(pidRaw) || '') : '';
+      const summary = pid ? linksSummary[pid] : null;
+      if (!summary) return p;
+      return {
+        ...p,
+        ops: {
+          ...(p.ops || {}),
+          baselinker: {
+            ...((p.ops && p.ops.baselinker) || {}),
+            links_count: Number(summary.linksCount) || 0,
+            has_links: Boolean(summary.hasLinks),
+          },
+        },
+      };
+    });
+
+    res.json({ ok: true, products: withLinksFiltered });
   } catch (error) {
     console.error('Error getting products:', error);
     res.status(500).json({

@@ -164,6 +164,92 @@ async function getReservedOpenOrderMap() {
   return map;
 }
 
+// --- Marketplace listing links (BaseLinker getInventoryProductsData -> links) ---
+// We use this to determine if a product is listed on at least one marketplace/integration.
+// Cache is in-memory because /api/products is polled frequently by the frontend.
+let PRODUCT_LINKS_CACHE = new Map(); // key: `${inventoryId}:${productId}` -> { atMs, linksCount, hasLinks }
+const PRODUCT_LINKS_CACHE_TTL_MS = parseInt(process.env.BASELINKER_LINKS_CACHE_TTL_MS || '600000', 10); // 10min
+const PRODUCT_LINKS_CHUNK_SIZE = Math.max(
+  1,
+  parseInt(process.env.BASELINKER_LINKS_CHUNK_SIZE || '100', 10)
+);
+
+function chunkArray(list, size) {
+  if (!Array.isArray(list) || list.length === 0) return [];
+  const s = Math.max(1, Number(size) || 1);
+  const chunks = [];
+  for (let i = 0; i < list.length; i += s) {
+    chunks.push(list.slice(i, i + s));
+  }
+  return chunks;
+}
+
+/**
+ * Fetch marketplace/integration listing links for BaseLinker product IDs.
+ * Returns a map keyed by BaseLinker product_id (string) -> { linksCount, hasLinks }.
+ */
+async function getInventoryProductLinksSummary(inventoryId, baseProductIds = []) {
+  const enabled =
+    (process.env.BASELINKER_LINKS_ENRICH_ENABLED ?? 'true').toString().toLowerCase() === 'true';
+  if (!enabled) return {};
+
+  const invId = String(inventoryId || TARGET_INVENTORY_ID || '').trim();
+  if (!invId) return {};
+
+  const uniqueIds = Array.from(
+    new Set(
+      (Array.isArray(baseProductIds) ? baseProductIds : [])
+        .map((v) => Number(v))
+        .filter((n) => Number.isFinite(n) && n > 0)
+        .map((n) => String(Math.trunc(n)))
+    )
+  );
+  if (!uniqueIds.length) return {};
+
+  const now = Date.now();
+  const out = {};
+  const missing = [];
+
+  for (const pid of uniqueIds) {
+    const key = `${invId}:${pid}`;
+    const cached = PRODUCT_LINKS_CACHE.get(key);
+    if (cached && now - (cached.atMs || 0) < PRODUCT_LINKS_CACHE_TTL_MS) {
+      out[pid] = { linksCount: cached.linksCount || 0, hasLinks: Boolean(cached.hasLinks) };
+    } else {
+      missing.push(pid);
+    }
+  }
+
+  if (!missing.length) return out;
+
+  const chunks = chunkArray(missing, PRODUCT_LINKS_CHUNK_SIZE);
+  for (const chunk of chunks) {
+    let productsMap = {};
+    try {
+      const res = await callBaseLinker('getInventoryProductsData', {
+        inventory_id: Number(invId),
+        products: chunk.map((v) => Number(v)),
+      });
+      productsMap = res?.products && typeof res.products === 'object' ? res.products : {};
+    } catch (error) {
+      console.warn('[baselinker] getInventoryProductsData failed (links summary):', error?.message || error);
+      productsMap = {};
+    }
+
+    for (const pid of chunk) {
+      const snapshot = productsMap[String(pid)] || productsMap[pid] || null;
+      const linksRaw = snapshot?.links || null;
+      const links = linksRaw && typeof linksRaw === 'object' ? linksRaw : {};
+      const linksCount = Object.keys(links).length;
+      const hasLinks = linksCount > 0;
+      out[pid] = { linksCount, hasLinks };
+      PRODUCT_LINKS_CACHE.set(`${invId}:${pid}`, { atMs: now, linksCount, hasLinks });
+    }
+  }
+
+  return out;
+}
+
 // Inventory category cache (path -> id)
 const inventoryCategoryCache = new Map(); // key: inventoryId -> Map<path, id>
 
@@ -2270,6 +2356,7 @@ module.exports = {
   syncProductsToBaseLinker,
   callBaseLinker,
   findProductsBySkus,
+  getInventoryProductLinksSummary,
   // categories-only sync helper (path -> category_id)
   ensureInventoryCategory,
   __buildPayloadForDebug,

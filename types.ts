@@ -128,6 +128,9 @@ export interface Ops {
     synced_inventory?: string | null;
     matched_sku?: string | null;
     matched_ean?: string | null;
+    // Derived (API-enriched): BaseLinker getInventoryProductsData.links summary
+    links_count?: number;
+    has_links?: boolean;
   };
   pending_intake_quantity?: number;
   revision: number;

@@ -415,23 +415,32 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
   return (
     <section className="space-y-6">
       <PageHeader
-        title="Inventory"
-        subtitle="Lagerplätze (BINs) ansehen, Labels drucken und Produkte aus BINs entfernen."
+        title="Warehouse"
+        subtitle="Lagerstruktur (Zonen/BINs) ansehen, Labels drucken und BIN-Inhalte verwalten."
       >
-        <HelpDisclosure title="Wie nutze ich Inventory? (2 Minuten)">
+        <HelpDisclosure title="Wie nutze ich Warehouse? (2 Minuten)">
           <ol className="list-decimal pl-5 space-y-1">
             <li>
               <b>Zone/Etage wählen</b> → du siehst alle BINs in diesem Bereich.
             </li>
             <li>
-              <b>BIN anklicken</b> → Details & enthaltene Produkte erscheinen rechts/unten.
+              <b>Gang → Regal → BIN</b> auswählen → Details & enthaltene Produkte erscheinen rechts/unten.
             </li>
             <li>
               <b>Labels drucken</b>: wähle BINs (Checkbox) oder nutze “Zone/Gang/Regal markieren”.
             </li>
+            <li>
+              <b>Aufräumen</b>: Produkte aus BINs entfernen oder (leer) Struktur löschen.
+            </li>
           </ol>
         </HelpDisclosure>
       </PageHeader>
+
+      {zones.length === 0 ? (
+        <Notice tone="info" title="Noch keine Lagerstruktur">
+          Lege zuerst eine Zone/Etage-Struktur an (unten: „Neue Lagerstruktur anlegen“). Danach kannst du Bins auswählen und Labels drucken.
+        </Notice>
+      ) : null}
 
       {statusMessage && (
         <Notice tone="info" title="Status" onDismiss={() => setStatusMessage(null)}>
@@ -456,6 +465,11 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
 
       <div className="bg-slate-800 rounded-lg p-4 shadow border border-slate-700 space-y-3">
         <h3 className="text-lg font-semibold text-white">BIN-Auswahl & Druck</h3>
+        <div className="text-xs text-slate-400">
+          Bereich: {selectedZone ? `${selectedZone.zone}/${selectedZone.etage}` : '—'}
+          {selectedGang != null ? ` · Gang ${selectedGang}` : ''}
+          {selectedRegal != null ? ` · Regal ${selectedRegal}` : ''}
+        </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -493,7 +507,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           <button
             type="button"
             onClick={handlePrintSelectedBins}
-            disabled={!selectedCount}
+            disabled={!selectedCount && !selectedZone}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-40"
           >
             <PrintIcon className="w-4 h-4" />

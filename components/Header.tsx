@@ -11,6 +11,7 @@ interface HeaderProps {
     | 'input'
     | 'sheet'
     | 'inventory'
+    | 'products'
     | 'admin'
     | 'categories'
     | 'warehouse'
@@ -61,6 +62,26 @@ const NAV_ICONS: NavIconConfig[] = [
     label: 'nav.inventory',
     light: '/inventory_brightmode.png',
     dark: '/inventory_darkmode.png',
+  },
+  {
+    view: 'products' as const,
+    label: 'nav.products',
+    iconNode: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M7 6h14M7 12h14M7 18h14"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <path
+          d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
   },
   {
     view: 'admin' as const,
@@ -168,28 +189,46 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     return null;
   };
 
-  const DesktopNavButton = ({ nav }: { nav: NavIconConfig }) => (
-    <a
-      href={`#/${nav.view}`}
-      onClick={(e) => {
-        if (e.metaKey || e.ctrlKey || e.button === 1 || e.shiftKey) {
-          return; // allow native new-tab / background tab
-        }
-        e.preventDefault();
-        window.location.hash = `#/${nav.view}`;
-        setView(nav.view);
-      }}
-      className={`hidden sm:inline-flex w-12 h-12 rounded-2xl items-center justify-center transition-all ${currentView === nav.view
-          ? 'bg-sky-600 text-white shadow-md shadow-sky-900/40'
-          : 'bg-slate-800/70 text-slate-300 hover:bg-slate-700 hover:text-white'
-        }`}
-      aria-current={currentView === nav.view ? 'page' : undefined}
-      aria-label={t(nav.label)}
-      title={t(nav.label)}
-    >
-      {renderNavIcon(nav)}
-    </a>
-  );
+  const DesktopNavButton = ({ nav }: { nav: NavIconConfig }) => {
+    const disabled = nav.view === 'warehouse';
+    const baseClass = `hidden sm:inline-flex w-12 h-12 rounded-2xl items-center justify-center transition-all ${
+      currentView === nav.view
+        ? 'bg-sky-600 text-white shadow-md shadow-sky-900/40'
+        : 'bg-slate-800/70 text-slate-300 hover:bg-slate-700 hover:text-white'
+    }`;
+    if (disabled) {
+      return (
+        <button
+          type="button"
+          className={`${baseClass} cursor-default`}
+          aria-current={currentView === nav.view ? 'page' : undefined}
+          aria-label={t(nav.label)}
+          title={t(nav.label)}
+        >
+          {renderNavIcon(nav)}
+        </button>
+      );
+    }
+    return (
+      <a
+        href={`#/${nav.view}`}
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.button === 1 || e.shiftKey) {
+            return; // allow native new-tab / background tab
+          }
+          e.preventDefault();
+          window.location.hash = `#/${nav.view}`;
+          setView(nav.view);
+        }}
+        className={baseClass}
+        aria-current={currentView === nav.view ? 'page' : undefined}
+        aria-label={t(nav.label)}
+        title={t(nav.label)}
+      >
+        {renderNavIcon(nav)}
+      </a>
+    );
+  };
 
   const isNavAllowed = React.useCallback(
     (view: NavIconConfig['view']) => {
@@ -197,6 +236,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
       if (view === 'dashboard') return true;
       // Products list lives under "inventory" view.
       if (view === 'inventory') return hasPermission('products', 'read');
+      if (view === 'products') return hasPermission('products', 'read');
       // Identify / ProductInput
       if (view === 'input') return hasPermission('identify', 'run');
       // Categories management

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { DashboardMetrics, Product, WarehouseLayout } from '../types';
 import { fetchDashboardMetrics, fetchWarehouseZones } from '../api/client';
-import { WarehouseIcon, TableIcon, SyncIcon } from './icons/Icons';
+import { WarehouseIcon, SyncIcon } from './icons/Icons';
 import { getProductAvailableQuantity, getProductPhysicalQuantity, getProductReservedQuantity, normalizeSyncStatus } from '../utils/product';
 
 interface DashboardProps {
@@ -142,9 +142,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
     inventoryReservedQuantity,
     primaryCurrency,
     valueByCurrency,
-    topCategories,
-    topProducts,
-    recentProducts,
   } = useMemo(() => {
     const total = allProducts.length;
     const totalInStock = stockedProducts.length;
@@ -155,8 +152,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
     let reservedQty = 0;
     let availableQty = 0;
     const valueMap = new Map<string, number>();
-    const categoryMap = new Map<string, number>();
-
     const topProductList = allProducts
       .map((product) => {
         const quantityPhysical = getProductPhysicalQuantity(product);
@@ -171,9 +166,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
         reservedQty += quantityReserved;
         availableQty += quantityAvailable;
         valueMap.set(currency, (valueMap.get(currency) ?? 0) + itemValue);
-
-        const category = product.identification?.category || 'Unbekannt';
-        categoryMap.set(category, (categoryMap.get(category) ?? 0) + 1);
 
         const syncStatus = normalizeSyncStatus(
           product.ops?.sync_status ?? 'pending',
@@ -196,30 +188,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
       [...valueMap.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'EUR';
     const combinedValue = [...valueMap.values()].reduce((sum, value) => sum + value, 0);
 
-    const topCategoryList = [...categoryMap.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4)
-      .map(([name, count]) => ({
-        name,
-        count,
-        percent: total === 0 ? 0 : Math.round((count / total) * 100),
-      }));
-
-    const recentList = [...allProducts]
-      .filter((p) => p.ops?.last_saved_iso)
-      .sort((a, b) => {
-        const aDate = a.ops?.last_saved_iso ? new Date(a.ops.last_saved_iso).getTime() : 0;
-        const bDate = b.ops?.last_saved_iso ? new Date(b.ops.last_saved_iso).getTime() : 0;
-        return bDate - aDate;
-      })
-      .slice(0, 5)
-      .map((p) => ({
-        id: p.id,
-        name: p.identification?.name,
-        brand: p.identification?.brand,
-        savedAt: p.ops?.last_saved_iso ? new Date(p.ops.last_saved_iso) : null,
-      }));
-
   return {
       totalProducts: total,
       totalStocked: totalInStock,
@@ -232,9 +200,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
       inventoryValue: combinedValue,
       primaryCurrency: mostCommonCurrency,
       valueByCurrency: valueMap,
-      topCategories: topCategoryList,
+      // keep for potential later re-use, but not rendered on dashboard (per spec)
       topProducts: topProductList.slice(0, 5),
-      recentProducts: recentList,
     };
   }, [allProducts, stockedProducts]);
 
@@ -262,6 +229,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
   const warehouseMeterLabel = warehouseStats.totalBins
     ? `${warehouseStats.occupiedBins} / ${warehouseStats.totalBins} belegte Bins`
     : 'Noch keine Bins angelegt';
+
+  const navigateToDrilldown = React.useCallback((statusKey: string) => {
+    if (typeof window === 'undefined') return;
+    const key = String(statusKey || '').trim().toLowerCase();
+    if (!key) return;
+    const targetView = key === 'neu' ? 'inventory' : 'products';
+    window.location.hash = `#/${targetView}?orderStatus=${encodeURIComponent(key)}`;
+  }, []);
+
+  const statusCards = useMemo(
+    () => [
+      { key: 'neu', label: 'Neu', value: orderMetrics.neu },
+      { key: 'kommissioniert', label: 'Kommissioniert', value: orderMetrics.kommissioniert },
+      { key: 'verpackt', label: 'Verpackt', value: orderMetrics.verpackt },
+      { key: 'versendet', label: 'Versendet', value: orderMetrics.versendet },
+      { key: 'zugestellt', label: 'Zugestellt', value: orderMetrics.zugestellt },
+    ],
+    [orderMetrics]
+  );
 
   return (
     <section className="space-y-6">
@@ -332,27 +318,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
             <p className="text-sm text-slate-400">Lade Auftragszahlen …</p>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Neue Bestellung</p>
-                  <p className="text-4xl font-semibold text-white mt-1">{orderMetrics.neu}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Kommissioniert</p>
-                  <p className="text-4xl font-semibold text-white mt-1">{orderMetrics.kommissioniert}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Verpackt</p>
-                  <p className="text-4xl font-semibold text-white mt-1">{orderMetrics.verpackt}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Versendet</p>
-                  <p className="text-4xl font-semibold text-white mt-1">{orderMetrics.versendet}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Zugestellt</p>
-                  <p className="text-4xl font-semibold text-white mt-1">{orderMetrics.zugestellt}</p>
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {statusCards.map((card) => (
+                  <button
+                    key={card.key}
+                    type="button"
+                    onClick={() => navigateToDrilldown(card.key)}
+                    className="rounded-xl bg-slate-900/40 hover:bg-slate-900/60 border border-slate-700/60 px-3 py-3 text-left transition shadow-sm"
+                    title="Klicken für Produkt-Drilldown"
+                  >
+                    <p className="text-[11px] uppercase tracking-widest text-slate-400">{card.label}</p>
+                    <p className="text-3xl font-semibold text-white mt-1">{card.value}</p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      {card.key === 'neu' ? '→ Inventory' : '→ Products'}
+                    </p>
+                  </button>
+                ))}
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div>
@@ -444,72 +425,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
             </>
           )}
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
-        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-slate-400">Kategorien</p>
-              <h2 className="text-xl font-semibold text-white">Top-Segmente</h2>
-            </div>
-            <TableIcon className="w-6 h-6 text-slate-400" />
-          </div>
-          {topCategories.length === 0 ? (
-            <p className="text-slate-400 text-sm">Noch keine Produkte vorhanden.</p>
-          ) : (
-            <ul className="space-y-3">
-              {topCategories.map((cat) => (
-                <li key={cat.name}>
-                  <div className="flex items-center justify-between text-sm text-white">
-                    <span>{cat.name}</span>
-                    <span className="text-slate-400">{cat.count} Produkte · {cat.percent}%</span>
-                  </div>
-                  <div className="h-2 bg-slate-700 rounded-full mt-1">
-                    <div className="h-2 bg-sky-500 rounded-full" style={{ width: `${cat.percent}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-slate-800 rounded-2xl p-5 border border-white/5">
-        <p className="text-sm uppercase tracking-wide text-slate-400 mb-1">High-Value Produkte</p>
-        <h2 className="text-xl font-semibold text-white mb-4">Top 5 nach Bestandswert</h2>
-        {topProducts.length === 0 ? (
-          <p className="text-slate-400 text-sm">Keine Produkte mit Bestandswert gefunden.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="text-slate-400 border-b border-slate-700 text-xs uppercase tracking-wide">
-                <tr>
-                  <th className="py-2 pr-3">Produkt</th>
-                  <th className="py-2 pr-3">SKU</th>
-                  <th className="py-2 pr-3 text-right">Menge</th>
-                  <th className="py-2 pr-3 text-right">Wert</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topProducts.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-slate-800 hover:bg-slate-900/40 cursor-pointer"
-                    onClick={() => onSelectProduct(item.id)}
-                  >
-                    <td className="py-2 pr-3 text-white">{item.name}</td>
-                    <td className="py-2 pr-3 text-slate-400 font-mono">{item.sku}</td>
-                    <td className="py-2 pr-3 text-right text-slate-200">{item.quantity}</td>
-                    <td className="py-2 pr-3 text-right text-slate-200">
-                      {formatCurrency(item.value, item.currency)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </section>
   );
