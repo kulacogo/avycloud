@@ -10,42 +10,45 @@
     "selected": 448
   },
   "started_at_iso": "2026-02-01T01:22:21.140Z",
-  "done": 340,
-  "improved_ok": 334,
+  "done": 341,
+  "improved_ok": 335,
   "improved_failed": 6,
-  "synced_ok": 333,
+  "synced_ok": 334,
   "synced_failed": 1,
   "last": {
-    "productId": "SKU-7543211550",
-    "sku": "SKU-7543211550",
+    "productId": "8720389034565",
+    "sku": "SKU-7514362439",
     "improve": {
       "ok": true,
-      "title": "CMP Rae WP Kinder Schneestiefel Gr. 28 – Wasserdichte Unisex Winterstiefel für",
+      "title": "Philips Airfryer 3000 Series NA331/00 Heißluftfritteuse mit RapidAir Plus",
       "warnings": [
-        "Bitte beachten Sie die Hersteller-Größentabelle für eine optimale Passform und Sicherheit.",
-        "Regelmäßige Überprüfung der Sohle auf Abnutzung wird empfohlen, um die Rutschfestigkeit zu erhalten.",
-        "Nicht für den Einsatz in extremen alpinen Bedingungen oder als Sicherheitsausrüstung vorgesehen.",
-        "Vermeiden Sie den Kontakt mit aggressiven Chemikalien, um Materialschäden zu verhindern.",
-        "Achten Sie auf eine korrekte Schnürung/Verschluss, um Stolperfallen zu vermeiden.",
-        "Kategorie wurde von 'Kleidung & Accessoires > Herren > Herrenschuhe > Stiefel' auf 'Kleidung & Accessoires > Kinderschuhe > Stiefel & Stiefeletten' korrigiert, da das Produkt für Kinder (Unisex) ist.",
         "Preis konnte nicht zuverlässig ermittelt werden – bitte prüfen.",
-        "UPC konnte nicht verifiziert werden und wurde entfernt.",
-        "Die ursprüngliche Kategorie 'Kleidung & Accessoires > Herren > Herrenschuhe > Stiefel' war nicht korrekt und wurde basierend auf den Produktdetails und der Web-Evidenz angepasst.",
-        "Marktplatz-spezifische Attribute (kaufland_category_id, kaufland_category_path) wurden entfernt.",
-        "Interne Attribute (id, brand, ebayCategoryId, condition_locked) wurden entfernt.",
-        "Redundante Attribute (Sohle, Wasserdicht) wurden entfernt, um Dubletten zu vermeiden.",
-        "GPSR: Hersteller-Telefonnummer konnte nicht verifiziert werden.",
-        "GPSR: Hersteller-URL konnte nicht verifiziert werden.",
-        "Identifiers: GTIN konnte nicht verifiziert werden.",
-        "Identifiers: UPC konnte nicht verifiziert werden."
+        "Gerät während des Betriebs nicht unbeaufsichtigt lassen.",
+        "Vor der Reinigung stets den Netzstecker ziehen und abkühlen lassen.",
+        "Nicht in Wasser oder andere Flüssigkeiten tauchen.",
+        "Außerhalb der Reichweite von Kindern aufbewahren.",
+        "Nur für den Hausgebrauch bestimmt.",
+        "Lesen Sie vor der ersten Inbetriebnahme die beiliegende Bedienungsanleitung vollständig durch.",
+        "Gerät nicht in Wasser oder andere Flüssigkeiten tauchen, um Stromschläge zu vermeiden.",
+        "Heiße Oberflächen können Verbrennungen verursachen; Vorsicht beim Berühren während des Betriebs.",
+        "Dieses Gerät ist ausschließlich für den privaten Gebrauch bestimmt und nicht für gewerbliche Zwecke.",
+        "Halten Sie Kinder und Haustiere von dem Gerät fern, insbesondere während des Betriebs und Abkühlens.",
+        "Keine Preisinformationen in den Belegen gefunden.",
+        "Der ursprüngliche Zustand 'used' wurde auf 'Neu' korrigiert, da 'condition_locked' auf 'false' gesetzt war.",
+        "Die Produktbeschreibung war ursprünglich leer und wurde gemäß den Vorgaben neu erstellt.",
+        "Einige Attribute enthielten Platzhalter ('unknown') und wurden entfernt oder präzisiert.",
+        "Die Produktkategorie wurde aus den Attributen übernommen und präzisiert, da die ursprüngliche Angabe zu allgemein war.",
+        "Die bereitgestellte WEB-EVIDENZ enthält einen Barcode, der nicht zum Produkt passt und wurde daher ignoriert.",
+        "Bitte lesen Sie vor der ersten Inbetriebnahme die Bedienungsanleitung sorgfältig durch.",
+        "Wichtiger Hinweis: Herstellerinformationen (GPSR) konnten nicht verifiziert werden und sind daher nicht vollständig."
       ]
     },
     "baselinker": {
       "ok": true,
-      "id": "SKU-7543211550",
+      "id": "8720389034565",
       "status": "synced",
       "message": "Successfully synced to BaseLinker"
     }
   },
-  "updated_at_iso": "2026-02-01T21:52:02.809Z"
+  "updated_at_iso": "2026-02-01T21:52:39.491Z"
 }
