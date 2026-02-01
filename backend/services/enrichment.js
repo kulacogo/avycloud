@@ -2141,6 +2141,12 @@ async function fetchPriceTrace(product, keywords) {
 }
 
 async function ensurePriceCoverage(products = [], serpTrace = []) {
+  // Price enrichment requires SerpAPI in this codebase.
+  // Make it opt-in and skip entirely when SerpAPI is disabled (default in BrightData-only setups).
+  const SERPAPI_ENABLED = (process.env.SERPAPI_ENABLED || '').toString().trim().toLowerCase() === 'true';
+  const PRICE_ENRICH =
+    (process.env.PRICE_ENRICHMENT_ENABLED || '').toString().trim().toLowerCase() === 'true';
+  if (!SERPAPI_ENABLED || !PRICE_ENRICH) return;
   if (!Array.isArray(products) || !products.length) return;
 
   for (const product of products) {
@@ -2580,6 +2586,9 @@ async function runProductIdentification({
 
 // Helper for Smart Image Recovery
 async function runSmartImageRecovery(products = []) {
+  // This helper uses SerpAPI (google_images). Keep it hard opt-in.
+  const SERPAPI_ENABLED = (process.env.SERPAPI_ENABLED || '').toString().trim().toLowerCase() === 'true';
+  if (!SERPAPI_ENABLED) return;
   for (const product of products) {
     const features = product.details?.key_features || [];
     const isPackaging = features.some(f => containsPackagingReference(f));

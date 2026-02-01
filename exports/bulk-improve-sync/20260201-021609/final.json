@@ -1,0 +1,57 @@
+{
+  "inventoryId": "78659",
+  "minQty": 1,
+  "limit": 1,
+  "offset": 0,
+  "concurrency": 1,
+  "counts": {
+    "total": 681,
+    "eligible": 448,
+    "selected": 1
+  },
+  "started_at_iso": "2026-02-01T01:16:15.776Z",
+  "done": 1,
+  "improved_ok": 1,
+  "improved_failed": 0,
+  "synced_ok": 1,
+  "synced_failed": 0,
+  "last": {
+    "productId": "3701425602462",
+    "sku": "SKU-0000560248",
+    "improve": {
+      "ok": true,
+      "title": "Maison Close Triangle BH 560248 Gr. S – Eleganter Tüll Bügellos Taupe Rosa mit",
+      "warnings": [
+        "Preis konnte nicht zuverlässig ermittelt werden – bitte prüfen.",
+        "Pflegehinweis beachten, Handwäsche empfohlen.",
+        "Von scharfen Gegenständen fernhalten, um Beschädigungen zu vermeiden.",
+        "Nicht für den Trockner geeignet.",
+        "Farben können bei direktem Sonnenlicht verblassen.",
+        "Nicht bleichen.",
+        "Bitte beachten Sie die Pflegehinweise für Handwäsche, um die Materialqualität zu erhalten.",
+        "Farben können aufgrund unterschiedlicher Bildschirmeinstellungen leicht variieren.",
+        "Nicht für die Maschinenwäsche oder den Trockner geeignet, um Materialschäden zu vermeiden.",
+        "Vermeiden Sie den Kontakt mit scharfen Gegenständen, um den feinen Tüll zu schützen.",
+        "Materialzusammensetzung kann bei empfindlicher Haut Reaktionen hervorrufen.",
+        "Attribut 'Cup-Größe' wurde entfernt, da der Wert 'Unbekannt' war und nicht belegbar ist.",
+        "Attribut 'Unterbrustumfang' wurde entfernt, da der Wert 'Unbekannt' war und nicht belegbar ist.",
+        "Die EAN 3701425602462 konnte nicht verifiziert werden und wurde entfernt.",
+        "EAN ist ungültig und wurde entfernt.",
+        "Attribut 'Cup-Größe' ist unbekannt und konnte nicht belegt werden.",
+        "Attribut 'Herstellungsland und -region' ist unbekannt und konnte nicht belegt werden.",
+        "Bitte beachten Sie die Pflegehinweise, um die Langlebigkeit des Produkts zu gewährleisten.",
+        "Die angegebene EAN '3701425602462' konnte nicht mit dem Produkt 'Maison Close Triangle BH' in der Web-Evidenz verifiziert werden und scheint zu einem anderen Produkt zu gehören.",
+        "Informationen zum Herstellungsland und zur Herstellungsregion sind nicht verfügbar und sollten ergänzt werden.",
+        "Die genaue Cup-Größe ist nicht angegeben und sollte für eine präzise Produktbeschreibung ergänzt werden."
+      ]
+    },
+    "baselinker": {
+      "ok": true,
+      "id": "3701425602462",
+      "status": "synced",
+      "message": "Successfully synced to BaseLinker"
+    }
+  },
+  "updated_at_iso": "2026-02-01T01:21:29.775Z",
+  "finished_at_iso": "2026-02-01T01:21:29.776Z"
+}

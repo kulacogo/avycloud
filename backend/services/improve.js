@@ -756,6 +756,26 @@ async function improveExistingProduct(productId, onProgress) {
     mergedProduct.details.key_features = sanitizeKeyFeatures(mergedProduct.details.key_features, 7);
   }
 
+  // GPSR safety: if GPSR object exists (or partial fields exist) but manufacturer_name is missing,
+  // we fill it from the product brand. This avoids "known brand, blank manufacturer" in listings.
+  // This is intentionally conservative: we only do this when there is some GPSR payload to begin with.
+  try {
+    const brand = typeof mergedProduct?.identification?.brand === 'string' ? mergedProduct.identification.brand.trim() : '';
+    const gpsr = mergedProduct?.details?.gpsr && typeof mergedProduct.details.gpsr === 'object' ? mergedProduct.details.gpsr : null;
+    if (brand && gpsr) {
+      const hasAnyGpsrField = Object.entries(gpsr).some(([k, v]) => {
+        if (k === 'manufacturer_name') return false;
+        return typeof v === 'string' ? v.trim().length > 0 : Boolean(v);
+      });
+      const hasName = typeof gpsr.manufacturer_name === 'string' && gpsr.manufacturer_name.trim().length > 0;
+      if (hasAnyGpsrField && !hasName) {
+        mergedProduct.details.gpsr = { ...gpsr, manufacturer_name: brand };
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   // Shared rulebook apply:
   // Improve must not get stuck in retries due to missing source facts (e.g. too-short title because brand/model unknown).
   // We apply the same policy deterministically and persist issues for the Quality Gate instead of throwing.
@@ -778,24 +798,29 @@ async function improveExistingProduct(productId, onProgress) {
 
   await saveProduct(mergedProduct, { source: 'job-improve', overwriteTextFields: true });
 
-  // Auto-trigger Quality Gate after improve save (async).
-  try {
-    const jobId = require('crypto').randomUUID();
-    await createQualityJob(
-      {
-        payload: { productId: mergedProduct.id },
-        productId: mergedProduct.id,
-        productName: mergedProduct.identification?.name || '',
-        locale: product.locale || 'de-DE',
-        reason: 'auto_after_improve',
-        requestedBy: 'improve-job',
-        force: false,
-      },
-      jobId
-    );
-    enqueueQualityJob(jobId, true);
-  } catch (qErr) {
-    console.warn(`Failed to enqueue quality job after improve for ${mergedProduct.id}:`, qErr?.message || qErr);
+  // Auto-trigger Quality Gate after improve save (optional).
+  // Default: OFF to keep bulk improve+sync fast and deterministic.
+  const AUTO_QUALITY =
+    (process.env.IMPROVE_AUTO_QUALITY_ENABLED || '').toString().trim().toLowerCase() === 'true';
+  if (AUTO_QUALITY) {
+    try {
+      const jobId = require('crypto').randomUUID();
+      await createQualityJob(
+        {
+          payload: { productId: mergedProduct.id },
+          productId: mergedProduct.id,
+          productName: mergedProduct.identification?.name || '',
+          locale: product.locale || 'de-DE',
+          reason: 'auto_after_improve',
+          requestedBy: 'improve-job',
+          force: false,
+        },
+        jobId
+      );
+      enqueueQualityJob(jobId, true);
+    } catch (qErr) {
+      console.warn(`Failed to enqueue quality job after improve for ${mergedProduct.id}:`, qErr?.message || qErr);
+    }
   }
 
   console.log('[improve] SUCCESS.');

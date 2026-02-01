@@ -1,0 +1,54 @@
+{
+  "inventoryId": "78659",
+  "minQty": 1,
+  "limit": null,
+  "offset": 14,
+  "concurrency": 8,
+  "counts": {
+    "total": 681,
+    "eligible": 448,
+    "selected": 434
+  },
+  "started_at_iso": "2026-02-01T01:46:41.621Z",
+  "done": 434,
+  "improved_ok": 430,
+  "improved_failed": 4,
+  "synced_ok": 428,
+  "synced_failed": 2,
+  "last": {
+    "productId": "SKU-9968230318",
+    "sku": "SKU-9968230318",
+    "improve": {
+      "ok": true,
+      "title": "HOLA KIT Premium Reifenreparaturset 22-teilig für PKW, Motorrad, ATV, SUV –",
+      "warnings": [
+        "Keine Preisinformationen in den Belegen gefunden, Preis auf 0 gesetzt.",
+        "Preis konnte nicht zuverlässig ermittelt werden – bitte prüfen.",
+        "Kaufland-spezifische Attribute wurden entfernt.",
+        "Falsche Kategorie-Attribute wurden entfernt.",
+        "EAN konnte nicht verifiziert werden und wurde daher nicht hinzugefügt.",
+        "GPSR Manufacturer address ist 'Not Provided, EU' und sollte aktualisiert werden.",
+        "GPSR Manufacturer email ist eine Platzhalter-E-Mail und sollte aktualisiert werden.",
+        "Bitte prüfen Sie die genaue Herstelleradresse für GPSR-Konformität.",
+        "Bitte aktualisieren Sie die Hersteller-E-Mail-Adresse für GPSR-Konformität.",
+        "Herstelleradresse 'Not Provided, EU' sollte für EU-Konformität aktualisiert werden.",
+        "GPSR Manufacturer address ist 'Not Provided, EU'. Bitte korrekte Adresse hinterlegen.",
+        "GPSR Manufacturer email ist 'info@example.com'. Bitte korrekte E-Mail-Adresse hinterlegen.",
+        "Die ursprüngliche Kategorie in den Attributen war falsch und wurde entfernt.",
+        "Interne 'kaufland_*' Attribute wurden entfernt.",
+        "Die Modellnummer im Titel wurde von 'HK802' auf die korrekte Herstellernummer 'HKDB02' angepasst.",
+        "Es konnte keine EAN/GTIN in den bereitgestellten Belegen gefunden werden.",
+        "Die ursprüngliche Kategorie im Datenblatt war inkorrekt und wurde entfernt.",
+        "Herstellerinformationen (GPSR) konnten nicht vollständig verifiziert werden.",
+        "EAN/GTIN/UPC-Identifikatoren konnten nicht belegt werden."
+      ]
+    },
+    "baselinker": {
+      "ok": true,
+      "id": "SKU-9968230318",
+      "status": "synced",
+      "message": "Successfully synced to BaseLinker"
+    }
+  },
+  "updated_at_iso": "2026-02-01T04:53:08.043Z"
+}

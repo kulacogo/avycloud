@@ -1,0 +1,13 @@
+{
+  "inventoryId": "78659",
+  "minQty": 1,
+  "limit": null,
+  "offset": 0,
+  "concurrency": 2,
+  "counts": {
+    "total": 681,
+    "eligible": 448,
+    "selected": 448
+  },
+  "started_at_iso": "2026-02-01T01:22:21.140Z"
+}

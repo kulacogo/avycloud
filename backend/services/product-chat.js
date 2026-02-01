@@ -1181,6 +1181,17 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
       const v = typeof entry.gpsr[k] === 'string' ? entry.gpsr[k].trim() : '';
       if (v) next[k] = v;
     });
+    // If GPSR fields exist but manufacturer_name is missing, fill from product brand.
+    // This keeps data consistent with listing expectations (brand-known but manufacturer blank).
+    if (!next.manufacturer_name) {
+      const brand = typeof product?.identification?.brand === 'string' ? product.identification.brand.trim() : '';
+      if (brand) {
+        const hasAnyGpsrField = Object.entries(next).some(([k, v]) => k !== 'manufacturer_name' && typeof v === 'string' && v.trim());
+        if (hasAnyGpsrField) {
+          next.manufacturer_name = brand;
+        }
+      }
+    }
     if (Object.keys(next).length) {
       result.gpsr = next;
     }
