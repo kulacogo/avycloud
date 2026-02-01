@@ -4,6 +4,7 @@ import { AdminRoleManagement } from './AdminRoleManagement';
 import { AdminGroupManagement } from './AdminGroupManagement';
 import { AdminLlmManagement } from './AdminLlmManagement';
 import { AdminJobsManagement } from './AdminJobsManagement';
+import { AdminBulkActions } from './AdminBulkActions';
 import { AdminRulebookManagement } from './AdminRulebookManagement';
 import { AdminProductCoverageDashboard } from './AdminProductCoverageDashboard';
 import { fetchProducts } from '../../api/client';
@@ -13,7 +14,7 @@ import { PageHeader } from '../ui/PageHeader';
 import { HelpDisclosure } from '../ui/HelpDisclosure';
 import { Notice } from '../ui/Notice';
 
-type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'jobs' | 'rulebook';
+type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'jobs' | 'bulk' | 'rulebook';
 
 export const AdminPanel: React.FC = () => {
   const [tab, setTab] = React.useState<Tab>('users');
@@ -143,6 +144,15 @@ export const AdminPanel: React.FC = () => {
         </button>
         <button
           type="button"
+          onClick={() => setTab('bulk')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+            tab === 'bulk' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+          }`}
+        >
+          Bulk
+        </button>
+        <button
+          type="button"
           onClick={() => setTab('rulebook')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
             tab === 'rulebook' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
@@ -160,6 +170,8 @@ export const AdminPanel: React.FC = () => {
         <AdminLlmManagement />
       ) : tab === 'jobs' ? (
         <AdminJobsManagement />
+      ) : tab === 'bulk' ? (
+        <AdminBulkActions />
       ) : tab === 'rulebook' ? (
         <AdminRulebookManagement />
       ) : (

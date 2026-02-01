@@ -9,7 +9,7 @@ const {
 const { coerceTitleToPolicy } = require('./title-policy');
 const { normalizeBrandDisplayCase } = require('./brand-normalize');
 const { getVehicleFitmentMode } = require('./vehicle-fitment');
-const { getManufacturerGpsrByName, mergePreferMoreComplete } = require('./gpsr-manufacturer-registry');
+const { getManufacturerGpsrByName, mergePreferMoreComplete, normalizeGpsrObject } = require('./gpsr-manufacturer-registry');
 
 function isFirestoreSpecialValue(value) {
   if (!value) return false;
@@ -82,6 +82,52 @@ const INVENTORIES_COLLECTION = 'inventories';
 const INVENTORY_SYNC_LOGS_COLLECTION = 'inventorySyncLogs';
 const PRODUCT_LIST_LIMIT = parseInt(process.env.PRODUCT_LIST_LIMIT || '0', 10);
 const MAX_ALIAS_LOOKUP = parseInt(process.env.MAX_ALIAS_LOOKUP || '50', 10);
+
+// Runtime flags (Prod kill-switch without redeploy).
+// Stored in Firestore doc: config/runtimeFlags
+const RUNTIME_FLAGS_COLLECTION = 'config';
+const RUNTIME_FLAGS_DOC_ID = 'runtimeFlags';
+const RUNTIME_FLAGS_TTL_MS = Math.max(
+  5_000,
+  parseInt(process.env.RUNTIME_FLAGS_TTL_MS || `${60_000}`, 10) || 60_000
+);
+let runtimeFlagsCache = { atMs: 0, flags: null };
+
+const parseBoolLoose = (raw) => {
+  const v = (raw == null ? '' : String(raw)).trim().toLowerCase();
+  if (v === '1' || v === 'true' || v === 'yes' || v === 'on') return true;
+  if (v === '0' || v === 'false' || v === 'no' || v === 'off') return false;
+  return null;
+};
+
+async function getRuntimeFlagsCached() {
+  const now = Date.now();
+  if (runtimeFlagsCache.flags && now - (runtimeFlagsCache.atMs || 0) < RUNTIME_FLAGS_TTL_MS) {
+    return runtimeFlagsCache.flags;
+  }
+  try {
+    const snap = await firestore.collection(RUNTIME_FLAGS_COLLECTION).doc(RUNTIME_FLAGS_DOC_ID).get();
+    const data = snap.exists ? snap.data() || {} : {};
+    const flags = data && typeof data === 'object' ? data : {};
+    runtimeFlagsCache = { atMs: now, flags };
+    return flags;
+  } catch {
+    // Best-effort: keep previous cached flags if any.
+    return runtimeFlagsCache.flags || {};
+  }
+}
+
+async function getRuntimeFlagBoolean(flagName, defaultValue = false) {
+  // Allow hard override via env (useful for emergency disable/enable).
+  const envKey = `RUNTIME_FLAG_${String(flagName || '').toUpperCase()}`;
+  const envVal = parseBoolLoose(process.env[envKey]);
+  if (typeof envVal === 'boolean') return envVal;
+  const flags = await getRuntimeFlagsCached();
+  const raw = flags?.[flagName];
+  if (typeof raw === 'boolean') return raw;
+  const parsed = parseBoolLoose(raw);
+  return typeof parsed === 'boolean' ? parsed : Boolean(defaultValue);
+}
 
 const normalizeSkuValue = (val) =>
   (val || '')
@@ -2191,6 +2237,55 @@ async function saveProduct(product, options = {}) {
         }
       }
     } catch (e) {
+      // non-blocking
+    }
+
+    // GPSR: enforce registry overwrite (kill-switch controlled).
+    // Requirement: Brand == Hersteller, and registry is Source of Truth for manufacturer-level GPSR.
+    try {
+      const enforceEnabled =
+        (process.env.GPSR_REGISTRY_ENFORCE ?? '').toString().toLowerCase() === 'true' ||
+        (await getRuntimeFlagBoolean('gpsrRegistryEnforce', false));
+      if (enforceEnabled) {
+        const brand = safeString(productWithEbay?.identification?.brand || '');
+        if (brand) {
+          const reg = await getManufacturerGpsrByName(brand).catch(() => null);
+          const regGpsr = reg?.gpsr && typeof reg.gpsr === 'object' ? reg.gpsr : null;
+          if (regGpsr && Object.keys(regGpsr).length) {
+            const beforeNorm = normalizeGpsrObject(productWithEbay?.details?.gpsr || {});
+            const next = { ...(productWithEbay.details.gpsr || {}) };
+            for (const [k, v] of Object.entries(regGpsr)) {
+              if (v !== undefined && v !== null && String(v).trim() !== '') {
+                next[k] = v;
+              }
+            }
+            if (!safeString(next.manufacturer_name)) next.manufacturer_name = brand;
+            const afterNorm = normalizeGpsrObject(next);
+            const changed = JSON.stringify(beforeNorm) !== JSON.stringify(afterNorm);
+            if (changed) {
+              productWithEbay.details.gpsr = next;
+              productWithEbay.ops = productWithEbay.ops || {};
+              productWithEbay.ops.data_quality = productWithEbay.ops.data_quality || {};
+              // Backup for 1-step rollback (small, normalized snapshot only).
+              productWithEbay.ops.data_quality.gpsr_backup_v1 = {
+                at_iso: new Date().toISOString(),
+                brand,
+                registry_key: reg.key || null,
+                registry_confidence: reg.confidence ?? null,
+                before: beforeNorm,
+                after: afterNorm,
+              };
+              productWithEbay.ops.data_quality.gpsr_registry_enforce_v1 = {
+                at_iso: new Date().toISOString(),
+                brand,
+                registry_key: reg.key || null,
+                registry_confidence: reg.confidence ?? null,
+              };
+            }
+          }
+        }
+      }
+    } catch {
       // non-blocking
     }
 

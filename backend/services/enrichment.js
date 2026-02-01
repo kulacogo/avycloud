@@ -1987,10 +1987,218 @@ function queryMatchesProduct(query, product, keywords = null) {
 const USED_PRICE_HINT_REGEX =
   /\b(gebraucht|used|refurb|refurbished|renewed|b-ware|pre-owned|second hand|open box)\b/i;
 
+const ACCESSORY_HINT_REGEX =
+  /\b(zubeh[öo]r|accessor(?:y|ies)|ersatz|replacement|spare|teil(e)?|adapter|kabel|kabelsatz|netzteil|ladeger[aä]t|halter|halterung|cover|case|h[üu]lle)\b/i;
+
+function normalizeMatchText(raw = '') {
+  return String(raw || '')
+    .toLowerCase()
+    .replace(/ä/g, 'a')
+    .replace(/ö/g, 'o')
+    .replace(/ü/g, 'u')
+    .replace(/ß/g, 'ss')
+    .replace(/[\u2010-\u2015-]/g, ' ')
+    .replace(/[^\p{L}\p{N}\s.×x/]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function parseNumLoose(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const cleaned = s.replace(/\s+/g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
+  const v = parseFloat(cleaned);
+  return Number.isFinite(v) ? v : null;
+}
+
+function toMm(value, unit) {
+  const v = typeof value === 'number' ? value : parseNumLoose(value);
+  if (!Number.isFinite(v)) return null;
+  const u = String(unit || '').toLowerCase();
+  if (u === 'mm') return v;
+  if (u === 'cm') return v * 10;
+  if (u === 'm') return v * 1000;
+  return null;
+}
+
+function extractSpecsFromText(rawText = '') {
+  const text = normalizeMatchText(rawText);
+  const out = {
+    watt: null,
+    volt: null,
+    weight_g: null,
+    dims_mm: null, // sorted array [a,b,c?] in mm
+    diameter_mm: null,
+    color: null,
+    shape: null,
+  };
+
+  // watt / volt
+  const wattM = text.match(/\b(\d+(?:[.,]\d+)?)\s*w\b/i);
+  if (wattM?.[1]) {
+    const v = parseNumLoose(wattM[1]);
+    if (Number.isFinite(v) && v > 0 && v < 50000) out.watt = v;
+  }
+  const voltM = text.match(/\b(\d+(?:[.,]\d+)?)\s*v\b/i);
+  if (voltM?.[1]) {
+    const v = parseNumLoose(voltM[1]);
+    if (Number.isFinite(v) && v > 0 && v < 2000) out.volt = v;
+  }
+
+  // weight
+  const wKg = text.match(/\b(\d+(?:[.,]\d+)?)\s*kg\b/i);
+  const wG = text.match(/\b(\d+(?:[.,]\d+)?)\s*g\b/i);
+  if (wKg?.[1]) {
+    const v = parseNumLoose(wKg[1]);
+    if (Number.isFinite(v) && v > 0 && v < 5000) out.weight_g = v * 1000;
+  } else if (wG?.[1]) {
+    const v = parseNumLoose(wG[1]);
+    if (Number.isFinite(v) && v > 0 && v < 5_000_000) out.weight_g = v;
+  }
+
+  // diameter
+  const dia = text.match(/\b(?:ø|durchmesser|diameter)\s*(\d+(?:[.,]\d+)?)\s*(mm|cm|m)\b/i);
+  if (dia?.[1] && dia?.[2]) {
+    const mm = toMm(dia[1], dia[2]);
+    if (Number.isFinite(mm) && mm > 0) out.diameter_mm = mm;
+  }
+
+  // dimensions like 120x60x10 cm (or mm)
+  const dim =
+    text.match(/\b(\d+(?:[.,]\d+)?)\s*(mm|cm|m)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(mm|cm|m)(?:\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(mm|cm|m))?\b/i);
+  if (dim?.[1] && dim?.[2] && dim?.[3] && dim?.[4]) {
+    const a = toMm(dim[1], dim[2]);
+    const b = toMm(dim[3], dim[4]);
+    const c = dim?.[5] && dim?.[6] ? toMm(dim[5], dim[6]) : null;
+    const arr = [a, b, c].filter((n) => typeof n === 'number' && Number.isFinite(n) && n > 0);
+    if (arr.length >= 2) out.dims_mm = arr.sort((x, y) => x - y);
+  }
+
+  // color (basic)
+  const COLORS = [
+    { canon: 'black', keys: ['schwarz', 'black'] },
+    { canon: 'white', keys: ['weiss', 'weiß', 'white'] },
+    { canon: 'grey', keys: ['grau', 'gray', 'grey', 'silber', 'silver'] },
+    { canon: 'red', keys: ['rot', 'red'] },
+    { canon: 'blue', keys: ['blau', 'blue'] },
+    { canon: 'green', keys: ['grun', 'grün', 'green'] },
+    { canon: 'yellow', keys: ['gelb', 'yellow'] },
+    { canon: 'brown', keys: ['braun', 'brown'] },
+    { canon: 'orange', keys: ['orange'] },
+    { canon: 'pink', keys: ['pink', 'rosa'] },
+    { canon: 'transparent', keys: ['transparent', 'klar'] },
+  ];
+  for (const c of COLORS) {
+    if (c.keys.some((k) => text.includes(k))) {
+      out.color = c.canon;
+      break;
+    }
+  }
+
+  // shape (basic)
+  const SHAPES = [
+    { canon: 'round', keys: ['rund', 'round', 'kreis'] },
+    { canon: 'square', keys: ['quadrat', 'square'] },
+    { canon: 'rect', keys: ['rechteck', 'rectangular', 'rectangle'] },
+    { canon: 'oval', keys: ['oval'] },
+  ];
+  for (const s of SHAPES) {
+    if (s.keys.some((k) => text.includes(k))) {
+      out.shape = s.canon;
+      break;
+    }
+  }
+
+  return out;
+}
+
+function extractProductSpecs(product) {
+  const attrs = product?.details?.attributes;
+  let blob = '';
+  if (attrs && typeof attrs === 'object') {
+    if (Array.isArray(attrs)) {
+      blob = attrs.map((e) => `${e?.key || ''}: ${e?.value || ''}`).join(' ');
+    } else {
+      blob = Object.entries(attrs)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(' ');
+    }
+  }
+  const title = safeString(product?.identification?.name);
+  const brand = safeString(product?.identification?.brand);
+  const idParts = [
+    safeString(product?.details?.identifiers?.mpn),
+    safeString(product?.details?.identifiers?.ean),
+    safeString(product?.details?.identifiers?.gtin),
+    safeString(product?.details?.identifiers?.upc),
+  ].filter(Boolean);
+  return extractSpecsFromText([brand, title, ...idParts, blob].filter(Boolean).join(' '));
+}
+
+function relDiff(a, b) {
+  if (!Number.isFinite(a) || !Number.isFinite(b) || a <= 0 || b <= 0) return null;
+  return Math.abs(a - b) / Math.max(a, b);
+}
+
+function scoreSpecSimilarity(productSpecs, offerText) {
+  const ps = productSpecs || {};
+  const os = extractSpecsFromText(offerText || '');
+  let score = 0;
+
+  // watt
+  if (Number.isFinite(ps.watt) && Number.isFinite(os.watt)) {
+    const d = relDiff(ps.watt, os.watt);
+    if (d != null) score += d <= 0.05 ? 10 : d <= 0.12 ? 6 : -8;
+  }
+
+  // volt
+  if (Number.isFinite(ps.volt) && Number.isFinite(os.volt)) {
+    const d = relDiff(ps.volt, os.volt);
+    if (d != null) score += d <= 0.05 ? 8 : d <= 0.12 ? 4 : -6;
+  }
+
+  // weight
+  if (Number.isFinite(ps.weight_g) && Number.isFinite(os.weight_g)) {
+    const d = relDiff(ps.weight_g, os.weight_g);
+    if (d != null) score += d <= 0.10 ? 5 : d <= 0.20 ? 2 : -3;
+  }
+
+  // diameter
+  if (Number.isFinite(ps.diameter_mm) && Number.isFinite(os.diameter_mm)) {
+    const d = relDiff(ps.diameter_mm, os.diameter_mm);
+    if (d != null) score += d <= 0.08 ? 6 : d <= 0.18 ? 3 : -4;
+  }
+
+  // dimensions (compare as sorted sets)
+  if (Array.isArray(ps.dims_mm) && Array.isArray(os.dims_mm) && ps.dims_mm.length >= 2 && os.dims_mm.length >= 2) {
+    const a = ps.dims_mm.slice(0, 3).sort((x, y) => x - y);
+    const b = os.dims_mm.slice(0, 3).sort((x, y) => x - y);
+    const n = Math.min(a.length, b.length);
+    let acc = 0;
+    let okCount = 0;
+    for (let i = 0; i < n; i++) {
+      const d = relDiff(a[i], b[i]);
+      if (d == null) continue;
+      acc += d;
+      okCount += 1;
+    }
+    if (okCount >= 2) {
+      const avg = acc / okCount;
+      score += avg <= 0.06 ? 8 : avg <= 0.16 ? 4 : -6;
+    }
+  }
+
+  // color / shape
+  if (ps.color && os.color && ps.color === os.color) score += 3;
+  if (ps.shape && os.shape && ps.shape === os.shape) score += 3;
+
+  return score;
+}
+
 function collectPriceCandidates(product, serpTrace = [], existingKeywords = null) {
   if (!Array.isArray(serpTrace) || !serpTrace.length) return [];
   const keywords = existingKeywords || collectProductKeywords(product);
-  if (!keywords.length) return [];
+  const productSpecs = extractProductSpecs(product);
 
   const candidates = [];
   const brand = (product?.identification?.brand || '').toString().trim().toLowerCase();
@@ -2015,22 +2223,33 @@ function collectPriceCandidates(product, serpTrace = [], existingKeywords = null
 
   for (const entry of serpTrace) {
     if (!entry || !PRICE_TRACE_ENGINES.has(entry.engine)) continue;
-    const queryIsRelevant = queryMatchesProduct(entry.query || '', product, keywords);
+    const queryIsRelevant = keywords.length ? queryMatchesProduct(entry.query || '', product, keywords) : false;
     for (const item of entry.summary || []) {
       const parsedPrice = normalizePriceString(item.price);
       if (!parsedPrice) continue;
       // Keep EUR only (SerpAPI may return mixed locales). If missing currency, we treat as EUR (DEFAULT).
       if (parsedPrice.currency && parsedPrice.currency !== DEFAULT_PRICE_CURRENCY) continue;
-      const textBlob = [item.title, item.snippet].filter(Boolean).join(' ').toLowerCase();
+      const textBlob = normalizeMatchText([item.title, item.snippet].filter(Boolean).join(' '));
       // User requirement: prefer new price (Neuware) → drop obvious used/refurbished offers
       if (USED_PRICE_HINT_REGEX.test(textBlob)) continue;
-      const matches = keywords.filter((keyword) => keyword && textBlob.includes(keyword)).length;
+      // Avoid obvious "accessory-only" results when we look for the product itself.
+      if (ACCESSORY_HINT_REGEX.test(textBlob)) continue;
+
+      const matches = keywords.length ? keywords.filter((keyword) => keyword && textBlob.includes(keyword)).length : 0;
       const hasBrand = brand && textBlob.includes(brand);
       const hasMpn = mpn && mpn.length >= 3 && textBlob.includes(mpn);
       const hasBarcode = barcodeCandidates.some((code) => textBlob.includes(code));
-      // Require at least SOME signal that the item refers to the product (avoid "cheapest accessory" matches).
-      const ok = (queryIsRelevant && (matches >= 1 || hasBrand || hasMpn || hasBarcode)) || matches >= 2 || hasMpn || hasBarcode;
-      if (!ok) continue;
+
+      const specScore = scoreSpecSimilarity(productSpecs, textBlob);
+      const hasStrongId = hasMpn || hasBarcode;
+      const okExact =
+        (keywords.length &&
+          ((queryIsRelevant && (matches >= 1 || hasBrand || hasStrongId)) || matches >= 2 || hasStrongId)) ||
+        hasStrongId;
+      // Fallback requirement: if exact product not found, accept highly similar offers by specs
+      const okSimilar = !okExact && specScore >= 10;
+      if (!okExact && !okSimilar) continue;
+
       candidates.push({
         amount: parsedPrice.amount,
         currency: parsedPrice.currency,
@@ -2043,6 +2262,8 @@ function collectPriceCandidates(product, serpTrace = [], existingKeywords = null
         has_brand: hasBrand,
         has_mpn: hasMpn,
         has_barcode: hasBarcode,
+        spec_score: specScore,
+        match_tier: okExact ? 'exact' : 'similar',
       });
     }
   }
@@ -2062,6 +2283,7 @@ function scorePriceCandidate(c) {
   if (c.has_brand) score += 12;
   if (c.has_mpn) score += 18;
   if (c.has_barcode) score += 22;
+   if (typeof c.spec_score === 'number' && Number.isFinite(c.spec_score)) score += c.spec_score;
   if (c.engine === 'google_shopping') score += 4;
   if (c.engine === 'bing_shopping') score += 2;
   if (!c.url) score -= 3;
@@ -2077,8 +2299,11 @@ function pickBestPriceCandidate(candidates = []) {
 
   if (!enriched.length) return null;
 
-  const maxScore = Math.max(...enriched.map((c) => c.score || 0));
-  const top = enriched.filter((c) => (c.score || 0) >= Math.max(0, maxScore - 8));
+  const exact = enriched.filter((c) => c.match_tier === 'exact' || c.has_mpn || c.has_barcode || (c.has_brand && (c.match_count || 0) >= 2));
+  const pool = exact.length ? exact : enriched;
+
+  const maxScore = Math.max(...pool.map((c) => c.score || 0));
+  const top = pool.filter((c) => (c.score || 0) >= Math.max(0, maxScore - 10));
 
   // Outlier filter based on median of top matches (when enough data)
   const amounts = top.map((c) => c.amount);
@@ -2102,11 +2327,8 @@ function pickBestPriceCandidate(candidates = []) {
     }
   }
 
-  filtered.sort((a, b) => {
-    const s = (b.score || 0) - (a.score || 0);
-    if (s) return s;
-    return a.amount - b.amount;
-  });
+  // Requirement: pick the cheapest price among sufficiently good matches.
+  filtered.sort((a, b) => a.amount - b.amount || (b.score || 0) - (a.score || 0));
   return filtered[0] || null;
 }
 
@@ -2149,6 +2371,17 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
   if (!SERPAPI_ENABLED || !PRICE_ENRICH) return;
   if (!Array.isArray(products) || !products.length) return;
 
+  const maxAgeDays =
+    process.env.PRICE_MAX_AGE_DAYS != null && String(process.env.PRICE_MAX_AGE_DAYS).trim() !== ''
+      ? Math.max(0, Number(process.env.PRICE_MAX_AGE_DAYS) || 0)
+      : 0;
+  const daysSinceIso = (iso) => {
+    if (!iso) return Infinity;
+    const t = Date.parse(String(iso));
+    if (!Number.isFinite(t)) return Infinity;
+    return (Date.now() - t) / (1000 * 60 * 60 * 24);
+  };
+
   for (const product of products) {
     const lowest = product?.details?.pricing?.lowest_price;
     const hasPrice =
@@ -2158,7 +2391,8 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
       lowest.amount > 0 &&
       Array.isArray(lowest.sources) &&
       lowest.sources.length > 0;
-    if (hasPrice) continue;
+    const stale = maxAgeDays > 0 && lowest && daysSinceIso(lowest.last_checked_iso) > maxAgeDays;
+    if (hasPrice && !stale) continue;
 
     // Deterministic query building (more robust than a single LLM-crafted query).
     const negativeTerms = '-gebraucht -used -refurb -refurbished -renewed -b-ware -openbox';
@@ -2240,6 +2474,18 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
       ? existingPricing.lowest_price.sources.filter(Boolean)
       : [];
 
+    // If we had to fall back to "similar by specs", mark it as low-confidence and warn.
+    const pickedSimilar = best?.match_tier === 'similar' && !best?.has_mpn && !best?.has_barcode;
+    if (pickedSimilar) {
+      product.notes = product.notes || {};
+      product.notes.warnings = Array.from(
+        new Set([
+          ...(product.notes.warnings || []),
+          'Preis basiert auf ähnlichem Produkt (Specs-Match) – bitte prüfen.',
+        ])
+      );
+    }
+
     product.details.pricing = {
       ...existingPricing,
       lowest_price: {
@@ -2260,7 +2506,9 @@ async function ensurePriceCoverage(products = [], serpTrace = []) {
       price_confidence:
         typeof existingPricing.price_confidence === 'number' && existingPricing.price_confidence > 0
           ? existingPricing.price_confidence
-          : Math.min(0.95, Math.max(0.4, Math.min(1, (best.score || 0) / 40) + candidates.length / 12)),
+          : pickedSimilar
+            ? Math.min(0.55, Math.max(0.25, (best.score || 0) / 60))
+            : Math.min(0.95, Math.max(0.45, Math.min(1, (best.score || 0) / 45) + candidates.length / 14)),
     };
   }
 }
@@ -2633,4 +2881,12 @@ module.exports = {
   MAX_BARCODE_COUNT,
   MAX_IMAGE_PAYLOAD_BYTES,
   TOOL_ITERATION_ERROR,
+  __test: {
+    extractSpecsFromText,
+    extractProductSpecs,
+    scoreSpecSimilarity,
+    collectPriceCandidates,
+    pickBestPriceCandidate,
+    normalizeMatchText,
+  },
 };

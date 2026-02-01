@@ -60,6 +60,8 @@ const { enqueueImproveJob, startImproveRunner } = require('./services/improve-ru
 const { enqueueQualityJob, startQualityRunner } = require('./services/quality-runner');
 const { enqueueBaseLinkerSyncJob, startBaseLinkerSyncRunner } = require('./services/baselinker-sync-runner');
 const { startRulebookRunner } = require('./services/rulebook-runner');
+const { createJob: createAdminBulkJob, getJob: getAdminBulkJob } = require('./lib/admin-bulk-jobs');
+const { enqueueAdminBulkJob, startAdminBulkRunner } = require('./services/admin-bulk-runner');
 const { createJob: createQualityJob, getJob: getQualityJob, Timestamp: QualityTimestamp, updateJob: updateQualityJob } = require('./lib/quality-jobs');
 const { createJob: createBaseLinkerSyncJob, getJob: getBaseLinkerSyncJob, updateJob: updateBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('./lib/baselinker-sync-jobs');
 const {
@@ -802,6 +804,11 @@ startImproveRunner();
 startQualityRunner();
 startBaseLinkerSyncRunner();
 startRulebookRunner();
+try {
+  startAdminBulkRunner();
+} catch (e) {
+  console.warn('[AdminBulkRunner] failed to start (non-blocking):', e?.message || e);
+}
 ensureDefaultRoles()
   .then(() => console.log('RBAC default roles ensured.'))
   .catch((error) => console.error('RBAC role seeding failed:', error));
@@ -1095,6 +1102,7 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'users
     const { getVehicleFitmentMode } = require('./lib/vehicle-fitment');
     const { coerceTitleToPolicy, validateTitleToPolicy, inferTitleCategory } = require('./lib/title-policy');
     const { getRulebookConfigCached } = require('./lib/rulebook-config');
+    const { normalizeManufacturerKey, normalizeGpsrObject } = require('./lib/gpsr-manufacturer-registry');
     const products = await getAllProducts();
 
     const safe = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
@@ -1169,6 +1177,24 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'users
     const priceMissingIds = [];
     const priceOkIds = [];
     const priceOutOfRangeIds = [];
+    const priceNoSourcesIds = [];
+    const priceStaleIds = [];
+    const priceLowConfidenceIds = [];
+    const priceSimilarMatchIds = [];
+    const priceMaxAgeDays =
+      req.query?.priceMaxAgeDays != null && String(req.query.priceMaxAgeDays).trim() !== ''
+        ? Math.max(0, Number(req.query.priceMaxAgeDays) || 0)
+        : 14;
+    const daysSinceIso = (iso) => {
+      if (!iso) return Infinity;
+      const t = Date.parse(String(iso));
+      if (!Number.isFinite(t)) return Infinity;
+      return (Date.now() - t) / (1000 * 60 * 60 * 24);
+    };
+    const hasSimilarPriceWarning = (p) => {
+      const warnings = Array.isArray(p?.notes?.warnings) ? p.notes.warnings : [];
+      return warnings.some((w) => String(w || '').includes('Preis basiert auf ähnlichem Produkt (Specs-Match)'));
+    };
 
     // Main categories (top-level only)
     const mainCategoryCounts = {};
@@ -1220,6 +1246,33 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'users
       return first || 'Uncategorized';
     };
 
+    // --- GPSR Registry variance monitoring (Brand == Hersteller) ---
+    const stableJson = (obj) => {
+      const o = obj && typeof obj === 'object' ? obj : {};
+      const keys = Object.keys(o).sort();
+      const out = {};
+      keys.forEach((k) => {
+        out[k] = o[k];
+      });
+      return JSON.stringify(out);
+    };
+
+    // Load registry once (small collection) to avoid N Firestore reads.
+    const registryByKey = new Map(); // normalizedBrandKey -> normalized gpsr
+    try {
+      const snap = await firestore.collection('gpsrManufacturers').get();
+      snap.forEach((doc) => {
+        const data = doc.data() || {};
+        const gpsr = normalizeGpsrObject(data.gpsr);
+        if (gpsr && Object.keys(gpsr).length) {
+          registryByKey.set(String(doc.id || '').trim(), gpsr);
+        }
+      });
+    } catch (e) {
+      // non-blocking: registry metrics will degrade gracefully
+    }
+    const gpsrRegistryStats = new Map(); // brandKey -> { brand, total, distinctGpsr, mismatchingRegistry, missingRegistry }
+
     for (const p of Array.isArray(products) ? products : []) {
       try {
       const pid = safe(p?.id);
@@ -1262,6 +1315,33 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'users
       }
 
       const g = p?.details?.gpsr && typeof p.details.gpsr === 'object' ? p.details.gpsr : {};
+
+      // Registry monitoring (per brand)
+      const brand = safe(p?.identification?.brand);
+      if (brand) {
+        const brandKey = normalizeManufacturerKey(brand);
+        if (brandKey) {
+          const rec =
+            gpsrRegistryStats.get(brandKey) || {
+              brand,
+              total: 0,
+              distinctGpsr: new Set(),
+              mismatchingRegistry: 0,
+              missingRegistry: 0,
+            };
+          rec.total += 1;
+          const normalized = normalizeGpsrObject(g);
+          rec.distinctGpsr.add(stableJson(normalized));
+          const registryGpsr = registryByKey.get(brandKey) || null;
+          if (!registryGpsr) {
+            rec.missingRegistry += 1;
+          } else {
+            const same = stableJson(normalized) === stableJson(registryGpsr);
+            if (!same) rec.mismatchingRegistry += 1;
+          }
+          gpsrRegistryStats.set(brandKey, rec);
+        }
+      }
 
       if (gpsrRequired.some((k) => safe(g[k]))) gpsrAnyFieldPresent += 1;
 
@@ -1313,6 +1393,17 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'users
       if (price == null || price <= 0) {
         if (pid) priceMissingIds.push(pid);
       } else {
+        const lp = p?.details?.pricing?.lowest_price || {};
+        const src = Array.isArray(lp?.sources) ? lp.sources : [];
+        if (!src.length && pid) priceNoSourcesIds.push(pid);
+        const conf = p?.details?.pricing?.price_confidence;
+        if (typeof conf === 'number' && Number.isFinite(conf) && conf > 0 && conf < 0.5 && pid) {
+          priceLowConfidenceIds.push(pid);
+        }
+        if (priceMaxAgeDays > 0 && daysSinceIso(lp?.last_checked_iso) > priceMaxAgeDays && pid) {
+          priceStaleIds.push(pid);
+        }
+        if (hasSimilarPriceWarning(p) && pid) priceSimilarMatchIds.push(pid);
         const outOfRange =
           (Number.isFinite(minPrice) && minPrice != null && price < minPrice) ||
           (Number.isFinite(maxPrice) && maxPrice != null && price > maxPrice);
@@ -1365,12 +1456,42 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'users
           fullRequiredFieldsNoPlaceholders: gpsrFullRequiredNoPlaceholders,
           candidatesNeedingEnrich: gpsrCandidatesNeedingEnrich,
         },
+        gpsr_registry: (() => {
+          const entries = Array.from(gpsrRegistryStats.entries()).map(([brandKey, rec]) => ({
+            brandKey,
+            brand: rec.brand,
+            total: rec.total,
+            distinctGpsr: rec.distinctGpsr.size,
+            mismatchingRegistry: rec.mismatchingRegistry,
+            missingRegistry: rec.missingRegistry,
+          }));
+          const brandsTotal = entries.length;
+          const brandsWithVariance = entries.filter((e) => e.distinctGpsr > 1).length;
+          const brandsMissingRegistry = entries.filter((e) => e.missingRegistry === e.total).length;
+          const productsMismatchingRegistry = entries.reduce((s, e) => s + (Number(e.mismatchingRegistry) || 0), 0);
+          const topBrandsByMismatch = [...entries]
+            .filter((e) => (e.mismatchingRegistry || 0) > 0)
+            .sort((a, b) => (b.mismatchingRegistry - a.mismatchingRegistry) || (b.total - a.total))
+            .slice(0, 12);
+          return {
+            brandsTotal,
+            brandsWithVariance,
+            brandsMissingRegistry,
+            productsMismatchingRegistry,
+            topBrandsByMismatch,
+          };
+        })(),
         price: {
           minPrice: Number.isFinite(minPrice) ? minPrice : null,
           maxPrice: Number.isFinite(maxPrice) ? maxPrice : null,
           missingCount: priceMissingIds.length,
           okCount: priceOkIds.length,
           outOfRangeCount: priceOutOfRangeIds.length,
+          noSourcesCount: priceNoSourcesIds.length,
+          staleCount: priceStaleIds.length,
+          lowConfidenceCount: priceLowConfidenceIds.length,
+          similarMatchCount: priceSimilarMatchIds.length,
+          priceMaxAgeDays,
         },
         categories: {
           mainCategoryCounts,
@@ -1390,6 +1511,10 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'users
           priceMissingIds,
           priceOkIds,
           priceOutOfRangeIds,
+          priceNoSourcesIds,
+          priceStaleIds,
+          priceLowConfidenceIds,
+          priceSimilarMatchIds,
           mainCategoryIds,
         },
       },
@@ -1400,6 +1525,49 @@ app.get('/api/admin/metrics/product-coverage', requirePermission('admin', 'users
       ok: false,
       error: { code: 500, message: 'Failed to compute product coverage metrics', details: error.message },
     });
+  }
+});
+
+// --- Admin Bulk Actions (consolidated) ---
+// Creates an async job in Firestore and processes it via AdminBulkRunner.
+app.post('/api/admin/bulk/run', requirePermission('admin', 'jobs.run'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const action = String(body.action || '').trim().toLowerCase();
+    if (!action) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing action' } });
+    }
+    const payload = {
+      action,
+      apply: Boolean(body.apply),
+      limit: Number.isFinite(Number(body.limit)) ? Number(body.limit) : 500,
+      offset: Number.isFinite(Number(body.offset)) ? Number(body.offset) : 0,
+      debug: Boolean(body.debug),
+      maxAgeDays: Number.isFinite(Number(body.maxAgeDays)) ? Number(body.maxAgeDays) : undefined,
+      includeUi: Boolean(body.includeUi),
+      requestedBy: req.user?.email || req.user?.uid || 'admin',
+    };
+
+    const job = await createAdminBulkJob({ payload, requestedBy: payload.requestedBy, action });
+    enqueueAdminBulkJob(job.id, true);
+    return res.status(202).json({ ok: true, data: { jobId: job.id } });
+  } catch (error) {
+    console.error('Failed to enqueue admin bulk job:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to enqueue admin bulk job', details: error.message },
+    });
+  }
+});
+
+app.get('/api/admin/bulk/jobs/:id', requirePermission('admin', 'jobs.read'), async (req, res) => {
+  try {
+    const job = await getAdminBulkJob(String(req.params.id));
+    if (!job) return res.status(404).json({ ok: false, error: { code: 404, message: 'Job not found' } });
+    return res.status(200).json({ ok: true, data: job });
+  } catch (error) {
+    console.error('Failed to load admin bulk job:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to load job', details: error.message } });
   }
 });
 
@@ -1504,8 +1672,10 @@ app.get('/api/admin/jobs/status', requirePermission('admin', 'jobs.read'), async
     const { listJobsByStatus } = require('./lib/rulebook-apply-jobs');
     const { listJobRunsByType } = require('./lib/admin-job-runs');
     const { getCloudRunOperation } = require('./lib/cloud-run-jobs');
+    const { listJobsByStatus: listAdminBulkJobsByStatus } = require('./lib/admin-bulk-jobs');
 
     const rulebookRunning = await listJobsByStatus(['pending', 'processing']);
+    const adminBulkRunning = await listAdminBulkJobsByStatus(['pending', 'processing']);
 
     const gpsrRuns = await listJobRunsByType('gpsr-web-enrich', { limit: 5 });
     const latestGpsr = gpsrRuns?.[0] || null;
@@ -1525,6 +1695,10 @@ app.get('/api/admin/jobs/status', requirePermission('admin', 'jobs.read'), async
         rulebookApply: {
           runningCount: Array.isArray(rulebookRunning) ? rulebookRunning.length : 0,
           running: Array.isArray(rulebookRunning) ? rulebookRunning.slice(0, 10) : [],
+        },
+        adminBulk: {
+          runningCount: Array.isArray(adminBulkRunning) ? adminBulkRunning.length : 0,
+          running: Array.isArray(adminBulkRunning) ? adminBulkRunning.slice(0, 10) : [],
         },
         gpsrWebEnrich: {
           latestRun: latestGpsr,
@@ -4289,9 +4463,14 @@ app.post('/api/price-refresh', async (req, res) => {
     };
 
     // Helper: fetch HTML and extract price candidates in EUR
+    const USED_HINT = /\b(gebraucht|used|refurb|refurbished|renewed|b-ware|pre-owned|second hand|open box)\b/i;
     const fetchAndExtractPrice = async (url) => {
       try {
         const html = await fetchHtml(url);
+        // Best-effort "new only" gate for fallback scraping.
+        const title = html.match(/<title[^>]*>([^<]{3,200})<\/title>/i)?.[1] || '';
+        const textBlob = `${title} ${html.slice(0, 4000)}`; // keep bounded (cheap)
+        if (USED_HINT.test(textBlob)) return null;
         // Common meta tags
         const metaPrice = html.match(/property=["']?product:price:amount["']?\s*content=["']?([\d.,]+)/i)?.[1]
           || html.match(/itemprop=["']?price["']?\s*content=["']?([\d.,]+)/i)?.[1];
@@ -4324,7 +4503,10 @@ app.post('/api/price-refresh', async (req, res) => {
 
     // 2) Fallback: simple DuckDuckGo HTML search to find a likely shop page (no API key)
     if (candidates.length === 0) {
-      const q = encodeURIComponent(`${product.identification.name} ${product.identification.brand} kaufen Preis`);
+      const negativeTerms = '-gebraucht -used -refurb -refurbished -renewed -b-ware -openbox';
+      const q = encodeURIComponent(
+        `${product.identification.name} ${product.identification.brand} neu kaufen Preis ${negativeTerms}`.trim()
+      );
       const searchUrl = `https://duckduckgo.com/html/?q=${q}`;
       try {
         const html = await fetchHtml(searchUrl, { 'User-Agent': 'Mozilla/5.0' });

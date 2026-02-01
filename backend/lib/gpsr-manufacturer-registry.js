@@ -75,6 +75,52 @@ function isGpsrPlaceholderLike(val) {
   return false;
 }
 
+function normalizeCountryToEnglish(raw) {
+  const v = safeString(raw).trim();
+  if (!v) return '';
+  const upper = v.toUpperCase();
+  const codeMap = {
+    DE: 'Germany',
+    AT: 'Austria',
+    CH: 'Switzerland',
+    NL: 'Netherlands',
+    PL: 'Poland',
+    SE: 'Sweden',
+    FR: 'France',
+    IT: 'Italy',
+    ES: 'Spain',
+    BE: 'Belgium',
+    DK: 'Denmark',
+    NO: 'Norway',
+    FI: 'Finland',
+    GB: 'United Kingdom',
+    UK: 'United Kingdom',
+    IE: 'Ireland',
+    PT: 'Portugal',
+    CZ: 'Czechia',
+    SK: 'Slovakia',
+    HU: 'Hungary',
+    RO: 'Romania',
+    BG: 'Bulgaria',
+    GR: 'Greece',
+    TR: 'Turkey',
+  };
+  if (/^[A-Z]{2}$/.test(upper) && codeMap[upper]) return codeMap[upper];
+  const lower = v.toLowerCase();
+  if (lower === 'deutschland') return 'Germany';
+  if (lower === 'österreich' || lower === 'osterreich') return 'Austria';
+  if (lower === 'schweiz') return 'Switzerland';
+  return v;
+}
+
+function normalizeStreetOnly(address) {
+  const raw = safeString(address);
+  if (!raw) return '';
+  // Keep only street+house part (before commas) to match BaseLinker/GPSR policy.
+  const parts = raw.split(',').map((p) => safeString(p)).filter(Boolean);
+  return safeString(parts[0] || raw);
+}
+
 function normalizeGpsrObject(gpsr) {
   const g = gpsr && typeof gpsr === 'object' && !Array.isArray(gpsr) ? { ...gpsr } : {};
   const out = {};
@@ -89,9 +135,11 @@ function normalizeGpsrObject(gpsr) {
     'manufacturer_phone',
     'url',
   ].forEach((k) => {
-    const v = safeString(g[k]);
+    let v = safeString(g[k]);
     if (!v) return;
     if (isGpsrPlaceholderLike(v)) return;
+    if (k === 'entity_country') v = normalizeCountryToEnglish(v);
+    if (k === 'manufacturer_address') v = normalizeStreetOnly(v);
     out[k] = v;
   });
   return out;

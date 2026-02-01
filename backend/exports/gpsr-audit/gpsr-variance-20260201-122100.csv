@@ -1,0 +1,2 @@
+brand,brand_key,products_total,distinct_gpsr_raw,distinct_gpsr_normalized,has_registry,mismatching_registry_products,products_missing_required_or_placeholder,placeholder_like_any
+TT. BAGATT,tt-bagatt,6,5,4,1,6,6,0
