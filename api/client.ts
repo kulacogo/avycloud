@@ -398,7 +398,7 @@ export const adminGetJobsStatus = async (): Promise<any> => {
   return result?.data;
 };
 
-export type AdminBulkActionName = 'title' | 'price' | 'category' | 'ktype';
+export type AdminBulkActionName = 'title' | 'price' | 'category' | 'ktype' | 'export_marketplace';
 
 export const adminRunBulkAction = async (params: {
   action: AdminBulkActionName;
@@ -434,7 +434,7 @@ export const adminGetBulkJob = async (jobId: string): Promise<any> => {
   return result?.data;
 };
 
-export type ProductBulkActionName = 'title' | 'price' | 'category' | 'ktype';
+export type ProductBulkActionName = 'title' | 'price' | 'category' | 'ktype' | 'export_marketplace';
 
 export const runProductBulkAction = async (params: {
   action: ProductBulkActionName;

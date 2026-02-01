@@ -27,7 +27,7 @@ async function processAdminBulkJob(jobId) {
   try {
     await updateJob(jobId, { stage: 'running', updatedAt: Timestamp.now() });
     const startedAt = Date.now();
-    const result = await runBulkAction(action, jobSnapshot.payload || {});
+    const result = await runBulkAction(action, { ...(jobSnapshot.payload || {}), jobId });
     const elapsedMs = Date.now() - startedAt;
     await updateJob(jobId, {
       status: 'done',

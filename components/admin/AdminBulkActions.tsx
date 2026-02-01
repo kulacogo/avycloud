@@ -3,7 +3,7 @@ import { adminGetBulkJob, adminRunBulkAction } from '../../api/client';
 import { Spinner } from '../Spinner';
 import { Notice } from '../ui/Notice';
 
-type Action = 'title' | 'price' | 'category' | 'ktype';
+type Action = 'title' | 'price' | 'category' | 'ktype' | 'export_marketplace';
 
 export const AdminBulkActions: React.FC = () => {
   const [action, setAction] = React.useState<Action>('price');
@@ -95,6 +95,7 @@ export const AdminBulkActions: React.FC = () => {
               <option value="title">Titel normalisieren (Policy)</option>
               <option value="category">Kategorie IDs backfill (eBay/Kaufland)</option>
               <option value="ktype">K‑Typ (noch nicht konsolidiert)</option>
+              <option value="export_marketplace">Export Marketplace (CSV+JSON)</option>
             </select>
           </label>
 

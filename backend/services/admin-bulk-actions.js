@@ -5,6 +5,9 @@ const { ensurePriceCoverage } = require('./enrichment');
 const { coerceTitleToPolicy, validateTitleToPolicy, inferTitleCategory } = require('../lib/title-policy');
 const { getRulebookConfigCached } = require('../lib/rulebook-config');
 const fs = require('fs');
+const { uploadJobFile } = require('../lib/storage');
+
+const EXPORT_BUCKET = 'prodsandjobs';
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -140,6 +143,124 @@ async function resolveTargetProducts({ productIds, limit, offset }) {
   const off = Math.max(0, Number(offset) || 0);
   const lim = Math.max(1, Number(limit) || 500);
   return list.slice(off, off + lim);
+}
+
+function csvEscape(value) {
+  if (value === null || value === undefined) return '';
+  const str = String(value).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if (/[",\n]/.test(str) || /^\s|\s$/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function pickImages(p, limit = 10) {
+  const imgs = Array.isArray(p?.details?.images) ? p.details.images : [];
+  const urls = [];
+  for (const img of imgs) {
+    const u = safeString(img?.url_or_base64 || img?.url || img?.href || '');
+    if (!u) continue;
+    if (/^data:/i.test(u)) continue;
+    if (!/^https?:\/\//i.test(u)) continue;
+    urls.push(u);
+    if (urls.length >= limit) break;
+  }
+  return urls;
+}
+
+function pickKTypeValue(p) {
+  const attrs = p?.details?.attributes && typeof p.details.attributes === 'object' ? p.details.attributes : {};
+  const key = Object.keys(attrs).find((k) =>
+    ['k-typ', 'ktyp', 'k typ', 'ktyp id', 'ktypids', 'k-typ id'].includes(String(k).trim().toLowerCase())
+  );
+  return key ? safeString(attrs[key]) : '';
+}
+
+async function runExportMarketplace({ jobId, productIds = null, limit = 500, offset = 0, debug = false } = {}) {
+  if (!jobId) {
+    throw new Error('export_marketplace requires jobId');
+  }
+  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const rows = [];
+
+  for (const p of selected) {
+    const id = safeString(p?.id);
+    const cur = id ? await getProduct(id) : p;
+    if (!cur) continue;
+
+    const ids = cur?.details?.identifiers || {};
+    const lp = cur?.details?.pricing?.lowest_price || {};
+    const gpsr = cur?.details?.gpsr || {};
+    const attrs = cur?.details?.attributes && typeof cur.details.attributes === 'object' ? cur.details.attributes : {};
+    const images = pickImages(cur, 12);
+    const qty = Number(cur?.inventory?.quantity || 0);
+    const bin = safeString(cur?.storage?.binCode) || '';
+    const bl = cur?.ops?.baselinker || {};
+
+    rows.push({
+      product_id: id,
+      sku: safeString(cur?.identification?.sku) || safeString(ids?.sku) || '',
+      ean: safeString(ids?.ean) || '',
+      gtin: safeString(ids?.gtin) || '',
+      upc: safeString(ids?.upc) || '',
+      mpn: safeString(ids?.mpn) || safeString(attrs?.Herstellernummer) || safeString(attrs?.mpn) || '',
+      title: safeString(cur?.identification?.name) || '',
+      brand: safeString(cur?.identification?.brand) || '',
+      category_breadcrumb: safeString(cur?.identification?.category) || '',
+      ebayCategoryId: safeString(cur?.details?.ebayCategoryId) || '',
+      ebayCategoryPath: safeString(cur?.details?.ebayCategoryPath) || '',
+      kauflandCategoryId: safeString(cur?.details?.kauflandCategoryId) || '',
+      kauflandCategoryPath: safeString(cur?.details?.kauflandCategoryPath) || '',
+      price_amount: typeof lp?.amount === 'number' && Number.isFinite(lp.amount) ? String(lp.amount) : '',
+      price_currency: safeString(lp?.currency) || 'EUR',
+      price_confidence:
+        cur?.details?.pricing?.price_confidence != null ? String(cur.details.pricing.price_confidence) : '',
+      price_last_checked_iso: safeString(lp?.last_checked_iso) || '',
+      qty: Number.isFinite(qty) ? String(qty) : '',
+      bin,
+      storageBins_json: Array.isArray(cur?.storageBins) ? JSON.stringify(cur.storageBins) : '',
+      baselinker_product_id: bl?.product_id != null ? String(bl.product_id) : '',
+      baselinker_synced_inventory: safeString(bl?.synced_inventory) || '',
+      images_primary: images[0] || '',
+      images_all: images.join('|'),
+      gpsr_entity_country: safeString(gpsr?.entity_country) || '',
+      gpsr_manufacturer_name: safeString(gpsr?.manufacturer_name) || '',
+      gpsr_manufacturer_address: safeString(gpsr?.manufacturer_address) || '',
+      gpsr_manufacturer_city: safeString(gpsr?.manufacturer_city) || '',
+      gpsr_manufacturer_postalcode: safeString(gpsr?.manufacturer_postalcode) || '',
+      gpsr_manufacturer_state_province: safeString(gpsr?.manufacturer_state_province) || '',
+      gpsr_email: safeString(gpsr?.email) || '',
+      gpsr_manufacturer_phone: safeString(gpsr?.manufacturer_phone) || '',
+      gpsr_url: safeString(gpsr?.url) || '',
+      ktyp: pickKTypeValue(cur),
+      attributes_json: JSON.stringify(attrs || {}),
+    });
+  }
+
+  const headers = Object.keys(rows[0] || { product_id: '' });
+  const csv = [headers.join(','), ...rows.map((r) => headers.map((h) => csvEscape(r[h] ?? '')).join(','))].join('\n');
+
+  const json = JSON.stringify(
+    {
+      meta: { exported_at: nowIso(), count: rows.length, debug: Boolean(debug) },
+      rows,
+    },
+    null,
+    2
+  );
+
+  const csvMeta = await uploadJobFile(Buffer.from(csv, 'utf8'), 'text/csv', jobId, 'marketplace-export.csv');
+  const jsonMeta = await uploadJobFile(Buffer.from(json, 'utf8'), 'application/json', jobId, 'marketplace-export.json');
+
+  const toUrl = (m) => `https://storage.googleapis.com/${EXPORT_BUCKET}/${m.path}`;
+
+  return {
+    summary: { action: 'export_marketplace', selected: rows.length },
+    files: [
+      { ...csvMeta, url: toUrl(csvMeta) },
+      { ...jsonMeta, url: toUrl(jsonMeta) },
+    ],
+  };
 }
 
 async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays = 0, debug = false, productIds = null } = {}) {
@@ -571,6 +692,7 @@ async function runBulkAction(action, payload = {}) {
   const offset = Math.max(0, Number(payload.offset) || 0);
   const debug = parseBool(payload.debug, false);
   const productIds = Array.isArray(payload.productIds) ? payload.productIds : null;
+  const jobId = safeString(payload.jobId) || null;
 
   if (a === 'price') {
     const maxAgeDays = Math.max(0, Number(payload.maxAgeDays) || 0);
@@ -585,6 +707,9 @@ async function runBulkAction(action, payload = {}) {
   }
   if (a === 'ktype' || a === 'k-typ') {
     return runBulkKType({ apply, limit, offset, debug, productIds });
+  }
+  if (a === 'export_marketplace' || a === 'export' || a === 'export-marketplace') {
+    return runExportMarketplace({ jobId, productIds, limit, offset, debug });
   }
   if (a === 'gpsr') {
     throw new Error('GPSR bulk action is not exposed here (use GPSR jobs/scripts).');

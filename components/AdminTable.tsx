@@ -259,6 +259,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   } | null>(null);
   const [baselinkerLookupInProgress, setBaselinkerLookupInProgress] = useState(false);
   const [bulkJobId, setBulkJobId] = useState<string | null>(null);
+  const [bulkJobAction, setBulkJobAction] = useState<string | null>(null);
   const [bulkJobLoading, setBulkJobLoading] = useState(false);
   const baselinkerChecked = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -1113,7 +1114,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   };
 
-  const enqueueBulkForSelection = async (action: 'price' | 'title' | 'category' | 'ktype') => {
+  const enqueueBulkForSelection = async (
+    action: 'price' | 'title' | 'category' | 'ktype' | 'export_marketplace'
+  ) => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
     setBulkJobLoading(true);
@@ -1126,12 +1129,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
       const res = await runProductBulkAction({
         action,
         productIds: ids,
-        apply: true,
+        apply: action === 'export_marketplace' ? false : true,
         debug: false,
         // price: default to "missing only"; set >0 in Admin → Bulk if you want "stale refresh"
         maxAgeDays: action === 'price' ? 0 : undefined,
       });
       setBulkJobId(res.jobId);
+      setBulkJobAction(action);
       setNotice({
         tone: 'info',
         title: 'Bulk Job enqueued',
@@ -1157,6 +1161,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
         if (cancelled) return;
         const status = String(job?.status || '');
         if (status === 'done') {
+          const files = Array.isArray(job?.result?.files) ? job.result.files : [];
+          const csvUrl = files.find((f: any) => String(f?.mimeType || '').includes('text/csv'))?.url || files[0]?.url;
+          if (bulkJobAction === 'export_marketplace' && csvUrl) {
+            try {
+              window.open(String(csvUrl), '_blank', 'noopener,noreferrer');
+            } catch {
+              // ignore
+            }
+          }
           setNotice({
             tone: 'success',
             title: 'Bulk Job abgeschlossen',
@@ -1165,6 +1178,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           });
           setSelectedIds(new Set());
           setBulkJobId(null);
+          setBulkJobAction(null);
         } else if (status === 'failed') {
           setNotice({
             tone: 'error',
@@ -1172,6 +1186,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             details: job?.error?.message || JSON.stringify(job?.error || {}, null, 2),
           });
           setBulkJobId(null);
+          setBulkJobAction(null);
         }
       } catch {
         // ignore polling errors
@@ -1330,27 +1345,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   };
 
-  const handleExportCsv = () => {
-    const headers = ['ID', 'ProductKey', 'Name', 'Brand', 'Category', 'EAN', 'Price', 'Currency', 'Sync Status'];
-    const rows = filteredAndSortedProducts.map((p) => [
-      getStableNumericId(p),
-      p.id,
-      `"${p.identification?.name || ''}"`,
-      `"${p.identification?.brand || ''}"`,
-      p.identification?.category || '',
-      p.details?.identifiers?.ean || '',
-      p.details?.pricing?.lowest_price?.amount ?? '',
-      p.details?.pricing?.lowest_price?.currency ? safeCurrency(p.details.pricing.lowest_price.currency) : '',
-      p.ops?.sync_status
-    ].join(','));
-    const csvContent = `data:text/csv;charset=utf-8,${headers.join(',')}\n${rows.join('\n')}`;
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'products.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportCsv = async () => {
+    if (selectedIds.size === 0) {
+      setNotice({
+        tone: 'warning',
+        title: 'Keine Auswahl',
+        message: 'Bitte zuerst Produkte auswählen – Export läuft nur auf die Auswahl.',
+      });
+      return;
+    }
+    await enqueueBulkForSelection('export_marketplace');
   };
 
   useEffect(() => {
