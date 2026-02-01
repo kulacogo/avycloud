@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Product, WarehouseBin } from './types';
 import { useIdentification, UploadGroupPayload } from './hooks/useIdentification';
 import { useImproveQueue } from './hooks/useImproveQueue';
