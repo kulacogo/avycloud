@@ -23,6 +23,7 @@ import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
 import { isInventoryItem, isProductBacklogItem } from './utils/inventorySplit';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { InventoryProvider } from './context/InventoryContext';
 import { LoginScreen } from './components/LoginScreen';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
@@ -1036,7 +1037,9 @@ const AuthGate: React.FC = () => {
 
 const App: React.FC = () => (
   <AuthProvider>
-    <AuthGate />
+    <InventoryProvider>
+      <AuthGate />
+    </InventoryProvider>
   </AuthProvider>
 );
 
