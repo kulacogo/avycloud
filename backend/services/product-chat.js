@@ -49,7 +49,9 @@ function strictRulesEnabled() {
     const s = (v || '').toString().trim().toLowerCase();
     return s === '1' || s === 'true' || s === 'yes';
   };
-  return b(process.env.RULEBOOK_ENABLED) || b(process.env.LLM_POLICY_ENABLED) || b(process.env.TITLE_POLICY_ENABLED) || b(process.env.QUALITY_GATE_ENABLED);
+  // Chat-specific switch. We intentionally do NOT couple chat strictness to generic backend flags
+  // like LLM_POLICY_ENABLED/RULEBOOK_ENABLED, because the user wants chat to be rule-free by default.
+  return b(process.env.CHAT_STRICT_RULES_ENABLED) || b(process.env.STRICT_RULES_ENABLED);
 }
 
 const MARKETPLACE_SITES = ['ebay.de', 'kaufland.de', 'hood.de'];
@@ -1827,8 +1829,9 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       }
     }
 
-    // Make the user-visible message reflect the final coerced title (optimal 65–75, hard max 80),
-    // otherwise the model might *say* a short title while the structured change contains the coerced one.
+    // Make the user-visible message reflect EXACTLY ONE title (the structured, coerced one).
+    // Otherwise we can end up with two different titles in the chat text (model text + "final title" suffix),
+    // which is confusing and can look like the assistant "changed its mind".
     const lastTitleChange = [...(datasheetChanges || [])]
       .reverse()
       .find((change) => {
@@ -1843,8 +1846,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       (lastTitleChange && (lastTitleChange.title || lastTitleChange.identity?.name)) || '';
     const finalTitle = typeof finalTitleRaw === 'string' ? finalTitleRaw.trim() : '';
     if (finalTitle) {
-      const baseMessage = (responseText || '').trim() || 'Titel aktualisiert.';
-      responseText = `${baseMessage}\n\nFinaler Titel (${finalTitle.length} Zeichen): ${finalTitle}`;
+      responseText = `Titel-Vorschlag (${finalTitle.length}/80): ${finalTitle}`;
     }
 
     return {
