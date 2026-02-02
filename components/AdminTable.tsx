@@ -1912,7 +1912,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           title={mode === 'inventory' ? t('nav.inventory') : mode === 'products' ? t('nav.products') : t('inventory.title')}
           subtitle={
             mode === 'inventory'
-              ? 'Ready & live: Bestand, BIN, Sync, Listing, KI‑Bilder, vollständig.'
+              ? 'Warehouse Inventory: Bestand + BIN (weitere Gates per Filter).'
               : mode === 'products'
                 ? 'Backlog: alles was nicht Inventory ist (unvollständig/fehlende Daten).'
                 : 'Produkte finden, filtern, auswählen und Aktionen (Sync, Preischeck, Verbessern) ausführen.'
@@ -2027,7 +2027,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               <>
                 <b>Keine Inventory-Artikel gefunden.</b>
                 <div className="mt-1 text-slate-400">
-                  Typische Ursachen: kein Bestand, kein BIN, BaseLinker nicht synced, nicht gelistet (links), keine KI‑Bilder oder nicht vollständig.
+                  Typische Ursachen: kein Bestand oder kein BIN. (Sync/Listing/Bilder/Vollständigkeit kannst du über Filter zusätzlich einschränken.)
                 </div>
               </>
             ) : mode === 'products' ? (

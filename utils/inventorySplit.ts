@@ -44,13 +44,15 @@ export function isBaselinkerSyncedOk(product: Product): boolean {
 }
 
 export function isInventoryItem(product: Product): boolean {
+  // Inventory view = physical warehouse inventory:
+  // - has physical stock (>0)
+  // - has at least one BIN
+  //
+  // "Ready & live" gates (sync/listing/AI/completeness) are handled via filters,
+  // not as hard requirements here, to avoid empty Inventory when enrichment is partial.
   const qty = getProductPhysicalQuantity(product);
   if (!(qty > 0)) return false;
   if (!hasBin(product)) return false;
-  if (!isBaselinkerSyncedOk(product)) return false;
-  if (!hasMarketplaceListing(product)) return false;
-  if (!hasAiImages(product)) return false;
-  if (!(product as any)?.completeness?.complete) return false;
   return true;
 }
 
