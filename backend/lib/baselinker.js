@@ -265,7 +265,9 @@ async function getInventoryProductLinksSummary(inventoryId, baseProductIds = [])
 }
 
 // Inventory category cache (path -> id)
-const inventoryCategoryCache = new Map(); // key: inventoryId -> Map<path, id>
+const inventoryCategoryCache = new Map(); // key: inventoryId -> Map<path, id> (canonical: smallest id)
+const inventoryCategoryByParentName = new Map(); // key: inventoryId -> Map<`${parentId}:${nameKey}`, id> (canonical: smallest id)
+const inventoryCategoryLoadPromises = new Map(); // key: inventoryId -> Promise<void>
 
 function normalizePathSegments(pathStr) {
   return (pathStr || '')
@@ -288,8 +290,14 @@ function normalizePathKey(pathStr) {
 
 async function ensureInventoryCategoriesLoaded(inventoryId) {
   const key = String(inventoryId);
-  if (inventoryCategoryCache.has(key)) return;
+  if (inventoryCategoryCache.has(key) && inventoryCategoryByParentName.has(key)) return;
+  if (inventoryCategoryLoadPromises.has(key)) {
+    await inventoryCategoryLoadPromises.get(key);
+    return;
+  }
   const cache = new Map();
+  const byParentName = new Map();
+  const loadPromise = (async () => {
   try {
     const resp = await callBaseLinker('getInventoryCategories', { inventory_id: Number(inventoryId) });
     const cats = resp?.categories || [];
@@ -305,6 +313,17 @@ async function ensureInventoryCategoriesLoaded(inventoryId) {
         parentId: Number((c?.parent_id ?? c?.parent_category_id) || 0) || 0,
       });
     });
+
+    // Deterministic parentId+name lookup (prevents duplicates on concurrent creation)
+    for (const node of byId.values()) {
+      const nameKey = normalizeSegmentKey(node.name);
+      if (!nameKey) continue;
+      const k = `${node.parentId || 0}:${nameKey}`;
+      const existing = byParentName.get(k);
+      if (!existing || node.id < existing) {
+        byParentName.set(k, node.id);
+      }
+    }
 
     const memo = new Map(); // id -> segments
     const buildSegments = (id, stack = new Set()) => {
@@ -333,13 +352,24 @@ async function ensureInventoryCategoriesLoaded(inventoryId) {
       const segs = buildSegments(id);
       const pathKey = segmentsToPathKey(segs);
       if (!pathKey) continue;
-      cache.set(pathKey, id);
+      const existing = cache.get(pathKey);
+      // If BaseLinker contains duplicates for same breadcrumb, keep the smallest id as canonical.
+      if (!existing || id < existing) {
+        cache.set(pathKey, id);
+      }
     }
     inventoryCategoryCache.set(key, cache);
+    inventoryCategoryByParentName.set(key, byParentName);
   } catch (e) {
     console.warn('Could not load inventory categories for', inventoryId, e.message);
     inventoryCategoryCache.set(key, cache);
+    inventoryCategoryByParentName.set(key, byParentName);
   }
+  })().finally(() => {
+    inventoryCategoryLoadPromises.delete(key);
+  });
+  inventoryCategoryLoadPromises.set(key, loadPromise);
+  await loadPromise;
 }
 
 async function ensureInventoryCategory(inventoryId, pathStr) {
@@ -347,6 +377,7 @@ async function ensureInventoryCategory(inventoryId, pathStr) {
   await ensureInventoryCategoriesLoaded(inventoryId);
   const key = String(inventoryId);
   const cache = inventoryCategoryCache.get(key) || new Map();
+  const byParentName = inventoryCategoryByParentName.get(key) || new Map();
   const segments = normalizePathSegments(pathStr);
   let parentId = 0;
   const currentSegments = [];
@@ -358,6 +389,17 @@ async function ensureInventoryCategory(inventoryId, pathStr) {
       parentId = cache.get(pathKey);
       continue;
     }
+
+    // Reuse an existing category with same parent+name (prevents duplicates).
+    const nameKey = normalizeSegmentKey(seg);
+    const parentNameKey = `${parentId || 0}:${nameKey}`;
+    const existingByName = byParentName.get(parentNameKey);
+    if (existingByName) {
+      parentId = existingByName;
+      cache.set(pathKey, parentId);
+      continue;
+    }
+
     const resp = await callBaseLinker('addInventoryCategory', {
       inventory_id: Number(inventoryId),
       name: seg,
@@ -372,8 +414,12 @@ async function ensureInventoryCategory(inventoryId, pathStr) {
     }
     parentId = resp.category_id;
     cache.set(pathKey, parentId);
+    if (nameKey) {
+      byParentName.set(parentNameKey, parentId);
+    }
   }
   inventoryCategoryCache.set(key, cache);
+  inventoryCategoryByParentName.set(key, byParentName);
   return parentId || 0;
 }
 

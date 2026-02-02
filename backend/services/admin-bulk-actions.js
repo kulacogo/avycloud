@@ -685,17 +685,18 @@ async function runBulkHighlightsHtml({
 function looksLikeHtml(text = '') {
   const s = String(text || '').trim();
   if (!s) return false;
-  return /<\s*(p|br|ul|ol|li|strong|b|em|div|span|h\d)\b/i.test(s);
+  // Only treat as "already HTML" when structural/block tags are present.
+  // Inline-only tags like <strong> were causing us to skip formatting (and leave one long blob).
+  return /<\s*(p|br|ul|ol|li|div|h\d)\b/i.test(s);
 }
 
 function formatDescriptionToHtml(input = '') {
   const raw = String(input || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
   if (!raw) return '';
 
-  // If already HTML-ish, keep as-is.
-  if (looksLikeHtml(raw)) {
-    return raw;
-  }
+  const hasBlockTags = looksLikeHtml(raw);
+  const hasInlineOnly =
+    !hasBlockTags && /<\s*(strong|b|em|i|u|span)\b/i.test(raw) && /<\/\s*\w+\s*>/i.test(raw);
 
   const KEY_LABELS = [
     'Zustand',
@@ -728,15 +729,26 @@ function formatDescriptionToHtml(input = '') {
       if (m) {
         const label = m[1];
         const rest = m[2] || '';
-        out.push(`<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(rest).trim()}</p>`.replace(/\s+<\/p>$/, '</p>'));
+        if (hasInlineOnly) {
+          out.push(
+            `<p><strong>${escapeHtml(label)}:</strong> ${String(rest).trim()}</p>`.replace(/\s+<\/p>$/, '</p>')
+          );
+        } else {
+          out.push(
+            `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(rest).trim()}</p>`.replace(/\s+<\/p>$/, '</p>')
+          );
+        }
         continue;
       }
     }
 
     const joined = lines.join(' ');
-    out.push(`<p>${escapeHtml(joined)}</p>`);
+    out.push(`<p>${hasInlineOnly ? joined : escapeHtml(joined)}</p>`);
   }
 
+  // If block tags already exist, we still want to preserve them but avoid double-wrapping.
+  // In that case just return as-is.
+  if (hasBlockTags) return raw;
   return out.join('');
 }
 
