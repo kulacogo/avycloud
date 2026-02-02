@@ -1193,8 +1193,23 @@ export const pollQualityJob = async (
   }
 };
 
-export const fetchProducts = async (): Promise<Product[]> => {
-  const response = await fetchApi(`${BACKEND_URL}/api/products`);
+export const fetchProducts = async (options?: { timeoutMs?: number }): Promise<Product[]> => {
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(
+      `${BACKEND_URL}/api/products`,
+      undefined,
+      options?.timeoutMs || 25000
+    );
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw new Error(
+        'Zeitüberschreitung beim Laden der Produkte. Bitte Backend/Verbindung prüfen und erneut versuchen.'
+      );
+    }
+    throw error;
+  }
+
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Produkte konnten nicht geladen werden.');

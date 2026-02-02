@@ -3,6 +3,26 @@ const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 // Singleton instance
 let secretsClient = null;
 let cachedSecrets = null;
+let inFlightSecretsPromise = null;
+
+const SECRET_MANAGER_TIMEOUT_MS = Math.max(
+  1000,
+  parseInt(process.env.SECRET_MANAGER_TIMEOUT_MS || '8000', 10)
+);
+
+function withTimeout(promise, timeoutMs, label) {
+  if (!timeoutMs || timeoutMs <= 0) return promise;
+  let timeout = null;
+  const timer = new Promise((_, reject) => {
+    timeout = setTimeout(() => {
+      const msg = label ? `Secret Manager timeout (${label})` : 'Secret Manager timeout';
+      reject(new Error(msg));
+    }, timeoutMs);
+  });
+  return Promise.race([promise, timer]).finally(() => {
+    if (timeout) clearTimeout(timeout);
+  });
+}
 
 /**
  * Initialize the Secret Manager client (lazy initialization)
@@ -26,18 +46,41 @@ async function getSecrets() {
     return cachedSecrets;
   }
 
+  if (inFlightSecretsPromise) {
+    return await inFlightSecretsPromise;
+  }
+
+  // Allow local/dev overrides without Secret Manager (useful when ADC is not available).
+  const envToken = (process.env.BASE_API_TOKEN || '').trim();
+  const envInventory = (process.env.BASE_INVENTORY_ID || '').trim();
+  if (envToken && envInventory) {
+    cachedSecrets = {
+      baseApiToken: envToken,
+      baseInventoryId: envInventory,
+      baseOrderStatusNew: process.env.BASE_ORDER_STATUS_NEW || null,
+      baseOrderStatusPicked: process.env.BASE_ORDER_STATUS_PICKED || null,
+      baseOrderStatusPacked: process.env.BASE_ORDER_STATUS_PACKED || null,
+      baseOrderStatusShipped: process.env.BASE_ORDER_STATUS_SHIPPED || null,
+    };
+    console.log('Secrets loaded from environment variables (BASE_API_TOKEN / BASE_INVENTORY_ID).');
+    return cachedSecrets;
+  }
+
+  inFlightSecretsPromise = (async () => {
   try {
     const client = getSecretsClient();
     const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'avycloud';
     
     // Fetch both secrets in parallel
+    const access = (name) =>
+      withTimeout(
+        client.accessSecretVersion({ name }),
+        SECRET_MANAGER_TIMEOUT_MS,
+        name
+      );
     const [tokenResponse, inventoryResponse] = await Promise.all([
-      client.accessSecretVersion({
-        name: `projects/${projectId}/secrets/BASE_API_TOKEN/versions/latest`,
-      }),
-      client.accessSecretVersion({
-        name: `projects/${projectId}/secrets/BASE_INVENTORY_ID/versions/latest`,
-      }),
+      access(`projects/${projectId}/secrets/BASE_API_TOKEN/versions/latest`),
+      access(`projects/${projectId}/secrets/BASE_INVENTORY_ID/versions/latest`),
     ]);
     
     // Extract the payload data
@@ -51,9 +94,9 @@ async function getSecrets() {
 
     if (!baseOrderStatusNew) {
       try {
-        const [statusNewResponse] = await client.accessSecretVersion({
-          name: `projects/${projectId}/secrets/BASE_ORDER_STATUS_NEW/versions/latest`,
-        });
+        const [statusNewResponse] = await access(
+          `projects/${projectId}/secrets/BASE_ORDER_STATUS_NEW/versions/latest`
+        );
         baseOrderStatusNew = statusNewResponse.payload.data.toString('utf8').trim();
       } catch (error) {
         console.warn('Optional secret BASE_ORDER_STATUS_NEW not found; falling back to env variable.');
@@ -62,9 +105,9 @@ async function getSecrets() {
 
     if (!baseOrderStatusPicked) {
       try {
-        const [statusPickedResponse] = await client.accessSecretVersion({
-          name: `projects/${projectId}/secrets/BASE_ORDER_STATUS_PICKED/versions/latest`,
-        });
+        const [statusPickedResponse] = await access(
+          `projects/${projectId}/secrets/BASE_ORDER_STATUS_PICKED/versions/latest`
+        );
         baseOrderStatusPicked = statusPickedResponse.payload.data.toString('utf8').trim();
       } catch (error) {
         console.warn('Optional secret BASE_ORDER_STATUS_PICKED not found; falling back to env variable.');
@@ -73,9 +116,9 @@ async function getSecrets() {
 
     if (!baseOrderStatusPacked) {
       try {
-        const [statusPackedResponse] = await client.accessSecretVersion({
-          name: `projects/${projectId}/secrets/BASE_ORDER_STATUS_PACKED/versions/latest`,
-        });
+        const [statusPackedResponse] = await access(
+          `projects/${projectId}/secrets/BASE_ORDER_STATUS_PACKED/versions/latest`
+        );
         baseOrderStatusPacked = statusPackedResponse.payload.data.toString('utf8').trim();
       } catch (error) {
         console.warn('Optional secret BASE_ORDER_STATUS_PACKED not found; falling back to env variable.');
@@ -84,9 +127,9 @@ async function getSecrets() {
 
     if (!baseOrderStatusShipped) {
       try {
-        const [statusShippedResponse] = await client.accessSecretVersion({
-          name: `projects/${projectId}/secrets/BASE_ORDER_STATUS_SHIPPED/versions/latest`,
-        });
+        const [statusShippedResponse] = await access(
+          `projects/${projectId}/secrets/BASE_ORDER_STATUS_SHIPPED/versions/latest`
+        );
         baseOrderStatusShipped = statusShippedResponse.payload.data.toString('utf8').trim();
       } catch (error) {
         console.warn('Optional secret BASE_ORDER_STATUS_SHIPPED not found; falling back to env variable.');
@@ -108,7 +151,12 @@ async function getSecrets() {
   } catch (error) {
     console.error('Failed to load secrets from Secret Manager:', error.message);
     throw new Error('Unable to access required secrets. Please check Secret Manager permissions.');
+  } finally {
+    inFlightSecretsPromise = null;
   }
+  })();
+
+  return await inFlightSecretsPromise;
 }
 
 module.exports = {

@@ -173,6 +173,12 @@ const PRODUCT_LINKS_CHUNK_SIZE = Math.max(
   1,
   parseInt(process.env.BASELINKER_LINKS_CHUNK_SIZE || '100', 10)
 );
+// To keep /api/products responsive on cold cache, cap how many missing IDs we fetch per request.
+// Remaining items will be filled gradually via subsequent polls.
+const PRODUCT_LINKS_MAX_FETCH = Math.max(
+  0,
+  parseInt(process.env.BASELINKER_LINKS_MAX_FETCH || '200', 10)
+);
 
 function chunkArray(list, size) {
   if (!Array.isArray(list) || list.length === 0) return [];
@@ -222,14 +228,22 @@ async function getInventoryProductLinksSummary(inventoryId, baseProductIds = [])
 
   if (!missing.length) return out;
 
+  if (PRODUCT_LINKS_MAX_FETCH && missing.length > PRODUCT_LINKS_MAX_FETCH) {
+    missing.length = PRODUCT_LINKS_MAX_FETCH;
+  }
+
   const chunks = chunkArray(missing, PRODUCT_LINKS_CHUNK_SIZE);
   for (const chunk of chunks) {
     let productsMap = {};
     try {
-      const res = await callBaseLinker('getInventoryProductsData', {
+      const res = await callBaseLinker(
+        'getInventoryProductsData',
+        {
         inventory_id: Number(invId),
         products: chunk.map((v) => Number(v)),
-      });
+        },
+        { retries: 0, timeoutMs: 6000 }
+      );
       productsMap = res?.products && typeof res.products === 'object' ? res.products : {};
     } catch (error) {
       console.warn('[baselinker] getInventoryProductsData failed (links summary):', error?.message || error);
@@ -678,14 +692,28 @@ function backoffDelay(attempt) {
 /**
  * Low-level BaseLinker API caller with retry + rate limit
  */
-async function callBaseLinker(method, parameters = {}, retries = 4) {
+async function callBaseLinker(method, parameters = {}, retriesOrOptions = 4) {
+  const options =
+    retriesOrOptions && typeof retriesOrOptions === 'object' ? retriesOrOptions : null;
+  const retriesRaw =
+    typeof retriesOrOptions === 'number'
+      ? retriesOrOptions
+      : typeof options?.retries === 'number'
+        ? options.retries
+        : 4;
+  const retries = Math.max(0, Math.trunc(Number(retriesRaw) || 0));
+  const timeoutMs = Math.max(
+    1000,
+    Math.trunc(Number(options?.timeoutMs) || 25_000)
+  );
+
   const { baseApiToken } = await getSecrets();
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     await acquireSlot();
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25_000);
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
       const response = await fetch('https://api.baselinker.com/connector.php', {
         method: 'POST',
         headers: {

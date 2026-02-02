@@ -3167,32 +3167,52 @@ app.get('/api/products', requirePermission('products', 'read'), async (req, res)
       };
     });
 
-    // Resolve BaseLinker product_id for items that are not yet linked in Firestore.
-    // This increases coverage for marketplace `links` (listing status) without requiring a separate sync job.
-    const normalizeSkuKey = (raw) =>
-      String(raw || '')
-        .trim()
-        .toLowerCase()
-        .replace(/^sku[-\s]*/i, '')
-        .replace(/\s+/g, '');
-    const normalizeEanKey = (raw) => String(raw || '').replace(/\D+/g, '').trim();
+    // Optional: Resolve BaseLinker product_id for items that are not yet linked in Firestore.
+    // WARNING: This can be very slow (one BaseLinker request per SKU/EAN). Disabled by default to keep /api/products fast.
+    const toBool = (v) => ['1', 'true', 'yes', 'on'].includes(String(v || '').toLowerCase());
+    const resolveBaselinkerIdsEnabled =
+      toBool(process.env.PRODUCTS_RESOLVE_BASELINKER_IDS) || toBool(req.query?.resolveBaselinkerIds);
+    const resolveBaselinkerLimit = Math.max(
+      0,
+      parseInt(process.env.PRODUCTS_RESOLVE_BASELINKER_IDS_LIMIT || '10', 10)
+    );
 
-    const resolveCandidateSkus = withCompletenessFiltered
-      .filter((p) => !(p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id))
-      .map((p) => p?.identification?.sku || p?.details?.identifiers?.sku || p?.details?.identifiers?.ean || null)
-      .filter(Boolean);
-    const resolvedBySku =
-      resolveCandidateSkus.length ? await findProductsBySkus(null, resolveCandidateSkus) : {};
-    const withBaselinkerIdsFiltered =
-      resolvedBySku && Object.keys(resolvedBySku).length
-        ? withCompletenessFiltered.map((p) => {
+    let withBaselinkerIdsFiltered = withCompletenessFiltered;
+    if (resolveBaselinkerIdsEnabled) {
+      const normalizeSkuKey = (raw) =>
+        String(raw || '')
+          .trim()
+          .toLowerCase()
+          .replace(/^sku[-\s]*/i, '')
+          .replace(/\s+/g, '');
+      const normalizeEanKey = (raw) => String(raw || '').replace(/\D+/g, '').trim();
+
+      const resolveCandidateSkus = withCompletenessFiltered
+        .filter((p) => !(p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id))
+        .map(
+          (p) => p?.identification?.sku || p?.details?.identifiers?.sku || p?.details?.identifiers?.ean || null
+        )
+        .filter(Boolean);
+
+      const cappedResolveCandidateSkus =
+        resolveBaselinkerLimit > 0 ? resolveCandidateSkus.slice(0, resolveBaselinkerLimit) : [];
+
+      let resolvedBySku = {};
+      try {
+        resolvedBySku = cappedResolveCandidateSkus.length
+          ? await findProductsBySkus(null, cappedResolveCandidateSkus)
+          : {};
+      } catch (error) {
+        console.warn('[products] findProductsBySkus failed:', error?.message || error);
+        resolvedBySku = {};
+      }
+
+      if (resolvedBySku && Object.keys(resolvedBySku).length) {
+        withBaselinkerIdsFiltered = withCompletenessFiltered.map((p) => {
           const already = p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null;
           if (already) return p;
           const key =
-            p?.identification?.sku ||
-            p?.details?.identifiers?.sku ||
-            p?.details?.identifiers?.ean ||
-            null;
+            p?.identification?.sku || p?.details?.identifiers?.sku || p?.details?.identifiers?.ean || null;
           const skuKey = normalizeSkuKey(key);
           const eanKey = normalizeEanKey(key);
           // findProductsBySkus returns normalized keys (skuKey OR eanKey)
@@ -3211,8 +3231,9 @@ app.get('/api/products', requirePermission('products', 'read'), async (req, res)
               },
             },
           };
-        })
-        : withCompletenessFiltered;
+        });
+      }
+    }
 
     // BaseLinker marketplace links ("listed on at least one marketplace") enrichment.
     // This is cached + chunked in baselinker.js to keep /api/products responsive.
