@@ -75,7 +75,7 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     '- Kategorie: eBay.de Breadcrumb aus Taxonomie, mindestens 2 Ebenen (muss ">"). Keine Top-Level Kategorien als final.',
     '',
     'DATASHEET FORMAT (wenn du Datenblattfelder erzeugst/änderst):',
-    '- Beschreibung: exakt 3 Absätze mit jeweils 2 Sätzen. Keine Aufzählungen/Bullets.',
+    '- Beschreibung: SEO-stark und klar strukturiert. HTML ist erlaubt (nur einfache Tags: <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität. Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',
     '- Highlights: Kategorieabhängig 3–6 Bulletpoints (siehe CSV Regeln). Jede Bullet ist im Stil: "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash), faktenbasiert, keine Verpackung, keine Dubletten.',
     '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme) und keine redundanten Keys mit identischem Wert.',
     '- Pflicht-Item-Specifics (required aspects): wenn Kategorie gesetzt ist, alle Pflicht-Aspekte vollständig ausfüllen (nur mit Belegen; sonst "Unbekannt" + Warning).',
