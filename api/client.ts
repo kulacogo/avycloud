@@ -434,7 +434,15 @@ export const adminGetBulkJob = async (jobId: string): Promise<any> => {
   return result?.data;
 };
 
-export type ProductBulkActionName = 'title' | 'price' | 'category' | 'ktype' | 'export_marketplace';
+export type ProductBulkActionName =
+  | 'title'
+  | 'title_cleanup'
+  | 'highlights_html'
+  | 'description_html'
+  | 'price'
+  | 'category'
+  | 'ktype'
+  | 'export_marketplace';
 
 export const runProductBulkAction = async (params: {
   action: ProductBulkActionName;
@@ -444,6 +452,7 @@ export const runProductBulkAction = async (params: {
   maxAgeDays?: number; // price
   force?: boolean; // price
   includeUi?: boolean; // title
+  inventoryId?: string; // optional override for BaseLinker text-only sync jobs
 }): Promise<{ jobId: string }> => {
   const res = await fetchApi(`${BACKEND_URL}/api/products/bulk/run`, {
     method: 'POST',

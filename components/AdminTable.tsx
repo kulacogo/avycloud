@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv } from '../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, type ProductBulkActionName } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
 import { useI18n } from '../i18n';
@@ -1131,10 +1131,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   };
 
-  const enqueueBulkForSelection = async (
-    action: 'price' | 'title' | 'category' | 'ktype' | 'export_marketplace'
-  ) => {
-    const ids = Array.from(selectedIds);
+  const enqueueBulkForIds = async (action: ProductBulkActionName, ids: string[], opts?: { apply?: boolean }) => {
     if (!ids.length) return;
     setBulkJobLoading(true);
     setNotice({
@@ -1146,11 +1143,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
       const res = await runProductBulkAction({
         action,
         productIds: ids,
-        apply: action === 'export_marketplace' ? false : true,
+        apply:
+          typeof opts?.apply === 'boolean'
+            ? opts.apply
+            : action === 'export_marketplace'
+              ? false
+              : true,
         debug: false,
         // price: default to "missing only"; set >0 in Admin → Bulk if you want "stale refresh"
         maxAgeDays: action === 'price' ? 0 : undefined,
         force: action === 'price',
+        inventoryId: syncInventoryId,
       });
       setBulkJobId(res.jobId);
       setBulkJobAction(action);
@@ -1168,6 +1171,24 @@ const AdminTable: React.FC<AdminTableProps> = ({
     } finally {
       setBulkJobLoading(false);
     }
+  };
+
+  const enqueueBulkForSelection = async (action: ProductBulkActionName, opts?: { apply?: boolean }) => {
+    const ids = Array.from(selectedIds);
+    return enqueueBulkForIds(action, ids, opts);
+  };
+
+  const enqueueBulkForAllInCurrentMode = async (action: ProductBulkActionName, opts?: { apply?: boolean }) => {
+    const scoped =
+      scopeProductIds && scopeProductIds.size ? products.filter((p) => scopeProductIds.has(p.id)) : products;
+    const modeFiltered =
+      mode === 'inventory'
+        ? scoped.filter(isInventoryItem)
+        : mode === 'products'
+          ? scoped.filter(isProductBacklogItem)
+          : scoped;
+    const ids = modeFiltered.map((p) => p.id);
+    return enqueueBulkForIds(action, ids, opts);
   };
 
   useEffect(() => {
@@ -1804,6 +1825,67 @@ const AdminTable: React.FC<AdminTableProps> = ({
           disabled={selectedIds.size === 0 || bulkJobLoading}
           tone="secondary"
         />
+        {mode === 'inventory' && (
+          <>
+            <ActionButton
+              icon={<SheetIcon className="w-4 h-4" />}
+              label="Titel: '-' am Ende fix + Sync (alle Inventory)"
+              onClick={() => {
+                setConfirmDialog({
+                  title: "Titel-Fix für alle Inventory-Produkte?",
+                  tone: 'default',
+                  description:
+                    "Entfernt einen Bindestrich am Ende (inkl. Leerzeichen) und stößt anschließend einen BaseLinker Text-Sync an.",
+                  confirmLabel: 'Starten',
+                  onConfirm: async () => {
+                    setConfirmDialog(null);
+                    await enqueueBulkForAllInCurrentMode('title_cleanup');
+                  },
+                });
+              }}
+              disabled={bulkJobLoading}
+              tone="secondary"
+            />
+            <ActionButton
+              icon={<SheetIcon className="w-4 h-4" />}
+              label="Highlights → HTML + Sync (alle Inventory)"
+              onClick={() => {
+                setConfirmDialog({
+                  title: 'Highlights als HTML formatieren?',
+                  tone: 'default',
+                  description:
+                    'Speichert Highlights als <ul><li>…</li></ul> (kein „•“) und synchronisiert sie per Text-Only Sync nach BaseLinker.',
+                  confirmLabel: 'Starten',
+                  onConfirm: async () => {
+                    setConfirmDialog(null);
+                    await enqueueBulkForAllInCurrentMode('highlights_html');
+                  },
+                });
+              }}
+              disabled={bulkJobLoading}
+              tone="secondary"
+            />
+            <ActionButton
+              icon={<SheetIcon className="w-4 h-4" />}
+              label="Beschreibung → HTML + Sync (alle Inventory)"
+              onClick={() => {
+                setConfirmDialog({
+                  title: 'Beschreibung als HTML formatieren?',
+                  tone: 'default',
+                  description:
+                    'Formatiert Absätze zu <p>…</p> und Label wie „Zustand:“ zu <strong>…</strong>. Danach Text-Only Sync nach BaseLinker.',
+                  confirmLabel: 'Starten',
+                  onConfirm: async () => {
+                    setConfirmDialog(null);
+                    await enqueueBulkForAllInCurrentMode('description_html');
+                  },
+                });
+              }}
+              disabled={bulkJobLoading}
+              tone="secondary"
+            />
+          </>
+        )}
         <ActionButton
           icon={<SearchIcon className="w-4 h-4" />}
           label="Kategorie fix (Auswahl)"

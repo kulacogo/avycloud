@@ -1260,16 +1260,53 @@ function buildTextFields(product, name) {
   }
 
   // Extra Beschreibung 1 = Highlights/Bullets für BL
+  const extra1Stored =
+    (product?.details?.description_extra1 || product?.details?.descriptionExtra1 || '').toString().trim();
   const highlights = Array.isArray(product?.details?.key_features)
     ? product.details.key_features.filter(Boolean)
     : [];
-  if (highlights.length) {
-    // BaseLinker erwartet description_extra1 (nicht extra_description_1)
-    const extra1 = clampShortText(highlights.map((h) => `• ${h}`).join('\n'));
-    if (extra1) {
-      textFields.description_extra1 = extra1;
-      textFields[`description_extra1|${defaultLang}`] = extra1;
+  const escapeHtml = (value) =>
+    String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  const normalizeBulletLine = (line) =>
+    String(line || '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .trim()
+      .replace(/^[•·*\-–—]+\s*/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const buildHighlightsHtml = (lines = [], maxChars = 3500) => {
+    const items = (Array.isArray(lines) ? lines : [])
+      .map((l) => normalizeBulletLine(l))
+      .filter(Boolean);
+    if (!items.length) return '';
+    const chosen = [];
+    let currentLen = '<ul></ul>'.length;
+    for (const item of items) {
+      const li = `<li>${escapeHtml(item)}</li>`;
+      if (currentLen + li.length > maxChars && chosen.length > 0) break;
+      if (currentLen + li.length > maxChars && chosen.length === 0) {
+        const maxInner = Math.max(10, maxChars - '<ul><li></li></ul>'.length);
+        const truncated = escapeHtml(item).slice(0, maxInner).trim();
+        chosen.push(truncated || escapeHtml(item).slice(0, Math.max(10, maxInner)));
+        break;
+      }
+      chosen.push(item);
+      currentLen += li.length;
     }
+    return `<ul>${chosen.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`;
+  };
+
+  // Prefer stored HTML (admin bulk formatter writes to details.description_extra1). Fallback: derive from key_features.
+  const extra1 = extra1Stored || (highlights.length ? buildHighlightsHtml(highlights, 3500) : '');
+  if (extra1) {
+    textFields.description_extra1 = extra1;
+    textFields[`description_extra1|${defaultLang}`] = extra1;
   }
 
   // GPSR Parameters (Essential for compliance)
