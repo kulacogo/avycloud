@@ -8,6 +8,7 @@ import { useI18n } from '../i18n';
 import { Spinner } from './Spinner';
 import { addMediaQueryListener } from '../utils/mediaQuery';
 import { useInventoryContext } from '../context/InventoryContext';
+import { isInventoryItem, isProductBacklogItem } from '../utils/inventorySplit';
 import { PageHeader } from './ui/PageHeader';
 import { HelpDisclosure } from './ui/HelpDisclosure';
 import { Notice } from './ui/Notice';
@@ -66,6 +67,7 @@ interface AdminTableProps {
   onBulkImprove?: () => void;
   improvingProductIds?: Set<string>;
   mode?: 'inventory' | 'products' | 'all';
+  scopeProductIds?: Set<string> | null;
 }
 
 const SyncStatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
@@ -126,6 +128,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   onBulkImprove,
   improvingProductIds,
   mode = 'all',
+  scopeProductIds = null,
 }) => {
   const { t } = useI18n();
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
@@ -791,7 +794,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, [columnDefinitions, visibleColumns]);
 
   const filteredAndSortedProducts = useMemo(() => {
-    let filtered = products.filter(p => {
+    const scoped =
+      scopeProductIds && scopeProductIds.size ? products.filter((p) => scopeProductIds.has(p.id)) : products;
+    const modeFiltered =
+      mode === 'inventory'
+        ? scoped.filter(isInventoryItem)
+        : mode === 'products'
+          ? scoped.filter(isProductBacklogItem)
+          : scoped;
+
+    let filtered = modeFiltered.filter(p => {
       const normalizedStatus = normalizeSyncStatus(p.ops?.sync_status, p.ops?.last_synced_iso);
       const term = (searchTerm || '').toLowerCase().trim();
       const name = (p.identification?.name || '').toLowerCase();
@@ -976,6 +988,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return filtered;
   }, [
     products,
+    scopeProductIds,
+    mode,
     searchTerm,
     filterStatus,
     filterCategorySelection,

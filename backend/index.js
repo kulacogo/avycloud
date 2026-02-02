@@ -3167,13 +3167,60 @@ app.get('/api/products', requirePermission('products', 'read'), async (req, res)
       };
     });
 
+    // Resolve BaseLinker product_id for items that are not yet linked in Firestore.
+    // This increases coverage for marketplace `links` (listing status) without requiring a separate sync job.
+    const normalizeSkuKey = (raw) =>
+      String(raw || '')
+        .trim()
+        .toLowerCase()
+        .replace(/^sku[-\s]*/i, '')
+        .replace(/\s+/g, '');
+    const normalizeEanKey = (raw) => String(raw || '').replace(/\D+/g, '').trim();
+
+    const resolveCandidateSkus = withCompletenessFiltered
+      .filter((p) => !(p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id))
+      .map((p) => p?.identification?.sku || p?.details?.identifiers?.sku || p?.details?.identifiers?.ean || null)
+      .filter(Boolean);
+    const resolvedBySku =
+      resolveCandidateSkus.length ? await findProductsBySkus(null, resolveCandidateSkus) : {};
+    const withBaselinkerIdsFiltered =
+      resolvedBySku && Object.keys(resolvedBySku).length
+        ? withCompletenessFiltered.map((p) => {
+          const already = p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null;
+          if (already) return p;
+          const key =
+            p?.identification?.sku ||
+            p?.details?.identifiers?.sku ||
+            p?.details?.identifiers?.ean ||
+            null;
+          const skuKey = normalizeSkuKey(key);
+          const eanKey = normalizeEanKey(key);
+          // findProductsBySkus returns normalized keys (skuKey OR eanKey)
+          const match = (skuKey && resolvedBySku[skuKey]) || (eanKey && resolvedBySku[eanKey]) || null;
+          if (!match?.product_id) return p;
+          return {
+            ...p,
+            ops: {
+              ...(p.ops || {}),
+              baselinker: {
+                ...((p.ops && p.ops.baselinker) || {}),
+                product_id: match.product_id,
+                synced_inventory: match.inventoryId || (p?.ops?.baselinker?.synced_inventory ?? null),
+                matched_sku: match.sku || null,
+                matched_ean: match.ean || null,
+              },
+            },
+          };
+        })
+        : withCompletenessFiltered;
+
     // BaseLinker marketplace links ("listed on at least one marketplace") enrichment.
     // This is cached + chunked in baselinker.js to keep /api/products responsive.
-    const baseProductIds = withCompletenessFiltered
+    const baseProductIds = withBaselinkerIdsFiltered
       .map((p) => p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null)
       .filter(Boolean);
     const linksSummary = await getInventoryProductLinksSummary(null, baseProductIds);
-    const withLinksFiltered = withCompletenessFiltered.map((p) => {
+    const withLinksFiltered = withBaselinkerIdsFiltered.map((p) => {
       const pidRaw = p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null;
       const pid = pidRaw != null ? String(Number(pidRaw) || '') : '';
       const summary = pid ? linksSummary[pid] : null;

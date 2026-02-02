@@ -812,15 +812,9 @@ const AppInner: React.FC = () => {
         if (!hasPermission('products', 'read')) {
           return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
         }
-        const baseList =
-          view === 'inventory' ? products.filter(isInventoryItem) : products.filter(isProductBacklogItem);
-        const drilldownFiltered =
-          drilldownProductIds && drilldownProductIds.size
-            ? baseList.filter((p) => drilldownProductIds.has(p.id))
-            : baseList;
         return (
           <AdminTable
-            products={drilldownFiltered}
+            products={products}
             onSelectProduct={handleSelectProduct}
             onUpdateProducts={setProducts}
             focusProductId={inventoryFocusId}
@@ -829,6 +823,7 @@ const AppInner: React.FC = () => {
             onBulkImprove={handleBulkImprove}
             improvingProductIds={activeProductIds}
             mode={view}
+            scopeProductIds={drilldownProductIds}
           />
         );
       case 'categories':

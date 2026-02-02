@@ -25,6 +25,9 @@ export function hasAiImages(product: Product): boolean {
   return images.some((img) => {
     const source = String(img?.source || '').toLowerCase();
     if (source === 'generated') return true;
+    // In our pipelines, AI-enriched images are often stored as "web" (extracted/scraped/selected by AI),
+    // while manual operator images are "upload".
+    if (source === 'web') return true;
     const notes = String(img?.notes || '');
     return /\b(ai|generated|gen)\b/i.test(notes);
   });
