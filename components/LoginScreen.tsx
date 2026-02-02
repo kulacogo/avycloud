@@ -1,8 +1,10 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { requestPasswordReset } from '../api/client';
+import { useI18n } from '../i18n';
 
 export const LoginScreen: React.FC = () => {
+  const { t } = useI18n();
   const { signInWithEmailPassword } = useAuth();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -20,7 +22,7 @@ export const LoginScreen: React.FC = () => {
     try {
       await signInWithEmailPassword(email, password);
     } catch (err: any) {
-      setError(err?.message || 'Login fehlgeschlagen.');
+      setError(err?.message || t('auth.login.error'));
     } finally {
       setSubmitting(false);
     }
@@ -33,16 +35,16 @@ export const LoginScreen: React.FC = () => {
 
     const value = String(resetEmail || '').trim().toLowerCase();
     if (!value.endsWith('@trendocean.de')) {
-      setResetMessage('Bitte eine @trendocean.de E-Mail-Adresse eingeben.');
+      setResetMessage(t('auth.login.reset.domainError', { domain: '@trendocean.de' }));
       return;
     }
 
     setResetSubmitting(true);
     try {
       await requestPasswordReset(value);
-      setResetMessage('Wenn ein Konto existiert, wurde eine E-Mail mit einem Reset-Link gesendet.');
+      setResetMessage(t('auth.login.reset.sent'));
     } catch (err: any) {
-      setResetMessage(err?.message || 'Reset-Link konnte nicht gesendet werden.');
+      setResetMessage(err?.message || t('auth.login.reset.failed'));
     } finally {
       setResetSubmitting(false);
     }
@@ -52,8 +54,8 @@ export const LoginScreen: React.FC = () => {
     <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-5">
         <div className="space-y-1">
-          <h1 className="text-xl font-bold">AvyCloud Login</h1>
-          <p className="text-sm text-slate-400">Nur Konten mit @trendocean.de sind erlaubt.</p>
+          <h1 className="text-xl font-bold">{t('auth.login.title')}</h1>
+          <p className="text-sm text-slate-400">{t('auth.login.subtitle', { domain: '@trendocean.de' })}</p>
         </div>
 
         {error && (
@@ -64,7 +66,7 @@ export const LoginScreen: React.FC = () => {
 
         <form onSubmit={onSubmit} className="space-y-4">
           <label className="block space-y-1">
-            <span className="text-sm text-slate-300">E-Mail</span>
+            <span className="text-sm text-slate-300">{t('auth.login.emailLabel')}</span>
             <input
               type="email"
               value={email}
@@ -76,7 +78,7 @@ export const LoginScreen: React.FC = () => {
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-sm text-slate-300">Passwort</span>
+            <span className="text-sm text-slate-300">{t('auth.login.passwordLabel')}</span>
             <input
               type="password"
               value={password}
@@ -91,7 +93,7 @@ export const LoginScreen: React.FC = () => {
             disabled={submitting}
             className="w-full rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 disabled:hover:bg-sky-600 px-4 py-2.5 font-semibold text-white transition-colors"
           >
-            {submitting ? 'Anmelden…' : 'Anmelden'}
+            {submitting ? t('auth.login.submitting') : t('auth.login.submit')}
           </button>
         </form>
 
@@ -105,13 +107,13 @@ export const LoginScreen: React.FC = () => {
             }}
             className="text-left text-xs text-slate-400 hover:text-slate-200 underline underline-offset-4"
           >
-            Passwort vergessen?
+            {t('auth.login.forgotPassword')}
           </button>
 
           {showReset && (
             <form onSubmit={onRequestReset} className="space-y-2">
               <label className="block space-y-1">
-                <span className="text-xs text-slate-300">E-Mail für Reset-Link</span>
+                <span className="text-xs text-slate-300">{t('auth.login.reset.emailLabel')}</span>
                 <input
                   type="email"
                   value={resetEmail}
@@ -128,7 +130,7 @@ export const LoginScreen: React.FC = () => {
                 disabled={resetSubmitting}
                 className="w-full rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-60 disabled:hover:bg-slate-700 px-4 py-2.5 font-semibold text-white transition-colors"
               >
-                {resetSubmitting ? 'Sende…' : 'Reset-Link per E-Mail senden'}
+                {resetSubmitting ? t('auth.login.reset.submitting') : t('auth.login.reset.submit')}
               </button>
 
               {resetMessage && <p className="text-xs text-slate-400">{resetMessage}</p>}

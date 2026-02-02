@@ -2,6 +2,7 @@ import React from 'react';
 import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 import { getFirebaseAuth } from '../utils/firebase';
 import { requestPasswordReset } from '../api/client';
+import { useI18n } from '../i18n';
 
 const getOobCode = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -17,6 +18,7 @@ const getOobCode = (): string | null => {
 };
 
 export const ResetPasswordScreen: React.FC = () => {
+  const { t } = useI18n();
   const [oobCode] = React.useState<string | null>(() => getOobCode());
   const [email, setEmail] = React.useState<string>('');
   const [loading, setLoading] = React.useState(true);
@@ -41,7 +43,7 @@ export const ResetPasswordScreen: React.FC = () => {
 
       if (!oobCode) {
         setLoading(false);
-        setError('Reset-Link ist ungültig. Bitte fordere einen neuen Link an.');
+        setError(t('auth.reset.invalidLink'));
         return;
       }
 
@@ -53,7 +55,7 @@ export const ResetPasswordScreen: React.FC = () => {
         setResendEmail(accountEmail);
       } catch (err: any) {
         if (cancelled) return;
-        setError('Dieser Reset-Link ist abgelaufen oder wurde bereits verwendet. Bitte fordere einen neuen Link an.');
+        setError(t('auth.reset.expiredLink'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -62,7 +64,7 @@ export const ResetPasswordScreen: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [oobCode]);
+  }, [oobCode, t]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,15 +72,15 @@ export const ResetPasswordScreen: React.FC = () => {
     setSuccess(null);
 
     if (!oobCode) {
-      setError('Reset-Link ist ungültig. Bitte fordere einen neuen Link an.');
+      setError(t('auth.reset.invalidLink'));
       return;
     }
     if (newPassword.length < 6) {
-      setError('Das Passwort muss mindestens 6 Zeichen lang sein.');
+      setError(t('auth.reset.passwordTooShort', { count: 6 }));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('Die Passwörter stimmen nicht überein.');
+      setError(t('auth.reset.passwordMismatch'));
       return;
     }
 
@@ -86,16 +88,16 @@ export const ResetPasswordScreen: React.FC = () => {
     try {
       const auth = getFirebaseAuth();
       await confirmPasswordReset(auth, oobCode, newPassword);
-      setSuccess('Passwort wurde gesetzt. Du kannst dich jetzt anmelden.');
+      setSuccess(t('auth.reset.success'));
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
       const message =
         err?.code === 'auth/expired-action-code' || err?.code === 'auth/invalid-action-code'
-          ? 'Dieser Reset-Link ist abgelaufen oder wurde bereits verwendet. Bitte fordere einen neuen Link an.'
+          ? t('auth.reset.expiredLink')
           : err?.code === 'auth/weak-password'
-            ? 'Das Passwort ist zu schwach.'
-            : err?.message || 'Passwort konnte nicht gesetzt werden.';
+            ? t('auth.reset.weakPassword')
+            : err?.message || t('auth.reset.saveFailed');
       setError(message);
     } finally {
       setSubmitting(false);
@@ -108,16 +110,16 @@ export const ResetPasswordScreen: React.FC = () => {
 
     const value = String(resendEmail || '').trim().toLowerCase();
     if (!value.endsWith('@trendocean.de')) {
-      setResendMessage('Bitte eine @trendocean.de E-Mail-Adresse eingeben.');
+      setResendMessage(t('auth.reset.resend.domainError', { domain: '@trendocean.de' }));
       return;
     }
 
     setResendSubmitting(true);
     try {
       await requestPasswordReset(value);
-      setResendMessage('Wenn ein Konto existiert, wurde eine E-Mail mit einem Reset-Link gesendet.');
+      setResendMessage(t('auth.reset.resend.sent'));
     } catch (err: any) {
-      setResendMessage(err?.message || 'Reset-Link konnte nicht gesendet werden.');
+      setResendMessage(err?.message || t('auth.reset.resend.failed'));
     } finally {
       setResendSubmitting(false);
     }
@@ -127,15 +129,15 @@ export const ResetPasswordScreen: React.FC = () => {
     <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-5">
         <div className="space-y-1">
-          <h1 className="text-xl font-bold">Passwort zurücksetzen</h1>
-          <p className="text-sm text-slate-400">Setze ein neues Passwort für dein Konto.</p>
+          <h1 className="text-xl font-bold">{t('auth.reset.title')}</h1>
+          <p className="text-sm text-slate-400">{t('auth.reset.subtitle')}</p>
         </div>
 
-        {loading && <p className="text-sm text-slate-300">Prüfe Reset-Link…</p>}
+        {loading && <p className="text-sm text-slate-300">{t('auth.reset.checking')}</p>}
 
         {!loading && email && (
           <div className="text-xs text-slate-500">
-            Konto: <span className="text-slate-200">{email}</span>
+            {t('auth.reset.accountLabel')} <span className="text-slate-200">{email}</span>
           </div>
         )}
 
@@ -153,7 +155,7 @@ export const ResetPasswordScreen: React.FC = () => {
         {!loading && !success && (
           <form onSubmit={onSubmit} className="space-y-4">
             <label className="block space-y-1">
-              <span className="text-sm text-slate-300">Neues Passwort</span>
+              <span className="text-sm text-slate-300">{t('auth.reset.newPasswordLabel')}</span>
               <input
                 type="password"
                 value={newPassword}
@@ -164,7 +166,7 @@ export const ResetPasswordScreen: React.FC = () => {
               />
             </label>
             <label className="block space-y-1">
-              <span className="text-sm text-slate-300">Passwort wiederholen</span>
+              <span className="text-sm text-slate-300">{t('auth.reset.confirmPasswordLabel')}</span>
               <input
                 type="password"
                 value={confirmPassword}
@@ -180,18 +182,18 @@ export const ResetPasswordScreen: React.FC = () => {
               disabled={submitting || !oobCode}
               className="w-full rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 disabled:hover:bg-sky-600 px-4 py-2.5 font-semibold text-white transition-colors"
             >
-              {submitting ? 'Speichere…' : 'Passwort setzen'}
+              {submitting ? t('auth.reset.submitting') : t('auth.reset.submit')}
             </button>
           </form>
         )}
 
         <div className="border-t border-white/10 pt-4 space-y-3">
           <div className="text-xs text-slate-500">
-            Link ungültig/abgelaufen? Fordere einen neuen Reset-Link an.
+            {t('auth.reset.resend.hint')}
           </div>
           <form onSubmit={onResend} className="space-y-2">
             <label className="block space-y-1">
-              <span className="text-xs text-slate-300">E-Mail</span>
+              <span className="text-xs text-slate-300">{t('auth.reset.resend.emailLabel')}</span>
               <input
                 type="email"
                 value={resendEmail}
@@ -207,7 +209,7 @@ export const ResetPasswordScreen: React.FC = () => {
               disabled={resendSubmitting}
               className="w-full rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-60 disabled:hover:bg-slate-700 px-4 py-2.5 font-semibold text-white transition-colors"
             >
-              {resendSubmitting ? 'Sende…' : 'Neuen Reset-Link senden'}
+              {resendSubmitting ? t('auth.reset.resend.submitting') : t('auth.reset.resend.submit')}
             </button>
             {resendMessage && <p className="text-xs text-slate-400">{resendMessage}</p>}
           </form>
@@ -220,7 +222,7 @@ export const ResetPasswordScreen: React.FC = () => {
           }}
           className="text-left text-xs text-slate-400 hover:text-slate-200 underline underline-offset-4"
         >
-          Zurück zum Login
+          {t('auth.reset.backToLogin')}
         </button>
       </div>
     </div>

@@ -811,7 +811,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 onClick={() => {
                   const images = (identifyImagesBySlot[slot] || []).map((img) => img.file);
                   if (!images.length) return;
-                  const payload: UploadGroupPayload[] = [{ id: `mobile-slot-${slot}`, label: `Mobile ${slot}`, images }];
+                  const index = identifySlots.indexOf(slot) + 1;
+                  const payload: UploadGroupPayload[] = [
+                    { id: `mobile-slot-${slot}`, label: t('input.groups.defaultName', { index }), images },
+                  ];
                   if (onIdentify) {
                     onIdentify(payload, '');
                     clearIdentifySlot(slot);
@@ -1057,7 +1060,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
                   onClick={() => setPendingPickQty(pendingPick.suggestedQty || 1)}
                 >
-                  {t('common.auto')}
+                  {t('ops.orders.auto')}
                 </button>
               </div>
             </div>

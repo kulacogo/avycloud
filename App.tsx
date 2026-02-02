@@ -851,7 +851,12 @@ const AppInner: React.FC = () => {
         return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
       case 'dashboard':
         return isMobile ? (
-          <DashboardMobile products={products} onRefreshProducts={loadProducts} isLoading={productsLoading} />
+          <DashboardMobile
+            products={products}
+            onRefreshProducts={loadProducts}
+            onNavigate={(next) => setView(next as View)}
+            isLoading={productsLoading}
+          />
         ) : (
           <Dashboard products={products} onSelectProduct={handleSelectProduct} onRefreshProducts={loadProducts} />
         );
@@ -951,6 +956,7 @@ const AppInner: React.FC = () => {
 };
 
 const AuthGate: React.FC = () => {
+  const { t } = useI18n();
   const { user, loading, initError, isAdmin, logout } = useAuth();
 
   // Public auth flows (password reset / email verification) must be reachable without login.
@@ -967,8 +973,8 @@ const AuthGate: React.FC = () => {
         <div className="flex items-center gap-3 rounded-2xl bg-slate-800/70 border border-white/10 px-6 py-5 shadow-xl">
           <Spinner className="w-6 h-6 text-sky-300" />
           <div className="text-sm">
-            <p className="font-semibold">Authentifizierung…</p>
-            <p className="text-slate-400 text-xs">Bitte warten</p>
+            <p className="font-semibold">{t('auth.loading.title')}</p>
+            <p className="text-slate-400 text-xs">{t('auth.loading.subtitle')}</p>
           </div>
         </div>
       </div>
@@ -979,19 +985,28 @@ const AuthGate: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
         <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-4">
-          <h1 className="text-xl font-bold">Dev Setup erforderlich</h1>
+          <h1 className="text-xl font-bold">{t('auth.devSetup.title')}</h1>
           <p className="text-sm text-slate-300">
-            Firebase ist nicht konfiguriert, daher kann die App nicht starten.
+            {t('auth.devSetup.description')}
           </p>
           <div className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
             {initError}
           </div>
           <div className="text-sm text-slate-200 space-y-2">
-            <p className="font-semibold">Fix:</p>
+            <p className="font-semibold">{t('auth.devSetup.fixTitle')}</p>
             <ol className="list-decimal list-inside text-slate-300 space-y-1">
-              <li>Lege eine Datei <span className="font-mono">.env.local</span> im Projekt-Root an.</li>
-              <li>Setze mindestens: <span className="font-mono">VITE_FIREBASE_API_KEY</span>, <span className="font-mono">VITE_FIREBASE_AUTH_DOMAIN</span>, <span className="font-mono">VITE_FIREBASE_PROJECT_ID</span>, <span className="font-mono">VITE_FIREBASE_APP_ID</span>.</li>
-              <li>Dev-Server neu starten.</li>
+              <li>
+                {t('auth.devSetup.fix.step1.before')}{' '}
+                <span className="font-mono">.env.local</span> {t('auth.devSetup.fix.step1.after')}
+              </li>
+              <li>
+                {t('auth.devSetup.fix.step2.prefix')}{' '}
+                <span className="font-mono">VITE_FIREBASE_API_KEY</span>,{' '}
+                <span className="font-mono">VITE_FIREBASE_AUTH_DOMAIN</span>,{' '}
+                <span className="font-mono">VITE_FIREBASE_PROJECT_ID</span>,{' '}
+                <span className="font-mono">VITE_FIREBASE_APP_ID</span>.
+              </li>
+              <li>{t('auth.devSetup.fix.step3')}</li>
             </ol>
           </div>
         </div>
@@ -1007,20 +1022,19 @@ const AuthGate: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
         <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-4">
-          <h1 className="text-xl font-bold">E-Mail bestätigen</h1>
+          <h1 className="text-xl font-bold">{t('auth.verifyEmail.title')}</h1>
           <p className="text-sm text-slate-300">
-            Dein Account ist angelegt, aber die E-Mail-Adresse ist noch nicht bestätigt. Bitte nutze den Bestätigungs-Link
-            in deiner E-Mail.
+            {t('auth.verifyEmail.description')}
           </p>
           <div className="text-xs text-slate-500">
-            Angemeldet als: <span className="text-slate-200">{user.email}</span>
+            {t('auth.verifyEmail.signedInAs')}: <span className="text-slate-200">{user.email}</span>
           </div>
           <button
             type="button"
             onClick={() => logout()}
             className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2.5 font-semibold text-white transition-colors"
           >
-            Abmelden
+            {t('common.logout')}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../i18n';
 
 type ConfirmTone = 'default' | 'danger';
 
@@ -37,13 +38,14 @@ export const ConfirmDialog: React.FC<{
   description,
   details,
   confirmLabel,
-  cancelLabel = 'Abbrechen',
+  cancelLabel,
   tone = 'default',
   confirmDisabled,
   confirmBusy,
   onConfirm,
   onCancel,
 }) => {
+  const { t } = useI18n();
   const dialogRef = React.useRef<HTMLDivElement | null>(null);
   const cancelRef = React.useRef<HTMLButtonElement | null>(null);
   const confirmRef = React.useRef<HTMLButtonElement | null>(null);
@@ -111,6 +113,7 @@ export const ConfirmDialog: React.FC<{
     tone === 'danger'
       ? 'bg-red-600 hover:bg-red-500 text-white'
       : 'bg-sky-600 hover:bg-sky-500 text-white';
+  const cancelText = cancelLabel ?? t('common.cancel');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -131,7 +134,7 @@ export const ConfirmDialog: React.FC<{
               type="button"
               onClick={onCancel}
               className="rounded-md px-2 py-1 text-xs font-semibold text-slate-200 hover:bg-white/10"
-              aria-label="Dialog schließen"
+              aria-label={t('common.close')}
             >
               ✕
             </button>
@@ -145,7 +148,7 @@ export const ConfirmDialog: React.FC<{
 
           {details ? (
             <details className="rounded-xl border border-slate-700 bg-slate-950/40 p-3 text-xs text-slate-200">
-              <summary className="cursor-pointer select-none text-slate-200">Details anzeigen</summary>
+              <summary className="cursor-pointer select-none text-slate-200">{t('common.showDetails')}</summary>
               <div className="mt-2 whitespace-pre-wrap break-words">{details}</div>
             </details>
           ) : null}
@@ -157,7 +160,7 @@ export const ConfirmDialog: React.FC<{
               onClick={onCancel}
               className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700"
             >
-              {cancelLabel}
+              {cancelText}
             </button>
             <button
               ref={confirmRef}
@@ -166,7 +169,7 @@ export const ConfirmDialog: React.FC<{
               disabled={Boolean(confirmDisabled) || Boolean(confirmBusy)}
               className={`rounded-lg px-4 py-1.5 text-sm font-semibold ${confirmClasses} disabled:opacity-60`}
             >
-              {confirmBusy ? 'Bitte warten…' : confirmLabel}
+              {confirmBusy ? t('common.loading') : confirmLabel}
             </button>
           </div>
         </div>

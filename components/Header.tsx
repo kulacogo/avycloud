@@ -290,14 +290,14 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={handleHardRefresh}
-                className="w-[20px] h-0 flex items-center justify-center rounded-full hover:opacity-80 transition"
+                className="w-10 h-10 flex items-center justify-center rounded-full hover:opacity-80 transition"
                 aria-label={t('actions.refresh')}
                 title={t('actions.refresh')}
               >
                 <img
                   src={theme === 'dark' ? RELOAD_ICONS.dark : RELOAD_ICONS.light}
                   alt=""
-                  className="w-[15px] h-[15px]"
+                  className="w-4 h-4"
                   draggable={false}
                 />
               </button>
@@ -330,7 +330,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 onClick={() => logout()}
                 className="hidden sm:inline-flex rounded-xl bg-slate-700 hover:bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white"
               >
-                Logout
+                {t('common.logout')}
               </button>
             </div>
           </div>

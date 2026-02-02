@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardMetrics, Order, Product } from '../types';
 import { getProductAvailableQuantity, getProductPhysicalQuantity } from '../utils/product';
 import { fetchDashboardMetrics, fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi } from '../api/client';
@@ -61,6 +61,9 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
   const [refreshing, setRefreshing] = useState(false);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const refreshInFlightRef = useRef(false);
+  const unmountedRef = useRef(false);
 
   const dedupeOrders = useCallback((list: Order[]) => {
     const seen = new Set<string>();
@@ -120,22 +123,40 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
     }
   }, []);
 
+  const refreshAll = useCallback(
+    async ({ syncOrders, refreshProducts }: { syncOrders: boolean; refreshProducts: boolean }) => {
+      if (refreshInFlightRef.current) return;
+      refreshInFlightRef.current = true;
+      setRefreshing(true);
+      try {
+        await Promise.all([
+          refreshProducts && onRefreshProducts ? Promise.resolve(onRefreshProducts()) : Promise.resolve(),
+          loadOrders({ sync: syncOrders }),
+          loadMetrics(),
+        ]);
+        if (!unmountedRef.current) setLastUpdatedAt(new Date());
+      } finally {
+        refreshInFlightRef.current = false;
+        if (!unmountedRef.current) setRefreshing(false);
+      }
+    },
+    [loadMetrics, loadOrders, onRefreshProducts]
+  );
+
   useEffect(() => {
+    unmountedRef.current = false;
     let cancelled = false;
-    const initial = async () => {
-      if (cancelled) return;
-      await Promise.all([loadOrders({ sync: true }), loadMetrics()]);
-    };
-    void initial();
+    void refreshAll({ syncOrders: true, refreshProducts: false });
     const interval = setInterval(() => {
       if (cancelled) return;
-      void Promise.all([loadOrders({ sync: false }), loadMetrics()]);
+      void refreshAll({ syncOrders: false, refreshProducts: false });
     }, 60000);
     return () => {
       cancelled = true;
+      unmountedRef.current = true;
       clearInterval(interval);
     };
-  }, [loadOrders, loadMetrics]);
+  }, [refreshAll]);
 
   const navigateTo = useCallback(
     (view: string) => {
@@ -269,117 +290,177 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
 
   return (
     <div className="space-y-4 max-w-xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold text-white">{t('mobile.dashboard.title')}</h1>
+          <p className="text-xs text-slate-500">
+            {lastUpdatedAt ? t('mobile.dashboard.lastUpdated', { value: lastUpdatedAt.toLocaleString(intlLocale) }) : '—'}
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={() => void refreshAll({ syncOrders: true, refreshProducts: true })}
+          disabled={refreshing}
+          className="rounded-xl bg-slate-800 border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 disabled:opacity-60"
+        >
+          {refreshing ? t('mobile.dashboard.refreshing') : t('actions.refresh')}
+        </button>
       </div>
 
-      {isEmpty ? (
+      {isEmpty && (
         <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-4 text-sm text-slate-300">
           {isLoading ? t('status.loading.products') : t('mobile.dashboard.empty')}
         </div>
-      ) : (
-        <>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <ActionCard
+          tone="warn"
+          label={t('ops.mode.pick')}
+          value={`${openOrders.length}`}
+          sub={
+            openOrders.length === 0
+              ? t('ops.orders.none')
+              : nextPick
+                ? `${t('ops.labels.nextPick')}: ${nextPick.binCode || '—'} · ${nextPick.sku} · ${t('ops.labels.openRemaining', {
+                    count: nextPick.remaining,
+                  })}`
+                : t('ops.orders.open')
+          }
+          onClick={() => navigateTo('operations-pick')}
+        />
+        <ActionCard
+          tone="success"
+          label={t('ops.mode.stow')}
+          value={`${stowBacklog}`}
+          sub={t('table.binFilter.withoutBin')}
+          onClick={() => navigateTo('operations-stow')}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => navigateTo('search')}
+          className="w-full rounded-2xl bg-slate-800 border border-white/5 p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99]"
+        >
+          <p className="text-xs uppercase tracking-wide text-slate-400">{t('nav.search')}</p>
+          <p className="text-2xl font-semibold text-white mt-1">{t('mobile.dashboard.action.search')}</p>
+          <p className="text-xs text-slate-400 mt-1">{t('mobile.dashboard.action.searchSub')}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigateTo('operations-identify')}
+          className="w-full rounded-2xl bg-sky-600 text-white p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99]"
+        >
+          <p className="text-xs uppercase tracking-wide opacity-90">{t('ops.mode.identify')}</p>
+          <p className="text-2xl font-semibold mt-1">{t('mobile.dashboard.action.identify')}</p>
+          <p className="text-xs opacity-90 mt-1">{t('ops.mode.identify.subtitle')}</p>
+        </button>
+      </div>
+
+      {!isEmpty && (
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard
+            label={t('mobile.dashboard.kpi.products')}
+            value={`${summary.total}`}
+            sub={t('mobile.dashboard.kpi.productsSub', { count: summary.inStock })}
+          />
+          <StatCard
+            label={t('mobile.dashboard.kpi.units')}
+            value={`${summary.qtySum}`}
+            sub={t('mobile.dashboard.kpi.unitsSub')}
+          />
+          <StatCard
+            label={t('mobile.dashboard.kpi.value')}
+            value={formatCurrency(summary.value, 'EUR')}
+            sub={t('mobile.dashboard.kpi.valueSub', { count: summary.synced })}
+          />
+          <StatCard
+            label={t('mobile.dashboard.kpi.sync')}
+            value={`${summary.pending}`}
+            sub={t('mobile.dashboard.kpi.syncSub', { count: summary.synced })}
+          />
+        </div>
+      )}
+
+      <details className="rounded-2xl bg-slate-900/40 border border-white/5 p-4">
+        <summary className="cursor-pointer select-none text-xs uppercase tracking-wide text-slate-400">
+          {t('mobile.dashboard.section.ordersRevenue')}
+        </summary>
+        <div className="mt-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] text-slate-500">
+              {metrics?.generated_at_iso
+                ? new Date(metrics.generated_at_iso).toLocaleString(intlLocale)
+                : metricsLoading
+                  ? t('common.loading')
+                  : '—'}
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
-            <ActionCard
-              tone="warn"
-              label={t('ops.mode.pick')}
-              value={`${openOrders.length}`}
-              sub={
-                openOrders.length === 0
-                  ? t('ops.orders.none')
-                  : nextPick
-                    ? `${t('ops.labels.nextPick')}: ${nextPick.binCode || '—'} · ${nextPick.sku} · ${t('ops.labels.openRemaining', {
-                        count: nextPick.remaining,
-                      })}`
-                    : t('ops.orders.open')
-              }
-              onClick={() => navigateTo('operations-pick')}
+            <StatCard
+              label={t('mobile.dashboard.metrics.revenueTotal')}
+              value={metrics ? formatCurrency(metrics.revenue.total || 0, metrics.currency || 'EUR') : '—'}
+              sub={metrics ? `${t('mobile.dashboard.metrics.month')}: ${formatCurrency(metrics.revenue.month || 0, metrics.currency || 'EUR')}` : undefined}
             />
-            <ActionCard
-              tone="success"
-              label={t('ops.mode.stow')}
-              value={`${stowBacklog}`}
-              sub={t('table.binFilter.withoutBin')}
-              onClick={() => navigateTo('operations-stow')}
+            <StatCard
+              label={t('mobile.dashboard.metrics.ordersCompleted')}
+              value={metrics ? `${metrics.orders.completed_total}` : '—'}
+              sub={metrics ? `${t('mobile.dashboard.metrics.month')}: ${metrics.orders.completed_month}` : undefined}
+            />
+            <StatCard
+              label={t('mobile.dashboard.metrics.returns')}
+              value={metrics ? `${metrics.orders.returns_total}` : '—'}
+              sub={metrics ? `${t('mobile.dashboard.metrics.month')}: ${metrics.orders.returns_month}` : undefined}
+            />
+            <StatCard
+              label={t('mobile.dashboard.metrics.openCurrent')}
+              value={metrics ? `${metrics.orders.open_current}` : '—'}
+              sub={t('mobile.dashboard.metrics.openCurrentSub')}
             />
           </div>
 
-          <div className="rounded-2xl bg-slate-900/40 border border-white/5 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-wide text-slate-400">Orders & Umsatz</p>
+          <div className="rounded bg-slate-800/70 border border-white/5 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs uppercase tracking-wide text-slate-400">{t('mobile.dashboard.chart.title')}</p>
               <p className="text-[11px] text-slate-500">
-                {metrics?.generated_at_iso ? new Date(metrics.generated_at_iso).toLocaleString(intlLocale) : metricsLoading ? 'Lade…' : '—'}
+                {volume7d.length
+                  ? t('mobile.dashboard.chart.ordersCount', {
+                      count: volume7d.reduce((s, d) => s + (Number(d.orders || 0) || 0), 0),
+                    })
+                  : '—'}
               </p>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <StatCard
-                label="Umsatz (gesamt)"
-                value={metrics ? formatCurrency(metrics.revenue.total || 0, metrics.currency || 'EUR') : '—'}
-                sub={metrics ? `Monat: ${formatCurrency(metrics.revenue.month || 0, metrics.currency || 'EUR')}` : undefined}
-              />
-              <StatCard
-                label="Aufträge (abgeschlossen)"
-                value={metrics ? `${metrics.orders.completed_total}` : '—'}
-                sub={metrics ? `Monat: ${metrics.orders.completed_month}` : undefined}
-              />
-              <StatCard
-                label="Retouren"
-                value={metrics ? `${metrics.orders.returns_total}` : '—'}
-                sub={metrics ? `Monat: ${metrics.orders.returns_month}` : undefined}
-              />
-              <StatCard
-                label="Offen (aktuell)"
-                value={metrics ? `${metrics.orders.open_current}` : '—'}
-                sub="BaseLinker (Cache)"
-              />
-            </div>
-
-            <div className="rounded bg-slate-800/70 border border-white/5 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Auftragsvolumen · letzte 7 Tage</p>
-                <p className="text-[11px] text-slate-500">{volume7d.length ? `${volume7d.reduce((s, d) => s + (Number(d.orders || 0) || 0), 0)} Orders` : '—'}</p>
-              </div>
-              <div className="grid grid-cols-7 gap-2 items-end h-20">
-                {volume7d.length ? (
-                  volume7d.map((d) => {
-                    const count = Number(d.orders || 0) || 0;
-                    const revenue = Number(d.revenue || 0) || 0;
-                    const barPx = Math.max(6, Math.round((count / maxVolume) * 56));
-                    return (
-                      <div key={d.date} className="h-full flex flex-col items-center justify-end gap-1">
-                        <div
-                          title={`${d.date}: ${count} Orders · Umsatz ${formatCurrency(revenue, metrics?.currency || 'EUR')}`}
-                          className="w-full rounded-[2px] bg-sky-500/70"
-                          style={{ height: `${barPx}px`, borderRadius: '2px' }}
-                        />
-                        <div className="text-[11px] text-slate-300 font-semibold tabular-nums">{count}</div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="col-span-7 text-sm text-slate-400">Keine Daten</div>
-                )}
-              </div>
+            <div className="grid grid-cols-7 gap-2 items-end h-20">
+              {volume7d.length ? (
+                volume7d.map((d) => {
+                  const count = Number(d.orders || 0) || 0;
+                  const revenue = Number(d.revenue || 0) || 0;
+                  const barPx = Math.max(6, Math.round((count / maxVolume) * 56));
+                  return (
+                    <div key={d.date} className="h-full flex flex-col items-center justify-end gap-1">
+                      <div
+                        title={t('mobile.dashboard.chart.barTitle', {
+                          date: d.date,
+                          orders: count,
+                          revenue: formatCurrency(revenue, metrics?.currency || 'EUR'),
+                        })}
+                        className="w-full rounded-[2px] bg-sky-500/70"
+                        style={{ height: `${barPx}px`, borderRadius: '2px' }}
+                      />
+                      <div className="text-[11px] text-slate-300 font-semibold tabular-nums">{count}</div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="col-span-7 text-sm text-slate-400">{t('mobile.dashboard.chart.noData')}</div>
+              )}
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard
-              label={t('mobile.dashboard.kpi.products')}
-              value={`${summary.total}`}
-              sub={t('mobile.dashboard.kpi.productsSub', { count: summary.inStock })}
-            />
-            <StatCard
-              label={t('mobile.dashboard.kpi.value')}
-              value={formatCurrency(summary.value, 'EUR')}
-              sub={t('mobile.dashboard.kpi.valueSub', { count: summary.synced })}
-            />
-          </div>
-        </>
-      )}
+        </div>
+      </details>
     </div>
   );
 };
