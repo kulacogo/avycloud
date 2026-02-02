@@ -1884,6 +1884,25 @@ const AdminTable: React.FC<AdminTableProps> = ({
               disabled={bulkJobLoading}
               tone="secondary"
             />
+            <ActionButton
+              icon={<SheetIcon className="w-4 h-4" />}
+              label="Listing-Readiness Audit + Fix + Sync (alle Inventory)"
+              onClick={() => {
+                setConfirmDialog({
+                  title: 'Listing-Readiness Audit ausführen?',
+                  tone: 'default',
+                  description:
+                    'Korrigiert/vereinheitlicht Titel/Highlights/Beschreibung/Attribute (inkl. eBay Pflichtmerkmale via Backend-Normalisierung) und stößt anschließend Text-Only Sync nach BaseLinker an.',
+                  confirmLabel: 'Starten',
+                  onConfirm: async () => {
+                    setConfirmDialog(null);
+                    await enqueueBulkForAllInCurrentMode('listing_readiness');
+                  },
+                });
+              }}
+              disabled={bulkJobLoading}
+              tone="secondary"
+            />
           </>
         )}
         <ActionButton

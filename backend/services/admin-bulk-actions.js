@@ -827,6 +827,206 @@ async function runBulkDescriptionHtml({
   return { summary, samples };
 }
 
+function normalizeAttrValue(value) {
+  if (value == null) return value;
+  if (typeof value === 'string') {
+    const v = value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\s+/g, ' ').trim();
+    return v;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  // Keep objects/arrays as-is; Firestore saveProduct/enforceEbayAspects will stringify where appropriate for BaseLinker.
+  return value;
+}
+
+function normalizeAttributesForListing(attrsRaw = {}) {
+  const attrs = attrsRaw && typeof attrsRaw === 'object' && !Array.isArray(attrsRaw) ? attrsRaw : {};
+  const out = {};
+
+  const dropKeysLower = new Set([
+    'category_path',
+    'category id',
+    'category_id',
+    'ebay_category_id',
+    'ebay_category_path',
+    'kaufland_category_id',
+    'kaufland_category_path',
+    'product_id',
+    'id',
+  ]);
+
+  for (const [rawKey, rawVal] of Object.entries(attrs)) {
+    const key = safeString(rawKey).replace(/\s+/g, ' ').trim();
+    if (!key) continue;
+    const keyLower = key.toLowerCase();
+    if (dropKeysLower.has(keyLower)) continue;
+    if (keyLower.startsWith('ebay_category')) continue;
+    if (keyLower.startsWith('kaufland_category')) continue;
+    if (keyLower.includes('category_path')) continue;
+    if (keyLower.endsWith('_category_id')) continue;
+    if (keyLower.endsWith('_category_path')) continue;
+
+    const val = normalizeAttrValue(rawVal);
+    // Drop empty strings
+    if (typeof val === 'string' && !val.trim()) continue;
+    out[key] = val;
+  }
+  return out;
+}
+
+async function runBulkListingReadiness({
+  apply = false,
+  limit = 500,
+  offset = 0,
+  debug = false,
+  productIds = null,
+  inventoryId = null,
+} = {}) {
+  const selected = await resolveTargetProducts({ productIds, limit, offset });
+
+  const summary = {
+    action: 'listing_readiness',
+    apply: Boolean(apply),
+    limit,
+    offset,
+    selected: selected.length,
+    considered: 0,
+    updated: 0,
+    noop: 0,
+    invalid_after: 0,
+    failed: 0,
+    baselinkerTextOnlyJobs: 0,
+  };
+  const samples = [];
+  const changedIds = [];
+
+  for (const p of selected) {
+    const id = p.id;
+    const sku = pickSku(p);
+    try {
+      const cur = await getProduct(String(id));
+      if (!cur) continue;
+      summary.considered += 1;
+
+      const before = JSON.stringify({
+        t: safeString(cur?.identification?.name),
+        b: safeString(cur?.identification?.brand),
+        d: safeString(cur?.details?.short_description || cur?.details?.description),
+        x1: safeString(cur?.details?.description_extra1 || cur?.details?.descriptionExtra1),
+        h: Array.isArray(cur?.details?.key_features) ? cur.details.key_features : [],
+        a: cur?.details?.attributes && typeof cur.details.attributes === 'object' && !Array.isArray(cur.details.attributes) ? cur.details.attributes : {},
+        c: safeString(cur?.details?.categoryId || cur?.details?.ebayCategoryId || ''),
+      });
+
+      // Title: remove trailing dash + normalize spaces
+      const currentTitle = safeString(cur?.identification?.name);
+      if (currentTitle) {
+        const cleaned = cleanupTitleTrailingDash(currentTitle);
+        if (cleaned.title && cleaned.title !== currentTitle) {
+          cur.identification = { ...(cur.identification || {}), name: cleaned.title };
+        }
+      }
+
+      // Description HTML (short_description is what we sync as BaseLinker description)
+      const srcDesc =
+        safeString(cur?.details?.short_description) || safeString(cur?.details?.description) || '';
+      if (srcDesc && !looksLikeHtml(srcDesc)) {
+        const formatted = formatDescriptionToHtml(srcDesc);
+        if (formatted) {
+          cur.details = cur.details || {};
+          cur.details.short_description = formatted;
+        }
+      }
+
+      // Highlights HTML into description_extra1 (preferred sync target)
+      const existingExtra1 = safeString(cur?.details?.description_extra1 || cur?.details?.descriptionExtra1);
+      const alreadyHtml = /<\s*ul\b/i.test(existingExtra1) && /<\s*li\b/i.test(existingExtra1);
+      if (!alreadyHtml) {
+        const features = Array.isArray(cur?.details?.key_features) ? cur.details.key_features : [];
+        const built = buildHighlightsHtmlFromLines(features, { maxChars: 3500 });
+        if (built?.html) {
+          cur.details = cur.details || {};
+          cur.details.description_extra1 = built.html;
+        }
+      }
+
+      // Attributes: normalize obvious junk + whitespace; allow deletions by using replaceAttributes on save.
+      const attrsNormalized = normalizeAttributesForListing(cur?.details?.attributes || {});
+      cur.details = cur.details || {};
+      cur.details.attributes = attrsNormalized;
+
+      // Brand consistency: keep identification.brand in sync with attributes where possible.
+      const brand = safeString(cur?.identification?.brand);
+      const attrs = cur.details.attributes || {};
+      const attrBrandKey =
+        Object.keys(attrs).find((k) => String(k || '').trim().toLowerCase() === 'marke') ||
+        Object.keys(attrs).find((k) => String(k || '').trim().toLowerCase() === 'hersteller') ||
+        null;
+      const attrBrandVal = attrBrandKey ? safeString(attrs[attrBrandKey]) : '';
+      if (!brand && attrBrandVal) {
+        cur.identification = { ...(cur.identification || {}), brand: attrBrandVal };
+      } else if (brand && !attrBrandVal) {
+        cur.details.attributes = { ...(cur.details.attributes || {}), Marke: brand };
+      }
+
+      const after = JSON.stringify({
+        t: safeString(cur?.identification?.name),
+        b: safeString(cur?.identification?.brand),
+        d: safeString(cur?.details?.short_description || cur?.details?.description),
+        x1: safeString(cur?.details?.description_extra1 || cur?.details?.descriptionExtra1),
+        h: Array.isArray(cur?.details?.key_features) ? cur.details.key_features : [],
+        a: cur?.details?.attributes && typeof cur.details.attributes === 'object' && !Array.isArray(cur.details.attributes) ? cur.details.attributes : {},
+        c: safeString(cur?.details?.categoryId || cur?.details?.ebayCategoryId || ''),
+      });
+
+      if (before === after) {
+        summary.noop += 1;
+        continue;
+      }
+
+      // Guard: never allow empty title after changes
+      if (!safeString(cur?.identification?.name)) {
+        summary.invalid_after += 1;
+        if (debug && samples.length < 10) samples.push({ id, sku, status: 'invalid_after_empty_title' });
+        continue;
+      }
+
+      if (apply) {
+        cur.ops = cur.ops || {};
+        cur.ops.data_quality = cur.ops.data_quality || {};
+        cur.ops.data_quality.listing_readiness_v1 = { at_iso: nowIso() };
+        cur.ops.last_saved_source = 'admin-bulk-listing-readiness-v1';
+        cur.ops.last_saved_iso = nowIso();
+        await saveProduct(cur, {
+          source: 'admin-bulk',
+          overwriteTextFields: true,
+          replaceAttributes: true,
+          // allow full normalization pipeline (aliases + required aspects) to run
+          skipTitlePolicy: true,
+        });
+      }
+
+      summary.updated += 1;
+      changedIds.push(String(id));
+      if (!apply && samples.length < 15) samples.push({ id, sku, changed: true });
+    } catch (e) {
+      summary.failed += 1;
+      if (samples.length < 10) samples.push({ id, sku, status: 'error', message: e?.message || String(e) });
+    }
+  }
+
+  if (apply && changedIds.length) {
+    const jobs = await enqueueBaseLinkerTextOnlyJobs({
+      productIds: changedIds,
+      inventoryId,
+      chunkSize: 200,
+      requestedBy: 'admin-bulk-listing-readiness-v1',
+    });
+    summary.baselinkerTextOnlyJobs = jobs.length;
+  }
+
+  return { summary, samples };
+}
+
 async function runBulkCategory({ apply = false, limit = 500, offset = 0, debug = false, productIds = null } = {}) {
   const lookup = buildMarketplaceLookup();
   const selected = await resolveTargetProducts({ productIds, limit, offset });
@@ -1109,6 +1309,9 @@ async function runBulkAction(action, payload = {}) {
   }
   if (a === 'description_html' || a === 'description-html' || a === 'format_description_html') {
     return runBulkDescriptionHtml({ apply, limit, offset, debug, productIds, inventoryId });
+  }
+  if (a === 'listing_readiness' || a === 'listing-readiness' || a === 'audit_listing_readiness') {
+    return runBulkListingReadiness({ apply, limit, offset, debug, productIds, inventoryId });
   }
   if (a === 'category') {
     return runBulkCategory({ apply, limit, offset, debug, productIds });

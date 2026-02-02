@@ -439,6 +439,7 @@ export type ProductBulkActionName =
   | 'title_cleanup'
   | 'highlights_html'
   | 'description_html'
+  | 'listing_readiness'
   | 'price'
   | 'category'
   | 'ktype'
