@@ -11,6 +11,7 @@ const {
 } = require('./firestore');
 const { MarketplaceLookup } = require('./marketplace-lookup');
 const { getGeminiClient } = require('../lib/gemini-client');
+const { canonicalizeBaselinkerCategoryPath } = require('./baselinker-category-canonical');
 
 const MIN_IMAGE_EDGE_BASELINKER = parseInt(
   process.env.BASELINKER_IMAGE_MIN_EDGE || '600',
@@ -378,7 +379,9 @@ async function ensureInventoryCategory(inventoryId, pathStr) {
   const key = String(inventoryId);
   const cache = inventoryCategoryCache.get(key) || new Map();
   const byParentName = inventoryCategoryByParentName.get(key) || new Map();
-  const segments = normalizePathSegments(pathStr);
+  // Canonicalize BEFORE creation/lookup to prevent duplicates.
+  const canonicalPath = canonicalizeBaselinkerCategoryPath(pathStr);
+  const segments = normalizePathSegments(canonicalPath || pathStr);
   let parentId = 0;
   const currentSegments = [];
 

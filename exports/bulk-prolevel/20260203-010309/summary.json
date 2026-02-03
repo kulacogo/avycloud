@@ -1,0 +1,12 @@
+{
+  "mode": "DRY_RUN",
+  "locale": "de-DE",
+  "minQty": 0,
+  "requireBin": false,
+  "counts": {
+    "total": 681,
+    "eligible": 681,
+    "selected": 681
+  },
+  "started_at_iso": "2026-02-03T00:03:15.217Z"
+}

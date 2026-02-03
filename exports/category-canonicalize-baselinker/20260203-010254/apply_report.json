@@ -1,0 +1,341 @@
+{
+  "touched": 152,
+  "sample": [
+    {
+      "id": "0019451391762",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "00872299043330",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "0402019292922",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "0703212290001",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "07901010300000",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "09be7756-7b4f-4dda-bda0-799754052fff",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "1004200304684",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "11850025732208",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "14006633314036",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "1507000192029",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "1900201150572",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "20240129000072",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "2290601009009",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "2452014202112",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "2493370000004",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "2810449728013",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "295c4789-b314-43ba-a18c-274b6ac422ef",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "31080024102010",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "3165143111321",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "3322937241712",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "3374650257716",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "3662775243128",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "3f1a8ee4-8e40-4f90-af9a-deade528551c",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "4006633310222",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4007060000236",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "4007065867636",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "4007066272026",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "4013594537810",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4026947097541",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "4027816273868",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4027816321033",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4030434105633",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4034144003036",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4036021157276",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "4036021579191",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4040074053454",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4040074122754",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4040074137246",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4040074266946",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4041248145418",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4041248434536",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4041248450864",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4041248450871",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4041248450888",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4046001447266",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4053202268477",
+      "changed": [
+        "identification.category",
+        "details.attributes.Kategorie"
+      ]
+    },
+    {
+      "id": "4058213275186",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "4058213275261",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "4061945368361",
+      "changed": [
+        "identification.category"
+      ]
+    },
+    {
+      "id": "4063544824545",
+      "changed": [
+        "identification.category"
+      ]
+    }
+  ],
+  "reportCount": 152
+}

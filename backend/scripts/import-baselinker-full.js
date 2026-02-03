@@ -12,6 +12,7 @@
 
 const { callBaseLinker } = require('../lib/baselinker');
 const { firestore, findProductByStrictIdentifier, saveProduct } = require('../lib/firestore');
+const { canonicalizeBaselinkerCategoryPath } = require('../lib/baselinker-category-canonical');
 
 const INVENTORY_ID = Number(process.env.BASELINKER_INVENTORY_ID || 78659);
 const binCache = new Map(); // binCode -> metadata from warehouseBins
@@ -57,11 +58,43 @@ async function fetchData(ids) {
 
 async function fetchCategories() {
   const res = await callBaseLinker('getInventoryCategories', { inventory_id: INVENTORY_ID });
-  const map = new Map();
+  const byId = new Map();
   (res?.categories || []).forEach((c) => {
-    if (c?.category_id) map.set(String(c.category_id), c.name || '');
+    const id = Number(c?.category_id ?? c?.id);
+    if (!Number.isFinite(id) || id <= 0) return;
+    byId.set(String(id), {
+      id: String(id),
+      name: (c?.name || '').toString().trim(),
+      parentId: String(c?.parent_id ?? c?.parent_category_id ?? 0),
+    });
   });
-  return map;
+  const memo = new Map(); // id -> breadcrumb
+  const buildBreadcrumb = (id, stack = new Set()) => {
+    if (memo.has(id)) return memo.get(id);
+    const node = byId.get(String(id));
+    if (!node) {
+      memo.set(id, '');
+      return '';
+    }
+    const self = (node.name || '').toString().trim();
+    if (!self) {
+      memo.set(id, '');
+      return '';
+    }
+    if (stack.has(String(id))) {
+      memo.set(id, self);
+      return self;
+    }
+    stack.add(String(id));
+    const parentKey = String(node.parentId || '0');
+    const parent =
+      parentKey && parentKey !== '0' && byId.has(parentKey) ? buildBreadcrumb(parentKey, stack) : '';
+    stack.delete(String(id));
+    const crumb = parent ? `${parent} > ${self}` : self;
+    memo.set(id, crumb);
+    return crumb;
+  };
+  return { byId, buildBreadcrumb };
 }
 
 function normalizeImages(images) {
@@ -135,7 +168,7 @@ async function main() {
   console.log(`Produkte gelistet: ${list.length}`);
 
   const ids = list.map((p) => p.product_id || p.id).filter(Boolean);
-  const [dataMap, catMap] = await Promise.all([fetchData(ids), fetchCategories()]);
+  const [dataMap, catInfo] = await Promise.all([fetchData(ids), fetchCategories()]);
 
   let matched = 0;
   let updated = 0;
@@ -198,8 +231,9 @@ async function main() {
     }
 
     if (!dataDoc.identification.category && data.category_id) {
-      const catName = catMap.get(String(data.category_id));
-      if (catName) dataDoc.identification.category = catName;
+      const raw = catInfo.buildBreadcrumb(String(data.category_id));
+      const canon = canonicalizeBaselinkerCategoryPath(raw) || raw;
+      if (canon) dataDoc.identification.category = canon;
     }
 
     if (!dataDoc.details) dataDoc.details = {};

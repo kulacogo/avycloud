@@ -8,6 +8,7 @@
 
 const { callBaseLinker } = require('../lib/baselinker');
 const { saveProduct } = require('../lib/firestore');
+const { canonicalizeBaselinkerCategoryPath } = require('../lib/baselinker-category-canonical');
 
 const INVENTORY_ID = process.env.BASELINKER_INVENTORY_ID || '78659';
 
@@ -92,11 +93,43 @@ async function getCategories() {
     inventory_id: Number(INVENTORY_ID),
   });
   const cats = res?.categories || [];
-  const map = new Map();
+  const byId = new Map();
   cats.forEach((c) => {
-    if (c?.category_id) map.set(String(c.category_id), c.name || '');
+    const id = Number(c?.category_id ?? c?.id);
+    if (!Number.isFinite(id) || id <= 0) return;
+    byId.set(String(id), {
+      id: String(id),
+      name: (c?.name || '').toString().trim(),
+      parentId: String(c?.parent_id ?? c?.parent_category_id ?? 0),
+    });
   });
-  return map;
+  const memo = new Map(); // id -> breadcrumb
+  const buildBreadcrumb = (id, stack = new Set()) => {
+    if (memo.has(id)) return memo.get(id);
+    const node = byId.get(String(id));
+    if (!node) {
+      memo.set(id, '');
+      return '';
+    }
+    const self = (node.name || '').toString().trim();
+    if (!self) {
+      memo.set(id, '');
+      return '';
+    }
+    if (stack.has(String(id))) {
+      memo.set(id, self);
+      return self;
+    }
+    stack.add(String(id));
+    const parentKey = String(node.parentId || '0');
+    const parent =
+      parentKey && parentKey !== '0' && byId.has(parentKey) ? buildBreadcrumb(parentKey, stack) : '';
+    stack.delete(String(id));
+    const crumb = parent ? `${parent} > ${self}` : self;
+    memo.set(id, crumb);
+    return crumb;
+  };
+  return { byId, buildBreadcrumb };
 }
 
 async function getManufacturers() {
@@ -135,7 +168,7 @@ async function main() {
   console.log(`Produkte gelistet: ${list.length}`);
   const ids = list.map((p) => getPid(p)).filter(Boolean);
 
-  const [dataMap, stockMap, priceMap, catMap, manMap] = await Promise.all([
+  const [dataMap, stockMap, priceMap, catInfo, manMap] = await Promise.all([
     getProductsData(ids),
     getStock(ids),
     getPrices(ids),
@@ -153,7 +186,8 @@ async function main() {
     const price = pickFirstPrice(prices);
     const qty = pickFirstStock(stock);
     const catId = base.category_id ? String(base.category_id) : null;
-    const catName = catId ? catMap.get(catId) || '' : '';
+    const rawBreadcrumb = catId ? catInfo.buildBreadcrumb(catId) : '';
+    const catBreadcrumb = canonicalizeBaselinkerCategoryPath(rawBreadcrumb) || rawBreadcrumb || '';
 
     const imageList = Array.isArray(data.images)
       ? data.images
@@ -167,7 +201,7 @@ async function main() {
         .map((u) => ({ url_or_base64: u, source: 'baselinker' })) || [];
 
     const attrs = {};
-    if (catName) attrs.category = catName;
+    if (catBreadcrumb) attrs.Kategorie = catBreadcrumb;
     if (data.text_fields) {
       Object.entries(data.text_fields).forEach(([k, v]) => {
         if (v) attrs[`text_${k}`] = v;
@@ -190,7 +224,7 @@ async function main() {
       identification: {
         name: data.name || base.name || '',
         brand: manufacturerName || data?.producer || '',
-        category: catName || '',
+        category: catBreadcrumb || '',
         sku,
         barcodes: data.ean ? [data.ean] : [],
       },

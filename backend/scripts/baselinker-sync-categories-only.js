@@ -17,6 +17,7 @@
 
 const { getAllProducts } = require('../lib/firestore');
 const { ensureInventoryCategory } = require('../lib/baselinker');
+const { canonicalizeBaselinkerCategoryPath } = require('../lib/baselinker-category-canonical');
 
 function argFlag(name) {
   return process.argv.includes(name);
@@ -33,13 +34,13 @@ function safeString(v) {
 
 function pickCategoryPath(product) {
   const direct = safeString(product?.identification?.category);
-  if (direct) return direct;
+  if (direct) return canonicalizeBaselinkerCategoryPath(direct) || direct;
   const attrs =
     product?.details?.attributes && typeof product.details.attributes === 'object'
       ? product.details.attributes
       : {};
   const fromAttr = safeString(attrs?.Kategorie);
-  return fromAttr;
+  return canonicalizeBaselinkerCategoryPath(fromAttr) || fromAttr;
 }
 
 async function main() {
