@@ -1,9 +1,20 @@
 {
   "total": 5,
-  "done": 0,
-  "success": 0,
+  "done": 5,
+  "success": 5,
   "failed": 0,
   "started_at_iso": "2026-02-03T00:03:46.834Z",
-  "updated_at_iso": "2026-02-03T00:03:46.834Z",
-  "last": null
+  "updated_at_iso": "2026-02-03T00:07:53.778Z",
+  "last": {
+    "sku": "SKU-0026867017",
+    "ok": true,
+    "before": {
+      "desc_len": 1045,
+      "highlights": 7
+    },
+    "after": {
+      "desc_len": 1461,
+      "highlights": 7
+    }
+  }
 }
