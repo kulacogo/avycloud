@@ -79,6 +79,28 @@ const PREFIX_RULES = [
   { match: ['motorradteile'], replace: ['Auto & Motorrad'] },
   { match: ['motorradzubehor'], replace: ['Auto & Motorrad'] },
   { match: ['motorradzubehör'], replace: ['Auto & Motorrad'] },
+
+  // --- AUTO domain deeper duplicates (semantic) ---
+  // Motoröle: prefer "Öle & Flüssigkeiten" branch.
+  {
+    match: ['auto und motorrad', 'kfz-pflege und -wartung', 'motorreinigung und -pflege', 'motorole'],
+    replace: ['Auto & Motorrad', 'Öle & Flüssigkeiten', 'Motoröle'],
+  },
+  {
+    match: ['auto und motorrad', 'kfz-pflege und -wartung', 'motorreinigung und -pflege', 'motorole'],
+    replace: ['Auto & Motorrad', 'Öle & Flüssigkeiten', 'Motoröle'],
+  },
+
+  // --- FASHION domain structural duplicates (semantic) ---
+  // Collapse redundant "Herrenmode"/"Damenmode" top-level nodes into "Herren"/"Damen" buckets.
+  { match: ['kleidung und accessoires', 'herrenmode'], replace: ['Kleidung & Accessoires', 'Herren'] },
+  { match: ['kleidung und accessoires', 'damenmode'], replace: ['Kleidung & Accessoires', 'Damen'] },
+  { match: ['kleidung und accessoires', 'herren', 'herrenmode'], replace: ['Kleidung & Accessoires', 'Herren'] },
+  { match: ['kleidung und accessoires', 'damen', 'damenmode'], replace: ['Kleidung & Accessoires', 'Damen'] },
+
+  // Normalize mixed male shirts branches to a single parent.
+  { match: ['kleidung und accessoires', 'herren-t-shirts und hemden'], replace: ['Kleidung & Accessoires', 'Herren', 'Shirts & Hemden'] },
+  { match: ['kleidung und accessoires', 'herren', 'hemden und oberteile'], replace: ['Kleidung & Accessoires', 'Herren', 'Shirts & Hemden'] },
 ];
 
 const SEGMENT_ALIASES = new Map(
@@ -89,6 +111,12 @@ const SEGMENT_ALIASES = new Map(
     // Minor plural normalization
     'strings und tanga': 'Strings & Tangas',
     'strings und tangas': 'Strings & Tangas',
+
+    // Fashion structural synonyms
+    'hemden und oberteile': 'Shirts & Hemden',
+    'shirts und hemden': 'Shirts & Hemden',
+    't-shirts und hemden': 'Shirts & Hemden',
+    'herren-t-shirts und hemden': 'Shirts & Hemden',
   })
 );
 

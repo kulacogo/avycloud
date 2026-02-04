@@ -1,0 +1,20 @@
+{
+  "total": 681,
+  "done": 681,
+  "success": 681,
+  "failed": 0,
+  "started_at_iso": "2026-02-03T00:57:57.914Z",
+  "updated_at_iso": "2026-02-03T09:18:54.396Z",
+  "last": {
+    "sku": "SKU-9988960743",
+    "ok": true,
+    "before": {
+      "desc_len": 840,
+      "highlights": 6
+    },
+    "after": {
+      "desc_len": 1447,
+      "highlights": 6
+    }
+  }
+}

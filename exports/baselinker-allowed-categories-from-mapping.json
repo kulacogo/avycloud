@@ -1,0 +1,862 @@
+{
+  "inventoryId": 78659,
+  "count": 214,
+  "categories": [
+    {
+      "baselinker_category_id": "6488230",
+      "baselinker_breadcrumb": "Auto & Motorrad > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Eiskratzer & Schneebürste"
+    },
+    {
+      "baselinker_category_id": "6488231",
+      "baselinker_breadcrumb": "Auto & Motorrad > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Lufterfrischer"
+    },
+    {
+      "baselinker_category_id": "6488241",
+      "baselinker_breadcrumb": "Auto & Motorrad > Auto-Tuning & -Styling > Sport-Getriebe > Antriebswellen"
+    },
+    {
+      "baselinker_category_id": "6488243",
+      "baselinker_breadcrumb": "Auto & Motorrad > Auto-Tuning & -Styling > Sportfederung > Domlager"
+    },
+    {
+      "baselinker_category_id": "6488246",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Auto DVD Player"
+    },
+    {
+      "baselinker_category_id": "6488247",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Autoradios"
+    },
+    {
+      "baselinker_category_id": "6488251",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Autoelektrik > Anlasser"
+    },
+    {
+      "baselinker_category_id": "6488252",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Autoelektrik > Batterien"
+    },
+    {
+      "baselinker_category_id": "6488254",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsbeläge"
+    },
+    {
+      "baselinker_category_id": "6488255",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben"
+    },
+    {
+      "baselinker_category_id": "6488181",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung"
+    },
+    {
+      "baselinker_category_id": "6488257",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Lenksäulen"
+    },
+    {
+      "baselinker_category_id": "6488258",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Radlager, -naben & Buchsen"
+    },
+    {
+      "baselinker_category_id": "6488259",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Stoßdämpfer- & Federbeinhalterungen"
+    },
+    {
+      "baselinker_category_id": "6488261",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Getriebe & Antriebstechnik > Antriebswellengelenke, Achsmanschetten & Teile"
+    },
+    {
+      "baselinker_category_id": "6488182",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Innenausstattung"
+    },
+    {
+      "baselinker_category_id": "6488263",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Innenausstattung > Sonnen- & Sichtschutze"
+    },
+    {
+      "baselinker_category_id": "6488328",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Außenspiegel & Teile > Außenspiegel"
+    },
+    {
+      "baselinker_category_id": "6488331",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Schutzvorrichtungen & Schmutzfänger > Weitere Schutzvorrichtungen & Protektoren"
+    },
+    {
+      "baselinker_category_id": "6488183",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile"
+    },
+    {
+      "baselinker_category_id": "6488335",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Dichtungen & Montageteile > Dichtungen & Dichtungsringe"
+    },
+    {
+      "baselinker_category_id": "6488337",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Dichtungen & Montageteile > Dichtungssätze"
+    },
+    {
+      "baselinker_category_id": "6488266",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Inspektionspakete & -kits"
+    },
+    {
+      "baselinker_category_id": "6488342",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Ventilsteuerungsteile > Nockenwellen"
+    },
+    {
+      "baselinker_category_id": "6488267",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Ölfilter"
+    },
+    {
+      "baselinker_category_id": "6488269",
+      "baselinker_breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Motorkühlung > Ausgleichsbehälter"
+    },
+    {
+      "baselinker_category_id": "6488187",
+      "baselinker_breadcrumb": "Auto & Motorrad > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör"
+    },
+    {
+      "baselinker_category_id": "6488270",
+      "baselinker_breadcrumb": "Auto & Motorrad > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör > Motorrad- & Motorsporthelme"
+    },
+    {
+      "baselinker_category_id": "6488275",
+      "baselinker_breadcrumb": "Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Elektrik & Zündungen > Batterien"
+    },
+    {
+      "baselinker_category_id": "6488348",
+      "baselinker_breadcrumb": "Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Endantriebsriemen & -ketten & Zahnriemensätze > Endantriebsriemen & -ketten"
+    },
+    {
+      "baselinker_category_id": "6488372",
+      "baselinker_breadcrumb": "Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Endantriebsriemen & -ketten & Zahnriemensätze > Primärzahnriemen & -ketten"
+    },
+    {
+      "baselinker_category_id": "6488189",
+      "baselinker_breadcrumb": "Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Spiegel"
+    },
+    {
+      "baselinker_category_id": "6488195",
+      "baselinker_breadcrumb": "Auto & Motorrad > Quad-, SSV- & UTV-Teile & -Zubehör > Ansaug- & Kraftstoffsysteme"
+    },
+    {
+      "baselinker_category_id": "6488279",
+      "baselinker_breadcrumb": "Auto & Motorrad > Spezielle Fahrzeug-Teile > Pkw-Anhänger Ersatzteile > Stützen & Keile"
+    },
+    {
+      "baselinker_category_id": "6488284",
+      "baselinker_breadcrumb": "Auto & Motorrad > Werkzeuge > Reparatur-Sets & Teile > Reifenreparatur"
+    },
+    {
+      "baselinker_category_id": "6488191",
+      "baselinker_breadcrumb": "Auto & Motorrad > Öl, Pflege- & Schmiermittel > Automatikgetriebeöl"
+    },
+    {
+      "baselinker_category_id": "6488193",
+      "baselinker_breadcrumb": "Auto & Motorrad > Öl, Pflege- & Schmiermittel > Motoröl"
+    },
+    {
+      "baselinker_category_id": "6488164",
+      "baselinker_breadcrumb": "Baby & Kind > Auto-Kindersitze & Zubehör"
+    },
+    {
+      "baselinker_category_id": "6488201",
+      "baselinker_breadcrumb": "Baby & Kind > Bettausstattung > Matratzenschoner & -auflagen"
+    },
+    {
+      "baselinker_category_id": "6488204",
+      "baselinker_breadcrumb": "Baby & Kind > Bücher & Zeitschriften > Bücher"
+    },
+    {
+      "baselinker_category_id": "6488206",
+      "baselinker_breadcrumb": "Baby & Kind > Ernährung > Kindergeschirr & -besteck"
+    },
+    {
+      "baselinker_category_id": "6488289",
+      "baselinker_breadcrumb": "Baby & Kind > Ernährung > Kindergeschirr & -besteck > Kinderbesteck"
+    },
+    {
+      "baselinker_category_id": "6488165",
+      "baselinker_breadcrumb": "Baby & Kind > Kinderwagen & Zubehör"
+    },
+    {
+      "baselinker_category_id": "6488292",
+      "baselinker_breadcrumb": "Baby & Kind > Kinderwagen & Zubehör > Kinderwagenzubehör > Sitzauflagen"
+    },
+    {
+      "baselinker_category_id": "6488210",
+      "baselinker_breadcrumb": "Baby & Kind > Spielzeug > Badespielzeug"
+    },
+    {
+      "baselinker_category_id": "6488211",
+      "baselinker_breadcrumb": "Baby & Kind > Spielzeug > Holzspielzeug"
+    },
+    {
+      "baselinker_category_id": "6407180",
+      "baselinker_breadcrumb": "Beauty & Gesundheit > Enthaarung & Rasur > Rasierer & Rasierklingen > Herren Rasierklingen"
+    },
+    {
+      "baselinker_category_id": "6406657",
+      "baselinker_breadcrumb": "Beauty & Gesundheit > Haarpflege & Haarstyling"
+    },
+    {
+      "baselinker_category_id": "6406658",
+      "baselinker_breadcrumb": "Beauty & Gesundheit > Hautpflege"
+    },
+    {
+      "baselinker_category_id": "6406795",
+      "baselinker_breadcrumb": "Beauty & Gesundheit > Hautpflege > Anti-Faltenprodukte"
+    },
+    {
+      "baselinker_category_id": "6407184",
+      "baselinker_breadcrumb": "Beauty & Gesundheit > Hilfsmittel > Alltagshilfen > Inkontinenzhilfen"
+    },
+    {
+      "baselinker_category_id": "6406798",
+      "baselinker_breadcrumb": "Beauty & Gesundheit > Medikamente von Apothekern > Tiergesundheit"
+    },
+    {
+      "baselinker_category_id": "6407189",
+      "baselinker_breadcrumb": "Beauty & Gesundheit > Pflege- & Medizinischer Bedarf > Kälte- & Wärmetherapie > Infrarot- & Wärmegeräte"
+    },
+    {
+      "baselinker_category_id": "6406817",
+      "baselinker_breadcrumb": "Briefmarken > Motive > Geschichte"
+    },
+    {
+      "baselinker_category_id": "6407513",
+      "baselinker_breadcrumb": "Business & Industrie > Elektronik & Messtechnik > Kabel & Leitungen > Kabelverbinder & Anschlussklemmen > Leitungs- & Kabelverbinder"
+    },
+    {
+      "baselinker_category_id": "6407517",
+      "baselinker_breadcrumb": "Business & Industrie > Großhandel & Sonderposten > Kleidung & Accessoires(Posten) > Herrenbekleidung > Unterwäsche"
+    },
+    {
+      "baselinker_category_id": "6407223",
+      "baselinker_breadcrumb": "Business & Industrie > Sicherheit & Gebäudeinstandhaltung > Persönliche Schutzausrüstung > Sicherheitswesten"
+    },
+    {
+      "baselinker_category_id": "6406669",
+      "baselinker_breadcrumb": "Bücher & Zeitschriften > Bücher"
+    },
+    {
+      "baselinker_category_id": "6406670",
+      "baselinker_breadcrumb": "Bücher & Zeitschriften > Fachbücher, Lernen & Nachschlagen"
+    },
+    {
+      "baselinker_category_id": "6407208",
+      "baselinker_breadcrumb": "Büro & Schreibwaren > Büromöbel > Schränke & Regale > Aktenschränke"
+    },
+    {
+      "baselinker_category_id": "6406821",
+      "baselinker_breadcrumb": "Büro & Schreibwaren > Bürotechnik > Schreibmaschinen-Zubehör"
+    },
+    {
+      "baselinker_category_id": "6407211",
+      "baselinker_breadcrumb": "Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Papier, Hefte & Blöcke > Briefpapier & Karten"
+    },
+    {
+      "baselinker_category_id": "6406675",
+      "baselinker_breadcrumb": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör"
+    },
+    {
+      "baselinker_category_id": "6406829",
+      "baselinker_breadcrumb": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Drucker"
+    },
+    {
+      "baselinker_category_id": "6406830",
+      "baselinker_breadcrumb": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier"
+    },
+    {
+      "baselinker_category_id": "6407224",
+      "baselinker_breadcrumb": "Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier > Tintenpatronen"
+    },
+    {
+      "baselinker_category_id": "6406677",
+      "baselinker_breadcrumb": "Computer, Tablets & Netzwerk > Kabel & Steckverbinder"
+    },
+    {
+      "baselinker_category_id": "6407226",
+      "baselinker_breadcrumb": "Computer, Tablets & Netzwerk > Kabel & Steckverbinder > Netzwerkkabel & Adapter > Splitter, Koppler & Adapter"
+    },
+    {
+      "baselinker_category_id": "6406833",
+      "baselinker_breadcrumb": "Computer, Tablets & Netzwerk > Kabel & Steckverbinder > USB-Kabel, -Hubs & -Adapter"
+    },
+    {
+      "baselinker_category_id": "6406838",
+      "baselinker_breadcrumb": "Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Mauspads & Handgelenkauflagen"
+    },
+    {
+      "baselinker_category_id": "6406839",
+      "baselinker_breadcrumb": "Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Ständer, Halter & Autohalterungen"
+    },
+    {
+      "baselinker_category_id": "6406849",
+      "baselinker_breadcrumb": "Filme & Serien > Film-Fanartikel > Bücher & Skripte"
+    },
+    {
+      "baselinker_category_id": "6406851",
+      "baselinker_breadcrumb": "Garten & Terrasse > Beleuchtung > Garten- & Terrassenfackeln"
+    },
+    {
+      "baselinker_category_id": "6406854",
+      "baselinker_breadcrumb": "Garten & Terrasse > Beleuchtung > Strahler & Flutlichter"
+    },
+    {
+      "baselinker_category_id": "6406857",
+      "baselinker_breadcrumb": "Garten & Terrasse > Gartenbauten & Sonnenschutz > Sonnenschirmzubehör"
+    },
+    {
+      "baselinker_category_id": "6406865",
+      "baselinker_breadcrumb": "Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör > Servierwagen"
+    },
+    {
+      "baselinker_category_id": "6406694",
+      "baselinker_breadcrumb": "Garten & Terrasse > Motor-Gartengeräte & -zubehör"
+    },
+    {
+      "baselinker_category_id": "6406870",
+      "baselinker_breadcrumb": "Garten & Terrasse > Motor-Gartengeräte & -zubehör > Kettensägen-Zubehör"
+    },
+    {
+      "baselinker_category_id": "6406867",
+      "baselinker_breadcrumb": "Garten & Terrasse > Möbel > Möbelschutzhüllen"
+    },
+    {
+      "baselinker_category_id": "6407244",
+      "baselinker_breadcrumb": "Handys & Kommunikation > Funktechnik > Antennen > Amateurfunkantennen"
+    },
+    {
+      "baselinker_category_id": "6407246",
+      "baselinker_breadcrumb": "Handys & Kommunikation > Funktechnik > Teile & Zubehör > Filter"
+    },
+    {
+      "baselinker_category_id": "6406895",
+      "baselinker_breadcrumb": "Handys & Kommunikation > Handy-Zubehör > Taschen & Schutzhüllen"
+    },
+    {
+      "baselinker_category_id": "6406700",
+      "baselinker_breadcrumb": "Haushaltsgeräte > Geschirrspülmaschinen"
+    },
+    {
+      "baselinker_category_id": "6406904",
+      "baselinker_breadcrumb": "Haushaltsgeräte > Kaffee-, Tee- & Espressomaschinen > Filter-Kaffeemaschinen"
+    },
+    {
+      "baselinker_category_id": "6406907",
+      "baselinker_breadcrumb": "Haushaltsgeräte > Kleingeräte Haushalt > Dampfreiniger"
+    },
+    {
+      "baselinker_category_id": "6406910",
+      "baselinker_breadcrumb": "Haushaltsgeräte > Kleingeräte Küche > Fritteusen"
+    },
+    {
+      "baselinker_category_id": "6407270",
+      "baselinker_breadcrumb": "Haushaltsgeräte > Klimaanlagen & Heizgeräte > Ventilatoren & Luftbehandlung > Stand- & Tischventilatoren"
+    },
+    {
+      "baselinker_category_id": "6406914",
+      "baselinker_breadcrumb": "Haushaltsgeräte > Staubsauger & Zubehör > Staubsauger"
+    },
+    {
+      "baselinker_category_id": "6406917",
+      "baselinker_breadcrumb": "Haushaltsgeräte > Waschmaschinen & Trockner > Waschmaschinen- & Trocknerteile"
+    },
+    {
+      "baselinker_category_id": "6406703",
+      "baselinker_breadcrumb": "Haustierbedarf > Fische & Aquarien"
+    },
+    {
+      "baselinker_category_id": "6406921",
+      "baselinker_breadcrumb": "Haustierbedarf > Katzen > Kratzbäume & Möbel"
+    },
+    {
+      "baselinker_category_id": "6406922",
+      "baselinker_breadcrumb": "Haustierbedarf > Katzen > Näpfe & Trinkbrunnen"
+    },
+    {
+      "baselinker_category_id": "6406923",
+      "baselinker_breadcrumb": "Heimwerker > Bad & Küche > Bad"
+    },
+    {
+      "baselinker_category_id": "6407277",
+      "baselinker_breadcrumb": "Heimwerker > Bad & Küche > Küche > Küchenarmaturen"
+    },
+    {
+      "baselinker_category_id": "6407280",
+      "baselinker_breadcrumb": "Heimwerker > Erneuerbare Energie > Solarenergie > Solarmodule"
+    },
+    {
+      "baselinker_category_id": "6406930",
+      "baselinker_breadcrumb": "Heimwerker > Farben, Tapeten & Zubehör > Tapeten, Werkzeuge & Zubehör"
+    },
+    {
+      "baselinker_category_id": "6407283",
+      "baselinker_breadcrumb": "Heimwerker > Heizen, Klima & Sanitär > Heizungs-, Klima- & Sanitärprüfgeräte > Rohrinstallations-Sets"
+    },
+    {
+      "baselinker_category_id": "6407285",
+      "baselinker_breadcrumb": "Heimwerker > Heizen, Klima & Sanitär > Wasser > Pumpen & Wasserfiltersysteme"
+    },
+    {
+      "baselinker_category_id": "6407286",
+      "baselinker_breadcrumb": "Heimwerker > Heizen, Klima & Sanitär > Wasser > Ventile"
+    },
+    {
+      "baselinker_category_id": "6406932",
+      "baselinker_breadcrumb": "Heimwerker > Schrankbeschläge & -teile > Schubladenschienen"
+    },
+    {
+      "baselinker_category_id": "6406934",
+      "baselinker_breadcrumb": "Heimwerker > Schwimmbecken, Saunen & Außenwhirlpools > Schwimmbeckenbedarf"
+    },
+    {
+      "baselinker_category_id": "6406936",
+      "baselinker_breadcrumb": "Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör"
+    },
+    {
+      "baselinker_category_id": "6407287",
+      "baselinker_breadcrumb": "Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör > Bohrer-Bits"
+    },
+    {
+      "baselinker_category_id": "6407288",
+      "baselinker_breadcrumb": "Heimwerker > Werkzeuge > Elektrowerkzeuge > Schleifmaschinen"
+    },
+    {
+      "baselinker_category_id": "6406938",
+      "baselinker_breadcrumb": "Heimwerker > Werkzeuge > Handwerkzeuge"
+    },
+    {
+      "baselinker_category_id": "6407289",
+      "baselinker_breadcrumb": "Heimwerker > Werkzeuge > Handwerkzeuge > Messer"
+    },
+    {
+      "baselinker_category_id": "6407290",
+      "baselinker_breadcrumb": "Heimwerker > Werkzeuge > Handwerkzeuge > Schraubenschlüssel"
+    },
+    {
+      "baselinker_category_id": "6407292",
+      "baselinker_breadcrumb": "Heimwerker > Werkzeuge > Messwerkzeuge & Messgeräte > Messschieber"
+    },
+    {
+      "baselinker_category_id": "6407527",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Damen > Damen-Accessoires > Sonnenbrillen & Zubehör > Sonnenbrillen"
+    },
+    {
+      "baselinker_category_id": "6406945",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Damen > Damenschuhe"
+    },
+    {
+      "baselinker_category_id": "6407293",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Damen > Damenschuhe > Halbschuhe & Ballerinas"
+    },
+    {
+      "baselinker_category_id": "6407294",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Damen > Damenschuhe > Sneaker"
+    },
+    {
+      "baselinker_category_id": "6407295",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten"
+    },
+    {
+      "baselinker_category_id": "6407307",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Herren > Herren-Accessoires"
+    },
+    {
+      "baselinker_category_id": "6407308",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Herren > Herren-Accessoires > Geldbörsen & Etuis"
+    },
+    {
+      "baselinker_category_id": "6407309",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Herren > Herren-Accessoires > Handschuhe & Fäustlinge"
+    },
+    {
+      "baselinker_category_id": "6407314",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Herren > Herrenschuhe > Sandalen"
+    },
+    {
+      "baselinker_category_id": "6407315",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker"
+    },
+    {
+      "baselinker_category_id": "6407316",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Herren > Herrenschuhe > Stiefel"
+    },
+    {
+      "baselinker_category_id": "6407310",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Herren > Pullover & Strick"
+    },
+    {
+      "baselinker_category_id": "6407531",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Herren > Shirts & Hemden > Freizeithemden & Shirts"
+    },
+    {
+      "baselinker_category_id": "6407532",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Herren > Shirts & Hemden > Poloshirts"
+    },
+    {
+      "baselinker_category_id": "6407533",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Herren > Shirts & Hemden > T-Shirts"
+    },
+    {
+      "baselinker_category_id": "6407317",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Herren > Unterwäsche"
+    },
+    {
+      "baselinker_category_id": "6407537",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Kinder > Jungen > Mode für Jungen > T-Shirts, Polos & Hemden"
+    },
+    {
+      "baselinker_category_id": "6407540",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Kinder > Unisex für Kinder > Unisex-Mode > Kapuzenpullover & Sweatshirts"
+    },
+    {
+      "baselinker_category_id": "6407329",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Spezielle Anlässe > Erotik > Kostüme für Damen"
+    },
+    {
+      "baselinker_category_id": "6407543",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Spezielle Anlässe > Kostüme & Verkleidungen > Kostüme > Baby- & Kleinkinderkostüme"
+    },
+    {
+      "baselinker_category_id": "6407547",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Accessoires > Krawatten, -schals & Fliegen"
+    },
+    {
+      "baselinker_category_id": "6407549",
+      "baselinker_breadcrumb": "Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Mode für Herren > Pullover & Strickjacken"
+    },
+    {
+      "baselinker_category_id": "6407174",
+      "baselinker_breadcrumb": "Künstler- & Zeichenbedarf > Malen > Aquarell"
+    },
+    {
+      "baselinker_category_id": "6407176",
+      "baselinker_breadcrumb": "Künstler- & Zeichenbedarf > Zeichnen > Farbstifte & Zeichenkohle"
+    },
+    {
+      "baselinker_category_id": "6407177",
+      "baselinker_breadcrumb": "Künstler- & Zeichenbedarf > Zeichnen > Pastell"
+    },
+    {
+      "baselinker_category_id": "6407552",
+      "baselinker_breadcrumb": "Modellbau > Modellbausätze > Werkzeuge, Zubehör & Motoren > Werkzeuge > Elektrowerkzeuge"
+    },
+    {
+      "baselinker_category_id": "6407378",
+      "baselinker_breadcrumb": "Modellbau > RC-Modellbau > RC Modellbau Teile & Zubehör > Fernsteuerung & Elektronik"
+    },
+    {
+      "baselinker_category_id": "6407385",
+      "baselinker_breadcrumb": "Musikinstrumente > Drums & Percussion > Ersatzteile > Sticks, Besen & Schlägel"
+    },
+    {
+      "baselinker_category_id": "6407021",
+      "baselinker_breadcrumb": "Musikinstrumente > Gitarren & Bässe > E-Gitarren"
+    },
+    {
+      "baselinker_category_id": "6407554",
+      "baselinker_breadcrumb": "Musikinstrumente > Gitarren & Bässe > Zubehör > Teile > Pickups"
+    },
+    {
+      "baselinker_category_id": "6407338",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Badezimmer > Badezimmerzubehör > Badvorleger, Teppiche & Toilettensitzabdeckungen"
+    },
+    {
+      "baselinker_category_id": "6407339",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Badezimmer > Badezimmerzubehör > Handtuchhalter"
+    },
+    {
+      "baselinker_category_id": "6407341",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Badezimmer > Dusch- & Badewannenzubehör > Anti-Rutsch-Lösungen"
+    },
+    {
+      "baselinker_category_id": "6406723",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Beleuchtung"
+    },
+    {
+      "baselinker_category_id": "6406724",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen"
+    },
+    {
+      "baselinker_category_id": "6406974",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettlaken"
+    },
+    {
+      "baselinker_category_id": "6406975",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettwäsche"
+    },
+    {
+      "baselinker_category_id": "6406976",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Kopfkissen & Körperkissen"
+    },
+    {
+      "baselinker_category_id": "6406979",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Dekoration > Figuren, Skulpturen & Statuen"
+    },
+    {
+      "baselinker_category_id": "6407344",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Haushalt > Putzgeräte > Reinigungshandschuhe"
+    },
+    {
+      "baselinker_category_id": "6406983",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Hochzeitsdekoration > Gastgeschenke"
+    },
+    {
+      "baselinker_category_id": "6406984",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Kindermöbel & Wohnen > Badzubehör & -textilien"
+    },
+    {
+      "baselinker_category_id": "6407348",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Kindermöbel & Wohnen > Bettwaren & -wäsche > Bettdecken"
+    },
+    {
+      "baselinker_category_id": "6407350",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Kindermöbel & Wohnen > Kochen & Essen > Schüsseln & Teller"
+    },
+    {
+      "baselinker_category_id": "6406726",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Kochen & Genießen"
+    },
+    {
+      "baselinker_category_id": "6407354",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Servierplatten & -schalen"
+    },
+    {
+      "baselinker_category_id": "6407355",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Tischsets"
+    },
+    {
+      "baselinker_category_id": "6406986",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Kochen & Genießen > Gläser & Glaswaren"
+    },
+    {
+      "baselinker_category_id": "6407356",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Kochen & Genießen > Küchenhelfer > Gewürzmühlen & -streuer"
+    },
+    {
+      "baselinker_category_id": "6406988",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Kochen & Genießen > Küchenmesser"
+    },
+    {
+      "baselinker_category_id": "6407363",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Kochen & Genießen > Wasseraufbereitung & Trinkwassersprudler > Trinkwassersprudler"
+    },
+    {
+      "baselinker_category_id": "6407364",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Kochen & Genießen > Wasseraufbereitung & Trinkwassersprudler > Wasserfilter-Kartuschen"
+    },
+    {
+      "baselinker_category_id": "6407366",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Möbel > Betten > Lattenroste"
+    },
+    {
+      "baselinker_category_id": "6406991",
+      "baselinker_breadcrumb": "Möbel & Wohnen > Möbel > Regale & Aufbewahrung"
+    },
+    {
+      "baselinker_category_id": "6407382",
+      "baselinker_breadcrumb": "Münzen > Historische Wertpapiere > USA & Kanada > Elektronik & Computer"
+    },
+    {
+      "baselinker_category_id": "6407029",
+      "baselinker_breadcrumb": "Reisen > Reiseaccessoires > Regenschirme"
+    },
+    {
+      "baselinker_category_id": "6407033",
+      "baselinker_breadcrumb": "Reisen > Reisekoffer & -taschen > Reisekoffer & Trolleys"
+    },
+    {
+      "baselinker_category_id": "6407036",
+      "baselinker_breadcrumb": "Sammeln & Seltenes > Rollenspiele & Tabletops > Kartenspiele"
+    },
+    {
+      "baselinker_category_id": "6407394",
+      "baselinker_breadcrumb": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Deck-Boxen, Blechdosen & Kartentrenner"
+    },
+    {
+      "baselinker_category_id": "6406732",
+      "baselinker_breadcrumb": "Spielzeug > Basteln & Kreativität"
+    },
+    {
+      "baselinker_category_id": "6407045",
+      "baselinker_breadcrumb": "Spielzeug > Bären, -kleidung & Zubehör > Bärenkleidung & Accessoires"
+    },
+    {
+      "baselinker_category_id": "6406733",
+      "baselinker_breadcrumb": "Spielzeug > Lernspielzeug"
+    },
+    {
+      "baselinker_category_id": "6407053",
+      "baselinker_breadcrumb": "Spielzeug > Musik & Instrumente > Trommeln & Co."
+    },
+    {
+      "baselinker_category_id": "6407055",
+      "baselinker_breadcrumb": "Spielzeug > Playmobil > Freizeit"
+    },
+    {
+      "baselinker_category_id": "6406734",
+      "baselinker_breadcrumb": "Spielzeug > Puppen & Zubehör"
+    },
+    {
+      "baselinker_category_id": "6407406",
+      "baselinker_breadcrumb": "Spielzeug > Spiele > Kartenspiele > Moderne Kartenspiele"
+    },
+    {
+      "baselinker_category_id": "6407057",
+      "baselinker_breadcrumb": "Spielzeug > Spiele > Sonstige"
+    },
+    {
+      "baselinker_category_id": "6407418",
+      "baselinker_breadcrumb": "Sport > Angelsport > Kleines Angelzubehör > Bleie"
+    },
+    {
+      "baselinker_category_id": "6407420",
+      "baselinker_breadcrumb": "Sport > Angelsport > Zubehör > Räucheröfen & -utensilien"
+    },
+    {
+      "baselinker_category_id": "6407423",
+      "baselinker_breadcrumb": "Sport > Camping & Outdoor > Bekleidung > Wanderschuhe"
+    },
+    {
+      "baselinker_category_id": "6407428",
+      "baselinker_breadcrumb": "Sport > Camping & Outdoor > Camping-Küchenbedarf > Kochgeschirr"
+    },
+    {
+      "baselinker_category_id": "6407438",
+      "baselinker_breadcrumb": "Sport > Camping & Outdoor > Rucksäcke > Tagesrucksäcke"
+    },
+    {
+      "baselinker_category_id": "6407439",
+      "baselinker_breadcrumb": "Sport > Camping & Outdoor > Rucksäcke > Trekkingrucksäcke"
+    },
+    {
+      "baselinker_category_id": "6407067",
+      "baselinker_breadcrumb": "Sport > Camping & Outdoor > Sonstiges Camping & Outdoor"
+    },
+    {
+      "baselinker_category_id": "6407441",
+      "baselinker_breadcrumb": "Sport > Camping & Outdoor > Zelte & Strandmuscheln > Strandmuscheln"
+    },
+    {
+      "baselinker_category_id": "6407557",
+      "baselinker_breadcrumb": "Sport > Fitness & Jogging > Bekleidung > Damen > Sweatshirts & Kapuzenpullover"
+    },
+    {
+      "baselinker_category_id": "6407069",
+      "baselinker_breadcrumb": "Sport > Fitness & Jogging > Fitness- & Laufschuhe"
+    },
+    {
+      "baselinker_category_id": "6407446",
+      "baselinker_breadcrumb": "Sport > Fitness & Jogging > Krafttraining & Gewichte > Gewichthebergürtel"
+    },
+    {
+      "baselinker_category_id": "6407070",
+      "baselinker_breadcrumb": "Sport > Fitness & Jogging > Yoga & Pilates"
+    },
+    {
+      "baselinker_category_id": "6407449",
+      "baselinker_breadcrumb": "Sport > Fitness & Jogging > Yoga & Pilates > Yogamatten"
+    },
+    {
+      "baselinker_category_id": "6407072",
+      "baselinker_breadcrumb": "Sport > Funsport > Cityroller & Kickboards"
+    },
+    {
+      "baselinker_category_id": "6407073",
+      "baselinker_breadcrumb": "Sport > Funsport > Elektro-Scooter"
+    },
+    {
+      "baselinker_category_id": "6407563",
+      "baselinker_breadcrumb": "Sport > Funsport > Skateboarding > Boards > Lager"
+    },
+    {
+      "baselinker_category_id": "6407075",
+      "baselinker_breadcrumb": "Sport > Radsport > Fahrradteile & -komponenten"
+    },
+    {
+      "baselinker_category_id": "6407456",
+      "baselinker_breadcrumb": "Sport > Radsport > Fahrradteile & -komponenten > Bremsbeläge"
+    },
+    {
+      "baselinker_category_id": "6407457",
+      "baselinker_breadcrumb": "Sport > Radsport > Fahrradteile & -komponenten > Bremsscheiben"
+    },
+    {
+      "baselinker_category_id": "6407458",
+      "baselinker_breadcrumb": "Sport > Radsport > Fahrradteile & -komponenten > Sättel"
+    },
+    {
+      "baselinker_category_id": "6407076",
+      "baselinker_breadcrumb": "Sport > Radsport > Fahrradzubehör"
+    },
+    {
+      "baselinker_category_id": "6407461",
+      "baselinker_breadcrumb": "Sport > Radsport > Fahrradzubehör > Beleuchtung & Reflektoren"
+    },
+    {
+      "baselinker_category_id": "6407463",
+      "baselinker_breadcrumb": "Sport > Radsport > Fahrradzubehör > Fahrradanhänger"
+    },
+    {
+      "baselinker_category_id": "6407464",
+      "baselinker_breadcrumb": "Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung"
+    },
+    {
+      "baselinker_category_id": "6407465",
+      "baselinker_breadcrumb": "Sport > Radsport > Fahrradzubehör > Fahrradtaschen"
+    },
+    {
+      "baselinker_category_id": "6407467",
+      "baselinker_breadcrumb": "Sport > Radsport > Fahrradzubehör > Schlösser & Sicherheit"
+    },
+    {
+      "baselinker_category_id": "6407468",
+      "baselinker_breadcrumb": "Sport > Radsport > Fahrradzubehör > Transportkoffer/-taschen"
+    },
+    {
+      "baselinker_category_id": "6407470",
+      "baselinker_breadcrumb": "Sport > Radsport > Helme & Protektoren > Helme"
+    },
+    {
+      "baselinker_category_id": "6407080",
+      "baselinker_breadcrumb": "Sport > Sporttaschen & Rucksäcke > Rucksäcke"
+    },
+    {
+      "baselinker_category_id": "6407475",
+      "baselinker_breadcrumb": "Sport > Tauchen > Instrumente & Uhren > Konsolen"
+    },
+    {
+      "baselinker_category_id": "6407477",
+      "baselinker_breadcrumb": "Sport > Weitere Ballsportarten > Football > Fanartikel"
+    },
+    {
+      "baselinker_category_id": "6407082",
+      "baselinker_breadcrumb": "Sport > Weitere Ballsportarten > Tennis"
+    },
+    {
+      "baselinker_category_id": "6407478",
+      "baselinker_breadcrumb": "Sport > Weitere Ballsportarten > Tennis > Sonstige"
+    },
+    {
+      "baselinker_category_id": "6407485",
+      "baselinker_breadcrumb": "Sport > Weiterer Wassersport > Kitesurfen > Sonstige"
+    },
+    {
+      "baselinker_category_id": "6407488",
+      "baselinker_breadcrumb": "Sport > Wintersport > Bekleidung > Hosen"
+    },
+    {
+      "baselinker_category_id": "6407570",
+      "baselinker_breadcrumb": "Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Schuhe & Boots > Herrenschuhe & -boots"
+    },
+    {
+      "baselinker_category_id": "6407571",
+      "baselinker_breadcrumb": "Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Schuhe & Boots > Kinderschuhe & -boots"
+    },
+    {
+      "baselinker_category_id": "6406740",
+      "baselinker_breadcrumb": "TV, Video & Audio > Tragbare Geräte & Kopfhörer"
+    },
+    {
+      "baselinker_category_id": "6407095",
+      "baselinker_breadcrumb": "Uhren & Schmuck > Juwelierbedarf > Reinigungsgeräte & -materialien"
+    }
+  ]
+}

@@ -1,0 +1,591 @@
+marketplace;excel_row;master_baselinker_breadcrumb;candidate_id;candidate_breadcrumb;score
+hood;3;Auto & Motorrad > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Eiskratzer & Schneebürste;7409;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Ladegeräte;0.296
+hood;3;Auto & Motorrad > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Eiskratzer & Schneebürste;7601;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Stifte;0.295
+hood;3;Auto & Motorrad > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Eiskratzer & Schneebürste;7271;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones;0.293
+hood;4;Auto & Motorrad > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Lufterfrischer;22086;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Lautsprecher & Sound;0.306
+hood;4;Auto & Motorrad > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Lufterfrischer;26311;Zubehör für Töpfe & Pfannen kaufen > Untersetzer;0.303
+hood;4;Auto & Motorrad > Auto-Anbau- & -Zubehörteile > Autopflege & Aufbereitung > Lufterfrischer;7591;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Speicherkarten;0.300
+hood;5;Auto & Motorrad > Auto-Tuning & -Styling > Sport-Getriebe > Antriebswellen;2477;Socken & Strümpfe für Baby & Kleinkind > Sport- & Badekleidung;0.299
+hood;5;Auto & Motorrad > Auto-Tuning & -Styling > Sport-Getriebe > Antriebswellen;15118;Alles rund um Camping & Outdoor online kaufen > Isomatten & Matratzen;0.292
+hood;5;Auto & Motorrad > Auto-Tuning & -Styling > Sport-Getriebe > Antriebswellen;4967;Druckerpatronen online kaufen > Sonstiges Zubehör & Teile;0.275
+hood;6;Auto & Motorrad > Auto-Tuning & -Styling > Sportfederung > Domlager;2477;Socken & Strümpfe für Baby & Kleinkind > Sport- & Badekleidung;0.290
+hood;6;Auto & Motorrad > Auto-Tuning & -Styling > Sportfederung > Domlager;23155;Jacken & Mäntel > Herren Lederjacken > Parkas;0.283
+hood;6;Auto & Motorrad > Auto-Tuning & -Styling > Sportfederung > Domlager;15169;Alles rund um Camping & Outdoor online kaufen > Sonstige;0.281
+hood;7;Auto & Motorrad > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Auto DVD Player;7913;Sicherheitstechnik: Türsicherung kaufen > Sonstige;0.316
+hood;7;Auto & Motorrad > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Auto DVD Player;7912;Sicherheitstechnik: Türsicherung kaufen > Vorhängeschlösser;0.315
+hood;7;Auto & Motorrad > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Auto DVD Player;7909;Sicherheitstechnik: Türsicherung kaufen > Einbruchschutz;0.302
+hood;8;Auto & Motorrad > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Autoradios;7913;Sicherheitstechnik: Türsicherung kaufen > Sonstige;0.329
+hood;8;Auto & Motorrad > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Autoradios;7912;Sicherheitstechnik: Türsicherung kaufen > Vorhängeschlösser;0.318
+hood;8;Auto & Motorrad > Autoelektronik, GPS & Sicherheitstechnik > Autoentertainment > Autoradios;7909;Sicherheitstechnik: Türsicherung kaufen > Einbruchschutz;0.314
+hood;9;Auto & Motorrad > Autoteile & Zubehör > Autoelektrik > Anlasser;1001;KFZ Verschleißteile: Dichtungen > Autoteile & Zubehör;0.323
+hood;9;Auto & Motorrad > Autoteile & Zubehör > Autoelektrik > Anlasser;9128;Damen Sportschuhe & Sneaker > Ballerinas & Slipper;0.319
+hood;9;Auto & Motorrad > Autoteile & Zubehör > Autoelektrik > Anlasser;7409;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Ladegeräte;0.305
+hood;10;Auto & Motorrad > Autoteile & Zubehör > Autoelektrik > Batterien;22448;Baustoffe & Bauelemente > Bausätze;0.323
+hood;10;Auto & Motorrad > Autoteile & Zubehör > Autoelektrik > Batterien;1001;KFZ Verschleißteile: Dichtungen > Autoteile & Zubehör;0.321
+hood;10;Auto & Motorrad > Autoteile & Zubehör > Autoelektrik > Batterien;7306;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Antennen;0.318
+hood;11;Auto & Motorrad > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsbeläge;1667;KFZ Verschleißteile: Dichtungen > Bremsbeläge;0.331
+hood;12;Auto & Motorrad > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben;1666;KFZ Verschleißteile: Dichtungen > Bremsscheiben;0.345
+hood;13;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung;1001;KFZ Verschleißteile: Dichtungen > Autoteile & Zubehör;0.336
+hood;13;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung;11968;Modellbau > Alles für den RC-Modellbau, kaufen > Fernsteuerung & Elektronik;0.314
+hood;13;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung;13498;musik > Zubehör & Aufbewahrung;0.311
+hood;14;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Lenksäulen;26311;Zubehör für Töpfe & Pfannen kaufen > Untersetzer;0.303
+hood;14;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Lenksäulen;7306;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Antennen;0.302
+hood;14;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Lenksäulen;1001;KFZ Verschleißteile: Dichtungen > Autoteile & Zubehör;0.300
+hood;15;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Radlager, -naben & Buchsen;7476;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Hüllen & Cases;0.305
+hood;15;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Radlager, -naben & Buchsen;22086;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Lautsprecher & Sound;0.295
+hood;15;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Radlager, -naben & Buchsen;7306;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Antennen;0.290
+hood;16;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Stoßdämpfer- & Federbeinhalterungen;1670;KFZ Verschleißteile: Dichtungen > Stoßdämpfer;0.316
+hood;16;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Stoßdämpfer- & Federbeinhalterungen;22081;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Teile & Werkzeuge;0.301
+hood;16;Auto & Motorrad > Autoteile & Zubehör > Federung & Lenkung > Stoßdämpfer- & Federbeinhalterungen;23157;Jacken & Mäntel > Herren Lederjacken > Woll- & Wintermäntel;0.297
+hood;17;Auto & Motorrad > Autoteile & Zubehör > Getriebe & Antriebstechnik > Antriebswellengelenke, Achsmanschetten & Teile;7388;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Halterungen & Ständer;0.288
+hood;17;Auto & Motorrad > Autoteile & Zubehör > Getriebe & Antriebstechnik > Antriebswellengelenke, Achsmanschetten & Teile;26312;Zubehör für Töpfe & Pfannen kaufen > Spritzschutz & Deckel;0.275
+hood;17;Auto & Motorrad > Autoteile & Zubehör > Getriebe & Antriebstechnik > Antriebswellengelenke, Achsmanschetten & Teile;7306;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Antennen;0.270
+hood;18;Auto & Motorrad > Autoteile & Zubehör > Innenausstattung;1001;KFZ Verschleißteile: Dichtungen > Autoteile & Zubehör;0.347
+hood;18;Auto & Motorrad > Autoteile & Zubehör > Innenausstattung;13498;musik > Zubehör & Aufbewahrung;0.318
+hood;18;Auto & Motorrad > Autoteile & Zubehör > Innenausstattung;21965;Computer online kaufen im Computer-Shop > Notebook-Zubehör > Tastaturen;0.306
+hood;19;Auto & Motorrad > Autoteile & Zubehör > Innenausstattung > Sonnen- & Sichtschutze;7977;Baustoffe & Bauelemente > Sonnenschutz & Insektenschutz;0.307
+hood;19;Auto & Motorrad > Autoteile & Zubehör > Innenausstattung > Sonnen- & Sichtschutze;7543;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Schutzfolien;0.303
+hood;19;Auto & Motorrad > Autoteile & Zubehör > Innenausstattung > Sonnen- & Sichtschutze;26312;Zubehör für Töpfe & Pfannen kaufen > Spritzschutz & Deckel;0.300
+hood;20;Auto & Motorrad > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Außenspiegel & Teile > Außenspiegel;7504;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Sonstige;0.283
+hood;20;Auto & Motorrad > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Außenspiegel & Teile > Außenspiegel;7306;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Antennen;0.275
+hood;20;Auto & Motorrad > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Außenspiegel & Teile > Außenspiegel;22086;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Lautsprecher & Sound;0.273
+hood;21;Auto & Motorrad > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Schutzvorrichtungen & Schmutzfänger > Weitere Schutzvorrichtungen & Protektoren;7388;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Halterungen & Ständer;0.276
+hood;21;Auto & Motorrad > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Schutzvorrichtungen & Schmutzfänger > Weitere Schutzvorrichtungen & Protektoren;7370;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Freisprechanlagen;0.262
+hood;21;Auto & Motorrad > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Schutzvorrichtungen & Schmutzfänger > Weitere Schutzvorrichtungen & Protektoren;7390;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Schmuck & Sticker;0.250
+hood;22;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile;1001;KFZ Verschleißteile: Dichtungen > Autoteile & Zubehör;0.326
+hood;22;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile;7306;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Antennen;0.312
+hood;22;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile;22081;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Teile & Werkzeuge;0.302
+hood;23;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Dichtungen & Montageteile > Dichtungen & Dichtungsringe;7388;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Halterungen & Ständer;0.288
+hood;23;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Dichtungen & Montageteile > Dichtungen & Dichtungsringe;7390;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Schmuck & Sticker;0.279
+hood;23;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Dichtungen & Montageteile > Dichtungen & Dichtungsringe;29574;KFZ Verschleißteile: Dichtungen > Bremsleitungen;0.276
+hood;24;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Dichtungen & Montageteile > Dichtungssätze;7388;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Halterungen & Ständer;0.300
+hood;24;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Dichtungen & Montageteile > Dichtungssätze;7977;Baustoffe & Bauelemente > Sonnenschutz & Insektenschutz;0.293
+hood;24;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Dichtungen & Montageteile > Dichtungssätze;7390;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Schmuck & Sticker;0.291
+hood;25;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Inspektionspakete & -kits;12148;Dekorative Haken & Garderoben > Dekoration > Feste & Partys;0.319
+hood;25;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Inspektionspakete & -kits;25501;Dekorative Haken & Garderoben > Dekoration > Pflanzen & Kunstblumen;0.303
+hood;25;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Inspektionspakete & -kits;12130;Dekorative Haken & Garderoben > Dekoration > Kerzenständer & Windlichter;0.302
+hood;26;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Ölfilter;22081;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Teile & Werkzeuge;0.318
+hood;26;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Ölfilter;7601;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Stifte;0.312
+hood;26;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Ölfilter;7409;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Ladegeräte;0.304
+hood;27;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Ventilsteuerungsteile > Nockenwellen;22081;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Teile & Werkzeuge;0.285
+hood;27;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Ventilsteuerungsteile > Nockenwellen;12112;Dekorative Haken & Garderoben > Dekoration > Kerzen;0.284
+hood;27;Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile > Ventilsteuerungsteile > Nockenwellen;22957;Diverse Damenmode > Jacken & Mäntel > Übergangsjacken;0.281
+hood;28;Auto & Motorrad > Autoteile & Zubehör > Motorkühlung > Ausgleichsbehälter;1001;KFZ Verschleißteile: Dichtungen > Autoteile & Zubehör;0.300
+hood;28;Auto & Motorrad > Autoteile & Zubehör > Motorkühlung > Ausgleichsbehälter;7591;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Speicherkarten;0.296
+hood;28;Auto & Motorrad > Autoteile & Zubehör > Motorkühlung > Ausgleichsbehälter;8265;Jacken & Mäntel > Herren Lederjacken > Mode & Schuhe;0.288
+hood;29;Auto & Motorrad > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör;7977;Baustoffe & Bauelemente > Sonnenschutz & Insektenschutz;0.297
+hood;29;Auto & Motorrad > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör;24811;Kostüme & Verkleidungen, neu und gebraucht, > Hüte & Brillen;0.296
+hood;29;Auto & Motorrad > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör;21298;Elegante Herrenschuhe > Zubehör & Pflege;0.286
+hood;30;Auto & Motorrad > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör > Motorrad- & Motorsporthelme;9514;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode > Fitness- & Sportswear;0.292
+hood;30;Auto & Motorrad > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör > Motorrad- & Motorsporthelme;21298;Elegante Herrenschuhe > Zubehör & Pflege;0.286
+hood;30;Auto & Motorrad > Kleidung, Schutzausrüstung & Merchandise > Helme & Zubehör > Motorrad- & Motorsporthelme;9181;Damen Sportschuhe & Sneaker > Zubehör & Pflege;0.275
+hood;31;Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Elektrik & Zündungen > Batterien;8017;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien;0.328
+hood;31;Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Elektrik & Zündungen > Batterien;8021;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Kabel;0.310
+hood;31;Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Elektrik & Zündungen > Batterien;8018;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Dimmer;0.308
+hood;32;Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Endantriebsriemen & -ketten & Zahnriemensätze > Endantriebsriemen & -ketten;7388;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Halterungen & Ständer;0.242
+hood;32;Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Endantriebsriemen & -ketten & Zahnriemensätze > Endantriebsriemen & -ketten;8026;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Weitere Stecker;0.241
+hood;32;Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Endantriebsriemen & -ketten & Zahnriemensätze > Endantriebsriemen & -ketten;8019;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Elektromotoren;0.230
+hood;33;Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Endantriebsriemen & -ketten & Zahnriemensätze > Primärzahnriemen & -ketten;29054;Dekorative Haken & Garderoben > Pinnwände & Magnettafeln;0.229
+hood;33;Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Endantriebsriemen & -ketten & Zahnriemensätze > Primärzahnriemen & -ketten;8018;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Dimmer;0.226
+hood;33;Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik > Endantriebsriemen & -ketten & Zahnriemensätze > Primärzahnriemen & -ketten;7388;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Halterungen & Ständer;0.225
+hood;34;Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Spiegel;12182;Dekorative Haken & Garderoben > Spiegel;0.339
+hood;34;Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Spiegel;12071;badezimmer > Badaccessoires > Spiegel;0.323
+hood;35;Auto & Motorrad > Öl, Pflege- & Schmiermittel > Automatikgetriebeöl;9640;Herren-Accessoires > Herren Regenschirme > Sonstige;0.305
+hood;35;Auto & Motorrad > Öl, Pflege- & Schmiermittel > Automatikgetriebeöl;23544;Herren-Accessoires > Herren Regenschirme > Sonnenbrillen;0.293
+hood;35;Auto & Motorrad > Öl, Pflege- & Schmiermittel > Automatikgetriebeöl;6687;foto-camcorder > Foto- & Kamerazubehör;0.288
+hood;36;Auto & Motorrad > Öl, Pflege- & Schmiermittel > Motoröl;7952;Baustoffe & Bauelemente > Mörtel;0.314
+hood;36;Auto & Motorrad > Öl, Pflege- & Schmiermittel > Motoröl;29493;Herren-Accessoires > Herren Regenschirme > Hosenträger;0.304
+hood;36;Auto & Motorrad > Öl, Pflege- & Schmiermittel > Motoröl;9640;Herren-Accessoires > Herren Regenschirme > Sonstige;0.299
+hood;37;Auto & Motorrad > Quad-, SSV- & UTV-Teile & -Zubehör > Ansaug- & Kraftstoffsysteme;7271;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones;0.272
+hood;37;Auto & Motorrad > Quad-, SSV- & UTV-Teile & -Zubehör > Ansaug- & Kraftstoffsysteme;7306;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Antennen;0.271
+hood;37;Auto & Motorrad > Quad-, SSV- & UTV-Teile & -Zubehör > Ansaug- & Kraftstoffsysteme;7504;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Sonstige;0.271
+hood;38;Auto & Motorrad > Spezielle Fahrzeug-Teile > Pkw-Anhänger Ersatzteile > Stützen & Keile;23110;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode > Socken & Strümpfe;0.306
+hood;38;Auto & Motorrad > Spezielle Fahrzeug-Teile > Pkw-Anhänger Ersatzteile > Stützen & Keile;23416;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode > Shorts & Bermudas;0.298
+hood;38;Auto & Motorrad > Spezielle Fahrzeug-Teile > Pkw-Anhänger Ersatzteile > Stützen & Keile;9625;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode > Sonstige;0.288
+hood;39;Auto & Motorrad > Werkzeuge > Reparatur-Sets & Teile > Reifenreparatur;29193;Dekorative Haken & Garderoben > Dekoration > Raumteiler & Paravents;0.305
+hood;39;Auto & Motorrad > Werkzeuge > Reparatur-Sets & Teile > Reifenreparatur;29485;Jacken & Mäntel > Herren Lederjacken > Regenjacken & Windbreaker;0.301
+hood;39;Auto & Motorrad > Werkzeuge > Reparatur-Sets & Teile > Reifenreparatur;8016;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Anleitungen & Bücher;0.288
+hood;40;Baby & Kind > Auto-Kindersitze & Zubehör;2464;Socken & Strümpfe für Baby & Kleinkind > Kleider & Röcke;0.376
+hood;40;Baby & Kind > Auto-Kindersitze & Zubehör;17981;Fahrradständer online kaufen > Kindersitze;0.374
+hood;40;Baby & Kind > Auto-Kindersitze & Zubehör;28895;Socken & Strümpfe für Baby & Kleinkind > Pullover & Sweatshirts;0.367
+hood;41;Baby & Kind > Bettausstattung > Matratzenschoner & -auflagen;12537;Bettwäsche > Matratzenauflagen & Topper;0.364
+hood;41;Baby & Kind > Bettausstattung > Matratzenschoner & -auflagen;21443;Socken & Strümpfe für Baby & Kleinkind > Blusen & Hemden;0.326
+hood;41;Baby & Kind > Bettausstattung > Matratzenschoner & -auflagen;5025;Tastaturen online kaufen;0.326
+hood;42;Baby & Kind > Bücher & Zeitschriften > Bücher;28895;Socken & Strümpfe für Baby & Kleinkind > Pullover & Sweatshirts;0.364
+hood;42;Baby & Kind > Bücher & Zeitschriften > Bücher;20707;Modische Accessoires für Baby & Kleinkind > Schnullerketten & -bänder;0.360
+hood;42;Baby & Kind > Bücher & Zeitschriften > Bücher;2414;Modische Accessoires für Baby & Kleinkind > Mode & Schuhe;0.356
+hood;43;Baby & Kind > Ernährung > Kindergeschirr & -besteck;2464;Socken & Strümpfe für Baby & Kleinkind > Kleider & Röcke;0.351
+hood;43;Baby & Kind > Ernährung > Kindergeschirr & -besteck;21493;Modische Accessoires für Baby & Kleinkind > Regenschirme;0.341
+hood;43;Baby & Kind > Ernährung > Kindergeschirr & -besteck;28906;Modische Accessoires für Baby & Kleinkind > Aufnäher & Bügelbilder;0.336
+hood;44;Baby & Kind > Ernährung > Kindergeschirr & -besteck > Kinderbesteck;28906;Modische Accessoires für Baby & Kleinkind > Aufnäher & Bügelbilder;0.329
+hood;44;Baby & Kind > Ernährung > Kindergeschirr & -besteck > Kinderbesteck;26262;Alles rund um Geschirr & Gläser, kaufen > Sonstige;0.320
+hood;44;Baby & Kind > Ernährung > Kindergeschirr & -besteck > Kinderbesteck;2464;Socken & Strümpfe für Baby & Kleinkind > Kleider & Röcke;0.318
+hood;45;Baby & Kind > Kinderwagen & Zubehör;2464;Socken & Strümpfe für Baby & Kleinkind > Kleider & Röcke;0.399
+hood;45;Baby & Kind > Kinderwagen & Zubehör;20707;Modische Accessoires für Baby & Kleinkind > Schnullerketten & -bänder;0.381
+hood;45;Baby & Kind > Kinderwagen & Zubehör;27825;Alles rund um Lampen & Licht > Zubehör;0.375
+hood;46;Baby & Kind > Kinderwagen & Zubehör > Kinderwagenzubehör > Sitzauflagen;7543;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Schutzfolien;0.313
+hood;46;Baby & Kind > Kinderwagen & Zubehör > Kinderwagenzubehör > Sitzauflagen;29488;Jacken & Mäntel > Herren Lederjacken > Westen;0.310
+hood;46;Baby & Kind > Kinderwagen & Zubehör > Kinderwagenzubehör > Sitzauflagen;29482;Jacken & Mäntel > Herren Lederjacken > Fleecejacken;0.307
+hood;47;Baby & Kind > Spielzeug > Badespielzeug;10556;Diverses Antikspielzeug > Blechspielzeug;0.456
+hood;47;Baby & Kind > Spielzeug > Badespielzeug;10586;Diverses Antikspielzeug > Holzspielzeug;0.425
+hood;47;Baby & Kind > Spielzeug > Badespielzeug;2477;Socken & Strümpfe für Baby & Kleinkind > Sport- & Badekleidung;0.388
+hood;48;Baby & Kind > Spielzeug > Holzspielzeug;10586;Diverses Antikspielzeug > Holzspielzeug;0.545
+hood;49;Künstler- & Zeichenbedarf > Malen > Aquarell;9106;Damen Sportschuhe & Sneaker > Sandalen & Sandaletten;0.330
+hood;49;Künstler- & Zeichenbedarf > Malen > Aquarell;7952;Baustoffe & Bauelemente > Mörtel;0.322
+hood;49;Künstler- & Zeichenbedarf > Malen > Aquarell;22447;Baustoffe & Bauelemente > Mauern;0.322
+hood;50;Künstler- & Zeichenbedarf > Zeichnen > Farbstifte & Zeichenkohle;11114;Leinwände & Keilrahmen für den Künstlerbedarf > Stifte & Kreiden;0.337
+hood;50;Künstler- & Zeichenbedarf > Zeichnen > Farbstifte & Zeichenkohle;12625;Teppiche > Orientteppiche;0.307
+hood;50;Künstler- & Zeichenbedarf > Zeichnen > Farbstifte & Zeichenkohle;10506;Diverse unifarbene Stoffe & Textilien > Stoffe & Textilien;0.307
+hood;51;Künstler- & Zeichenbedarf > Zeichnen > Pastell;29071;Küche & Esszimmer: Tischläufer > Tischdecken;0.340
+hood;51;Künstler- & Zeichenbedarf > Zeichnen > Pastell;9062;Damen Sportschuhe & Sneaker > Hausschuhe & Pantoffel;0.338
+hood;51;Künstler- & Zeichenbedarf > Zeichnen > Pastell;29259;Küche & Esszimmer: Barhocker > Freischwinger;0.324
+hood;52;Beauty & Gesundheit > Enthaarung & Rasur > Rasierer & Rasierklingen > Herren Rasierklingen;9219;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode;0.308
+hood;52;Beauty & Gesundheit > Enthaarung & Rasur > Rasierer & Rasierklingen > Herren Rasierklingen;25452;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode > Bekleidungspakete;0.306
+hood;52;Beauty & Gesundheit > Enthaarung & Rasur > Rasierer & Rasierklingen > Herren Rasierklingen;9182;Jacken & Mäntel > Herren Lederjacken > Herrenmode;0.305
+hood;53;Beauty & Gesundheit > Haarpflege & Haarstyling;12148;Dekorative Haken & Garderoben > Dekoration > Feste & Partys;0.315
+hood;53;Beauty & Gesundheit > Haarpflege & Haarstyling;12180;Dekorative Haken & Garderoben > Fächer & Masken;0.310
+hood;53;Beauty & Gesundheit > Haarpflege & Haarstyling;14661;Dekorative Haken & Garderoben > Wandteller & Kacheln;0.309
+hood;54;Beauty & Gesundheit > Hautpflege;22448;Baustoffe & Bauelemente > Bausätze;0.371
+hood;54;Beauty & Gesundheit > Hautpflege;7953;Baustoffe & Bauelemente > Putze;0.366
+hood;54;Beauty & Gesundheit > Hautpflege;7951;Baustoffe & Bauelemente > Kleber;0.360
+hood;55;Beauty & Gesundheit > Hautpflege > Anti-Faltenprodukte;7946;Baustoffe & Bauelemente > Abdichten;0.324
+hood;55;Beauty & Gesundheit > Hautpflege > Anti-Faltenprodukte;7960;Baustoffe & Bauelemente > Fenster;0.314
+hood;55;Beauty & Gesundheit > Hautpflege > Anti-Faltenprodukte;7954;Baustoffe & Bauelemente > Reiniger;0.311
+hood;56;Beauty & Gesundheit > Hilfsmittel > Alltagshilfen > Inkontinenzhilfen;12670;Hundefutter online kaufen > Sonstige;0.302
+hood;56;Beauty & Gesundheit > Hilfsmittel > Alltagshilfen > Inkontinenzhilfen;8173;Einbauleuchten für Außen kaufen > Sonstige;0.298
+hood;56;Beauty & Gesundheit > Hilfsmittel > Alltagshilfen > Inkontinenzhilfen;13413;Pop CD's neu & gebraucht kaufen > Sonstige;0.298
+hood;57;Beauty & Gesundheit > Medikamente von Apothekern > Tiergesundheit;23016;Mode & Schuhe: Damen-Accessoires, kaufen > Taschen;0.328
+hood;57;Beauty & Gesundheit > Medikamente von Apothekern > Tiergesundheit;9027;Mode & Schuhe: Damen-Accessoires, kaufen > Sonstige;0.326
+hood;57;Beauty & Gesundheit > Medikamente von Apothekern > Tiergesundheit;9180;Damen Sportschuhe & Sneaker > Sonstige Schuhe;0.314
+hood;58;Beauty & Gesundheit > Pflege- & Medizinischer Bedarf > Kälte- & Wärmetherapie > Infrarot- & Wärmegeräte;12710;Lederhalsbänder für Hunde kaufen > Tierbedarf > Kleintiere;0.259
+hood;58;Beauty & Gesundheit > Pflege- & Medizinischer Bedarf > Kälte- & Wärmetherapie > Infrarot- & Wärmegeräte;22986;Diverse Damenmode > Jacken & Mäntel > Woll- & Wintermäntel;0.259
+hood;58;Beauty & Gesundheit > Pflege- & Medizinischer Bedarf > Kälte- & Wärmetherapie > Infrarot- & Wärmegeräte;23542;Herren-Accessoires > Herren Regenschirme > Krawatten & Fliegen;0.253
+hood;59;Briefmarken > Motive > Geschichte;8195;Badewannen > Waschtische;0.379
+hood;59;Briefmarken > Motive > Geschichte;8991;Diverse Damenmode > Westen;0.366
+hood;59;Briefmarken > Motive > Geschichte;26029;ungarn > Tschechien;0.360
+hood;60;Bücher & Zeitschriften > Bücher;29069;Küche & Esszimmer: Tischläufer > Schürzen;0.406
+hood;60;Bücher & Zeitschriften > Bücher;12457;Küche & Esszimmer: Tischläufer > Küche & Esszimmer;0.396
+hood;60;Bücher & Zeitschriften > Bücher;29258;Küchenschränke > Zubehör;0.393
+hood;61;Bücher & Zeitschriften > Fachbücher, Lernen & Nachschlagen;29066;Küche & Esszimmer: Tischläufer > Küchen- & Tischtextilien;0.392
+hood;61;Bücher & Zeitschriften > Fachbücher, Lernen & Nachschlagen;12457;Küche & Esszimmer: Tischläufer > Küche & Esszimmer;0.350
+hood;61;Bücher & Zeitschriften > Fachbücher, Lernen & Nachschlagen;22507;Sicherheitstechnik: Türsicherung kaufen > Überfallen & Riegel;0.342
+hood;62;Büro & Schreibwaren > Büromöbel > Schränke & Regale > Aktenschränke;4180;Geburtstagskarten kaufen > Büro & Schreibwaren > Bürogeräte;0.417
+hood;62;Büro & Schreibwaren > Büromöbel > Schränke & Regale > Aktenschränke;25431;Geburtstagskarten kaufen > Büro & Schreibwaren > Werbemittel & Geschäftspräsente;0.409
+hood;62;Büro & Schreibwaren > Büromöbel > Schränke & Regale > Aktenschränke;4163;Geburtstagskarten kaufen > Büro & Schreibwaren > Büroeinrichtung;0.403
+hood;63;Büro & Schreibwaren > Bürotechnik > Schreibmaschinen-Zubehör;25431;Geburtstagskarten kaufen > Büro & Schreibwaren > Werbemittel & Geschäftspräsente;0.430
+hood;63;Büro & Schreibwaren > Bürotechnik > Schreibmaschinen-Zubehör;4163;Geburtstagskarten kaufen > Büro & Schreibwaren > Büroeinrichtung;0.428
+hood;63;Büro & Schreibwaren > Bürotechnik > Schreibmaschinen-Zubehör;4180;Geburtstagskarten kaufen > Büro & Schreibwaren > Bürogeräte;0.419
+hood;64;Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Papier, Hefte & Blöcke > Briefpapier & Karten;25465;Geburtstagskarten kaufen > Briefpapier & Grußkarten;0.357
+hood;64;Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Papier, Hefte & Blöcke > Briefpapier & Karten;25431;Geburtstagskarten kaufen > Büro & Schreibwaren > Werbemittel & Geschäftspräsente;0.342
+hood;64;Büro & Schreibwaren > Papier, Büro- & Schreibwaren > Papier, Hefte & Blöcke > Briefpapier & Karten;25403;Geburtstagskarten kaufen > Büro & Schreibwaren > Bastel- & Künstlerbedarf;0.337
+hood;65;Business & Industrie > Elektronik & Messtechnik > Kabel & Leitungen > Kabelverbinder & Anschlussklemmen > Leitungs- & Kabelverbinder;8021;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Kabel;0.328
+hood;65;Business & Industrie > Elektronik & Messtechnik > Kabel & Leitungen > Kabelverbinder & Anschlussklemmen > Leitungs- & Kabelverbinder;18821;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Ladegeräte;0.319
+hood;65;Business & Industrie > Elektronik & Messtechnik > Kabel & Leitungen > Kabelverbinder & Anschlussklemmen > Leitungs- & Kabelverbinder;8023;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Schalter;0.315
+hood;66;Business & Industrie > Großhandel & Sonderposten > Kleidung & Accessoires(Posten) > Herrenbekleidung > Unterwäsche;28904;Socken & Strümpfe für Baby & Kleinkind > Unterwäsche;0.273
+hood;67;Business & Industrie > Sicherheit & Gebäudeinstandhaltung > Persönliche Schutzausrüstung > Sicherheitswesten;17801;Fitness & Jogging Unisex Bekleidung online kaufen > Herren;0.330
+hood;67;Business & Industrie > Sicherheit & Gebäudeinstandhaltung > Persönliche Schutzausrüstung > Sicherheitswesten;7902;Sicherheitstechnik: Türsicherung kaufen > Sicherheitstechnik;0.328
+hood;67;Business & Industrie > Sicherheit & Gebäudeinstandhaltung > Persönliche Schutzausrüstung > Sicherheitswesten;17810;Fitness & Jogging Unisex Bekleidung online kaufen > Kinder & Jugend;0.313
+hood;68;Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör;27416;Computer online kaufen im Computer-Shop > Drucker & Scanner > Zubehör;0.573
+hood;68;Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör;27414;Computer online kaufen im Computer-Shop > Drucker & Scanner > Drucker;0.528
+hood;68;Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör;5450;Computer online kaufen im Computer-Shop > Drucker & Scanner > Scanner;0.516
+hood;69;Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Drucker;27414;Computer online kaufen im Computer-Shop > Drucker & Scanner > Drucker;0.549
+hood;69;Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Drucker;5167;Computer Kabel & Adapter günstig kaufen > Drucker;0.422
+hood;70;Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier;27416;Computer online kaufen im Computer-Shop > Drucker & Scanner > Zubehör;0.473
+hood;70;Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier;5450;Computer online kaufen im Computer-Shop > Drucker & Scanner > Scanner;0.454
+hood;70;Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier;4975;Computer online kaufen im Computer-Shop > Drucker & Scanner > Sonstige;0.442
+hood;71;Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier > Tintenpatronen;27416;Computer online kaufen im Computer-Shop > Drucker & Scanner > Zubehör;0.427
+hood;71;Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier > Tintenpatronen;5450;Computer online kaufen im Computer-Shop > Drucker & Scanner > Scanner;0.410
+hood;71;Computer, Tablets & Netzwerk > Drucker, Scanner & Zubehör > Tinte, Toner & Papier > Tintenpatronen;4975;Computer online kaufen im Computer-Shop > Drucker & Scanner > Sonstige;0.399
+hood;72;Computer, Tablets & Netzwerk > Kabel & Steckverbinder;5173;Computer Kabel & Adapter günstig kaufen > Netzwerk;0.427
+hood;72;Computer, Tablets & Netzwerk > Kabel & Steckverbinder;5252;Computer online kaufen im Computer-Shop > Netzwerk & Modems;0.403
+hood;72;Computer, Tablets & Netzwerk > Kabel & Steckverbinder;5167;Computer Kabel & Adapter günstig kaufen > Drucker;0.401
+hood;73;Computer, Tablets & Netzwerk > Kabel & Steckverbinder > Netzwerkkabel & Adapter > Splitter, Koppler & Adapter;5173;Computer Kabel & Adapter günstig kaufen > Netzwerk;0.383
+hood;73;Computer, Tablets & Netzwerk > Kabel & Steckverbinder > Netzwerkkabel & Adapter > Splitter, Koppler & Adapter;5166;Computer Kabel & Adapter günstig kaufen;0.368
+hood;73;Computer, Tablets & Netzwerk > Kabel & Steckverbinder > Netzwerkkabel & Adapter > Splitter, Koppler & Adapter;5252;Computer online kaufen im Computer-Shop > Netzwerk & Modems;0.366
+hood;74;Computer, Tablets & Netzwerk > Kabel & Steckverbinder > USB-Kabel, -Hubs & -Adapter;5182;Computer Kabel & Adapter günstig kaufen > USB;0.382
+hood;74;Computer, Tablets & Netzwerk > Kabel & Steckverbinder > USB-Kabel, -Hubs & -Adapter;5166;Computer Kabel & Adapter günstig kaufen;0.367
+hood;74;Computer, Tablets & Netzwerk > Kabel & Steckverbinder > USB-Kabel, -Hubs & -Adapter;27416;Computer online kaufen im Computer-Shop > Drucker & Scanner > Zubehör;0.361
+hood;75;Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Mauspads & Handgelenkauflagen;21931;Computer online kaufen im Computer-Shop > Notebook-Zubehör > Abdeckungen;0.429
+hood;75;Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Mauspads & Handgelenkauflagen;5373;Computer online kaufen im Computer-Shop > Notebook-Zubehör > Laufwerke;0.425
+hood;75;Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Mauspads & Handgelenkauflagen;20684;Computer online kaufen im Computer-Shop > Notebook-Zubehör > Sonstige;0.422
+hood;76;Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Ständer, Halter & Autohalterungen;4724;Computer online kaufen im Computer-Shop > Notebook-Zubehör > Ersatzteile;0.425
+hood;76;Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Ständer, Halter & Autohalterungen;21931;Computer online kaufen im Computer-Shop > Notebook-Zubehör > Abdeckungen;0.425
+hood;76;Computer, Tablets & Netzwerk > Notebook- & Desktop-Zubehör > Ständer, Halter & Autohalterungen;5369;Computer online kaufen im Computer-Shop > Notebook-Zubehör > Adapter;0.416
+hood;77;Filme & Serien > Film-Fanartikel > Bücher & Skripte;13681;musik > Fanartikel & Superstars;0.386
+hood;77;Filme & Serien > Film-Fanartikel > Bücher & Skripte;12594;Schlafzimmer > Schlafzimmer Kommoden > Nachttische & -schränke;0.344
+hood;77;Filme & Serien > Film-Fanartikel > Bücher & Skripte;12180;Dekorative Haken & Garderoben > Fächer & Masken;0.338
+hood;78;Garten & Terrasse > Beleuchtung > Garten- & Terrassenfackeln;17994;Fahrradständer online kaufen > Beleuchtung & Reflektoren;0.358
+hood;78;Garten & Terrasse > Beleuchtung > Garten- & Terrassenfackeln;12158;Dekorative Haken & Garderoben > Dekoration > Figuren & Skulpturen;0.346
+hood;78;Garten & Terrasse > Beleuchtung > Garten- & Terrassenfackeln;23613;Elegante Herrenschuhe > Hausschuhe & Pantoffel;0.340
+hood;79;Garten & Terrasse > Beleuchtung > Strahler & Flutlichter;12505;Alles rund um Lampen & Licht > Strahler & Spots;0.389
+hood;79;Garten & Terrasse > Beleuchtung > Strahler & Flutlichter;17994;Fahrradständer online kaufen > Beleuchtung & Reflektoren;0.378
+hood;79;Garten & Terrasse > Beleuchtung > Strahler & Flutlichter;12130;Dekorative Haken & Garderoben > Dekoration > Kerzenständer & Windlichter;0.371
+hood;80;Garten & Terrasse > Gartenbauten & Sonnenschutz > Sonnenschirmzubehör;7977;Baustoffe & Bauelemente > Sonnenschutz & Insektenschutz;0.407
+hood;80;Garten & Terrasse > Gartenbauten & Sonnenschutz > Sonnenschirmzubehör;9757;Elegante Herrenschuhe > Sonstige Schuhe;0.347
+hood;80;Garten & Terrasse > Gartenbauten & Sonnenschutz > Sonnenschirmzubehör;9641;Elegante Herrenschuhe > Herrenschuhe;0.329
+hood;81;Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör > Servierwagen;21298;Elegante Herrenschuhe > Zubehör & Pflege;0.319
+hood;81;Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör > Servierwagen;9271;Jacken & Mäntel > Herren Lederjacken > Sonstige;0.300
+hood;81;Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör > Servierwagen;4967;Druckerpatronen online kaufen > Sonstiges Zubehör & Teile;0.299
+hood;82;Garten & Terrasse > Möbel > Möbelschutzhüllen;9641;Elegante Herrenschuhe > Herrenschuhe;0.373
+hood;82;Garten & Terrasse > Möbel > Möbelschutzhüllen;9679;Elegante Herrenschuhe > Halbschuhe;0.365
+hood;82;Garten & Terrasse > Möbel > Möbelschutzhüllen;9757;Elegante Herrenschuhe > Sonstige Schuhe;0.360
+hood;83;Garten & Terrasse > Motor-Gartengeräte & -zubehör;8056;Trimmer, Kantenscheider und co > Gartengeräte;0.362
+hood;83;Garten & Terrasse > Motor-Gartengeräte & -zubehör;22763;Damen Slips & Strings > Morgenmäntel & Bademäntel;0.338
+hood;83;Garten & Terrasse > Motor-Gartengeräte & -zubehör;23631;Elegante Herrenschuhe > Sportschuhe & Sneaker;0.337
+hood;84;Garten & Terrasse > Motor-Gartengeräte & -zubehör > Kettensägen-Zubehör;21298;Elegante Herrenschuhe > Zubehör & Pflege;0.324
+hood;84;Garten & Terrasse > Motor-Gartengeräte & -zubehör > Kettensägen-Zubehör;5374;Computer online kaufen im Computer-Shop > Notebook-Zubehör > Netzteile;0.317
+hood;84;Garten & Terrasse > Motor-Gartengeräte & -zubehör > Kettensägen-Zubehör;4724;Computer online kaufen im Computer-Shop > Notebook-Zubehör > Ersatzteile;0.312
+hood;85;Handys & Kommunikation > Funktechnik > Antennen > Amateurfunkantennen;18833;handy-telefon > Funktechnik;0.370
+hood;85;Handys & Kommunikation > Funktechnik > Antennen > Amateurfunkantennen;7306;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Antennen;0.322
+hood;85;Handys & Kommunikation > Funktechnik > Antennen > Amateurfunkantennen;12108;Dekoration: Advent & Weihnachten > Ostern;0.304
+hood;86;Handys & Kommunikation > Funktechnik > Teile & Zubehör > Filter;21586;KFZ Verschleißteile: Dichtungen > Filter;0.336
+hood;87;Handys & Kommunikation > Handy-Zubehör > Taschen & Schutzhüllen;7543;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Schutzfolien;0.491
+hood;87;Handys & Kommunikation > Handy-Zubehör > Taschen & Schutzhüllen;7271;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones;0.480
+hood;87;Handys & Kommunikation > Handy-Zubehör > Taschen & Schutzhüllen;7476;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Hüllen & Cases;0.470
+hood;88;Haushaltsgeräte > Geschirrspülmaschinen;12469;Küchenschränke > Spülschränke;0.381
+hood;88;Haushaltsgeräte > Geschirrspülmaschinen;29067;Küche & Esszimmer: Tischläufer > Geschirrtücher;0.373
+hood;88;Haushaltsgeräte > Geschirrspülmaschinen;12467;Küchenschränke > Hängeschränke;0.355
+hood;89;Haushaltsgeräte > Kaffee-, Tee- & Espressomaschinen > Filter-Kaffeemaschinen;28681;Diverse gemusterte Stoffe & Textilien > Motive & Graphiken;0.301
+hood;89;Haushaltsgeräte > Kaffee-, Tee- & Espressomaschinen > Filter-Kaffeemaschinen;7935;Messer kaufen > Dekupier- & Feinschnittsägen;0.300
+hood;89;Haushaltsgeräte > Kaffee-, Tee- & Espressomaschinen > Filter-Kaffeemaschinen;28679;Diverse gemusterte Stoffe & Textilien > Sterne;0.295
+hood;90;Haushaltsgeräte > Kleingeräte Haushalt > Dampfreiniger;8180;Messgeräte für Ihr Bauprojekt > Volt.-Amperemeter;0.363
+hood;90;Haushaltsgeräte > Kleingeräte Haushalt > Dampfreiniger;8182;Messgeräte für Ihr Bauprojekt > Sonstige;0.352
+hood;90;Haushaltsgeräte > Kleingeräte Haushalt > Dampfreiniger;8178;Messgeräte für Ihr Bauprojekt > Waagen;0.344
+hood;91;Haushaltsgeräte > Kleingeräte Küche > Fritteusen;12665;Hundefutter online kaufen > Futterzusätze;0.372
+hood;91;Haushaltsgeräte > Kleingeräte Küche > Fritteusen;21253;Katzenfutter online kaufen > Futterzusätze;0.368
+hood;91;Haushaltsgeräte > Kleingeräte Küche > Fritteusen;29066;Küche & Esszimmer: Tischläufer > Küchen- & Tischtextilien;0.340
+hood;92;Haushaltsgeräte > Klimaanlagen & Heizgeräte > Ventilatoren & Luftbehandlung > Stand- & Tischventilatoren;8265;Jacken & Mäntel > Herren Lederjacken > Mode & Schuhe;0.305
+hood;92;Haushaltsgeräte > Klimaanlagen & Heizgeräte > Ventilatoren & Luftbehandlung > Stand- & Tischventilatoren;29481;Jacken & Mäntel > Herren Lederjacken > Daunenjacken;0.297
+hood;92;Haushaltsgeräte > Klimaanlagen & Heizgeräte > Ventilatoren & Luftbehandlung > Stand- & Tischventilatoren;10506;Diverse unifarbene Stoffe & Textilien > Stoffe & Textilien;0.293
+hood;93;Haushaltsgeräte > Staubsauger & Zubehör > Staubsauger;9181;Damen Sportschuhe & Sneaker > Zubehör & Pflege;0.349
+hood;93;Haushaltsgeräte > Staubsauger & Zubehör > Staubsauger;13498;musik > Zubehör & Aufbewahrung;0.347
+hood;93;Haushaltsgeräte > Staubsauger & Zubehör > Staubsauger;8178;Messgeräte für Ihr Bauprojekt > Waagen;0.316
+hood;94;Haushaltsgeräte > Waschmaschinen & Trockner > Waschmaschinen- & Trocknerteile;9062;Damen Sportschuhe & Sneaker > Hausschuhe & Pantoffel;0.335
+hood;94;Haushaltsgeräte > Waschmaschinen & Trockner > Waschmaschinen- & Trocknerteile;29188;Alles rund um Lampen & Licht > Nachttischlampen & Nachtlichter;0.321
+hood;94;Haushaltsgeräte > Waschmaschinen & Trockner > Waschmaschinen- & Trocknerteile;29066;Küche & Esszimmer: Tischläufer > Küchen- & Tischtextilien;0.314
+hood;95;Haustierbedarf > Fische & Aquarien;12641;Lederhalsbänder für Hunde kaufen > Tierbedarf > Fische;0.400
+hood;95;Haustierbedarf > Fische & Aquarien;12117;Duftkerzen > Schwimmkerzen;0.360
+hood;95;Haustierbedarf > Fische & Aquarien;29623;handy-telefon > Refurbished Handys;0.360
+hood;96;Haustierbedarf > Katzen > Kratzbäume & Möbel;8095;Rasensamen kaufen > Sämereien & Zwiebeln;0.360
+hood;96;Haustierbedarf > Katzen > Kratzbäume & Möbel;18002;Fahrradständer online kaufen > Gepäcktaschen & Körbe;0.360
+hood;96;Haustierbedarf > Katzen > Kratzbäume & Möbel;29490;Herren Lederjacken > Jacken & Mäntel;0.360
+hood;97;Haustierbedarf > Katzen > Näpfe & Trinkbrunnen;29171;Fahrradständer online kaufen > Klingeln & Hupen;0.356
+hood;97;Haustierbedarf > Katzen > Näpfe & Trinkbrunnen;27352;Hundefutter online kaufen > Futter & Näpfe;0.346
+hood;97;Haustierbedarf > Katzen > Näpfe & Trinkbrunnen;25402;Geburtstagskarten kaufen > Büro & Schreibwaren;0.344
+hood;98;Heimwerker > Bad & Küche > Bad;8183;Badewannen > Bad & Küche;0.593
+hood;98;Heimwerker > Bad & Küche > Bad;29046;badezimmer > Badaccessoires > Badetiere;0.397
+hood;98;Heimwerker > Bad & Küche > Bad;22421;badezimmer > Badaccessoires > Ablagen;0.387
+hood;99;Heimwerker > Bad & Küche > Küche > Küchenarmaturen;8183;Badewannen > Bad & Küche;0.443
+hood;99;Heimwerker > Bad & Küche > Küche > Küchenarmaturen;12057;badezimmer > Badaccessoires > WC-Bürstengarnituren;0.374
+hood;99;Heimwerker > Bad & Küche > Küche > Küchenarmaturen;29184;badezimmer > Badaccessoires > Duschabzieher;0.341
+hood;100;Heimwerker > Erneuerbare Energie > Solarenergie > Solarmodule;23544;Herren-Accessoires > Herren Regenschirme > Sonnenbrillen;0.345
+hood;100;Heimwerker > Erneuerbare Energie > Solarenergie > Solarmodule;23043;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode > Trachtenmode;0.322
+hood;100;Heimwerker > Erneuerbare Energie > Solarenergie > Solarmodule;9182;Jacken & Mäntel > Herren Lederjacken > Herrenmode;0.314
+hood;101;Heimwerker > Farben, Tapeten & Zubehör > Tapeten, Werkzeuge & Zubehör;22081;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Teile & Werkzeuge;0.345
+hood;101;Heimwerker > Farben, Tapeten & Zubehör > Tapeten, Werkzeuge & Zubehör;24399;Diverse Damenmode > Jacken & Mäntel > Regenjacken & Windbreaker;0.295
+hood;101;Heimwerker > Farben, Tapeten & Zubehör > Tapeten, Werkzeuge & Zubehör;13498;musik > Zubehör & Aufbewahrung;0.291
+hood;102;Heimwerker > Heizen, Klima & Sanitär > Heizungs-, Klima- & Sanitärprüfgeräte > Rohrinstallations-Sets;22986;Diverse Damenmode > Jacken & Mäntel > Woll- & Wintermäntel;0.272
+hood;102;Heimwerker > Heizen, Klima & Sanitär > Heizungs-, Klima- & Sanitärprüfgeräte > Rohrinstallations-Sets;5021;Tastaturen online kaufen > Maus- & Tastatur-Sets;0.263
+hood;102;Heimwerker > Heizen, Klima & Sanitär > Heizungs-, Klima- & Sanitärprüfgeräte > Rohrinstallations-Sets;9640;Herren-Accessoires > Herren Regenschirme > Sonstige;0.256
+hood;103;Heimwerker > Heizen, Klima & Sanitär > Wasser > Pumpen & Wasserfiltersysteme;8957;Damen Slips & Strings > Pyjamas & Nachthemden;0.298
+hood;103;Heimwerker > Heizen, Klima & Sanitär > Wasser > Pumpen & Wasserfiltersysteme;22420;badezimmer > Badaccessoires > Reserve-Papierhalter;0.297
+hood;103;Heimwerker > Heizen, Klima & Sanitär > Wasser > Pumpen & Wasserfiltersysteme;22419;badezimmer > Badaccessoires > WC-Papierhalter;0.286
+hood;104;Heimwerker > Heizen, Klima & Sanitär > Wasser > Ventile;8990;Damen Slips & Strings > Sonstige;0.314
+hood;104;Heimwerker > Heizen, Klima & Sanitär > Wasser > Ventile;8496;Diverse Damenmode > Jacken & Mäntel > Sonstige;0.314
+hood;104;Heimwerker > Heizen, Klima & Sanitär > Wasser > Ventile;29066;Küche & Esszimmer: Tischläufer > Küchen- & Tischtextilien;0.311
+hood;105;Heimwerker > Schrankbeschläge & -teile > Schubladenschienen;28659;Diverse unifarbene Stoffe & Textilien > Leinen;0.343
+hood;105;Heimwerker > Schrankbeschläge & -teile > Schubladenschienen;7934;Messer kaufen > Sägen & Schneiden;0.329
+hood;105;Heimwerker > Schrankbeschläge & -teile > Schubladenschienen;29169;Fahrradständer online kaufen > Schutzbleche;0.325
+hood;106;Heimwerker > Schwimmbecken, Saunen & Außenwhirlpools > Schwimmbeckenbedarf;12640;Lederhalsbänder für Hunde kaufen > Tierbedarf;0.303
+hood;106;Heimwerker > Schwimmbecken, Saunen & Außenwhirlpools > Schwimmbeckenbedarf;22947;Diverse Damenmode > Jacken & Mäntel > Winterjacken;0.302
+hood;106;Heimwerker > Schwimmbecken, Saunen & Außenwhirlpools > Schwimmbeckenbedarf;12756;Schlafzimmer > Schlafzimmer Kommoden > Bettwäsche & Bettwaren;0.299
+hood;107;Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör;6687;foto-camcorder > Foto- & Kamerazubehör;0.318
+hood;107;Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör;12060;badezimmer > Badaccessoires > WC-Sitze & Aufkleber;0.310
+hood;107;Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör;10588;Diverses Antikspielzeug > Puppen & Zubehör;0.307
+hood;108;Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör > Bohrer-Bits;8023;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Schalter;0.282
+hood;108;Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör > Bohrer-Bits;18786;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Bauteile;0.282
+hood;108;Heimwerker > Werkzeuge > Elektrowerkzeug- & Druckluftgerät-Zubehör > Bohrer-Bits;6687;foto-camcorder > Foto- & Kamerazubehör;0.281
+hood;109;Heimwerker > Werkzeuge > Elektrowerkzeuge > Schleifmaschinen;12058;badezimmer > Badaccessoires > Körbe & Schalen;0.343
+hood;109;Heimwerker > Werkzeuge > Elektrowerkzeuge > Schleifmaschinen;29049;badezimmer > Badaccessoires > Vorleger & Matten;0.323
+hood;109;Heimwerker > Werkzeuge > Elektrowerkzeuge > Schleifmaschinen;20651;Herren-Accessoires > Herren Regenschirme > Schlüsselanhänger;0.312
+hood;110;Heimwerker > Werkzeuge > Handwerkzeuge;7924;Messer kaufen > Werkzeug;0.372
+hood;110;Heimwerker > Werkzeuge > Handwerkzeuge;29046;badezimmer > Badaccessoires > Badetiere;0.355
+hood;110;Heimwerker > Werkzeuge > Handwerkzeuge;22425;badezimmer > Badaccessoires > Handtuchhalter;0.351
+hood;111;Heimwerker > Werkzeuge > Handwerkzeuge > Messer;7924;Messer kaufen > Werkzeug;0.371
+hood;111;Heimwerker > Werkzeuge > Handwerkzeuge > Messer;29046;badezimmer > Badaccessoires > Badetiere;0.318
+hood;111;Heimwerker > Werkzeuge > Handwerkzeuge > Messer;22425;badezimmer > Badaccessoires > Handtuchhalter;0.316
+hood;112;Heimwerker > Werkzeuge > Handwerkzeuge > Schraubenschlüssel;12058;badezimmer > Badaccessoires > Körbe & Schalen;0.332
+hood;112;Heimwerker > Werkzeuge > Handwerkzeuge > Schraubenschlüssel;12673;Lederhalsbänder für Hunde kaufen > Hunde > Schilder & Aufkleber;0.330
+hood;112;Heimwerker > Werkzeuge > Handwerkzeuge > Schraubenschlüssel;8332;Diverse Damenmode > Bademode > Badeanzüge;0.317
+hood;113;Heimwerker > Werkzeuge > Messwerkzeuge & Messgeräte > Messschieber;8494;Diverse Damenmode > Jacken & Mäntel > Jeansjacken;0.313
+hood;113;Heimwerker > Werkzeuge > Messwerkzeuge & Messgeräte > Messschieber;12059;badezimmer > Badaccessoires > Seifenspender & Seifenschalen;0.311
+hood;113;Heimwerker > Werkzeuge > Messwerkzeuge & Messgeräte > Messschieber;22942;Diverse Damenmode > Jacken & Mäntel > Fleecejacken;0.310
+hood;114;Kleidung & Accessoires > Damen > Damen-Accessoires > Sonnenbrillen & Zubehör > Sonnenbrillen;27828;Mode & Schuhe: Damen-Accessoires, kaufen > Sonnenbrillen;0.512
+hood;114;Kleidung & Accessoires > Damen > Damen-Accessoires > Sonnenbrillen & Zubehör > Sonnenbrillen;23544;Herren-Accessoires > Herren Regenschirme > Sonnenbrillen;0.512
+hood;115;Kleidung & Accessoires > Damen > Damenschuhe;9028;Damen Sportschuhe & Sneaker > Damenschuhe;0.415
+hood;116;Kleidung & Accessoires > Damen > Damenschuhe > Halbschuhe & Ballerinas;9627;Herren-Accessoires > Herren Regenschirme > Geldbörsen & Etuis;0.446
+hood;116;Kleidung & Accessoires > Damen > Damenschuhe > Halbschuhe & Ballerinas;23543;Herren-Accessoires > Herren Regenschirme > Schals & Tücher;0.444
+hood;116;Kleidung & Accessoires > Damen > Damenschuhe > Halbschuhe & Ballerinas;23545;Herren-Accessoires > Herren Regenschirme > Taschen;0.439
+hood;117;Kleidung & Accessoires > Damen > Damenschuhe > Sneaker;9004;Mode & Schuhe: Damen-Accessoires, kaufen > Handschuhe & Fäustlinge;0.467
+hood;117;Kleidung & Accessoires > Damen > Damenschuhe > Sneaker;9139;Damen Sportschuhe & Sneaker;0.467
+hood;117;Kleidung & Accessoires > Damen > Damenschuhe > Sneaker;9640;Herren-Accessoires > Herren Regenschirme > Sonstige;0.465
+hood;118;Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten;9169;Damen Sportschuhe & Sneaker > Stiefeletten;0.472
+hood;118;Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten;23541;Herren-Accessoires > Herren Regenschirme > Hüte & Mützen;0.443
+hood;118;Kleidung & Accessoires > Damen > Damenschuhe > Stiefel & Stiefeletten;9640;Herren-Accessoires > Herren Regenschirme > Sonstige;0.431
+hood;119;Kleidung & Accessoires > Herren > Herren-Accessoires > Geldbörsen & Etuis;9627;Herren-Accessoires > Herren Regenschirme > Geldbörsen & Etuis;0.735
+hood;119;Kleidung & Accessoires > Herren > Herren-Accessoires > Geldbörsen & Etuis;9002;Mode & Schuhe: Damen-Accessoires, kaufen > Geldbörsen & Etuis;0.559
+hood;120;Kleidung & Accessoires > Herren > Herren-Accessoires > Handschuhe & Fäustlinge;9004;Mode & Schuhe: Damen-Accessoires, kaufen > Handschuhe & Fäustlinge;0.577
+hood;121;Kleidung & Accessoires > Herren > Herren-Accessoires;9626;Herren Regenschirme > Herren-Accessoires;0.563
+hood;122;Kleidung & Accessoires > Herren > Pullover & Strick;9640;Herren-Accessoires > Herren Regenschirme > Sonstige;0.503
+hood;122;Kleidung & Accessoires > Herren > Pullover & Strick;9632;Herren-Accessoires > Herren Regenschirme;0.489
+hood;122;Kleidung & Accessoires > Herren > Pullover & Strick;23543;Herren-Accessoires > Herren Regenschirme > Schals & Tücher;0.480
+hood;123;Kleidung & Accessoires > Herren > Shirts & Hemden > Freizeithemden & Shirts;23419;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode > Freizeithemden & Poloshirts;0.474
+hood;123;Kleidung & Accessoires > Herren > Shirts & Hemden > Freizeithemden & Shirts;23545;Herren-Accessoires > Herren Regenschirme > Taschen;0.473
+hood;123;Kleidung & Accessoires > Herren > Shirts & Hemden > Freizeithemden & Shirts;23542;Herren-Accessoires > Herren Regenschirme > Krawatten & Fliegen;0.472
+hood;124;Kleidung & Accessoires > Herren > Shirts & Hemden > Poloshirts;9628;Herren-Accessoires > Herren Regenschirme > Gürtel;0.498
+hood;124;Kleidung & Accessoires > Herren > Shirts & Hemden > Poloshirts;23545;Herren-Accessoires > Herren Regenschirme > Taschen;0.494
+hood;124;Kleidung & Accessoires > Herren > Shirts & Hemden > Poloshirts;29493;Herren-Accessoires > Herren Regenschirme > Hosenträger;0.492
+hood;125;Kleidung & Accessoires > Herren > Shirts & Hemden > T-Shirts;23545;Herren-Accessoires > Herren Regenschirme > Taschen;0.515
+hood;125;Kleidung & Accessoires > Herren > Shirts & Hemden > T-Shirts;9628;Herren-Accessoires > Herren Regenschirme > Gürtel;0.506
+hood;125;Kleidung & Accessoires > Herren > Shirts & Hemden > T-Shirts;29492;Herren-Accessoires > Herren Regenschirme > Taschentücher;0.504
+hood;126;Kleidung & Accessoires > Herren > Unterwäsche;28904;Socken & Strümpfe für Baby & Kleinkind > Unterwäsche;0.317
+hood;127;Kleidung & Accessoires > Herren > Herrenschuhe > Sandalen;9670;Elegante Herrenschuhe > Sandalen;0.546
+hood;127;Kleidung & Accessoires > Herren > Herrenschuhe > Sandalen;29528;Halbschuhe für Jungen kaufen > Sandalen;0.305
+hood;128;Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker;9640;Herren-Accessoires > Herren Regenschirme > Sonstige;0.578
+hood;128;Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker;29493;Herren-Accessoires > Herren Regenschirme > Hosenträger;0.564
+hood;128;Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker;23544;Herren-Accessoires > Herren Regenschirme > Sonnenbrillen;0.556
+hood;129;Kleidung & Accessoires > Herren > Herrenschuhe > Stiefel;9748;Elegante Herrenschuhe > Stiefel;0.540
+hood;129;Kleidung & Accessoires > Herren > Herrenschuhe > Stiefel;9158;Damen Sportschuhe & Sneaker > Stiefel;0.376
+hood;129;Kleidung & Accessoires > Herren > Herrenschuhe > Stiefel;29531;Halbschuhe für Jungen kaufen > Stiefel;0.295
+hood;130;Kleidung & Accessoires > Kinder > Jungen > Mode für Jungen > T-Shirts, Polos & Hemden;23405;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode > T-Shirts & Tops;0.391
+hood;130;Kleidung & Accessoires > Kinder > Jungen > Mode für Jungen > T-Shirts, Polos & Hemden;23545;Herren-Accessoires > Herren Regenschirme > Taschen;0.365
+hood;130;Kleidung & Accessoires > Kinder > Jungen > Mode für Jungen > T-Shirts, Polos & Hemden;9019;Mode & Schuhe: Damen-Accessoires, kaufen > Schals & Tücher;0.365
+hood;131;Kleidung & Accessoires > Kinder > Unisex für Kinder > Unisex-Mode > Kapuzenpullover & Sweatshirts;28895;Socken & Strümpfe für Baby & Kleinkind > Pullover & Sweatshirts;0.392
+hood;131;Kleidung & Accessoires > Kinder > Unisex für Kinder > Unisex-Mode > Kapuzenpullover & Sweatshirts;23542;Herren-Accessoires > Herren Regenschirme > Krawatten & Fliegen;0.342
+hood;131;Kleidung & Accessoires > Kinder > Unisex für Kinder > Unisex-Mode > Kapuzenpullover & Sweatshirts;23543;Herren-Accessoires > Herren Regenschirme > Schals & Tücher;0.341
+hood;132;Kleidung & Accessoires > Spezielle Anlässe > Erotik > Kostüme für Damen;9002;Mode & Schuhe: Damen-Accessoires, kaufen > Geldbörsen & Etuis;0.354
+hood;132;Kleidung & Accessoires > Spezielle Anlässe > Erotik > Kostüme für Damen;16350;Kostüme & Verkleidungen, neu und gebraucht, > Kostüme für Erwachsene;0.347
+hood;132;Kleidung & Accessoires > Spezielle Anlässe > Erotik > Kostüme für Damen;25129;Kostüme & Verkleidungen, neu und gebraucht, > Kostüme für Kinder;0.345
+hood;133;Kleidung & Accessoires > Spezielle Anlässe > Kostüme & Verkleidungen > Kostüme > Baby- & Kleinkinderkostüme;25129;Kostüme & Verkleidungen, neu und gebraucht, > Kostüme für Kinder;0.396
+hood;133;Kleidung & Accessoires > Spezielle Anlässe > Kostüme & Verkleidungen > Kostüme > Baby- & Kleinkinderkostüme;21897;Modische Accessoires für Baby & Kleinkind > Sonstige;0.391
+hood;133;Kleidung & Accessoires > Spezielle Anlässe > Kostüme & Verkleidungen > Kostüme > Baby- & Kleinkinderkostüme;21493;Modische Accessoires für Baby & Kleinkind > Regenschirme;0.378
+hood;134;Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Accessoires > Krawatten, -schals & Fliegen;23542;Herren-Accessoires > Herren Regenschirme > Krawatten & Fliegen;0.395
+hood;134;Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Accessoires > Krawatten, -schals & Fliegen;9019;Mode & Schuhe: Damen-Accessoires, kaufen > Schals & Tücher;0.341
+hood;134;Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Accessoires > Krawatten, -schals & Fliegen;23543;Herren-Accessoires > Herren Regenschirme > Schals & Tücher;0.330
+hood;135;Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Mode für Herren > Pullover & Strickjacken;23041;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode > Pullover & Cardigans;0.385
+hood;135;Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Mode für Herren > Pullover & Strickjacken;9640;Herren-Accessoires > Herren Regenschirme > Sonstige;0.326
+hood;135;Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Mode für Herren > Pullover & Strickjacken;23541;Herren-Accessoires > Herren Regenschirme > Hüte & Mützen;0.326
+hood;136;Möbel & Wohnen > Badezimmer > Badezimmerzubehör > Badvorleger, Teppiche & Toilettensitzabdeckungen;29049;badezimmer > Badaccessoires > Vorleger & Matten;0.395
+hood;136;Möbel & Wohnen > Badezimmer > Badezimmerzubehör > Badvorleger, Teppiche & Toilettensitzabdeckungen;12059;badezimmer > Badaccessoires > Seifenspender & Seifenschalen;0.349
+hood;136;Möbel & Wohnen > Badezimmer > Badezimmerzubehör > Badvorleger, Teppiche & Toilettensitzabdeckungen;29185;badezimmer > Badaccessoires > Kissen & Einlagen;0.346
+hood;137;Möbel & Wohnen > Badezimmer > Badezimmerzubehör > Handtuchhalter;22425;badezimmer > Badaccessoires > Handtuchhalter;0.573
+hood;138;Möbel & Wohnen > Badezimmer > Dusch- & Badewannenzubehör > Anti-Rutsch-Lösungen;22425;badezimmer > Badaccessoires > Handtuchhalter;0.368
+hood;138;Möbel & Wohnen > Badezimmer > Dusch- & Badewannenzubehör > Anti-Rutsch-Lösungen;29187;badezimmer > Badaccessoires > Zahnputzbecher;0.356
+hood;138;Möbel & Wohnen > Badezimmer > Dusch- & Badewannenzubehör > Anti-Rutsch-Lösungen;12061;badezimmer > Badaccessoires > Sonstige;0.351
+hood;139;Möbel & Wohnen > Beleuchtung;12757;Bettwäsche > Bettlaken;0.374
+hood;139;Möbel & Wohnen > Beleuchtung;8193;Badewannen > Spülen;0.368
+hood;139;Möbel & Wohnen > Beleuchtung;12538;Bettwäsche > Bettdecken;0.367
+hood;140;Möbel & Wohnen > Bettwaren, -wäsche & Matratzen;12756;Schlafzimmer > Schlafzimmer Kommoden > Bettwäsche & Bettwaren;0.395
+hood;140;Möbel & Wohnen > Bettwaren, -wäsche & Matratzen;15118;Alles rund um Camping & Outdoor online kaufen > Isomatten & Matratzen;0.357
+hood;140;Möbel & Wohnen > Bettwaren, -wäsche & Matratzen;12528;Lattenroste > Matratzen;0.355
+hood;141;Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettlaken;12757;Bettwäsche > Bettlaken;0.431
+hood;142;Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Bettwäsche;29189;Bettwäsche;0.252
+hood;143;Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Kopfkissen & Körperkissen;12537;Bettwäsche > Matratzenauflagen & Topper;0.379
+hood;143;Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Kopfkissen & Körperkissen;29249;Bettwäsche > Kissen & Kissenbezüge;0.370
+hood;143;Möbel & Wohnen > Bettwaren, -wäsche & Matratzen > Kopfkissen & Körperkissen;12756;Schlafzimmer > Schlafzimmer Kommoden > Bettwäsche & Bettwaren;0.314
+hood;144;Möbel & Wohnen > Dekoration > Figuren, Skulpturen & Statuen;12158;Dekorative Haken & Garderoben > Dekoration > Figuren & Skulpturen;0.569
+hood;144;Möbel & Wohnen > Dekoration > Figuren, Skulpturen & Statuen;25501;Dekorative Haken & Garderoben > Dekoration > Pflanzen & Kunstblumen;0.425
+hood;144;Möbel & Wohnen > Dekoration > Figuren, Skulpturen & Statuen;12148;Dekorative Haken & Garderoben > Dekoration > Feste & Partys;0.416
+hood;145;Möbel & Wohnen > Haushalt > Putzgeräte > Reinigungshandschuhe;9629;Herren-Accessoires > Herren Regenschirme > Handschuhe;0.316
+hood;145;Möbel & Wohnen > Haushalt > Putzgeräte > Reinigungshandschuhe;25388;Alles rund um Geschirr & Gläser, kaufen > Haushalt & Küche;0.302
+hood;145;Möbel & Wohnen > Haushalt > Putzgeräte > Reinigungshandschuhe;22438;Badewannen > Spülkästen & Vorwandelemente;0.296
+hood;146;Möbel & Wohnen > Hochzeitsdekoration > Gastgeschenke;28859;Dekorative Haken & Garderoben > Dekoration > Handgemachte Geschenke;0.424
+hood;146;Möbel & Wohnen > Hochzeitsdekoration > Gastgeschenke;29201;Dekorative Haken & Garderoben > Dekoration > Tischdekoration;0.373
+hood;146;Möbel & Wohnen > Hochzeitsdekoration > Gastgeschenke;12189;Dekorative Haken & Garderoben > Dekoration > Sonstige;0.370
+hood;147;Möbel & Wohnen > Kindermöbel & Wohnen > Badzubehör & -textilien;5374;Computer online kaufen im Computer-Shop > Notebook-Zubehör > Netzteile;0.314
+hood;147;Möbel & Wohnen > Kindermöbel & Wohnen > Badzubehör & -textilien;4967;Druckerpatronen online kaufen > Sonstiges Zubehör & Teile;0.312
+hood;147;Möbel & Wohnen > Kindermöbel & Wohnen > Badzubehör & -textilien;12718;Lederhalsbänder für Hunde kaufen > Tierbedarf > Reptilien;0.312
+hood;148;Möbel & Wohnen > Kindermöbel & Wohnen > Bettwaren & -wäsche > Bettdecken;12538;Bettwäsche > Bettdecken;0.389
+hood;149;Möbel & Wohnen > Kindermöbel & Wohnen > Kochen & Essen > Schüsseln & Teller;29194;Dekorative Haken & Garderoben > Schilder & Tafeln;0.302
+hood;149;Möbel & Wohnen > Kindermöbel & Wohnen > Kochen & Essen > Schüsseln & Teller;20661;Mode & Schuhe: Damen-Accessoires, kaufen > Schlüsselanhänger;0.301
+hood;149;Möbel & Wohnen > Kindermöbel & Wohnen > Kochen & Essen > Schüsseln & Teller;9019;Mode & Schuhe: Damen-Accessoires, kaufen > Schals & Tücher;0.295
+hood;150;Möbel & Wohnen > Kochen & Genießen;22417;Badewannen > Duschkabinen & Trennwände;0.380
+hood;150;Möbel & Wohnen > Kochen & Genießen;22438;Badewannen > Spülkästen & Vorwandelemente;0.346
+hood;150;Möbel & Wohnen > Kochen & Genießen;7937;Messer kaufen > Kapp- & Gehrungssägen;0.345
+hood;151;Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Servierplatten & -schalen;25501;Dekorative Haken & Garderoben > Dekoration > Pflanzen & Kunstblumen;0.362
+hood;151;Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Servierplatten & -schalen;12158;Dekorative Haken & Garderoben > Dekoration > Figuren & Skulpturen;0.348
+hood;151;Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Servierplatten & -schalen;12357;Alles rund um Geschirr & Gläser, kaufen > Gedeckter Tisch;0.345
+hood;152;Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Tischsets;12357;Alles rund um Geschirr & Gläser, kaufen > Gedeckter Tisch;0.388
+hood;152;Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Tischsets;29201;Dekorative Haken & Garderoben > Dekoration > Tischdekoration;0.372
+hood;152;Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Tischsets;12189;Dekorative Haken & Garderoben > Dekoration > Sonstige;0.345
+hood;153;Möbel & Wohnen > Kochen & Genießen > Gläser & Glaswaren;12180;Dekorative Haken & Garderoben > Fächer & Masken;0.367
+hood;153;Möbel & Wohnen > Kochen & Genießen > Gläser & Glaswaren;21293;Dekorative Haken & Garderoben > Bilder & Poster;0.339
+hood;153;Möbel & Wohnen > Kochen & Genießen > Gläser & Glaswaren;29194;Dekorative Haken & Garderoben > Schilder & Tafeln;0.332
+hood;154;Möbel & Wohnen > Kochen & Genießen > Küchenhelfer > Gewürzmühlen & -streuer;12158;Dekorative Haken & Garderoben > Dekoration > Figuren & Skulpturen;0.329
+hood;154;Möbel & Wohnen > Kochen & Genießen > Küchenhelfer > Gewürzmühlen & -streuer;21293;Dekorative Haken & Garderoben > Bilder & Poster;0.307
+hood;154;Möbel & Wohnen > Kochen & Genießen > Küchenhelfer > Gewürzmühlen & -streuer;25501;Dekorative Haken & Garderoben > Dekoration > Pflanzen & Kunstblumen;0.304
+hood;155;Möbel & Wohnen > Kochen & Genießen > Küchenmesser;8183;Badewannen > Bad & Küche;0.335
+hood;155;Möbel & Wohnen > Kochen & Genießen > Küchenmesser;9626;Herren Regenschirme > Herren-Accessoires;0.324
+hood;155;Möbel & Wohnen > Kochen & Genießen > Küchenmesser;12457;Küche & Esszimmer: Tischläufer > Küche & Esszimmer;0.323
+hood;156;Möbel & Wohnen > Kochen & Genießen > Wasseraufbereitung & Trinkwassersprudler > Trinkwassersprudler;25431;Geburtstagskarten kaufen > Büro & Schreibwaren > Werbemittel & Geschäftspräsente;0.290
+hood;156;Möbel & Wohnen > Kochen & Genießen > Wasseraufbereitung & Trinkwassersprudler > Trinkwassersprudler;12188;Dekorative Haken & Garderoben > Dekoration > Zimmerbrunnen;0.275
+hood;156;Möbel & Wohnen > Kochen & Genießen > Wasseraufbereitung & Trinkwassersprudler > Trinkwassersprudler;12112;Dekorative Haken & Garderoben > Dekoration > Kerzen;0.269
+hood;157;Möbel & Wohnen > Kochen & Genießen > Wasseraufbereitung & Trinkwassersprudler > Wasserfilter-Kartuschen;25431;Geburtstagskarten kaufen > Büro & Schreibwaren > Werbemittel & Geschäftspräsente;0.291
+hood;157;Möbel & Wohnen > Kochen & Genießen > Wasseraufbereitung & Trinkwassersprudler > Wasserfilter-Kartuschen;28859;Dekorative Haken & Garderoben > Dekoration > Handgemachte Geschenke;0.280
+hood;157;Möbel & Wohnen > Kochen & Genießen > Wasseraufbereitung & Trinkwassersprudler > Wasserfilter-Kartuschen;29045;Dekorative Haken & Garderoben > Dekoration > Fensterdekoration;0.279
+hood;158;Möbel & Wohnen > Möbel > Betten > Lattenroste;12085;Lattenroste;0.353
+hood;159;Möbel & Wohnen > Möbel > Regale & Aufbewahrung;13498;musik > Zubehör & Aufbewahrung;0.473
+hood;159;Möbel & Wohnen > Möbel > Regale & Aufbewahrung;22430;Badewannen > Urinale & Bidets;0.346
+hood;159;Möbel & Wohnen > Möbel > Regale & Aufbewahrung;12673;Lederhalsbänder für Hunde kaufen > Hunde > Schilder & Aufkleber;0.330
+hood;160;Modellbau > Modellbausätze > Werkzeuge, Zubehör & Motoren > Werkzeuge > Elektrowerkzeuge;11968;Modellbau > Alles für den RC-Modellbau, kaufen > Fernsteuerung & Elektronik;0.414
+hood;160;Modellbau > Modellbausätze > Werkzeuge, Zubehör & Motoren > Werkzeuge > Elektrowerkzeuge;11950;Modellbau > Alles für den RC-Modellbau, kaufen > Elektroflugzeuge;0.414
+hood;160;Modellbau > Modellbausätze > Werkzeuge, Zubehör & Motoren > Werkzeuge > Elektrowerkzeuge;12010;Modellbau > Alles für den RC-Modellbau, kaufen > Zubehör & Literatur;0.397
+hood;161;Modellbau > RC-Modellbau > RC Modellbau Teile & Zubehör > Fernsteuerung & Elektronik;11968;Modellbau > Alles für den RC-Modellbau, kaufen > Fernsteuerung & Elektronik;0.676
+hood;162;Münzen > Historische Wertpapiere > USA & Kanada > Elektronik & Computer;9106;Damen Sportschuhe & Sneaker > Sandalen & Sandaletten;0.363
+hood;162;Münzen > Historische Wertpapiere > USA & Kanada > Elektronik & Computer;20707;Modische Accessoires für Baby & Kleinkind > Schnullerketten & -bänder;0.350
+hood;162;Münzen > Historische Wertpapiere > USA & Kanada > Elektronik & Computer;2414;Modische Accessoires für Baby & Kleinkind > Mode & Schuhe;0.349
+hood;163;Musikinstrumente > Drums & Percussion > Ersatzteile > Sticks, Besen & Schlägel;22182;Trimmer, Kantenscheider und co > Ersatzteile;0.335
+hood;163;Musikinstrumente > Drums & Percussion > Ersatzteile > Sticks, Besen & Schlägel;11454;Antike Volkskunst kaufen > Erzgebirge > Schwibbögen & Lichterbögen;0.320
+hood;163;Musikinstrumente > Drums & Percussion > Ersatzteile > Sticks, Besen & Schlägel;11455;Antike Volkskunst kaufen > Erzgebirge > Spieluhren & -dosen;0.315
+hood;164;Musikinstrumente > Gitarren & Bässe > E-Gitarren;22952;Diverse Damenmode > Jacken & Mäntel > Westen;0.360
+hood;164;Musikinstrumente > Gitarren & Bässe > E-Gitarren;22957;Diverse Damenmode > Jacken & Mäntel > Übergangsjacken;0.342
+hood;164;Musikinstrumente > Gitarren & Bässe > E-Gitarren;8494;Diverse Damenmode > Jacken & Mäntel > Jeansjacken;0.341
+hood;165;Musikinstrumente > Gitarren & Bässe > Zubehör > Teile > Pickups;21298;Elegante Herrenschuhe > Zubehör & Pflege;0.350
+hood;165;Musikinstrumente > Gitarren & Bässe > Zubehör > Teile > Pickups;5374;Computer online kaufen im Computer-Shop > Notebook-Zubehör > Netzteile;0.325
+hood;165;Musikinstrumente > Gitarren & Bässe > Zubehör > Teile > Pickups;22974;Diverse Damenmode > Jacken & Mäntel > Parkas;0.323
+hood;166;Reisen > Reiseaccessoires > Regenschirme;21493;Modische Accessoires für Baby & Kleinkind > Regenschirme;0.490
+hood;167;Reisen > Reisekoffer & -taschen > Reisekoffer & Trolleys;28898;Socken & Strümpfe für Baby & Kleinkind > T-Shirts & Tops;0.321
+hood;167;Reisen > Reisekoffer & -taschen > Reisekoffer & Trolleys;2550;Socken & Strümpfe für Baby & Kleinkind > Pakete & Sets;0.314
+hood;167;Reisen > Reisekoffer & -taschen > Reisekoffer & Trolleys;2416;Socken & Strümpfe für Baby & Kleinkind > Cardigans & Strickjacken;0.309
+hood;168;Sammeln & Seltenes > Rollenspiele & Tabletops > Kartenspiele;22763;Damen Slips & Strings > Morgenmäntel & Bademäntel;0.357
+hood;168;Sammeln & Seltenes > Rollenspiele & Tabletops > Kartenspiele;22831;Damen T-Shirts > Ärmellose Tops;0.332
+hood;168;Sammeln & Seltenes > Rollenspiele & Tabletops > Kartenspiele;10556;Diverses Antikspielzeug > Blechspielzeug;0.317
+hood;169;Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Deck-Boxen, Blechdosen & Kartentrenner;22759;Damen Slips & Strings > Unterhemden, -kleider & -röcke;0.294
+hood;169;Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Deck-Boxen, Blechdosen & Kartentrenner;7306;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Antennen;0.288
+hood;169;Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Deck-Boxen, Blechdosen & Kartentrenner;12010;Modellbau > Alles für den RC-Modellbau, kaufen > Zubehör & Literatur;0.286
+hood;170;Spielzeug > Bären, -kleidung & Zubehör > Bärenkleidung & Accessoires;23042;Kostüme & Verkleidungen, neu und gebraucht, > Accessoires;0.388
+hood;170;Spielzeug > Bären, -kleidung & Zubehör > Bärenkleidung & Accessoires;9626;Herren Regenschirme > Herren-Accessoires;0.320
+hood;170;Spielzeug > Bären, -kleidung & Zubehör > Bärenkleidung & Accessoires;7504;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Sonstige;0.319
+hood;171;Spielzeug > Basteln & Kreativität;10512;Diverses Antikspielzeug > Kunst & Antiquitäten;0.437
+hood;171;Spielzeug > Basteln & Kreativität;26047;Diverses Antikspielzeug > Baukästen;0.381
+hood;171;Spielzeug > Basteln & Kreativität;10602;Diverses Antikspielzeug > Literatur;0.360
+hood;172;Spielzeug > Lernspielzeug;10556;Diverses Antikspielzeug > Blechspielzeug;0.510
+hood;172;Spielzeug > Lernspielzeug;10586;Diverses Antikspielzeug > Holzspielzeug;0.495
+hood;172;Spielzeug > Lernspielzeug;10582;Diverses Antikspielzeug > Gesellschaftsspiele;0.391
+hood;173;Spielzeug > Musik & Instrumente > Trommeln & Co.;22968;Diverse Damenmode > Jacken & Mäntel > Trenchcoats;0.341
+hood;173;Spielzeug > Musik & Instrumente > Trommeln & Co.;7984;Baustoffe & Bauelemente > Türen;0.328
+hood;173;Spielzeug > Musik & Instrumente > Trommeln & Co.;13638;musik > Sonstige Formate;0.327
+hood;174;Spielzeug > Playmobil > Freizeit;10571;Diverses Antikspielzeug > Massefiguren;0.329
+hood;174;Spielzeug > Playmobil > Freizeit;10606;Diverses Antikspielzeug > Sonstige;0.327
+hood;174;Spielzeug > Playmobil > Freizeit;10586;Diverses Antikspielzeug > Holzspielzeug;0.325
+hood;175;Spielzeug > Puppen & Zubehör;10588;Diverses Antikspielzeug > Puppen & Zubehör;0.646
+hood;176;Spielzeug > Spiele > Kartenspiele > Moderne Kartenspiele;10601;Diverses Antikspielzeug > Stofftiere & Teddybären;0.329
+hood;176;Spielzeug > Spiele > Kartenspiele > Moderne Kartenspiele;22182;Trimmer, Kantenscheider und co > Ersatzteile;0.317
+hood;176;Spielzeug > Spiele > Kartenspiele > Moderne Kartenspiele;18786;Elektronik > Elektronik für Bauen und Garten: Akkus & Batterien > Bauteile;0.313
+hood;177;Spielzeug > Spiele > Sonstige;10606;Diverses Antikspielzeug > Sonstige;0.457
+hood;177;Spielzeug > Spiele > Sonstige;12061;badezimmer > Badaccessoires > Sonstige;0.408
+hood;177;Spielzeug > Spiele > Sonstige;13325;ungarn > Sonstige;0.407
+hood;178;Sport > Angelsport > Kleines Angelzubehör > Bleie;6687;foto-camcorder > Foto- & Kamerazubehör;0.314
+hood;178;Sport > Angelsport > Kleines Angelzubehör > Bleie;9128;Damen Sportschuhe & Sneaker > Ballerinas & Slipper;0.305
+hood;178;Sport > Angelsport > Kleines Angelzubehör > Bleie;9181;Damen Sportschuhe & Sneaker > Zubehör & Pflege;0.303
+hood;179;Sport > Angelsport > Zubehör > Räucheröfen & -utensilien;9181;Damen Sportschuhe & Sneaker > Zubehör & Pflege;0.353
+hood;179;Sport > Angelsport > Zubehör > Räucheröfen & -utensilien;4967;Druckerpatronen online kaufen > Sonstiges Zubehör & Teile;0.319
+hood;179;Sport > Angelsport > Zubehör > Räucheröfen & -utensilien;7504;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Sonstige;0.315
+hood;180;Sport > Camping & Outdoor > Bekleidung > Wanderschuhe;15159;Alles rund um Camping & Outdoor online kaufen > Wanderstöcke;0.522
+hood;180;Sport > Camping & Outdoor > Bekleidung > Wanderschuhe;15157;Alles rund um Camping & Outdoor online kaufen > Trekking-Schuhe;0.481
+hood;180;Sport > Camping & Outdoor > Bekleidung > Wanderschuhe;15113;Alles rund um Camping & Outdoor online kaufen > Camping-Geschirr;0.469
+hood;181;Sport > Camping & Outdoor > Camping-Küchenbedarf > Kochgeschirr;15113;Alles rund um Camping & Outdoor online kaufen > Camping-Geschirr;0.504
+hood;181;Sport > Camping & Outdoor > Camping-Küchenbedarf > Kochgeschirr;15114;Alles rund um Camping & Outdoor online kaufen > Camping-Kocher;0.477
+hood;181;Sport > Camping & Outdoor > Camping-Küchenbedarf > Kochgeschirr;15120;Alles rund um Camping & Outdoor online kaufen > Kompressoren;0.461
+hood;182;Sport > Camping & Outdoor > Rucksäcke > Tagesrucksäcke;15148;Alles rund um Camping & Outdoor online kaufen > Trekking-Rucksäcke;0.472
+hood;182;Sport > Camping & Outdoor > Rucksäcke > Tagesrucksäcke;15169;Alles rund um Camping & Outdoor online kaufen > Sonstige;0.462
+hood;182;Sport > Camping & Outdoor > Rucksäcke > Tagesrucksäcke;15120;Alles rund um Camping & Outdoor online kaufen > Kompressoren;0.455
+hood;183;Sport > Camping & Outdoor > Rucksäcke > Trekkingrucksäcke;15148;Alles rund um Camping & Outdoor online kaufen > Trekking-Rucksäcke;0.603
+hood;183;Sport > Camping & Outdoor > Rucksäcke > Trekkingrucksäcke;15157;Alles rund um Camping & Outdoor online kaufen > Trekking-Schuhe;0.503
+hood;183;Sport > Camping & Outdoor > Rucksäcke > Trekkingrucksäcke;15147;Alles rund um Camping & Outdoor online kaufen > Trekking-Kleidung;0.483
+hood;184;Sport > Camping & Outdoor > Sonstiges Camping & Outdoor;15114;Alles rund um Camping & Outdoor online kaufen > Camping-Kocher;0.499
+hood;184;Sport > Camping & Outdoor > Sonstiges Camping & Outdoor;15113;Alles rund um Camping & Outdoor online kaufen > Camping-Geschirr;0.480
+hood;184;Sport > Camping & Outdoor > Sonstiges Camping & Outdoor;15115;Alles rund um Camping & Outdoor online kaufen > Camping-Möbel;0.478
+hood;185;Sport > Camping & Outdoor > Zelte & Strandmuscheln > Strandmuscheln;15159;Alles rund um Camping & Outdoor online kaufen > Wanderstöcke;0.482
+hood;185;Sport > Camping & Outdoor > Zelte & Strandmuscheln > Strandmuscheln;15157;Alles rund um Camping & Outdoor online kaufen > Trekking-Schuhe;0.479
+hood;185;Sport > Camping & Outdoor > Zelte & Strandmuscheln > Strandmuscheln;15148;Alles rund um Camping & Outdoor online kaufen > Trekking-Rucksäcke;0.469
+hood;186;Sport > Fitness & Jogging > Bekleidung > Damen > Sweatshirts & Kapuzenpullover;17810;Fitness & Jogging Unisex Bekleidung online kaufen > Kinder & Jugend;0.517
+hood;186;Sport > Fitness & Jogging > Bekleidung > Damen > Sweatshirts & Kapuzenpullover;17801;Fitness & Jogging Unisex Bekleidung online kaufen > Herren;0.510
+hood;186;Sport > Fitness & Jogging > Bekleidung > Damen > Sweatshirts & Kapuzenpullover;17792;Fitness & Jogging Unisex Bekleidung online kaufen > Damen;0.507
+hood;187;Sport > Fitness & Jogging > Fitness- & Laufschuhe;17821;Yoga Equipment online kaufen > Fitness- & Laufschuhe;0.526
+hood;188;Sport > Fitness & Jogging > Krafttraining & Gewichte > Gewichthebergürtel;17801;Fitness & Jogging Unisex Bekleidung online kaufen > Herren;0.392
+hood;188;Sport > Fitness & Jogging > Krafttraining & Gewichte > Gewichthebergürtel;29458;Fitness & Jogging Unisex Bekleidung online kaufen;0.375
+hood;188;Sport > Fitness & Jogging > Krafttraining & Gewichte > Gewichthebergürtel;17792;Fitness & Jogging Unisex Bekleidung online kaufen > Damen;0.372
+hood;189;Sport > Fitness & Jogging > Yoga & Pilates;17789;Yoga Equipment online kaufen > Fitness & Jogging;0.457
+hood;189;Sport > Fitness & Jogging > Yoga & Pilates;29458;Fitness & Jogging Unisex Bekleidung online kaufen;0.410
+hood;189;Sport > Fitness & Jogging > Yoga & Pilates;17792;Fitness & Jogging Unisex Bekleidung online kaufen > Damen;0.376
+hood;190;Sport > Fitness & Jogging > Yoga & Pilates > Yogamatten;17792;Fitness & Jogging Unisex Bekleidung online kaufen > Damen;0.424
+hood;190;Sport > Fitness & Jogging > Yoga & Pilates > Yogamatten;17789;Yoga Equipment online kaufen > Fitness & Jogging;0.401
+hood;190;Sport > Fitness & Jogging > Yoga & Pilates > Yogamatten;17801;Fitness & Jogging Unisex Bekleidung online kaufen > Herren;0.395
+hood;191;Sport > Funsport > Cityroller & Kickboards;29479;Diverse Damenmode > Pullover & Cardigans;0.316
+hood;191;Sport > Funsport > Cityroller & Kickboards;13681;musik > Fanartikel & Superstars;0.316
+hood;191;Sport > Funsport > Cityroller & Kickboards;12060;badezimmer > Badaccessoires > WC-Sitze & Aufkleber;0.313
+hood;192;Sport > Funsport > Elektro-Scooter;8134;Trimmer, Kantenscheider und co > Elektro-Rasenmäher;0.374
+hood;192;Sport > Funsport > Elektro-Scooter;12075;Lattenroste > Doppelbetten;0.288
+hood;192;Sport > Funsport > Elektro-Scooter;13681;musik > Fanartikel & Superstars;0.288
+hood;193;Sport > Funsport > Skateboarding > Boards > Lager;28589;Geburtstagskarten kaufen > Baby & Geburt;0.340
+hood;193;Sport > Funsport > Skateboarding > Boards > Lager;9128;Damen Sportschuhe & Sneaker > Ballerinas & Slipper;0.335
+hood;193;Sport > Funsport > Skateboarding > Boards > Lager;4180;Geburtstagskarten kaufen > Büro & Schreibwaren > Bürogeräte;0.320
+hood;194;Sport > Radsport > Fahrradteile & -komponenten;29049;badezimmer > Badaccessoires > Vorleger & Matten;0.341
+hood;194;Sport > Radsport > Fahrradteile & -komponenten;18000;Fahrradständer online kaufen > Fahrradcomputer;0.329
+hood;194;Sport > Radsport > Fahrradteile & -komponenten;12180;Dekorative Haken & Garderoben > Fächer & Masken;0.310
+hood;195;Sport > Radsport > Fahrradteile & -komponenten > Bremsbeläge;1667;KFZ Verschleißteile: Dichtungen > Bremsbeläge;0.381
+hood;196;Sport > Radsport > Fahrradteile & -komponenten > Bremsscheiben;1666;KFZ Verschleißteile: Dichtungen > Bremsscheiben;0.395
+hood;197;Sport > Radsport > Fahrradteile & -komponenten > Sättel;9158;Damen Sportschuhe & Sneaker > Stiefel;0.329
+hood;197;Sport > Radsport > Fahrradteile & -komponenten > Sättel;18006;Fahrradständer online kaufen > Sonstiges;0.318
+hood;197;Sport > Radsport > Fahrradteile & -komponenten > Sättel;9169;Damen Sportschuhe & Sneaker > Stiefeletten;0.312
+hood;198;Sport > Radsport > Fahrradzubehör;17999;Fahrradständer online kaufen > Fahrradzubehör;0.471
+hood;199;Sport > Radsport > Fahrradzubehör > Beleuchtung & Reflektoren;17994;Fahrradständer online kaufen > Beleuchtung & Reflektoren;0.525
+hood;200;Sport > Radsport > Fahrradzubehör > Fahrradanhänger;17935;Fahrradständer online kaufen > Fahrradanhänger;0.441
+hood;201;Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung;13498;musik > Zubehör & Aufbewahrung;0.441
+hood;201;Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung;17934;Fahrradständer online kaufen > Radsport;0.385
+hood;201;Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung;17999;Fahrradständer online kaufen > Fahrradzubehör;0.381
+hood;202;Sport > Radsport > Fahrradzubehör > Fahrradtaschen;17999;Fahrradständer online kaufen > Fahrradzubehör;0.389
+hood;202;Sport > Radsport > Fahrradzubehör > Fahrradtaschen;13498;musik > Zubehör & Aufbewahrung;0.324
+hood;202;Sport > Radsport > Fahrradzubehör > Fahrradtaschen;23043;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode > Trachtenmode;0.305
+hood;203;Sport > Radsport > Fahrradzubehör > Schlösser & Sicherheit;17999;Fahrradständer online kaufen > Fahrradzubehör;0.357
+hood;203;Sport > Radsport > Fahrradzubehör > Schlösser & Sicherheit;18001;Fahrradständer online kaufen > Fahrradschlösser;0.343
+hood;203;Sport > Radsport > Fahrradzubehör > Schlösser & Sicherheit;9040;Damen Sportschuhe & Sneaker > Badeschlappen & -schuhe;0.337
+hood;204;Sport > Radsport > Fahrradzubehör > Transportkoffer/-taschen;17999;Fahrradständer online kaufen > Fahrradzubehör;0.350
+hood;204;Sport > Radsport > Fahrradzubehör > Transportkoffer/-taschen;7543;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Schutzfolien;0.307
+hood;204;Sport > Radsport > Fahrradzubehör > Transportkoffer/-taschen;7271;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones;0.298
+hood;205;Sport > Radsport > Helme & Protektoren > Helme;17994;Fahrradständer online kaufen > Beleuchtung & Reflektoren;0.325
+hood;205;Sport > Radsport > Helme & Protektoren > Helme;29237;Dekorative Haken & Garderoben > Zierelemente;0.320
+hood;205;Sport > Radsport > Helme & Protektoren > Helme;28672;Diverse gemusterte Stoffe & Textilien > Tiere;0.316
+hood;206;Sport > Sporttaschen & Rucksäcke > Rucksäcke;9084;Damen Sportschuhe & Sneaker > Pumps;0.383
+hood;206;Sport > Sporttaschen & Rucksäcke > Rucksäcke;9158;Damen Sportschuhe & Sneaker > Stiefel;0.373
+hood;206;Sport > Sporttaschen & Rucksäcke > Rucksäcke;9095;Damen Sportschuhe & Sneaker > Robust & Bequem;0.372
+hood;207;Sport > Tauchen > Instrumente & Uhren > Konsolen;14022;Spielekonsolen, neu und geraucht, kaufen > Games & Konsolen;0.378
+hood;207;Sport > Tauchen > Instrumente & Uhren > Konsolen;11455;Antike Volkskunst kaufen > Erzgebirge > Spieluhren & -dosen;0.350
+hood;207;Sport > Tauchen > Instrumente & Uhren > Konsolen;4231;Geburtstagskarten kaufen > Büro & Schreibwaren > Sonstige;0.343
+hood;208;Sport > Weitere Ballsportarten > Football > Fanartikel;28591;Geburtstagskarten kaufen > Danke;0.318
+hood;208;Sport > Weitere Ballsportarten > Football > Fanartikel;25473;Geburtstagskarten kaufen > Sonstige;0.307
+hood;208;Sport > Weitere Ballsportarten > Football > Fanartikel;23157;Jacken & Mäntel > Herren Lederjacken > Woll- & Wintermäntel;0.306
+hood;209;Sport > Weitere Ballsportarten > Tennis;12108;Dekoration: Advent & Weihnachten > Ostern;0.328
+hood;209;Sport > Weitere Ballsportarten > Tennis;12194;Dekoration: Advent & Weihnachten > Valentinstag;0.322
+hood;209;Sport > Weitere Ballsportarten > Tennis;25478;Geburtstagskarten kaufen > Valentinstag;0.314
+hood;210;Sport > Weitere Ballsportarten > Tennis > Sonstige;25473;Geburtstagskarten kaufen > Sonstige;0.407
+hood;210;Sport > Weitere Ballsportarten > Tennis > Sonstige;28649;Diverse gemusterte Stoffe & Textilien > Sonstige;0.397
+hood;210;Sport > Weitere Ballsportarten > Tennis > Sonstige;12187;Dekorative Haken & Garderoben > Sonstige;0.384
+hood;211;Sport > Weiterer Wassersport > Kitesurfen > Sonstige;7940;Messer kaufen > Sonstige;0.417
+hood;211;Sport > Weiterer Wassersport > Kitesurfen > Sonstige;26262;Alles rund um Geschirr & Gläser, kaufen > Sonstige;0.409
+hood;211;Sport > Weiterer Wassersport > Kitesurfen > Sonstige;5034;Tastaturen online kaufen > Sonstige;0.397
+hood;212;Sport > Wintersport > Bekleidung > Hosen;8427;Diverse Damenmode > Hosen;0.357
+hood;212;Sport > Wintersport > Bekleidung > Hosen;9238;Jacken & Mäntel > Herren Lederjacken > Herrenmode > Herren Bademode > Hosen;0.291
+hood;213;Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Schuhe & Boots > Herrenschuhe & -boots;9641;Elegante Herrenschuhe > Herrenschuhe;0.315
+hood;213;Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Schuhe & Boots > Herrenschuhe & -boots;10506;Diverse unifarbene Stoffe & Textilien > Stoffe & Textilien;0.290
+hood;213;Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Schuhe & Boots > Herrenschuhe & -boots;7390;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Schmuck & Sticker;0.277
+hood;214;Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Schuhe & Boots > Kinderschuhe & -boots;7390;handy-telefon > Handyzubehör > Akkus für Handys & Smartphones > Schmuck & Sticker;0.285
+hood;214;Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Schuhe & Boots > Kinderschuhe & -boots;9004;Mode & Schuhe: Damen-Accessoires, kaufen > Handschuhe & Fäustlinge;0.281
+hood;214;Sport > Wintersport > Skifahren, Snowboarden & Schneeschuhwandern > Schuhe & Boots > Kinderschuhe & -boots;10506;Diverse unifarbene Stoffe & Textilien > Stoffe & Textilien;0.281
+hood;215;TV, Video & Audio > Tragbare Geräte & Kopfhörer;8056;Trimmer, Kantenscheider und co > Gartengeräte;0.344
+hood;215;TV, Video & Audio > Tragbare Geräte & Kopfhörer;29238;Dekorative Haken & Garderoben > Objekte & Skulpturen;0.335
+hood;215;TV, Video & Audio > Tragbare Geräte & Kopfhörer;21293;Dekorative Haken & Garderoben > Bilder & Poster;0.322
+hood;216;Uhren & Schmuck > Juwelierbedarf > Reinigungsgeräte & -materialien;12116;Duftkerzen > Schmuck- & Motivkerzen;0.354
+hood;216;Uhren & Schmuck > Juwelierbedarf > Reinigungsgeräte & -materialien;11114;Leinwände & Keilrahmen für den Künstlerbedarf > Stifte & Kreiden;0.310
+hood;216;Uhren & Schmuck > Juwelierbedarf > Reinigungsgeräte & -materialien;29485;Jacken & Mäntel > Herren Lederjacken > Regenjacken & Windbreaker;0.310

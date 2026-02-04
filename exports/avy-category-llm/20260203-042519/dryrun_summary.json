@@ -1,0 +1,11 @@
+{
+  "total": 20,
+  "update": 20,
+  "skip": 0,
+  "via": {
+    "llm": 18,
+    "cache": 0,
+    "fallback": 2
+  },
+  "avgConfidence": 0.8549999999999999
+}

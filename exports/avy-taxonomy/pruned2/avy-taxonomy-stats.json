@@ -1,0 +1,20 @@
+{
+  "generated_at_iso": "2026-02-03T02:26:07.106Z",
+  "sources": {
+    "kaufland": "/Users/oguz/Dev/avycloud/kaufland categories.csv",
+    "ebay": "/Users/oguz/Dev/avycloud/all ebay kategorien mit struktur.csv",
+    "hood": "/Users/oguz/Dev/avycloud/backend/exports/hood/categories-hood.csv"
+  },
+  "pruning": {
+    "topK2": 8,
+    "minCount2": 40,
+    "topK3": 5,
+    "minCount3": 25,
+    "maxDepth": 3
+  },
+  "stats": {
+    "raw_paths": 31006,
+    "mapped_paths": 23387,
+    "final_categories": 255
+  }
+}

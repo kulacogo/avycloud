@@ -1,0 +1,994 @@
+{
+  "meta": {
+    "generated_at_iso": "2026-02-03T01:29:28.046Z",
+    "input": "/Users/oguz/Dev/avycloud/exports/baselinker-inventory-categories-78659-2026-02-03T01-29-21-978Z.csv",
+    "total_categories": 1131,
+    "duplicate_groups": 46
+  },
+  "groups": [
+    {
+      "key": "kleidung und accessoires|||poloshirts",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Poloshirts",
+      "count": 6,
+      "max_parent_similarity": 0.833,
+      "items": [
+        {
+          "id": "6488313",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Hemden & Oberteile > Poloshirts",
+          "parentCtx": "Kleidung & Accessoires > Herren > Hemden & Oberteile"
+        },
+        {
+          "id": "6407532",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts",
+          "parentCtx": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden"
+        },
+        {
+          "id": "6488215",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Poloshirts",
+          "parentCtx": "Kleidung & Accessoires > Herren"
+        },
+        {
+          "id": "6488218",
+          "breadcrumb": "Kleidung & Accessoires > Herren-T-Shirts & Hemden > Poloshirts",
+          "parentCtx": "Kleidung & Accessoires > Herren-T-Shirts & Hemden"
+        },
+        {
+          "id": "6488317",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > Shirts & Hemden > Poloshirts",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode > Shirts & Hemden"
+        },
+        {
+          "id": "6488442",
+          "breadcrumb": "Kleidung & Accessoires > Shirts > Poloshirts",
+          "parentCtx": "Kleidung & Accessoires > Shirts"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||hosen",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Hosen",
+      "count": 6,
+      "max_parent_similarity": 0.667,
+      "items": [
+        {
+          "id": "6488224",
+          "breadcrumb": "Kleidung & Accessoires > Damenbekleidung > Hosen",
+          "parentCtx": "Kleidung & Accessoires > Damenbekleidung"
+        },
+        {
+          "id": "6406949",
+          "breadcrumb": "Kleidung & Accessoires > Damenmode > Hosen",
+          "parentCtx": "Kleidung & Accessoires > Damenmode"
+        },
+        {
+          "id": "6488214",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Hosen",
+          "parentCtx": "Kleidung & Accessoires > Herren"
+        },
+        {
+          "id": "6406955",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > Hosen",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode"
+        },
+        {
+          "id": "6488168",
+          "breadcrumb": "Kleidung & Accessoires > Hosen",
+          "parentCtx": "Kleidung & Accessoires"
+        },
+        {
+          "id": "6488220",
+          "breadcrumb": "Kleidung & Accessoires > Kinder > Hosen",
+          "parentCtx": "Kleidung & Accessoires > Kinder"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||unterwasche",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Unterwäsche",
+      "count": 5,
+      "max_parent_similarity": 0.75,
+      "items": [
+        {
+          "id": "6407296",
+          "breadcrumb": "Kleidung & Accessoires > Damen > Unterwäsche",
+          "parentCtx": "Kleidung & Accessoires > Damen"
+        },
+        {
+          "id": "6407528",
+          "breadcrumb": "Kleidung & Accessoires > Damenmode > Unterwäsche & Nachtwäsche > Unterwäsche",
+          "parentCtx": "Kleidung & Accessoires > Damenmode > Unterwäsche & Nachtwäsche"
+        },
+        {
+          "id": "6407311",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Unterwäsche",
+          "parentCtx": "Kleidung & Accessoires > Herren > Herrenmode"
+        },
+        {
+          "id": "6407317",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Unterwäsche",
+          "parentCtx": "Kleidung & Accessoires > Herren"
+        },
+        {
+          "id": "6407322",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > Unterwäsche",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||jacken und mantel",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Jacken & Mäntel",
+      "count": 4,
+      "max_parent_similarity": 0.667,
+      "items": [
+        {
+          "id": "6407302",
+          "breadcrumb": "Kleidung & Accessoires > Damenmode > Jacken & Mäntel",
+          "parentCtx": "Kleidung & Accessoires > Damenmode"
+        },
+        {
+          "id": "6488305",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Jacken & Mäntel",
+          "parentCtx": "Kleidung & Accessoires > Herren"
+        },
+        {
+          "id": "6488366",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > Jacken & Mäntel",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode"
+        },
+        {
+          "id": "6488170",
+          "breadcrumb": "Kleidung & Accessoires > Jacken & Mäntel",
+          "parentCtx": "Kleidung & Accessoires"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||leggings",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Leggings",
+      "count": 4,
+      "max_parent_similarity": 0.6,
+      "items": [
+        {
+          "id": "6467277",
+          "breadcrumb": "Kleidung & Accessoires > Damen > Damenmode > Leggings",
+          "parentCtx": "Kleidung & Accessoires > Damen > Damenmode"
+        },
+        {
+          "id": "6488370",
+          "breadcrumb": "Kleidung & Accessoires > Damenbekleidung > Leggings",
+          "parentCtx": "Kleidung & Accessoires > Damenbekleidung"
+        },
+        {
+          "id": "6418460",
+          "breadcrumb": "Kleidung & Accessoires > Damenmode > Hosen & Leggings > Leggings",
+          "parentCtx": "Kleidung & Accessoires > Damenmode > Hosen & Leggings"
+        },
+        {
+          "id": "6488394",
+          "breadcrumb": "Kleidung & Accessoires > Hosen > Leggings",
+          "parentCtx": "Kleidung & Accessoires > Hosen"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||cargohosen",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Cargohosen",
+      "count": 3,
+      "max_parent_similarity": 0.75,
+      "items": [
+        {
+          "id": "6488299",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Hosen > Cargohosen",
+          "parentCtx": "Kleidung & Accessoires > Herren > Hosen"
+        },
+        {
+          "id": "6407321",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > Hosen > Cargohosen",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode > Hosen"
+        },
+        {
+          "id": "6488219",
+          "breadcrumb": "Kleidung & Accessoires > Hosen > Cargohosen",
+          "parentCtx": "Kleidung & Accessoires > Hosen"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||kostume",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Kostüme",
+      "count": 3,
+      "max_parent_similarity": 0.75,
+      "items": [
+        {
+          "id": "6407325",
+          "breadcrumb": "Kleidung & Accessoires > Kostüme & Verkleidungen > Kostüme",
+          "parentCtx": "Kleidung & Accessoires > Kostüme & Verkleidungen"
+        },
+        {
+          "id": "6407542",
+          "breadcrumb": "Kleidung & Accessoires > Spezielle Anlässe > Kostüme & Verkleidungen > Kostüme",
+          "parentCtx": "Kleidung & Accessoires > Spezielle Anlässe > Kostüme & Verkleidungen"
+        },
+        {
+          "id": "6488407",
+          "breadcrumb": "Kleidung & Accessoires > Verkleidungen > Kostüme",
+          "parentCtx": "Kleidung & Accessoires > Verkleidungen"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||boxershorts",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Boxershorts",
+      "count": 3,
+      "max_parent_similarity": 0.6,
+      "items": [
+        {
+          "id": "6407318",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Unterwäsche > Boxershorts",
+          "parentCtx": "Kleidung & Accessoires > Herren > Unterwäsche"
+        },
+        {
+          "id": "6407323",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > Unterwäsche > Boxershorts",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode > Unterwäsche"
+        },
+        {
+          "id": "6488443",
+          "breadcrumb": "Kleidung & Accessoires > Unterwäsche & Dessous > Unterhosen > Boxershorts",
+          "parentCtx": "Kleidung & Accessoires > Unterwäsche & Dessous > Unterhosen"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||mantel",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Mäntel",
+      "count": 3,
+      "max_parent_similarity": 0.571,
+      "items": [
+        {
+          "id": "6407299",
+          "breadcrumb": "Kleidung & Accessoires > Damenbekleidung > Jacken, Mäntel & Westen > Mäntel",
+          "parentCtx": "Kleidung & Accessoires > Damenbekleidung > Jacken, Mäntel & Westen"
+        },
+        {
+          "id": "6488173",
+          "breadcrumb": "Kleidung & Accessoires > Damenbekleidung > Mäntel",
+          "parentCtx": "Kleidung & Accessoires > Damenbekleidung"
+        },
+        {
+          "id": "6488307",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Jacken & Mäntel > Mäntel",
+          "parentCtx": "Kleidung & Accessoires > Herren > Jacken & Mäntel"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||jeans",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Jeans",
+      "count": 3,
+      "max_parent_similarity": 0.5,
+      "items": [
+        {
+          "id": "6406947",
+          "breadcrumb": "Kleidung & Accessoires > Damenbekleidung > Jeans",
+          "parentCtx": "Kleidung & Accessoires > Damenbekleidung"
+        },
+        {
+          "id": "6406956",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > Jeans",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode"
+        },
+        {
+          "id": "6488364",
+          "breadcrumb": "Kleidung & Accessoires > Hosen > Jeans",
+          "parentCtx": "Kleidung & Accessoires > Hosen"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||t-shirts",
+      "root": "Kleidung & Accessoires",
+      "leaf": "T-Shirts",
+      "count": 3,
+      "max_parent_similarity": 0.5,
+      "items": [
+        {
+          "id": "6407533",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > T-Shirts",
+          "parentCtx": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden"
+        },
+        {
+          "id": "6406957",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > T-Shirts",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode"
+        },
+        {
+          "id": "6488405",
+          "breadcrumb": "Kleidung & Accessoires > Shirts > T-Shirts",
+          "parentCtx": "Kleidung & Accessoires > Shirts"
+        }
+      ]
+    },
+    {
+      "key": "sport|||bekleidung",
+      "root": "Sport",
+      "leaf": "Bekleidung",
+      "count": 3,
+      "max_parent_similarity": 0.25,
+      "items": [
+        {
+          "id": "6407421",
+          "breadcrumb": "Sport > Camping & Outdoor > Bekleidung",
+          "parentCtx": "Sport > Camping & Outdoor"
+        },
+        {
+          "id": "6407555",
+          "breadcrumb": "Sport > Fitness & Jogging > Bekleidung",
+          "parentCtx": "Sport > Fitness & Jogging"
+        },
+        {
+          "id": "6407487",
+          "breadcrumb": "Sport > Wintersport > Bekleidung",
+          "parentCtx": "Sport > Wintersport"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||shirts und hemden",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Shirts & Hemden",
+      "count": 2,
+      "max_parent_similarity": 0.75,
+      "items": [
+        {
+          "id": "6407530",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden",
+          "parentCtx": "Kleidung & Accessoires > Herren > Herrenmode"
+        },
+        {
+          "id": "6488315",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > Shirts & Hemden",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||damen-accessoires",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Damen-Accessoires",
+      "count": 2,
+      "max_parent_similarity": 0.667,
+      "items": [
+        {
+          "id": "6407525",
+          "breadcrumb": "Kleidung & Accessoires > Damen > Damen-Accessoires",
+          "parentCtx": "Kleidung & Accessoires > Damen"
+        },
+        {
+          "id": "6418474",
+          "breadcrumb": "Kleidung & Accessoires > Damen-Accessoires",
+          "parentCtx": "Kleidung & Accessoires"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||damenmode",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Damenmode",
+      "count": 2,
+      "max_parent_similarity": 0.667,
+      "items": [
+        {
+          "id": "6467276",
+          "breadcrumb": "Kleidung & Accessoires > Damen > Damenmode",
+          "parentCtx": "Kleidung & Accessoires > Damen"
+        },
+        {
+          "id": "6406948",
+          "breadcrumb": "Kleidung & Accessoires > Damenmode",
+          "parentCtx": "Kleidung & Accessoires"
+        }
+      ]
+    },
+    {
+      "key": "garten und terrasse|||grillzubehor",
+      "root": "Garten & Terrasse",
+      "leaf": "Grillzubehör",
+      "count": 2,
+      "max_parent_similarity": 0.667,
+      "items": [
+        {
+          "id": "6407234",
+          "breadcrumb": "Garten & Terrasse > Grills, Heizstrahler & Picknick > Grillzubehör",
+          "parentCtx": "Garten & Terrasse > Grills, Heizstrahler & Picknick"
+        },
+        {
+          "id": "6406863",
+          "breadcrumb": "Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör > Grillzubehör",
+          "parentCtx": "Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||hemden",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Hemden",
+      "count": 2,
+      "max_parent_similarity": 0.667,
+      "items": [
+        {
+          "id": "6488167",
+          "breadcrumb": "Kleidung & Accessoires > Hemden",
+          "parentCtx": "Kleidung & Accessoires"
+        },
+        {
+          "id": "6407319",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > Hemden",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||herren-accessoires",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Herren-Accessoires",
+      "count": 2,
+      "max_parent_similarity": 0.667,
+      "items": [
+        {
+          "id": "6407307",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Herren-Accessoires",
+          "parentCtx": "Kleidung & Accessoires > Herren"
+        },
+        {
+          "id": "6406952",
+          "breadcrumb": "Kleidung & Accessoires > Herren-Accessoires",
+          "parentCtx": "Kleidung & Accessoires"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||herrenmode",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Herrenmode",
+      "count": 2,
+      "max_parent_similarity": 0.667,
+      "items": [
+        {
+          "id": "6406951",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode",
+          "parentCtx": "Kleidung & Accessoires > Herren"
+        },
+        {
+          "id": "6406954",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode",
+          "parentCtx": "Kleidung & Accessoires"
+        }
+      ]
+    },
+    {
+      "key": "beauty und gesundheit|||korperpflege",
+      "root": "Beauty & Gesundheit",
+      "leaf": "Körperpflege",
+      "count": 2,
+      "max_parent_similarity": 0.667,
+      "items": [
+        {
+          "id": "6407181",
+          "breadcrumb": "Beauty & Gesundheit > Hautpflege > Körperpflege",
+          "parentCtx": "Beauty & Gesundheit > Hautpflege"
+        },
+        {
+          "id": "6406660",
+          "breadcrumb": "Beauty & Gesundheit > Körperpflege",
+          "parentCtx": "Beauty & Gesundheit"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||daunenjacken",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Daunenjacken",
+      "count": 2,
+      "max_parent_similarity": 0.6,
+      "items": [
+        {
+          "id": "6407303",
+          "breadcrumb": "Kleidung & Accessoires > Damenmode > Jacken & Mäntel > Daunenjacken",
+          "parentCtx": "Kleidung & Accessoires > Damenmode > Jacken & Mäntel"
+        },
+        {
+          "id": "6488469",
+          "breadcrumb": "Kleidung & Accessoires > Jacken > Daunenjacken",
+          "parentCtx": "Kleidung & Accessoires > Jacken"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||jeansjacken",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Jeansjacken",
+      "count": 2,
+      "max_parent_similarity": 0.6,
+      "items": [
+        {
+          "id": "6488368",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > Jacken & Mäntel > Jeansjacken",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode > Jacken & Mäntel"
+        },
+        {
+          "id": "6488388",
+          "breadcrumb": "Kleidung & Accessoires > Jacken > Jeansjacken",
+          "parentCtx": "Kleidung & Accessoires > Jacken"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||langarmshirts",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Langarmshirts",
+      "count": 2,
+      "max_parent_similarity": 0.6,
+      "items": [
+        {
+          "id": "6488471",
+          "breadcrumb": "Kleidung & Accessoires > Herrenmode > Shirts & Hemden > Langarmshirts",
+          "parentCtx": "Kleidung & Accessoires > Herrenmode > Shirts & Hemden"
+        },
+        {
+          "id": "6488445",
+          "breadcrumb": "Kleidung & Accessoires > Shirts > Langarmshirts",
+          "parentCtx": "Kleidung & Accessoires > Shirts"
+        }
+      ]
+    },
+    {
+      "key": "heimwerker|||waschtischarmaturen",
+      "root": "Heimwerker",
+      "leaf": "Waschtischarmaturen",
+      "count": 2,
+      "max_parent_similarity": 0.6,
+      "items": [
+        {
+          "id": "6407272",
+          "breadcrumb": "Heimwerker > Bad & Küche > Armaturen > Waschtischarmaturen",
+          "parentCtx": "Heimwerker > Bad & Küche > Armaturen"
+        },
+        {
+          "id": "6407276",
+          "breadcrumb": "Heimwerker > Bad & Küche > Badarmaturen > Waschtischarmaturen",
+          "parentCtx": "Heimwerker > Bad & Küche > Badarmaturen"
+        }
+      ]
+    },
+    {
+      "key": "haus und garten|||duschschlauche",
+      "root": "Haus & Garten",
+      "leaf": "Duschschläuche",
+      "count": 2,
+      "max_parent_similarity": 0.571,
+      "items": [
+        {
+          "id": "6407521",
+          "breadcrumb": "Haus & Garten > Bad & Küche > Bad > Duschen & Duschzubehör > Duschschläuche",
+          "parentCtx": "Haus & Garten > Bad & Küche > Bad > Duschen & Duschzubehör"
+        },
+        {
+          "id": "6407250",
+          "breadcrumb": "Haus & Garten > Badezimmer > Duschen & Duschzubehör > Duschschläuche",
+          "parentCtx": "Haus & Garten > Badezimmer > Duschen & Duschzubehör"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||bhs",
+      "root": "Kleidung & Accessoires",
+      "leaf": "BHs",
+      "count": 2,
+      "max_parent_similarity": 0.5,
+      "items": [
+        {
+          "id": "6407305",
+          "breadcrumb": "Kleidung & Accessoires > Damenmode > Unterwäsche & Nachtwäsche > BHs",
+          "parentCtx": "Kleidung & Accessoires > Damenmode > Unterwäsche & Nachtwäsche"
+        },
+        {
+          "id": "6488458",
+          "breadcrumb": "Kleidung & Accessoires > Unterwäsche & Dessous > BHs",
+          "parentCtx": "Kleidung & Accessoires > Unterwäsche & Dessous"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||blazer",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Blazer",
+      "count": 2,
+      "max_parent_similarity": 0.5,
+      "items": [
+        {
+          "id": "6488456",
+          "breadcrumb": "Kleidung & Accessoires > Businesskleidungen > Blazer",
+          "parentCtx": "Kleidung & Accessoires > Businesskleidungen"
+        },
+        {
+          "id": "6488172",
+          "breadcrumb": "Kleidung & Accessoires > Damenbekleidung > Blazer",
+          "parentCtx": "Kleidung & Accessoires > Damenbekleidung"
+        }
+      ]
+    },
+    {
+      "key": "kuche und haushalt|||glaser",
+      "root": "Küche & Haushalt",
+      "leaf": "Gläser",
+      "count": 2,
+      "max_parent_similarity": 0.5,
+      "items": [
+        {
+          "id": "6406965",
+          "breadcrumb": "Küche & Haushalt > Geschirr & Besteck > Gläser",
+          "parentCtx": "Küche & Haushalt > Geschirr & Besteck"
+        },
+        {
+          "id": "6406968",
+          "breadcrumb": "Küche & Haushalt > Gläser",
+          "parentCtx": "Küche & Haushalt"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||gurtel",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Gürtel",
+      "count": 2,
+      "max_parent_similarity": 0.5,
+      "items": [
+        {
+          "id": "6418475",
+          "breadcrumb": "Kleidung & Accessoires > Damen-Accessoires > Gürtel",
+          "parentCtx": "Kleidung & Accessoires > Damen-Accessoires"
+        },
+        {
+          "id": "6406953",
+          "breadcrumb": "Kleidung & Accessoires > Herren-Accessoires > Gürtel",
+          "parentCtx": "Kleidung & Accessoires > Herren-Accessoires"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||kostume und verkleidungen",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Kostüme & Verkleidungen",
+      "count": 2,
+      "max_parent_similarity": 0.5,
+      "items": [
+        {
+          "id": "6407324",
+          "breadcrumb": "Kleidung & Accessoires > Kostüme & Verkleidungen",
+          "parentCtx": "Kleidung & Accessoires"
+        },
+        {
+          "id": "6407541",
+          "breadcrumb": "Kleidung & Accessoires > Spezielle Anlässe > Kostüme & Verkleidungen",
+          "parentCtx": "Kleidung & Accessoires > Spezielle Anlässe"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||unterwasche und nachtwasche",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Unterwäsche & Nachtwäsche",
+      "count": 2,
+      "max_parent_similarity": 0.5,
+      "items": [
+        {
+          "id": "6488296",
+          "breadcrumb": "Kleidung & Accessoires > Damen > Unterwäsche & Nachtwäsche",
+          "parentCtx": "Kleidung & Accessoires > Damen"
+        },
+        {
+          "id": "6407304",
+          "breadcrumb": "Kleidung & Accessoires > Damenmode > Unterwäsche & Nachtwäsche",
+          "parentCtx": "Kleidung & Accessoires > Damenmode"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||slips",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Slips",
+      "count": 2,
+      "max_parent_similarity": 0.429,
+      "items": [
+        {
+          "id": "6488294",
+          "breadcrumb": "Kleidung & Accessoires > Damenmode > Unterwäsche & Nachtwäsche > Slips",
+          "parentCtx": "Kleidung & Accessoires > Damenmode > Unterwäsche & Nachtwäsche"
+        },
+        {
+          "id": "6488435",
+          "breadcrumb": "Kleidung & Accessoires > Unterwäsche & Dessous > Unterhosen > Slips",
+          "parentCtx": "Kleidung & Accessoires > Unterwäsche & Dessous > Unterhosen"
+        }
+      ]
+    },
+    {
+      "key": "haus und garten|||duschen und duschzubehor",
+      "root": "Haus & Garten",
+      "leaf": "Duschen & Duschzubehör",
+      "count": 2,
+      "max_parent_similarity": 0.4,
+      "items": [
+        {
+          "id": "6407520",
+          "breadcrumb": "Haus & Garten > Bad & Küche > Bad > Duschen & Duschzubehör",
+          "parentCtx": "Haus & Garten > Bad & Küche > Bad"
+        },
+        {
+          "id": "6407249",
+          "breadcrumb": "Haus & Garten > Badezimmer > Duschen & Duschzubehör",
+          "parentCtx": "Haus & Garten > Badezimmer"
+        }
+      ]
+    },
+    {
+      "key": "baby und kind|||kinderwagen und zubehor",
+      "root": "Baby & Kind",
+      "leaf": "Kinderwagen & Zubehör",
+      "count": 2,
+      "max_parent_similarity": 0.4,
+      "items": [
+        {
+          "id": "6467462",
+          "breadcrumb": "Baby & Kind > Babyartikel > Kinderwagen & Babytragen > Kinderwagen & Zubehör",
+          "parentCtx": "Baby & Kind > Babyartikel > Kinderwagen & Babytragen"
+        },
+        {
+          "id": "6488165",
+          "breadcrumb": "Baby & Kind > Kinderwagen & Zubehör",
+          "parentCtx": "Baby & Kind"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||pullover",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Pullover",
+      "count": 2,
+      "max_parent_similarity": 0.4,
+      "items": [
+        {
+          "id": "6407301",
+          "breadcrumb": "Kleidung & Accessoires > Damenbekleidung > Pullover & Strickjacken > Pullover",
+          "parentCtx": "Kleidung & Accessoires > Damenbekleidung > Pullover & Strickjacken"
+        },
+        {
+          "id": "6488432",
+          "breadcrumb": "Kleidung & Accessoires > Pullover",
+          "parentCtx": "Kleidung & Accessoires"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||sneaker",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Sneaker",
+      "count": 2,
+      "max_parent_similarity": 0.333,
+      "items": [
+        {
+          "id": "6407294",
+          "breadcrumb": "Kleidung & Accessoires > Damen > Damenschuhe > Sneaker",
+          "parentCtx": "Kleidung & Accessoires > Damen > Damenschuhe"
+        },
+        {
+          "id": "6407315",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Herrenschuhe > Sneaker",
+          "parentCtx": "Kleidung & Accessoires > Herren > Herrenschuhe"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||geldborsen und etuis",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Geldbörsen & Etuis",
+      "count": 2,
+      "max_parent_similarity": 0.286,
+      "items": [
+        {
+          "id": "6407308",
+          "breadcrumb": "Kleidung & Accessoires > Herren > Herren-Accessoires > Geldbörsen & Etuis",
+          "parentCtx": "Kleidung & Accessoires > Herren > Herren-Accessoires"
+        },
+        {
+          "id": "6407546",
+          "breadcrumb": "Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Accessoires > Geldbörsen & Etuis",
+          "parentCtx": "Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Accessoires"
+        }
+      ]
+    },
+    {
+      "key": "kleidung und accessoires|||pullover und strickjacken",
+      "root": "Kleidung & Accessoires",
+      "leaf": "Pullover & Strickjacken",
+      "count": 2,
+      "max_parent_similarity": 0.25,
+      "items": [
+        {
+          "id": "6407300",
+          "breadcrumb": "Kleidung & Accessoires > Damenbekleidung > Pullover & Strickjacken",
+          "parentCtx": "Kleidung & Accessoires > Damenbekleidung"
+        },
+        {
+          "id": "6407549",
+          "breadcrumb": "Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Mode für Herren > Pullover & Strickjacken",
+          "parentCtx": "Kleidung & Accessoires > Spezielle Anlässe > Vintage-Mode > Vintage-Mode für Herren"
+        }
+      ]
+    },
+    {
+      "key": "sport|||rucksacke",
+      "root": "Sport",
+      "leaf": "Rucksäcke",
+      "count": 2,
+      "max_parent_similarity": 0.2,
+      "items": [
+        {
+          "id": "6407436",
+          "breadcrumb": "Sport > Camping & Outdoor > Rucksäcke",
+          "parentCtx": "Sport > Camping & Outdoor"
+        },
+        {
+          "id": "6407080",
+          "breadcrumb": "Sport > Sporttaschen & Rucksäcke > Rucksäcke",
+          "parentCtx": "Sport > Sporttaschen & Rucksäcke"
+        }
+      ]
+    },
+    {
+      "key": "sport|||sonstige",
+      "root": "Sport",
+      "leaf": "Sonstige",
+      "count": 2,
+      "max_parent_similarity": 0.167,
+      "items": [
+        {
+          "id": "6407478",
+          "breadcrumb": "Sport > Weitere Ballsportarten > Tennis > Sonstige",
+          "parentCtx": "Sport > Weitere Ballsportarten > Tennis"
+        },
+        {
+          "id": "6407485",
+          "breadcrumb": "Sport > Weiterer Wassersport > Kitesurfen > Sonstige",
+          "parentCtx": "Sport > Weiterer Wassersport > Kitesurfen"
+        }
+      ]
+    },
+    {
+      "key": "auto und motorrad|||aussenspiegel",
+      "root": "Auto & Motorrad",
+      "leaf": "Außenspiegel",
+      "count": 2,
+      "max_parent_similarity": 0.143,
+      "items": [
+        {
+          "id": "6488236",
+          "breadcrumb": "Auto & Motorrad > Auto-Ersatz- & -Reparaturteile > Karosserie & Exterieur > Außenspiegel",
+          "parentCtx": "Auto & Motorrad > Auto-Ersatz- & -Reparaturteile > Karosserie & Exterieur"
+        },
+        {
+          "id": "6488328",
+          "breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Außenspiegel & Teile > Außenspiegel",
+          "parentCtx": "Auto & Motorrad > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Außenspiegel & Teile"
+        }
+      ]
+    },
+    {
+      "key": "auto und motorrad|||batterien",
+      "root": "Auto & Motorrad",
+      "leaf": "Batterien",
+      "count": 2,
+      "max_parent_similarity": 0,
+      "items": [
+        {
+          "id": "6488252",
+          "breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Autoelektrik > Batterien",
+          "parentCtx": "Auto & Motorrad > Autoteile & Zubehör > Autoelektrik"
+        },
+        {
+          "id": "6488275",
+          "breadcrumb": "Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Elektrik & Zündungen > Batterien",
+          "parentCtx": "Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Elektrik & Zündungen"
+        }
+      ]
+    },
+    {
+      "key": "auto und motorrad|||getriebe und antriebstechnik",
+      "root": "Auto & Motorrad",
+      "leaf": "Getriebe & Antriebstechnik",
+      "count": 2,
+      "max_parent_similarity": 0,
+      "items": [
+        {
+          "id": "6488260",
+          "breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Getriebe & Antriebstechnik",
+          "parentCtx": "Auto & Motorrad > Autoteile & Zubehör"
+        },
+        {
+          "id": "6488344",
+          "breadcrumb": "Auto & Motorrad > Motorrad- & Rollerteile & -zubehör > Getriebe & Antriebstechnik",
+          "parentCtx": "Auto & Motorrad > Motorrad- & Rollerteile & -zubehör"
+        }
+      ]
+    },
+    {
+      "key": "auto und motorrad|||luft- und kraftstoffversorgung",
+      "root": "Auto & Motorrad",
+      "leaf": "Luft- & Kraftstoffversorgung",
+      "count": 2,
+      "max_parent_similarity": 0,
+      "items": [
+        {
+          "id": "6488264",
+          "breadcrumb": "Auto & Motorrad > Autoteile & Zubehör > Luft- & Kraftstoffversorgung",
+          "parentCtx": "Auto & Motorrad > Autoteile & Zubehör"
+        },
+        {
+          "id": "6470666",
+          "breadcrumb": "Auto & Motorrad > KFZ-Ersatzteile > Antrieb, Motoren & Getriebe > Luft- & Kraftstoffversorgung",
+          "parentCtx": "Auto & Motorrad > KFZ-Ersatzteile > Antrieb, Motoren & Getriebe"
+        }
+      ]
+    },
+    {
+      "key": "auto und motorrad|||motorole",
+      "root": "Auto & Motorrad",
+      "leaf": "Motoröle",
+      "count": 2,
+      "max_parent_similarity": 0,
+      "items": [
+        {
+          "id": "6407098",
+          "breadcrumb": "Auto & Motorrad > KFZ-Pflege & -Wartung > Motorreinigung & -pflege > Motoröle",
+          "parentCtx": "Auto & Motorrad > KFZ-Pflege & -Wartung > Motorreinigung & -pflege"
+        },
+        {
+          "id": "6406745",
+          "breadcrumb": "Auto & Motorrad > Öle & Flüssigkeiten > Motoröle",
+          "parentCtx": "Auto & Motorrad > Öle & Flüssigkeiten"
+        }
+      ]
+    },
+    {
+      "key": "auto und motorrad|||verkleidungen und rahmen",
+      "root": "Auto & Motorrad",
+      "leaf": "Verkleidungen & Rahmen",
+      "count": 2,
+      "max_parent_similarity": 0,
+      "items": [
+        {
+          "id": "6488350",
+          "breadcrumb": "Auto & Motorrad > Quad-, SSV- & UTV-Teile & -Zubehör > Verkleidungen & Rahmen",
+          "parentCtx": "Auto & Motorrad > Quad-, SSV- & UTV-Teile & -Zubehör"
+        },
+        {
+          "id": "6488228",
+          "breadcrumb": "Auto & Motorrad > Verkleidungen & Rahmen",
+          "parentCtx": "Auto & Motorrad"
+        }
+      ]
+    }
+  ]
+}
