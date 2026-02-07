@@ -184,6 +184,8 @@ async function main() {
     const prices = priceMap[pid] || {};
 
     const price = pickFirstPrice(prices);
+    const hasValidPrice =
+      price && typeof price.amount === 'number' && Number.isFinite(price.amount) && price.amount >= 1;
     const qty = pickFirstStock(stock);
     const catId = base.category_id ? String(base.category_id) : null;
     const rawBreadcrumb = catId ? catInfo.buildBreadcrumb(catId) : '';
@@ -234,12 +236,21 @@ async function main() {
           ean: data.ean || base.ean || '',
           gtin: data.ean || base.ean || '',
         },
-        pricing: price
+        pricing: hasValidPrice
           ? {
               lowest_price: {
                 amount: price.amount,
                 currency: price.currency,
-                sources: [],
+                sources: [
+                  {
+                    name: 'BaseLinker',
+                    url: `baselinker://inventory/${String(INVENTORY_ID)}/product/${String(pid)}`,
+                    price: price.amount,
+                    shipping: null,
+                    checked_at: new Date().toISOString(),
+                  },
+                ],
+                last_checked_iso: new Date().toISOString(),
               },
               price_confidence: 1,
             }

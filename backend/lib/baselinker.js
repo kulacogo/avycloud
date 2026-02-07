@@ -373,15 +373,30 @@ async function ensureInventoryCategoriesLoaded(inventoryId) {
   await loadPromise;
 }
 
-async function ensureInventoryCategory(inventoryId, pathStr) {
+function shouldCanonicalizeInventoryCategoryPath(inventoryId) {
+  const invKey = String(inventoryId || '').trim();
+  if (!invKey) return true;
+  // IMPORTANT: inventories 91387 + 91388 are two separate, authoritative trees.
+  // We must NOT apply semantic canonicalization that merges roots/branches (e.g. ":" root variants).
+  if (invKey === '91387' || invKey === '91388') return false;
+  // Default: keep legacy behavior (canonicalize to reduce duplicates).
+  return true;
+}
+
+async function ensureInventoryCategory(inventoryId, pathStr, options = {}) {
   if (!inventoryId || !pathStr) return 0;
   await ensureInventoryCategoriesLoaded(inventoryId);
   const key = String(inventoryId);
   const cache = inventoryCategoryCache.get(key) || new Map();
   const byParentName = inventoryCategoryByParentName.get(key) || new Map();
-  // Canonicalize BEFORE creation/lookup to prevent duplicates.
-  const canonicalPath = canonicalizeBaselinkerCategoryPath(pathStr);
-  const segments = normalizePathSegments(canonicalPath || pathStr);
+  const canonicalize =
+    typeof options?.canonicalize === 'boolean'
+      ? options.canonicalize
+      : shouldCanonicalizeInventoryCategoryPath(inventoryId);
+  // Canonicalize BEFORE creation/lookup (legacy) to prevent duplicates.
+  // For inventories with authoritative trees, keep the path as-is.
+  const effectivePath = canonicalize ? canonicalizeBaselinkerCategoryPath(pathStr) || pathStr : pathStr;
+  const segments = normalizePathSegments(effectivePath);
   let parentId = 0;
   const currentSegments = [];
 
@@ -1420,7 +1435,9 @@ function validateProduct(product) {
   if (!pickSku(product)) errors.push('SKU fehlt');
 
   const price = pickPrice(product);
-  if (price === null) errors.push('Preis fehlt');
+  if (price === null || !Number.isFinite(Number(price)) || Number(price) < 1) {
+    errors.push('Preis fehlt (>= 1 EUR erforderlich)');
+  }
 
   return {
     isValid: errors.length === 0,
@@ -1840,11 +1857,30 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
       invId
     );
 
-    const categoryPath =
+    // Inventory-specific category selection:
+    // - For multi-inventory setups, each inventory MUST receive its own category path.
+    // - We store inventory category paths in product.details.baselinkerCategories[inventoryId] (string breadcrumb).
+    const baselinkerCats =
+      product?.details?.baselinkerCategories && typeof product.details.baselinkerCategories === 'object'
+        ? product.details.baselinkerCategories
+        : {};
+    const invSpecificCategoryPath = safeString(baselinkerCats?.[String(invId)] || '');
+
+    // Legacy fallbacks (single-category world)
+    const legacyCategoryPath =
       product?.details?.ebayCategoryPath ||
       product?.details?.kauflandCategoryPath ||
       product?.identification?.category ||
       null;
+
+    // Enforce per-inventory category for our dual-inventory setup.
+    const requiresInventoryCategory = String(invId) === '91387' || String(invId) === '91388';
+    const categoryPath = requiresInventoryCategory
+      ? (invSpecificCategoryPath || null)
+      : (invSpecificCategoryPath || legacyCategoryPath || null);
+    if (requiresInventoryCategory && !categoryPath) {
+      throw new Error(`Missing BaseLinker category for inventory ${invId} (product ${product?.id || ''})`);
+    }
 
     // Quantity to send to BaseLinker must reflect AVAILABLE stock:
     // available = physical (warehouse BIN stock) - reserved (open orders).
@@ -1928,7 +1964,12 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
     const normalizedSku = normalizeSkuValue(payload.sku);
     const normalizedEan = normalizeEanValue(payload.ean);
 
-    const hasOpsLink = Boolean(product?.ops?.base_product_id || product?.ops?.baselinker?.product_id);
+    const invKey = String(invId || '').trim();
+    const invOps = product?.ops?.baselinker?.inventories && typeof product.ops.baselinker.inventories === 'object'
+      ? product.ops.baselinker.inventories[invKey]
+      : null;
+    const invLinkedPid = Number(invOps?.product_id || 0);
+    const hasOpsLinkForInventory = Number.isFinite(invLinkedPid) && invLinkedPid > 0;
 
     // If the BaseLinker product_id is already known, prefer it (do NOT rely on SKU scan).
     // This is critical to update the intended product (e.g. 467527271) and avoid accidental duplicates.
@@ -1943,35 +1984,49 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
     }
 
     if (!baseProductId) {
+      // 1) Preferred: per-inventory linkage
+      if (Number.isFinite(invLinkedPid) && invLinkedPid > 0) {
+        baseProductId = invLinkedPid;
+        baseProductIdSource = 'product.ops.inventory';
+      }
+    }
+
+    if (!baseProductId) {
+      // 2) Legacy linkage (single inventory). Only trust it when it matches the target inventory.
+      // If synced_inventory is missing, treat it as legacy default inventory only (78659).
       const linkedRaw =
         product?.ops?.baselinker?.product_id ??
         product?.ops?.base_product_id ??
         null;
       const linkedPid = Number(linkedRaw);
       const linkedInv = product?.ops?.baselinker?.synced_inventory ?? null;
-      if (
-        Number.isFinite(linkedPid) &&
-        linkedPid > 0 &&
-        (!linkedInv || String(linkedInv) === String(invId))
-      ) {
+      const legacyMatches =
+        linkedInv && String(linkedInv) === invKey
+          ? true
+          : !linkedInv && invKey === '78659';
+      if (Number.isFinite(linkedPid) && linkedPid > 0 && legacyMatches) {
         baseProductId = linkedPid;
-        baseProductIdSource = 'product.ops';
+        baseProductIdSource = 'product.ops.legacy';
       }
     }
 
     // Next best: resolve via Firestore SKU index (fast, avoids BaseLinker list scans).
     if (!baseProductId) {
-      const indexKeys = [
-        buildSkuIndexKey('sku', normalizedSku),
-        buildSkuIndexKey('ean', normalizedEan),
-      ].filter(Boolean);
-      for (const key of indexKeys) {
-        const entry = await getSkuIndexEntry(key);
-        const pid = Number(entry?.baseProductId);
-        if (Number.isFinite(pid) && pid > 0) {
-          baseProductId = pid;
-          baseProductIdSource = `sku_index:${key}`;
-          break;
+      // SKU index is single-inventory legacy (78659). Do NOT use it for multi-inventory setups.
+      const allowSkuIndex = invKey === '78659';
+      if (allowSkuIndex) {
+        const indexKeys = [
+          buildSkuIndexKey('sku', normalizedSku),
+          buildSkuIndexKey('ean', normalizedEan),
+        ].filter(Boolean);
+        for (const key of indexKeys) {
+          const entry = await getSkuIndexEntry(key);
+          const pid = Number(entry?.baseProductId);
+          if (Number.isFinite(pid) && pid > 0) {
+            baseProductId = pid;
+            baseProductIdSource = `sku_index:${key}`;
+            break;
+          }
         }
       }
     }
@@ -1997,8 +2052,8 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
       }
     }
 
-    // If the product is already linked to BaseLinker, never create a new product.
-    if (!baseProductId && hasOpsLink) {
+    // If the product is already linked FOR THIS INVENTORY, never create a new product.
+    if (!baseProductId && hasOpsLinkForInventory) {
       throw new Error(
         `BaseLinker linkage exists but product_id could not be resolved (sku=${payload?.sku || ''}, ean=${payload?.ean || ''}). Refusing to create a new BaseLinker product.`
       );
@@ -2043,13 +2098,13 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
             requestPayload = buildRequest(baseProductId);
           } else {
             baseProductId = null;
-            // If linked, do NOT create a new product as a fallback unless explicitly allowed.
-            if (hasOpsLink && !allowCreateIfStaleLinked) {
+            // If linked FOR THIS INVENTORY, do NOT create a new product as a fallback unless explicitly allowed.
+            if (hasOpsLinkForInventory && !allowCreateIfStaleLinked) {
               throw new Error(
                 `BaseLinker product_id is stale and no replacement could be resolved (sku=${payload?.sku || ''}). Refusing to create a new product.`
               );
             }
-            if (hasOpsLink && allowCreateIfStaleLinked) {
+            if (hasOpsLinkForInventory && allowCreateIfStaleLinked) {
               baseProductIdSource = 'recreate_after_stale';
             }
             requestPayload = buildRequest(0);
@@ -2097,7 +2152,7 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
       );
     }
 
-    if (baseProductId) {
+    if (baseProductId && invKey === '78659') {
       const indexPayload = {
         baseProductId,
         productId: product.id,

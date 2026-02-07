@@ -27,6 +27,7 @@ const { search, searchSite } = require('../lib/evidence-provider');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
 
 const MARKETPLACE_SITES = ['ebay.de', 'kaufland.de', 'hood.de'];
+const USED_HINT = /\b(gebraucht|used|refurb|refurbished|renewed|b-ware|pre-owned|second hand|open box)\b/i;
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -232,12 +233,13 @@ async function findPriceForProduct(product) {
   const sku = pickSku(product);
 
   // Build short, high-signal queries (fast + fewer false positives)
+  const negativeTerms = '-gebraucht -used -refurb -refurbished -renewed -b-ware -openbox';
   const queries = [];
-  if (barcode) queries.push(`${barcode} preis`);
-  if (brand && mpn) queries.push(`${brand} ${mpn} preis`);
-  if (brand && title) queries.push(`${brand} ${title} preis`);
-  if (title) queries.push(`${title} preis`);
-  if (sku && sku !== title) queries.push(`${sku} preis`);
+  if (barcode) queries.push(`${barcode} neu preis ${negativeTerms}`);
+  if (brand && mpn) queries.push(`${brand} ${mpn} neu preis ${negativeTerms}`);
+  if (brand && title) queries.push(`${brand} ${title} neu preis ${negativeTerms}`);
+  if (title) queries.push(`${title} neu preis ${negativeTerms}`);
+  if (sku && sku !== title) queries.push(`${sku} neu preis ${negativeTerms}`);
 
   const tried = [];
   let results = [];
@@ -282,6 +284,10 @@ async function findPriceForProduct(product) {
   for (const url of urls) {
     try {
       const html = await fetchHtml(url);
+      // Best-effort new-only gate (reduces "used" / refurb / B-ware false positives).
+      const pageTitle = html.match(/<title[^>]*>([^<]{3,200})<\/title>/i)?.[1] || '';
+      const textBlob = `${pageTitle} ${html.slice(0, 4000)}`;
+      if (USED_HINT.test(textBlob)) continue;
       const prices = extractPriceCandidates(html);
       if (prices.length) {
         sourceCandidates.push({ url, prices });
@@ -302,16 +308,46 @@ async function findPriceForProduct(product) {
     };
   }
 
-  // Choose lowest observed EUR amount across sources (best-effort)
-  const flattened = [];
-  for (const c of sourceCandidates) {
-    for (const p of c.prices.slice(0, 5)) {
-      flattened.push({ url: c.url, amount: p });
-    }
+  const median = (values = []) => {
+    const nums = values
+      .filter((n) => typeof n === 'number' && Number.isFinite(n))
+      .sort((a, b) => a - b);
+    if (!nums.length) return null;
+    const mid = Math.floor(nums.length / 2);
+    return nums.length % 2 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+  };
+
+  // Pick a robust market midpoint (avoid selecting the single cheapest outlier).
+  const perSource = sourceCandidates
+    .map((c) => {
+      const prices = (Array.isArray(c.prices) ? c.prices : [])
+        .filter((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0.5 && n <= 50000)
+        .sort((a, b) => a - b);
+      const representative = median(prices) ?? prices[0] ?? null;
+      return { url: c.url, amount: representative };
+    })
+    .filter((x) => typeof x.amount === 'number' && Number.isFinite(x.amount));
+
+  if (!perSource.length) {
+    return {
+      ok: false,
+      reason: 'no_price_found',
+      usedQuery,
+      usedEngine,
+      tried,
+      candidates: [],
+    };
   }
-  flattened.sort((a, b) => a.amount - b.amount);
-  const best = flattened[0];
-  const sources = sourceCandidates.slice(0, 3).map((c) => ({
+
+  const target = median(perSource.map((x) => x.amount));
+  const best =
+    typeof target === 'number' && Number.isFinite(target)
+      ? perSource
+          .slice()
+          .sort((a, b) => Math.abs(a.amount - target) - Math.abs(b.amount - target) || a.amount - b.amount)[0]
+      : perSource.slice().sort((a, b) => a.amount - b.amount)[0];
+
+  const sources = perSource.slice(0, 3).map((c) => ({
     name: (() => {
       try {
         return new URL(c.url).host;
@@ -320,7 +356,7 @@ async function findPriceForProduct(product) {
       }
     })(),
     url: c.url,
-    price: c.prices[0] || null,
+    price: c.amount || null,
     shipping: null,
     checked_at: nowIso(),
   }));
@@ -336,15 +372,24 @@ async function findPriceForProduct(product) {
   };
 }
 
-function shouldRefresh(product, { maxAgeDays, onlyMissing }) {
+function shouldRefresh(product, { maxAgeDays, onlyMissing, force }) {
   const lp = product?.details?.pricing?.lowest_price;
   const amount = lp?.amount;
   const okAmount = typeof amount === 'number' && Number.isFinite(amount) && amount > 0;
   if (onlyMissing) return !okAmount;
   const age = daysSince(lp?.last_checked_iso);
-  const sourcesOk = Array.isArray(lp?.sources) && lp.sources.length > 0;
+  const sources = Array.isArray(lp?.sources) ? lp.sources : [];
+  const sourcesOk = sources.length > 0;
   const currencyOk = safeString(lp?.currency).toUpperCase() === 'EUR' || !safeString(lp?.currency);
   const plausible = okAmount && amount >= 0.5 && amount <= 50000;
+  const trustedOrigin = sources.some((s) => {
+    const url = safeString(s?.url).toLowerCase();
+    return url.startsWith('baselinker://') || url.startsWith('manual://');
+  });
+  if (!force && trustedOrigin && plausible && currencyOk) {
+    // Never overwrite trusted listing prices from BaseLinker/manual edits.
+    return false;
+  }
   return !okAmount || !plausible || !currencyOk || !sourcesOk || age > maxAgeDays;
 }
 
@@ -355,6 +400,7 @@ function parseArgs(argv) {
     limit: 0,
     offset: 0,
     onlyMissing: false,
+    force: false,
   };
   for (let i = 2; i < argv.length; i += 1) {
     const t = argv[i];
@@ -377,6 +423,9 @@ function parseArgs(argv) {
     if (t === '--only-missing') {
       args.onlyMissing = true;
     }
+    if (t === '--force') {
+      args.force = true;
+    }
   }
   args.concurrency = Number.isFinite(args.concurrency) ? Math.max(1, Math.floor(args.concurrency)) : 8;
   args.maxAgeDays = Number.isFinite(args.maxAgeDays) ? Math.max(1, args.maxAgeDays) : 14;
@@ -392,7 +441,9 @@ async function main() {
   const all = await getAllProducts();
   const list = (Array.isArray(all) ? all : []).filter((p) => p?.id);
 
-  const targets = list.filter((p) => shouldRefresh(p, { maxAgeDays: args.maxAgeDays, onlyMissing: args.onlyMissing }));
+  const targets = list.filter((p) =>
+    shouldRefresh(p, { maxAgeDays: args.maxAgeDays, onlyMissing: args.onlyMissing, force: args.force })
+  );
   targets.sort((a, b) => pickSku(a).localeCompare(pickSku(b), 'de', { sensitivity: 'base' }));
 
   const offsetList = args.offset ? targets.slice(args.offset) : targets;

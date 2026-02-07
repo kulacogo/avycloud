@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption } from '../types';
+import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption, BaseLinkerInventoryCategoryOption } from '../types';
 import {
   saveProduct,
   syncToBaseLinker,
@@ -16,6 +16,7 @@ import {
   setProductInventoryId,
   openInventoryLabelWindow,
   fetchEbayCategories,
+  fetchBaseLinkerInventoryCategories,
 } from '../api/client';
 import { EditIcon, SaveIcon, SyncIcon, PrintIcon, MagicIcon, RefreshIcon, BarcodeIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
@@ -155,9 +156,24 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [categoryOptions, setCategoryOptions] = useState<EbayCategoryOption[]>([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
+
+  // BaseLinker inventory category selectors (two authoritative inventories)
+  const BASELINKER_INVENTORIES = useMemo(() => ['91387', '91388'] as const, []);
+
+  const [blCatQuery91387, setBlCatQuery91387] = useState('');
+  const [blCatQuery91387Debounced, setBlCatQuery91387Debounced] = useState('');
+  const [blCatOptions91387, setBlCatOptions91387] = useState<BaseLinkerInventoryCategoryOption[]>([]);
+  const [blCatLoading91387, setBlCatLoading91387] = useState(false);
+  const [blCatError91387, setBlCatError91387] = useState<string | null>(null);
+
+  const [blCatQuery91388, setBlCatQuery91388] = useState('');
+  const [blCatQuery91388Debounced, setBlCatQuery91388Debounced] = useState('');
+  const [blCatOptions91388, setBlCatOptions91388] = useState<BaseLinkerInventoryCategoryOption[]>([]);
+  const [blCatLoading91388, setBlCatLoading91388] = useState(false);
+  const [blCatError91388, setBlCatError91388] = useState<string | null>(null);
+
   const [assigningInventory, setAssigningInventory] = useState(false);
   const [inventoryMessage, setInventoryMessage] = useState<string | null>(null);
-  const [syncInventoryId] = useState('78659');
   const prevProductIdRef = useRef(product.id);
 
   const updateGpsrField = useCallback((key: string, value: string) => {
@@ -269,11 +285,37 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   }, [isEditing, localProduct.identification?.category]);
 
   useEffect(() => {
+    if (!isEditing) return;
+    const current = (localProduct.details?.baselinkerCategories || {})['91387'] || '';
+    setBlCatQuery91387((prev) => prev || current);
+  }, [isEditing, localProduct.details?.baselinkerCategories]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const current = (localProduct.details?.baselinkerCategories || {})['91388'] || '';
+    setBlCatQuery91388((prev) => prev || current);
+  }, [isEditing, localProduct.details?.baselinkerCategories]);
+
+  useEffect(() => {
     const handle = setTimeout(() => {
       setCategoryQueryDebounced(categoryQuery.trim());
     }, 200);
     return () => clearTimeout(handle);
   }, [categoryQuery]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setBlCatQuery91387Debounced(blCatQuery91387.trim());
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [blCatQuery91387]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setBlCatQuery91388Debounced(blCatQuery91388.trim());
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [blCatQuery91388]);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -310,6 +352,68 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       active = false;
     };
   }, [isEditing, categoryQueryDebounced, localProduct.details?.categoryId]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const query = blCatQuery91387Debounced;
+    if (!query || query.length < 2) {
+      setBlCatOptions91387([]);
+      setBlCatError91387(null);
+      setBlCatLoading91387(false);
+      return;
+    }
+    let active = true;
+    setBlCatLoading91387(true);
+    setBlCatError91387(null);
+    fetchBaseLinkerInventoryCategories({ inventoryId: '91387', query, limit: 60, leafOnly: true })
+      .then((items) => {
+        if (!active) return;
+        setBlCatOptions91387(items);
+      })
+      .catch((error: any) => {
+        if (!active) return;
+        setBlCatOptions91387([]);
+        setBlCatError91387(error?.message || 'BaseLinker-Kategorien konnten nicht geladen werden.');
+      })
+      .finally(() => {
+        if (!active) return;
+        setBlCatLoading91387(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isEditing, blCatQuery91387Debounced]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const query = blCatQuery91388Debounced;
+    if (!query || query.length < 2) {
+      setBlCatOptions91388([]);
+      setBlCatError91388(null);
+      setBlCatLoading91388(false);
+      return;
+    }
+    let active = true;
+    setBlCatLoading91388(true);
+    setBlCatError91388(null);
+    fetchBaseLinkerInventoryCategories({ inventoryId: '91388', query, limit: 60, leafOnly: true })
+      .then((items) => {
+        if (!active) return;
+        setBlCatOptions91388(items);
+      })
+      .catch((error: any) => {
+        if (!active) return;
+        setBlCatOptions91388([]);
+        setBlCatError91388(error?.message || 'BaseLinker-Kategorien konnten nicht geladen werden.');
+      })
+      .finally(() => {
+        if (!active) return;
+        setBlCatLoading91388(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isEditing, blCatQuery91388Debounced]);
 
   const referenceImages = useMemo(
     () => filterReferenceCandidates(localProduct.details?.images || []),
@@ -888,33 +992,43 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const handleSync = async () => {
     setIsSyncing(true);
-    const result = await syncToBaseLinker(localProduct, syncInventoryId);
-    const syncResult = result.results?.find((entry) => entry.id === localProduct.id);
+    try {
+      const requiredInvs = ['91387', '91388'];
+      const cats = localProduct.details?.baselinkerCategories || {};
+      const missing = requiredInvs.filter((inv) => !String((cats as any)?.[inv] || '').trim());
+      if (missing.length) {
+        showNotification('error', `BaseLinker Kategorie fehlt: ${missing.join(', ')}`);
+        return;
+      }
 
-    if (syncResult?.status === 'synced') {
-      const updatedProduct = {
-        ...localProduct,
-        ops: {
-          ...localProduct.ops,
-          sync_status: 'synced' as const,
-          last_synced_iso: new Date().toISOString(),
-        },
-      };
-      onUpdate(updatedProduct);
-      showNotification('success', t('sheet.msg.syncSuccess'));
-    } else {
-      const updatedProduct = {
-        ...localProduct,
-        ops: {
-          ...localProduct.ops,
-          sync_status: 'failed' as const,
-        },
-      };
-      onUpdate(updatedProduct);
-      const errorMessage = syncResult?.message || result.error?.message || t('sheet.msg.syncError');
-      showNotification('error', errorMessage);
+      const resultsPerInv: Array<{
+        inventoryId: string;
+        entry?: { id: string; status: 'synced' | 'failed'; message?: string };
+        error?: { code: number; message: string };
+      }> = [];
+
+      for (const inv of requiredInvs) {
+        const result = await syncToBaseLinker(localProduct, inv);
+        const entry = result.results?.find((e) => e.id === localProduct.id);
+        resultsPerInv.push({ inventoryId: inv, entry, error: result.error });
+      }
+
+      const failed = resultsPerInv.filter((r) => r.entry?.status !== 'synced');
+      if (failed.length === 0) {
+        showNotification('success', 'Sync zu BaseLinker (91387 + 91388) erfolgreich.');
+      } else {
+        const msg = failed
+          .map((r) => `${r.inventoryId}: ${r.entry?.message || r.error?.message || 'Sync fehlgeschlagen'}`)
+          .join(' | ');
+        showNotification('error', msg || t('sheet.msg.syncError'));
+      }
+
+      // Refresh product from backend so per-inventory linkage/status is reflected in UI
+      const refreshed = await fetchProductById(localProduct.id);
+      onUpdate(refreshed);
+    } finally {
+      setIsSyncing(false);
     }
-    setIsSyncing(false);
   };
 
   const handleFieldChange = (field: string, value: string) => {
@@ -951,6 +1065,25 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     [categoryOptions]
   );
 
+  const handleBaselinkerInventoryCategorySelect = useCallback(
+    (inventoryId: string, path: string) => {
+      const inv = String(inventoryId || '').trim();
+      const breadcrumb = String(path || '').trim();
+      if (!inv || !breadcrumb) return;
+      setLocalProduct((prev) => {
+        const next = JSON.parse(JSON.stringify(prev));
+        next.details = next.details || {};
+        next.details.baselinkerCategories = next.details.baselinkerCategories || {};
+        next.details.baselinkerCategories[inv] = breadcrumb;
+        return next;
+      });
+      if (inv === '91387') setBlCatQuery91387(breadcrumb);
+      if (inv === '91388') setBlCatQuery91388(breadcrumb);
+      setIsDirty(true);
+    },
+    []
+  );
+
   const attributesMap = useMemo(() => localProduct.details?.attributes || {}, [localProduct.details?.attributes]);
 
   const categorySelectOptions = useMemo(() => {
@@ -971,6 +1104,48 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     }
     return options;
   }, [categoryOptions, localProduct.identification?.category, localProduct.details?.categoryId]);
+
+  const blCategorySelectOptions91387 = useMemo(() => {
+    const options: BaseLinkerInventoryCategoryOption[] = [];
+    const seen = new Set<string>();
+    blCatOptions91387.forEach((opt) => {
+      const p = (opt?.path || '').toString().trim();
+      if (!p) return;
+      const key = p.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      options.push(opt);
+    });
+    const current = (localProduct.details?.baselinkerCategories || {})['91387'] || '';
+    if (current) {
+      const key = current.toLowerCase();
+      if (!seen.has(key)) {
+        options.unshift({ path: current, depth: current.split('>').filter(Boolean).length, isLeaf: undefined });
+      }
+    }
+    return options;
+  }, [blCatOptions91387, localProduct.details?.baselinkerCategories]);
+
+  const blCategorySelectOptions91388 = useMemo(() => {
+    const options: BaseLinkerInventoryCategoryOption[] = [];
+    const seen = new Set<string>();
+    blCatOptions91388.forEach((opt) => {
+      const p = (opt?.path || '').toString().trim();
+      if (!p) return;
+      const key = p.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      options.push(opt);
+    });
+    const current = (localProduct.details?.baselinkerCategories || {})['91388'] || '';
+    if (current) {
+      const key = current.toLowerCase();
+      if (!seen.has(key)) {
+        options.unshift({ path: current, depth: current.split('>').filter(Boolean).length, isLeaf: undefined });
+      }
+    }
+    return options;
+  }, [blCatOptions91388, localProduct.details?.baselinkerCategories]);
 
   const highlightList = useMemo(() => {
     const rawFeatures = Array.isArray(localProduct.details?.key_features)
@@ -1159,6 +1334,89 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <span className="text-sky-400">{localProduct.identification.category}</span>
                 )}
               </p>
+
+              {/* BaseLinker inventory categories (two separate inventories) */}
+              <div className="mt-2 text-[11px] text-slate-400">
+                {isEditing ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-slate-500">BaseLinker Kategorie (Inventory 91387)</span>
+                      <input
+                        value={blCatQuery91387}
+                        onChange={(e) => setBlCatQuery91387(e.target.value)}
+                        className={`bg-transparent border-b outline-none ${
+                          !((localProduct.details?.baselinkerCategories || {})['91387'] || '').trim()
+                            ? 'border-red-400'
+                            : 'border-sky-500'
+                        }`}
+                        placeholder="Kategorie suchen…"
+                      />
+                      <select
+                        value={(localProduct.details?.baselinkerCategories || {})['91387'] || ''}
+                        onChange={(e) => handleBaselinkerInventoryCategorySelect('91387', e.target.value)}
+                        className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200"
+                      >
+                        <option value="">Kategorie auswählen…</option>
+                        {blCategorySelectOptions91387.map((opt) => (
+                          <option key={opt.path} value={opt.path}>
+                            {opt.path}
+                          </option>
+                        ))}
+                      </select>
+                      {blCatLoading91387 && <span className="text-[10px] text-slate-500">Lade…</span>}
+                      {blCatError91387 && <span className="text-[10px] text-red-400">{blCatError91387}</span>}
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-slate-500">BaseLinker Kategorie (Inventory 91388)</span>
+                      <input
+                        value={blCatQuery91388}
+                        onChange={(e) => setBlCatQuery91388(e.target.value)}
+                        className={`bg-transparent border-b outline-none ${
+                          !((localProduct.details?.baselinkerCategories || {})['91388'] || '').trim()
+                            ? 'border-red-400'
+                            : 'border-sky-500'
+                        }`}
+                        placeholder="Kategorie suchen…"
+                      />
+                      <select
+                        value={(localProduct.details?.baselinkerCategories || {})['91388'] || ''}
+                        onChange={(e) => handleBaselinkerInventoryCategorySelect('91388', e.target.value)}
+                        className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200"
+                      >
+                        <option value="">Kategorie auswählen…</option>
+                        {blCategorySelectOptions91388.map((opt) => (
+                          <option key={opt.path} value={opt.path}>
+                            {opt.path}
+                          </option>
+                        ))}
+                      </select>
+                      {blCatLoading91388 && <span className="text-[10px] text-slate-500">Lade…</span>}
+                      {blCatError91388 && <span className="text-[10px] text-red-400">{blCatError91388}</span>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                    <div>
+                      <span className="text-slate-500">BL 91387:</span>{' '}
+                      {((localProduct.details?.baselinkerCategories || {})['91387'] || '').trim() ? (
+                        <span className="text-sky-300">{(localProduct.details?.baselinkerCategories || {})['91387']}</span>
+                      ) : (
+                        <span className="text-red-300">— fehlt</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-slate-500">BL 91388:</span>{' '}
+                      {((localProduct.details?.baselinkerCategories || {})['91388'] || '').trim() ? (
+                        <span className="text-sky-300">{(localProduct.details?.baselinkerCategories || {})['91388']}</span>
+                      ) : (
+                        <span className="text-red-300">— fehlt</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-2">
                 <span>
                   SKU:{' '}

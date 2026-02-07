@@ -1063,7 +1063,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setNotice({
       tone: 'info',
       title: 'Sync gestartet',
-      message: `Synchronisiere ${selectedProducts.length} Produkte (BaseLinker Inventory ${syncInventoryId}).`,
+      message: `Synchronisiere ${selectedProducts.length} Produkte (BaseLinker Inventories 91387 + 91388).`,
     });
     const updatingProducts = products.map(p =>
       selectedIds.has(p.id)
@@ -1073,49 +1073,83 @@ const AdminTable: React.FC<AdminTableProps> = ({
     onUpdateProducts(updatingProducts);
 
     try {
-      // Sync all selected products
-      const result = await syncToBaseLinker(selectedProducts, syncInventoryId);
-
-      if (result.results && result.results.length > 0) {
-        // Update products based on sync results
-        const finalProducts = products.map(p => {
-          const syncResult = result.results?.find(r => r.id === p.id);
-          if (!syncResult) return p;
-
-          return {
-            ...p,
-            ops: {
-              ...p.ops,
-              sync_status: syncResult.status,
-              last_synced_iso: syncResult.status === 'synced' ? new Date().toISOString() : p.ops.last_synced_iso
-            }
-          };
-        });
-
-        onUpdateProducts(finalProducts);
-
-        const successCount = result.results.filter(r => r.status === 'synced').length;
-        const failedEntries = result.results.filter(r => r.status === 'failed');
-        const failCount = failedEntries.length;
-        const failureSummary = failedEntries
-          .map(entry => `${entry.id}: ${entry.message || 'fehlgeschlagen'}`)
-          .join('\n');
-        setNotice({
-          tone: failCount > 0 ? 'warning' : 'success',
-          title: 'Sync abgeschlossen',
-          message: `✓ ${successCount} synchronisiert · ✗ ${failCount} fehlgeschlagen`,
-          details: failCount > 0 ? failureSummary : undefined,
-        });
-      } else {
-        // Revert to original state on error
-        onUpdateProducts(products);
-        setNotice({
-          tone: 'error',
-          title: 'Sync fehlgeschlagen',
-          message: 'Der Backend-Job hat keine Ergebnisse geliefert.',
-          details: result.error?.message || 'Unknown error',
-        });
+      const requiredInvs = ['91387', '91388'];
+      const missingCats = [];
+      for (const p of selectedProducts) {
+        const map =
+          p?.details?.baselinkerCategories && typeof p.details.baselinkerCategories === 'object'
+            ? p.details.baselinkerCategories
+            : {};
+        for (const inv of requiredInvs) {
+          const v = String(map?.[inv] || '').trim();
+          if (!v) {
+            missingCats.push(`${p.id}:${inv}`);
+          }
+        }
       }
+      if (missingCats.length) {
+        throw new Error(
+          `Sync abgebrochen: BaseLinker-Kategorie fehlt für ${missingCats.length} Zuordnungen (z.B. ${missingCats
+            .slice(0, 8)
+            .join(', ')}).`
+        );
+      }
+
+      // Sync to BOTH inventories (sequential, avoids mixed progress reporting)
+      const resultsPerInv: Array<{
+        inventoryId: string;
+        results?: Array<{ id: string; status: 'synced' | 'failed'; message?: string }>;
+        error?: { code: number; message: string };
+      }> = [];
+      for (const inv of requiredInvs) {
+        const res = await syncToBaseLinker(selectedProducts, inv);
+        resultsPerInv.push({ inventoryId: inv, results: res.results, error: res.error });
+      }
+
+      // Merge results: a product is "synced" only if both inventories succeeded.
+      const byProductId = new Map<string, { okCount: number; failMessages: string[] }>();
+      for (const invRes of resultsPerInv) {
+        const items = Array.isArray(invRes.results) ? invRes.results : [];
+        for (const entry of items) {
+          const current = byProductId.get(entry.id) || { okCount: 0, failMessages: [] };
+          if (entry.status === 'synced') {
+            current.okCount += 1;
+          } else {
+            current.failMessages.push(`${invRes.inventoryId}: ${entry.message || 'fehlgeschlagen'}`);
+          }
+          byProductId.set(entry.id, current);
+        }
+      }
+
+      const finalProducts = products.map(p => {
+        if (!selectedIds.has(p.id)) return p;
+        const agg = byProductId.get(p.id) || { okCount: 0, failMessages: [] };
+        const ok = agg.okCount >= 2 && agg.failMessages.length === 0;
+        return {
+          ...p,
+          ops: {
+            ...p.ops,
+            sync_status: ok ? ('synced' as const) : ('failed' as const),
+            last_synced_iso: ok ? new Date().toISOString() : p.ops.last_synced_iso,
+          },
+        };
+      });
+      onUpdateProducts(finalProducts);
+
+      const successCount = finalProducts.filter(p => selectedIds.has(p.id) && p.ops.sync_status === 'synced').length;
+      const failCount = selectedProducts.length - successCount;
+      const failureSummary = Array.from(byProductId.entries())
+        .filter(([, v]) => v.failMessages.length)
+        .slice(0, 120)
+        .map(([id, v]) => `${id}: ${v.failMessages.join(' | ')}`)
+        .join('\n');
+
+      setNotice({
+        tone: failCount > 0 ? 'warning' : 'success',
+        title: 'Sync abgeschlossen',
+        message: `✓ ${successCount} synchronisiert (beide Inventories) · ✗ ${failCount} fehlgeschlagen`,
+        details: failCount > 0 ? failureSummary : undefined,
+      });
     } catch (error) {
       // Revert to original state on error
       onUpdateProducts(products);

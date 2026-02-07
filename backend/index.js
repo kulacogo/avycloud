@@ -54,6 +54,7 @@ const { runProductChat } = require('./services/product-chat');
 const { improveExistingProduct } = require('./services/improve');
 const { getSecretValue } = require('./lib/secret-values');
 const { fetchWithUnlocker } = require('./lib/web-unlocker');
+const { search: searchEvidence, searchSite: searchEvidenceSite } = require('./lib/evidence-provider');
 const { enqueueJob, startJobRunner } = require('./services/job-runner');
 const { runCloudRunJob } = require('./lib/cloud-run-jobs');
 const { enqueueImproveJob, startImproveRunner } = require('./services/improve-runner');
@@ -160,6 +161,368 @@ const REQUEST_BODY_LIMIT =
   process.env.API_REQUEST_BODY_LIMIT ||
   process.env.REQUEST_BODY_LIMIT ||
   '50mb';
+
+// --- Price enrichment helpers (SerpAPI optional; BrightData/HTML fallback) ---
+const PRICE_MARKETPLACE_SITES = ['ebay.de', 'kaufland.de', 'hood.de'];
+const PRICE_USED_HINT = /\b(gebraucht|used|refurb|refurbished|renewed|b-ware|pre-owned|second hand|open box)\b/i;
+
+function priceSafeString(v) {
+  return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
+}
+
+function medianNumber(values = []) {
+  const nums = values
+    .filter((n) => typeof n === 'number' && Number.isFinite(n))
+    .sort((a, b) => a - b);
+  if (!nums.length) return null;
+  const mid = Math.floor(nums.length / 2);
+  return nums.length % 2 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+}
+
+function parseEurAmount(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  const cleaned = s
+    .replace(/\s+/g, '')
+    .replace(/€/g, '')
+    .replace(/EUR/gi, '')
+    .replace(/\.(?=\d{3}(\D|$))/g, '') // 1.234,56 -> 1234,56
+    .replace(',', '.');
+  const v = parseFloat(cleaned);
+  if (!Number.isFinite(v)) return null;
+  if (v < 0.5 || v > 50000) return null;
+  return v;
+}
+
+function extractJsonLdBlocks(html = '') {
+  const blocks = [];
+  const re = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m;
+  while ((m = re.exec(String(html)))) {
+    const txt = (m[1] || '').trim();
+    if (txt) blocks.push(txt);
+    if (blocks.length >= 8) break;
+  }
+  return blocks;
+}
+
+function tryParseJsonLenient(text) {
+  const raw = (text == null ? '' : String(text)).trim();
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    try {
+      return JSON.parse(raw.replace(/,\s*([}\]])/g, '$1'));
+    } catch {
+      return null;
+    }
+  }
+}
+
+function collectPricesFromJsonLd(obj) {
+  const out = [];
+  const visit = (node) => {
+    if (!node) return;
+    if (Array.isArray(node)) return node.forEach(visit);
+    if (typeof node !== 'object') return;
+    const offers = node.offers;
+    if (offers) visit(offers);
+    const price = node.price;
+    const currency = node.priceCurrency || node.pricecurrency;
+    if (price != null) {
+      const amount = parseEurAmount(price);
+      const cur = priceSafeString(currency).toUpperCase();
+      if (amount != null && (!cur || cur === 'EUR')) {
+        out.push(amount);
+      }
+    }
+    if (node['@graph']) visit(node['@graph']);
+    for (const v of Object.values(node)) {
+      visit(v);
+    }
+  };
+  visit(obj);
+  return out;
+}
+
+function extractPriceCandidates(html) {
+  const candidates = [];
+  const body = String(html || '');
+
+  const metaAmount =
+    body.match(/property=["']?product:price:amount["']?[^>]*content=["']?([\d.,]+)/i)?.[1] ||
+    body.match(/itemprop=["']?price["']?[^>]*content=["']?([\d.,]+)/i)?.[1] ||
+    body.match(/itemprop=["']?price["']?[^>]*content=["']?(\d+(?:[.,]\d{2})?)/i)?.[1];
+  const metaCurrency =
+    body.match(/property=["']?product:price:currency["']?[^>]*content=["']?([A-Z]{3})/i)?.[1] ||
+    body.match(/itemprop=["']?priceCurrency["']?[^>]*content=["']?([A-Z]{3})/i)?.[1];
+  if (metaAmount) {
+    const amount = parseEurAmount(metaAmount);
+    const cur = priceSafeString(metaCurrency).toUpperCase();
+    if (amount != null && (!cur || cur === 'EUR')) {
+      candidates.push(amount);
+    }
+  }
+
+  for (const block of extractJsonLdBlocks(body)) {
+    const parsed = tryParseJsonLenient(block);
+    if (!parsed) continue;
+    const prices = collectPricesFromJsonLd(parsed);
+    prices.forEach((p) => candidates.push(p));
+  }
+
+  const re = /(?:EUR\s*)?(\d{1,5}(?:[.,]\d{2}))\s*€/gi;
+  let m;
+  while ((m = re.exec(body))) {
+    const amount = parseEurAmount(m[1]);
+    if (amount != null) candidates.push(amount);
+    if (candidates.length >= 20) break;
+  }
+  const re2 = /EUR\s*(\d{1,5}(?:[.,]\d{2}))/gi;
+  while ((m = re2.exec(body))) {
+    const amount = parseEurAmount(m[1]);
+    if (amount != null) candidates.push(amount);
+    if (candidates.length >= 20) break;
+  }
+
+  return Array.from(new Set(candidates)).sort((a, b) => a - b);
+}
+
+async function fetchHtmlForPrice(url) {
+  const result = await fetchWithUnlocker({
+    url,
+    method: 'GET',
+    format: 'raw',
+    timeoutMs: PRICE_REFRESH_TIMEOUT_MS,
+    headers: {
+      'User-Agent': 'avystock-price-refresh/3.0',
+      Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'de-DE,de;q=0.9,en;q=0.7',
+    },
+  });
+  if (!result?.success) {
+    throw new Error(result?.error || result?.statusText || 'Web Unlocker request failed');
+  }
+  return String(result.body || '');
+}
+
+function hasValidPriceEvidence(lowestPrice) {
+  const amount = lowestPrice?.amount;
+  const sources = Array.isArray(lowestPrice?.sources) ? lowestPrice.sources : [];
+  const hasEvidence = sources.some((s) => s && typeof s.url === 'string' && s.url.trim());
+  return typeof amount === 'number' && Number.isFinite(amount) && amount >= 1 && hasEvidence;
+}
+
+async function findWebPriceForProductV1(product) {
+  const brand = priceSafeString(product?.identification?.brand);
+  const title = priceSafeString(product?.identification?.name);
+  const mpn =
+    priceSafeString(product?.details?.identifiers?.mpn) ||
+    priceSafeString(product?.details?.attributes?.Herstellernummer) ||
+    priceSafeString(product?.details?.attributes?.MPN) ||
+    priceSafeString(product?.details?.attributes?.mpn);
+  const barcode =
+    (Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : [])
+      .map((x) => priceSafeString(x))
+      .find((x) => x.length >= 8) ||
+    priceSafeString(product?.details?.identifiers?.ean) ||
+    priceSafeString(product?.details?.identifiers?.gtin) ||
+    priceSafeString(product?.details?.identifiers?.upc) ||
+    '';
+  const sku =
+    priceSafeString(product?.identification?.sku) ||
+    priceSafeString(product?.details?.identifiers?.sku) ||
+    priceSafeString(product?.id);
+
+  const negativeTerms = '-gebraucht -used -refurb -refurbished -renewed -b-ware -openbox';
+  const queries = [];
+  if (barcode) queries.push(`${barcode} neu preis ${negativeTerms}`);
+  if (brand && mpn) queries.push(`${brand} ${mpn} neu preis ${negativeTerms}`);
+  if (brand && title) queries.push(`${brand} ${title} neu preis ${negativeTerms}`);
+  if (title) queries.push(`${title} neu preis ${negativeTerms}`);
+  if (sku && sku !== title) queries.push(`${sku} neu preis ${negativeTerms}`);
+
+  const tried = [];
+  let results = [];
+  let usedQuery = '';
+  let usedEngine = null;
+
+  for (const q of queries.slice(0, 3)) {
+    for (const site of PRICE_MARKETPLACE_SITES) {
+      const res = await searchEvidenceSite(q, site, { limit: 4, locale: 'de-DE' });
+      tried.push({ q, site, ok: res.ok, engine: res.engine || null, error: res.error || null });
+      if (res.ok && Array.isArray(res.results) && res.results.length) {
+        results = res.results;
+        usedQuery = `${q} site:${site}`;
+        usedEngine = res.engine;
+        break;
+      }
+    }
+    if (results.length) break;
+  }
+
+  if (!results.length) {
+    for (const q of queries.slice(0, 3)) {
+      const res = await searchEvidence(q, { limit: 6, locale: 'de-DE' });
+      tried.push({ q, site: null, ok: res.ok, engine: res.engine || null, error: res.error || null });
+      if (res.ok && Array.isArray(res.results) && res.results.length) {
+        results = res.results;
+        usedQuery = q;
+        usedEngine = res.engine;
+        break;
+      }
+    }
+  }
+
+  const urls = (results || [])
+    .map((r) => priceSafeString(r?.url))
+    .filter((u) => u.startsWith('http'))
+    .slice(0, 3);
+
+  const sourceCandidates = [];
+  for (const url of urls) {
+    try {
+      const html = await fetchHtmlForPrice(url);
+      const pageTitle = html.match(/<title[^>]*>([^<]{3,200})<\/title>/i)?.[1] || '';
+      const textBlob = `${pageTitle} ${html.slice(0, 4000)}`;
+      if (PRICE_USED_HINT.test(textBlob)) continue;
+      const prices = extractPriceCandidates(html);
+      if (prices.length) sourceCandidates.push({ url, prices });
+    } catch {
+      // ignore fetch failures
+    }
+  }
+
+  if (!sourceCandidates.length) {
+    return { ok: false, reason: 'no_price_found', usedQuery, usedEngine, tried, sources: [], amount: null };
+  }
+
+  const perSource = sourceCandidates
+    .map((c) => {
+      const representative = medianNumber(c.prices) ?? c.prices[0] ?? null;
+      return { url: c.url, amount: representative };
+    })
+    .filter((x) => typeof x.amount === 'number' && Number.isFinite(x.amount));
+
+  if (!perSource.length) {
+    return { ok: false, reason: 'no_price_found', usedQuery, usedEngine, tried, sources: [], amount: null };
+  }
+
+  const target = medianNumber(perSource.map((x) => x.amount));
+  const best =
+    typeof target === 'number' && Number.isFinite(target)
+      ? perSource
+          .slice()
+          .sort((a, b) => Math.abs(a.amount - target) - Math.abs(b.amount - target) || a.amount - b.amount)[0]
+      : perSource.slice().sort((a, b) => a.amount - b.amount)[0];
+
+  const timestamp = new Date().toISOString();
+  const sources = perSource.slice(0, 5).map((c) => ({
+    name: (() => {
+      try {
+        return new URL(c.url).host;
+      } catch {
+        return 'web';
+      }
+    })(),
+    url: c.url,
+    price: c.amount,
+    checked_at: timestamp,
+  }));
+
+  return {
+    ok: true,
+    amount: best.amount,
+    currency: 'EUR',
+    sources,
+    usedQuery,
+    usedEngine,
+    tried,
+  };
+}
+
+async function enrichPriceForProductBestEffort(product, { force = false, reason = 'price-refresh' } = {}) {
+  if (!product) return { ok: false, updated: false, error: 'product_missing' };
+  product.details = product.details || {};
+  product.details.pricing = product.details.pricing || {};
+
+  const existing = product.details?.pricing?.lowest_price;
+  if (!force && hasValidPriceEvidence(existing)) {
+    return {
+      ok: true,
+      updated: false,
+      data: {
+        lowest_price: existing,
+        price_confidence: product.details?.pricing?.price_confidence || 0.8,
+      },
+      serpTrace: [],
+    };
+  }
+
+  const serpTrace = [];
+  try {
+    await ensurePriceCoverage([product], serpTrace, { force });
+  } catch (e) {
+    // best-effort: SerpAPI may be disabled
+  }
+
+  const afterSerp = product.details?.pricing?.lowest_price;
+  if (hasValidPriceEvidence(afterSerp)) {
+    product.ops = product.ops || {};
+    product.ops.data_quality = product.ops.data_quality || {};
+    product.ops.data_quality.price_enrich_v1 = {
+      at_iso: new Date().toISOString(),
+      via: 'serpapi',
+      reason,
+      sources: (afterSerp.sources || []).map((s) => s?.url).filter(Boolean).slice(0, 5),
+    };
+    return {
+      ok: true,
+      updated: true,
+      data: {
+        lowest_price: afterSerp,
+        price_confidence: product.details?.pricing?.price_confidence || 0.8,
+      },
+      serpTrace,
+    };
+  }
+
+  const web = await findWebPriceForProductV1(product);
+  if (!web.ok || !web.amount || !Array.isArray(web.sources) || !web.sources.length) {
+    product.notes = product.notes || {};
+    product.notes.warnings = Array.from(
+      new Set([...(product.notes.warnings || []), 'Preis konnte nicht zuverlässig ermittelt werden – bitte prüfen.'])
+    );
+    return { ok: false, updated: false, error: web.reason || 'no_price_found', serpTrace };
+  }
+
+  const timestamp = new Date().toISOString();
+  const data = {
+    lowest_price: {
+      amount: web.amount,
+      currency: 'EUR',
+      sources: web.sources,
+      last_checked_iso: timestamp,
+    },
+    price_confidence: 0.75,
+  };
+
+  product.details.pricing.lowest_price = data.lowest_price;
+  product.details.pricing.price_confidence = data.price_confidence;
+  product.ops = product.ops || {};
+  product.ops.data_quality = product.ops.data_quality || {};
+  product.ops.data_quality.price_enrich_v1 = {
+    at_iso: timestamp,
+    via: 'web',
+    reason,
+    query: web.usedQuery || null,
+    engine: web.usedEngine || null,
+    sources: (web.sources || []).map((s) => s?.url).filter(Boolean).slice(0, 5),
+  };
+
+  return { ok: true, updated: true, data, serpTrace };
+}
 
 const normalizeIdentityKey = (value) => {
   if (value === undefined || value === null) return null;
@@ -2165,6 +2528,14 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
       console.warn('Identify K-Typ enrichment failed (continuing):', e?.message || e);
     }
 
+    // 3.6) Price enrichment (best-effort). Identify outputs should include a price when possible.
+    // This uses SerpAPI when enabled, otherwise falls back to BrightData-backed web search + unlocker scraping.
+    try {
+      await enrichPriceForProductBestEffort(product, { force: false, reason: 'identify' });
+    } catch (e) {
+      console.warn('Identify price enrichment failed (continuing):', e?.message || e);
+    }
+
     // 4) Persist (SYSTEM mode => invariants enforced; never treated as manual UI edit).
     await saveProduct(product, {
       allowCategoryChange: true,
@@ -3016,6 +3387,52 @@ app.get('/api/ebay/categories', (req, res) => {
   } catch (error) {
     console.error('Failed to search eBay categories:', error);
     res.status(500).json({ error: { message: 'Failed to search categories.' } });
+  }
+});
+
+// Search BaseLinker inventory categories (path-based) from bl_nventory_cat.xlsx
+// NOTE: two separate inventories (91387 + 91388) are treated as authoritative trees.
+const {
+  getInventoryCategoryIndex: getBaselinkerInventoryCategoryIndex,
+  searchInventoryCategoryPaths: searchBaselinkerInventoryCategoryPaths,
+} = require('./lib/baselinker-inventory-category-source');
+
+app.get('/api/baselinker/inventories/:inventoryId/categories', requirePermission('products', 'read'), (req, res) => {
+  try {
+    const inventoryId = String(req.params.inventoryId || '').trim();
+    if (!inventoryId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'inventoryId is required' } });
+    }
+
+    const query = (req.query.q || req.query.query || '').toString().trim();
+    const leafOnly =
+      String(req.query.leafOnly || req.query.leaf_only || '')
+        .trim()
+        .toLowerCase() === 'true';
+    const limitRaw = parseInt(req.query.limit || '60', 10);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 60;
+
+    const meta = getBaselinkerInventoryCategoryIndex(inventoryId);
+    const items = query && query.length >= 2
+      ? searchBaselinkerInventoryCategoryPaths(inventoryId, query, { limit, leafOnly })
+      : [];
+
+    return res.status(200).json({
+      ok: true,
+      inventoryId,
+      meta: {
+        inventoryId,
+        rows: meta?.rows || 0,
+        levelCount: meta?.levelCount || 0,
+        maxDepth: meta?.maxDepth || 0,
+        nodesCount: Array.isArray(meta?.nodes) ? meta.nodes.length : 0,
+        leavesCount: Array.isArray(meta?.leaves) ? meta.leaves.length : 0,
+      },
+      items,
+    });
+  } catch (error) {
+    console.error('Failed to search BaseLinker inventory categories:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to search BaseLinker categories.' } });
   }
 });
 
@@ -4547,148 +4964,25 @@ app.post('/api/price-refresh', async (req, res) => {
       });
     }
 
-    // Preferred: LLM builds a Google Shopping query + SerpAPI returns current NEW price offers.
-    // Falls back to HTML scraping / DuckDuckGo if SerpAPI or Gemini isn't configured.
-    try {
-      const serpTrace = [];
-      // Only enrich if price is missing/empty
-      const existing = product?.details?.pricing?.lowest_price;
-      const hasPrice =
-        existing &&
-        typeof existing.amount === 'number' &&
-        Number.isFinite(existing.amount) &&
-        existing.amount > 0 &&
-        Array.isArray(existing.sources) &&
-        existing.sources.length > 0;
-
-      if (!hasPrice) {
-        await ensurePriceCoverage([product], serpTrace);
-        const updated = product?.details?.pricing?.lowest_price;
-        const hasNow =
-          updated &&
-          typeof updated.amount === 'number' &&
-          Number.isFinite(updated.amount) &&
-          updated.amount > 0 &&
-          Array.isArray(updated.sources) &&
-          updated.sources.length > 0;
-        if (hasNow) {
-          await saveProduct(product);
-          return res.json({
-            ok: true,
-            data: {
-              lowest_price: product.details.pricing.lowest_price,
-              price_confidence: product.details.pricing.price_confidence || 0.7,
-            },
-            serpTrace,
-          });
-        }
-      }
-    } catch (error) {
-      console.log('SerpAPI price enrichment not available, falling back:', error?.message || error);
-    }
-
-    const fetchHtml = async (url, customHeaders = {}) => {
-      const result = await fetchWithUnlocker({
-        url,
-        method: 'GET',
-        format: 'raw',
-        timeoutMs: PRICE_REFRESH_TIMEOUT_MS,
-        headers: {
-          'User-Agent': 'avystock-price-refresh/1.0',
-          Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
-          ...customHeaders,
-        },
-      });
-      if (!result.success) {
-        throw new Error(result.error || 'Web Unlocker request failed');
-      }
-      return result.body || '';
-    };
-
-    // Helper: fetch HTML and extract price candidates in EUR
-    const USED_HINT = /\b(gebraucht|used|refurb|refurbished|renewed|b-ware|pre-owned|second hand|open box)\b/i;
-    const fetchAndExtractPrice = async (url) => {
-      try {
-        const html = await fetchHtml(url);
-        // Best-effort "new only" gate for fallback scraping.
-        const title = html.match(/<title[^>]*>([^<]{3,200})<\/title>/i)?.[1] || '';
-        const textBlob = `${title} ${html.slice(0, 4000)}`; // keep bounded (cheap)
-        if (USED_HINT.test(textBlob)) return null;
-        // Common meta tags
-        const metaPrice = html.match(/property=["']?product:price:amount["']?\s*content=["']?([\d.,]+)/i)?.[1]
-          || html.match(/itemprop=["']?price["']?\s*content=["']?([\d.,]+)/i)?.[1];
-        if (metaPrice) {
-          const v = parseFloat(metaPrice.replace(',', '.'));
-          return Number.isFinite(v) && v >= 1 ? v : null;
-        }
-        // Generic price regex (EUR 64,95 or 64,95 €)
-        const m = html.match(/(\d{1,4}[.,]\d{2})\s*€|EUR\s*(\d{1,4}[.,]\d{2})/i);
-        if (m) {
-          const val = (m[1] || m[2]).replace(',', '.');
-          const v = parseFloat(val);
-          return Number.isFinite(v) && v >= 1 ? v : null;
-        }
-      } catch (e) {
-        console.log('Price scrape failed for', url, e.message);
-      }
-      return null;
-    };
-
-    // 1) Try existing known sources on product
-    const candidates = [];
-    const sources = product.details?.pricing?.lowest_price?.sources || [];
-    for (const s of sources) {
-      if (s?.url) {
-        const p = await fetchAndExtractPrice(s.url);
-        if (!isNaN(p) && p > 0) candidates.push({ name: s.name || 'Source', url: s.url, price: p });
-      }
-    }
-
-    // 2) Fallback: simple DuckDuckGo HTML search to find a likely shop page (no API key)
-    if (candidates.length === 0) {
-      const negativeTerms = '-gebraucht -used -refurb -refurbished -renewed -b-ware -openbox';
-      const q = encodeURIComponent(
-        `${product.identification.name} ${product.identification.brand} neu kaufen Preis ${negativeTerms}`.trim()
-      );
-      const searchUrl = `https://duckduckgo.com/html/?q=${q}`;
-      try {
-        const html = await fetchHtml(searchUrl, { 'User-Agent': 'Mozilla/5.0' });
-        const links = Array.from(html.matchAll(/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"/g)).slice(0, 5).map(m => m[1]);
-        for (const link of links) {
-          const p = await fetchAndExtractPrice(link);
-          if (!isNaN(p) && p > 0) candidates.push({ name: 'Search Result', url: link, price: p });
-        }
-      } catch (e) {
-        console.log('Search failed:', e.message);
-      }
-    }
-
-    if (candidates.length === 0) {
-      // Do NOT return or persist placeholder prices.
+    const force = Boolean(req.body?.force);
+    const result = await enrichPriceForProductBestEffort(product, { force, reason: 'api/price-refresh' });
+    if (!result.ok) {
       return res.json({
         ok: false,
         error: { code: 404, message: 'No reliable price candidates found (min €1, evidence required).' },
+        serpTrace: result.serpTrace || [],
       });
     }
 
-    // Pick lowest price
-    candidates.sort((a, b) => a.price - b.price);
-    const best = candidates[0];
-    const data = {
-      lowest_price: {
-        amount: best.price,
-        currency: 'EUR',
-        sources: candidates.map(c => ({ name: c.name, url: c.url, price: c.price, checked_at: new Date().toISOString() }))
-      },
-      price_confidence: 0.8
-    };
+    if (result.updated) {
+      await saveProduct(product, { source: 'script' });
+    }
 
-    // Persist (saveProduct has additional guardrails)
-    product.details.pricing.lowest_price = data.lowest_price;
-    product.details.pricing.price_confidence = data.price_confidence;
-    await saveProduct(product, { source: 'script' });
-
-    res.json({ ok: true, data });
+    return res.json({
+      ok: true,
+      data: result.data,
+      serpTrace: result.serpTrace || [],
+    });
 
   } catch (error) {
     console.error('Error in price refresh:', error);

@@ -2327,8 +2327,21 @@ function pickBestPriceCandidate(candidates = []) {
     }
   }
 
-  // Requirement: pick the cheapest price among sufficiently good matches.
-  filtered.sort((a, b) => a.amount - b.amount || (b.score || 0) - (a.score || 0));
+  // Safety: do NOT pick the cheapest offer. We want a robust "typical market price"
+  // to avoid underpricing due to a single discounted/outlier listing.
+  const target = median(filtered.map((c) => c.amount));
+  if (typeof target === 'number' && Number.isFinite(target)) {
+    filtered.sort(
+      (a, b) =>
+        Math.abs(a.amount - target) - Math.abs(b.amount - target) ||
+        (b.score || 0) - (a.score || 0) ||
+        a.amount - b.amount
+    );
+    return filtered[0] || null;
+  }
+
+  // Fallback: highest quality match.
+  filtered.sort((a, b) => (b.score || 0) - (a.score || 0) || a.amount - b.amount);
   return filtered[0] || null;
 }
 

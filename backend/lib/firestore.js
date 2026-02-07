@@ -2432,13 +2432,25 @@ async function updateProductSyncStatus(
       updateData['ops.last_synced_iso'] = lastSyncedIso;
     }
     
+    const invKey = inventoryId != null ? String(inventoryId).trim() : '';
+    if (invKey) {
+      // Track per-inventory sync status (multi-inventory support).
+      updateData[`ops.baselinker.inventories.${invKey}.sync_status`] = status;
+      if (lastSyncedIso) {
+        updateData[`ops.baselinker.inventories.${invKey}.last_synced_iso`] = lastSyncedIso;
+      }
+    }
+
     if (baseProductId !== undefined) {
+      // Legacy linkage fields (last-synced inventory).
       updateData['ops.base_product_id'] = baseProductId;
-      updateData['ops.baselinker'] = {
-        ...(updateData['ops.baselinker'] || {}),
-        product_id: baseProductId,
-        synced_inventory: inventoryId || null,
-      };
+      updateData['ops.baselinker.product_id'] = baseProductId;
+      updateData['ops.baselinker.synced_inventory'] = invKey || null;
+
+      // Per-inventory linkage (preferred).
+      if (invKey) {
+        updateData[`ops.baselinker.inventories.${invKey}.product_id`] = baseProductId;
+      }
     }
     
     await docRef.update(updateData);

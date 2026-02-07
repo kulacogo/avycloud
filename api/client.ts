@@ -14,6 +14,7 @@ import {
   ProductEnrichmentRecord,
   InventoryRecord,
   EbayCategoryOption,
+  BaseLinkerInventoryCategoryOption,
   DashboardMetrics,
 } from '../types';
 
@@ -1266,6 +1267,29 @@ export const fetchEbayCategories = async (params: {
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Kategorien konnten nicht geladen werden.');
+  }
+  return Array.isArray(result?.items) ? result.items : [];
+};
+
+export const fetchBaseLinkerInventoryCategories = async (params: {
+  inventoryId: string;
+  query?: string;
+  limit?: number;
+  leafOnly?: boolean;
+}): Promise<BaseLinkerInventoryCategoryOption[]> => {
+  const inv = String(params?.inventoryId || '').trim();
+  if (!inv) return [];
+  const query = new URLSearchParams();
+  if (params.query) query.set('q', params.query);
+  if (params.limit) query.set('limit', String(params.limit));
+  if (params.leafOnly) query.set('leafOnly', 'true');
+  const url = query.toString()
+    ? `${BACKEND_URL}/api/baselinker/inventories/${encodeURIComponent(inv)}/categories?${query.toString()}`
+    : `${BACKEND_URL}/api/baselinker/inventories/${encodeURIComponent(inv)}/categories`;
+  const response = await fetchApi(url);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'BaseLinker-Kategorien konnten nicht geladen werden.');
   }
   return Array.isArray(result?.items) ? result.items : [];
 };

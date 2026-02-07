@@ -95,6 +95,15 @@ export interface Details {
   pricing: Pricing;
   // canonical eBay category id (see backend enforceEbayAspects)
   categoryId?: string;
+  /**
+   * BaseLinker inventory category paths by inventoryId.
+   * Example:
+   *  {
+   *    "91387": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen",
+   *    "91388": "Auto & Motorrad > Car-Hifi & Navigation > Autoradios"
+   *  }
+   */
+  baselinkerCategories?: Record<string, string>;
   gpsr?: {
     entity_country?: string;
     manufacturer_name?: string;
@@ -131,6 +140,14 @@ export interface Ops {
     // Derived (API-enriched): BaseLinker getInventoryProductsData.links summary
     links_count?: number;
     has_links?: boolean;
+    inventories?: Record<
+      string,
+      {
+        product_id?: number | string | null;
+        sync_status?: SyncStatus;
+        last_synced_iso?: string | null;
+      }
+    >;
   };
   pending_intake_quantity?: number;
   revision: number;
@@ -439,6 +456,12 @@ export interface EbayCategoryOption {
   id: string;
   breadcrumb: string;
   name?: string;
+}
+
+export interface BaseLinkerInventoryCategoryOption {
+  path: string;
+  depth: number;
+  isLeaf?: boolean;
 }
 
 export interface ProductEnrichmentRecord {
