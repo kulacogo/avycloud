@@ -69,12 +69,14 @@ function parseArgs(argv) {
     minQty: 1,
     limit: 0,
     offset: 0,
+    force: false,
   };
   for (let i = 2; i < argv.length; i += 1) {
     const t = argv[i];
     if (t === '--min-qty') args.minQty = Number(argv[i + 1]), i += 1;
     if (t === '--limit') args.limit = Number(argv[i + 1]), i += 1;
     if (t === '--offset' || t === '--skip') args.offset = Number(argv[i + 1]), i += 1;
+    if (t === '--force') args.force = true;
   }
   args.minQty = Number.isFinite(args.minQty) ? Math.max(1, Math.floor(args.minQty)) : 1;
   args.limit = Number.isFinite(args.limit) ? Math.max(0, Math.floor(args.limit)) : 0;
@@ -90,6 +92,17 @@ function hasInventoryCategory(product, inventoryId) {
       ? product.details.baselinkerCategories
       : {};
   return Boolean(safeString(map?.[inv]));
+}
+
+function isAlreadySyncedToInventory(product, inventoryId) {
+  const invKey = String(inventoryId || '').trim();
+  if (!invKey) return false;
+  const invOps =
+    product?.ops?.baselinker?.inventories && typeof product.ops.baselinker.inventories === 'object'
+      ? product.ops.baselinker.inventories
+      : {};
+  const status = String(invOps?.[invKey]?.sync_status || '').trim().toLowerCase();
+  return status === 'synced';
 }
 
 async function main() {
@@ -137,6 +150,7 @@ async function main() {
     minQty: args.minQty,
     limit: args.limit || null,
     offset: args.offset || 0,
+    force: Boolean(args.force),
     counts: {
       total,
       eligible: eligible.length,
@@ -159,12 +173,30 @@ async function main() {
 
   const results = {};
   for (const inv of ['91387', '91388']) {
-    console.log(`[dual-sync] syncing inventory ${inv}… products=${withBothCats.length}`);
-    const invResults = await syncProductsToBaseLinker(withBothCats, inv, {
+    const invKey = String(inv);
+    const alreadySynced = withBothCats.filter((p) => isAlreadySyncedToInventory(p, invKey));
+    const toSync = args.force ? withBothCats : withBothCats.filter((p) => !isAlreadySyncedToInventory(p, invKey));
+    console.log(
+      `[dual-sync] syncing inventory ${invKey}… toSync=${toSync.length} alreadySynced=${alreadySynced.length} (total=${withBothCats.length})`
+    );
+    if (!toSync.length) {
+      results[invKey] = [];
+      continue;
+    }
+
+    let processed = 0;
+    let ok = 0;
+    let failed = 0;
+    const invResults = await syncProductsToBaseLinker(toSync, invKey, {
       mode: 'full',
-      onProgress: async ({ index, total: t, result }) => {
-        if ((index + 1) % 25 === 0 || index + 1 === t) {
-          console.log(`[dual-sync] inv=${inv} ${index + 1}/${t} ${result?.status || 'unknown'} ${result?.id || ''}`);
+      onProgress: async ({ total: t, result }) => {
+        processed += 1;
+        if (result?.status === 'synced') ok += 1;
+        if (result?.status === 'failed') failed += 1;
+        if (processed % 5 === 0 || processed === t) {
+          console.log(
+            `[dual-sync] inv=${invKey} ${processed}/${t} ok=${ok} failed=${failed} last=${result?.status || 'unknown'} ${result?.id || ''}`
+          );
         }
       },
     });
