@@ -14,7 +14,7 @@ import {
   ProductEnrichmentRecord,
   InventoryRecord,
   EbayCategoryOption,
-  BaseLinkerInventoryCategoryOption,
+  BaseLinkerCategoryOption,
   DashboardMetrics,
 } from '../types';
 
@@ -1271,21 +1271,23 @@ export const fetchEbayCategories = async (params: {
   return Array.isArray(result?.items) ? result.items : [];
 };
 
-export const fetchBaseLinkerInventoryCategories = async (params: {
-  inventoryId: string;
+export const fetchBaseLinkerCategories = async (params: {
+  inventoryId?: string;
   query?: string;
+  id?: string;
   limit?: number;
   leafOnly?: boolean;
-}): Promise<BaseLinkerInventoryCategoryOption[]> => {
-  const inv = String(params?.inventoryId || '').trim();
-  if (!inv) return [];
+}): Promise<BaseLinkerCategoryOption[]> => {
+  const inv = String(params?.inventoryId || '78659').trim();
   const query = new URLSearchParams();
   if (params.query) query.set('q', params.query);
+  if (params.id) query.set('id', params.id);
   if (params.limit) query.set('limit', String(params.limit));
   if (params.leafOnly) query.set('leafOnly', 'true');
+  query.set('inventoryId', inv);
   const url = query.toString()
-    ? `${BACKEND_URL}/api/baselinker/inventories/${encodeURIComponent(inv)}/categories?${query.toString()}`
-    : `${BACKEND_URL}/api/baselinker/inventories/${encodeURIComponent(inv)}/categories`;
+    ? `${BACKEND_URL}/api/baselinker/categories?${query.toString()}`
+    : `${BACKEND_URL}/api/baselinker/categories`;
   const response = await fetchApi(url);
   const result = await parseResponse(response);
   if (!response.ok) {

@@ -3,9 +3,11 @@ const {
   serpapiToolDefinition,
   brightdataSearchToolDefinition,
   webFetchToolDefinition,
+  baselinkerCategorySearchToolDefinition,
   executeSerpapiToolCall,
   executeBrightdataSearchToolCall,
   executeWebFetchToolCall,
+  executeBaselinkerCategorySearchToolCall,
 } = require('./toolkit');
 const { resolveModel } = require('../lib/model-select');
 const { fetchMarketingImages } = require('../lib/marketing-images');
@@ -322,6 +324,9 @@ const updateDatasheetTool = {
           upc: { type: 'string' },
         },
       },
+      // BaseLinker category (single inventory: 78659)
+      baselinkerCategoryPath: { type: 'string' },
+      baselinkerCategoryId: { type: 'string' },
       short_description: { type: 'string' },
       key_features: {
         type: 'array',
@@ -333,6 +338,7 @@ const updateDatasheetTool = {
         additionalProperties: false,
         properties: {
           entity_country: { type: 'string' },
+          country_code: { type: 'string' },
           manufacturer_name: { type: 'string' },
           manufacturer_address: { type: 'string' },
           manufacturer_city: { type: 'string' },
@@ -1169,6 +1175,7 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
     const next = {};
     [
       'entity_country',
+      'country_code',
       'manufacturer_name',
       'manufacturer_address',
       'manufacturer_city',
@@ -1195,6 +1202,14 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
     if (Object.keys(next).length) {
       result.gpsr = next;
     }
+  }
+
+  // BaseLinker category (single category)
+  if (allow.category && typeof entry.baselinkerCategoryPath === 'string' && entry.baselinkerCategoryPath.trim()) {
+    result.baselinkerCategoryPath = entry.baselinkerCategoryPath.trim();
+  }
+  if (allow.category && typeof entry.baselinkerCategoryId === 'string' && entry.baselinkerCategoryId.trim()) {
+    result.baselinkerCategoryId = entry.baselinkerCategoryId.trim();
   }
   const identityPatch = {};
   const barcodeSet = new Set();
@@ -1499,6 +1514,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         toGeminiTool(brightdataSearchToolDefinition),
         ...(SERPAPI_ENABLED ? [toGeminiTool(serpapiToolDefinition)] : []),
         toGeminiTool(webFetchToolDefinition),
+        toGeminiTool(baselinkerCategorySearchToolDefinition),
         toGeminiTool(updateDatasheetTool),
         toGeminiTool(suggestImagesTool),
         toGeminiTool(generateAiImagesTool),
@@ -1539,6 +1555,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   5. **ALWAYS** usage the 'update_product_datasheet' tool when you propose ANY data changes (title, description, attributes, etc.). Do NOT just output JSON text. The tool call IS the way to propose changes.
   6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
   7. GPSR updates MUST be returned under the top-level "gpsr" object (not in attributes). Never create keys like "GPSR Manufacturer name" inside attributes.
+  8. BaseLinker category: if you change it, FIRST call 'baselinker_category_search', THEN set BOTH 'baselinkerCategoryId' and 'baselinkerCategoryPath' in update_product_datasheet.
 
   QUALITY BAR (non-binding):
   - Titles should be searchable and ≤80 chars.
@@ -1660,6 +1677,10 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
             status: result.status,
             error: result.error
           });
+          toolResult = result;
+        }
+        else if (name === 'baselinker_category_search') {
+          const result = await executeBaselinkerCategorySearchToolCall({ arguments: JSON.stringify(args) });
           toolResult = result;
         }
         else if (name === 'update_product_datasheet') {

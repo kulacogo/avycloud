@@ -92,6 +92,7 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
     const next: Record<string, string> = {};
     [
       'entity_country',
+      'country_code',
       'manufacturer_name',
       'manufacturer_address',
       'manufacturer_city',
@@ -107,6 +108,12 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
     if (Object.keys(next).length) {
       (result as any).gpsr = next;
     }
+  }
+  if (typeof entry.baselinkerCategoryPath === 'string' && entry.baselinkerCategoryPath.trim()) {
+    result.baselinkerCategoryPath = entry.baselinkerCategoryPath.trim();
+  }
+  if (typeof entry.baselinkerCategoryId === 'string' && entry.baselinkerCategoryId.trim()) {
+    result.baselinkerCategoryId = entry.baselinkerCategoryId.trim();
   }
   if (entry.attributes) {
     if (Array.isArray(entry.attributes)) {

@@ -1063,7 +1063,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setNotice({
       tone: 'info',
       title: 'Sync gestartet',
-      message: `Synchronisiere ${selectedProducts.length} Produkte (BaseLinker Inventories 91387 + 91388).`,
+      message: `Synchronisiere ${selectedProducts.length} Produkte (BaseLinker Inventory ${syncInventoryId}).`,
     });
     const updatingProducts = products.map(p =>
       selectedIds.has(p.id)
@@ -1073,58 +1073,31 @@ const AdminTable: React.FC<AdminTableProps> = ({
     onUpdateProducts(updatingProducts);
 
     try {
-      const requiredInvs = ['91387', '91388'];
-      const missingCats = [];
-      for (const p of selectedProducts) {
-        const map =
-          p?.details?.baselinkerCategories && typeof p.details.baselinkerCategories === 'object'
-            ? p.details.baselinkerCategories
-            : {};
-        for (const inv of requiredInvs) {
-          const v = String(map?.[inv] || '').trim();
-          if (!v) {
-            missingCats.push(`${p.id}:${inv}`);
-          }
-        }
-      }
+      const missingCats = selectedProducts
+        .filter((p) => {
+          const v = String(p?.details?.baselinkerCategoryPath || '').trim();
+          if (v) return false;
+          const legacyMap = (p?.details?.baselinkerCategories || {}) as any;
+          return !String(legacyMap?.['91387'] || '').trim();
+        })
+        .map((p) => p.id);
+
       if (missingCats.length) {
         throw new Error(
-          `Sync abgebrochen: BaseLinker-Kategorie fehlt für ${missingCats.length} Zuordnungen (z.B. ${missingCats
+          `Sync abgebrochen: BaseLinker-Kategorie fehlt für ${missingCats.length} Produkte (z.B. ${missingCats
             .slice(0, 8)
             .join(', ')}).`
         );
       }
 
-      // Sync to BOTH inventories (sequential, avoids mixed progress reporting)
-      const resultsPerInv: Array<{
-        inventoryId: string;
-        results?: Array<{ id: string; status: 'synced' | 'failed'; message?: string }>;
-        error?: { code: number; message: string };
-      }> = [];
-      for (const inv of requiredInvs) {
-        const res = await syncToBaseLinker(selectedProducts, inv);
-        resultsPerInv.push({ inventoryId: inv, results: res.results, error: res.error });
-      }
+      const res = await syncToBaseLinker(selectedProducts, syncInventoryId);
+      const results = Array.isArray(res?.results) ? res.results : [];
+      const byId = new Map(results.map((r) => [r.id, r]));
 
-      // Merge results: a product is "synced" only if both inventories succeeded.
-      const byProductId = new Map<string, { okCount: number; failMessages: string[] }>();
-      for (const invRes of resultsPerInv) {
-        const items = Array.isArray(invRes.results) ? invRes.results : [];
-        for (const entry of items) {
-          const current = byProductId.get(entry.id) || { okCount: 0, failMessages: [] };
-          if (entry.status === 'synced') {
-            current.okCount += 1;
-          } else {
-            current.failMessages.push(`${invRes.inventoryId}: ${entry.message || 'fehlgeschlagen'}`);
-          }
-          byProductId.set(entry.id, current);
-        }
-      }
-
-      const finalProducts = products.map(p => {
+      const finalProducts = products.map((p) => {
         if (!selectedIds.has(p.id)) return p;
-        const agg = byProductId.get(p.id) || { okCount: 0, failMessages: [] };
-        const ok = agg.okCount >= 2 && agg.failMessages.length === 0;
+        const entry = byId.get(p.id);
+        const ok = entry?.status === 'synced';
         return {
           ...p,
           ops: {
@@ -1136,18 +1109,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
       });
       onUpdateProducts(finalProducts);
 
-      const successCount = finalProducts.filter(p => selectedIds.has(p.id) && p.ops.sync_status === 'synced').length;
+      const successCount = finalProducts.filter((p) => selectedIds.has(p.id) && p.ops.sync_status === 'synced').length;
       const failCount = selectedProducts.length - successCount;
-      const failureSummary = Array.from(byProductId.entries())
-        .filter(([, v]) => v.failMessages.length)
-        .slice(0, 120)
-        .map(([id, v]) => `${id}: ${v.failMessages.join(' | ')}`)
+      const failureSummary = results
+        .filter((r) => r.status !== 'synced')
+        .slice(0, 200)
+        .map((r) => `${r.id}: ${r.message || 'fehlgeschlagen'}`)
         .join('\n');
 
       setNotice({
         tone: failCount > 0 ? 'warning' : 'success',
         title: 'Sync abgeschlossen',
-        message: `✓ ${successCount} synchronisiert (beide Inventories) · ✗ ${failCount} fehlgeschlagen`,
+        message: `✓ ${successCount} synchronisiert · ✗ ${failCount} fehlgeschlagen`,
         details: failCount > 0 ? failureSummary : undefined,
       });
     } catch (error) {

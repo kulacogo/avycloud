@@ -48,7 +48,14 @@ function buildImproveContext(product) {
   const lines = [];
   lines.push(`Aktueller Titel: ${product?.identification?.name || 'unbekannt'}`);
   lines.push(`Marke: ${product?.identification?.brand || 'unbekannt'}`);
-  lines.push(`Kategorie: ${product?.identification?.category || 'unbekannt'}`);
+  const legacyCats = product?.details?.baselinkerCategories && typeof product.details.baselinkerCategories === 'object'
+    ? product.details.baselinkerCategories
+    : {};
+  lines.push(
+    `BaseLinker Kategorie: ${
+      product?.details?.baselinkerCategoryPath || legacyCats?.['91387'] || 'unbekannt'
+    }`
+  );
   if (product?.details?.short_description) {
     lines.push(`Beschreibung:\n${product.details.short_description}`);
   }
@@ -694,10 +701,38 @@ async function improveExistingProduct(productId, onProgress) {
   mergedProduct = applyEbayTaxonomy(mergedProduct);
   mergedProduct = applyKauflandTaxonomy(mergedProduct);
 
+  // Prefetch small web evidence blocks (BrightData-backed) so Improve and Identify operate on the same footing.
+  // This is evidence-only; never guessing.
+  const reviewEvidence = {
+    barcodes: Array.isArray(mergedProduct?.identification?.barcodes) ? mergedProduct.identification.barcodes : [],
+  };
+  try {
+    const { prefetchWebEvidenceForIdentify } = require('./enrichment');
+    const ids = mergedProduct?.details?.identifiers || {};
+    const barcodeList = []
+      .concat(reviewEvidence.barcodes || [])
+      .concat([ids?.ean, ids?.gtin, ids?.upc])
+      .filter(Boolean)
+      .map((x) => String(x).trim())
+      .filter(Boolean)
+      .slice(0, 4);
+    const webEnrich = await prefetchWebEvidenceForIdentify({
+      barcodeList,
+      ocrTextSnippets: [],
+      locale: product.locale || 'de-DE',
+    });
+    if (webEnrich) {
+      reviewEvidence.web_enrich = webEnrich;
+    }
+  } catch (e) {
+    // best-effort
+  }
+
   console.log('[improve] Final Review & Save...');
   if (onProgress) await onProgress('reviewing');
   await runDatasheetReview([mergedProduct], {
     locale: product.locale || 'de-DE',
+    webEvidence: reviewEvidence,
     marketplaceEvidence: true,
     llmScopeId: 'improve.product',
   });
@@ -709,6 +744,7 @@ async function improveExistingProduct(productId, onProgress) {
     if (!eval1.ok && eval1.issues && eval1.issues.length) {
       await runDatasheetReview([mergedProduct], {
         locale: product.locale || 'de-DE',
+        webEvidence: reviewEvidence,
         qualityIssuesById: { [mergedProduct.id]: eval1.issues },
         marketplaceEvidence: true,
         llmScopeId: 'improve.product',
@@ -794,6 +830,18 @@ async function improveExistingProduct(productId, onProgress) {
     mergedProduct.notes.warnings = Array.from(
       new Set([...(mergedProduct.notes.warnings || []), `Rulebook Issues (Improve): ${applied.issues.slice(0, 12).join('; ')}`])
     );
+  }
+
+  // BaseLinker category assignment (single inventory: 78659, best-effort).
+  // Keeps Improve outputs aligned with the inventory taxonomy used for sync.
+  try {
+    const { assignBaselinkerCategoryBestEffort } = require('./baselinker-category');
+    await assignBaselinkerCategoryBestEffort(mergedProduct, {
+      inventoryId: '78659',
+      locale: product.locale || 'de-DE',
+    });
+  } catch (e) {
+    console.warn('[improve] BaseLinker category assignment failed (continuing):', e?.message || e);
   }
 
   await saveProduct(mergedProduct, { source: 'job-improve', overwriteTextFields: true });

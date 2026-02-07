@@ -96,16 +96,20 @@ export interface Details {
   // canonical eBay category id (see backend enforceEbayAspects)
   categoryId?: string;
   /**
-   * BaseLinker inventory category paths by inventoryId.
-   * Example:
-   *  {
-   *    "91387": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen",
-   *    "91388": "Auto & Motorrad > Car-Hifi & Navigation > Autoradios"
-   *  }
+   * BaseLinker inventory category (single inventory: 78659).
+   * - `baselinkerCategoryId` is the BaseLinker inventory `category_id`
+   * - `baselinkerCategoryPath` is the human-readable breadcrumb
+   */
+  baselinkerCategoryId?: string;
+  baselinkerCategoryPath?: string;
+  /**
+   * Legacy (multi-inventory experiment): keep for backwards compatibility.
+   * New code should use baselinkerCategoryId/baselinkerCategoryPath.
    */
   baselinkerCategories?: Record<string, string>;
   gpsr?: {
     entity_country?: string;
+    country_code?: string; // ISO-like code (see backend normalization)
     manufacturer_name?: string;
     manufacturer_address?: string;
     manufacturer_city?: string;
@@ -236,11 +240,14 @@ export interface DatasheetChange {
   summary?: string;
   title?: string;
   identity?: Partial<Identification>;
+  baselinkerCategoryId?: string;
+  baselinkerCategoryPath?: string;
   short_description?: string;
   key_features?: string[];
   attributes?: Record<string, string | number | boolean>;
   gpsr?: {
     entity_country?: string;
+    country_code?: string;
     manufacturer_name?: string;
     manufacturer_address?: string;
     manufacturer_city?: string;
@@ -458,10 +465,12 @@ export interface EbayCategoryOption {
   name?: string;
 }
 
-export interface BaseLinkerInventoryCategoryOption {
-  path: string;
-  depth: number;
-  isLeaf?: boolean;
+export interface BaseLinkerCategoryOption {
+  id: string;
+  name: string;
+  breadcrumb: string;
+  parent_id?: number;
+  depth?: number;
 }
 
 export interface ProductEnrichmentRecord {

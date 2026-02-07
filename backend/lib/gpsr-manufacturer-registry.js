@@ -113,6 +113,68 @@ function normalizeCountryToEnglish(raw) {
   return v;
 }
 
+function normalizeCountryCode(raw) {
+  const v = safeString(raw).trim();
+  if (!v) return '';
+  const upper = v.toUpperCase();
+  if (/^[A-Z]{2}$/.test(upper)) {
+    // User requirement: treat United Kingdom as "UK" (BaseLinker/marketplace often accepts it).
+    if (upper === 'GB') return 'UK';
+    return upper;
+  }
+  const normalized = normalizeCountryToEnglish(v);
+  const key = safeString(normalized).toLowerCase();
+  const nameToCode = {
+    germany: 'DE',
+    austria: 'AT',
+    switzerland: 'CH',
+    netherlands: 'NL',
+    poland: 'PL',
+    sweden: 'SE',
+    france: 'FR',
+    italy: 'IT',
+    spain: 'ES',
+    belgium: 'BE',
+    denmark: 'DK',
+    norway: 'NO',
+    finland: 'FI',
+    ireland: 'IE',
+    portugal: 'PT',
+    czechia: 'CZ',
+    slovakia: 'SK',
+    hungary: 'HU',
+    romania: 'RO',
+    bulgaria: 'BG',
+    greece: 'GR',
+    turkey: 'TR',
+    'united kingdom': 'UK',
+    'great britain': 'UK',
+    england: 'UK',
+    scotland: 'UK',
+    wales: 'UK',
+    'northern ireland': 'UK',
+  };
+  return nameToCode[key] || '';
+}
+
+function normalizeGpsrPhone(raw) {
+  const v = safeString(raw);
+  if (!v) return '';
+  const first = v.split(/[;|,]+/).map((x) => safeString(x)).filter(Boolean)[0] || '';
+  if (!first) return '';
+  const trimmed = first.trim();
+  const hasPlus = trimmed.startsWith('+');
+  const digits = trimmed
+    .replace(/\(0\)/g, '')
+    .replace(/[^\d]/g, '')
+    .trim();
+  if (!digits) return '';
+  if (!hasPlus && digits.startsWith('00') && digits.length > 2) {
+    return `+${digits.slice(2)}`;
+  }
+  return hasPlus ? `+${digits}` : digits;
+}
+
 function normalizeStreetOnly(address) {
   const raw = safeString(address);
   if (!raw) return '';
@@ -126,6 +188,7 @@ function normalizeGpsrObject(gpsr) {
   const out = {};
   [
     'entity_country',
+    'country_code',
     'manufacturer_name',
     'manufacturer_address',
     'manufacturer_city',
@@ -139,9 +202,17 @@ function normalizeGpsrObject(gpsr) {
     if (!v) return;
     if (isGpsrPlaceholderLike(v)) return;
     if (k === 'entity_country') v = normalizeCountryToEnglish(v);
+    if (k === 'manufacturer_phone') v = normalizeGpsrPhone(v);
     if (k === 'manufacturer_address') v = normalizeStreetOnly(v);
     out[k] = v;
   });
+
+  // Derive country_code if possible (deterministic, no guessing)
+  if (!safeString(out.country_code) && safeString(out.entity_country)) {
+    const code = normalizeCountryCode(out.entity_country);
+    if (code) out.country_code = code;
+  }
+
   return out;
 }
 
@@ -275,6 +346,9 @@ module.exports = {
   normalizeManufacturerKey,
   manufacturerKeyCandidates,
   isGpsrPlaceholderLike,
+  normalizeCountryToEnglish,
+  normalizeCountryCode,
+  normalizeGpsrPhone,
   normalizeGpsrObject,
   scoreGpsr,
   mergePreferMoreComplete,

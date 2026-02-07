@@ -376,9 +376,9 @@ async function ensureInventoryCategoriesLoaded(inventoryId) {
 function shouldCanonicalizeInventoryCategoryPath(inventoryId) {
   const invKey = String(inventoryId || '').trim();
   if (!invKey) return true;
-  // IMPORTANT: inventories 91387 + 91388 are two separate, authoritative trees.
+  // IMPORTANT: inventory 78659 now contains the authoritative taxonomy (imported from 91387).
   // We must NOT apply semantic canonicalization that merges roots/branches (e.g. ":" root variants).
-  if (invKey === '91387' || invKey === '91388') return false;
+  if (invKey === '78659') return false;
   // Default: keep legacy behavior (canonicalize to reduce duplicates).
   return true;
 }
@@ -1083,6 +1083,19 @@ function pickSku(product) {
   return null;
 }
 
+function pickStrictSku(product) {
+  const candidates = [
+    product?.identification?.sku,
+    product?.details?.identifiers?.sku,
+  ];
+  for (const entry of candidates) {
+    if (entry && typeof entry === 'string' && entry.trim().length > 0) {
+      return entry.trim();
+    }
+  }
+  return null;
+}
+
 function pickPrice(product) {
   const priceCandidates = [
     product?.details?.pricing?.lowest_price?.amount,
@@ -1429,10 +1442,15 @@ function buildImages(product) {
 /**
  * Minimal-Validierung vor Sync
  */
-function validateProduct(product) {
+function validateProduct(product, { inventoryId } = {}) {
   const errors = [];
   if (!pickProductName(product)) errors.push('Produktname fehlt');
-  if (!pickSku(product)) errors.push('SKU fehlt');
+  const invKey = String(inventoryId || '').trim();
+  if (invKey === '78659') {
+    if (!pickStrictSku(product)) errors.push('SKU fehlt (identification.sku)');
+  } else {
+    if (!pickSku(product)) errors.push('SKU fehlt');
+  }
 
   const price = pickPrice(product);
   if (price === null || !Number.isFinite(Number(price)) || Number(price) < 1) {
@@ -1596,7 +1614,8 @@ function buildPayload(
   inventoryCategoryId // BaseLinker inventory category id
 ) {
   const name = pickProductName(product);
-  const sku = pickSku(product);
+  const isPrimaryInventory = String(inventoryId) === '78659';
+  const sku = isPrimaryInventory ? pickStrictSku(product) : pickSku(product);
   const ean = pickEan(product);
   const textFields = buildTextFields(product, name);
   const images = buildImages(product);
@@ -1819,7 +1838,7 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
   }
 
   try {
-    const validation = validateProduct(product);
+    const validation = validateProduct(product, { inventoryId: invId });
     if (!validation.isValid) {
       const message = validation.errors.join(' | ');
       await logInventorySyncEvent({
@@ -1857,29 +1876,22 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
       invId
     );
 
-    // Inventory-specific category selection:
-    // - For multi-inventory setups, each inventory MUST receive its own category path.
-    // - We store inventory category paths in product.details.baselinkerCategories[inventoryId] (string breadcrumb).
-    const baselinkerCats =
+    // BaseLinker category selection (single inventory: 78659)
+    const legacyCats =
       product?.details?.baselinkerCategories && typeof product.details.baselinkerCategories === 'object'
         ? product.details.baselinkerCategories
         : {};
-    const invSpecificCategoryPath = safeString(baselinkerCats?.[String(invId)] || '');
-
-    // Legacy fallbacks (single-category world)
-    const legacyCategoryPath =
-      product?.details?.ebayCategoryPath ||
-      product?.details?.kauflandCategoryPath ||
-      product?.identification?.category ||
+    const categoryPath =
+      safeString(product?.details?.baselinkerCategoryPath || '') ||
+      safeString(legacyCats?.['78659'] || '') ||
+      safeString(legacyCats?.['91387'] || '') ||
+      safeString(product?.details?.ebayCategoryPath || '') ||
+      safeString(product?.details?.kauflandCategoryPath || '') ||
+      safeString(product?.identification?.category || '') ||
       null;
 
-    // Enforce per-inventory category for our dual-inventory setup.
-    const requiresInventoryCategory = String(invId) === '91387' || String(invId) === '91388';
-    const categoryPath = requiresInventoryCategory
-      ? (invSpecificCategoryPath || null)
-      : (invSpecificCategoryPath || legacyCategoryPath || null);
-    if (requiresInventoryCategory && !categoryPath) {
-      throw new Error(`Missing BaseLinker category for inventory ${invId} (product ${product?.id || ''})`);
+    if (String(invId) === '78659' && !categoryPath) {
+      throw new Error(`Missing BaseLinker category (product ${product?.id || ''})`);
     }
 
     // Quantity to send to BaseLinker must reflect AVAILABLE stock:
@@ -1891,11 +1903,19 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
       quantity = Math.max(0, preferredAvailable);
     } else {
       const reservedMap = await getReservedOpenOrderMap();
-      const skuKey = normalizeSkuValue(pickSku(product) || product?.id || '');
+      const skuKeyRaw =
+        String(invId) === '78659' ? pickStrictSku(product) || '' : pickSku(product) || '';
+      const skuKey = normalizeSkuValue(skuKeyRaw || '');
       const reservedQty = skuKey ? Number(reservedMap.get(skuKey) || 0) : 0;
       quantity = Math.max(0, physicalQuantity - reservedQty);
     }
-    const inventoryCategoryId = categoryPath ? await ensureInventoryCategory(invId, categoryPath) : 0;
+    let inventoryCategoryId = 0;
+    const storedCategoryId = Number(product?.details?.baselinkerCategoryId || 0);
+    if (Number.isFinite(storedCategoryId) && storedCategoryId > 0) {
+      inventoryCategoryId = storedCategoryId;
+    } else if (categoryPath) {
+      inventoryCategoryId = await ensureInventoryCategory(invId, categoryPath, { canonicalize: false });
+    }
     const numericCategoryId = inventoryCategoryId || 0;
 
     const payload = buildPayload(

@@ -2536,6 +2536,17 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
       console.warn('Identify price enrichment failed (continuing):', e?.message || e);
     }
 
+    // 3.7) BaseLinker category assignment (single inventory: 78659, best-effort).
+    // We constrain the choice to the BaseLinker category tree and store:
+    // - details.baselinkerCategoryPath (breadcrumb)
+    // - details.baselinkerCategoryId (category_id)
+    try {
+      const { assignBaselinkerCategoryBestEffort } = require('./services/baselinker-category');
+      await assignBaselinkerCategoryBestEffort(product, { inventoryId: '78659', locale });
+    } catch (e) {
+      console.warn('Identify BaseLinker category assignment failed (continuing):', e?.message || e);
+    }
+
     // 4) Persist (SYSTEM mode => invariants enforced; never treated as manual UI edit).
     await saveProduct(product, {
       allowCategoryChange: true,
@@ -3390,21 +3401,18 @@ app.get('/api/ebay/categories', (req, res) => {
   }
 });
 
-// Search BaseLinker inventory categories (path-based) from bl_nventory_cat.xlsx
-// NOTE: two separate inventories (91387 + 91388) are treated as authoritative trees.
+// Search BaseLinker inventory categories (single inventory: 78659)
 const {
-  getInventoryCategoryIndex: getBaselinkerInventoryCategoryIndex,
-  searchInventoryCategoryPaths: searchBaselinkerInventoryCategoryPaths,
-} = require('./lib/baselinker-inventory-category-source');
+  getInventoryCategoryIndex: getBaseLinkerCategoryIndex,
+  searchInventoryCategories: searchBaseLinkerCategories,
+  getInventoryCategoryById: getBaseLinkerCategoryById,
+} = require('./lib/baselinker-inventory-category-index');
 
-app.get('/api/baselinker/inventories/:inventoryId/categories', requirePermission('products', 'read'), (req, res) => {
+app.get('/api/baselinker/categories', requirePermission('products', 'read'), async (req, res) => {
   try {
-    const inventoryId = String(req.params.inventoryId || '').trim();
-    if (!inventoryId) {
-      return res.status(400).json({ ok: false, error: { code: 400, message: 'inventoryId is required' } });
-    }
-
+    const inventoryId = String(req.query.inventoryId || req.query.inventory_id || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
     const query = (req.query.q || req.query.query || '').toString().trim();
+    const id = (req.query.id || '').toString().trim();
     const leafOnly =
       String(req.query.leafOnly || req.query.leaf_only || '')
         .trim()
@@ -3412,26 +3420,32 @@ app.get('/api/baselinker/inventories/:inventoryId/categories', requirePermission
     const limitRaw = parseInt(req.query.limit || '60', 10);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 60;
 
-    const meta = getBaselinkerInventoryCategoryIndex(inventoryId);
-    const items = query && query.length >= 2
-      ? searchBaselinkerInventoryCategoryPaths(inventoryId, query, { limit, leafOnly })
-      : [];
+    const meta = await getBaseLinkerCategoryIndex(inventoryId);
+
+    let items = [];
+    if (id) {
+      const found = await getBaseLinkerCategoryById(inventoryId, id);
+      if (found) items.push(found);
+    }
+    if (query && query.length >= 2) {
+      const matches = await searchBaseLinkerCategories(inventoryId, query, { limit, leafOnly });
+      matches.forEach((m) => {
+        if (!items.find((x) => x.id === m.id)) items.push(m);
+      });
+    }
 
     return res.status(200).json({
       ok: true,
       inventoryId,
       meta: {
         inventoryId,
-        rows: meta?.rows || 0,
-        levelCount: meta?.levelCount || 0,
-        maxDepth: meta?.maxDepth || 0,
-        nodesCount: Array.isArray(meta?.nodes) ? meta.nodes.length : 0,
-        leavesCount: Array.isArray(meta?.leaves) ? meta.leaves.length : 0,
+        fetchedAtIso: meta?.fetchedAtIso || null,
+        count: meta?.count || 0,
       },
       items,
     });
   } catch (error) {
-    console.error('Failed to search BaseLinker inventory categories:', error);
+    console.error('Failed to search BaseLinker categories:', error);
     return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to search BaseLinker categories.' } });
   }
 });

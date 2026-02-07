@@ -9,7 +9,13 @@ const {
 const { coerceTitleToPolicy } = require('./title-policy');
 const { normalizeBrandDisplayCase } = require('./brand-normalize');
 const { getVehicleFitmentMode } = require('./vehicle-fitment');
-const { getManufacturerGpsrByName, mergePreferMoreComplete, normalizeGpsrObject } = require('./gpsr-manufacturer-registry');
+const {
+  getManufacturerGpsrByName,
+  mergePreferMoreComplete,
+  normalizeGpsrObject,
+  normalizeCountryCode,
+  normalizeGpsrPhone,
+} = require('./gpsr-manufacturer-registry');
 
 function isFirestoreSpecialValue(value) {
   if (!value) return false;
@@ -875,6 +881,20 @@ function enforceEbayAspects(product) {
     if (normalizedCountry && normalizedCountry !== g.entity_country) {
       g.entity_country = normalizedCountry;
       changed.push('entity_country');
+    }
+
+    // 3) Normalize phone number (digits only, optional leading "+")
+    const normalizedPhone = normalizeGpsrPhone(g.manufacturer_phone);
+    if (normalizedPhone && normalizedPhone !== g.manufacturer_phone) {
+      g.manufacturer_phone = normalizedPhone;
+      changed.push('manufacturer_phone');
+    }
+
+    // 4) Derive country_code (ISO-like) from entity_country (deterministic)
+    const cc = normalizeCountryCode(g.entity_country);
+    if (cc && cc !== g.country_code) {
+      g.country_code = cc;
+      changed.push('country_code');
     }
 
     return { gpsr: g, changed };
