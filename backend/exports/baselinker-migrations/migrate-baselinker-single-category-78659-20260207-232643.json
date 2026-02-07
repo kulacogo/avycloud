@@ -1,0 +1,67 @@
+{
+  "action": "migrate-baselinker-single-category-78659",
+  "project": "avycloud",
+  "mode": "DRY_RUN",
+  "inventoryId": "78659",
+  "processed": 740,
+  "updated": 444,
+  "skipped": 296,
+  "missingCategory": 0,
+  "missingCategoryId": 400,
+  "missingSku": 0,
+  "examples": {
+    "missingCategory": [],
+    "missingCategoryId": [
+      {
+        "id": "0019451391762",
+        "path": "Sport > Fitness & Jogging > Bekleidung > Herren > Tops & Trikots"
+      },
+      {
+        "id": "00872299043330",
+        "path": "Baby > Kinderwagen & Zubehör > Kinderwagenzubehör > Wagennetze & Organizer"
+      },
+      {
+        "id": "0191169564783",
+        "path": "Sport > Fitness & Jogging > Bekleidung > Herren > Shorts & Radlerhosen"
+      },
+      {
+        "id": "0198303486543",
+        "path": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > T-Shirts"
+      },
+      {
+        "id": "03142017000003",
+        "path": "Business & Industrie > Agrar, Forst & Kommune > Spezial-Landwirtschaft > Fischwirtschaft > Räucheröfen"
+      },
+      {
+        "id": "0402019292922",
+        "path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Karosserie-, Anbauteile & Zubehör > Außenspiegel & Teile > Außenspiegel"
+      },
+      {
+        "id": "04052938000016",
+        "path": "Auto & Motorrad: Teile > Autoteile & Zubehör > Luft- & Kraftstoffversorgung > Lufteinlass- & Kraftstoffsensoren"
+      },
+      {
+        "id": "04262372160096",
+        "path": "Musikinstrumente > Drums & Percussion > Hand Percussion > Sonstige Hand Percussion"
+      },
+      {
+        "id": "0456566400136",
+        "path": "Kleidung & Accessoires > Damen > Damenmode"
+      },
+      {
+        "id": "0562769421460",
+        "path": "Sport > Wintersport > Bekleidung > Hosen"
+      },
+      {
+        "id": "0615272916159",
+        "path": "Heimwerker > Werkzeuge > Elektrowerkzeuge > Schleifmaschinen"
+      },
+      {
+        "id": "0703212290001",
+        "path": "Kleidung & Accessoires > Kinder > Jungen > Mode für Jungen > T-Shirts, Polos & Hemden"
+      }
+    ],
+    "missingSku": []
+  },
+  "wrote_at_iso": "2026-02-07T22:26:43.894Z"
+}
