@@ -146,11 +146,6 @@ const NAV_ICONS: NavIconConfig[] = [
   },
 ] as const;
 
-const TOGGLE_ICONS = {
-  light: '/mode_switch__brightmode.png',
-  dark: '/mode_switch_darkmode.png',
-} as const;
-
 export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onToggleTheme }) => {
   const { t, locale, setLocale } = useI18n();
   const { logout, hasPermission, isAdmin } = useAuth();
@@ -304,12 +299,45 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 aria-label={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
                 title={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
               >
-                <img
-                  src={theme === 'dark' ? TOGGLE_ICONS.dark : TOGGLE_ICONS.light}
-                  alt=""
-                  className="w-10 h-10 object-contain"
-                  draggable={false}
-                />
+                {theme === 'dark' ? (
+                  // show target mode icon (light) while in dark mode
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-6 h-6 text-slate-200"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2" />
+                    <path d="M12 20v2" />
+                    <path d="M4.93 4.93l1.41 1.41" />
+                    <path d="M17.66 17.66l1.41 1.41" />
+                    <path d="M2 12h2" />
+                    <path d="M20 12h2" />
+                    <path d="M4.93 19.07l1.41-1.41" />
+                    <path d="M17.66 6.34l1.41-1.41" />
+                  </svg>
+                ) : (
+                  // show target mode icon (dark) while in light mode
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-6 h-6 text-slate-200"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12.8A8 8 0 1 1 11.2 3a6 6 0 0 0 9.8 9.8Z" />
+                  </svg>
+                )}
               </button>
               <button
                 type="button"

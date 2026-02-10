@@ -76,7 +76,6 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
 }) => {
   const { t, locale } = useI18n();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
@@ -184,7 +183,6 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
     async ({ syncOrders, refreshProducts }: { syncOrders: boolean; refreshProducts: boolean }) => {
       if (refreshInFlightRef.current) return;
       refreshInFlightRef.current = true;
-      setRefreshing(true);
       try {
         await Promise.all([
           refreshProducts && onRefreshProducts ? Promise.resolve(onRefreshProducts()) : Promise.resolve(),
@@ -194,7 +192,6 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         if (!unmountedRef.current) setLastUpdatedAt(new Date());
       } finally {
         refreshInFlightRef.current = false;
-        if (!unmountedRef.current) setRefreshing(false);
       }
     },
     [loadMetrics, loadOrders, onRefreshProducts]
@@ -358,14 +355,6 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
             {lastUpdatedAt ? t('mobile.dashboard.lastUpdated', { value: lastUpdatedAt.toLocaleString(intlLocale) }) : '—'}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void refreshAll({ syncOrders: true, refreshProducts: true })}
-          disabled={refreshing}
-          className="rounded-xl bg-slate-800 border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 disabled:opacity-60"
-        >
-          {refreshing ? t('mobile.dashboard.refreshing') : t('actions.refresh')}
-        </button>
       </div>
 
       {isEmpty && (
@@ -423,9 +412,9 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
       {!isEmpty && (
         <div className="grid grid-cols-2 gap-3">
           <StatCard
-            label={t('mobile.dashboard.kpi.products')}
-            value={`${summary.total}`}
-            sub={t('mobile.dashboard.kpi.productsSub', { count: summary.inStock })}
+            label="Inventar (mit Bestand)"
+            value={`${summary.inStock}`}
+            sub={`${summary.total} Produkte gesamt`}
           />
           <StatCard
             label={t('mobile.dashboard.kpi.units')}

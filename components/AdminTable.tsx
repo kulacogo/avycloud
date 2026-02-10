@@ -10,7 +10,6 @@ import { addMediaQueryListener } from '../utils/mediaQuery';
 import { useInventoryContext } from '../context/InventoryContext';
 import { isInventoryItem, isProductBacklogItem } from '../utils/inventorySplit';
 import { PageHeader } from './ui/PageHeader';
-import { HelpDisclosure } from './ui/HelpDisclosure';
 import { Notice } from './ui/Notice';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 
@@ -1542,6 +1541,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   }, [sortConfig]);
 
+  const filterControlClass = 'p-2 text-sm bg-slate-800/70 border border-slate-700 rounded-lg text-slate-100';
+  const filterButtonClass =
+    'w-full p-2 text-sm bg-slate-800/70 border border-slate-700 rounded-lg text-slate-100 text-left';
+  const menuItemClass =
+    'w-full text-left px-3 py-2 text-sm text-slate-100 hover:bg-slate-800 rounded-lg transition';
+
   const renderFilterControls = () => (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -1549,7 +1554,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           id="table-filter-status"
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value as SyncStatus | 'all')}
-          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          className={filterControlClass}
         >
           {statusFilters.map((option) => (
             <option key={option.value} value={option.value}>
@@ -1557,18 +1562,30 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </option>
           ))}
         </select>
+
+        <select
+          id="table-filter-stock"
+          value={filterStock}
+          onChange={(e) => setFilterStock(e.target.value as 'all' | 'inStock' | 'outOfStock')}
+          className={filterControlClass}
+        >
+          <option value="all">{t('table.stockFilter.all')}</option>
+          <option value="inStock">{t('table.stockFilter.inStock')}</option>
+          <option value="outOfStock">{t('table.stockFilter.outOfStock')}</option>
+        </select>
+
         <div className="relative">
           <button
             type="button"
             onClick={() => setCategoryFilterOpen((v) => !v)}
-            className="w-full p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100 text-left"
+            className={filterButtonClass}
           >
             {filterCategorySelection.length === 0
               ? 'Kategorie: Alle'
               : `Kategorie: ${filterCategorySelection.length} ausgewählt`}
           </button>
           {categoryFilterOpen && (
-            <div className="absolute z-30 mt-2 w-[360px] max-w-[90vw] rounded-lg border border-slate-600 bg-slate-900 p-3 shadow-xl">
+            <div className="absolute z-30 mt-2 w-[360px] max-w-[90vw] rounded-xl border border-slate-700 bg-slate-950 p-3 shadow-xl">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-200">Kategorien</p>
                 <div className="flex items-center gap-2">
@@ -1597,7 +1614,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   const isAllSelected = selectedCount === allKeys.length && allKeys.length > 0;
                   const isIndeterminate = selectedCount > 0 && selectedCount < allKeys.length;
                   return (
-                    <div key={node.top} className="rounded-md border border-slate-700 bg-slate-950/30">
+                    <div key={node.top} className="rounded-md border border-slate-800 bg-slate-900/40">
                       <label className="flex items-center gap-2 px-2 py-2 text-sm text-slate-100">
                         <input
                           type="checkbox"
@@ -1615,7 +1632,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
                           {node.children.map((c) => {
                             const key = `${node.top} > ${c.sub}`;
                             return (
-                              <label key={key} className="flex items-center gap-2 pl-5 pr-2 py-1 text-sm text-slate-200">
+                              <label
+                                key={key}
+                                className="flex items-center gap-2 pl-5 pr-2 py-1 text-sm text-slate-200"
+                              >
                                 <input
                                   type="checkbox"
                                   checked={isCategorySelected(key)}
@@ -1635,103 +1655,66 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </div>
           )}
         </div>
-        <select
-          id="table-filter-stock"
-          value={filterStock}
-          onChange={(e) => setFilterStock(e.target.value as 'all' | 'inStock' | 'outOfStock')}
-          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-        >
-          <option value="all">{t('table.stockFilter.all')}</option>
-          <option value="inStock">{t('table.stockFilter.inStock')}</option>
-          <option value="outOfStock">{t('table.stockFilter.outOfStock')}</option>
-        </select>
+
         <select
           id="table-filter-bin"
           value={filterBin}
           onChange={(e) => setFilterBin(e.target.value as 'all' | 'withBin' | 'withoutBin')}
-          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+          className={filterControlClass}
         >
           <option value="all">{t('table.binFilter.all')}</option>
           <option value="withBin">{t('table.binFilter.withBin')}</option>
           <option value="withoutBin">{t('table.binFilter.withoutBin')}</option>
         </select>
-        <select
-          id="table-filter-images"
-          value={filterImage}
-          onChange={(e) => setFilterImage(e.target.value as 'all' | 'withImages' | 'noImages')}
-          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-        >
-          <option value="all">Bilder: Alle</option>
-          <option value="withImages">Mit Bildern</option>
-          <option value="noImages">Keine Bilder</option>
-        </select>
-        <select
-          id="table-filter-completeness"
-          value={filterCompleteness}
-          onChange={(e) => setFilterCompleteness(e.target.value as 'all' | 'complete' | 'incomplete' | 'lt80' | 'lt50')}
-          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-        >
-          <option value="all">Vollständig: Alle</option>
-          <option value="complete">Nur vollständig</option>
-          <option value="incomplete">Unvollständig</option>
-          <option value="lt80">&lt; 80%</option>
-          <option value="lt50">&lt; 50%</option>
-        </select>
-        <select
-          id="table-filter-quality"
-          value={filterQuality}
-          onChange={(e) => setFilterQuality(e.target.value as any)}
-          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-        >
-          <option value="all">Quality: Alle</option>
-          <option value="notChecked">Quality: nicht geprüft</option>
-          <option value="ok">Quality: OK</option>
-          <option value="warn">Quality: WARN</option>
-          <option value="error">Quality: ERROR</option>
-          <option value="issues">Quality: Issues</option>
-        </select>
-        <select
-          value={columnPreset}
-          onChange={(e) => {
-            const preset = e.target.value as ColumnPreset;
-            setVisibleColumns(COLUMN_PRESETS[preset]);
-            setColumnPreset(preset);
-          }}
-          className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
-        >
-          <option value="standard">{t('table.presets.standard')}</option>
-          <option value="warehouse">{t('table.presets.warehouse')}</option>
-          <option value="pricing">{t('table.presets.pricing')}</option>
-          <option value="minimal">{t('table.presets.minimal')}</option>
-        </select>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsColumnPanelOpen((prev) => !prev)}
-            className="flex-1 rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
-          >
-            {t('table.columns.edit')}
-          </button>
-          <button
-            type="button"
-            onClick={resetColumns}
-            className="rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
-          >
-            {t('table.columns.reset')}
-          </button>
-        </div>
       </div>
 
       <details className="rounded-lg border border-slate-700 bg-slate-900/40">
         <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-200">
-          Erweiterte Filter
+          Mehr Filter
         </summary>
         <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <select
+            id="table-filter-images"
+            value={filterImage}
+            onChange={(e) => setFilterImage(e.target.value as 'all' | 'withImages' | 'noImages')}
+            className={filterControlClass}
+          >
+            <option value="all">Bilder: Alle</option>
+            <option value="withImages">Mit Bildern</option>
+            <option value="noImages">Keine Bilder</option>
+          </select>
+          <select
+            id="table-filter-completeness"
+            value={filterCompleteness}
+            onChange={(e) =>
+              setFilterCompleteness(e.target.value as 'all' | 'complete' | 'incomplete' | 'lt80' | 'lt50')
+            }
+            className={filterControlClass}
+          >
+            <option value="all">Vollständig: Alle</option>
+            <option value="complete">Nur vollständig</option>
+            <option value="incomplete">Unvollständig</option>
+            <option value="lt80">&lt; 80%</option>
+            <option value="lt50">&lt; 50%</option>
+          </select>
+          <select
+            id="table-filter-quality"
+            value={filterQuality}
+            onChange={(e) => setFilterQuality(e.target.value as any)}
+            className={filterControlClass}
+          >
+            <option value="all">Quality: Alle</option>
+            <option value="notChecked">Quality: nicht geprüft</option>
+            <option value="ok">Quality: OK</option>
+            <option value="warn">Quality: WARN</option>
+            <option value="error">Quality: ERROR</option>
+            <option value="issues">Quality: Issues</option>
+          </select>
           <select
             id="table-filter-baselinker-link"
             value={filterBaselinkerLink}
             onChange={(e) => setFilterBaselinkerLink(e.target.value as any)}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+            className={filterControlClass}
           >
             <option value="all">BaseLinker: Alle</option>
             <option value="linked">BaseLinker: verknüpft</option>
@@ -1741,7 +1724,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             id="table-filter-weight"
             value={filterWeight}
             onChange={(e) => setFilterWeight(e.target.value as any)}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+            className={filterControlClass}
           >
             <option value="all">Gewicht: Alle</option>
             <option value="withWeight">Gewicht: vorhanden</option>
@@ -1751,7 +1734,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             id="table-filter-reserved"
             value={filterReserved}
             onChange={(e) => setFilterReserved(e.target.value as any)}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+            className={filterControlClass}
           >
             <option value="all">Reserviert: Alle</option>
             <option value="reserved">Reserviert: &gt; 0</option>
@@ -1761,7 +1744,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             id="table-filter-available"
             value={filterAvailable}
             onChange={(e) => setFilterAvailable(e.target.value as any)}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+            className={filterControlClass}
           >
             <option value="all">Verfügbar: Alle</option>
             <option value="available">Verfügbar: &gt; 0</option>
@@ -1771,7 +1754,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             id="table-filter-bin-split"
             value={filterBinSplit}
             onChange={(e) => setFilterBinSplit(e.target.value as any)}
-            className="p-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-slate-100"
+            className={filterControlClass}
           >
             <option value="all">Bins: Alle</option>
             <option value="singleBin">Bins: 1 BIN</option>
@@ -1779,6 +1762,169 @@ const AdminTable: React.FC<AdminTableProps> = ({
           </select>
         </div>
       </details>
+
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={columnPreset}
+            onChange={(e) => {
+              const preset = e.target.value as ColumnPreset;
+              setVisibleColumns(COLUMN_PRESETS[preset]);
+              setColumnPreset(preset);
+            }}
+            className={filterControlClass}
+          >
+            <option value="standard">{t('table.presets.standard')}</option>
+            <option value="warehouse">{t('table.presets.warehouse')}</option>
+            <option value="pricing">{t('table.presets.pricing')}</option>
+            <option value="minimal">{t('table.presets.minimal')}</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => setIsColumnPanelOpen((prev) => !prev)}
+            className="rounded-md border border-slate-700 bg-slate-800/70 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-600"
+          >
+            {t('table.columns.edit')}
+          </button>
+          <button
+            type="button"
+            onClick={resetColumns}
+            className="rounded-md border border-slate-700 bg-slate-800/70 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-600"
+          >
+            {t('table.columns.reset')}
+          </button>
+        </div>
+
+        <details className="relative">
+          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-md border border-slate-700 bg-slate-800/70 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-600">
+            Tools
+          </summary>
+          <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-slate-700 bg-slate-950 p-1 shadow-xl z-30">
+            <button type="button" onClick={handleExportCsv} className={menuItemClass}>
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setKtypeModalOpen(true);
+                setKtypeFile(null);
+                setKtypeReport(null);
+                setKtypeMessage(null);
+              }}
+              className={menuItemClass}
+            >
+              K‑Typ importieren
+            </button>
+
+            {onBulkImprove ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmDialog({
+                    title: 'Alle Produkte verbessern?',
+                    tone: 'default',
+                    description:
+                      'Startet KI/Improve-Jobs für alle Produkte. Das kann viele Jobs erzeugen und je nach Menge dauern.',
+                    confirmLabel: 'Verbessern (alle) starten',
+                    onConfirm: () => {
+                      setConfirmDialog(null);
+                      onBulkImprove();
+                    },
+                  });
+                }}
+                className={menuItemClass}
+              >
+                Verbessern (alle)
+              </button>
+            ) : null}
+
+            {mode === 'inventory' ? (
+              <>
+                <div className="my-1 border-t border-slate-800" />
+                <div className="px-3 py-1 text-[11px] uppercase tracking-wide text-slate-400">
+                  Inventory Fix + Sync
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDialog({
+                      title: 'Titel-Fix für alle Inventory-Produkte?',
+                      tone: 'default',
+                      description:
+                        "Entfernt einen Bindestrich am Ende (inkl. Leerzeichen) und stößt anschließend einen BaseLinker Text-Sync an.",
+                      confirmLabel: 'Starten',
+                      onConfirm: async () => {
+                        setConfirmDialog(null);
+                        await enqueueBulkForAllInCurrentMode('title_cleanup');
+                      },
+                    });
+                  }}
+                  className={menuItemClass}
+                >
+                  Titel Cleanup + Sync
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDialog({
+                      title: 'Highlights als HTML formatieren?',
+                      tone: 'default',
+                      description:
+                        'Speichert Highlights als <ul><li>…</li></ul> (kein „•“) und synchronisiert sie per Text-Only Sync nach BaseLinker.',
+                      confirmLabel: 'Starten',
+                      onConfirm: async () => {
+                        setConfirmDialog(null);
+                        await enqueueBulkForAllInCurrentMode('highlights_html');
+                      },
+                    });
+                  }}
+                  className={menuItemClass}
+                >
+                  Highlights → HTML + Sync
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDialog({
+                      title: 'Beschreibung als HTML formatieren?',
+                      tone: 'default',
+                      description:
+                        'Formatiert Absätze zu <p>…</p> und Label wie „Zustand:“ zu <strong>…</strong>. Danach Text-Only Sync nach BaseLinker.',
+                      confirmLabel: 'Starten',
+                      onConfirm: async () => {
+                        setConfirmDialog(null);
+                        await enqueueBulkForAllInCurrentMode('description_html');
+                      },
+                    });
+                  }}
+                  className={menuItemClass}
+                >
+                  Beschreibung → HTML + Sync
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDialog({
+                      title: 'Listing-Readiness Audit ausführen?',
+                      tone: 'default',
+                      description:
+                        'Korrigiert/vereinheitlicht Titel/Highlights/Beschreibung/Attribute und stößt anschließend Text-Only Sync nach BaseLinker an.',
+                      confirmLabel: 'Starten',
+                      onConfirm: async () => {
+                        setConfirmDialog(null);
+                        await enqueueBulkForAllInCurrentMode('listing_readiness');
+                      },
+                    });
+                  }}
+                  className={menuItemClass}
+                >
+                  Listing-Readiness Audit + Fix + Sync
+                </button>
+              </>
+            ) : null}
+          </div>
+        </details>
+      </div>
 
       {isColumnPanelOpen && (
         <div className="rounded-lg border border-slate-600 bg-slate-900 p-4 space-y-2">
@@ -1804,216 +1950,231 @@ const AdminTable: React.FC<AdminTableProps> = ({
           </div>
         </div>
       )}
-
-      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-700/40 items-center">
-        {/* Fixed BaseLinker inventory (78659) */}
-        <span className="text-xs text-slate-300 pr-2">
-          {selectedIds.size} {selectedIds.size === 1 ? 'Produkt' : 'Produkte'} ausgewählt
-        </span>
-        <ActionButton
-          icon={<SyncIcon className="w-4 h-4" />}
-          label={t('table.actions.syncSelected')}
-          onClick={handleBatchSync}
-          disabled={selectedIds.size === 0}
-          tone="primary"
-        />
-        <ActionButton
-          icon={<RefreshIcon className="w-4 h-4" />}
-          label={t('table.actions.priceRefresh')}
-          onClick={() => enqueueBulkForSelection('price')}
-          disabled={selectedIds.size === 0}
-          tone="secondary"
-        />
-        <ActionButton
-          icon={<SheetIcon className="w-4 h-4" />}
-          label="Titel fix (Auswahl)"
-          onClick={() => enqueueBulkForSelection('title')}
-          disabled={selectedIds.size === 0 || bulkJobLoading}
-          tone="secondary"
-        />
-        {mode === 'inventory' && (
-          <>
-            <ActionButton
-              icon={<SheetIcon className="w-4 h-4" />}
-              label="Titel: '-' am Ende fix + Sync (alle Inventory)"
-              onClick={() => {
-                setConfirmDialog({
-                  title: "Titel-Fix für alle Inventory-Produkte?",
-                  tone: 'default',
-                  description:
-                    "Entfernt einen Bindestrich am Ende (inkl. Leerzeichen) und stößt anschließend einen BaseLinker Text-Sync an.",
-                  confirmLabel: 'Starten',
-                  onConfirm: async () => {
-                    setConfirmDialog(null);
-                    await enqueueBulkForAllInCurrentMode('title_cleanup');
-                  },
-                });
-              }}
-              disabled={bulkJobLoading}
-              tone="secondary"
-            />
-            <ActionButton
-              icon={<SheetIcon className="w-4 h-4" />}
-              label="Highlights → HTML + Sync (alle Inventory)"
-              onClick={() => {
-                setConfirmDialog({
-                  title: 'Highlights als HTML formatieren?',
-                  tone: 'default',
-                  description:
-                    'Speichert Highlights als <ul><li>…</li></ul> (kein „•“) und synchronisiert sie per Text-Only Sync nach BaseLinker.',
-                  confirmLabel: 'Starten',
-                  onConfirm: async () => {
-                    setConfirmDialog(null);
-                    await enqueueBulkForAllInCurrentMode('highlights_html');
-                  },
-                });
-              }}
-              disabled={bulkJobLoading}
-              tone="secondary"
-            />
-            <ActionButton
-              icon={<SheetIcon className="w-4 h-4" />}
-              label="Beschreibung → HTML + Sync (alle Inventory)"
-              onClick={() => {
-                setConfirmDialog({
-                  title: 'Beschreibung als HTML formatieren?',
-                  tone: 'default',
-                  description:
-                    'Formatiert Absätze zu <p>…</p> und Label wie „Zustand:“ zu <strong>…</strong>. Danach Text-Only Sync nach BaseLinker.',
-                  confirmLabel: 'Starten',
-                  onConfirm: async () => {
-                    setConfirmDialog(null);
-                    await enqueueBulkForAllInCurrentMode('description_html');
-                  },
-                });
-              }}
-              disabled={bulkJobLoading}
-              tone="secondary"
-            />
-            <ActionButton
-              icon={<SheetIcon className="w-4 h-4" />}
-              label="Listing-Readiness Audit + Fix + Sync (alle Inventory)"
-              onClick={() => {
-                setConfirmDialog({
-                  title: 'Listing-Readiness Audit ausführen?',
-                  tone: 'default',
-                  description:
-                    'Korrigiert/vereinheitlicht Titel/Highlights/Beschreibung/Attribute (inkl. eBay Pflichtmerkmale via Backend-Normalisierung) und stößt anschließend Text-Only Sync nach BaseLinker an.',
-                  confirmLabel: 'Starten',
-                  onConfirm: async () => {
-                    setConfirmDialog(null);
-                    await enqueueBulkForAllInCurrentMode('listing_readiness');
-                  },
-                });
-              }}
-              disabled={bulkJobLoading}
-              tone="secondary"
-            />
-          </>
-        )}
-        <ActionButton
-          icon={<SearchIcon className="w-4 h-4" />}
-          label="Kategorie fix (Auswahl)"
-          onClick={() => enqueueBulkForSelection('category')}
-          disabled={selectedIds.size === 0 || bulkJobLoading}
-          tone="secondary"
-        />
-        <ActionButton
-          icon={<SheetIcon className="w-4 h-4" />}
-          label="K‑Typ enrich (Auswahl)"
-          onClick={() => enqueueBulkForSelection('ktype')}
-          disabled={selectedIds.size === 0 || bulkJobLoading}
-          tone="secondary"
-        />
-        <ActionButton
-          icon={<BarcodeIcon className="w-4 h-4" />}
-          label={t('table.actions.assignInventory')}
-          onClick={() => {}}
-          disabled
-          tone="secondary"
-        />
-        {onImproveSelected && (
-          <ActionButton
-            icon={<OperationsIcon className="w-4 h-4" />}
-            label="Verbessern (Auswahl)"
-            onClick={async () => {
-              const ids = Array.from(selectedIds);
-              if (!ids.length) return;
-              setImproveInProgress(true);
-              setImproveMessage(`Verbessern gestartet (${ids.length}) …`);
-              try {
-                onImproveSelected(ids);
-              } catch (err: any) {
-                console.error('Improve Selected failed', err?.message || err);
-                setImproveMessage('Fehler beim Verbessern');
-              } finally {
-                setTimeout(() => setImproveInProgress(false), 3000);
-              }
-            }}
-            disabled={selectedIds.size === 0}
-            tone="accent"
-          />
-        )}
-        {onBulkImprove && (
-          <ActionButton
-            icon={<OperationsIcon className="w-4 h-4" />}
-            label="Verbessern (alle)"
-            onClick={() => {
-              setConfirmDialog({
-                title: 'Alle Produkte verbessern?',
-                tone: 'default',
-                description:
-                  'Startet KI/Improve-Jobs für alle Produkte. Das kann viele Jobs erzeugen und je nach Menge dauern.',
-                confirmLabel: 'Verbessern (alle) starten',
-                onConfirm: () => {
-                  setConfirmDialog(null);
-                  onBulkImprove();
-                },
-              });
-            }}
-            tone="accent"
-          />
-        )}
-        <ActionButton
-          icon={<SheetIcon className="w-4 h-4" />}
-          label="K‑Typ importieren"
-          onClick={() => {
-            setKtypeModalOpen(true);
-            setKtypeFile(null);
-            setKtypeReport(null);
-            setKtypeMessage(null);
-          }}
-        />
-        <ActionButton
-          icon={<ExportIcon className="w-4 h-4" />}
-          label={t('table.actions.exportCsv')}
-          onClick={handleExportCsv}
-        />
-        <ActionButton
-          icon={<PrintIcon className="w-4 h-4" />}
-          label={t('table.actions.printLabel')}
-          onClick={handleBatchLabelPrint}
-          disabled={selectedIds.size === 0}
-        />
-        <ActionButton
-          icon={<PrintIcon className="w-4 h-4 rotate-180" />}
-          label={t('table.columns.reset')}
-          onClick={resetColumns}
-        />
-        <ActionButton
-          icon={<TrashIcon className="w-4 h-4" />}
-          label={t('table.actions.deleteSelected')}
-          onClick={handleBatchDelete}
-          disabled={selectedIds.size === 0}
-          tone="danger"
-        />
-      </div>
     </>
   );
 
+  const activeFilterChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
+    const s = String(searchTerm || '').trim();
+    if (s) chips.push({ key: 'search', label: `Suche: ${s}`, onClear: () => setSearchTerm('') });
+
+    if (filterStatus !== 'all') {
+      const label = statusFilters.find((o) => o.value === filterStatus)?.label || `Status: ${filterStatus}`;
+      chips.push({ key: 'status', label, onClear: () => setFilterStatus('all') });
+    }
+
+    if (filterCategorySelection.length > 0) {
+      chips.push({
+        key: 'category',
+        label: `Kategorie: ${filterCategorySelection.length}`,
+        onClear: () => setFilterCategorySelection([]),
+      });
+    }
+
+    if (filterStock !== 'all') {
+      const label = filterStock === 'inStock' ? t('table.stockFilter.inStock') : t('table.stockFilter.outOfStock');
+      chips.push({ key: 'stock', label, onClear: () => setFilterStock('all') });
+    }
+
+    if (filterBin !== 'all') {
+      const label = filterBin === 'withBin' ? t('table.binFilter.withBin') : t('table.binFilter.withoutBin');
+      chips.push({ key: 'bin', label, onClear: () => setFilterBin('all') });
+    }
+
+    if (filterImage !== 'all') {
+      const label = filterImage === 'withImages' ? 'Mit Bildern' : 'Keine Bilder';
+      chips.push({ key: 'images', label, onClear: () => setFilterImage('all') });
+    }
+
+    if (filterCompleteness !== 'all') {
+      const label =
+        filterCompleteness === 'complete'
+          ? 'Vollständig'
+          : filterCompleteness === 'incomplete'
+            ? 'Unvollständig'
+            : filterCompleteness === 'lt80'
+              ? 'Vollständigkeit < 80%'
+              : 'Vollständigkeit < 50%';
+      chips.push({ key: 'completeness', label, onClear: () => setFilterCompleteness('all') });
+    }
+
+    if (filterQuality !== 'all') {
+      const label =
+        filterQuality === 'notChecked'
+          ? 'Quality: nicht geprüft'
+          : filterQuality === 'ok'
+            ? 'Quality: OK'
+            : filterQuality === 'warn'
+              ? 'Quality: WARN'
+              : filterQuality === 'error'
+                ? 'Quality: ERROR'
+                : 'Quality: Issues';
+      chips.push({ key: 'quality', label, onClear: () => setFilterQuality('all') });
+    }
+
+    if (filterBaselinkerLink !== 'all') {
+      chips.push({
+        key: 'baselinker',
+        label: filterBaselinkerLink === 'linked' ? 'BaseLinker: verknüpft' : 'BaseLinker: nicht verknüpft',
+        onClear: () => setFilterBaselinkerLink('all'),
+      });
+    }
+
+    if (filterWeight !== 'all') {
+      chips.push({
+        key: 'weight',
+        label: filterWeight === 'withWeight' ? 'Gewicht: vorhanden' : 'Gewicht: fehlt',
+        onClear: () => setFilterWeight('all'),
+      });
+    }
+
+    if (filterReserved !== 'all') {
+      chips.push({
+        key: 'reserved',
+        label: filterReserved === 'reserved' ? 'Reserviert > 0' : 'Reserviert = 0',
+        onClear: () => setFilterReserved('all'),
+      });
+    }
+
+    if (filterAvailable !== 'all') {
+      chips.push({
+        key: 'available',
+        label: filterAvailable === 'available' ? 'Verfügbar > 0' : 'Verfügbar = 0',
+        onClear: () => setFilterAvailable('all'),
+      });
+    }
+
+    if (filterBinSplit !== 'all') {
+      chips.push({
+        key: 'binSplit',
+        label: filterBinSplit === 'singleBin' ? 'Bins: 1 BIN' : 'Bins: mehrere BINs',
+        onClear: () => setFilterBinSplit('all'),
+      });
+    }
+
+    return chips;
+  }, [
+    filterAvailable,
+    filterBaselinkerLink,
+    filterBin,
+    filterBinSplit,
+    filterCategorySelection,
+    filterCompleteness,
+    filterImage,
+    filterQuality,
+    filterReserved,
+    filterStatus,
+    filterStock,
+    filterWeight,
+    searchTerm,
+    statusFilters,
+    t,
+  ]);
+
+  const renderSelectionBar = () => {
+    if (selectedIds.size === 0) return null;
+    return (
+      <div className="rounded-xl border border-slate-700 bg-slate-950/30 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="text-xs text-slate-200">
+          <b>{selectedIds.size}</b> ausgewählt
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <ActionButton
+            icon={<SyncIcon className="w-4 h-4" />}
+            label={t('table.actions.syncSelected')}
+            onClick={handleBatchSync}
+            disabled={selectedIds.size === 0 || syncInProgress}
+            tone="primary"
+          />
+          {onImproveSelected ? (
+            <ActionButton
+              icon={<OperationsIcon className="w-4 h-4" />}
+              label="Verbessern"
+              onClick={() => {
+                const ids = Array.from(selectedIds);
+                if (!ids.length) return;
+                setImproveInProgress(true);
+                setImproveMessage(`Verbessern gestartet (${ids.length}) …`);
+                try {
+                  onImproveSelected(ids);
+                } catch (err: any) {
+                  console.error('Improve Selected failed', err?.message || err);
+                  setImproveMessage('Fehler beim Verbessern');
+                } finally {
+                  setTimeout(() => setImproveInProgress(false), 3000);
+                }
+              }}
+              disabled={selectedIds.size === 0 || improveInProgress}
+              tone="accent"
+            />
+          ) : null}
+
+          <details className="relative">
+            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-md bg-slate-800/70 border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-600">
+              Mehr
+            </summary>
+            <div className="absolute right-0 mt-2 w-[320px] max-w-[90vw] rounded-xl border border-slate-700 bg-slate-950 p-1 shadow-xl z-30">
+              <button
+                type="button"
+                onClick={() => enqueueBulkForSelection('price')}
+                disabled={bulkJobLoading}
+                className={menuItemClass}
+              >
+                Price Refresh
+              </button>
+              <button
+                type="button"
+                onClick={() => enqueueBulkForSelection('title')}
+                disabled={bulkJobLoading}
+                className={menuItemClass}
+              >
+                Titel fix
+              </button>
+              <button
+                type="button"
+                onClick={() => enqueueBulkForSelection('category')}
+                disabled={bulkJobLoading}
+                className={menuItemClass}
+              >
+                Kategorie fix
+              </button>
+              <button
+                type="button"
+                onClick={() => enqueueBulkForSelection('ktype')}
+                disabled={bulkJobLoading}
+                className={menuItemClass}
+              >
+                K‑Typ enrich
+              </button>
+
+              <div className="my-1 border-t border-slate-800" />
+
+              <button
+                type="button"
+                onClick={handleBatchLabelPrint}
+                disabled={selectedIds.size === 0}
+                className={menuItemClass}
+              >
+                Label drucken
+              </button>
+              <button
+                type="button"
+                onClick={handleBatchDelete}
+                disabled={selectedIds.size === 0}
+                className={`${menuItemClass} text-rose-200 hover:bg-rose-900/30`}
+              >
+                Auswahl löschen
+              </button>
+            </div>
+          </details>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
-      <section id="admin-table" className="p-6 bg-slate-800 rounded-lg shadow-lg space-y-4">
+      <section id="admin-table" className="space-y-4">
         <PageHeader
           title={mode === 'inventory' ? t('nav.inventory') : mode === 'products' ? t('nav.products') : t('inventory.title')}
         />
@@ -2043,7 +2204,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           />
         ) : null}
 
-        <div className="space-y-3 mb-5">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[220px]">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -2053,7 +2214,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 placeholder={t('table.search')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 text-sm"
+                className="w-full pl-9 pr-3 py-2 bg-slate-800/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-sky-500 text-sm"
               />
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -2080,6 +2241,32 @@ const AdminTable: React.FC<AdminTableProps> = ({
           ) : (
             <div className="space-y-3">{renderFilterControls()}</div>
           )}
+
+          {activeFilterChips.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {activeFilterChips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={chip.onClear}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/30 px-3 py-1 text-xs text-slate-200 hover:border-slate-600"
+                  title="Filter entfernen"
+                >
+                  <span className="whitespace-nowrap">{chip.label}</span>
+                  <span className="text-slate-400">×</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="text-xs text-sky-400 hover:underline"
+              >
+                Alles löschen
+              </button>
+            </div>
+          ) : null}
+
+          {renderSelectionBar()}
         </div>
 
         {filteredAndSortedProducts.length === 0 ? (

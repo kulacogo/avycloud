@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { DashboardMetrics, Product, WarehouseLayout } from '../types';
-import { fetchDashboardMetrics, fetchWarehouseZones } from '../api/client';
-import { WarehouseIcon, SyncIcon } from './icons/Icons';
+import { DashboardMetrics, Product } from '../types';
+import { fetchDashboardMetrics } from '../api/client';
 import { getProductAvailableQuantity, getProductPhysicalQuantity, getProductReservedQuantity, normalizeSyncStatus } from '../utils/product';
 
 interface DashboardProps {
@@ -54,9 +53,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   rangePreset,
   onRangePresetChange,
 }) => {
-  const [zones, setZones] = useState<WarehouseLayout[]>([]);
-  const [zonesError, setZonesError] = useState<string | null>(null);
-  const [isLoadingZones, setIsLoadingZones] = useState(false);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [metricsError, setMetricsError] = useState<string | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
@@ -81,19 +77,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     [onRangePresetChange]
   );
 
-  const loadZones = React.useCallback(async () => {
-      setIsLoadingZones(true);
-      try {
-        const data = await fetchWarehouseZones();
-          setZones(data);
-          setZonesError(null);
-      } catch (error: any) {
-          setZonesError(error?.message || 'Zonen konnten nicht geladen werden.');
-      } finally {
-          setIsLoadingZones(false);
-        }
-  }, []);
-
   const loadMetrics = React.useCallback(async () => {
     setMetricsLoading(true);
     try {
@@ -107,10 +90,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setMetricsLoading(false);
     }
   }, [activePreset]);
-
-  useEffect(() => {
-    loadZones();
-  }, [loadZones]);
 
   useEffect(() => {
     loadMetrics();
@@ -258,31 +237,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     };
   }, [allProducts, stockedProducts]);
 
-  const warehouseStats = useMemo(() => {
-    // Fallback: wenn Zonen kein verlässliches binCount liefern, nutze real belegte BINs aus Produkten.
-    const occupiedBins = new Set(
-      allProducts
-        .map((p) => p.storage?.binCode)
-        .filter(Boolean) as string[]
-    ).size;
-    const totalBinsFromZones = zones.reduce((sum, zone) => sum + (zone.binCount || 0), 0);
-    const totalBins = totalBinsFromZones > 0 ? totalBinsFromZones : occupiedBins;
-    const fillPercent =
-      totalBins === 0 ? 0 : Math.min(100, Math.round((occupiedBins / totalBins) * 100));
-    return {
-      totalBins,
-      occupiedBins,
-      fillPercent,
-      topZone: [...zones]
-        .sort((a, b) => (b.totalProducts || 0) - (a.totalProducts || 0))
-        .slice(0, 2),
-    };
-  }, [zones, allProducts]);
-
-  const warehouseMeterLabel = warehouseStats.totalBins
-    ? `${warehouseStats.occupiedBins} / ${warehouseStats.totalBins} belegte Bins`
-    : 'Noch keine Bins angelegt';
-
   const navigateToDrilldown = React.useCallback((statusKey: string) => {
     if (typeof window === 'undefined') return;
     const key = String(statusKey || '').trim().toLowerCase();
@@ -307,9 +261,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div>
           <h1 className="text-3xl font-semibold text-white mb-1">Operations Dashboard</h1>
-        <p className="text-slate-400">
-          Überblick über Produktbestand, Status, Lagerauslastung und jüngste Aktivitäten.
-        </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-100 border border-slate-600">
@@ -327,26 +278,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               ))}
             </select>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              loadMetrics();
-              loadZones();
-              if (onRefreshProducts) onRefreshProducts();
-            }}
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-100 border border-slate-600 hover:bg-slate-700 transition"
-          >
-            <SyncIcon className="w-4 h-4" />
-            Aktualisieren
-          </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <DashboardCard
-          label="Produkte gesamt"
-          value={totalProducts.toString()}
-          sublabel={`${unsavedCount} ohne Speichernachweis · ${totalStocked} mit Bestand`}
+          label="Inventar (mit Bestand)"
+          value={totalStocked.toString()}
+          sublabel={`${inventoryQuantity} verfügbar · physisch ${inventoryPhysicalQuantity}`}
         />
         <DashboardCard
           label="Bestandseinheiten (verfügbar)"
@@ -375,11 +314,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-slate-800 rounded-2xl p-7 border border-white/5 shadow-inner shadow-black/20 space-y-5">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-slate-400">Auftragsstatus</p>
-              <h2 className="text-2xl font-semibold text-white">Übersicht</h2>
-            </div>
-            <SyncIcon className="w-6 h-6 text-slate-400" />
+            <h2 className="text-xl font-semibold text-white">Auftragsstatus</h2>
           </div>
           {metricsError && <p className="text-sm text-rose-300">{metricsError}</p>}
           {metricsLoading ? (
@@ -448,49 +383,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 ))}
               </div>
             </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-inner shadow-black/20 lg:col-span-3">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-slate-400">Lagerfüllstand</p>
-              <h2 className="text-xl font-semibold text-white">Warehouse</h2>
-            </div>
-            <WarehouseIcon className="w-6 h-6 text-slate-400" />
-          </div>
-          {zonesError && (
-            <p className="text-sm text-rose-300 mb-3">{zonesError}</p>
-          )}
-          {isLoadingZones ? (
-            <p className="text-slate-400 text-sm">Lade Zonen …</p>
-          ) : (
-            <>
-              <meter
-                min={0}
-                max={100}
-                value={warehouseStats.fillPercent}
-                className="w-full h-3 mb-2"
-              />
-              <p className="text-sm text-slate-300">{warehouseMeterLabel}</p>
-              <p className="text-2xl font-semibold text-white mt-2">
-                {warehouseStats.fillPercent}%
-              </p>
-              <ul className="mt-4 space-y-2 text-sm text-slate-300">
-                {warehouseStats.topZone.map((zone) => (
-                  <li key={zone.id} className="flex items-center justify-between">
-                    <span>
-                      Zone {zone.zone}/{zone.etage}
-                    </span>
-                    <span className="text-slate-400">
-                      {zone.totalProducts || 0} Produkte
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
           )}
         </div>
       </div>

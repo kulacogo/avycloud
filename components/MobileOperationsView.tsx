@@ -966,14 +966,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           <p className="text-xs text-slate-300">
             {t('ops.mobile.pick.flowHelp')}
           </p>
-          <div className="text-xs text-slate-400 flex flex-wrap gap-2">
-            <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5">
-              {t('common.bin')}: {activeBin || '—'}
+          <div className="text-sm text-slate-300 flex flex-wrap gap-2">
+            <span className="px-3 py-2 rounded-full border border-white/10 bg-white/5">
+              {t('common.bin')}: <span className="font-semibold text-white">{activeBin || '—'}</span>
             </span>
-            <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5">
-              {t('common.sku')}: {activeSku || '—'}
+            <span className="px-3 py-2 rounded-full border border-white/10 bg-white/5">
+              {t('common.sku')}: <span className="font-semibold text-white">{activeSku || '—'}</span>
             </span>
-            <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5">
+            <span className="px-3 py-2 rounded-full border border-white/10 bg-white/5">
               {t('ops.mobile.scannerFocusHint')}
             </span>
           </div>
@@ -992,104 +992,136 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         {ordersLoading && <p className="text-sm text-slate-400">{t('ops.orders.loading')}</p>}
         {pendingPick && (
           <div className="rounded-2xl border border-sky-500 bg-sky-900/20 p-3 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-white line-clamp-2">{pendingPick.name}</p>
-                <p className="text-xs text-slate-300">
-                  {t('common.order')} {pendingPick.orderNumber || pendingPick.orderId} · {t('common.sku')} {pendingPick.sku} · {t('common.bin')}{' '}
-                  {pendingPick.binCode || '—'}
-                </p>
-                <p className="text-xs text-slate-300">
-                  <span className="font-semibold text-white">
-                    {t('ops.labels.openRemaining', { count: pendingPick.remainingTotal })}
-                  </span>{' '}
-                  {typeof pendingPick.availableInBin === 'number' ? (
-                    <>
-                      ·{' '}
-                      <span className="font-semibold text-white">
-                        {t('ops.mobile.availableInBin', { value: pendingPick.availableInBin })}
-                      </span>
-                    </>
-                  ) : null}
-                </p>
-              </div>
-              <StatusBadge label={t('ops.badge.pick')} tone="warn" />
-            </div>
+            {(() => {
+              const maxAllowed =
+                typeof pendingPick.availableInBin === 'number'
+                  ? Math.max(0, Math.min(pendingPick.remainingTotal, pendingPick.availableInBin))
+                  : Math.max(0, pendingPick.remainingTotal);
 
-            <div className="rounded-xl bg-slate-900/60 border border-white/10 p-3 space-y-3">
-              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('ops.mobile.pick.qtyPadHint')}</p>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 rounded-lg bg-slate-800 text-white text-2xl font-semibold px-3 py-2 border border-slate-700">
-                  {pendingPickQty}
-                </div>
-                <button
-                  type="button"
-                  className="rounded-lg px-3 py-2 bg-slate-700 text-white text-sm font-semibold"
-                  onClick={() => setPendingPickQty(0)}
-                >
-                  {t('common.clear')}
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
-                    onClick={() => setPendingPickQty((prev) => Number(`${prev}${n}`))}
-                  >
-                    {n}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
-                  onClick={() => setPendingPickQty((prev) => Math.max(0, Math.floor(prev / 10)))}
-                >
-                  ⌫
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
-                  onClick={() => setPendingPickQty((prev) => Number(`${prev}0`))}
-                >
-                  0
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
-                  onClick={() => setPendingPickQty(pendingPick.suggestedQty || 1)}
-                >
-                  {t('ops.orders.auto')}
-                </button>
-              </div>
-            </div>
+              const clampQty = (raw: number) => {
+                const n = Number(raw) || 0;
+                if (n <= 0) return 0;
+                return Math.min(n, maxAllowed || n);
+              };
 
-            <div className="sticky bottom-0 z-10 -mx-3 px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+12px)] bg-slate-950/85 backdrop-blur border-t border-white/10">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  disabled={!pendingPickQty || pendingPickQty <= 0}
-                  onClick={() => void submitPick(pendingPick, pendingPickQty)}
-                  className="rounded-lg bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
-                >
-                  {t('ops.pick.submit')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPendingPick(null);
-                    setPendingPickQty(1);
-                    setActiveBin('');
-                    setActiveSku('');
-                    setHighlightKey(null);
-                  }}
-                  className="rounded-lg bg-slate-700 text-white font-semibold py-3"
-                >
-                  {t('common.cancel')}
-                </button>
-              </div>
-            </div>
+              return (
+                <>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 space-y-2">
+                      <p className="text-sm font-semibold text-white line-clamp-2">{pendingPick.name}</p>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+                          <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
+                          <p className="text-2xl font-extrabold text-white tracking-wider break-all">
+                            {pendingPick.binCode || '—'}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+                          <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
+                          <p className="text-base font-bold text-white break-all">{pendingPick.sku || '—'}</p>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-300">
+                        {t('common.order')} {pendingPick.orderNumber || pendingPick.orderId} ·{' '}
+                        <span className="font-semibold text-white">
+                          {t('ops.labels.openRemaining', { count: pendingPick.remainingTotal })}
+                        </span>
+                        {typeof pendingPick.availableInBin === 'number' ? (
+                          <>
+                            {' '}
+                            ·{' '}
+                            <span className="font-semibold text-white">
+                              {t('ops.mobile.availableInBin', { value: pendingPick.availableInBin })}
+                            </span>
+                          </>
+                        ) : null}
+                      </p>
+                    </div>
+                    <StatusBadge label={t('ops.badge.pick')} tone="warn" />
+                  </div>
+
+                  <div className="rounded-xl bg-slate-900/60 border border-white/10 p-3 space-y-2">
+                    <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.qty')}</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="w-12 h-12 rounded-xl bg-slate-800 text-white text-2xl font-extrabold border border-white/10"
+                        onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) - 1))}
+                      >
+                        −
+                      </button>
+                      <div className="flex-1 h-12 rounded-xl bg-slate-800 text-white text-2xl font-extrabold border border-white/10 flex items-center justify-center tabular-nums">
+                        {pendingPickQty}
+                      </div>
+                      <button
+                        type="button"
+                        className="w-12 h-12 rounded-xl bg-slate-800 text-white text-2xl font-extrabold border border-white/10"
+                        onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) + 1))}
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
+                        onClick={() => setPendingPickQty(clampQty(1))}
+                      >
+                        1
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
+                        onClick={() => setPendingPickQty(clampQty(pendingPick.suggestedQty || 1))}
+                      >
+                        {t('ops.orders.auto')}
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
+                        onClick={() => setPendingPickQty(clampQty(maxAllowed || pendingPick.remainingTotal || 1))}
+                      >
+                        Max
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
+                        onClick={() => setPendingPickQty(0)}
+                      >
+                        {t('common.clear')}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={!pendingPickQty || pendingPickQty <= 0}
+                      onClick={() => void submitPick(pendingPick, pendingPickQty)}
+                      className="rounded-lg bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
+                    >
+                      {t('ops.pick.submit')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingPick(null);
+                        setPendingPickQty(1);
+                        setActiveBin('');
+                        setActiveSku('');
+                        setHighlightKey(null);
+                      }}
+                      className="rounded-lg bg-slate-700 text-white font-semibold py-3"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
 
@@ -1113,18 +1145,32 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white line-clamp-2">{task.name}</p>
-                  <p className="text-xs text-slate-400">
-                    {t('common.order')} {task.orderNumber || task.orderId} · {t('common.sku')} {task.sku} · {t('common.bin')}{' '}
-                    {task.binCode || '—'}
+                  <p className="text-xs text-slate-400 mt-1">
+                    {t('common.order')} {task.orderNumber || task.orderId}
                   </p>
-                  <p className="text-xs text-slate-400">
-                    {t('ops.labels.openRemaining', { count: task.remainingTotal })} · {t('ops.pick.quantityHint', { value: task.suggestedQty })}
-                    {typeof task.availableInBin === 'number' ? ` · ${t('ops.mobile.availableInBin', { value: task.availableInBin })}` : ''}
-                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                    <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                      {t('common.sku')}: <span className="font-semibold text-white">{task.sku}</span>
+                    </span>
+                    <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                      {t('ops.labels.openRemaining', { count: task.remainingTotal })}
+                    </span>
+                    <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                      {t('ops.pick.quantityHint', { value: task.suggestedQty })}
+                    </span>
+                    {typeof task.availableInBin === 'number' ? (
+                      <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                        {t('ops.mobile.availableInBin', { value: task.availableInBin })}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
-                <StatusBadge label={task.binCode || t('ops.badge.pick')} tone={isHighlighted ? 'warn' : 'success'} />
+                <div className="shrink-0 text-right">
+                  <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
+                  <p className="text-xl font-extrabold text-white tracking-wider">{task.binCode || '—'}</p>
+                </div>
               </div>
             </button>
           );
@@ -1147,16 +1193,24 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         {packItems.slice(0, 100).map((item) => (
           <div key={`${item.orderId}-${item.sku}`} className="rounded-2xl border border-white/5 bg-slate-800 p-3 shadow-sm shadow-black/20">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white line-clamp-2">{item.name}</p>
-                <p className="text-xs text-slate-400">
-                  {t('common.sku')} {item.sku || '—'} · {t('common.bin')} {item.binCode || '—'}
-                </p>
-                <p className="text-xs text-slate-400">
-                  {t('common.qty')} {item.qty}
-                </p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                    {t('common.sku')}: <span className="font-semibold text-white">{item.sku || '—'}</span>
+                  </span>
+                  <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                    {t('common.bin')}: <span className="font-semibold text-white">{item.binCode || '—'}</span>
+                  </span>
+                </div>
               </div>
-              <StatusBadge label={t('ops.badge.pack')} tone="warn" />
+              <div className="shrink-0 text-right">
+                <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.qty')}</p>
+                <p className="text-xl font-extrabold text-white tabular-nums">{item.qty}</p>
+                <div className="mt-1">
+                  <StatusBadge label={t('ops.badge.pack')} tone="warn" />
+                </div>
+              </div>
             </div>
           </div>
         ))}

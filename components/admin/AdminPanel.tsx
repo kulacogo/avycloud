@@ -6,7 +6,6 @@ import { AdminLlmManagement } from './AdminLlmManagement';
 import { AdminBulkActions } from './AdminBulkActions';
 import { AdminIntegrations } from './AdminIntegrations';
 import { PageHeader } from '../ui/PageHeader';
-import { HelpDisclosure } from '../ui/HelpDisclosure';
 
 type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations';
 
@@ -15,27 +14,7 @@ export const AdminPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Admin"
-        subtitle="Benutzer, Rollen, LLM-Konfiguration und Bulk-Aktionen verwalten. Änderungen hier wirken systemweit."
-      >
-        <HelpDisclosure title="Was kann ich hier tun? (Kurz erklärt)">
-          <ul className="list-disc pl-5 space-y-1">
-            <li>
-              <b>Users / Groups / Roles</b>: Zugriff und Berechtigungen verwalten.
-            </li>
-            <li>
-              <b>LLM</b>: Prompts/Scopes konfigurieren.
-            </li>
-            <li>
-              <b>Bulk</b>: Konsolidierte Bulk-Aktionen (z. B. Preis/Titel/Kategorie/K‑Typ, Export) anstoßen.
-            </li>
-            <li>
-              <b>Integrations</b>: Marktplatz-/Account-Verbindungen (z. B. eBay OAuth) und Listing-Snapshots verwalten.
-            </li>
-          </ul>
-        </HelpDisclosure>
-      </PageHeader>
+      <PageHeader title="Admin" />
 
       <div className="flex flex-wrap items-center gap-2">
         <button
