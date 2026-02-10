@@ -1980,6 +1980,150 @@ app.get('/api/products/bulk/jobs/:id', requirePermission('products', 'read'), as
   }
 });
 
+// --- eBay Integration (OAuth + listing snapshots) ---
+// References:
+// - Consent request: https://developer.ebay.com/api-docs/static/oauth-consent-request.html
+// - Auth code exchange: https://developer.ebay.com/api-docs/static/oauth-auth-code-grant-request.html
+// - Refresh token: https://developer.ebay.com/api-docs/static/oauth-refresh-token-request.html
+// - getOffers (by SKU): https://developer.ebay.com/api-docs/sell/inventory/resources/offer/methods/getOffers
+
+app.get('/api/ebay/oauth/start', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { createOAuthState, buildConsentUrl } = require('./lib/ebay-oauth');
+    const locale = typeof req.query?.locale === 'string' ? req.query.locale : 'de-DE';
+    const prompt = req.query?.prompt === 'login' ? 'login' : null;
+    const state = await createOAuthState({ provider: 'ebay', actor: req.user || null });
+    const url = await buildConsentUrl({ state, locale, prompt });
+    return res.status(200).json({ ok: true, data: { url } });
+  } catch (error) {
+    console.error('Failed to start eBay OAuth:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to start eBay OAuth', details: error.message },
+    });
+  }
+});
+
+// NOTE: callback is called by eBay redirect → no Authorization header.
+app.get('/api/ebay/oauth/callback', async (req, res) => {
+  const code = typeof req.query?.code === 'string' ? req.query.code : '';
+  const state = typeof req.query?.state === 'string' ? req.query.state : '';
+  try {
+    if (!code || !state) {
+      return res.status(400).send('Missing code/state');
+    }
+    const {
+      consumeOAuthState,
+      exchangeAuthorizationCodeForToken,
+      upsertEbayTokenSet,
+    } = require('./lib/ebay-oauth');
+
+    const consumed = await consumeOAuthState(state, 'ebay');
+    if (!consumed) {
+      return res.status(400).send('Invalid state');
+    }
+
+    const tokenSet = await exchangeAuthorizationCodeForToken({ code });
+    await upsertEbayTokenSet(tokenSet, { actor: consumed?.actor || null });
+
+    const html = `<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>AvyCloud – eBay</title></head>
+  <body style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto; padding: 24px;">
+    <h2>eBay Verbindung hergestellt</h2>
+    <p>Du kannst dieses Fenster jetzt schließen.</p>
+    <script>
+      (function () {
+        try {
+          if (window.opener) {
+            window.opener.postMessage({ type: 'avycloud:ebay_oauth_complete' }, '*');
+          }
+        } catch (e) {}
+        try { window.close(); } catch (e) {}
+      })();
+    </script>
+  </body>
+</html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(200).send(html);
+  } catch (error) {
+    console.error('eBay OAuth callback failed:', error);
+    const html = `<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>AvyCloud – eBay</title></head>
+  <body style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto; padding: 24px;">
+    <h2>eBay Verbindung fehlgeschlagen</h2>
+    <pre style="white-space: pre-wrap;">${String(error?.message || error)}</pre>
+  </body>
+</html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(500).send(html);
+  }
+});
+
+app.get('/api/ebay/status', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const { getEbayIntegration, publicStatus } = require('./lib/ebay-oauth');
+    const doc = await getEbayIntegration();
+    return res.status(200).json({ ok: true, data: publicStatus(doc) });
+  } catch (error) {
+    console.error('Failed to load eBay status:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to load eBay status', details: error.message } });
+  }
+});
+
+app.get('/api/ebay/offers', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const sku = typeof req.query?.sku === 'string' ? req.query.sku : '';
+    if (!sku) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing sku' } });
+    }
+    const { getOffersBySku } = require('./lib/ebay-api');
+    const offers = await getOffersBySku(sku);
+    return res.status(200).json({ ok: true, data: offers });
+  } catch (error) {
+    console.error('Failed to fetch eBay offers:', error);
+    const status = error?.statusCode && Number.isFinite(Number(error.statusCode)) ? Number(error.statusCode) : 500;
+    return res.status(status).json({ ok: false, error: { code: status, message: error.message || 'Failed to fetch offers' } });
+  }
+});
+
+app.post('/api/ebay/listings/import/mip', requirePermission('products', 'write'), ktypeUploadMiddleware, async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file?.buffer) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing CSV file' } });
+    }
+    const { importMipCsvBuffer } = require('./lib/ebay-listings');
+    const report = await importMipCsvBuffer(file.buffer, {
+      filename: file.originalname || null,
+      actor: req.user || null,
+    });
+    return res.status(200).json({ ok: true, data: report });
+  } catch (error) {
+    console.error('Failed to import eBay MIP CSV:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to import eBay CSV', details: error.message } });
+  }
+});
+
+app.get('/api/ebay/listings/:sku', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const sku = String(req.params.sku || '').trim();
+    if (!sku) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing sku' } });
+    }
+    const { getEbayListingBySku } = require('./lib/ebay-listings');
+    const listing = await getEbayListingBySku(sku);
+    if (!listing) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'Listing not found' } });
+    }
+    return res.status(200).json({ ok: true, data: listing });
+  } catch (error) {
+    console.error('Failed to load eBay listing:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to load listing', details: error.message } });
+  }
+});
+
 // --- Admin Jobs (RBAC-managed) ---
 // Triggers the Cloud Run Job that performs initial GPSR enrichment (BIN set & qty>=1 & needsGpsr).
 app.post('/api/admin/jobs/gpsr-web-enrich/run', requirePermission('admin', 'jobs.run'), async (req, res) => {
@@ -4871,6 +5015,7 @@ app.get('/api/orders', requirePermission('orders', 'read'), async (req, res) => 
 app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async (req, res) => {
   try {
     const days = Math.min(Math.max(parseInt(req.query?.days || '7', 10) || 7, 1), 60);
+    const preset = typeof req.query?.preset === 'string' ? String(req.query.preset).trim() : null;
     // Best-effort: trigger order sync in background so metrics converge to BaseLinker truth.
     // Do NOT await (avoid slow dashboard loads).
     try {
@@ -4878,7 +5023,7 @@ app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async 
     } catch {
       // ignore
     }
-    const metrics = await getDashboardMetrics({ days });
+    const metrics = await getDashboardMetrics({ days, preset });
     res.setHeader('Cache-Control', 'no-store');
     res.json({ ok: true, data: metrics });
   } catch (error) {

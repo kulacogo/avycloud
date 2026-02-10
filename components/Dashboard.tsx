@@ -8,12 +8,23 @@ interface DashboardProps {
   products: Product[];
   onSelectProduct: (productId: string) => void;
   onRefreshProducts?: () => void | Promise<void>;
+  rangePreset?: string;
+  onRangePresetChange?: (preset: string) => void;
 }
 
 const safeCurrency = (code?: string) => {
   const c = (code || '').toString().trim().toUpperCase();
   return /^[A-Z]{3}$/.test(c) ? c : 'EUR';
 };
+
+const DASHBOARD_RANGE_PRESETS: Array<{ id: string; label: string }> = [
+  { id: 'last7', label: 'Letzte 7 Tage' },
+  { id: 'month_to_date', label: 'Aktueller Monat' },
+  { id: 'last_month', label: 'Letzter Monat' },
+  { id: 'year_to_date', label: 'Dieses Jahr' },
+  { id: 'last_year', label: 'Letztes Jahr' },
+  { id: 'today', label: 'Heute' },
+];
 
 const formatCurrency = (value: number, currency: string) => {
   const cur = safeCurrency(currency);
@@ -36,13 +47,39 @@ const DashboardCard: React.FC<{
   </div>
 );
 
-export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct, onRefreshProducts }) => {
+export const Dashboard: React.FC<DashboardProps> = ({
+  products,
+  onSelectProduct,
+  onRefreshProducts,
+  rangePreset,
+  onRangePresetChange,
+}) => {
   const [zones, setZones] = useState<WarehouseLayout[]>([]);
   const [zonesError, setZonesError] = useState<string | null>(null);
   const [isLoadingZones, setIsLoadingZones] = useState(false);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [metricsError, setMetricsError] = useState<string | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
+  const [internalPreset, setInternalPreset] = useState('last7');
+
+  const activePreset = useMemo(() => {
+    const raw = typeof rangePreset === 'string' ? rangePreset.trim() : '';
+    if (raw && DASHBOARD_RANGE_PRESETS.some((p) => p.id === raw)) return raw;
+    return internalPreset;
+  }, [rangePreset, internalPreset]);
+
+  const setPreset = React.useCallback(
+    (next: string) => {
+      const v = String(next || '').trim();
+      if (!v) return;
+      if (onRangePresetChange) {
+        onRangePresetChange(v);
+      } else {
+        setInternalPreset(v);
+      }
+    },
+    [onRangePresetChange]
+  );
 
   const loadZones = React.useCallback(async () => {
       setIsLoadingZones(true);
@@ -60,7 +97,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
   const loadMetrics = React.useCallback(async () => {
     setMetricsLoading(true);
     try {
-      const data = await fetchDashboardMetrics(7, { timeoutMs: 25000 });
+      const data = await fetchDashboardMetrics({ days: 7, preset: activePreset }, { timeoutMs: 25000 });
       setMetrics(data);
       setMetricsError(null);
     } catch (error: any) {
@@ -69,12 +106,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
     } finally {
       setMetricsLoading(false);
     }
-  }, []);
+  }, [activePreset]);
 
   useEffect(() => {
     loadZones();
+  }, [loadZones]);
+
+  useEffect(() => {
     loadMetrics();
-  }, [loadZones, loadMetrics]);
+  }, [loadMetrics]);
 
   // lightweight auto-refresh every 60s to keep dashboard fresh
   useEffect(() => {
@@ -94,12 +134,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
   const orderMetrics = useMemo(() => {
     const breakdown = metrics?.orders?.status_breakdown || null;
     const chartDays = metrics?.volume_7d?.days || [];
+    const bucket = metrics?.range?.bucket === 'month' ? 'month' : 'day';
+    const chartCount = chartDays.length;
     const maxChartCount = Math.max(1, ...chartDays.map((d) => Number(d?.orders || 0) || 0));
     const chart = chartDays.map((d) => {
       const label = (() => {
         try {
           const dt = new Date(d.date);
-          return dt.toLocaleDateString('de-DE', { weekday: 'short' });
+          if (bucket === 'month') {
+            return dt.toLocaleDateString('de-DE', { month: 'short' });
+          }
+          if (chartCount <= 14) {
+            return dt.toLocaleDateString('de-DE', { weekday: 'short' });
+          }
+          return dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
         } catch {
           return d.date;
         }
@@ -129,6 +177,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
       currency: safeCurrency(metrics?.currency || 'EUR'),
     };
   }, [metrics]);
+
+  const activeRangeLabel =
+    metrics?.range?.label ||
+    DASHBOARD_RANGE_PRESETS.find((p) => p.id === activePreset)?.label ||
+    `Letzte ${metrics?.revenue?.window_days || 7} Tage`;
 
   const {
     totalProducts,
@@ -259,6 +312,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
         </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-100 border border-slate-600">
+            <span className="text-xs uppercase tracking-wide text-slate-300">Zeitraum</span>
+            <select
+              value={activePreset}
+              onChange={(e) => setPreset(e.target.value)}
+              className="bg-transparent text-sm font-semibold text-slate-100 outline-none"
+              aria-label="Dashboard Zeitraum"
+            >
+              {DASHBOARD_RANGE_PRESETS.map((p) => (
+                <option key={p.id} value={p.id} className="bg-slate-900">
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="button"
             onClick={() => {
@@ -347,7 +415,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
                     {formatCurrency(orderMetrics.revenueAllNonCancelled, orderMetrics.currency)}
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
-                    letzte {metrics?.revenue?.window_days || 7} Tage (ohne Storno): {formatCurrency(orderMetrics.revenueWindowNonCancelled, orderMetrics.currency)}
+                    {activeRangeLabel} (ohne Storno): {formatCurrency(orderMetrics.revenueWindowNonCancelled, orderMetrics.currency)}
                   </p>
                 </div>
               </div>
@@ -358,14 +426,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, onSelectProduct,
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm uppercase tracking-wide text-slate-400">Auftragsvolumen</p>
-              <h2 className="text-xl font-semibold text-white">Letzte 7 Tage</h2>
+              <h2 className="text-xl font-semibold text-white">{activeRangeLabel}</h2>
             </div>
           </div>
           {metricsLoading ? (
             <p className="text-sm text-slate-400">Synchronisiere Diagramm …</p>
           ) : (
             <div className="overflow-x-auto">
-              <div className="grid grid-cols-7 gap-3 min-w-[560px]">
+              <div className="grid grid-flow-col auto-cols-[72px] gap-3 min-w-max pr-2">
                 {orderMetrics.chart.map((day) => (
                   <div key={day.key} className="flex flex-col items-center gap-2">
                     <div className="w-full h-24 bg-slate-900 rounded-full overflow-hidden flex items-end">

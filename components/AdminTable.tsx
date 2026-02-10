@@ -131,7 +131,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
   scopeProductIds = null,
 }) => {
   const { t } = useI18n();
-  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(() => {
     if (typeof window === 'undefined') return '';
     return window.sessionStorage.getItem('avystock:admin-table:search') || '';
@@ -1941,13 +1940,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
               const ids = Array.from(selectedIds);
               if (!ids.length) return;
               setImproveInProgress(true);
-              setImproveMessage(`Verbessern + Preischeck gestartet (${ids.length}) …`);
+              setImproveMessage(`Verbessern gestartet (${ids.length}) …`);
               try {
-                await enqueueBulkForSelection('price');
                 onImproveSelected(ids);
               } catch (err: any) {
                 console.error('Improve Selected failed', err?.message || err);
-                setImproveMessage('Fehler beim Verbessern/Preischeck');
+                setImproveMessage('Fehler beim Verbessern');
               } finally {
                 setTimeout(() => setImproveInProgress(false), 3000);
               }
@@ -2018,36 +2016,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       <section id="admin-table" className="p-6 bg-slate-800 rounded-lg shadow-lg space-y-4">
         <PageHeader
           title={mode === 'inventory' ? t('nav.inventory') : mode === 'products' ? t('nav.products') : t('inventory.title')}
-          subtitle={
-            mode === 'inventory'
-              ? 'Warehouse Inventory: Bestand + BIN (weitere Gates per Filter).'
-              : mode === 'products'
-                ? 'Backlog: alles was nicht Inventory ist (unvollständig/fehlende Daten).'
-                : 'Produkte finden, filtern, auswählen und Aktionen (Sync, Preischeck, Verbessern) ausführen.'
-          }
-        >
-          <HelpDisclosure title={mode === 'products' ? 'Wie nutze ich Products? (Kurz)' : 'Wie nutze ich Inventory? (Kurz)'}>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>
-                <b>Suchen</b> nach Name/Marke/SKU/EAN.
-              </li>
-              {mode === 'inventory' ? (
-                <li>
-                  <b>Drilldown</b>: vom Dashboard kommst du hierher per Status-Klick (z. B. “Neu”).
-                </li>
-              ) : null}
-              <li>
-                <b>Filter</b> optional; bei Inventory sind erweiterte Filter standardmäßig eingeklappt.
-              </li>
-              <li>
-                <b>Auswahl</b> via Checkbox – Aktionen oben wirken auf die Auswahl.
-              </li>
-              <li>
-                <b>Verbessern</b> startet KI‑Jobs; “alle” kann viele Jobs erzeugen → bewusst bestätigen.
-              </li>
-            </ul>
-          </HelpDisclosure>
-        </PageHeader>
+        />
 
         {notice ? (
           <Notice
@@ -2109,23 +2078,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               {mobileFiltersOpen && <div className="p-3 space-y-3">{renderFilterControls()}</div>}
             </div>
           ) : (
-            <>
-              {mode === 'all' ? (
-                <div className="space-y-3">{renderFilterControls()}</div>
-              ) : (
-                <div className="rounded-2xl border border-slate-700 bg-slate-900/40">
-                  <button
-                    type="button"
-                    onClick={() => setAdvancedFiltersOpen((prev) => !prev)}
-                    className="w-full px-4 py-2 text-sm font-semibold text-slate-100 flex items-center justify-between"
-                  >
-                    <span>{advancedFiltersOpen ? 'Erweiterte Filter schließen' : 'Erweiterte Filter öffnen'}</span>
-                    <span>{advancedFiltersOpen ? '−' : '+'}</span>
-                  </button>
-                  {advancedFiltersOpen && <div className="p-3 space-y-3">{renderFilterControls()}</div>}
-                </div>
-              )}
-            </>
+            <div className="space-y-3">{renderFilterControls()}</div>
           )}
         </div>
 

@@ -277,6 +277,79 @@ export async function searchEbayCategories({ q, id, limit = 50 }: { q?: string; 
   return (data?.items || []) as EbayCategoryOption[];
 }
 
+// --- eBay Integration (OAuth + Listing Snapshots) ---
+export type EbayConnectionStatus = {
+  connected: boolean;
+  env?: string | null;
+  scopes?: string[];
+  tokenType?: string | null;
+  connectedBy?: { uid?: string | null; email?: string | null } | null;
+  connectedAt?: string | null;
+  updatedAt?: string | null;
+  lastRefreshedAt?: string | null;
+  accessTokenExpiresAt?: string | null;
+  refreshTokenExpiresAt?: string | null;
+};
+
+export async function startEbayOAuth(opts?: { locale?: string; promptLogin?: boolean }): Promise<string> {
+  const url = new URL(`${BACKEND_URL}/api/ebay/oauth/start`);
+  url.searchParams.set('locale', opts?.locale || 'de-DE');
+  if (opts?.promptLogin) url.searchParams.set('prompt', 'login');
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to start eBay OAuth');
+  }
+  const out = data?.data?.url;
+  if (!out) throw new Error('eBay OAuth URL missing');
+  return String(out);
+}
+
+export async function fetchEbayStatus(): Promise<EbayConnectionStatus> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/status?t=${Date.now()}`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load eBay status');
+  }
+  return (data?.data || { connected: false }) as EbayConnectionStatus;
+}
+
+export async function importEbayMipCsv(file: File): Promise<any> {
+  if (!file) throw new Error('CSV file missing');
+  const form = new FormData();
+  form.append('file', file, file.name);
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listings/import/mip`, {
+    method: 'POST',
+    body: form,
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to import eBay CSV');
+  }
+  return data?.data;
+}
+
+export async function fetchEbayOffersBySku(sku: string): Promise<any> {
+  const url = new URL(`${BACKEND_URL}/api/ebay/offers`);
+  url.searchParams.set('sku', String(sku || '').trim());
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to fetch eBay offers');
+  }
+  return data?.data;
+}
+
+export async function fetchEbayListingBySku(sku: string): Promise<any> {
+  const key = encodeURIComponent(String(sku || '').trim());
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listings/${key}?t=${Date.now()}`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load eBay listing');
+  }
+  return data?.data;
+}
+
 // --- Public Auth API ---
 export const requestPasswordReset = async (email: string) => {
   const res = await fetchApi(`${BACKEND_URL}/api/auth/password-reset`, {
@@ -1703,15 +1776,20 @@ export const fetchOrders = async (limit = 200, options?: { timeoutMs?: number })
 };
 
 export const fetchDashboardMetrics = async (
-  days = 7,
+  input: number | { days?: number; preset?: string | null } = 7,
   options?: { timeoutMs?: number }
 ): Promise<DashboardMetrics> => {
-  const d = Math.min(Math.max(parseInt(String(days), 10) || 7, 1), 60);
-  const response = await fetchWithTimeout(
-    `${BACKEND_URL}/api/dashboard/metrics?days=${encodeURIComponent(String(d))}`,
-    undefined,
-    options?.timeoutMs || 25000
-  );
+  const rawDays = typeof input === 'number' ? input : input?.days ?? 7;
+  const rawPreset = typeof input === 'number' ? null : input?.preset ?? null;
+
+  const d = Math.min(Math.max(parseInt(String(rawDays), 10) || 7, 1), 60);
+  const url = new URL(`${BACKEND_URL}/api/dashboard/metrics`);
+  url.searchParams.set('days', String(d));
+  if (rawPreset != null && String(rawPreset).trim()) {
+    url.searchParams.set('preset', String(rawPreset).trim());
+  }
+
+  const response = await fetchWithTimeout(url.toString(), undefined, options?.timeoutMs || 25000);
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Dashboard-Metriken konnten nicht geladen werden.');

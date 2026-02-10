@@ -4,10 +4,11 @@ import { AdminRoleManagement } from './AdminRoleManagement';
 import { AdminGroupManagement } from './AdminGroupManagement';
 import { AdminLlmManagement } from './AdminLlmManagement';
 import { AdminBulkActions } from './AdminBulkActions';
+import { AdminIntegrations } from './AdminIntegrations';
 import { PageHeader } from '../ui/PageHeader';
 import { HelpDisclosure } from '../ui/HelpDisclosure';
 
-type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'bulk';
+type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations';
 
 export const AdminPanel: React.FC = () => {
   const [tab, setTab] = React.useState<Tab>('users');
@@ -28,6 +29,9 @@ export const AdminPanel: React.FC = () => {
             </li>
             <li>
               <b>Bulk</b>: Konsolidierte Bulk-Aktionen (z. B. Preis/Titel/Kategorie/K‑Typ, Export) anstoßen.
+            </li>
+            <li>
+              <b>Integrations</b>: Marktplatz-/Account-Verbindungen (z. B. eBay OAuth) und Listing-Snapshots verwalten.
             </li>
           </ul>
         </HelpDisclosure>
@@ -79,6 +83,15 @@ export const AdminPanel: React.FC = () => {
         >
           Bulk
         </button>
+        <button
+          type="button"
+          onClick={() => setTab('integrations')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+            tab === 'integrations' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+          }`}
+        >
+          Integrations
+        </button>
       </div>
 
       {tab === 'users' ? (
@@ -89,6 +102,8 @@ export const AdminPanel: React.FC = () => {
         <AdminLlmManagement />
       ) : tab === 'bulk' ? (
         <AdminBulkActions />
+      ) : tab === 'integrations' ? (
+        <AdminIntegrations />
       ) : (
         <AdminRoleManagement />
       )}

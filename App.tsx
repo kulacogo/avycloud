@@ -47,6 +47,7 @@ type View =
 const VIEW_STORAGE_KEY = 'avystock:view';
 const VIEW_PRODUCT_KEY = 'avystock:view:productId';
 const THEME_STORAGE_KEY = 'avystock:theme';
+const DASHBOARD_RANGE_PRESET_STORAGE_KEY = 'avystock:dashboard:rangePreset';
 const ALLOWED_VIEWS: View[] = [
   'dashboard',
   'home',
@@ -292,6 +293,19 @@ const readInitialTheme = (): Theme => {
   return prefersDark ? 'dark' : 'light';
 };
 
+const readInitialDashboardRangePreset = (): string => {
+  if (typeof window === 'undefined') return 'last7';
+  try {
+    const stored = window.localStorage.getItem(DASHBOARD_RANGE_PRESET_STORAGE_KEY);
+    const v = (stored || '').toString().trim();
+    const allowed = new Set(['last7', 'month_to_date', 'last_month', 'year_to_date', 'last_year', 'today']);
+    if (!v) return 'last7';
+    return allowed.has(v) ? v : 'last7';
+  } catch {
+    return 'last7';
+  }
+};
+
 const AppInner: React.FC = () => {
   const { t } = useI18n();
   const { hasPermission } = useAuth();
@@ -331,6 +345,7 @@ const AppInner: React.FC = () => {
     },
   });
   const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
+  const [dashboardRangePreset, setDashboardRangePreset] = useState<string>(() => readInitialDashboardRangePreset());
   const [warehouseRefresh, setWarehouseRefresh] = useState<WarehouseBin | null>(null);
   const [inventoryFocusId, setInventoryFocusId] = useState<string | null>(null);
   const [hashQueryString, setHashQueryString] = useState<string>(() => {
@@ -436,38 +451,6 @@ const AppInner: React.FC = () => {
     resolveLabel: resolveProductLabel,
   });
 
-  const refreshPricingForProducts = useCallback(async (productIds: string[]) => {
-    if (!productIds.length) return;
-    const priceResults: Array<{ id: string; data: any }> = [];
-    for (const id of productIds) {
-      try {
-        const res = await refreshPrice(id);
-        if (res.ok && res.data) {
-          priceResults.push({ id, data: res.data });
-        }
-      } catch (err) {
-        console.warn('Price refresh failed', id, (err as any)?.message || err);
-      }
-    }
-    if (!priceResults.length) return;
-    setProducts(prev =>
-      prev.map(p => {
-        const hit = priceResults.find(r => r.id === p.id);
-        if (!hit) return p;
-        return {
-          ...p,
-          details: {
-            ...(p.details || ({} as any)),
-            pricing: {
-              ...(p.details?.pricing || {}),
-              ...hit.data,
-            },
-          },
-        };
-      })
-    );
-  }, []);
-
   const handleIdentification = useCallback(
     (
       groupsPayload: UploadGroupPayload[],
@@ -495,19 +478,17 @@ const AppInner: React.FC = () => {
   const handleImproveProduct = useCallback(
     async (productId: string) => {
       if (!productId) return;
-      await refreshPricingForProducts([productId]);
       enqueueImproveJobs([productId]);
     },
-    [enqueueImproveJobs, refreshPricingForProducts]
+    [enqueueImproveJobs]
   );
 
   const handleImproveSelected = useCallback(
     async (productIds: string[]) => {
       if (!productIds.length) return;
-      await refreshPricingForProducts(productIds);
       enqueueImproveJobs(productIds);
     },
-    [enqueueImproveJobs, refreshPricingForProducts]
+    [enqueueImproveJobs]
   );
 
   const handleBulkImprove = useCallback(async () => {
@@ -564,6 +545,15 @@ const AppInner: React.FC = () => {
       // ignore storage issues (private mode, etc.)
     }
   }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(DASHBOARD_RANGE_PRESET_STORAGE_KEY, dashboardRangePreset);
+    } catch {
+      // ignore storage issues (private mode, etc.)
+    }
+  }, [dashboardRangePreset]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -753,9 +743,17 @@ const AppInner: React.FC = () => {
             onRefreshProducts={loadProducts}
             onNavigate={(next) => setView(next as View)}
             isLoading={productsLoading}
+            rangePreset={dashboardRangePreset}
+            onRangePresetChange={setDashboardRangePreset}
           />
         ) : (
-          <Dashboard products={products} onSelectProduct={handleSelectProduct} onRefreshProducts={loadProducts} />
+          <Dashboard
+            products={products}
+            onSelectProduct={handleSelectProduct}
+            onRefreshProducts={loadProducts}
+            rangePreset={dashboardRangePreset}
+            onRangePresetChange={setDashboardRangePreset}
+          />
         );
       case 'search':
         return isMobile ? (
@@ -856,9 +854,17 @@ const AppInner: React.FC = () => {
             onRefreshProducts={loadProducts}
             onNavigate={(next) => setView(next as View)}
             isLoading={productsLoading}
+            rangePreset={dashboardRangePreset}
+            onRangePresetChange={setDashboardRangePreset}
           />
         ) : (
-          <Dashboard products={products} onSelectProduct={handleSelectProduct} onRefreshProducts={loadProducts} />
+          <Dashboard
+            products={products}
+            onSelectProduct={handleSelectProduct}
+            onRefreshProducts={loadProducts}
+            rangePreset={dashboardRangePreset}
+            onRangePresetChange={setDashboardRangePreset}
+          />
         );
       case 'input':
       default:

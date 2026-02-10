@@ -190,25 +190,11 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   };
 
   const DesktopNavButton = ({ nav }: { nav: NavIconConfig }) => {
-    const disabled = nav.view === 'warehouse';
     const baseClass = `hidden sm:inline-flex w-12 h-12 rounded-2xl items-center justify-center transition-all ${
       currentView === nav.view
         ? 'bg-sky-600 text-white shadow-md shadow-sky-900/40'
         : 'bg-slate-800/70 text-slate-300 hover:bg-slate-700 hover:text-white'
     }`;
-    if (disabled) {
-      return (
-        <button
-          type="button"
-          className={`${baseClass} cursor-default`}
-          aria-current={currentView === nav.view ? 'page' : undefined}
-          aria-label={t(nav.label)}
-          title={t(nav.label)}
-        >
-          {renderNavIcon(nav)}
-        </button>
-      );
-    }
     return (
       <a
         href={`#/${nav.view}`}

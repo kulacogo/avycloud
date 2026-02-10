@@ -374,6 +374,15 @@ export interface DashboardMetricsDay {
 
 export interface DashboardMetrics {
   generated_at_iso: string;
+  range?: {
+    preset?: string | null;
+    label?: string;
+    from_iso?: string;
+    to_iso?: string;
+    bucket?: 'day' | 'month';
+    days?: number;
+    buckets?: number;
+  };
   currency: string;
   revenue: {
     total: number;

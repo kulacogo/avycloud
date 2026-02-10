@@ -12,6 +12,7 @@ const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const { createJob: createQualityJob } = require('../lib/quality-jobs');
 const { enqueueQualityJob } = require('./quality-runner');
 const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
+const { getRequiredAspects } = require('../lib/ebay-taxonomy');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
@@ -44,7 +45,30 @@ function collectBarcodes(product) {
   return Array.from(codes).filter(Boolean).join(', ');
 }
 
-function buildImproveContext(product) {
+function normalizeAspectKey(raw) {
+  return String(raw || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[‐‑‒–—−]/g, '-')
+    .replace(/\s+/g, ' ');
+}
+
+function collectAttributeKeys(product) {
+  const attrs = product?.details?.attributes;
+  if (!attrs) return [];
+  if (Array.isArray(attrs)) {
+    return attrs
+      .map((e) => (e && typeof e === 'object' ? e.key : null))
+      .filter((k) => typeof k === 'string' && k.trim())
+      .map((k) => k.trim());
+  }
+  if (typeof attrs === 'object') {
+    return Object.keys(attrs).filter((k) => typeof k === 'string' && k.trim());
+  }
+  return [];
+}
+
+function buildImproveContext(product, ebayListing = null) {
   const lines = [];
   lines.push(`Aktueller Titel: ${product?.identification?.name || 'unbekannt'}`);
   lines.push(`Marke: ${product?.identification?.brand || 'unbekannt'}`);
@@ -79,6 +103,45 @@ function buildImproveContext(product) {
       );
     }
   }
+
+  // eBay listing snapshot (imported via MIP CSV or synced via API)
+  if (ebayListing && typeof ebayListing === 'object') {
+    try {
+      const eTitle = typeof ebayListing.title === 'string' ? ebayListing.title.trim() : '';
+      const eCatId = typeof ebayListing.categoryId === 'string' ? ebayListing.categoryId.trim() : '';
+      const eCond = typeof ebayListing.condition === 'string' ? ebayListing.condition.trim() : '';
+      const eImages = Array.isArray(ebayListing.images) ? ebayListing.images.filter(Boolean) : [];
+      const eAttrs =
+        ebayListing.attributes && typeof ebayListing.attributes === 'object' ? ebayListing.attributes : {};
+      const eAttrKeys = Object.keys(eAttrs).filter((k) => typeof k === 'string' && k.trim());
+      lines.push('');
+      lines.push('eBay Listing Snapshot (Quelle: Import/API):');
+      if (eTitle) lines.push(`- eBay Titel: ${eTitle}`);
+      if (eCatId) lines.push(`- eBay CategoryId: ${eCatId}`);
+      if (eCond) lines.push(`- eBay Condition: ${eCond}`);
+      if (eImages.length) lines.push(`- eBay Bilder: ${eImages.length}`);
+      if (eAttrKeys.length) {
+        lines.push(`- eBay Item Specifics Keys (Auszug): ${eAttrKeys.slice(0, 25).join(', ')}`);
+      }
+
+      // Compute required eBay aspects and what is missing in the AvyCloud product record.
+      const required = eCatId ? getRequiredAspects(eCatId) : [];
+      if (Array.isArray(required) && required.length) {
+        const productKeys = new Set(collectAttributeKeys(product).map(normalizeAspectKey));
+        const missing = required.filter((k) => !productKeys.has(normalizeAspectKey(k)));
+        if (missing.length) {
+          lines.push(
+            `- Fehlende eBay Pflichtmerkmale (für CategoryId=${eCatId}) im AvyCloud-Datenblatt: ${missing
+              .slice(0, 35)
+              .join(', ')}${missing.length > 35 ? ` (+${missing.length - 35} mehr)` : ''}`
+          );
+        }
+      }
+    } catch {
+      // best-effort only
+    }
+  }
+
   return lines.join('\n');
 }
 
@@ -645,6 +708,23 @@ async function improveExistingProduct(productId, onProgress) {
     throw error;
   }
 
+  // Best-effort: attach current eBay listing snapshot (from import/API sync) as context,
+  // so Gemini can see what is currently live and what fields are missing.
+  let ebayListing = null;
+  try {
+    const sku =
+      product?.identification?.sku ||
+      product?.details?.identifiers?.sku ||
+      product?.details?.identifiers?.ean ||
+      null;
+    if (sku) {
+      const { getEbayListingBySku } = require('../lib/ebay-listings');
+      ebayListing = await getEbayListingBySku(String(sku).trim());
+    }
+  } catch {
+    ebayListing = null;
+  }
+
   if (onProgress) await onProgress('downloading_images');
   console.log('[improve] Downloading reference images...');
   const files = await buildReferenceFiles(product);
@@ -663,7 +743,7 @@ async function improveExistingProduct(productId, onProgress) {
     barcodes,
     locale: product.locale || 'de-DE',
     modelOverride: null,
-    improveContext: buildImproveContext(product),
+    improveContext: buildImproveContext(product, ebayListing),
     // Allow external search for better identification quality (web evidence, images, pricing),
     // consistent with Identify + Chat policies. Use env flags if you need to disable globally.
     skipExternalSearch: false,

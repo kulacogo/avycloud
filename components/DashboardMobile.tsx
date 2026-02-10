@@ -10,6 +10,8 @@ interface DashboardMobileProps {
   onRefreshProducts?: () => void;
   onNavigate?: (view: string) => void;
   isLoading?: boolean;
+  rangePreset?: string;
+  onRangePresetChange?: (preset: string) => void;
 }
 
 const StatCard: React.FC<{ label: string; value: string; sub?: string }> = ({ label, value, sub }) => (
@@ -55,7 +57,23 @@ const safeCurrency = (code?: string) => {
   return /^[A-Z]{3}$/.test(c) ? c : 'EUR';
 };
 
-const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshProducts, onNavigate, isLoading }) => {
+const DASHBOARD_RANGE_PRESETS: Array<{ id: string; label: string }> = [
+  { id: 'last7', label: 'Letzte 7 Tage' },
+  { id: 'month_to_date', label: 'Aktueller Monat' },
+  { id: 'last_month', label: 'Letzter Monat' },
+  { id: 'year_to_date', label: 'Dieses Jahr' },
+  { id: 'last_year', label: 'Letztes Jahr' },
+  { id: 'today', label: 'Heute' },
+];
+
+const DashboardMobile: React.FC<DashboardMobileProps> = ({
+  products,
+  onRefreshProducts,
+  onNavigate,
+  isLoading,
+  rangePreset,
+  onRangePresetChange,
+}) => {
   const { t, locale } = useI18n();
   const [orders, setOrders] = useState<Order[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,6 +82,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const refreshInFlightRef = useRef(false);
   const unmountedRef = useRef(false);
+  const activePresetRef = useRef('last7');
 
   const dedupeOrders = useCallback((list: Order[]) => {
     const seen = new Set<string>();
@@ -78,6 +97,57 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
   }, []);
 
   const intlLocale = locale === 'de' ? 'de-DE' : locale === 'tr' ? 'tr-TR' : 'en-GB';
+
+  const [internalPreset, setInternalPreset] = useState('last7');
+  const activePreset = useMemo(() => {
+    const raw = typeof rangePreset === 'string' ? rangePreset.trim() : '';
+    if (raw && DASHBOARD_RANGE_PRESETS.some((p) => p.id === raw)) return raw;
+    return internalPreset;
+  }, [rangePreset, internalPreset]);
+  const lastMetricsPresetRef = useRef(activePreset);
+
+  useEffect(() => {
+    activePresetRef.current = activePreset;
+  }, [activePreset]);
+
+  const loadMetrics = useCallback(async (presetOverride?: string) => {
+    setMetricsLoading(true);
+    try {
+      const preset =
+        presetOverride != null && String(presetOverride).trim()
+          ? String(presetOverride).trim()
+          : activePresetRef.current;
+      lastMetricsPresetRef.current = preset;
+      const data = await fetchDashboardMetrics({ days: 7, preset }, { timeoutMs: 20000 });
+      setMetrics(data);
+    } catch (error) {
+      console.warn('Failed to load dashboard metrics', error);
+      setMetrics(null);
+    } finally {
+      setMetricsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!activePreset) return;
+    if (lastMetricsPresetRef.current === activePreset) return;
+    void loadMetrics(activePreset);
+  }, [activePreset, loadMetrics]);
+
+  const setPreset = useCallback(
+    (next: string) => {
+      const v = String(next || '').trim();
+      if (!v) return;
+      activePresetRef.current = v;
+      if (onRangePresetChange) {
+        onRangePresetChange(v);
+      } else {
+        setInternalPreset(v);
+      }
+      void loadMetrics(v);
+    },
+    [onRangePresetChange, loadMetrics]
+  );
 
   const formatCurrency = useCallback(
     (value: number, currency: string) => {
@@ -109,19 +179,6 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
     },
     [dedupeOrders]
   );
-
-  const loadMetrics = useCallback(async () => {
-    setMetricsLoading(true);
-    try {
-      const data = await fetchDashboardMetrics(7, { timeoutMs: 20000 });
-      setMetrics(data);
-    } catch (error) {
-      console.warn('Failed to load dashboard metrics', error);
-      setMetrics(null);
-    } finally {
-      setMetricsLoading(false);
-    }
-  }, []);
 
   const refreshAll = useCallback(
     async ({ syncOrders, refreshProducts }: { syncOrders: boolean; refreshProducts: boolean }) => {
@@ -183,6 +240,10 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
   const openOrders = useMemo(() => orders.filter((o) => o && o.status === 'new'), [orders]);
 
   const volume7d = metrics?.volume_7d?.days || [];
+  const activeRangeLabel =
+    metrics?.range?.label ||
+    DASHBOARD_RANGE_PRESETS.find((p) => p.id === activePreset)?.label ||
+    `Letzte ${metrics?.revenue?.window_days || 7} Tage`;
   const maxVolume = useMemo(() => {
     const max = volume7d.reduce((m, d) => Math.max(m, Number(d?.orders || 0) || 0), 0);
     return Math.max(1, max);
@@ -397,13 +458,31 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
                   ? t('common.loading')
                   : '—'}
             </p>
+            <select
+              value={activePreset}
+              onChange={(e) => setPreset(e.target.value)}
+              className="text-[11px] rounded-lg bg-slate-800/90 border border-white/10 px-2 py-1 text-slate-200"
+              aria-label="Dashboard Zeitraum"
+            >
+              {DASHBOARD_RANGE_PRESETS.map((p) => (
+                <option key={p.id} value={p.id} className="bg-slate-900">
+                  {p.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <StatCard
               label={t('mobile.dashboard.metrics.revenueTotal')}
-              value={metrics ? formatCurrency(metrics.revenue.total || 0, metrics.currency || 'EUR') : '—'}
-              sub={metrics ? `${t('mobile.dashboard.metrics.month')}: ${formatCurrency(metrics.revenue.month || 0, metrics.currency || 'EUR')}` : undefined}
+              value={
+                metrics ? formatCurrency(metrics.revenue.all_non_cancelled_total || 0, metrics.currency || 'EUR') : '—'
+              }
+              sub={
+                metrics
+                  ? `${activeRangeLabel}: ${formatCurrency(metrics.revenue.window_non_cancelled_total || 0, metrics.currency || 'EUR')}`
+                  : undefined
+              }
             />
             <StatCard
               label={t('mobile.dashboard.metrics.ordersCompleted')}
@@ -433,30 +512,35 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({ products, onRefreshPr
                   : '—'}
               </p>
             </div>
-            <div className="grid grid-cols-7 gap-2 items-end h-20">
-              {volume7d.length ? (
-                volume7d.map((d) => {
-                  const count = Number(d.orders || 0) || 0;
-                  const revenue = Number(d.revenue || 0) || 0;
-                  const barPx = Math.max(6, Math.round((count / maxVolume) * 56));
-                  return (
-                    <div key={d.date} className="h-full flex flex-col items-center justify-end gap-1">
-                      <div
-                        title={t('mobile.dashboard.chart.barTitle', {
-                          date: d.date,
-                          orders: count,
-                          revenue: formatCurrency(revenue, metrics?.currency || 'EUR'),
-                        })}
-                        className="w-full rounded-[2px] bg-sky-500/70"
-                        style={{ height: `${barPx}px`, borderRadius: '2px' }}
-                      />
-                      <div className="text-[11px] text-slate-300 font-semibold tabular-nums">{count}</div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="col-span-7 text-sm text-slate-400">{t('mobile.dashboard.chart.noData')}</div>
-              )}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] text-slate-500">{activeRangeLabel}</p>
+            </div>
+            <div className="overflow-x-auto">
+              <div className="grid grid-flow-col auto-cols-[44px] gap-2 items-end h-20 min-w-max pr-2">
+                {volume7d.length ? (
+                  volume7d.map((d) => {
+                    const count = Number(d.orders || 0) || 0;
+                    const revenue = Number(d.revenue || 0) || 0;
+                    const barPx = Math.max(6, Math.round((count / maxVolume) * 56));
+                    return (
+                      <div key={d.date} className="h-full flex flex-col items-center justify-end gap-1">
+                        <div
+                          title={t('mobile.dashboard.chart.barTitle', {
+                            date: d.date,
+                            orders: count,
+                            revenue: formatCurrency(revenue, metrics?.currency || 'EUR'),
+                          })}
+                          className="w-full rounded-[2px] bg-sky-500/70"
+                          style={{ height: `${barPx}px`, borderRadius: '2px' }}
+                        />
+                        <div className="text-[11px] text-slate-300 font-semibold tabular-nums">{count}</div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-sm text-slate-400">{t('mobile.dashboard.chart.noData')}</div>
+                )}
+              </div>
             </div>
           </div>
         </div>

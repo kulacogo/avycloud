@@ -2885,12 +2885,98 @@ async function getOrderSummary() {
  * - Returns are detected by statusLabel/status text containing "retour/return/rücksend".
  * - Revenue is derived from totalAmount (best-effort, assumes a single currency).
  */
-async function getDashboardMetrics({ days = 7 } = {}) {
-  const windowDays = Number.isFinite(Number(days)) ? Math.max(1, Math.min(60, Number(days))) : 7;
+async function getDashboardMetrics({ days = 7, preset = null } = {}) {
+  const defaultDays = Number.isFinite(Number(days)) ? Math.max(1, Math.min(60, Number(days))) : 7;
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
-  const windowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
-  windowStart.setUTCDate(windowStart.getUTCDate() - (windowDays - 1));
+
+  const utcDayStart = (d) =>
+    new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0));
+  const utcMonthStart = (d) =>
+    new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0));
+  const utcYearStart = (year) => new Date(Date.UTC(year, 0, 1, 0, 0, 0));
+
+  const normalizePreset = (raw) => {
+    const v = (raw == null ? '' : String(raw)).trim().toLowerCase();
+    if (!v) return null;
+    if (v === 'today' || v === 'heute') return 'today';
+    if (v === 'last7' || v === 'last_7_days' || v === 'last-7-days' || v === '7d' || v === '7_days') return 'last7';
+    if (v === 'month' || v === 'this_month' || v === 'current_month' || v === 'mtd' || v === 'month_to_date') return 'month_to_date';
+    if (v === 'last_month' || v === 'previous_month') return 'last_month';
+    if (v === 'year' || v === 'this_year' || v === 'current_year' || v === 'ytd' || v === 'year_to_date') return 'year_to_date';
+    if (v === 'last_year' || v === 'previous_year') return 'last_year';
+    return null;
+  };
+
+  const canonicalPreset = normalizePreset(preset);
+  let rangeStart = null;
+  let rangeEndExclusive = null;
+  let rangeLabel = null;
+
+  if (canonicalPreset === 'today') {
+    rangeStart = utcDayStart(now);
+    rangeEndExclusive = now;
+    rangeLabel = 'Heute';
+  } else if (canonicalPreset === 'last7') {
+    rangeEndExclusive = now;
+    rangeStart = utcDayStart(now);
+    rangeStart.setUTCDate(rangeStart.getUTCDate() - 6);
+    rangeLabel = 'Letzte 7 Tage';
+  } else if (canonicalPreset === 'month_to_date') {
+    rangeStart = monthStart;
+    rangeEndExclusive = now;
+    rangeLabel = 'Aktueller Monat';
+  } else if (canonicalPreset === 'last_month') {
+    const thisMonthStart = monthStart;
+    const lastMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0));
+    rangeStart = lastMonthStart;
+    rangeEndExclusive = thisMonthStart;
+    rangeLabel = 'Letzter Monat';
+  } else if (canonicalPreset === 'year_to_date') {
+    rangeStart = utcYearStart(now.getUTCFullYear());
+    rangeEndExclusive = now;
+    rangeLabel = 'Dieses Jahr';
+  } else if (canonicalPreset === 'last_year') {
+    rangeStart = utcYearStart(now.getUTCFullYear() - 1);
+    rangeEndExclusive = utcYearStart(now.getUTCFullYear());
+    rangeLabel = 'Letztes Jahr';
+  } else {
+    rangeEndExclusive = now;
+    rangeStart = utcDayStart(now);
+    rangeStart.setUTCDate(rangeStart.getUTCDate() - (defaultDays - 1));
+    rangeLabel = `Letzte ${defaultDays} Tage`;
+  }
+
+  // Inclusive day range for bucketing (end is exclusive for filtering).
+  const startDay = utcDayStart(rangeStart);
+  const endInclusiveDay = utcDayStart(new Date(rangeEndExclusive.getTime() - 1));
+  const rangeDays = Math.max(
+    1,
+    Math.floor((endInclusiveDay.getTime() - startDay.getTime()) / (24 * 60 * 60 * 1000)) + 1
+  );
+
+  // Build the chart series:
+  // - Up to 60 days: daily buckets (YYYY-MM-DD)
+  // - Otherwise: monthly buckets (YYYY-MM-01)
+  let bucket = 'day';
+  const seriesArr = [];
+  if (rangeDays <= 60) {
+    for (let i = 0; i < rangeDays; i += 1) {
+      const d = new Date(startDay);
+      d.setUTCDate(startDay.getUTCDate() + i);
+      seriesArr.push({ date: d.toISOString().slice(0, 10), orders: 0, revenue: 0 });
+    }
+  } else {
+    bucket = 'month';
+    const mStart = utcMonthStart(startDay);
+    const mEnd = utcMonthStart(endInclusiveDay);
+    const cursor = new Date(mStart);
+    while (cursor.getTime() <= mEnd.getTime()) {
+      seriesArr.push({ date: cursor.toISOString().slice(0, 10), orders: 0, revenue: 0 });
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+  }
+  const seriesIndex = new Map(seriesArr.map((d, idx) => [d.date, idx]));
 
   const CLOSED_LABELS = new Set([
     'kommissioniert',
@@ -2952,15 +3038,6 @@ async function getDashboardMetrics({ days = 7 } = {}) {
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? null : d;
   };
-
-  // Initialize last-N-days buckets
-  const daysArr = [];
-  for (let i = 0; i < windowDays; i += 1) {
-    const d = new Date(windowStart);
-    d.setUTCDate(windowStart.getUTCDate() + i);
-    daysArr.push({ date: d.toISOString().slice(0, 10), orders: 0, revenue: 0 });
-  }
-  const dayIndex = new Map(daysArr.map((d, idx) => [d.date, idx]));
 
   const snapshot = await firestore.collection(ORDERS_COLLECTION).get();
 
@@ -3028,13 +3105,18 @@ async function getDashboardMetrics({ days = 7 } = {}) {
       openCurrent += 1;
     }
 
-    // Volume (last N days) based on order creation date (incoming order volume)
-    const dk = dayKey(createdAt.toISOString());
-    if (dk && dayIndex.has(dk)) {
-      const idx = dayIndex.get(dk);
-      daysArr[idx].orders += 1;
-      if (!cancelled) {
-        daysArr[idx].revenue += totalAmount;
+    // Volume + revenue within selected range (based on order creation date).
+    if (createdAt >= rangeStart && createdAt < rangeEndExclusive) {
+      const dk =
+        bucket === 'month'
+          ? `${createdAt.getUTCFullYear()}-${String(createdAt.getUTCMonth() + 1).padStart(2, '0')}-01`
+          : createdAt.toISOString().slice(0, 10);
+      if (dk && seriesIndex.has(dk)) {
+        const idx = seriesIndex.get(dk);
+        seriesArr[idx].orders += 1;
+        if (!cancelled) {
+          seriesArr[idx].revenue += totalAmount;
+        }
       }
     }
 
@@ -3068,10 +3150,19 @@ async function getDashboardMetrics({ days = 7 } = {}) {
     }
   });
 
-  const revenueWindowNonCancelledTotal = daysArr.reduce((s, d) => s + (Number(d.revenue || 0) || 0), 0);
+  const revenueWindowNonCancelledTotal = seriesArr.reduce((s, d) => s + (Number(d.revenue || 0) || 0), 0);
 
   return {
     generated_at_iso: new Date().toISOString(),
+    range: {
+      preset: canonicalPreset || null,
+      label: rangeLabel,
+      from_iso: rangeStart.toISOString(),
+      to_iso: rangeEndExclusive.toISOString(),
+      bucket,
+      days: rangeDays,
+      buckets: seriesArr.length,
+    },
     currency,
     revenue: {
       total: Number(revenueTotal.toFixed(2)),
@@ -3079,8 +3170,8 @@ async function getDashboardMetrics({ days = 7 } = {}) {
       month_start_iso: monthStart.toISOString(),
       all_non_cancelled_total: Number(revenueAllNonCancelledTotal.toFixed(2)),
       window_non_cancelled_total: Number(revenueWindowNonCancelledTotal.toFixed(2)),
-      window_start_iso: windowStart.toISOString(),
-      window_days: windowDays,
+      window_start_iso: rangeStart.toISOString(),
+      window_days: rangeDays,
     },
     orders: {
       open_current: openCurrent,
@@ -3091,8 +3182,8 @@ async function getDashboardMetrics({ days = 7 } = {}) {
       status_breakdown: statusBreakdown,
     },
     volume_7d: {
-      window_days: windowDays,
-      days: daysArr,
+      window_days: rangeDays,
+      days: seriesArr,
     },
   };
 }
