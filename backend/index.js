@@ -53,6 +53,7 @@ const { syncInventoriesFromBaseLinker } = require('./services/inventory-sync');
 const { runProductChat } = require('./services/product-chat');
 const { improveExistingProduct } = require('./services/improve');
 const { getSecretValue } = require('./lib/secret-values');
+const { getGeminiApiKey, __unsafeGetCachedKeySource } = require('./lib/gemini-client');
 const { fetchWithUnlocker } = require('./lib/web-unlocker');
 const { search: searchEvidence, searchSite: searchEvidenceSite } = require('./lib/evidence-provider');
 const { enqueueJob, startJobRunner } = require('./services/job-runner');
@@ -1393,6 +1394,65 @@ app.get('/api/admin/llm/scopes', requirePermission('admin', 'llm.read'), async (
   }
 });
 
+// Quick diagnostics endpoint to debug "LLM down" scenarios.
+// Returns whether a Gemini API key is configured and (best-effort) which models are available for the key.
+app.get('/api/admin/llm/health', requirePermission('admin', 'llm.read'), async (req, res) => {
+  try {
+    let apiKeyConfigured = false;
+    let keyError = null;
+    let keySource = null;
+    let models = null;
+    let modelsError = null;
+
+    try {
+      const key = await getGeminiApiKey();
+      apiKeyConfigured = Boolean(key && String(key).trim());
+      keySource = typeof __unsafeGetCachedKeySource === 'function' ? __unsafeGetCachedKeySource() : null;
+
+      if (apiKeyConfigured) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(String(key))}`;
+          const resp = await fetch(url, { method: 'GET' });
+          const text = await resp.text().catch(() => '');
+          const json = text && text.trim().startsWith('{') ? JSON.parse(text) : null;
+          if (!resp.ok) {
+            const msg = json?.error?.message || `models.list failed (${resp.status})`;
+            throw new Error(msg);
+          }
+          const list = Array.isArray(json?.models) ? json.models : [];
+          models = list
+            .map((m) => String(m?.baseModelId || '').trim() || String(m?.name || '').replace(/^models\//, '').trim())
+            .filter(Boolean)
+            .slice(0, 80);
+        } catch (e) {
+          modelsError = e?.message || String(e);
+        }
+      }
+    } catch (e) {
+      apiKeyConfigured = false;
+      keyError = e?.message || String(e);
+      keySource = typeof __unsafeGetCachedKeySource === 'function' ? __unsafeGetCachedKeySource() : null;
+    }
+
+    return res.json({
+      ok: true,
+      data: {
+        apiKeyConfigured,
+        keySource,
+        keyError,
+        models,
+        modelsError,
+      },
+    });
+  } catch (error) {
+    console.error('Admin LLM health failed:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to run LLM health check', details: error?.message || String(error) },
+    });
+  }
+});
+
 // --- Rulebook Management (RBAC-managed) ---
 const { getActiveRulebook, createRulebookVersion } = require('./lib/rulebook-admin');
 const { createJob: createRulebookApplyJob, getJob: getRulebookApplyJob } = require('./lib/rulebook-apply-jobs');
@@ -2531,12 +2591,16 @@ app.post('/api/v2/enrich', requirePermission('identify', 'run'), upload.array('i
     });
   } catch (error) {
     console.error('SerpAPI-free enrichment failed:', error);
+    const detailsRaw = error?.message || 'Unknown error';
+    const details = String(detailsRaw).replace(/\s+/g, ' ').trim().slice(0, 400);
     return res.status(500).json({
       ok: false,
       error: {
         code: 500,
-        message: 'SerpAPI-freies Enrichment fehlgeschlagen.',
-        details: error?.message || 'Unknown error',
+        message: details
+          ? `SerpAPI-freies Enrichment fehlgeschlagen. (${details})`
+          : 'SerpAPI-freies Enrichment fehlgeschlagen.',
+        details: details || 'Unknown error',
       },
     });
   }
@@ -2717,12 +2781,14 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
     });
   } catch (error) {
     console.error('v2 identify failed:', error);
+    const detailsRaw = error?.message || 'Unknown error';
+    const details = String(detailsRaw).replace(/\s+/g, ' ').trim().slice(0, 400);
     return res.status(500).json({
       ok: false,
       error: {
         code: 500,
-        message: 'Identify (v2) fehlgeschlagen.',
-        details: error?.message || 'Unknown error',
+        message: details ? `Identify (v2) fehlgeschlagen. (${details})` : 'Identify (v2) fehlgeschlagen.',
+        details: details || 'Unknown error',
       },
     });
   }
@@ -4973,13 +5039,15 @@ app.post('/api/chat', requirePermission('ai', 'chat'), chatUploadMiddleware, asy
     });
   } catch (error) {
     console.error('Error in chat endpoint:', error);
+    const detailsRaw = error?.message || 'Unknown error';
+    const details = String(detailsRaw).replace(/\s+/g, ' ').trim().slice(0, 500);
     res.status(500).json({
       ok: false,
       model: error.modelUsed,
       error: {
         code: 500,
-        message: 'Failed to process chat request',
-        details: error.message,
+        message: details ? `Failed to process chat request (${details})` : 'Failed to process chat request',
+        details: details || 'Unknown error',
       },
     });
   }

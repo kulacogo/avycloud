@@ -2184,7 +2184,9 @@ export const refreshPrice = async (productId: string): Promise<{ ok: boolean; da
     const result = await parseResponse(response);
 
     if (!response.ok) {
-      throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
+      const message = result?.error?.message || `Request failed with status ${response.status}`;
+      const details = result?.error?.details;
+      throw new Error(details ? `${message} (${String(details)})` : message);
     }
 
     return result;
@@ -2252,7 +2254,9 @@ export const chatWithAssistant = async (
     const result = await parseResponse(response);
 
     if (!response.ok) {
-      throw new Error(result?.error?.message || `Request failed with status ${response.status}`);
+      const message = result?.error?.message || `Request failed with status ${response.status}`;
+      const details = result?.error?.details;
+      throw new Error(details ? `${message} (${String(details)})` : message);
     }
 
     return result;
@@ -2293,11 +2297,14 @@ export const runSerpapiFreeEnrichment = async (
     });
     const result = await parseResponse(response);
     if (!response.ok) {
+      const details = result?.error?.details;
       return {
         ok: false,
         error: {
           code: response.status,
-          message: result?.error?.message || 'SerpAPI-freies Enrichment fehlgeschlagen.',
+          message: details
+            ? `${result?.error?.message || 'SerpAPI-freies Enrichment fehlgeschlagen.'} (${String(details)})`
+            : result?.error?.message || 'SerpAPI-freies Enrichment fehlgeschlagen.',
         },
       };
     }
@@ -2337,11 +2344,14 @@ export const identifyProductV2 = async (
     });
     const result = await parseResponse(response);
     if (!response.ok) {
+      const details = result?.error?.details;
       return {
         ok: false,
         error: {
           code: response.status,
-          message: result?.error?.message || 'Identify (v2) fehlgeschlagen.',
+          message: details
+            ? `${result?.error?.message || 'Identify (v2) fehlgeschlagen.'} (${String(details)})`
+            : result?.error?.message || 'Identify (v2) fehlgeschlagen.',
         },
       };
     }
