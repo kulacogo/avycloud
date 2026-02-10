@@ -567,7 +567,7 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
     record: mergedRecord,
     llm: {
       applied: Boolean(llmRecord),
-      model: process.env.GEMINI_MULTIMODAL_MODEL || process.env.GEMINI_STRUCTURED_MODEL || 'gemini-3-pro-preview',
+      model: process.env.GEMINI_MULTIMODAL_MODEL || process.env.GEMINI_STRUCTURED_MODEL || 'gemini-2.5-flash',
       error: llmError,
     },
     quality,

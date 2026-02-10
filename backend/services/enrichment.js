@@ -101,7 +101,7 @@ const normalizePath = (v) => (v ? v.toString().trim() : '');
 async function resolveCategoryWithGemini(product, target) {
   try {
     const client = await getGeminiClient();
-    const modelName = resolveModel(null, 'CATEGORY_MODEL', 'gemini-3-pro-preview');
+    const modelName = resolveModel(null, 'CATEGORY_MODEL', 'gemini-2.5-flash');
     const model = client.getGenerativeModel({ model: modelName });
     const attrs = product?.details?.attributes || {};
 
@@ -1561,7 +1561,7 @@ async function runDatasheetReview(
 ) {
   if (!Array.isArray(products) || !products.length) return;
   // Use Thinking model for deep quality assurance
-  const reviewModel = resolveModel(null, 'REVIEW_MODEL', 'gemini-3-pro-preview');
+  const reviewModel = resolveModel(null, 'REVIEW_MODEL', 'gemini-2.5-flash');
 
   const client = await getGeminiClient();
   const model = client.getGenerativeModel({ model: reviewModel });
@@ -1931,7 +1931,7 @@ function parseMarketingJson(response) {
 async function ensureMarketingCopy(products = [], locale = 'de-DE') {
   if (!Array.isArray(products) || !products.length) return;
   // Use experimental high-quality model for Marketing
-  const targetModelName = resolveModel(null, 'MARKETING_MODEL', 'gemini-3-pro-preview');
+  const targetModelName = resolveModel(null, 'MARKETING_MODEL', 'gemini-2.5-flash');
   const client = await getGeminiClient();
   const model = client.getGenerativeModel({ model: targetModelName });
 
@@ -2678,8 +2678,8 @@ async function runProductIdentification({
   }
 
   const client = await getGeminiClient();
-  // Default model: Gemini 3 Pro (preview) per user request (can be overridden via IDENTIFY_MODEL).
-  const targetModelName = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gemini-3-pro-preview');
+  // Default model: stable high-throughput model (override via IDENTIFY_MODEL).
+  const targetModelName = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gemini-2.5-flash');
   const model = client.getGenerativeModel({ model: targetModelName });
 
   const generationConfig = {

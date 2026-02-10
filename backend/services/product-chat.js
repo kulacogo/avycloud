@@ -194,7 +194,7 @@ async function forceOneEvidencePass(product, userMessage, { scope = null, notesO
   const client = await getGeminiClient();
   const updateOnlyTools = [{ functionDeclarations: [toGeminiTool(updateDatasheetTool)] }];
   const updateOnlyModel = client.getGenerativeModel({
-    model: resolveModel(null, 'CHAT_MODEL', 'gemini-3-pro-preview'),
+    model: resolveModel(null, 'CHAT_MODEL', 'gemini-2.5-flash'),
     tools: updateOnlyTools,
     toolConfig: {
       functionCallingConfig: {
@@ -1452,7 +1452,7 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
 
 async function runProductChat(product, userMessage, { modelOverride = null, attachments = [], scope = null } = {}) {
   const client = await getGeminiClient();
-  const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-3-pro-preview');
+  const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-2.5-flash');
 
   const locale = 'de-DE';
   const conversationMode = detectConversationMode(userMessage || '');
