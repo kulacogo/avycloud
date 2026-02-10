@@ -21,7 +21,7 @@
  *
  * Env:
  *   GPSR_WEB_USE_UNLOCKER=true  (optional; uses BrightData Web Unlocker if configured)
- *   GEMINI_STRUCTURED_MODEL=gemini-2.5-flash (optional)
+ *   GEMINI_STRUCTURED_MODEL=gemini-3-pro-preview (optional)
  */
 
 const fs = require('fs');

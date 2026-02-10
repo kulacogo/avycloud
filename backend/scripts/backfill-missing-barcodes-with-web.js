@@ -426,7 +426,7 @@ function buildCandidateIndex(pages = [], { anchorTokens = [] } = {}) {
 
 async function chooseBarcodeWithGemini({ locale, productSnapshot, candidates, searchTrace }) {
   const client = await getGeminiClient();
-  const modelName = resolveModel(null, 'BARCODE_FIX_MODEL', 'gemini-2.5-flash');
+  const modelName = resolveModel(null, 'BARCODE_FIX_MODEL', 'gemini-3-pro-preview');
   const model = client.getGenerativeModel({ model: modelName });
 
   const allowed = new Set(candidates.map((c) => c.code));

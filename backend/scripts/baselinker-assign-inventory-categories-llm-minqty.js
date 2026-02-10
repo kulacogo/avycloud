@@ -326,7 +326,7 @@ function buildDualPrompt({ signals, candidates91387, candidates91388 }) {
 
 async function resolveCategoryWithGemini({ prompt }) {
   const client = await getGeminiClient();
-  const modelName = resolveModel(null, 'BASELINKER_CATEGORY_MODEL', 'gemini-2.5-flash');
+  const modelName = resolveModel(null, 'BASELINKER_CATEGORY_MODEL', 'gemini-3-pro-preview');
   const model = client.getGenerativeModel({ model: modelName });
 
   const generationConfig = {
@@ -384,7 +384,7 @@ async function resolveCategoryWithGemini({ prompt }) {
 
 async function resolveDualCategoriesWithGemini({ prompt }) {
   const client = await getGeminiClient();
-  const modelName = resolveModel(null, 'BASELINKER_CATEGORY_MODEL', 'gemini-2.5-flash');
+  const modelName = resolveModel(null, 'BASELINKER_CATEGORY_MODEL', 'gemini-3-pro-preview');
   const model = client.getGenerativeModel({ model: modelName });
 
   const generationConfig = {

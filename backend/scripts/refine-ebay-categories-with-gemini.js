@@ -347,7 +347,7 @@ function buildPrompt(product) {
 
 async function resolveWithGemini(product) {
   const client = await getGeminiClient();
-  const modelName = resolveModel(null, 'CATEGORY_MODEL', 'gemini-2.5-flash');
+  const modelName = resolveModel(null, 'CATEGORY_MODEL', 'gemini-3-pro-preview');
   const model = client.getGenerativeModel({ model: modelName });
 
   const generationConfig = {

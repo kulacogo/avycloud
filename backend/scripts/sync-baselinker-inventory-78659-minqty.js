@@ -21,7 +21,7 @@ function safeString(v) {
 }
 
 function parseArgs(argv = []) {
-  const args = { minQty: 1, limit: 0, offset: 0, force: false };
+  const args = { minQty: 1, limit: 0, offset: 0, force: false, mode: 'full' };
   const list = Array.isArray(argv) ? argv.slice(2) : [];
   for (let i = 0; i < list.length; i += 1) {
     const a = list[i];
@@ -36,6 +36,11 @@ function parseArgs(argv = []) {
       i += 1;
     } else if (a === '--force') {
       args.force = true;
+    } else if (a === '--mode') {
+      args.mode = String(list[i + 1] || 'full').trim() || 'full';
+      i += 1;
+    } else if (a === '--category-only') {
+      args.mode = 'category_only';
     }
   }
   return args;
@@ -74,7 +79,7 @@ function strictSku(product) {
 
 function isAlreadySyncedTo78659(product) {
   const p = product && typeof product === 'object' ? product : {};
-  const invKey = 'inventory_78659';
+  const invKey = '78659';
   const inv = p?.ops?.baselinker?.inventories?.[invKey];
   if (inv?.sync_status === 'synced') return true;
   if (String(p?.ops?.baselinker?.synced_inventory || '').trim() === '78659' && p?.ops?.sync_status === 'synced') {
@@ -95,7 +100,13 @@ function nowStamp() {
   const firestore = new Firestore({ projectId: PROJECT_ID });
 
   const invId = '78659';
-  console.log(JSON.stringify({ action: 'sync-baselinker-inventory-78659-minqty', project: PROJECT_ID, inventoryId: invId, args }, null, 2));
+  console.log(
+    JSON.stringify(
+      { action: 'sync-baselinker-inventory-78659-minqty', project: PROJECT_ID, inventoryId: invId, mode: args.mode, args },
+      null,
+      2
+    )
+  );
 
   const snap = await firestore.collection('products').get();
   const all = snap.docs;
@@ -128,6 +139,7 @@ function nowStamp() {
       {
         action: 'sync-baselinker-inventory-78659-minqty',
         inventoryId: invId,
+        mode: args.mode,
         minQty: args.minQty,
         products_total: snap.size,
         qtyEligible: withQty.length,
@@ -146,6 +158,7 @@ function nowStamp() {
   let ok = 0;
   let failed = 0;
   const results = await syncProductsToBaseLinker(productsToSync, invId, {
+    mode: args.mode,
     onProgress: ({ index, total, result }) => {
       const status = result?.status || 'unknown';
       if (status === 'synced') ok += 1;

@@ -1,5 +1,10 @@
 const ALLOWED_MODELS = new Set([
+  // Gemini 3 (official model codes, see: https://ai.google.dev/gemini-api/docs/models)
+  'gemini-3-pro-preview',
+  'gemini-3-flash-preview',
+  // Gemini 2.5 (stable)
   'gemini-2.5-flash',
+  'gemini-2.5-pro',
   'gemini-2.0-flash-exp',
   'gemini-2.0-flash-thinking-exp',
   'gemini-exp-1206',
@@ -7,14 +12,18 @@ const ALLOWED_MODELS = new Set([
 ]);
 
 const MODEL_ALIASES = {
-  mini: 'gemini-2.5-flash',
-  nano: 'gemini-2.5-flash',
-  standard: 'gemini-2.5-flash',
-  thinking: 'gemini-2.5-flash', // mapping thinking to flash per strict user request
-  default: 'gemini-2.5-flash',
-  'gemini-flash': 'gemini-2.5-flash',
-  'gemini-thinking': 'gemini-2.5-flash',
-  'gemini-pro': 'gemini-2.5-flash',
+  // Default to Gemini 3 Pro (preview) per user request.
+  mini: 'gemini-3-pro-preview',
+  nano: 'gemini-3-pro-preview',
+  standard: 'gemini-3-pro-preview',
+  thinking: 'gemini-3-pro-preview',
+  default: 'gemini-3-pro-preview',
+  // Common aliases
+  'gemini-flash': 'gemini-3-flash-preview',
+  'gemini-thinking': 'gemini-3-pro-preview',
+  'gemini-pro': 'gemini-3-pro-preview',
+  'gemini-3-pro': 'gemini-3-pro-preview',
+  'gemini-3-flash': 'gemini-3-flash-preview',
 };
 
 function normalize(input) {
@@ -29,16 +38,16 @@ function normalizeModel(input) {
   if (MODEL_ALIASES[normalized]) {
     return MODEL_ALIASES[normalized];
   }
-  if (input && ALLOWED_MODELS.has(input)) {
-    return input;
+  if (normalized && ALLOWED_MODELS.has(normalized)) {
+    return normalized;
   }
   return null;
 }
 
-function resolveModel(preferred, envKey, fallback = 'gemini-2.5-flash') {
-  const absoluteFallback = fallback || 'gemini-2.5-flash';
+function resolveModel(preferred, envKey, fallback = 'gemini-3-pro-preview') {
+  const absoluteFallback = fallback || 'gemini-3-pro-preview';
   const envRaw = process.env[envKey];
-  const chain = [preferred, envRaw, absoluteFallback, 'gemini-2.5-flash'];
+  const chain = [preferred, envRaw, absoluteFallback, 'gemini-3-pro-preview'];
 
   for (const candidate of chain) {
     const normalized = normalizeModel(candidate);
@@ -47,7 +56,7 @@ function resolveModel(preferred, envKey, fallback = 'gemini-2.5-flash') {
     }
   }
 
-  return 'gemini-2.5-flash';
+  return 'gemini-3-pro-preview';
 }
 
 module.exports = {

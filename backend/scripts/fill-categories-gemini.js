@@ -1,5 +1,5 @@
 /**
- * Versucht, fehlende eBay- und Kaufland-Kategorien mit Gemini 2.5 Flash zu bestimmen.
+ * Versucht, fehlende eBay- und Kaufland-Kategorien mit Gemini (default: Gemini 3 Pro preview) zu bestimmen.
  *
  * Nutzung:
  *   GOOGLE_API_KEY=... NODE_PATH=backend/node_modules node backend/scripts/fill-categories-gemini.js
@@ -19,6 +19,7 @@
 const path = require('path');
 const { Firestore } = require('@google-cloud/firestore');
 const { getGeminiClient } = require('../lib/gemini-client');
+const { resolveModel } = require('../lib/model-select');
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
 
 const db = new Firestore({ projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud' });
@@ -65,7 +66,8 @@ Attribute: ${attrs}
 
 async function classifyWithGemini(prompt) {
   const client = await getGeminiClient();
-  const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const modelName = resolveModel(null, 'FILL_MARKETPLACE_CATEGORIES_MODEL', 'gemini-3-pro-preview');
+  const model = client.getGenerativeModel({ model: modelName });
   const resp = await model.generateContent(prompt);
   const text = resp?.response?.text() || '';
   try {

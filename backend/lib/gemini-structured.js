@@ -3,7 +3,7 @@ const { getGeminiClient } = require('./gemini-client');
 const GEMINI_MULTIMODAL_MODEL =
   process.env.GEMINI_MULTIMODAL_MODEL ||
   process.env.GEMINI_STRUCTURED_MODEL ||
-  'gemini-2.5-flash';
+  'gemini-3-pro-preview';
 
 // Keep the schema compatible with Gemini responseSchema constrained decoding.
 // Inspired by the (working) legacy identify pipeline in backend/services/enrichment.js.

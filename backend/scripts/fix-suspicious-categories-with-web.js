@@ -209,7 +209,7 @@ async function fetchWebBlocks(query) {
 
 async function proposeCategoryPathWithGemini({ product, locale, webBlocks }) {
   const client = await getGeminiClient();
-  const modelName = resolveModel(null, 'CATEGORY_FIX_MODEL', 'gemini-2.5-flash');
+  const modelName = resolveModel(null, 'CATEGORY_FIX_MODEL', 'gemini-3-pro-preview');
   const model = client.getGenerativeModel({ model: modelName });
 
   const attrs = product?.details?.attributes && typeof product.details.attributes === 'object' ? product.details.attributes : {};

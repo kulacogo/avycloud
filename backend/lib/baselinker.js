@@ -11,6 +11,7 @@ const {
 } = require('./firestore');
 const { MarketplaceLookup } = require('./marketplace-lookup');
 const { getGeminiClient } = require('../lib/gemini-client');
+const { resolveModel } = require('../lib/model-select');
 const { canonicalizeBaselinkerCategoryPath } = require('./baselinker-category-canonical');
 
 const MIN_IMAGE_EDGE_BASELINKER = parseInt(
@@ -54,7 +55,8 @@ function safeString(value) {
 async function resolveCategoryWithGemini(product, invId) {
   try {
     const client = await getGeminiClient();
-    const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const modelName = resolveModel(null, 'BASELINKER_CATEGORY_MODEL', 'gemini-3-pro-preview');
+    const model = client.getGenerativeModel({ model: modelName });
     const lookup = ensureMarketplaceLookup();
     const isEbay = String(invId) === '85403';
     const isKaufland = String(invId) === '85404';
@@ -2216,6 +2218,254 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
 }
 
 /**
+ * Category-only sync: update ONLY BaseLinker inventory category_id for an existing product.
+ *
+ * This intentionally does NOT update stock/prices/images/text_fields/manufacturer.
+ * It is used when the taxonomy changes and we only need to remap products to the correct inventory category.
+ */
+async function syncProductCategoryOnlyToBaseLinker(product, inventoryId, options = {}) {
+  const invId = String(inventoryId || TARGET_INVENTORY_ID);
+  if (!invId) {
+    const message = 'Inventory ID fehlt';
+    await logInventorySyncEvent({
+      productId: product.id,
+      inventoryId: invId,
+      status: 'failed',
+      message,
+    });
+    return { id: product.id, status: 'failed', message };
+  }
+
+  try {
+    const sku = String(pickStrictSku(product) || pickSku(product) || '').trim();
+    if (!sku) throw new Error('SKU fehlt');
+
+    const legacyCats =
+      product?.details?.baselinkerCategories && typeof product.details.baselinkerCategories === 'object'
+        ? product.details.baselinkerCategories
+        : {};
+    const categoryPath =
+      safeString(product?.details?.baselinkerCategoryPath || '') ||
+      safeString(legacyCats?.['78659'] || '') ||
+      safeString(legacyCats?.['91387'] || '') ||
+      null;
+
+    let numericCategoryId = Number(product?.details?.baselinkerCategoryId || 0);
+    if (!Number.isFinite(numericCategoryId) || numericCategoryId <= 0) {
+      if (!categoryPath) throw new Error('BaseLinker Kategorie fehlt');
+      numericCategoryId = await ensureInventoryCategory(invId, categoryPath, { canonicalize: false });
+    }
+    if (!Number.isFinite(numericCategoryId) || numericCategoryId <= 0) {
+      throw new Error('BaseLinker category_id konnte nicht aufgelöst werden');
+    }
+
+    const normalizedSku = normalizeSkuValue(sku);
+    const normalizedEan = normalizeEanValue(pickEan(product));
+
+    const invKey = String(invId || '').trim();
+    const invOps =
+      product?.ops?.baselinker?.inventories && typeof product.ops.baselinker.inventories === 'object'
+        ? product.ops.baselinker.inventories[invKey]
+        : null;
+    const invLinkedPid = Number(invOps?.product_id || 0);
+    const hasOpsLinkForInventory = Number.isFinite(invLinkedPid) && invLinkedPid > 0;
+
+    let baseProductId = null;
+    let baseProductIdSource = null;
+
+    const forcedPid = Number(process.env.BASELINKER_FORCE_PRODUCT_ID || 0);
+    if (Number.isFinite(forcedPid) && forcedPid > 0) {
+      baseProductId = forcedPid;
+      baseProductIdSource = 'env:BASELINKER_FORCE_PRODUCT_ID';
+    }
+
+    if (!baseProductId && hasOpsLinkForInventory) {
+      baseProductId = invLinkedPid;
+      baseProductIdSource = 'product.ops.inventory';
+    }
+
+    if (!baseProductId) {
+      const linkedRaw =
+        product?.ops?.baselinker?.product_id ??
+        product?.ops?.base_product_id ??
+        null;
+      const linkedPid = Number(linkedRaw);
+      const linkedInv = product?.ops?.baselinker?.synced_inventory ?? null;
+      const legacyMatches =
+        linkedInv && String(linkedInv) === invKey ? true : !linkedInv && invKey === '78659';
+      if (Number.isFinite(linkedPid) && linkedPid > 0 && legacyMatches) {
+        baseProductId = linkedPid;
+        baseProductIdSource = 'product.ops.legacy';
+      }
+    }
+
+    if (!baseProductId) {
+      const allowSkuIndex = invKey === '78659';
+      if (allowSkuIndex) {
+        const indexKeys = [
+          buildSkuIndexKey('sku', normalizedSku),
+          buildSkuIndexKey('ean', normalizedEan),
+        ].filter(Boolean);
+        for (const key of indexKeys) {
+          // eslint-disable-next-line no-await-in-loop
+          const entry = await getSkuIndexEntry(key);
+          const pid = Number(entry?.baseProductId);
+          if (Number.isFinite(pid) && pid > 0) {
+            baseProductId = pid;
+            baseProductIdSource = `sku_index:${key}`;
+            break;
+          }
+        }
+      }
+    }
+
+    let existing = null;
+    let resolvedExisting = false;
+    const resolveExistingProduct = async (identifier) => {
+      if (resolvedExisting || !identifier) return null;
+      resolvedExisting = true;
+      existing = await findProductBySku(invId, identifier);
+      if (!existing?.product_id && normalizedEan) {
+        existing = await findProductBySku(invId, normalizedEan);
+      }
+      return existing;
+    };
+
+    if (!baseProductId && (normalizedSku || normalizedEan)) {
+      await resolveExistingProduct(normalizedSku || normalizedEan);
+      if (existing?.product_id) {
+        baseProductId = existing.product_id;
+        baseProductIdSource = 'baselinker_lookup';
+      }
+    }
+
+    const allowCreateIfStaleLinked =
+      (options?.allowCreateIfStaleLinked ??
+        process.env.BASELINKER_ALLOW_CREATE_IF_STALE_LINKED ??
+        'false')
+        .toString()
+        .toLowerCase() === 'true';
+
+    if (!baseProductId) {
+      // Category-only sync must never create new products (would risk duplicates).
+      // Allow recreate only when operator explicitly enables it AND we had a linkage before.
+      if (!(hasOpsLinkForInventory && allowCreateIfStaleLinked)) {
+        throw new Error(`BaseLinker product_id konnte nicht aufgelöst werden (sku=${sku}). Category-only Sync abgebrochen.`);
+      }
+      baseProductId = 0;
+      baseProductIdSource = 'recreate_after_stale';
+    }
+
+    const buildRequest = (pid) => ({
+      inventory_id: invId,
+      product_id: Number(pid) || 0,
+      category_id: Number(numericCategoryId) || 0,
+      channel_mapping_enable: true,
+      // Include SKU for safety (BaseLinker accepts partial updates; we avoid touching other fields).
+      sku,
+    });
+
+    const trySync = async (pid) => {
+      const requestPayload = buildRequest(pid);
+      const result = await callBaseLinker('addInventoryProduct', requestPayload);
+      return { pid, result };
+    };
+
+    let lastError = null;
+    let syncAttempt = await trySync(baseProductId);
+    if (syncAttempt?.result?.status !== 'SUCCESS') {
+      const msg = syncAttempt?.result?.error_message || 'BaseLinker returned error';
+      lastError = msg;
+
+      // If the linked product_id is stale, retry once by re-resolving via SKU/EAN.
+      if (/ERROR_PRODUCT_ID/i.test(msg) || /No product with ID/i.test(msg)) {
+        let retryPid = null;
+        let retrySource = null;
+        try {
+          if (!existing) {
+            await resolveExistingProduct(normalizedSku || normalizedEan);
+          }
+          const foundPid = Number(existing?.product_id || 0);
+          if (Number.isFinite(foundPid) && foundPid > 0 && foundPid !== baseProductId) {
+            retryPid = foundPid;
+            retrySource = 'baselinker_lookup_after_stale';
+          }
+        } catch {
+          // ignore
+        }
+
+        if (!retryPid && hasOpsLinkForInventory && allowCreateIfStaleLinked) {
+          retryPid = 0;
+          retrySource = 'recreate_after_error_product_id';
+        }
+
+        if (retryPid !== null) {
+          baseProductId = retryPid;
+          baseProductIdSource = retrySource || baseProductIdSource;
+          syncAttempt = await trySync(baseProductId);
+        }
+      }
+    }
+
+    if (syncAttempt?.result?.status !== 'SUCCESS') {
+      const msg2 = syncAttempt?.result?.error_message || lastError || 'BaseLinker returned error';
+      throw new Error(msg2);
+    }
+
+    // If we recreated a product (pid=0), BaseLinker returns the new product_id.
+    const returnedPid = Number(syncAttempt?.result?.product_id || 0);
+    if (Number.isFinite(returnedPid) && returnedPid > 0) {
+      baseProductId = returnedPid;
+    }
+
+    const syncTimestamp = new Date().toISOString();
+    try {
+      await updateProductSyncStatus(product.id, 'synced', syncTimestamp, baseProductId, invId);
+    } catch (updateError) {
+      console.warn('updateProductSyncStatus failed (non-blocking):', updateError.message);
+    }
+
+    if (baseProductId && invKey === '78659') {
+      const indexPayload = {
+        baseProductId,
+        productId: product.id,
+        sku: sku || null,
+        ean: pickEan(product) || null,
+        updatedAt: syncTimestamp,
+      };
+      const indexKeys = [
+        buildSkuIndexKey('sku', normalizedSku),
+        buildSkuIndexKey('ean', normalizedEan),
+      ].filter(Boolean);
+      await Promise.all(indexKeys.map((key) => setSkuIndexEntry(key, indexPayload)));
+    }
+
+    await logInventorySyncEvent({
+      productId: product.id,
+      inventoryId: invId,
+      status: 'synced',
+      message: `category_only synced (pid=${baseProductId}, source=${baseProductIdSource || 'unknown'})`,
+    });
+
+    return {
+      id: product.id,
+      status: 'synced',
+      message: 'Synced (category only)',
+      baseProductId,
+      baseProductIdSource,
+    };
+  } catch (e) {
+    await logInventorySyncEvent({
+      productId: product.id,
+      inventoryId: invId,
+      status: 'failed',
+      message: e.message,
+    });
+    return { id: product.id, status: 'failed', message: e.message };
+  }
+}
+
+/**
  * Text-only sync: update only BaseLinker `text_fields` (title/description/highlights/features/GPSR/K-Typ extra field),
  * without touching stock/prices/images/categories.
  *
@@ -2502,6 +2752,8 @@ async function syncProductsToBaseLinker(products, inventoryId, options = {}) {
   const syncOne =
     mode === 'text_only'
       ? syncProductTextOnlyToBaseLinker
+      : mode === 'category_only'
+        ? syncProductCategoryOnlyToBaseLinker
       : mode === 'params_only'
         ? syncProductParamsOnlyToBaseLinker
         : syncProductToBaseLinker;

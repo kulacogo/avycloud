@@ -390,7 +390,7 @@ function buildCandidateShortlist({ productText, evidenceText }, { limit = 60 } =
 
 async function chooseCategoryWithGemini({ locale, productSnapshot, evidenceText, candidates }) {
   const client = await getGeminiClient();
-  const modelName = resolveModel(null, 'CATEGORY_SUGGEST_MODEL', 'gemini-2.5-flash');
+  const modelName = resolveModel(null, 'CATEGORY_SUGGEST_MODEL', 'gemini-3-pro-preview');
   const model = client.getGenerativeModel({ model: modelName });
 
   const candidateList = candidates.map((c, idx) => ({
