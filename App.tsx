@@ -892,13 +892,13 @@ const AppInner: React.FC = () => {
   // Warehouse workflows (pick/pack/stow/identify) are single-task screens.
   // Hide the global mobile tab bar there to avoid mis-taps and to reserve space for large primary actions.
   const hideMobileTabBar = isMobile && view.startsWith('operations-');
-  const mobilePaddingBottomClass = hideMobileTabBar ? 'pb-6' : 'pb-28';
+  const safeAreaClass = hideMobileTabBar ? 'safe-area-bottom' : 'safe-area-content';
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 font-sans flex flex-col">
       <Header currentView={view} setView={setView} theme={theme} onToggleTheme={toggleTheme} />
       <main
-        className={`flex-1 w-full px-4 sm:px-6 lg:px-10 xl:px-16 py-4 safe-area-content ${mobilePaddingBottomClass} sm:pb-6`}
+        className={`flex-1 w-full px-4 sm:px-6 lg:px-10 xl:px-16 py-4 ${safeAreaClass}`}
       >
         {productsError && (
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-rose-800 bg-rose-900/50 px-4 py-3 text-sm text-rose-50">
