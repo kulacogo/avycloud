@@ -1810,6 +1810,13 @@ async function saveProduct(product, options = {}) {
       Boolean(incomingZustand) &&
       normalizeZustand(incomingZustand) !== normalizeZustand(existingZustand);
 
+    // Ops must be initialized before any guardrails write into ops.data_quality.
+    // (Bugfix: mergedOps was previously used before initialization → ReferenceError during saves.)
+    const mergedOps = {
+      ...(existingData?.ops || {}),
+      ...(product?.ops || {}),
+    };
+
     // Merge pricing with guard (do not drop existing valid price, never accept placeholder prices).
     const existingPrice = existingDetails?.pricing?.lowest_price;
     const incomingPrice = incomingDetails?.pricing?.lowest_price;
@@ -1893,11 +1900,6 @@ async function saveProduct(product, options = {}) {
         mergedIdentification.brand = normalizedBrand;
       }
     }
-
-    const mergedOps = {
-      ...(existingData?.ops || {}),
-      ...(product?.ops || {}),
-    };
     // Preserve existing lock; set it only when the UI explicitly changes Zustand.
     if (shouldLockCondition) {
       mergedOps.condition_locked = true;

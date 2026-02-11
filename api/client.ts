@@ -1531,11 +1531,15 @@ export const saveProduct = async (product: Product): Promise<{ ok: boolean; data
     const result = await parseResponse(response);
 
     if (!response.ok) {
-      const errorInfo = {
-        code: response.status,
-        message: result?.error?.message || response.statusText || `Request failed with status ${response.status}`
+      const message = result?.error?.message || response.statusText || `Request failed with status ${response.status}`;
+      const details = result?.error?.details;
+      return {
+        ok: false,
+        error: {
+          code: response.status,
+          message: details ? `${message} (${String(details)})` : message,
+        },
       };
-      return { ok: false, error: errorInfo };
     }
 
     return result || { ok: true, data: { id: product.id, revision: 1 } };
