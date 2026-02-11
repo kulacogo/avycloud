@@ -3189,6 +3189,7 @@ app.post('/api/generate-images', async (req, res) => {
 const {
   syncProductToBaseLinker,
   syncProductsToBaseLinker,
+  callBaseLinker,
   findProductsBySkus,
   getInventoryProductLinksSummary,
 } = require('./lib/baselinker');
@@ -5080,6 +5081,108 @@ app.get('/api/orders', requirePermission('orders', 'read'), async (req, res) => 
   }
 });
 
+// --- Dashboard helpers: BaseLinker order returns (for returns KPIs + net revenue) ---
+const ORDER_RETURNS_CACHE_TTL_MS = parseInt(process.env.ORDER_RETURNS_CACHE_TTL_MS || String(5 * 60 * 1000), 10);
+const ORDER_RETURNS_MAX_PAGES = parseInt(process.env.ORDER_RETURNS_MAX_PAGES || '50', 10);
+const ORDER_RETURNS_MAX_ITEMS = parseInt(process.env.ORDER_RETURNS_MAX_ITEMS || '5000', 10);
+let ORDER_RETURNS_CACHE = {
+  atMs: 0,
+  dateFromUnix: 0,
+  returns: [],
+};
+
+function computeOrderReturnValueBrutto(returnEntry = {}) {
+  const products = Array.isArray(returnEntry?.products) ? returnEntry.products : [];
+  const value = products.reduce((sum, p) => {
+    const price = Number(p?.price_brutto || 0) || 0;
+    const qty = Number(p?.quantity || 0) || 0;
+    return sum + price * qty;
+  }, 0);
+  const currency = (returnEntry?.currency || '').toString().trim().toUpperCase() || 'EUR';
+  const createdAt = returnEntry?.date_add ? new Date(Number(returnEntry.date_add) * 1000) : null;
+  return { currency, value: Number(value) || 0, createdAt };
+}
+
+async function loadOrderReturnsSince(dateFromUnix, { timeoutMs = 20_000 } = {}) {
+  const now = Date.now();
+  if (
+    ORDER_RETURNS_CACHE.returns?.length &&
+    ORDER_RETURNS_CACHE.dateFromUnix === dateFromUnix &&
+    ORDER_RETURNS_CACHE.atMs &&
+    now - ORDER_RETURNS_CACHE.atMs < ORDER_RETURNS_CACHE_TTL_MS
+  ) {
+    return ORDER_RETURNS_CACHE.returns;
+  }
+
+  const out = [];
+  const seen = new Set();
+  let idFrom = null;
+
+  for (let page = 0; page < ORDER_RETURNS_MAX_PAGES; page += 1) {
+    const params = {
+      date_from: dateFromUnix,
+      ...(idFrom ? { id_from: idFrom } : {}),
+      include_custom_extra_fields: false,
+      include_connect_data: false,
+    };
+    const response = await callBaseLinker('getOrderReturns', params, { timeoutMs, retries: 2 });
+    const batch = Array.isArray(response?.returns) ? response.returns : [];
+    if (!batch.length) break;
+
+    let maxId = 0;
+    for (const entry of batch) {
+      const rid = entry?.return_id != null ? String(entry.return_id) : '';
+      const n = Number(entry?.return_id || 0) || 0;
+      if (n > maxId) maxId = n;
+      if (!rid || seen.has(rid)) continue;
+      seen.add(rid);
+      out.push(entry);
+      if (out.length >= ORDER_RETURNS_MAX_ITEMS) break;
+    }
+
+    if (out.length >= ORDER_RETURNS_MAX_ITEMS) break;
+    if (batch.length < 100) break; // docs: max 100 per call
+    if (!maxId) break;
+    idFrom = maxId + 1;
+  }
+
+  ORDER_RETURNS_CACHE = { atMs: Date.now(), dateFromUnix, returns: out };
+  return out;
+}
+
+function computeOrderReturnsStats(returnsList, { rangeStart, rangeEndExclusive, monthStart } = {}) {
+  const totals = { count: 0, valueByCurrency: new Map() };
+  const month = { count: 0, valueByCurrency: new Map() };
+  const window = { count: 0, valueByCurrency: new Map() };
+
+  const add = (bucket, currency, amount) => {
+    bucket.valueByCurrency.set(currency, (bucket.valueByCurrency.get(currency) || 0) + (Number(amount) || 0));
+  };
+
+  (returnsList || []).forEach((entry) => {
+    const { currency, value, createdAt } = computeOrderReturnValueBrutto(entry);
+    totals.count += 1;
+    add(totals, currency, value);
+
+    if (createdAt && monthStart && createdAt >= monthStart) {
+      month.count += 1;
+      add(month, currency, value);
+    }
+
+    if (createdAt && rangeStart && rangeEndExclusive && createdAt >= rangeStart && createdAt < rangeEndExclusive) {
+      window.count += 1;
+      add(window, currency, value);
+    }
+  });
+
+  const mapToObject = (m) => Object.fromEntries(Array.from(m.entries()).map(([k, v]) => [k, Number((v || 0).toFixed(2))]));
+  return {
+    total: { count: totals.count, value_by_currency: mapToObject(totals.valueByCurrency) },
+    month: { count: month.count, value_by_currency: mapToObject(month.valueByCurrency) },
+    window: { count: window.count, value_by_currency: mapToObject(window.valueByCurrency) },
+  };
+}
+
 app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async (req, res) => {
   try {
     const days = Math.min(Math.max(parseInt(req.query?.days || '7', 10) || 7, 1), 60);
@@ -5092,6 +5195,42 @@ app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async 
       // ignore
     }
     const metrics = await getDashboardMetrics({ days, preset });
+
+    // Pull BaseLinker returns and incorporate them into KPIs (net revenue + returns counts).
+    // Official docs: https://api.baselinker.com/index.php?method=getOrderReturns
+    try {
+      const lookbackDays = parseInt(process.env.ORDER_SYNC_LOOKBACK_DAYS || '60', 10);
+      const fromUnix = Math.floor(Date.now() / 1000) - Math.max(1, lookbackDays) * 24 * 60 * 60;
+      const returnsList = await loadOrderReturnsSince(fromUnix, { timeoutMs: 20_000 });
+
+      const rangeStart = metrics?.range?.from_iso ? new Date(metrics.range.from_iso) : null;
+      const rangeEndExclusive = metrics?.range?.to_iso ? new Date(metrics.range.to_iso) : null;
+      const monthStart = metrics?.revenue?.month_start_iso ? new Date(metrics.revenue.month_start_iso) : null;
+      const stats = computeOrderReturnsStats(returnsList, { rangeStart, rangeEndExclusive, monthStart });
+
+      if (metrics?.orders) {
+        metrics.orders.returns_total = stats.total.count;
+        metrics.orders.returns_month = stats.month.count;
+      }
+
+      const cur = (metrics?.currency || 'EUR').toString().trim().toUpperCase() || 'EUR';
+      const returnsTotalValue = Number(stats.total.value_by_currency?.[cur] || 0) || 0;
+      const returnsWindowValue = Number(stats.window.value_by_currency?.[cur] || 0) || 0;
+
+      if (metrics?.revenue) {
+        if (typeof metrics.revenue.all_non_cancelled_total === 'number') {
+          metrics.revenue.all_non_cancelled_total = Number((metrics.revenue.all_non_cancelled_total - returnsTotalValue).toFixed(2));
+        }
+        if (typeof metrics.revenue.window_non_cancelled_total === 'number') {
+          metrics.revenue.window_non_cancelled_total = Number((metrics.revenue.window_non_cancelled_total - returnsWindowValue).toFixed(2));
+        }
+      }
+
+      // Optional diagnostic payload (safe, small): return value breakdown for the UI if needed later.
+      metrics.returns = stats;
+    } catch (err) {
+      console.warn('Dashboard returns enrichment failed (falling back to order-status heuristics):', err?.message || err);
+    }
     res.setHeader('Cache-Control', 'no-store');
     res.json({ ok: true, data: metrics });
   } catch (error) {

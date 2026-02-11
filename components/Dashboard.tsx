@@ -113,7 +113,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const orderMetrics = useMemo(() => {
     const breakdown = metrics?.orders?.status_breakdown || null;
     const chartDays = metrics?.volume_7d?.days || [];
-    const bucket = metrics?.range?.bucket === 'month' ? 'month' : 'day';
+    const bucket = metrics?.range?.bucket || 'day';
     const chartCount = chartDays.length;
     const maxChartCount = Math.max(1, ...chartDays.map((d) => Number(d?.orders || 0) || 0));
     const chart = chartDays.map((d) => {
@@ -122,6 +122,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
           const dt = new Date(d.date);
           if (bucket === 'month') {
             return dt.toLocaleDateString('de-DE', { month: 'short' });
+          }
+          if (bucket === 'week') {
+            return dt.toLocaleDateString('de-DE', { day: '2-digit' });
+          }
+          if (bucket === 'hour') {
+            return dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
           }
           if (chartCount <= 14) {
             return dt.toLocaleDateString('de-DE', { weekday: 'short' });
@@ -166,6 +172,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     totalProducts,
     totalStocked,
     unsavedCount,
+    savedCount,
     savedPercentage,
     syncCounts,
     inventoryQuantity,
@@ -179,6 +186,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const totalInStock = stockedProducts.length;
     const unsaved = allProducts.filter((p) => !p.ops?.last_saved_iso).length;
     const savedPct = total === 0 ? 0 : Math.round(((total - unsaved) / total) * 100);
+    const saved = Math.max(0, total - unsaved);
     const syncBuckets = { synced: 0, pending: 0, failed: 0 };
     let physicalQty = 0;
     let reservedQty = 0;
@@ -224,6 +232,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       totalProducts: total,
       totalStocked: totalInStock,
       unsavedCount: unsaved,
+      savedCount: saved,
       savedPercentage: savedPct,
       syncCounts: syncBuckets,
       inventoryQuantity: availableQty,
@@ -285,12 +294,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <DashboardCard
           label="Inventar (mit Bestand)"
           value={totalStocked.toString()}
-          sublabel={`${inventoryQuantity} verfügbar · physisch ${inventoryPhysicalQuantity}`}
         />
         <DashboardCard
           label="Bestandseinheiten (verfügbar)"
           value={inventoryQuantity.toString()}
-          sublabel={`physisch ${inventoryPhysicalQuantity} · reserviert ${inventoryReservedQuantity}`}
         />
         <DashboardCard
           label="Bestandswert (verfügbar)"
@@ -306,8 +313,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         />
         <DashboardCard
           label="Gespeicherte Produkte"
-          value={`${savedPercentage}%`}
-          sublabel={`${totalProducts - unsavedCount} gespeichert`}
+          value={`${savedCount}`}
+          sublabel={totalProducts ? `von ${totalProducts}` : undefined}
         />
       </div>
 
@@ -367,8 +374,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
           {metricsLoading ? (
             <p className="text-sm text-slate-400">Synchronisiere Diagramm …</p>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="grid grid-flow-col auto-cols-[72px] gap-3 min-w-max pr-2">
+            <div>
+              <div
+                className="grid gap-3 items-end"
+                style={{
+                  gridTemplateColumns: `repeat(${Math.max(1, orderMetrics.chart.length)}, minmax(0, 1fr))`,
+                }}
+              >
                 {orderMetrics.chart.map((day) => (
                   <div key={day.key} className="flex flex-col items-center gap-2">
                     <div className="w-full h-24 bg-slate-900 rounded-full overflow-hidden flex items-end">

@@ -367,7 +367,10 @@ export interface Order {
 }
 
 export interface DashboardMetricsDay {
-  date: string; // YYYY-MM-DD (UTC)
+  // Bucket start (UTC). Format depends on bucket type:
+  // - day/week/month: YYYY-MM-DD
+  // - hour: full ISO timestamp (e.g. 2026-02-11T08:00:00.000Z)
+  date: string;
   orders: number;
   revenue: number;
 }
@@ -379,7 +382,9 @@ export interface DashboardMetrics {
     label?: string;
     from_iso?: string;
     to_iso?: string;
-    bucket?: 'day' | 'month';
+    bucket?: 'hour' | 'day' | 'week' | 'month';
+    bucket_step_hours?: number;
+    bucket_step_days?: number;
     days?: number;
     buckets?: number;
   };

@@ -498,8 +498,13 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
             <div className="flex items-center justify-between mb-2">
               <p className="text-[11px] text-slate-500">{activeRangeLabel}</p>
             </div>
-            <div className="overflow-x-auto">
-              <div className="grid grid-flow-col auto-cols-[44px] gap-2 items-end h-20 min-w-max pr-2">
+            <div>
+              <div
+                className="grid gap-2 items-end h-20"
+                style={{
+                  gridTemplateColumns: `repeat(${Math.max(1, volume7d.length)}, minmax(0, 1fr))`,
+                }}
+              >
                 {volume7d.length ? (
                   volume7d.map((d) => {
                     const count = Number(d.orders || 0) || 0;

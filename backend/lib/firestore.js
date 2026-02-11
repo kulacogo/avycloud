@@ -2979,18 +2979,39 @@ async function getDashboardMetrics({ days = 7, preset = null } = {}) {
     Math.floor((endInclusiveDay.getTime() - startDay.getTime()) / (24 * 60 * 60 * 1000)) + 1
   );
 
-  // Build the chart series:
-  // - Up to 60 days: daily buckets (YYYY-MM-DD)
-  // - Otherwise: monthly buckets (YYYY-MM-01)
+  // Build the chart series buckets (date keys are bucket starts).
+  //
+  // Design goals (see front-end chart rendering):
+  // - today: hour buckets for intra-day ops
+  // - last7: daily buckets (7 bars)
+  // - month presets: weekly buckets to keep the chart readable without horizontal scrolling
+  // - year presets: monthly buckets
+  //
+  // NOTE: We keep stable/complete buckets even if the range ends mid-bucket;
+  // future buckets naturally stay 0 because we filter by rangeEndExclusive.
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
   let bucket = 'day';
+  let bucketStepHours = null;
+  let bucketStepDays = null;
   const seriesArr = [];
-  if (rangeDays <= 60) {
-    for (let i = 0; i < rangeDays; i += 1) {
+
+  if (canonicalPreset === 'today') {
+    bucket = 'hour';
+    bucketStepHours = 2; // 2h buckets => 12 bars
+    for (let h = 0; h < 24; h += bucketStepHours) {
+      const d = new Date(Date.UTC(startDay.getUTCFullYear(), startDay.getUTCMonth(), startDay.getUTCDate(), h, 0, 0));
+      seriesArr.push({ date: d.toISOString(), orders: 0, revenue: 0 });
+    }
+  } else if (canonicalPreset === 'month_to_date' || canonicalPreset === 'last_month') {
+    bucket = 'week';
+    bucketStepDays = 7;
+    const weeks = Math.max(1, Math.ceil(rangeDays / bucketStepDays));
+    for (let i = 0; i < weeks; i += 1) {
       const d = new Date(startDay);
-      d.setUTCDate(startDay.getUTCDate() + i);
+      d.setUTCDate(startDay.getUTCDate() + i * bucketStepDays);
       seriesArr.push({ date: d.toISOString().slice(0, 10), orders: 0, revenue: 0 });
     }
-  } else {
+  } else if (canonicalPreset === 'year_to_date' || canonicalPreset === 'last_year' || rangeDays > 60) {
     bucket = 'month';
     const mStart = utcMonthStart(startDay);
     const mEnd = utcMonthStart(endInclusiveDay);
@@ -2998,6 +3019,13 @@ async function getDashboardMetrics({ days = 7, preset = null } = {}) {
     while (cursor.getTime() <= mEnd.getTime()) {
       seriesArr.push({ date: cursor.toISOString().slice(0, 10), orders: 0, revenue: 0 });
       cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+  } else {
+    bucket = 'day';
+    for (let i = 0; i < rangeDays; i += 1) {
+      const d = new Date(startDay);
+      d.setUTCDate(startDay.getUTCDate() + i);
+      seriesArr.push({ date: d.toISOString().slice(0, 10), orders: 0, revenue: 0 });
     }
   }
   const seriesIndex = new Map(seriesArr.map((d, idx) => [d.date, idx]));
@@ -3131,10 +3159,27 @@ async function getDashboardMetrics({ days = 7, preset = null } = {}) {
 
     // Volume + revenue within selected range (based on order creation date).
     if (createdAt >= rangeStart && createdAt < rangeEndExclusive) {
-      const dk =
-        bucket === 'month'
-          ? `${createdAt.getUTCFullYear()}-${String(createdAt.getUTCMonth() + 1).padStart(2, '0')}-01`
-          : createdAt.toISOString().slice(0, 10);
+      let dk = null;
+      if (bucket === 'month') {
+        dk = `${createdAt.getUTCFullYear()}-${String(createdAt.getUTCMonth() + 1).padStart(2, '0')}-01`;
+      } else if (bucket === 'week') {
+        const dayStartAt = utcDayStart(createdAt);
+        const diffDays = Math.floor((dayStartAt.getTime() - startDay.getTime()) / MS_PER_DAY);
+        const idx = Math.max(0, Math.floor(diffDays / 7));
+        const d = new Date(startDay);
+        d.setUTCDate(startDay.getUTCDate() + idx * 7);
+        dk = d.toISOString().slice(0, 10);
+      } else if (bucket === 'hour') {
+        const step = Number(bucketStepHours) || 1;
+        const hour = createdAt.getUTCHours();
+        const bucketHour = Math.floor(hour / step) * step;
+        const d = new Date(
+          Date.UTC(createdAt.getUTCFullYear(), createdAt.getUTCMonth(), createdAt.getUTCDate(), bucketHour, 0, 0)
+        );
+        dk = d.toISOString();
+      } else {
+        dk = createdAt.toISOString().slice(0, 10);
+      }
       if (dk && seriesIndex.has(dk)) {
         const idx = seriesIndex.get(dk);
         seriesArr[idx].orders += 1;
@@ -3184,6 +3229,8 @@ async function getDashboardMetrics({ days = 7, preset = null } = {}) {
       from_iso: rangeStart.toISOString(),
       to_iso: rangeEndExclusive.toISOString(),
       bucket,
+      ...(bucketStepHours ? { bucket_step_hours: bucketStepHours } : {}),
+      ...(bucketStepDays ? { bucket_step_days: bucketStepDays } : {}),
       days: rangeDays,
       buckets: seriesArr.length,
     },
