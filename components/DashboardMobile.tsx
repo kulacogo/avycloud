@@ -405,7 +405,6 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         >
           <p className="text-xs uppercase tracking-wide opacity-90">{t('ops.mode.identify')}</p>
           <p className="text-2xl font-semibold mt-1">{t('mobile.dashboard.action.identify')}</p>
-          <p className="text-xs opacity-90 mt-1">{t('ops.mode.identify.subtitle')}</p>
         </button>
       </div>
 
@@ -425,11 +424,6 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
             label={t('mobile.dashboard.kpi.value')}
             value={formatCurrency(summary.value, 'EUR')}
             sub={t('mobile.dashboard.kpi.valueSub', { count: summary.synced })}
-          />
-          <StatCard
-            label={t('mobile.dashboard.kpi.sync')}
-            value={`${summary.pending}`}
-            sub={t('mobile.dashboard.kpi.syncSub', { count: summary.synced })}
           />
         </div>
       )}
