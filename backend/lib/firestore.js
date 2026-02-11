@@ -1825,6 +1825,12 @@ async function saveProduct(product, options = {}) {
     const incomingAmount = normalizeAmount(incomingPrice?.amount);
     const existingSources = Array.isArray(existingPrice?.sources) ? existingPrice.sources.filter(Boolean) : [];
     const incomingSources = Array.isArray(incomingPrice?.sources) ? incomingPrice.sources.filter(Boolean) : [];
+    const isManualSource = (src) => {
+      const url = typeof src?.url === 'string' ? src.url.trim() : '';
+      return url.startsWith('manual://');
+    };
+    const existingIsManual = existingSources.some(isManualSource);
+    const incomingIsManual = incomingSources.some(isManualSource);
     const incomingHasEvidence = incomingSources.some((s) => s && typeof s.url === 'string' && s.url.trim());
 
     // "Absurd" is relational, but we enforce hard best-practice invariants:
@@ -1855,7 +1861,20 @@ async function saveProduct(product, options = {}) {
     };
     const allowManualPriceOverride = Boolean(isManualSave);
 
-    if (existingValid && (!incomingValid || (!allowManualPriceOverride && largeDelta && incomingWeakEvidence))) {
+    // If a human explicitly set a manual price, automated pipelines must not override it.
+    // This prevents scheduled price refresh jobs from "snapping back" the selling price.
+    if (!isManualSave && existingValid && existingIsManual && incomingValid && !incomingIsManual) {
+      mergedPricing.lowest_price = existingPrice;
+      mergedOps.data_quality = mergedOps.data_quality || {};
+      mergedOps.data_quality.price_rejected_v1 = {
+        at_iso: new Date().toISOString(),
+        source: saveSource || (isManualSave ? 'ui' : 'system'),
+        existing_amount: existingAmount,
+        incoming_amount: Number.isFinite(incomingAmount) ? incomingAmount : null,
+        incoming_sources: incomingSources.slice(0, 3).map((s) => ({ name: s?.name || '', url: s?.url || '' })),
+        reason: 'manual_price_locked',
+      };
+    } else if (existingValid && (!incomingValid || (!allowManualPriceOverride && largeDelta && incomingWeakEvidence))) {
       mergedPricing.lowest_price = existingPrice;
       // Track rejected overwrite attempts for debugging (best-effort; do not block save).
       mergedOps.data_quality = mergedOps.data_quality || {};
