@@ -759,14 +759,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   if (mode === 'operations-identify') {
     return (
       <div className="space-y-4 max-w-xl mx-auto">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => onNavigate('operations')}
-            className="h-11 rounded-xl bg-slate-800/70 border border-slate-700 px-3 text-sm font-semibold text-white"
-          >
-            ← {t('common.back')}
-          </button>
+        <div className="flex items-center justify-end gap-2">
           <button
             type="button"
             className="h-11 rounded-xl bg-slate-800/70 text-white px-3 text-sm font-semibold border border-slate-700"
@@ -775,7 +768,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             + {t('common.add')}
           </button>
         </div>
-        <SectionTitle title={t('ops.mode.identify')} desc={t('ops.mode.identify.subtitle')} />
+        <SectionTitle title={t('ops.mode.identify')} />
         <div className="grid grid-cols-1 gap-3">
           {identifySlots.map((slot) => (
             <div key={slot} className="rounded-2xl border border-dashed border-white/15 bg-slate-800/70 p-4 space-y-3">
@@ -876,9 +869,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             </div>
           ))}
         </div>
-        <p className="text-xs text-slate-400">
-          {t('ops.mobile.identify.hint')}
-        </p>
       </div>
     );
   }
@@ -887,20 +877,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     const showKeypad = Boolean(stowSku && stowBin);
     return (
       <div className="space-y-3 max-w-xl mx-auto">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => onNavigate('operations')}
-            className="h-11 rounded-xl bg-slate-800/70 border border-slate-700 px-3 text-sm font-semibold text-white"
-          >
-            ← {t('common.back')}
-          </button>
-        </div>
-        <SectionTitle title={t('ops.mode.stow')} desc={t('ops.mode.stow.subtitle')} />
+        <SectionTitle title={t('ops.mode.stow')} />
         <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
-          <p className="text-xs text-slate-300">
-            {t('ops.mobile.stow.flowHelp')}
-          </p>
           {stowMessage && <p className="text-xs text-emerald-300">{stowMessage}</p>}
           <div className="grid grid-cols-2 gap-2 text-sm text-slate-200">
             <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
@@ -1039,28 +1017,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
     return (
       <div className="max-w-xl mx-auto flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => onNavigate('operations')}
-            className="h-11 rounded-xl bg-slate-800/70 border border-slate-700 px-3 text-sm font-semibold text-white"
-          >
-            ← {t('common.back')}
-          </button>
-          <button
-            type="button"
-            onClick={() => refreshOrders()}
-            disabled={ordersLoading}
-            className="h-11 rounded-xl bg-slate-800/70 border border-slate-700 px-3 text-sm font-semibold text-white disabled:opacity-40"
-          >
-            ↻ {t('error.reload')}
-          </button>
-        </div>
-
         <div className="flex items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold text-white">{t('ops.mode.pick')}</h2>
-            <p className="text-sm text-slate-400">{t('ops.mode.pick.subtitle')}</p>
           </div>
           <div className="text-right text-xs text-slate-400">
             <p className="font-semibold text-slate-200 tabular-nums">{pickTasks.length}</p>
@@ -1254,16 +1213,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           </details>
         ) : null}
 
-        <details className="rounded-2xl border border-white/10 bg-slate-800/40 p-3">
-          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-sm font-semibold text-slate-100 flex items-center justify-between">
-            <span>{t('ops.mobile.help')}</span>
-            <span className="text-slate-400">▾</span>
-          </summary>
-          <p className="mt-3 text-xs text-slate-300">{t('ops.mobile.pick.flowHelp')}</p>
-        </details>
-
         {pendingPick ? (
-          <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-4 bg-slate-950/90 backdrop-blur border-t border-white/10">
+          <div className="sticky bottom-24 -mx-4 px-4 pt-3 pb-4 bg-slate-950/90 backdrop-blur border-t border-white/10">
             {(() => {
               const maxAllowed =
                 typeof pendingPick.availableInBin === 'number'
@@ -1366,16 +1317,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   if (mode === 'operations-pack') {
     return (
       <div className="space-y-3 max-w-xl mx-auto">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => onNavigate('operations')}
-            className="h-11 rounded-xl bg-slate-800/70 border border-slate-700 px-3 text-sm font-semibold text-white"
-          >
-            ← {t('common.back')}
-          </button>
-        </div>
-        <SectionTitle title={t('ops.mode.pack')} desc={t('ops.mode.pack.subtitle')} />
+        <SectionTitle title={t('ops.mode.pack')} />
         {packMessage ? (
           <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-3 text-sm text-slate-200">
             {packMessage}
