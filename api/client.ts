@@ -128,16 +128,36 @@ const fetchApi = async (input: RequestInfo | URL, init: RequestInit = {}) => {
 };
 
 const openAuthedUrlInNewTab = (url: string, opts?: { timeoutMs?: number }) => {
-  // IMPORTANT: include noreferrer for Safari/Chromium edge cases where 'noopener' alone may behave inconsistently.
-  const popup = window.open('about:blank', '_blank', 'noopener,noreferrer');
+  // IMPORTANT:
+  // We must keep a window handle to later assign popup.location.href to a Blob URL.
+  // Per MDN, using `noopener` in windowFeatures may cause window.open() to return null
+  // even when a new tab/window is successfully opened.
+  // https://developer.mozilla.org/en-US/docs/Web/API/Window/open#noopener
+  //
+  // Security: we still prevent reverse-tabnabbing by nulling opener immediately.
+  const popup = window.open('about:blank', '_blank');
   if (!popup) {
     return { ok: false, error: { code: 0, message: 'Popup wurde blockiert. Bitte Popups erlauben.' } };
+  }
+  try {
+    // Best-effort: prevent the opened context from being able to navigate the opener.
+    // (Equivalent intent to rel=noopener.)
+    popup.opener = null;
+  } catch {
+    // ignore
   }
 
   (async () => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), opts?.timeoutMs || 25000);
     try {
+      try {
+        popup.document.title = 'AvyCloud';
+        popup.document.body.innerHTML =
+          '<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:16px;color:#111;">Lade…</div>';
+      } catch {
+        // ignore
+      }
       const res = await fetchApi(url, { method: 'GET', signal: controller.signal });
       if (!res.ok) {
         const body = await res.text().catch(() => '');
