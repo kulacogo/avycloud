@@ -103,10 +103,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [ordersLastOkIso, setOrdersLastOkIso] = useState<string | null>(null);
   const [activeBin, setActiveBin] = useState('');
   const [activeSku, setActiveSku] = useState('');
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [pickMessage, setPickMessage] = useState<string | null>(null);
+  const [pickMessageTone, setPickMessageTone] = useState<'info' | 'success' | 'error' | null>(null);
   const [packMessage, setPackMessage] = useState<string | null>(null);
   // Mobile pick progress (supports partial picks across bins)
   const [pickedByItemId, setPickedByItemId] = useState<Record<string, number>>({});
@@ -180,6 +183,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     async (isCancelled?: () => boolean) => {
       if (isCancelled?.()) return;
       setOrdersLoading(true);
+      setOrdersError(null);
       try {
         try {
           await syncOrdersApi({ timeoutMs: 20000 });
@@ -187,14 +191,20 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           console.warn('Order sync failed (will still fetch)', err);
         }
         const data = await fetchOrdersApi(100, { timeoutMs: 20000 });
-        if (!isCancelled?.() && !isUnmountedRef.current) setOrders(dedupeOrders(data || []));
+        if (!isCancelled?.() && !isUnmountedRef.current) {
+          setOrders(dedupeOrders(data || []));
+          setOrdersLastOkIso(new Date().toISOString());
+        }
       } catch (err) {
         console.warn('Failed to load orders', err);
+        if (!isCancelled?.() && !isUnmountedRef.current) {
+          setOrdersError((err as any)?.message || t('common.unknownError'));
+        }
       } finally {
         if (!isCancelled?.() && !isUnmountedRef.current) setOrdersLoading(false);
       }
     },
-    [dedupeOrders]
+    [dedupeOrders, t]
   );
 
   useEffect(() => {
@@ -401,10 +411,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         setPickMessage(
           t('ops.mobile.pick.errorQtyExceedsRemaining', { qty: numeric, remaining: task.remainingTotal })
         );
+        setPickMessageTone('error');
         return;
       }
       if (typeof task.availableInBin === 'number' && Number.isFinite(task.availableInBin) && numeric > task.availableInBin) {
         setPickMessage(t('ops.mobile.pick.errorNotEnoughInBin', { available: task.availableInBin }));
+        setPickMessageTone('error');
         return;
       }
 
@@ -455,6 +467,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               order: task.orderNumber || task.orderId,
             })
           );
+          setPickMessageTone('success');
         } else {
           setPickMessage(
             t('ops.mobile.pick.success', {
@@ -464,12 +477,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               remaining: Math.max(0, task.remainingTotal - numeric),
             })
           );
+          setPickMessageTone('success');
         }
       } catch (err: any) {
         console.error('Pick failed', err);
         setPickMessage(
           t('ops.mobile.pick.errorGeneric', { message: err?.message || t('common.unknownError') })
         );
+        setPickMessageTone('error');
       }
 
       await refreshOrders();
@@ -621,6 +636,16 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       const binMatches = pickTasks.filter((it) => equalsIgnoreCase(it.binCode, normalized));
       const skuMatches = pickTasks.filter((it) => equalsSkuScan(it.sku, normalized));
 
+      if (binMatches.length === 0 && skuMatches.length === 0) {
+        setPickMessage(t('ops.mobile.pick.scan.noMatch', { value: rawTrimmed }));
+        setPickMessageTone('error');
+        return;
+      }
+
+      // Clear any previous pick status when new scans come in.
+      setPickMessage(null);
+      setPickMessageTone(null);
+
       if (binMatches.length) {
         nextBin = binMatches[0].binCode;
       }
@@ -653,7 +678,23 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         setHighlightKey(key);
         setPendingPick(candidate);
         setPendingPickQty(candidate.suggestedQty || 1);
+        setPickMessage(t('ops.mobile.pick.scan.ready'));
+        setPickMessageTone('info');
+        return;
       }
+
+      if (nextBin && !nextSku) {
+        setPickMessage(t('ops.mobile.pick.scan.needSku'));
+        setPickMessageTone('info');
+        return;
+      }
+      if (nextSku && !nextBin) {
+        setPickMessage(t('ops.mobile.pick.scan.needBin'));
+        setPickMessageTone('info');
+        return;
+      }
+      setPickMessage(t('ops.mobile.pick.scan.ambiguous'));
+      setPickMessageTone('error');
     },
     [
       activeBin,
@@ -718,16 +759,23 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   if (mode === 'operations-identify') {
     return (
       <div className="space-y-4 max-w-xl mx-auto">
-        <div className="flex items-center justify-between">
-          <SectionTitle title={t('ops.mode.identify')} desc={t('ops.mode.identify.subtitle')} />
+        <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            className="rounded-full bg-slate-800 text-white px-3 py-2 text-sm font-semibold border border-slate-700"
+            onClick={() => onNavigate('operations')}
+            className="h-11 rounded-xl bg-slate-800/70 border border-slate-700 px-3 text-sm font-semibold text-white"
+          >
+            ← {t('common.back')}
+          </button>
+          <button
+            type="button"
+            className="h-11 rounded-xl bg-slate-800/70 text-white px-3 text-sm font-semibold border border-slate-700"
             onClick={addIdentifySlot}
           >
             + {t('common.add')}
           </button>
         </div>
+        <SectionTitle title={t('ops.mode.identify')} desc={t('ops.mode.identify.subtitle')} />
         <div className="grid grid-cols-1 gap-3">
           {identifySlots.map((slot) => (
             <div key={slot} className="rounded-2xl border border-dashed border-white/15 bg-slate-800/70 p-4 space-y-3">
@@ -839,6 +887,15 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     const showKeypad = Boolean(stowSku && stowBin);
     return (
       <div className="space-y-3 max-w-xl mx-auto">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => onNavigate('operations')}
+            className="h-11 rounded-xl bg-slate-800/70 border border-slate-700 px-3 text-sm font-semibold text-white"
+          >
+            ← {t('common.back')}
+          </button>
+        </div>
         <SectionTitle title={t('ops.mode.stow')} desc={t('ops.mode.stow.subtitle')} />
         <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
           <p className="text-xs text-slate-300">
@@ -959,39 +1016,254 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   if (mode === 'operations-pick') {
     const nextTask = pickTasks[0] || null;
+    const nextBinGroupCount = nextTask?.binCode
+      ? pickTasks.filter((it) => equalsIgnoreCase(it.binCode, nextTask.binCode)).length
+      : 0;
+    const expectedScan: 'bin' | 'sku' | 'qty' =
+      pendingPick
+        ? 'qty'
+        : !activeBin && !activeSku
+          ? 'bin'
+          : activeBin && !activeSku
+            ? 'sku'
+            : !activeBin && activeSku
+              ? 'bin'
+              : 'bin';
+
+    const scanBoxClass = (kind: 'bin' | 'sku') => {
+      const isExpected = expectedScan === kind;
+      return `rounded-2xl border p-3 ${
+        isExpected ? 'border-sky-500 bg-sky-900/20' : 'border-white/10 bg-slate-900/40'
+      }`;
+    };
+
     return (
-      <div className="space-y-3 max-w-xl mx-auto">
-        <SectionTitle title={t('ops.mode.pick')} desc={`${t('ops.orders.open')} · BaseLinker`} />
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
-          <p className="text-xs text-slate-300">
-            {t('ops.mobile.pick.flowHelp')}
-          </p>
-          <div className="text-sm text-slate-300 flex flex-wrap gap-2">
-            <span className="px-3 py-2 rounded-full border border-white/10 bg-white/5">
-              {t('common.bin')}: <span className="font-semibold text-white">{activeBin || '—'}</span>
-            </span>
-            <span className="px-3 py-2 rounded-full border border-white/10 bg-white/5">
-              {t('common.sku')}: <span className="font-semibold text-white">{activeSku || '—'}</span>
-            </span>
-            <span className="px-3 py-2 rounded-full border border-white/10 bg-white/5">
-              {t('ops.mobile.scannerFocusHint')}
-            </span>
-          </div>
-          {nextTask && !pendingPick && (
-            <p className="text-xs text-slate-300">
-              {t('ops.labels.nextPick')}:{' '}
-              <span className="text-slate-100 font-semibold">{nextTask.binCode || '—'}</span> ·{' '}
-              <span className="text-slate-100 font-semibold">{nextTask.sku}</span> ·{' '}
-              <span className="text-slate-100 font-semibold">
-                {t('ops.labels.openRemaining', { count: nextTask.remainingTotal })}
-              </span>
-            </p>
-          )}
-          {pickMessage && <p className="text-xs text-emerald-300">{pickMessage}</p>}
+      <div className="max-w-xl mx-auto flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => onNavigate('operations')}
+            className="h-11 rounded-xl bg-slate-800/70 border border-slate-700 px-3 text-sm font-semibold text-white"
+          >
+            ← {t('common.back')}
+          </button>
+          <button
+            type="button"
+            onClick={() => refreshOrders()}
+            disabled={ordersLoading}
+            className="h-11 rounded-xl bg-slate-800/70 border border-slate-700 px-3 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            ↻ {t('error.reload')}
+          </button>
         </div>
-        {ordersLoading && <p className="text-sm text-slate-400">{t('ops.orders.loading')}</p>}
-        {pendingPick && (
-          <div className="rounded-2xl border border-sky-500 bg-sky-900/20 p-3 space-y-3">
+
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-white">{t('ops.mode.pick')}</h2>
+            <p className="text-sm text-slate-400">{t('ops.mode.pick.subtitle')}</p>
+          </div>
+          <div className="text-right text-xs text-slate-400">
+            <p className="font-semibold text-slate-200 tabular-nums">{pickTasks.length}</p>
+            <p>{t('ops.badge.pick')}</p>
+          </div>
+        </div>
+
+        {ordersError ? (
+          <div className="rounded-2xl border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-100">
+            <p className="font-semibold">{t('ops.errors.ordersLoad')}</p>
+            <p className="mt-1 text-xs text-rose-200/90 break-words">{ordersError}</p>
+          </div>
+        ) : null}
+
+        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div className={scanBoxClass('bin')}>
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
+              <p className="text-2xl font-extrabold text-white tracking-wider break-all">
+                {activeBin || `${t('ops.actions.scan')} ${t('common.bin')}`}
+              </p>
+            </div>
+            <div className={scanBoxClass('sku')}>
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
+              <p className="text-base font-bold text-white break-all">
+                {activeSku || `${t('ops.actions.scan')} ${t('common.sku')}`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-xs text-slate-300">
+              {pendingPick ? t('ops.mobile.pick.qtyPadHint') : t('ops.mobile.scannerFocusHint')}
+              {ordersLastOkIso ? (
+                <span className="block text-[11px] text-slate-500 mt-1">
+                  {new Date(ordersLastOkIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="shrink-0 rounded-xl bg-slate-900/50 border border-white/10 px-3 py-2 text-xs font-semibold text-white"
+              onClick={() => {
+                setActiveBin('');
+                setActiveSku('');
+                setPendingPick(null);
+                setPendingPickQty(1);
+                setHighlightKey(null);
+                setPickMessage(null);
+                setPickMessageTone(null);
+              }}
+            >
+              {t('common.reset')}
+            </button>
+          </div>
+
+          {pickMessage ? (
+            <p
+              className={`text-xs ${
+                pickMessageTone === 'error'
+                  ? 'text-rose-300'
+                  : pickMessageTone === 'success'
+                    ? 'text-emerald-300'
+                    : 'text-sky-200'
+              }`}
+            >
+              {pickMessage}
+            </p>
+          ) : null}
+          {ordersLoading ? <p className="text-xs text-slate-400">{t('ops.orders.loading')}</p> : null}
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-slate-900/30 p-3">
+          {pendingPick ? (
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white line-clamp-2">{pendingPick.name}</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {t('common.order')} {pendingPick.orderNumber || pendingPick.orderId}
+                  </p>
+                </div>
+                <StatusBadge label={t('ops.badge.pick')} tone="warn" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+                  <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
+                  <p className="text-3xl font-extrabold text-white tracking-wider break-all">
+                    {pendingPick.binCode || '—'}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+                  <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
+                  <p className="text-lg font-bold text-white break-all">{pendingPick.sku || '—'}</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-300">
+                <span className="font-semibold text-white">
+                  {t('ops.labels.openRemaining', { count: pendingPick.remainingTotal })}
+                </span>
+                {typeof pendingPick.availableInBin === 'number' ? (
+                  <>
+                    {' '}
+                    ·{' '}
+                    <span className="font-semibold text-white">
+                      {t('ops.mobile.availableInBin', { value: pendingPick.availableInBin })}
+                    </span>
+                  </>
+                ) : null}
+              </p>
+            </div>
+          ) : pickTasks.length === 0 && !ordersLoading ? (
+            <p className="text-sm text-slate-300">{t('ops.orders.none')}</p>
+          ) : nextTask ? (
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.labels.nextPick')}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+                  <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
+                  <p className="text-3xl font-extrabold text-white tracking-wider break-all">{nextTask.binCode || '—'}</p>
+                  {nextBinGroupCount > 1 ? (
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      {t('ops.mobile.pick.binGroupCount', { count: nextBinGroupCount })}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+                  <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
+                  <p className="text-base font-bold text-white break-all">{nextTask.sku}</p>
+                  <p className="text-[11px] text-slate-400 mt-1">{t('ops.labels.openRemaining', { count: nextTask.remainingTotal })}</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {!pendingPick && pickTasks.length > 0 ? (
+          <details className="rounded-2xl border border-white/10 bg-slate-800/40 p-3">
+            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-sm font-semibold text-slate-100 flex items-center justify-between">
+              <span>
+                {t('ops.mobile.route')} ({pickTasks.length})
+              </span>
+              <span className="text-slate-400">▾</span>
+            </summary>
+            <div className="mt-3 space-y-2">
+              {pickTasks.slice(0, 100).map((task) => {
+                const key = `${task.orderId}-${task.itemId}-${task.binCode}`;
+                const isHighlighted = highlightKey === key;
+                return (
+                  <button
+                    type="button"
+                    key={key}
+                    onClick={() => {
+                      setPendingPick(task);
+                      setPendingPickQty(task.suggestedQty || 1);
+                      setActiveBin(task.binCode || '');
+                      setActiveSku(task.sku || '');
+                      setHighlightKey(key);
+                    }}
+                    className={`w-full text-left rounded-2xl border p-3 shadow-sm shadow-black/20 ${
+                      isHighlighted ? 'border-sky-500 bg-sky-900/30' : 'border-white/5 bg-slate-900/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white line-clamp-2">{task.name}</p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {t('common.order')} {task.orderNumber || task.orderId}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                          <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                            {t('common.sku')}: <span className="font-semibold text-white">{task.sku}</span>
+                          </span>
+                          <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                            {t('ops.labels.openRemaining', { count: task.remainingTotal })}
+                          </span>
+                          <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                            {t('ops.pick.quantityHint', { value: task.suggestedQty })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
+                        <p className="text-xl font-extrabold text-white tracking-wider">{task.binCode || '—'}</p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </details>
+        ) : null}
+
+        <details className="rounded-2xl border border-white/10 bg-slate-800/40 p-3">
+          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-sm font-semibold text-slate-100 flex items-center justify-between">
+            <span>{t('ops.mobile.help')}</span>
+            <span className="text-slate-400">▾</span>
+          </summary>
+          <p className="mt-3 text-xs text-slate-300">{t('ops.mobile.pick.flowHelp')}</p>
+        </details>
+
+        {pendingPick ? (
+          <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-4 bg-slate-950/90 backdrop-blur border-t border-white/10">
             {(() => {
               const maxAllowed =
                 typeof pendingPick.availableInBin === 'number'
@@ -1005,65 +1277,28 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               };
 
               return (
-                <>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 space-y-2">
-                      <p className="text-sm font-semibold text-white line-clamp-2">{pendingPick.name}</p>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-                          <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
-                          <p className="text-2xl font-extrabold text-white tracking-wider break-all">
-                            {pendingPick.binCode || '—'}
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-                          <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
-                          <p className="text-base font-bold text-white break-all">{pendingPick.sku || '—'}</p>
-                        </div>
-                      </div>
-
-                      <p className="text-xs text-slate-300">
-                        {t('common.order')} {pendingPick.orderNumber || pendingPick.orderId} ·{' '}
-                        <span className="font-semibold text-white">
-                          {t('ops.labels.openRemaining', { count: pendingPick.remainingTotal })}
-                        </span>
-                        {typeof pendingPick.availableInBin === 'number' ? (
-                          <>
-                            {' '}
-                            ·{' '}
-                            <span className="font-semibold text-white">
-                              {t('ops.mobile.availableInBin', { value: pendingPick.availableInBin })}
-                            </span>
-                          </>
-                        ) : null}
-                      </p>
-                    </div>
-                    <StatusBadge label={t('ops.badge.pick')} tone="warn" />
-                  </div>
-
-                  <div className="rounded-xl bg-slate-900/60 border border-white/10 p-3 space-y-2">
+                <div className="space-y-3 max-w-xl mx-auto">
+                  <div className="rounded-2xl bg-slate-900/50 border border-white/10 p-3 space-y-2">
                     <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.qty')}</p>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        className="w-12 h-12 rounded-xl bg-slate-800 text-white text-2xl font-extrabold border border-white/10"
+                        className="w-14 h-14 rounded-2xl bg-slate-800 text-white text-3xl font-extrabold border border-white/10"
                         onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) - 1))}
                       >
                         −
                       </button>
-                      <div className="flex-1 h-12 rounded-xl bg-slate-800 text-white text-2xl font-extrabold border border-white/10 flex items-center justify-center tabular-nums">
+                      <div className="flex-1 h-14 rounded-2xl bg-slate-800 text-white text-3xl font-extrabold border border-white/10 flex items-center justify-center tabular-nums">
                         {pendingPickQty}
                       </div>
                       <button
                         type="button"
-                        className="w-12 h-12 rounded-xl bg-slate-800 text-white text-2xl font-extrabold border border-white/10"
+                        className="w-14 h-14 rounded-2xl bg-slate-800 text-white text-3xl font-extrabold border border-white/10"
                         onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) + 1))}
                       >
                         +
                       </button>
                     </div>
-
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -1101,7 +1336,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                       type="button"
                       disabled={!pendingPickQty || pendingPickQty <= 0}
                       onClick={() => void submitPick(pendingPick, pendingPickQty)}
-                      className="rounded-lg bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
+                      className="h-14 rounded-2xl bg-emerald-600 text-white font-extrabold text-lg disabled:opacity-40"
                     >
                       {t('ops.pick.submit')}
                     </button>
@@ -1114,67 +1349,16 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                         setActiveSku('');
                         setHighlightKey(null);
                       }}
-                      className="rounded-lg bg-slate-700 text-white font-semibold py-3"
+                      className="h-14 rounded-2xl bg-slate-700 text-white font-semibold text-lg"
                     >
                       {t('common.cancel')}
                     </button>
                   </div>
-                </>
+                </div>
               );
             })()}
           </div>
-        )}
-
-        {pickTasks.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">{t('ops.orders.none')}</p>}
-        {pickTasks.slice(0, 100).map((task) => {
-          const key = `${task.orderId}-${task.itemId}-${task.binCode}`;
-          const isHighlighted = highlightKey === key;
-          return (
-            <button
-              type="button"
-              key={key}
-              onClick={() => {
-                setPendingPick(task);
-                setPendingPickQty(task.suggestedQty || 1);
-                setActiveBin(task.binCode || '');
-                setActiveSku(task.sku || '');
-                setHighlightKey(key);
-              }}
-              className={`w-full text-left rounded-2xl border p-3 shadow-sm shadow-black/20 ${
-                isHighlighted ? 'border-sky-500 bg-sky-900/30' : 'border-white/5 bg-slate-800'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white line-clamp-2">{task.name}</p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {t('common.order')} {task.orderNumber || task.orderId}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                    <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                      {t('common.sku')}: <span className="font-semibold text-white">{task.sku}</span>
-                    </span>
-                    <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                      {t('ops.labels.openRemaining', { count: task.remainingTotal })}
-                    </span>
-                    <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                      {t('ops.pick.quantityHint', { value: task.suggestedQty })}
-                    </span>
-                    {typeof task.availableInBin === 'number' ? (
-                      <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                        {t('ops.mobile.availableInBin', { value: task.availableInBin })}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
-                  <p className="text-xl font-extrabold text-white tracking-wider">{task.binCode || '—'}</p>
-                </div>
-              </div>
-            </button>
-          );
-        })}
+        ) : null}
       </div>
     );
   }
@@ -1182,6 +1366,15 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   if (mode === 'operations-pack') {
     return (
       <div className="space-y-3 max-w-xl mx-auto">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => onNavigate('operations')}
+            className="h-11 rounded-xl bg-slate-800/70 border border-slate-700 px-3 text-sm font-semibold text-white"
+          >
+            ← {t('common.back')}
+          </button>
+        </div>
         <SectionTitle title={t('ops.mode.pack')} desc={t('ops.mode.pack.subtitle')} />
         {packMessage ? (
           <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-3 text-sm text-slate-200">
