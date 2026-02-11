@@ -1843,6 +1843,7 @@ async function saveProduct(product, options = {}) {
       existingSources.some((s) => s && typeof s.url === 'string' && s.url.trim());
 
     // If both exist and incoming is a large jump but has weak evidence, do not overwrite.
+    // IMPORTANT: UI/manual saves must be allowed to override prices (warehouse/user knows the selling price).
     const incomingWeakEvidence = incomingSources.length < 2;
     const largeDelta =
       existingValid &&
@@ -1852,7 +1853,9 @@ async function saveProduct(product, options = {}) {
       ...(existingDetails.pricing || {}),
       ...(incomingDetails.pricing || {}),
     };
-    if (existingValid && (!incomingValid || (largeDelta && incomingWeakEvidence))) {
+    const allowManualPriceOverride = Boolean(isManualSave);
+
+    if (existingValid && (!incomingValid || (!allowManualPriceOverride && largeDelta && incomingWeakEvidence))) {
       mergedPricing.lowest_price = existingPrice;
       // Track rejected overwrite attempts for debugging (best-effort; do not block save).
       mergedOps.data_quality = mergedOps.data_quality || {};
