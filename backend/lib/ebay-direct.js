@@ -51,6 +51,14 @@ function normalizeToken(value) {
   return safeLower(value).replace(/[^a-z0-9]+/g, '');
 }
 
+function normalizeSpecificToken(value) {
+  const token = normalizeToken(value);
+  if (!token) return '';
+  // eBay can expose GTIN either as EAN or GTIN.
+  if (token === 'ean' || token === 'gtin') return 'gtin';
+  return token;
+}
+
 function normalizeDigits(value) {
   return safeString(value).replace(/\D+/g, '');
 }
@@ -99,21 +107,42 @@ function chunk(list, size = 250) {
 
 function mapListingSpecifics(listing) {
   const raw = listing?.itemSpecifics && typeof listing.itemSpecifics === 'object' ? listing.itemSpecifics : {};
+  const pld =
+    listing?.productListingDetails && typeof listing.productListingDetails === 'object'
+      ? listing.productListingDetails
+      : {};
   const out = {};
-  Object.entries(raw).forEach(([k, v]) => {
-    const key = safeString(k);
+
+  const appendValues = (name, value) => {
+    const key = safeString(name);
     if (!key) return;
-    const values = asArray(v).map((x) => safeString(x)).filter(Boolean);
+    const values = asArray(value).map((x) => safeString(x)).filter(Boolean);
     if (!values.length) return;
-    out[key] = values;
-  });
+    if (!out[key]) out[key] = [];
+    values.forEach((entry) => {
+      if (!out[key].includes(entry)) out[key].push(entry);
+    });
+  };
+
+  Object.entries(raw).forEach(([k, v]) => appendValues(k, v));
+
+  // GetItem can return identifiers under ProductListingDetails instead of ItemSpecifics.
+  // Include these in comparison input to avoid false "missing on eBay" gaps.
+  appendValues('EAN', pld?.EAN);
+  appendValues('GTIN', pld?.GTIN);
+  appendValues('UPC', pld?.UPC);
+  appendValues('ISBN', pld?.ISBN);
+  appendValues('Brand', pld?.BrandMPN?.Brand);
+  appendValues('MPN', pld?.BrandMPN?.MPN);
+  appendValues('SKU', listing?.sku);
+
   return out;
 }
 
 function normalizeSpecificsMap(map) {
   const out = {};
   Object.entries(map || {}).forEach(([k, v]) => {
-    const nk = normalizeToken(k);
+    const nk = normalizeSpecificToken(k);
     if (!nk) return;
     const values = asArray(v).map((x) => safeString(x)).filter(Boolean);
     if (!values.length) return;
@@ -176,7 +205,7 @@ function deriveProductCategoryId(product) {
 }
 
 function collectListingIdentifiers(listing) {
-  const specifics = listing?.itemSpecifics || {};
+  const specifics = mapListingSpecifics(listing);
   const out = {
     sku: safeString(listing?.sku) || null,
     eanValues: [],
@@ -748,8 +777,8 @@ function buildRenameSuggestionGap(productSpecifics, listingSpecifics) {
   const suggestions = [];
   const listingNorm = normalizeSpecificsMap(listingSpecifics);
   Object.entries(productSpecifics).forEach(([prodKey, prodVals]) => {
-    const prodNorm = normalizeToken(prodKey);
-    const listingExactExists = Object.keys(listingSpecifics).some((k) => normalizeToken(k) === prodNorm);
+    const prodNorm = normalizeSpecificToken(prodKey);
+    const listingExactExists = Object.keys(listingSpecifics).some((k) => normalizeSpecificToken(k) === prodNorm);
     if (listingExactExists) return;
 
     const valueToken = normalizeToken(toFlatText(prodVals));
@@ -806,7 +835,7 @@ function buildGapsForListing({ listing, link, product, existingGapDoc }) {
   const requiredAspects = asArray(getRequiredAspects(listingCategory)).map((x) => safeString(x)).filter(Boolean);
 
   Object.entries(productSpecifics).forEach(([key, value]) => {
-    const keyNorm = normalizeToken(key);
+    const keyNorm = normalizeSpecificToken(key);
     const ebayValues = listingSpecificsNorm[keyNorm] || [];
     const desiredValues = asArray(value).map((x) => safeString(x)).filter(Boolean);
     if (!desiredValues.length) return;
@@ -815,7 +844,7 @@ function buildGapsForListing({ listing, link, product, existingGapDoc }) {
       addGap(gaps, existingById, {
         type: 'item_specific',
         field: key,
-        severity: requiredAspects.some((req) => normalizeToken(req) === keyNorm) ? 'critical' : 'warn',
+        severity: requiredAspects.some((req) => normalizeSpecificToken(req) === keyNorm) ? 'critical' : 'warn',
         listingValue: null,
         avyValue: desiredValues,
         message: 'Item Specific in AvyCloud vorhanden, aber auf eBay nicht gesetzt.',
@@ -843,8 +872,8 @@ function buildGapsForListing({ listing, link, product, existingGapDoc }) {
   });
 
   Object.entries(listingSpecifics).forEach(([key, value]) => {
-    const keyNorm = normalizeToken(key);
-    const inAvy = Object.keys(productSpecifics).some((prodKey) => normalizeToken(prodKey) === keyNorm);
+    const keyNorm = normalizeSpecificToken(key);
+    const inAvy = Object.keys(productSpecifics).some((prodKey) => normalizeSpecificToken(prodKey) === keyNorm);
     if (inAvy) return;
     addGap(gaps, existingById, {
       type: 'item_specific',

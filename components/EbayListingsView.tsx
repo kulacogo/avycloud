@@ -121,9 +121,12 @@ const extractProductSpecifics = (product: Record<string, any> | null | undefined
 
   const candidates = [
     product.details?.attributes,
+    product.details?.identifiers,
     product.details?.itemSpecifics,
     product.classification?.attributes,
+    product.identifiers,
     product.marketplace?.ebay?.itemSpecifics,
+    product.marketplace?.ebay?.identifiers,
     product.itemSpecifics,
   ];
 
@@ -150,6 +153,14 @@ const buildSpecificsText = (specifics: Record<string, any> | null | undefined): 
 };
 
 const normalizeKeyToken = (value: any): string => safeString(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+const normalizeSpecificKeyToken = (value: any): string => {
+  const token = normalizeKeyToken(value);
+  if (!token) return '';
+  // eBay and product feeds may use EAN or GTIN for the same identifier.
+  if (token === 'ean' || token === 'gtin') return 'gtin';
+  return token;
+};
 
 const normalizeCompareText = (value: any): string => safeString(value).toLowerCase().replace(/\s+/g, ' ').trim();
 
@@ -182,6 +193,40 @@ const mergeSpecificsMaps = (...maps: Array<Record<string, any> | null | undefine
   return merged;
 };
 
+const extractListingSpecifics = (listing: Record<string, any>, listingNormalized: Record<string, any>): Record<string, any> => {
+  const merged = mergeSpecificsMaps(
+    (listing?.itemSpecifics as Record<string, any>) || {},
+    (listingNormalized?.specifics as Record<string, any>) || {}
+  );
+  const listingPld =
+    listing?.productListingDetails && typeof listing.productListingDetails === 'object'
+      ? (listing.productListingDetails as Record<string, any>)
+      : {};
+  const normalizedPld =
+    listingNormalized?.productListingDetails && typeof listingNormalized.productListingDetails === 'object'
+      ? (listingNormalized.productListingDetails as Record<string, any>)
+      : {};
+
+  const append = (name: string, value: any) => {
+    const key = safeString(name);
+    if (!key) return;
+    if (value == null || value === '') return;
+    if (merged[key] !== undefined) return;
+    merged[key] = value;
+  };
+
+  // eBay may expose identifiers in ProductListingDetails instead of ItemSpecifics.
+  append('EAN', listingPld?.EAN ?? normalizedPld?.EAN);
+  append('GTIN', listingPld?.GTIN ?? normalizedPld?.GTIN);
+  append('UPC', listingPld?.UPC ?? normalizedPld?.UPC);
+  append('ISBN', listingPld?.ISBN ?? normalizedPld?.ISBN);
+  append('Brand', listingPld?.BrandMPN?.Brand ?? normalizedPld?.BrandMPN?.Brand);
+  append('MPN', listingPld?.BrandMPN?.MPN ?? normalizedPld?.BrandMPN?.MPN);
+  append('SKU', listing?.sku ?? listingNormalized?.sku);
+
+  return merged;
+};
+
 type SpecificsComparisonRow = {
   keyToken: string;
   keyLabel: string;
@@ -205,7 +250,7 @@ const buildSpecificsComparisonRows = (
   >();
 
   const upsert = (side: 'ebay' | 'avy', rawKey: string, rawValue: any) => {
-    const token = normalizeKeyToken(rawKey);
+    const token = normalizeSpecificKeyToken(rawKey);
     if (!token) return;
     const existing = merged.get(token) || {};
     const next = { ...existing };
@@ -276,6 +321,60 @@ const GAP_ACTIONS = [
   { id: 'reset', label: 'Reset' },
 ] as const;
 
+type GapStatusFilter = 'actionable' | 'all' | 'new' | 'reviewed' | 'accepted' | 'ready_to_sync' | 'ignored' | 'synced' | 'failed';
+type GapSeverityFilter = 'all' | 'critical' | 'warn' | 'info';
+type ListingListFilter = 'all' | 'with_gaps' | 'critical_only' | 'ready_only' | 'without_gaps';
+type ListingSortBy = 'critical_desc' | 'gaps_desc' | 'ready_desc' | 'updated_desc' | 'title_asc' | 'item_id_desc';
+
+const GAP_STATUS_FILTER_OPTIONS: Array<{ id: GapStatusFilter; label: string }> = [
+  { id: 'actionable', label: 'Action needed' },
+  { id: 'all', label: 'Alle' },
+  { id: 'new', label: 'New' },
+  { id: 'reviewed', label: 'Reviewed' },
+  { id: 'accepted', label: 'Accepted' },
+  { id: 'ready_to_sync', label: 'Ready' },
+  { id: 'ignored', label: 'Ignored' },
+  { id: 'synced', label: 'Synced' },
+  { id: 'failed', label: 'Failed' },
+];
+
+const GAP_SEVERITY_FILTER_OPTIONS: Array<{ id: GapSeverityFilter; label: string }> = [
+  { id: 'all', label: 'Alle' },
+  { id: 'critical', label: 'Critical' },
+  { id: 'warn', label: 'Warn' },
+  { id: 'info', label: 'Info' },
+];
+
+const LISTING_FILTER_OPTIONS: Array<{ id: ListingListFilter; label: string }> = [
+  { id: 'all', label: 'Alle' },
+  { id: 'with_gaps', label: 'Nur mit Gaps' },
+  { id: 'critical_only', label: 'Nur kritisch' },
+  { id: 'ready_only', label: 'Nur ready' },
+  { id: 'without_gaps', label: 'Ohne Gaps' },
+];
+
+const LISTING_SORT_OPTIONS: Array<{ id: ListingSortBy; label: string }> = [
+  { id: 'critical_desc', label: 'Sort: Kritisch absteigend' },
+  { id: 'gaps_desc', label: 'Sort: Gaps absteigend' },
+  { id: 'ready_desc', label: 'Sort: Ready absteigend' },
+  { id: 'updated_desc', label: 'Sort: Update (neu zuerst)' },
+  { id: 'title_asc', label: 'Sort: Titel A-Z' },
+  { id: 'item_id_desc', label: 'Sort: Item ID absteigend' },
+];
+
+const GAP_ACTIONABLE_STATUSES = new Set(['new', 'reviewed', 'accepted', 'ready_to_sync']);
+
+const buildGapActionOptions = (gap: EbayGap): Array<{ id: string; label: string }> => {
+  const options = GAP_ACTIONS.map((entry) => ({ id: entry.id, label: entry.label }));
+  if (safeString(gap.suggestion?.from) && safeString(gap.suggestion?.to)) {
+    options.push({
+      id: 'rename_alias',
+      label: `Alias (${safeString(gap.suggestion?.from)} -> ${safeString(gap.suggestion?.to)})`,
+    });
+  }
+  return options;
+};
+
 export const EbayListingsView: React.FC = () => {
   const [listings, setListings] = useState<EbayListingRow[]>([]);
   const [loadingListings, setLoadingListings] = useState(false);
@@ -291,6 +390,14 @@ export const EbayListingsView: React.FC = () => {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [dryRunResult, setDryRunResult] = useState<EbaySyncDryRunResult | null>(null);
   const [applyResult, setApplyResult] = useState<EbaySyncApplyResult | null>(null);
+  const [gapStatusFilter, setGapStatusFilter] = useState<GapStatusFilter>('actionable');
+  const [gapSeverityFilter, setGapSeverityFilter] = useState<GapSeverityFilter>('all');
+  const [gapSearch, setGapSearch] = useState('');
+  const [gapVisibleCount, setGapVisibleCount] = useState(12);
+  const [gapActionChoiceById, setGapActionChoiceById] = useState<Record<string, string>>({});
+  const [listingListFilter, setListingListFilter] = useState<ListingListFilter>('all');
+  const [listingSortBy, setListingSortBy] = useState<ListingSortBy>('critical_desc');
+  const [listingListSearch, setListingListSearch] = useState('');
 
   const selectedListing = useMemo(
     () => listings.find((entry) => entry.itemId === selectedItemId) || null,
@@ -371,6 +478,12 @@ export const EbayListingsView: React.FC = () => {
     void loadDetail(selectedItemId);
   }, [selectedItemId, loadDetail]);
 
+  useEffect(() => {
+    setGapVisibleCount(12);
+    setGapSearch('');
+    setGapActionChoiceById({});
+  }, [selectedItemId]);
+
   const handleGapAction = useCallback(
     async (gap: EbayGap, action: string) => {
       if (!selectedItemId) return;
@@ -394,13 +507,29 @@ export const EbayListingsView: React.FC = () => {
     [selectedItemId, loadDetail, loadListings, runAction]
   );
 
+  const getDefaultGapAction = useCallback((gap: EbayGap): string => {
+    const status = normalizeCompareText(gap?.status);
+    if (status === 'ready_to_sync') return 'ready_to_sync';
+    if (status === 'new') return 'review';
+    if (status === 'reviewed') return 'accept_avy';
+    if (status === 'accepted') return 'ready_to_sync';
+    if (status === 'failed') return 'ready_to_sync';
+    return 'review';
+  }, []);
+
+  const getSelectedGapAction = useCallback(
+    (gap: EbayGap): string => {
+      const id = safeString(gap.id);
+      if (!id) return getDefaultGapAction(gap);
+      return gapActionChoiceById[id] || getDefaultGapAction(gap);
+    },
+    [gapActionChoiceById, getDefaultGapAction]
+  );
+
   const listing = (detail?.listing && typeof detail.listing === 'object' ? detail.listing : {}) as Record<string, any>;
   const listingNormalized =
     listing?.normalized && typeof listing.normalized === 'object' ? (listing.normalized as Record<string, any>) : {};
-  const listingSpecifics = mergeSpecificsMaps(
-    (listing?.itemSpecifics as Record<string, any>) || {},
-    (listingNormalized?.specifics as Record<string, any>) || {}
-  );
+  const listingSpecifics = useMemo(() => extractListingSpecifics(listing, listingNormalized), [listing, listingNormalized]);
   const ebayCategoryId = safeString(
     listing?.primaryCategoryId || listingNormalized?.primaryCategoryId || listing?.categoryId || listingNormalized?.categoryId
   );
@@ -481,9 +610,126 @@ export const EbayListingsView: React.FC = () => {
     productTitle,
   ]);
   const gapList = Array.isArray(detail?.gaps?.gaps) ? detail.gaps.gaps : [];
+  const filteredGapList = useMemo(() => {
+    const searchNeedle = normalizeCompareText(gapSearch);
+    return gapList
+      .filter((gap) => {
+        const status = normalizeCompareText(gap?.status);
+        if (gapStatusFilter !== 'all') {
+          if (gapStatusFilter === 'actionable') {
+            if (!GAP_ACTIONABLE_STATUSES.has(status)) return false;
+          } else if (status !== gapStatusFilter) {
+            return false;
+          }
+        }
+        const severity = normalizeCompareText(gap?.severity);
+        if (gapSeverityFilter !== 'all' && severity !== gapSeverityFilter) return false;
+        if (!searchNeedle) return true;
+        const hay = [
+          gap?.id,
+          gap?.type,
+          gap?.field,
+          gap?.message,
+          toDisplayValue(gap?.listingValue),
+          toDisplayValue(gap?.avyValue),
+        ]
+          .map((entry) => normalizeCompareText(entry))
+          .join(' ');
+        return hay.includes(searchNeedle);
+      })
+      .sort((a, b) => {
+        const severityWeight = (value: any) => {
+          const key = normalizeCompareText(value);
+          if (key === 'critical') return 0;
+          if (key === 'warn') return 1;
+          return 2;
+        };
+        const statusWeight = (value: any) => {
+          const key = normalizeCompareText(value);
+          if (key === 'ready_to_sync') return 0;
+          if (key === 'new') return 1;
+          if (key === 'reviewed') return 2;
+          if (key === 'accepted') return 3;
+          if (key === 'failed') return 4;
+          if (key === 'ignored') return 5;
+          if (key === 'synced') return 6;
+          return 7;
+        };
+        const bySeverity = severityWeight(a?.severity) - severityWeight(b?.severity);
+        if (bySeverity !== 0) return bySeverity;
+        const byStatus = statusWeight(a?.status) - statusWeight(b?.status);
+        if (byStatus !== 0) return byStatus;
+        return safeString(a?.field).localeCompare(safeString(b?.field));
+      });
+  }, [gapList, gapSearch, gapSeverityFilter, gapStatusFilter]);
+
+  const visibleGapList = useMemo(() => filteredGapList.slice(0, gapVisibleCount), [filteredGapList, gapVisibleCount]);
+  const hiddenGapCount = Math.max(0, filteredGapList.length - visibleGapList.length);
+
+  const filteredSortedListings = useMemo(() => {
+    const normalizedListSearch = normalizeCompareText(listingListSearch);
+    const parseTs = (row: EbayListingRow): number => {
+      const raw = safeString(row.gapDocUpdatedAt || row.updatedAt);
+      if (!raw) return 0;
+      const ts = Date.parse(raw);
+      return Number.isFinite(ts) ? ts : 0;
+    };
+    const parseItemId = (row: EbayListingRow): number => {
+      const numeric = Number(safeString(row.itemId));
+      return Number.isFinite(numeric) ? numeric : 0;
+    };
+
+    const rows = listings.filter((row) => {
+      const gapCount = Number(row.gapCount || 0);
+      const criticalCount = Number(row.gapCriticalCount || 0);
+      const readyCount = Number(row.gapReadyCount || 0);
+
+      if (listingListFilter === 'with_gaps' && gapCount <= 0) return false;
+      if (listingListFilter === 'critical_only' && criticalCount <= 0) return false;
+      if (listingListFilter === 'ready_only' && readyCount <= 0) return false;
+      if (listingListFilter === 'without_gaps' && gapCount > 0) return false;
+
+      if (!normalizedListSearch) return true;
+      const haystack = normalizeCompareText(`${safeString(row.itemId)} ${safeString(row.sku)} ${safeString(row.title)}`);
+      return haystack.includes(normalizedListSearch);
+    });
+
+    rows.sort((left, right) => {
+      if (listingSortBy === 'critical_desc') {
+        const byCritical = Number(right.gapCriticalCount || 0) - Number(left.gapCriticalCount || 0);
+        if (byCritical !== 0) return byCritical;
+        return Number(right.gapCount || 0) - Number(left.gapCount || 0);
+      }
+      if (listingSortBy === 'gaps_desc') {
+        return Number(right.gapCount || 0) - Number(left.gapCount || 0);
+      }
+      if (listingSortBy === 'ready_desc') {
+        return Number(right.gapReadyCount || 0) - Number(left.gapReadyCount || 0);
+      }
+      if (listingSortBy === 'updated_desc') {
+        return parseTs(right) - parseTs(left);
+      }
+      if (listingSortBy === 'title_asc') {
+        return safeString(left.title).localeCompare(safeString(right.title), 'de');
+      }
+      if (listingSortBy === 'item_id_desc') {
+        return parseItemId(right) - parseItemId(left);
+      }
+      return 0;
+    });
+
+    return rows;
+  }, [listingListFilter, listingListSearch, listingSortBy, listings]);
+
+  useEffect(() => {
+    if (!filteredSortedListings.length) return;
+    if (!selectedItemId || !filteredSortedListings.some((row) => row.itemId === selectedItemId)) {
+      setSelectedItemId(filteredSortedListings[0].itemId);
+    }
+  }, [filteredSortedListings, selectedItemId]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4">
+    <div className="w-full max-w-[1800px] mx-auto px-2 lg:px-4 space-y-4">
       <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-4 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -661,14 +907,48 @@ export const EbayListingsView: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <div className="xl:col-span-4 rounded-2xl border border-white/10 bg-slate-800/70 p-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-4">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold text-slate-100">Listings ({listings.length})</p>
+            <p className="text-sm font-semibold text-slate-100">
+              Listings ({filteredSortedListings.length}/{listings.length})
+            </p>
             {loadingListings && <p className="text-xs text-slate-400">Lade...</p>}
           </div>
+          <div className="space-y-2 mb-3">
+            <input
+              value={listingListSearch}
+              onChange={(event) => setListingListSearch(event.target.value)}
+              placeholder="In Liste filtern (Item ID, SKU, Titel)"
+              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white"
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select
+                value={listingListFilter}
+                onChange={(event) => setListingListFilter(event.target.value as ListingListFilter)}
+                className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-xs text-white"
+              >
+                {LISTING_FILTER_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={listingSortBy}
+                onChange={(event) => setListingSortBy(event.target.value as ListingSortBy)}
+                className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-xs text-white"
+              >
+                {LISTING_SORT_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div className="max-h-[72vh] overflow-auto space-y-2 pr-1">
-            {listings.map((row) => {
+            {filteredSortedListings.map((row) => {
               const active = row.itemId === selectedItemId;
               return (
                 <button
@@ -703,15 +983,15 @@ export const EbayListingsView: React.FC = () => {
                 </button>
               );
             })}
-            {!loadingListings && listings.length === 0 && (
+            {!loadingListings && filteredSortedListings.length === 0 && (
               <p className="rounded-xl border border-slate-700 bg-slate-900/40 px-3 py-3 text-sm text-slate-400">
-                Keine Listings gefunden.
+                Keine Listings fuer die aktuellen Filter gefunden.
               </p>
             )}
           </div>
         </div>
 
-        <div className="xl:col-span-8 rounded-2xl border border-white/10 bg-slate-800/70 p-4 space-y-4">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-4 space-y-4">
           {!selectedItemId ? (
             <p className="text-sm text-slate-400">Bitte ein Listing auswaehlen.</p>
           ) : loadingDetail ? (
@@ -855,73 +1135,138 @@ export const EbayListingsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-semibold text-slate-100">Gaps ({gapList.length})</p>
+              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-100">
+                    Gaps ({filteredGapList.length}/{gapList.length})
+                  </p>
                   <p className="text-xs text-slate-400">
                     Letztes Audit: {formatDateTime(detail.gaps?.updatedAtIso || detail.gaps?.updatedAt as any)}
                   </p>
                 </div>
-                <div className="space-y-2 max-h-[34vh] overflow-auto pr-1">
-                  {gapList.map((gap, index) => (
-                    <div key={safeString(gap.id) || `gap-${index}`} className="rounded-xl border border-slate-700 bg-slate-950/50 p-3 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded border border-slate-600 px-1.5 py-0.5 text-[10px] text-slate-200">
-                          {safeString(gap.id) || '-'}
-                        </span>
-                        <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${statusBadgeClass(gap.severity)}`}>
-                          {safeString(gap.severity) || '-'}
-                        </span>
-                        <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${statusBadgeClass(gap.status)}`}>
-                          {safeString(gap.status) || '-'}
-                        </span>
-                        <span className="rounded border border-slate-600 px-1.5 py-0.5 text-[10px] text-slate-300">
-                          {safeString(gap.type) || '-'}:{safeString(gap.field) || '-'}
-                        </span>
-                      </div>
-                      {safeString(gap.message) && <p className="text-xs text-slate-300">{safeString(gap.message)}</p>}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <div className="rounded border border-slate-700 bg-slate-900/70 p-2">
-                          <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">eBay</p>
-                          <pre className="text-[11px] whitespace-pre-wrap break-words text-slate-200">
-                            {toDisplayValue(gap.listingValue)}
-                          </pre>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <select
+                    value={gapStatusFilter}
+                    onChange={(event) => {
+                      setGapStatusFilter(event.target.value as GapStatusFilter);
+                      setGapVisibleCount(12);
+                    }}
+                    className="rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-xs text-slate-100"
+                  >
+                    {GAP_STATUS_FILTER_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        Status: {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={gapSeverityFilter}
+                    onChange={(event) => {
+                      setGapSeverityFilter(event.target.value as GapSeverityFilter);
+                      setGapVisibleCount(12);
+                    }}
+                    className="rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-xs text-slate-100"
+                  >
+                    {GAP_SEVERITY_FILTER_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        Severity: {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={gapSearch}
+                    onChange={(event) => {
+                      setGapSearch(event.target.value);
+                      setGapVisibleCount(12);
+                    }}
+                    placeholder="Gap suchen (Feld, Text, Wert)"
+                    className="rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-slate-100"
+                  />
+                </div>
+
+                <div className="space-y-2 max-h-[40vh] overflow-auto pr-1">
+                  {visibleGapList.map((gap, index) => {
+                    const gapId = safeString(gap.id);
+                    const rowKey = gapId || `gap-${index}`;
+                    const actionOptions = buildGapActionOptions(gap);
+                    const selectedAction = getSelectedGapAction(gap);
+                    const canApplyAction = Boolean(gapId);
+                    const isApplying = busyAction === `gap:${gapId}:${selectedAction}`;
+                    return (
+                      <div key={rowKey} className="rounded-lg border border-slate-700 bg-slate-950/55 p-2 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-slate-100">
+                            {safeString(gap.field) || safeString(gap.id) || '-'}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${statusBadgeClass(gap.severity)}`}>
+                              {safeString(gap.severity) || '-'}
+                            </span>
+                            <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${statusBadgeClass(gap.status)}`}>
+                              {safeString(gap.status) || '-'}
+                            </span>
+                            <span className="rounded border border-slate-600 px-1.5 py-0.5 text-[10px] text-slate-300">
+                              {safeString(gap.type) || '-'}
+                            </span>
+                          </div>
                         </div>
-                        <div className="rounded border border-slate-700 bg-slate-900/70 p-2">
-                          <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">AvyCloud</p>
-                          <pre className="text-[11px] whitespace-pre-wrap break-words text-slate-200">
-                            {toDisplayValue(gap.avyValue)}
-                          </pre>
+
+                        {safeString(gap.message) && <p className="text-[11px] text-slate-300">{safeString(gap.message)}</p>}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+                          <div className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1 text-[11px] text-slate-200">
+                            <span className="text-slate-400">eBay:</span> {clipText(toDisplayValue(gap.listingValue), 180)}
+                          </div>
+                          <div className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1 text-[11px] text-slate-200">
+                            <span className="text-slate-400">AvyCloud:</span> {clipText(toDisplayValue(gap.avyValue), 180)}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {GAP_ACTIONS.map((actionDef) => (
-                          <button
-                            key={actionDef.id}
-                            type="button"
-                            onClick={() => void handleGapAction(gap, actionDef.id)}
-                            disabled={busyAction === `gap:${gap.id}:${actionDef.id}`}
-                            className="rounded border border-slate-600 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800 disabled:opacity-50"
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            value={selectedAction}
+                            onChange={(event) =>
+                              setGapActionChoiceById((prev) => ({
+                                ...prev,
+                                [rowKey]: event.target.value,
+                              }))
+                            }
+                            className="rounded border border-slate-600 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
                           >
-                            {actionDef.label}
-                          </button>
-                        ))}
-                        {safeString(gap.suggestion?.from) && safeString(gap.suggestion?.to) && (
+                            {actionOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
                           <button
                             type="button"
-                            onClick={() => void handleGapAction(gap, 'rename_alias')}
-                            disabled={busyAction === `gap:${gap.id}:rename_alias`}
+                            onClick={() => void handleGapAction(gap, selectedAction)}
+                            disabled={!canApplyAction || isApplying}
                             className="rounded border border-sky-600/70 bg-sky-900/20 px-2 py-1 text-[11px] text-sky-100 hover:bg-sky-800/30 disabled:opacity-50"
                           >
-                            Alias: {safeString(gap.suggestion?.from)} -&gt; {safeString(gap.suggestion?.to)}
+                            Aktion ausfuehren
                           </button>
-                        )}
+                          {!canApplyAction && <span className="text-[10px] text-rose-300">Gap-ID fehlt</span>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                  {gapList.length === 0 && (
+                    );
+                  })}
+
+                  {hiddenGapCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setGapVisibleCount((prev) => prev + 12)}
+                      className="w-full rounded border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/70"
+                    >
+                      Mehr laden ({hiddenGapCount} weitere Gaps)
+                    </button>
+                  )}
+
+                  {filteredGapList.length === 0 && (
                     <p className="rounded border border-slate-700 bg-slate-900/50 px-3 py-2 text-xs text-slate-400">
-                      Keine Gaps fuer dieses Listing gefunden.
+                      Keine Gaps fuer diese Filter gefunden.
                     </p>
                   )}
                 </div>
