@@ -25,8 +25,28 @@ import {
 
 // Backend URL configuration - single source of truth
 // Use import.meta.env for Vite compatibility
+const normalizeBackendBaseUrl = (rawValue: string | null | undefined, label: string): string | null => {
+  const text = String(rawValue || '').trim();
+  if (!text) return null;
+  try {
+    const parsed = new URL(text);
+    const hasExtraPath = parsed.pathname && parsed.pathname !== '/';
+    const hasQuery = Boolean(parsed.search);
+    const hasHash = Boolean(parsed.hash);
+    if (hasExtraPath || hasQuery || hasHash) {
+      console.warn(
+        `[api] ${label} should be origin-only (scheme + host). Ignoring path/query/hash from "${text}" and using "${parsed.origin}".`
+      );
+    }
+    return parsed.origin;
+  } catch {
+    console.error(`[api] Invalid ${label}: "${text}". Expected absolute URL like "https://example.com".`);
+    return null;
+  }
+};
+
 const BACKEND_URL = (() => {
-  const envUrl = import.meta.env.VITE_BACKEND_URL;
+  const envUrl = normalizeBackendBaseUrl(import.meta.env.VITE_BACKEND_URL, 'VITE_BACKEND_URL');
 
   // In development, require explicit configuration
   if (import.meta.env.DEV) {
@@ -55,8 +75,8 @@ const BACKEND_URL = (() => {
 const FALLBACK_BACKEND_URLS = (() => {
   const envList = String(import.meta.env.VITE_BACKEND_FALLBACK_URLS || '')
     .split(',')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+    .map((entry) => normalizeBackendBaseUrl(entry, 'VITE_BACKEND_FALLBACK_URLS'))
+    .filter(Boolean) as string[];
   const defaults = [
     'https://product-hub-backend-sa6a4cbk3q-ey.a.run.app',
     'https://product-hub-backend-79205549235.europe-west3.run.app',
