@@ -18,6 +18,7 @@ import MobileSearchView from './components/MobileSearchView';
 import MobileOperationsView from './components/MobileOperationsView';
 import MobileTabBar from './components/MobileTabBar';
 import { CategoryManagement } from './components/CategoryManagement';
+import { EbayListingsView } from './components/EbayListingsView';
 import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
@@ -39,6 +40,7 @@ type View =
   | 'operations-stow'
   | 'operations-pick'
   | 'operations-pack'
+  | 'ebay-listings'
   | 'input'
   | 'sheet'
   | 'inventory'
@@ -59,6 +61,7 @@ const ALLOWED_VIEWS: View[] = [
   'operations-stow',
   'operations-pick',
   'operations-pack',
+  'ebay-listings',
   'input',
   'sheet',
   'inventory',
@@ -96,6 +99,10 @@ const parseHash = (): { view: View; productId: string | null } => {
     return { view: mapped, productId: null };
   }
 
+  if (first === 'ebay') {
+    return { view: 'ebay-listings', productId: null };
+  }
+
   if (first && ALLOWED_VIEWS.includes(first as View)) {
     return { view: first as View, productId: null };
   }
@@ -128,6 +135,8 @@ const viewToHashPath = (view: View, productId?: string | null) => {
       return '/operations/pack';
     case 'operations':
       return '/operations';
+    case 'ebay-listings':
+      return '/ebay';
     case 'sheet':
       return productId ? `/sheet/${productId}` : '/sheet';
     default:
@@ -264,6 +273,7 @@ const VIEW_MIGRATIONS: Partial<Record<string, View>> = {
   inventory: 'products',
   home: 'home',
   search: 'search',
+  ebay: 'ebay-listings',
 };
 
 const readInitialView = (): { view: View; productId: string | null } => {
@@ -829,6 +839,11 @@ const AppInner: React.FC = () => {
           return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
         }
         return <CategoryManagement />;
+      case 'ebay-listings':
+        if (!(hasPermission('products', 'read') || hasPermission('products', 'write'))) {
+          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+        }
+        return <EbayListingsView />;
       case 'admin':
         if (
           !(

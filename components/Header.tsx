@@ -14,6 +14,7 @@ interface HeaderProps {
     | 'products'
     | 'admin'
     | 'categories'
+    | 'ebay-listings'
     | 'warehouse'
     | 'operations'
     | 'operations-identify'
@@ -133,6 +134,23 @@ const NAV_ICONS: NavIconConfig[] = [
     ),
   },
   {
+    view: 'ebay-listings' as const,
+    label: 'nav.ebay',
+    iconNode: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 7.5h16M4 12h16M4 16.5h16"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+        <circle cx="7" cy="7.5" r="1.2" fill="currentColor" />
+        <circle cx="7" cy="12" r="1.2" fill="currentColor" />
+        <circle cx="7" cy="16.5" r="1.2" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
     view: 'warehouse' as const,
     label: 'nav.warehouse',
     light: '/storeage_brightmode.png',
@@ -185,6 +203,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   };
 
   const DesktopNavButton = ({ nav }: { nav: NavIconConfig }) => {
+    const targetHash = nav.view === 'ebay-listings' ? '#/ebay' : `#/${nav.view}`;
     const baseClass = `hidden sm:inline-flex w-12 h-12 rounded-2xl items-center justify-center transition-all ${
       currentView === nav.view
         ? 'bg-sky-600 text-white shadow-md shadow-sky-900/40'
@@ -192,13 +211,13 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     }`;
     return (
       <a
-        href={`#/${nav.view}`}
+        href={targetHash}
         onClick={(e) => {
           if (e.metaKey || e.ctrlKey || e.button === 1 || e.shiftKey) {
             return; // allow native new-tab / background tab
           }
           e.preventDefault();
-          window.location.hash = `#/${nav.view}`;
+          window.location.hash = targetHash;
           setView(nav.view);
         }}
         className={baseClass}
@@ -218,6 +237,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
       // Products list lives under "inventory" view.
       if (view === 'inventory') return hasPermission('products', 'read');
       if (view === 'products') return hasPermission('products', 'read');
+      if (view === 'ebay-listings') return hasPermission('products', 'read') || hasPermission('products', 'write');
       // Identify / ProductInput
       if (view === 'input') return hasPermission('identify', 'run');
       // Categories management

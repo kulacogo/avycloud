@@ -2132,6 +2132,25 @@ app.get('/api/ebay/status', requirePermission('products', 'read'), async (req, r
   }
 });
 
+// Direct eBay Trading status (Auth'n'Auth token mode, no OAuth flow).
+app.get('/api/ebay/trading/status', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const { fetchTradingStatus } = require('./lib/ebay-trading-api');
+    const status = await fetchTradingStatus();
+    return res.status(200).json({ ok: true, data: status });
+  } catch (error) {
+    const code = error?.code === 'EBAY_TRADING_CONFIG_MISSING' ? 400 : 500;
+    console.error('Failed to load eBay Trading status:', error);
+    return res.status(code).json({
+      ok: false,
+      error: {
+        code,
+        message: error?.message || 'Failed to load eBay Trading status',
+      },
+    });
+  }
+});
+
 app.get('/api/ebay/offers', requirePermission('products', 'read'), async (req, res) => {
   try {
     const sku = typeof req.query?.sku === 'string' ? req.query.sku : '';
@@ -2145,6 +2164,260 @@ app.get('/api/ebay/offers', requirePermission('products', 'read'), async (req, r
     console.error('Failed to fetch eBay offers:', error);
     const status = error?.statusCode && Number.isFinite(Number(error.statusCode)) ? Number(error.statusCode) : 500;
     return res.status(status).json({ ok: false, error: { code: status, message: error.message || 'Failed to fetch offers' } });
+  }
+});
+
+app.post('/api/ebay/listings/sync', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const maxPages = Number.isFinite(Number(body.maxPages)) ? Math.max(1, Math.min(200, Number(body.maxPages))) : 10;
+    const entriesPerPage = Number.isFinite(Number(body.entriesPerPage))
+      ? Math.max(1, Math.min(200, Number(body.entriesPerPage)))
+      : 100;
+    const detailConcurrency = Number.isFinite(Number(body.detailConcurrency))
+      ? Math.max(1, Math.min(10, Number(body.detailConcurrency)))
+      : 4;
+    const timeoutMs = Number.isFinite(Number(body.timeoutMs)) ? Math.max(5000, Math.min(120000, Number(body.timeoutMs))) : 25000;
+    const runId = typeof body.runId === 'string' && body.runId.trim() ? body.runId.trim() : `api-${Date.now()}`;
+
+    const { syncLiveListingsAndAudit } = require('./lib/ebay-direct');
+    const summary = await syncLiveListingsAndAudit({
+      runId,
+      maxPages,
+      entriesPerPage,
+      detailConcurrency,
+      timeoutMs,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: summary });
+  } catch (error) {
+    console.error('Failed to sync eBay live listings:', error);
+    const status = error?.code === 'EBAY_TRADING_CONFIG_MISSING' ? 400 : 500;
+    return res.status(status).json({
+      ok: false,
+      error: {
+        code: status,
+        message: error?.message || 'Failed to sync eBay listings',
+      },
+    });
+  }
+});
+
+app.get('/api/ebay/listings', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const limit = Number.isFinite(Number(req.query?.limit)) ? Number(req.query.limit) : 100;
+    const search = typeof req.query?.search === 'string' ? req.query.search : '';
+    const matchStatus = typeof req.query?.matchStatus === 'string' ? req.query.matchStatus : '';
+    const includeInactive =
+      String(req.query?.includeInactive || '')
+        .trim()
+        .toLowerCase() === 'true';
+    const { listLiveListings } = require('./lib/ebay-direct');
+    const data = await listLiveListings({ limit, search, matchStatus, includeInactive });
+    return res.status(200).json({ ok: true, data });
+  } catch (error) {
+    console.error('Failed to list eBay listings:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to list eBay listings' },
+    });
+  }
+});
+
+app.get('/api/ebay/listings/:itemId/detail', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const itemId = String(req.params.itemId || '').trim();
+    if (!itemId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing itemId' } });
+    }
+    const { getListingDetail } = require('./lib/ebay-direct');
+    const detail = await getListingDetail(itemId);
+    if (!detail) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'Listing not found' } });
+    }
+    return res.status(200).json({ ok: true, data: detail });
+  } catch (error) {
+    console.error('Failed to load eBay listing detail:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to load listing detail' },
+    });
+  }
+});
+
+app.post('/api/ebay/listing-links/rebuild', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const itemIds = Array.isArray(body.itemIds) ? body.itemIds.map((x) => String(x || '').trim()).filter(Boolean) : null;
+    const runId = typeof body.runId === 'string' && body.runId.trim() ? body.runId.trim() : `links-${Date.now()}`;
+    const { buildProductListingLinks } = require('./lib/ebay-direct');
+    const summary = await buildProductListingLinks({
+      itemIds,
+      runId,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: summary });
+  } catch (error) {
+    console.error('Failed to rebuild eBay listing links:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to rebuild listing links' },
+    });
+  }
+});
+
+app.get('/api/ebay/listing-links', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const limit = Number.isFinite(Number(req.query?.limit)) ? Math.max(1, Math.min(500, Number(req.query.limit))) : 200;
+    const snapshot = await firestore.collection('ebayListingLinks').limit(limit).get();
+    const rows = snapshot.docs.map((doc) => ({ ...(doc.data() || {}), itemId: doc.id }));
+    return res.status(200).json({ ok: true, data: rows });
+  } catch (error) {
+    console.error('Failed to list eBay listing links:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to list eBay listing links' },
+    });
+  }
+});
+
+app.post('/api/ebay/gaps/rebuild', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const itemIds = Array.isArray(body.itemIds) ? body.itemIds.map((x) => String(x || '').trim()).filter(Boolean) : null;
+    const runId = typeof body.runId === 'string' && body.runId.trim() ? body.runId.trim() : `gaps-${Date.now()}`;
+    const { auditListingGaps } = require('./lib/ebay-direct');
+    const summary = await auditListingGaps({
+      itemIds,
+      runId,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: summary });
+  } catch (error) {
+    console.error('Failed to rebuild eBay gaps:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to rebuild gaps' },
+    });
+  }
+});
+
+app.get('/api/ebay/gaps', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const limit = Number.isFinite(Number(req.query?.limit)) ? Math.max(1, Math.min(500, Number(req.query.limit))) : 200;
+    const statusFilter = typeof req.query?.status === 'string' ? req.query.status.trim().toLowerCase() : '';
+    const severityFilter = typeof req.query?.severity === 'string' ? req.query.severity.trim().toLowerCase() : '';
+    const itemIdFilter = typeof req.query?.itemId === 'string' ? req.query.itemId.trim() : '';
+    const snapshot = await firestore.collection('ebayListingGaps').limit(limit).get();
+    const rows = snapshot.docs
+      .map((doc) => ({ ...(doc.data() || {}), itemId: doc.id }))
+      .filter((row) => {
+        if (itemIdFilter && row.itemId !== itemIdFilter) return false;
+        const gaps = Array.isArray(row.gaps) ? row.gaps : [];
+        if (statusFilter) {
+          const hasStatus = gaps.some((gap) => String(gap?.status || '').toLowerCase() === statusFilter);
+          if (!hasStatus) return false;
+        }
+        if (severityFilter) {
+          const hasSeverity = gaps.some((gap) => String(gap?.severity || '').toLowerCase() === severityFilter);
+          if (!hasSeverity) return false;
+        }
+        return true;
+      });
+    return res.status(200).json({ ok: true, data: rows });
+  } catch (error) {
+    console.error('Failed to list eBay gaps:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to list eBay gaps' },
+    });
+  }
+});
+
+app.post('/api/ebay/gaps/:id/actions', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const itemId = String(req.params.id || '').trim();
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const gapId = typeof body.gapId === 'string' ? body.gapId.trim() : '';
+    const action = typeof body.action === 'string' ? body.action.trim() : '';
+    const note = typeof body.note === 'string' ? body.note : null;
+    const alias = body.alias && typeof body.alias === 'object' ? body.alias : null;
+    if (!itemId || !gapId || !action) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'itemId, gapId and action are required' },
+      });
+    }
+    const { applyGapAction } = require('./lib/ebay-direct');
+    const out = await applyGapAction(itemId, {
+      gapId,
+      action,
+      note,
+      alias,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: out });
+  } catch (error) {
+    console.error('Failed to update eBay gap lifecycle:', error);
+    const status = error?.code && String(error.code).startsWith('EBAY_GAP_') ? 400 : 500;
+    return res.status(status).json({
+      ok: false,
+      error: { code: status, message: error?.message || 'Failed to update gap lifecycle' },
+    });
+  }
+});
+
+app.post('/api/ebay/sync/dry-run', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const itemIds = Array.isArray(body.itemIds) ? body.itemIds.map((x) => String(x || '').trim()).filter(Boolean) : null;
+    const { dryRunSync } = require('./lib/ebay-direct');
+    const out = await dryRunSync({
+      itemIds,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: out });
+  } catch (error) {
+    console.error('Failed to run eBay sync dry-run:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to run dry-run' },
+    });
+  }
+});
+
+app.post('/api/ebay/sync/apply', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const itemIds = Array.isArray(body.itemIds) ? body.itemIds.map((x) => String(x || '').trim()).filter(Boolean) : null;
+    const { applySync } = require('./lib/ebay-direct');
+    const out = await applySync({
+      itemIds,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: out });
+  } catch (error) {
+    console.error('Failed to apply eBay sync:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to apply eBay sync' },
+    });
+  }
+});
+
+app.post('/api/ebay/reports/generate', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const outDir = typeof body.outDir === 'string' && body.outDir.trim() ? body.outDir.trim() : null;
+    const { createOperationalReports } = require('./lib/ebay-direct');
+    const report = await createOperationalReports({ outDir });
+    return res.status(200).json({ ok: true, data: report });
+  } catch (error) {
+    console.error('Failed to generate eBay reports:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to generate reports' },
+    });
   }
 });
 

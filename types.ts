@@ -490,6 +490,130 @@ export interface BaseLinkerCategoryOption {
   depth?: number;
 }
 
+export interface EbayListingRow {
+  itemId: string;
+  sku?: string | null;
+  title?: string | null;
+  subtitle?: string | null;
+  listingType?: string | null;
+  listingStatus?: string | null;
+  active?: boolean;
+  primaryCategoryId?: string | null;
+  productId?: string | null;
+  matchStatus?: 'matched' | 'ambiguous' | 'unmatched' | string;
+  matchMethod?: string | null;
+  matchConfidence?: number | null;
+  gapCount?: number;
+  gapCriticalCount?: number;
+  gapReadyCount?: number;
+  gapDocUpdatedAt?: string | null;
+  updatedAt?: string | null;
+  viewItemUrl?: string | null;
+}
+
+export interface EbayListingLink {
+  itemId: string;
+  status?: 'matched' | 'ambiguous' | 'unmatched' | string;
+  method?: string | null;
+  confidence?: number | null;
+  productId?: string | null;
+  candidateProductIds?: string[];
+}
+
+export interface EbayGapSuggestion {
+  from?: string;
+  to?: string;
+  missingOnEbay?: string[];
+  extraOnEbay?: string[];
+  [key: string]: any;
+}
+
+export interface EbayGap {
+  id: string;
+  type: string;
+  field: string;
+  severity: 'critical' | 'warn' | 'info' | string;
+  status:
+    | 'new'
+    | 'reviewed'
+    | 'accepted'
+    | 'ignored'
+    | 'ready_to_sync'
+    | 'synced'
+    | 'failed'
+    | string;
+  listingValue?: any;
+  avyValue?: any;
+  message?: string | null;
+  suggestion?: EbayGapSuggestion | null;
+  syncDirection?: 'accept_avy' | 'accept_ebay' | string;
+}
+
+export interface EbayGapDoc {
+  itemId: string;
+  listingSku?: string | null;
+  productId?: string | null;
+  linkStatus?: string | null;
+  summary?: {
+    total?: number;
+    critical?: number;
+    warn?: number;
+    info?: number;
+    byStatus?: Record<string, number>;
+  };
+  gaps?: EbayGap[];
+  updatedAtIso?: string | null;
+}
+
+export interface EbayListingDetail {
+  listing: Record<string, any> & { itemId: string };
+  link?: EbayListingLink | null;
+  product?: Record<string, any> | null;
+  gaps?: EbayGapDoc | null;
+}
+
+export interface EbaySyncDryRunItem {
+  itemId: string;
+  callName?: string | null;
+  canApply: boolean;
+  blockers: string[];
+  warnings: string[];
+  patch?: Record<string, any> | null;
+  touchedGapIds?: string[];
+}
+
+export interface EbaySyncDryRunResult {
+  summary: {
+    total: number;
+    ready: number;
+    blocked: number;
+  };
+  items: EbaySyncDryRunItem[];
+}
+
+export interface EbaySyncApplyResult {
+  summary: {
+    total: number;
+    success: number;
+    failed: number;
+    skipped: number;
+  };
+  results: Array<{
+    itemId: string;
+    ok: boolean;
+    skipped?: boolean;
+    message?: string;
+    callName?: string;
+    ack?: string;
+    touchedGapIds?: string[];
+  }>;
+  dryRun?: {
+    total: number;
+    ready: number;
+    blocked: number;
+  };
+}
+
 export interface ProductEnrichmentRecord {
   input_mode: ProductEnrichmentInputMode;
   brand: string;

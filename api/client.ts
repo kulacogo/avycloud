@@ -16,6 +16,11 @@ import {
   EbayCategoryOption,
   BaseLinkerCategoryOption,
   DashboardMetrics,
+  EbayListingRow,
+  EbayListingDetail,
+  EbayGapDoc,
+  EbaySyncDryRunResult,
+  EbaySyncApplyResult,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -311,6 +316,19 @@ export type EbayConnectionStatus = {
   refreshTokenExpiresAt?: string | null;
 };
 
+export type EbayTradingStatus = {
+  connected: boolean;
+  mode?: string | null;
+  env?: string | null;
+  endpoint?: string | null;
+  siteId?: string | null;
+  compatibilityLevel?: string | null;
+  appIdMasked?: string | null;
+  devIdMasked?: string | null;
+  certIdMasked?: string | null;
+  tokenConfigured?: boolean;
+};
+
 export async function startEbayOAuth(opts?: { locale?: string; promptLogin?: boolean }): Promise<string> {
   const url = new URL(`${BACKEND_URL}/api/ebay/oauth/start`);
   url.searchParams.set('locale', opts?.locale || 'de-DE');
@@ -332,6 +350,15 @@ export async function fetchEbayStatus(): Promise<EbayConnectionStatus> {
     throw new Error(data?.error?.message || 'Failed to load eBay status');
   }
   return (data?.data || { connected: false }) as EbayConnectionStatus;
+}
+
+export async function fetchEbayTradingStatus(): Promise<EbayTradingStatus> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/trading/status?t=${Date.now()}`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load eBay Trading status');
+  }
+  return (data?.data || { connected: false }) as EbayTradingStatus;
 }
 
 export async function importEbayMipCsv(file: File): Promise<any> {
@@ -366,6 +393,166 @@ export async function fetchEbayListingBySku(sku: string): Promise<any> {
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) {
     throw new Error(data?.error?.message || 'Failed to load eBay listing');
+  }
+  return data?.data;
+}
+
+export async function syncEbayLiveListings(payload?: {
+  maxPages?: number;
+  entriesPerPage?: number;
+  detailConcurrency?: number;
+  timeoutMs?: number;
+  runId?: string;
+}): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listings/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to sync eBay listings');
+  }
+  return data?.data;
+}
+
+export async function fetchEbayLiveListings(params?: {
+  limit?: number;
+  search?: string;
+  matchStatus?: string;
+  includeInactive?: boolean;
+}): Promise<EbayListingRow[]> {
+  const url = new URL(`${BACKEND_URL}/api/ebay/listings`);
+  if (params?.limit) url.searchParams.set('limit', String(params.limit));
+  if (params?.search) url.searchParams.set('search', params.search);
+  if (params?.matchStatus) url.searchParams.set('matchStatus', params.matchStatus);
+  if (params?.includeInactive) url.searchParams.set('includeInactive', 'true');
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load eBay live listings');
+  }
+  return Array.isArray(data?.data) ? (data.data as EbayListingRow[]) : [];
+}
+
+export async function fetchEbayLiveListingDetail(itemId: string): Promise<EbayListingDetail> {
+  const key = encodeURIComponent(String(itemId || '').trim());
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listings/${key}/detail?t=${Date.now()}`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load eBay listing detail');
+  }
+  return data?.data as EbayListingDetail;
+}
+
+export async function rebuildEbayListingLinks(payload?: { itemIds?: string[]; runId?: string }): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listing-links/rebuild`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to rebuild eBay listing links');
+  }
+  return data?.data;
+}
+
+export async function fetchEbayListingLinks(limit = 200): Promise<any[]> {
+  const url = new URL(`${BACKEND_URL}/api/ebay/listing-links`);
+  url.searchParams.set('limit', String(limit));
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load eBay listing links');
+  }
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+export async function rebuildEbayGaps(payload?: { itemIds?: string[]; runId?: string }): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/gaps/rebuild`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to rebuild eBay gaps');
+  }
+  return data?.data;
+}
+
+export async function fetchEbayGaps(params?: {
+  limit?: number;
+  status?: string;
+  severity?: string;
+  itemId?: string;
+}): Promise<EbayGapDoc[]> {
+  const url = new URL(`${BACKEND_URL}/api/ebay/gaps`);
+  if (params?.limit) url.searchParams.set('limit', String(params.limit));
+  if (params?.status) url.searchParams.set('status', params.status);
+  if (params?.severity) url.searchParams.set('severity', params.severity);
+  if (params?.itemId) url.searchParams.set('itemId', params.itemId);
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load eBay gaps');
+  }
+  return Array.isArray(data?.data) ? (data.data as EbayGapDoc[]) : [];
+}
+
+export async function applyEbayGapAction(
+  itemId: string,
+  payload: { gapId: string; action: string; note?: string; alias?: Record<string, any> }
+): Promise<any> {
+  const key = encodeURIComponent(String(itemId || '').trim());
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/gaps/${key}/actions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to update eBay gap');
+  }
+  return data?.data;
+}
+
+export async function runEbaySyncDryRun(itemIds?: string[]): Promise<EbaySyncDryRunResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/sync/dry-run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ itemIds: Array.isArray(itemIds) ? itemIds : null }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to run eBay sync dry-run');
+  }
+  return data?.data as EbaySyncDryRunResult;
+}
+
+export async function runEbaySyncApply(itemIds?: string[]): Promise<EbaySyncApplyResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/sync/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ itemIds: Array.isArray(itemIds) ? itemIds : null }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to apply eBay sync');
+  }
+  return data?.data as EbaySyncApplyResult;
+}
+
+export async function generateEbayReports(outDir?: string): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/reports/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ outDir: outDir || null }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to generate eBay reports');
   }
   return data?.data;
 }
