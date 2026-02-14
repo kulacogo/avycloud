@@ -14,7 +14,26 @@ import {
 } from '../api/client';
 import { EbayGap, EbayListingDetail, EbayListingRow, EbaySyncApplyResult, EbaySyncDryRunResult } from '../types';
 
-const safeString = (value: any) => (value == null ? '' : String(value).trim());
+const safeString = (value: any): string => {
+  if (value == null) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value).trim();
+  }
+  if (value instanceof Error) {
+    return safeString(value.message || value.name);
+  }
+  if (typeof value === 'object') {
+    const nestedMessage = safeString((value as Record<string, any>)?.message);
+    if (nestedMessage) return nestedMessage;
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value).trim();
+    }
+  }
+  return String(value).trim();
+};
 
 const toDisplayValue = (value: any): string => {
   if (value == null || value === '') return '-';
@@ -29,7 +48,32 @@ const toDisplayValue = (value: any): string => {
   return safeString(value) || '-';
 };
 
-const formatDateTime = (iso?: string | null): string => {
+const toUiErrorMessage = (error: any, fallback: string): string => {
+  const fromMessage = safeString(error?.message);
+  if (fromMessage) return fromMessage;
+  const fromError = safeString(error);
+  return fromError || fallback;
+};
+
+const formatDateTime = (value?: any): string => {
+  if (value == null || value === '') return '-';
+  if (typeof value?.toDate === 'function') {
+    try {
+      const date = value.toDate();
+      if (date instanceof Date && Number.isFinite(date.getTime())) {
+        return new Intl.DateTimeFormat('de-DE', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(date);
+      }
+    } catch {
+      // fall through to generic conversion
+    }
+  }
+  const iso = safeString(value);
   if (!iso) return '-';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
@@ -142,7 +186,7 @@ export const EbayListingsView: React.FC = () => {
     try {
       await action();
     } catch (err: any) {
-      setError(err?.message || 'Aktion fehlgeschlagen');
+      setError(toUiErrorMessage(err, 'Aktion fehlgeschlagen'));
     } finally {
       setBusyAction(null);
     }
@@ -154,7 +198,7 @@ export const EbayListingsView: React.FC = () => {
       setTradingStatus(status);
     } catch (err: any) {
       setTradingStatus({ connected: false, mode: null });
-      setError(err?.message || 'Trading Status konnte nicht geladen werden');
+      setError(toUiErrorMessage(err, 'Trading Status konnte nicht geladen werden'));
     }
   }, []);
 
@@ -174,7 +218,7 @@ export const EbayListingsView: React.FC = () => {
         return rows[0]?.itemId || null;
       });
     } catch (err: any) {
-      setError(err?.message || 'Listings konnten nicht geladen werden');
+      setError(toUiErrorMessage(err, 'Listings konnten nicht geladen werden'));
       setListings([]);
       setSelectedItemId(null);
     } finally {
@@ -190,7 +234,7 @@ export const EbayListingsView: React.FC = () => {
       setDetail(data);
     } catch (err: any) {
       setDetail(null);
-      setError(err?.message || 'Detail konnte nicht geladen werden');
+      setError(toUiErrorMessage(err, 'Detail konnte nicht geladen werden'));
     } finally {
       setLoadingDetail(false);
     }
@@ -245,7 +289,7 @@ export const EbayListingsView: React.FC = () => {
   const productTitle = safeString(product?.identification?.name || product?.details?.title || product?.title);
   const productSubtitle = safeString(product?.details?.subtitle || product?.subtitle);
   const productDescription = safeString(product?.details?.description || product?.description);
-  const gapList = detail?.gaps?.gaps || [];
+  const gapList = Array.isArray(detail?.gaps?.gaps) ? detail.gaps.gaps : [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
@@ -415,7 +459,11 @@ export const EbayListingsView: React.FC = () => {
         </div>
       </div>
 
-      {error && <div className="rounded-xl border border-rose-700 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">{error}</div>}
+      {error && (
+        <div className="rounded-xl border border-rose-700 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+          {safeString(error)}
+        </div>
+      )}
       {notice && (
         <div className="rounded-xl border border-emerald-700 bg-emerald-900/30 px-4 py-3 text-sm text-emerald-50">
           {notice}
@@ -485,7 +533,7 @@ export const EbayListingsView: React.FC = () => {
                 <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 space-y-1">
                   <p className="text-xs uppercase tracking-wider text-slate-400">Listing</p>
                   <p className="text-sm text-white font-semibold">{safeString(detail.listing?.title) || '-'}</p>
-                  <p className="text-xs text-slate-300">Item ID: {detail.listing?.itemId}</p>
+                  <p className="text-xs text-slate-300">Item ID: {safeString(detail.listing?.itemId) || '-'}</p>
                   <p className="text-xs text-slate-300">SKU: {safeString(detail.listing?.sku) || '-'}</p>
                   <p className="text-xs text-slate-400">Zuletzt aktualisiert: {formatDateTime(detail.listing?.updatedAt)}</p>
                 </div>
@@ -498,7 +546,7 @@ export const EbayListingsView: React.FC = () => {
                     <span className="text-xs text-slate-300">Method: {safeString(detail.link?.method) || '-'}</span>
                   </div>
                   <p className="text-xs text-slate-300">Product ID: {safeString(detail.link?.productId) || '-'}</p>
-                  <p className="text-xs text-slate-300">Confidence: {detail.link?.confidence ?? '-'}</p>
+                  <p className="text-xs text-slate-300">Confidence: {toDisplayValue(detail.link?.confidence)}</p>
                 </div>
               </div>
 
@@ -572,21 +620,23 @@ export const EbayListingsView: React.FC = () => {
                   </p>
                 </div>
                 <div className="space-y-2 max-h-[34vh] overflow-auto pr-1">
-                  {gapList.map((gap) => (
-                    <div key={gap.id} className="rounded-xl border border-slate-700 bg-slate-950/50 p-3 space-y-2">
+                  {gapList.map((gap, index) => (
+                    <div key={safeString(gap.id) || `gap-${index}`} className="rounded-xl border border-slate-700 bg-slate-950/50 p-3 space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded border border-slate-600 px-1.5 py-0.5 text-[10px] text-slate-200">{gap.id}</span>
+                        <span className="rounded border border-slate-600 px-1.5 py-0.5 text-[10px] text-slate-200">
+                          {safeString(gap.id) || '-'}
+                        </span>
                         <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${statusBadgeClass(gap.severity)}`}>
-                          {gap.severity}
+                          {safeString(gap.severity) || '-'}
                         </span>
                         <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${statusBadgeClass(gap.status)}`}>
-                          {gap.status}
+                          {safeString(gap.status) || '-'}
                         </span>
                         <span className="rounded border border-slate-600 px-1.5 py-0.5 text-[10px] text-slate-300">
-                          {gap.type}:{gap.field}
+                          {safeString(gap.type) || '-'}:{safeString(gap.field) || '-'}
                         </span>
                       </div>
-                      {safeString(gap.message) && <p className="text-xs text-slate-300">{gap.message}</p>}
+                      {safeString(gap.message) && <p className="text-xs text-slate-300">{safeString(gap.message)}</p>}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <div className="rounded border border-slate-700 bg-slate-900/70 p-2">
                           <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">eBay</p>
