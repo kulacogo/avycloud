@@ -326,6 +326,7 @@ type GapStatusFilter = 'actionable' | 'all' | 'new' | 'reviewed' | 'accepted' | 
 type GapSeverityFilter = 'all' | 'critical' | 'warn' | 'info';
 type ListingListFilter = 'all' | 'with_gaps' | 'critical_only' | 'ready_only' | 'without_gaps';
 type ListingSortBy = 'critical_desc' | 'gaps_desc' | 'ready_desc' | 'updated_desc' | 'title_asc' | 'item_id_desc';
+type AdvancedActionKey = 'refresh_list' | 'links:rebuild' | 'gaps:rebuild' | 'sync:dry-run' | 'reports:generate' | 'gaps:refresh';
 
 const GAP_STATUS_FILTER_OPTIONS: Array<{ id: GapStatusFilter; label: string }> = [
   { id: 'actionable', label: 'Action needed' },
@@ -361,6 +362,15 @@ const LISTING_SORT_OPTIONS: Array<{ id: ListingSortBy; label: string }> = [
   { id: 'updated_desc', label: 'Sort: Update (neu zuerst)' },
   { id: 'title_asc', label: 'Sort: Titel A-Z' },
   { id: 'item_id_desc', label: 'Sort: Item ID absteigend' },
+];
+
+const ADVANCED_ACTION_OPTIONS: Array<{ id: AdvancedActionKey; label: string }> = [
+  { id: 'refresh_list', label: 'Liste aktualisieren' },
+  { id: 'gaps:refresh', label: 'Nur Gaps neu laden' },
+  { id: 'links:rebuild', label: 'Linking neu berechnen' },
+  { id: 'gaps:rebuild', label: 'Gap Audit neu berechnen' },
+  { id: 'sync:dry-run', label: 'Dry-Run (Vorschau)' },
+  { id: 'reports:generate', label: 'Reports generieren' },
 ];
 
 const GAP_ACTIONABLE_STATUSES = new Set(['new', 'reviewed', 'accepted', 'ready_to_sync']);
@@ -399,6 +409,7 @@ export const EbayListingsView: React.FC = () => {
   const [listingListFilter, setListingListFilter] = useState<ListingListFilter>('all');
   const [listingSortBy, setListingSortBy] = useState<ListingSortBy>('critical_desc');
   const [listingListSearch, setListingListSearch] = useState('');
+  const [advancedAction, setAdvancedAction] = useState<AdvancedActionKey>('gaps:refresh');
 
   const selectedListing = useMemo(
     () => listings.find((entry) => entry.itemId === selectedItemId) || null,
@@ -568,6 +579,44 @@ export const EbayListingsView: React.FC = () => {
     },
     [gapActionChoiceById, getDefaultGapAction]
   );
+
+  const executeAdvancedAction = useCallback(async () => {
+    if (advancedAction === 'refresh_list') {
+      await loadListings();
+      setNotice('Liste aktualisiert.');
+      return;
+    }
+    if (advancedAction === 'links:rebuild') {
+      const res = await rebuildEbayListingLinks({});
+      await loadListings();
+      setNotice(`Linking aktualisiert (${res?.matched ?? 0} matched, ${res?.unmatched ?? 0} unmatched).`);
+      return;
+    }
+    if (advancedAction === 'gaps:rebuild') {
+      const res = await rebuildEbayGaps({});
+      await loadListings();
+      setNotice(`Gap Audit aktualisiert (${res?.totalListings ?? 0} Listings, ${res?.totalGaps ?? 0} Gaps).`);
+      return;
+    }
+    if (advancedAction === 'sync:dry-run') {
+      const payload = await runEbaySyncDryRun(selectedItemId ? [selectedItemId] : undefined);
+      setDryRunResult(payload);
+      setNotice('Dry-Run abgeschlossen.');
+      return;
+    }
+    if (advancedAction === 'reports:generate') {
+      const reports = await generateEbayReports();
+      setNotice(`Reports erstellt (${reports?.reportId || 'n/a'}).`);
+      return;
+    }
+    if (advancedAction === 'gaps:refresh') {
+      const docs = await fetchEbayGaps({ itemId: selectedItemId || undefined, limit: selectedItemId ? 1 : 20 });
+      if (selectedItemId && docs.length) {
+        setDetail((prev) => (prev ? { ...prev, gaps: docs[0] } : prev));
+      }
+      setNotice(`Gaps geladen (${docs.length}).`);
+    }
+  }, [advancedAction, loadListings, selectedItemId]);
 
   const listing = (detail?.listing && typeof detail.listing === 'object' ? detail.listing : {}) as Record<string, any>;
   const listingNormalized =
@@ -825,19 +874,11 @@ export const EbayListingsView: React.FC = () => {
           <div className="lg:col-span-4 flex flex-wrap justify-end gap-2">
             <button
               type="button"
-              onClick={() => void loadListings()}
-              disabled={loadingListings}
-              className="rounded-xl bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              Reload
-            </button>
-            <button
-              type="button"
               onClick={() =>
                 void runAction('sync:listings', async () => {
                   const res = await syncEbayLiveListings({});
                   await loadListings();
-                  setNotice(`Sync abgeschlossen (${res?.fetched ?? 0} Listings, ${res?.gaps ?? 0} Gap-Dokumente).`);
+                  setNotice(`Live Sync + Audit abgeschlossen (${res?.fetched ?? 0} Listings, ${res?.gaps ?? 0} Gap-Dokumente).`);
                 })
               }
               disabled={busyAction === 'sync:listings'}
@@ -845,118 +886,67 @@ export const EbayListingsView: React.FC = () => {
             >
               Live Sync + Audit
             </button>
+            <button
+              type="button"
+              onClick={() =>
+                void runAction('gaps:bulk-missing', async () => {
+                  const itemIds = selectedItemId ? [selectedItemId] : undefined;
+                  const prepared = await bulkPrepareEbayMissingSpecifics(itemIds);
+                  const payload = await runEbaySyncApply(itemIds);
+                  setApplyResult(payload);
+                  await loadListings();
+                  if (selectedItemId) await loadDetail(selectedItemId);
+                  setNotice(
+                    `Bulk fehlende Parameter vorbereitet (${prepared?.gapsPrepared ?? 0}) und Sync Apply gestartet. Success: ${
+                      payload?.summary?.success ?? 0
+                    }, Failed: ${payload?.summary?.failed ?? 0}, Skipped: ${payload?.summary?.skipped ?? 0}.`
+                  );
+                })
+              }
+              disabled={busyAction === 'gaps:bulk-missing'}
+              className="rounded-xl border border-emerald-600/70 bg-emerald-900/25 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-800/35 disabled:opacity-50"
+            >
+              Bulk fehlende Parameter {selectedItemId ? '(Auswahl)' : '(alle)'}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                void runAction('sync:apply', async () => {
+                  const payload = await runEbaySyncApply(selectedItemId ? [selectedItemId] : undefined);
+                  setApplyResult(payload);
+                  await loadListings();
+                  if (selectedItemId) await loadDetail(selectedItemId);
+                  setNotice('Sync Apply abgeschlossen.');
+                })
+              }
+              disabled={busyAction === 'sync:apply'}
+              className="rounded-xl border border-emerald-500/60 bg-emerald-900/30 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-800/40 disabled:opacity-50"
+            >
+              Sync Apply {selectedItemId ? '(Auswahl)' : '(alle ready)'}
+            </button>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/35 px-3 py-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Weitere Aktionen</span>
+          <select
+            value={advancedAction}
+            onChange={(event) => setAdvancedAction(event.target.value as AdvancedActionKey)}
+            className="rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-xs text-white min-w-[220px]"
+          >
+            {ADVANCED_ACTION_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
-            onClick={() =>
-              void runAction('links:rebuild', async () => {
-                const res = await rebuildEbayListingLinks({});
-                await loadListings();
-                setNotice(`Linking aktualisiert (${res?.matched ?? 0} matched, ${res?.unmatched ?? 0} unmatched).`);
-              })
-            }
-            disabled={busyAction === 'links:rebuild'}
-            className="rounded-lg border border-slate-600 bg-slate-900/40 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
+            onClick={() => void runAction(`advanced:${advancedAction}`, executeAdvancedAction)}
+            disabled={Boolean(busyAction && busyAction.startsWith('advanced:'))}
+            className="rounded-lg border border-slate-600 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
           >
-            Linking neu berechnen
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              void runAction('gaps:rebuild', async () => {
-                const res = await rebuildEbayGaps({});
-                await loadListings();
-                setNotice(`Gap Audit aktualisiert (${res?.totalListings ?? 0} Listings, ${res?.totalGaps ?? 0} Gaps).`);
-              })
-            }
-            disabled={busyAction === 'gaps:rebuild'}
-            className="rounded-lg border border-slate-600 bg-slate-900/40 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
-          >
-            Gap Audit neu berechnen
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              void runAction('gaps:bulk-missing', async () => {
-                const itemIds = selectedItemId ? [selectedItemId] : undefined;
-                const prepared = await bulkPrepareEbayMissingSpecifics(itemIds);
-                const payload = await runEbaySyncApply(itemIds);
-                setApplyResult(payload);
-                await loadListings();
-                if (selectedItemId) await loadDetail(selectedItemId);
-                setNotice(
-                  `Bulk fehlende Parameter vorbereitet (${prepared?.gapsPrepared ?? 0}) und Sync Apply gestartet. Success: ${
-                    payload?.summary?.success ?? 0
-                  }, Failed: ${payload?.summary?.failed ?? 0}, Skipped: ${payload?.summary?.skipped ?? 0}.`
-                );
-              })
-            }
-            disabled={busyAction === 'gaps:bulk-missing'}
-            className="rounded-lg border border-emerald-600/70 bg-emerald-900/25 px-3 py-2 text-xs text-emerald-100 hover:bg-emerald-800/35 disabled:opacity-50"
-          >
-            Bulk fehlende Parameter syncen {selectedItemId ? '(nur Auswahl)' : '(alle)'}
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              void runAction('sync:dry-run', async () => {
-                const payload = await runEbaySyncDryRun(selectedItemId ? [selectedItemId] : undefined);
-                setDryRunResult(payload);
-                setNotice('Dry-Run abgeschlossen.');
-              })
-            }
-            disabled={busyAction === 'sync:dry-run'}
-            className="rounded-lg border border-slate-600 bg-slate-900/40 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
-          >
-            Dry-Run {selectedItemId ? '(nur Auswahl)' : '(alle ready)'}
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              void runAction('sync:apply', async () => {
-                const payload = await runEbaySyncApply(selectedItemId ? [selectedItemId] : undefined);
-                setApplyResult(payload);
-                await loadListings();
-                if (selectedItemId) await loadDetail(selectedItemId);
-                setNotice('Sync Apply abgeschlossen.');
-              })
-            }
-            disabled={busyAction === 'sync:apply'}
-            className="rounded-lg border border-emerald-500/60 bg-emerald-900/30 px-3 py-2 text-xs text-emerald-100 hover:bg-emerald-800/40 disabled:opacity-50"
-          >
-            Sync Apply {selectedItemId ? '(nur Auswahl)' : '(alle ready)'}
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              void runAction('reports:generate', async () => {
-                const reports = await generateEbayReports();
-                setNotice(`Reports erstellt (${reports?.reportId || 'n/a'}).`);
-              })
-            }
-            disabled={busyAction === 'reports:generate'}
-            className="rounded-lg border border-slate-600 bg-slate-900/40 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
-          >
-            Reports generieren
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              void runAction('gaps:refresh', async () => {
-                const docs = await fetchEbayGaps({ itemId: selectedItemId || undefined, limit: selectedItemId ? 1 : 20 });
-                if (selectedItemId && docs.length) {
-                  setDetail((prev) => (prev ? { ...prev, gaps: docs[0] } : prev));
-                }
-                setNotice(`Gaps geladen (${docs.length}).`);
-              })
-            }
-            disabled={busyAction === 'gaps:refresh'}
-            className="rounded-lg border border-slate-600 bg-slate-900/40 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
-          >
-            Gaps aktualisieren
+            Ausfuehren
           </button>
         </div>
       </div>
