@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   applyEbayGapAction,
+  bulkPrepareEbayMissingSpecifics,
   fetchEbayGaps,
   fetchEbayLiveListingDetail,
   fetchEbayLiveListings,
@@ -314,7 +315,7 @@ const clipText = (value: any, maxLength = 220): string => {
 
 const GAP_ACTIONS = [
   { id: 'review', label: 'Review' },
-  { id: 'accept_avy', label: 'Avy uebernehmen' },
+  { id: 'accept_avy', label: 'Avy uebernehmen (nur markieren)' },
   { id: 'accept_ebay', label: 'eBay behalten' },
   { id: 'ready_to_sync', label: 'Ready to Sync' },
   { id: 'ignore', label: 'Ignore' },
@@ -494,17 +495,59 @@ export const EbayListingsView: React.FC = () => {
               [safeString(gap.suggestion?.from)]: safeString(gap.suggestion?.to),
             }
             : undefined;
-        await applyEbayGapAction(selectedItemId, {
+        const result = await applyEbayGapAction(selectedItemId, {
           gapId: gap.id,
           action,
           alias,
         });
-        await loadDetail(selectedItemId);
-        await loadListings();
-        setNotice(`Gap ${gap.id} -> ${action}`);
+        const updatedGap = result?.gap || null;
+        const updatedSummary = result?.summary || null;
+
+        if (updatedGap && safeString(updatedGap.id)) {
+          setDetail((prev) => {
+            if (!prev) return prev;
+            const currentDoc = prev.gaps || null;
+            const currentGaps = Array.isArray(currentDoc?.gaps) ? currentDoc.gaps : [];
+            const nextGaps = currentGaps.map((entry) =>
+              safeString(entry?.id) === safeString(updatedGap.id) ? ({ ...entry, ...updatedGap } as EbayGap) : entry
+            );
+            return {
+              ...prev,
+              gaps: {
+                ...(currentDoc || {}),
+                itemId: safeString(currentDoc?.itemId) || selectedItemId,
+                gaps: nextGaps,
+                summary: updatedSummary || currentDoc?.summary,
+                updatedAtIso: new Date().toISOString(),
+              },
+            };
+          });
+        }
+
+        if (updatedSummary) {
+          setListings((prev) =>
+            prev.map((row) => {
+              if (row.itemId !== selectedItemId) return row;
+              return {
+                ...row,
+                gapCount: Number(updatedSummary.total || 0),
+                gapCriticalCount: Number(updatedSummary.critical || 0),
+                gapReadyCount: Number(updatedSummary?.byStatus?.ready_to_sync || 0),
+              };
+            })
+          );
+        }
+
+        if (action === 'accept_avy') {
+          setNotice(
+            `Gap ${gap.id} als Avy uebernehmen markiert. Jetzt oben "Sync Apply (nur Auswahl)" ausfuehren, damit eBay aktualisiert wird.`
+          );
+        } else {
+          setNotice(`Gap ${gap.id} -> ${action}`);
+        }
       });
     },
-    [selectedItemId, loadDetail, loadListings, runAction]
+    [selectedItemId, runAction]
   );
 
   const getDefaultGapAction = useCallback((gap: EbayGap): string => {
@@ -833,6 +876,28 @@ export const EbayListingsView: React.FC = () => {
             className="rounded-lg border border-slate-600 bg-slate-900/40 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
           >
             Gap Audit neu berechnen
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              void runAction('gaps:bulk-missing', async () => {
+                const itemIds = selectedItemId ? [selectedItemId] : undefined;
+                const prepared = await bulkPrepareEbayMissingSpecifics(itemIds);
+                const payload = await runEbaySyncApply(itemIds);
+                setApplyResult(payload);
+                await loadListings();
+                if (selectedItemId) await loadDetail(selectedItemId);
+                setNotice(
+                  `Bulk fehlende Parameter vorbereitet (${prepared?.gapsPrepared ?? 0}) und Sync Apply gestartet. Success: ${
+                    payload?.summary?.success ?? 0
+                  }, Failed: ${payload?.summary?.failed ?? 0}, Skipped: ${payload?.summary?.skipped ?? 0}.`
+                );
+              })
+            }
+            disabled={busyAction === 'gaps:bulk-missing'}
+            className="rounded-lg border border-emerald-600/70 bg-emerald-900/25 px-3 py-2 text-xs text-emerald-100 hover:bg-emerald-800/35 disabled:opacity-50"
+          >
+            Bulk fehlende Parameter syncen {selectedItemId ? '(nur Auswahl)' : '(alle)'}
           </button>
           <button
             type="button"

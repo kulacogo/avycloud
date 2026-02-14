@@ -680,6 +680,19 @@ export async function applyEbayGapAction(
   return data?.data;
 }
 
+export async function bulkPrepareEbayMissingSpecifics(itemIds?: string[]): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/gaps/bulk-prepare-missing`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ itemIds: Array.isArray(itemIds) ? itemIds : null }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to bulk-prepare missing specifics');
+  }
+  return data?.data;
+}
+
 export async function runEbaySyncDryRun(itemIds?: string[]): Promise<EbaySyncDryRunResult> {
   const res = await fetchApi(`${BACKEND_URL}/api/ebay/sync/dry-run`, {
     method: 'POST',

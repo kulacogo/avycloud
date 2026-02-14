@@ -1427,6 +1427,98 @@ async function applyGapAction(itemId, { gapId, action, note = null, alias = null
   };
 }
 
+async function bulkPrepareMissingSpecificGaps({ itemIds = null, actor = null } = {}) {
+  const targetIds = Array.isArray(itemIds)
+    ? Array.from(new Set(itemIds.map((id) => safeString(id)).filter(Boolean)))
+    : null;
+  const snapshot = targetIds?.length
+    ? await firestore.getAll(...targetIds.map((id) => firestore.collection(EBAY_GAPS_COLLECTION).doc(id)))
+    : await firestore.collection(EBAY_GAPS_COLLECTION).get();
+  const docs = Array.isArray(snapshot.docs) ? snapshot.docs : snapshot;
+
+  let docsTouched = 0;
+  let gapsPrepared = 0;
+  const byItem = [];
+  const nowIso = new Date().toISOString();
+
+  for (const group of chunk(docs, 250)) {
+    const batch = firestore.batch();
+    group.forEach((doc) => {
+      if (!doc?.exists) return;
+      const itemId = safeString(doc.id);
+      const data = doc.data() || {};
+      const gaps = asArray(data.gaps);
+      let changed = 0;
+      const nextGaps = gaps.map((gap) => {
+        const type = safeLower(gap?.type);
+        const status = safeLower(gap?.status);
+        const isMissingSpecific =
+          type === 'item_specific' &&
+          (gap?.listingValue == null ||
+            (Array.isArray(gap?.listingValue) && gap.listingValue.length === 0) ||
+            safeString(gap?.listingValue) === '');
+        if (!isMissingSpecific) return gap;
+        if (!asArray(gap?.avyValue).map((v) => safeString(v)).filter(Boolean).length) return gap;
+        if (status === 'ignored' || status === 'synced') return gap;
+
+        const history = Array.isArray(gap?.history) ? gap.history.slice(-40) : [];
+        history.push({
+          action: 'bulk_prepare_missing_specific',
+          status: 'ready_to_sync',
+          note: null,
+          at: nowIso,
+        });
+        changed += 1;
+        return {
+          ...gap,
+          status: 'ready_to_sync',
+          resolution: cleanUndefined({
+            strategy: 'bulk_prepare_missing_specific',
+            note: null,
+            alias: null,
+            at: nowIso,
+          }),
+          history,
+          updatedAt: nowIso,
+        };
+      });
+
+      if (!changed) return;
+      docsTouched += 1;
+      gapsPrepared += changed;
+      byItem.push({ itemId, prepared: changed });
+      const summary = summarizeGaps(nextGaps);
+      const events = Array.isArray(data.events) ? data.events.slice(-199) : [];
+      events.push({
+        at: nowIso,
+        actor: actor || null,
+        action: 'bulk_prepare_missing_specific',
+        prepared: changed,
+      });
+      const ref = firestore.collection(EBAY_GAPS_COLLECTION).doc(itemId);
+      batch.set(
+        ref,
+        {
+          gaps: nextGaps,
+          summary,
+          events,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedAtIso: nowIso,
+        },
+        { merge: true }
+      );
+    });
+    await batch.commit();
+  }
+
+  return {
+    docsTotal: docs.length,
+    docsTouched,
+    gapsPrepared,
+    byItem: byItem.slice(0, 200),
+  };
+}
+
 function selectSyncCandidatesFromGaps(gapDoc) {
   const gaps = asArray(gapDoc?.gaps);
   return gaps.filter((gap) => {
@@ -1917,6 +2009,7 @@ module.exports = {
   buildProductListingLinks,
   auditListingGaps,
   applyGapAction,
+  bulkPrepareMissingSpecificGaps,
   dryRunSync,
   applySync,
   createOperationalReports,

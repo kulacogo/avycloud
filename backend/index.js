@@ -2387,6 +2387,25 @@ app.post('/api/ebay/gaps/:id/actions', requirePermission('products', 'write'), a
   }
 });
 
+app.post('/api/ebay/gaps/bulk-prepare-missing', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const itemIds = Array.isArray(body.itemIds) ? body.itemIds.map((x) => String(x || '').trim()).filter(Boolean) : null;
+    const { bulkPrepareMissingSpecificGaps } = require('./lib/ebay-direct');
+    const out = await bulkPrepareMissingSpecificGaps({
+      itemIds,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: out });
+  } catch (error) {
+    console.error('Failed to bulk-prepare missing eBay specifics:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to bulk-prepare missing specifics' },
+    });
+  }
+});
+
 app.post('/api/ebay/sync/dry-run', requirePermission('products', 'write'), async (req, res) => {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
