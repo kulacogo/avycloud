@@ -432,7 +432,7 @@ export const EbayListingsView: React.FC = () => {
     setError(null);
     try {
       const rows = await fetchEbayLiveListings({
-        limit: 300,
+        limit: 500,
         search: search.trim() || undefined,
         matchStatus: matchStatus === 'all' ? undefined : matchStatus,
         includeInactive,
