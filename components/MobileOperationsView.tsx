@@ -111,6 +111,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [pickMessage, setPickMessage] = useState<string | null>(null);
   const [pickMessageTone, setPickMessageTone] = useState<'info' | 'success' | 'error' | null>(null);
   const [packMessage, setPackMessage] = useState<string | null>(null);
+  const [packScopedOrderKey, setPackScopedOrderKey] = useState<string | null>(null);
   // Mobile pick progress (supports partial picks across bins)
   const [pickedByItemId, setPickedByItemId] = useState<Record<string, number>>({});
   // Local bin deltas to avoid stale product data causing repeated picks from the same BIN
@@ -167,17 +168,49 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     });
   }, []);
 
-  const dedupeOrders = (list: Order[]) => {
-    const seen = new Set<string>();
-    const result: Order[] = [];
-    list.forEach((order) => {
-      const key = order.baselinkerId || order.id;
-      if (seen.has(key)) return;
-      seen.add(key);
-      result.push(order);
-    });
-    return result;
-  };
+  const normalizeScan = (val?: string | null) => (val || '').replace(/\s+/g, '').toUpperCase();
+  const normalizeSkuScan = (val?: string | null) => normalizeScan(val).replace(/^SKU[-_\s]*/i, '');
+
+  const getOrderSourceId = useCallback((order: Order) => {
+    const top = order.orderSourceId;
+    if (top != null && String(top).trim()) return String(top).trim();
+    const raw = (order as any)?.raw?.order_source_id;
+    if (raw != null && String(raw).trim()) return String(raw).trim();
+    return null;
+  }, []);
+
+  const getOrderSource = useCallback((order: Order) => {
+    const top = order.orderSource;
+    if (top != null && String(top).trim()) return String(top).trim();
+    const raw = (order as any)?.raw?.order_source;
+    if (raw != null && String(raw).trim()) return String(raw).trim();
+    return null;
+  }, []);
+
+  const getOrderCouplingKey = useCallback(
+    (order: Order) => {
+      const src = (getOrderSource(order) || '-').toString().trim() || '-';
+      const srcId = (getOrderSourceId(order) || '-').toString().trim() || '-';
+      const orderId = (order.baselinkerId || order.id || '').toString().trim();
+      return order.baselinkerOrderKey || `${orderId}::${src}::${srcId}`;
+    },
+    [getOrderSource, getOrderSourceId]
+  );
+
+  const dedupeOrders = useCallback(
+    (list: Order[]) => {
+      const seen = new Set<string>();
+      const result: Order[] = [];
+      list.forEach((order) => {
+        const key = getOrderCouplingKey(order);
+        if (seen.has(key)) return;
+        seen.add(key);
+        result.push(order);
+      });
+      return result;
+    },
+    [getOrderCouplingKey]
+  );
 
   const refreshOrders = useCallback(
     async (isCancelled?: () => boolean) => {
@@ -228,14 +261,45 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   }, [orders]);
 
   const readyToPackOrders = useMemo(() => {
-    // We only want orders that are actually in BaseLinker status "Kommissioniert" (local status: picked + label contains kommissioniert)
-    return orders.filter(
-      (o) => o.status === 'picked' && (o.statusLabel || '').toLowerCase().includes('kommissioniert')
-    );
-  }, [orders]);
+    // Safety gate:
+    // Pack flow must only contain BaseLinker status "Kommissioniert".
+    // Explicitly exclude "Verpackt"/shipped/cancelled labels so packed orders never reappear here.
+    const isCancelled = (label?: string | null) => {
+      const raw = (label || '').toLowerCase();
+      return raw.includes('storniert') || raw.includes('cancel');
+    };
+    const isPackedOrBeyond = (label?: string | null) => {
+      const raw = (label || '').toLowerCase();
+      return (
+        raw.includes('verpackt') ||
+        raw.includes('packed') ||
+        raw.includes('versendet') ||
+        raw.includes('shipped') ||
+        raw.includes('zugestellt') ||
+        raw.includes('delivered')
+      );
+    };
+    const filtered = orders.filter((o) => {
+      const label = (o.statusLabel || '').toLowerCase();
+      const isKommissioniert = label.includes('kommissioniert');
+      return o.status === 'picked' && isKommissioniert && !isCancelled(label) && !isPackedOrBeyond(label);
+    });
+    // Stable processing order to keep scanner behavior deterministic.
+    return filtered.sort((a, b) => {
+      const aTs = Date.parse(a.createdAt || '') || 0;
+      const bTs = Date.parse(b.createdAt || '') || 0;
+      if (aTs !== bTs) return aTs - bTs;
+      return getOrderCouplingKey(a).localeCompare(getOrderCouplingKey(b));
+    });
+  }, [orders, getOrderCouplingKey]);
 
-  const normalizeScan = (val?: string | null) => (val || '').replace(/\s+/g, '').toUpperCase();
-  const normalizeSkuScan = (val?: string | null) => normalizeScan(val).replace(/^SKU[-_\s]*/i, '');
+  useEffect(() => {
+    if (!packScopedOrderKey) return;
+    const exists = readyToPackOrders.some((order) => getOrderCouplingKey(order) === packScopedOrderKey);
+    if (!exists) {
+      setPackScopedOrderKey(null);
+    }
+  }, [packScopedOrderKey, readyToPackOrders, getOrderCouplingKey]);
   const equalsSkuScan = (a?: string | null, b?: string | null) => {
     const na = normalizeScan(a);
     const nb = normalizeScan(b);
@@ -243,6 +307,31 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     if (na === nb) return true;
     return normalizeSkuScan(na) === normalizeSkuScan(nb);
   };
+
+  const isOrderIdentityScanMatch = useCallback(
+    (order: Order, rawScan: string) => {
+      const scan = normalizeScan(rawScan);
+      if (!scan) return false;
+      const sourceId = getOrderSourceId(order);
+      const orderId = (order.baselinkerId || order.id || '').toString().trim();
+      const candidates = new Set(
+        [
+          orderId,
+          order.number || '',
+          sourceId || '',
+          sourceId ? `${orderId}-${sourceId}` : '',
+          sourceId ? `${orderId}/${sourceId}` : '',
+          (order as any)?.raw?.external_order_id || '',
+          (order as any)?.raw?.shop_order_id || '',
+          (order as any)?.raw?.delivery_package_nr || '',
+        ]
+          .map((v) => normalizeScan(String(v || '')))
+          .filter(Boolean)
+      );
+      return candidates.has(scan);
+    },
+    [getOrderSourceId]
+  );
 
   const resolveProductForItem = useCallback(
     (item: { productId?: string | null; sku?: string | null; ean?: string | null }) => {
@@ -361,21 +450,44 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   const packItems = useMemo(() => {
     const ready = readyToPackOrders;
-    const bucket: Record<string, { orderId: string; sku: string; name: string; binCode: string; qty: number }> = {};
+    const bucket: Record<
+      string,
+      {
+        orderId: string;
+        orderKey: string;
+        orderNumber?: string | null;
+        orderSourceId?: string | null;
+        sku: string;
+        name: string;
+        binCode: string;
+        qty: number;
+      }
+    > = {};
     ready.forEach((o) => {
+      const orderKey = getOrderCouplingKey(o);
+      const orderSourceId = getOrderSourceId(o);
       o.items.forEach((it) => {
         const sku = it.sku || it.id;
         const binCode = it.pickHint?.binCode || '—';
-        const key = `${o.id}::${sku}::${binCode}`;
+        const key = `${orderKey}::${sku}::${binCode}`;
         const qty = Number.isFinite(it.quantity) ? it.quantity : 1;
         if (!bucket[key]) {
-          bucket[key] = { orderId: o.id, sku, name: it.name, binCode, qty: 0 };
+          bucket[key] = {
+            orderId: o.id,
+            orderKey,
+            orderNumber: o.number || o.baselinkerId || o.id,
+            orderSourceId,
+            sku,
+            name: it.name,
+            binCode,
+            qty: 0,
+          };
         }
         bucket[key].qty += qty;
       });
     });
-    return Object.values(bucket);
-  }, [readyToPackOrders]);
+    return Object.values(bucket).sort((a, b) => a.orderKey.localeCompare(b.orderKey));
+  }, [readyToPackOrders, getOrderCouplingKey, getOrderSourceId]);
 
   const equalsIgnoreCase = useCallback(
     (a?: string | null, b?: string | null) => normalizeScan(a) === normalizeScan(b),
@@ -572,15 +684,42 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         const normalized = normalizeScan(rawTrimmed);
         if (!normalized) return;
 
-        const matches: Array<{ orderId: string; orderNumber?: string | null }> = [];
+        const orderIdentityMatches = readyToPackOrders.filter((o) => isOrderIdentityScanMatch(o, normalized));
+        if (orderIdentityMatches.length === 1) {
+          const selected = orderIdentityMatches[0];
+          const selectedKey = getOrderCouplingKey(selected);
+          setPackScopedOrderKey(selectedKey);
+          setPackMessage(
+            t('ops.mobile.pack.scan.orderSelected', {
+              order: selected.number || selected.baselinkerId || selected.id,
+            })
+          );
+          return;
+        }
+        if (orderIdentityMatches.length > 1) {
+          setPackMessage(
+            t('ops.mobile.pack.scan.orderAmbiguous', {
+              value: rawTrimmed,
+              count: orderIdentityMatches.length,
+            })
+          );
+          return;
+        }
+
+        const scopedOrders = packScopedOrderKey
+          ? readyToPackOrders.filter((o) => getOrderCouplingKey(o) === packScopedOrderKey)
+          : readyToPackOrders;
+        const candidateOrders = scopedOrders.length ? scopedOrders : readyToPackOrders;
+
+        const matches: Array<{ orderId: string; orderKey: string; orderNumber?: string | null }> = [];
         const seen = new Set<string>();
-        for (const o of readyToPackOrders) {
+        for (const o of candidateOrders) {
           const hit = o.items.some((it) => equalsSkuScan(it.sku || '', normalized) || equalsSkuScan(it.ean || '', normalized));
           if (!hit) continue;
-          const key = String(o.id);
+          const key = getOrderCouplingKey(o);
           if (seen.has(key)) continue;
           seen.add(key);
-          matches.push({ orderId: o.id, orderNumber: o.number });
+          matches.push({ orderId: o.id, orderKey: key, orderNumber: o.number || o.baselinkerId || o.id });
         }
 
         if (matches.length === 0) {
@@ -597,6 +736,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         void (async () => {
           try {
             await packOrder(target.orderId);
+            setPackScopedOrderKey(target.orderKey);
             setPackMessage(
               t('ops.mobile.pack.scan.success', {
                 order: target.orderNumber || target.orderId,
@@ -709,6 +849,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       stowSku,
       equalsSkuScan,
       mode,
+      isOrderIdentityScanMatch,
+      getOrderCouplingKey,
+      packScopedOrderKey,
       readyToPackOrders,
       refreshOrders,
       t,
@@ -1315,6 +1458,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   }
 
   if (mode === 'operations-pack') {
+    const scopedOrderPreview = packScopedOrderKey
+      ? packItems.find((item) => item.orderKey === packScopedOrderKey) || null
+      : null;
     return (
       <div className="space-y-3 max-w-xl mx-auto">
         <SectionTitle title={t('ops.mode.pack')} />
@@ -1323,14 +1469,45 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             {packMessage}
           </div>
         ) : null}
+        {packScopedOrderKey ? (
+          <div className="rounded-2xl border border-sky-500/50 bg-sky-900/20 p-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-slate-100">
+              {t('ops.mobile.pack.scope.active')}: <span className="font-semibold">{scopedOrderPreview?.orderNumber || packScopedOrderKey}</span>
+            </p>
+            <button
+              type="button"
+              className="rounded-lg bg-slate-800 border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-slate-100"
+              onClick={() => setPackScopedOrderKey(null)}
+            >
+              {t('common.reset')}
+            </button>
+          </div>
+        ) : null}
         {ordersLoading && <p className="text-sm text-slate-400">{t('ops.orders.loading')}</p>}
         {packItems.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">{t('ops.mobile.pack.none')}</p>}
         {packItems.slice(0, 100).map((item) => (
-          <div key={`${item.orderId}-${item.sku}`} className="rounded-2xl border border-white/5 bg-slate-800 p-3 shadow-sm shadow-black/20">
+          <button
+            type="button"
+            key={`${item.orderKey}-${item.sku}-${item.binCode}`}
+            onClick={() => setPackScopedOrderKey(item.orderKey)}
+            className={`w-full text-left rounded-2xl border p-3 shadow-sm shadow-black/20 ${
+              packScopedOrderKey === item.orderKey
+                ? 'border-sky-500 bg-sky-900/20'
+                : 'border-white/5 bg-slate-800'
+            }`}
+          >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white line-clamp-2">{item.name}</p>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                    {t('common.order')}: <span className="font-semibold text-white">{item.orderNumber || item.orderId}</span>
+                  </span>
+                  {item.orderSourceId ? (
+                    <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                      {t('ops.mobile.pack.scope.source')}: <span className="font-semibold text-white">{item.orderSourceId}</span>
+                    </span>
+                  ) : null}
                   <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
                     {t('common.sku')}: <span className="font-semibold text-white">{item.sku || '—'}</span>
                   </span>
@@ -1347,7 +1524,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 </div>
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     );

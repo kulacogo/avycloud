@@ -124,6 +124,12 @@ async function resolveOrderStatusIdByName(cacheKey, envNameKey, fallbackLabel) {
 function mapBaseLinkerOrder(entry) {
   const createdAt = entry?.date_add ? new Date(Number(entry.date_add) * 1000).toISOString() : new Date().toISOString();
   const statusIdRaw = entry?.order_status_id != null ? String(entry.order_status_id) : entry?.status_id != null ? String(entry.status_id) : null;
+  const orderSource = entry?.order_source ? String(entry.order_source).trim() : '';
+  const orderSourceId =
+    entry?.order_source_id != null && String(entry.order_source_id).trim()
+      ? String(entry.order_source_id).trim()
+      : null;
+  const sourceScopedOrderKey = `${String(entry.order_id)}::${orderSource || '-'}::${orderSourceId || '-'}`;
   const resolvedStatusLabel =
     entry?.status_name ||
     entry?.order_status_name ||
@@ -149,6 +155,9 @@ function mapBaseLinkerOrder(entry) {
   return {
     id: String(entry.order_id),
     baselinkerId: String(entry.order_id),
+    baselinkerOrderKey: sourceScopedOrderKey,
+    orderSource: orderSource || null,
+    orderSourceId,
     source: 'baselinker',
     status: 'new',
     statusLabel: resolvedStatusLabel,

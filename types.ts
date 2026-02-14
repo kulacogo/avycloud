@@ -351,6 +351,9 @@ export interface OrderCustomer {
 export interface Order {
   id: string;
   baselinkerId: string;
+  baselinkerOrderKey?: string;
+  orderSource?: string | null;
+  orderSourceId?: string | null;
   number?: string | null;
   source: 'baselinker';
   status: OrderStatus;

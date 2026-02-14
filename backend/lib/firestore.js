@@ -3182,7 +3182,9 @@ async function getDashboardMetrics({ days = 7, preset = null } = {}) {
       }
       if (dk && seriesIndex.has(dk)) {
         const idx = seriesIndex.get(dk);
-        seriesArr[idx].orders += 1;
+        if (!cancelled) {
+          seriesArr[idx].orders += 1;
+        }
         if (!cancelled) {
           seriesArr[idx].revenue += totalAmount;
         }

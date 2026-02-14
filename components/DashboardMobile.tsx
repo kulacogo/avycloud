@@ -86,8 +86,14 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
   const dedupeOrders = useCallback((list: Order[]) => {
     const seen = new Set<string>();
     const result: Order[] = [];
+    const getOrderCouplingKey = (order: Order) => {
+      const src = (order.orderSource || '-').toString().trim() || '-';
+      const srcId = (order.orderSourceId || '-').toString().trim() || '-';
+      const orderId = (order.baselinkerId || order.id || '').toString().trim();
+      return order.baselinkerOrderKey || `${orderId}::${src}::${srcId}`;
+    };
     list.forEach((order) => {
-      const key = order.baselinkerId || order.id;
+      const key = getOrderCouplingKey(order);
       if (seen.has(key)) return;
       seen.add(key);
       result.push(order);
