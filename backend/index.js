@@ -1218,6 +1218,16 @@ app.use((err, req, res, next) => {
 app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 
+// Compatibility bridge: older frontend builds may call "/app/api/*" instead of "/api/*".
+// Normalize those requests server-side so stale cached clients keep working.
+app.use((req, _res, next) => {
+  const rawUrl = String(req.url || '');
+  if (rawUrl.startsWith('/app/api')) {
+    req.url = rawUrl.replace(/^\/app(?=\/api(?:\/|$))/, '');
+  }
+  return next();
+});
+
 // --- API Endpoints ---
 
 app.get('/', (req, res) => {
