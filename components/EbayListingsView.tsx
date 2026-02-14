@@ -149,6 +149,124 @@ const buildSpecificsText = (specifics: Record<string, any> | null | undefined): 
   return rows.length ? rows.join('\n') : '-';
 };
 
+const normalizeKeyToken = (value: any): string => safeString(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+const normalizeCompareText = (value: any): string => safeString(value).toLowerCase().replace(/\s+/g, ' ').trim();
+
+const valueToComparableSet = (value: any): string[] => {
+  const values = Array.isArray(value) ? value : [value];
+  const normalized = values
+    .map((entry) => {
+      if (entry == null) return '';
+      if (typeof entry === 'string' || typeof entry === 'number' || typeof entry === 'boolean') {
+        return normalizeCompareText(entry);
+      }
+      return normalizeCompareText(toDisplayValue(entry));
+    })
+    .filter(Boolean);
+  return Array.from(new Set(normalized)).sort((a, b) => a.localeCompare(b));
+};
+
+const mergeSpecificsMaps = (...maps: Array<Record<string, any> | null | undefined>): Record<string, any> => {
+  const merged: Record<string, any> = {};
+  maps.forEach((map) => {
+    if (!map || typeof map !== 'object') return;
+    Object.entries(map).forEach(([rawKey, rawValue]) => {
+      const key = safeString(rawKey);
+      if (!key) return;
+      if (merged[key] === undefined) {
+        merged[key] = rawValue;
+      }
+    });
+  });
+  return merged;
+};
+
+type SpecificsComparisonRow = {
+  keyToken: string;
+  keyLabel: string;
+  ebayValue: string;
+  avyValue: string;
+  status: 'match' | 'different' | 'missing_ebay' | 'missing_avy';
+};
+
+const buildSpecificsComparisonRows = (
+  ebaySpecifics: Record<string, any>,
+  avySpecifics: Record<string, any>
+): SpecificsComparisonRow[] => {
+  const merged = new Map<
+    string,
+    {
+      ebayLabel?: string;
+      avyLabel?: string;
+      ebayRaw?: any;
+      avyRaw?: any;
+    }
+  >();
+
+  const upsert = (side: 'ebay' | 'avy', rawKey: string, rawValue: any) => {
+    const token = normalizeKeyToken(rawKey);
+    if (!token) return;
+    const existing = merged.get(token) || {};
+    const next = { ...existing };
+    if (side === 'ebay') {
+      next.ebayLabel = next.ebayLabel || safeString(rawKey);
+      next.ebayRaw = rawValue;
+    } else {
+      next.avyLabel = next.avyLabel || safeString(rawKey);
+      next.avyRaw = rawValue;
+    }
+    merged.set(token, next);
+  };
+
+  Object.entries(ebaySpecifics || {}).forEach(([key, value]) => upsert('ebay', key, value));
+  Object.entries(avySpecifics || {}).forEach(([key, value]) => upsert('avy', key, value));
+
+  const rows: SpecificsComparisonRow[] = Array.from(merged.entries()).map(([keyToken, row]) => {
+    const ebayValue = toDisplayValue(row.ebayRaw);
+    const avyValue = toDisplayValue(row.avyRaw);
+    const hasEbay = ebayValue !== '-';
+    const hasAvy = avyValue !== '-';
+    const ebaySet = valueToComparableSet(row.ebayRaw);
+    const avySet = valueToComparableSet(row.avyRaw);
+    const valuesEqual =
+      ebaySet.length === avySet.length && ebaySet.every((entry, idx) => entry === avySet[idx]);
+
+    let status: SpecificsComparisonRow['status'] = 'different';
+    if (hasEbay && hasAvy && valuesEqual) status = 'match';
+    else if (!hasEbay && hasAvy) status = 'missing_ebay';
+    else if (hasEbay && !hasAvy) status = 'missing_avy';
+
+    return {
+      keyToken,
+      keyLabel: safeString(row.avyLabel || row.ebayLabel || keyToken),
+      ebayValue,
+      avyValue,
+      status,
+    };
+  });
+
+  const statusOrder: Record<SpecificsComparisonRow['status'], number> = {
+    missing_ebay: 0,
+    different: 1,
+    missing_avy: 2,
+    match: 3,
+  };
+  rows.sort((a, b) => {
+    const byStatus = statusOrder[a.status] - statusOrder[b.status];
+    if (byStatus !== 0) return byStatus;
+    return a.keyLabel.localeCompare(b.keyLabel);
+  });
+  return rows;
+};
+
+const clipText = (value: any, maxLength = 220): string => {
+  const raw = safeString(value);
+  if (!raw) return '-';
+  if (raw.length <= maxLength) return raw;
+  return `${raw.slice(0, maxLength)}…`;
+};
+
 const GAP_ACTIONS = [
   { id: 'review', label: 'Review' },
   { id: 'accept_avy', label: 'Avy uebernehmen' },
@@ -276,12 +394,29 @@ export const EbayListingsView: React.FC = () => {
     [selectedItemId, loadDetail, loadListings, runAction]
   );
 
-  const listingNormalized = detail?.listing?.normalized || {};
-  const listingSpecifics = (listingNormalized.specifics || {}) as Record<string, any>;
+  const listing = (detail?.listing && typeof detail.listing === 'object' ? detail.listing : {}) as Record<string, any>;
+  const listingNormalized =
+    listing?.normalized && typeof listing.normalized === 'object' ? (listing.normalized as Record<string, any>) : {};
+  const listingSpecifics = mergeSpecificsMaps(
+    (listing?.itemSpecifics as Record<string, any>) || {},
+    (listingNormalized?.specifics as Record<string, any>) || {}
+  );
+  const ebayCategoryId = safeString(
+    listing?.primaryCategoryId || listingNormalized?.primaryCategoryId || listing?.categoryId || listingNormalized?.categoryId
+  );
+  const ebayCategoryName = safeString(listing?.primaryCategoryName || listingNormalized?.primaryCategoryName);
+  const ebayCategoryText = [ebayCategoryId, ebayCategoryName].filter(Boolean).join(' | ') || '-';
+  const ebayTitle = safeString(listing?.title || listingNormalized?.title);
+  const ebaySubtitle = safeString(listing?.subtitle || listingNormalized?.subtitle);
+  const ebayDescription = safeString(listing?.description || listingNormalized?.description);
+  const ebayViewItemUrl = safeString(listing?.viewItemUrl || listingNormalized?.viewItemUrl);
+
   const product = detail?.product || null;
   const productSpecifics = useMemo(() => extractProductSpecifics(product), [product]);
   const productCategoryId = safeString(
     product?.details?.category?.id ||
+      product?.details?.categoryId ||
+      product?.details?.ebayCategoryId ||
       product?.classification?.ebayCategoryId ||
       product?.marketplace?.ebay?.categoryId ||
       product?.categoryId
@@ -289,6 +424,62 @@ export const EbayListingsView: React.FC = () => {
   const productTitle = safeString(product?.identification?.name || product?.details?.title || product?.title);
   const productSubtitle = safeString(product?.details?.subtitle || product?.subtitle);
   const productDescription = safeString(product?.details?.description || product?.description);
+  const specificsComparisonRows = useMemo(
+    () => buildSpecificsComparisonRows(listingSpecifics, productSpecifics),
+    [listingSpecifics, productSpecifics]
+  );
+  const specificsStats = useMemo(() => {
+    const base = { match: 0, different: 0, missing_ebay: 0, missing_avy: 0 };
+    specificsComparisonRows.forEach((row) => {
+      base[row.status] += 1;
+    });
+    return base;
+  }, [specificsComparisonRows]);
+  const fieldComparisonRows = useMemo(() => {
+    const rows = [
+      {
+        key: 'category',
+        label: 'Kategorie',
+        ebayValue: ebayCategoryText,
+        avyValue: productCategoryId || '-',
+        equal: normalizeCompareText(ebayCategoryId) === normalizeCompareText(productCategoryId),
+      },
+      {
+        key: 'title',
+        label: 'Titel',
+        ebayValue: ebayTitle || '-',
+        avyValue: productTitle || '-',
+        equal: normalizeCompareText(ebayTitle) === normalizeCompareText(productTitle),
+      },
+      {
+        key: 'subtitle',
+        label: 'Untertitel',
+        ebayValue: ebaySubtitle || '-',
+        avyValue: productSubtitle || '-',
+        equal: normalizeCompareText(ebaySubtitle) === normalizeCompareText(productSubtitle),
+      },
+      {
+        key: 'description',
+        label: 'Beschreibung',
+        ebayValue: clipText(ebayDescription, 220),
+        avyValue: clipText(productDescription, 220),
+        equal:
+          normalizeCompareText(clipText(ebayDescription, 500)) ===
+          normalizeCompareText(clipText(productDescription, 500)),
+      },
+    ];
+    return rows;
+  }, [
+    ebayCategoryId,
+    ebayCategoryText,
+    ebayDescription,
+    ebaySubtitle,
+    ebayTitle,
+    productCategoryId,
+    productDescription,
+    productSubtitle,
+    productTitle,
+  ]);
   const gapList = Array.isArray(detail?.gaps?.gaps) ? detail.gaps.gaps : [];
 
   return (
@@ -532,10 +723,21 @@ export const EbayListingsView: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 space-y-1">
                   <p className="text-xs uppercase tracking-wider text-slate-400">Listing</p>
-                  <p className="text-sm text-white font-semibold">{safeString(detail.listing?.title) || '-'}</p>
+                  <p className="text-sm text-white font-semibold">{ebayTitle || '-'}</p>
                   <p className="text-xs text-slate-300">Item ID: {safeString(detail.listing?.itemId) || '-'}</p>
                   <p className="text-xs text-slate-300">SKU: {safeString(detail.listing?.sku) || '-'}</p>
+                  <p className="text-xs text-slate-300">Kategorie: {ebayCategoryText}</p>
                   <p className="text-xs text-slate-400">Zuletzt aktualisiert: {formatDateTime(detail.listing?.updatedAt)}</p>
+                  {ebayViewItemUrl && (
+                    <a
+                      href={ebayViewItemUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center rounded-md border border-sky-700/70 bg-sky-900/20 px-2 py-1 text-[11px] text-sky-100 hover:bg-sky-800/30"
+                    >
+                      Auf eBay oeffnen
+                    </a>
+                  )}
                 </div>
                 <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 space-y-1">
                   <p className="text-xs uppercase tracking-wider text-slate-400">Linking</p>
@@ -550,65 +752,106 @@ export const EbayListingsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3 space-y-2">
-                  <p className="text-xs uppercase tracking-wider text-slate-400">eBay Live</p>
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <p className="text-slate-400 mb-1">Kategorie</p>
-                      <p className="text-slate-100 break-all">{safeString(listingNormalized.primaryCategoryId) || '-'}</p>
+              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-100">Direktvergleich (eBay vs AvyCloud)</p>
+                  <p className="text-xs text-slate-400">Kernaussagen auf einen Blick</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {fieldComparisonRows.map((row) => (
+                    <div
+                      key={row.key}
+                      className={`rounded-lg border p-2 ${
+                        row.equal
+                          ? 'border-emerald-700/60 bg-emerald-900/15'
+                          : 'border-amber-700/60 bg-amber-900/15'
+                      }`}
+                    >
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-slate-100">{row.label}</p>
+                        <span
+                          className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${
+                            row.equal
+                              ? 'border-emerald-600/70 text-emerald-200'
+                              : 'border-amber-600/70 text-amber-200'
+                          }`}
+                        >
+                          {row.equal ? 'gleich' : 'abweichung'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-1 text-[11px]">
+                        <div className="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-slate-200">
+                          <span className="text-slate-400">eBay: </span>
+                          {row.ebayValue}
+                        </div>
+                        <div className="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-slate-200">
+                          <span className="text-slate-400">AvyCloud: </span>
+                          {row.avyValue}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-slate-400 mb-1">Titel</p>
-                      <p className="text-slate-100">{safeString(listingNormalized.title) || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-400 mb-1">Untertitel</p>
-                      <p className="text-slate-100">{safeString(listingNormalized.subtitle) || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-400 mb-1">Beschreibung</p>
-                      <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded border border-slate-700 bg-slate-950 p-2 text-[11px] text-slate-200">
-                        {safeString(listingNormalized.description) || '-'}
-                      </pre>
-                    </div>
-                    <div>
-                      <p className="text-slate-400 mb-1">Item Specifics</p>
-                      <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded border border-slate-700 bg-slate-950 p-2 text-[11px] text-slate-200">
-                        {buildSpecificsText(listingSpecifics)}
-                      </pre>
-                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-100">Item Specifics Vergleich ({specificsComparisonRows.length})</p>
+                  <div className="flex flex-wrap gap-1.5 text-[10px]">
+                    <span className="rounded border border-rose-700/70 px-1.5 py-0.5 text-rose-200">
+                      Fehlt auf eBay: {specificsStats.missing_ebay}
+                    </span>
+                    <span className="rounded border border-amber-700/70 px-1.5 py-0.5 text-amber-200">
+                      Unterschiedlich: {specificsStats.different}
+                    </span>
+                    <span className="rounded border border-slate-600 px-1.5 py-0.5 text-slate-200">
+                      Nur eBay: {specificsStats.missing_avy}
+                    </span>
+                    <span className="rounded border border-emerald-700/70 px-1.5 py-0.5 text-emerald-200">
+                      Gleich: {specificsStats.match}
+                    </span>
                   </div>
                 </div>
-
-                <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3 space-y-2">
-                  <p className="text-xs uppercase tracking-wider text-slate-400">AvyCloud Product</p>
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <p className="text-slate-400 mb-1">Kategorie</p>
-                      <p className="text-slate-100 break-all">{productCategoryId || '-'}</p>
+                <div className="max-h-[32vh] overflow-auto space-y-1 pr-1">
+                  {specificsComparisonRows.map((row) => (
+                    <div key={row.keyToken} className="rounded-lg border border-slate-700 bg-slate-950/50 p-2">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-slate-100">{row.keyLabel}</p>
+                        <span
+                          className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${
+                            row.status === 'match'
+                              ? 'border-emerald-600/70 text-emerald-200'
+                              : row.status === 'missing_ebay'
+                                ? 'border-rose-600/70 text-rose-200'
+                                : row.status === 'missing_avy'
+                                  ? 'border-slate-500/70 text-slate-200'
+                                  : 'border-amber-600/70 text-amber-200'
+                          }`}
+                        >
+                          {row.status === 'match'
+                            ? 'gleich'
+                            : row.status === 'missing_ebay'
+                              ? 'fehlt auf ebay'
+                              : row.status === 'missing_avy'
+                                ? 'nur ebay'
+                                : 'abweichend'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+                        <div className="rounded border border-slate-700 bg-slate-900/70 p-1.5 text-[11px] text-slate-200">
+                          <span className="text-slate-400">eBay:</span> {row.ebayValue}
+                        </div>
+                        <div className="rounded border border-slate-700 bg-slate-900/70 p-1.5 text-[11px] text-slate-200">
+                          <span className="text-slate-400">AvyCloud:</span> {row.avyValue}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-slate-400 mb-1">Titel</p>
-                      <p className="text-slate-100">{productTitle || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-400 mb-1">Untertitel</p>
-                      <p className="text-slate-100">{productSubtitle || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-400 mb-1">Beschreibung</p>
-                      <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded border border-slate-700 bg-slate-950 p-2 text-[11px] text-slate-200">
-                        {productDescription || '-'}
-                      </pre>
-                    </div>
-                    <div>
-                      <p className="text-slate-400 mb-1">Item Specifics</p>
-                      <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded border border-slate-700 bg-slate-950 p-2 text-[11px] text-slate-200">
-                        {buildSpecificsText(productSpecifics)}
-                      </pre>
-                    </div>
-                  </div>
+                  ))}
+                  {specificsComparisonRows.length === 0 && (
+                    <p className="rounded border border-slate-700 bg-slate-900/50 px-3 py-2 text-xs text-slate-400">
+                      Keine Item Specifics zum Vergleichen vorhanden.
+                    </p>
+                  )}
                 </div>
               </div>
 
