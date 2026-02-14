@@ -16,6 +16,7 @@ const EBAY_LISTINGS_COLLECTION = 'ebayListingsLive';
 const EBAY_LINKS_COLLECTION = 'ebayListingLinks';
 const EBAY_GAPS_COLLECTION = 'ebayListingGaps';
 const EBAY_REPORTS_COLLECTION = 'ebayListingReports';
+const CATEGORY_PROFILES_COLLECTION = 'categoryProfiles';
 const PRODUCTS_COLLECTION = 'products';
 
 function safeString(value) {
@@ -54,9 +55,16 @@ function normalizeToken(value) {
 function normalizeSpecificToken(value) {
   const token = normalizeToken(value);
   if (!token) return '';
+  // eBay can expose identifiers under multiple marketplace/language labels.
+  if (token === 'marke' || token === 'brand') return 'brand';
+  if (token === 'herstellernummer' || token === 'manufacturerpartnumber' || token === 'mpn') return 'mpn';
   // eBay can expose GTIN either as EAN or GTIN.
   if (token === 'ean' || token === 'gtin') return 'gtin';
   return token;
+}
+
+function normalizeProfileKey(value) {
+  return safeString(value).replace(/\s+/g, ' ').trim();
 }
 
 function normalizeDigits(value) {
@@ -153,27 +161,181 @@ function normalizeSpecificsMap(map) {
 
 function normalizeProductSpecifics(product) {
   const out = {};
-  const attrs = product?.details?.attributes && typeof product.details.attributes === 'object' ? product.details.attributes : {};
-  Object.entries(attrs).forEach(([k, v]) => {
-    const key = safeString(k);
-    if (!key) return;
-    const values = asArray(v).map((x) => safeString(x)).filter(Boolean);
-    if (!values.length) return;
-    out[key] = values;
-  });
-  const id = product?.details?.identifiers || {};
   const append = (name, value) => {
-    const val = safeString(value);
-    if (!val) return;
-    if (!out[name]) out[name] = [];
-    if (!out[name].includes(val)) out[name].push(val);
+    const key = safeString(name);
+    if (!key) return;
+    const values = asArray(value).map((x) => safeString(x)).filter(Boolean);
+    if (!values.length) return;
+    if (!out[key]) out[key] = [];
+    values.forEach((entry) => {
+      if (!out[key].includes(entry)) out[key].push(entry);
+    });
   };
+  const candidates = [
+    product?.details?.attributes,
+    product?.details?.itemSpecifics,
+    product?.classification?.attributes,
+    product?.marketplace?.ebay?.itemSpecifics,
+    product?.itemSpecifics,
+  ];
+  candidates.forEach((candidate) => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return;
+    Object.entries(candidate).forEach(([k, v]) => {
+      append(k, v);
+    });
+  });
+
+  const id = product?.details?.identifiers || {};
+
   append('Brand', product?.identification?.brand);
   append('MPN', id?.mpn);
   append('EAN', id?.ean);
   append('GTIN', id?.gtin);
   append('UPC', id?.upc);
   append('SKU', product?.identification?.sku || id?.sku);
+  return out;
+}
+
+const ALWAYS_RELEVANT_SPECIFIC_TOKENS = new Set(['brand', 'gtin', 'upc', 'isbn', 'mpn', 'sku', 'herstellernummer']);
+
+function applyCategoryProfileAliasesToSpecifics(specifics = {}, categoryProfile = null) {
+  if (!specifics || typeof specifics !== 'object') return {};
+  const canonicalLowerToExact = new Map();
+  asArray(categoryProfile?.canonicalAttributes).forEach((entry) => {
+    const exact = normalizeProfileKey(entry);
+    if (!exact) return;
+    canonicalLowerToExact.set(exact.toLowerCase(), exact);
+  });
+  const aliasObj =
+    categoryProfile?.attributeAliases &&
+    typeof categoryProfile.attributeAliases === 'object' &&
+    !Array.isArray(categoryProfile.attributeAliases)
+      ? categoryProfile.attributeAliases
+      : {};
+  const aliasLowerToCanonical = new Map();
+  Object.entries(aliasObj).forEach(([aliasRaw, canonicalRaw]) => {
+    const alias = normalizeProfileKey(aliasRaw).toLowerCase();
+    const canonical = normalizeProfileKey(canonicalRaw);
+    if (!alias || !canonical) return;
+    const canonicalExact = canonicalLowerToExact.get(canonical.toLowerCase()) || canonical;
+    aliasLowerToCanonical.set(alias, canonicalExact);
+  });
+
+  const out = {};
+  const append = (name, values) => {
+    const key = normalizeProfileKey(name);
+    if (!key) return;
+    const list = asArray(values).map((x) => safeString(x)).filter(Boolean);
+    if (!list.length) return;
+    if (!out[key]) out[key] = [];
+    list.forEach((entry) => {
+      if (!out[key].includes(entry)) out[key].push(entry);
+    });
+  };
+
+  Object.entries(specifics).forEach(([rawKey, rawVals]) => {
+    const key = normalizeProfileKey(rawKey);
+    if (!key) return;
+    const lower = key.toLowerCase();
+    const canonical =
+      aliasLowerToCanonical.get(lower) ||
+      canonicalLowerToExact.get(lower) ||
+      key;
+    append(canonical, rawVals);
+  });
+  return out;
+}
+
+function buildSpecificLabelPolicy({ requiredAspects = [], listingSpecifics = {}, categoryProfile = null } = {}) {
+  const byToken = new Map(); // token -> { label, priority }
+  const upsert = (labelRaw, priority) => {
+    const label = normalizeProfileKey(labelRaw);
+    if (!label) return;
+    const token = normalizeSpecificToken(label);
+    if (!token) return;
+    const existing = byToken.get(token);
+    if (!existing || priority < existing.priority) {
+      byToken.set(token, { label, priority });
+    }
+  };
+
+  asArray(requiredAspects).forEach((name) => upsert(name, 1));
+  Object.keys(listingSpecifics || {}).forEach((name) => upsert(name, 2));
+  asArray(categoryProfile?.canonicalAttributes).forEach((name) => upsert(name, 3));
+  Object.values(
+    categoryProfile?.attributeAliases &&
+      typeof categoryProfile.attributeAliases === 'object' &&
+      !Array.isArray(categoryProfile.attributeAliases)
+      ? categoryProfile.attributeAliases
+      : {}
+  ).forEach((name) => upsert(name, 3));
+
+  upsert('Marke', 4);
+  upsert('EAN', 4);
+  upsert('UPC', 4);
+  upsert('ISBN', 4);
+  upsert('MPN', 4);
+  upsert('SKU', 4);
+  upsert('Herstellernummer', 4);
+
+  const out = new Map();
+  byToken.forEach((entry, token) => out.set(token, entry.label));
+  return out;
+}
+
+function canonicalizeSpecificKeys(specifics = {}, labelPolicy = new Map()) {
+  const out = {};
+  const append = (name, values) => {
+    const key = normalizeProfileKey(name);
+    if (!key) return;
+    const list = asArray(values).map((x) => safeString(x)).filter(Boolean);
+    if (!list.length) return;
+    if (!out[key]) out[key] = [];
+    list.forEach((entry) => {
+      if (!out[key].includes(entry)) out[key].push(entry);
+    });
+  };
+  Object.entries(specifics || {}).forEach(([rawKey, rawValues]) => {
+    const key = normalizeProfileKey(rawKey);
+    if (!key) return;
+    const token = normalizeSpecificToken(key);
+    const canonical = token && labelPolicy.has(token) ? labelPolicy.get(token) : key;
+    append(canonical, rawValues);
+  });
+  return out;
+}
+
+function buildRelevantSpecificTokens({ requiredAspects = [], listingSpecifics = {}, categoryProfile = null } = {}) {
+  const out = new Set(ALWAYS_RELEVANT_SPECIFIC_TOKENS);
+  const add = (rawKey) => {
+    const token = normalizeSpecificToken(rawKey);
+    if (token) out.add(token);
+  };
+  asArray(requiredAspects).forEach((name) => add(name));
+  Object.keys(listingSpecifics || {}).forEach((name) => add(name));
+  asArray(categoryProfile?.canonicalAttributes).forEach((name) => add(name));
+  Object.values(
+    categoryProfile?.attributeAliases &&
+      typeof categoryProfile.attributeAliases === 'object' &&
+      !Array.isArray(categoryProfile.attributeAliases)
+      ? categoryProfile.attributeAliases
+      : {}
+  ).forEach((name) => add(name));
+  return out;
+}
+
+function filterSpecificsByRelevantTokens(specifics = {}, relevantTokens = new Set()) {
+  const out = {};
+  Object.entries(specifics || {}).forEach(([key, value]) => {
+    const token = normalizeSpecificToken(key);
+    if (!token) return;
+    if (relevantTokens instanceof Set && relevantTokens.size && !relevantTokens.has(token)) {
+      return;
+    }
+    const values = asArray(value).map((x) => safeString(x)).filter(Boolean);
+    if (!values.length) return;
+    out[key] = values;
+  });
   return out;
 }
 
@@ -773,11 +935,71 @@ function addGap(gaps, existingById, gap) {
   );
 }
 
-function buildRenameSuggestionGap(productSpecifics, listingSpecifics) {
+const IDENTIFIER_GROUP_BY_TOKEN = new Map([
+  ['gtin', 'gtin'],
+  ['upc', 'gtin'],
+  ['isbn', 'isbn'],
+  ['mpn', 'mpn'],
+  ['sku', 'sku'],
+  ['brand', 'brand'],
+]);
+
+function specificConceptToken(token) {
+  const t = safeString(token).toLowerCase();
+  if (!t) return '';
+  if (t.includes('gewicht') || t.includes('weight')) return 'weight';
+  if (t.includes('farbe') || t.includes('color') || t.includes('colour')) return 'color';
+  if (t.includes('grose') || t.includes('grsse') || t.includes('size') || t.includes('schuhgrose')) return 'size';
+  if (t.includes('zustand') || t.includes('condition')) return 'condition';
+  if (t.includes('material')) return 'material';
+  return '';
+}
+
+function splitKeyWords(value) {
+  return safeLower(value)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function isRenameCandidateCompatible(fromKey, fromToken, toKey, toToken) {
+  if (!fromToken || !toToken) return false;
+  if (fromToken === toToken) return false;
+
+  const fromIdentifierGroup = IDENTIFIER_GROUP_BY_TOKEN.get(fromToken) || null;
+  const toIdentifierGroup = IDENTIFIER_GROUP_BY_TOKEN.get(toToken) || null;
+  if (fromIdentifierGroup || toIdentifierGroup) {
+    return Boolean(fromIdentifierGroup && toIdentifierGroup && fromIdentifierGroup === toIdentifierGroup);
+  }
+
+  const fromConcept = specificConceptToken(fromToken);
+  const toConcept = specificConceptToken(toToken);
+  if (fromConcept || toConcept) {
+    return Boolean(fromConcept && toConcept && fromConcept === toConcept);
+  }
+
+  const fromWords = new Set(splitKeyWords(fromKey));
+  const toWords = splitKeyWords(toKey);
+  return toWords.some((word) => fromWords.has(word));
+}
+
+function buildRenameSuggestionGap(productSpecifics, listingSpecifics, relevantTokens = null) {
   const suggestions = [];
   const listingNorm = normalizeSpecificsMap(listingSpecifics);
+  const listingLabelByToken = new Map();
+  Object.keys(listingSpecifics || {}).forEach((name) => {
+    const token = normalizeSpecificToken(name);
+    if (!token) return;
+    if (!listingLabelByToken.has(token)) {
+      listingLabelByToken.set(token, safeString(name) || token);
+    }
+  });
+
   Object.entries(productSpecifics).forEach(([prodKey, prodVals]) => {
     const prodNorm = normalizeSpecificToken(prodKey);
+    if (!prodNorm) return;
+    if (relevantTokens instanceof Set && relevantTokens.size && !relevantTokens.has(prodNorm)) return;
     const listingExactExists = Object.keys(listingSpecifics).some((k) => normalizeSpecificToken(k) === prodNorm);
     if (listingExactExists) return;
 
@@ -787,16 +1009,26 @@ function buildRenameSuggestionGap(productSpecifics, listingSpecifics) {
       const listValueToken = normalizeToken(toFlatText(listVals));
       if (!listValueToken) return;
       if (valueToken !== listValueToken) return;
+      const toLabel = listingLabelByToken.get(listKeyNorm) || listKeyNorm;
+      if (!isRenameCandidateCompatible(prodKey, prodNorm, toLabel, listKeyNorm)) return;
       suggestions.push({
         from: prodKey,
-        to: listKeyNorm,
+        to: toLabel,
       });
     });
   });
-  return suggestions;
+  const unique = new Map();
+  suggestions.forEach((entry) => {
+    const from = safeString(entry?.from);
+    const to = safeString(entry?.to);
+    if (!from || !to) return;
+    const key = `${from}::${to}`;
+    if (!unique.has(key)) unique.set(key, { from, to });
+  });
+  return Array.from(unique.values());
 }
 
-function buildGapsForListing({ listing, link, product, existingGapDoc }) {
+function buildGapsForListing({ listing, link, product, existingGapDoc, categoryProfile = null }) {
   const gaps = [];
   const existingById = new Map(
     asArray(existingGapDoc?.gaps).map((gap) => [safeString(gap?.id), gap]).filter(([id]) => Boolean(id))
@@ -829,10 +1061,15 @@ function buildGapsForListing({ listing, link, product, existingGapDoc }) {
     });
   }
 
-  const listingSpecifics = mapListingSpecifics(listing);
-  const productSpecifics = normalizeProductSpecifics(product);
-  const listingSpecificsNorm = normalizeSpecificsMap(listingSpecifics);
   const requiredAspects = asArray(getRequiredAspects(listingCategory)).map((x) => safeString(x)).filter(Boolean);
+  const listingSpecifics = mapListingSpecifics(listing);
+  const labelPolicy = buildSpecificLabelPolicy({ requiredAspects, listingSpecifics, categoryProfile });
+  const relevantTokens = buildRelevantSpecificTokens({ requiredAspects, listingSpecifics, categoryProfile });
+  const productSpecificsRaw = normalizeProductSpecifics(product);
+  const productSpecificsAliased = applyCategoryProfileAliasesToSpecifics(productSpecificsRaw, categoryProfile);
+  const productSpecificsCanonical = canonicalizeSpecificKeys(productSpecificsAliased, labelPolicy);
+  const productSpecifics = filterSpecificsByRelevantTokens(productSpecificsCanonical, relevantTokens);
+  const listingSpecificsNorm = normalizeSpecificsMap(listingSpecifics);
 
   Object.entries(productSpecifics).forEach(([key, value]) => {
     const keyNorm = normalizeSpecificToken(key);
@@ -886,7 +1123,7 @@ function buildGapsForListing({ listing, link, product, existingGapDoc }) {
     });
   });
 
-  const renameSuggestions = buildRenameSuggestionGap(productSpecifics, listingSpecifics);
+  const renameSuggestions = buildRenameSuggestionGap(productSpecificsRaw, listingSpecifics, relevantTokens);
   renameSuggestions.slice(0, 20).forEach((suggestion) => {
     addGap(gaps, existingById, {
       type: 'rename_suggestion',
@@ -995,6 +1232,19 @@ async function getProductsByIds(productIds = []) {
   return out;
 }
 
+async function getCategoryProfilesByIds(categoryIds = []) {
+  const ids = Array.from(new Set(categoryIds.map((id) => safeString(id)).filter(Boolean)));
+  if (!ids.length) return new Map();
+  const refs = ids.map((id) => firestore.collection(CATEGORY_PROFILES_COLLECTION).doc(id));
+  const docs = await firestore.getAll(...refs);
+  const out = new Map();
+  docs.forEach((doc) => {
+    if (!doc.exists) return;
+    out.set(doc.id, doc.data() || null);
+  });
+  return out;
+}
+
 async function auditListingGaps({ itemIds = null, runId = null, actor = null } = {}) {
   const listingDocs = itemIds?.length
     ? await firestore.getAll(
@@ -1027,7 +1277,11 @@ async function auditListingGaps({ itemIds = null, runId = null, actor = null } =
         .filter(Boolean)
     )
   );
-  const productMap = await getProductsByIds(matchedProductIds);
+  const listingCategoryIds = Array.from(new Set(listings.map((x) => safeString(x?.primaryCategoryId)).filter(Boolean)));
+  const [productMap, categoryProfileMap] = await Promise.all([
+    getProductsByIds(matchedProductIds),
+    getCategoryProfilesByIds(listingCategoryIds),
+  ]);
   const nowIso = new Date().toISOString();
 
   let withGaps = 0;
@@ -1040,7 +1294,8 @@ async function auditListingGaps({ itemIds = null, runId = null, actor = null } =
       const link = linkMap.get(itemId) || null;
       const product = link?.productId ? productMap.get(String(link.productId)) || null : null;
       const existingGapDoc = existingGapMap.get(itemId) || null;
-      const gaps = buildGapsForListing({ listing, link, product, existingGapDoc });
+      const categoryProfile = categoryProfileMap.get(safeString(listing?.primaryCategoryId)) || null;
+      const gaps = buildGapsForListing({ listing, link, product, existingGapDoc, categoryProfile });
       if (gaps.length) withGaps += 1;
       const summary = summarizeGaps(gaps);
       if (summary.critical > 0) criticalListings += 1;
@@ -1182,6 +1437,10 @@ function selectSyncCandidatesFromGaps(gapDoc) {
 
 function computeSyncPatch({ listing, gapDoc }) {
   const selectedGaps = selectSyncCandidatesFromGaps(gapDoc);
+  const listingCategory = safeString(listing?.primaryCategoryId);
+  const listingSpecifics = mapListingSpecifics(listing);
+  const requiredAspects = asArray(getRequiredAspects(listingCategory)).map((x) => safeString(x)).filter(Boolean);
+  const labelPolicy = buildSpecificLabelPolicy({ requiredAspects, listingSpecifics, categoryProfile: null });
   const patch = {
     itemId: listing?.itemId,
   };
@@ -1214,7 +1473,9 @@ function computeSyncPatch({ listing, gapDoc }) {
       return;
     }
     if (type === 'item_specific') {
-      const key = safeString(gap?.field);
+      const rawField = safeString(gap?.field);
+      const token = normalizeSpecificToken(rawField);
+      const key = token && labelPolicy.has(token) ? safeString(labelPolicy.get(token)) : rawField;
       if (!key) return;
       if (!patch.itemSpecifics) patch.itemSpecifics = {};
       const values = asArray(gap?.avyValue).map((v) => safeString(v)).filter(Boolean);
