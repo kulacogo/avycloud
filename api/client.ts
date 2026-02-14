@@ -178,6 +178,21 @@ const rewriteUrlOrigin = (source: URL, targetOrigin: string): string => {
   return target.toString();
 };
 
+const normalizeLegacyAppApiPath = (source: URL): URL => {
+  const next = new URL(source.toString());
+  if (next.pathname.startsWith('/app/api')) {
+    next.pathname = next.pathname.replace(/^\/app(?=\/api(?:\/|$))/, '');
+  }
+  return next;
+};
+
+const normalizeRequestInput = (requestInput: RequestInfo | URL): RequestInfo | URL => {
+  const parsed = toUrl(requestInput);
+  if (!parsed) return requestInput;
+  const normalized = normalizeLegacyAppApiPath(parsed);
+  return normalized.toString();
+};
+
 const isHtml404 = (response: Response): boolean => {
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
   return response.status === 404 && contentType.includes('text/html');
@@ -236,7 +251,8 @@ const fetchApi = async (input: RequestInfo | URL, init: RequestInit = {}) => {
 
   const attempt = async (forceRefresh: boolean, requestInput: RequestInfo | URL = effectiveInput) => {
     const headers = await buildHeadersWithAuth(init.headers, forceRefresh);
-    return await fetch(requestInput, { ...init, headers });
+    const normalizedInput = normalizeRequestInput(requestInput);
+    return await fetch(normalizedInput, { ...init, headers });
   };
 
   let res = await attempt(false, effectiveInput);

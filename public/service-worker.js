@@ -1,6 +1,6 @@
 // Minimal, network-first Service Worker to avoid stale shell in PWA (iOS)
 // Update CACHE_VERSION to force eviction on deploys.
-const CACHE_VERSION = 'v20260202-1';
+const CACHE_VERSION = 'v20260214-2';
 const CACHE_NAME = `avystock-shell-${CACHE_VERSION}`;
 const SHELL_ASSETS = ['/', '/index.html'];
 
@@ -46,6 +46,28 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(async () => {
           const cached = await caches.match('/index.html');
+          return cached || Response.error();
+        })
+    );
+    return;
+  }
+
+  const requestUrl = new URL(request.url);
+  const isVersionedAsset =
+    requestUrl.pathname.startsWith('/assets/') ||
+    /\.(?:js|css)$/.test(requestUrl.pathname);
+
+  // JS/CSS bundles should prefer network to avoid stale app shells after deploys.
+  if (isVersionedAsset) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
           return cached || Response.error();
         })
     );
