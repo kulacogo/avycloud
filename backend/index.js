@@ -1222,8 +1222,17 @@ app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 // Normalize those requests server-side so stale cached clients keep working.
 app.use((req, res, next) => {
   const rawUrl = String(req.url || '');
-  if (rawUrl.startsWith('/app/api')) {
-    req.url = rawUrl.replace(/^\/app(?=\/api(?:\/|$))/, '');
+  let normalizedPath = rawUrl;
+  if (!normalizedPath.startsWith('/')) {
+    try {
+      const parsed = new URL(normalizedPath);
+      normalizedPath = `${parsed.pathname || ''}${parsed.search || ''}`;
+    } catch {
+      normalizedPath = rawUrl;
+    }
+  }
+  if (normalizedPath.startsWith('/app/api')) {
+    req.url = normalizedPath.replace(/^\/app(?=\/api(?:\/|$))/, '');
     res.setHeader('X-Avycloud-App-Api-Normalized', '1');
   }
   return next();
