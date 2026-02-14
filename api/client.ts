@@ -52,6 +52,20 @@ const BACKEND_URL = (() => {
   return envUrl || 'https://product-hub-backend-sa6a4cbk3q-ey.a.run.app';
 })();
 
+const FALLBACK_BACKEND_URLS = (() => {
+  const envList = String(import.meta.env.VITE_BACKEND_FALLBACK_URLS || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const defaults = [
+    'https://product-hub-backend-sa6a4cbk3q-ey.a.run.app',
+    'https://product-hub-backend-79205549235.europe-west3.run.app',
+  ];
+  return Array.from(new Set([...envList, ...defaults]));
+})();
+
+let ebayBackendOriginOverride: string | null = null;
+
 type TokenProvider = (forceRefresh?: boolean) => Promise<string | null>;
 
 let tokenProvider: TokenProvider | null = null;
@@ -95,6 +109,78 @@ async function ensureDefaultFirebaseTokenProviderInstalled(): Promise<void> {
 
 const isValidBearer = (value: string | null) => /^Bearer\s+\S+$/i.test(String(value || ''));
 
+const toOrigin = (value: string | null | undefined): string | null => {
+  const text = String(value || '').trim();
+  if (!text) return null;
+  try {
+    return new URL(text).origin;
+  } catch {
+    return null;
+  }
+};
+
+const toUrl = (input: RequestInfo | URL): URL | null => {
+  if (input instanceof URL) {
+    return new URL(input.toString());
+  }
+  if (typeof input === 'string') {
+    try {
+      return new URL(input, window.location.origin);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof Request !== 'undefined' && input instanceof Request) {
+    try {
+      return new URL(input.url);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+const isLocalOrigin = (origin: string | null): boolean => {
+  if (!origin) return false;
+  try {
+    const host = new URL(origin).hostname.toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0';
+  } catch {
+    return false;
+  }
+};
+
+const rewriteUrlOrigin = (source: URL, targetOrigin: string): string => {
+  const target = new URL(targetOrigin);
+  target.pathname = source.pathname;
+  target.search = source.search;
+  target.hash = source.hash;
+  return target.toString();
+};
+
+const isHtml404 = (response: Response): boolean => {
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+  return response.status === 404 && contentType.includes('text/html');
+};
+
+const shouldRetryWithBackendFallback = (response: Response, requestUrl: URL | null): boolean => {
+  if (!requestUrl) return false;
+  if (!requestUrl.pathname.startsWith('/api/ebay/')) return false;
+  if (isLocalOrigin(requestUrl.origin)) return false;
+  return isHtml404(response);
+};
+
+const getBackendFallbackOrigins = (currentOrigin: string | null): string[] => {
+  const configuredOrigin = toOrigin(BACKEND_URL);
+  const candidates = [
+    ebayBackendOriginOverride,
+    configuredOrigin,
+    ...FALLBACK_BACKEND_URLS.map((entry) => toOrigin(entry)),
+  ].filter(Boolean) as string[];
+  const unique = Array.from(new Set(candidates));
+  return unique.filter((origin) => origin !== currentOrigin);
+};
+
 const buildHeadersWithAuth = async (base?: HeadersInit, forceRefresh = false): Promise<Headers> => {
   await ensureDefaultFirebaseTokenProviderInstalled();
   const headers = new Headers(base || {});
@@ -114,21 +200,61 @@ const buildHeadersWithAuth = async (base?: HeadersInit, forceRefresh = false): P
 };
 
 const fetchApi = async (input: RequestInfo | URL, init: RequestInit = {}) => {
-  const attempt = async (forceRefresh: boolean) => {
+  const configuredOrigin = toOrigin(BACKEND_URL);
+  const initialUrl = toUrl(input);
+  const isEbayRequest = Boolean(initialUrl?.pathname?.startsWith('/api/ebay/'));
+
+  const effectiveInput: RequestInfo | URL = (() => {
+    if (!isEbayRequest || !ebayBackendOriginOverride || !initialUrl || !configuredOrigin) return input;
+    if (initialUrl.origin !== configuredOrigin) return input;
+    try {
+      return rewriteUrlOrigin(initialUrl, ebayBackendOriginOverride);
+    } catch {
+      return input;
+    }
+  })();
+
+  const attempt = async (forceRefresh: boolean, requestInput: RequestInfo | URL = effectiveInput) => {
     const headers = await buildHeadersWithAuth(init.headers, forceRefresh);
-    return await fetch(input, { ...init, headers });
+    return await fetch(requestInput, { ...init, headers });
   };
 
-  const res = await attempt(false);
+  let res = await attempt(false, effectiveInput);
   // If we get a 401, try forcing a token refresh once.
   if (res.status === 401 && tokenProvider) {
     try {
-      const retry = await attempt(true);
-      return retry;
+      res = await attempt(true, effectiveInput);
     } catch {
-      return res;
+      // keep original response
     }
   }
+
+  const requestUrl = toUrl(effectiveInput) || initialUrl;
+  if (!shouldRetryWithBackendFallback(res, requestUrl)) {
+    return res;
+  }
+
+  const fallbacks = getBackendFallbackOrigins(requestUrl?.origin || null);
+  for (const fallbackOrigin of fallbacks) {
+    if (!requestUrl) break;
+    const fallbackInput = rewriteUrlOrigin(requestUrl, fallbackOrigin);
+    let fallbackRes = await attempt(false, fallbackInput);
+    if (fallbackRes.status === 401 && tokenProvider) {
+      try {
+        fallbackRes = await attempt(true, fallbackInput);
+      } catch {
+        // keep original fallback response
+      }
+    }
+    if (!isHtml404(fallbackRes)) {
+      ebayBackendOriginOverride = fallbackOrigin;
+      console.warn(
+        `[api] switched backend origin for eBay endpoints to ${fallbackOrigin} (previous returned 404 HTML)`
+      );
+      return fallbackRes;
+    }
+  }
+
   return res;
 };
 
@@ -1141,7 +1267,9 @@ const parseResponse = async (response: Response): Promise<any> => {
 
   // For non-JSON responses, check if it looks like an error page
   if (contentType && contentType.includes('text/html')) {
-    throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
+    const compactPreview = text.replace(/\s+/g, ' ').trim().slice(0, 180);
+    const previewSuffix = compactPreview ? ` Body: ${compactPreview}` : '';
+    throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}. URL: ${response.url}.${previewSuffix}`);
   }
 
   // Otherwise return the text content wrapped
