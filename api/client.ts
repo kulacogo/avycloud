@@ -47,9 +47,9 @@ const BACKEND_URL = (() => {
     return envUrl;
   }
 
-  // In production, use env or default to stable Cloud Run service URL (NOT revision-specific).
-  // This avoids stale/cached builds calling an old URL.
-  return envUrl || 'https://product-hub-backend-sa6a4cbk3q-ey.a.run.app';
+  // In production, use env or default to the canonical regional Cloud Run URL.
+  // Prefer the *.run.app hostname over legacy aliases to avoid stale routing behavior.
+  return envUrl || 'https://product-hub-backend-79205549235.europe-west3.run.app';
 })();
 
 const FALLBACK_BACKEND_URLS = (() => {
@@ -165,7 +165,7 @@ const isHtml404 = (response: Response): boolean => {
 
 const shouldRetryWithBackendFallback = (response: Response, requestUrl: URL | null): boolean => {
   if (!requestUrl) return false;
-  if (!requestUrl.pathname.startsWith('/api/ebay/')) return false;
+  if (!requestUrl.pathname.includes('/api/ebay/')) return false;
   if (isLocalOrigin(requestUrl.origin)) return false;
   return isHtml404(response);
 };
