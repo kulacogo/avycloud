@@ -76,6 +76,9 @@ function normalizeSpecificToken(value) {
   if (token === 'herstellernummer' || token === 'manufacturerpartnumber' || token === 'mpn') return 'mpn';
   // eBay can expose GTIN either as EAN or GTIN.
   if (token === 'ean' || token === 'gtin') return 'gtin';
+  // Bicycle categories often expose localized variants like "Für Fahrradtyp".
+  if (token.includes('fahrradtyp')) return 'fahrradtyp';
+  if (token.includes('fahrradgroesse') || token.includes('fahrradsize')) return 'fahrradgroesse';
   return token;
 }
 
@@ -375,9 +378,391 @@ function deriveProductSubtitle(product) {
   );
 }
 
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function decodeHtmlEntities(value) {
+  return String(value == null ? '' : value)
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>');
+}
+
+function stripHtmlToText(value) {
+  return String(value == null ? '' : value)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<li[^>]*>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ');
+}
+
+function normalizeComparableRichText(value) {
+  return decodeHtmlEntities(stripHtmlToText(value))
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeBulletLine(value) {
+  const text = decodeHtmlEntities(stripHtmlToText(value));
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/^[•·*\-–—]+\s*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeBulletList(list = []) {
+  const out = [];
+  const seen = new Set();
+  asArray(list).forEach((entry) => {
+    const normalized = normalizeBulletLine(entry);
+    if (!normalized) return;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(normalized);
+  });
+  return out;
+}
+
+function parseListItemsFromHtml(html) {
+  const source = safeString(html);
+  if (!source) return [];
+  const items = [];
+  const re = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+  let match = re.exec(source);
+  while (match) {
+    const line = normalizeBulletLine(match[1]);
+    if (line) items.push(line);
+    match = re.exec(source);
+  }
+  return normalizeBulletList(items);
+}
+
+function extractTrendOceanDescriptionParts(descriptionHtml) {
+  const raw = safeString(descriptionHtml);
+  const out = {
+    isTemplate: /START TrendOcean eBay Listing Template/i.test(raw),
+    highlights: [],
+    descriptionHtml: '',
+    descriptionText: '',
+  };
+  if (!raw) return out;
+
+  const highlightsMatch = raw.match(
+    /<div[^>]*class=["'][^"']*section-title[^"']*["'][^>]*>\s*Produkt-Highlights\s*<\/div>[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i
+  );
+  if (highlightsMatch && highlightsMatch[1]) {
+    out.highlights = parseListItemsFromHtml(highlightsMatch[1]);
+  }
+
+  const descriptionHeaderMatch = raw.match(
+    /<div[^>]*class=["'][^"']*section-title[^"']*["'][^>]*>\s*Produktbeschreibung\s*<\/div>/i
+  );
+  if (descriptionHeaderMatch && descriptionHeaderMatch.index >= 0) {
+    const start = descriptionHeaderMatch.index + descriptionHeaderMatch[0].length;
+    const afterHeader = raw.slice(start);
+    const beforeCta = afterHeader.split(/<div[^>]*class=["'][^"']*cta[^"']*["'][^>]*>/i)[0] || afterHeader;
+    const innerDiv = beforeCta.match(/<div[^>]*>([\s\S]*?)<\/div>/i);
+    out.descriptionHtml = safeString(innerDiv ? innerDiv[1] : beforeCta);
+  }
+
+  if (!out.descriptionHtml) out.descriptionHtml = raw;
+  out.descriptionText = normalizeComparableRichText(out.descriptionHtml);
+  return out;
+}
+
+function deriveProductHighlights(product) {
+  const details = product?.details || {};
+  const listCandidates = [
+    details?.key_features,
+    details?.highlights,
+    product?.key_features,
+    product?.highlights,
+  ];
+  const textCandidates = [
+    details?.key_features_text,
+    details?.highlights_text,
+  ];
+
+  const lines = [];
+  listCandidates.forEach((candidate) => {
+    asArray(candidate).forEach((entry) => {
+      const line = normalizeBulletLine(entry);
+      if (line) lines.push(line);
+    });
+  });
+  textCandidates.forEach((candidate) => {
+    const raw = safeString(candidate);
+    if (!raw) return;
+    raw
+      .split(/\r?\n|\|/)
+      .map((line) => normalizeBulletLine(line))
+      .filter(Boolean)
+      .forEach((line) => lines.push(line));
+  });
+  return normalizeBulletList(lines);
+}
+
 function deriveProductDescription(product) {
   const details = product?.details || {};
-  return safeString(details?.description) || safeString(details?.short_description) || null;
+  return safeString(details?.short_description) || safeString(details?.description) || null;
+}
+
+function deriveProductManufacturer(product, listing = null) {
+  const direct =
+    safeString(product?.identification?.brand) ||
+    safeString(product?.details?.identifiers?.brand) ||
+    safeString(product?.details?.brand);
+  if (direct) return direct;
+
+  const productSpecifics = normalizeProductSpecifics(product);
+  for (const [key, values] of Object.entries(productSpecifics || {})) {
+    if (normalizeSpecificToken(key) !== 'brand') continue;
+    const first = asArray(values).map((entry) => safeString(entry)).find(Boolean);
+    if (first) return first;
+  }
+
+  const listingSpecifics = mapListingSpecifics(listing || {});
+  for (const [key, values] of Object.entries(listingSpecifics || {})) {
+    if (normalizeSpecificToken(key) !== 'brand') continue;
+    const first = asArray(values).map((entry) => safeString(entry)).find(Boolean);
+    if (first) return first;
+  }
+  return null;
+}
+
+function deriveProductPhotoUrl(product, listing = null) {
+  const candidates = [];
+  asArray(product?.details?.images).forEach((entry) => {
+    if (!entry) return;
+    if (typeof entry === 'string') candidates.push(entry);
+    if (typeof entry === 'object') {
+      candidates.push(entry.url_or_base64);
+      candidates.push(entry.url);
+      candidates.push(entry.src);
+      candidates.push(entry.imageUrl);
+    }
+  });
+  asArray(product?.images).forEach((entry) => {
+    if (!entry) return;
+    if (typeof entry === 'string') candidates.push(entry);
+    if (typeof entry === 'object') {
+      candidates.push(entry.url_or_base64);
+      candidates.push(entry.url);
+      candidates.push(entry.src);
+    }
+  });
+  candidates.push(product?.details?.imageUrl);
+  candidates.push(product?.details?.image);
+  candidates.push(product?.details?.mainImage);
+  candidates.push(product?.details?.main_image);
+  candidates.push(product?.marketplace?.ebay?.image);
+  candidates.push(product?.marketplace?.ebay?.imageUrl);
+  candidates.push(listing?.pictureUrl);
+  candidates.push(listing?.galleryUrl);
+
+  const fromDescription = safeString(listing?.description).match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (fromDescription && fromDescription[1]) candidates.push(fromDescription[1]);
+
+  return (
+    candidates
+      .map((entry) => safeString(entry))
+      .find((entry) => /^https?:\/\//i.test(entry)) || null
+  );
+}
+
+function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = null }) {
+  const auctionName = safeString(titleOverride) || safeString(listing?.title) || safeString(deriveProductTitle(product));
+  const manufacturer = safeString(deriveProductManufacturer(product, listing)) || 'Unbekannt';
+  const photo = safeString(deriveProductPhotoUrl(product, listing));
+  const highlights = deriveProductHighlights(product);
+  const highlightItemsHtml = highlights.map((line) => `<li>${escapeHtml(line)}</li>`).join('');
+  const rawDescription = safeString(deriveProductDescription(product))
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '');
+
+  return `<!-- START TrendOcean eBay Listing Template -->
+
+<style>
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #2b2b2b;
+  line-height: 1.6;
+  background: #ffffff;
+}
+
+.wrapper {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.store-logo {
+  display: block;
+  margin: 0 auto 10px auto;
+  max-width: 200px;
+}
+
+h1 {
+  font-size: 24px;
+  text-align: center;
+  margin: 6px 0 18px;
+  color: #111;
+}
+
+.section {
+  margin: 22px 0;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 4px;
+}
+
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.hero-image {
+  flex: 1 1 380px;
+  text-align: center;
+}
+
+.hero-image img {
+  width: 100%;
+  max-width: 420px;
+}
+
+.hero-info {
+  flex: 1 1 420px;
+}
+
+.trust-box {
+  background: #f8f9fb;
+  border: 1px solid #e2e4e8;
+  padding: 14px;
+}
+
+.trust-box ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.trust-box li {
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.highlight {
+  background: #f8f9fb;
+  border-left: 4px solid #1a73e8;
+  padding: 14px 16px;
+  font-size: 14px;
+}
+
+ul {
+  padding-left: 18px;
+  margin: 8px 0;
+}
+
+.cta {
+  background: #111;
+  color: #fff;
+  text-align: center;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 28px;
+}
+
+.small-note {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  margin-top: 10px;
+}
+</style>
+
+<div class="wrapper">
+
+  <img src="https://storage.googleapis.com/trendocean/Brand.png"
+       alt="TrendOcean"
+       class="store-logo">
+
+  <h1>${escapeHtml(auctionName)}</h1>
+
+  <div class="hero">
+
+    <div class="hero-image">
+      <img src="${escapeHtml(photo)}" alt="${escapeHtml(auctionName)}">
+    </div>
+
+    <div class="hero-info">
+
+      <div class="trust-box">
+        <ul>
+          <li>✔ <strong>Hersteller:</strong> ${escapeHtml(manufacturer)}</li>
+          <li>✔ <strong>Zustand:</strong> Neu & originalverpackt</li>
+          <li>✔ <strong>Versand:</strong> Schnell & kostenlos aus Deutschland</li>
+          <li>✔ <strong>Qualitätsprüfung:</strong> Manuell geprüft</li>
+        </ul>
+      </div>
+
+      <div class="highlight section">
+        <strong>Warum dieses Angebot?</strong><br>
+        Hochwertige Ware, faire Preise und professioneller Service – <strong>TrendOcean</strong>.
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="section">
+    <div class="section-title">Produkt-Highlights</div>
+    <ul>
+      ${highlightItemsHtml}
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Produktbeschreibung</div>
+    <div>
+      ${rawDescription}
+    </div>
+  </div>
+
+  <div class="cta">
+    Jetzt sichern – nur solange der Vorrat reicht!
+  </div>
+
+  <div class="small-note">
+    Markenrechte liegen beim jeweiligen Rechteinhaber.  
+    Abbildungen dienen der Veranschaulichung.
+  </div>
+
+</div>
+
+<!-- END TrendOcean eBay Listing Template -->`;
 }
 
 function deriveProductCategoryId(product) {
@@ -587,6 +972,56 @@ async function upsertLiveListings(listings = [], { runId = null, actor = null } 
   return { total: cleaned.length, written, changed, unchanged };
 }
 
+async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runId = null, actor = null } = {}) {
+  const keepSet = new Set(asArray(activeItemIds).map((id) => safeString(id)).filter(Boolean));
+  const snapshot = await firestore.collection(EBAY_LISTINGS_COLLECTION).where('active', '==', true).get();
+  const docs = Array.isArray(snapshot?.docs) ? snapshot.docs : [];
+  if (!docs.length) {
+    return { scanned: 0, deactivated: 0, keptActive: 0 };
+  }
+
+  let scanned = 0;
+  let deactivated = 0;
+  const nowIso = new Date().toISOString();
+  for (const group of chunk(docs, 350)) {
+    const batch = firestore.batch();
+    let touched = 0;
+    group.forEach((doc) => {
+      scanned += 1;
+      const itemId = safeString(doc?.id);
+      if (!itemId || keepSet.has(itemId)) return;
+      touched += 1;
+      deactivated += 1;
+      batch.set(
+        firestore.collection(EBAY_LISTINGS_COLLECTION).doc(itemId),
+        cleanUndefined({
+          active: false,
+          runId: runId || null,
+          inactiveAt: FieldValue.serverTimestamp(),
+          inactiveAtIso: nowIso,
+          deactivation: {
+            reason: 'not_in_active_list',
+            actor: actor || null,
+            runId: runId || null,
+            at: nowIso,
+          },
+          updatedAt: FieldValue.serverTimestamp(),
+        }),
+        { merge: true }
+      );
+    });
+    if (touched > 0) {
+      await batch.commit();
+    }
+  }
+
+  return {
+    scanned,
+    deactivated,
+    keptActive: Math.max(0, scanned - deactivated),
+  };
+}
+
 async function listLiveListings({
   limit = 100,
   search = '',
@@ -652,6 +1087,12 @@ async function listLiveListings({
       }
       if (matchStatus && safeLower(row.matchStatus) !== safeLower(matchStatus)) return false;
       return true;
+    })
+    .sort((a, b) => {
+      const aMs = Date.parse(String(a?.updatedAt || ''));
+      const bMs = Date.parse(String(b?.updatedAt || ''));
+      if (Number.isFinite(aMs) && Number.isFinite(bMs) && aMs !== bMs) return bMs - aMs;
+      return safeString(b?.itemId).localeCompare(safeString(a?.itemId));
     });
   return rows;
 }
@@ -1159,6 +1600,8 @@ function buildGapsForListing({ listing, link, product, existingGapDoc, categoryP
   const desiredTitle = deriveProductTitle(product);
   const desiredSubtitle = deriveProductSubtitle(product);
   const desiredDescription = deriveProductDescription(product);
+  const desiredDescriptionNorm = normalizeComparableRichText(desiredDescription);
+  const desiredHighlights = normalizeBulletList(deriveProductHighlights(product));
 
   const listingTitle = safeString(listing?.title);
   if (desiredTitle && normalizeComparableText(desiredTitle) !== normalizeComparableText(listingTitle)) {
@@ -1190,18 +1633,46 @@ function buildGapsForListing({ listing, link, product, existingGapDoc, categoryP
   }
 
   const listingDescription = safeString(listing?.description);
-  if (
-    desiredDescription &&
-    normalizeComparableText(desiredDescription).slice(0, 1200) !==
-      normalizeComparableText(listingDescription).slice(0, 1200)
-  ) {
+  const listingDescriptionParts = extractTrendOceanDescriptionParts(listingDescription);
+  const listingDescriptionForCompare = safeString(listingDescriptionParts.descriptionHtml || listingDescription);
+  const listingDescriptionNorm = normalizeComparableRichText(listingDescriptionForCompare);
+  const listingHighlights = normalizeBulletList(listingDescriptionParts.highlights);
+
+  const descriptionComparable = Boolean(desiredDescriptionNorm || listingDescriptionNorm);
+  const descriptionMatches = !descriptionComparable
+    ? true
+    : desiredDescriptionNorm === listingDescriptionNorm ||
+      (desiredDescriptionNorm.length > 120 &&
+        listingDescriptionNorm.length > 120 &&
+        (desiredDescriptionNorm.includes(listingDescriptionNorm) ||
+          listingDescriptionNorm.includes(desiredDescriptionNorm)));
+
+  const highlightsComparable = desiredHighlights.length > 0 || listingHighlights.length > 0;
+  const desiredHighlightsSorted = desiredHighlights.slice().sort((a, b) => a.localeCompare(b));
+  const listingHighlightsSorted = listingHighlights.slice().sort((a, b) => a.localeCompare(b));
+  const highlightsMatches =
+    !highlightsComparable ||
+    (desiredHighlightsSorted.length === listingHighlightsSorted.length &&
+      desiredHighlightsSorted.every((entry, idx) => entry === listingHighlightsSorted[idx]));
+
+  if ((descriptionComparable || highlightsComparable) && (!descriptionMatches || !highlightsMatches)) {
+    const mismatchParts = [];
+    if (!descriptionMatches) mismatchParts.push('Beschreibung');
+    if (!highlightsMatches) mismatchParts.push('Highlights');
     addGap(gaps, existingById, {
       type: 'content',
       field: 'description',
       severity: 'warn',
-      listingValue: listingDescription ? `${listingDescription.slice(0, 500)}…` : null,
+      listingValue: listingDescriptionForCompare ? `${listingDescriptionForCompare.slice(0, 500)}…` : null,
       avyValue: desiredDescription ? `${desiredDescription.slice(0, 500)}…` : null,
-      message: 'Beschreibung weicht zwischen AvyCloud und eBay ab.',
+      message: `${mismatchParts.join(' + ')} weicht zwischen AvyCloud und eBay ab.`,
+      suggestion: {
+        templateDetected: listingDescriptionParts.isTemplate,
+        descriptionMatches,
+        highlightsMatches,
+        listingHighlightsCount: listingHighlights.length,
+        avyHighlightsCount: desiredHighlights.length,
+      },
       syncDirection: 'accept_avy',
     });
   }
@@ -1630,8 +2101,16 @@ function selectSyncCandidatesFromGaps(gapDoc) {
 function computeSyncPatch({ listing, gapDoc, product = null }) {
   const selectedGaps = selectSyncCandidatesFromGaps(gapDoc);
   const listingCategory = safeString(listing?.primaryCategoryId);
+  const targetCategoryFromGap = selectedGaps
+    .map((gap) => ({
+      type: safeLower(gap?.type),
+      field: safeLower(gap?.field),
+      value: safeString(gap?.avyValue),
+    }))
+    .find((entry) => entry.type === 'category' && entry.field.includes('category') && entry.value);
+  const effectiveCategoryId = safeString(targetCategoryFromGap?.value || listingCategory);
   const listingSpecifics = mapListingSpecifics(listing);
-  const requiredAspects = asArray(getRequiredAspects(listingCategory)).map((x) => safeString(x)).filter(Boolean);
+  const requiredAspects = asArray(getRequiredAspects(effectiveCategoryId)).map((x) => safeString(x)).filter(Boolean);
   const labelPolicy = buildSpecificLabelPolicy({ requiredAspects, listingSpecifics, categoryProfile: null });
   const patch = {
     itemId: listing?.itemId,
@@ -1659,7 +2138,12 @@ function computeSyncPatch({ listing, gapDoc, product = null }) {
         if (val) patch.subtitle = val;
       }
       if (field === 'description') {
-        const val = safeString(gap?.avyValue);
+        const val =
+          buildTrendOceanDescriptionTemplate({
+            listing,
+            product,
+            titleOverride: patch.title || listing?.title || null,
+          }) || safeString(deriveProductDescription(product)) || safeString(gap?.avyValue);
         if (val) patch.description = val;
       }
       return;
@@ -1757,7 +2241,8 @@ function evaluateSyncBlockers(listing, patch) {
   const patchItemSpecifics = patch?.itemSpecifics && typeof patch.itemSpecifics === 'object' ? patch.itemSpecifics : {};
   const hasItemSpecificUpdates = Object.keys(patchItemSpecifics).length > 0;
   if (hasItemSpecificUpdates) {
-    const requiredAspects = asArray(getRequiredAspects(safeString(listing?.primaryCategoryId))).map((x) => safeString(x)).filter(Boolean);
+    const effectiveCategoryId = safeString(patch?.primaryCategoryId || listing?.primaryCategoryId);
+    const requiredAspects = asArray(getRequiredAspects(effectiveCategoryId)).map((x) => safeString(x)).filter(Boolean);
     if (requiredAspects.length) {
       const listingNorm = normalizeSpecificsMap(mapListingSpecifics(listing));
       const patchNorm = normalizeSpecificsMap(patchItemSpecifics);
@@ -2240,6 +2725,24 @@ async function syncLiveListingsAndAudit(options = {}) {
     timeoutMs: options?.timeoutMs,
   });
   const upsert = await upsertLiveListings(ingest.listings, { runId, actor });
+  const ingestPagesFetched = Number(ingest?.summary?.pagesFetched) || 0;
+  const ingestTotalPages = Number(ingest?.summary?.totalPagesReported) || 0;
+  const ingestIsComplete = ingestPagesFetched > 0 && ingestTotalPages > 0 && ingestPagesFetched >= ingestTotalPages;
+  const deactivation = ingestIsComplete
+    ? await deactivateListingsMissingFromActiveSet({
+        activeItemIds: ingest.listings.map((x) => safeString(x?.itemId)).filter(Boolean),
+        runId,
+        actor,
+      })
+    : {
+        scanned: 0,
+        deactivated: 0,
+        keptActive: 0,
+        skipped: true,
+        reason: 'partial_ingest_window',
+        pagesFetched: ingestPagesFetched,
+        totalPagesReported: ingestTotalPages,
+      };
   const links = await buildProductListingLinks({ runId, actor, itemIds: ingest.listings.map((x) => x.itemId) });
   const gaps = await auditListingGaps({ runId, actor, itemIds: ingest.listings.map((x) => x.itemId) });
 
@@ -2249,6 +2752,7 @@ async function syncLiveListingsAndAudit(options = {}) {
     generatedAt: new Date().toISOString(),
     ingest: ingest.summary,
     upsert,
+    deactivation,
     links,
     gaps,
     detailErrors: ingest.errors,

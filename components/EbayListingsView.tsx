@@ -50,6 +50,21 @@ const toDisplayValue = (value: any): string => {
   return safeString(value) || '-';
 };
 
+const isTechnicalCategoryKey = (key: any): boolean => {
+  const normalized = safeString(key).toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (!normalized) return false;
+  return (
+    normalized === 'ebaycategoryid' ||
+    normalized === 'ebaycategorypath' ||
+    normalized === 'categoryid' ||
+    normalized === 'categorypath' ||
+    normalized === 'categorybreadcrumb' ||
+    normalized === 'category' ||
+    normalized.endsWith('categoryid') ||
+    normalized.endsWith('categorypath')
+  );
+};
+
 const toUiErrorMessage = (error: any, fallback: string): string => {
   const fromMessage = safeString(error?.message);
   if (fromMessage) return fromMessage;
@@ -106,6 +121,7 @@ const extractProductSpecifics = (product: Record<string, any> | null | undefined
     Object.entries(obj).forEach(([rawKey, rawValue]) => {
       const key = safeString(rawKey);
       if (!key) return;
+      if (isTechnicalCategoryKey(key)) return;
       const value = toDisplayValue(rawValue);
       if (value && value !== '-') out[key] = value;
     });
@@ -179,10 +195,132 @@ const normalizeSpecificKeyToken = (value: any): string => {
   }
   // eBay and product feeds may use EAN or GTIN for the same identifier.
   if (token === 'ean' || token === 'gtin') return 'gtin';
+  if (token.includes('fahrradtyp')) return 'fahrradtyp';
+  if (token.includes('fahrradgroesse') || token.includes('fahrradsize')) return 'fahrradgroesse';
   return token;
 };
 
 const normalizeCompareText = (value: any): string => safeString(value).toLowerCase().replace(/\s+/g, ' ').trim();
+
+const decodeHtmlEntities = (value: any): string =>
+  safeString(value)
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>');
+
+const stripHtmlToText = (value: any): string =>
+  safeString(value)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<li[^>]*>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ');
+
+const normalizeRichTextForCompare = (value: any): string =>
+  normalizeCompareText(decodeHtmlEntities(stripHtmlToText(value)));
+
+const normalizeHighlightLine = (value: any): string =>
+  decodeHtmlEntities(stripHtmlToText(value))
+    .replace(/^[•·*\-–—]+\s*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const normalizeHighlightList = (values: any[] = []): string[] => {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  values.forEach((entry) => {
+    const line = normalizeHighlightLine(entry);
+    if (!line) return;
+    const key = normalizeCompareText(line);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(line);
+  });
+  return out;
+};
+
+const parseListItemsFromHtml = (html: any): string[] => {
+  const source = safeString(html);
+  if (!source) return [];
+  const items: string[] = [];
+  const re = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+  let match = re.exec(source);
+  while (match) {
+    const line = normalizeHighlightLine(match[1]);
+    if (line) items.push(line);
+    match = re.exec(source);
+  }
+  return normalizeHighlightList(items);
+};
+
+type EbayTemplateDescriptionParts = {
+  isTemplate: boolean;
+  descriptionRaw: string;
+  descriptionText: string;
+  highlights: string[];
+};
+
+const extractEbayTemplateDescriptionParts = (descriptionHtml: any): EbayTemplateDescriptionParts => {
+  const raw = safeString(descriptionHtml);
+  const out: EbayTemplateDescriptionParts = {
+    isTemplate: /START TrendOcean eBay Listing Template/i.test(raw),
+    descriptionRaw: raw,
+    descriptionText: normalizeRichTextForCompare(raw),
+    highlights: [],
+  };
+  if (!raw) return out;
+
+  const highlightsMatch = raw.match(
+    /<div[^>]*class=["'][^"']*section-title[^"']*["'][^>]*>\s*Produkt-Highlights\s*<\/div>[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i
+  );
+  if (highlightsMatch && highlightsMatch[1]) {
+    out.highlights = parseListItemsFromHtml(highlightsMatch[1]);
+  }
+
+  const descriptionHeaderMatch = raw.match(
+    /<div[^>]*class=["'][^"']*section-title[^"']*["'][^>]*>\s*Produktbeschreibung\s*<\/div>/i
+  );
+  if (descriptionHeaderMatch && typeof descriptionHeaderMatch.index === 'number') {
+    const start = descriptionHeaderMatch.index + descriptionHeaderMatch[0].length;
+    const afterHeader = raw.slice(start);
+    const beforeCta = afterHeader.split(/<div[^>]*class=["'][^"']*cta[^"']*["'][^>]*>/i)[0] || afterHeader;
+    const innerDiv = beforeCta.match(/<div[^>]*>([\s\S]*?)<\/div>/i);
+    out.descriptionRaw = safeString(innerDiv ? innerDiv[1] : beforeCta);
+    out.descriptionText = normalizeRichTextForCompare(out.descriptionRaw);
+  }
+
+  return out;
+};
+
+const extractProductHighlights = (product: Record<string, any> | null): string[] => {
+  if (!product) return [];
+  const details = product?.details || {};
+  const lines: string[] = [];
+  const listCandidates = [details?.key_features, details?.highlights, product?.key_features, product?.highlights];
+  const textCandidates = [details?.key_features_text, details?.highlights_text];
+
+  listCandidates.forEach((candidate) => {
+    (Array.isArray(candidate) ? candidate : []).forEach((entry) => {
+      const line = normalizeHighlightLine(entry);
+      if (line) lines.push(line);
+    });
+  });
+  textCandidates.forEach((candidate) => {
+    const raw = safeString(candidate);
+    if (!raw) return;
+    raw
+      .split(/\r?\n|\|/)
+      .map((line) => normalizeHighlightLine(line))
+      .filter(Boolean)
+      .forEach((line) => lines.push(line));
+  });
+
+  return normalizeHighlightList(lines);
+};
 
 const valueToComparableSet = (value: any): string[] => {
   const values = Array.isArray(value) ? value : [value];
@@ -252,12 +390,13 @@ type SpecificsComparisonRow = {
   keyLabel: string;
   ebayValue: string;
   avyValue: string;
-  status: 'match' | 'different' | 'missing_ebay' | 'missing_avy';
+  status: 'match' | 'different' | 'missing_ebay' | 'missing_avy' | 'not_applicable';
 };
 
 const buildSpecificsComparisonRows = (
   ebaySpecifics: Record<string, any>,
-  avySpecifics: Record<string, any>
+  avySpecifics: Record<string, any>,
+  gapList: Array<Record<string, any>>
 ): SpecificsComparisonRow[] => {
   const merged = new Map<
     string,
@@ -268,6 +407,18 @@ const buildSpecificsComparisonRows = (
       avyRaw?: any;
     }
   >();
+  const actionableMissingTokens = new Set<string>();
+  (Array.isArray(gapList) ? gapList : []).forEach((gap) => {
+    const type = normalizeCompareText(gap?.type);
+    if (type !== 'item_specific') return;
+    const status = normalizeCompareText(gap?.status);
+    if (status === 'ignored' || status === 'synced') return;
+    const hasListing = valueToComparableSet(gap?.listingValue).length > 0;
+    const hasAvy = valueToComparableSet(gap?.avyValue).length > 0;
+    if (hasListing || !hasAvy) return;
+    const token = normalizeSpecificKeyToken(gap?.field);
+    if (token) actionableMissingTokens.add(token);
+  });
 
   const upsert = (side: 'ebay' | 'avy', rawKey: string, rawValue: any) => {
     const token = normalizeSpecificKeyToken(rawKey);
@@ -299,7 +450,9 @@ const buildSpecificsComparisonRows = (
 
     let status: SpecificsComparisonRow['status'] = 'different';
     if (hasEbay && hasAvy && valuesEqual) status = 'match';
-    else if (!hasEbay && hasAvy) status = 'missing_ebay';
+    else if (!hasEbay && hasAvy) {
+      status = actionableMissingTokens.has(keyToken) ? 'missing_ebay' : 'not_applicable';
+    }
     else if (hasEbay && !hasAvy) status = 'missing_avy';
 
     return {
@@ -315,7 +468,8 @@ const buildSpecificsComparisonRows = (
     missing_ebay: 0,
     different: 1,
     missing_avy: 2,
-    match: 3,
+    not_applicable: 3,
+    match: 4,
   };
   rows.sort((a, b) => {
     const byStatus = statusOrder[a.status] - statusOrder[b.status];
@@ -628,10 +782,12 @@ export const EbayListingsView: React.FC = () => {
   const ebayTitle = safeString(listing?.title || listingNormalized?.title);
   const ebaySubtitle = safeString(listing?.subtitle || listingNormalized?.subtitle);
   const ebayDescription = safeString(listing?.description || listingNormalized?.description);
+  const ebayDescriptionParts = useMemo(() => extractEbayTemplateDescriptionParts(ebayDescription), [ebayDescription]);
   const ebayViewItemUrl = safeString(listing?.viewItemUrl || listingNormalized?.viewItemUrl);
 
   const product = detail?.product || null;
   const productSpecifics = useMemo(() => extractProductSpecifics(product), [product]);
+  const productHighlights = useMemo(() => extractProductHighlights(product), [product]);
   const productCategoryId = safeString(
     product?.details?.category?.id ||
       product?.details?.categoryId ||
@@ -642,13 +798,39 @@ export const EbayListingsView: React.FC = () => {
   );
   const productTitle = safeString(product?.identification?.name || product?.details?.title || product?.title);
   const productSubtitle = safeString(product?.details?.subtitle || product?.subtitle);
-  const productDescription = safeString(product?.details?.description || product?.description);
+  const productDescription = safeString(product?.details?.short_description || product?.details?.description || product?.description);
+  const productDescriptionText = useMemo(() => normalizeRichTextForCompare(productDescription), [productDescription]);
+  const ebayDescriptionText = useMemo(
+    () => normalizeRichTextForCompare(ebayDescriptionParts.descriptionRaw || ebayDescription),
+    [ebayDescription, ebayDescriptionParts.descriptionRaw]
+  );
+  const gapList = Array.isArray(detail?.gaps?.gaps) ? detail.gaps.gaps : [];
+  const descriptionMatches = useMemo(() => {
+    if (!productDescriptionText && !ebayDescriptionText) return true;
+    if (!productDescriptionText || !ebayDescriptionText) return false;
+    if (productDescriptionText === ebayDescriptionText) return true;
+    if (
+      productDescriptionText.length > 120 &&
+      ebayDescriptionText.length > 120 &&
+      (productDescriptionText.includes(ebayDescriptionText) || ebayDescriptionText.includes(productDescriptionText))
+    ) {
+      return true;
+    }
+    return false;
+  }, [ebayDescriptionText, productDescriptionText]);
+  const highlightsMatch = useMemo(() => {
+    const left = normalizeHighlightList(productHighlights).slice().sort((a, b) => a.localeCompare(b));
+    const right = normalizeHighlightList(ebayDescriptionParts.highlights).slice().sort((a, b) => a.localeCompare(b));
+    if (!left.length && !right.length) return true;
+    if (left.length !== right.length) return false;
+    return left.every((entry, idx) => entry === right[idx]);
+  }, [ebayDescriptionParts.highlights, productHighlights]);
   const specificsComparisonRows = useMemo(
-    () => buildSpecificsComparisonRows(listingSpecifics, productSpecifics),
-    [listingSpecifics, productSpecifics]
+    () => buildSpecificsComparisonRows(listingSpecifics, productSpecifics, gapList),
+    [listingSpecifics, productSpecifics, gapList]
   );
   const specificsStats = useMemo(() => {
-    const base = { match: 0, different: 0, missing_ebay: 0, missing_avy: 0 };
+    const base = { match: 0, different: 0, missing_ebay: 0, missing_avy: 0, not_applicable: 0 };
     specificsComparisonRows.forEach((row) => {
       base[row.status] += 1;
     });
@@ -680,11 +862,16 @@ export const EbayListingsView: React.FC = () => {
       {
         key: 'description',
         label: 'Beschreibung',
-        ebayValue: clipText(ebayDescription, 220),
-        avyValue: clipText(productDescription, 220),
-        equal:
-          normalizeCompareText(clipText(ebayDescription, 500)) ===
-          normalizeCompareText(clipText(productDescription, 500)),
+        ebayValue: clipText(normalizeHighlightLine(ebayDescriptionParts.descriptionRaw || ebayDescription), 220),
+        avyValue: clipText(normalizeHighlightLine(productDescription), 220),
+        equal: descriptionMatches && highlightsMatch,
+      },
+      {
+        key: 'highlights',
+        label: 'Highlights',
+        ebayValue: clipText(ebayDescriptionParts.highlights.join(' | ') || '-', 220),
+        avyValue: clipText(productHighlights.join(' | ') || '-', 220),
+        equal: highlightsMatch,
       },
     ];
     return rows;
@@ -692,14 +879,18 @@ export const EbayListingsView: React.FC = () => {
     ebayCategoryId,
     ebayCategoryText,
     ebayDescription,
+    ebayDescriptionParts.descriptionRaw,
+    ebayDescriptionParts.highlights,
     ebaySubtitle,
     ebayTitle,
+    descriptionMatches,
+    highlightsMatch,
+    productHighlights,
     productCategoryId,
     productDescription,
     productSubtitle,
     productTitle,
   ]);
-  const gapList = Array.isArray(detail?.gaps?.gaps) ? detail.gaps.gaps : [];
   useEffect(() => {
     const allowedIds = new Set(gapList.map((gap) => safeString(gap.id)).filter(Boolean));
     setSelectedGapIds((prev) => {
@@ -1275,6 +1466,9 @@ export const EbayListingsView: React.FC = () => {
                     <span className="rounded border border-amber-700/70 px-1.5 py-0.5 text-amber-200">
                       Unterschiedlich: {specificsStats.different}
                     </span>
+                    <span className="rounded border border-indigo-700/70 px-1.5 py-0.5 text-indigo-200">
+                      Nicht eBay-Attribut: {specificsStats.not_applicable}
+                    </span>
                     <span className="rounded border border-slate-600 px-1.5 py-0.5 text-slate-200">
                       Nur eBay: {specificsStats.missing_avy}
                     </span>
@@ -1335,6 +1529,8 @@ export const EbayListingsView: React.FC = () => {
                                     ? 'border-rose-600/70 text-rose-200'
                                     : row.status === 'missing_avy'
                                       ? 'border-slate-500/70 text-slate-200'
+                                      : row.status === 'not_applicable'
+                                        ? 'border-indigo-600/70 text-indigo-200'
                                       : 'border-amber-600/70 text-amber-200'
                               }`}
                             >
@@ -1344,6 +1540,8 @@ export const EbayListingsView: React.FC = () => {
                                   ? 'fehlt auf ebay'
                                   : row.status === 'missing_avy'
                                     ? 'nur ebay'
+                                    : row.status === 'not_applicable'
+                                      ? 'nicht eBay-attribut'
                                     : 'abweichend'}
                             </span>
                           </td>
