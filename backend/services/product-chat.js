@@ -24,7 +24,7 @@ const {
   canonicalizeAttributesStrict,
   isBlockedAttributeKey,
 } = require('../lib/attribute-policy');
-const { getRequiredAspects } = require('../lib/ebay-taxonomy');
+const { getRequiredAspects, buildRequiredAspectMeta, getRequiredAspectCatalogStats } = require('../lib/ebay-taxonomy');
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 const { getRulebookConfigCached } = require('../lib/rulebook-config');
 const { htmlToText } = require('../lib/web-search-html');
@@ -949,6 +949,8 @@ function buildProductContext(product, { attachments = [], mode = 'short', market
   const categoryIdRaw =
     (product?.details?.categoryId && String(product.details.categoryId).trim()) || null;
   const requiredAspects = categoryIdRaw ? getRequiredAspects(categoryIdRaw) : [];
+  const requiredMeta = buildRequiredAspectMeta(categoryIdRaw, product?.details?.attributes || {});
+  const aspectStats = getRequiredAspectCatalogStats();
   const vehicleFitmentMode = categoryIdRaw ? getVehicleFitmentMode(categoryIdRaw) : null;
   const identifiers = {
     sku: product?.identification?.sku || product?.details?.identifiers?.sku || null,
@@ -971,6 +973,14 @@ function buildProductContext(product, { attachments = [], mode = 'short', market
     ebay: {
       categoryId: categoryIdRaw,
       required_aspects: Array.isArray(requiredAspects) ? requiredAspects : [],
+      required_aspects_meta: {
+        category_known: Boolean(requiredMeta?.categoryKnown),
+        has_aspect_data: Boolean(requiredMeta?.hasAspectData),
+        coverage_status: requiredMeta?.coverageStatus || null,
+        missing_required_aspects: Array.isArray(requiredMeta?.missingAspects) ? requiredMeta.missingAspects : [],
+        provided_required_aspects: Array.isArray(requiredMeta?.providedRequiredAspects) ? requiredMeta.providedRequiredAspects : [],
+        catalog_coverage: `${aspectStats.categoriesWithAspectData}/${aspectStats.totalCategories}`,
+      },
       vehicle_fitment_mode: vehicleFitmentMode,
     },
     copy: {
@@ -1067,6 +1077,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     'You are the AvyStock Product CoPilot.',
     'You always respond in SHORT, ACTIONABLE messages by default (≤10 short sentences or ~1000 characters, ≤3 bullets, no section headers).',
     'You have full product context (data, images, OCR, identifiers, inventory, warehouse info) and must cross-check for inconsistencies or missing facts.',
+    'For category work: use only valid eBay category IDs/breadcrumbs and treat ebay.required_aspects_meta.missing_required_aspects as mandatory enrichment backlog.',
     'Use BrightData web_fetch only when external validation (competitors, specs) is truly needed; cite when you do.',
     'Interpret every supplied image (product gallery + user attachments) in concise wording; if imagery is weak, state what to shoot next.',
     'When the user explicitly asks for "mehr Details", "ausführlich", "voller Report", "lange Analyse" or similar, switch to DEEP MODE with structured sections and long explanations. Otherwise stay in SHORT MODE.',
@@ -1104,6 +1115,8 @@ function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingF
     );
   }
   lines.push('Vehicle fitment rule: If ebay.vehicle_fitment_mode is set, do NOT invent K-Typ. Only propose K-Typ if it is present in OCR/attachments or provided WEB-EVIDENZ.');
+  lines.push('Category rule: use only valid eBay category IDs/breadcrumbs; do not propose non-eBay categories.');
+  lines.push('Aspect rule: prioritize filling ebay.required_aspects_meta.missing_required_aspects with evidence-backed values.');
   lines.push('If you propose edits, remember the {"edit": {...}} JSON rule.');
   return lines.join('\n\n');
 }

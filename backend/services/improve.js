@@ -12,7 +12,7 @@ const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const { createJob: createQualityJob } = require('../lib/quality-jobs');
 const { enqueueQualityJob } = require('./quality-runner');
 const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
-const { getRequiredAspects } = require('../lib/ebay-taxonomy');
+const { buildRequiredAspectMeta, getRequiredAspectCatalogStats } = require('../lib/ebay-taxonomy');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
@@ -43,29 +43,6 @@ function collectBarcodes(product) {
     }
   });
   return Array.from(codes).filter(Boolean).join(', ');
-}
-
-function normalizeAspectKey(raw) {
-  return String(raw || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[‐‑‒–—−]/g, '-')
-    .replace(/\s+/g, ' ');
-}
-
-function collectAttributeKeys(product) {
-  const attrs = product?.details?.attributes;
-  if (!attrs) return [];
-  if (Array.isArray(attrs)) {
-    return attrs
-      .map((e) => (e && typeof e === 'object' ? e.key : null))
-      .filter((k) => typeof k === 'string' && k.trim())
-      .map((k) => k.trim());
-  }
-  if (typeof attrs === 'object') {
-    return Object.keys(attrs).filter((k) => typeof k === 'string' && k.trim());
-  }
-  return [];
 }
 
 function buildImproveContext(product, ebayListing = null) {
@@ -125,17 +102,23 @@ function buildImproveContext(product, ebayListing = null) {
       }
 
       // Compute required eBay aspects and what is missing in the AvyCloud product record.
-      const required = eCatId ? getRequiredAspects(eCatId) : [];
-      if (Array.isArray(required) && required.length) {
-        const productKeys = new Set(collectAttributeKeys(product).map(normalizeAspectKey));
-        const missing = required.filter((k) => !productKeys.has(normalizeAspectKey(k)));
+      const aspectMeta = eCatId
+        ? buildRequiredAspectMeta(eCatId, product?.details?.attributes || {})
+        : buildRequiredAspectMeta(product?.details?.categoryId || null, product?.details?.attributes || {});
+      const stats = getRequiredAspectCatalogStats();
+      if (Array.isArray(aspectMeta.requiredAspects) && aspectMeta.requiredAspects.length) {
+        const missing = Array.isArray(aspectMeta.missingAspects) ? aspectMeta.missingAspects : [];
         if (missing.length) {
           lines.push(
-            `- Fehlende eBay Pflichtmerkmale (für CategoryId=${eCatId}) im AvyCloud-Datenblatt: ${missing
+            `- Fehlende eBay Pflichtmerkmale (für CategoryId=${aspectMeta.categoryId}) im AvyCloud-Datenblatt: ${missing
               .slice(0, 35)
               .join(', ')}${missing.length > 35 ? ` (+${missing.length - 35} mehr)` : ''}`
           );
         }
+      } else if (aspectMeta.categoryId && !aspectMeta.hasAspectData) {
+        lines.push(
+          `- Hinweis: Für CategoryId=${aspectMeta.categoryId} sind lokal noch keine Pflichtmerkmale hinterlegt (Coverage ${stats.categoriesWithAspectData}/${stats.totalCategories}).`
+        );
       }
     } catch {
       // best-effort only

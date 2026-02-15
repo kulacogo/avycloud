@@ -10,7 +10,12 @@ const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { search: searchEvidence } = require('../lib/evidence-provider');
 const { resolveModel } = require('../lib/model-select');
 const path = require('path');
-const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
+const {
+  findEbayCategory,
+  getRequiredAspects,
+  buildRequiredAspectMeta,
+  getRequiredAspectCatalogStats,
+} = require('../lib/ebay-taxonomy');
 const { findKauflandCategory, getKauflandAttributes } = require('../lib/kaufland-taxonomy');
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
 const { isValidGtin, normalizeDigits, getGtinType } = require('../lib/gtin');
@@ -508,6 +513,7 @@ function buildUserPrompt({
   webEvidence = null,
 }) {
   const parts = [];
+  const aspectStats = getRequiredAspectCatalogStats();
   if (barcodeList.length) {
     parts.push(
       `Barcodes: ${barcodeList.join(', ')}\nPriorität: Nutze diese Codes (EAN/GTIN/UPC) zuerst. Wenn Barcode-Resultate von Bildannahmen abweichen, vertraue den Barcode/Händlerinformationen und korrigiere die Bildinterpretation.`
@@ -581,8 +587,10 @@ function buildUserPrompt({
     `6. Pro Produkt nur EIN Barcode/EAN/GTIN zulassen (keine Mehrfach-Barcodes).`,
     `7. Preise nur, wenn sicher aus gelieferten Daten ableitbar, sonst leer lassen.`,
     `8. Unsicherheiten in notes.unsure dokumentieren.`,
-    `9. Ordne eBay.de Kategorie (Breadcrumb) zu und füge die Pflichtattribute (Item Specifics) als Keys OHNE Prefix (leer bei Unbekannt) hinzu.`,
+    `9. Ordne eine valide eBay.de Kategorie (LEAF-Breadcrumb + categoryId) zu und füge die Pflichtattribute (Item Specifics) als Keys OHNE Prefix (leer bei Unbekannt) hinzu.`,
     `10. OPTIONAL: Kaufland-Kategorie/Attribute werden nachgelagert im System ergänzt (du musst sie hier nicht erzwingen).`,
+    `11. Verwende NUR eBay-Kategorien; keine fremden Marketplace-Kategorien oder Fantasie-IDs.`,
+    `Pflichtmerkmale-Katalogabdeckung (lokal): ${aspectStats.categoriesWithAspectData}/${aspectStats.totalCategories} eBay-Kategorien mit hinterlegten Pflichtmerkmalen.`,
     `Sprache: Deutsch (${locale}).`
   );
   if (improveContext) {
@@ -994,16 +1002,10 @@ async function ensureCategories(products = []) {
       }
     }
 
-    if (
-      !p.details.kauflandCategoryId ||
-      !marketplaceLookup.isValidKauflandId(String(p.details.kauflandCategoryId))
-    ) {
-      const g = await resolveCategoryWithGemini(p, 'kaufland');
-      if (g?.id) {
-        p.details.kauflandCategoryId = g.id;
-        p.details.kauflandCategoryPath = g.path;
-      }
-    }
+    // Intentionally no Kaufland category assignment here.
+    // Product category governance is eBay-first: products must carry valid eBay categories only.
+    if (p.details.kauflandCategoryId) delete p.details.kauflandCategoryId;
+    if (p.details.kauflandCategoryPath) delete p.details.kauflandCategoryPath;
 
     p.details.attributes = attrs;
   }
@@ -1358,11 +1360,21 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
   };
 
   const catIdRaw = product?.details?.categoryId || product?.details?.ebayCategoryId || null;
-  const requiredAspects = catIdRaw ? getRequiredAspects(String(catIdRaw).trim()) : [];
-  const requiredPreview = Array.isArray(requiredAspects) ? requiredAspects.slice(0, 40) : [];
+  const requiredMeta = buildRequiredAspectMeta(catIdRaw ? String(catIdRaw).trim() : null, product?.details?.attributes || {});
+  const aspectStats = getRequiredAspectCatalogStats();
+  const requiredAspects = Array.isArray(requiredMeta.requiredAspects) ? requiredMeta.requiredAspects : [];
+  const requiredPreview = requiredAspects.slice(0, 40);
   const requiredLine = requiredPreview.length
     ? `Pflicht-Item-Specifics (nicht leer lassen): ${requiredPreview.join(', ')}${requiredAspects.length > requiredPreview.length ? ` … (+${requiredAspects.length - requiredPreview.length} mehr)` : ''}`
     : null;
+  const missingPreview = Array.isArray(requiredMeta.missingAspects) ? requiredMeta.missingAspects.slice(0, 30) : [];
+  const missingLine = missingPreview.length
+    ? `Aktuell im Datenblatt fehlende Pflichtmerkmale: ${missingPreview.join(', ')}${requiredMeta.missingAspects.length > missingPreview.length ? ` … (+${requiredMeta.missingAspects.length - missingPreview.length} mehr)` : ''}`
+    : null;
+  const coverageLine =
+    requiredMeta.categoryId && !requiredMeta.hasAspectData
+      ? `Hinweis: Für diese eBay-Kategorie liegt lokal kein Pflichtmerkmale-Datensatz vor (Coverage ${aspectStats.categoriesWithAspectData}/${aspectStats.totalCategories}). Ermittele trotzdem vollständige, eBay-konforme Item Specifics evidenzbasiert und markiere Unsicheres in warnings/notes.`
+      : null;
   const fitmentMode = catIdRaw ? getVehicleFitmentMode(String(catIdRaw).trim()) : null;
   const fitmentLine = fitmentMode
     ? `Fahrzeugverwendungsliste möglich (${fitmentMode}). Wenn es ein Fahrzeugteil ist: K-Typ muss als Attribut \"K-Typ\" gepflegt werden. Nie raten – nur aus WEB-EVIDENZ/OCR/Belegen.`
@@ -1396,6 +1408,8 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
     '',
     'Zusatzregeln für Review:',
     requiredLine,
+    missingLine,
+    coverageLine,
     fitmentLine,
     idsLine,
     gpsrLine,
@@ -2787,7 +2801,6 @@ async function runProductIdentification({
   await ensureMarketingCopy(bundle.products, locale);
 
   applyEbayTaxonomy(bundle);
-  applyKauflandTaxonomy(bundle);
   await ensureCategories(bundle.products);
 
   // Pricing Coverage (using Thinking model for complex research if needed) - DISABLED if skipExternalSearch is true

@@ -1914,6 +1914,7 @@ async function applySync({ itemIds = null, actor = null } = {}) {
             lastSyncAt: FieldValue.serverTimestamp(),
             lastSyncAtIso: new Date().toISOString(),
             lastSyncCall: callName,
+            lastSyncError: null,
           },
           { merge: true }
         );

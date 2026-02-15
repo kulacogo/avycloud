@@ -3,6 +3,7 @@ const path = require('path');
 
 const CATEGORY_PATH = path.join(__dirname, '..', 'ebay-data', 'categories.json');
 const ASPECT_PATH = path.join(__dirname, '..', 'ebay-data', 'required-aspects.json');
+const FULL_ASPECT_PATH = path.join(__dirname, '..', 'ebay-data', 'required-aspects-full.json');
 const AUTO_ASPECT_PATH = path.join(
   __dirname,
   '..',
@@ -27,7 +28,12 @@ function loadJsonSafe(filePath) {
 
 function hydrate() {
   categories = loadJsonSafe(CATEGORY_PATH);
-  requiredAspects = loadJsonSafe(ASPECT_PATH);
+  const baseRequiredAspects = loadJsonSafe(ASPECT_PATH);
+  const fullRequiredAspects = loadJsonSafe(FULL_ASPECT_PATH);
+  requiredAspects = {
+    ...(baseRequiredAspects && typeof baseRequiredAspects === 'object' ? baseRequiredAspects : {}),
+    ...(fullRequiredAspects && typeof fullRequiredAspects === 'object' ? fullRequiredAspects : {}),
+  };
   const autoRaw = loadJsonSafe(AUTO_ASPECT_PATH);
   autoRequiredAspects =
     autoRaw && typeof autoRaw === 'object' && autoRaw.required_aspects_by_category_id
@@ -168,7 +174,92 @@ function getRequiredAspects(categoryId) {
   return out;
 }
 
+function isKnownEbayCategoryId(categoryId) {
+  if (!categoryId) return false;
+  const key = typeof categoryId === 'number' ? String(categoryId) : String(categoryId).trim();
+  if (!key) return false;
+  return Boolean(categories[key]);
+}
+
+function normalizeAspectKey(raw) {
+  return normalize(raw)
+    .replace(/[\u2010-\u2015]/g, '-')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function toAttributeMap(attributes) {
+  if (!attributes) return {};
+  if (Array.isArray(attributes)) {
+    const out = {};
+    attributes.forEach((entry) => {
+      const key = entry && typeof entry === 'object' ? String(entry.key || '').trim() : '';
+      const value = entry && typeof entry === 'object' ? String(entry.value || '').trim() : '';
+      if (!key || !value) return;
+      out[key] = value;
+    });
+    return out;
+  }
+  if (typeof attributes === 'object') return attributes;
+  return {};
+}
+
+function buildRequiredAspectMeta(categoryId, attributes = null) {
+  const key = categoryId == null ? '' : String(categoryId).trim();
+  if (!key) {
+    return {
+      categoryId: null,
+      categoryKnown: false,
+      hasAspectData: false,
+      requiredAspects: [],
+      missingAspects: [],
+      providedRequiredAspects: [],
+      coverageStatus: 'missing_category',
+      category: null,
+    };
+  }
+  const required = getRequiredAspects(key);
+  const hasAspectData =
+    Object.prototype.hasOwnProperty.call(requiredAspects, key) ||
+    Object.prototype.hasOwnProperty.call(autoRequiredAspects, key);
+  const attributeMap = toAttributeMap(attributes);
+  const providedKeys = new Set(
+    Object.keys(attributeMap || {})
+      .map((k) => normalizeAspectKey(k))
+      .filter(Boolean)
+  );
+  const missing = required.filter((aspect) => !providedKeys.has(normalizeAspectKey(aspect)));
+  const providedRequired = required.filter((aspect) => providedKeys.has(normalizeAspectKey(aspect)));
+
+  return {
+    categoryId: key,
+    categoryKnown: isKnownEbayCategoryId(key),
+    hasAspectData,
+    requiredAspects: required,
+    missingAspects: missing,
+    providedRequiredAspects: providedRequired,
+    coverageStatus: hasAspectData ? 'available' : 'not_available',
+    category: categories[key] || null,
+  };
+}
+
+function getRequiredAspectCatalogStats() {
+  const categoryIds = Object.keys(categories || {});
+  const withAspectData = categoryIds.filter((id) => Object.prototype.hasOwnProperty.call(requiredAspects, id));
+  const withAutoAspectData = categoryIds.filter((id) => Object.prototype.hasOwnProperty.call(autoRequiredAspects, id));
+  return {
+    totalCategories: categoryIds.length,
+    categoriesWithAspectData: withAspectData.length,
+    categoriesWithoutAspectData: Math.max(0, categoryIds.length - withAspectData.length),
+    categoriesWithAutoAspectData: withAutoAspectData.length,
+  };
+}
+
 module.exports = {
   findEbayCategory,
   getRequiredAspects,
+  isKnownEbayCategoryId,
+  buildRequiredAspectMeta,
+  getRequiredAspectCatalogStats,
 };

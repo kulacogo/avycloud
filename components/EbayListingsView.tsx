@@ -414,6 +414,7 @@ export const EbayListingsView: React.FC = () => {
   const [listingListFilter, setListingListFilter] = useState<ListingListFilter>('all');
   const [listingSortBy, setListingSortBy] = useState<ListingSortBy>('critical_desc');
   const [listingListSearch, setListingListSearch] = useState('');
+  const [selectedListingIds, setSelectedListingIds] = useState<Record<string, boolean>>({});
   const [advancedAction, setAdvancedAction] = useState<AdvancedActionKey>('gaps:refresh');
 
   const selectedListing = useMemo(
@@ -848,12 +849,43 @@ export const EbayListingsView: React.FC = () => {
     return rows;
   }, [listingListFilter, listingListSearch, listingSortBy, listings]);
 
+  const selectedListingIdList = useMemo(
+    () =>
+      Object.keys(selectedListingIds)
+        .filter((itemId) => Boolean(selectedListingIds[itemId]))
+        .filter((itemId) => listings.some((row) => row.itemId === itemId)),
+    [listings, selectedListingIds]
+  );
+  const selectedSyncItemIds = useMemo(() => {
+    if (selectedListingIdList.length) return selectedListingIdList;
+    if (selectedItemId) return [selectedItemId];
+    return undefined;
+  }, [selectedItemId, selectedListingIdList]);
+  const visibleListingIds = useMemo(() => filteredSortedListings.map((row) => row.itemId), [filteredSortedListings]);
+  const selectedVisibleListingIds = useMemo(
+    () => visibleListingIds.filter((itemId) => Boolean(selectedListingIds[itemId])),
+    [selectedListingIds, visibleListingIds]
+  );
+  const allVisibleListingsSelected =
+    visibleListingIds.length > 0 && selectedVisibleListingIds.length === visibleListingIds.length;
+
   useEffect(() => {
     if (!filteredSortedListings.length) return;
     if (!selectedItemId || !filteredSortedListings.some((row) => row.itemId === selectedItemId)) {
       setSelectedItemId(filteredSortedListings[0].itemId);
     }
   }, [filteredSortedListings, selectedItemId]);
+
+  useEffect(() => {
+    const validIds = new Set(listings.map((row) => row.itemId));
+    setSelectedListingIds((prev) => {
+      const next: Record<string, boolean> = {};
+      Object.keys(prev).forEach((id) => {
+        if (validIds.has(id) && prev[id]) next[id] = true;
+      });
+      return next;
+    });
+  }, [listings]);
 
   return (
     <div className="w-full max-w-[1800px] mx-auto px-2 lg:px-4 space-y-4">
@@ -925,9 +957,8 @@ export const EbayListingsView: React.FC = () => {
               type="button"
               onClick={() =>
                 void runAction('gaps:bulk-missing', async () => {
-                  const itemIds = selectedItemId ? [selectedItemId] : undefined;
-                  const prepared = await bulkPrepareEbayMissingSpecifics(itemIds);
-                  const payload = await runEbaySyncApply(itemIds);
+                  const prepared = await bulkPrepareEbayMissingSpecifics(selectedSyncItemIds);
+                  const payload = await runEbaySyncApply(selectedSyncItemIds);
                   setApplyResult(payload);
                   await loadListings();
                   if (selectedItemId) await loadDetail(selectedItemId);
@@ -941,13 +972,14 @@ export const EbayListingsView: React.FC = () => {
               disabled={busyAction === 'gaps:bulk-missing'}
               className="rounded-xl border border-emerald-600/70 bg-emerald-900/25 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-800/35 disabled:opacity-50"
             >
-              Bulk fehlende Parameter {selectedItemId ? '(Auswahl)' : '(alle)'}
+              Bulk fehlende Parameter{' '}
+              {selectedListingIdList.length ? `(${selectedListingIdList.length} Auswahl)` : selectedItemId ? '(Auswahl)' : '(alle)'}
             </button>
             <button
               type="button"
               onClick={() =>
                 void runAction('sync:apply', async () => {
-                  const payload = await runEbaySyncApply(selectedItemId ? [selectedItemId] : undefined);
+                  const payload = await runEbaySyncApply(selectedSyncItemIds);
                   setApplyResult(payload);
                   await loadListings();
                   if (selectedItemId) await loadDetail(selectedItemId);
@@ -957,7 +989,8 @@ export const EbayListingsView: React.FC = () => {
               disabled={busyAction === 'sync:apply'}
               className="rounded-xl border border-emerald-500/60 bg-emerald-900/30 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-800/40 disabled:opacity-50"
             >
-              Sync Apply {selectedItemId ? '(Auswahl)' : '(alle ready)'}
+              Sync Apply{' '}
+              {selectedListingIdList.length ? `(${selectedListingIdList.length} Auswahl)` : selectedItemId ? '(Auswahl)' : '(alle ready)'}
             </button>
           </div>
         </div>
@@ -1036,19 +1069,77 @@ export const EbayListingsView: React.FC = () => {
                 ))}
               </select>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedListingIds((prev) => {
+                    if (allVisibleListingsSelected) {
+                      const next = { ...prev };
+                      visibleListingIds.forEach((id) => {
+                        delete next[id];
+                      });
+                      return next;
+                    }
+                    const next = { ...prev };
+                    visibleListingIds.forEach((id) => {
+                      next[id] = true;
+                    });
+                    return next;
+                  })
+                }
+                disabled={visibleListingIds.length === 0}
+                className="rounded border border-slate-600 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
+              >
+                {allVisibleListingsSelected ? 'Sichtbare abwaehlen' : 'Sichtbare markieren'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedListingIds({})}
+                disabled={selectedListingIdList.length === 0}
+                className="rounded border border-slate-600 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
+              >
+                Auswahl leeren
+              </button>
+              <span className="text-[11px] text-slate-300">
+                Multi-Auswahl: {selectedListingIdList.length}
+              </span>
+            </div>
           </div>
           <div className="max-h-[72vh] overflow-auto space-y-2 pr-1">
             {filteredSortedListings.map((row) => {
               const active = row.itemId === selectedItemId;
+              const checked = Boolean(selectedListingIds[row.itemId]);
               return (
-                <button
+                <div
                   key={row.itemId}
-                  type="button"
-                  onClick={() => setSelectedItemId(row.itemId)}
                   className={`w-full rounded-xl border px-3 py-2 text-left transition ${
                     active ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700 bg-slate-900/40 hover:border-slate-500'
                   }`}
                 >
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <label className="inline-flex items-center gap-2 text-[11px] text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) =>
+                          setSelectedListingIds((prev) => ({
+                            ...prev,
+                            [row.itemId]: event.target.checked,
+                          }))
+                        }
+                        className="accent-sky-500"
+                      />
+                      Auswaehlen
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedItemId(row.itemId)}
+                      className="rounded border border-slate-600 bg-slate-900/60 px-2 py-0.5 text-[10px] text-slate-100 hover:bg-slate-800/70"
+                    >
+                      Details
+                    </button>
+                  </div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-xs text-slate-400 truncate">Item ID: {row.itemId}</p>
@@ -1070,7 +1161,7 @@ export const EbayListingsView: React.FC = () => {
                       Ready: {row.gapReadyCount ?? 0}
                     </span>
                   </div>
-                </button>
+                </div>
               );
             })}
             {!loadingListings && filteredSortedListings.length === 0 && (
