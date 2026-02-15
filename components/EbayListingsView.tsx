@@ -167,6 +167,16 @@ const normalizeSpecificKeyToken = (value: any): string => {
   const token = normalizeKeyToken(value);
   if (!token) return '';
   if (token === 'groesse' || token === 'size') return 'size';
+  if (
+    token === 'marke' ||
+    token === 'brand' ||
+    token === 'hersteller' ||
+    token === 'manufacturer' ||
+    token === 'herstellername' ||
+    token === 'manufacturername'
+  ) {
+    return 'brand';
+  }
   // eBay and product feeds may use EAN or GTIN for the same identifier.
   if (token === 'ean' || token === 'gtin') return 'gtin';
   return token;

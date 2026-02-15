@@ -63,7 +63,16 @@ function normalizeSpecificToken(value) {
   // German/English synonyms for required marketplace specifics.
   if (token === 'groesse' || token === 'size') return 'size';
   // eBay can expose identifiers under multiple marketplace/language labels.
-  if (token === 'marke' || token === 'brand') return 'brand';
+  if (
+    token === 'marke' ||
+    token === 'brand' ||
+    token === 'hersteller' ||
+    token === 'manufacturer' ||
+    token === 'herstellername' ||
+    token === 'manufacturername'
+  ) {
+    return 'brand';
+  }
   if (token === 'herstellernummer' || token === 'manufacturerpartnumber' || token === 'mpn') return 'mpn';
   // eBay can expose GTIN either as EAN or GTIN.
   if (token === 'ean' || token === 'gtin') return 'gtin';
@@ -1618,7 +1627,7 @@ function selectSyncCandidatesFromGaps(gapDoc) {
   });
 }
 
-function computeSyncPatch({ listing, gapDoc }) {
+function computeSyncPatch({ listing, gapDoc, product = null }) {
   const selectedGaps = selectSyncCandidatesFromGaps(gapDoc);
   const listingCategory = safeString(listing?.primaryCategoryId);
   const listingSpecifics = mapListingSpecifics(listing);
@@ -1680,17 +1689,26 @@ function computeSyncPatch({ listing, gapDoc }) {
     });
 
     const fallbackSpecificByToken = new Map();
-    asArray(gapDoc?.gaps).forEach((gap) => {
-      if (safeLower(gap?.type) !== 'item_specific') return;
-      const token = normalizeSpecificToken(gap?.field);
+    const addFallbackValues = (tokenRaw, valuesRaw) => {
+      const token = normalizeSpecificToken(tokenRaw);
       if (!token) return;
-      const values = asArray(gap?.avyValue).map((entry) => safeString(entry)).filter(Boolean);
+      const values = asArray(valuesRaw).map((entry) => safeString(entry)).filter(Boolean);
       if (!values.length) return;
       if (!fallbackSpecificByToken.has(token)) fallbackSpecificByToken.set(token, []);
       const bucket = fallbackSpecificByToken.get(token);
       values.forEach((entry) => {
         if (!bucket.includes(entry)) bucket.push(entry);
       });
+    };
+    asArray(gapDoc?.gaps).forEach((gap) => {
+      if (safeLower(gap?.type) !== 'item_specific') return;
+      addFallbackValues(gap?.field, gap?.avyValue);
+    });
+    // Do not rely solely on precomputed gaps. Pull fallback values directly from
+    // the linked AvyCloud product to cover naming/alias mismatches in old gaps.
+    const productSpecifics = normalizeProductSpecifics(product);
+    Object.entries(productSpecifics || {}).forEach(([key, values]) => {
+      addFallbackValues(key, values);
     });
 
     const mergedNorm = normalizeSpecificsMap(mergedSpecifics);
@@ -1889,25 +1907,118 @@ async function applySync({ itemIds = null, actor = null } = {}) {
   const results = [];
 
   for (const item of preview.items) {
-    if (!item.canApply) {
+    const itemId = safeString(item?.itemId);
+    if (!itemId) continue;
+
+    let detail = null;
+    try {
+      detail = await getListingDetail(itemId);
+    } catch (error) {
       results.push({
-        itemId: item.itemId,
+        itemId,
         ok: false,
         skipped: true,
-        message: item.blockers.join(' | '),
+        message: error?.message || String(error),
       });
       continue;
     }
-    const callName = item.callName || 'ReviseItem';
+
+    const gapDoc = detail?.gaps || null;
+    if (!detail?.listing || !gapDoc) {
+      results.push({
+        itemId,
+        ok: false,
+        skipped: true,
+        message: 'Listing- oder Gap-Dokument nicht gefunden.',
+      });
+      continue;
+    }
+
+    let listing = { ...(detail.listing || {}), itemId };
+    const warnings = [];
+
+    // Re-fetch latest listing details from eBay before apply to avoid stale
+    // local snapshots that can drop required specifics in revise payloads.
+    try {
+      const live = await getItemDetails(itemId);
+      if (live?.item && typeof live.item === 'object') {
+        listing = { ...listing, ...live.item, itemId };
+        await firestore
+          .collection(EBAY_LISTINGS_COLLECTION)
+          .doc(itemId)
+          .set(
+            cleanUndefined({
+              itemId,
+              sku: safeString(listing?.sku) || null,
+              title: safeString(listing?.title) || null,
+              subtitle: safeString(listing?.subtitle) || null,
+              description: safeString(listing?.description) || null,
+              listingType: safeString(listing?.listingType) || null,
+              listingStatus: safeString(listing?.listingStatus) || null,
+              quantityAvailable: toNumber(listing?.quantityAvailable),
+              quantityTotal: toNumber(listing?.quantityTotal),
+              bidCount: toNumber(listing?.bidCount),
+              inventoryTrackingMethod: safeString(listing?.inventoryTrackingMethod) || null,
+              primaryCategoryId: safeString(listing?.primaryCategoryId) || null,
+              primaryCategoryName: safeString(listing?.primaryCategoryName) || null,
+              viewItemUrl: safeString(listing?.viewItemUrl) || null,
+              startTime: safeString(listing?.startTime) || null,
+              endTime: safeString(listing?.endTime) || null,
+              timeLeft: safeString(listing?.timeLeft) || null,
+              location: safeString(listing?.location) || null,
+              country: safeString(listing?.country) || null,
+              currency: safeString(listing?.currency) || null,
+              currentPrice: toNumber(listing?.currentPrice),
+              itemSpecifics: mapListingSpecifics(listing),
+              productListingDetails: listing?.productListingDetails || null,
+              active: true,
+              lastDetailRefreshAt: FieldValue.serverTimestamp(),
+              lastDetailRefreshAtIso: new Date().toISOString(),
+              updatedAt: FieldValue.serverTimestamp(),
+            }),
+            { merge: true }
+          );
+      }
+    } catch (error) {
+      warnings.push(`Live-Refresh fehlgeschlagen, verwende Snapshot: ${error?.message || String(error)}`);
+    }
+
+    const { patch, touchedGapIds } = computeSyncPatch({
+      listing,
+      gapDoc,
+      product: detail?.product || null,
+    });
+    const hasPatchFields =
+      Boolean(patch?.primaryCategoryId) ||
+      Boolean(patch?.title) ||
+      Boolean(patch?.subtitle) ||
+      Boolean(patch?.description) ||
+      Boolean(Object.keys(patch?.itemSpecifics || {}).length);
+    const guard = evaluateSyncBlockers(listing, patch);
+    const blockers = Array.isArray(guard?.blockers) ? guard.blockers.slice() : [];
+    warnings.push(...(Array.isArray(guard?.warnings) ? guard.warnings : []));
+    if (!hasPatchFields) {
+      blockers.push('Keine synchronisierbaren Änderungen in den ausgewählten Gaps.');
+    }
+    if (blockers.length) {
+      results.push({
+        itemId,
+        ok: false,
+        skipped: true,
+        message: blockers.join(' | '),
+        warnings: warnings.length ? warnings : undefined,
+      });
+      continue;
+    }
+
+    const callName = resolveReviseCallName(listing);
     try {
       const response =
-        callName === 'ReviseFixedPriceItem'
-          ? await reviseFixedPriceItem(item.patch)
-          : await reviseItem(item.patch);
-      await updateGapStatusesAfterSync(item.itemId, item.touchedGapIds, 'synced', null, actor);
+        callName === 'ReviseFixedPriceItem' ? await reviseFixedPriceItem(patch) : await reviseItem(patch);
+      await updateGapStatusesAfterSync(itemId, touchedGapIds, 'synced', null, actor);
       await firestore
         .collection(EBAY_LISTINGS_COLLECTION)
-        .doc(String(item.itemId))
+        .doc(String(itemId))
         .set(
           {
             syncState: 'synced',
@@ -1919,18 +2030,19 @@ async function applySync({ itemIds = null, actor = null } = {}) {
           { merge: true }
         );
       results.push({
-        itemId: item.itemId,
+        itemId,
         ok: true,
         callName,
         ack: response?.ack || 'Success',
-        touchedGapIds: item.touchedGapIds,
+        touchedGapIds,
+        warnings: warnings.length ? warnings : undefined,
       });
     } catch (error) {
       const message = error?.message || String(error);
-      await updateGapStatusesAfterSync(item.itemId, item.touchedGapIds, 'failed', message, actor);
+      await updateGapStatusesAfterSync(itemId, touchedGapIds, 'failed', message, actor);
       await firestore
         .collection(EBAY_LISTINGS_COLLECTION)
-        .doc(String(item.itemId))
+        .doc(String(itemId))
         .set(
           {
             syncState: 'failed',
@@ -1942,11 +2054,12 @@ async function applySync({ itemIds = null, actor = null } = {}) {
           { merge: true }
         );
       results.push({
-        itemId: item.itemId,
+        itemId,
         ok: false,
         callName,
         message,
-        touchedGapIds: item.touchedGapIds,
+        touchedGapIds,
+        warnings: warnings.length ? warnings : undefined,
       });
     }
   }
