@@ -276,6 +276,7 @@ function mapListingDetail(item = {}) {
     currency: safeString(currentPrice?.currencyID || item?.Currency) || null,
     currentPrice: toNumber(currentPrice?.['#text'] ?? currentPrice),
     itemSpecifics: mapItemSpecifics(item?.ItemSpecifics),
+    variationSpecificsSet: mapItemSpecifics(item?.Variations?.VariationSpecificsSet),
     productListingDetails: item?.ProductListingDetails || null,
   };
 }

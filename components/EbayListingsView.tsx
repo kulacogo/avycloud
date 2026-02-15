@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  applyEbayGapAction,
+  bulkApplyEbayGapActions,
+  bulkPrepareEbayItemSpecifics,
   bulkPrepareEbayMissingSpecifics,
   fetchEbayGaps,
   fetchEbayLiveListingDetail,
@@ -13,7 +14,7 @@ import {
   runEbaySyncDryRun,
   syncEbayLiveListings,
 } from '../api/client';
-import { EbayGap, EbayListingDetail, EbayListingRow, EbaySyncApplyResult, EbaySyncDryRunResult } from '../types';
+import { EbayListingDetail, EbayListingRow, EbaySyncApplyResult, EbaySyncDryRunResult } from '../types';
 
 const safeString = (value: any): string => {
   if (value == null) return '';
@@ -153,11 +154,19 @@ const buildSpecificsText = (specifics: Record<string, any> | null | undefined): 
   return rows.length ? rows.join('\n') : '-';
 };
 
-const normalizeKeyToken = (value: any): string => safeString(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+const normalizeKeyToken = (value: any): string =>
+  safeString(value)
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '');
 
 const normalizeSpecificKeyToken = (value: any): string => {
   const token = normalizeKeyToken(value);
   if (!token) return '';
+  if (token === 'groesse' || token === 'size') return 'size';
   // eBay and product feeds may use EAN or GTIN for the same identifier.
   if (token === 'ean' || token === 'gtin') return 'gtin';
   return token;
@@ -313,20 +322,20 @@ const clipText = (value: any, maxLength = 220): string => {
   return `${raw.slice(0, maxLength)}…`;
 };
 
-const GAP_ACTIONS = [
-  { id: 'review', label: 'Review' },
-  { id: 'accept_avy', label: 'Avy uebernehmen (nur markieren)' },
-  { id: 'accept_ebay', label: 'eBay behalten' },
-  { id: 'ready_to_sync', label: 'Ready to Sync' },
-  { id: 'ignore', label: 'Ignore' },
-  { id: 'reset', label: 'Reset' },
-] as const;
+const toValueArray = (value: any): string[] => {
+  if (Array.isArray(value)) return value.map((entry) => safeString(entry)).filter(Boolean);
+  const str = safeString(value);
+  return str ? [str] : [];
+};
+
+const hasAnyValue = (value: any): boolean => toValueArray(value).length > 0;
 
 type GapStatusFilter = 'actionable' | 'all' | 'new' | 'reviewed' | 'accepted' | 'ready_to_sync' | 'ignored' | 'synced' | 'failed';
 type GapSeverityFilter = 'all' | 'critical' | 'warn' | 'info';
 type ListingListFilter = 'all' | 'with_gaps' | 'critical_only' | 'ready_only' | 'without_gaps';
 type ListingSortBy = 'critical_desc' | 'gaps_desc' | 'ready_desc' | 'updated_desc' | 'title_asc' | 'item_id_desc';
 type AdvancedActionKey = 'refresh_list' | 'links:rebuild' | 'gaps:rebuild' | 'sync:dry-run' | 'reports:generate' | 'gaps:refresh';
+type GapBulkAction = 'ready_to_sync' | 'accept_ebay' | 'ignore' | 'reset';
 
 const GAP_STATUS_FILTER_OPTIONS: Array<{ id: GapStatusFilter; label: string }> = [
   { id: 'actionable', label: 'Action needed' },
@@ -374,17 +383,12 @@ const ADVANCED_ACTION_OPTIONS: Array<{ id: AdvancedActionKey; label: string }> =
 ];
 
 const GAP_ACTIONABLE_STATUSES = new Set(['new', 'reviewed', 'accepted', 'ready_to_sync']);
-
-const buildGapActionOptions = (gap: EbayGap): Array<{ id: string; label: string }> => {
-  const options = GAP_ACTIONS.map((entry) => ({ id: entry.id, label: entry.label }));
-  if (safeString(gap.suggestion?.from) && safeString(gap.suggestion?.to)) {
-    options.push({
-      id: 'rename_alias',
-      label: `Alias (${safeString(gap.suggestion?.from)} -> ${safeString(gap.suggestion?.to)})`,
-    });
-  }
-  return options;
-};
+const GAP_BULK_ACTION_OPTIONS: Array<{ id: GapBulkAction; label: string }> = [
+  { id: 'ready_to_sync', label: 'Avy auf eBay syncen (ready)' },
+  { id: 'accept_ebay', label: 'eBay-Wert behalten' },
+  { id: 'ignore', label: 'Ignorieren' },
+  { id: 'reset', label: 'Zuruecksetzen' },
+];
 
 export const EbayListingsView: React.FC = () => {
   const [listings, setListings] = useState<EbayListingRow[]>([]);
@@ -401,11 +405,12 @@ export const EbayListingsView: React.FC = () => {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [dryRunResult, setDryRunResult] = useState<EbaySyncDryRunResult | null>(null);
   const [applyResult, setApplyResult] = useState<EbaySyncApplyResult | null>(null);
-  const [gapStatusFilter, setGapStatusFilter] = useState<GapStatusFilter>('actionable');
+  const [gapStatusFilter, setGapStatusFilter] = useState<GapStatusFilter>('all');
   const [gapSeverityFilter, setGapSeverityFilter] = useState<GapSeverityFilter>('all');
   const [gapSearch, setGapSearch] = useState('');
-  const [gapVisibleCount, setGapVisibleCount] = useState(12);
-  const [gapActionChoiceById, setGapActionChoiceById] = useState<Record<string, string>>({});
+  const [gapVisibleCount, setGapVisibleCount] = useState(25);
+  const [selectedGapIds, setSelectedGapIds] = useState<Record<string, boolean>>({});
+  const [gapBulkAction, setGapBulkAction] = useState<GapBulkAction>('ready_to_sync');
   const [listingListFilter, setListingListFilter] = useState<ListingListFilter>('all');
   const [listingSortBy, setListingSortBy] = useState<ListingSortBy>('critical_desc');
   const [listingListSearch, setListingListSearch] = useState('');
@@ -491,93 +496,75 @@ export const EbayListingsView: React.FC = () => {
   }, [selectedItemId, loadDetail]);
 
   useEffect(() => {
-    setGapVisibleCount(12);
+    setGapVisibleCount(25);
     setGapSearch('');
-    setGapActionChoiceById({});
+    setSelectedGapIds({});
   }, [selectedItemId]);
 
-  const handleGapAction = useCallback(
-    async (gap: EbayGap, action: string) => {
-      if (!selectedItemId) return;
-      await runAction(`gap:${gap.id}:${action}`, async () => {
-        const alias =
-          action === 'rename_alias'
-            ? {
-              [safeString(gap.suggestion?.from)]: safeString(gap.suggestion?.to),
-            }
-            : undefined;
-        const result = await applyEbayGapAction(selectedItemId, {
-          gapId: gap.id,
-          action,
-          alias,
-        });
-        const updatedGap = result?.gap || null;
-        const updatedSummary = result?.summary || null;
-
-        if (updatedGap && safeString(updatedGap.id)) {
-          setDetail((prev) => {
-            if (!prev) return prev;
-            const currentDoc = prev.gaps || null;
-            const currentGaps = Array.isArray(currentDoc?.gaps) ? currentDoc.gaps : [];
-            const nextGaps = currentGaps.map((entry) =>
-              safeString(entry?.id) === safeString(updatedGap.id) ? ({ ...entry, ...updatedGap } as EbayGap) : entry
-            );
-            return {
-              ...prev,
-              gaps: {
-                ...(currentDoc || {}),
-                itemId: safeString(currentDoc?.itemId) || selectedItemId,
-                gaps: nextGaps,
-                summary: updatedSummary || currentDoc?.summary,
-                updatedAtIso: new Date().toISOString(),
-              },
-            };
-          });
-        }
-
-        if (updatedSummary) {
-          setListings((prev) =>
-            prev.map((row) => {
-              if (row.itemId !== selectedItemId) return row;
-              return {
-                ...row,
-                gapCount: Number(updatedSummary.total || 0),
-                gapCriticalCount: Number(updatedSummary.critical || 0),
-                gapReadyCount: Number(updatedSummary?.byStatus?.ready_to_sync || 0),
-              };
-            })
-          );
-        }
-
-        if (action === 'accept_avy') {
-          setNotice(
-            `Gap ${gap.id} als Avy uebernehmen markiert. Jetzt oben "Sync Apply (nur Auswahl)" ausfuehren, damit eBay aktualisiert wird.`
-          );
-        } else {
-          setNotice(`Gap ${gap.id} -> ${action}`);
-        }
-      });
+  const updateListingGapCounters = useCallback(
+    (summary: any) => {
+      if (!selectedItemId || !summary) return;
+      setListings((prev) =>
+        prev.map((row) => {
+          if (row.itemId !== selectedItemId) return row;
+          return {
+            ...row,
+            gapCount: Number(summary.total || 0),
+            gapCriticalCount: Number(summary.critical || 0),
+            gapReadyCount: Number(summary?.byStatus?.ready_to_sync || 0),
+          };
+        })
+      );
     },
-    [selectedItemId, runAction]
+    [selectedItemId]
   );
 
-  const getDefaultGapAction = useCallback((gap: EbayGap): string => {
-    const status = normalizeCompareText(gap?.status);
-    if (status === 'ready_to_sync') return 'ready_to_sync';
-    if (status === 'new') return 'review';
-    if (status === 'reviewed') return 'accept_avy';
-    if (status === 'accepted') return 'ready_to_sync';
-    if (status === 'failed') return 'ready_to_sync';
-    return 'review';
-  }, []);
-
-  const getSelectedGapAction = useCallback(
-    (gap: EbayGap): string => {
-      const id = safeString(gap.id);
-      if (!id) return getDefaultGapAction(gap);
-      return gapActionChoiceById[id] || getDefaultGapAction(gap);
+  const executeSelectedGapBulkAction = useCallback(
+    async (gapIds: string[], action: GapBulkAction) => {
+      if (!selectedItemId || !gapIds.length) return;
+      await runAction(`gaps:bulk:${action}`, async () => {
+        const out = await bulkApplyEbayGapActions(selectedItemId, { gapIds, action });
+        const docs = await fetchEbayGaps({ itemId: selectedItemId, limit: 1 });
+        const refreshed = docs[0] || null;
+        if (refreshed) {
+          setDetail((prev) => (prev ? { ...prev, gaps: refreshed } : prev));
+          updateListingGapCounters(refreshed.summary || out?.summary);
+        } else {
+          updateListingGapCounters(out?.summary);
+        }
+        setSelectedGapIds((prev) => {
+          const next = { ...prev };
+          gapIds.forEach((id) => {
+            delete next[id];
+          });
+          return next;
+        });
+        setNotice(`${gapIds.length} Gap(s) mit Aktion "${action}" aktualisiert.`);
+      });
     },
-    [gapActionChoiceById, getDefaultGapAction]
+    [runAction, selectedItemId, updateListingGapCounters]
+  );
+
+  const runItemSpecificSyncFlow = useCallback(
+    async (mode: 'missing_ebay' | 'different' | 'all', label: string) => {
+      await runAction(`specifics:bulk:${mode}`, async () => {
+        const itemIds = selectedItemId ? [selectedItemId] : undefined;
+        const prepared =
+          mode === 'missing_ebay'
+            ? await bulkPrepareEbayMissingSpecifics(itemIds)
+            : await bulkPrepareEbayItemSpecifics(itemIds, mode);
+        const payload = await runEbaySyncApply(itemIds);
+        setApplyResult(payload);
+        await loadListings();
+        if (selectedItemId) await loadDetail(selectedItemId);
+        setNotice(
+          `${label}: vorbereitet ${prepared?.gapsPrepared ?? 0}, Sync Apply -> Success ${payload?.summary?.success ?? 0}, Failed ${
+            payload?.summary?.failed ?? 0
+          }, Skipped ${payload?.summary?.skipped ?? 0}.`
+        );
+      });
+    },
+    [loadDetail, loadListings, runAction, selectedItemId]
   );
 
   const executeAdvancedAction = useCallback(async () => {
@@ -702,6 +689,16 @@ export const EbayListingsView: React.FC = () => {
     productTitle,
   ]);
   const gapList = Array.isArray(detail?.gaps?.gaps) ? detail.gaps.gaps : [];
+  useEffect(() => {
+    const allowedIds = new Set(gapList.map((gap) => safeString(gap.id)).filter(Boolean));
+    setSelectedGapIds((prev) => {
+      const next: Record<string, boolean> = {};
+      Object.keys(prev).forEach((id) => {
+        if (allowedIds.has(id)) next[id] = true;
+      });
+      return next;
+    });
+  }, [gapList]);
   const filteredGapList = useMemo(() => {
     const searchNeedle = normalizeCompareText(gapSearch);
     return gapList
@@ -757,6 +754,44 @@ export const EbayListingsView: React.FC = () => {
 
   const visibleGapList = useMemo(() => filteredGapList.slice(0, gapVisibleCount), [filteredGapList, gapVisibleCount]);
   const hiddenGapCount = Math.max(0, filteredGapList.length - visibleGapList.length);
+  const visibleGapIds = useMemo(
+    () => visibleGapList.map((gap) => safeString(gap.id)).filter(Boolean),
+    [visibleGapList]
+  );
+  const selectedVisibleGapIds = useMemo(
+    () => visibleGapIds.filter((id) => Boolean(selectedGapIds[id])),
+    [selectedGapIds, visibleGapIds]
+  );
+  const allVisibleSelected = visibleGapIds.length > 0 && selectedVisibleGapIds.length === visibleGapIds.length;
+  const selectableGapCount = visibleGapIds.length;
+  const itemSpecificGapModes = useMemo(() => {
+    const base = {
+      missing_ebay: [] as string[],
+      different: [] as string[],
+      all: [] as string[],
+    };
+    gapList.forEach((gap) => {
+      if (normalizeCompareText(gap?.type) !== 'item_specific') return;
+      const status = normalizeCompareText(gap?.status);
+      if (status === 'ignored' || status === 'synced') return;
+      const id = safeString(gap?.id);
+      if (!id) return;
+      const hasListing = hasAnyValue(gap?.listingValue);
+      const hasAvy = hasAnyValue(gap?.avyValue);
+      if (!hasAvy) return;
+      const listingSet = valueToComparableSet(gap?.listingValue);
+      const avySet = valueToComparableSet(gap?.avyValue);
+      const differs =
+        listingSet.length !== avySet.length || listingSet.some((entry, idx) => entry !== avySet[idx]);
+      base.all.push(id);
+      if (!hasListing) {
+        base.missing_ebay.push(id);
+      } else if (differs) {
+        base.different.push(id);
+      }
+    });
+    return base;
+  }, [gapList]);
 
   const filteredSortedListings = useMemo(() => {
     const normalizedListSearch = normalizeCompareText(listingListSearch);
@@ -1147,46 +1182,83 @@ export const EbayListingsView: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <div className="max-h-[32vh] overflow-auto space-y-1 pr-1">
-                  {specificsComparisonRows.map((row) => (
-                    <div key={row.keyToken} className="rounded-lg border border-slate-700 bg-slate-950/50 p-2">
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-slate-100">{row.keyLabel}</p>
-                        <span
-                          className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${
-                            row.status === 'match'
-                              ? 'border-emerald-600/70 text-emerald-200'
-                              : row.status === 'missing_ebay'
-                                ? 'border-rose-600/70 text-rose-200'
-                                : row.status === 'missing_avy'
-                                  ? 'border-slate-500/70 text-slate-200'
-                                  : 'border-amber-600/70 text-amber-200'
-                          }`}
-                        >
-                          {row.status === 'match'
-                            ? 'gleich'
-                            : row.status === 'missing_ebay'
-                              ? 'fehlt auf ebay'
-                              : row.status === 'missing_avy'
-                                ? 'nur ebay'
-                                : 'abweichend'}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                        <div className="rounded border border-slate-700 bg-slate-900/70 p-1.5 text-[11px] text-slate-200">
-                          <span className="text-slate-400">eBay:</span> {row.ebayValue}
-                        </div>
-                        <div className="rounded border border-slate-700 bg-slate-900/70 p-1.5 text-[11px] text-slate-200">
-                          <span className="text-slate-400">AvyCloud:</span> {row.avyValue}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {specificsComparisonRows.length === 0 && (
-                    <p className="rounded border border-slate-700 bg-slate-900/50 px-3 py-2 text-xs text-slate-400">
-                      Keine Item Specifics zum Vergleichen vorhanden.
-                    </p>
-                  )}
+
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/45 px-2.5 py-2">
+                  <span className="text-[11px] font-semibold text-slate-300">Direktaktion:</span>
+                  <button
+                    type="button"
+                    onClick={() => void runItemSpecificSyncFlow('missing_ebay', 'Fehlende Item Specifics')}
+                    disabled={itemSpecificGapModes.missing_ebay.length === 0 || Boolean(busyAction)}
+                    className="rounded border border-rose-600/70 bg-rose-900/20 px-2 py-1 text-[11px] text-rose-100 hover:bg-rose-800/30 disabled:opacity-50"
+                  >
+                    Fehlende auf eBay syncen ({itemSpecificGapModes.missing_ebay.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void runItemSpecificSyncFlow('different', 'Abweichende Item Specifics')}
+                    disabled={itemSpecificGapModes.different.length === 0 || Boolean(busyAction)}
+                    className="rounded border border-amber-600/70 bg-amber-900/20 px-2 py-1 text-[11px] text-amber-100 hover:bg-amber-800/30 disabled:opacity-50"
+                  >
+                    Abweichungen syncen ({itemSpecificGapModes.different.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void runItemSpecificSyncFlow('all', 'Alle Item Specifics')}
+                    disabled={itemSpecificGapModes.all.length === 0 || Boolean(busyAction)}
+                    className="rounded border border-emerald-600/70 bg-emerald-900/20 px-2 py-1 text-[11px] text-emerald-100 hover:bg-emerald-800/30 disabled:opacity-50"
+                  >
+                    Alle Item Specifics syncen ({itemSpecificGapModes.all.length})
+                  </button>
+                </div>
+
+                <div className="max-h-[34vh] overflow-auto rounded-lg border border-slate-700">
+                  <table className="w-full border-collapse text-[11px]">
+                    <thead className="sticky top-0 z-10 bg-slate-900/95 text-slate-300">
+                      <tr>
+                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Attribut</th>
+                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Status</th>
+                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">eBay</th>
+                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">AvyCloud</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {specificsComparisonRows.map((row) => (
+                        <tr key={row.keyToken} className="odd:bg-slate-950/25">
+                          <td className="border-b border-slate-800 px-2 py-1.5 text-slate-100">{row.keyLabel}</td>
+                          <td className="border-b border-slate-800 px-2 py-1.5">
+                            <span
+                              className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${
+                                row.status === 'match'
+                                  ? 'border-emerald-600/70 text-emerald-200'
+                                  : row.status === 'missing_ebay'
+                                    ? 'border-rose-600/70 text-rose-200'
+                                    : row.status === 'missing_avy'
+                                      ? 'border-slate-500/70 text-slate-200'
+                                      : 'border-amber-600/70 text-amber-200'
+                              }`}
+                            >
+                              {row.status === 'match'
+                                ? 'gleich'
+                                : row.status === 'missing_ebay'
+                                  ? 'fehlt auf ebay'
+                                  : row.status === 'missing_avy'
+                                    ? 'nur ebay'
+                                    : 'abweichend'}
+                            </span>
+                          </td>
+                          <td className="border-b border-slate-800 px-2 py-1.5 text-slate-200">{clipText(row.ebayValue, 180)}</td>
+                          <td className="border-b border-slate-800 px-2 py-1.5 text-slate-200">{clipText(row.avyValue, 180)}</td>
+                        </tr>
+                      ))}
+                      {specificsComparisonRows.length === 0 && (
+                        <tr>
+                          <td className="px-3 py-2 text-slate-400" colSpan={4}>
+                            Keine Item Specifics zum Vergleichen vorhanden.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -1196,7 +1268,7 @@ export const EbayListingsView: React.FC = () => {
                     Gaps ({filteredGapList.length}/{gapList.length})
                   </p>
                   <p className="text-xs text-slate-400">
-                    Letztes Audit: {formatDateTime(detail.gaps?.updatedAtIso || detail.gaps?.updatedAt as any)}
+                    Letztes Audit: {formatDateTime(detail.gaps?.updatedAtIso || (detail.gaps?.updatedAt as any))}
                   </p>
                 </div>
 
@@ -1205,7 +1277,7 @@ export const EbayListingsView: React.FC = () => {
                     value={gapStatusFilter}
                     onChange={(event) => {
                       setGapStatusFilter(event.target.value as GapStatusFilter);
-                      setGapVisibleCount(12);
+                      setGapVisibleCount(25);
                     }}
                     className="rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-xs text-slate-100"
                   >
@@ -1219,7 +1291,7 @@ export const EbayListingsView: React.FC = () => {
                     value={gapSeverityFilter}
                     onChange={(event) => {
                       setGapSeverityFilter(event.target.value as GapSeverityFilter);
-                      setGapVisibleCount(12);
+                      setGapVisibleCount(25);
                     }}
                     className="rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-xs text-slate-100"
                   >
@@ -1233,98 +1305,149 @@ export const EbayListingsView: React.FC = () => {
                     value={gapSearch}
                     onChange={(event) => {
                       setGapSearch(event.target.value);
-                      setGapVisibleCount(12);
+                      setGapVisibleCount(25);
                     }}
                     placeholder="Gap suchen (Feld, Text, Wert)"
                     className="rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-slate-100"
                   />
                 </div>
 
-                <div className="space-y-2 max-h-[40vh] overflow-auto pr-1">
-                  {visibleGapList.map((gap, index) => {
-                    const gapId = safeString(gap.id);
-                    const rowKey = gapId || `gap-${index}`;
-                    const actionOptions = buildGapActionOptions(gap);
-                    const selectedAction = getSelectedGapAction(gap);
-                    const canApplyAction = Boolean(gapId);
-                    const isApplying = busyAction === `gap:${gapId}:${selectedAction}`;
-                    return (
-                      <div key={rowKey} className="rounded-lg border border-slate-700 bg-slate-950/55 p-2 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-xs font-semibold text-slate-100">
-                            {safeString(gap.field) || safeString(gap.id) || '-'}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${statusBadgeClass(gap.severity)}`}>
-                              {safeString(gap.severity) || '-'}
-                            </span>
-                            <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${statusBadgeClass(gap.status)}`}>
-                              {safeString(gap.status) || '-'}
-                            </span>
-                            <span className="rounded border border-slate-600 px-1.5 py-0.5 text-[10px] text-slate-300">
-                              {safeString(gap.type) || '-'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {safeString(gap.message) && <p className="text-[11px] text-slate-300">{safeString(gap.message)}</p>}
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                          <div className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1 text-[11px] text-slate-200">
-                            <span className="text-slate-400">eBay:</span> {clipText(toDisplayValue(gap.listingValue), 180)}
-                          </div>
-                          <div className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1 text-[11px] text-slate-200">
-                            <span className="text-slate-400">AvyCloud:</span> {clipText(toDisplayValue(gap.avyValue), 180)}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          <select
-                            value={selectedAction}
-                            onChange={(event) =>
-                              setGapActionChoiceById((prev) => ({
-                                ...prev,
-                                [rowKey]: event.target.value,
-                              }))
-                            }
-                            className="rounded border border-slate-600 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
-                          >
-                            {actionOptions.map((option) => (
-                              <option key={option.id} value={option.id}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => void handleGapAction(gap, selectedAction)}
-                            disabled={!canApplyAction || isApplying}
-                            className="rounded border border-sky-600/70 bg-sky-900/20 px-2 py-1 text-[11px] text-sky-100 hover:bg-sky-800/30 disabled:opacity-50"
-                          >
-                            Aktion ausfuehren
-                          </button>
-                          {!canApplyAction && <span className="text-[10px] text-rose-300">Gap-ID fehlt</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {hiddenGapCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setGapVisibleCount((prev) => prev + 12)}
-                      className="w-full rounded border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/70"
-                    >
-                      Mehr laden ({hiddenGapCount} weitere Gaps)
-                    </button>
-                  )}
-
-                  {filteredGapList.length === 0 && (
-                    <p className="rounded border border-slate-700 bg-slate-900/50 px-3 py-2 text-xs text-slate-400">
-                      Keine Gaps fuer diese Filter gefunden.
-                    </p>
-                  )}
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/45 px-2.5 py-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedGapIds((prev) => {
+                        if (allVisibleSelected) {
+                          const next = { ...prev };
+                          visibleGapIds.forEach((id) => {
+                            delete next[id];
+                          });
+                          return next;
+                        }
+                        const next = { ...prev };
+                        visibleGapIds.forEach((id) => {
+                          next[id] = true;
+                        });
+                        return next;
+                      })
+                    }
+                    disabled={selectableGapCount === 0}
+                    className="rounded border border-slate-600 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
+                  >
+                    {allVisibleSelected ? 'Sichtbare abwaehlen' : 'Sichtbare markieren'}
+                  </button>
+                  <span className="text-[11px] text-slate-300">
+                    Ausgewaehlt: {selectedVisibleGapIds.length}/{selectableGapCount}
+                  </span>
+                  <select
+                    value={gapBulkAction}
+                    onChange={(event) => setGapBulkAction(event.target.value as GapBulkAction)}
+                    className="rounded border border-slate-600 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                  >
+                    {GAP_BULK_ACTION_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => void executeSelectedGapBulkAction(selectedVisibleGapIds, gapBulkAction)}
+                    disabled={!selectedVisibleGapIds.length || Boolean(busyAction)}
+                    className="rounded border border-sky-600/70 bg-sky-900/25 px-2 py-1 text-[11px] text-sky-100 hover:bg-sky-800/35 disabled:opacity-50"
+                  >
+                    Aktion auf Auswahl ausfuehren
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGapIds({})}
+                    disabled={!selectedVisibleGapIds.length}
+                    className="rounded border border-slate-600 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
+                  >
+                    Auswahl leeren
+                  </button>
                 </div>
+
+                <div className="max-h-[42vh] overflow-auto rounded-lg border border-slate-700">
+                  <table className="w-full border-collapse text-[11px]">
+                    <thead className="sticky top-0 z-10 bg-slate-900/95 text-slate-300">
+                      <tr>
+                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium w-8">#</th>
+                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Feld</th>
+                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Status</th>
+                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Severity</th>
+                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Typ</th>
+                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">eBay</th>
+                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">AvyCloud</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleGapList.map((gap, index) => {
+                        const gapId = safeString(gap.id);
+                        const rowKey = gapId || `gap-${index}`;
+                        return (
+                          <tr key={rowKey} className="odd:bg-slate-950/25">
+                            <td className="border-b border-slate-800 px-2 py-1.5 align-top">
+                              {gapId ? (
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(selectedGapIds[gapId])}
+                                  onChange={(event) =>
+                                    setSelectedGapIds((prev) => ({
+                                      ...prev,
+                                      [gapId]: event.target.checked,
+                                    }))
+                                  }
+                                  className="accent-sky-500"
+                                />
+                              ) : (
+                                <span className="text-slate-500">-</span>
+                              )}
+                            </td>
+                            <td className="border-b border-slate-800 px-2 py-1.5 align-top text-slate-100">
+                              <p className="font-semibold">{safeString(gap.field) || '-'}</p>
+                              {safeString(gap.message) && <p className="text-[10px] text-slate-400 mt-0.5">{clipText(gap.message, 140)}</p>}
+                            </td>
+                            <td className="border-b border-slate-800 px-2 py-1.5 align-top">
+                              <span className={`rounded border px-1.5 py-0.5 uppercase ${statusBadgeClass(gap.status)}`}>
+                                {safeString(gap.status) || '-'}
+                              </span>
+                            </td>
+                            <td className="border-b border-slate-800 px-2 py-1.5 align-top">
+                              <span className={`rounded border px-1.5 py-0.5 uppercase ${statusBadgeClass(gap.severity)}`}>
+                                {safeString(gap.severity) || '-'}
+                              </span>
+                            </td>
+                            <td className="border-b border-slate-800 px-2 py-1.5 align-top text-slate-300">{safeString(gap.type) || '-'}</td>
+                            <td className="border-b border-slate-800 px-2 py-1.5 align-top text-slate-200">
+                              {clipText(toDisplayValue(gap.listingValue), 120)}
+                            </td>
+                            <td className="border-b border-slate-800 px-2 py-1.5 align-top text-slate-200">
+                              {clipText(toDisplayValue(gap.avyValue), 120)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {filteredGapList.length === 0 && (
+                        <tr>
+                          <td className="px-3 py-2 text-slate-400" colSpan={7}>
+                            Keine Gaps fuer diese Filter gefunden.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {hiddenGapCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setGapVisibleCount((prev) => prev + 25)}
+                    className="w-full rounded border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/70"
+                  >
+                    Mehr laden ({hiddenGapCount} weitere Gaps)
+                  </button>
+                )}
               </div>
             </>
           )}

@@ -680,11 +680,44 @@ export async function applyEbayGapAction(
   return data?.data;
 }
 
+export async function bulkApplyEbayGapActions(
+  itemId: string,
+  payload: { gapIds: string[]; action: string; note?: string; alias?: Record<string, any> }
+): Promise<any> {
+  const key = encodeURIComponent(String(itemId || '').trim());
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/gaps/${key}/bulk-actions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to update selected eBay gaps');
+  }
+  return data?.data;
+}
+
+export async function bulkPrepareEbayItemSpecifics(
+  itemIds?: string[],
+  mode: 'missing_ebay' | 'different' | 'all' = 'all'
+): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/gaps/bulk-prepare-item-specifics`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ itemIds: Array.isArray(itemIds) ? itemIds : null, mode }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to bulk-prepare item specifics');
+  }
+  return data?.data;
+}
+
 export async function bulkPrepareEbayMissingSpecifics(itemIds?: string[]): Promise<any> {
   const res = await fetchApi(`${BACKEND_URL}/api/ebay/gaps/bulk-prepare-missing`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ itemIds: Array.isArray(itemIds) ? itemIds : null }),
+    body: JSON.stringify({ itemIds: Array.isArray(itemIds) ? itemIds : null, mode: 'missing_ebay' }),
   });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) {
