@@ -150,6 +150,7 @@ const parseSkuCandidateFromText = (barcodesText) => {
 };
 const { attachPickHintsToOrders } = require('./services/pick-hints');
 const { updateJob, Timestamp } = require('./lib/improve-jobs');
+const { buildBaselinkerCategoryDetails } = require('./lib/baselinker-category-resolver');
 
 // --- Configuration ---
 const PORT = process.env.PORT || 8080;
@@ -948,7 +949,8 @@ function normalizeProductForApi(product = {}) {
   const p = product && typeof product === 'object' ? product : {};
   const identification =
     p.identification && typeof p.identification === 'object' ? p.identification : {};
-  const details = p.details && typeof p.details === 'object' ? p.details : {};
+  const rawDetails = p.details && typeof p.details === 'object' ? p.details : {};
+  const details = buildBaselinkerCategoryDetails(rawDetails).details;
   const identifiers =
     details.identifiers && typeof details.identifiers === 'object' ? details.identifiers : {};
   const pricing = details.pricing && typeof details.pricing === 'object' ? details.pricing : {};

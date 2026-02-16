@@ -102,3 +102,71 @@ export const getStableNumericId = (product: Product): string => {
   }
   return hashStringToDigits(product.id || product.identification?.name || 'product');
 };
+
+const safeString = (value: unknown): string => {
+  return value == null ? '' : String(value).trim();
+};
+
+const normalizeBreadcrumb = (value: unknown): string => {
+  const raw = safeString(value).replace(/\s+/g, ' ');
+  if (!raw) return '';
+  return raw
+    .split('>')
+    .map((segment) => safeString(segment))
+    .filter(Boolean)
+    .join(' > ');
+};
+
+/**
+ * Canonical BaseLinker category breadcrumb used in ProductSheet.
+ * Falls back to legacy multi-inventory storage keys if needed.
+ */
+export const getProductBaselinkerCategoryPath = (product: Product): string => {
+  const details: any = product?.details || {};
+  const legacy = details?.baselinkerCategories;
+  if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {
+    // Keep precedence aligned with backend resolver:
+    // 78659 is the canonical single-inventory source.
+    const preferredKeys = ['78659'];
+    for (const key of preferredKeys) {
+      const value = normalizeBreadcrumb((legacy as Record<string, unknown>)[key]);
+      if (value) return value;
+    }
+  }
+
+  const direct = normalizeBreadcrumb(details?.baselinkerCategoryPath);
+  if (direct) return direct;
+
+  if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {
+    const secondaryKeys = ['91387'];
+    for (const key of secondaryKeys) {
+      const value = normalizeBreadcrumb((legacy as Record<string, unknown>)[key]);
+      if (value) return value;
+    }
+    for (const value of Object.values(legacy as Record<string, unknown>)) {
+      const normalized = normalizeBreadcrumb(value);
+      if (normalized) return normalized;
+    }
+  }
+
+  const attrs: any = details?.attributes && typeof details.attributes === 'object' ? details.attributes : {};
+  const attrDirect = normalizeBreadcrumb(attrs?.Kategorie);
+  if (attrDirect) return attrDirect;
+  const attrKey = Object.keys(attrs).find((key) => safeString(key).toLowerCase() === 'kategorie');
+  if (attrKey) {
+    const attrValue = normalizeBreadcrumb(attrs[attrKey]);
+    if (attrValue) return attrValue;
+  }
+
+  return '';
+};
+
+/**
+ * UI display category:
+ * - Use BaseLinker category breadcrumb only (inventory taxonomy)
+ * - If missing, show placeholder instead of mixing in eBay taxonomy
+ */
+export const getProductDisplayCategory = (product: Product): string => {
+  const blCategory = getProductBaselinkerCategoryPath(product);
+  return blCategory || '—';
+};

@@ -25,6 +25,7 @@ import PricingInfo from './PricingInfo';
 import AssistantChat from './GeminiChat';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, summarizeBarcodes, isValidGtin } from '../utils/gtin';
+import { getProductBaselinkerCategoryPath, getProductDisplayCategory } from '../utils/product';
 import { useInventoryContext } from '../context/InventoryContext';
 
 interface ProductSheetProps {
@@ -266,14 +267,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   useEffect(() => {
     if (!isEditing) return;
-    const legacyMap = (localProduct.details?.baselinkerCategories || {}) as any;
-    const current =
-      localProduct.details?.baselinkerCategoryPath ||
-      legacyMap?.['78659'] ||
-      legacyMap?.['91387'] ||
-      '';
+    const current = getProductBaselinkerCategoryPath(localProduct);
     setCategoryQuery((prev) => prev || String(current || ''));
-  }, [isEditing, localProduct.details?.baselinkerCategoryPath, localProduct.details?.baselinkerCategories]);
+  }, [
+    isEditing,
+    localProduct.details?.baselinkerCategoryPath,
+    localProduct.details?.baselinkerCategories,
+    localProduct.identification?.category,
+  ]);
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -911,7 +912,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      const categoryPath = String(localProduct.details?.baselinkerCategoryPath || '').trim();
+      const categoryPath = String(getProductBaselinkerCategoryPath(localProduct) || '').trim();
       if (!categoryPath) {
         showNotification('error', 'BaseLinker Kategorie fehlt.');
         return;
@@ -978,7 +979,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       seen.add(key);
       options.push(opt);
     });
-    const current = String(localProduct.details?.baselinkerCategoryPath || '').trim();
+    const current = String(getProductBaselinkerCategoryPath(localProduct) || '').trim();
     const currentId = String(localProduct.details?.baselinkerCategoryId || '').trim();
     if (current) {
       const key = current.toLowerCase();
@@ -991,7 +992,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       }
     }
     return options;
-  }, [categoryOptions, localProduct.details?.baselinkerCategoryPath, localProduct.details?.baselinkerCategoryId]);
+  }, [
+    categoryOptions,
+    localProduct.details?.baselinkerCategoryPath,
+    localProduct.details?.baselinkerCategories,
+    localProduct.details?.baselinkerCategoryId,
+    localProduct.identification?.category,
+  ]);
 
   const highlightList = useMemo(() => {
     const rawFeatures = Array.isArray(localProduct.details?.key_features)
@@ -1163,8 +1170,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     />
                     <select
                       value={
-                        localProduct.details?.baselinkerCategoryPath ||
-                        String((((localProduct.details?.baselinkerCategories || {}) as any)?.['91387'] || '') as any) ||
+                        getProductBaselinkerCategoryPath(localProduct) ||
                         ''
                       }
                       onChange={(e) => handleCategorySelect(e.target.value)}
@@ -1182,9 +1188,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </span>
                 ) : (
                   <span className="text-sky-400">
-                    {localProduct.details?.baselinkerCategoryPath ||
-                      String((((localProduct.details?.baselinkerCategories || {}) as any)?.['91387'] || '') as any) ||
-                      '—'}
+                    {getProductDisplayCategory(localProduct)}
                     {localProduct.details?.baselinkerCategoryId ? (
                       <span className="text-slate-500"> ({localProduct.details.baselinkerCategoryId})</span>
                     ) : null}

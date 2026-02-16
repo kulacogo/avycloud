@@ -9,6 +9,7 @@ const {
 const { coerceTitleToPolicy } = require('./title-policy');
 const { normalizeBrandDisplayCase } = require('./brand-normalize');
 const { getVehicleFitmentMode } = require('./vehicle-fitment');
+const { buildBaselinkerCategoryDetails } = require('./baselinker-category-resolver');
 const {
   getManufacturerGpsrByName,
   mergePreferMoreComplete,
@@ -1907,7 +1908,7 @@ async function saveProduct(product, options = {}) {
       product?.details && Object.prototype.hasOwnProperty.call(product.details, 'short_description');
     const incomingHasDescription =
       product?.details && Object.prototype.hasOwnProperty.call(product.details, 'description');
-    const mergedDetails = {
+    let mergedDetails = {
       ...existingDetails,
       ...incomingDetails,
       short_description: mergeString(incomingDetails.short_description, existingDetails.short_description, { incomingPresent: incomingHasShortDescription }),
@@ -1916,6 +1917,24 @@ async function saveProduct(product, options = {}) {
       images: mergedImages,
       pricing: Object.keys(mergedPricing).length ? mergedPricing : undefined,
     };
+
+    // BaseLinker category invariants:
+    // - We keep ONE canonical path in details.baselinkerCategoryPath
+    // - We mirror that path to legacy key 78659 for backwards compatibility
+    // - We record conflicting path candidates for investigation (without blocking saves)
+    const blCategory = buildBaselinkerCategoryDetails(mergedDetails);
+    if (blCategory.changed) {
+      mergedDetails = blCategory.details;
+    }
+    if (blCategory.hasConflict) {
+      mergedOps.data_quality = mergedOps.data_quality || {};
+      mergedOps.data_quality.baselinker_category_conflict_v1 = {
+        at_iso: new Date().toISOString(),
+        selected_source: blCategory.source,
+        selected_value: blCategory.value,
+        candidates: blCategory.candidates.slice(0, 12),
+      };
+    }
 
     // Merge identification
     const mergedIdentification = {

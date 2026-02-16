@@ -1884,8 +1884,8 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
         ? product.details.baselinkerCategories
         : {};
     const categoryPath =
-      safeString(product?.details?.baselinkerCategoryPath || '') ||
       safeString(legacyCats?.['78659'] || '') ||
+      safeString(product?.details?.baselinkerCategoryPath || '') ||
       safeString(legacyCats?.['91387'] || '') ||
       safeString(product?.details?.ebayCategoryPath || '') ||
       safeString(product?.details?.kauflandCategoryPath || '') ||
@@ -2245,8 +2245,8 @@ async function syncProductCategoryOnlyToBaseLinker(product, inventoryId, options
         ? product.details.baselinkerCategories
         : {};
     const categoryPath =
-      safeString(product?.details?.baselinkerCategoryPath || '') ||
       safeString(legacyCats?.['78659'] || '') ||
+      safeString(product?.details?.baselinkerCategoryPath || '') ||
       safeString(legacyCats?.['91387'] || '') ||
       null;
 

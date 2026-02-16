@@ -151,7 +151,13 @@ function shortlistCandidates(index, signals, { limit = 60 } = {}) {
     .sort((a, b) => (b.score - a.score) || (b.depth - a.depth) || a.breadcrumb.localeCompare(b.breadcrumb, 'de-DE'));
 
   const top = scored.slice(0, Math.max(1, Math.min(limit, 120)));
-  return top.map((x) => ({ id: String(x.id), breadcrumb: x.breadcrumb, name: x.name || '', depth: x.depth || 0 }));
+  return top.map((x) => ({
+    id: String(x.id),
+    breadcrumb: x.breadcrumb,
+    name: x.name || '',
+    depth: x.depth || 0,
+    score: Number(x.score || 0),
+  }));
 }
 
 function pickFallbackCandidate(candidates = []) {
@@ -160,12 +166,50 @@ function pickFallbackCandidate(candidates = []) {
   return preferred || candidates[0];
 }
 
+function chooseDeterministicCandidate(candidates = []) {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  const top = candidates[0];
+  const second = candidates[1] || null;
+  const topScore = Number(top?.score || 0);
+  const secondScore = Number(second?.score || 0);
+  const highConfidence = topScore >= 3 && topScore >= secondScore + 2;
+  return {
+    candidate: top,
+    confidence: highConfidence ? 'high' : 'normal',
+    topScore,
+    secondScore,
+  };
+}
+
 async function assignBaselinkerCategoryBestEffort(product, { inventoryId = '78659', locale = 'de-DE' } = {}) {
   const inv = safeString(inventoryId || '78659') || '78659';
+  const legacyMap =
+    product?.details?.baselinkerCategories && typeof product.details.baselinkerCategories === 'object'
+      ? product.details.baselinkerCategories
+      : {};
+  const legacy78659Path = safeString(legacyMap?.['78659']);
+  const legacy78659Id = legacy78659Path
+    ? await resolveInventoryCategoryIdByBreadcrumb(inv, legacy78659Path)
+    : 0;
 
   // If already assigned, keep.
   const existingPath = safeString(product?.details?.baselinkerCategoryPath);
   const existingId = safeString(product?.details?.baselinkerCategoryId);
+  if (legacy78659Path && existingPath && legacy78659Path !== existingPath) {
+    product.details = product.details || {};
+    product.details.baselinkerCategoryPath = legacy78659Path;
+    if (legacy78659Id) {
+      product.details.baselinkerCategoryId = String(legacy78659Id);
+    }
+    return {
+      ok: true,
+      reason: legacy78659Id ? 'corrected_from_legacy_78659' : 'corrected_from_legacy_78659_unverified_id',
+      category: {
+        id: String(product.details.baselinkerCategoryId || existingId || ''),
+        breadcrumb: legacy78659Path,
+      },
+    };
+  }
   if (existingPath && existingId) {
     return { ok: true, reason: 'already_assigned', category: { id: existingId, breadcrumb: existingPath } };
   }
@@ -192,71 +236,92 @@ async function assignBaselinkerCategoryBestEffort(product, { inventoryId = '7865
     return { ok: true, reason: 'fallback_no_candidates', category: { id: String(fallback.id), breadcrumb: fallback.breadcrumb } };
   }
 
-  const policy = buildCommonPolicyText({ locale, allowWebEvidence: false });
-  const prompt = [
-    policy,
-    '',
-    'AUFGABE:',
-    'Wähle GENAU EINE BaseLinker Kategorie aus der Kandidatenliste.',
-    'Du MUSST exakt eine der IDs aus der Liste wählen (keine neue ID erfinden).',
-    '',
-    'PRODUKT:',
-    `- ID: ${signals.id || '-'}`,
-    `- Titel: ${signals.title || '-'}`,
-    `- Marke: ${signals.brand || '-'}`,
-    `- SKU: ${signals.sku || '-'}`,
-    `- EAN/GTIN/UPC: ${signals.ean || '-'}`,
-    `- MPN: ${signals.mpn || '-'}`,
-    signals.desc ? `- Beschreibung: ${signals.desc.slice(0, 900)}` : null,
-    signals.highlights?.length ? `- Highlights: ${signals.highlights.slice(0, 8).join(' | ')}` : null,
-    signals.attrLines?.length ? `- Attribute (Auszug): ${signals.attrLines.slice(0, 18).join(' | ')}` : null,
-    '',
-    'KANDIDATEN (id | breadcrumb):',
-    ...candidates.map((c, i) => `${i + 1}) ${c.id} | ${c.breadcrumb}`),
-    '',
-    'ANTWORTFORMAT: Gib NUR gültiges JSON zurück (keine Markdown-Fences). reason kurz halten.',
-  ]
-    .filter(Boolean)
-    .join('\n');
+  const deterministic = chooseDeterministicCandidate(candidates);
+  const useLlmSelection =
+    (process.env.BASELINKER_CATEGORY_USE_LLM ?? 'false').toString().trim().toLowerCase() === 'true';
+  let chosen = deterministic?.candidate || null;
+  let chosenReason = deterministic?.confidence === 'high'
+    ? 'deterministic_high_confidence'
+    : 'deterministic_top_candidate';
 
-  const schema = {
-    type: 'object',
-    required: ['category_id', 'breadcrumb', 'confidence', 'reason'],
-    properties: {
-      category_id: { type: 'string' },
-      breadcrumb: { type: 'string' },
-      confidence: { type: 'number' },
-      reason: { type: 'string' },
-    },
-  };
+  // Optional LLM arbitration (disabled by default due observed cross-domain misclassifications).
+  if (useLlmSelection && deterministic?.confidence !== 'high') {
+    const policy = buildCommonPolicyText({ locale, allowWebEvidence: false });
+    const prompt = [
+      policy,
+      '',
+      'AUFGABE:',
+      'Wähle GENAU EINE BaseLinker Kategorie aus der Kandidatenliste.',
+      'Du MUSST exakt eine der IDs aus der Liste wählen (keine neue ID erfinden).',
+      '',
+      'PRODUKT:',
+      `- ID: ${signals.id || '-'}`,
+      `- Titel: ${signals.title || '-'}`,
+      `- Marke: ${signals.brand || '-'}`,
+      `- SKU: ${signals.sku || '-'}`,
+      `- EAN/GTIN/UPC: ${signals.ean || '-'}`,
+      `- MPN: ${signals.mpn || '-'}`,
+      signals.desc ? `- Beschreibung: ${signals.desc.slice(0, 900)}` : null,
+      signals.highlights?.length ? `- Highlights: ${signals.highlights.slice(0, 8).join(' | ')}` : null,
+      signals.attrLines?.length ? `- Attribute (Auszug): ${signals.attrLines.slice(0, 18).join(' | ')}` : null,
+      '',
+      'KANDIDATEN (id | breadcrumb):',
+      ...candidates.map((c, i) => `${i + 1}) ${c.id} | ${c.breadcrumb}`),
+      '',
+      'ANTWORTFORMAT: Gib NUR gültiges JSON zurück (keine Markdown-Fences). reason kurz halten.',
+    ]
+      .filter(Boolean)
+      .join('\n');
 
-  let chosen = null;
-  let parsed = null;
-  try {
-    const payload = await callGeminiStructured({
-      parts: [{ text: prompt }],
-      responseSchema: schema,
-      temperature: 0.0,
-      maxOutputTokens: 512,
-    });
-    parsed = JSON.parse(payload);
-  } catch (e) {
-    // ignore; fallback below
-  }
+    const schema = {
+      type: 'object',
+      required: ['category_id', 'breadcrumb', 'confidence', 'reason'],
+      properties: {
+        category_id: { type: 'string' },
+        breadcrumb: { type: 'string' },
+        confidence: { type: 'number' },
+        reason: { type: 'string' },
+      },
+    };
 
-  if (parsed && typeof parsed === 'object') {
-    const pickedId = safeString(parsed.category_id);
-    const pickedBreadcrumb = safeString(parsed.breadcrumb);
-    if (pickedId && candidates.some((c) => c.id === pickedId)) {
-      chosen = candidates.find((c) => c.id === pickedId);
-    } else if (pickedBreadcrumb) {
-      const normPicked = normalizeForSearch(pickedBreadcrumb);
-      chosen = candidates.find((c) => normalizeForSearch(c.breadcrumb) === normPicked) || null;
+    let parsed = null;
+    try {
+      const payload = await callGeminiStructured({
+        parts: [{ text: prompt }],
+        responseSchema: schema,
+        temperature: 0.0,
+        maxOutputTokens: 512,
+      });
+      parsed = JSON.parse(payload);
+    } catch (e) {
+      // ignore and keep deterministic
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      const pickedId = safeString(parsed.category_id);
+      const pickedBreadcrumb = safeString(parsed.breadcrumb);
+      let llmChoice = null;
+      if (pickedId && candidates.some((c) => c.id === pickedId)) {
+        llmChoice = candidates.find((c) => c.id === pickedId) || null;
+      } else if (pickedBreadcrumb) {
+        const normPicked = normalizeForSearch(pickedBreadcrumb);
+        llmChoice = candidates.find((c) => normalizeForSearch(c.breadcrumb) === normPicked) || null;
+      }
+      if (llmChoice) {
+        const topScore = Number(candidates?.[0]?.score || 0);
+        const llmScore = Number(llmChoice.score || 0);
+        const llmFarWorse = topScore >= 3 && llmScore <= topScore - 2;
+        if (!llmFarWorse) {
+          chosen = llmChoice;
+          chosenReason = 'llm';
+        }
+      }
     }
   }
 
   if (!chosen) {
     chosen = pickFallbackCandidate(candidates);
+    chosenReason = 'fallback_candidate';
   }
   if (!chosen) {
     return { ok: false, reason: 'no_choice', inventoryId: inv };
@@ -278,7 +343,7 @@ async function assignBaselinkerCategoryBestEffort(product, { inventoryId = '7865
 
   return {
     ok: true,
-    reason: resolvedId ? 'llm' : 'llm_unverified_id',
+    reason: resolvedId ? chosenReason : `${chosenReason}_unverified_id`,
     category: { id: String(product.details.baselinkerCategoryId || ''), breadcrumb: chosen.breadcrumb },
     debug: { candidates: candidates.slice(0, 12) },
   };

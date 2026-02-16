@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Product } from '../types';
+import { getProductDisplayCategory } from '../utils/product';
 
 const safe = (v: any) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
 
@@ -63,7 +64,7 @@ export const InventoryDrilldownPanel: React.FC<{
     const needle = safe(q).toLowerCase();
     if (!needle) return base;
     return base.filter((p) => {
-      const hay = `${safe(p?.identification?.name)} ${safe(p?.identification?.brand)} ${pickSku(p)} ${safe(p?.identification?.category)}`.toLowerCase();
+      const hay = `${safe(p?.identification?.name)} ${safe(p?.identification?.brand)} ${pickSku(p)} ${safe(getProductDisplayCategory(p))}`.toLowerCase();
       return hay.includes(needle);
     });
   }, [products, idSet, q]);
@@ -124,7 +125,7 @@ export const InventoryDrilldownPanel: React.FC<{
                     <div className="text-[11px] text-slate-400">{safe(p?.identification?.brand) || '—'}</div>
                   </td>
                   <td className="px-3 py-2 font-mono text-slate-200">{pickSku(p) || '—'}</td>
-                  <td className="px-3 py-2 text-slate-300">{safe(p?.identification?.category) || '—'}</td>
+                  <td className="px-3 py-2 text-slate-300">{safe(getProductDisplayCategory(p)) || '—'}</td>
                   <td className="px-3 py-2 text-slate-300">{price == null ? '—' : `${price.toFixed(2)} €`}</td>
                   <td className="px-3 py-2">
                     <span

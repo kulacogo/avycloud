@@ -3,7 +3,12 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
 import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, type ProductBulkActionName } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
-import { normalizeSyncStatus, getStableNumericId, getProductQuantity } from '../utils/product';
+import {
+  normalizeSyncStatus,
+  getStableNumericId,
+  getProductQuantity,
+  getProductDisplayCategory,
+} from '../utils/product';
 import { useI18n } from '../i18n';
 import { Spinner } from './Spinner';
 import { addMediaQueryListener } from '../utils/mediaQuery';
@@ -355,7 +360,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const categoryTree = useMemo(() => {
     const tree = new Map<string, { count: number; children: Map<string, number> }>();
     for (const p of products) {
-      const raw = (p.identification?.category || 'Unbekannt').toString();
+      const resolved = getProductDisplayCategory(p);
+      const raw = (resolved && resolved !== '—' ? resolved : 'Unbekannt').toString();
       const parts = raw.split('>').map((s) => s.trim()).filter(Boolean);
       const top = parts[0] || 'Unbekannt';
       const sub = parts.length >= 2 ? parts[1] : '';
@@ -422,14 +428,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
     return null;
   };
-  const shortCategory = (product: Product) =>
-    (product.identification?.category || '')
-      .split('>')
-      .map((c) => c.trim())
-      .filter(Boolean)
-      .pop() ||
-    product.identification?.category ||
-    '—';
 
   const columnDefinitions: ColumnDefinition[] = useMemo(() => {
     const baseRenderers: ColumnDefinition[] = [
@@ -556,9 +554,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
       {
         id: 'category',
         label: t('table.category'),
-        sortKey: 'identification.category',
+        sortKey: 'category.display',
         defaultVisible: true,
-        render: ({ product }) => <span className="text-slate-300">{product.identification?.category || '—'}</span>,
+        render: ({ product }) => <span className="text-slate-300">{getProductDisplayCategory(product)}</span>,
       },
       {
         id: 'sku',
@@ -822,7 +820,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         brand.includes(term) ||
         identifiers.some((idVal) => idVal.includes(term));
       const matchesStatus = filterStatus === 'all' || normalizedStatus === filterStatus;
-      const productCategory = p.identification?.category || 'Unbekannt';
+      const resolvedCategory = getProductDisplayCategory(p);
+      const productCategory = resolvedCategory && resolvedCategory !== '—' ? resolvedCategory : 'Unbekannt';
       const matchesCategory = (() => {
         if (filterCategorySelection.length === 0) return true;
         const raw = (productCategory || '').toString();
@@ -941,6 +940,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
       const getSortValue = (product: Product, key: string) => {
         switch (key) {
+          case 'category.display':
+            return getProductDisplayCategory(product).toLowerCase();
           case 'qualityGate.sort_score': {
             const gate: any = (product as any)?.ops?.data_quality?.quality_gate_v1;
             if (!gate) return 100000; // "nicht geprüft" → last in asc, first in desc
