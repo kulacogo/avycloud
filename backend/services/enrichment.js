@@ -21,6 +21,7 @@ const { MarketplaceLookup } = require('../lib/marketplace-lookup');
 const { isValidGtin, normalizeDigits, getGtinType } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { sanitizeListingText } = require('../lib/listing-sanitize');
+const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { normalizeProductStrict } = require('../lib/llm-rulebook');
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
@@ -590,6 +591,7 @@ function buildUserPrompt({
     `9. Ordne eine valide eBay.de Kategorie (LEAF-Breadcrumb + categoryId) zu und füge die Pflichtattribute (Item Specifics) als Keys OHNE Prefix (leer bei Unbekannt) hinzu.`,
     `10. OPTIONAL: Kaufland-Kategorie/Attribute werden nachgelagert im System ergänzt (du musst sie hier nicht erzwingen).`,
     `11. Verwende NUR eBay-Kategorien; keine fremden Marketplace-Kategorien oder Fantasie-IDs.`,
+    `12. Schreibe Attributwerte als Klartext (UTF-8), KEINE HTML-Entities wie &deg; oder &Ouml;.`,
     `Pflichtmerkmale-Katalogabdeckung (lokal): ${aspectStats.categoriesWithAspectData}/${aspectStats.totalCategories} eBay-Kategorien mit hinterlegten Pflichtmerkmalen.`,
     `Sprache: Deutsch (${locale}).`
   );
@@ -1260,13 +1262,13 @@ function sanitizeAttributesMap(attributes = {}) {
     if (rawValue === undefined || rawValue === null) {
       continue;
     }
-    const key = rawKey?.toString().trim();
+    const key = decodeHtmlEntitiesDeep(rawKey).replace(/\s+/g, ' ').trim();
     if (!key) continue;
     if (ATTRIBUTE_BLACKLIST.has(key.toLowerCase())) {
       continue;
     }
     if (typeof rawValue === 'string') {
-      const val = rawValue.trim();
+      const val = decodeHtmlEntitiesDeep(rawValue).replace(/\s+/g, ' ').trim();
       if (!val) continue;
       cleaned[key] = val;
       continue;
@@ -1413,6 +1415,7 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
     fitmentLine,
     idsLine,
     gpsrLine,
+    '- Werte in Attributen/Highlights nur als Klartext UTF-8 ausgeben (keine HTML-Entities wie &deg; oder &Ouml;).',
     '- Plausibilitätscheck: Nutze WEB-EVIDENZ (Marktplatz-Suchergebnisse, falls enthalten) um Daten zu verifizieren und fehlende Spezifikationen zu ergänzen. Erfinde keine Werte.',
     '- Beschreibung: SEO-stark und gut lesbar. HTML ist erlaubt (nur <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität/Abmessungen/Gewicht (nur wenn belegbar). Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',
     '- Highlights: 5–7 Bulletpoints, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen). Neutral formulieren (kein "Ihr/Dein"), technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',

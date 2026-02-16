@@ -28,6 +28,7 @@ const { getRequiredAspects, buildRequiredAspectMeta, getRequiredAspectCatalogSta
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 const { getRulebookConfigCached } = require('../lib/rulebook-config');
 const { htmlToText } = require('../lib/web-search-html');
+const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 
 const MAX_CHAT_ITERATIONS = 5;
 const DEEP_MODE_REGEX =
@@ -60,6 +61,10 @@ const MARKETPLACE_SITES = ['ebay.de', 'kaufland.de', 'hood.de'];
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
+}
+
+function decodePlainText(value) {
+  return decodeHtmlEntitiesDeep(value).replace(/\s+/g, ' ').trim();
 }
 
 function preferMarketplaceUrl(url = '') {
@@ -828,7 +833,10 @@ function attributeArrayToObject(entries = []) {
   if (!Array.isArray(entries)) return {};
   return entries.reduce((acc, entry) => {
     if (!entry?.key) return acc;
-    acc[entry.key] = entry.value ?? '';
+    const key = decodePlainText(entry.key);
+    if (!key) return acc;
+    const value = typeof entry.value === 'string' ? decodePlainText(entry.value) : entry.value ?? '';
+    acc[key] = value;
     return acc;
   }, {});
 }
@@ -840,12 +848,98 @@ function toAttributesObject(attributes = []) {
   }
   if (typeof attributes === 'object') {
     return Object.entries(attributes).reduce((acc, [key, value]) => {
-      if (!key) return acc;
-      acc[key] = value;
+      const cleanedKey = decodePlainText(key);
+      if (!cleanedKey) return acc;
+      acc[cleanedKey] = typeof value === 'string' ? decodePlainText(value) : value;
       return acc;
     }, {});
   }
   return {};
+}
+
+function resolveProductCategoryId(product, attributes = null) {
+  const attrs = attributes && typeof attributes === 'object' ? attributes : toAttributesObject(product?.details?.attributes);
+  return (
+    [
+      product?.details?.categoryId,
+      product?.details?.ebayCategoryId,
+      product?.classification?.ebayCategoryId,
+      product?.marketplace?.ebay?.categoryId,
+      attrs?.ebay_category_id,
+      attrs?.ebayCategoryId,
+      attrs?.category_id,
+      attrs?.categoryId,
+      attrs?.['ebay.category_id'],
+    ]
+      .map((value) => safeString(value))
+      .find((value) => /^\d+$/.test(value)) || null
+  );
+}
+
+function normalizeAspectToken(value) {
+  const token = safeString(value)
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '');
+  if (!token) return '';
+  if (token === 'groesse' || token === 'size') return 'size';
+  if (
+    token === 'marke' ||
+    token === 'brand' ||
+    token === 'hersteller' ||
+    token === 'manufacturer' ||
+    token === 'herstellername' ||
+    token === 'manufacturername'
+  ) {
+    return 'brand';
+  }
+  if (token === 'ean' || token === 'gtin') return 'gtin';
+  if (token === 'herstellernummer' || token === 'manufacturerpartnumber' || token === 'mpn') return 'mpn';
+  if (
+    token === 'hoehe' ||
+    token === 'height' ||
+    token === 'dicke' ||
+    token === 'staerke' ||
+    token === 'materialstaerke' ||
+    token === 'thickness'
+  ) {
+    return 'hoehe';
+  }
+  if (token.includes('fahrradtyp')) return 'fahrradtyp';
+  if (token.includes('fahrradgroesse') || token.includes('fahrradsize')) return 'fahrradgroesse';
+  return token;
+}
+
+function remapAttributesToRequiredAspects(attributes = {}, requiredAspects = []) {
+  const input = attributes && typeof attributes === 'object' && !Array.isArray(attributes) ? attributes : {};
+  const requiredByToken = new Map();
+  (Array.isArray(requiredAspects) ? requiredAspects : []).forEach((aspect) => {
+    const label = safeString(aspect);
+    const token = normalizeAspectToken(label);
+    if (!label || !token || requiredByToken.has(token)) return;
+    requiredByToken.set(token, label);
+  });
+  if (!requiredByToken.size) return input;
+
+  const out = {};
+  Object.entries(input).forEach(([key, value]) => {
+    const token = normalizeAspectToken(key);
+    const canonicalKey = requiredByToken.get(token) || key;
+    const existing = out[canonicalKey];
+    const existingText = safeString(existing);
+    const nextText = safeString(value);
+    if (existing === undefined || !existingText) {
+      out[canonicalKey] = value;
+      return;
+    }
+    if (!nextText) return;
+    if (existingText.toLowerCase() === nextText.toLowerCase()) return;
+    // Keep first value deterministic and surface conflicts in notes later if needed.
+  });
+  return out;
 }
 
 function normalizeImageKey(url = '') {
@@ -946,8 +1040,7 @@ function hasValidLocalBarcode(product) {
 function buildProductContext(product, { attachments = [], mode = 'short', marketingFocus = false } = {}) {
   const attributes = toAttributesObject(product?.details?.attributes);
   const dimensions = extractDimensionsFromAttributes(attributes);
-  const categoryIdRaw =
-    (product?.details?.categoryId && String(product.details.categoryId).trim()) || null;
+  const categoryIdRaw = resolveProductCategoryId(product, attributes);
   const requiredAspects = categoryIdRaw ? getRequiredAspects(categoryIdRaw) : [];
   const requiredMeta = buildRequiredAspectMeta(categoryIdRaw, product?.details?.attributes || {});
   const aspectStats = getRequiredAspectCatalogStats();
@@ -1078,6 +1171,8 @@ function buildSystemPrompt(locale = 'de-DE') {
     'You always respond in SHORT, ACTIONABLE messages by default (≤10 short sentences or ~1000 characters, ≤3 bullets, no section headers).',
     'You have full product context (data, images, OCR, identifiers, inventory, warehouse info) and must cross-check for inconsistencies or missing facts.',
     'For category work: use only valid eBay category IDs/breadcrumbs and treat ebay.required_aspects_meta.missing_required_aspects as mandatory enrichment backlog.',
+    'Aspect naming rule: when proposing attributes for eBay, prefer exact keys from ebay.required_aspects and do not invent marketplace-specific alias keys.',
+    'Encoding rule: return plain UTF-8 text values (e.g. "60 °C", "Öko-Tex"), never HTML entities like "&deg;" or "&Ouml;".',
     'Use BrightData web_fetch only when external validation (competitors, specs) is truly needed; cite when you do.',
     'Interpret every supplied image (product gallery + user attachments) in concise wording; if imagery is weak, state what to shoot next.',
     'When the user explicitly asks for "mehr Details", "ausführlich", "voller Report", "lange Analyse" or similar, switch to DEEP MODE with structured sections and long explanations. Otherwise stay in SHORT MODE.',
@@ -1116,7 +1211,8 @@ function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingF
   }
   lines.push('Vehicle fitment rule: If ebay.vehicle_fitment_mode is set, do NOT invent K-Typ. Only propose K-Typ if it is present in OCR/attachments or provided WEB-EVIDENZ.');
   lines.push('Category rule: use only valid eBay category IDs/breadcrumbs; do not propose non-eBay categories.');
-  lines.push('Aspect rule: prioritize filling ebay.required_aspects_meta.missing_required_aspects with evidence-backed values.');
+  lines.push('Aspect rule: prioritize filling ebay.required_aspects_meta.missing_required_aspects with evidence-backed values, and use exact aspect names from ebay.required_aspects.');
+  lines.push('Output encoding rule: never use HTML entities in attribute values; use plain UTF-8 characters.');
   lines.push('If you propose edits, remember the {"edit": {...}} JSON rule.');
   return lines.join('\n\n');
 }
@@ -1316,21 +1412,32 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
   // - Move barcode-like attribute keys into barcodes (never keep them as attributes)
   if (result.attributes && typeof result.attributes === 'object') {
     const cleaned = {};
-    for (const [key, value] of Object.entries(result.attributes)) {
+    for (const [rawKey, rawValue] of Object.entries(result.attributes)) {
+      const key = decodePlainText(rawKey);
       if (!key) continue;
       if (isMarketplaceKey(key)) continue;
       if (isBarcodeAttrKey(key)) {
-        pushBarcode(value);
+        pushBarcode(rawValue);
         continue;
       }
       if (isBlockedAttributeKey(key)) {
         // Never store internal/meta keys as attributes (delete-only).
         continue;
       }
+      const value = typeof rawValue === 'string' ? decodePlainText(rawValue) : rawValue;
+      if (typeof value === 'string' && !value) continue;
       cleaned[key] = value;
     }
-    if (Object.keys(cleaned).length) {
-      result.attributes = cleaned;
+    let normalizedAttrs = cleaned;
+    const categoryIdForAspects = resolveProductCategoryId(product);
+    if (categoryIdForAspects) {
+      const requiredAspects = getRequiredAspects(categoryIdForAspects);
+      if (Array.isArray(requiredAspects) && requiredAspects.length) {
+        normalizedAttrs = remapAttributesToRequiredAspects(cleaned, requiredAspects);
+      }
+    }
+    if (Object.keys(normalizedAttrs).length) {
+      result.attributes = normalizedAttrs;
     } else {
       delete result.attributes;
     }

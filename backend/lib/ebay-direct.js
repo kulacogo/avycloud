@@ -11,6 +11,7 @@ const {
   reviseFixedPriceItem,
   reviseItem,
 } = require('./ebay-trading-api');
+const { decodeHtmlEntitiesDeep } = require('./html-entities');
 
 const EBAY_LISTINGS_COLLECTION = 'ebayListingsLive';
 const EBAY_LINKS_COLLECTION = 'ebayListingLinks';
@@ -49,7 +50,7 @@ function tsToIso(value) {
 }
 
 function normalizeToken(value) {
-  const lower = safeLower(value)
+  const lower = safeLower(decodeHtmlEntitiesDeep(value))
     .replace(/ä/g, 'ae')
     .replace(/ö/g, 'oe')
     .replace(/ü/g, 'ue')
@@ -62,6 +63,16 @@ function normalizeSpecificToken(value) {
   if (!token) return '';
   // German/English synonyms for required marketplace specifics.
   if (token === 'groesse' || token === 'size') return 'size';
+  if (
+    token === 'hoehe' ||
+    token === 'height' ||
+    token === 'dicke' ||
+    token === 'staerke' ||
+    token === 'materialstaerke' ||
+    token === 'thickness'
+  ) {
+    return 'hoehe';
+  }
   // eBay can expose identifiers under multiple marketplace/language labels.
   if (
     token === 'marke' ||
@@ -388,13 +399,7 @@ function escapeHtml(value) {
 }
 
 function decodeHtmlEntities(value) {
-  return String(value == null ? '' : value)
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>');
+  return decodeHtmlEntitiesDeep(value);
 }
 
 function stripHtmlToText(value) {
@@ -1529,6 +1534,7 @@ function buildGapsForListing({ listing, link, product, existingGapDoc, categoryP
   const productSpecificsAliased = applyCategoryProfileAliasesToSpecifics(productSpecificsRaw, categoryProfile);
   const productSpecificsCanonical = canonicalizeSpecificKeys(productSpecificsAliased, labelPolicy);
   const productSpecifics = filterSpecificsByRelevantTokens(productSpecificsCanonical, relevantTokens);
+  const productSpecificsNorm = normalizeSpecificsMap(productSpecifics);
   const listingSpecificsNorm = normalizeSpecificsMap(listingSpecifics);
 
   Object.entries(productSpecifics).forEach(([key, value]) => {
@@ -1566,6 +1572,37 @@ function buildGapsForListing({ listing, link, product, existingGapDoc, categoryP
         syncDirection: 'accept_avy',
       });
     }
+  });
+
+  // Ensure required eBay aspects are visible as gaps even when AvyCloud has no value yet.
+  // This keeps the UI focused on "which eBay parameters are empty".
+  requiredAspects.forEach((requiredAspect) => {
+    const requiredLabel = safeString(requiredAspect);
+    const token = normalizeSpecificToken(requiredLabel);
+    if (!token) return;
+    const ebayValues = listingSpecificsNorm[token] || [];
+    if (ebayValues.length) return;
+
+    const avyValues = asArray(productSpecificsNorm[token]).map((x) => safeString(x)).filter(Boolean);
+    const alreadyPresent = gaps.some(
+      (gap) =>
+        safeLower(gap?.type) === 'item_specific' &&
+        normalizeSpecificToken(gap?.field) === token &&
+        !hasGapListingValue(gap)
+    );
+    if (alreadyPresent) return;
+
+    addGap(gaps, existingById, {
+      type: 'item_specific',
+      field: requiredLabel,
+      severity: 'critical',
+      listingValue: null,
+      avyValue: avyValues.length ? avyValues : null,
+      message: avyValues.length
+        ? 'eBay Pflichtmerkmal ist leer und kann aus AvyCloud gefuellt werden.'
+        : 'eBay Pflichtmerkmal ist leer (in AvyCloud aktuell ohne Wert).',
+      syncDirection: 'accept_avy',
+    });
   });
 
   Object.entries(listingSpecifics).forEach(([key, value]) => {

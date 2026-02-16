@@ -16,6 +16,7 @@ const {
   normalizeCountryCode,
   normalizeGpsrPhone,
 } = require('./gpsr-manufacturer-registry');
+const { decodeHtmlEntitiesDeep } = require('./html-entities');
 
 function isFirestoreSpecialValue(value) {
   if (!value) return false;
@@ -448,7 +449,7 @@ function enforceEbayAspects(product) {
       ? details.attributes_extra
       : {};
 
-  const normalizeKey = (v) => (v == null ? '' : String(v)).trim();
+  const normalizeKey = (v) => decodeHtmlEntitiesDeep(v).replace(/\s+/g, ' ').trim();
   const normalizeLower = (v) => normalizeKey(v).toLowerCase();
   const normalizeAspectKey = (key) =>
     normalizeKey(key)
@@ -507,6 +508,14 @@ function enforceEbayAspects(product) {
       'material': 'Material',
       'modell': 'Modell',
       'model': 'Modell',
+      // Dimension aliases (normalize to eBay-typical "Höhe" key where applicable)
+      'höhe': 'Höhe',
+      'hoehe': 'Höhe',
+      'height': 'Höhe',
+      'dicke': 'Höhe',
+      'stärke': 'Höhe',
+      'staerke': 'Höhe',
+      'thickness': 'Höhe',
 
       // Identifiers
       'mpn': 'Herstellernummer',
@@ -652,11 +661,11 @@ function enforceEbayAspects(product) {
     if (val === true) return 'Ja';
     if (val === false) return 'Nein';
     if (typeof val !== 'string') return val;
-    const trimmed = val.trim();
+    const trimmed = decodeHtmlEntitiesDeep(val).replace(/\s+/g, ' ').trim();
     const lower = trimmed.toLowerCase();
     if (lower === 'true') return 'Ja';
     if (lower === 'false') return 'Nein';
-    return val;
+    return trimmed;
   };
 
   const META_ATTRIBUTE_KEYS = new Set(

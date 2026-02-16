@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { decodeHtmlEntitiesDeep } = require('./html-entities');
 
 const CATEGORY_PATH = path.join(__dirname, '..', 'ebay-data', 'categories.json');
 const ASPECT_PATH = path.join(__dirname, '..', 'ebay-data', 'required-aspects.json');
@@ -64,8 +65,7 @@ function hydrate() {
 hydrate();
 
 function normalize(text) {
-  return (text || '')
-    .toString()
+  return decodeHtmlEntitiesDeep((text || '').toString())
     .toLowerCase()
     .trim()
     // Normalize German umlauts for more robust matching across sources.
@@ -220,9 +220,13 @@ function buildRequiredAspectMeta(categoryId, attributes = null) {
     };
   }
   const required = getRequiredAspects(key);
-  const hasAspectData =
+  const categoryKnown = isKnownEbayCategoryId(key);
+  const mapHasAspectData =
     Object.prototype.hasOwnProperty.call(requiredAspects, key) ||
     Object.prototype.hasOwnProperty.call(autoRequiredAspects, key);
+  // Treat known categories with zero required aspects as valid "empty" metadata,
+  // so downstream LLM prompts can still enforce category governance consistently.
+  const hasAspectData = categoryKnown || mapHasAspectData;
   const attributeMap = toAttributeMap(attributes);
   const providedKeys = new Set(
     Object.keys(attributeMap || {})
@@ -234,12 +238,12 @@ function buildRequiredAspectMeta(categoryId, attributes = null) {
 
   return {
     categoryId: key,
-    categoryKnown: isKnownEbayCategoryId(key),
+    categoryKnown,
     hasAspectData,
     requiredAspects: required,
     missingAspects: missing,
     providedRequiredAspects: providedRequired,
-    coverageStatus: hasAspectData ? 'available' : 'not_available',
+    coverageStatus: hasAspectData ? (required.length ? 'available' : 'available_empty') : 'not_available',
     category: categories[key] || null,
   };
 }

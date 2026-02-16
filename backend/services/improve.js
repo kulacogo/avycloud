@@ -13,6 +13,7 @@ const { createJob: createQualityJob } = require('../lib/quality-jobs');
 const { enqueueQualityJob } = require('./quality-runner');
 const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
 const { buildRequiredAspectMeta, getRequiredAspectCatalogStats } = require('../lib/ebay-taxonomy');
+const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
@@ -132,7 +133,7 @@ function buildImproveContext(product, ebayListing = null) {
 
 function cleanAttributeValue(value) {
   if (typeof value === 'string') {
-    return value.replace(/\s+/g, ' ').trim();
+    return decodeHtmlEntitiesDeep(value).replace(/\s+/g, ' ').trim();
   }
   return value;
 }

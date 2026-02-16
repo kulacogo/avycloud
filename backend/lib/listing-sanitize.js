@@ -11,13 +11,14 @@
  * IMPORTANT:
  * - We do NOT invent new content here. We only delete/clean.
  */
+const { decodeHtmlEntitiesDeep } = require('./html-entities');
 
 function safeString(v) {
   return typeof v === 'string' ? v : v == null ? '' : String(v);
 }
 
 function normalizeSpaces(text = '') {
-  return safeString(text).replace(/\s+/g, ' ').trim();
+  return decodeHtmlEntitiesDeep(safeString(text)).replace(/\s+/g, ' ').trim();
 }
 
 const PLACEHOLDER_RE =
@@ -48,7 +49,7 @@ function containsBannedListingText(text = '') {
 }
 
 function sanitizeListingText(text = '', { maxLen = 2000 } = {}) {
-  const raw = safeString(text)
+  const raw = decodeHtmlEntitiesDeep(safeString(text))
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .trim();

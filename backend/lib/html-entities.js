@@ -1,0 +1,95 @@
+function safeString(value) {
+  return value == null ? '' : String(value);
+}
+
+const NAMED_ENTITY_MAP = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  deg: '°',
+  euro: '€',
+  copy: '©',
+  reg: '®',
+  trade: '™',
+  ndash: '–',
+  mdash: '—',
+  hellip: '…',
+  middot: '·',
+  micro: 'µ',
+  plusmn: '±',
+  sup2: '²',
+  sup3: '³',
+  frac12: '½',
+  frac14: '¼',
+  frac34: '¾',
+  times: '×',
+  divide: '÷',
+  Auml: 'Ä',
+  auml: 'ä',
+  Ouml: 'Ö',
+  ouml: 'ö',
+  Uuml: 'Ü',
+  uuml: 'ü',
+  szlig: 'ß',
+};
+
+function decodeHtmlEntityToken(token) {
+  if (!token) return '';
+  if (Object.prototype.hasOwnProperty.call(NAMED_ENTITY_MAP, token)) {
+    return NAMED_ENTITY_MAP[token];
+  }
+
+  if (token.startsWith('#x') || token.startsWith('#X')) {
+    const codePoint = Number.parseInt(token.slice(2), 16);
+    if (Number.isFinite(codePoint) && codePoint > 0) {
+      try {
+        return String.fromCodePoint(codePoint);
+      } catch {
+        return `&${token};`;
+      }
+    }
+    return `&${token};`;
+  }
+
+  if (token.startsWith('#')) {
+    const codePoint = Number.parseInt(token.slice(1), 10);
+    if (Number.isFinite(codePoint) && codePoint > 0) {
+      try {
+        return String.fromCodePoint(codePoint);
+      } catch {
+        return `&${token};`;
+      }
+    }
+    return `&${token};`;
+  }
+
+  return `&${token};`;
+}
+
+function decodeHtmlEntities(value) {
+  const source = safeString(value);
+  if (!source) return '';
+  return source.replace(/&([a-zA-Z][a-zA-Z0-9]+|#[0-9]+|#x[0-9a-fA-F]+);/g, (_, token) =>
+    decodeHtmlEntityToken(token)
+  );
+}
+
+function decodeHtmlEntitiesDeep(value, maxPasses = 3) {
+  let current = safeString(value);
+  if (!current) return '';
+  const passes = Number.isFinite(maxPasses) ? Math.max(1, Math.min(8, Number(maxPasses))) : 3;
+  for (let i = 0; i < passes; i += 1) {
+    const next = decodeHtmlEntities(current);
+    if (next === current) break;
+    current = next;
+  }
+  return current;
+}
+
+module.exports = {
+  decodeHtmlEntities,
+  decodeHtmlEntitiesDeep,
+};

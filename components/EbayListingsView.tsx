@@ -37,9 +37,91 @@ const safeString = (value: any): string => {
   return String(value).trim();
 };
 
+const HTML_ENTITY_MAP: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  deg: '°',
+  euro: '€',
+  copy: '©',
+  reg: '®',
+  trade: '™',
+  ndash: '–',
+  mdash: '—',
+  hellip: '…',
+  middot: '·',
+  micro: 'µ',
+  plusmn: '±',
+  sup2: '²',
+  sup3: '³',
+  frac12: '½',
+  frac14: '¼',
+  frac34: '¾',
+  times: '×',
+  divide: '÷',
+  Auml: 'Ä',
+  auml: 'ä',
+  Ouml: 'Ö',
+  ouml: 'ö',
+  Uuml: 'Ü',
+  uuml: 'ü',
+  szlig: 'ß',
+};
+
+const decodeEntityToken = (token: string): string => {
+  if (Object.prototype.hasOwnProperty.call(HTML_ENTITY_MAP, token)) {
+    return HTML_ENTITY_MAP[token];
+  }
+  if (/^#x[0-9a-f]+$/i.test(token)) {
+    const codePoint = Number.parseInt(token.slice(2), 16);
+    if (Number.isFinite(codePoint) && codePoint > 0) {
+      try {
+        return String.fromCodePoint(codePoint);
+      } catch {
+        return `&${token};`;
+      }
+    }
+  }
+  if (/^#[0-9]+$/.test(token)) {
+    const codePoint = Number.parseInt(token.slice(1), 10);
+    if (Number.isFinite(codePoint) && codePoint > 0) {
+      try {
+        return String.fromCodePoint(codePoint);
+      } catch {
+        return `&${token};`;
+      }
+    }
+  }
+  return `&${token};`;
+};
+
+const decodeHtmlEntities = (value: any): string => {
+  let current = safeString(value);
+  for (let i = 0; i < 3; i += 1) {
+    const next = current.replace(/&([a-zA-Z][a-zA-Z0-9]+|#[0-9]+|#x[0-9a-fA-F]+);/g, (_, token: string) =>
+      decodeEntityToken(token)
+    );
+    if (next === current) break;
+    current = next;
+  }
+  return current;
+};
+
 const toDisplayValue = (value: any): string => {
   if (value == null || value === '') return '-';
-  if (Array.isArray(value)) return value.map((entry) => safeString(entry)).filter(Boolean).join(', ') || '-';
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => decodeHtmlEntities(safeString(entry)))
+      .filter(Boolean)
+      .join(', ') || '-';
+  }
+  if (typeof value === 'string') {
+    const plain = decodeHtmlEntities(value);
+    return plain || '-';
+  }
   if (typeof value === 'object') {
     try {
       return JSON.stringify(value, null, 2);
@@ -47,7 +129,7 @@ const toDisplayValue = (value: any): string => {
       return String(value);
     }
   }
-  return safeString(value) || '-';
+  return decodeHtmlEntities(safeString(value)) || '-';
 };
 
 const isTechnicalCategoryKey = (key: any): boolean => {
@@ -171,7 +253,7 @@ const buildSpecificsText = (specifics: Record<string, any> | null | undefined): 
 };
 
 const normalizeKeyToken = (value: any): string =>
-  safeString(value)
+  decodeHtmlEntities(value)
     .toLowerCase()
     .replace(/ä/g, 'ae')
     .replace(/ö/g, 'oe')
@@ -183,6 +265,16 @@ const normalizeSpecificKeyToken = (value: any): string => {
   const token = normalizeKeyToken(value);
   if (!token) return '';
   if (token === 'groesse' || token === 'size') return 'size';
+  if (
+    token === 'hoehe' ||
+    token === 'height' ||
+    token === 'dicke' ||
+    token === 'staerke' ||
+    token === 'materialstaerke' ||
+    token === 'thickness'
+  ) {
+    return 'hoehe';
+  }
   if (
     token === 'marke' ||
     token === 'brand' ||
@@ -201,15 +293,6 @@ const normalizeSpecificKeyToken = (value: any): string => {
 };
 
 const normalizeCompareText = (value: any): string => safeString(value).toLowerCase().replace(/\s+/g, ' ').trim();
-
-const decodeHtmlEntities = (value: any): string =>
-  safeString(value)
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>');
 
 const stripHtmlToText = (value: any): string =>
   safeString(value)
@@ -390,7 +473,7 @@ type SpecificsComparisonRow = {
   keyLabel: string;
   ebayValue: string;
   avyValue: string;
-  status: 'match' | 'different' | 'missing_ebay' | 'missing_avy' | 'not_applicable';
+  status: 'match' | 'different' | 'missing_ebay' | 'missing_avy' | 'not_applicable' | 'missing_both';
 };
 
 const buildSpecificsComparisonRows = (
@@ -407,17 +490,24 @@ const buildSpecificsComparisonRows = (
       avyRaw?: any;
     }
   >();
+  const gapLabelByToken = new Map<string, string>();
+  const gapTokens = new Set<string>();
   const actionableMissingTokens = new Set<string>();
   (Array.isArray(gapList) ? gapList : []).forEach((gap) => {
     const type = normalizeCompareText(gap?.type);
     if (type !== 'item_specific') return;
     const status = normalizeCompareText(gap?.status);
     if (status === 'ignored' || status === 'synced') return;
+    const token = normalizeSpecificKeyToken(gap?.field);
+    if (!token) return;
+    gapTokens.add(token);
+    const label = safeString(gap?.field);
+    if (label && !gapLabelByToken.has(token)) {
+      gapLabelByToken.set(token, label);
+    }
     const hasListing = valueToComparableSet(gap?.listingValue).length > 0;
     const hasAvy = valueToComparableSet(gap?.avyValue).length > 0;
-    if (hasListing || !hasAvy) return;
-    const token = normalizeSpecificKeyToken(gap?.field);
-    if (token) actionableMissingTokens.add(token);
+    if (!hasListing && hasAvy) actionableMissingTokens.add(token);
   });
 
   const upsert = (side: 'ebay' | 'avy', rawKey: string, rawValue: any) => {
@@ -437,6 +527,11 @@ const buildSpecificsComparisonRows = (
 
   Object.entries(ebaySpecifics || {}).forEach(([key, value]) => upsert('ebay', key, value));
   Object.entries(avySpecifics || {}).forEach(([key, value]) => upsert('avy', key, value));
+  gapTokens.forEach((token) => {
+    if (merged.has(token)) return;
+    const label = gapLabelByToken.get(token) || token;
+    merged.set(token, { ebayLabel: label, avyLabel: label, ebayRaw: null, avyRaw: null });
+  });
 
   const rows: SpecificsComparisonRow[] = Array.from(merged.entries()).map(([keyToken, row]) => {
     const ebayValue = toDisplayValue(row.ebayRaw);
@@ -453,6 +548,9 @@ const buildSpecificsComparisonRows = (
     else if (!hasEbay && hasAvy) {
       status = actionableMissingTokens.has(keyToken) ? 'missing_ebay' : 'not_applicable';
     }
+    else if (!hasEbay && !hasAvy) {
+      status = gapTokens.has(keyToken) ? 'missing_both' : 'not_applicable';
+    }
     else if (hasEbay && !hasAvy) status = 'missing_avy';
 
     return {
@@ -466,10 +564,11 @@ const buildSpecificsComparisonRows = (
 
   const statusOrder: Record<SpecificsComparisonRow['status'], number> = {
     missing_ebay: 0,
-    different: 1,
-    missing_avy: 2,
-    not_applicable: 3,
-    match: 4,
+    missing_both: 1,
+    different: 2,
+    missing_avy: 3,
+    not_applicable: 4,
+    match: 5,
   };
   rows.sort((a, b) => {
     const byStatus = statusOrder[a.status] - statusOrder[b.status];
@@ -830,7 +929,7 @@ export const EbayListingsView: React.FC = () => {
     [listingSpecifics, productSpecifics, gapList]
   );
   const specificsStats = useMemo(() => {
-    const base = { match: 0, different: 0, missing_ebay: 0, missing_avy: 0, not_applicable: 0 };
+    const base = { match: 0, different: 0, missing_ebay: 0, missing_avy: 0, not_applicable: 0, missing_both: 0 };
     specificsComparisonRows.forEach((row) => {
       base[row.status] += 1;
     });
@@ -1463,6 +1562,9 @@ export const EbayListingsView: React.FC = () => {
                     <span className="rounded border border-rose-700/70 px-1.5 py-0.5 text-rose-200">
                       Fehlt auf eBay: {specificsStats.missing_ebay}
                     </span>
+                    <span className="rounded border border-fuchsia-700/70 px-1.5 py-0.5 text-fuchsia-200">
+                      eBay leer + Avy leer: {specificsStats.missing_both}
+                    </span>
                     <span className="rounded border border-amber-700/70 px-1.5 py-0.5 text-amber-200">
                       Unterschiedlich: {specificsStats.different}
                     </span>
@@ -1527,6 +1629,8 @@ export const EbayListingsView: React.FC = () => {
                                   ? 'border-emerald-600/70 text-emerald-200'
                                   : row.status === 'missing_ebay'
                                     ? 'border-rose-600/70 text-rose-200'
+                                    : row.status === 'missing_both'
+                                      ? 'border-fuchsia-600/70 text-fuchsia-200'
                                     : row.status === 'missing_avy'
                                       ? 'border-slate-500/70 text-slate-200'
                                       : row.status === 'not_applicable'
@@ -1538,6 +1642,8 @@ export const EbayListingsView: React.FC = () => {
                                 ? 'gleich'
                                 : row.status === 'missing_ebay'
                                   ? 'fehlt auf ebay'
+                                  : row.status === 'missing_both'
+                                    ? 'ebay leer + avy leer'
                                   : row.status === 'missing_avy'
                                     ? 'nur ebay'
                                     : row.status === 'not_applicable'
