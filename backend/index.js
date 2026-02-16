@@ -613,6 +613,14 @@ const normalizeCategoryText = (value = '') =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const normalizeBreadcrumbKey = (value = '') =>
+  value
+    .toString()
+    .split('>')
+    .map((segment) => segment.toString().trim())
+    .filter(Boolean)
+    .join(' > ');
+
 const getEbayCategoryEntries = () => {
   if (EBAY_CATEGORY_ENTRIES && EBAY_CATEGORY_BY_ID) {
     return { entries: EBAY_CATEGORY_ENTRIES, byId: EBAY_CATEGORY_BY_ID };
@@ -631,12 +639,27 @@ const getEbayCategoryEntries = () => {
     const entry = {
       id: String(id),
       name: cat.name ? String(cat.name) : '',
-      breadcrumb: String(breadcrumb),
+      breadcrumb: normalizeBreadcrumbKey(breadcrumb),
+      leaf: false,
     };
     entry.search = normalizeCategoryText(`${entry.breadcrumb} ${entry.name}`);
     entries.push(entry);
     byId.set(entry.id, entry);
   });
+
+  // Mark leaf nodes once so callers can enforce listing-safe category selection.
+  const parentBreadcrumbs = new Set();
+  entries.forEach((entry) => {
+    const parts = entry.breadcrumb.split('>').map((s) => s.trim()).filter(Boolean);
+    for (let i = 1; i < parts.length; i += 1) {
+      parentBreadcrumbs.add(parts.slice(0, i).join(' > ').toLowerCase());
+    }
+  });
+  entries.forEach((entry) => {
+    const key = normalizeBreadcrumbKey(entry.breadcrumb).toLowerCase();
+    entry.leaf = !parentBreadcrumbs.has(key);
+  });
+
   EBAY_CATEGORY_ENTRIES = entries;
   EBAY_CATEGORY_BY_ID = byId;
   return { entries, byId };
@@ -647,10 +670,16 @@ const getEbayCategoryById = (id) => {
   const { byId } = getEbayCategoryEntries();
   const entry = byId.get(String(id));
   if (!entry) return null;
-  return { id: entry.id, name: entry.name, breadcrumb: entry.breadcrumb };
+  return {
+    id: entry.id,
+    name: entry.name,
+    breadcrumb: entry.breadcrumb,
+    leaf: Boolean(entry.leaf),
+  };
 };
 
-const searchEbayCategories = (query, limit = 50) => {
+const searchEbayCategories = (query, limit = 50, options = {}) => {
+  const leafOnly = options && options.leafOnly === true;
   const needle = normalizeCategoryText(query);
   if (!needle || needle.length < 2) return [];
   const tokens = needle.split(' ').filter(Boolean);
@@ -658,6 +687,7 @@ const searchEbayCategories = (query, limit = 50) => {
   const { entries } = getEbayCategoryEntries();
   const results = [];
   for (const entry of entries) {
+    if (leafOnly && !entry.leaf) continue;
     const hay = entry.search || '';
     if (!hay) continue;
     let ok = true;
@@ -680,6 +710,7 @@ const searchEbayCategories = (query, limit = 50) => {
     id: entry.id,
     name: entry.name,
     breadcrumb: entry.breadcrumb,
+    leaf: Boolean(entry.leaf),
   }));
 };
 
@@ -958,6 +989,15 @@ function normalizeProductForApi(product = {}) {
     pricing.lowest_price && typeof pricing.lowest_price === 'object' ? pricing.lowest_price : {};
   const ops = p.ops && typeof p.ops === 'object' ? p.ops : {};
 
+  const rawCategoryId =
+    details.categoryId || details.ebayCategoryId || details.ebay_category_id || null;
+  const normalizedCategoryId = rawCategoryId
+    ? String(rawCategoryId).replace(/\D+/g, '').trim()
+    : '';
+  const ebayCategory = normalizedCategoryId ? getEbayCategoryById(normalizedCategoryId) : null;
+  const categoryIdForApi = ebayCategory?.id || normalizedCategoryId || '';
+  const categoryPathForApi = ebayCategory?.breadcrumb || '';
+
   const images = Array.isArray(details.images) ? details.images.filter(Boolean) : [];
   const barcodes = Array.isArray(identification.barcodes)
     ? identification.barcodes.filter(Boolean)
@@ -970,7 +1010,7 @@ function normalizeProductForApi(product = {}) {
       method: identification.method || 'image',
       name: identification.name || '',
       brand: identification.brand || '',
-      category: identification.category || '',
+      category: categoryPathForApi,
       confidence: typeof identification.confidence === 'number' ? identification.confidence : 0,
       barcodes,
     },
@@ -996,6 +1036,7 @@ function normalizeProductForApi(product = {}) {
           sources: Array.isArray(lowest.sources) ? lowest.sources : [],
         },
       },
+      categoryId: categoryIdForApi || undefined,
     },
     ops: {
       ...ops,
@@ -1989,7 +2030,18 @@ app.post('/api/admin/bulk/run', requirePermission('admin', 'jobs.run'), async (r
       offset: Number.isFinite(Number(body.offset)) ? Number(body.offset) : 0,
       debug: Boolean(body.debug),
       maxAgeDays: Number.isFinite(Number(body.maxAgeDays)) ? Number(body.maxAgeDays) : undefined,
+      force: Boolean(body.force),
       includeUi: Boolean(body.includeUi),
+      inventoryId: typeof body.inventoryId === 'string' ? body.inventoryId : undefined,
+      marketplaceId: typeof body.marketplaceId === 'string' ? body.marketplaceId : undefined,
+      syncToBaseLinker: body.syncToBaseLinker === undefined ? undefined : Boolean(body.syncToBaseLinker),
+      titleInsights: body.titleInsights === undefined ? undefined : Boolean(body.titleInsights),
+      titleInsightsQuery: typeof body.titleInsightsQuery === 'string' ? body.titleInsightsQuery : undefined,
+      titleInsightsForceRefresh:
+        body.titleInsightsForceRefresh === undefined ? undefined : Boolean(body.titleInsightsForceRefresh),
+      titleInsightsLimit: Number.isFinite(Number(body.titleInsightsLimit)) ? Number(body.titleInsightsLimit) : undefined,
+      titleInsightsMaxHints:
+        Number.isFinite(Number(body.titleInsightsMaxHints)) ? Number(body.titleInsightsMaxHints) : undefined,
       requestedBy: req.user?.email || req.user?.uid || 'admin',
     };
 
@@ -2037,6 +2089,16 @@ app.post('/api/products/bulk/run', requirePermission('products', 'write'), async
       maxAgeDays: Number.isFinite(Number(body.maxAgeDays)) ? Number(body.maxAgeDays) : undefined,
       force: Boolean(body.force),
       includeUi: Boolean(body.includeUi),
+      inventoryId: typeof body.inventoryId === 'string' ? body.inventoryId : undefined,
+      marketplaceId: typeof body.marketplaceId === 'string' ? body.marketplaceId : undefined,
+      syncToBaseLinker: body.syncToBaseLinker === undefined ? undefined : Boolean(body.syncToBaseLinker),
+      titleInsights: body.titleInsights === undefined ? undefined : Boolean(body.titleInsights),
+      titleInsightsQuery: typeof body.titleInsightsQuery === 'string' ? body.titleInsightsQuery : undefined,
+      titleInsightsForceRefresh:
+        body.titleInsightsForceRefresh === undefined ? undefined : Boolean(body.titleInsightsForceRefresh),
+      titleInsightsLimit: Number.isFinite(Number(body.titleInsightsLimit)) ? Number(body.titleInsightsLimit) : undefined,
+      titleInsightsMaxHints:
+        Number.isFinite(Number(body.titleInsightsMaxHints)) ? Number(body.titleInsightsMaxHints) : undefined,
       requestedBy: req.user?.email || req.user?.uid || 'user',
     };
     const job = await createAdminBulkJob({ payload, requestedBy: payload.requestedBy, action });
@@ -3958,6 +4020,10 @@ app.get('/api/ebay/categories', (req, res) => {
   try {
     const query = (req.query.q || '').toString().trim();
     const id = (req.query.id || '').toString().trim();
+    const leafOnly =
+      String(req.query.leafOnly || req.query.leaf_only || '')
+        .trim()
+        .toLowerCase() === 'true';
     const limitRaw = parseInt(req.query.limit || '50', 10);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
 
@@ -3967,7 +4033,7 @@ app.get('/api/ebay/categories', (req, res) => {
       if (found) items.push(found);
     }
     if (query && query.length >= 2) {
-      const matches = searchEbayCategories(query, limit);
+      const matches = searchEbayCategories(query, limit, { leafOnly });
       matches.forEach((item) => {
         if (!items.find((existing) => existing.id === item.id)) {
           items.push(item);

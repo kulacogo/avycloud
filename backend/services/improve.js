@@ -14,6 +14,7 @@ const { enqueueQualityJob } = require('./quality-runner');
 const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
 const { buildRequiredAspectMeta, getRequiredAspectCatalogStats } = require('../lib/ebay-taxonomy');
 const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
+const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
@@ -33,6 +34,104 @@ const ATTRIBUTE_BLACKLIST = new Set([
   'id',
 ]);
 
+const TITLE_INSIGHTS_TOKEN_RE = /^[0-9a-zA-ZäöüÄÖÜß+\-_/().]{2,24}$/;
+
+function safeString(v) {
+  return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
+}
+
+function normalizeTitleInsightToken(raw) {
+  return safeString(raw)
+    .replace(/[\u0000-\u001f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isValidTitleInsightToken(token) {
+  if (!token || !TITLE_INSIGHTS_TOKEN_RE.test(token)) return false;
+  if (/^(ean|gtin|upc|isbn)$/i.test(token)) return false;
+  if (/^\d{8,14}$/.test(token)) return false;
+  return true;
+}
+
+function resolveEbayCategoryIdForProduct(product, fallbackCategoryId = '') {
+  const details = product?.details && typeof product.details === 'object' ? product.details : {};
+  const attributes =
+    details.attributes && typeof details.attributes === 'object' && !Array.isArray(details.attributes)
+      ? details.attributes
+      : {};
+  return (
+    [
+      details.categoryId,
+      details.ebayCategoryId,
+      fallbackCategoryId,
+      product?.classification?.ebayCategoryId,
+      product?.marketplace?.ebay?.categoryId,
+      attributes.ebay_category_id,
+      attributes.ebayCategoryId,
+      attributes.category_id,
+      attributes.categoryId,
+      attributes['ebay.category_id'],
+    ]
+      .map((v) => safeString(v))
+      .find((v) => /^\d+$/.test(v)) || ''
+  );
+}
+
+async function loadTitleInsightsForProduct(
+  product,
+  { fallbackCategoryId = '', cache = null, limit = 80, maxTokens = 8 } = {}
+) {
+  const categoryId = resolveEbayCategoryIdForProduct(product, fallbackCategoryId);
+  const normalizedLimit = Math.max(10, Math.min(200, Number(limit) || 80));
+  const normalizedMaxTokens = Math.max(1, Math.min(20, Number(maxTokens) || 8));
+  if (!categoryId) {
+    return { categoryId: null, topTokens: [], sampleTitles: [], error: null };
+  }
+  const cacheKey = `${categoryId}|${normalizedLimit}|${normalizedMaxTokens}`;
+  if (cache && cache.has(cacheKey)) return cache.get(cacheKey);
+  try {
+    const insights = await fetchCategoryTitleInsights({ categoryId, limit: normalizedLimit });
+    const raw = Array.isArray(insights?.topTokens) ? insights.topTokens : [];
+    const topTokens = [];
+    const seen = new Set();
+    for (const item of raw) {
+      const token =
+        typeof item === 'string'
+          ? item
+          : item && typeof item === 'object'
+            ? item.token || item.value || item.word || ''
+            : '';
+      const normalized = normalizeTitleInsightToken(token);
+      if (!isValidTitleInsightToken(normalized)) continue;
+      const key = normalized.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      topTokens.push(normalized);
+      if (topTokens.length >= normalizedMaxTokens) break;
+    }
+    const loaded = {
+      categoryId,
+      topTokens,
+      sampleTitles: Array.isArray(insights?.sampleTitles)
+        ? insights.sampleTitles.map((t) => safeString(t)).filter(Boolean).slice(0, 5)
+        : [],
+      error: null,
+    };
+    if (cache) cache.set(cacheKey, loaded);
+    return loaded;
+  } catch (e) {
+    const withError = {
+      categoryId,
+      topTokens: [],
+      sampleTitles: [],
+      error: safeString(e?.message || e) || 'title_insights_unavailable',
+    };
+    if (cache) cache.set(cacheKey, withError);
+    return withError;
+  }
+}
+
 function collectBarcodes(product) {
   const codes = new Set(
     Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : []
@@ -46,7 +145,7 @@ function collectBarcodes(product) {
   return Array.from(codes).filter(Boolean).join(', ');
 }
 
-function buildImproveContext(product, ebayListing = null) {
+function buildImproveContext(product, ebayListing = null, { titleInsights = null } = {}) {
   const lines = [];
   lines.push(`Aktueller Titel: ${product?.identification?.name || 'unbekannt'}`);
   lines.push(`Marke: ${product?.identification?.brand || 'unbekannt'}`);
@@ -80,6 +179,12 @@ function buildImproveContext(product, ebayListing = null) {
           .join('\n')}`
       );
     }
+  }
+
+  if (Array.isArray(titleInsights?.topTokens) && titleInsights.topTokens.length) {
+    lines.push(
+      `eBay Titel-Keyword-Hinweise (Kategorie ${titleInsights?.categoryId || 'n/a'}): ${titleInsights.topTokens.join(', ')}`
+    );
   }
 
   // eBay listing snapshot (imported via MIP CSV or synced via API)
@@ -708,6 +813,13 @@ async function improveExistingProduct(productId, onProgress) {
   } catch {
     ebayListing = null;
   }
+  const titleInsightCache = new Map();
+  const initialTitleInsights = await loadTitleInsightsForProduct(product, {
+    fallbackCategoryId: safeString(ebayListing?.categoryId),
+    cache: titleInsightCache,
+    limit: Math.max(10, Math.min(200, Number(process.env.IMPROVE_TITLE_INSIGHTS_LIMIT) || 80)),
+    maxTokens: Math.max(1, Math.min(20, Number(process.env.IMPROVE_TITLE_INSIGHTS_MAX_TOKENS) || 8)),
+  });
 
   if (onProgress) await onProgress('downloading_images');
   console.log('[improve] Downloading reference images...');
@@ -722,17 +834,18 @@ async function improveExistingProduct(productId, onProgress) {
     if (onProgress) await onProgress('reviewing');
   } else {
     try {
-  const result = await runProductIdentification({
-    files,
-    barcodes,
-    locale: product.locale || 'de-DE',
-    modelOverride: null,
-    improveContext: buildImproveContext(product, ebayListing),
-    // Allow external search for better identification quality (web evidence, images, pricing),
-    // consistent with Identify + Chat policies. Use env flags if you need to disable globally.
-    skipExternalSearch: false,
-    onProgress,
-  });
+      const result = await runProductIdentification({
+        files,
+        barcodes,
+        locale: product.locale || 'de-DE',
+        modelOverride: null,
+        improveContext: buildImproveContext(product, ebayListing, { titleInsights: initialTitleInsights }),
+        titleInsights: initialTitleInsights,
+        // Allow external search for better identification quality (web evidence, images, pricing),
+        // consistent with Identify + Chat policies. Use env flags if you need to disable globally.
+        skipExternalSearch: false,
+        onProgress,
+      });
       improvedOutput = result?.bundle?.products?.[0] || null;
     } catch (error) {
       console.warn('[improve] Identification failed. Falling back to review-only improve:', error?.message || error);
@@ -840,10 +953,19 @@ async function improveExistingProduct(productId, onProgress) {
 
   // Enforce title policy even if the model skipped title updates.
   mergedProduct.identification = mergedProduct.identification || {};
+  const finalTitleInsights = await loadTitleInsightsForProduct(mergedProduct, {
+    fallbackCategoryId: safeString(ebayListing?.categoryId),
+    cache: titleInsightCache,
+    limit: Math.max(10, Math.min(200, Number(process.env.IMPROVE_TITLE_INSIGHTS_LIMIT) || 80)),
+    maxTokens: Math.max(1, Math.min(20, Number(process.env.IMPROVE_TITLE_INSIGHTS_MAX_TOKENS) || 8)),
+  });
+  const extraHintTokens = Array.isArray(finalTitleInsights?.topTokens)
+    ? finalTitleInsights.topTokens.map(normalizeTitleInsightToken).filter(isValidTitleInsightToken).slice(0, 12)
+    : [];
   mergedProduct.identification.name = coerceTitleToPolicy(
     mergedProduct,
     mergedProduct.identification.name,
-    { minLen: 65, maxLen: 80, softMaxLen: 75 }
+    { minLen: 65, maxLen: 80, softMaxLen: 75, extraHintTokens }
   );
 
   // Deterministic sanitization: never persist price/placeholder/template text,

@@ -4,6 +4,7 @@ const { firestore, getAllProducts, getProduct, saveProduct } = require('../lib/f
 const { ensurePriceCoverage } = require('./enrichment');
 const { coerceTitleToPolicy, validateTitleToPolicy, inferTitleCategory } = require('../lib/title-policy');
 const { getRulebookConfigCached } = require('../lib/rulebook-config');
+const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
 const fs = require('fs');
 const { uploadJobFile } = require('../lib/storage');
 const { createJob: createBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('../lib/baselinker-sync-jobs');
@@ -26,6 +27,55 @@ function pickSku(product) {
     safeString(product?.id) ||
     ''
   );
+}
+
+const TITLE_INSIGHTS_ALLOWED_HINT_TOKEN_RE = /^[0-9a-zA-ZäöüÄÖÜß+\-_/().]{2,24}$/;
+
+function normalizeTitleHintToken(raw) {
+  const token = safeString(raw)
+    .replace(/[\u0000-\u001f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!token) return '';
+  return token.normalize('NFKC');
+}
+
+function isValidTitleHintToken(token) {
+  if (!token) return false;
+  if (!TITLE_INSIGHTS_ALLOWED_HINT_TOKEN_RE.test(token)) return false;
+  // Skip likely barcode/EAN fragments in hints.
+  if (/^\d{8,14}$/.test(token)) return false;
+  // Skip explicit marketplace labels.
+  if (/^(ean|gtin|upc|isbn)$/i.test(token)) return false;
+  return true;
+}
+
+function collectEbayCategoryIdCandidates(product) {
+  const attrs = product?.details?.attributes;
+  const attrCategoryId =
+    attrs && typeof attrs === 'object'
+      ? safeString(
+          attrs.ebay_category_id ||
+            attrs.ebayCategoryId ||
+            attrs.ebay_category ||
+            attrs.ebayCategory ||
+            attrs.category_id ||
+            attrs.categoryId ||
+            attrs.eBayCategoryId ||
+            attrs.eBayCategoryID
+        )
+      : '';
+  const details = product?.details || {};
+  const identification = product?.identification || {};
+  return [
+    safeString(details.categoryId),
+    safeString(details.ebayCategoryId),
+    safeString(details.eBayCategoryId),
+    safeString(identification.ebayCategoryId),
+    safeString(identification.eBayCategoryId),
+    safeString(identification.categoryId),
+    attrCategoryId,
+  ].filter(Boolean);
 }
 
 function daysSinceIso(iso) {
@@ -51,7 +101,13 @@ function chunkArray(arr, chunkSize) {
   return out;
 }
 
-async function enqueueBaseLinkerTextOnlyJobs({ productIds, inventoryId, chunkSize = 200, requestedBy = 'admin-bulk' }) {
+async function enqueueBaseLinkerSyncJobs({
+  productIds,
+  inventoryId,
+  mode = 'full',
+  chunkSize = 200,
+  requestedBy = 'admin-bulk',
+}) {
   const invId = String(inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
   const uniqueAll = Array.from(new Set((productIds || []).map((x) => safeString(x)).filter(Boolean)));
   if (!uniqueAll.length) return [];
@@ -61,7 +117,7 @@ async function enqueueBaseLinkerTextOnlyJobs({ productIds, inventoryId, chunkSiz
     const unique = Array.from(new Set(ids.map((x) => safeString(x)).filter(Boolean))).slice(0, 500);
     if (!unique.length) continue;
     const job = await createBaseLinkerSyncJob({
-      payload: { productIds: unique, inventoryId: invId, mode: 'text_only' },
+      payload: { productIds: unique, inventoryId: invId, mode: safeString(mode || 'full') || 'full' },
       status: 'pending',
       stage: 'queued',
       progress: { total: unique.length, processed: 0, synced: 0, failed: 0 },
@@ -73,6 +129,16 @@ async function enqueueBaseLinkerTextOnlyJobs({ productIds, inventoryId, chunkSiz
     jobIds.push(job.id);
   }
   return jobIds;
+}
+
+async function enqueueBaseLinkerTextOnlyJobs({ productIds, inventoryId, chunkSize = 200, requestedBy = 'admin-bulk' }) {
+  return enqueueBaseLinkerSyncJobs({
+    productIds,
+    inventoryId,
+    mode: 'text_only',
+    chunkSize,
+    requestedBy,
+  });
 }
 
 function buildMarketplaceLookup() {
@@ -370,8 +436,32 @@ async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays
   return { summary, samples };
 }
 
-async function runBulkTitle({ apply = false, limit = 500, offset = 0, includeUi = false, debug = false, productIds = null } = {}) {
+async function runBulkTitle({
+  apply = false,
+  limit = 500,
+  offset = 0,
+  includeUi = false,
+  debug = false,
+  productIds = null,
+  inventoryId = null,
+  syncToBaseLinker = true,
+  titleInsights = true,
+  titleInsightsQuery = '',
+  titleInsightsForceRefresh = false,
+  titleInsightsLimit = 80,
+  titleInsightsMaxHints = 8,
+  marketplaceId = '',
+} = {}) {
   const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const useTitleInsights = parseBool(titleInsights, true);
+  const useSyncToBaseLinker = parseBool(syncToBaseLinker, true);
+  const insightsForceRefresh = parseBool(titleInsightsForceRefresh, false);
+  const insightsQuery = safeString(titleInsightsQuery);
+  const insightsLimit = Math.max(10, Math.min(200, Number(titleInsightsLimit) || 80));
+  const insightsMaxHints = Math.max(0, Math.min(20, Number(titleInsightsMaxHints) || 8));
+  const requestedMarketplaceId = safeString(marketplaceId);
+  const changedIds = [];
+  const categoryInsightCache = new Map();
 
   const summary = {
     action: 'title',
@@ -386,8 +476,14 @@ async function runBulkTitle({ apply = false, limit = 500, offset = 0, includeUi 
     noop: 0,
     invalid_after: 0,
     failed: 0,
+    titleInsights: useTitleInsights,
+    titleInsightsUsed: 0,
+    titleInsightsMissingCategory: 0,
+    titleInsightsFetchFailed: 0,
+    baselinkerSyncJobs: 0,
   };
   const samples = [];
+  let baselinkerSyncJobIds = [];
 
   for (const p of selected) {
     const id = p.id;
@@ -419,13 +515,82 @@ async function runBulkTitle({ apply = false, limit = 500, offset = 0, includeUi 
         continue;
       }
 
-      const nextTitle = coerceTitleToPolicy(cur, currentTitle, { minLen, maxLen, softMaxLen });
+      let insightTokens = [];
+      let insightCategoryId = '';
+      if (useTitleInsights && insightsMaxHints > 0) {
+        const categoryCandidates = collectEbayCategoryIdCandidates(cur);
+        insightCategoryId = categoryCandidates.find(Boolean) || '';
+        if (!insightCategoryId) {
+          summary.titleInsightsMissingCategory += 1;
+        } else {
+          const cacheKey = [insightCategoryId, insightsQuery, requestedMarketplaceId, String(insightsLimit)].join('|');
+          if (!categoryInsightCache.has(cacheKey)) {
+            try {
+              const insights = await fetchCategoryTitleInsights({
+                categoryId: insightCategoryId,
+                query: insightsQuery,
+                marketplaceId: requestedMarketplaceId || undefined,
+                limit: insightsLimit,
+                forceRefresh: insightsForceRefresh,
+              });
+              const topTokensRaw = Array.isArray(insights?.topTokens) ? insights.topTokens : [];
+              const normalizedTokens = topTokensRaw
+                .map((entry) => {
+                  if (typeof entry === 'string') return entry;
+                  if (entry && typeof entry === 'object') return safeString(entry.token || entry.value || entry.word);
+                  return '';
+                })
+                .map(normalizeTitleHintToken)
+                .filter(isValidTitleHintToken);
+              const deduped = [];
+              const seen = new Set();
+              for (const token of normalizedTokens) {
+                const key = token.toLowerCase();
+                if (seen.has(key)) continue;
+                seen.add(key);
+                deduped.push(token);
+              }
+              categoryInsightCache.set(cacheKey, deduped);
+            } catch (insightError) {
+              summary.titleInsightsFetchFailed += 1;
+              categoryInsightCache.set(cacheKey, []);
+              if (debug && samples.length < 10) {
+                samples.push({
+                  id,
+                  sku,
+                  status: 'title_insight_error',
+                  categoryId: insightCategoryId,
+                  message: insightError?.message || String(insightError),
+                });
+              }
+            }
+          }
+          insightTokens = (categoryInsightCache.get(cacheKey) || []).slice(0, insightsMaxHints);
+        }
+      }
+
+      const nextTitle = coerceTitleToPolicy(cur, currentTitle, {
+        minLen,
+        maxLen,
+        softMaxLen,
+        extraHintTokens: insightTokens,
+      });
       const nextLen = safeString(nextTitle).length;
       const afterIssues = validateTitleToPolicy(cur, nextTitle, { maxLen, mobileMaxLen }) || [];
       if (!nextTitle || nextLen === 0 || nextLen > 80) {
         summary.invalid_after += 1;
         if (debug && samples.length < 10) {
-          samples.push({ id, sku, status: 'invalid_after', before: currentTitle, after: nextTitle, beforeIssues, afterIssues });
+          samples.push({
+            id,
+            sku,
+            status: 'invalid_after',
+            before: currentTitle,
+            after: nextTitle,
+            beforeIssues,
+            afterIssues,
+            categoryId: insightCategoryId,
+            insightTokens,
+          });
         }
         continue;
       }
@@ -438,21 +603,26 @@ async function runBulkTitle({ apply = false, limit = 500, offset = 0, includeUi 
       if (apply) {
         cur.identification = { ...(cur.identification || {}), name: nextTitle };
         cur.ops = cur.ops || {};
-        cur.ops.last_saved_source = 'admin-bulk-title-v1';
+        cur.ops.last_saved_source = 'admin-bulk-title-v2';
         cur.ops.last_saved_iso = nowIso();
         cur.ops.data_quality = cur.ops.data_quality || {};
-        cur.ops.data_quality.title_policy_v2 = {
+        cur.ops.data_quality.title_policy_v3 = {
           iso: nowIso(),
           before: currentTitle,
           after: nextTitle,
           before_issues: beforeIssues,
           after_issues: afterIssues,
+          categoryId: insightCategoryId,
+          insight_tokens: insightTokens,
+          insights_enabled: useTitleInsights,
         };
         await saveProduct(cur, { source: 'admin-bulk', skipKeyFeaturesNormalize: true });
+        changedIds.push(String(id));
       }
       summary.updated += 1;
+      if (insightTokens.length > 0) summary.titleInsightsUsed += 1;
       if (!apply && samples.length < 15) {
-        samples.push({ id, sku, before: currentTitle, after: nextTitle, beforeIssues, afterIssues });
+        samples.push({ id, sku, before: currentTitle, after: nextTitle, beforeIssues, afterIssues, categoryId: insightCategoryId, insightTokens });
       }
     } catch (e) {
       summary.failed += 1;
@@ -460,7 +630,17 @@ async function runBulkTitle({ apply = false, limit = 500, offset = 0, includeUi 
     }
   }
 
-  return { summary, samples };
+  if (apply && useSyncToBaseLinker && changedIds.length > 0) {
+    baselinkerSyncJobIds = await enqueueBaseLinkerSyncJobs({
+      productIds: changedIds,
+      inventoryId,
+      mode: 'full',
+      requestedBy: 'admin-bulk-title-v2',
+    });
+    summary.baselinkerSyncJobs = baselinkerSyncJobIds.length;
+  }
+
+  return { summary, samples, baselinkerSyncJobIds };
 }
 
 function cleanupTitleTrailingDash(rawTitle = '') {
@@ -1311,7 +1491,29 @@ async function runBulkAction(action, payload = {}) {
   }
   if (a === 'title') {
     const includeUi = parseBool(payload.includeUi, false);
-    return runBulkTitle({ apply, limit, offset, includeUi, debug, productIds });
+    const syncToBaseLinker = parseBool(payload.syncToBaseLinker, true);
+    const titleInsights = parseBool(payload.titleInsights, true);
+    const titleInsightsQuery = safeString(payload.titleInsightsQuery || payload.query);
+    const titleInsightsForceRefresh = parseBool(payload.titleInsightsForceRefresh, false);
+    const titleInsightsLimit = Math.max(10, Math.min(200, Number(payload.titleInsightsLimit) || 80));
+    const titleInsightsMaxHints = Math.max(0, Math.min(20, Number(payload.titleInsightsMaxHints) || 8));
+    const marketplaceId = safeString(payload.marketplaceId || payload.ebayMarketplaceId || '');
+    return runBulkTitle({
+      apply,
+      limit,
+      offset,
+      includeUi,
+      debug,
+      productIds,
+      inventoryId,
+      syncToBaseLinker,
+      titleInsights,
+      titleInsightsQuery,
+      titleInsightsForceRefresh,
+      titleInsightsLimit,
+      titleInsightsMaxHints,
+      marketplaceId,
+    });
   }
   if (a === 'title_trailing_dash' || a === 'title_trailing_dash_fix' || a === 'title_cleanup' || a === 'title-cleanup') {
     return runBulkTitleTrailingDashFix({ apply, limit, offset, debug, productIds, inventoryId });

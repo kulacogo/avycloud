@@ -454,11 +454,22 @@ interface IdentificationJobsResponse {
   };
 }
 
-export async function searchEbayCategories({ q, id, limit = 50 }: { q?: string; id?: string; limit?: number }) {
+export async function searchEbayCategories({
+  q,
+  id,
+  limit = 50,
+  leafOnly,
+}: {
+  q?: string;
+  id?: string;
+  limit?: number;
+  leafOnly?: boolean;
+}) {
   const url = new URL(`${BACKEND_URL}/api/ebay/categories`);
   if (q) url.searchParams.set('q', q);
   if (id) url.searchParams.set('id', id);
   url.searchParams.set('limit', String(limit));
+  if (leafOnly) url.searchParams.set('leafOnly', 'true');
   const res = await fetchApi(url.toString(), { method: 'GET' });
   const data = await parseResponse(res);
   return (data?.items || []) as EbayCategoryOption[];
@@ -1745,11 +1756,13 @@ export const fetchEbayCategories = async (params: {
   query?: string;
   id?: string;
   limit?: number;
+  leafOnly?: boolean;
 } = {}): Promise<EbayCategoryOption[]> => {
   const query = new URLSearchParams();
   if (params.query) query.set('q', params.query);
   if (params.id) query.set('id', params.id);
   if (params.limit) query.set('limit', String(params.limit));
+  if (params.leafOnly) query.set('leafOnly', 'true');
   const url = query.toString()
     ? `${BACKEND_URL}/api/ebay/categories?${query.toString()}`
     : `${BACKEND_URL}/api/ebay/categories`;

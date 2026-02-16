@@ -28,9 +28,96 @@ const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 const { filterBarcodesByWebConfirm } = require('../lib/barcode-web-confirm');
 const { searchWeb, fetchPageText } = require('../lib/web-search-html');
 const { evaluateEbayReady } = require('../lib/datasheet-quality');
+const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
+}
+
+const TITLE_INSIGHTS_TOKEN_RE = /^[0-9a-zA-ZäöüÄÖÜß+\-_/().]{2,24}$/;
+
+function normalizeTitleInsightToken(raw) {
+  return safeString(raw)
+    .replace(/[\u0000-\u001f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isValidTitleInsightToken(token) {
+  if (!token || !TITLE_INSIGHTS_TOKEN_RE.test(token)) return false;
+  if (/^(ean|gtin|upc|isbn)$/i.test(token)) return false;
+  if (/^\d{8,14}$/.test(token)) return false;
+  return true;
+}
+
+function resolveEbayCategoryIdForProduct(product) {
+  const details = product?.details && typeof product.details === 'object' ? product.details : {};
+  const attributes =
+    details.attributes && typeof details.attributes === 'object' && !Array.isArray(details.attributes)
+      ? details.attributes
+      : {};
+  const identification =
+    product?.identification && typeof product.identification === 'object' ? product.identification : {};
+  const resolved = resolveEbayCategory({ details, attributes, identification });
+  return (
+    [
+      details.categoryId,
+      details.ebayCategoryId,
+      resolved?.id,
+      attributes.ebay_category_id,
+      attributes.ebayCategoryId,
+      attributes.category_id,
+      attributes.categoryId,
+      attributes['ebay.category_id'],
+    ]
+      .map((v) => safeString(v))
+      .find((v) => /^\d+$/.test(v)) || ''
+  );
+}
+
+async function loadTitleInsightsForProduct(product, { cache = null, limit = 80, maxTokens = 8 } = {}) {
+  const categoryId = resolveEbayCategoryIdForProduct(product);
+  const normalizedLimit = Math.max(10, Math.min(200, Number(limit) || 80));
+  const normalizedMaxTokens = Math.max(1, Math.min(20, Number(maxTokens) || 8));
+  const cacheKey = `${categoryId}|${normalizedLimit}|${normalizedMaxTokens}`;
+  const fallback = { categoryId: categoryId || null, topTokens: [], sampleTitles: [], error: null };
+  if (!categoryId) return fallback;
+  if (cache && cache.has(cacheKey)) return cache.get(cacheKey);
+  try {
+    const insights = await fetchCategoryTitleInsights({ categoryId, limit: normalizedLimit });
+    const raw = Array.isArray(insights?.topTokens) ? insights.topTokens : [];
+    const topTokens = [];
+    const seen = new Set();
+    for (const item of raw) {
+      const token =
+        typeof item === 'string'
+          ? item
+          : item && typeof item === 'object'
+            ? item.token || item.value || item.word || ''
+            : '';
+      const normalized = normalizeTitleInsightToken(token);
+      if (!isValidTitleInsightToken(normalized)) continue;
+      const key = normalized.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      topTokens.push(normalized);
+      if (topTokens.length >= normalizedMaxTokens) break;
+    }
+    const loaded = {
+      categoryId,
+      topTokens,
+      sampleTitles: Array.isArray(insights?.sampleTitles)
+        ? insights.sampleTitles.map((t) => safeString(t)).filter(Boolean).slice(0, 5)
+        : [],
+      error: null,
+    };
+    if (cache) cache.set(cacheKey, loaded);
+    return loaded;
+  } catch (e) {
+    const withError = { ...fallback, error: safeString(e?.message || e) || 'title_insights_unavailable' };
+    if (cache) cache.set(cacheKey, withError);
+    return withError;
+  }
 }
 
 // Clean JSON schema to be compatible with Gemini responseSchema
@@ -509,6 +596,7 @@ function buildUserPrompt({
   locale,
   fileCount = 0,
   improveContext = null,
+  titleInsights = null,
   ocrTextSnippets = [],
   ocrNumericValues = [],
   webEvidence = null,
@@ -565,6 +653,11 @@ function buildUserPrompt({
       improveContext
     );
   }
+  if (Array.isArray(titleInsights?.topTokens) && titleInsights.topTokens.length) {
+    parts.push(
+      `eBay Titel-Keyword-Hinweise (Kategorie ${titleInsights?.categoryId || 'n/a'}): ${titleInsights.topTokens.join(', ')}`
+    );
+  }
 
   if (webEvidence) {
     parts.push(
@@ -578,6 +671,8 @@ function buildUserPrompt({
     `1. Analysiere Bilder/OCR/Barcodes, um Marke/Modell zu erkennen.`,
     `2. Titel & Copy marketplace-ready:`,
     `   - Titel: Mobile-first. Priorität A in den ersten 60 Zeichen (schema-/kategorieabhängig; siehe TITLE-SCHEMA GUIDELINES im Policy-Block). Optimal 65–75, Hard-Max 80.`,
+    `   - Titel muss search-native sein: nutze relevante Käufer-Keywords (falls vorhanden aus eBay Titel-Keyword-Hinweisen), keine Marketingfloskeln.`,
+    `   - Nie EAN/GTIN/UPC/ISBN, SKU oder interne IDs im Titel ausgeben.`,
     `   - Zustand: Wenn nicht explizit vorhanden, setze Attribut "Zustand" = "NEU". "Gebraucht" nur wenn im Datensatz gesetzt.`,
     `   - short_description: mind. 3 Absätze à 2 Sätze (Einsatz, Nutzen, Ausstattung, Material/Verarbeitung, Lieferumfang, Bedienung/Pflege).`,
     `   - key_features: 5-7 Nutzen-Bullets, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen).`,
@@ -1348,7 +1443,11 @@ const DATASHEET_REVIEW_SCHEMA = {
   },
 };
 
-function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues = [], llmOverrides = null } = {}) {
+function buildReviewPrompt(
+  product,
+  locale,
+  { webEvidence = null, qualityIssues = [], llmOverrides = null, titleInsights = null } = {}
+) {
   const snapshot = {
     id: product?.id,
     brand: product?.identification?.brand,
@@ -1358,6 +1457,7 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
     highlights: product?.details?.key_features,
     attributes: product?.details?.attributes,
     ebayCategoryId: product?.details?.ebayCategoryId,
+    ebayTitleInsightTokens: Array.isArray(titleInsights?.topTokens) ? titleInsights.topTokens : [],
     condition_locked: Boolean(product?.ops?.condition_locked),
   };
 
@@ -1385,6 +1485,9 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
     'GPSR/Compliance: Wenn WEB-EVIDENZ Hersteller/Verantwortlicher enthält, extrahiere und liefere gpsr.* (Adresse/Ort/PLZ/Land/E-Mail/Telefon/Name). Wenn nicht belegbar: Felder leer lassen (nicht raten).';
   const idsLine =
     'Identifiers: Wenn WEB-EVIDENZ/OCR MPN/Herstellernummer/EAN/GTIN/UPC enthält, liefere identifiers.* und zusätzlich als Attribute (z.B. "Herstellernummer"). Keine IDs erfinden.';
+  const titleInsightLine = Array.isArray(titleInsights?.topTokens) && titleInsights.topTokens.length
+    ? `Titel-Keyword-Hinweise aus eBay Kategorie ${titleInsights?.categoryId || catIdRaw || 'n/a'}: ${titleInsights.topTokens.join(', ')}`
+    : 'Titel-Keyword-Hinweise: nicht verfügbar. Nutze nur belegbare Suchbegriffe aus Kategorie + Produktdaten.';
 
   const promptMode = llmOverrides?.promptMode === 'replace' ? 'replace' : 'append';
   const rulesMode = llmOverrides?.rulesMode === 'replace' ? 'replace' : 'append';
@@ -1415,7 +1518,9 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
     fitmentLine,
     idsLine,
     gpsrLine,
+    titleInsightLine,
     '- Werte in Attributen/Highlights nur als Klartext UTF-8 ausgeben (keine HTML-Entities wie &deg; oder &Ouml;).',
+    '- Titel strikt search-native: keine Marketingfloskeln, keine EAN/GTIN/UPC/ISBN, keine erfundenen Claims.',
     '- Plausibilitätscheck: Nutze WEB-EVIDENZ (Marktplatz-Suchergebnisse, falls enthalten) um Daten zu verifizieren und fehlende Spezifikationen zu ergänzen. Erfinde keine Werte.',
     '- Beschreibung: SEO-stark und gut lesbar. HTML ist erlaubt (nur <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität/Abmessungen/Gewicht (nur wenn belegbar). Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',
     '- Highlights: 5–7 Bulletpoints, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen). Neutral formulieren (kein "Ihr/Dein"), technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
@@ -1432,7 +1537,7 @@ function buildReviewPrompt(product, locale, { webEvidence = null, qualityIssues 
   ].filter(Boolean).join('\n\n');
 }
 
-function applyReviewResult(product, review) {
+function applyReviewResult(product, review, { titleHintTokens = [] } = {}) {
   if (!product || !review) return;
   product.identification = product.identification || {};
   product.details = product.details || {};
@@ -1458,7 +1563,15 @@ function applyReviewResult(product, review) {
       : '';
 
   if (typeof review.title === 'string' && review.title.trim().length >= 10) {
-    product.identification.name = coerceTitleToPolicy(product, review.title, { minLen: 65, maxLen: 80, softMaxLen: 75 });
+    const extraHintTokens = Array.isArray(titleHintTokens)
+      ? titleHintTokens.map(normalizeTitleInsightToken).filter(isValidTitleInsightToken).slice(0, 12)
+      : [];
+    product.identification.name = coerceTitleToPolicy(product, review.title, {
+      minLen: 65,
+      maxLen: 80,
+      softMaxLen: 75,
+      extraHintTokens,
+    });
   }
   if (typeof review.short_description === 'string' && review.short_description.trim().length > 0) {
     const cleanedDescription = sanitizeListingText(review.short_description);
@@ -1744,9 +1857,15 @@ async function runDatasheetReview(
     }
   };
 
+  const titleInsightCache = new Map();
   for (const product of products) {
     if (!product) continue;
     try {
+      const titleInsights = await loadTitleInsightsForProduct(product, {
+        cache: titleInsightCache,
+        limit: Math.max(10, Math.min(200, Number(process.env.ENRICHMENT_TITLE_INSIGHTS_LIMIT) || 80)),
+        maxTokens: Math.max(1, Math.min(20, Number(process.env.ENRICHMENT_TITLE_INSIGHTS_MAX_TOKENS) || 8)),
+      });
       const generationConfig = {
         temperature: 0.2, // Low temperature for consistent reasoning
         topP: 0.95,
@@ -1806,6 +1925,7 @@ async function runDatasheetReview(
             text: buildReviewPrompt(product, locale, {
               webEvidence: mergedEvidence,
               qualityIssues: qualityIssuesById && product?.id ? (qualityIssuesById[product.id] || []) : [],
+              titleInsights,
               llmOverrides: llmConfig
                 ? {
                     promptText: llmConfig.promptText,
@@ -1831,7 +1951,9 @@ async function runDatasheetReview(
       const rawText = (textParts.join('') || (typeof resp?.text === 'function' ? resp.text() : '') || '').trim();
       const jsonPayload = extractJsonPayload(rawText);
       const review = JSON.parse(jsonPayload);
-      applyReviewResult(product, review);
+      applyReviewResult(product, review, {
+        titleHintTokens: Array.isArray(titleInsights?.topTokens) ? titleInsights.topTokens : [],
+      });
     } catch (error) {
       console.warn(
         `Datasheet review failed for product ${product?.id || 'unknown'}:`,
@@ -1951,8 +2073,17 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
   const targetModelName = resolveModel(null, 'MARKETING_MODEL', 'gemini-2.5-flash');
   const client = await getGeminiClient();
   const model = client.getGenerativeModel({ model: targetModelName });
+  const titleInsightCache = new Map();
 
   for (const product of products) {
+    const titleInsights = await loadTitleInsightsForProduct(product, {
+      cache: titleInsightCache,
+      limit: Math.max(10, Math.min(200, Number(process.env.ENRICHMENT_TITLE_INSIGHTS_LIMIT) || 80)),
+      maxTokens: Math.max(1, Math.min(20, Number(process.env.ENRICHMENT_TITLE_INSIGHTS_MAX_TOKENS) || 8)),
+    });
+    const extraHintTokens = Array.isArray(titleInsights?.topTokens)
+      ? titleInsights.topTokens.map(normalizeTitleInsightToken).filter(isValidTitleInsightToken).slice(0, 12)
+      : [];
     if (needsMarketingRewrite(product)) {
       try {
         const generationConfig = {
@@ -1972,7 +2103,12 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
 
         product.identification = {
           ...product.identification,
-          name: coerceTitleToPolicy(product, rewrite.title, { minLen: 65, maxLen: 80, softMaxLen: 75 }),
+          name: coerceTitleToPolicy(product, rewrite.title, {
+            minLen: 65,
+            maxLen: 80,
+            softMaxLen: 75,
+            extraHintTokens,
+          }),
         };
         product.details = product.details || {};
         const cleanedDescription = sanitizeListingText(rewrite.description || '');
@@ -2555,6 +2691,7 @@ async function runProductIdentification({
   locale = 'de-DE',
   modelOverride = null,
   improveContext = null,
+  titleInsights = null,
   skipExternalSearch = false,
   onProgress = null,
 }) {
@@ -2648,6 +2785,7 @@ async function runProductIdentification({
     locale,
     fileCount: files.length,
     improveContext,
+    titleInsights,
     ocrTextSnippets: ocrPayload.textSnippets || [],
     ocrNumericValues: ocrPayload.numericValues || [],
     webEvidence: webConfirmTrace ? JSON.stringify({ type: 'barcode_web_confirm', trace: webConfirmTrace }, null, 2) : null,
@@ -2743,6 +2881,7 @@ async function runProductIdentification({
           locale,
           fileCount: files.length,
           improveContext,
+          titleInsights,
           ocrTextSnippets: ocrPayload.textSnippets || [],
           ocrNumericValues: ocrPayload.numericValues || [],
           webEvidence,

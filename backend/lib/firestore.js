@@ -1032,6 +1032,12 @@ function enforceEbayAspects(product) {
   }
 
   if (!catId) {
+    // Strict category governance:
+    // If no valid eBay category id exists, do not keep any free-text category label.
+    if (product?.identification && typeof product.identification === 'object') {
+      product.identification.category = '';
+    }
+
     // No category -> normalize keys a bit and sort alphabetically.
     const nextAttrs = {};
     const nextExtra = { ...(existingExtra || {}) };

@@ -240,6 +240,8 @@ export interface DatasheetChange {
   summary?: string;
   title?: string;
   identity?: Partial<Identification>;
+  categoryId?: string;
+  categoryPath?: string;
   baselinkerCategoryId?: string;
   baselinkerCategoryPath?: string;
   short_description?: string;
@@ -480,6 +482,7 @@ export interface EbayCategoryOption {
   id: string;
   breadcrumb: string;
   name?: string;
+  leaf?: boolean;
 }
 
 export interface BaseLinkerCategoryOption {

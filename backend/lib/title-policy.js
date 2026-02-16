@@ -31,17 +31,25 @@ const STOP_WORDS = new Set([
  *
  * When disabled, we still do minimal deterministic sanitization + hard max length enforcement.
  */
+function parseBoolFlag(raw) {
+  const v = safeString(raw).toLowerCase();
+  if (!v) return null;
+  if (v === '1' || v === 'true' || v === 'yes' || v === 'y') return true;
+  if (v === '0' || v === 'false' || v === 'no' || v === 'n') return false;
+  return null;
+}
+
 function isTitlePolicyDisabled() {
-  // Default: disabled. Opt-in only.
-  const enabled = (process.env.TITLE_POLICY_ENABLED || '').toString().trim().toLowerCase();
-  if (enabled === '1' || enabled === 'true' || enabled === 'yes') {
-    return false;
+  // Default: enabled. Explicit opt-out via TITLE_POLICY_DISABLED=true.
+  const disabledFlag = parseBoolFlag(process.env.TITLE_POLICY_DISABLED ?? process.env.DISABLE_TITLE_POLICY);
+  if (disabledFlag !== null) {
+    return disabledFlag;
   }
-  const v = (process.env.TITLE_POLICY_DISABLED || process.env.DISABLE_TITLE_POLICY || '').toString().trim().toLowerCase();
-  if (v === '0' || v === 'false' || v === 'no') {
-    return false;
+  const enabledFlag = parseBoolFlag(process.env.TITLE_POLICY_ENABLED);
+  if (enabledFlag !== null) {
+    return !enabledFlag;
   }
-  return true;
+  return false;
 }
 
 const SHORT_OK_WORDS = new Set([
@@ -106,6 +114,26 @@ const DEFAULT_TITLE_SOFT_MAX_LEN = 75;
 const DEFAULT_TITLE_TARGET_MIN_LEN = 65;
 const DEFAULT_TITLE_MOBILE_PRIORITY_MAX_LEN = 60;
 const { normalizeBrandDisplayCase } = require('./brand-normalize');
+
+const TRAILING_CONNECTOR_WORDS = new Set([
+  'und',
+  'oder',
+  'mit',
+  'ohne',
+  'für',
+  'fur',
+  'von',
+  'vom',
+  'zur',
+  'zum',
+  'im',
+  'am',
+  'an',
+  'auf',
+  'in',
+  'bei',
+  'als',
+]);
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -195,6 +223,8 @@ function normalizeTitleToken(token = '') {
   t = stripMarketingWords(t);
   // Never allow internal SKU fragments into title tokens (CSV: "Nicht verwenden: SKU").
   t = stripSkuNoise(t);
+  // Never allow barcode fragments (EAN/GTIN/UPC) inside title tokens.
+  t = stripBarcodeNoise(t);
   // Remove bullet-like chars inside tokens (keep dots/hyphens for MPNs).
   t = t.replace(/[•·]/g, ' ');
   // Convert decimal comma to dot (avoid "8 5cm" after comma removal).
@@ -203,6 +233,11 @@ function normalizeTitleToken(token = '') {
   t = t.replace(/[,;]+/g, ' ');
   // Replace ampersands with spaces (no marketing style "X & Y")
   t = t.replace(/&/g, ' ');
+  // Remove explicit barcode labels and pure barcode tokens.
+  t = t
+    .split(/\s+/g)
+    .filter((w) => w && !/^(ean|gtin|upc|isbn)$/i.test(w) && !isPureBarcodeToken(w))
+    .join(' ');
   // Trim separators at ends (ASCII + Unicode punctuation/symbols)
   t = t.replace(/^[-–—,:;|]+/g, '').replace(/[-–—,:;|]+$/g, '');
   t = t.replace(/^[\p{P}\p{S}]+/gu, '').replace(/[\p{P}\p{S}]+$/gu, '');
@@ -424,13 +459,26 @@ function stripMarkdownDecorations(text = '') {
   return normalizeSpaces(t);
 }
 
+function stripBarcodeNoise(text = '') {
+  return normalizeSpaces(
+    safeString(text)
+      // Labeled barcode fragments.
+      .replace(/\b(?:ean|gtin|upc|isbn)\b[\s:;#-]*\d{8,14}\b/gi, ' ')
+      .replace(/\b(?:ean|gtin|upc|isbn)\b/gi, ' ')
+      // Standalone long digit tokens are usually barcodes, not search keywords.
+      .replace(/\b\d{12,14}\b/g, ' ')
+  );
+}
+
 function stripSkuNoise(text = '') {
-  return stripMarkdownDecorations(text)
-    // Remove SKU tokens, including common Unicode hyphen variants (e.g. "SKU‑123").
-    .replace(/\bSKU[\s\-_‑–—]?\d+\b/gi, '')
-    .replace(/\bSKU\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return stripBarcodeNoise(
+    stripMarkdownDecorations(text)
+      // Remove SKU tokens, including common Unicode hyphen variants (e.g. "SKU‑123").
+      .replace(/\bSKU[\s\-_‑–—]?\d+\b/gi, ' ')
+      .replace(/\bSKU\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 }
 
 function stripUsedCondition(text = '') {
@@ -470,8 +518,26 @@ function truncateToMax(title, maxLen) {
   // Try cutting at last space before maxLen
   const cut = t.slice(0, maxLen);
   const idx = cut.lastIndexOf(' ');
-  if (idx > 40) return cut.slice(0, idx).trim();
-  return cut.trim();
+  if (idx > 40) return stripDanglingTailTokens(cut.slice(0, idx).trim());
+  return stripDanglingTailTokens(cut.trim());
+}
+
+function stripDanglingTailTokens(value = '') {
+  let out = normalizeSpaces(String(value || ''));
+  if (!out) return '';
+  // Remove punctuation/symbol tails first.
+  out = out.replace(/[\p{P}\p{S}]+$/gu, '').trim();
+  if (!out) return '';
+  const words = out.split(/\s+/g).filter(Boolean);
+  while (words.length > 1) {
+    const tail = safeString(words[words.length - 1]).toLowerCase();
+    if (!tail) break;
+    if (!TRAILING_CONNECTOR_WORDS.has(tail)) break;
+    words.pop();
+  }
+  out = normalizeSpaces(words.join(' '));
+  out = out.replace(/[\p{P}\p{S}]+$/gu, '').trim();
+  return out;
 }
 
 function extractWords(text = '', { max = 60 } = {}) {
@@ -1351,6 +1417,10 @@ function validateTitleToPolicy(
   if (raw && raw.match(/^[^\p{L}\p{N}]+/u)) {
     issues.push('title_starts_with_symbol');
   }
+  const cleanedTail = stripDanglingTailTokens(t);
+  if (cleanedTail !== t) {
+    issues.push('title_dangling_tail');
+  }
   const firstWord = safeString(t.split(/\s+/g)[0] || '').toLowerCase();
   const runtime = getRuntimeMarketingWords();
   if (runtime.has(firstWord) || ['hochwert', 'robust', 'vielseit', 'nachhalt', 'stilvoll', 'stylish', 'premium', 'angebot', 'original', 'neu', 'top'].some((r) => firstWord.startsWith(r))) {
@@ -1501,7 +1571,12 @@ function appendTokens(title, tokens, { minLen, maxLen }) {
 function coerceTitleToPolicy(
   product,
   proposedTitle,
-  { minLen = DEFAULT_TITLE_TARGET_MIN_LEN, maxLen = DEFAULT_TITLE_MAX_LEN, softMaxLen = DEFAULT_TITLE_SOFT_MAX_LEN } = {}
+  {
+    minLen = DEFAULT_TITLE_TARGET_MIN_LEN,
+    maxLen = DEFAULT_TITLE_MAX_LEN,
+    softMaxLen = DEFAULT_TITLE_SOFT_MAX_LEN,
+    extraHintTokens = [],
+  } = {}
 ) {
   // Web-only mode: do NOT apply schema rules. Keep only minimal sanitization + hard max length.
   if (isTitlePolicyDisabled()) {
@@ -1523,6 +1598,12 @@ function coerceTitleToPolicy(
   if (!conditionLocked) {
     hintTitle = stripUsedCondition(hintTitle);
   }
+  const injectedHints = Array.isArray(extraHintTokens)
+    ? extraHintTokens.map((v) => normalizeTitleToken(v)).filter(Boolean).slice(0, 8)
+    : [];
+  if (injectedHints.length) {
+    hintTitle = normalizeSpaces([hintTitle, ...injectedHints].join(' '));
+  }
   hintTitle = normalizeSpaces(hintTitle);
 
   const schemaId = inferSchemaId(product);
@@ -1541,6 +1622,7 @@ function coerceTitleToPolicy(
   title = stripLeadingNonAlnum(title);
   title = normalizeSpaces(title);
   if (title.length > maxLen) title = truncateToMax(title, maxLen);
+  title = stripDanglingTailTokens(title);
   return title;
 }
 

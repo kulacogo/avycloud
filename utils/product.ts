@@ -107,6 +107,27 @@ const safeString = (value: unknown): string => {
   return value == null ? '' : String(value).trim();
 };
 
+const pickEbayCategoryIdFromAttributes = (attributes: Record<string, unknown> | undefined): string => {
+  if (!attributes || typeof attributes !== 'object') return '';
+  const direct =
+    safeString(attributes.ebay_category_id) ||
+    safeString(attributes.ebayCategoryId) ||
+    safeString(attributes.category_id) ||
+    safeString(attributes.categoryId);
+  if (direct) {
+    const digits = direct.replace(/\D+/g, '');
+    return digits || '';
+  }
+  const key = Object.keys(attributes).find((k) => {
+    const lower = safeString(k).toLowerCase();
+    return lower === 'kategorie-id' || lower === 'kategorie id' || lower === 'kategorie_id';
+  });
+  if (!key) return '';
+  const value = safeString((attributes as Record<string, unknown>)[key]);
+  const digits = value.replace(/\D+/g, '');
+  return digits || '';
+};
+
 const normalizeBreadcrumb = (value: unknown): string => {
   const raw = safeString(value).replace(/\s+/g, ' ');
   if (!raw) return '';
@@ -162,11 +183,48 @@ export const getProductBaselinkerCategoryPath = (product: Product): string => {
 };
 
 /**
+ * Canonical eBay category id for product datasheets/listings.
+ * Falls back to known legacy fields where possible.
+ */
+export const getProductEbayCategoryId = (product: Product): string => {
+  const details: any = product?.details || {};
+  const attrs =
+    details?.attributes && typeof details.attributes === 'object' && !Array.isArray(details.attributes)
+      ? (details.attributes as Record<string, unknown>)
+      : undefined;
+  const direct =
+    safeString(details?.categoryId) ||
+    safeString(details?.ebayCategoryId) ||
+    safeString(details?.ebay_category_id) ||
+    pickEbayCategoryIdFromAttributes(attrs);
+  if (!direct) return '';
+  const digits = direct.replace(/\D+/g, '');
+  return digits || direct;
+};
+
+/**
+ * Canonical eBay category breadcrumb.
+ * We intentionally do not fall back to BaseLinker inventory categories.
+ */
+export const getProductEbayCategoryPath = (product: Product): string => {
+  const categoryId = getProductEbayCategoryId(product);
+  if (!categoryId) return '';
+  const details: any = product?.details || {};
+  const fromIdentification = normalizeBreadcrumb(product?.identification?.category);
+  if (fromIdentification) return fromIdentification;
+  const fromLegacyPath =
+    normalizeBreadcrumb(details?.ebayCategoryPath) ||
+    normalizeBreadcrumb(details?.ebayCategoryBreadcrumb);
+  if (fromLegacyPath) return fromLegacyPath;
+  return '';
+};
+
+/**
  * UI display category:
- * - Use BaseLinker category breadcrumb only (inventory taxonomy)
- * - If missing, show placeholder instead of mixing in eBay taxonomy
+ * - Use eBay category breadcrumb only (listing taxonomy)
+ * - If missing/unknown, show placeholder
  */
 export const getProductDisplayCategory = (product: Product): string => {
-  const blCategory = getProductBaselinkerCategoryPath(product);
-  return blCategory || '—';
+  const ebayCategory = getProductEbayCategoryPath(product);
+  return ebayCategory || '—';
 };

@@ -27,6 +27,7 @@ const {
 const { getRequiredAspects, buildRequiredAspectMeta, getRequiredAspectCatalogStats } = require('../lib/ebay-taxonomy');
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 const { getRulebookConfigCached } = require('../lib/rulebook-config');
+const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
 const { htmlToText } = require('../lib/web-search-html');
 const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 
@@ -63,6 +64,65 @@ function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
 }
 
+const TITLE_INSIGHT_TOKEN_RE = /^[0-9a-zA-ZäöüÄÖÜß+\-_/().]{2,24}$/;
+
+function normalizeTitleInsightToken(raw) {
+  return safeString(raw)
+    .replace(/[\u0000-\u001f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isValidTitleInsightToken(token) {
+  if (!token || !TITLE_INSIGHT_TOKEN_RE.test(token)) return false;
+  if (/^(ean|gtin|upc|isbn)$/i.test(token)) return false;
+  if (/^\d{8,14}$/.test(token)) return false;
+  return true;
+}
+
+function extractTitleInsightTokens(insights, { maxTokens = 8 } = {}) {
+  const raw = Array.isArray(insights?.topTokens) ? insights.topTokens : [];
+  const out = [];
+  const seen = new Set();
+  for (const item of raw) {
+    const candidate =
+      typeof item === 'string'
+        ? item
+        : item && typeof item === 'object'
+          ? item.token || item.value || item.word || ''
+          : '';
+    const normalized = normalizeTitleInsightToken(candidate);
+    if (!isValidTitleInsightToken(normalized)) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+    if (out.length >= Math.max(1, Math.min(20, Number(maxTokens) || 8))) break;
+  }
+  return out;
+}
+
+async function loadTitleInsightsForProduct(product, { limit = 80, maxTokens = 8 } = {}) {
+  const categoryId = resolveProductCategoryId(product);
+  const output = {
+    categoryId: categoryId || null,
+    topTokens: [],
+    sampledTitles: [],
+    error: null,
+  };
+  if (!categoryId) return output;
+  try {
+    const insights = await fetchCategoryTitleInsights({ categoryId, limit: Math.max(10, Math.min(200, Number(limit) || 80)) });
+    output.topTokens = extractTitleInsightTokens(insights, { maxTokens });
+    output.sampledTitles = Array.isArray(insights?.sampleTitles)
+      ? insights.sampleTitles.map((t) => safeString(t)).filter(Boolean).slice(0, 5)
+      : [];
+  } catch (e) {
+    output.error = safeString(e?.message || e) || 'title_insights_unavailable';
+  }
+  return output;
+}
+
 function decodePlainText(value) {
   return decodeHtmlEntitiesDeep(value).replace(/\s+/g, ' ').trim();
 }
@@ -85,7 +145,7 @@ function pickBestUrl(results = []) {
   return scored[0] || null;
 }
 
-async function forceOneEvidencePass(product, userMessage, { scope = null, notesOnly = false } = {}) {
+async function forceOneEvidencePass(product, userMessage, { scope = null, notesOnly = false, titleHintTokens = [] } = {}) {
   const locale = 'de-DE';
   const title = safeString(product?.identification?.name);
   const brand = safeString(product?.identification?.brand);
@@ -238,7 +298,7 @@ async function forceOneEvidencePass(product, userMessage, { scope = null, notesO
   const calls = updateResp.response.functionCalls?.() || [];
   const call = calls.find((c) => c?.name === 'update_product_datasheet');
   const changeArgs = call?.args && typeof call.args === 'object' ? call.args : {};
-  const sanitized = sanitizeDatasheetChange(changeArgs, product, { scope });
+  const sanitized = sanitizeDatasheetChange(changeArgs, product, { scope, titleHintTokens });
   const nextChange = sanitized?.change && typeof sanitized.change === 'object' ? sanitized.change : {};
   if (!Object.keys(nextChange).length) {
     // Ensure at least notes exist
@@ -1037,7 +1097,7 @@ function hasValidLocalBarcode(product) {
   });
 }
 
-function buildProductContext(product, { attachments = [], mode = 'short', marketingFocus = false } = {}) {
+function buildProductContext(product, { attachments = [], mode = 'short', marketingFocus = false, titleInsights = null } = {}) {
   const attributes = toAttributesObject(product?.details?.attributes);
   const dimensions = extractDimensionsFromAttributes(attributes);
   const categoryIdRaw = resolveProductCategoryId(product, attributes);
@@ -1075,6 +1135,12 @@ function buildProductContext(product, { attachments = [], mode = 'short', market
         catalog_coverage: `${aspectStats.categoriesWithAspectData}/${aspectStats.totalCategories}`,
       },
       vehicle_fitment_mode: vehicleFitmentMode,
+      title_insights: {
+        category_id: titleInsights?.categoryId || categoryIdRaw || null,
+        top_tokens: Array.isArray(titleInsights?.topTokens) ? titleInsights.topTokens : [],
+        sampled_titles: Array.isArray(titleInsights?.sampledTitles) ? titleInsights.sampledTitles : [],
+        error: titleInsights?.error || null,
+      },
     },
     copy: {
       short_description: product?.details?.short_description || '',
@@ -1171,6 +1237,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     'You always respond in SHORT, ACTIONABLE messages by default (≤10 short sentences or ~1000 characters, ≤3 bullets, no section headers).',
     'You have full product context (data, images, OCR, identifiers, inventory, warehouse info) and must cross-check for inconsistencies or missing facts.',
     'For category work: use only valid eBay category IDs/breadcrumbs and treat ebay.required_aspects_meta.missing_required_aspects as mandatory enrichment backlog.',
+    'Title rule: build search-native eBay titles using ebay.title_insights.top_tokens when available; never include EAN/GTIN/UPC/ISBN, SKU/internal IDs, or marketing fluff.',
     'Aspect naming rule: when proposing attributes for eBay, prefer exact keys from ebay.required_aspects and do not invent marketplace-specific alias keys.',
     'Encoding rule: return plain UTF-8 text values (e.g. "60 °C", "Öko-Tex"), never HTML entities like "&deg;" or "&Ouml;".',
     'Use BrightData web_fetch only when external validation (competitors, specs) is truly needed; cite when you do.',
@@ -1211,6 +1278,8 @@ function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingF
   }
   lines.push('Vehicle fitment rule: If ebay.vehicle_fitment_mode is set, do NOT invent K-Typ. Only propose K-Typ if it is present in OCR/attachments or provided WEB-EVIDENZ.');
   lines.push('Category rule: use only valid eBay category IDs/breadcrumbs; do not propose non-eBay categories.');
+  lines.push('Title rule: prioritize ebay.title_insights.top_tokens as buyer search keywords; keep title <=80 chars and factual.');
+  lines.push('Never include EAN/GTIN/UPC/ISBN or unverifiable claims in titles.');
   lines.push('Aspect rule: prioritize filling ebay.required_aspects_meta.missing_required_aspects with evidence-backed values, and use exact aspect names from ebay.required_aspects.');
   lines.push('Output encoding rule: never use HTML entities in attribute values; use plain UTF-8 characters.');
   lines.push('If you propose edits, remember the {"edit": {...}} JSON rule.');
@@ -1229,7 +1298,7 @@ function sanitizeImageSuggestions(entry) {
     }));
 }
 
-function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
+function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens = [] } = {}) {
   const result = {};
   const policyIssues = [];
   const strict = strictRulesEnabled();
@@ -1551,7 +1620,15 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
       maxLen = Number(rule?.maxLen || 80);
       softMaxLen = Number(rule?.softMaxLen || 75);
     }
-    const coerced = coerceTitleToPolicy(draftProduct, rawTitleCandidate, { minLen, maxLen, softMaxLen });
+    const extraHintTokens = Array.isArray(titleHintTokens)
+      ? titleHintTokens.map(normalizeTitleInsightToken).filter(isValidTitleInsightToken).slice(0, 12)
+      : [];
+    const coerced = coerceTitleToPolicy(draftProduct, rawTitleCandidate, {
+      minLen,
+      maxLen,
+      softMaxLen,
+      extraHintTokens,
+    });
     identityPatch.name = coerced;
     // Keep an explicit title field so the frontend can display/apply it directly.
     result.title = coerced;
@@ -1618,10 +1695,17 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     }
   }
 
+  const titleInsights = await loadTitleInsightsForProduct(product, {
+    limit: Math.max(10, Math.min(200, Number(process.env.CHAT_TITLE_INSIGHTS_LIMIT) || 80)),
+    maxTokens: Math.max(1, Math.min(20, Number(process.env.CHAT_TITLE_INSIGHTS_MAX_TOKENS) || 8)),
+  });
+  const titleHintTokens = Array.isArray(titleInsights?.topTokens) ? titleInsights.topTokens : [];
+
   const productContext = buildProductContext(product, {
     attachments: attachmentPayload.summary,
     mode: conversationMode,
     marketingFocus,
+    titleInsights,
   });
   const serializedContext = JSON.stringify(productContext, null, 2);
 
@@ -1803,7 +1887,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
           toolResult = result;
         }
         else if (name === 'update_product_datasheet') {
-          const sanitized = sanitizeDatasheetChange(args, product, { scope });
+          const sanitized = sanitizeDatasheetChange(args, product, { scope, titleHintTokens });
           const nextChange = sanitized?.change && typeof sanitized.change === 'object' ? sanitized.change : {};
           const issues = Array.isArray(sanitized?.policyIssues) ? sanitized.policyIssues : [];
           if (issues.length) {
@@ -1916,7 +2000,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         const updateCalls = updateResponse.response.functionCalls?.() || [];
         const updateCall = updateCalls.find((call) => call?.name === 'update_product_datasheet');
         if (updateCall?.args && typeof updateCall.args === 'object') {
-          const sanitized = sanitizeDatasheetChange(updateCall.args, product, { scope });
+          const sanitized = sanitizeDatasheetChange(updateCall.args, product, { scope, titleHintTokens });
           const nextChange = sanitized?.change && typeof sanitized.change === 'object' ? sanitized.change : {};
           const issues = Array.isArray(sanitized?.policyIssues) ? sanitized.policyIssues : [];
           if (issues.length) {
@@ -1938,7 +2022,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     // We do not overwrite its changes; we only add a notes-only card + traces.
     if (!hasWebFetch && Array.isArray(datasheetChanges) && datasheetChanges.length > 0) {
       try {
-        const forcedNotes = await forceOneEvidencePass(product, userMessage, { scope, notesOnly: true });
+        const forcedNotes = await forceOneEvidencePass(product, userMessage, { scope, notesOnly: true, titleHintTokens });
         if (forcedNotes?.traces?.length) serpTrace.push(...forcedNotes.traces);
         if (Array.isArray(forcedNotes?.datasheetChanges) && forcedNotes.datasheetChanges.length) {
           datasheetChanges.push(...forcedNotes.datasheetChanges);
@@ -1952,7 +2036,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     // This ensures the UI always gets an actionable "Übernehmen" card (’at least notes’).
     if (!datasheetChanges || datasheetChanges.length === 0) {
       try {
-        const forced = await forceOneEvidencePass(product, userMessage, { scope });
+        const forced = await forceOneEvidencePass(product, userMessage, { scope, titleHintTokens });
         if (forced?.traces?.length) serpTrace.push(...forced.traces);
         if (Array.isArray(forced?.datasheetChanges) && forced.datasheetChanges.length) {
           forced.datasheetChanges.forEach((c) => datasheetChanges.push(c));

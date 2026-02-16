@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Product, DatasheetChange, ProductImage, WarehouseBin, BaseLinkerCategoryOption } from '../types';
+import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption } from '../types';
 import {
   saveProduct,
   syncToBaseLinker,
@@ -15,7 +15,7 @@ import {
   fetchProductById,
   setProductInventoryId,
   openInventoryLabelWindow,
-  fetchBaseLinkerCategories,
+  fetchEbayCategories,
 } from '../api/client';
 import { EditIcon, SaveIcon, SyncIcon, PrintIcon, MagicIcon, RefreshIcon, BarcodeIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
@@ -25,7 +25,12 @@ import PricingInfo from './PricingInfo';
 import AssistantChat from './GeminiChat';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, summarizeBarcodes, isValidGtin } from '../utils/gtin';
-import { getProductBaselinkerCategoryPath, getProductDisplayCategory } from '../utils/product';
+import {
+  getProductBaselinkerCategoryPath,
+  getProductDisplayCategory,
+  getProductEbayCategoryId,
+  getProductEbayCategoryPath,
+} from '../utils/product';
 import { useInventoryContext } from '../context/InventoryContext';
 
 interface ProductSheetProps {
@@ -153,7 +158,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   latestBarcodeInputRef.current = barcodeInput;
   const [categoryQuery, setCategoryQuery] = useState('');
   const [categoryQueryDebounced, setCategoryQueryDebounced] = useState('');
-  const [categoryOptions, setCategoryOptions] = useState<BaseLinkerCategoryOption[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<EbayCategoryOption[]>([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
 
@@ -267,12 +272,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   useEffect(() => {
     if (!isEditing) return;
-    const current = getProductBaselinkerCategoryPath(localProduct);
+    const current = getProductEbayCategoryPath(localProduct);
     setCategoryQuery((prev) => prev || String(current || ''));
   }, [
     isEditing,
-    localProduct.details?.baselinkerCategoryPath,
-    localProduct.details?.baselinkerCategories,
+    localProduct.details?.categoryId,
     localProduct.identification?.category,
   ]);
 
@@ -286,14 +290,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   useEffect(() => {
     if (!isEditing) return;
     const query = categoryQueryDebounced;
-    const params: { inventoryId: string; query?: string; id?: string; limit?: number; leafOnly?: boolean } = {
-      inventoryId: '78659',
+    const params: { query?: string; id?: string; limit?: number; leafOnly?: boolean } = {
       limit: 60,
       leafOnly: true,
     };
     if (query.length >= 2) params.query = query;
-    if (localProduct.details?.baselinkerCategoryId) {
-      params.id = String(localProduct.details.baselinkerCategoryId);
+    if (localProduct.details?.categoryId) {
+      params.id = String(localProduct.details.categoryId);
     }
     if (!params.query && !params.id) {
       setCategoryOptions([]);
@@ -304,7 +307,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     let active = true;
     setCategoryLoading(true);
     setCategoryError(null);
-    fetchBaseLinkerCategories(params)
+    fetchEbayCategories(params)
       .then((items) => {
         if (!active) return;
         setCategoryOptions(items);
@@ -321,7 +324,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     return () => {
       active = false;
     };
-  }, [isEditing, categoryQueryDebounced, localProduct.details?.baselinkerCategoryId]);
+  }, [isEditing, categoryQueryDebounced, localProduct.details?.categoryId]);
 
   const referenceImages = useMemo(
     () => filterReferenceCandidates(localProduct.details?.images || []),
@@ -732,7 +735,19 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         }
       }
 
-      // 1.5 BaseLinker category (single category)
+      // 1.5 eBay category (canonical)
+      if (change.categoryId || change.categoryPath) {
+        next.details = next.details || {};
+        next.identification = next.identification || {};
+        if (change.categoryId) {
+          (next.details as any).categoryId = String(change.categoryId).replace(/\D+/g, '').trim();
+        }
+        if (change.categoryPath) {
+          next.identification.category = String(change.categoryPath).trim();
+        }
+      }
+
+      // 1.6 BaseLinker category (legacy compatibility)
       if (change.baselinkerCategoryPath || change.baselinkerCategoryId) {
         next.details = next.details || {};
         if (change.baselinkerCategoryPath) {
@@ -949,19 +964,27 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   };
 
   const handleCategorySelect = useCallback(
-    (breadcrumb: string) => {
-      if (!breadcrumb) return;
+    (categoryId: string) => {
+      if (!categoryId) return;
       setLocalProduct((prev) => {
         const next = JSON.parse(JSON.stringify(prev));
         next.details = next.details || {};
-        const match = categoryOptions.find((opt) => opt.breadcrumb === breadcrumb);
+        next.identification = next.identification || {};
+        const match = categoryOptions.find((opt) => String(opt.id) === String(categoryId));
         if (match?.id) {
-          next.details.baselinkerCategoryId = String(match.id);
+          next.details.categoryId = String(match.id);
+        } else {
+          next.details.categoryId = String(categoryId);
         }
-        next.details.baselinkerCategoryPath = breadcrumb;
+        if (match?.breadcrumb) {
+          next.identification.category = String(match.breadcrumb);
+        }
         return next;
       });
-      setCategoryQuery(breadcrumb);
+      const selected = categoryOptions.find((opt) => String(opt.id) === String(categoryId));
+      if (selected?.breadcrumb) {
+        setCategoryQuery(selected.breadcrumb);
+      }
       setIsDirty(true);
     },
     [categoryOptions]
@@ -970,33 +993,39 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const attributesMap = useMemo(() => localProduct.details?.attributes || {}, [localProduct.details?.attributes]);
 
   const categorySelectOptions = useMemo(() => {
-    const options: BaseLinkerCategoryOption[] = [];
+    const options: EbayCategoryOption[] = [];
     const seen = new Set<string>();
     categoryOptions.forEach((opt) => {
-      if (!opt?.breadcrumb) return;
-      const key = String(opt.breadcrumb).toLowerCase();
+      const id = String(opt?.id || '').trim();
+      const breadcrumb = String(opt?.breadcrumb || '').trim();
+      if (!id || !breadcrumb) return;
+      const key = id;
       if (seen.has(key)) return;
       seen.add(key);
-      options.push(opt);
+      options.push({
+        id,
+        name: opt?.name || '',
+        breadcrumb,
+        leaf: opt?.leaf,
+      });
     });
-    const current = String(getProductBaselinkerCategoryPath(localProduct) || '').trim();
-    const currentId = String(localProduct.details?.baselinkerCategoryId || '').trim();
-    if (current) {
-      const key = current.toLowerCase();
+    const current = String(getProductEbayCategoryPath(localProduct) || '').trim();
+    const currentId = String(getProductEbayCategoryId(localProduct) || '').trim();
+    if (current && currentId) {
+      const key = currentId;
       if (!seen.has(key)) {
         options.unshift({
-          id: currentId || 'current',
+          id: currentId,
           name: 'Aktuell',
           breadcrumb: current,
+          leaf: true,
         });
       }
     }
     return options;
   }, [
     categoryOptions,
-    localProduct.details?.baselinkerCategoryPath,
-    localProduct.details?.baselinkerCategories,
-    localProduct.details?.baselinkerCategoryId,
+    localProduct.details?.categoryId,
     localProduct.identification?.category,
   ]);
 
@@ -1164,22 +1193,22 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       value={categoryQuery}
                       onChange={(e) => setCategoryQuery(e.target.value)}
                       className={`bg-transparent border-b outline-none ${
-                        hasQualityIssue('details.baselinkerCategoryPath') ? 'border-red-400' : 'border-sky-500'
+                        hasQualityIssue('details.categoryId') ? 'border-red-400' : 'border-sky-500'
                       }`}
-                      placeholder="BaseLinker Kategorie suchen..."
+                      placeholder="eBay Kategorie suchen..."
                     />
                     <select
                       value={
-                        getProductBaselinkerCategoryPath(localProduct) ||
+                        getProductEbayCategoryId(localProduct) ||
                         ''
                       }
                       onChange={(e) => handleCategorySelect(e.target.value)}
                       className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200"
                     >
-                      <option value="">Kategorie auswählen...</option>
+                      <option value="">eBay Kategorie auswählen...</option>
                       {categorySelectOptions.map((option) => (
-                        <option key={option.id} value={option.breadcrumb}>
-                          {option.breadcrumb}
+                        <option key={option.id} value={option.id}>
+                          {option.breadcrumb} ({option.id})
                         </option>
                       ))}
                     </select>
@@ -1189,8 +1218,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 ) : (
                   <span className="text-sky-400">
                     {getProductDisplayCategory(localProduct)}
-                    {localProduct.details?.baselinkerCategoryId ? (
-                      <span className="text-slate-500"> ({localProduct.details.baselinkerCategoryId})</span>
+                    {localProduct.details?.categoryId ? (
+                      <span className="text-slate-500"> ({localProduct.details.categoryId})</span>
                     ) : null}
                   </span>
                 )}
