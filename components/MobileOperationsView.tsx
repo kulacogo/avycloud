@@ -15,6 +15,7 @@ type MobilePickTask = {
   name: string;
   sku: string;
   binCode: string;
+  thumbnailUrl?: string | null;
   suggestedQty: number;
   remainingTotal: number;
   itemTotal: number;
@@ -104,7 +105,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
-  const [ordersLastOkIso, setOrdersLastOkIso] = useState<string | null>(null);
   const [activeBin, setActiveBin] = useState('');
   const [activeSku, setActiveSku] = useState('');
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
@@ -112,17 +112,19 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [pickMessageTone, setPickMessageTone] = useState<'info' | 'success' | 'error' | null>(null);
   const [packMessage, setPackMessage] = useState<string | null>(null);
   const [packScopedOrderKey, setPackScopedOrderKey] = useState<string | null>(null);
+  const [packSelectedKey, setPackSelectedKey] = useState<string | null>(null);
   // Mobile pick progress (supports partial picks across bins)
   const [pickedByItemId, setPickedByItemId] = useState<Record<string, number>>({});
   // Local bin deltas to avoid stale product data causing repeated picks from the same BIN
   const [pickedFromBin, setPickedFromBin] = useState<Record<string, number>>({}); // key: `${productId}::${BIN}` -> pickedQty
   const [pendingPick, setPendingPick] = useState<MobilePickTask | null>(null);
-  const [pendingPickQty, setPendingPickQty] = useState<number>(1);
+  const [pendingPickQty, setPendingPickQty] = useState<number>(0);
 
   const [identifySlots, setIdentifySlots] = useState<number[]>([0]);
   const uploadInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const isUnmountedRef = useRef(false);
+  const pickSubmitInFlightRef = useRef(false);
 
   type IdentifySlotImage = { id: string; file: File; previewUrl: string };
   const [identifyImagesBySlot, setIdentifyImagesBySlot] = useState<Record<number, IdentifySlotImage[]>>({});
@@ -226,7 +228,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         const data = await fetchOrdersApi(100, { timeoutMs: 20000 });
         if (!isCancelled?.() && !isUnmountedRef.current) {
           setOrders(dedupeOrders(data || []));
-          setOrdersLastOkIso(new Date().toISOString());
         }
       } catch (err) {
         console.warn('Failed to load orders', err);
@@ -298,6 +299,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     const exists = readyToPackOrders.some((order) => getOrderCouplingKey(order) === packScopedOrderKey);
     if (!exists) {
       setPackScopedOrderKey(null);
+      setPackSelectedKey(null);
     }
   }, [packScopedOrderKey, readyToPackOrders, getOrderCouplingKey]);
   const equalsSkuScan = (a?: string | null, b?: string | null) => {
@@ -434,6 +436,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           name: hint?.productName || product?.identification?.name || it.name,
           sku: skuCandidate,
           binCode,
+          thumbnailUrl: product?.details?.images?.[0]?.url_or_base64 || null,
           suggestedQty,
           remainingTotal,
           itemTotal: total,
@@ -458,7 +461,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         orderNumber?: string | null;
         orderSourceId?: string | null;
         sku: string;
+        ean?: string | null;
         name: string;
+        thumbnailUrl?: string | null;
+        productId?: string | null;
         binCode: string;
         qty: number;
       }
@@ -467,8 +473,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       const orderKey = getOrderCouplingKey(o);
       const orderSourceId = getOrderSourceId(o);
       o.items.forEach((it) => {
+        const product = resolveProductForItem(it);
         const sku = it.sku || it.id;
-        const binCode = it.pickHint?.binCode || '—';
+        const binCode = it.pickHint?.binCode || product?.storage?.binCode || '—';
         const key = `${orderKey}::${sku}::${binCode}`;
         const qty = Number.isFinite(it.quantity) ? it.quantity : 1;
         if (!bucket[key]) {
@@ -478,7 +485,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             orderNumber: o.number || o.baselinkerId || o.id,
             orderSourceId,
             sku,
-            name: it.name,
+            ean: it.ean || null,
+            name: product?.identification?.name || it.name,
+            thumbnailUrl: product?.details?.images?.[0]?.url_or_base64 || null,
+            productId: product?.id || it.productId || null,
             binCode,
             qty: 0,
           };
@@ -487,7 +497,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       });
     });
     return Object.values(bucket).sort((a, b) => a.orderKey.localeCompare(b.orderKey));
-  }, [readyToPackOrders, getOrderCouplingKey, getOrderSourceId]);
+  }, [readyToPackOrders, getOrderCouplingKey, getOrderSourceId, resolveProductForItem]);
 
   const equalsIgnoreCase = useCallback(
     (a?: string | null, b?: string | null) => normalizeScan(a) === normalizeScan(b),
@@ -508,7 +518,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
     if (pendingPick && !stillOpenItemIds.has(pendingPick.itemId)) {
       setPendingPick(null);
-      setPendingPickQty(1);
+      setPendingPickQty(0);
       setHighlightKey(null);
       setActiveBin('');
       setActiveSku('');
@@ -532,79 +542,93 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         return;
       }
 
+      if (pickSubmitInFlightRef.current) return;
+      pickSubmitInFlightRef.current = true;
       try {
-        const stockResult = await stockOutProduct({
-          productId: task.productId || undefined,
-          sku: task.sku,
-          binCode: task.binCode,
-          quantity: numeric,
-          orderId: task.orderId,
-          orderItemId: task.itemId,
-          meta: { flow: 'pick', orderId: task.orderId, orderItemId: task.itemId },
-        });
-        if (!stockResult.ok) {
-          throw new Error(stockResult.error?.message || t('ops.errors.pick'));
-        }
+        try {
+          const stockResult = await stockOutProduct({
+            productId: task.productId || undefined,
+            sku: task.sku,
+            binCode: task.binCode,
+            quantity: numeric,
+            orderId: task.orderId,
+            orderItemId: task.itemId,
+            meta: { flow: 'pick', orderId: task.orderId, orderItemId: task.itemId },
+          });
+          if (!stockResult.ok) {
+            throw new Error(stockResult.error?.message || t('ops.errors.pick'));
+          }
 
-        const newPickedForItem = Math.min(task.itemTotal, task.pickedSoFar + numeric);
-        setPickedByItemId((prev) => ({
-          ...prev,
-          [task.itemId]: Math.min(task.itemTotal, (Number(prev[task.itemId] || 0) || 0) + numeric),
-        }));
-        if (task.productId && task.binCode) {
-          const key = `${task.productId}::${task.binCode.toUpperCase()}`;
-          setPickedFromBin((prev) => ({
+          const newPickedForItem = Math.min(task.itemTotal, task.pickedSoFar + numeric);
+          setPickedByItemId((prev) => ({
             ...prev,
-            [key]: (Number(prev[key] || 0) || 0) + numeric,
+            [task.itemId]: Math.min(task.itemTotal, (Number(prev[task.itemId] || 0) || 0) + numeric),
           }));
-        }
+          if (task.productId && task.binCode) {
+            const key = `${task.productId}::${task.binCode.toUpperCase()}`;
+            setPickedFromBin((prev) => ({
+              ...prev,
+              [key]: (Number(prev[key] || 0) || 0) + numeric,
+            }));
+          }
 
-        const targetOrder = openOrders.find((o) => o.id === task.orderId) || null;
-        const isOrderDone = targetOrder
-          ? targetOrder.items.every((it) => {
-              const total = Number(it.quantity || 0) || 0;
-              const picked =
-                it.id === task.itemId ? newPickedForItem : Number(pickedByItemId[it.id] || 0) || 0;
-              return picked >= total;
-            })
-          : false;
+          const targetOrder = openOrders.find((o) => o.id === task.orderId) || null;
+          const isOrderDone = targetOrder
+            ? targetOrder.items.every((it) => {
+                const total = Number(it.quantity || 0) || 0;
+                const picked =
+                  it.id === task.itemId ? newPickedForItem : Number(pickedByItemId[it.id] || 0) || 0;
+                return picked >= total;
+              })
+            : false;
 
-        if (isOrderDone) {
-          await completeOrder(task.orderId);
-          setPickMessage(
-            t('ops.mobile.pick.successOrderDone', {
-              bin: task.binCode,
-              sku: task.sku,
-              qty: numeric,
-              order: task.orderNumber || task.orderId,
-            })
-          );
-          setPickMessageTone('success');
-        } else {
-          setPickMessage(
-            t('ops.mobile.pick.success', {
-              bin: task.binCode,
-              sku: task.sku,
-              qty: numeric,
-              remaining: Math.max(0, task.remainingTotal - numeric),
-            })
-          );
-          setPickMessageTone('success');
+          // UI must stay fluid: never block on BaseLinker status updates or full order refresh.
+          // We update UI immediately and sync order status in background if the order is complete.
+          if (isOrderDone) {
+            setPickMessage(
+              t('ops.mobile.pick.successOrderDone', {
+                bin: task.binCode,
+                sku: task.sku,
+                qty: numeric,
+                order: task.orderNumber || task.orderId,
+              })
+            );
+            setPickMessageTone('success');
+            void completeOrder(task.orderId)
+              .catch((err: any) => {
+                console.warn('completeOrder failed (background):', err);
+                setPickMessage(
+                  t('ops.mobile.pick.errorGeneric', { message: err?.message || t('common.unknownError') })
+                );
+                setPickMessageTone('error');
+              })
+              .finally(() => {
+                void refreshOrders();
+              });
+          } else {
+            setPickMessage(
+              t('ops.mobile.pick.success', {
+                bin: task.binCode,
+                sku: task.sku,
+                qty: numeric,
+                remaining: Math.max(0, task.remainingTotal - numeric),
+              })
+            );
+            setPickMessageTone('success');
+          }
+        } catch (err: any) {
+          console.error('Pick failed', err);
+          setPickMessage(t('ops.mobile.pick.errorGeneric', { message: err?.message || t('common.unknownError') }));
+          setPickMessageTone('error');
         }
-      } catch (err: any) {
-        console.error('Pick failed', err);
-        setPickMessage(
-          t('ops.mobile.pick.errorGeneric', { message: err?.message || t('common.unknownError') })
-        );
-        setPickMessageTone('error');
+        setPendingPick(null);
+        setPendingPickQty(0);
+        setActiveBin('');
+        setActiveSku('');
+        setHighlightKey(null);
+      } finally {
+        pickSubmitInFlightRef.current = false;
       }
-
-      await refreshOrders();
-      setPendingPick(null);
-      setPendingPickQty(1);
-      setActiveBin('');
-      setActiveSku('');
-      setHighlightKey(null);
     },
     [openOrders, pickedByItemId, refreshOrders, t]
   );
@@ -689,6 +713,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           const selected = orderIdentityMatches[0];
           const selectedKey = getOrderCouplingKey(selected);
           setPackScopedOrderKey(selectedKey);
+          setPackSelectedKey(null);
           setPackMessage(
             t('ops.mobile.pack.scan.orderSelected', {
               order: selected.number || selected.baselinkerId || selected.id,
@@ -706,48 +731,24 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           return;
         }
 
-        const scopedOrders = packScopedOrderKey
-          ? readyToPackOrders.filter((o) => getOrderCouplingKey(o) === packScopedOrderKey)
-          : readyToPackOrders;
-        const candidateOrders = scopedOrders.length ? scopedOrders : readyToPackOrders;
+        const scopedItems = packScopedOrderKey ? packItems.filter((it) => it.orderKey === packScopedOrderKey) : packItems;
+        const candidates = scopedItems.filter(
+          (it) => equalsSkuScan(it.sku || '', normalized) || equalsSkuScan(it.ean || '', normalized)
+        );
 
-        const matches: Array<{ orderId: string; orderKey: string; orderNumber?: string | null }> = [];
-        const seen = new Set<string>();
-        for (const o of candidateOrders) {
-          const hit = o.items.some((it) => equalsSkuScan(it.sku || '', normalized) || equalsSkuScan(it.ean || '', normalized));
-          if (!hit) continue;
-          const key = getOrderCouplingKey(o);
-          if (seen.has(key)) continue;
-          seen.add(key);
-          matches.push({ orderId: o.id, orderKey: key, orderNumber: o.number || o.baselinkerId || o.id });
-        }
-
-        if (matches.length === 0) {
+        if (candidates.length === 0) {
           setPackMessage(t('ops.mobile.pack.scan.notFound', { sku: rawTrimmed }));
           return;
         }
-        if (matches.length > 1) {
-          setPackMessage(t('ops.mobile.pack.scan.ambiguous', { sku: rawTrimmed, count: matches.length }));
+        if (candidates.length > 1) {
+          setPackMessage(t('ops.mobile.pack.scan.ambiguous', { sku: rawTrimmed, count: candidates.length }));
           return;
         }
 
-        const target = matches[0];
+        const item = candidates[0];
         setPackMessage(null);
-        void (async () => {
-          try {
-            await packOrder(target.orderId);
-            setPackScopedOrderKey(target.orderKey);
-            setPackMessage(
-              t('ops.mobile.pack.scan.success', {
-                order: target.orderNumber || target.orderId,
-                sku: rawTrimmed,
-              })
-            );
-          } catch (err: any) {
-            setPackMessage(t('ops.mobile.pack.scan.error', { message: err?.message || t('common.unknownError') }));
-          }
-          await refreshOrders();
-        })();
+        setPackScopedOrderKey(item.orderKey);
+        setPackSelectedKey(`${item.orderKey}::${item.sku}::${item.binCode}`);
         return;
       }
 
@@ -755,9 +756,20 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       const normalized = normalizeScan(rawTrimmed);
       if (!normalized) return;
       const isNumericOnly = /^\d+$/.test(normalized);
+      if (pickSubmitInFlightRef.current) {
+        setPickMessage(t('ops.pick.submitting'));
+        setPickMessageTone('info');
+        return;
+      }
 
-      // If a pick task is already selected, interpret a numeric scan as quantity and execute immediately.
+      const binMatches = pickTasks.filter((it) => equalsIgnoreCase(it.binCode, normalized));
+      const skuMatches = pickTasks.filter((it) => equalsSkuScan(it.sku, normalized));
+
+      // If a pick task is already active:
+      // - SKU scan confirms quantity (1 scan = qty 1).
+      // - numeric scan is supported as an optional override (e.g. scan "3" to pick 3).
       if (pendingPick) {
+        const targetQty = Math.max(1, Number(pendingPick.suggestedQty || 1) || 1);
         if (isNumericOnly) {
           const n = Number(normalized);
           if (Number.isFinite(n) && n > 0) {
@@ -765,18 +777,23 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           }
           return;
         }
-        // Any non-numeric scan resets the pending pick selection (user started scanning next task)
+        if (equalsSkuScan(pendingPick.sku, normalized)) {
+          const nextCount = Math.min(targetQty, (Number(pendingPickQty || 0) || 0) + 1);
+          setPendingPickQty(nextCount);
+          setPickMessage(`SKU bestätigt: ${nextCount}/${targetQty}`);
+          setPickMessageTone('info');
+          if (nextCount >= targetQty) {
+            void submitPick(pendingPick, nextCount);
+          }
+          return;
+        }
+        // Any other scan resets the pending pick selection (user started scanning another task)
         setPendingPick(null);
-        setPendingPickQty(1);
+        setPendingPickQty(0);
+        setHighlightKey(null);
       }
 
-      let nextBin = activeBin;
-      let nextSku = activeSku;
-
-      const binMatches = pickTasks.filter((it) => equalsIgnoreCase(it.binCode, normalized));
-      const skuMatches = pickTasks.filter((it) => equalsSkuScan(it.sku, normalized));
-
-      if (binMatches.length === 0 && skuMatches.length === 0) {
+      if (binMatches.length === 0 && skuMatches.length === 0 && !isNumericOnly) {
         setPickMessage(t('ops.mobile.pick.scan.noMatch', { value: rawTrimmed }));
         setPickMessageTone('error');
         return;
@@ -786,53 +803,54 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       setPickMessage(null);
       setPickMessageTone(null);
 
+      // BIN scan: lock BIN context, then wait for SKU scans.
       if (binMatches.length) {
-        nextBin = binMatches[0].binCode;
-      }
-      if (skuMatches.length) {
-        nextSku = skuMatches[0].sku || '';
-      }
-
-      setActiveBin(nextBin);
-      setActiveSku(nextSku);
-
-      const findCandidate = () => {
-        if (nextBin && nextSku) {
-          return (
-            pickTasks.find((it) => equalsIgnoreCase(it.binCode, nextBin) && equalsSkuScan(it.sku, nextSku)) ||
-            null
-          );
-        }
-        if (nextBin && binMatches.length === 1) {
-          return binMatches[0];
-        }
-        if (nextSku && skuMatches.length === 1) {
-          return skuMatches[0];
-        }
-        return null;
-      };
-
-      const candidate = findCandidate();
-      if (candidate) {
-        const key = `${candidate.orderId}-${candidate.itemId}-${candidate.binCode}`;
-        setHighlightKey(key);
-        setPendingPick(candidate);
-        setPendingPickQty(candidate.suggestedQty || 1);
-        setPickMessage(t('ops.mobile.pick.scan.ready'));
-        setPickMessageTone('info');
-        return;
-      }
-
-      if (nextBin && !nextSku) {
+        const nextBin = binMatches[0].binCode;
+        setActiveBin(nextBin);
+        setActiveSku('');
         setPickMessage(t('ops.mobile.pick.scan.needSku'));
         setPickMessageTone('info');
         return;
       }
-      if (nextSku && !nextBin) {
+
+      // SKU scan without BIN: instruct user to scan BIN first.
+      if (!activeBin && skuMatches.length) {
+        setActiveSku(skuMatches[0]?.sku || '');
         setPickMessage(t('ops.mobile.pick.scan.needBin'));
         setPickMessageTone('info');
         return;
       }
+
+      // SKU scan with BIN: resolve exact task and start counting scans.
+      if (activeBin && skuMatches.length) {
+        const sku = skuMatches[0]?.sku || '';
+        setActiveSku(sku);
+        const matches = pickTasks.filter((it) => equalsIgnoreCase(it.binCode, activeBin) && equalsSkuScan(it.sku, sku));
+        if (matches.length === 0) {
+          setPickMessage(t('ops.mobile.pick.scan.noMatch', { value: rawTrimmed }));
+          setPickMessageTone('error');
+          return;
+        }
+        if (matches.length > 1) {
+          setPickMessage(t('ops.mobile.pick.scan.ambiguous'));
+          setPickMessageTone('error');
+          return;
+        }
+        const candidate = matches[0];
+        const key = `${candidate.orderId}-${candidate.itemId}-${candidate.binCode}`;
+        const targetQty = Math.max(1, Number(candidate.suggestedQty || 1) || 1);
+        setHighlightKey(key);
+        setPendingPick(candidate);
+        setPendingPickQty(1); // the SKU scan itself confirms qty=1
+        setPickMessage(`SKU bestätigt: 1/${targetQty}`);
+        setPickMessageTone('info');
+        if (targetQty <= 1) {
+          void submitPick(candidate, 1);
+        }
+        return;
+      }
+
+      // Fallback (should be rare): ambiguous scans
       setPickMessage(t('ops.mobile.pick.scan.ambiguous'));
       setPickMessageTone('error');
     },
@@ -842,6 +860,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       equalsIgnoreCase,
       pickTasks,
       pendingPick,
+      pendingPickQty,
       submitPick,
       handleSubmitStow,
       stowBin,
@@ -852,8 +871,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       isOrderIdentityScanMatch,
       getOrderCouplingKey,
       packScopedOrderKey,
+      packItems,
       readyToPackOrders,
-      refreshOrders,
       t,
     ]
   );
@@ -1018,11 +1037,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   if (mode === 'operations-stow') {
     const showKeypad = Boolean(stowSku && stowBin);
+    const stowProduct = stowSku ? resolveProductForStow(stowSku) : null;
     return (
       <div className="space-y-3 max-w-xl mx-auto">
         <SectionTitle title={t('ops.mode.stow')} />
         <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
           {stowMessage && <p className="text-xs text-emerald-300">{stowMessage}</p>}
+          {stowProduct ? <ProductCard product={stowProduct} /> : null}
           <div className="grid grid-cols-2 gap-2 text-sm text-slate-200">
             <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
               <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
@@ -1111,12 +1132,20 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           </div>
         </div>
 
-        {stowEntries.length > 0 && (
-          <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
-            <p className="text-sm font-semibold text-white">{t('ops.mobile.stow.sessionTitle')}</p>
-            <div className="space-y-2">
+        {stowEntries.length > 0 ? (
+          <details className="rounded-2xl border border-white/10 bg-slate-800/70 p-3">
+            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-sm font-semibold text-slate-100 flex items-center justify-between">
+              <span>
+                {t('ops.mobile.stow.sessionTitle')} ({stowEntries.length})
+              </span>
+              <span className="text-slate-400">▾</span>
+            </summary>
+            <div className="mt-3 space-y-2">
               {stowEntries.map((entry, idx) => (
-                <div key={`${entry.sku}-${entry.bin}-${idx}`} className="rounded-xl border border-white/10 bg-slate-900/60 p-2 text-sm text-slate-200">
+                <div
+                  key={`${entry.sku}-${entry.bin}-${idx}`}
+                  className="rounded-xl border border-white/10 bg-slate-900/60 p-2 text-sm text-slate-200"
+                >
                   <div className="flex justify-between gap-2">
                     <span className="font-semibold break-all">{entry.sku}</span>
                     <span className="text-slate-300">
@@ -1129,8 +1158,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          </details>
+        ) : null}
       </div>
     );
   }
@@ -1140,16 +1169,16 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     const nextBinGroupCount = nextTask?.binCode
       ? pickTasks.filter((it) => equalsIgnoreCase(it.binCode, nextTask.binCode)).length
       : 0;
-    const expectedScan: 'bin' | 'sku' | 'qty' =
+    const expectedScan: 'bin' | 'sku' =
       pendingPick
-        ? 'qty'
+        ? 'sku'
         : !activeBin && !activeSku
           ? 'bin'
           : activeBin && !activeSku
             ? 'sku'
             : !activeBin && activeSku
               ? 'bin'
-              : 'bin';
+              : 'sku';
 
     const scanBoxClass = (kind: 'bin' | 'sku') => {
       const isExpected = expectedScan === kind;
@@ -1194,14 +1223,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           </div>
 
           <div className="flex items-start justify-between gap-3">
-            <div className="text-xs text-slate-300">
-              {pendingPick ? t('ops.mobile.pick.qtyPadHint') : t('ops.mobile.scannerFocusHint')}
-              {ordersLastOkIso ? (
-                <span className="block text-[11px] text-slate-500 mt-1">
-                  {new Date(ordersLastOkIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              ) : null}
-            </div>
+            <div />
             <button
               type="button"
               className="shrink-0 rounded-xl bg-slate-900/50 border border-white/10 px-3 py-2 text-xs font-semibold text-white"
@@ -1209,7 +1231,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 setActiveBin('');
                 setActiveSku('');
                 setPendingPick(null);
-                setPendingPickQty(1);
+                setPendingPickQty(0);
                 setHighlightKey(null);
                 setPickMessage(null);
                 setPickMessageTone(null);
@@ -1239,11 +1261,26 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           {pendingPick ? (
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white line-clamp-2">{pendingPick.name}</p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {t('common.order')} {pendingPick.orderNumber || pendingPick.orderId}
-                  </p>
+                <div className="flex-1 min-w-0 flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-slate-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                    {pendingPick.thumbnailUrl ? (
+                      <img src={pendingPick.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <span className="text-[11px] text-slate-300">{t('common.noImage')}</span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white line-clamp-2">{pendingPick.name}</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {t('common.order')} {pendingPick.orderNumber || pendingPick.orderId}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1 tabular-nums">
+                      Scan SKU:{' '}
+                      <span className="font-semibold text-slate-200">
+                        {Math.max(0, Number(pendingPickQty || 0) || 0)}/{Math.max(1, Number(pendingPick.suggestedQty || 1) || 1)}
+                      </span>
+                    </p>
+                  </div>
                 </div>
                 <StatusBadge label={t('ops.badge.pick')} tone="warn" />
               </div>
@@ -1278,7 +1315,21 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             <p className="text-sm text-slate-300">{t('ops.orders.none')}</p>
           ) : nextTask ? (
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.labels.nextPick')}</p>
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-slate-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                  {nextTask.thumbnailUrl ? (
+                    <img src={nextTask.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  ) : (
+                    <span className="text-[11px] text-slate-300">{t('common.noImage')}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white line-clamp-2">{nextTask.name}</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {t('common.order')} {nextTask.orderNumber || nextTask.orderId}
+                  </p>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
                   <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
@@ -1317,7 +1368,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                     key={key}
                     onClick={() => {
                       setPendingPick(task);
-                      setPendingPickQty(task.suggestedQty || 1);
+                      setPendingPickQty(0);
                       setActiveBin(task.binCode || '');
                       setActiveSku(task.sku || '');
                       setHighlightKey(key);
@@ -1355,104 +1406,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             </div>
           </details>
         ) : null}
-
-        {pendingPick ? (
-          <div className="sticky bottom-24 -mx-4 px-4 pt-3 pb-4 bg-slate-950/90 backdrop-blur border-t border-white/10">
-            {(() => {
-              const maxAllowed =
-                typeof pendingPick.availableInBin === 'number'
-                  ? Math.max(0, Math.min(pendingPick.remainingTotal, pendingPick.availableInBin))
-                  : Math.max(0, pendingPick.remainingTotal);
-
-              const clampQty = (raw: number) => {
-                const n = Number(raw) || 0;
-                if (n <= 0) return 0;
-                return Math.min(n, maxAllowed || n);
-              };
-
-              return (
-                <div className="space-y-3 max-w-xl mx-auto">
-                  <div className="rounded-2xl bg-slate-900/50 border border-white/10 p-3 space-y-2">
-                    <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.qty')}</p>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="w-14 h-14 rounded-2xl bg-slate-800 text-white text-3xl font-extrabold border border-white/10"
-                        onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) - 1))}
-                      >
-                        −
-                      </button>
-                      <div className="flex-1 h-14 rounded-2xl bg-slate-800 text-white text-3xl font-extrabold border border-white/10 flex items-center justify-center tabular-nums">
-                        {pendingPickQty}
-                      </div>
-                      <button
-                        type="button"
-                        className="w-14 h-14 rounded-2xl bg-slate-800 text-white text-3xl font-extrabold border border-white/10"
-                        onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) + 1))}
-                      >
-                        +
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
-                        onClick={() => setPendingPickQty(clampQty(1))}
-                      >
-                        1
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
-                        onClick={() => setPendingPickQty(clampQty(pendingPick.suggestedQty || 1))}
-                      >
-                        {t('ops.orders.auto')}
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
-                        onClick={() => setPendingPickQty(clampQty(maxAllowed || pendingPick.remainingTotal || 1))}
-                      >
-                        Max
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
-                        onClick={() => setPendingPickQty(0)}
-                      >
-                        {t('common.clear')}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      disabled={!pendingPickQty || pendingPickQty <= 0}
-                      onClick={() => void submitPick(pendingPick, pendingPickQty)}
-                      className="h-14 rounded-2xl bg-emerald-600 text-white font-extrabold text-lg disabled:opacity-40"
-                    >
-                      {t('ops.pick.submit')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPendingPick(null);
-                        setPendingPickQty(1);
-                        setActiveBin('');
-                        setActiveSku('');
-                        setHighlightKey(null);
-                      }}
-                      className="h-14 rounded-2xl bg-slate-700 text-white font-semibold text-lg"
-                    >
-                      {t('common.cancel')}
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        ) : null}
       </div>
     );
   }
@@ -1461,71 +1414,160 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     const scopedOrderPreview = packScopedOrderKey
       ? packItems.find((item) => item.orderKey === packScopedOrderKey) || null
       : null;
+    const scopedItems = packScopedOrderKey ? packItems.filter((item) => item.orderKey === packScopedOrderKey) : packItems;
+    const selectedItem = packSelectedKey
+      ? packItems.find((item) => `${item.orderKey}::${item.sku}::${item.binCode}` === packSelectedKey) || null
+      : null;
+
+    const cycleSelection = (direction: 1 | -1) => {
+      const list = scopedItems.length ? scopedItems : packItems;
+      if (!list.length) return;
+      const keys = list.map((item) => `${item.orderKey}::${item.sku}::${item.binCode}`);
+      const current = packSelectedKey && keys.includes(packSelectedKey) ? packSelectedKey : null;
+      const idx = current ? keys.indexOf(current) : -1;
+      const nextIdx = current ? (idx + direction + keys.length) % keys.length : 0;
+      const nextKey = keys[nextIdx];
+      const nextItem = list[nextIdx];
+      setPackSelectedKey(nextKey);
+      setPackScopedOrderKey(nextItem.orderKey);
+      setPackMessage(null);
+    };
+
+    const submitPack = () => {
+      if (!selectedItem?.orderId) return;
+      setPackMessage(null);
+      void (async () => {
+        try {
+          await packOrder(selectedItem.orderId);
+          setPackMessage(
+            t('ops.mobile.pack.scan.success', {
+              order: selectedItem.orderNumber || selectedItem.orderId,
+              sku: selectedItem.sku,
+            })
+          );
+        } catch (err: any) {
+          setPackMessage(t('ops.mobile.pack.scan.error', { message: err?.message || t('common.unknownError') }));
+        }
+        void refreshOrders();
+        setPackScopedOrderKey(null);
+        setPackSelectedKey(null);
+      })();
+    };
     return (
-      <div className="space-y-3 max-w-xl mx-auto">
-        <SectionTitle title={t('ops.mode.pack')} />
-        {packMessage ? (
-          <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-3 text-sm text-slate-200">
-            {packMessage}
+      <div className="max-w-xl mx-auto flex flex-col gap-3">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-white">{t('ops.mode.pack')}</h2>
           </div>
+          <div className="text-right text-xs text-slate-400">
+            <p className="font-semibold text-slate-200 tabular-nums">{packScopedOrderKey ? scopedItems.length : packItems.length}</p>
+            <p>{t('ops.badge.pack')}</p>
+          </div>
+        </div>
+
+        {packMessage ? (
+          <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-3 text-sm text-slate-200">{packMessage}</div>
         ) : null}
-        {packScopedOrderKey ? (
-          <div className="rounded-2xl border border-sky-500/50 bg-sky-900/20 p-3 flex items-center justify-between gap-3">
-            <p className="text-sm text-slate-100">
-              {t('ops.mobile.pack.scope.active')}: <span className="font-semibold">{scopedOrderPreview?.orderNumber || packScopedOrderKey}</span>
-            </p>
+
+        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-3">
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.order')}</p>
+              <p className="text-base font-bold text-white break-all">
+                {scopedOrderPreview?.orderNumber ||
+                  (packScopedOrderKey ? packScopedOrderKey : `${t('ops.actions.scan')} ${t('common.order')}`)}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-3">
+              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
+              <p className="text-base font-bold text-white break-all">
+                {selectedItem?.sku || `${t('ops.actions.scan')} ${t('common.sku')}`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start justify-end gap-3">
             <button
               type="button"
-              className="rounded-lg bg-slate-800 border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-slate-100"
-              onClick={() => setPackScopedOrderKey(null)}
+              className="shrink-0 rounded-xl bg-slate-900/50 border border-white/10 px-3 py-2 text-xs font-semibold text-white"
+              onClick={() => {
+                setPackMessage(null);
+                setPackScopedOrderKey(null);
+                setPackSelectedKey(null);
+              }}
             >
               {t('common.reset')}
             </button>
           </div>
+
+          {ordersLoading ? <p className="text-xs text-slate-400">{t('ops.orders.loading')}</p> : null}
+        </div>
+
+        {packItems.length === 0 && !ordersLoading ? (
+          <p className="text-sm text-slate-400">{t('ops.mobile.pack.none')}</p>
         ) : null}
-        {ordersLoading && <p className="text-sm text-slate-400">{t('ops.orders.loading')}</p>}
-        {packItems.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">{t('ops.mobile.pack.none')}</p>}
-        {packItems.slice(0, 100).map((item) => (
-          <button
-            type="button"
-            key={`${item.orderKey}-${item.sku}-${item.binCode}`}
-            onClick={() => setPackScopedOrderKey(item.orderKey)}
-            className={`w-full text-left rounded-2xl border p-3 shadow-sm shadow-black/20 ${
-              packScopedOrderKey === item.orderKey
-                ? 'border-sky-500 bg-sky-900/20'
-                : 'border-white/5 bg-slate-800'
-            }`}
-          >
+
+        {selectedItem ? (
+          <div className="rounded-2xl border border-white/10 bg-slate-900/30 p-3 space-y-3">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white line-clamp-2">{item.name}</p>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                  <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                    {t('common.order')}: <span className="font-semibold text-white">{item.orderNumber || item.orderId}</span>
-                  </span>
-                  {item.orderSourceId ? (
-                    <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                      {t('ops.mobile.pack.scope.source')}: <span className="font-semibold text-white">{item.orderSourceId}</span>
-                    </span>
-                  ) : null}
-                  <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                    {t('common.sku')}: <span className="font-semibold text-white">{item.sku || '—'}</span>
-                  </span>
-                  <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                    {t('common.bin')}: <span className="font-semibold text-white">{item.binCode || '—'}</span>
-                  </span>
+              <div className="flex-1 min-w-0 flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-slate-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                  {selectedItem.thumbnailUrl ? (
+                    <img src={selectedItem.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  ) : (
+                    <span className="text-[11px] text-slate-300">{t('common.noImage')}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white line-clamp-2">{selectedItem.name}</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {t('common.order')} {selectedItem.orderNumber || selectedItem.orderId}
+                  </p>
                 </div>
               </div>
-              <div className="shrink-0 text-right">
+              <StatusBadge label={t('ops.badge.pack')} tone="warn" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
+                <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
+                <p className="text-lg font-bold text-white break-all">{selectedItem.binCode || '—'}</p>
+              </div>
+              <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
                 <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.qty')}</p>
-                <p className="text-xl font-extrabold text-white tabular-nums">{item.qty}</p>
-                <div className="mt-1">
-                  <StatusBadge label={t('ops.badge.pack')} tone="warn" />
-                </div>
+                <p className="text-lg font-extrabold text-white tabular-nums">{selectedItem.qty}</p>
               </div>
             </div>
-          </button>
-        ))}
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className="h-14 rounded-2xl bg-emerald-600 text-white font-extrabold text-lg"
+                onClick={submitPack}
+              >
+                Verpackt
+              </button>
+              <button
+                type="button"
+                className="h-14 rounded-2xl bg-slate-700 text-white font-semibold text-lg"
+                onClick={() => cycleSelection(1)}
+              >
+                Nächstes
+              </button>
+            </div>
+          </div>
+        ) : packItems.length > 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-slate-900/30 p-3 space-y-3">
+            <p className="text-sm text-slate-300">Scan Auftrag oder SKU, um zu starten.</p>
+            <button
+              type="button"
+              className="h-14 rounded-2xl bg-slate-700 text-white font-semibold text-lg"
+              onClick={() => cycleSelection(1)}
+            >
+              Produkte durchgehen
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   }

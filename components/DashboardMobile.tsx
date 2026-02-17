@@ -123,7 +123,8 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
           ? String(presetOverride).trim()
           : activePresetRef.current;
       lastMetricsPresetRef.current = preset;
-      const data = await fetchDashboardMetrics({ days: 7, preset }, { timeoutMs: 20000 });
+      const longRange = preset === 'year_to_date' || preset === 'last_year';
+      const data = await fetchDashboardMetrics({ days: 7, preset }, { timeoutMs: longRange ? 60000 : 20000 });
       setMetrics(data);
     } catch (error) {
       console.warn('Failed to load dashboard metrics', error);
@@ -210,13 +211,13 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
     const interval = setInterval(() => {
       if (cancelled) return;
       void refreshAll({ syncOrders: false, refreshProducts: false });
-    }, 60000);
+    }, activePreset === 'year_to_date' || activePreset === 'last_year' ? 5 * 60 * 1000 : 60000);
     return () => {
       cancelled = true;
       unmountedRef.current = true;
       clearInterval(interval);
     };
-  }, [refreshAll]);
+  }, [refreshAll, activePreset]);
 
   const navigateTo = useCallback(
     (view: string) => {

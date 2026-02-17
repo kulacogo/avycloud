@@ -80,7 +80,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const loadMetrics = React.useCallback(async () => {
     setMetricsLoading(true);
     try {
-      const data = await fetchDashboardMetrics({ days: 7, preset: activePreset }, { timeoutMs: 25000 });
+      const longRange = activePreset === 'year_to_date' || activePreset === 'last_year';
+      const data = await fetchDashboardMetrics({ days: 7, preset: activePreset }, { timeoutMs: longRange ? 60000 : 25000 });
       setMetrics(data);
       setMetricsError(null);
     } catch (error: any) {
@@ -97,10 +98,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // lightweight auto-refresh every 60s to keep dashboard fresh
   useEffect(() => {
+    const longRange = activePreset === 'year_to_date' || activePreset === 'last_year';
+    const refreshMs = longRange ? 5 * 60 * 1000 : 60000;
     const interval = setInterval(() => {
       loadMetrics();
       if (onRefreshProducts) onRefreshProducts();
-    }, 60000);
+    }, refreshMs);
     return () => clearInterval(interval);
   }, [loadMetrics, onRefreshProducts]);
 
@@ -352,12 +355,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <p className="text-xs text-slate-400 mt-1">Gesamt aktiv (ohne storniert): {orderMetrics.total}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Gesamtumsatz (alle, ohne Storniert)</p>
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Umsatz (YTD, netto)</p>
                   <p className="text-3xl font-semibold text-white mt-1">
                     {formatCurrency(orderMetrics.revenueAllNonCancelled, orderMetrics.currency)}
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
-                    {activeRangeLabel} (ohne Storno): {formatCurrency(orderMetrics.revenueWindowNonCancelled, orderMetrics.currency)}
+                    {activeRangeLabel} (netto): {formatCurrency(orderMetrics.revenueWindowNonCancelled, orderMetrics.currency)}
                   </p>
                 </div>
               </div>

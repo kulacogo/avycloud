@@ -5705,6 +5705,291 @@ function computeOrderReturnsStats(returnsList, { rangeStart, rangeEndExclusive, 
   };
 }
 
+// --- Dashboard helpers: BaseLinker orders (for accurate revenue/volume across long presets) ---
+// Official docs: https://api.baselinker.com/index.php?method=getOrders
+// Official docs: https://api.baselinker.com/index.php?method=getOrderStatusList
+const DASHBOARD_ORDERS_CACHE_TTL_MS = parseInt(
+  process.env.DASHBOARD_ORDERS_CACHE_TTL_MS || String(15 * 60 * 1000),
+  10
+);
+const DASHBOARD_ORDERS_MAX_PAGES = parseInt(process.env.DASHBOARD_ORDERS_MAX_PAGES || '200', 10);
+const DASHBOARD_ORDERS_MAX_ITEMS = parseInt(process.env.DASHBOARD_ORDERS_MAX_ITEMS || '20000', 10);
+const DASHBOARD_ORDER_STATUS_CACHE_TTL_MS = parseInt(
+  process.env.DASHBOARD_ORDER_STATUS_CACHE_TTL_MS || String(15 * 60 * 1000),
+  10
+);
+
+let DASHBOARD_ORDERS_AGG_CACHE = new Map(); // key -> { atMs, data }
+let DASHBOARD_ORDER_STATUS_CACHE = { atMs: 0, byId: new Map() }; // string id -> normalized name
+
+function normalizeLower(input) {
+  return (input || '').toString().trim().toLowerCase();
+}
+
+async function ensureDashboardOrderStatusNameMap({ timeoutMs = 15_000 } = {}) {
+  const now = Date.now();
+  if (
+    DASHBOARD_ORDER_STATUS_CACHE.byId &&
+    DASHBOARD_ORDER_STATUS_CACHE.byId.size &&
+    DASHBOARD_ORDER_STATUS_CACHE.atMs &&
+    now - DASHBOARD_ORDER_STATUS_CACHE.atMs < DASHBOARD_ORDER_STATUS_CACHE_TTL_MS
+  ) {
+    return DASHBOARD_ORDER_STATUS_CACHE.byId;
+  }
+  try {
+    const response = await callBaseLinker('getOrderStatusList', {}, { timeoutMs, retries: 2 });
+    const statuses = Array.isArray(response?.statuses) ? response.statuses : [];
+    const next = new Map();
+    statuses.forEach((s) => {
+      if (s?.id == null) return;
+      const id = String(s.id).trim();
+      const name = normalizeLower(s?.name || s?.name_for_customer || '');
+      if (!id || !name) return;
+      next.set(id, name);
+    });
+    DASHBOARD_ORDER_STATUS_CACHE = { atMs: now, byId: next };
+    return next;
+  } catch (err) {
+    // Best-effort: keep existing cache on failure.
+    return DASHBOARD_ORDER_STATUS_CACHE.byId || new Map();
+  }
+}
+
+function isCancelledByStatusId(statusId, statusNameById) {
+  if (!statusId) return false;
+  const name = statusNameById?.get(String(statusId).trim()) || '';
+  if (!name) return false;
+  return name.includes('storniert') || name.includes('cancel');
+}
+
+function computeBaseLinkerOrderValueBrutto(orderEntry = {}) {
+  const products = Array.isArray(orderEntry?.products) ? orderEntry.products : [];
+  const productsValue = products.reduce((sum, p) => {
+    const price = Number(p?.price_brutto || 0) || 0;
+    const qty = Number(p?.quantity || 0) || 0;
+    return sum + price * qty;
+  }, 0);
+  const delivery = Number(orderEntry?.delivery_price || 0) || 0;
+  const value = productsValue + delivery;
+  const currency = (orderEntry?.currency || '').toString().trim().toUpperCase() || 'EUR';
+  const confirmedAt = orderEntry?.date_confirmed ? new Date(Number(orderEntry.date_confirmed) * 1000) : null;
+  return { currency, value: Number(value) || 0, confirmedAt };
+}
+
+function computeDashboardBucketKey(dt, { bucket, bucketStepHours, startDay } = {}) {
+  if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) return null;
+  if (bucket === 'month') {
+    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  }
+  if (bucket === 'week') {
+    if (!(startDay instanceof Date) || Number.isNaN(startDay.getTime())) return dt.toISOString().slice(0, 10);
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    const dayStartAt = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), 0, 0, 0));
+    const diffDays = Math.floor((dayStartAt.getTime() - startDay.getTime()) / MS_PER_DAY);
+    const idx = Math.max(0, Math.floor(diffDays / 7));
+    const d = new Date(startDay);
+    d.setUTCDate(startDay.getUTCDate() + idx * 7);
+    return d.toISOString().slice(0, 10);
+  }
+  if (bucket === 'hour') {
+    const step = Math.max(1, Number(bucketStepHours) || 1);
+    const hour = dt.getUTCHours();
+    const bucketHour = Math.floor(hour / step) * step;
+    const d = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), bucketHour, 0, 0));
+    return d.toISOString();
+  }
+  // day
+  return dt.toISOString().slice(0, 10);
+}
+
+async function computeDashboardBaseLinkerOrdersAggregate({
+  rangeStart,
+  rangeEndExclusive,
+  bucket,
+  bucketStepHours,
+  seriesTemplate,
+  timeoutMs = 20_000,
+} = {}) {
+  const rangeStartDt = rangeStart instanceof Date ? rangeStart : null;
+  const rangeEndDt = rangeEndExclusive instanceof Date ? rangeEndExclusive : null;
+  if (!rangeStartDt || !rangeEndDt) {
+    return null;
+  }
+  const fromUnix = Math.floor(rangeStartDt.getTime() / 1000);
+  const toUnix = Math.ceil(rangeEndDt.getTime() / 1000);
+  if (!Number.isFinite(fromUnix) || !Number.isFinite(toUnix) || fromUnix <= 0 || toUnix <= fromUnix) {
+    return null;
+  }
+
+  // Cache key uses 5-min quantization to avoid thrashing on "now" ranges.
+  const toUnixKey = Math.max(0, Math.floor(toUnix / 300) * 300);
+  const cacheKey = `window:${fromUnix}:${toUnixKey}:${bucket || 'day'}:${Number(bucketStepHours) || 0}`;
+  const now = Date.now();
+  const cached = DASHBOARD_ORDERS_AGG_CACHE.get(cacheKey);
+  if (cached?.atMs && now - cached.atMs < DASHBOARD_ORDERS_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const statusNameById = await ensureDashboardOrderStatusNameMap({ timeoutMs: Math.min(20_000, timeoutMs) });
+
+  const template = Array.isArray(seriesTemplate) ? seriesTemplate : [];
+  const series = template.map((d) => ({
+    date: d?.date,
+    orders: 0,
+    revenue: 0,
+  }));
+  const seriesIndex = new Map(series.map((d, idx) => [d.date, idx]));
+
+  const startDay = new Date(
+    Date.UTC(rangeStartDt.getUTCFullYear(), rangeStartDt.getUTCMonth(), rangeStartDt.getUTCDate(), 0, 0, 0)
+  );
+
+  const revenueByCurrency = new Map();
+  let cursor = fromUnix;
+  let processed = 0;
+
+  for (let page = 0; page < DASHBOARD_ORDERS_MAX_PAGES; page += 1) {
+    const response = await callBaseLinker(
+      'getOrders',
+      {
+        date_confirmed_from: cursor,
+        get_unconfirmed_orders: false,
+        include_custom_extra_fields: false,
+        include_connect_data: false,
+        include_commission_data: false,
+      },
+      { timeoutMs, retries: 2 }
+    );
+    const batch = Array.isArray(response?.orders) ? response.orders : [];
+    if (!batch.length) break;
+
+    let lastConfirmed = 0;
+    for (const o of batch) {
+      const confirmedUnix = Number(o?.date_confirmed || 0) || 0;
+      if (confirmedUnix > lastConfirmed) lastConfirmed = confirmedUnix;
+      if (!confirmedUnix || confirmedUnix < fromUnix) continue;
+      if (confirmedUnix >= toUnix) continue;
+
+      // Ignore synthetic "order_return" orders – returns are handled via getOrderReturns.
+      const orderSource = (o?.order_source || '').toString().trim().toLowerCase();
+      if (orderSource === 'order_return') continue;
+
+      const statusId = o?.order_status_id != null ? String(o.order_status_id).trim() : null;
+      const cancelled = isCancelledByStatusId(statusId, statusNameById);
+      if (cancelled) continue;
+
+      const { currency, value, confirmedAt } = computeBaseLinkerOrderValueBrutto(o);
+      if (!confirmedAt) continue;
+      if (confirmedAt < rangeStartDt || confirmedAt >= rangeEndDt) continue;
+
+      const dk = computeDashboardBucketKey(confirmedAt, {
+        bucket,
+        bucketStepHours,
+        startDay,
+      });
+      if (dk && seriesIndex.has(dk)) {
+        const idx = seriesIndex.get(dk);
+        series[idx].orders += 1;
+        series[idx].revenue += value;
+      }
+      revenueByCurrency.set(currency, (revenueByCurrency.get(currency) || 0) + value);
+      processed += 1;
+      if (processed >= DASHBOARD_ORDERS_MAX_ITEMS) break;
+    }
+
+    if (processed >= DASHBOARD_ORDERS_MAX_ITEMS) break;
+    if (batch.length < 100) break; // docs: max 100 per call
+    if (!lastConfirmed || lastConfirmed >= toUnix) break;
+    cursor = lastConfirmed + 1;
+  }
+
+  const data = {
+    series: series.map((d) => ({
+      date: d.date,
+      orders: d.orders,
+      revenue: Number((Number(d.revenue || 0) || 0).toFixed(2)),
+    })),
+    revenue_by_currency: Object.fromEntries(
+      Array.from(revenueByCurrency.entries()).map(([k, v]) => [k, Number((Number(v || 0) || 0).toFixed(2))])
+    ),
+  };
+
+  DASHBOARD_ORDERS_AGG_CACHE.set(cacheKey, { atMs: now, data });
+  return data;
+}
+
+async function computeDashboardBaseLinkerRevenueTotal({
+  fromUnix,
+  toUnix,
+  timeoutMs = 20_000,
+} = {}) {
+  const f = Number(fromUnix) || 0;
+  const t = Number(toUnix) || 0;
+  if (!Number.isFinite(f) || !Number.isFinite(t) || f <= 0 || t <= f) return null;
+
+  // Cache key ignores "to" (we compute up to "now" and accept TTL staleness).
+  const cacheKey = `total:${f}`;
+  const now = Date.now();
+  const cached = DASHBOARD_ORDERS_AGG_CACHE.get(cacheKey);
+  if (cached?.atMs && now - cached.atMs < DASHBOARD_ORDERS_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const statusNameById = await ensureDashboardOrderStatusNameMap({ timeoutMs: Math.min(20_000, timeoutMs) });
+  const revenueByCurrency = new Map();
+  let cursor = f;
+  let processed = 0;
+
+  for (let page = 0; page < DASHBOARD_ORDERS_MAX_PAGES; page += 1) {
+    const response = await callBaseLinker(
+      'getOrders',
+      {
+        date_confirmed_from: cursor,
+        get_unconfirmed_orders: false,
+        include_custom_extra_fields: false,
+        include_connect_data: false,
+        include_commission_data: false,
+      },
+      { timeoutMs, retries: 2 }
+    );
+    const batch = Array.isArray(response?.orders) ? response.orders : [];
+    if (!batch.length) break;
+
+    let lastConfirmed = 0;
+    for (const o of batch) {
+      const confirmedUnix = Number(o?.date_confirmed || 0) || 0;
+      if (confirmedUnix > lastConfirmed) lastConfirmed = confirmedUnix;
+      if (!confirmedUnix || confirmedUnix < f) continue;
+      if (confirmedUnix >= t) continue;
+
+      const orderSource = (o?.order_source || '').toString().trim().toLowerCase();
+      if (orderSource === 'order_return') continue;
+
+      const statusId = o?.order_status_id != null ? String(o.order_status_id).trim() : null;
+      const cancelled = isCancelledByStatusId(statusId, statusNameById);
+      if (cancelled) continue;
+
+      const { currency, value } = computeBaseLinkerOrderValueBrutto(o);
+      revenueByCurrency.set(currency, (revenueByCurrency.get(currency) || 0) + value);
+      processed += 1;
+      if (processed >= DASHBOARD_ORDERS_MAX_ITEMS) break;
+    }
+
+    if (processed >= DASHBOARD_ORDERS_MAX_ITEMS) break;
+    if (batch.length < 100) break;
+    if (!lastConfirmed || lastConfirmed >= t) break;
+    cursor = lastConfirmed + 1;
+  }
+
+  const data = {
+    revenue_by_currency: Object.fromEntries(
+      Array.from(revenueByCurrency.entries()).map(([k, v]) => [k, Number((Number(v || 0) || 0).toFixed(2))])
+    ),
+  };
+  DASHBOARD_ORDERS_AGG_CACHE.set(cacheKey, { atMs: now, data });
+  return data;
+}
+
 app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async (req, res) => {
   try {
     const days = Math.min(Math.max(parseInt(req.query?.days || '7', 10) || 7, 1), 60);
@@ -5718,25 +6003,71 @@ app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async 
     }
     const metrics = await getDashboardMetrics({ days, preset });
 
+    // Replace range revenue/volume with BaseLinker truth (supports long presets even if local order cache is pruned).
+    try {
+      const bucket = metrics?.range?.bucket || 'day';
+      const bucketStepHours = metrics?.range?.bucket_step_hours || null;
+      const rangeStart = metrics?.range?.from_iso ? new Date(metrics.range.from_iso) : null;
+      const rangeEndExclusive = metrics?.range?.to_iso ? new Date(metrics.range.to_iso) : null;
+      const template = metrics?.volume_7d?.days || [];
+      if (rangeStart && rangeEndExclusive && Array.isArray(template) && template.length) {
+        const agg = await computeDashboardBaseLinkerOrdersAggregate({
+          rangeStart,
+          rangeEndExclusive,
+          bucket,
+          bucketStepHours,
+          seriesTemplate: template,
+          timeoutMs: 20_000,
+        });
+        if (agg?.series && metrics?.volume_7d) {
+          metrics.volume_7d.days = agg.series;
+          const cur = (metrics?.currency || 'EUR').toString().trim().toUpperCase() || 'EUR';
+          const windowRevenue = Number(agg?.revenue_by_currency?.[cur] || 0) || 0;
+          if (metrics?.revenue) {
+            metrics.revenue.window_non_cancelled_total = windowRevenue;
+          }
+        }
+
+        // Compute "headline" total as year-to-date (YTD) revenue (gross, non-cancelled).
+        const now = new Date();
+        const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0));
+        const toUnix = Math.ceil(Date.now() / 1000);
+        const total = await computeDashboardBaseLinkerRevenueTotal({
+          fromUnix: Math.floor(yearStart.getTime() / 1000),
+          toUnix,
+          timeoutMs: 20_000,
+        });
+        if (total?.revenue_by_currency && metrics?.revenue) {
+          const cur = (metrics?.currency || 'EUR').toString().trim().toUpperCase() || 'EUR';
+          metrics.revenue.all_non_cancelled_total = Number(total.revenue_by_currency?.[cur] || 0) || 0;
+        }
+      }
+    } catch (err) {
+      console.warn('Dashboard BaseLinker orders enrichment failed (falling back to local cache):', err?.message || err);
+    }
+
     // Pull BaseLinker returns and incorporate them into KPIs (net revenue + returns counts).
     // Official docs: https://api.baselinker.com/index.php?method=getOrderReturns
     try {
-      const lookbackDays = parseInt(process.env.ORDER_SYNC_LOOKBACK_DAYS || '60', 10);
-      const fromUnix = Math.floor(Date.now() / 1000) - Math.max(1, lookbackDays) * 24 * 60 * 60;
-      const returnsList = await loadOrderReturnsSince(fromUnix, { timeoutMs: 20_000 });
-
       const rangeStart = metrics?.range?.from_iso ? new Date(metrics.range.from_iso) : null;
       const rangeEndExclusive = metrics?.range?.to_iso ? new Date(metrics.range.to_iso) : null;
+      const now = new Date();
+      const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0));
+      const minFromMs = Math.min(rangeStart ? rangeStart.getTime() : yearStart.getTime(), yearStart.getTime());
+      const fromUnix = Math.floor(minFromMs / 1000);
+      const returnsList = await loadOrderReturnsSince(fromUnix, { timeoutMs: 20_000 });
+
       const monthStart = metrics?.revenue?.month_start_iso ? new Date(metrics.revenue.month_start_iso) : null;
       const stats = computeOrderReturnsStats(returnsList, { rangeStart, rangeEndExclusive, monthStart });
+      const ytdStats = computeOrderReturnsStats(returnsList, { rangeStart: yearStart, rangeEndExclusive: now, monthStart });
 
       if (metrics?.orders) {
-        metrics.orders.returns_total = stats.total.count;
+        metrics.orders.returns_total = ytdStats.window.count;
         metrics.orders.returns_month = stats.month.count;
       }
 
       const cur = (metrics?.currency || 'EUR').toString().trim().toUpperCase() || 'EUR';
-      const returnsTotalValue = Number(stats.total.value_by_currency?.[cur] || 0) || 0;
+      const returnsTotalValue = Number(ytdStats.window.value_by_currency?.[cur] || 0) || 0;
       const returnsWindowValue = Number(stats.window.value_by_currency?.[cur] || 0) || 0;
 
       if (metrics?.revenue) {
