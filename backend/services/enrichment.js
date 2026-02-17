@@ -187,6 +187,7 @@ const marketplaceLookup = new MarketplaceLookup({
   ebayPathColumn: 'category_path',
   kauflandPathColumn: 'category_path',
 });
+const { isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
 
 const isNumericId = (v) => v !== undefined && v !== null && /^\d+$/.test(String(v).trim());
 const normalizePath = (v) => (v ? v.toString().trim() : '');
@@ -252,6 +253,7 @@ async function resolveCategoryWithGemini(product, target) {
           const c = EBAY_CATEGORIES[id];
           const breadcrumb = safeString(c?.breadcrumb);
           if (!breadcrumb || !breadcrumb.includes('>')) return null;
+          if (isBannedEbayBreadcrumb(breadcrumb)) return null;
           return { id: String(c?.id ?? id), breadcrumb, name: safeString(c?.name) };
         })
         .filter(Boolean);
@@ -271,11 +273,61 @@ async function resolveCategoryWithGemini(product, target) {
         .filter(Boolean)
         .join(' ');
 
-      const tokens = Array.from(new Set(tokenize(seedText))).slice(0, 10);
+      // Token expansion helps German compound words / singular<->plural (e.g. "Bundhose" -> "Hosen").
+      const baseTokens = Array.from(new Set(tokenize(seedText))).slice(0, 12);
+      const expanded = new Set(baseTokens);
+      for (const t of baseTokens) {
+        if (!t) continue;
+        if (t.includes('hose')) {
+          expanded.add('hose');
+          expanded.add('hosen');
+        }
+        if (t.includes('handschuh')) {
+          expanded.add('handschuhe');
+        }
+        if (t.includes('schuh')) {
+          expanded.add('schuhe');
+        }
+        if (t.includes('jacke')) {
+          expanded.add('jacken');
+        }
+      }
+      const tokens = Array.from(expanded).slice(0, 16);
       if (!tokens.length) return [];
+
+      // Guard: avoid "Reit- & Fahrsport" unless the product text strongly suggests equestrian.
+      const seedNorm = normalizeText(seedText);
+      const equestrianSignals = [
+        'reit',
+        'pferd',
+        'pony',
+        'sattel',
+        'trense',
+        'halfter',
+        'zaum',
+        'steigbuegel',
+        'steigbügel',
+        'reithose',
+        'reithelm',
+        'fahrsport',
+        // Common equestrian brands (high-signal)
+        'uvex',
+        'casco',
+        'covalliero',
+        'pikeur',
+        'eskadron',
+        'kerbl',
+        'busse',
+        'stuebben',
+        'stübben',
+      ];
+      const allowEquestrian = equestrianSignals.some((sig) => sig && seedNorm.includes(sig));
 
       const scored = [];
       for (const e of entries) {
+        if (!allowEquestrian && String(e.breadcrumb || '').includes('Sport > Reit- & Fahrsport')) {
+          continue;
+        }
         const hay = normalizeText(`${e.breadcrumb} ${e.name}`);
         let hit = 0;
         for (const t of tokens) {
@@ -956,6 +1008,7 @@ function applyEbayTaxonomy(input) {
 
 function resolveEbayCategory({ details = {}, attributes = {}, identification = {} }) {
   const rawId =
+    details.categoryId ||
     attributes.ebay_category_id ||
     attributes.ebayCategoryId ||
     attributes.category_id ||
@@ -965,16 +1018,17 @@ function resolveEbayCategory({ details = {}, attributes = {}, identification = {
     null;
 
   // NOTE:
-  // - `identification.category` is an internal/free-text classification in this app and is NOT reliably an eBay breadcrumb.
+  // - `identification.category` is intended to be the canonical eBay breadcrumb in AvyCloud
+  //   (it is derived from details.categoryId on save). Legacy data may still contain non-eBay values.
   // - Many eBay leaf names are ambiguous ("Sonstige", "Elektronik & Computer", ...). Never resolve by leaf-only names.
-  // Prefer explicit eBay path fields and canonical "Kategorie" (which we set to the FULL breadcrumb on save).
+  // Prefer explicit eBay path fields and canonical categoryId/breadcrumb fields.
   const pathCandidates = [
     details.ebayCategoryPath,
     attributes.ebay_category_path,
     attributes.ebay_category,
     details.ebayCategory,
-    attributes.Kategorie,
-    attributes.category,
+    // Best-effort fallback: if identification.category looks like a breadcrumb.
+    identification?.category,
   ]
     .map((v) => normalizePath(v))
     .filter(Boolean);
@@ -987,7 +1041,11 @@ function resolveEbayCategory({ details = {}, attributes = {}, identification = {
     null;
 
   if (isNumericId(rawId) && marketplaceLookup.isValidEbayId(String(rawId).trim())) {
-    return { id: String(rawId).trim(), path: bestPath || pathCandidates[0] || '' };
+    const id = String(rawId).trim();
+    const cat = findEbayCategory(id);
+    const breadcrumb = cat?.breadcrumb ? String(cat.breadcrumb) : '';
+    if (breadcrumb && isBannedEbayBreadcrumb(breadcrumb)) return null;
+    return { id, path: breadcrumb || bestPath || pathCandidates[0] || '' };
   }
 
   // Only resolve by breadcrumb/path if we actually have a breadcrumb (avoid leaf-only strings).
@@ -1004,7 +1062,9 @@ function resolveEbayCategory({ details = {}, attributes = {}, identification = {
   // Fallback: best-effort map from breadcrumb-like paths only (never from leaf-only strings).
   if (!cat && bestPath) cat = findEbayCategory(bestPath);
   if (cat) {
-    return { id: String(cat.id), path: cat.breadcrumb || bestPath || '' };
+    const breadcrumb = cat?.breadcrumb ? String(cat.breadcrumb) : '';
+    if (breadcrumb && isBannedEbayBreadcrumb(breadcrumb)) return null;
+    return { id: String(cat.id), path: breadcrumb || bestPath || '' };
   }
   return null;
 }

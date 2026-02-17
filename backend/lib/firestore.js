@@ -704,9 +704,12 @@ function enforceEbayAspects(product) {
       'features|de|ebay_9800',
       'features|de|ebay',
       // Category path variants (canonical key is "Kategorie")
+      'kategorie',
       'kategorie-pfad',
       'kategorie pfad',
       'kategoriepfad',
+      'category',
+      'category path',
       // Generic IDs that should NEVER be displayed as user-facing attributes
       // NOTE: SKU is derived from identification/details.identifiers and must not be taken from arbitrary imports/LLM output.
       'sku',
