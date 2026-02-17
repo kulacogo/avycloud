@@ -43,9 +43,9 @@ const DEEP_MODE_REGEX =
 // even when the user wants a full datasheet rewrite. We only treat as "marketing image request" when the
 // user explicitly asks for marketing/reference images or URLs.
 const MARKETING_IMAGE_REGEX =
-  /(marketingbild|marketingbilder|kampagne|kampagnen|werben|promo|produktfoto|produktbild|referenzbild|referenzbilder|imgurl|img url)/i;
-const IMAGE_KEYWORDS = /(bild|bilder|image|images|foto|photos?|shot|render|packshot|url)/i;
-const WEB_ONLY_IMAGE_REGEX = /(nur\s+web|nur\s+internet|im\s+internet|web[-\s]?only|keine\s+ai|ohne\s+ai|no\s+ai|keine\s+generierung|ohne\s+generierung)/i;
+  /(marketingbild|marketingbilder|kampagne|kampagnen|werben|promo|produktfoto|produktbild|referenzbild|referenzbilder|imgurl|img url|web[-\s]?produktbild|web[-\s]?bild)/i;
+const IMAGE_KEYWORDS = /(bild|bilder|image|images|foto|photos?|shot|render|packshot|url|produktbild)/i;
+const WEB_ONLY_IMAGE_REGEX = /(nur\s+web|nur\s+internet|im\s+internet|web[-\s]?only|keine\s+ai|ohne\s+ai|no\s+ai|keine\s+generierung|ohne\s+generierung|web[-\s]?produktbild)/i;
 const TEXT_LIKE_MIME = new Set(['text/plain', 'text/csv', 'application/json', 'text/json']);
 const MAX_ATTACHMENT_PREVIEW_CHARS = 6000;
 const MARKETING_MIN_RESULTS = 3;
@@ -839,8 +839,8 @@ async function fulfillMarketingImageRequest(product, { allowGeneratedFallback = 
   serpTrace.push(...webResult.trace);
 
   let suggestions = webResult.images;
-  if (allowGeneratedFallback && suggestions.length < MARKETING_MIN_RESULTS) {
-    const needed = MARKETING_MIN_RESULTS - suggestions.length;
+  if (allowGeneratedFallback && suggestions.length === 0) {
+    const needed = MARKETING_MIN_RESULTS;
     const fallback = await tryGenerateFallbackImages(product, existingKeys, needed);
     serpTrace.push(...fallback.trace);
     suggestions = suggestions.concat(fallback.images);
@@ -1267,7 +1267,8 @@ function buildSystemPrompt(locale = 'de-DE') {
     'Interpret every supplied image (product gallery + user attachments) in concise wording; if imagery is weak, state what to shoot next.',
     'When the user explicitly asks for "mehr Details", "ausführlich", "voller Report", "lange Analyse" or similar, switch to DEEP MODE with structured sections and long explanations. Otherwise stay in SHORT MODE.',
     'Marketing-image requests must return exactly: one short sentence + a list of 3–6 concrete image URLs with 3–5 word labels (hero, lifestyle, detail, packshot, etc.). No long strategy unless explicitly asked.',
-    'Never recycle the customer’s existing gallery URLs for marketing-image answers; prefer fresh web sources or new AI renders and state if none exist.',
+    'Never recycle the customer’s existing gallery URLs for marketing-image answers; prefer fresh web sources. Do NOT call generate_ai_images unless the user EXPLICITLY asks for AI-generated/rendered images.',
+    'When the user asks for "Web-Produktbilder", "Produktbilder", or "Bilder suchen", ALWAYS use web search (brightdata_web_search) to find REAL product photos from shops/marketplaces. Never substitute with AI-generated images.',
     'When proposing product updates, explain briefly (1–2 sentences) and include a minimal JSON snippet called "edit" that only contains the changed fields.',
     ...(rulesOn
       ? [
@@ -1279,7 +1280,7 @@ function buildSystemPrompt(locale = 'de-DE') {
           'QUALITY GOALS (non-binding):',
           '- Prefer marketplace-evidence titles; keep them searchable and ≤80 chars.',
         ]),
-    'You can craft new render prompts and call generate_ai_images when fresh material would help; note variant and intent.',
+    'Only call generate_ai_images when the user EXPLICITLY requests AI-rendered images (e.g. "erstelle KI-Bilder", "generiere Bilder"). For "Web-Produktbilder" or "Produktbilder suchen", always use web search tools instead.',
     'Default language: ' + locale + '. Keep responses direct, avoid filler, offer deeper details only on request.',
   ].join('\n');
 }
@@ -1778,10 +1779,15 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
      - IF results are empty/insufficient: call brightdata_web_search again WITHOUT sites (unrestricted web).
   3. After you found candidate URLs, fetch the best 1-2 pages via 'web_fetch' and extract facts from them (no guessing).
   4. Never say "I can search if you want". JUST SEARCH.
-  5. **ALWAYS** usage the 'update_product_datasheet' tool when you propose ANY data changes (title, description, attributes, etc.). Do NOT just output JSON text. The tool call IS the way to propose changes.
+  5. **ALWAYS** use the 'update_product_datasheet' tool when you propose ANY data changes (title, description, attributes, etc.). Do NOT just output JSON text. The tool call IS the way to propose changes.
   6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
   7. GPSR updates MUST be returned under the top-level "gpsr" object (not in attributes). Never create keys like "GPSR Manufacturer name" inside attributes.
   8. BaseLinker category: if you change it, FIRST call 'baselinker_category_search', THEN set BOTH 'baselinkerCategoryId' and 'baselinkerCategoryPath' in update_product_datasheet.
+  9. IMAGE RULES:
+     - When the user asks for "Web-Produktbilder", "Produktbilder" or any image search: use brightdata_web_search to find REAL product images from online shops. Use suggest_product_images to return them.
+     - NEVER call generate_ai_images as a response to image search requests. AI image generation is ONLY for explicit requests like "erstelle KI-Bilder" or "generiere Render".
+     - Product images must be REAL photos from manufacturer sites, shops, or marketplaces.
+  10. SCOPE COMPLIANCE: Read the user's request carefully. If they ask for specific things (e.g. only images, only price, only title), do EXACTLY that. Do not add unrequested changes or commentary.
 
   QUALITY BAR (non-binding):
   - Titles should be searchable and ≤80 chars.
