@@ -592,10 +592,10 @@ function deriveProductPhotoUrl(product, listing = null) {
   );
 }
 
-function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = null }) {
+function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = null, photoOverride = null }) {
   const auctionName = safeString(titleOverride) || safeString(listing?.title) || safeString(deriveProductTitle(product));
   const manufacturer = safeString(deriveProductManufacturer(product, listing)) || 'Unbekannt';
-  const photo = safeString(deriveProductPhotoUrl(product, listing));
+  const photo = safeString(photoOverride) || safeString(deriveProductPhotoUrl(product, listing));
   const highlights = deriveProductHighlights(product);
   const highlightItemsHtml = highlights.map((line) => `<li>${escapeHtml(line)}</li>`).join('');
   const rawDescription = safeString(deriveProductDescription(product))
@@ -2859,11 +2859,15 @@ function mapProductToEbayItem(product, overrides = {}) {
     if (/^https?:\/\//i.test(url) && !pictureUrls.includes(url)) pictureUrls.push(url);
   });
 
+  const heroPhoto = pictureUrls[0] || safeString(deriveProductPhotoUrl(product, null)) || '';
   const description =
-    overrides.description ??
-    buildTrendOceanDescriptionTemplate({ listing: null, product, titleOverride: title }) ||
-    safeString(deriveProductDescription(product)) ||
-    undefined;
+    safeString(overrides.description) ||
+    buildTrendOceanDescriptionTemplate({
+      listing: null,
+      product,
+      titleOverride: title,
+      photoOverride: heroPhoto,
+    });
 
   const ean = safeString(overrides.ean) || safeString(identifiers?.ean) || safeString(identifiers?.gtin) || undefined;
   const mpn = safeString(overrides.mpn) || safeString(identifiers?.mpn) || undefined;
@@ -2945,10 +2949,16 @@ function validatePublishReadiness(product, overrides = {}) {
     const url = safeString(typeof entry === 'string' ? entry : entry?.url_or_base64 || entry?.url || entry?.src);
     if (/^https?:\/\//i.test(url)) pictureUrls.push(url);
   });
-  if (!pictureUrls.length) warnings.push('Keine Bilder mit gültiger URL vorhanden.');
+  if (!pictureUrls.length) blockers.push('Keine Bilder mit gültiger URL – Template benötigt mindestens 1 Bild.');
 
   const ean = safeString(overrides.ean) || safeString(identifiers?.ean) || safeString(identifiers?.gtin);
   if (!ean) warnings.push('Keine EAN/GTIN vorhanden.');
+
+  const highlights = deriveProductHighlights(product);
+  if (!highlights.length) warnings.push('Keine Produkt-Highlights vorhanden – Template-Sektion wird leer.');
+
+  const desc = safeString(deriveProductDescription(product));
+  if (!desc) warnings.push('Keine Produktbeschreibung vorhanden – Template-Sektion wird leer.');
 
   return { canPublish: blockers.length === 0, blockers, warnings };
 }
