@@ -4,10 +4,7 @@
  * validated against the canonical eBay taxonomy (backend/ebay-data/categories.json).
  *
  * Targets (by default):
- * - Products whose current canonical category root is in:
- *   - "Sammeln & Seltenes"
- *   - "Antiquitäten & Kunst"
- *   - "Business & Industrie"
+ * - Products whose current canonical category root is in AvyCloud's DISALLOWED roots list.
  *
  * Optional (flags):
  * - --include-missing: include products with missing/invalid categoryId
@@ -34,12 +31,13 @@ const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { getAllProducts, saveProduct } = require('../lib/firestore');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
+const { BANNED_EBAY_CATEGORY_ROOTS, isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
 
 const EBAY_CATEGORIES_JSON = path.join(__dirname, '..', 'ebay-data', 'categories.json');
 const EBAY_CATEGORIES = JSON.parse(fs.readFileSync(EBAY_CATEGORIES_JSON, 'utf8'));
 const marketLookup = new MarketplaceLookup({});
 
-const SUSPICIOUS_ROOTS = new Set(['Sammeln & Seltenes', 'Antiquitäten & Kunst', 'Business & Industrie']);
+const DISALLOWED_ROOTS = new Set(BANNED_EBAY_CATEGORY_ROOTS);
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -88,6 +86,18 @@ function tokenize(text = '') {
   return t.split(/\s+/g).filter((w) => w.length >= 4);
 }
 
+function tokenMatch(a, b) {
+  const x = safeString(a);
+  const y = safeString(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  // Substring match only for longer tokens to avoid noisy matches.
+  if (x.length >= 6 && y.length >= 6) {
+    return x.includes(y) || y.includes(x);
+  }
+  return false;
+}
+
 const LEAF_STOP = new Set([
   'teile',
   'zubehor',
@@ -108,6 +118,81 @@ function strongLeafTokens(text = '') {
   return tokenize(text).filter((t) => t.length >= 6 && !LEAF_STOP.has(t));
 }
 
+// Build a lightweight fuzzy index once (helps resolve "almost-canonical" breadcrumbs).
+const FUZZY_CATEGORY_INDEX = Object.keys(EBAY_CATEGORIES || {})
+  .map((id) => {
+    const breadcrumb = safeString(EBAY_CATEGORIES?.[id]?.breadcrumb);
+    if (!breadcrumb || !breadcrumb.includes('>')) return null;
+    const root = rootOfBreadcrumb(breadcrumb);
+    if (DISALLOWED_ROOTS.has(root) || isBannedEbayBreadcrumb(breadcrumb)) return null;
+    const leaf = safeString(String(breadcrumb || '').split('>').pop() || '');
+    const leafStrong = strongLeafTokens(leaf);
+    const leafTokens = new Set(
+      (leafStrong.length ? leafStrong : tokenize(leaf).filter((t) => !LEAF_STOP.has(t))).filter(Boolean)
+    );
+    const allTokens = new Set(tokenize(breadcrumb));
+    return {
+      id: String(id),
+      breadcrumb,
+      depth: breadcrumb.split('>').map((s) => s.trim()).filter(Boolean).length,
+      leafTokens,
+      allTokens,
+    };
+  })
+  .filter(Boolean);
+
+function resolveCategoryFromPathFuzzy(proposedPath) {
+  const proposed = safeString(proposedPath);
+  if (!proposed) return null;
+  const proposedLeaf = safeString(String(proposed || '').split('>').pop() || '');
+  const leafStrong = strongLeafTokens(proposedLeaf);
+  const proposedLeafTokens = new Set(
+    (leafStrong.length ? leafStrong : tokenize(proposedLeaf).filter((t) => !LEAF_STOP.has(t))).filter(Boolean)
+  );
+  if (!proposedLeafTokens.size) return null;
+  const proposedAllTokens = new Set(tokenize(proposed));
+
+  let best = null;
+  let bestScore = -1;
+
+  for (const row of FUZZY_CATEGORY_INDEX) {
+    // Require at least one leaf token overlap (anchors the match).
+    let leafOverlap = 0;
+    for (const t of proposedLeafTokens) {
+      for (const c of row.leafTokens) {
+        if (tokenMatch(t, c)) {
+          leafOverlap += 1;
+          break;
+        }
+      }
+    }
+    if (leafOverlap <= 0) continue;
+
+    let pathOverlap = 0;
+    for (const t of proposedAllTokens) {
+      if (row.allTokens.has(t)) {
+        pathOverlap += 1;
+        continue;
+      }
+      for (const c of row.allTokens) {
+        if (tokenMatch(t, c)) {
+          pathOverlap += 1;
+          break;
+        }
+      }
+    }
+
+    const score = leafOverlap * 120 + pathOverlap * 6 + (row.depth || 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = row;
+    }
+  }
+
+  if (!best?.id) return null;
+  return { id: String(best.id), method: 'fuzzy_breadcrumb_tokens', score: bestScore };
+}
+
 function isLeafCompatible(proposedPath, canonicalPath) {
   const proposedLeaf = safeString(String(proposedPath || '').split('>').pop() || '');
   const canonicalLeaf = safeString(String(canonicalPath || '').split('>').pop() || '');
@@ -119,7 +204,16 @@ function isLeafCompatible(proposedPath, canonicalPath) {
   const b2 = b.size ? b : new Set(tokenize(canonicalLeaf).filter((t) => !LEAF_STOP.has(t)));
   let overlap = 0;
   for (const t of a2) {
-    if (b2.has(t)) overlap += 1;
+    if (b2.has(t)) {
+      overlap += 1;
+      continue;
+    }
+    for (const cand of b2) {
+      if (tokenMatch(t, cand)) {
+        overlap += 1;
+        break;
+      }
+    }
   }
   return overlap >= 1;
 }
@@ -183,7 +277,6 @@ async function fetchWebBlocks(query) {
   const blocks = [];
   const engines = [
     { engine: 'google', params: { q: query, num: 8 } },
-    { engine: 'google_shopping', params: { q: query, num: 8 } },
     { engine: 'ebay', params: { _nkw: query } }, // ebay uses _nkw often; if it fails, we still have google
   ];
   for (const spec of engines) {
@@ -231,7 +324,7 @@ async function proposeCategoryPathWithGemini({ product, locale, webBlocks }) {
     '- Liefere NUR JSON: { "path": "A > B > C" }',
     '- Der Pfad MUSS ein realer eBay Kategorie-Breadcrumb sein (mindestens 2 Ebenen, muss ">").',
     '- Wähle die BESTE & MÖGLICHST SPEZIFISCHE Kategorie.',
-    '- Vermeide diese Roots, außer es ist eindeutig passend: "Sammeln & Seltenes", "Antiquitäten & Kunst", "Business & Industrie".',
+    `- Diese Roots sind in AvyCloud VERBOTEN und dürfen NIE gewählt werden: ${BANNED_EBAY_CATEGORY_ROOTS.map((r) => `"${r}"`).join(', ')}.`,
     '- Keine Erklärungen, kein Markdown.',
     '',
     'PRODUKT:',
@@ -267,17 +360,44 @@ function isBreadcrumb(text) {
 }
 
 function resolveCategoryFromPath(proposedPath) {
-  // Prefer unique leaf matches first (safest, avoids fuzzy wrong-path resolutions).
+  // First: full path lookup (best, exact-ish via MarketplaceLookup normalization)
+  const byLookup = marketLookup.lookupEbay(proposedPath);
+  if (byLookup) {
+    const canon = canonicalBreadcrumb(byLookup);
+    if (canon && !isBannedEbayBreadcrumb(canon)) {
+      return { id: String(byLookup), method: 'marketplaceLookup' };
+    }
+  }
+
+  // Second: fuzzy token match (helps when LLM output is "almost" canonical).
+  const byFuzzy = resolveCategoryFromPathFuzzy(proposedPath);
+  if (byFuzzy?.id) return byFuzzy;
+
+  // Third: unique leaf match (safe-ish), but never accept if it lands in a disallowed root.
   const leaf = safeString(String(proposedPath || '').split('>').pop() || '');
   const byUniqueLeaf = leaf ? marketLookup.lookupEbay(leaf) : null;
-  if (byUniqueLeaf) return { id: String(byUniqueLeaf), method: 'marketplaceLookup_leaf' };
-  // Next: full path lookup (exact)
-  const byLookup = marketLookup.lookupEbay(proposedPath);
-  if (byLookup) return { id: String(byLookup), method: 'marketplaceLookup' };
+  if (byUniqueLeaf) {
+    const canon = canonicalBreadcrumb(byUniqueLeaf);
+    if (canon && !isBannedEbayBreadcrumb(canon)) {
+      return { id: String(byUniqueLeaf), method: 'marketplaceLookup_leaf' };
+    }
+  }
+
   // Last: strict matcher / heuristics
   const byFind = findEbayCategory(proposedPath);
-  if (byFind?.id) return { id: String(byFind.id), method: 'findEbayCategory' };
+  if (byFind?.id) {
+    const canon = safeString(byFind?.breadcrumb);
+    if (canon && !isBannedEbayBreadcrumb(canon)) {
+      return { id: String(byFind.id), method: 'findEbayCategory' };
+    }
+  }
   return null;
+}
+
+function isBarcodeQuery(query = '') {
+  const digits = safeString(query).replace(/[^\d]/g, '');
+  if (!digits || !/^\d+$/.test(digits)) return false;
+  return digits.length === 8 || digits.length === 12 || digits.length === 13 || digits.length === 14;
 }
 
 function parseArgs(argv) {
@@ -343,7 +463,7 @@ async function main() {
     if (!canon) return Boolean(args.includeMissing);
     if (!canon.includes('>')) return Boolean(args.includeTooBroad);
     const root = rootOfBreadcrumb(canon);
-    return SUSPICIOUS_ROOTS.has(root);
+    return DISALLOWED_ROOTS.has(root);
   });
   const targets = args.limit > 0 ? targetsAll.slice(0, args.limit) : targetsAll;
   console.log(`[category-fix-web] targets=${targetsAll.length} processing=${targets.length}`);
@@ -356,7 +476,6 @@ async function main() {
       const sku = pickSku(product);
       const currentId = safeString(product?.details?.categoryId);
       const currentCanon = currentId ? canonicalBreadcrumb(currentId) : '';
-      const currentRoot = rootOfBreadcrumb(currentCanon);
 
       const query = pickQuery(product);
       const locale = product?.locale || 'de-DE';
@@ -376,26 +495,37 @@ async function main() {
         report.push({ sku, status: 'skip', reason: 'canonical_too_broad', query, current: currentCanon, proposedPath, resolvedId: String(resolved.id), canonical: canon, resolvedBy: resolved.method });
         return;
       }
+      // Strict governance: never allow disallowed roots.
+      const nextRoot = rootOfBreadcrumb(canon);
+      if (DISALLOWED_ROOTS.has(nextRoot) || isBannedEbayBreadcrumb(canon)) {
+        report.push({
+          sku,
+          status: 'skip',
+          reason: 'forbidden_root',
+          query,
+          current: currentCanon,
+          currentId,
+          proposedPath,
+          resolvedId: String(resolved.id),
+          canonical: canon,
+          nextRoot,
+          resolvedBy: resolved.method,
+        });
+        return;
+      }
       // Guard: proposed leaf and canonical leaf must be compatible (avoid wrong fuzzy matches).
       if (!isLeafCompatible(proposedPath, canon)) {
         report.push({ sku, status: 'skip', reason: 'leaf_incompatible', query, current: currentCanon, proposedPath, resolvedId: String(resolved.id), canonical: canon, resolvedBy: resolved.method });
         return;
       }
       // Extra evidence guard
-      if (!hasEvidenceForLeaf(product, canon, webBlocks)) {
+      if (!isBarcodeQuery(query) && !hasEvidenceForLeaf(product, canon, webBlocks)) {
         report.push({ sku, status: 'skip', reason: 'no_leaf_evidence', query, current: currentCanon, proposedPath, resolvedId: String(resolved.id), canonical: canon, resolvedBy: resolved.method });
         return;
       }
       // If it doesn't actually improve anything, skip
       if (currentId && String(currentId) === String(resolved.id)) {
         report.push({ sku, status: 'noop', query, current: currentCanon, resolvedId: String(resolved.id), canonical: canon, resolvedBy: resolved.method });
-        return;
-      }
-      // Avoid moving into suspicious roots unless web evidence indicates it (we keep the evidence guard, but add root guard)
-      const nextRoot = rootOfBreadcrumb(canon);
-      if (SUSPICIOUS_ROOTS.has(nextRoot) && !SUSPICIOUS_ROOTS.has(currentRoot)) {
-        // do not move into suspicious roots from a non-suspicious root
-        report.push({ sku, status: 'skip', reason: 'avoid_into_suspicious_root', query, current: currentCanon, proposedPath, resolvedId: String(cat.id), canonical: canon });
         return;
       }
 

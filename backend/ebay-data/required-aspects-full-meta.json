@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-15T13:25:29.381Z",
+  "generatedAt": "2026-02-17T02:48:57.775Z",
   "environment": "production",
   "marketplaceId": "EBAY_DE",
   "categoryTreeId": "77",
@@ -10,6 +10,7 @@
   "runTargetCategories": 14915,
   "sourceCategories": 14928,
   "totalAspectEntries": 14915,
+  "totalAspectCatalogEntries": 14915,
   "errorsCount": 0,
   "errorsSample": [],
   "modeRequested": "bulk",

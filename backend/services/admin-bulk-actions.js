@@ -1,6 +1,7 @@
 const path = require('path');
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
 const { firestore, getAllProducts, getProduct, saveProduct } = require('../lib/firestore');
+const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { ensurePriceCoverage } = require('./enrichment');
 const { coerceTitleToPolicy, validateTitleToPolicy, inferTitleCategory } = require('../lib/title-policy');
 const { getRulebookConfigCached } = require('../lib/rulebook-config');
@@ -1235,16 +1236,6 @@ async function runBulkCategory({ apply = false, limit = 500, offset = 0, debug =
   };
   const samples = [];
 
-  // Batch dot-path updates (fast + safe; does not overwrite whole document).
-  let batch = firestore.batch();
-  let batchCount = 0;
-  const commit = async () => {
-    if (batchCount === 0) return;
-    await batch.commit();
-    batch = firestore.batch();
-    batchCount = 0;
-  };
-
   for (const p of selected) {
     const id = p.id;
     const sku = pickSku(p);
@@ -1253,112 +1244,139 @@ async function runBulkCategory({ apply = false, limit = 500, offset = 0, debug =
       if (!cur) continue;
       const details = cur.details || {};
       const attrs = details.attributes || {};
+      const identCategory = normalizePath(cur?.identification?.category);
+      const directIdCandidates = [
+        details.categoryId,
+        details.ebayCategoryId,
+        attrs.ebay_category_id,
+        attrs.ebayCategoryId,
+        attrs['ebay.category_id'],
+      ]
+        .map((v) => safeString(v))
+        .filter(Boolean);
 
-      const update = {};
+      const pathCandidates = [
+        normalizePath(details.ebayCategoryPath),
+        normalizePath(details.ebayCategoryBreadcrumb),
+        normalizePath(attrs.ebay_category_path),
+        normalizePath(attrs.ebay_category),
+        normalizePath(attrs['eBay Kategorie'] || attrs['eBay-Kategorie']),
+        normalizePath(attrs.Kategorie),
+        normalizePath(attrs.category),
+        // free-text fallback only when it already looks like a real breadcrumb.
+        identCategory && identCategory.includes('>')
+          ? identCategory
+          : '',
+      ].filter(Boolean);
 
-      // eBay
-      const existingEbayId = details.ebayCategoryId;
-      const ebayIdOk = existingEbayId && lookup.isValidEbayId(String(existingEbayId).trim());
-      if (!ebayIdOk) {
-        const directId =
-          details.ebayCategoryId ||
-          attrs.ebay_category_id ||
-          attrs.ebayCategoryId ||
-          attrs['ebay.category_id'] ||
-          null;
-        const directPath =
+      let resolvedCategoryId = '';
+      let resolvedSource = '';
+      for (const candidate of directIdCandidates) {
+        if (!isNumericId(candidate)) continue;
+        if (!lookup.isValidEbayId(String(candidate).trim())) continue;
+        resolvedCategoryId = String(candidate).trim();
+        resolvedSource = 'direct_id';
+        break;
+      }
+
+      if (!resolvedCategoryId) {
+        for (const candidate of pathCandidates) {
+          const byPath = lookup.lookupEbay(candidate);
+          if (!byPath) continue;
+          if (!lookup.isValidEbayId(String(byPath).trim())) continue;
+          resolvedCategoryId = String(byPath).trim();
+          resolvedSource = `path:${candidate.slice(0, 80)}`;
+          break;
+        }
+      }
+
+      if (!resolvedCategoryId) {
+        summary.failed += 1;
+        if (samples.length < 15) {
+          samples.push({
+            id,
+            sku,
+            status: 'no_valid_ebay_category',
+            directIdCandidates: directIdCandidates.slice(0, 5),
+            pathCandidates: pathCandidates.slice(0, 5),
+          });
+        }
+        continue;
+      }
+
+      const canonical = findEbayCategory(resolvedCategoryId);
+      const canonicalBreadcrumb = safeString(canonical?.breadcrumb || '');
+      if (!canonicalBreadcrumb || !canonicalBreadcrumb.includes('>')) {
+        summary.failed += 1;
+        if (samples.length < 15) {
+          samples.push({
+            id,
+            sku,
+            status: 'resolved_category_not_canonical',
+            resolvedCategoryId,
+          });
+        }
+        continue;
+      }
+
+      const currentCategoryId = safeString(details.categoryId);
+      const currentCategoryText = safeString(cur?.identification?.category);
+      const hasLegacyFields = Boolean(
+        details.ebayCategoryId ||
           details.ebayCategoryPath ||
-          attrs.ebay_category_path ||
-          attrs.ebay_category ||
-          details.ebayCategory ||
-          attrs.Kategorie ||
-          attrs.category ||
-          cur.identification?.category ||
-          null;
-
-        let ebayId = null;
-        if (isNumericId(directId) && lookup.isValidEbayId(String(directId).trim())) {
-          ebayId = String(directId).trim();
-        } else {
-          const sourcePath = normalizePath(directPath || cur.identification?.category);
-          if (sourcePath) ebayId = lookup.lookupEbay(sourcePath);
-        }
-
-        if (ebayId) {
-          update['details.ebayCategoryId'] = ebayId;
-          const pathStr = normalizePath(directPath) || normalizePath(cur.identification?.category) || '';
-          update['details.ebayCategoryPath'] = pathStr || `ID:${ebayId}`;
-          update['details.attributes.ebay_category_id'] = ebayId;
-          update['details.attributes.ebay_category_path'] = pathStr || `ID:${ebayId}`;
-        }
-      }
-
-      // Kaufland
-      const existingKaufId = details.kauflandCategoryId;
-      const kaufIdOk = existingKaufId && lookup.isValidKauflandId(String(existingKaufId).trim());
-      if (!kaufIdOk) {
-        const directId =
+          details.ebayCategoryBreadcrumb ||
           details.kauflandCategoryId ||
-          attrs.kaufland_category_id ||
-          attrs.kauflandCategoryId ||
-          attrs['kaufland.category_id'] ||
-          null;
+          details.kauflandCategoryPath
+      );
 
-        let kaufId = null;
-        if (isNumericId(directId) && lookup.isValidKauflandId(String(directId).trim())) {
-          kaufId = String(directId).trim();
-        } else {
-          const pathCandidate =
-            normalizePath(details.kauflandCategoryPath) ||
-            normalizePath(attrs.kaufland_category_path) ||
-            normalizePath(attrs.kaufland_category) ||
-            normalizePath(attrs.Kategorie) ||
-            normalizePath(attrs.category) ||
-            normalizePath(cur.identification?.category);
-          if (pathCandidate) kaufId = lookup.lookupKaufland(pathCandidate);
-        }
-
-        if (kaufId) {
-          update['details.kauflandCategoryId'] = kaufId;
-          const pathStr =
-            normalizePath(details.kauflandCategoryPath) ||
-            normalizePath(attrs.kaufland_category_path) ||
-            normalizePath(attrs.kaufland_category) ||
-            normalizePath(attrs.Kategorie) ||
-            normalizePath(attrs.category) ||
-            normalizePath(cur.identification?.category) ||
-            `ID:${kaufId}`;
-          update['details.kauflandCategoryPath'] = pathStr;
-          update['details.attributes.kaufland_category_id'] = kaufId;
-          update['details.attributes.kaufland_category_path'] = pathStr;
-        }
-      }
-
-      if (!Object.keys(update).length) {
+      if (
+        currentCategoryId === resolvedCategoryId &&
+        currentCategoryText === canonicalBreadcrumb &&
+        !hasLegacyFields
+      ) {
         summary.noop += 1;
         continue;
       }
 
       summary.updated += 1;
       if (!apply && samples.length < 15) {
-        samples.push({ id, sku, update });
+        samples.push({
+          id,
+          sku,
+          resolvedSource,
+          update: {
+            'details.categoryId': resolvedCategoryId,
+            'identification.category': canonicalBreadcrumb,
+            cleanupLegacyCategoryFields: hasLegacyFields,
+          },
+        });
+        continue;
       }
 
       if (apply) {
-        const ref = firestore.collection('products').doc(String(id));
-        batch.update(ref, update);
-        batchCount += 1;
-        if (batchCount >= 400) {
-          await commit();
-        }
+        const next = JSON.parse(JSON.stringify(cur));
+        next.details = next.details || {};
+        next.identification = next.identification || {};
+        next.details.categoryId = resolvedCategoryId;
+        next.identification.category = canonicalBreadcrumb;
+
+        // Hard cleanup: prevent future drift from legacy marketplace fields.
+        if (next.details.ebayCategoryId) delete next.details.ebayCategoryId;
+        if (next.details.ebayCategoryPath) delete next.details.ebayCategoryPath;
+        if (next.details.ebayCategoryBreadcrumb) delete next.details.ebayCategoryBreadcrumb;
+        if (next.details.kauflandCategoryId) delete next.details.kauflandCategoryId;
+        if (next.details.kauflandCategoryPath) delete next.details.kauflandCategoryPath;
+
+        await saveProduct(next, {
+          source: 'admin-bulk-category-v2',
+          allowCategoryChange: true,
+        });
       }
     } catch (e) {
       summary.failed += 1;
       if (samples.length < 10) samples.push({ id, sku, status: 'error', message: e?.message || String(e) });
     }
   }
-
-  if (apply) await commit();
   return { summary, samples };
 }
 

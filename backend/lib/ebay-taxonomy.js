@@ -5,6 +5,7 @@ const { decodeHtmlEntitiesDeep } = require('./html-entities');
 const CATEGORY_PATH = path.join(__dirname, '..', 'ebay-data', 'categories.json');
 const ASPECT_PATH = path.join(__dirname, '..', 'ebay-data', 'required-aspects.json');
 const FULL_ASPECT_PATH = path.join(__dirname, '..', 'ebay-data', 'required-aspects-full.json');
+const ASPECT_CATALOG_PATH = path.join(__dirname, '..', 'ebay-data', 'aspects-full.json');
 const AUTO_ASPECT_PATH = path.join(
   __dirname,
   '..',
@@ -15,6 +16,7 @@ const AUTO_ASPECT_PATH = path.join(
 let categories = {};
 let requiredAspects = {};
 let autoRequiredAspects = {};
+let aspectCatalogByCategory = {};
 let uniqueNameToId = new Map();
 
 function loadJsonSafe(filePath) {
@@ -31,10 +33,12 @@ function hydrate() {
   categories = loadJsonSafe(CATEGORY_PATH);
   const baseRequiredAspects = loadJsonSafe(ASPECT_PATH);
   const fullRequiredAspects = loadJsonSafe(FULL_ASPECT_PATH);
+  const fullAspectCatalog = loadJsonSafe(ASPECT_CATALOG_PATH);
   requiredAspects = {
     ...(baseRequiredAspects && typeof baseRequiredAspects === 'object' ? baseRequiredAspects : {}),
     ...(fullRequiredAspects && typeof fullRequiredAspects === 'object' ? fullRequiredAspects : {}),
   };
+  aspectCatalogByCategory = fullAspectCatalog && typeof fullAspectCatalog === 'object' ? fullAspectCatalog : {};
   const autoRaw = loadJsonSafe(AUTO_ASPECT_PATH);
   autoRequiredAspects =
     autoRaw && typeof autoRaw === 'object' && autoRaw.required_aspects_by_category_id
@@ -161,7 +165,8 @@ function findEbayCategory(rawCategory) {
 function getRequiredAspects(categoryId) {
   if (!categoryId) return [];
   const key = typeof categoryId === 'number' ? String(categoryId) : categoryId.toString();
-  const base = requiredAspects[key];
+  const catalog = getCategoryAspectCatalog(key);
+  const base = catalog.requiredAspects.length ? catalog.requiredAspects : requiredAspects[key];
   const auto = autoRequiredAspects[key];
   const out = [];
   const push = (v) => {
@@ -187,6 +192,112 @@ function normalizeAspectKey(raw) {
     .replace(/-/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizeCatalogAspectName(value) {
+  return String(value == null ? '' : value)
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function dedupeAspectNames(values = []) {
+  const out = [];
+  const seen = new Set();
+  values.forEach((raw) => {
+    const name = normalizeCatalogAspectName(raw);
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(name);
+  });
+  return out;
+}
+
+function getCategoryAspectCatalog(categoryId) {
+  if (!categoryId) {
+    return {
+      categoryId: null,
+      hasAspectData: false,
+      requiredAspects: [],
+      recommendedAspects: [],
+      optionalAspects: [],
+      allAspects: [],
+      aspects: [],
+    };
+  }
+  const key = String(categoryId).trim();
+  if (!key) {
+    return {
+      categoryId: null,
+      hasAspectData: false,
+      requiredAspects: [],
+      recommendedAspects: [],
+      optionalAspects: [],
+      allAspects: [],
+      aspects: [],
+    };
+  }
+  const entry = aspectCatalogByCategory?.[key];
+  const aspectRows = Array.isArray(entry?.aspects) ? entry.aspects : [];
+  const requiredFromRows = dedupeAspectNames(
+    aspectRows
+      .filter((a) => Boolean(a?.required))
+      .map((a) => a?.name)
+  );
+  const recommendedFromRows = dedupeAspectNames(
+    aspectRows
+      .filter((a) => String(a?.usage || '').toUpperCase() === 'RECOMMENDED')
+      .map((a) => a?.name)
+  );
+  const optionalFromRows = dedupeAspectNames(
+    aspectRows
+      .filter((a) => String(a?.usage || '').toUpperCase() === 'OPTIONAL')
+      .map((a) => a?.name)
+  );
+  const allFromRows = dedupeAspectNames(aspectRows.map((a) => a?.name));
+  const fallbackRequired = dedupeAspectNames(
+    Array.isArray(requiredAspects?.[key]) ? requiredAspects[key] : []
+  );
+  const fallbackAutoRequired = dedupeAspectNames(
+    Array.isArray(autoRequiredAspects?.[key]) ? autoRequiredAspects[key] : []
+  );
+  const requiredAspectsOut = dedupeAspectNames(
+    [
+      ...(Array.isArray(entry?.required) ? entry.required : requiredFromRows),
+      ...fallbackRequired,
+      ...fallbackAutoRequired,
+    ]
+  );
+  const recommendedAspectsOut = dedupeAspectNames(
+    Array.isArray(entry?.recommended) ? entry.recommended : recommendedFromRows
+  );
+  const optionalAspectsOut = dedupeAspectNames(
+    Array.isArray(entry?.optional) ? entry.optional : optionalFromRows
+  );
+  const allAspectsOut = dedupeAspectNames(
+    [
+      ...(Array.isArray(entry?.all) ? entry.all : allFromRows),
+      ...requiredAspectsOut,
+    ]
+  );
+  const aspectsOut = Array.isArray(entry?.aspects) ? entry.aspects : [];
+  const hasAspectData =
+    requiredAspectsOut.length > 0 ||
+    recommendedAspectsOut.length > 0 ||
+    optionalAspectsOut.length > 0 ||
+    allAspectsOut.length > 0 ||
+    aspectsOut.length > 0;
+
+  return {
+    categoryId: key,
+    hasAspectData,
+    requiredAspects: requiredAspectsOut,
+    recommendedAspects: recommendedAspectsOut,
+    optionalAspects: optionalAspectsOut,
+    allAspects: allAspectsOut,
+    aspects: aspectsOut,
+  };
 }
 
 function toAttributeMap(attributes) {
@@ -221,9 +332,11 @@ function buildRequiredAspectMeta(categoryId, attributes = null) {
   }
   const required = getRequiredAspects(key);
   const categoryKnown = isKnownEbayCategoryId(key);
+  const catalogHasAspectData = Object.prototype.hasOwnProperty.call(aspectCatalogByCategory, key);
   const mapHasAspectData =
     Object.prototype.hasOwnProperty.call(requiredAspects, key) ||
-    Object.prototype.hasOwnProperty.call(autoRequiredAspects, key);
+    Object.prototype.hasOwnProperty.call(autoRequiredAspects, key) ||
+    catalogHasAspectData;
   // Treat known categories with zero required aspects as valid "empty" metadata,
   // so downstream LLM prompts can still enforce category governance consistently.
   const hasAspectData = categoryKnown || mapHasAspectData;
@@ -250,19 +363,26 @@ function buildRequiredAspectMeta(categoryId, attributes = null) {
 
 function getRequiredAspectCatalogStats() {
   const categoryIds = Object.keys(categories || {});
-  const withAspectData = categoryIds.filter((id) => Object.prototype.hasOwnProperty.call(requiredAspects, id));
+  const withAspectData = categoryIds.filter(
+    (id) =>
+      Object.prototype.hasOwnProperty.call(requiredAspects, id) ||
+      Object.prototype.hasOwnProperty.call(aspectCatalogByCategory, id)
+  );
   const withAutoAspectData = categoryIds.filter((id) => Object.prototype.hasOwnProperty.call(autoRequiredAspects, id));
+  const withCatalogAspectData = categoryIds.filter((id) => Object.prototype.hasOwnProperty.call(aspectCatalogByCategory, id));
   return {
     totalCategories: categoryIds.length,
     categoriesWithAspectData: withAspectData.length,
     categoriesWithoutAspectData: Math.max(0, categoryIds.length - withAspectData.length),
     categoriesWithAutoAspectData: withAutoAspectData.length,
+    categoriesWithCatalogAspectData: withCatalogAspectData.length,
   };
 }
 
 module.exports = {
   findEbayCategory,
   getRequiredAspects,
+  getCategoryAspectCatalog,
   isKnownEbayCategoryId,
   buildRequiredAspectMeta,
   getRequiredAspectCatalogStats,

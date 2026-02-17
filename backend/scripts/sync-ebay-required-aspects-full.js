@@ -9,6 +9,7 @@
  *
  * Output files:
  * - backend/ebay-data/required-aspects-full.json
+ * - backend/ebay-data/aspects-full.json
  * - backend/ebay-data/required-aspects-full-meta.json
  *
  * Usage:
@@ -29,6 +30,7 @@ const { getSecretValue } = require('../lib/secret-values');
 
 const CATEGORIES_PATH = path.join(__dirname, '..', 'ebay-data', 'categories.json');
 const OUT_PATH = path.join(__dirname, '..', 'ebay-data', 'required-aspects-full.json');
+const OUT_ASPECT_CATALOG_PATH = path.join(__dirname, '..', 'ebay-data', 'aspects-full.json');
 const OUT_META_PATH = path.join(__dirname, '..', 'ebay-data', 'required-aspects-full-meta.json');
 
 function asArray(value) {
@@ -82,6 +84,12 @@ function normalizeToken(value) {
     .replace(/[^a-z0-9]+/g, '');
 }
 
+function normalizeUsage(value) {
+  const usage = String(value == null ? '' : value).toUpperCase().trim();
+  if (usage === 'RECOMMENDED' || usage === 'OPTIONAL') return usage;
+  return '';
+}
+
 function dedupeAspectNames(values = []) {
   const out = [];
   const seen = new Set();
@@ -95,6 +103,65 @@ function dedupeAspectNames(values = []) {
     out.push(name);
   });
   return out;
+}
+
+function buildAspectCatalogEntry(payload) {
+  const aspects = Array.isArray(payload?.aspects) ? payload.aspects : [];
+  const rows = [];
+  const required = [];
+  const recommended = [];
+  const optional = [];
+  const all = [];
+
+  const pushName = (list, name) => {
+    const normalized = normalizeAspectName(name);
+    if (!normalized) return;
+    if (!list.includes(normalized)) list.push(normalized);
+  };
+
+  aspects.forEach((aspect) => {
+    const c = aspect?.aspectConstraint || {};
+    const name = normalizeAspectName(aspect?.localizedAspectName || aspect?.aspectName || '');
+    if (!name) return;
+    const requiredFlag =
+      typeof c?.aspectRequired === 'boolean'
+        ? c.aspectRequired
+        : String(aspect?.aspectRequirement || c?.aspectUsage || '').toUpperCase().trim() === 'REQUIRED';
+    const usage = normalizeUsage(c?.aspectUsage || aspect?.aspectRequirement || '');
+    const values = Array.isArray(aspect?.aspectValues) ? aspect.aspectValues : [];
+    const valuesCount = values.length;
+
+    pushName(all, name);
+    if (requiredFlag) pushName(required, name);
+    if (usage === 'RECOMMENDED') pushName(recommended, name);
+    if (usage === 'OPTIONAL') pushName(optional, name);
+
+    rows.push({
+      name,
+      required: Boolean(requiredFlag),
+      usage: usage || null,
+      dataType: c?.aspectDataType || null,
+      advancedDataType: c?.aspectAdvancedDataType || null,
+      mode: c?.aspectMode || null,
+      format: c?.aspectFormat || null,
+      itemToAspectCardinality: c?.itemToAspectCardinality || null,
+      maxLength: Number.isFinite(Number(c?.aspectMaxLength)) ? Number(c.aspectMaxLength) : null,
+      enabledForVariations: typeof c?.aspectEnabledForVariations === 'boolean' ? c.aspectEnabledForVariations : null,
+      applicableTo: Array.isArray(c?.aspectApplicableTo)
+        ? Array.from(new Set(c.aspectApplicableTo.map((x) => String(x || '').trim()).filter(Boolean)))
+        : [],
+      expectedRequiredByDate: c?.expectedRequiredByDate || null,
+      valuesCount,
+    });
+  });
+
+  return {
+    required: dedupeAspectNames(required),
+    recommended: dedupeAspectNames(recommended),
+    optional: dedupeAspectNames(optional),
+    all: dedupeAspectNames(all),
+    aspects: rows,
+  };
 }
 
 function loadJson(filePath, fallback) {
@@ -247,14 +314,7 @@ async function resolveCategoryTreeId({ args, token }) {
 }
 
 function extractRequiredAspects(payload) {
-  const aspects = Array.isArray(payload?.aspects) ? payload.aspects : [];
-  const required = aspects.filter((aspect) => {
-    const c = aspect?.aspectConstraint || {};
-    if (typeof c?.aspectRequired === 'boolean') return c.aspectRequired;
-    const req = String(aspect?.aspectRequirement || c?.aspectUsage || '').toUpperCase().trim();
-    return req === 'REQUIRED';
-  });
-  return dedupeAspectNames(required.map((aspect) => aspect?.localizedAspectName || aspect?.aspectName || ''));
+  return buildAspectCatalogEntry(payload).required;
 }
 
 async function fetchItemAspectsBulkGzip({ env, token, categoryTreeId, timeoutSec = 900 }) {
@@ -267,6 +327,7 @@ async function fetchItemAspectsBulkGzip({ env, token, categoryTreeId, timeoutSec
     const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
+        Accept: 'application/octet-stream, application/json',
       },
       signal: controller.signal,
     });
@@ -297,6 +358,7 @@ function parseItemAspectsBulkPayload(bodyBuffer) {
 
 async function buildRequiredAspectsMapFromBulkBuffer(bodyBuffer) {
   const rawMap = {};
+  const catalogMap = {};
   let streamedCategories = 0;
 
   await new Promise((resolve, reject) => {
@@ -307,7 +369,9 @@ async function buildRequiredAspectsMapFromBulkBuffer(bodyBuffer) {
       const categoryId = String(value?.category?.categoryId || '').trim();
       if (!categoryId) return;
       const aspects = Array.isArray(value?.aspects) ? value.aspects : [];
-      rawMap[categoryId] = extractRequiredAspects({ aspects });
+      const catalogEntry = buildAspectCatalogEntry({ aspects });
+      rawMap[categoryId] = catalogEntry.required;
+      catalogMap[categoryId] = catalogEntry;
       streamedCategories += 1;
       if (streamedCategories % 1000 === 0) {
         console.log(`[taxonomy-sync] bulk streamed ${streamedCategories} categories`);
@@ -320,6 +384,7 @@ async function buildRequiredAspectsMapFromBulkBuffer(bodyBuffer) {
 
   return {
     rawMap,
+    catalogMap,
     streamedCategories,
   };
 }
@@ -337,10 +402,21 @@ function applyTargetSelection({ sourceMap = {}, current = {}, args = {}, allLeaf
   if (args.offset > 0) entries = entries.slice(args.offset);
   if (args.limit > 0) entries = entries.slice(0, args.limit);
   const next = { ...(current && typeof current === 'object' ? current : {}) };
-  entries.forEach(([id, aspects]) => {
-    next[String(id)] = Array.isArray(aspects) ? aspects : [];
+  entries.forEach(([id, value]) => {
+    next[String(id)] = value;
   });
   return { next, selectedEntries: entries };
+}
+
+function mergeSelectedEntries({ sourceMap = {}, current = {}, selectedIds = [] }) {
+  const next = { ...(current && typeof current === 'object' ? current : {}) };
+  asArray(selectedIds).forEach((id) => {
+    const key = String(id || '').trim();
+    if (!key) return;
+    if (!Object.prototype.hasOwnProperty.call(sourceMap, key)) return;
+    next[key] = sourceMap[key];
+  });
+  return next;
 }
 
 async function fetchRequiredAspectsForCategory({ env, token, categoryTreeId, categoryId }) {
@@ -361,6 +437,13 @@ async function fetchRequiredAspectsForCategory({ env, token, categoryTreeId, cat
       status: res.status,
       error: text.slice(0, 500),
       requiredAspects: [],
+      aspectCatalogEntry: {
+        required: [],
+        recommended: [],
+        optional: [],
+        all: [],
+        aspects: [],
+      },
     };
   }
   let payload = {};
@@ -369,14 +452,16 @@ async function fetchRequiredAspectsForCategory({ env, token, categoryTreeId, cat
   } catch {
     payload = {};
   }
+  const aspectCatalogEntry = buildAspectCatalogEntry(payload);
   return {
     ok: true,
     status: res.status,
-    requiredAspects: extractRequiredAspects(payload),
+    requiredAspects: aspectCatalogEntry.required,
+    aspectCatalogEntry,
   };
 }
 
-async function runPerCategorySync({ args, categoryTreeId, token, current, allLeafIds }) {
+async function runPerCategorySync({ args, categoryTreeId, token, current, currentCatalog, allLeafIds }) {
   let targetIds = allLeafIds.slice();
   if (args.onlyMissing) {
     targetIds = targetIds.filter((id) => !Object.prototype.hasOwnProperty.call(current, id));
@@ -386,6 +471,7 @@ async function runPerCategorySync({ args, categoryTreeId, token, current, allLea
 
   const queue = new PQueue({ concurrency: Math.max(1, args.concurrency) });
   const next = { ...(current && typeof current === 'object' ? current : {}) };
+  const catalogNext = { ...(currentCatalog && typeof currentCatalog === 'object' ? currentCatalog : {}) };
   const errors = [];
   let done = 0;
 
@@ -400,6 +486,7 @@ async function runPerCategorySync({ args, categoryTreeId, token, current, allLea
       });
       if (res.ok) {
         next[categoryId] = res.requiredAspects;
+        catalogNext[categoryId] = res.aspectCatalogEntry;
       } else {
         errors.push({
           categoryId,
@@ -419,6 +506,7 @@ async function runPerCategorySync({ args, categoryTreeId, token, current, allLea
   return {
     modeUsed: 'per_category',
     next,
+    catalogNext,
     errors,
     processed: targetIds.length,
     sourceEntries: targetIds.length,
@@ -426,7 +514,7 @@ async function runPerCategorySync({ args, categoryTreeId, token, current, allLea
   };
 }
 
-async function runBulkSync({ args, categoryTreeId, token, current, allLeafIds }) {
+async function runBulkSync({ args, categoryTreeId, token, current, currentCatalog, allLeafIds }) {
   const startedAt = Date.now();
   const body = await fetchItemAspectsBulkGzip({
     env: args.env,
@@ -439,11 +527,18 @@ async function runBulkSync({ args, categoryTreeId, token, current, allLeafIds })
   }
   const bulkParsed = await buildRequiredAspectsMapFromBulkBuffer(body);
   const rawMap = bulkParsed.rawMap || {};
+  const catalogMap = bulkParsed.catalogMap || {};
   const selection = applyTargetSelection({
     sourceMap: rawMap,
     current,
     args,
     allLeafIds,
+  });
+  const selectedIds = selection.selectedEntries.map(([id]) => String(id));
+  const catalogNext = mergeSelectedEntries({
+    sourceMap: catalogMap,
+    current: currentCatalog,
+    selectedIds,
   });
   const elapsed = Math.round((Date.now() - startedAt) / 1000);
   console.log(
@@ -452,6 +547,7 @@ async function runBulkSync({ args, categoryTreeId, token, current, allLeafIds })
   return {
     modeUsed: 'bulk',
     next: selection.next,
+    catalogNext,
     errors: [],
     processed: selection.selectedEntries.length,
     sourceEntries: Object.keys(rawMap).length,
@@ -464,6 +560,7 @@ async function main() {
   const categories = loadJson(CATEGORIES_PATH, {});
   const allLeafIds = getLeafCategoryIds(categories);
   const current = loadJson(OUT_PATH, {});
+  const currentCatalog = loadJson(OUT_ASPECT_CATALOG_PATH, {});
   const token = await getAppToken({ env: args.env });
   const categoryTree = await resolveCategoryTreeId({ args, token });
   const categoryTreeId = categoryTree.categoryTreeId;
@@ -471,23 +568,26 @@ async function main() {
   let runResult = null;
   let fallbackReason = null;
   if (args.mode === 'bulk') {
-    runResult = await runBulkSync({ args, categoryTreeId, token, current, allLeafIds });
+    runResult = await runBulkSync({ args, categoryTreeId, token, current, currentCatalog, allLeafIds });
   } else if (args.mode === 'per_category') {
-    runResult = await runPerCategorySync({ args, categoryTreeId, token, current, allLeafIds });
+    runResult = await runPerCategorySync({ args, categoryTreeId, token, current, currentCatalog, allLeafIds });
   } else {
     try {
-      runResult = await runBulkSync({ args, categoryTreeId, token, current, allLeafIds });
+      runResult = await runBulkSync({ args, categoryTreeId, token, current, currentCatalog, allLeafIds });
     } catch (error) {
       fallbackReason = error?.message || String(error);
       console.warn(`[taxonomy-sync] bulk mode failed, fallback to per_category: ${fallbackReason}`);
-      runResult = await runPerCategorySync({ args, categoryTreeId, token, current, allLeafIds });
+      runResult = await runPerCategorySync({ args, categoryTreeId, token, current, currentCatalog, allLeafIds });
     }
   }
 
   const next = runResult?.next && typeof runResult.next === 'object' ? runResult.next : {};
+  const nextCatalog =
+    runResult?.catalogNext && typeof runResult.catalogNext === 'object' ? runResult.catalogNext : currentCatalog;
   const errors = Array.isArray(runResult?.errors) ? runResult.errors : [];
 
   saveJson(OUT_PATH, next);
+  saveJson(OUT_ASPECT_CATALOG_PATH, nextCatalog);
   const meta = {
     generatedAt: new Date().toISOString(),
     environment: args.env,
@@ -500,6 +600,7 @@ async function main() {
     runTargetCategories: runResult?.processed || 0,
     sourceCategories: runResult?.sourceEntries || 0,
     totalAspectEntries: Object.keys(next || {}).length,
+    totalAspectCatalogEntries: Object.keys(nextCatalog || {}).length,
     errorsCount: errors.length,
     errorsSample: errors.slice(0, 200),
     modeRequested: args.mode,
@@ -514,10 +615,12 @@ async function main() {
       {
         ok: true,
         output: OUT_PATH,
+        outputAspectCatalog: OUT_ASPECT_CATALOG_PATH,
         meta: OUT_META_PATH,
         totalLeafCategories: allLeafIds.length,
         processed: runResult?.processed || 0,
         storedEntries: Object.keys(next).length,
+        storedCatalogEntries: Object.keys(nextCatalog).length,
         errors: errors.length,
         modeUsed: runResult?.modeUsed || null,
         fallback: Boolean(fallbackReason),

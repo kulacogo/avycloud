@@ -8,6 +8,8 @@
  * - Make it explicit that LLMs may only use WEB evidence when it is provided by the system/tooling.
  */
 
+const { BANNED_EBAY_CATEGORY_ROOTS } = require('./ebay-category-governance');
+
 function buildTitleSchemaLines() {
   return [
     '1) Elektronik & Computer: [MARKE] [MODELL] [PRODUKTTYP] [HAUPT-SPEC/SPEICHER] [ZUSTAND]',
@@ -26,7 +28,7 @@ function buildTitleSchemaLines() {
     '14) Musik (CDs & Vinyl): [INTERPRET] [ALBUMTITEL] [FORMAT] [GENRE] [BESONDERHEIT]',
     '15) Filme & DVDs: [FILMTITEL] [FORMAT] [EDITION/CUT] [GENRE] [ZUSTAND]',
     '16) Haustierbedarf: [MARKE] [TIERART] [PRODUKTART] [GRÖSSE/GEWICHT] [FEATURE]',
-    '17) Sammeln & Seltenes (Münzen/Briefmarken): [LAND] [NENNWERT/MOTIV] [JAHR] [ERHALTUNGSGRAD] [MATERIAL]',
+    '17) Sammeln & Seltenes: [LAND] [MOTIV] [JAHR] [ERHALTUNGSGRAD] [MATERIAL]',
     '18) Foto & Camcorder: [MARKE] [MODELL] [OBJEKTIV-TYP] [AUFLÖSUNG] [ZUSTAND]',
     '19) Musikinstrumente: [MARKE] [INSTRUMENT] [TYP/MODELL] [MATERIAL/STIMMUNG] [ZUBEHÖR]',
     '20) Heimwerker (Werkzeug): [MARKE] [WERKZEUGART] [VOLT/LEISTUNG] [ENERGIEQUELLE] [ZUBEHÖR]',
@@ -73,6 +75,7 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     '- K-Typ (Auto/KFZ/Motorrad): wenn vorhanden, beibehalten. Wenn nicht sicher ableitbar: leer lassen (nicht raten).',
     '- K-Typ Format (intern): Einträge mit "|" trennen. Eintrag ist "<KtypeId>" oder "<KtypeId>,<Note>". Beispiel: "57448|111981,Einbauposition Vorderachse".',
     '- Kategorie: eBay.de Breadcrumb aus Taxonomie, mindestens 2 Ebenen (muss ">"). Keine Top-Level Kategorien als final.',
+    `- Kategorie: Diese eBay Hauptkategorien sind in AvyCloud VERBOTEN und dürfen NIE verwendet werden: ${BANNED_EBAY_CATEGORY_ROOTS.map((r) => `"${r}"`).join(', ')}.`,
     '',
     'DATASHEET FORMAT (wenn du Datenblattfelder erzeugst/änderst):',
     '- Beschreibung: SEO-stark und klar strukturiert. HTML ist erlaubt (nur einfache Tags: <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität. Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',

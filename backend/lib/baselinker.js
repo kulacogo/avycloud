@@ -10,6 +10,7 @@ const {
   firestore,
 } = require('./firestore');
 const { MarketplaceLookup } = require('./marketplace-lookup');
+const { findEbayCategory } = require('./ebay-taxonomy');
 const { getGeminiClient } = require('../lib/gemini-client');
 const { resolveModel } = require('../lib/model-select');
 const { canonicalizeBaselinkerCategoryPath } = require('./baselinker-category-canonical');
@@ -1883,13 +1884,16 @@ async function syncProductToBaseLinker(product, inventoryId, options = {}) {
       product?.details?.baselinkerCategories && typeof product.details.baselinkerCategories === 'object'
         ? product.details.baselinkerCategories
         : {};
+    const canonicalEbayCategoryPath = safeString(
+      findEbayCategory(safeString(product?.details?.categoryId || ''))?.breadcrumb || ''
+    );
     const categoryPath =
+      canonicalEbayCategoryPath ||
       safeString(legacyCats?.['78659'] || '') ||
       safeString(product?.details?.baselinkerCategoryPath || '') ||
       safeString(legacyCats?.['91387'] || '') ||
       safeString(product?.details?.ebayCategoryPath || '') ||
       safeString(product?.details?.kauflandCategoryPath || '') ||
-      safeString(product?.identification?.category || '') ||
       null;
 
     if (String(invId) === '78659' && !categoryPath) {
@@ -2244,7 +2248,11 @@ async function syncProductCategoryOnlyToBaseLinker(product, inventoryId, options
       product?.details?.baselinkerCategories && typeof product.details.baselinkerCategories === 'object'
         ? product.details.baselinkerCategories
         : {};
+    const canonicalEbayCategoryPath = safeString(
+      findEbayCategory(safeString(product?.details?.categoryId || ''))?.breadcrumb || ''
+    );
     const categoryPath =
+      canonicalEbayCategoryPath ||
       safeString(legacyCats?.['78659'] || '') ||
       safeString(product?.details?.baselinkerCategoryPath || '') ||
       safeString(legacyCats?.['91387'] || '') ||

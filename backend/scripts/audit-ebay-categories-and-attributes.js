@@ -4,7 +4,7 @@
  *
  * Uses local snapshots:
  * - backend/ebay-data/categories.json
- * - backend/ebay-data/required-aspects.json (treated as "allowed aspects per category")
+ * - backend/ebay-data/required-aspects-full.json / aspects-full.json via ebay-taxonomy helper
  *
  * Output:
  *  exports/reconciliation/ebay-attributes-audit.json
@@ -16,9 +16,9 @@
 const fs = require('fs');
 const path = require('path');
 const { firestore } = require('../lib/firestore');
+const { getRequiredAspects } = require('../lib/ebay-taxonomy');
 
 const CATEGORIES = require('../ebay-data/categories.json');
-const ASPECTS_BY_CATEGORY = require('../ebay-data/required-aspects.json');
 
 const argv = process.argv.slice(2);
 const LIMIT = (() => {
@@ -146,7 +146,7 @@ async function main() {
     const attrEntries = Object.entries(attrs || {});
     if (attrEntries.length) summary.productsWithAttributes += 1;
 
-    const allowed = Array.isArray(ASPECTS_BY_CATEGORY?.[String(catId)]) ? ASPECTS_BY_CATEGORY[String(catId)] : [];
+    const allowed = catId ? getRequiredAspects(String(catId)) : [];
     const allowedSet = new Set(allowed.map((x) => normalizeLower(x)).filter(Boolean));
 
     const prefixedKeys = [];

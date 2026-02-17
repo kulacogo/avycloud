@@ -56,6 +56,7 @@ const { getSecretValue } = require('./lib/secret-values');
 const { getGeminiApiKey, __unsafeGetCachedKeySource } = require('./lib/gemini-client');
 const { fetchWithUnlocker } = require('./lib/web-unlocker');
 const { search: searchEvidence, searchSite: searchEvidenceSite } = require('./lib/evidence-provider');
+const { isBannedEbayBreadcrumb } = require('./lib/ebay-category-governance');
 const { enqueueJob, startJobRunner } = require('./services/job-runner');
 const { runCloudRunJob } = require('./lib/cloud-run-jobs');
 const { enqueueImproveJob, startImproveRunner } = require('./services/improve-runner');
@@ -643,6 +644,8 @@ const getEbayCategoryEntries = () => {
       leaf: false,
     };
     entry.search = normalizeCategoryText(`${entry.breadcrumb} ${entry.name}`);
+    entry.root = String(entry.breadcrumb || '').split('>').map((s) => s.trim()).filter(Boolean)[0] || '';
+    entry.banned = Boolean(isBannedEbayBreadcrumb(entry.breadcrumb));
     entries.push(entry);
     byId.set(entry.id, entry);
   });
@@ -670,6 +673,7 @@ const getEbayCategoryById = (id) => {
   const { byId } = getEbayCategoryEntries();
   const entry = byId.get(String(id));
   if (!entry) return null;
+  if (entry.banned) return null;
   return {
     id: entry.id,
     name: entry.name,
@@ -688,6 +692,7 @@ const searchEbayCategories = (query, limit = 50, options = {}) => {
   const results = [];
   for (const entry of entries) {
     if (leafOnly && !entry.leaf) continue;
+    if (entry.banned) continue;
     const hay = entry.search || '';
     if (!hay) continue;
     let ok = true;

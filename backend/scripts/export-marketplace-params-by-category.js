@@ -5,8 +5,8 @@
  * What "used" means here:
  * - We look at our own product catalog (Firestore) and compute which attribute keys are present
  *   (non-empty) for products within each marketplace category.
- * - For eBay we additionally include the category's required aspects (even if not present yet),
- *   using our local taxonomy cache (`backend/ebay-data/required-aspects*.json`).
+ * - For eBay we additionally include the category's taxonomy aspects (required/recommended/optional)
+ *   even if not present yet, using the local taxonomy cache via `backend/lib/ebay-taxonomy`.
  *
  * Output:
  * - backend/exports/marketplace-params/marketplace-params-by-category.csv
@@ -22,7 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 const { getAllProducts } = require('../lib/firestore');
-const { findEbayCategory, getRequiredAspects } = require('../lib/ebay-taxonomy');
+const { findEbayCategory, getCategoryAspectCatalog } = require('../lib/ebay-taxonomy');
 const { findKauflandCategory } = require('../lib/kaufland-taxonomy');
 
 function safeString(v) {
@@ -259,22 +259,46 @@ async function main() {
 
   const rows = [];
 
-  // Emit eBay rows (include required aspects)
+  // Emit eBay rows (include taxonomy aspects: required/recommended/optional)
   for (const [catId, entry] of marketplaces.ebay.byCategory.entries()) {
     const pathText = modeFromCounts(entry.pathCounts) || marketplaces.ebay.getCategoryPath(catId) || '';
     const leaf = getCategoryLeafFromBreadcrumb(pathText);
-    const required = new Set(getRequiredAspects(catId));
+    const taxonomy = getCategoryAspectCatalog(catId);
+    const normalizeTaxKey = (k) => normalizeKey(safeString(k));
+    const requiredSet = new Set((taxonomy?.requiredAspects || []).map(normalizeTaxKey).filter(Boolean));
+    const recommendedSet = new Set((taxonomy?.recommendedAspects || []).map(normalizeTaxKey).filter(Boolean));
+    const optionalSet = new Set((taxonomy?.optionalAspects || []).map(normalizeTaxKey).filter(Boolean));
+    const taxonomyAll = Array.from(
+      new Set(
+        [
+          ...(taxonomy?.allAspects || []),
+          ...(taxonomy?.requiredAspects || []),
+          ...(taxonomy?.recommendedAspects || []),
+          ...(taxonomy?.optionalAspects || []),
+        ]
+          .map((k) => safeString(k))
+          .filter(Boolean)
+      )
+    );
 
-    // union(used keys, required)
+    // union(used keys, taxonomy aspects)
     const usedKeys = Array.from(entry.keyStats.values());
-    const requiredMissing = Array.from(required)
+    const taxonomyMissing = taxonomyAll
       .filter((k) => !entry.keyStats.has(normalizeKey(k)))
       .map((k) => ({ key: k, used: 0, samples: new Set() }));
 
-    const combined = [...usedKeys, ...requiredMissing].sort((a, b) => a.key.localeCompare(b.key));
+    const combined = [...usedKeys, ...taxonomyMissing].sort((a, b) => a.key.localeCompare(b.key));
 
     for (const stat of combined) {
-      const requiredFlag = required.has(stat.key) ? 'true' : required.has(stat.key.trim()) ? 'true' : 'false';
+      const keyNorm = normalizeTaxKey(stat.key);
+      const requiredFlag = requiredSet.has(keyNorm) ? 'true' : 'false';
+      const aspectUsage = requiredSet.has(keyNorm)
+        ? 'required'
+        : optionalSet.has(keyNorm)
+          ? 'optional'
+          : recommendedSet.has(keyNorm)
+            ? 'recommended'
+            : '';
       const usageRate = entry.total > 0 ? (stat.used / entry.total) : 0;
       rows.push({
         marketplace: 'ebay',
@@ -283,6 +307,7 @@ async function main() {
         categoryName: leaf,
         parameterKey: stat.key,
         required: requiredFlag,
+        aspectUsage,
         usedCount: stat.used,
         totalProducts: entry.total,
         usageRate: usageRate.toFixed(4),
@@ -305,6 +330,7 @@ async function main() {
         categoryName: leaf,
         parameterKey: stat.key,
         required: '',
+        aspectUsage: '',
         usedCount: stat.used,
         totalProducts: entry.total,
         usageRate: usageRate.toFixed(4),
@@ -331,6 +357,7 @@ async function main() {
     'categoryName',
     'parameterKey',
     'required',
+    'aspectUsage',
     'usedCount',
     'totalProducts',
     'usageRate',
@@ -346,6 +373,7 @@ async function main() {
           csvEscape(r.categoryName),
           csvEscape(r.parameterKey),
           csvEscape(r.required),
+          csvEscape(r.aspectUsage),
           csvEscape(r.usedCount),
           csvEscape(r.totalProducts),
           csvEscape(r.usageRate),

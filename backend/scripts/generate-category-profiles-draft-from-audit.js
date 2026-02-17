@@ -17,7 +17,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const ASPECTS_BY_CATEGORY = require('../ebay-data/required-aspects.json');
+const { getRequiredAspects } = require('../lib/ebay-taxonomy');
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -108,9 +108,7 @@ async function main() {
   const commonKeys = pickStableCommonKeys();
 
   for (const categoryId of categories) {
-    const required = Array.isArray(ASPECTS_BY_CATEGORY?.[String(categoryId)])
-      ? ASPECTS_BY_CATEGORY[String(categoryId)].map(safeString).filter(Boolean)
-      : [];
+    const required = getRequiredAspects(String(categoryId)).map(safeString).filter(Boolean);
 
     const canonicalAttributes = Array.from(new Set([...required, ...commonKeys])).filter(Boolean);
 

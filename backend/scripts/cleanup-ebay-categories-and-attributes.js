@@ -11,7 +11,7 @@
  *   - Remove category metadata keys (ebay_category_id/path, kaufland_* etc.)
  *   - Remove obvious duplicates for identifiers (EAN/SKU/UPC/GTIN fields) from attributes
  *   - Drop placeholder values (info@example.com, Not Provided, EU, etc.)
- *   - Keep eBay-allowed aspects (from required-aspects.json) + compliance keys (GPSR*) in attributes
+ *   - Keep eBay-allowed aspects (from taxonomy helper / required-aspects-full) + compliance keys (GPSR*) in attributes
  *   - Move everything else to details.attributes_extra to avoid data loss
  *
  * What it NEVER touches:
@@ -29,9 +29,9 @@ const fs = require('fs');
 const path = require('path');
 const { FieldValue } = require('@google-cloud/firestore');
 const { firestore } = require('../lib/firestore');
+const { getRequiredAspects } = require('../lib/ebay-taxonomy');
 
 const CATEGORIES = require('../ebay-data/categories.json');
-const ASPECTS_BY_CATEGORY = require('../ebay-data/required-aspects.json');
 
 const argv = process.argv.slice(2);
 const APPLY = argv.includes('--apply');
@@ -299,8 +299,7 @@ async function main() {
 
     const nextBreadcrumb = categoryInfo?.breadcrumb ? String(categoryInfo.breadcrumb) : null;
 
-    const allowedList =
-      catId && Array.isArray(ASPECTS_BY_CATEGORY?.[String(catId)]) ? ASPECTS_BY_CATEGORY[String(catId)] : [];
+    const allowedList = catId ? getRequiredAspects(String(catId)) : [];
     const canonicalByLower = new Map(
       allowedList
         .map((n) => normalizeKey(n))

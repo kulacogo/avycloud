@@ -6,7 +6,7 @@
  * Data sources:
  * - Firestore: products/{id}.details.attributes + details.identifiers + details.gpsr (optional)
  * - Local taxonomy snapshots:
- *   - backend/ebay-data/required-aspects.json
+ *   - backend/ebay-data/required-aspects-full.json / aspects-full.json via ebay-taxonomy helper
  *
  * Output:
  * - exports/reconciliation/attribute-keys-audit_<stamp>.json
@@ -21,8 +21,7 @@
 const fs = require('fs');
 const path = require('path');
 const { firestore } = require('../lib/firestore');
-
-const ASPECTS_BY_CATEGORY = require('../ebay-data/required-aspects.json');
+const { getRequiredAspects } = require('../lib/ebay-taxonomy');
 
 function nowStamp() {
   const d = new Date();
@@ -193,13 +192,11 @@ async function main() {
 
   const requiredAspectSet = new Set();
   usedCategoryIds.forEach((catId) => {
-    const aspects = ASPECTS_BY_CATEGORY?.[String(catId)];
-    if (Array.isArray(aspects)) {
-      aspects.forEach((a) => {
-        const s = safeString(a);
-        if (s) requiredAspectSet.add(s);
-      });
-    }
+    const aspects = getRequiredAspects(String(catId));
+    aspects.forEach((a) => {
+      const s = safeString(a);
+      if (s) requiredAspectSet.add(s);
+    });
   });
 
   const keyList = Object.values(keyStats);

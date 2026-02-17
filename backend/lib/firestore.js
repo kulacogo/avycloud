@@ -18,6 +18,11 @@ const {
   normalizeGpsrPhone,
 } = require('./gpsr-manufacturer-registry');
 const { decodeHtmlEntitiesDeep } = require('./html-entities');
+const { getRequiredAspects: getEbayRequiredAspects } = require('./ebay-taxonomy');
+const {
+  isBannedEbayBreadcrumb,
+  getEbayCategoryBreadcrumbRoot,
+} = require('./ebay-category-governance');
 
 function isFirestoreSpecialValue(value) {
   if (!value) return false;
@@ -208,20 +213,6 @@ const collectSkuIndexKeys = (product = {}) => {
 /**
  * Save a product to Firestore
  */
-// Cache required eBay aspects
-let REQUIRED_ASPECTS = null;
-function getRequiredAspects() {
-  if (REQUIRED_ASPECTS) return REQUIRED_ASPECTS;
-  try {
-    // eslint-disable-next-line global-require, import/no-dynamic-require
-    REQUIRED_ASPECTS = require('../ebay-data/required-aspects.json');
-  } catch (e) {
-    console.warn('Failed to load required-aspects.json:', e.message);
-    REQUIRED_ASPECTS = {};
-  }
-  return REQUIRED_ASPECTS;
-}
-
 // Cache eBay category tree (id -> {id, name, breadcrumb})
 let EBAY_CATEGORIES = null;
 function getEbayCategories() {
@@ -442,7 +433,6 @@ function applyAttributeAliasesProfile(attrs = {}, { canonicalAttributes = [], at
 }
 
 function enforceEbayAspects(product) {
-  const requiredMap = getRequiredAspects();
   const details = product.details || {};
   const attrs = details.attributes || {};
   const existingExtra =
@@ -1012,8 +1002,29 @@ function enforceEbayAspects(product) {
     const categories = getEbayCategories();
     const breadcrumb = categories?.[String(catId)]?.breadcrumb;
     if (breadcrumb) {
-      if (!product.identification) product.identification = {};
-      product.identification.category = String(breadcrumb);
+      const decodedBreadcrumb = decodeHtmlEntitiesDeep(breadcrumb);
+      if (isBannedEbayBreadcrumb(decodedBreadcrumb)) {
+        // Strict rule: banned roots are treated as invalid categories (AvyCloud must not use them).
+        const bannedCategoryId = String(catId).trim();
+        const root = getEbayCategoryBreadcrumbRoot(decodedBreadcrumb);
+        catId = null;
+        delete details.categoryId;
+        if (!product.identification) product.identification = {};
+        product.identification.category = '';
+        if (!product.ops) product.ops = {};
+        product.ops.data_quality = {
+          ...(product.ops.data_quality || {}),
+          category_banned_root_v1: {
+            at_iso: new Date().toISOString(),
+            categoryId: bannedCategoryId || null,
+            root: root || null,
+            breadcrumb: decodedBreadcrumb || null,
+          },
+        };
+      } else {
+        if (!product.identification) product.identification = {};
+        product.identification.category = String(decodedBreadcrumb);
+      }
     } else {
       // Prevent invalid/unknown category IDs (LLM hallucinations or bad imports).
       // We do NOT guess a replacement here.
@@ -1149,7 +1160,8 @@ function enforceEbayAspects(product) {
     };
   }
 
-  const requiredAspects = Array.isArray(requiredMap[catId]) ? requiredMap[catId] : [];
+  const requiredAspectsRaw = getEbayRequiredAspects(catId);
+  const requiredAspects = Array.isArray(requiredAspectsRaw) ? requiredAspectsRaw : [];
   const categoryPath = product?.identification?.category || null;
 
   // Vehicle fitment (K-Typ) enforcement for categories where eBay supports vehicle fitment lists.

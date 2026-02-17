@@ -4,6 +4,7 @@ const { getSecretValue } = require('./secret-values');
 const SERPAPI_BASE_URL = 'https://serpapi.com/search.json';
 const MIN_IMAGE_WIDTH = parseInt(process.env.MIN_IMAGE_WIDTH || '900', 10);
 const MIN_IMAGE_HEIGHT = parseInt(process.env.MIN_IMAGE_HEIGHT || '900', 10);
+const SERPAPI_TIMEOUT_MS = Math.max(5_000, parseInt(process.env.SERPAPI_TIMEOUT_MS || '20000', 10) || 20_000);
 const ALLOWED_ENGINES = [
   'google',
   'google_shopping',
@@ -113,7 +114,20 @@ async function callSerpApi(engine, params = {}) {
   }
 
   const url = `${SERPAPI_BASE_URL}?${searchParams.toString()}`;
-  const response = await fetch(url, { method: 'GET' });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SERPAPI_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(url, { method: 'GET', signal: controller.signal });
+  } catch (error) {
+    const isAbort = error?.name === 'AbortError' || String(error?.message || '').toLowerCase().includes('abort');
+    if (isAbort) {
+      throw new Error(`SerpAPI request timed out after ${SERPAPI_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const body = await response.text();
