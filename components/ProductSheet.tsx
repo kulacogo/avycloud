@@ -16,6 +16,8 @@ import {
   setProductInventoryId,
   openInventoryLabelWindow,
   fetchEbayCategories,
+  verifyEbayPublish,
+  publishToEbay,
 } from '../api/client';
 import { EditIcon, SaveIcon, SyncIcon, PrintIcon, MagicIcon, RefreshIcon, BarcodeIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
@@ -135,6 +137,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isPublishingEbay, setIsPublishingEbay] = useState(false);
+  const [ebayPublishStatus, setEbayPublishStatus] = useState<'idle' | 'verifying' | 'publishing' | 'done'>('idle');
   const [isDirty, setIsDirty] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [autoGenDone, setAutoGenDone] = useState(false);
@@ -946,6 +950,48 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       onUpdate(refreshed);
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handlePublishToEbay = async () => {
+    if (isPublishingEbay) return;
+    setIsPublishingEbay(true);
+    setEbayPublishStatus('verifying');
+    try {
+      const verifyResult = await verifyEbayPublish(localProduct.id);
+      if (!verifyResult.canPublish) {
+        showNotification('error', `eBay Publish blockiert: ${verifyResult.blockers.join(', ')}`);
+        setEbayPublishStatus('idle');
+        return;
+      }
+      if (verifyResult.warnings?.length) {
+        showNotification('info', `eBay Hinweise: ${verifyResult.warnings.join(', ')}`);
+      }
+      const feeSummary = (verifyResult.fees || [])
+        .filter((f) => f.amount && f.amount !== '0.0' && f.amount !== '0')
+        .map((f) => `${f.name}: ${f.amount} ${f.currency || 'EUR'}`)
+        .join(', ');
+
+      if (!window.confirm(`Produkt auf eBay.de listen?${feeSummary ? `\n\nGebühren: ${feeSummary}` : ''}\n\nFortfahren?`)) {
+        setEbayPublishStatus('idle');
+        return;
+      }
+
+      setEbayPublishStatus('publishing');
+      const result = await publishToEbay(localProduct.id);
+      if (result.ok && result.itemId) {
+        showNotification('success', `Erfolgreich auf eBay gelistet! Item ID: ${result.itemId}`);
+        const refreshed = await fetchProductById(localProduct.id);
+        onUpdate(refreshed);
+      } else {
+        showNotification('error', result.blockers?.join(', ') || 'eBay Publish fehlgeschlagen.');
+      }
+      setEbayPublishStatus('done');
+    } catch (err: any) {
+      showNotification('error', err?.message || 'eBay Publish fehlgeschlagen.');
+      setEbayPublishStatus('idle');
+    } finally {
+      setIsPublishingEbay(false);
     }
   };
 
@@ -1856,6 +1902,28 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             >
               {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}
               <span className="ml-2">{t('sheet.actions.sync')}</span>
+            </button>
+            <button
+              id="btn-publish-ebay"
+              onClick={handlePublishToEbay}
+              disabled={isPublishingEbay}
+              className="flex items-center justify-center px-4 py-2 bg-sky-700 text-white font-semibold rounded-lg hover:bg-sky-600 transition-colors disabled:bg-sky-900 disabled:cursor-wait"
+            >
+              {isPublishingEbay ? (
+                <Spinner className="w-5 h-5" />
+              ) : (
+                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="10" cy="10" r="7" />
+                  <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
+                </svg>
+              )}
+              <span className="ml-2">
+                {ebayPublishStatus === 'verifying'
+                  ? 'Prüfe...'
+                  : ebayPublishStatus === 'publishing'
+                    ? 'Wird gelistet...'
+                    : 'Auf eBay listen'}
+              </span>
             </button>
           </div>
         </section>

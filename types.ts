@@ -673,6 +673,71 @@ export interface EbaySyncApplyResult {
   };
 }
 
+// --- eBay Publish types ---
+
+export interface EbayPublishOverrides {
+  title?: string;
+  subtitle?: string;
+  primaryCategoryId?: string;
+  description?: string;
+  startPrice?: number;
+  price?: number;
+  currency?: string;
+  quantity?: number;
+  conditionId?: string;
+  sku?: string;
+  pictureUrls?: string[];
+  ean?: string;
+  mpn?: string;
+  brand?: string;
+  itemSpecifics?: Record<string, string[]>;
+  country?: string;
+  postalCode?: string;
+  location?: string;
+  listingDuration?: string;
+  dispatchTimeMax?: number;
+  shippingProfileId?: string;
+  returnProfileId?: string;
+  paymentProfileId?: string;
+}
+
+export interface EbayPublishFee {
+  name: string;
+  amount: string;
+  currency?: string | null;
+}
+
+export interface EbayPublishVerifyResult {
+  productId: string;
+  canPublish: boolean;
+  blockers: string[];
+  warnings: string[];
+  fees: EbayPublishFee[] | null;
+  item?: Record<string, any>;
+}
+
+export interface EbayPublishResult {
+  productId: string;
+  ok: boolean;
+  itemId?: string;
+  ack?: string;
+  blockers?: string[];
+  warnings: string[];
+  fees?: EbayPublishFee[];
+  startTime?: string | null;
+  endTime?: string | null;
+}
+
+export interface EbayBulkPublishVerifyResult {
+  summary: { total: number; ready: number; blocked: number };
+  items: EbayPublishVerifyResult[];
+}
+
+export interface EbayBulkPublishResult {
+  summary: { total: number; success: number; failed: number };
+  results: EbayPublishResult[];
+}
+
 export interface ProductEnrichmentRecord {
   input_mode: ProductEnrichmentInputMode;
   brand: string;

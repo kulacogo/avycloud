@@ -23,6 +23,11 @@ import {
   EbayGapDoc,
   EbaySyncDryRunResult,
   EbaySyncApplyResult,
+  EbayPublishOverrides,
+  EbayPublishVerifyResult,
+  EbayPublishResult,
+  EbayBulkPublishVerifyResult,
+  EbayBulkPublishResult,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -794,6 +799,72 @@ export async function runEbaySyncApply(itemIds?: string[]): Promise<EbaySyncAppl
     throw new Error(data?.error?.message || 'Failed to apply eBay sync');
   }
   return data?.data as EbaySyncApplyResult;
+}
+
+// --- eBay Publish (AddFixedPriceItem) ---
+
+export async function verifyEbayPublish(
+  productId: string,
+  overrides?: EbayPublishOverrides
+): Promise<EbayPublishVerifyResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/publish/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productId, overrides: overrides || {} }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to verify eBay publish');
+  }
+  return data?.data as EbayPublishVerifyResult;
+}
+
+export async function publishToEbay(
+  productId: string,
+  overrides?: EbayPublishOverrides
+): Promise<EbayPublishResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productId, overrides: overrides || {} }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to publish to eBay');
+  }
+  return data?.data as EbayPublishResult;
+}
+
+export async function bulkVerifyEbayPublish(
+  productIds: string[],
+  overrides?: EbayPublishOverrides
+): Promise<EbayBulkPublishVerifyResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/publish/bulk/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productIds, overrides: overrides || {} }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to bulk verify eBay publish');
+  }
+  return data?.data as EbayBulkPublishVerifyResult;
+}
+
+export async function bulkPublishToEbay(
+  productIds: string[],
+  overrides?: EbayPublishOverrides
+): Promise<EbayBulkPublishResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/publish/bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productIds, overrides: overrides || {} }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to bulk publish to eBay');
+  }
+  return data?.data as EbayBulkPublishResult;
 }
 
 export async function generateEbayReports(outDir?: string): Promise<any> {

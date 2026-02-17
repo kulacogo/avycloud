@@ -2586,6 +2586,92 @@ app.post('/api/ebay/reports/generate', requirePermission('products', 'read'), as
   }
 });
 
+// --- eBay Publish (AddFixedPriceItem) ---
+
+app.post('/api/ebay/publish/verify', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const productId = String(body.productId || '').trim();
+    if (!productId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing productId' } });
+    }
+    const overrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const { verifyPublishProduct } = require('./lib/ebay-direct');
+    const result = await verifyPublishProduct(productId, overrides);
+    return res.status(200).json({ ok: true, data: result });
+  } catch (error) {
+    console.error('Failed to verify eBay publish:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to verify eBay publish' },
+    });
+  }
+});
+
+app.post('/api/ebay/publish', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const productId = String(body.productId || '').trim();
+    if (!productId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing productId' } });
+    }
+    const overrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const { publishProduct } = require('./lib/ebay-direct');
+    const result = await publishProduct(productId, overrides, {
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: result });
+  } catch (error) {
+    console.error('Failed to publish to eBay:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to publish to eBay' },
+    });
+  }
+});
+
+app.post('/api/ebay/publish/bulk/verify', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const productIds = Array.isArray(body.productIds) ? body.productIds.map((x) => String(x || '').trim()).filter(Boolean) : [];
+    if (!productIds.length) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing productIds array' } });
+    }
+    const overrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const { bulkVerifyPublishProducts } = require('./lib/ebay-direct');
+    const result = await bulkVerifyPublishProducts(productIds, overrides);
+    return res.status(200).json({ ok: true, data: result });
+  } catch (error) {
+    console.error('Failed to bulk verify eBay publish:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to bulk verify eBay publish' },
+    });
+  }
+});
+
+app.post('/api/ebay/publish/bulk', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const productIds = Array.isArray(body.productIds) ? body.productIds.map((x) => String(x || '').trim()).filter(Boolean) : [];
+    if (!productIds.length) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing productIds array' } });
+    }
+    const overrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const { bulkPublishProducts } = require('./lib/ebay-direct');
+    const result = await bulkPublishProducts(productIds, overrides, {
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: result });
+  } catch (error) {
+    console.error('Failed to bulk publish to eBay:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to bulk publish to eBay' },
+    });
+  }
+});
+
 app.post('/api/ebay/listings/import/mip', requirePermission('products', 'write'), ktypeUploadMiddleware, async (req, res) => {
   try {
     const file = req.file;

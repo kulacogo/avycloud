@@ -10,6 +10,8 @@ const {
   getItemDetails,
   reviseFixedPriceItem,
   reviseItem,
+  addFixedPriceItem,
+  verifyAddFixedPriceItem,
 } = require('./ebay-trading-api');
 const { decodeHtmlEntitiesDeep } = require('./html-entities');
 
@@ -2806,6 +2808,268 @@ async function syncLiveListingsAndAudit(options = {}) {
   return runSummary;
 }
 
+// ---------------------------------------------------------------------------
+// Publish products to eBay (AddFixedPriceItem)
+// ---------------------------------------------------------------------------
+
+const EBAY_PUBLISH_LOG_COLLECTION = 'ebayPublishLog';
+
+function mapProductToEbayItem(product, overrides = {}) {
+  const details = product?.details || {};
+  const identifiers = details?.identifiers || {};
+  const pricing = details?.pricing?.lowest_price || {};
+
+  const title = safeString(overrides.title) || safeString(deriveProductTitle(product));
+  if (!title) throw Object.assign(new Error('Produkt hat keinen Titel'), { code: 'EBAY_PUBLISH_NO_TITLE' });
+
+  const subtitle = safeString(overrides.subtitle) || safeString(deriveProductSubtitle(product)) || undefined;
+
+  const primaryCategoryId =
+    safeString(overrides.primaryCategoryId) ||
+    safeString(product?.details?.categoryId) ||
+    safeString(product?.classification?.ebayCategoryId) ||
+    safeString(product?.marketplace?.ebay?.categoryId) ||
+    safeString(product?.categoryId);
+  if (!primaryCategoryId) throw Object.assign(new Error('Produkt hat keine eBay-Kategorie'), { code: 'EBAY_PUBLISH_NO_CATEGORY' });
+
+  const price =
+    overrides.startPrice ??
+    overrides.price ??
+    pricing?.amount ??
+    product?.marketplace?.ebay?.price ??
+    null;
+  if (price == null) throw Object.assign(new Error('Produkt hat keinen Preis'), { code: 'EBAY_PUBLISH_NO_PRICE' });
+
+  const currency = safeString(overrides.currency) || safeString(pricing?.currency) || 'EUR';
+
+  const quantity = overrides.quantity ?? product?.marketplace?.ebay?.quantity ?? 1;
+
+  const conditionId =
+    safeString(overrides.conditionId) ||
+    safeString(product?.marketplace?.ebay?.conditionId) ||
+    safeString(product?.details?.conditionId) ||
+    '1000';
+
+  const sku = safeString(overrides.sku) || safeString(identifiers?.sku) || safeString(product?.sku) || undefined;
+
+  const pictureUrls = [];
+  asArray(overrides.pictureUrls || product?.details?.images).forEach((entry) => {
+    if (!entry) return;
+    const url = safeString(typeof entry === 'string' ? entry : entry?.url_or_base64 || entry?.url || entry?.src);
+    if (/^https?:\/\//i.test(url) && !pictureUrls.includes(url)) pictureUrls.push(url);
+  });
+
+  const description =
+    overrides.description ??
+    buildTrendOceanDescriptionTemplate({ listing: null, product, titleOverride: title }) ||
+    safeString(deriveProductDescription(product)) ||
+    undefined;
+
+  const ean = safeString(overrides.ean) || safeString(identifiers?.ean) || safeString(identifiers?.gtin) || undefined;
+  const mpn = safeString(overrides.mpn) || safeString(identifiers?.mpn) || undefined;
+  const brand =
+    safeString(overrides.brand) ||
+    safeString(product?.identification?.brand) ||
+    safeString(identifiers?.brand) ||
+    undefined;
+
+  const itemSpecifics = {};
+  const productSpecs = normalizeProductSpecifics(product);
+  Object.entries(productSpecs || {}).forEach(([key, values]) => {
+    const cleanValues = asArray(values).map((v) => safeString(v)).filter(Boolean);
+    if (cleanValues.length) itemSpecifics[key] = cleanValues;
+  });
+  if (overrides.itemSpecifics && typeof overrides.itemSpecifics === 'object') {
+    Object.entries(overrides.itemSpecifics).forEach(([key, values]) => {
+      const cleanValues = asArray(values).map((v) => safeString(v)).filter(Boolean);
+      if (cleanValues.length) itemSpecifics[key] = cleanValues;
+    });
+  }
+  if (brand && !itemSpecifics['Marke'] && !itemSpecifics['Brand']) {
+    itemSpecifics['Marke'] = [brand];
+  }
+
+  return {
+    title,
+    subtitle,
+    primaryCategoryId,
+    description,
+    startPrice: price,
+    currency,
+    quantity,
+    conditionId,
+    sku,
+    pictureUrls,
+    ean,
+    mpn,
+    brand,
+    itemSpecifics,
+    country: safeString(overrides.country) || 'DE',
+    postalCode: safeString(overrides.postalCode) || undefined,
+    location: safeString(overrides.location) || undefined,
+    listingDuration: safeString(overrides.listingDuration) || 'GTC',
+    dispatchTimeMax: overrides.dispatchTimeMax ?? 3,
+    shippingProfileId: safeString(overrides.shippingProfileId) || undefined,
+    returnProfileId: safeString(overrides.returnProfileId) || undefined,
+    paymentProfileId: safeString(overrides.paymentProfileId) || undefined,
+  };
+}
+
+function validatePublishReadiness(product, overrides = {}) {
+  const blockers = [];
+  const warnings = [];
+  const details = product?.details || {};
+  const identifiers = details?.identifiers || {};
+  const pricing = details?.pricing?.lowest_price || {};
+
+  const title = safeString(overrides.title) || safeString(deriveProductTitle(product));
+  if (!title) blockers.push('Kein Titel vorhanden.');
+  else if (title.length > 80) warnings.push(`Titel ist ${title.length} Zeichen lang (max 80).`);
+
+  const categoryId =
+    safeString(overrides.primaryCategoryId) ||
+    safeString(product?.details?.categoryId) ||
+    safeString(product?.classification?.ebayCategoryId) ||
+    safeString(product?.marketplace?.ebay?.categoryId) ||
+    safeString(product?.categoryId);
+  if (!categoryId) blockers.push('Keine eBay-Kategorie zugewiesen.');
+
+  const price =
+    overrides.startPrice ?? overrides.price ?? pricing?.amount ?? product?.marketplace?.ebay?.price ?? null;
+  if (price == null) blockers.push('Kein Preis vorhanden.');
+  else if (Number(price) <= 0) blockers.push('Preis muss größer als 0 sein.');
+
+  const pictureUrls = [];
+  asArray(overrides.pictureUrls || product?.details?.images).forEach((entry) => {
+    if (!entry) return;
+    const url = safeString(typeof entry === 'string' ? entry : entry?.url_or_base64 || entry?.url || entry?.src);
+    if (/^https?:\/\//i.test(url)) pictureUrls.push(url);
+  });
+  if (!pictureUrls.length) warnings.push('Keine Bilder mit gültiger URL vorhanden.');
+
+  const ean = safeString(overrides.ean) || safeString(identifiers?.ean) || safeString(identifiers?.gtin);
+  if (!ean) warnings.push('Keine EAN/GTIN vorhanden.');
+
+  return { canPublish: blockers.length === 0, blockers, warnings };
+}
+
+async function verifyPublishProduct(productId, overrides = {}) {
+  const id = safeString(productId);
+  if (!id) throw Object.assign(new Error('productId is required'), { code: 'EBAY_PUBLISH_ID_REQUIRED' });
+  const doc = await firestore.collection(PRODUCTS_COLLECTION).doc(id).get();
+  if (!doc.exists) throw Object.assign(new Error(`Produkt ${id} nicht gefunden`), { code: 'EBAY_PUBLISH_PRODUCT_NOT_FOUND' });
+  const product = { id: doc.id, ...doc.data() };
+
+  const readiness = validatePublishReadiness(product, overrides);
+  if (!readiness.canPublish) {
+    return { productId: id, canPublish: false, blockers: readiness.blockers, warnings: readiness.warnings, fees: null };
+  }
+
+  const item = mapProductToEbayItem(product, overrides);
+  const verifyResult = await verifyAddFixedPriceItem(item);
+  return {
+    productId: id,
+    canPublish: true,
+    blockers: [],
+    warnings: [
+      ...readiness.warnings,
+      ...asArray(verifyResult?.warnings).map((w) => safeString(w?.longMessage || w?.shortMessage)).filter(Boolean),
+    ],
+    fees: verifyResult?.fees || [],
+    item,
+  };
+}
+
+async function publishProduct(productId, overrides = {}, { actor = null } = {}) {
+  const id = safeString(productId);
+  if (!id) throw Object.assign(new Error('productId is required'), { code: 'EBAY_PUBLISH_ID_REQUIRED' });
+  const doc = await firestore.collection(PRODUCTS_COLLECTION).doc(id).get();
+  if (!doc.exists) throw Object.assign(new Error(`Produkt ${id} nicht gefunden`), { code: 'EBAY_PUBLISH_PRODUCT_NOT_FOUND' });
+  const product = { id: doc.id, ...doc.data() };
+
+  const readiness = validatePublishReadiness(product, overrides);
+  if (!readiness.canPublish) {
+    return { productId: id, ok: false, blockers: readiness.blockers, warnings: readiness.warnings };
+  }
+
+  const item = mapProductToEbayItem(product, overrides);
+  const result = await addFixedPriceItem(item);
+  const itemId = safeString(result?.itemId);
+
+  await firestore.collection(EBAY_PUBLISH_LOG_COLLECTION).add({
+    productId: id,
+    itemId,
+    sku: safeString(item?.sku) || null,
+    title: safeString(item?.title),
+    ack: result?.ack || null,
+    fees: result?.fees || [],
+    actor: safeString(actor) || null,
+    createdAt: FieldValue.serverTimestamp(),
+    createdAtIso: new Date().toISOString(),
+  });
+
+  if (itemId) {
+    await firestore.collection(PRODUCTS_COLLECTION).doc(id).set(
+      {
+        marketplace: {
+          ebay: {
+            itemId,
+            publishedAt: new Date().toISOString(),
+            publishedBy: safeString(actor) || null,
+          },
+        },
+      },
+      { merge: true }
+    );
+  }
+
+  return {
+    productId: id,
+    ok: true,
+    itemId,
+    ack: result?.ack || null,
+    fees: result?.fees || [],
+    warnings: [
+      ...readiness.warnings,
+      ...asArray(result?.warnings).map((w) => safeString(w?.longMessage || w?.shortMessage)).filter(Boolean),
+    ],
+    startTime: result?.startTime || null,
+    endTime: result?.endTime || null,
+  };
+}
+
+async function bulkVerifyPublishProducts(productIds, overrides = {}) {
+  const ids = asArray(productIds).map((x) => safeString(x)).filter(Boolean);
+  if (!ids.length) return { summary: { total: 0, ready: 0, blocked: 0 }, items: [] };
+  const items = [];
+  for (const id of ids) {
+    try {
+      const result = await verifyPublishProduct(id, overrides);
+      items.push(result);
+    } catch (err) {
+      items.push({ productId: id, canPublish: false, blockers: [safeString(err?.message)], warnings: [], fees: null });
+    }
+  }
+  const ready = items.filter((x) => x.canPublish).length;
+  return { summary: { total: ids.length, ready, blocked: ids.length - ready }, items };
+}
+
+async function bulkPublishProducts(productIds, overrides = {}, { actor = null } = {}) {
+  const ids = asArray(productIds).map((x) => safeString(x)).filter(Boolean);
+  if (!ids.length) return { summary: { total: 0, success: 0, failed: 0 }, results: [] };
+  const results = [];
+  for (const id of ids) {
+    try {
+      const result = await publishProduct(id, overrides, { actor });
+      results.push(result);
+    } catch (err) {
+      results.push({ productId: id, ok: false, blockers: [safeString(err?.message)], warnings: [] });
+    }
+  }
+  const success = results.filter((x) => x.ok).length;
+  return { summary: { total: ids.length, success, failed: ids.length - success }, results };
+}
+
 module.exports = {
   EBAY_LISTINGS_COLLECTION,
   EBAY_LINKS_COLLECTION,
@@ -2823,4 +3087,10 @@ module.exports = {
   applySync,
   createOperationalReports,
   syncLiveListingsAndAudit,
+  mapProductToEbayItem,
+  validatePublishReadiness,
+  verifyPublishProduct,
+  publishProduct,
+  bulkVerifyPublishProducts,
+  bulkPublishProducts,
 };

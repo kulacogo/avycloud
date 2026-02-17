@@ -454,6 +454,138 @@ async function reviseItem(patch, options = {}) {
   return reviseListing('ReviseItem', patch, options);
 }
 
+// ---------------------------------------------------------------------------
+// AddFixedPriceItem / VerifyAddFixedPriceItem
+// ---------------------------------------------------------------------------
+
+function buildAddFixedPriceItemXml(item, cfg) {
+  const fields = [];
+
+  const title = safeString(item?.title);
+  if (!title) throw Object.assign(new Error('title is required'), { code: 'EBAY_ADD_FIELD_MISSING' });
+  fields.push(`<Title>${escapeXml(title)}</Title>`);
+
+  const subtitle = safeString(item?.subtitle);
+  if (subtitle) fields.push(`<SubTitle>${escapeXml(subtitle)}</SubTitle>`);
+
+  const categoryId = safeString(item?.primaryCategoryId);
+  if (!categoryId) throw Object.assign(new Error('primaryCategoryId is required'), { code: 'EBAY_ADD_FIELD_MISSING' });
+  fields.push(`<PrimaryCategory><CategoryID>${escapeXml(categoryId)}</CategoryID></PrimaryCategory>`);
+
+  if (typeof item?.description === 'string') {
+    fields.push(`<Description>${asCdata(item.description)}</Description>`);
+  }
+
+  const price = item?.startPrice ?? item?.price;
+  if (price == null) throw Object.assign(new Error('startPrice is required'), { code: 'EBAY_ADD_FIELD_MISSING' });
+  const currency = safeString(item?.currency) || 'EUR';
+  fields.push(`<StartPrice currencyID="${escapeXml(currency)}">${escapeXml(String(price))}</StartPrice>`);
+  fields.push(`<Currency>${escapeXml(currency)}</Currency>`);
+
+  const quantity = item?.quantity ?? 1;
+  fields.push(`<Quantity>${escapeXml(String(quantity))}</Quantity>`);
+
+  const conditionId = safeString(item?.conditionId);
+  if (conditionId) fields.push(`<ConditionID>${escapeXml(conditionId)}</ConditionID>`);
+
+  const conditionDescription = safeString(item?.conditionDescription);
+  if (conditionDescription) fields.push(`<ConditionDescription>${escapeXml(conditionDescription)}</ConditionDescription>`);
+
+  const duration = safeString(item?.listingDuration) || 'GTC';
+  fields.push(`<ListingDuration>${escapeXml(duration)}</ListingDuration>`);
+  fields.push(`<ListingType>FixedPriceItem</ListingType>`);
+
+  const country = safeString(item?.country) || 'DE';
+  fields.push(`<Country>${escapeXml(country)}</Country>`);
+
+  const postalCode = safeString(item?.postalCode);
+  if (postalCode) fields.push(`<PostalCode>${escapeXml(postalCode)}</PostalCode>`);
+
+  const location = safeString(item?.location);
+  if (location) fields.push(`<Location>${escapeXml(location)}</Location>`);
+
+  const sku = safeString(item?.sku);
+  if (sku) fields.push(`<SKU>${escapeXml(sku)}</SKU>`);
+
+  const pictureUrls = asArray(item?.pictureUrls || item?.pictureDetails).map((u) => safeString(u)).filter(Boolean);
+  if (pictureUrls.length) {
+    fields.push(`<PictureDetails>${pictureUrls.map((u) => `<PictureURL>${escapeXml(u)}</PictureURL>`).join('')}</PictureDetails>`);
+  }
+
+  const ean = safeString(item?.ean);
+  const mpn = safeString(item?.mpn);
+  const brand = safeString(item?.brand);
+  if (ean || mpn || brand) {
+    const pld = [];
+    if (ean) pld.push(`<EAN>${escapeXml(ean)}</EAN>`);
+    if (mpn) pld.push(`<BrandMPN><Brand>${escapeXml(brand || 'Unbranded')}</Brand><MPN>${escapeXml(mpn)}</MPN></BrandMPN>`);
+    pld.push('<IncludeeBayProductDetails>true</IncludeeBayProductDetails>');
+    fields.push(`<ProductListingDetails>${pld.join('')}</ProductListingDetails>`);
+  }
+
+  const specificsXml = buildNameValueListXml(item?.itemSpecifics || {});
+  if (specificsXml) fields.push(specificsXml);
+
+  const dispatchTimeMax = item?.dispatchTimeMax ?? 3;
+  fields.push(`<DispatchTimeMax>${escapeXml(String(dispatchTimeMax))}</DispatchTimeMax>`);
+
+  const shippingProfileId = safeString(item?.shippingProfileId);
+  const returnProfileId = safeString(item?.returnProfileId);
+  const paymentProfileId = safeString(item?.paymentProfileId);
+  if (shippingProfileId || returnProfileId || paymentProfileId) {
+    const profiles = [];
+    if (shippingProfileId) {
+      profiles.push(`<SellerShippingProfile><ShippingProfileID>${escapeXml(shippingProfileId)}</ShippingProfileID></SellerShippingProfile>`);
+    }
+    if (returnProfileId) {
+      profiles.push(`<SellerReturnProfile><ReturnProfileID>${escapeXml(returnProfileId)}</ReturnProfileID></SellerReturnProfile>`);
+    }
+    if (paymentProfileId) {
+      profiles.push(`<SellerPaymentProfile><PaymentProfileID>${escapeXml(paymentProfileId)}</PaymentProfileID></SellerPaymentProfile>`);
+    }
+    fields.push(`<SellerProfiles>${profiles.join('')}</SellerProfiles>`);
+  }
+
+  return buildRequestRoot('AddFixedPriceItem', `<Item>${fields.join('')}</Item>`, cfg.userToken, cfg.compatibilityLevel);
+}
+
+async function addFixedPriceItem(item, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const cfg = await getEbayTradingConfig();
+  const requestXml = buildAddFixedPriceItemXml(item, cfg);
+  const result = await callTradingApi('AddFixedPriceItem', requestXml, { timeoutMs });
+  const response = result?.response || {};
+  return {
+    ack: result.ack,
+    warnings: result.errors,
+    itemId: safeString(response?.ItemID),
+    fees: asArray(response?.Fees?.Fee).map((fee) => ({
+      name: safeString(fee?.Name),
+      amount: safeString(fee?.Fee?.['#text'] ?? fee?.Fee ?? fee?.Amount?.['#text'] ?? fee?.Amount),
+      currency: safeString(fee?.Fee?.currencyID ?? fee?.Amount?.currencyID) || null,
+    })),
+    startTime: safeString(response?.StartTime) || null,
+    endTime: safeString(response?.EndTime) || null,
+  };
+}
+
+async function verifyAddFixedPriceItem(item, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const cfg = await getEbayTradingConfig();
+  const innerXml = buildAddFixedPriceItemXml(item, cfg)
+    .replace('<AddFixedPriceItemRequest', '<VerifyAddFixedPriceItemRequest')
+    .replace('</AddFixedPriceItemRequest>', '</VerifyAddFixedPriceItemRequest>');
+  const result = await callTradingApi('VerifyAddFixedPriceItem', innerXml, { timeoutMs });
+  const response = result?.response || {};
+  return {
+    ack: result.ack,
+    warnings: result.errors,
+    fees: asArray(response?.Fees?.Fee).map((fee) => ({
+      name: safeString(fee?.Name),
+      amount: safeString(fee?.Fee?.['#text'] ?? fee?.Fee ?? fee?.Amount?.['#text'] ?? fee?.Amount),
+      currency: safeString(fee?.Fee?.currencyID ?? fee?.Amount?.currencyID) || null,
+    })),
+  };
+}
+
 async function fetchTradingStatus() {
   const cfg = await getEbayTradingConfig();
   return {
@@ -478,6 +610,8 @@ module.exports = {
   getItemDetails,
   reviseFixedPriceItem,
   reviseItem,
+  addFixedPriceItem,
+  verifyAddFixedPriceItem,
   mapItemSpecifics,
   mapListingDetail,
   normalizeSpecificsMap,

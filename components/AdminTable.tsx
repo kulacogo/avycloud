@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, type ProductBulkActionName } from '../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, type ProductBulkActionName } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import {
   normalizeSyncStatus,
@@ -248,6 +248,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   // Fixed BaseLinker inventory
   const [syncInventoryId] = useState('78659');
   const [syncInProgress, setSyncInProgress] = useState(false);
+  const [ebayPublishInProgress, setEbayPublishInProgress] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [improveInProgress, setImproveInProgress] = useState(false);
   const [improveMessage, setImproveMessage] = useState<string | null>(null);
@@ -1134,6 +1135,74 @@ const AdminTable: React.FC<AdminTableProps> = ({
       setSyncInProgress(false);
       setSyncMessage(null);
       setSelectedIds(new Set());
+    }
+  };
+
+  const handleBatchPublishEbay = async () => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    setEbayPublishInProgress(true);
+    setNotice({
+      tone: 'info',
+      title: 'eBay Publish',
+      message: `Prüfe ${ids.length} Produkte für eBay...`,
+    });
+    try {
+      const verifyResult = await bulkVerifyEbayPublish(ids);
+      const { ready, blocked } = verifyResult.summary;
+      if (ready === 0) {
+        const blockerMessages = verifyResult.items
+          .filter((item) => !item.canPublish)
+          .slice(0, 5)
+          .map((item) => `${item.productId}: ${item.blockers.join(', ')}`)
+          .join('\n');
+        setNotice({
+          tone: 'error',
+          title: 'eBay Publish blockiert',
+          message: `Alle ${blocked} Produkte haben Blocker.`,
+          details: blockerMessages,
+        });
+        return;
+      }
+      if (!window.confirm(`${ready} von ${ids.length} Produkten können auf eBay gelistet werden.${blocked > 0 ? ` ${blocked} Produkte übersprungen (Blocker).` : ''}\n\nFortfahren?`)) {
+        return;
+      }
+      setNotice({
+        tone: 'info',
+        title: 'eBay Publish',
+        message: `Liste ${ready} Produkte auf eBay.de...`,
+      });
+      const readyIds = verifyResult.items.filter((item) => item.canPublish).map((item) => item.productId);
+      const publishResult = await bulkPublishToEbay(readyIds);
+      const { success, failed } = publishResult.summary;
+      const failDetails = publishResult.results
+        .filter((r) => !r.ok)
+        .slice(0, 5)
+        .map((r) => `${r.productId}: ${r.blockers?.join(', ') || r.warnings?.join(', ') || 'Fehler'}`)
+        .join('\n');
+      setNotice({
+        tone: failed === 0 ? 'success' : 'warning',
+        title: 'eBay Publish abgeschlossen',
+        message: `Erfolgreich: ${success}, Fehlgeschlagen: ${failed}`,
+        details: failDetails || undefined,
+      });
+      if (success > 0) {
+        try {
+          const list = await fetchProducts();
+          if (Array.isArray(list)) onUpdateProducts(list);
+        } catch {
+          // ignore
+        }
+      }
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      setNotice({
+        tone: 'error',
+        title: 'eBay Publish fehlgeschlagen',
+        details: err?.message || String(err),
+      });
+    } finally {
+      setEbayPublishInProgress(false);
     }
   };
 
@@ -2085,6 +2154,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
             label={t('table.actions.syncSelected')}
             onClick={handleBatchSync}
             disabled={selectedIds.size === 0 || syncInProgress}
+            tone="primary"
+          />
+          <ActionButton
+            icon={
+              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="10" cy="10" r="7" />
+                <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
+              </svg>
+            }
+            label={ebayPublishInProgress ? 'Wird gelistet...' : 'Auf eBay listen'}
+            onClick={handleBatchPublishEbay}
+            disabled={selectedIds.size === 0 || ebayPublishInProgress}
             tone="primary"
           />
           {onImproveSelected ? (
