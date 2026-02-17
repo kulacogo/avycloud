@@ -2232,6 +2232,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
               <button
                 type="button"
+                onClick={handleBatchPublishEbay}
+                disabled={selectedIds.size === 0 || ebayPublishInProgress}
+                className={menuItemClass}
+              >
+                {ebayPublishInProgress ? 'eBay Publish läuft...' : 'Auf eBay listen'}
+              </button>
+
+              <div className="my-1 border-t border-slate-800" />
+
+              <button
+                type="button"
                 onClick={handleBatchLabelPrint}
                 disabled={selectedIds.size === 0}
                 className={menuItemClass}
