@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anmelden — AvyCloud</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   AVYCLOUD LOGIN — Design System v2
+   Premium Auth Page — Stripe/Vercel Quality
+   ═══════════════════════════════════════════ */
+
+:root {
+  --avy-deep: #0A2540;
+  --avy-purple: #635BFF;
+  --avy-purple-hover: #5148E5;
+  --avy-purple-light: #818CF8;
+  --avy-purple-glow: rgba(99, 91, 255, 0.12);
+  --avy-gradient: linear-gradient(135deg, #635BFF, #0070F3);
+  --bg: #F6F9FC; --surface: #FFFFFF; --surface-hover: #FAFBFD; --surface-secondary: #F0F3F7;
+  --text-primary: #0A2540; --text-secondary: #425466; --text-tertiary: #8898AA;
+  --border: #E3E8EE; --border-hover: #C1C9D2;
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.03), 0 3px 6px rgba(0,0,0,0.02);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 16px 48px rgba(0,0,0,0.08);
+  --success: #0E9F6E; --error: #DC2626;
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+[data-theme="dark"] {
+  --bg: #0B0F14; --surface: #151A21; --surface-hover: #1A2029; --surface-secondary: #1E252E;
+  --text-primary: #F1F3F5; --text-secondary: #8898AA; --text-tertiary: #5E6E80;
+  --border: #1E2A36; --border-hover: #2A3A4A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.3);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══════ PAGE LAYOUT ═══════ */
+.auth-page {
+  display: flex;
+  min-height: 100vh;
+  animation: pageIn 600ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes pageIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ═══════ LEFT BRANDED PANEL ═══════ */
+.brand-panel {
+  width: 50%;
+  min-height: 100vh;
+  background: var(--avy-deep);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px;
+  overflow: hidden;
+}
+
+/* Animated gradient mesh background */
+.brand-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 80%, rgba(99, 91, 255, 0.15), transparent),
+    radial-gradient(ellipse 60% 80% at 80% 20%, rgba(0, 112, 243, 0.12), transparent),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(99, 91, 255, 0.06), transparent);
+  animation: meshShift 12s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+@keyframes meshShift {
+  0% { transform: scale(1) translate(0, 0); }
+  33% { transform: scale(1.05) translate(-10px, 8px); }
+  66% { transform: scale(0.98) translate(8px, -5px); }
+  100% { transform: scale(1.02) translate(-5px, 10px); }
+}
+
+/* Subtle grid pattern */
+.brand-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at 60% 40%, black 20%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at 60% 40%, black 20%, transparent 70%);
+  z-index: 0;
+}
+
+.brand-panel > * { position: relative; z-index: 1; }
+
+/* Logo */
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--avy-gradient);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(99, 91, 255, 0.3);
+}
+
+.brand-logo-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: #fff;
+}
+
+.brand-logo-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: -0.02em;
+}
+
+/* Hero content */
+.brand-content {
+  max-width: 440px;
+}
+
+.brand-headline {
+  font-size: 36px;
+  font-weight: 800;
+  color: #FFFFFF;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin-bottom: 40px;
+}
+
+.brand-headline span {
+  background: var(--avy-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Feature bullets */
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.feature-icon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: var(--radius-md);
+  background: rgba(99, 91, 255, 0.12);
+  border: 1px solid rgba(99, 91, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feature-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--avy-purple-light);
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feature-text h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin-bottom: 2px;
+}
+
+.feature-text p {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.5;
+}
+
+/* Trust badge */
+.trust-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trust-avatars {
+  display: flex;
+}
+
+.trust-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--avy-deep);
+  margin-right: -8px;
+  background: linear-gradient(135deg, rgba(99,91,255,0.5), rgba(0,112,243,0.5));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.trust-avatar:last-child { margin-right: 0; }
+
+.trust-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.trust-text strong {
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 600;
+}
+
+/* ═══════ RIGHT FORM PANEL ═══════ */
+.form-panel {
+  width: 50%;
+  min-height: 100vh;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 48px;
+}
+
+/* Theme toggle */
+.theme-toggle {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  color: var(--text-secondary);
+  z-index: 10;
+}
+
+.theme-toggle:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  transition: all var(--transition);
+}
+
+.theme-toggle .icon-moon { display: none; }
+[data-theme="dark"] .theme-toggle .icon-sun { display: none; }
+[data-theme="dark"] .theme-toggle .icon-moon { display: block; }
+
+/* Form container */
+.form-container {
+  width: 100%;
+  max-width: 380px;
+  animation: formIn 500ms cubic-bezier(0.4, 0, 0.2, 1) 200ms both;
+}
+
+@keyframes formIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.form-header {
+  margin-bottom: 32px;
+}
+
+.form-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.form-header p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Google button */
+.btn-google {
+  width: 100%;
+  height: 44px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: all var(--transition);
+}
+
+.btn-google:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-google:active {
+  transform: scale(0.99);
+}
+
+.btn-google svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Divider */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.divider span {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+/* Form groups */
+.form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-label .required {
+  color: var(--error);
+  font-size: 12px;
+}
+
+.input-wrapper {
+  position: relative;
+}
+
+.form-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  transition: all var(--transition);
+  outline: none;
+}
+
+.form-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.form-input:hover {
+  border-color: var(--border-hover);
+}
+
+.form-input:focus {
+  border-color: var(--avy-purple);
+  box-shadow: 0 0 0 3px var(--avy-purple-glow);
+}
+
+.form-input.error {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.form-input.error:focus {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.input-password {
+  padding-right: 44px;
+}
+
+/* Password toggle */
+.password-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  transition: all var(--transition);
+}
+
+.password-toggle:hover {
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+}
+
+.password-toggle svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.password-toggle .icon-hide { display: none; }
+.password-toggle.active .icon-show { display: none; }
+.password-toggle.active .icon-hide { display: block; }
+
+/* Error message */
+.field-error {
+  font-size: 12px;
+  color: var(--error);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  max-height: 0;
+  transition: all 200ms ease;
+}
+
+.field-error.visible {
+  opacity: 1;
+  max-height: 24px;
+  margin-top: 2px;
+}
+
+.field-error svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* Forgot password link */
+.form-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: -8px;
+}
+
+.link-forgot {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--avy-purple);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--transition);
+  background: none;
+  border: none;
+  font-family: inherit;
+  padding: 0;
+}
+
+.link-forgot:hover {
+  color: var(--avy-purple-hover);
+}
+
+/* Primary button */
+.btn-primary {
+  width: 100%;
+  height: 44px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--avy-purple);
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  margin-top: 4px;
+}
+
+.btn-primary:hover {
+  background: var(--avy-purple-hover);
+  box-shadow: 0 4px 12px rgba(99, 91, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Loading spinner */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: spin 600ms linear infinite;
+  display: none;
+}
+
+.btn-primary.loading .spinner { display: block; }
+.btn-primary.loading .btn-text { display: none; }
+.btn-primary.loading .btn-loading-text { display: inline; }
+.btn-loading-text { display: none; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Footer link */
+.form-footer {
+  text-align: center;
+  margin-top: 28px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.form-footer a {
+  color: var(--avy-purple);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--transition);
+}
+
+.form-footer a:hover {
+  color: var(--avy-purple-hover);
+}
+
+/* ═══════ FORGOT PASSWORD VIEW ═══════ */
+.view-login,
+.view-forgot {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.view-forgot { display: none; }
+
+.form-container.forgot-mode .view-login { display: none; }
+.form-container.forgot-mode .view-forgot { display: block; animation: formIn 300ms ease both; }
+
+.forgot-back {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--avy-purple);
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  padding: 0;
+  transition: color var(--transition);
+  margin-top: 16px;
+}
+
+.forgot-back:hover { color: var(--avy-purple-hover); }
+
+.forgot-back svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Forgot password success */
+.forgot-success {
+  display: none;
+  text-align: center;
+  padding: 24px 0;
+  animation: formIn 300ms ease both;
+}
+
+.forgot-success.visible { display: block; }
+
+.forgot-success-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(14, 159, 110, 0.1);
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.forgot-success-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke: var(--success);
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.forgot-success h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.forgot-success p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.forgot-form.hidden { display: none; }
+
+/* ═══════ MOBILE RESPONSIVE ═══════ */
+
+/* Tablets and small desktops */
+@media (max-width: 1024px) {
+  .brand-panel { padding: 36px; }
+  .brand-headline { font-size: 30px; }
+  .form-panel { padding: 36px; }
+}
+
+/* Mobile: left panel becomes header strip */
+@media (max-width: 768px) {
+  .auth-page {
+    flex-direction: column;
+  }
+
+  .brand-panel {
+    width: 100%;
+    min-height: auto;
+    padding: 28px 24px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 16px;
+  }
+
+  .brand-panel::after {
+    display: none;
+  }
+
+  .brand-content { display: none; }
+  .trust-section { display: none; }
+
+  .brand-logo-text {
+    font-size: 18px;
+  }
+
+  .brand-mobile-tagline {
+    display: block;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 400;
+  }
+
+  .form-panel {
+    width: 100%;
+    min-height: auto;
+    flex: 1;
+    padding: 32px 24px 40px;
+    justify-content: flex-start;
+  }
+
+  .form-container {
+    max-width: 420px;
+  }
+
+  .theme-toggle {
+    top: -68px;
+    right: 0;
+    border-color: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.7);
+  }
+
+  .theme-toggle:hover {
+    border-color: rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+  }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+  .brand-panel {
+    padding: 20px 16px;
+  }
+
+  .form-panel {
+    padding: 24px 16px 32px;
+  }
+
+  .form-header h1 {
+    font-size: 22px;
+  }
+
+  .form-container {
+    max-width: 100%;
+  }
+
+  .btn-google,
+  .form-input,
+  .btn-primary {
+    height: 48px;
+  }
+}
+
+/* Hidden on desktop, shown on mobile */
+.brand-mobile-tagline { display: none; }
+@media (max-width: 768px) {
+  .brand-mobile-tagline { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="auth-page">
+
+  <!-- ═══════ LEFT: BRANDED PANEL ═══════ -->
+  <div class="brand-panel">
+    <!-- Logo -->
+    <div class="brand-logo">
+      <div class="brand-logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#fff" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="brand-logo-text">AvyCloud</span>
+      <span class="brand-mobile-tagline">Smarte Lagerverwaltung</span>
+    </div>
+
+    <!-- Hero content -->
+    <div class="brand-content">
+      <h2 class="brand-headline">
+        Smarte Lagerverwaltung<br>
+        f&uuml;r deinen <span>eBay-Handel</span>
+      </h2>
+
+      <div class="feature-list">
+        <!-- Feature 1: AI -->
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          </div>
+          <div class="feature-text">
+            <h4>Produktidentifizierung mit KI</h4>
+            <p>Automatische Erkennung und Klassifizierung deiner Produkte mit intelligenter Bildanalyse.</p>
+          </div>
+        </div>
+
+        <!-- Feature 2: eBay Sync -->
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </div>
+          <div class="feature-text">
+            <h4>Automatische eBay-Synchronisation</h4>
+            <p>Echtzeit-Sync deiner Listings, Bestellungen und Best&auml;nde zwischen AvyCloud und eBay.</p>
+          </div>
+        </div>
+
+        <!-- Feature 3: Warehouse -->
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+          <div class="feature-text">
+            <h4>Intelligentes Warehouse Management</h4>
+            <p>Optimierte Lagerpl&auml;tze, Kommissionierung und Bestandsverwaltung in Echtzeit.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trust badge -->
+    <div class="trust-section">
+      <div class="trust-avatars">
+        <div class="trust-avatar">M</div>
+        <div class="trust-avatar">K</div>
+        <div class="trust-avatar">S</div>
+        <div class="trust-avatar">T</div>
+        <div class="trust-avatar">+</div>
+      </div>
+      <span class="trust-text">Vertraut von <strong>50+ eBay-H&auml;ndlern</strong></span>
+    </div>
+  </div>
+
+  <!-- ═══════ RIGHT: FORM PANEL ═══════ -->
+  <div class="form-panel">
+
+    <!-- Theme toggle -->
+    <button class="theme-toggle" id="themeToggle" aria-label="Design wechseln" type="button">
+      <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+      </svg>
+    </button>
+
+    <div class="form-container" id="formContainer">
+
+      <!-- ═══════ LOGIN VIEW ═══════ -->
+      <div class="view-login">
+        <div class="form-header">
+          <h1>Willkommen zur&uuml;ck</h1>
+          <p>Melde dich bei deinem AvyCloud-Konto an</p>
+        </div>
+
+        <!-- Google Sign-In -->
+        <button class="btn-google" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 001 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Mit Google anmelden
+        </button>
+
+        <div class="divider"><span>oder mit E-Mail</span></div>
+
+        <form id="loginForm" class="form-body" novalidate>
+          <!-- Email -->
+          <div class="form-group">
+            <label class="form-label" for="loginEmail">E-Mail-Adresse <span class="required">*</span></label>
+            <div class="input-wrapper">
+              <input
+                class="form-input"
+                type="email"
+                id="loginEmail"
+                placeholder="name@unternehmen.de"
+                required
+                autocomplete="email"
+              >
+            </div>
+            <div class="field-error" id="emailError">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Bitte gib eine g&uuml;ltige E-Mail-Adresse ein</span>
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Passwort <span class="required">*</span></label>
+            <div class="input-wrapper">
+              <input
+                class="form-input input-password"
+                type="password"
+                id="loginPassword"
+                placeholder="Dein Passwort"
+                required
+                autocomplete="current-password"
+              >
+              <button class="password-toggle" type="button" id="passwordToggle" aria-label="Passwort anzeigen">
+                <svg class="icon-show" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="icon-hide" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
+            </div>
+            <div class="field-error" id="passwordError">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Bitte gib dein Passwort ein</span>
+            </div>
+          </div>
+
+          <!-- Forgot password link -->
+          <div class="form-row">
+            <button class="link-forgot" type="button" id="showForgot">Passwort vergessen?</button>
+          </div>
+
+          <!-- Submit -->
+          <button class="btn-primary" type="submit" id="loginBtn">
+            <span class="btn-text">Anmelden</span>
+            <span class="spinner"></span>
+            <span class="btn-loading-text">Wird angemeldet...</span>
+          </button>
+        </form>
+
+        <div class="form-footer">
+          Noch kein Konto? <a href="#">Kontakt aufnehmen</a>
+        </div>
+      </div>
+
+      <!-- ═══════ FORGOT PASSWORD VIEW ═══════ -->
+      <div class="view-forgot">
+        <div class="form-header">
+          <h1>Passwort zur&uuml;cksetzen</h1>
+          <p>Gib deine E-Mail-Adresse ein und wir senden dir einen Link zum Zur&uuml;cksetzen.</p>
+        </div>
+
+        <form id="forgotForm" class="form-body forgot-form" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="forgotEmail">E-Mail-Adresse <span class="required">*</span></label>
+            <div class="input-wrapper">
+              <input
+                class="form-input"
+                type="email"
+                id="forgotEmail"
+                placeholder="name@unternehmen.de"
+                required
+                autocomplete="email"
+              >
+            </div>
+            <div class="field-error" id="forgotEmailError">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Bitte gib eine g&uuml;ltige E-Mail-Adresse ein</span>
+            </div>
+          </div>
+
+          <button class="btn-primary" type="submit" id="forgotBtn">
+            <span class="btn-text">Link senden</span>
+            <span class="spinner"></span>
+            <span class="btn-loading-text">Wird gesendet...</span>
+          </button>
+        </form>
+
+        <!-- Success state -->
+        <div class="forgot-success" id="forgotSuccess">
+          <div class="forgot-success-icon">
+            <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <h3>E-Mail gesendet</h3>
+          <p>Wir haben dir einen Link an deine E-Mail gesendet. Pr&uuml;fe deinen Posteingang und folge den Anweisungen.</p>
+        </div>
+
+        <button class="forgot-back" type="button" id="backToLogin">
+          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Zur&uuml;ck zum Login
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   AVYCLOUD LOGIN — Interactive Logic
+   ═══════════════════════════════════════════ */
+
+(function() {
+  'use strict';
+
+  // ═══════ DOM REFS ═══════
+  const html = document.documentElement;
+  const themeToggle = document.getElementById('themeToggle');
+  const formContainer = document.getElementById('formContainer');
+  const loginForm = document.getElementById('loginForm');
+  const forgotForm = document.getElementById('forgotForm');
+  const loginEmail = document.getElementById('loginEmail');
+  const loginPassword = document.getElementById('loginPassword');
+  const forgotEmail = document.getElementById('forgotEmail');
+  const loginBtn = document.getElementById('loginBtn');
+  const forgotBtn = document.getElementById('forgotBtn');
+  const passwordToggle = document.getElementById('passwordToggle');
+  const showForgot = document.getElementById('showForgot');
+  const backToLogin = document.getElementById('backToLogin');
+  const forgotSuccess = document.getElementById('forgotSuccess');
+  const forgotFormEl = document.querySelector('.forgot-form');
+
+  const emailError = document.getElementById('emailError');
+  const passwordError = document.getElementById('passwordError');
+  const forgotEmailError = document.getElementById('forgotEmailError');
+
+  // ═══════ THEME TOGGLE ═══════
+  function initTheme() {
+    const saved = localStorage.getItem('avycloud-theme');
+    if (saved === 'dark') {
+      html.setAttribute('data-theme', 'dark');
+    } else if (saved === 'light') {
+      html.removeAttribute('data-theme');
+    } else {
+      // Respect system preference
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        html.setAttribute('data-theme', 'dark');
+      }
+    }
+  }
+
+  themeToggle.addEventListener('click', function() {
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+      html.removeAttribute('data-theme');
+      localStorage.setItem('avycloud-theme', 'light');
+    } else {
+      html.setAttribute('data-theme', 'dark');
+      localStorage.setItem('avycloud-theme', 'dark');
+    }
+  });
+
+  initTheme();
+
+  // ═══════ PASSWORD TOGGLE ═══════
+  passwordToggle.addEventListener('click', function() {
+    const isPassword = loginPassword.type === 'password';
+    loginPassword.type = isPassword ? 'text' : 'password';
+    this.classList.toggle('active', isPassword);
+    this.setAttribute('aria-label', isPassword ? 'Passwort verbergen' : 'Passwort anzeigen');
+  });
+
+  // ═══════ VIEW SWITCHING ═══════
+  showForgot.addEventListener('click', function() {
+    formContainer.classList.add('forgot-mode');
+    forgotEmail.value = loginEmail.value;
+    clearErrors();
+    resetForgotState();
+  });
+
+  backToLogin.addEventListener('click', function() {
+    formContainer.classList.remove('forgot-mode');
+    clearErrors();
+    resetForgotState();
+  });
+
+  function resetForgotState() {
+    forgotSuccess.classList.remove('visible');
+    forgotFormEl.classList.remove('hidden');
+    forgotBtn.classList.remove('loading');
+    forgotBtn.disabled = false;
+  }
+
+  // ═══════ VALIDATION ═══════
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  function showError(input, errorEl) {
+    input.classList.add('error');
+    errorEl.classList.add('visible');
+  }
+
+  function hideError(input, errorEl) {
+    input.classList.remove('error');
+    errorEl.classList.remove('visible');
+  }
+
+  function clearErrors() {
+    [loginEmail, loginPassword, forgotEmail].forEach(function(el) {
+      el.classList.remove('error');
+    });
+    [emailError, passwordError, forgotEmailError].forEach(function(el) {
+      el.classList.remove('visible');
+    });
+  }
+
+  // Real-time validation: clear error on input
+  loginEmail.addEventListener('input', function() { hideError(loginEmail, emailError); });
+  loginPassword.addEventListener('input', function() { hideError(loginPassword, passwordError); });
+  forgotEmail.addEventListener('input', function() { hideError(forgotEmail, forgotEmailError); });
+
+  // ═══════ LOGIN FORM SUBMIT ═══════
+  loginForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var valid = true;
+
+    if (!loginEmail.value.trim() || !isValidEmail(loginEmail.value.trim())) {
+      showError(loginEmail, emailError);
+      valid = false;
+    }
+
+    if (!loginPassword.value) {
+      showError(loginPassword, passwordError);
+      valid = false;
+    }
+
+    if (!valid) return;
+
+    // Loading state
+    loginBtn.classList.add('loading');
+    loginBtn.disabled = true;
+
+    // Simulate API call
+    setTimeout(function() {
+      loginBtn.classList.remove('loading');
+      loginBtn.disabled = false;
+      // In production, handle auth response here
+      alert('Login-Simulation erfolgreich! (Demo)');
+    }, 2000);
+  });
+
+  // ═══════ FORGOT FORM SUBMIT ═══════
+  forgotForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    if (!forgotEmail.value.trim() || !isValidEmail(forgotEmail.value.trim())) {
+      showError(forgotEmail, forgotEmailError);
+      return;
+    }
+
+    forgotBtn.classList.add('loading');
+    forgotBtn.disabled = true;
+
+    setTimeout(function() {
+      forgotBtn.classList.remove('loading');
+      forgotBtn.disabled = false;
+      forgotFormEl.classList.add('hidden');
+      forgotSuccess.classList.add('visible');
+    }, 1500);
+  });
+
+})();
+</script>
+</body>
+</html>

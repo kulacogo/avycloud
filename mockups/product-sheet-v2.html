@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud — Produkt bearbeiten</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* =====================================================
+   AVYCLOUD DESIGN SYSTEM v2.1
+   Product Detail / Editor — Stripe/Vercel Quality
+   ===================================================== */
+
+:root {
+  --avy-deep: #0A2540;
+  --avy-purple: #635BFF;
+  --avy-purple-hover: #5148E5;
+  --avy-purple-light: #818CF8;
+  --avy-purple-glow: rgba(99, 91, 255, 0.12);
+  --avy-gradient: linear-gradient(135deg, #635BFF, #0070F3);
+
+  --bg: #F6F9FC; --surface: #FFFFFF; --surface-hover: #FAFBFD; --surface-secondary: #F0F3F7;
+  --text-primary: #0A2540; --text-secondary: #425466; --text-tertiary: #8898AA;
+  --text-on-dark: #FFFFFF; --text-on-dark-muted: rgba(255,255,255,0.65);
+  --border: #E3E8EE; --border-hover: #C1C9D2;
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.03), 0 3px 6px rgba(0,0,0,0.02);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 16px 48px rgba(0,0,0,0.08);
+  --shadow-focus: 0 0 0 3px var(--avy-purple-glow);
+
+  --success: #0E9F6E; --success-bg: #ECFDF5; --success-border: #A7F3D0;
+  --warning: #D97706; --warning-bg: #FFFBEB; --warning-border: #FDE68A;
+  --error: #DC2626; --error-bg: #FEF2F2; --error-border: #FECACA;
+  --info: #0070F3; --info-bg: #EFF6FF; --info-border: #BFDBFE;
+
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px;
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+  --sidebar-w: 248px;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+[data-theme="dark"] {
+  --bg: #0B0F14; --surface: #151A21; --surface-hover: #1A2029; --surface-secondary: #1E252E;
+  --text-primary: #F1F3F5; --text-secondary: #8898AA; --text-tertiary: #5E6E80;
+  --border: #1E2A36; --border-hover: #2A3A4A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.3);
+  --success-bg: rgba(14,159,110,0.1); --success-border: rgba(14,159,110,0.25);
+  --warning-bg: rgba(217,119,6,0.1); --warning-border: rgba(217,119,6,0.25);
+  --error-bg: rgba(220,38,38,0.1); --error-border: rgba(220,38,38,0.25);
+  --info-bg: rgba(0,112,243,0.1); --info-border: rgba(0,112,243,0.25);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text-primary);
+  font-size: 14px; line-height: 1.5; min-height: 100vh; display: flex;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+
+/* =====================================================
+   SIDEBAR
+   ===================================================== */
+.sidebar {
+  width: var(--sidebar-w); height: 100vh; position: fixed;
+  left: 0; top: 0; background: var(--avy-deep);
+  display: flex; flex-direction: column; z-index: 50;
+  overflow-y: auto; overflow-x: hidden;
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar::-webkit-scrollbar { width: 0; }
+.sidebar-header { padding: 20px 20px 24px; display: flex; align-items: center; gap: 12px; }
+.sidebar-logo {
+  width: 28px; height: 28px; background: var(--avy-gradient); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 800; font-size: 14px;
+  box-shadow: 0 2px 8px rgba(99,91,255,0.4); flex-shrink: 0;
+}
+.sidebar-brand { font-size: 16px; font-weight: 700; color: var(--text-on-dark); letter-spacing: -0.02em; }
+.sidebar-section { padding: 0 12px; margin-bottom: 8px; }
+.sidebar-label {
+  font-size: 11px; font-weight: 600; color: var(--text-on-dark-muted);
+  text-transform: uppercase; letter-spacing: 0.06em; padding: 0 8px; margin-bottom: 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+  border-radius: var(--radius-sm); color: var(--text-on-dark-muted);
+  cursor: pointer; transition: all 150ms ease; text-decoration: none;
+  font-size: 13.5px; font-weight: 500; position: relative; margin-bottom: 1px;
+}
+.nav-item:hover { color: var(--text-on-dark); background: rgba(255,255,255,0.06); }
+.nav-item.active { color: var(--text-on-dark); background: rgba(255,255,255,0.1); }
+.nav-item.active::before {
+  content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 16px; background: var(--avy-purple); border-radius: 0 3px 3px 0;
+}
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; }
+.nav-item.active .nav-icon, .nav-item:hover .nav-icon { opacity: 1; }
+.nav-badge {
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 10px;
+  margin-left: auto; background: rgba(99,91,255,0.2); color: var(--avy-purple-light);
+}
+.sidebar-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 12px 20px; }
+.sidebar-footer { margin-top: auto; padding: 16px 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--radius-sm); cursor: pointer; transition: background 150ms ease; }
+.sidebar-user:hover { background: rgba(255,255,255,0.06); }
+.user-avatar { width: 30px; height: 30px; border-radius: 8px; background: var(--avy-gradient); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px; flex-shrink: 0; }
+.user-name { font-size: 13px; font-weight: 500; color: var(--text-on-dark); }
+.user-role { font-size: 11px; color: var(--text-on-dark-muted); }
+
+/* Mobile header */
+.mobile-header { display: none; height: 56px; background: var(--avy-deep); padding: 0 16px; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 60; }
+.hamburger { background: none; border: none; color: white; cursor: pointer; padding: 4px; }
+.mobile-brand { font-size: 15px; font-weight: 700; color: white; }
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 45; backdrop-filter: blur(4px); }
+
+/* =====================================================
+   MAIN CONTAINER
+   ===================================================== */
+.main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* =====================================================
+   TOPBAR
+   ===================================================== */
+.topbar {
+  height: 56px; padding: 0 var(--space-8); display: flex; align-items: center; gap: 16px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+  position: sticky; top: 0; z-index: 40;
+}
+.topbar-search {
+  display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; transition: all var(--transition); min-width: 240px;
+}
+.topbar-search:hover { border-color: var(--border-hover); box-shadow: var(--shadow-sm); }
+.topbar-search svg { color: var(--text-tertiary); flex-shrink: 0; }
+.topbar-search span { color: var(--text-tertiary); font-size: 13px; }
+.topbar-search kbd {
+  font-family: inherit; font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 4px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-tertiary); margin-left: auto;
+}
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.topbar-btn {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary); cursor: pointer; background: transparent; border: none;
+  transition: all 150ms ease; position: relative;
+}
+.topbar-btn:hover { background: var(--surface-secondary); color: var(--text-secondary); }
+.topbar-btn .dot {
+  position: absolute; top: 7px; right: 7px; width: 7px; height: 7px;
+  border-radius: 50%; background: var(--avy-purple); border: 2px solid var(--surface);
+}
+.theme-toggle {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: transparent; border: 1px solid var(--border);
+  color: var(--text-tertiary); transition: all 150ms ease;
+}
+.theme-toggle:hover { border-color: var(--border-hover); color: var(--text-secondary); }
+
+/* =====================================================
+   BUTTONS
+   ===================================================== */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+  border-radius: var(--radius-md); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition); border: none; font-family: inherit;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--avy-purple); color: white; }
+.btn-primary:hover { background: var(--avy-purple-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,91,255,0.3); }
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--border-hover); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.btn-ghost { background: transparent; color: var(--text-secondary); }
+.btn-ghost:hover { background: var(--surface-secondary); color: var(--text-primary); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
+.btn-danger { background: var(--error-bg); color: var(--error); border: 1px solid var(--error-border); }
+.btn-danger:hover { background: var(--error); color: white; }
+
+/* =====================================================
+   BREADCRUMB
+   ===================================================== */
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-tertiary); padding: 0 var(--space-8); margin-top: var(--space-4); }
+.breadcrumb a { color: var(--text-tertiary); text-decoration: none; transition: color 150ms; }
+.breadcrumb a:hover { color: var(--avy-purple); }
+.breadcrumb-sep { color: var(--border-hover); }
+.breadcrumb-current { color: var(--text-secondary); font-weight: 500; }
+
+/* =====================================================
+   PAGE HEADER
+   ===================================================== */
+.page-header {
+  padding: var(--space-4) var(--space-8) 0; display: flex;
+  align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+}
+.page-title-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--text-primary); }
+.page-header-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Status Badge */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px;
+}
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.status-active { color: var(--success); background: var(--success-bg); }
+.status-active .status-dot { background: var(--success); }
+.status-listed { color: var(--success); background: var(--success-bg); }
+.status-listed .status-dot { background: var(--success); }
+.status-draft { color: var(--warning); background: var(--warning-bg); }
+.status-draft .status-dot { background: var(--warning); }
+.status-error { color: var(--error); background: var(--error-bg); }
+.status-error .status-dot { background: var(--error); }
+
+/* =====================================================
+   SPLIT LAYOUT
+   ===================================================== */
+.split-layout {
+  display: grid; grid-template-columns: 1fr 380px;
+  gap: var(--space-6); padding: var(--space-5) var(--space-8) var(--space-12);
+  flex: 1; align-items: start;
+}
+
+/* =====================================================
+   CARDS
+   ===================================================== */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); transition: border-color var(--transition);
+}
+.card:hover { border-color: var(--border-hover); }
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border);
+}
+.card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+.card-title svg { color: var(--text-tertiary); }
+.card-action { font-size: 12px; font-weight: 500; color: var(--avy-purple); cursor: pointer; text-decoration: none; transition: color 150ms; }
+.card-action:hover { color: var(--avy-purple-hover); }
+.card-body { padding: var(--space-5); }
+
+/* Left column cards stacking */
+.left-col { display: flex; flex-direction: column; gap: var(--space-5); }
+
+/* =====================================================
+   IMAGE GALLERY
+   ===================================================== */
+.image-main {
+  width: 100%; aspect-ratio: 16 / 10; background: var(--surface-secondary);
+  border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden; cursor: pointer;
+  border: 2px dashed var(--border); transition: all var(--transition);
+}
+.image-main:hover { border-color: var(--avy-purple); background: var(--avy-purple-glow); }
+.image-main-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-tertiary); }
+.image-main-placeholder svg { opacity: 0.5; }
+.image-main-placeholder span { font-size: 13px; font-weight: 500; }
+.image-main-badge {
+  position: absolute; top: 10px; left: 10px; font-size: 10px; font-weight: 600;
+  background: var(--avy-purple); color: white; padding: 2px 8px; border-radius: 4px;
+}
+
+.thumbnail-strip { display: flex; gap: 8px; margin-top: var(--space-3); }
+.thumbnail {
+  width: 64px; height: 64px; border-radius: var(--radius-sm); background: var(--surface-secondary);
+  border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all var(--transition); flex-shrink: 0; position: relative;
+}
+.thumbnail:hover { border-color: var(--avy-purple); transform: translateY(-1px); }
+.thumbnail.active { border-color: var(--avy-purple); box-shadow: 0 0 0 2px var(--avy-purple-glow); }
+.thumbnail.add-thumb {
+  border-style: dashed; border-color: var(--border);
+}
+.thumbnail.add-thumb:hover { border-color: var(--avy-purple); background: var(--avy-purple-glow); }
+.thumbnail svg { color: var(--text-tertiary); }
+.drag-hint {
+  font-size: 11px; color: var(--text-tertiary); margin-top: var(--space-2); display: flex; align-items: center; gap: 4px;
+}
+.drag-hint svg { flex-shrink: 0; }
+
+/* =====================================================
+   AI IMAGE TOOLS
+   ===================================================== */
+.ai-tools-section { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); }
+.ai-tools-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
+.ai-tools-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+}
+.ai-badge {
+  font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+  background: var(--avy-gradient); color: white; letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ai-tools-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.ai-tool-btn {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; transition: all var(--transition); text-align: left;
+  font-family: inherit; color: inherit;
+}
+.ai-tool-btn:hover { border-color: var(--avy-purple); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.ai-tool-btn:active { transform: translateY(0); }
+.ai-tool-btn.processing { pointer-events: none; opacity: 0.7; }
+.ai-tool-btn.processing .ai-tool-icon { animation: aiSpin 1s linear infinite; }
+@keyframes aiSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.ai-tool-icon {
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ai-tool-text { flex: 1; min-width: 0; }
+.ai-tool-name { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.ai-tool-desc { font-size: 10px; color: var(--text-tertiary); margin-top: 1px; line-height: 1.3; }
+
+/* AI Processing Overlay on main image */
+.image-main .ai-overlay {
+  position: absolute; inset: 0; background: rgba(10,37,64,0.85);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  z-index: 5; opacity: 0; pointer-events: none; transition: opacity 300ms;
+  border-radius: inherit;
+}
+.image-main .ai-overlay.active { opacity: 1; pointer-events: auto; }
+.ai-overlay-spinner {
+  width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.2);
+  border-top-color: var(--avy-purple-light); border-radius: 50%;
+  animation: aiSpin 0.8s linear infinite;
+}
+.ai-overlay-text { font-size: 13px; font-weight: 600; color: white; }
+.ai-overlay-progress {
+  width: 140px; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden;
+}
+.ai-overlay-fill {
+  height: 100%; background: var(--avy-gradient); border-radius: 2px;
+  width: 0%; transition: width 400ms ease;
+}
+
+/* AI Result badge on image */
+.ai-result-badge {
+  position: absolute; bottom: 10px; right: 10px; display: flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  background: rgba(14,159,110,0.9); color: white; z-index: 3;
+  opacity: 0; transform: translateY(4px); transition: all 300ms;
+}
+.ai-result-badge.visible { opacity: 1; transform: translateY(0); }
+.ai-result-badge svg { flex-shrink: 0; }
+
+/* Web Image Search */
+.web-search-section { margin-top: var(--space-3); }
+.web-search-row { display: flex; gap: 8px; }
+.web-search-input {
+  flex: 1; padding: 8px 12px 8px 34px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-md); font-size: 13px; font-family: inherit;
+  color: var(--text-primary); outline: none; transition: all var(--transition);
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='7' cy='7' r='4.5' stroke='%238898AA' stroke-width='1.5'/%3E%3Cpath d='M11 11l3 3' stroke='%238898AA' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: 10px center;
+}
+.web-search-input:focus { border-color: var(--avy-purple); box-shadow: var(--shadow-focus); }
+.web-search-input::placeholder { color: var(--text-tertiary); }
+
+/* Web Image Results Grid */
+.web-images-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  margin-top: var(--space-3); max-height: 0; overflow: hidden;
+  transition: max-height 400ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms;
+  opacity: 0;
+}
+.web-images-grid.visible { max-height: 400px; opacity: 1; }
+.web-image-item {
+  aspect-ratio: 1; border-radius: var(--radius-sm); background: var(--surface-secondary);
+  border: 2px solid transparent; cursor: pointer; position: relative;
+  transition: all var(--transition); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.web-image-item:hover { border-color: var(--avy-purple); transform: scale(1.03); box-shadow: var(--shadow-md); }
+.web-image-item.selected { border-color: var(--avy-purple); box-shadow: 0 0 0 3px var(--avy-purple-glow); }
+.web-image-item .check-overlay {
+  position: absolute; inset: 0; background: rgba(99,91,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 200ms;
+}
+.web-image-item.selected .check-overlay { opacity: 1; }
+.web-image-placeholder {
+  font-size: 10px; color: var(--text-tertiary); text-align: center; padding: 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.web-image-source {
+  position: absolute; bottom: 0; left: 0; right: 0; padding: 3px 6px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.7));
+  font-size: 9px; color: white; font-weight: 500;
+}
+.web-images-actions {
+  display: flex; gap: 8px; margin-top: var(--space-3); justify-content: flex-end;
+  max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height 300ms, opacity 300ms;
+}
+.web-images-actions.visible { max-height: 50px; opacity: 1; }
+
+/* AI Enhance Section in context panel */
+.ai-enhance-section { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+.ai-enhance-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;
+}
+.ai-quick-actions { display: flex; flex-direction: column; gap: 6px; }
+.ai-quick-btn {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-secondary);
+  font-family: inherit; transition: all 150ms; text-align: left;
+}
+.ai-quick-btn:hover { border-color: var(--avy-purple); color: var(--text-primary); background: var(--avy-purple-glow); }
+.ai-quick-btn svg { flex-shrink: 0; color: var(--text-tertiary); }
+.ai-quick-btn:hover svg { color: var(--avy-purple); }
+
+@media (max-width: 768px) {
+  .ai-tools-grid { grid-template-columns: 1fr; }
+  .web-images-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 480px) {
+  .web-images-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* =====================================================
+   FORM ELEMENTS
+   ===================================================== */
+.form-group { margin-bottom: var(--space-4); }
+.form-group:last-child { margin-bottom: 0; }
+.form-label {
+  display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.form-input {
+  width: 100%; padding: 9px 12px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-md); color: var(--text-primary); font-size: 14px;
+  font-family: inherit; transition: all var(--transition); outline: none;
+}
+.form-input:focus { border-color: var(--avy-purple); box-shadow: var(--shadow-focus); }
+.form-input::placeholder { color: var(--text-tertiary); }
+.form-input:read-only { background: var(--surface-secondary); color: var(--text-secondary); cursor: default; }
+.form-input:read-only:focus { border-color: var(--border); box-shadow: none; }
+.form-input-mono { font-family: var(--mono); font-size: 13px; letter-spacing: 0.02em; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-4); }
+
+select.form-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4.5l3 3 3-3' stroke='%238898AA' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+  cursor: pointer;
+}
+
+/* =====================================================
+   RICH TEXT EDITOR (mock)
+   ===================================================== */
+.rich-toolbar {
+  display: flex; align-items: center; gap: 2px; padding: 6px 8px;
+  border-bottom: 1px solid var(--border); background: var(--surface-secondary);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.rich-btn {
+  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; border-radius: var(--radius-sm);
+  color: var(--text-secondary); cursor: pointer; transition: all 150ms;
+}
+.rich-btn:hover { background: var(--surface); color: var(--text-primary); }
+.rich-btn.active { background: var(--avy-purple-glow); color: var(--avy-purple); }
+.rich-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.rich-textarea {
+  width: 100%; min-height: 140px; padding: 12px; background: var(--bg);
+  border: 1px solid var(--border); border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  color: var(--text-primary); font-size: 14px; font-family: inherit;
+  line-height: 1.7; resize: vertical; outline: none;
+  transition: border-color var(--transition);
+}
+.rich-textarea:focus { border-color: var(--avy-purple); box-shadow: var(--shadow-focus); }
+
+/* =====================================================
+   SPECIFICATIONS TABLE
+   ===================================================== */
+.specs-grid { display: grid; gap: 0; }
+.spec-row {
+  display: grid; grid-template-columns: 160px 1fr 32px; align-items: center;
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  transition: background 150ms;
+}
+.spec-row:last-child { border-bottom: none; }
+.spec-row:hover { background: var(--surface-hover); }
+.spec-key { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.spec-value { font-size: 13px; color: var(--text-primary); }
+.spec-action { opacity: 0; transition: opacity 150ms; display: flex; align-items: center; justify-content: center; }
+.spec-row:hover .spec-action { opacity: 1; }
+.spec-action button {
+  width: 24px; height: 24px; border: none; background: none; border-radius: 4px;
+  color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.spec-action button:hover { background: var(--surface-secondary); color: var(--text-primary); }
+
+.add-spec-btn {
+  display: flex; align-items: center; gap: 6px; padding: 10px 12px;
+  color: var(--avy-purple); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 150ms;
+}
+.add-spec-btn:hover { background: var(--avy-purple-glow); border-radius: var(--radius-sm); }
+
+/* =====================================================
+   CONTEXT PANEL (Right)
+   ===================================================== */
+.right-col { display: flex; flex-direction: column; gap: var(--space-4); position: sticky; top: 76px; }
+
+.ctx-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+  transition: border-color var(--transition);
+}
+.ctx-card:hover { border-color: var(--border-hover); }
+.ctx-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+}
+.ctx-title { font-size: 12px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
+.ctx-body { padding: 14px 16px; }
+
+.ctx-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0; font-size: 13px;
+}
+.ctx-row:last-child { padding-bottom: 0; }
+.ctx-label { color: var(--text-tertiary); font-weight: 500; }
+.ctx-value { color: var(--text-primary); font-weight: 500; }
+.ctx-value-mono { font-family: var(--mono); font-size: 12px; }
+.ctx-value-link { color: var(--avy-purple); cursor: pointer; transition: color 150ms; }
+.ctx-value-link:hover { color: var(--avy-purple-hover); text-decoration: underline; }
+.ctx-value-green { color: var(--success); }
+.ctx-divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+/* Sync indicator */
+.sync-indicator { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: var(--success); }
+.sync-indicator svg { flex-shrink: 0; }
+
+/* =====================================================
+   ACTIVITY FEED (mini)
+   ===================================================== */
+.activity-mini { display: flex; flex-direction: column; }
+.activity-mini-item {
+  display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border);
+  font-size: 12px; line-height: 1.5;
+}
+.activity-mini-item:last-child { border-bottom: none; padding-bottom: 0; }
+.activity-mini-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.activity-mini-text { color: var(--text-secondary); flex: 1; }
+.activity-mini-text strong { color: var(--text-primary); font-weight: 600; }
+.activity-mini-time { color: var(--text-tertiary); font-size: 11px; white-space: nowrap; }
+
+/* =====================================================
+   UNSAVED CHANGES BANNER
+   ===================================================== */
+.unsaved-banner {
+  position: fixed; bottom: 0; left: var(--sidebar-w); right: 0;
+  height: 56px; background: var(--surface); border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--space-8); z-index: 45;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
+  transform: translateY(100%); transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.unsaved-banner.visible { transform: translateY(0); }
+.unsaved-banner-left { display: flex; align-items: center; gap: 10px; }
+.unsaved-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warning); animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.unsaved-text { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.unsaved-banner-right { display: flex; gap: 8px; }
+
+/* =====================================================
+   TOAST SYSTEM
+   ===================================================== */
+.toast-container {
+  position: fixed; bottom: 72px; right: 20px; z-index: 1000;
+  display: flex; flex-direction: column-reverse; gap: 8px; pointer-events: none;
+}
+.toast {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 16px; border-radius: var(--radius-lg);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg); min-width: 320px; max-width: 420px;
+  animation: toastIn 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto; position: relative; overflow: hidden;
+}
+.toast.leaving { animation: toastOut 300ms ease forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(-8px) scale(0.96); } }
+.toast-icon { flex-shrink: 0; margin-top: 1px; }
+.toast-body { flex: 1; }
+.toast-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.toast-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+.toast-close { background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: 2px; border-radius: 4px; flex-shrink: 0; }
+.toast-close:hover { background: var(--surface-secondary); }
+.toast-progress { position: absolute; bottom: 0; left: 0; height: 3px; border-radius: 0 0 var(--radius-lg) var(--radius-lg); animation: shrink 5s linear forwards; }
+.toast-progress.success { background: var(--success); }
+.toast-progress.error { background: var(--error); }
+.toast-progress.info { background: var(--info); }
+.toast-progress.warning { background: var(--warning); }
+@keyframes shrink { from { width: 100%; } to { width: 0%; } }
+
+/* =====================================================
+   COMMAND PALETTE
+   ===================================================== */
+.cmd-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px); z-index: 200;
+  align-items: flex-start; justify-content: center; padding-top: 15vh;
+}
+.cmd-overlay.active { display: flex; animation: fadeIn 150ms ease; }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } }
+.cmd-box {
+  width: 560px; max-width: 90vw; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); overflow: hidden;
+  animation: slideDown 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cmd-input-wrap { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.cmd-input {
+  flex: 1; border: none; background: none; font-size: 15px; font-weight: 500;
+  color: var(--text-primary); outline: none; font-family: inherit;
+}
+.cmd-input::placeholder { color: var(--text-tertiary); }
+.cmd-results { max-height: 320px; overflow-y: auto; padding: 8px; }
+.cmd-group-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 8px 4px; }
+.cmd-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border-radius: var(--radius-sm); cursor: pointer; transition: background 100ms;
+  font-size: 13px; color: var(--text-secondary); font-weight: 500;
+}
+.cmd-item:hover, .cmd-item.selected { background: var(--surface-secondary); color: var(--text-primary); }
+.cmd-item-icon { width: 18px; height: 18px; color: var(--text-tertiary); flex-shrink: 0; }
+.cmd-item:hover .cmd-item-icon { color: var(--avy-purple); }
+.cmd-item kbd { margin-left: auto; font-family: inherit; font-size: 11px; font-weight: 500; color: var(--text-tertiary); background: var(--bg); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; }
+.cmd-footer { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; gap: 16px; }
+.cmd-hint { font-size: 11px; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px; }
+.cmd-hint kbd { font-family: inherit; background: var(--surface-secondary); border: 1px solid var(--border); padding: 0 4px; border-radius: 3px; font-size: 10px; }
+
+/* =====================================================
+   ANIMATIONS
+   ===================================================== */
+.animate-in { animation: slideUp 300ms ease; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+@media (max-width: 1280px) {
+  .split-layout { grid-template-columns: 1fr 340px; }
+}
+@media (max-width: 1024px) {
+  .split-layout { grid-template-columns: 1fr; }
+  .right-col { position: static; }
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); position: fixed; z-index: 55; }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay.active { display: block; }
+  .mobile-header { display: flex; }
+  .main { margin-left: 0; }
+  .topbar { display: none; }
+  .breadcrumb { padding: 0 var(--space-4); }
+  .page-header { padding: var(--space-4) var(--space-4) 0; }
+  .page-header-actions { width: 100%; overflow-x: auto; }
+  .split-layout { padding: var(--space-4) var(--space-4) var(--space-8); gap: var(--space-4); }
+  .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  .spec-row { grid-template-columns: 120px 1fr 28px; }
+  .unsaved-banner { left: 0; padding: 0 var(--space-4); }
+  .toast-container { bottom: 72px; left: 12px; right: 12px; }
+  .toast { min-width: auto; }
+}
+@media (max-width: 480px) {
+  .thumbnail-strip { overflow-x: auto; padding-bottom: 4px; }
+  .page-title { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Mobile Header -->
+<div class="mobile-header">
+  <button class="hamburger" onclick="toggleSidebar()">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h16M3 11h16M3 16h16"/></svg>
+  </button>
+  <span class="mobile-brand">AvyCloud</span>
+  <div style="margin-left:auto;display:flex;gap:4px;">
+    <button class="topbar-btn" style="color:rgba(255,255,255,0.7);" onclick="toggleTheme()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1"/></svg>
+    </button>
+  </div>
+</div>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- =====================================================
+     SIDEBAR
+     ===================================================== -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">A</div>
+    <span class="sidebar-brand">AvyCloud</span>
+  </div>
+  <div class="sidebar-section">
+    <a class="nav-item" href="dashboard-v2.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>
+      <span>Dashboard</span>
+    </a>
+    <a class="nav-item active" href="products.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12M4 8h12M4 12h8M4 16h10"/></svg>
+      <span>Produkte</span>
+      <span class="nav-badge">1.247</span>
+    </a>
+    <a class="nav-item" href="orders.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h2v2H4zM4 9h2v2H4zM4 14h2v2H4zM9 5h7M9 10h7M9 15h5"/></svg>
+      <span>Bestellungen</span>
+      <span class="nav-badge">23</span>
+    </a>
+    <a class="nav-item" href="ebay-listings.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z"/></svg>
+      <span>eBay Listings</span>
+    </a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Operations</div>
+    <a class="nav-item" href="product-input.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 13v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3M10 3v10M7 6l3-3 3 3"/></svg>
+      <span>Identifizieren</span>
+    </a>
+    <a class="nav-item" href="operations-desktop.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="6" height="10" rx="1"/><rect x="11" y="5" width="6" height="10" rx="1"/></svg>
+      <span>Stow / Pick</span>
+    </a>
+    <a class="nav-item" href="warehouse.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17V7l7-4 7 4v10M3 7h14M7 17v-6h6v6"/></svg>
+      <span>Warehouse</span>
+    </a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">System</div>
+    <a class="nav-item" href="categories.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5a2 2 0 012-2h3l2 2h5a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V5z"/></svg>
+      <span>Kategorien</span>
+    </a>
+    <a class="nav-item" href="admin.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"/></svg>
+      <span>Admin</span>
+    </a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="user-avatar">OG</div>
+      <div><div class="user-name">Oguz</div><div class="user-role">Admin</div></div>
+    </div>
+  </div>
+</nav>
+
+<!-- =====================================================
+     MAIN CONTENT
+     ===================================================== -->
+<main class="main">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-search" onclick="openCmd()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3 3"/></svg>
+      <span>Suchen...</span>
+      <kbd>&#8984;K</kbd>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Theme wechseln">
+        <svg id="theme-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
+      </button>
+      <button class="topbar-btn" title="Benachrichtigungen">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6.75a4.5 4.5 0 00-9 0c0 5.25-2.25 6.75-2.25 6.75h13.5s-2.25-1.5-2.25-6.75M10.3 15.75a1.5 1.5 0 01-2.6 0"/></svg>
+        <span class="dot"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Breadcrumb -->
+  <div class="breadcrumb animate-in">
+    <a href="products.html">Produkte</a>
+    <svg class="breadcrumb-sep" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3l4 4-4 4"/></svg>
+    <span class="breadcrumb-current">Apple iPhone 14 Pro</span>
+  </div>
+
+  <!-- Page Header -->
+  <div class="page-header animate-in">
+    <div>
+      <div class="page-title-group">
+        <h1 class="page-title">Apple iPhone 14 Pro 128GB Space Black</h1>
+        <span class="status-badge status-active"><span class="status-dot"></span>Aktiv</span>
+      </div>
+    </div>
+    <div class="page-header-actions">
+      <button class="btn btn-ghost" onclick="showToast('info','Vorschau','Produkt-Vorschau wird geladen...')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 8s2.75-5 6.5-5 6.5 5 6.5 5-2.75 5-6.5 5S1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg>
+        Vorschau
+      </button>
+      <button class="btn btn-secondary" onclick="showToast('info','eBay','Listing wird vorbereitet...')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2a8 8 0 012.5 6A8 8 0 018 14a8 8 0 01-2.5-6A8 8 0 018 2z"/></svg>
+        Auf eBay listen
+      </button>
+      <button class="btn btn-primary" onclick="handleSave()">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12.5 2.5h-9a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-7l-3-3z"/><path d="M10.5 2.5v3h-5v-3"/><path d="M5.5 8.5h5v4h-5z"/></svg>
+        Speichern
+      </button>
+    </div>
+  </div>
+
+  <!-- Split Layout -->
+  <div class="split-layout">
+    <!-- =====================================================
+         LEFT: MAIN EDITOR
+         ===================================================== -->
+    <div class="left-col animate-in">
+
+      <!-- Bilder-Galerie -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="1.5" width="13" height="13" rx="2"/><circle cx="5.5" cy="5.5" r="1.5"/><path d="M1.5 12l3.5-3.5 2.5 2.5 2-2L14.5 13"/></svg>
+            Bilder-Galerie
+          </span>
+          <span class="card-action">Alle verwalten &rarr;</span>
+        </div>
+        <div class="card-body">
+          <!-- Main Image -->
+          <div class="image-main" id="mainImage">
+            <span class="image-main-badge">Hauptbild</span>
+            <div class="image-main-placeholder" id="mainImagePlaceholder">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="4" y="4" width="40" height="40" rx="4"/>
+                <circle cx="16" cy="16" r="4"/>
+                <path d="M4 36l10-10 7 7 5-5L44 40"/>
+              </svg>
+              <span>Hauptbild hinzufuegen oder hierher ziehen</span>
+            </div>
+            <!-- AI Processing Overlay -->
+            <div class="ai-overlay" id="aiOverlay">
+              <div class="ai-overlay-spinner"></div>
+              <div class="ai-overlay-text" id="aiOverlayText">KI verarbeitet...</div>
+              <div class="ai-overlay-progress">
+                <div class="ai-overlay-fill" id="aiOverlayFill"></div>
+              </div>
+            </div>
+            <!-- AI Result Badge -->
+            <div class="ai-result-badge" id="aiResultBadge">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6l2.5 2.5 4.5-4.5"/></svg>
+              <span id="aiResultText">Verbessert</span>
+            </div>
+          </div>
+
+          <!-- Thumbnails -->
+          <div class="thumbnail-strip">
+            <div class="thumbnail active">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="16" height="16" rx="2"/><circle cx="7" cy="7" r="2"/><path d="M2 14l4-4 3 3 2-2 7 5"/></svg>
+            </div>
+            <div class="thumbnail">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="16" height="16" rx="2"/><circle cx="7" cy="7" r="2"/></svg>
+            </div>
+            <div class="thumbnail">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="16" height="16" rx="2"/></svg>
+            </div>
+            <div class="thumbnail">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="16" height="16" rx="2"/></svg>
+            </div>
+            <div class="thumbnail">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="16" height="16" rx="2"/></svg>
+            </div>
+            <div class="thumbnail add-thumb" title="Bild hinzufuegen">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
+            </div>
+          </div>
+
+          <div class="drag-hint">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 3v6M8 3v6"/></svg>
+            Bilder per Drag & Drop neu anordnen
+          </div>
+
+          <!-- ===== AI IMAGE TOOLS ===== -->
+          <div class="ai-tools-section">
+            <div class="ai-tools-header">
+              <div class="ai-tools-label">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l1.5 3.2L13 5.5l-2.5 2.3.7 3.7L8 9.8l-3.2 1.7.7-3.7L3 5.5l3.5-1.3z"/></svg>
+                KI Bild-Werkzeuge
+                <span class="ai-badge">AI</span>
+              </div>
+            </div>
+            <div class="ai-tools-grid">
+              <button class="ai-tool-btn" onclick="runAiTool('bg-remove', 'Hintergrund wird entfernt...', 'Hintergrund entfernt')" title="Hintergrund automatisch entfernen">
+                <div class="ai-tool-icon" style="background: rgba(99,91,255,0.08); color: var(--avy-purple);">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 12l4-4 3 3 2-2 3 3" stroke-linejoin="round"/><circle cx="5.5" cy="5.5" r="1.5"/><path d="M10 2l4 4" stroke-dasharray="1.5 1.5" opacity="0.5"/></svg>
+                </div>
+                <div class="ai-tool-text">
+                  <div class="ai-tool-name">Hintergrund entfernen</div>
+                  <div class="ai-tool-desc">Freistellen per KI</div>
+                </div>
+              </button>
+              <button class="ai-tool-btn" onclick="runAiTool('brighten', 'Bild wird aufgehellt...', 'Aufgehellt')" title="Bild aufhellen und Kontrast optimieren">
+                <div class="ai-tool-icon" style="background: rgba(217,119,6,0.08); color: var(--warning);">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.7 3.7l1 1M11.3 11.3l1 1M3.7 12.3l1-1M11.3 4.7l1-1"/></svg>
+                </div>
+                <div class="ai-tool-text">
+                  <div class="ai-tool-name">Aufhellen</div>
+                  <div class="ai-tool-desc">Helligkeit & Kontrast</div>
+                </div>
+              </button>
+              <button class="ai-tool-btn" onclick="runAiTool('auto-enhance', 'Bild wird optimiert...', 'Auto-verbessert')" title="Automatische Bildoptimierung">
+                <div class="ai-tool-icon" style="background: rgba(14,159,110,0.08); color: var(--success);">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2l1.2 2.5L12 5.7l-2 1.8.5 2.9L8 9l-2.5 1.4.5-2.9-2-1.8 2.8-1.2z"/><path d="M3 12l.6 1.2 1.4.2-1 .9.2 1.4L3 15l-1.2.7.2-1.4-1-.9 1.4-.2z" opacity="0.5"/><path d="M12.5 11l.5.9 1 .1-.7.7.2 1-1-.5-1 .5.2-1-.7-.7 1-.1z" opacity="0.5"/></svg>
+                </div>
+                <div class="ai-tool-text">
+                  <div class="ai-tool-name">Auto-Verbessern</div>
+                  <div class="ai-tool-desc">Farbe, Schaerfe, Qualitaet</div>
+                </div>
+              </button>
+              <button class="ai-tool-btn" onclick="runAiTool('smart-crop', 'Zuschnitt wird berechnet...', 'Zugeschnitten')" title="Intelligenter Zuschnitt fuer eBay">
+                <div class="ai-tool-icon" style="background: rgba(0,112,243,0.08); color: var(--info);">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 2v10h10M2 4h10v10"/></svg>
+                </div>
+                <div class="ai-tool-text">
+                  <div class="ai-tool-name">Smart Crop</div>
+                  <div class="ai-tool-desc">eBay-optimierter Zuschnitt</div>
+                </div>
+              </button>
+            </div>
+
+            <!-- Web Image Search -->
+            <div class="web-search-section">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;margin-top:var(--space-4);">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2a8 8 0 012.5 6A8 8 0 018 14a8 8 0 01-2.5-6A8 8 0 018 2z"/></svg>
+                <span style="font-size:12px;font-weight:600;color:var(--text-secondary);">Web-Bildersuche</span>
+                <span class="ai-badge">AI</span>
+              </div>
+              <div class="web-search-row">
+                <input class="web-search-input" id="webSearchInput" type="text" placeholder="z.B. iPhone 14 Pro Space Black Produktfoto..." onkeydown="if(event.key==='Enter')searchWebImages()">
+                <button class="btn btn-primary btn-sm" onclick="searchWebImages()" style="padding:8px 14px;">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3.5 3.5"/></svg>
+                  Suchen
+                </button>
+              </div>
+              <div class="web-images-grid" id="webImagesGrid">
+                <!-- Dynamically filled by JS -->
+              </div>
+              <div class="web-images-actions" id="webImagesActions">
+                <button class="btn btn-ghost btn-sm" onclick="clearWebSearch()">Abbrechen</button>
+                <button class="btn btn-primary btn-sm" onclick="addSelectedWebImages()">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2v8M2 6h8"/></svg>
+                  Ausgewaehlte uebernehmen
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Grunddaten -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 8h6M5 10h4"/></svg>
+            Grunddaten
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Produktname</label>
+            <input class="form-input" value="Apple iPhone 14 Pro 128GB Space Black" data-track="true">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Marke</label>
+              <input class="form-input" value="Apple" data-track="true">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Modell</label>
+              <input class="form-input" value="iPhone 14 Pro" data-track="true">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">SKU</label>
+              <input class="form-input form-input-mono" value="AV-IP14P-128-SB" readonly>
+            </div>
+            <div class="form-group">
+              <label class="form-label">EAN / GTIN</label>
+              <input class="form-input form-input-mono" value="1234567890123" data-track="true">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Zustand</label>
+            <select class="form-input" data-track="true">
+              <option selected>Neu</option>
+              <option>Gebraucht - Wie Neu</option>
+              <option>Gebraucht - Gut</option>
+              <option>Gebraucht - Akzeptabel</option>
+              <option>Generalueberholt</option>
+              <option>Defekt / Ersatzteile</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Beschreibung -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h10"/></svg>
+            Beschreibung
+          </span>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <!-- Mock Rich Text Toolbar -->
+          <div class="rich-toolbar">
+            <button class="rich-btn active" title="Fett">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 2h4.5a3 3 0 010 6H3V2zm0 6h5a3 3 0 010 6H3V8z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+            </button>
+            <button class="rich-btn" title="Kursiv">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2h6M3 12h6M8.5 2L5.5 12"/></svg>
+            </button>
+            <div class="rich-sep"></div>
+            <button class="rich-btn" title="Liste">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3h7M5 7h7M5 11h7"/><circle cx="2" cy="3" r="0.75" fill="currentColor"/><circle cx="2" cy="7" r="0.75" fill="currentColor"/><circle cx="2" cy="11" r="0.75" fill="currentColor"/></svg>
+            </button>
+            <button class="rich-btn" title="Link">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8a3 3 0 004.24 0l1.5-1.5a3 3 0 00-4.24-4.24L6.25 3.5"/><path d="M8 6a3 3 0 00-4.24 0L2.26 7.5a3 3 0 004.24 4.24L7.75 10.5"/></svg>
+            </button>
+            <div class="rich-sep"></div>
+            <button class="rich-btn" title="Ueberschrift">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2v10M12 2v10M2 7h10"/></svg>
+            </button>
+          </div>
+          <textarea class="rich-textarea" data-track="true">Das Apple iPhone 14 Pro in Space Black mit 128GB Speicher ueberzeugt mit dem leistungsstarken A16 Bionic Chip und dem innovativen Dynamic Island Display-Design.
+
+Highlights:
+- 6,1" Super Retina XDR Display mit ProMotion (120Hz)
+- 48 MP Hauptkamera mit fortschrittlichem Kamerasystem
+- Crash Detection und Notruf SOS ueber Satellit
+- Ganztaegige Batterielaufzeit
+- Ceramic Shield Frontabdeckung fuer verbesserten Schutz
+
+Der ideale Begleiter fuer Fotografie, Produktivitaet und Unterhaltung.</textarea>
+        </div>
+      </div>
+
+      <!-- Spezifikationen -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+            Spezifikationen
+          </span>
+          <span style="font-size:12px;color:var(--text-tertiary);font-weight:500;">7 Eintraege</span>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="specs-grid">
+            <div class="spec-row">
+              <div class="spec-key">Speicher</div>
+              <div class="spec-value">128 GB</div>
+              <div class="spec-action"><button title="Bearbeiten"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M10 2l2 2-7 7H3v-2l7-7z"/></svg></button></div>
+            </div>
+            <div class="spec-row">
+              <div class="spec-key">Farbe</div>
+              <div class="spec-value">Space Black</div>
+              <div class="spec-action"><button title="Bearbeiten"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M10 2l2 2-7 7H3v-2l7-7z"/></svg></button></div>
+            </div>
+            <div class="spec-row">
+              <div class="spec-key">Display</div>
+              <div class="spec-value">6,1" Super Retina XDR</div>
+              <div class="spec-action"><button title="Bearbeiten"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M10 2l2 2-7 7H3v-2l7-7z"/></svg></button></div>
+            </div>
+            <div class="spec-row">
+              <div class="spec-key">Prozessor</div>
+              <div class="spec-value">A16 Bionic</div>
+              <div class="spec-action"><button title="Bearbeiten"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M10 2l2 2-7 7H3v-2l7-7z"/></svg></button></div>
+            </div>
+            <div class="spec-row">
+              <div class="spec-key">Kamera</div>
+              <div class="spec-value">48 MP Triple-Kamera</div>
+              <div class="spec-action"><button title="Bearbeiten"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M10 2l2 2-7 7H3v-2l7-7z"/></svg></button></div>
+            </div>
+            <div class="spec-row">
+              <div class="spec-key">Betriebssystem</div>
+              <div class="spec-value">iOS 16</div>
+              <div class="spec-action"><button title="Bearbeiten"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M10 2l2 2-7 7H3v-2l7-7z"/></svg></button></div>
+            </div>
+            <div class="spec-row">
+              <div class="spec-key">Konnektivitaet</div>
+              <div class="spec-value">5G, Wi-Fi 6, Bluetooth 5.3</div>
+              <div class="spec-action"><button title="Bearbeiten"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M10 2l2 2-7 7H3v-2l7-7z"/></svg></button></div>
+            </div>
+          </div>
+          <div class="add-spec-btn" onclick="showToast('info','Spezifikation','Neues Feld wird hinzugefuegt...')">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 2v10M2 7h10"/></svg>
+            Spezifikation hinzufuegen
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- =====================================================
+         RIGHT: CONTEXT PANEL
+         ===================================================== -->
+    <div class="right-col animate-in">
+
+      <!-- Status Card -->
+      <div class="ctx-card">
+        <div class="ctx-header">
+          <span class="ctx-title">Status</span>
+          <span class="status-badge status-active" style="font-size:11px;padding:2px 10px;"><span class="status-dot"></span>Aktiv</span>
+        </div>
+        <div class="ctx-body">
+          <div class="ctx-row">
+            <span class="ctx-label">Erstellt</span>
+            <span class="ctx-value">12.02.2025</span>
+          </div>
+          <div class="ctx-row">
+            <span class="ctx-label">Letzte Aenderung</span>
+            <span class="ctx-value">vor 2 Stunden</span>
+          </div>
+          <div class="ctx-row">
+            <span class="ctx-label">Bearbeiter</span>
+            <span class="ctx-value" style="display:flex;align-items:center;gap:6px;">
+              <span style="width:20px;height:20px;border-radius:6px;background:var(--avy-gradient);display:inline-flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;">OG</span>
+              Oguz
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lagerbestand Card -->
+      <div class="ctx-card">
+        <div class="ctx-header">
+          <span class="ctx-title">Lagerbestand</span>
+        </div>
+        <div class="ctx-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div style="text-align:center;padding:12px;background:var(--success-bg);border-radius:var(--radius-md);border:1px solid var(--success-border);">
+              <div style="font-size:24px;font-weight:700;color:var(--success);">8</div>
+              <div style="font-size:11px;color:var(--text-tertiary);font-weight:500;margin-top:2px;">Verfuegbar</div>
+            </div>
+            <div style="text-align:center;padding:12px;background:var(--warning-bg);border-radius:var(--radius-md);border:1px solid var(--warning-border);">
+              <div style="font-size:24px;font-weight:700;color:var(--warning);">2</div>
+              <div style="font-size:11px;color:var(--text-tertiary);font-weight:500;margin-top:2px;">Reserviert</div>
+            </div>
+          </div>
+          <div class="ctx-row">
+            <span class="ctx-label">Bin-Location</span>
+            <span class="ctx-value ctx-value-link ctx-value-mono">A-03-12</span>
+          </div>
+          <div style="margin-top:12px;">
+            <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2v8M2 6h8"/></svg>
+              Bestand anpassen
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preise Card -->
+      <div class="ctx-card">
+        <div class="ctx-header">
+          <span class="ctx-title">Preise</span>
+        </div>
+        <div class="ctx-body">
+          <div class="ctx-row">
+            <span class="ctx-label">Einkaufspreis</span>
+            <span class="ctx-value">&euro;589,00</span>
+          </div>
+          <div class="ctx-row">
+            <span class="ctx-label">Verkaufspreis</span>
+            <span class="ctx-value" style="font-size:16px;font-weight:700;">&euro;749,90</span>
+          </div>
+          <div class="ctx-divider"></div>
+          <div class="ctx-row">
+            <span class="ctx-label">Marge</span>
+            <span class="ctx-value ctx-value-green" style="font-weight:700;">27,3%</span>
+          </div>
+          <div class="ctx-divider"></div>
+          <div class="ctx-row">
+            <span class="ctx-label">eBay Preis</span>
+            <span class="ctx-value" style="display:flex;align-items:center;gap:6px;">
+              &euro;749,90
+              <span class="sync-indicator">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6l2.5 2.5L9.5 4"/></svg>
+                Sync
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- eBay Status Card -->
+      <div class="ctx-card">
+        <div class="ctx-header">
+          <span class="ctx-title">eBay Status</span>
+          <span class="status-badge status-listed" style="font-size:11px;padding:2px 10px;"><span class="status-dot"></span>Gelistet</span>
+        </div>
+        <div class="ctx-body">
+          <div class="ctx-row">
+            <span class="ctx-label">eBay Item ID</span>
+            <span class="ctx-value ctx-value-link ctx-value-mono">123456789</span>
+          </div>
+          <div class="ctx-row">
+            <span class="ctx-label">Letzter Sync</span>
+            <span class="ctx-value">vor 12 Min.</span>
+          </div>
+          <div class="ctx-divider"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px;">
+            <div style="text-align:center;padding:10px;background:var(--surface-secondary);border-radius:var(--radius-md);">
+              <div style="font-size:20px;font-weight:700;color:var(--text-primary);">234</div>
+              <div style="font-size:11px;color:var(--text-tertiary);font-weight:500;margin-top:2px;">Views</div>
+            </div>
+            <div style="text-align:center;padding:10px;background:var(--surface-secondary);border-radius:var(--radius-md);">
+              <div style="font-size:20px;font-weight:700;color:var(--text-primary);">8</div>
+              <div style="font-size:11px;color:var(--text-tertiary);font-weight:500;margin-top:2px;">Watchers</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KI Bild-Assistent Card -->
+      <div class="ctx-card">
+        <div class="ctx-header">
+          <span class="ctx-title" style="display:flex;align-items:center;gap:6px;">KI Assistent <span class="ai-badge">AI</span></span>
+        </div>
+        <div class="ctx-body">
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:12px;">
+            Automatische Bildoptimierung fuer bessere Verkaufsergebnisse auf eBay.
+          </div>
+          <div class="ai-quick-actions">
+            <button class="ai-quick-btn" onclick="runAiTool('all-enhance', 'Alle Bilder werden optimiert...', 'Alle Bilder optimiert')">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.2 2.5L12 5.7l-2 1.8.5 2.9L8 9l-2.5 1.4.5-2.9-2-1.8 2.8-1.2z"/></svg>
+              Alle Bilder optimieren
+            </button>
+            <button class="ai-quick-btn" onclick="runAiTool('bg-remove-all', 'Hintergruende werden entfernt...', 'Alle Hintergruende entfernt')">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M6 6l4 4M10 6l-4 4" opacity="0.4"/><circle cx="8" cy="8" r="3" stroke-dasharray="2 1.5"/></svg>
+              Alle Hintergruende entfernen
+            </button>
+            <button class="ai-quick-btn" onclick="searchWebImages('iPhone 14 Pro Space Black')">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2a8 8 0 012.5 6A8 8 0 018 14a8 8 0 01-2.5-6A8 8 0 018 2z"/></svg>
+              Web-Bilder suchen
+            </button>
+            <button class="ai-quick-btn" onclick="runAiTool('generate-alt', 'Alt-Texte werden generiert...', 'Alt-Texte erstellt')">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h10"/></svg>
+              Alt-Texte generieren
+            </button>
+          </div>
+          <div class="ai-enhance-section">
+            <div class="ai-enhance-title">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 1v2M6 9v2M1 6h2M9 6h2M2.8 2.8l1.4 1.4M7.8 7.8l1.4 1.4M2.8 9.2l1.4-1.4M7.8 4.2l1.4-1.4"/></svg>
+              Letzte KI-Aktionen
+            </div>
+            <div id="aiHistoryList" style="display:flex;flex-direction:column;gap:4px;">
+              <div style="font-size:11px;color:var(--text-tertiary);padding:4px 0;">Noch keine Aktionen durchgefuehrt</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aktivitaet Card -->
+      <div class="ctx-card">
+        <div class="ctx-header">
+          <span class="ctx-title">Aktivitaet</span>
+          <span class="card-action">Alle &rarr;</span>
+        </div>
+        <div class="ctx-body" style="padding:10px 16px;">
+          <div class="activity-mini">
+            <div class="activity-mini-item">
+              <div class="activity-mini-dot" style="background:var(--avy-purple);"></div>
+              <div class="activity-mini-text"><strong>Preis</strong> auf &euro;749,90 aktualisiert</div>
+              <div class="activity-mini-time">vor 2h</div>
+            </div>
+            <div class="activity-mini-item">
+              <div class="activity-mini-dot" style="background:var(--success);"></div>
+              <div class="activity-mini-text"><strong>eBay Sync</strong> erfolgreich</div>
+              <div class="activity-mini-time">vor 12m</div>
+            </div>
+            <div class="activity-mini-item">
+              <div class="activity-mini-dot" style="background:var(--info);"></div>
+              <div class="activity-mini-text"><strong>Bestand</strong> von 10 auf 8 geaendert</div>
+              <div class="activity-mini-time">gestern</div>
+            </div>
+            <div class="activity-mini-item">
+              <div class="activity-mini-dot" style="background:var(--warning);"></div>
+              <div class="activity-mini-text"><strong>Beschreibung</strong> bearbeitet von Oguz</div>
+              <div class="activity-mini-time">vor 2 Tagen</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- / right-col -->
+  </div><!-- / split-layout -->
+</main>
+
+<!-- =====================================================
+     UNSAVED CHANGES BANNER
+     ===================================================== -->
+<div class="unsaved-banner" id="unsavedBanner">
+  <div class="unsaved-banner-left">
+    <div class="unsaved-dot"></div>
+    <span class="unsaved-text">Ungespeicherte Aenderungen</span>
+  </div>
+  <div class="unsaved-banner-right">
+    <button class="btn btn-ghost btn-sm" onclick="discardChanges()">Verwerfen</button>
+    <button class="btn btn-primary btn-sm" onclick="handleSave()">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6l2 2 4-4"/></svg>
+      Speichern
+    </button>
+  </div>
+</div>
+
+<!-- =====================================================
+     TOAST CONTAINER
+     ===================================================== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- =====================================================
+     COMMAND PALETTE
+     ===================================================== -->
+<div class="cmd-overlay" id="cmdOverlay" onclick="if(event.target===this)closeCmd()">
+  <div class="cmd-box">
+    <div class="cmd-input-wrap">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M13 13l3 3"/></svg>
+      <input class="cmd-input" id="cmdInput" placeholder="Suche oder Befehl eingeben..." autofocus>
+      <kbd style="font-family:inherit;font-size:11px;padding:2px 6px;border-radius:4px;background:var(--surface-secondary);border:1px solid var(--border);color:var(--text-tertiary);">ESC</kbd>
+    </div>
+    <div class="cmd-results" id="cmdResults">
+      <div class="cmd-group-label">Navigation</div>
+      <div class="cmd-item" onclick="window.location='dashboard-v2.html'">
+        <svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="cmd-item" onclick="window.location='products.html'">
+        <svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h12M3 7h12M3 11h8M3 15h10"/></svg>
+        Produkte<kbd>1.247</kbd>
+      </div>
+      <div class="cmd-item" onclick="window.location='orders.html'">
+        <svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h2v2H3zM3 8h2v2H3zM3 13h2v2H3zM8 4h7M8 9h7M8 14h5"/></svg>
+        Bestellungen<kbd>23 offen</kbd>
+      </div>
+      <div class="cmd-group-label">Aktionen</div>
+      <div class="cmd-item" onclick="closeCmd();handleSave()">
+        <svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 3H6l-2 2v10a1 1 0 001 1h10a1 1 0 001-1V5l-2-2z"/><path d="M12 3v4H7V3"/><path d="M7 11h5v5H7z"/></svg>
+        Speichern<kbd>&#8984;S</kbd>
+      </div>
+      <div class="cmd-item" onclick="closeCmd();showToast('info','eBay','Listing wird vorbereitet...')">
+        <svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="6"/><path d="M3 9h12M9 3a8 8 0 012 6 8 8 0 01-2 6 8 8 0 01-2-6A8 8 0 019 3z"/></svg>
+        Auf eBay listen
+      </div>
+      <div class="cmd-item" onclick="closeCmd();showToast('info','Vorschau','Vorschau wird geladen...')">
+        <svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 9s3-6 7.5-6 7.5 6 7.5 6-3 6-7.5 6S1.5 9 1.5 9z"/><circle cx="9" cy="9" r="2.5"/></svg>
+        Vorschau oeffnen
+      </div>
+    </div>
+    <div class="cmd-footer">
+      <div class="cmd-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigieren</div>
+      <div class="cmd-hint"><kbd>&crarr;</kbd> Oeffnen</div>
+      <div class="cmd-hint"><kbd>ESC</kbd> Schliessen</div>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     SCRIPTS
+     ===================================================== -->
+<script>
+/* ===== THEME TOGGLE ===== */
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('avy-theme', isDark ? 'light' : 'dark');
+  updateThemeIcon();
+}
+function updateThemeIcon() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const icon = document.getElementById('theme-icon');
+  if (icon) {
+    icon.innerHTML = isDark
+      ? '<path d="M13.5 8A5.5 5.5 0 118 2.5 4 4 0 0013.5 8z" stroke="currentColor" stroke-width="1.5" fill="none"/>'
+      : '<circle cx="8" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7" stroke="currentColor" stroke-width="1.5"/>';
+  }
+}
+(function() {
+  const saved = localStorage.getItem('avy-theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  document.addEventListener('DOMContentLoaded', updateThemeIcon);
+})();
+
+/* ===== MOBILE SIDEBAR ===== */
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.querySelector('.sidebar-overlay').classList.toggle('active');
+}
+
+/* ===== COMMAND PALETTE ===== */
+function openCmd() {
+  document.getElementById('cmdOverlay').classList.add('active');
+  setTimeout(function() { document.getElementById('cmdInput').focus(); }, 100);
+}
+function closeCmd() {
+  document.getElementById('cmdOverlay').classList.remove('active');
+  document.getElementById('cmdInput').value = '';
+  filterCommands('');
+}
+
+// Filter command palette
+document.addEventListener('DOMContentLoaded', function() {
+  var cmdInput = document.getElementById('cmdInput');
+  if (cmdInput) {
+    cmdInput.addEventListener('input', function() {
+      filterCommands(this.value.toLowerCase());
+    });
+  }
+});
+function filterCommands(q) {
+  var items = document.querySelectorAll('#cmdResults .cmd-item');
+  var groups = document.querySelectorAll('#cmdResults .cmd-group-label');
+  items.forEach(function(item) {
+    var text = item.textContent.toLowerCase();
+    item.style.display = (!q || text.indexOf(q) >= 0) ? 'flex' : 'none';
+  });
+  // Hide group labels if all children hidden
+  groups.forEach(function(g) {
+    var next = g.nextElementSibling;
+    var hasVisible = false;
+    while (next && !next.classList.contains('cmd-group-label')) {
+      if (next.style.display !== 'none') hasVisible = true;
+      next = next.nextElementSibling;
+    }
+    g.style.display = hasVisible ? 'block' : 'none';
+  });
+}
+
+/* Keyboard shortcuts */
+document.addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openCmd(); }
+  if (e.key === 'Escape') closeCmd();
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault(); handleSave();
+  }
+});
+
+/* ===== UNSAVED CHANGES TRACKING ===== */
+var isDirty = false;
+function markDirty() {
+  if (!isDirty) {
+    isDirty = true;
+    document.getElementById('unsavedBanner').classList.add('visible');
+  }
+}
+function markClean() {
+  isDirty = false;
+  document.getElementById('unsavedBanner').classList.remove('visible');
+}
+
+// Track changes on inputs
+document.addEventListener('DOMContentLoaded', function() {
+  var tracked = document.querySelectorAll('[data-track="true"]');
+  tracked.forEach(function(el) {
+    el.addEventListener('input', markDirty);
+    el.addEventListener('change', markDirty);
+  });
+});
+
+function discardChanges() {
+  markClean();
+  showToast('warning', 'Verworfen', 'Alle Aenderungen wurden zurueckgesetzt.');
+}
+
+function handleSave() {
+  markClean();
+  showToast('success', 'Gespeichert', 'Alle Aenderungen wurden erfolgreich gespeichert.');
+}
+
+/* ===== TOAST SYSTEM ===== */
+var toastIdCounter = 0;
+function showToast(type, title, desc) {
+  var id = ++toastIdCounter;
+  var cs = getComputedStyle(document.documentElement);
+  var colors = {
+    success: cs.getPropertyValue('--success').trim(),
+    error: cs.getPropertyValue('--error').trim(),
+    info: cs.getPropertyValue('--info').trim(),
+    warning: cs.getPropertyValue('--warning').trim()
+  };
+  var color = colors[type] || colors.info;
+  var icons = {
+    success: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="' + color + '" stroke-width="1.5"/><path d="M6 9l2 2 4-4" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    error: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="' + color + '" stroke-width="1.5"/><path d="M6.75 6.75l4.5 4.5M11.25 6.75l-4.5 4.5" stroke="' + color + '" stroke-width="1.5"/></svg>',
+    info: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="' + color + '" stroke-width="1.5"/><path d="M9 7v4M9 12.5v.5" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    warning: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2l7.5 13H1.5z" stroke="' + color + '" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 7.5v3M9 12.5v.5" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round"/></svg>'
+  };
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML =
+    '<div class="toast-icon">' + (icons[type] || icons.info) + '</div>' +
+    '<div class="toast-body">' +
+      '<div class="toast-title">' + title + '</div>' +
+      (desc ? '<div class="toast-desc">' + desc + '</div>' : '') +
+    '</div>' +
+    '<button class="toast-close" onclick="removeToast(this.parentElement)">' +
+      '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg>' +
+    '</button>' +
+    '<div class="toast-progress ' + type + '"></div>';
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(function() { removeToast(el); }, 5000);
+}
+function removeToast(el) {
+  if (!el || el.classList.contains('leaving')) return;
+  el.classList.add('leaving');
+  setTimeout(function() { el.remove(); }, 300);
+}
+
+/* ===== THUMBNAIL CLICK ===== */
+document.addEventListener('DOMContentLoaded', function() {
+  var thumbs = document.querySelectorAll('.thumbnail:not(.add-thumb)');
+  thumbs.forEach(function(t) {
+    t.addEventListener('click', function() {
+      thumbs.forEach(function(th) { th.classList.remove('active'); });
+      t.classList.add('active');
+    });
+  });
+});
+
+/* ===== AI IMAGE TOOLS ===== */
+var aiProcessing = false;
+var aiHistory = [];
+
+function runAiTool(tool, processingText, resultText) {
+  if (aiProcessing) return;
+  aiProcessing = true;
+
+  // Find the clicked button and add processing state
+  var btns = document.querySelectorAll('.ai-tool-btn');
+  var clickedBtn = null;
+  btns.forEach(function(b) {
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf(tool) >= 0) {
+      clickedBtn = b;
+      b.classList.add('processing');
+    }
+  });
+
+  // Show overlay on main image
+  var overlay = document.getElementById('aiOverlay');
+  var overlayText = document.getElementById('aiOverlayText');
+  var overlayFill = document.getElementById('aiOverlayFill');
+  var resultBadge = document.getElementById('aiResultBadge');
+  var resultBadgeText = document.getElementById('aiResultText');
+
+  // Hide previous result badge
+  resultBadge.classList.remove('visible');
+
+  // Show overlay
+  overlayText.textContent = processingText;
+  overlayFill.style.width = '0%';
+  overlay.classList.add('active');
+
+  // Animate progress bar
+  var progress = 0;
+  var duration = 1800 + Math.random() * 1200; // 1.8-3s
+  var interval = 50;
+  var steps = duration / interval;
+  var increment = 100 / steps;
+
+  var timer = setInterval(function() {
+    progress += increment + (Math.random() * 2);
+    if (progress > 92) progress = 92; // Hold at 92% until done
+    overlayFill.style.width = progress + '%';
+  }, interval);
+
+  // Simulate AI processing
+  setTimeout(function() {
+    clearInterval(timer);
+    overlayFill.style.width = '100%';
+
+    setTimeout(function() {
+      // Hide overlay
+      overlay.classList.remove('active');
+      overlayFill.style.width = '0%';
+
+      // Show result badge
+      resultBadgeText.textContent = resultText;
+      resultBadge.classList.add('visible');
+
+      // Remove processing state from button
+      if (clickedBtn) clickedBtn.classList.remove('processing');
+      aiProcessing = false;
+
+      // Add to history
+      addAiHistory(resultText);
+
+      // Show toast
+      showToast('success', 'KI Verarbeitung', resultText + ' — erfolgreich abgeschlossen.');
+
+      // Auto-hide result badge after 4s
+      setTimeout(function() {
+        resultBadge.classList.remove('visible');
+      }, 4000);
+
+      // Mark as dirty
+      markDirty();
+    }, 400);
+  }, duration);
+}
+
+function addAiHistory(text) {
+  aiHistory.unshift({ text: text, time: new Date() });
+  if (aiHistory.length > 5) aiHistory.pop();
+  renderAiHistory();
+}
+
+function renderAiHistory() {
+  var list = document.getElementById('aiHistoryList');
+  if (!list) return;
+  if (aiHistory.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:var(--text-tertiary);padding:4px 0;">Noch keine Aktionen durchgefuehrt</div>';
+    return;
+  }
+  var html = '';
+  aiHistory.forEach(function(item) {
+    var ago = getTimeAgo(item.time);
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:var(--surface-secondary);border-radius:var(--radius-sm);font-size:11px;">' +
+      '<span style="display:flex;align-items:center;gap:6px;color:var(--text-primary);font-weight:500;">' +
+        '<svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="var(--success)" stroke-width="2"><path d="M2.5 6l2.5 2.5 4.5-4.5"/></svg>' +
+        item.text +
+      '</span>' +
+      '<span style="color:var(--text-tertiary);font-size:10px;">' + ago + '</span>' +
+    '</div>';
+  });
+  list.innerHTML = html;
+}
+
+function getTimeAgo(date) {
+  var secs = Math.floor((new Date() - date) / 1000);
+  if (secs < 10) return 'gerade eben';
+  if (secs < 60) return 'vor ' + secs + 's';
+  var mins = Math.floor(secs / 60);
+  return 'vor ' + mins + ' Min.';
+}
+
+/* ===== WEB IMAGE SEARCH ===== */
+var selectedWebImages = [];
+
+function searchWebImages(prefill) {
+  var input = document.getElementById('webSearchInput');
+  if (prefill) {
+    input.value = prefill;
+    // Scroll to the search section
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  var query = input.value.trim();
+  if (!query) {
+    input.focus();
+    input.style.borderColor = 'var(--error)';
+    setTimeout(function() { input.style.borderColor = ''; }, 1500);
+    return;
+  }
+
+  // Show loading state
+  var grid = document.getElementById('webImagesGrid');
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;"><div class="ai-overlay-spinner" style="margin:0 auto 8px;width:24px;height:24px;border-width:2px;"></div><div style="font-size:12px;color:var(--text-tertiary);">Suche nach &quot;' + query + '&quot;...</div></div>';
+  grid.classList.add('visible');
+
+  // Simulate search delay
+  setTimeout(function() {
+    selectedWebImages = [];
+    var demoImages = [
+      { label: 'Vorderansicht', source: 'apple.com' },
+      { label: 'Rueckseite', source: 'gsmarena.com' },
+      { label: 'Seitenansicht', source: 'amazon.de' },
+      { label: 'Display Detail', source: 'notebookcheck.net' },
+      { label: 'Kamera Closeup', source: 'dxomark.com' },
+      { label: 'Verpackung', source: 'idealo.de' },
+      { label: 'Lifestyle Shot', source: 'unsplash.com' },
+      { label: 'Studio Weiss', source: 'mediamarkt.de' }
+    ];
+
+    var colors = [
+      'linear-gradient(135deg, #1a1a2e, #16213e)',
+      'linear-gradient(135deg, #0f3460, #16213e)',
+      'linear-gradient(135deg, #1a1a2e, #533483)',
+      'linear-gradient(135deg, #2b2d42, #8d99ae)',
+      'linear-gradient(135deg, #1b1b2f, #162447)',
+      'linear-gradient(135deg, #2d3436, #636e72)',
+      'linear-gradient(135deg, #2c3e50, #3498db)',
+      'linear-gradient(135deg, #434343, #000000)'
+    ];
+
+    var html = '';
+    demoImages.forEach(function(img, i) {
+      html += '<div class="web-image-item" data-idx="' + i + '" onclick="toggleWebImage(this, ' + i + ')" style="background:' + colors[i] + ';">' +
+        '<div class="web-image-placeholder">' +
+          '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"><rect x="2" y="2" width="16" height="16" rx="2"/><circle cx="7" cy="7" r="2"/><path d="M2 14l4-4 3 3 2-2 7 5"/></svg>' +
+          '<span style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:500;">' + img.label + '</span>' +
+        '</div>' +
+        '<div class="check-overlay">' +
+          '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M5 12l5 5L19 7"/></svg>' +
+        '</div>' +
+        '<div class="web-image-source">' + img.source + '</div>' +
+      '</div>';
+    });
+    grid.innerHTML = html;
+
+    // Show actions bar
+    document.getElementById('webImagesActions').classList.add('visible');
+
+    showToast('info', 'Bildersuche', '8 Ergebnisse fuer "' + query + '" gefunden.');
+  }, 1500);
+}
+
+function toggleWebImage(el, idx) {
+  el.classList.toggle('selected');
+  var pos = selectedWebImages.indexOf(idx);
+  if (pos >= 0) {
+    selectedWebImages.splice(pos, 1);
+  } else {
+    selectedWebImages.push(idx);
+  }
+}
+
+function clearWebSearch() {
+  var grid = document.getElementById('webImagesGrid');
+  grid.classList.remove('visible');
+  document.getElementById('webImagesActions').classList.remove('visible');
+  document.getElementById('webSearchInput').value = '';
+  selectedWebImages = [];
+  setTimeout(function() { grid.innerHTML = ''; }, 400);
+}
+
+function addSelectedWebImages() {
+  if (selectedWebImages.length === 0) {
+    showToast('warning', 'Keine Auswahl', 'Bitte waehle mindestens ein Bild aus.');
+    return;
+  }
+  var count = selectedWebImages.length;
+  clearWebSearch();
+  showToast('success', 'Bilder hinzugefuegt', count + ' Web-Bild' + (count > 1 ? 'er' : '') + ' wurde' + (count > 1 ? 'n' : '') + ' uebernommen.');
+  markDirty();
+  addAiHistory(count + ' Web-Bild' + (count > 1 ? 'er' : '') + ' hinzugefuegt');
+}
+</script>
+
+</body>
+</html>

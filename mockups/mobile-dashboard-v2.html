@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>AvyCloud — Mobile Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   AVYCLOUD MOBILE DASHBOARD — Design System v2
+   Mobile-First — Stripe/Vercel Quality
+   ═══════════════════════════════════════════ */
+
+:root {
+  --avy-deep: #0A2540;
+  --avy-purple: #635BFF;
+  --avy-purple-hover: #5148E5;
+  --avy-purple-light: #818CF8;
+  --avy-purple-glow: rgba(99, 91, 255, 0.12);
+  --avy-gradient: linear-gradient(135deg, #635BFF, #0070F3);
+
+  --bg: #F6F9FC;
+  --surface: #FFFFFF;
+  --surface-hover: #FAFBFD;
+  --surface-secondary: #F0F3F7;
+
+  --text-primary: #0A2540;
+  --text-secondary: #425466;
+  --text-tertiary: #8898AA;
+  --text-on-dark: #FFFFFF;
+  --text-on-dark-muted: rgba(255,255,255,0.65);
+
+  --border: #E3E8EE;
+  --border-hover: #C1C9D2;
+
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.03), 0 3px 6px rgba(0,0,0,0.02);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 16px 48px rgba(0,0,0,0.08);
+
+  --success: #0E9F6E; --success-bg: #ECFDF5; --success-border: #A7F3D0;
+  --warning: #D97706; --warning-bg: #FFFBEB; --warning-border: #FDE68A;
+  --error: #DC2626;   --error-bg: #FEF2F2;   --error-border: #FECACA;
+  --info: #0070F3;    --info-bg: #EFF6FF;     --info-border: #BFDBFE;
+
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  --bg: #0B0F14;
+  --surface: #151A21;
+  --surface-hover: #1A2029;
+  --surface-secondary: #1E252E;
+  --text-primary: #F1F3F5;
+  --text-secondary: #8898AA;
+  --text-tertiary: #5E6E80;
+  --border: #1E2A36;
+  --border-hover: #2A3A4A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.3);
+  --success-bg: rgba(14,159,110,0.1); --success-border: rgba(14,159,110,0.25);
+  --warning-bg: rgba(217,119,6,0.1); --warning-border: rgba(217,119,6,0.25);
+  --error-bg: rgba(220,38,38,0.1); --error-border: rgba(220,38,38,0.25);
+  --info-bg: rgba(0,112,243,0.1); --info-border: rgba(0,112,243,0.25);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+/* ═══════ PHONE CONTAINER ═══════ */
+.phone {
+  max-width: 480px;
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+  background: var(--bg);
+  padding-bottom: 80px; /* space for tab bar */
+}
+
+/* ═══════ PULL TO REFRESH HINT ═══════ */
+.pull-hint {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: all 300ms ease;
+}
+.pull-hint.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.pull-hint svg {
+  animation: pullSpin 1s linear infinite;
+}
+@keyframes pullSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ═══════ MOBILE HEADER ═══════ */
+.mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--avy-deep);
+  padding: 0 16px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-logo {
+  width: 28px; height: 28px;
+  background: var(--avy-gradient);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 800; font-size: 13px;
+  box-shadow: 0 2px 8px rgba(99,91,255,0.4);
+  flex-shrink: 0;
+}
+
+.header-brand {
+  font-size: 16px; font-weight: 700;
+  color: var(--text-on-dark);
+  letter-spacing: -0.02em;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.header-btn {
+  width: 40px; height: 40px;
+  border: none; background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-on-dark-muted);
+  border-radius: var(--radius-md);
+  transition: all var(--transition);
+  position: relative;
+}
+.header-btn:active {
+  background: rgba(255,255,255,0.1);
+  transform: scale(0.92);
+}
+.header-btn svg { width: 22px; height: 22px; }
+
+.notif-dot {
+  position: absolute;
+  top: 8px; right: 9px;
+  width: 8px; height: 8px;
+  background: var(--error);
+  border-radius: 50%;
+  border: 2px solid var(--avy-deep);
+  animation: notifPulse 2s ease-in-out infinite;
+}
+@keyframes notifPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+/* ═══════ CONTENT ═══════ */
+.content {
+  padding: 20px 16px;
+}
+
+/* ═══════ GREETING ═══════ */
+.greeting {
+  margin-bottom: 20px;
+}
+.greeting h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.greeting .date {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+/* ═══════ QUICK STATS (2x2 Grid) ═══════ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  transition: all var(--transition);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card:active {
+  transform: scale(0.97);
+  box-shadow: var(--shadow-sm);
+}
+.stat-card .stat-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+.stat-card .stat-icon.purple { background: var(--avy-purple-glow); color: var(--avy-purple); }
+.stat-card .stat-icon.blue { background: var(--info-bg); color: var(--info); }
+.stat-card .stat-icon.green { background: var(--success-bg); color: var(--success); }
+.stat-card .stat-icon.orange { background: var(--warning-bg); color: var(--warning); }
+
+.stat-card .stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.stat-card .stat-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  margin-top: 3px;
+}
+
+/* ═══════ QUICK ACTIONS (Horizontal Scroll) ═══════ */
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+
+.quick-actions-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 24px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.quick-actions-scroll::-webkit-scrollbar { display: none; }
+
+.action-card {
+  flex-shrink: 0;
+  width: 80px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+  scroll-snap-align: start;
+  text-decoration: none;
+}
+.action-card:active {
+  transform: scale(0.93);
+  border-color: var(--avy-purple);
+  background: var(--avy-purple-glow);
+}
+.action-card .action-icon {
+  width: 36px; height: 36px;
+  background: var(--avy-purple-glow);
+  color: var(--avy-purple);
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.action-card .action-icon svg { width: 20px; height: 20px; }
+.action-card .action-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ═══════ RECENT ACTIVITY ═══════ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.card-header {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.card-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.card-header .card-action {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--avy-purple);
+  cursor: pointer;
+  border: none; background: none;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.card-header .card-action:active { background: var(--avy-purple-glow); }
+
+.activity-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition);
+  cursor: pointer;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-item:active { background: var(--surface-hover); }
+
+.activity-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+.activity-dot.green { background: var(--success); }
+.activity-dot.blue { background: var(--info); }
+.activity-dot.orange { background: var(--warning); }
+.activity-dot.red { background: var(--error); }
+.activity-dot.purple { background: var(--avy-purple); }
+
+.activity-content { flex: 1; min-width: 0; }
+.activity-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  line-height: 1.4;
+}
+.activity-time {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+/* ═══════ PENDING TASKS ═══════ */
+.task-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+}
+.task-card:active { transform: scale(0.97); }
+
+.task-card.warning {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+}
+.task-card.info {
+  background: var(--info-bg);
+  border-color: var(--info-border);
+}
+
+.task-icon {
+  width: 36px; height: 36px;
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.task-card.warning .task-icon { background: rgba(217,119,6,0.15); color: var(--warning); }
+.task-card.info .task-icon { background: rgba(0,112,243,0.15); color: var(--info); }
+.task-icon svg { width: 18px; height: 18px; }
+
+.task-body { flex: 1; min-width: 0; }
+.task-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.task-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.task-arrow {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.task-arrow svg { width: 16px; height: 16px; }
+
+/* ═══════ BOTTOM TAB BAR ═══════ */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 480px;
+  width: 100%;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: stretch;
+  height: 64px;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  z-index: 200;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.04);
+}
+
+[data-theme="dark"] .tab-bar {
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  text-decoration: none;
+  color: var(--text-tertiary);
+  transition: all var(--transition);
+  padding: 6px 0;
+  position: relative;
+}
+.tab-item:active { transform: scale(0.9); }
+.tab-item svg { width: 22px; height: 22px; }
+.tab-item span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.tab-item.active {
+  color: var(--avy-purple);
+}
+.tab-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 32px; height: 2px;
+  background: var(--avy-purple);
+  border-radius: 0 0 2px 2px;
+}
+
+/* ═══════ TOAST SYSTEM ═══════ */
+.toast-container {
+  position: fixed;
+  bottom: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 440px;
+  width: calc(100% - 32px);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--avy-deep);
+  color: white;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+  animation: toastIn 300ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  cursor: pointer;
+}
+.toast.out {
+  animation: toastOut 200ms ease-in both;
+}
+.toast svg { width: 18px; height: 18px; flex-shrink: 0; }
+.toast.success svg { color: #34D399; }
+.toast.error svg { color: #F87171; }
+.toast.warning svg { color: #FBBF24; }
+.toast.info svg { color: #60A5FA; }
+
+@keyframes toastIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes toastOut {
+  to { transform: translateY(20px); opacity: 0; }
+}
+
+/* ═══════ THEME TOGGLE ═══════ */
+.theme-toggle-icon .sun { display: none; }
+.theme-toggle-icon .moon { display: block; }
+[data-theme="dark"] .theme-toggle-icon .sun { display: block; }
+[data-theme="dark"] .theme-toggle-icon .moon { display: none; }
+
+/* ═══════ ANIMATIONS ═══════ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up {
+  animation: fadeUp 400ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.fade-up:nth-child(1) { animation-delay: 0ms; }
+.fade-up:nth-child(2) { animation-delay: 60ms; }
+.fade-up:nth-child(3) { animation-delay: 120ms; }
+.fade-up:nth-child(4) { animation-delay: 180ms; }
+.fade-up:nth-child(5) { animation-delay: 240ms; }
+
+/* ═══════ SCROLLBAR ═══════ */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- Pull to Refresh Hint -->
+  <div class="pull-hint" id="pullHint">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 12 12 12"/></svg>
+    Zum Aktualisieren ziehen
+  </div>
+
+  <!-- Mobile Header -->
+  <header class="mobile-header">
+    <div class="header-left">
+      <div class="header-logo">A</div>
+      <span class="header-brand">AvyCloud</span>
+    </div>
+    <div class="header-right">
+      <button class="header-btn" id="notifBtn" title="Benachrichtigungen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-dot"></span>
+      </button>
+      <button class="header-btn theme-toggle-icon" id="themeToggle" title="Theme wechseln">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Greeting -->
+    <div class="greeting fade-up">
+      <h1>Guten Tag, Oguz</h1>
+      <div class="date" id="currentDate"></div>
+    </div>
+
+    <!-- Quick Stats 2x2 -->
+    <div class="stats-grid fade-up">
+      <div class="stat-card" onclick="showToast('info', 'Produktkatalog wird geladen...')">
+        <div class="stat-icon purple">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        </div>
+        <div class="stat-value">1.247</div>
+        <div class="stat-label">Produkte</div>
+      </div>
+      <div class="stat-card" onclick="showToast('info', 'Bestellungen werden geladen...')">
+        <div class="stat-icon blue">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        </div>
+        <div class="stat-value">23</div>
+        <div class="stat-label">Bestellungen</div>
+      </div>
+      <div class="stat-card" onclick="showToast('info', 'Lagerbestand wird geladen...')">
+        <div class="stat-icon green">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </div>
+        <div class="stat-value">12.450</div>
+        <div class="stat-label">Lagerbestand</div>
+      </div>
+      <div class="stat-card" onclick="showToast('success', 'eBay Sync ist aktiv')">
+        <div class="stat-icon orange">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </div>
+        <div class="stat-value">94.2%</div>
+        <div class="stat-label">eBay Sync</div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="section-title fade-up">Schnellzugriff</div>
+    <div class="quick-actions-scroll fade-up">
+      <div class="action-card" onclick="showToast('info', 'Scanner wird gestartet...')">
+        <div class="action-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
+        <span class="action-label">Scannen</span>
+      </div>
+      <div class="action-card" onclick="showToast('info', 'Einlagern wird gestartet...')">
+        <div class="action-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </div>
+        <span class="action-label">Einlagern</span>
+      </div>
+      <div class="action-card" onclick="showToast('info', 'Kommissionierung wird gestartet...')">
+        <div class="action-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <span class="action-label">Kommiss.</span>
+      </div>
+      <div class="action-card" onclick="showToast('info', 'Suche wird gestartet...')">
+        <div class="action-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <span class="action-label">Suchen</span>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card fade-up">
+      <div class="card-header">
+        <h3>Letzte Aktivitaten</h3>
+        <button class="card-action">Alle ansehen</button>
+      </div>
+      <div class="activity-list">
+        <div class="activity-item">
+          <span class="activity-dot green"></span>
+          <div class="activity-content">
+            <div class="activity-text">Bestellung #AV-2847 versendet</div>
+            <div class="activity-time">vor 12 Minuten</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <span class="activity-dot blue"></span>
+          <div class="activity-content">
+            <div class="activity-text">15 Artikel in Bin A-03 eingelagert</div>
+            <div class="activity-time">vor 34 Minuten</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <span class="activity-dot purple"></span>
+          <div class="activity-content">
+            <div class="activity-text">eBay Listing "Bosch GBH 2-26" aktualisiert</div>
+            <div class="activity-time">vor 1 Stunde</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <span class="activity-dot orange"></span>
+          <div class="activity-content">
+            <div class="activity-text">Preiswarnung: Makita DHP482 unter Zielpreis</div>
+            <div class="activity-time">vor 2 Stunden</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <span class="activity-dot red"></span>
+          <div class="activity-content">
+            <div class="activity-text">Bestellung #AV-2841 storniert vom Kunden</div>
+            <div class="activity-time">vor 3 Stunden</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Tasks -->
+    <div class="section-title fade-up">Offene Aufgaben</div>
+
+    <div class="task-card warning fade-up" onclick="showToast('warning', '5 uberfaellige Bestellungen ansehen')">
+      <div class="task-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div class="task-body">
+        <div class="task-title">5 uberfaellige Bestellungen</div>
+        <div class="task-sub">Versand-Deadline uberschritten</div>
+      </div>
+      <div class="task-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+
+    <div class="task-card info fade-up" onclick="showToast('info', '12 Preis-Gaps werden analysiert...')">
+      <div class="task-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div class="task-body">
+        <div class="task-title">12 Preis-Gaps erkannt</div>
+        <div class="task-sub">Anpassung empfohlen</div>
+      </div>
+      <div class="task-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+
+    <!-- Spacer for visual breathing room -->
+    <div style="height: 24px;"></div>
+
+  </div><!-- /content -->
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Bottom Tab Bar -->
+  <nav class="tab-bar">
+    <button class="tab-item active" data-tab="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="tab-item" data-tab="scanner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>Scanner</span>
+    </button>
+    <button class="tab-item" data-tab="products">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      <span>Produkte</span>
+    </button>
+    <button class="tab-item" data-tab="orders">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      <span>Bestellungen</span>
+    </button>
+    <button class="tab-item" data-tab="more">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      <span>Mehr</span>
+    </button>
+  </nav>
+
+</div><!-- /phone -->
+
+<script>
+/* ═══════════════════════════════════════════
+   AVYCLOUD MOBILE DASHBOARD — JavaScript
+   ═══════════════════════════════════════════ */
+
+// ─── Date ───
+(function setDate() {
+  const d = new Date();
+  const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  document.getElementById('currentDate').textContent = d.toLocaleDateString('de-DE', opts);
+})();
+
+// ─── Theme Toggle ───
+(function initTheme() {
+  const saved = localStorage.getItem('avy-theme');
+  if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+})();
+
+document.getElementById('themeToggle').addEventListener('click', function() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  if (isDark) {
+    html.removeAttribute('data-theme');
+    localStorage.setItem('avy-theme', 'light');
+  } else {
+    html.setAttribute('data-theme', 'dark');
+    localStorage.setItem('avy-theme', 'dark');
+  }
+});
+
+// ─── Tab Bar ───
+document.querySelectorAll('.tab-item').forEach(tab => {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    const tabName = this.dataset.tab;
+    showToast('info', tabName.charAt(0).toUpperCase() + tabName.slice(1) + ' Tab ausgewahlt');
+  });
+});
+
+// ─── Toast System ───
+function showToast(type, message) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+
+  const icons = {
+    success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
+
+  toast.innerHTML = (icons[type] || icons.info) + '<span>' + message + '</span>';
+  container.appendChild(toast);
+
+  toast.addEventListener('click', function() {
+    toast.classList.add('out');
+    setTimeout(() => toast.remove(), 200);
+  });
+
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.classList.add('out');
+      setTimeout(() => toast.remove(), 200);
+    }
+  }, 3000);
+}
+
+// ─── Pull to Refresh (visual simulation) ───
+(function initPullToRefresh() {
+  let startY = 0;
+  let pulling = false;
+  const hint = document.getElementById('pullHint');
+  const content = document.querySelector('.content');
+
+  content.addEventListener('touchstart', function(e) {
+    if (window.scrollY === 0) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  content.addEventListener('touchmove', function(e) {
+    if (!pulling) return;
+    const diff = e.touches[0].clientY - startY;
+    if (diff > 60) {
+      hint.classList.add('visible');
+    }
+  }, { passive: true });
+
+  content.addEventListener('touchend', function() {
+    if (hint.classList.contains('visible')) {
+      setTimeout(() => {
+        hint.classList.remove('visible');
+        showToast('success', 'Dashboard aktualisiert');
+      }, 800);
+    }
+    pulling = false;
+  }, { passive: true });
+})();
+
+// ─── Notification Button ───
+document.getElementById('notifBtn').addEventListener('click', function() {
+  showToast('info', '3 neue Benachrichtigungen');
+  const dot = this.querySelector('.notif-dot');
+  if (dot) dot.style.display = 'none';
+});
+
+// ─── Initial welcome toast ───
+setTimeout(() => showToast('success', 'Dashboard geladen'), 600);
+</script>
+</body>
+</html>

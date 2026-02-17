@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud — Produkt-Identifizierung</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* =============================================
+   AVYCLOUD DESIGN SYSTEM v2.1
+   Product Identification Page
+   Stripe/Vercel Premium Quality
+   ============================================= */
+
+:root {
+  --avy-deep: #0A2540;
+  --avy-purple: #635BFF;
+  --avy-purple-hover: #5148E5;
+  --avy-purple-light: #818CF8;
+  --avy-purple-glow: rgba(99, 91, 255, 0.12);
+  --avy-gradient: linear-gradient(135deg, #635BFF, #0070F3);
+
+  --bg: #F6F9FC;
+  --surface: #FFFFFF;
+  --surface-hover: #FAFBFD;
+  --surface-secondary: #F0F3F7;
+
+  --text-primary: #0A2540;
+  --text-secondary: #425466;
+  --text-tertiary: #8898AA;
+  --text-on-dark: #FFFFFF;
+  --text-on-dark-muted: rgba(255,255,255,0.65);
+
+  --border: #E3E8EE;
+  --border-hover: #C1C9D2;
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.03), 0 3px 6px rgba(0,0,0,0.02);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 16px 48px rgba(0,0,0,0.08);
+  --shadow-focus: 0 0 0 3px var(--avy-purple-glow);
+
+  --success: #0E9F6E; --success-bg: #ECFDF5; --success-border: #A7F3D0;
+  --warning: #D97706; --warning-bg: #FFFBEB; --warning-border: #FDE68A;
+  --error: #DC2626;   --error-bg: #FEF2F2;   --error-border: #FECACA;
+  --info: #0070F3;    --info-bg: #EFF6FF;     --info-border: #BFDBFE;
+
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px;
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+  --sidebar-w: 248px;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  --bg: #0B0F14; --surface: #151A21; --surface-hover: #1A2029; --surface-secondary: #1E252E;
+  --text-primary: #F1F3F5; --text-secondary: #8898AA; --text-tertiary: #5E6E80;
+  --border: #1E2A36; --border-hover: #2A3A4A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.3);
+  --success-bg: rgba(14,159,110,0.1); --success-border: rgba(14,159,110,0.25);
+  --warning-bg: rgba(217,119,6,0.1); --warning-border: rgba(217,119,6,0.25);
+  --error-bg: rgba(220,38,38,0.1); --error-border: rgba(220,38,38,0.25);
+  --info-bg: rgba(0,112,243,0.1); --info-border: rgba(0,112,243,0.25);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text-primary);
+  font-size: 14px; line-height: 1.5; min-height: 100vh; display: flex;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+
+/* ======= SIDEBAR ======= */
+.sidebar {
+  width: var(--sidebar-w); height: 100vh; position: fixed;
+  left: 0; top: 0; background: var(--avy-deep);
+  display: flex; flex-direction: column; z-index: 50;
+  overflow-y: auto; overflow-x: hidden;
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar::-webkit-scrollbar { width: 0; }
+.sidebar-header { padding: 20px 20px 24px; display: flex; align-items: center; gap: 12px; }
+.sidebar-logo {
+  width: 28px; height: 28px; background: var(--avy-gradient); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 800; font-size: 14px;
+  box-shadow: 0 2px 8px rgba(99,91,255,0.4); flex-shrink: 0;
+}
+.sidebar-brand { font-size: 16px; font-weight: 700; color: var(--text-on-dark); letter-spacing: -0.02em; }
+.sidebar-section { padding: 0 12px; margin-bottom: 8px; }
+.sidebar-label {
+  font-size: 11px; font-weight: 600; color: var(--text-on-dark-muted);
+  text-transform: uppercase; letter-spacing: 0.06em; padding: 0 8px; margin-bottom: 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+  border-radius: var(--radius-sm); color: var(--text-on-dark-muted);
+  cursor: pointer; transition: all 150ms ease; text-decoration: none;
+  font-size: 13.5px; font-weight: 500; position: relative; margin-bottom: 1px;
+}
+.nav-item:hover { color: var(--text-on-dark); background: rgba(255,255,255,0.06); }
+.nav-item.active { color: var(--text-on-dark); background: rgba(255,255,255,0.1); }
+.nav-item.active::before {
+  content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 16px; background: var(--avy-purple); border-radius: 0 3px 3px 0;
+}
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; }
+.nav-item.active .nav-icon, .nav-item:hover .nav-icon { opacity: 1; }
+.nav-badge {
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 10px;
+  margin-left: auto; background: rgba(99,91,255,0.2); color: var(--avy-purple-light);
+}
+.sidebar-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 12px 20px; }
+.sidebar-footer { margin-top: auto; padding: 16px 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--radius-sm); cursor: pointer; transition: background 150ms ease; }
+.sidebar-user:hover { background: rgba(255,255,255,0.06); }
+.user-avatar { width: 30px; height: 30px; border-radius: 8px; background: var(--avy-gradient); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px; flex-shrink: 0; }
+.user-name { font-size: 13px; font-weight: 500; color: var(--text-on-dark); }
+.user-role { font-size: 11px; color: var(--text-on-dark-muted); }
+
+/* Mobile */
+.mobile-header { display: none; height: 56px; background: var(--avy-deep); padding: 0 16px; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 60; }
+.hamburger { background: none; border: none; color: white; cursor: pointer; padding: 4px; }
+.mobile-brand { font-size: 15px; font-weight: 700; color: white; }
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 45; backdrop-filter: blur(4px); }
+
+/* ======= MAIN ======= */
+.main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+.topbar {
+  height: 56px; padding: 0 var(--space-8); display: flex; align-items: center; gap: 16px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+  position: sticky; top: 0; z-index: 40;
+}
+.topbar-search {
+  display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; transition: all var(--transition); min-width: 240px;
+}
+.topbar-search:hover { border-color: var(--border-hover); box-shadow: var(--shadow-sm); }
+.topbar-search svg { color: var(--text-tertiary); flex-shrink: 0; }
+.topbar-search span { color: var(--text-tertiary); font-size: 13px; }
+.topbar-search kbd {
+  font-family: inherit; font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 4px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-tertiary); margin-left: auto;
+}
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.topbar-btn {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary); cursor: pointer; background: transparent; border: none;
+  transition: all 150ms ease; position: relative;
+}
+.topbar-btn:hover { background: var(--surface-secondary); color: var(--text-secondary); }
+.topbar-btn .dot {
+  position: absolute; top: 7px; right: 7px; width: 7px; height: 7px;
+  border-radius: 50%; background: var(--avy-purple); border: 2px solid var(--surface);
+}
+.theme-toggle {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: transparent; border: 1px solid var(--border);
+  color: var(--text-tertiary); transition: all 150ms ease;
+}
+.theme-toggle:hover { border-color: var(--border-hover); color: var(--text-secondary); }
+
+/* ======= PAGE HEADER ======= */
+.page-header { padding: var(--space-6) var(--space-8) 0; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.page-header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.page-header-sub { font-size: 14px; color: var(--text-tertiary); margin-top: 2px; }
+.page-header-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+  border-radius: var(--radius-md); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition); border: none; font-family: inherit;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--avy-purple); color: white; }
+.btn-primary:hover { background: var(--avy-purple-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,91,255,0.3); }
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--border-hover); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.btn-ghost { background: transparent; color: var(--text-secondary); }
+.btn-ghost:hover { background: var(--surface-secondary); color: var(--text-primary); }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { background: #0d8f62; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(14,159,110,0.3); }
+.btn-danger { background: transparent; color: var(--error); border: 1px solid var(--error-border); }
+.btn-danger:hover { background: var(--error-bg); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-lg { padding: 10px 20px; font-size: 14px; }
+.btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
+
+/* Content */
+.content { padding: var(--space-5) var(--space-8) var(--space-12); flex: 1; }
+
+/* ======= INPUT METHOD CARDS ======= */
+.input-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5);
+  margin-bottom: var(--space-8);
+}
+.input-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+  padding: var(--space-6); transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative; overflow: hidden;
+}
+.input-card:hover { border-color: var(--border-hover); box-shadow: var(--shadow-md); }
+.input-card::after {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit;
+  background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 0%), var(--avy-purple-glow), transparent 40%);
+  opacity: 0; transition: opacity 300ms ease; pointer-events: none; z-index: 0;
+}
+.input-card:hover::after { opacity: 1; }
+.input-card > * { position: relative; z-index: 1; }
+
+.input-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: var(--space-5); }
+.input-card-icon {
+  width: 40px; height: 40px; border-radius: var(--radius-lg); display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+}
+.input-card-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.input-card-desc { font-size: 12px; color: var(--text-tertiary); margin-top: 1px; }
+
+/* Drop Zone */
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius-lg);
+  padding: var(--space-8) var(--space-4); text-align: center;
+  cursor: pointer; transition: all var(--transition);
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-3);
+  min-height: 180px; justify-content: center;
+  background: var(--surface-hover);
+}
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: var(--avy-purple); background: var(--avy-purple-glow);
+  box-shadow: inset 0 0 0 1px rgba(99,91,255,0.1);
+}
+.drop-zone-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--avy-purple-glow); color: var(--avy-purple);
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.drop-zone:hover .drop-zone-icon { background: rgba(99,91,255,0.2); transform: scale(1.05); }
+.drop-zone-text { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.drop-zone-sub { font-size: 12px; color: var(--text-tertiary); }
+.drop-zone-formats { font-size: 11px; color: var(--text-tertiary); margin-top: var(--space-1); }
+.drop-zone-formats span { padding: 2px 6px; background: var(--surface-secondary); border-radius: 4px; margin: 0 2px; font-weight: 500; }
+
+.camera-row { display: flex; gap: var(--space-3); margin-top: var(--space-4); }
+.camera-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 12px; border-radius: var(--radius-md); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-secondary); font-family: inherit;
+}
+.camera-btn:hover { border-color: var(--avy-purple); color: var(--avy-purple); background: var(--avy-purple-glow); }
+
+/* Image Preview */
+.image-preview {
+  display: none; border-radius: var(--radius-lg); overflow: hidden;
+  border: 1px solid var(--border); position: relative;
+}
+.image-preview.active { display: block; }
+.image-preview-img {
+  width: 100%; height: 180px; object-fit: cover;
+  background: var(--surface-secondary);
+  display: flex; align-items: center; justify-content: center;
+}
+.image-preview-placeholder {
+  width: 100%; height: 180px; background: linear-gradient(135deg, #e0e7ff, #dbeafe, #e0f2fe);
+  display: flex; align-items: center; justify-content: center; font-size: 64px;
+  color: rgba(99,91,255,0.3);
+}
+[data-theme="dark"] .image-preview-placeholder {
+  background: linear-gradient(135deg, #1e1b4b, #172554, #0c4a6e);
+}
+.image-preview-overlay {
+  position: absolute; top: 8px; right: 8px; display: flex; gap: 4px;
+}
+.image-preview-overlay button {
+  width: 28px; height: 28px; border-radius: 6px; border: none;
+  background: rgba(0,0,0,0.6); color: white; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 150ms; backdrop-filter: blur(8px);
+}
+.image-preview-overlay button:hover { background: rgba(0,0,0,0.8); }
+.image-preview-actions { padding: var(--space-3); display: flex; gap: var(--space-2); }
+
+/* Barcode Input */
+.barcode-input-group {
+  display: flex; gap: var(--space-2); margin-bottom: var(--space-4);
+}
+.barcode-input {
+  flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-size: 15px; font-weight: 600; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  background: var(--surface); color: var(--text-primary); outline: none;
+  transition: all var(--transition); letter-spacing: 0.05em;
+}
+.barcode-input:focus { border-color: var(--avy-purple); box-shadow: var(--shadow-focus); }
+.barcode-input::placeholder { font-family: 'Inter', sans-serif; font-weight: 400; letter-spacing: 0; color: var(--text-tertiary); }
+.scan-btn {
+  width: 42px; height: 42px; border-radius: var(--radius-md); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-secondary); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.scan-btn:hover { border-color: var(--avy-purple); color: var(--avy-purple); background: var(--avy-purple-glow); }
+
+.recent-scans { margin-top: var(--space-3); }
+.recent-scans-title { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: var(--space-2); }
+.scan-item {
+  display: flex; align-items: center; gap: var(--space-3); padding: 8px 10px;
+  border-radius: var(--radius-sm); cursor: pointer; transition: all 150ms;
+  border-bottom: 1px solid var(--border);
+}
+.scan-item:last-child { border-bottom: none; }
+.scan-item:hover { background: var(--surface-hover); }
+.scan-item-code { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 12px; font-weight: 600; color: var(--avy-purple); }
+.scan-item-name { font-size: 12px; color: var(--text-secondary); flex: 1; }
+.scan-item-time { font-size: 11px; color: var(--text-tertiary); }
+
+.barcode-camera-link {
+  display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--avy-purple);
+  cursor: pointer; margin-top: var(--space-3); font-weight: 500; transition: color 150ms;
+}
+.barcode-camera-link:hover { color: var(--avy-purple-hover); }
+
+/* Manual Form */
+.form-group { margin-bottom: var(--space-4); }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: var(--space-1); }
+.form-input {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-size: 13px; font-family: inherit; background: var(--surface); color: var(--text-primary);
+  outline: none; transition: all var(--transition);
+}
+.form-input:focus { border-color: var(--avy-purple); box-shadow: var(--shadow-focus); }
+.form-input::placeholder { color: var(--text-tertiary); }
+.form-select {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-size: 13px; font-family: inherit; background: var(--surface); color: var(--text-primary);
+  outline: none; transition: all var(--transition); cursor: pointer;
+  appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%238898AA' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.form-select:focus { border-color: var(--avy-purple); box-shadow: var(--shadow-focus); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+
+/* ======= BATCH MODE ======= */
+.batch-toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-4) var(--space-6); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  margin-bottom: var(--space-6);
+}
+.batch-toggle-info { display: flex; align-items: center; gap: var(--space-3); }
+.batch-toggle-icon {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  background: var(--avy-purple-glow); color: var(--avy-purple);
+  display: flex; align-items: center; justify-content: center;
+}
+.batch-toggle-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.batch-toggle-desc { font-size: 12px; color: var(--text-tertiary); }
+
+.toggle-switch {
+  position: relative; width: 44px; height: 24px; cursor: pointer;
+}
+.toggle-switch input { display: none; }
+.toggle-track {
+  position: absolute; inset: 0; background: var(--border); border-radius: 12px;
+  transition: background var(--transition);
+}
+.toggle-switch input:checked + .toggle-track { background: var(--avy-purple); }
+.toggle-thumb {
+  position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+  background: white; border-radius: 50%; transition: transform var(--transition);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.toggle-switch input:checked ~ .toggle-thumb { transform: translateX(20px); }
+
+/* Batch queue */
+.batch-queue { display: none; margin-bottom: var(--space-6); }
+.batch-queue.active { display: block; }
+.batch-queue-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
+.batch-queue-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.batch-queue-count { font-size: 12px; color: var(--text-tertiary); }
+.batch-queue-items { display: flex; flex-direction: column; gap: var(--space-2); }
+.batch-item {
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  transition: all var(--transition);
+}
+.batch-item-thumb {
+  width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--surface-secondary);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  flex-shrink: 0; overflow: hidden;
+}
+.batch-item-info { flex: 1; min-width: 0; }
+.batch-item-name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.batch-item-status { font-size: 11px; color: var(--text-tertiary); }
+.batch-item-progress {
+  width: 100%; height: 3px; background: var(--border); border-radius: 2px;
+  margin-top: 4px; overflow: hidden;
+}
+.batch-item-progress-fill {
+  height: 100%; border-radius: 2px; transition: width 500ms ease;
+  background: var(--avy-gradient);
+}
+.batch-item-progress-fill.done { background: var(--success); }
+.batch-item-badge {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; flex-shrink: 0;
+}
+.batch-item-badge.pending { background: var(--surface-secondary); color: var(--text-tertiary); }
+.batch-item-badge.processing { background: var(--info-bg); color: var(--info); }
+.batch-item-badge.done { background: var(--success-bg); color: var(--success); }
+
+/* ======= AI RESULTS ======= */
+.ai-results { display: none; margin-bottom: var(--space-8); animation: slideDown 400ms cubic-bezier(0.16, 1, 0.3, 1); }
+.ai-results.active { display: block; }
+
+.ai-progress-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+  padding: var(--space-8); text-align: center; display: none;
+}
+.ai-progress-card.active { display: block; }
+.ai-progress-spinner {
+  width: 64px; height: 64px; margin: 0 auto var(--space-5);
+  border-radius: 50%; position: relative;
+}
+.ai-progress-spinner::before {
+  content: ''; position: absolute; inset: 0;
+  border: 3px solid var(--border); border-top-color: var(--avy-purple);
+  border-radius: 50%; animation: spin 1s linear infinite;
+}
+.ai-progress-spinner::after {
+  content: ''; position: absolute; inset: 8px;
+  border: 3px solid transparent; border-bottom-color: var(--info);
+  border-radius: 50%; animation: spin 1.5s linear infinite reverse;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.ai-progress-title { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: var(--space-2); }
+.ai-progress-sub { font-size: 13px; color: var(--text-tertiary); margin-bottom: var(--space-5); }
+.ai-progress-bar {
+  height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+  max-width: 320px; margin: 0 auto;
+}
+.ai-progress-fill {
+  height: 100%; border-radius: 3px; background: var(--avy-gradient);
+  position: relative; transition: width 300ms ease;
+}
+.ai-progress-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.ai-progress-steps {
+  display: flex; justify-content: center; gap: var(--space-6); margin-top: var(--space-5);
+}
+.ai-step { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-tertiary); transition: color 300ms; }
+.ai-step.active { color: var(--avy-purple); font-weight: 600; }
+.ai-step.done { color: var(--success); }
+.ai-step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: all 300ms; }
+.ai-step.active .ai-step-dot { background: var(--avy-purple); box-shadow: 0 0 0 3px var(--avy-purple-glow); }
+.ai-step.done .ai-step-dot { background: var(--success); }
+
+/* Result Card */
+.ai-result-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+  overflow: hidden; display: none;
+}
+.ai-result-card.active { display: block; }
+.ai-result-header {
+  padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(135deg, rgba(99,91,255,0.04), rgba(0,112,243,0.04));
+}
+.ai-result-badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px;
+  border-radius: 20px; font-size: 12px; font-weight: 600;
+  background: var(--avy-purple-glow); color: var(--avy-purple);
+}
+.ai-result-badge svg { width: 14px; height: 14px; }
+.ai-result-time { font-size: 12px; color: var(--text-tertiary); }
+
+.ai-result-body { padding: var(--space-6); }
+.ai-result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
+.ai-result-main { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.result-field { display: flex; flex-direction: column; gap: 2px; }
+.result-field-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
+.result-field-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.result-field-value.large { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+
+/* Confidence Bar */
+.confidence-bar-wrap { margin-top: var(--space-1); }
+.confidence-bar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.confidence-bar-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.confidence-bar-value { font-size: 14px; font-weight: 700; color: var(--success); }
+.confidence-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.confidence-fill {
+  height: 100%; border-radius: 4px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(90deg, var(--success), #34d399);
+  position: relative;
+}
+.confidence-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.result-category-tag {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md);
+  font-size: 12px; font-weight: 600; color: var(--info);
+}
+.result-price-range {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); background: var(--success-bg);
+  border: 1px solid var(--success-border); border-radius: var(--radius-md);
+}
+.result-price-range-label { font-size: 11px; color: var(--success); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.result-price-range-value { font-size: 18px; font-weight: 700; color: var(--success); }
+
+/* Similar products */
+.similar-products { margin-top: var(--space-5); padding-top: var(--space-5); border-top: 1px solid var(--border); }
+.similar-products-title { font-size: 12px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: var(--space-3); }
+.similar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+.similar-item {
+  padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; transition: all var(--transition);
+}
+.similar-item:hover { border-color: var(--avy-purple); box-shadow: var(--shadow-sm); }
+.similar-item-thumb {
+  width: 100%; height: 60px; border-radius: var(--radius-sm); background: var(--surface-secondary);
+  margin-bottom: var(--space-2); display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+}
+.similar-item-name { font-size: 11px; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
+.similar-item-price { font-size: 11px; color: var(--success); font-weight: 600; margin-top: 2px; }
+.similar-item-match { font-size: 10px; color: var(--text-tertiary); }
+
+/* Result Actions */
+.ai-result-actions {
+  padding: var(--space-4) var(--space-6); border-top: 1px solid var(--border);
+  display: flex; gap: var(--space-3); justify-content: flex-end;
+}
+
+/* ======= RECENT IDENTIFICATIONS ======= */
+.recent-section { margin-top: var(--space-2); }
+.recent-section-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4);
+}
+.recent-section-title { font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+
+.recent-table-wrap {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden;
+}
+.recent-table { width: 100%; border-collapse: collapse; }
+.recent-table th {
+  text-align: left; font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 12px 16px;
+  border-bottom: 1px solid var(--border); background: var(--surface-secondary);
+}
+.recent-table td {
+  padding: 12px 16px; font-size: 13px; color: var(--text-secondary);
+  border-bottom: 1px solid var(--border); transition: color 150ms;
+}
+.recent-table tr:last-child td { border-bottom: none; }
+.recent-table tbody tr { cursor: pointer; transition: background 150ms; }
+.recent-table tbody tr:hover { background: var(--surface-hover); }
+.recent-table tbody tr:hover td { color: var(--text-primary); }
+
+.recent-product-cell { display: flex; align-items: center; gap: var(--space-3); }
+.recent-product-thumb {
+  width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--surface-secondary);
+  display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+}
+.recent-product-name { font-weight: 600; color: var(--text-primary); }
+
+.method-badge {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 10px;
+}
+.method-badge.ai { background: var(--avy-purple-glow); color: var(--avy-purple); }
+.method-badge.barcode { background: var(--info-bg); color: var(--info); }
+.method-badge.manual { background: var(--surface-secondary); color: var(--text-secondary); }
+
+.status-badge {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
+  padding: 3px 10px; border-radius: 20px;
+}
+.status-dot { width: 6px; height: 6px; border-radius: 50%; }
+.status-badge.success { color: var(--success); background: var(--success-bg); }
+.status-badge.success .status-dot { background: var(--success); }
+.status-badge.pending { color: var(--warning); background: var(--warning-bg); }
+.status-badge.pending .status-dot { background: var(--warning); animation: pulse 2s infinite; }
+.status-badge.error { color: var(--error); background: var(--error-bg); }
+.status-badge.error .status-dot { background: var(--error); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ======= TOAST ======= */
+.toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column-reverse; gap: 8px; pointer-events: none; }
+.toast {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 16px; border-radius: var(--radius-lg);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg); min-width: 320px; max-width: 420px;
+  animation: toastIn 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto; position: relative; overflow: hidden;
+}
+.toast.leaving { animation: toastOut 300ms ease forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(-8px) scale(0.96); } }
+.toast-icon { flex-shrink: 0; margin-top: 1px; }
+.toast-body { flex: 1; }
+.toast-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.toast-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+.toast-close { background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: 2px; border-radius: 4px; flex-shrink: 0; }
+.toast-close:hover { background: var(--surface-secondary); }
+.toast-progress { position: absolute; bottom: 0; left: 0; height: 3px; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.toast-progress.success { background: var(--success); }
+.toast-progress.error { background: var(--error); }
+.toast-progress.info { background: var(--info); }
+.toast-progress.warning { background: var(--warning); }
+
+/* ======= COMMAND PALETTE ======= */
+.cmd-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 200; align-items: flex-start; justify-content: center; padding-top: 15vh; }
+.cmd-overlay.active { display: flex; animation: fadeIn 150ms ease; }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } }
+.cmd-box {
+  width: 560px; max-width: 90vw; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); overflow: hidden;
+  animation: slideDown 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cmd-input-wrap { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.cmd-input {
+  flex: 1; border: none; background: none; font-size: 15px; font-weight: 500;
+  color: var(--text-primary); outline: none; font-family: inherit;
+}
+.cmd-input::placeholder { color: var(--text-tertiary); }
+.cmd-results { max-height: 320px; overflow-y: auto; padding: 8px; }
+.cmd-group-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 8px 4px; }
+.cmd-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border-radius: var(--radius-sm); cursor: pointer; transition: background 100ms;
+  font-size: 13px; color: var(--text-secondary); font-weight: 500;
+}
+.cmd-item:hover, .cmd-item.selected { background: var(--surface-secondary); color: var(--text-primary); }
+.cmd-item-icon { width: 18px; height: 18px; color: var(--text-tertiary); flex-shrink: 0; }
+.cmd-item:hover .cmd-item-icon { color: var(--avy-purple); }
+.cmd-item kbd { margin-left: auto; font-family: inherit; font-size: 11px; font-weight: 500; color: var(--text-tertiary); background: var(--bg); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; }
+.cmd-footer { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; gap: 16px; }
+.cmd-hint { font-size: 11px; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px; }
+.cmd-hint kbd { font-family: inherit; background: var(--surface-secondary); border: 1px solid var(--border); padding: 0 4px; border-radius: 3px; font-size: 10px; }
+
+/* ======= RESPONSIVE ======= */
+@media (max-width: 1280px) {
+  .input-grid { grid-template-columns: repeat(3, 1fr); }
+  .ai-result-grid { grid-template-columns: 1fr; }
+  .similar-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 1024px) {
+  .input-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); position: fixed; z-index: 55; }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay.active { display: block; }
+  .mobile-header { display: flex; }
+  .main { margin-left: 0; }
+  .topbar { display: none; }
+  .page-header { padding: var(--space-4) var(--space-4) 0; }
+  .content { padding: var(--space-4) var(--space-4) var(--space-8); }
+  .input-grid { grid-template-columns: 1fr; }
+  .input-grid .input-card:first-child { order: -1; }
+  .ai-result-grid { grid-template-columns: 1fr; }
+  .similar-grid { grid-template-columns: 1fr 1fr; }
+  .ai-result-actions { flex-wrap: wrap; }
+  .ai-result-actions .btn { flex: 1; justify-content: center; min-width: 140px; }
+  .ai-progress-steps { flex-direction: column; align-items: center; gap: var(--space-2); }
+  .recent-table-wrap { overflow-x: auto; }
+  .batch-toggle-row { flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+  .page-header-actions { width: 100%; }
+  .page-header-actions .btn { flex: 1; justify-content: center; }
+  .toast { min-width: auto; margin: 0 12px; }
+}
+@media (max-width: 480px) {
+  .similar-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Mobile Header -->
+<div class="mobile-header">
+  <button class="hamburger" onclick="toggleSidebar()">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h16M3 11h16M3 16h16"/></svg>
+  </button>
+  <span class="mobile-brand">AvyCloud</span>
+  <div style="margin-left:auto;display:flex;gap:4px;">
+    <button class="topbar-btn" style="color:rgba(255,255,255,0.7);" onclick="toggleTheme()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1"/></svg>
+    </button>
+    <button class="topbar-btn" style="color:rgba(255,255,255,0.7);position:relative;">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5.5a4 4 0 00-8 0c0 4.5-2 6-2 6h12s-2-1.5-2-6M9.2 14a1.3 1.3 0 01-2.4 0"/></svg>
+      <span class="dot" style="border-color:var(--avy-deep);"></span>
+    </button>
+  </div>
+</div>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">A</div>
+    <span class="sidebar-brand">AvyCloud</span>
+  </div>
+  <div class="sidebar-section">
+    <a class="nav-item" href="dashboard-v2.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg><span>Dashboard</span></a>
+    <a class="nav-item" href="products.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12M4 8h12M4 12h8M4 16h10"/></svg><span>Produkte</span><span class="nav-badge">1.247</span></a>
+    <a class="nav-item" href="orders.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h2v2H4zM4 9h2v2H4zM4 14h2v2H4zM9 5h7M9 10h7M9 15h5"/></svg><span>Bestellungen</span><span class="nav-badge">23</span></a>
+    <a class="nav-item" href="ebay-listings.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z"/></svg><span>eBay Listings</span></a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Operations</div>
+    <a class="nav-item active" href="product-input-v2.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 13v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3M10 3v10M7 6l3-3 3 3"/></svg><span>Identifizieren</span></a>
+    <a class="nav-item" href="operations-desktop.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="6" height="10" rx="1"/><rect x="11" y="5" width="6" height="10" rx="1"/></svg><span>Stow / Pick</span></a>
+    <a class="nav-item" href="warehouse.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17V7l7-4 7 4v10M3 7h14M7 17v-6h6v6"/></svg><span>Warehouse</span></a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">System</div>
+    <a class="nav-item" href="categories.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5a2 2 0 012-2h3l2 2h5a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V5z"/></svg><span>Kategorien</span></a>
+    <a class="nav-item" href="admin.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"/></svg><span>Admin</span></a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="user-avatar">OG</div>
+      <div><div class="user-name">Oguz</div><div class="user-role">Admin</div></div>
+    </div>
+  </div>
+</nav>
+
+<!-- Main -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-search" onclick="openCmd()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3 3"/></svg>
+      <span>Suchen...</span>
+      <kbd>&#8984;K</kbd>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Theme wechseln">
+        <svg id="theme-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
+      </button>
+      <button class="topbar-btn" title="Benachrichtigungen">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6.75a4.5 4.5 0 00-9 0c0 5.25-2.25 6.75-2.25 6.75h13.5s-2.25-1.5-2.25-6.75M10.3 15.75a1.5 1.5 0 01-2.6 0"/></svg>
+        <span class="dot"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="page-header">
+    <div>
+      <h1>Produkt-Identifizierung</h1>
+      <div class="page-header-sub">Produkte per Bild, Barcode oder manuell erfassen</div>
+    </div>
+    <div class="page-header-actions">
+      <button class="btn btn-secondary" onclick="resetAll()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7a6 6 0 0111.2-3M13 7a6 6 0 01-11.2 3"/><path d="M1 1v3h3M13 13v-3h-3"/></svg>
+        Zuruecksetzen
+      </button>
+      <button class="btn btn-primary" onclick="showToast('info', 'Tipp', 'Ziehe ein Bild in die Drop-Zone oder scanne einen Barcode.')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="6"/><path d="M7 5v4M7 10.5v.5"/></svg>
+        Hilfe
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Batch Mode Toggle -->
+    <div class="batch-toggle-row">
+      <div class="batch-toggle-info">
+        <div class="batch-toggle-icon">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="11" y="2" width="5" height="5" rx="1"/><rect x="2" y="11" width="5" height="5" rx="1"/><rect x="11" y="11" width="5" height="5" rx="1"/></svg>
+        </div>
+        <div>
+          <div class="batch-toggle-title">Batch-Modus</div>
+          <div class="batch-toggle-desc">Mehrere Bilder gleichzeitig hochladen und analysieren</div>
+        </div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="batchToggle" onchange="toggleBatchMode()">
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </label>
+    </div>
+
+    <!-- Batch Queue (hidden by default) -->
+    <div class="batch-queue" id="batchQueue">
+      <div class="batch-queue-header">
+        <div class="batch-queue-title">Batch-Warteschlange</div>
+        <div class="batch-queue-count"><span id="batchCount">0</span> / <span id="batchTotal">0</span> verarbeitet</div>
+      </div>
+      <div class="batch-queue-items" id="batchItems">
+        <div class="batch-item">
+          <div class="batch-item-thumb">&#128247;</div>
+          <div class="batch-item-info">
+            <div class="batch-item-name">IMG_4821.jpg</div>
+            <div class="batch-item-status">Warte auf Analyse...</div>
+            <div class="batch-item-progress"><div class="batch-item-progress-fill" style="width:0%"></div></div>
+          </div>
+          <span class="batch-item-badge pending">Wartend</span>
+        </div>
+        <div class="batch-item">
+          <div class="batch-item-thumb">&#128247;</div>
+          <div class="batch-item-info">
+            <div class="batch-item-name">IMG_4822.jpg</div>
+            <div class="batch-item-status">Warte auf Analyse...</div>
+            <div class="batch-item-progress"><div class="batch-item-progress-fill" style="width:0%"></div></div>
+          </div>
+          <span class="batch-item-badge pending">Wartend</span>
+        </div>
+        <div class="batch-item">
+          <div class="batch-item-thumb">&#128247;</div>
+          <div class="batch-item-info">
+            <div class="batch-item-name">IMG_4823.jpg</div>
+            <div class="batch-item-status">Warte auf Analyse...</div>
+            <div class="batch-item-progress"><div class="batch-item-progress-fill" style="width:0%"></div></div>
+          </div>
+          <span class="batch-item-badge pending">Wartend</span>
+        </div>
+      </div>
+      <div style="margin-top:var(--space-3);display:flex;gap:var(--space-2);">
+        <button class="btn btn-primary btn-sm" onclick="startBatchDemo()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2l7 4-7 4z"/></svg>
+          Batch starten
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="clearBatch()">Warteschlange leeren</button>
+      </div>
+    </div>
+
+    <!-- Three Input Methods -->
+    <div class="input-grid">
+
+      <!-- Card 1: Camera/Image Upload -->
+      <div class="input-card" onmousemove="trackMouse(event, this)">
+        <div class="input-card-header">
+          <div class="input-card-icon" style="background:var(--avy-purple-glow); color:var(--avy-purple);">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="16" height="12" rx="2"/><circle cx="10" cy="11" r="3"/><path d="M6 5l1-2h6l1 2"/></svg>
+          </div>
+          <div>
+            <div class="input-card-title">Kamera / Bild-Upload</div>
+            <div class="input-card-desc">KI-gestuetzte Produkterkennung</div>
+          </div>
+        </div>
+
+        <!-- Drop Zone (visible by default) -->
+        <div class="drop-zone" id="dropZone" onclick="simulateUpload()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+          <div class="drop-zone-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="drop-zone-text">Bild hierher ziehen oder klicken zum Hochladen</div>
+          <div class="drop-zone-sub">Max. 10 MB pro Datei</div>
+          <div class="drop-zone-formats">
+            Unterstuetzte Formate: <span>JPG</span> <span>PNG</span> <span>HEIC</span> <span>WebP</span>
+          </div>
+        </div>
+
+        <!-- Image Preview (hidden by default) -->
+        <div class="image-preview" id="imagePreview">
+          <div class="image-preview-placeholder" id="previewPlaceholder">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" style="color:rgba(99,91,255,0.4);"><rect x="8" y="12" width="48" height="40" rx="4"/><circle cx="22" cy="26" r="4"/><path d="M8 42l12-10 8 6 12-10 16 14"/></svg>
+          </div>
+          <div class="image-preview-overlay">
+            <button onclick="clearUpload()" title="Entfernen">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg>
+            </button>
+          </div>
+          <div class="image-preview-actions">
+            <button class="btn btn-primary btn-sm" style="flex:1;" onclick="startAiAnalysis()">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.76 2.76l1.41 1.41M9.83 9.83l1.41 1.41M2.76 11.24l1.41-1.41M9.83 4.17l1.41-1.41"/><circle cx="7" cy="7" r="2"/></svg>
+              KI-Analyse starten
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="clearUpload()">Verwerfen</button>
+          </div>
+        </div>
+
+        <div class="camera-row">
+          <button class="camera-btn" onclick="simulateUpload()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3.5" width="12" height="9" rx="1.5"/><circle cx="7" cy="8" r="2.5"/><path d="M4.5 3.5L5.5 2h3l1 1.5"/></svg>
+            Kamera
+          </button>
+          <button class="camera-btn" onclick="simulateUpload()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="10" height="10" rx="1.5"/><circle cx="5" cy="5.5" r="1.5"/><path d="M2 10l3-3 2 1.5 3-3 2 2"/></svg>
+            Galerie
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 2: Barcode/EAN Scanner -->
+      <div class="input-card" onmousemove="trackMouse(event, this)">
+        <div class="input-card-header">
+          <div class="input-card-icon" style="background:var(--info-bg); color:var(--info);">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M6 7v6M8 7v6M10 7v4M12 7v6M14 7v4"/></svg>
+          </div>
+          <div>
+            <div class="input-card-title">Barcode / EAN Scanner</div>
+            <div class="input-card-desc">Schnelle Produktsuche per Code</div>
+          </div>
+        </div>
+
+        <div class="barcode-input-group">
+          <input class="barcode-input" id="barcodeInput" type="text" placeholder="EAN oder Barcode eingeben..." maxlength="13" onkeydown="if(event.key==='Enter')lookupBarcode()">
+          <button class="scan-btn" onclick="lookupBarcode()" title="Suchen">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M13 13l3 3"/></svg>
+          </button>
+          <button class="scan-btn" onclick="simulateScan()" title="Kamera-Scanner" style="color:var(--info);">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5V3a1 1 0 011-1h2M13 2h2a1 1 0 011 1v2M16 13v2a1 1 0 01-1 1h-2M5 16H3a1 1 0 01-1-1v-2"/><line x1="2" y1="9" x2="16" y2="9" stroke-dasharray="2 2"/></svg>
+          </button>
+        </div>
+
+        <div class="recent-scans">
+          <div class="recent-scans-title">Letzte Scans</div>
+          <div class="scan-item" onclick="fillBarcode('4006381333931')">
+            <span class="scan-item-code">4006381333931</span>
+            <span class="scan-item-name">LEGO Technic 42143</span>
+            <span class="scan-item-time">vor 12m</span>
+          </div>
+          <div class="scan-item" onclick="fillBarcode('0889842640786')">
+            <span class="scan-item-code">0889842640786</span>
+            <span class="scan-item-name">Xbox Series X</span>
+            <span class="scan-item-time">vor 45m</span>
+          </div>
+          <div class="scan-item" onclick="fillBarcode('5060569172816')">
+            <span class="scan-item-code">5060569172816</span>
+            <span class="scan-item-name">Dyson V15 Detect</span>
+            <span class="scan-item-time">vor 2h</span>
+          </div>
+          <div class="scan-item" onclick="fillBarcode('0194252828328')">
+            <span class="scan-item-code">0194252828328</span>
+            <span class="scan-item-name">Apple AirPods Pro 2</span>
+            <span class="scan-item-time">vor 3h</span>
+          </div>
+        </div>
+
+        <div class="barcode-camera-link" onclick="simulateScan()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3.5" width="12" height="9" rx="1.5"/><circle cx="7" cy="8" r="2.5"/><path d="M4.5 3.5L5.5 2h3l1 1.5"/></svg>
+          Oder Kamera fuer Barcode nutzen
+        </div>
+      </div>
+
+      <!-- Card 3: Manual Entry -->
+      <div class="input-card" onmousemove="trackMouse(event, this)">
+        <div class="input-card-header">
+          <div class="input-card-icon" style="background:var(--success-bg); color:var(--success);">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2l4 4-10 10H4v-4L14 2z"/><path d="M11.5 4.5l4 4"/></svg>
+          </div>
+          <div>
+            <div class="input-card-title">Manuelle Eingabe</div>
+            <div class="input-card-desc">Produktdaten direkt erfassen</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Produktname *</label>
+          <input class="form-input" id="manualName" type="text" placeholder="z.B. Sony PlayStation 5">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Marke</label>
+            <input class="form-input" id="manualBrand" type="text" placeholder="z.B. Sony">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Modell</label>
+            <input class="form-input" id="manualModel" type="text" placeholder="z.B. CFI-2000">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Zustand</label>
+          <select class="form-select" id="manualCondition">
+            <option value="" disabled selected>Zustand waehlen...</option>
+            <option value="new">Neu / Versiegelt</option>
+            <option value="like-new">Wie Neu</option>
+            <option value="very-good">Sehr Gut</option>
+            <option value="good">Gut</option>
+            <option value="acceptable">Akzeptabel</option>
+            <option value="defective">Defekt / Ersatzteile</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:var(--space-2);" onclick="submitManual()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
+          Weiter zur Identifizierung
+        </button>
+      </div>
+    </div>
+
+    <!-- AI Identification Results -->
+    <div class="ai-results" id="aiResults">
+
+      <!-- Progress Card -->
+      <div class="ai-progress-card" id="aiProgressCard">
+        <div class="ai-progress-spinner"></div>
+        <div class="ai-progress-title">Gemini analysiert Bild...</div>
+        <div class="ai-progress-sub" id="aiProgressSub">Bilddaten werden verarbeitet</div>
+        <div class="ai-progress-bar">
+          <div class="ai-progress-fill" id="aiProgressFill" style="width:0%"></div>
+        </div>
+        <div class="ai-progress-steps">
+          <div class="ai-step active" id="aiStep1"><div class="ai-step-dot"></div>Bild laden</div>
+          <div class="ai-step" id="aiStep2"><div class="ai-step-dot"></div>KI-Analyse</div>
+          <div class="ai-step" id="aiStep3"><div class="ai-step-dot"></div>Datenbank-Abgleich</div>
+          <div class="ai-step" id="aiStep4"><div class="ai-step-dot"></div>Ergebnis</div>
+        </div>
+      </div>
+
+      <!-- Result Card -->
+      <div class="ai-result-card" id="aiResultCard">
+        <div class="ai-result-header">
+          <div class="ai-result-badge">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.76 2.76l1.41 1.41M9.83 9.83l1.41 1.41M2.76 11.24l1.41-1.41M9.83 4.17l1.41-1.41"/><circle cx="7" cy="7" r="2"/></svg>
+            KI-Ergebnis
+          </div>
+          <div class="ai-result-time">Analyse in 2.3s abgeschlossen</div>
+        </div>
+        <div class="ai-result-body">
+          <div class="ai-result-grid">
+            <div class="ai-result-main">
+              <div class="result-field">
+                <span class="result-field-label">Erkanntes Produkt</span>
+                <span class="result-field-value large">Sony PlayStation 5 Digital Edition</span>
+              </div>
+              <div class="form-row">
+                <div class="result-field">
+                  <span class="result-field-label">Marke</span>
+                  <span class="result-field-value">Sony Interactive Entertainment</span>
+                </div>
+                <div class="result-field">
+                  <span class="result-field-label">Modell / SKU</span>
+                  <span class="result-field-value">CFI-2000B01</span>
+                </div>
+              </div>
+              <div class="result-field">
+                <span class="result-field-label">Uebereinstimmung</span>
+                <div class="confidence-bar-wrap">
+                  <div class="confidence-bar-header">
+                    <span class="confidence-bar-label">Confidence Score</span>
+                    <span class="confidence-bar-value">94%</span>
+                  </div>
+                  <div class="confidence-bar">
+                    <div class="confidence-fill" id="confidenceFill" style="width:0%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:var(--space-4);">
+              <div class="result-field">
+                <span class="result-field-label">Vorgeschlagene eBay-Kategorie</span>
+                <div class="result-category-tag">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3a1 1 0 011-1h2l1 1h3a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1V3z"/></svg>
+                  Videospielkonsolen &gt; PlayStation 5
+                </div>
+              </div>
+              <div class="result-field">
+                <span class="result-field-label">Geschaetzter Marktwert</span>
+                <div class="result-price-range">
+                  <div>
+                    <div class="result-price-range-label">Preisspanne</div>
+                    <div class="result-price-range-value">&euro;349 &mdash; &euro;429</div>
+                  </div>
+                </div>
+              </div>
+              <div class="result-field">
+                <span class="result-field-label">EAN</span>
+                <span class="result-field-value" style="font-family:'SF Mono','Fira Code','Consolas',monospace;font-size:13px;letter-spacing:0.05em;">711719577294</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Similar Products -->
+          <div class="similar-products">
+            <div class="similar-products-title">Aehnliche Produkte in der Datenbank</div>
+            <div class="similar-grid">
+              <div class="similar-item" onclick="showToast('info','Produkt geladen','PlayStation 5 Disc Edition wurde geladen.')">
+                <div class="similar-item-thumb">&#127918;</div>
+                <div class="similar-item-name">PS5 Disc Edition</div>
+                <div class="similar-item-price">&euro;399 &mdash; &euro;479</div>
+                <div class="similar-item-match">87% Aehnlichkeit</div>
+              </div>
+              <div class="similar-item" onclick="showToast('info','Produkt geladen','PS5 Slim wurde geladen.')">
+                <div class="similar-item-thumb">&#127918;</div>
+                <div class="similar-item-name">PS5 Slim Digital</div>
+                <div class="similar-item-price">&euro;379 &mdash; &euro;419</div>
+                <div class="similar-item-match">82% Aehnlichkeit</div>
+              </div>
+              <div class="similar-item" onclick="showToast('info','Produkt geladen','PS5 Bundle Hogwarts wurde geladen.')">
+                <div class="similar-item-thumb">&#127918;</div>
+                <div class="similar-item-name">PS5 Bundle Hogwarts</div>
+                <div class="similar-item-price">&euro;449 &mdash; &euro;519</div>
+                <div class="similar-item-match">76% Aehnlichkeit</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ai-result-actions">
+          <button class="btn btn-danger btn-sm" onclick="discardResult()">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+            Verwerfen
+          </button>
+          <button class="btn btn-secondary" onclick="showToast('info','Bearbeitung','Manueller Bearbeitungsmodus geoeffnet.')">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 1.5l2.5 2.5L5 11.5H2.5V9L10 1.5z"/></svg>
+            Manuell korrigieren
+          </button>
+          <button class="btn btn-success" onclick="catalogProduct()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l3 3 5-5"/></svg>
+            Uebernehmen &amp; Katalogisieren
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Identifications -->
+    <div class="recent-section">
+      <div class="recent-section-header">
+        <div class="recent-section-title">Letzte Identifizierungen</div>
+        <button class="btn btn-ghost btn-sm">Alle anzeigen &rarr;</button>
+      </div>
+      <div class="recent-table-wrap">
+        <table class="recent-table">
+          <thead>
+            <tr>
+              <th>Produkt</th>
+              <th>Methode</th>
+              <th>Zeitpunkt</th>
+              <th>Confidence</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="recent-product-cell">
+                  <div class="recent-product-thumb">&#127918;</div>
+                  <div>
+                    <div class="recent-product-name">Sony PlayStation 5 Digital</div>
+                    <div style="font-size:11px;color:var(--text-tertiary);">CFI-2000B01</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="method-badge ai"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="5" cy="5" r="2"/><path d="M5 1v1M5 8v1M1 5h1M8 5h1"/></svg> KI</span></td>
+              <td>vor 5 Min.</td>
+              <td><span style="font-weight:600;color:var(--success);">94%</span></td>
+              <td><span class="status-badge success"><span class="status-dot"></span>Katalogisiert</span></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="recent-product-cell">
+                  <div class="recent-product-thumb">&#128187;</div>
+                  <div>
+                    <div class="recent-product-name">Apple MacBook Air M3</div>
+                    <div style="font-size:11px;color:var(--text-tertiary);">MXCX3D/A</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="method-badge barcode"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="2" width="8" height="6" rx="1"/><path d="M3 4v2M5 4v2M7 4v1"/></svg> Barcode</span></td>
+              <td>vor 23 Min.</td>
+              <td><span style="font-weight:600;color:var(--success);">99%</span></td>
+              <td><span class="status-badge success"><span class="status-dot"></span>Katalogisiert</span></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="recent-product-cell">
+                  <div class="recent-product-thumb">&#128246;</div>
+                  <div>
+                    <div class="recent-product-name">Dyson V15 Detect Absolute</div>
+                    <div style="font-size:11px;color:var(--text-tertiary);">SV47</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="method-badge ai"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="5" cy="5" r="2"/><path d="M5 1v1M5 8v1M1 5h1M8 5h1"/></svg> KI</span></td>
+              <td>vor 1 Std.</td>
+              <td><span style="font-weight:600;color:var(--warning);">78%</span></td>
+              <td><span class="status-badge pending"><span class="status-dot"></span>Pruefung</span></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="recent-product-cell">
+                  <div class="recent-product-thumb">&#9000;</div>
+                  <div>
+                    <div class="recent-product-name">LEGO Technic Ferrari Daytona</div>
+                    <div style="font-size:11px;color:var(--text-tertiary);">42143</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="method-badge manual"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M7 1l2 2-6 6H1V7L7 1z"/></svg> Manuell</span></td>
+              <td>vor 2 Std.</td>
+              <td><span style="font-weight:600;color:var(--text-tertiary);">&mdash;</span></td>
+              <td><span class="status-badge success"><span class="status-dot"></span>Katalogisiert</span></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="recent-product-cell">
+                  <div class="recent-product-thumb">&#127911;</div>
+                  <div>
+                    <div class="recent-product-name">Apple AirPods Pro 2. Gen</div>
+                    <div style="font-size:11px;color:var(--text-tertiary);">MTJV3ZM/A</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="method-badge barcode"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="2" width="8" height="6" rx="1"/><path d="M3 4v2M5 4v2M7 4v1"/></svg> Barcode</span></td>
+              <td>vor 3 Std.</td>
+              <td><span style="font-weight:600;color:var(--success);">99%</span></td>
+              <td><span class="status-badge success"><span class="status-dot"></span>Katalogisiert</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Command Palette -->
+<div class="cmd-overlay" id="cmdOverlay" onclick="if(event.target===this)closeCmd()">
+  <div class="cmd-box">
+    <div class="cmd-input-wrap">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M13 13l3 3"/></svg>
+      <input class="cmd-input" id="cmdInput" placeholder="Suche oder Befehl eingeben..." autofocus>
+      <kbd style="font-family:inherit;font-size:11px;padding:2px 6px;border-radius:4px;background:var(--surface-secondary);border:1px solid var(--border);color:var(--text-tertiary);">ESC</kbd>
+    </div>
+    <div class="cmd-results">
+      <div class="cmd-group-label">Navigation</div>
+      <div class="cmd-item" onclick="window.location='dashboard-v2.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/></svg>Dashboard</div>
+      <div class="cmd-item" onclick="window.location='products.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h12M3 7h12M3 11h8M3 15h10"/></svg>Produkte<kbd>1.247</kbd></div>
+      <div class="cmd-item" onclick="window.location='orders.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h2v2H3zM3 8h2v2H3zM3 13h2v2H3zM8 4h7M8 9h7M8 14h5"/></svg>Bestellungen<kbd>23 offen</kbd></div>
+      <div class="cmd-group-label">Aktionen</div>
+      <div class="cmd-item" onclick="closeCmd();simulateUpload()"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="14" height="11" rx="2"/><circle cx="9" cy="9.5" r="3"/><path d="M6 4l1-2h4l1 2"/></svg>Bild hochladen<kbd>&#8984;U</kbd></div>
+      <div class="cmd-item" onclick="closeCmd();document.getElementById('barcodeInput').focus()"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="12" height="10" rx="2"/><path d="M6 7v4M8 7v4M10 7v3M12 7v4"/></svg>Barcode scannen<kbd>&#8984;B</kbd></div>
+      <div class="cmd-item" onclick="closeCmd();document.getElementById('manualName').focus()"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l4 4-9 9H3v-4L12 2z"/></svg>Manuelle Eingabe<kbd>&#8984;M</kbd></div>
+    </div>
+    <div class="cmd-footer">
+      <div class="cmd-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigieren</div>
+      <div class="cmd-hint"><kbd>&crarr;</kbd> Oeffnen</div>
+      <div class="cmd-hint"><kbd>ESC</kbd> Schliessen</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======= THEME ======= */
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('avy-theme', isDark ? 'light' : 'dark');
+  updateThemeIcon();
+}
+function updateThemeIcon() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const icon = document.getElementById('theme-icon');
+  if (icon) {
+    icon.innerHTML = isDark
+      ? '<path d="M13.5 8a5.5 5.5 0 01-7.5 5.1 5.5 5.5 0 006.6-7.6c.6.7.9 1.6.9 2.5z" stroke="currentColor" stroke-width="1.5" fill="none"/>'
+      : '<circle cx="8" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7" stroke="currentColor" stroke-width="1.5"/>';
+  }
+}
+(function() {
+  const saved = localStorage.getItem('avy-theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  setTimeout(updateThemeIcon, 0);
+})();
+
+/* ======= MOUSE TRACKING ======= */
+function trackMouse(e, el) {
+  const r = el.getBoundingClientRect();
+  el.style.setProperty('--mouse-x', (e.clientX - r.left) + 'px');
+  el.style.setProperty('--mouse-y', (e.clientY - r.top) + 'px');
+}
+
+/* ======= SIDEBAR ======= */
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.querySelector('.sidebar-overlay').classList.toggle('active');
+}
+
+/* ======= COMMAND PALETTE ======= */
+function openCmd() { document.getElementById('cmdOverlay').classList.add('active'); document.getElementById('cmdInput').focus(); }
+function closeCmd() { document.getElementById('cmdOverlay').classList.remove('active'); document.getElementById('cmdInput').value = ''; }
+document.addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openCmd(); }
+  if (e.key === 'Escape') closeCmd();
+  if ((e.metaKey || e.ctrlKey) && e.key === 'u') { e.preventDefault(); simulateUpload(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'b') { e.preventDefault(); document.getElementById('barcodeInput').focus(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'm') { e.preventDefault(); document.getElementById('manualName').focus(); }
+});
+
+/* ======= TOAST ======= */
+let toastId = 0;
+function showToast(type, title, desc) {
+  const id = ++toastId;
+  const colors = { success: '#0E9F6E', error: '#DC2626', info: '#0070F3', warning: '#D97706' };
+  const c = colors[type] || colors.info;
+  const icons = {
+    success: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="'+c+'" stroke-width="1.5"/><path d="M6 9l2 2 4-4" stroke="'+c+'" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    error: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="'+c+'" stroke-width="1.5"/><path d="M6.75 6.75l4.5 4.5M11.25 6.75l-4.5 4.5" stroke="'+c+'" stroke-width="1.5"/></svg>',
+    info: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="'+c+'" stroke-width="1.5"/><path d="M9 7v4M9 12.5v.5" stroke="'+c+'" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    warning: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2l7.5 13H1.5z" stroke="'+c+'" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 7.5v3M9 12.5v.5" stroke="'+c+'" stroke-width="1.5" stroke-linecap="round"/></svg>'
+  };
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = '<div class="toast-icon">' + icons[type] + '</div><div class="toast-body"><div class="toast-title">' + title + '</div>' + (desc ? '<div class="toast-desc">' + desc + '</div>' : '') + '</div><button class="toast-close" onclick="removeToast(this.parentElement)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg></button><div class="toast-progress ' + type + '" style="width:100%;animation:shrink 5s linear forwards;"></div>';
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(function() { removeToast(el); }, 5000);
+}
+function removeToast(el) {
+  if (!el || el.classList.contains('leaving')) return;
+  el.classList.add('leaving');
+  setTimeout(function() { el.remove(); }, 300);
+}
+
+/* ======= DRAG & DROP ======= */
+function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
+function handleDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  simulateUpload();
+}
+
+/* ======= IMAGE UPLOAD ======= */
+function simulateUpload() {
+  document.getElementById('dropZone').style.display = 'none';
+  document.getElementById('imagePreview').classList.add('active');
+  showToast('info', 'Bild geladen', 'product_image.jpg wurde erfolgreich geladen.');
+}
+function clearUpload() {
+  document.getElementById('dropZone').style.display = '';
+  document.getElementById('imagePreview').classList.remove('active');
+  hideAiResults();
+}
+
+/* ======= AI ANALYSIS ======= */
+var aiAnimationTimer = null;
+function startAiAnalysis() {
+  var results = document.getElementById('aiResults');
+  var progressCard = document.getElementById('aiProgressCard');
+  var resultCard = document.getElementById('aiResultCard');
+  var progressFill = document.getElementById('aiProgressFill');
+
+  results.classList.add('active');
+  progressCard.classList.add('active');
+  resultCard.classList.remove('active');
+  progressFill.style.width = '0%';
+
+  // Reset steps
+  for (var s = 1; s <= 4; s++) {
+    var step = document.getElementById('aiStep' + s);
+    step.className = 'ai-step';
+  }
+  document.getElementById('aiStep1').classList.add('active');
+
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  var steps = [
+    { pct: 15, sub: 'Bilddaten werden geladen...', step: 1 },
+    { pct: 35, sub: 'Gemini Vision analysiert Merkmale...', step: 2 },
+    { pct: 55, sub: 'Produkt wird identifiziert...', step: 2 },
+    { pct: 75, sub: 'Datenbank-Abgleich laeuft...', step: 3 },
+    { pct: 90, sub: 'Marktdaten werden geladen...', step: 3 },
+    { pct: 100, sub: 'Analyse abgeschlossen!', step: 4 }
+  ];
+
+  var i = 0;
+  clearInterval(aiAnimationTimer);
+  aiAnimationTimer = setInterval(function() {
+    if (i >= steps.length) {
+      clearInterval(aiAnimationTimer);
+      // Show result
+      setTimeout(function() {
+        progressCard.classList.remove('active');
+        resultCard.classList.add('active');
+        // Animate confidence bar
+        setTimeout(function() {
+          document.getElementById('confidenceFill').style.width = '94%';
+        }, 100);
+        showToast('success', 'Produkt erkannt', 'Sony PlayStation 5 Digital Edition mit 94% Uebereinstimmung identifiziert.');
+      }, 500);
+      return;
+    }
+    var s = steps[i];
+    progressFill.style.width = s.pct + '%';
+    document.getElementById('aiProgressSub').textContent = s.sub;
+
+    // Update step indicators
+    for (var j = 1; j <= 4; j++) {
+      var stepEl = document.getElementById('aiStep' + j);
+      stepEl.className = 'ai-step';
+      if (j < s.step) stepEl.classList.add('done');
+      else if (j === s.step) stepEl.classList.add('active');
+    }
+    i++;
+  }, 700);
+}
+
+function hideAiResults() {
+  clearInterval(aiAnimationTimer);
+  document.getElementById('aiResults').classList.remove('active');
+  document.getElementById('aiProgressCard').classList.remove('active');
+  document.getElementById('aiResultCard').classList.remove('active');
+  document.getElementById('confidenceFill').style.width = '0%';
+}
+
+function discardResult() {
+  hideAiResults();
+  clearUpload();
+  showToast('warning', 'Verworfen', 'Das Ergebnis wurde verworfen.');
+}
+
+function catalogProduct() {
+  showToast('success', 'Katalogisiert!', 'Sony PlayStation 5 Digital Edition wurde dem Katalog hinzugefuegt.');
+  setTimeout(function() {
+    hideAiResults();
+    clearUpload();
+  }, 500);
+}
+
+/* ======= BARCODE ======= */
+function fillBarcode(code) {
+  document.getElementById('barcodeInput').value = code;
+  document.getElementById('barcodeInput').focus();
+}
+
+function simulateScan() {
+  var codes = ['4006381333931', '0889842640786', '5060569172816', '0194252828328'];
+  var code = codes[Math.floor(Math.random() * codes.length)];
+  document.getElementById('barcodeInput').value = code;
+  showToast('info', 'Barcode gescannt', 'Code ' + code + ' wurde erkannt.');
+  setTimeout(function() { lookupBarcode(); }, 500);
+}
+
+function lookupBarcode() {
+  var code = document.getElementById('barcodeInput').value.trim();
+  if (!code) { showToast('warning', 'Eingabe fehlt', 'Bitte gib einen EAN oder Barcode ein.'); return; }
+
+  var products = {
+    '4006381333931': 'LEGO Technic Ferrari 42143',
+    '0889842640786': 'Xbox Series X 1TB',
+    '5060569172816': 'Dyson V15 Detect Absolute',
+    '0194252828328': 'Apple AirPods Pro 2. Gen'
+  };
+
+  var name = products[code] || 'Unbekanntes Produkt (' + code + ')';
+  showToast('success', 'Produkt gefunden', name + ' wurde identifiziert.');
+
+  // Show the AI results section with barcode result
+  document.getElementById('aiResults').classList.add('active');
+  document.getElementById('aiProgressCard').classList.remove('active');
+  document.getElementById('aiResultCard').classList.add('active');
+  setTimeout(function() {
+    document.getElementById('confidenceFill').style.width = '99%';
+  }, 100);
+}
+
+/* ======= MANUAL ======= */
+function submitManual() {
+  var name = document.getElementById('manualName').value.trim();
+  if (!name) { showToast('warning', 'Name fehlt', 'Bitte gib mindestens einen Produktnamen ein.'); return; }
+  var brand = document.getElementById('manualBrand').value.trim();
+  var model = document.getElementById('manualModel').value.trim();
+  var condition = document.getElementById('manualCondition').value;
+
+  showToast('success', 'Produkt erfasst', name + (brand ? ' von ' + brand : '') + ' wurde zur Identifizierung weitergeleitet.');
+
+  // Clear form
+  document.getElementById('manualName').value = '';
+  document.getElementById('manualBrand').value = '';
+  document.getElementById('manualModel').value = '';
+  document.getElementById('manualCondition').selectedIndex = 0;
+}
+
+/* ======= BATCH MODE ======= */
+function toggleBatchMode() {
+  var on = document.getElementById('batchToggle').checked;
+  var queue = document.getElementById('batchQueue');
+  if (on) {
+    queue.classList.add('active');
+    showToast('info', 'Batch-Modus aktiviert', 'Du kannst jetzt mehrere Bilder gleichzeitig hochladen.');
+  } else {
+    queue.classList.remove('active');
+  }
+}
+
+function startBatchDemo() {
+  var items = document.querySelectorAll('#batchItems .batch-item');
+  var total = items.length;
+  var processed = 0;
+  document.getElementById('batchTotal').textContent = total;
+  document.getElementById('batchCount').textContent = '0';
+
+  items.forEach(function(item, idx) {
+    setTimeout(function() {
+      // Set processing
+      var badge = item.querySelector('.batch-item-badge');
+      var fill = item.querySelector('.batch-item-progress-fill');
+      var status = item.querySelector('.batch-item-status');
+
+      badge.className = 'batch-item-badge processing';
+      badge.textContent = 'Analysiert...';
+      status.textContent = 'Gemini analysiert...';
+
+      var pct = 0;
+      var progressInt = setInterval(function() {
+        pct += Math.random() * 30 + 10;
+        if (pct > 100) pct = 100;
+        fill.style.width = pct + '%';
+        if (pct >= 100) {
+          clearInterval(progressInt);
+          fill.classList.add('done');
+          badge.className = 'batch-item-badge done';
+          badge.textContent = 'Fertig';
+          status.textContent = 'Erfolgreich identifiziert';
+          processed++;
+          document.getElementById('batchCount').textContent = processed;
+          if (processed === total) {
+            showToast('success', 'Batch abgeschlossen', total + ' Produkte wurden erfolgreich analysiert.');
+          }
+        }
+      }, 300);
+    }, idx * 2000);
+  });
+}
+
+function clearBatch() {
+  var items = document.querySelectorAll('#batchItems .batch-item');
+  items.forEach(function(item) {
+    var badge = item.querySelector('.batch-item-badge');
+    var fill = item.querySelector('.batch-item-progress-fill');
+    var status = item.querySelector('.batch-item-status');
+    badge.className = 'batch-item-badge pending';
+    badge.textContent = 'Wartend';
+    fill.style.width = '0%';
+    fill.classList.remove('done');
+    status.textContent = 'Warte auf Analyse...';
+  });
+  document.getElementById('batchCount').textContent = '0';
+}
+
+/* ======= RESET ======= */
+function resetAll() {
+  clearUpload();
+  hideAiResults();
+  document.getElementById('barcodeInput').value = '';
+  document.getElementById('manualName').value = '';
+  document.getElementById('manualBrand').value = '';
+  document.getElementById('manualModel').value = '';
+  document.getElementById('manualCondition').selectedIndex = 0;
+  document.getElementById('batchToggle').checked = false;
+  document.getElementById('batchQueue').classList.remove('active');
+  clearBatch();
+  showToast('info', 'Zurueckgesetzt', 'Alle Eingaben wurden zurueckgesetzt.');
+}
+
+/* ======= ANIMATION UTIL ======= */
+var shrinkStyle = document.createElement('style');
+shrinkStyle.textContent = '@keyframes shrink { from { width: 100%; } to { width: 0%; } }';
+document.head.appendChild(shrinkStyle);
+</script>
+
+</body>
+</html>

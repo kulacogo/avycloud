@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud — Produkte</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===================================================
+   AVYCLOUD DESIGN SYSTEM v2.1
+   Premium — Stripe/Vercel Quality
+   Products / Inventory Page
+   =================================================== */
+
+:root {
+  --avy-deep: #0A2540;
+  --avy-purple: #635BFF;
+  --avy-purple-hover: #5148E5;
+  --avy-purple-light: #818CF8;
+  --avy-purple-glow: rgba(99, 91, 255, 0.12);
+  --avy-gradient: linear-gradient(135deg, #635BFF, #0070F3);
+
+  --bg: #F6F9FC;
+  --surface: #FFFFFF;
+  --surface-hover: #FAFBFD;
+  --surface-secondary: #F0F3F7;
+
+  --text-primary: #0A2540;
+  --text-secondary: #425466;
+  --text-tertiary: #8898AA;
+  --text-on-dark: #FFFFFF;
+  --text-on-dark-muted: rgba(255,255,255,0.65);
+
+  --border: #E3E8EE;
+  --border-hover: #C1C9D2;
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.03), 0 3px 6px rgba(0,0,0,0.02);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 16px 48px rgba(0,0,0,0.08);
+  --shadow-focus: 0 0 0 3px var(--avy-purple-glow);
+
+  --success: #0E9F6E; --success-bg: #ECFDF5; --success-border: #A7F3D0;
+  --warning: #D97706; --warning-bg: #FFFBEB; --warning-border: #FDE68A;
+  --error: #DC2626;   --error-bg: #FEF2F2;   --error-border: #FECACA;
+  --info: #0070F3;    --info-bg: #EFF6FF;     --info-border: #BFDBFE;
+
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px;
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+  --sidebar-w: 248px;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  --bg: #0B0F14; --surface: #151A21; --surface-hover: #1A2029; --surface-secondary: #1E252E;
+  --text-primary: #F1F3F5; --text-secondary: #8898AA; --text-tertiary: #5E6E80;
+  --border: #1E2A36; --border-hover: #2A3A4A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.3);
+  --success-bg: rgba(14,159,110,0.1); --success-border: rgba(14,159,110,0.25);
+  --warning-bg: rgba(217,119,6,0.1); --warning-border: rgba(217,119,6,0.25);
+  --error-bg: rgba(220,38,38,0.1); --error-border: rgba(220,38,38,0.25);
+  --info-bg: rgba(0,112,243,0.1); --info-border: rgba(0,112,243,0.25);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text-primary);
+  font-size: 14px; line-height: 1.5; min-height: 100vh; display: flex;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+
+/* ======= SIDEBAR ======= */
+.sidebar {
+  width: var(--sidebar-w); height: 100vh; position: fixed;
+  left: 0; top: 0; background: var(--avy-deep);
+  display: flex; flex-direction: column; z-index: 50;
+  overflow-y: auto; overflow-x: hidden;
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar::-webkit-scrollbar { width: 0; }
+.sidebar-header { padding: 20px 20px 24px; display: flex; align-items: center; gap: 12px; }
+.sidebar-logo {
+  width: 28px; height: 28px; background: var(--avy-gradient); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 800; font-size: 14px;
+  box-shadow: 0 2px 8px rgba(99,91,255,0.4); flex-shrink: 0;
+}
+.sidebar-brand { font-size: 16px; font-weight: 700; color: var(--text-on-dark); letter-spacing: -0.02em; }
+.sidebar-section { padding: 0 12px; margin-bottom: 8px; }
+.sidebar-label {
+  font-size: 11px; font-weight: 600; color: var(--text-on-dark-muted);
+  text-transform: uppercase; letter-spacing: 0.06em; padding: 0 8px; margin-bottom: 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+  border-radius: var(--radius-sm); color: var(--text-on-dark-muted);
+  cursor: pointer; transition: all 150ms ease; text-decoration: none;
+  font-size: 13.5px; font-weight: 500; position: relative; margin-bottom: 1px;
+}
+.nav-item:hover { color: var(--text-on-dark); background: rgba(255,255,255,0.06); }
+.nav-item.active { color: var(--text-on-dark); background: rgba(255,255,255,0.1); }
+.nav-item.active::before {
+  content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 16px; background: var(--avy-purple); border-radius: 0 3px 3px 0;
+}
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; }
+.nav-item.active .nav-icon, .nav-item:hover .nav-icon { opacity: 1; }
+.nav-badge {
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 10px;
+  margin-left: auto; background: rgba(99,91,255,0.2); color: var(--avy-purple-light);
+}
+.sidebar-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 12px 20px; }
+.sidebar-footer { margin-top: auto; padding: 16px 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--radius-sm); cursor: pointer; transition: background 150ms ease; }
+.sidebar-user:hover { background: rgba(255,255,255,0.06); }
+.user-avatar { width: 30px; height: 30px; border-radius: 8px; background: var(--avy-gradient); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px; flex-shrink: 0; }
+.user-name { font-size: 13px; font-weight: 500; color: var(--text-on-dark); }
+.user-role { font-size: 11px; color: var(--text-on-dark-muted); }
+
+/* Mobile hamburger */
+.mobile-header { display: none; height: 56px; background: var(--avy-deep); padding: 0 16px; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 60; }
+.hamburger { background: none; border: none; color: white; cursor: pointer; padding: 4px; }
+.mobile-brand { font-size: 15px; font-weight: 700; color: white; }
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 45; backdrop-filter: blur(4px); }
+
+/* ======= MAIN ======= */
+.main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+.topbar {
+  height: 56px; padding: 0 var(--space-8); display: flex; align-items: center; gap: 16px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+  position: sticky; top: 0; z-index: 40;
+}
+.topbar-search {
+  display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; transition: all var(--transition); min-width: 240px;
+}
+.topbar-search:hover { border-color: var(--border-hover); box-shadow: var(--shadow-sm); }
+.topbar-search svg { color: var(--text-tertiary); flex-shrink: 0; }
+.topbar-search span { color: var(--text-tertiary); font-size: 13px; }
+.topbar-search kbd {
+  font-family: inherit; font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 4px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-tertiary); margin-left: auto;
+}
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.topbar-btn {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary); cursor: pointer; background: transparent; border: none;
+  transition: all 150ms ease; position: relative;
+}
+.topbar-btn:hover { background: var(--surface-secondary); color: var(--text-secondary); }
+.topbar-btn .dot {
+  position: absolute; top: 7px; right: 7px; width: 7px; height: 7px;
+  border-radius: 50%; background: var(--avy-purple); border: 2px solid var(--surface);
+}
+.theme-toggle {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: transparent; border: 1px solid var(--border);
+  color: var(--text-tertiary); transition: all 150ms ease;
+}
+.theme-toggle:hover { border-color: var(--border-hover); color: var(--text-secondary); }
+
+/* ======= PAGE HEADER ======= */
+.page-header { padding: var(--space-6) var(--space-8) 0; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.page-header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+.page-header-sub { font-size: 14px; color: var(--text-tertiary); margin-top: 2px; }
+.page-header-actions { display: flex; gap: 8px; align-items: center; }
+.header-count-badge {
+  font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 20px;
+  background: var(--avy-purple-glow); color: var(--avy-purple); letter-spacing: -0.01em;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+  border-radius: var(--radius-md); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition); border: none; font-family: inherit;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--avy-purple); color: white; }
+.btn-primary:hover { background: var(--avy-purple-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,91,255,0.3); }
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--border-hover); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.btn-ghost { background: transparent; color: var(--text-secondary); }
+.btn-ghost:hover { background: var(--surface-secondary); color: var(--text-primary); }
+.btn-danger { background: var(--error); color: white; }
+.btn-danger:hover { background: #B91C1C; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(220,38,38,0.3); }
+.btn-danger:active { transform: translateY(0); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
+
+/* ======= CONTENT ======= */
+.content { padding: var(--space-5) var(--space-8) var(--space-12); flex: 1; }
+
+/* ======= FILTER BAR ======= */
+.filter-bar {
+  display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5);
+  flex-wrap: wrap;
+}
+.filter-search {
+  display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  transition: all var(--transition); min-width: 260px; flex-shrink: 0;
+}
+.filter-search:focus-within { border-color: var(--avy-purple); box-shadow: var(--shadow-focus); }
+.filter-search svg { color: var(--text-tertiary); flex-shrink: 0; }
+.filter-search input {
+  border: none; background: none; font-size: 13px; font-weight: 500;
+  color: var(--text-primary); outline: none; font-family: inherit; width: 100%;
+}
+.filter-search input::placeholder { color: var(--text-tertiary); }
+
+.filter-pills {
+  display: flex; gap: 2px; background: var(--surface-secondary); border-radius: var(--radius-sm); padding: 2px;
+}
+.filter-pill {
+  padding: 5px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;
+  color: var(--text-tertiary); cursor: pointer; transition: all 150ms;
+  border: none; background: none; font-family: inherit; white-space: nowrap;
+}
+.filter-pill.active { background: var(--surface); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.filter-pill:hover:not(.active) { color: var(--text-secondary); }
+.filter-pill .pill-count {
+  font-size: 10px; font-weight: 700; margin-left: 4px; opacity: 0.6;
+}
+
+.filter-actions { display: flex; gap: var(--space-2); margin-left: auto; }
+.filter-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  border-radius: var(--radius-md); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-secondary); font-family: inherit;
+}
+.filter-btn:hover { border-color: var(--border-hover); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.filter-btn svg { flex-shrink: 0; }
+
+/* ======= PRODUCT TABLE ======= */
+.table-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  overflow: hidden; transition: border-color var(--transition);
+}
+.table-card:hover { border-color: var(--border-hover); }
+.table-wrap { overflow-x: auto; }
+.table-wrap::-webkit-scrollbar { height: 6px; }
+.table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.table-wrap::-webkit-scrollbar-track { background: transparent; }
+
+.product-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+.product-table th {
+  text-align: left; font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 10px 16px;
+  border-bottom: 1px solid var(--border); background: var(--surface-secondary);
+  white-space: nowrap; position: relative; user-select: none;
+}
+.product-table th.sortable { cursor: pointer; transition: color 150ms; }
+.product-table th.sortable:hover { color: var(--text-secondary); }
+.product-table th .sort-arrow {
+  display: inline-flex; margin-left: 4px; opacity: 0; transition: opacity 150ms;
+  vertical-align: middle;
+}
+.product-table th.sortable:hover .sort-arrow { opacity: 0.4; }
+.product-table th.sorted .sort-arrow { opacity: 1; color: var(--avy-purple); }
+.product-table th.sorted { color: var(--text-primary); }
+.product-table th.sorted.desc .sort-arrow { transform: rotate(180deg); }
+
+.product-table td {
+  padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border);
+  color: var(--text-secondary); transition: all 150ms; vertical-align: middle;
+}
+.product-table tbody tr { cursor: pointer; transition: background 150ms; }
+.product-table tbody tr:hover { background: var(--surface-hover); }
+.product-table tbody tr:hover td { color: var(--text-primary); }
+.product-table tbody tr:last-child td { border-bottom: none; }
+
+/* Checkbox */
+.checkbox-cell { width: 44px; text-align: center; }
+.custom-checkbox {
+  width: 16px; height: 16px; border: 1.5px solid var(--border-hover); border-radius: 4px;
+  appearance: none; -webkit-appearance: none; cursor: pointer;
+  transition: all 150ms; background: var(--surface); vertical-align: middle;
+  position: relative;
+}
+.custom-checkbox:hover { border-color: var(--avy-purple); }
+.custom-checkbox:checked {
+  background: var(--avy-purple); border-color: var(--avy-purple);
+}
+.custom-checkbox:checked::after {
+  content: '';
+  position: absolute; left: 3.5px; top: 1px; width: 5px; height: 8px;
+  border: solid white; border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+.custom-checkbox:focus-visible { box-shadow: var(--shadow-focus); outline: none; }
+
+/* Product cell */
+.product-cell { display: flex; align-items: center; gap: 12px; }
+.product-thumb {
+  width: 40px; height: 40px; border-radius: var(--radius-sm); overflow: hidden;
+  border: 1px solid var(--border); flex-shrink: 0; background: var(--surface-secondary);
+  display: flex; align-items: center; justify-content: center;
+}
+.product-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.product-thumb-placeholder {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: var(--text-tertiary); background: var(--surface-secondary);
+}
+.product-info { min-width: 0; }
+.product-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.product-sku { font-size: 11px; color: var(--text-tertiary); font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; margin-top: 1px; }
+
+/* Category */
+.category-tag {
+  display: inline-flex; align-items: center; font-size: 12px; font-weight: 500;
+  color: var(--text-secondary); white-space: nowrap;
+}
+
+/* Stock */
+.stock-low { color: var(--error); font-weight: 600; }
+.stock-warn { color: var(--warning); font-weight: 600; }
+.stock-ok { color: var(--text-secondary); font-weight: 500; }
+
+/* Price */
+.price-cell { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Status badges */
+.status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; }
+.status-badge.aktiv { color: var(--success); background: var(--success-bg); }
+.status-badge.aktiv .status-dot { background: var(--success); }
+.status-badge.entwurf { color: var(--warning); background: var(--warning-bg); }
+.status-badge.entwurf .status-dot { background: var(--warning); }
+.status-badge.archiviert { color: var(--text-tertiary); background: var(--surface-secondary); }
+.status-badge.archiviert .status-dot { background: var(--text-tertiary); }
+
+/* eBay badge */
+.ebay-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+.ebay-badge.listed { color: var(--success); background: var(--success-bg); }
+.ebay-badge.listed .status-dot { background: var(--success); }
+.ebay-badge.unlisted { color: var(--text-tertiary); background: var(--surface-secondary); }
+.ebay-badge.unlisted .status-dot { background: var(--text-tertiary); }
+
+/* Row Action */
+.row-action { opacity: 0; transition: opacity 150ms; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; }
+.product-table tbody tr:hover .row-action { opacity: 1; }
+.row-action:hover { color: var(--avy-purple); }
+
+/* ======= PAGINATION ======= */
+.pagination-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-top: 1px solid var(--border);
+}
+.pagination-info { font-size: 13px; color: var(--text-tertiary); font-weight: 500; }
+.pagination-info strong { color: var(--text-secondary); font-weight: 600; }
+.pagination-buttons { display: flex; align-items: center; gap: 2px; }
+.page-btn {
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 150ms; border: none; background: none;
+  color: var(--text-secondary); font-family: inherit;
+}
+.page-btn:hover { background: var(--surface-secondary); color: var(--text-primary); }
+.page-btn.active { background: var(--avy-purple); color: white; font-weight: 600; }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.page-btn:disabled:hover { background: none; }
+.page-ellipsis { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); font-size: 12px; }
+
+/* ======= BULK ACTION BAR ======= */
+.bulk-bar {
+  position: fixed; bottom: 0; left: var(--sidebar-w); right: 0;
+  background: var(--avy-deep); padding: 12px 24px;
+  display: flex; align-items: center; gap: 16px;
+  z-index: 45; transform: translateY(100%);
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+}
+.bulk-bar.visible { transform: translateY(0); }
+.bulk-bar-count { font-size: 13px; font-weight: 600; color: var(--text-on-dark); white-space: nowrap; }
+.bulk-bar-divider { width: 1px; height: 24px; background: rgba(255,255,255,0.15); }
+.bulk-bar-actions { display: flex; gap: 8px; flex: 1; }
+.bulk-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+  border-radius: var(--radius-md); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 150ms; border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06); color: var(--text-on-dark); font-family: inherit;
+  white-space: nowrap;
+}
+.bulk-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
+.bulk-btn.danger { border-color: rgba(220,38,38,0.4); color: #FCA5A5; }
+.bulk-btn.danger:hover { background: rgba(220,38,38,0.2); border-color: rgba(220,38,38,0.6); }
+.bulk-bar-close {
+  margin-left: auto; background: none; border: none; color: rgba(255,255,255,0.5);
+  cursor: pointer; padding: 4px; border-radius: 4px; transition: all 150ms;
+}
+.bulk-bar-close:hover { color: white; background: rgba(255,255,255,0.08); }
+
+/* ======= TOAST NOTIFICATIONS ======= */
+.toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column-reverse; gap: 8px; pointer-events: none; }
+.toast {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 16px; border-radius: var(--radius-lg);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg); min-width: 320px; max-width: 420px;
+  animation: toastIn 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto; position: relative; overflow: hidden;
+}
+.toast.leaving { animation: toastOut 300ms ease forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(-8px) scale(0.96); } }
+.toast-icon { flex-shrink: 0; margin-top: 1px; }
+.toast-body { flex: 1; }
+.toast-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.toast-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+.toast-close { background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: 2px; border-radius: 4px; flex-shrink: 0; }
+.toast-close:hover { background: var(--surface-secondary); }
+.toast-progress { position: absolute; bottom: 0; left: 0; height: 3px; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.toast-progress.success { background: var(--success); }
+.toast-progress.error { background: var(--error); }
+.toast-progress.info { background: var(--info); }
+.toast-progress.warning { background: var(--warning); }
+@keyframes shrink { from { width: 100%; } to { width: 0%; } }
+
+/* ======= COMMAND PALETTE ======= */
+.cmd-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 200; align-items: flex-start; justify-content: center; padding-top: 15vh; }
+.cmd-overlay.active { display: flex; animation: fadeIn 150ms ease; }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } }
+.cmd-box {
+  width: 560px; max-width: 90vw; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); overflow: hidden;
+  animation: slideDown 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cmd-input-wrap { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.cmd-input {
+  flex: 1; border: none; background: none; font-size: 15px; font-weight: 500;
+  color: var(--text-primary); outline: none; font-family: inherit;
+}
+.cmd-input::placeholder { color: var(--text-tertiary); }
+.cmd-results { max-height: 320px; overflow-y: auto; padding: 8px; }
+.cmd-group-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 8px 4px; }
+.cmd-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border-radius: var(--radius-sm); cursor: pointer; transition: background 100ms;
+  font-size: 13px; color: var(--text-secondary); font-weight: 500;
+}
+.cmd-item:hover, .cmd-item.selected { background: var(--surface-secondary); color: var(--text-primary); }
+.cmd-item-icon { width: 18px; height: 18px; color: var(--text-tertiary); flex-shrink: 0; }
+.cmd-item:hover .cmd-item-icon { color: var(--avy-purple); }
+.cmd-item kbd { margin-left: auto; font-family: inherit; font-size: 11px; font-weight: 500; color: var(--text-tertiary); background: var(--bg); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; }
+.cmd-footer { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; gap: 16px; }
+.cmd-hint { font-size: 11px; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px; }
+.cmd-hint kbd { font-family: inherit; background: var(--surface-secondary); border: 1px solid var(--border); padding: 0 4px; border-radius: 3px; font-size: 10px; }
+
+/* ======= RESPONSIVE ======= */
+@media (max-width: 1280px) {
+  .filter-search { min-width: 200px; }
+}
+@media (max-width: 1024px) {
+  .filter-bar { gap: var(--space-2); }
+  .filter-search { min-width: 180px; }
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); position: fixed; z-index: 55; }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay.active { display: block; }
+  .mobile-header { display: flex; }
+  .main { margin-left: 0; }
+  .topbar { display: none; }
+  .page-header { padding: var(--space-4) var(--space-4) 0; }
+  .content { padding: var(--space-4) var(--space-4) var(--space-8); }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-search { min-width: unset; }
+  .filter-actions { margin-left: 0; justify-content: flex-end; }
+  .page-header-actions { width: 100%; }
+  .page-header-actions .btn { flex: 1; justify-content: center; }
+  .bulk-bar { left: 0; padding: 10px 16px; gap: 10px; flex-wrap: wrap; }
+  .bulk-bar-actions { flex-wrap: wrap; gap: 6px; }
+  .pagination-bar { flex-direction: column; gap: 10px; align-items: flex-start; }
+}
+@media (max-width: 480px) {
+  .toast { min-width: auto; margin: 0 12px; }
+  .filter-pills { overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- Mobile Header -->
+<div class="mobile-header">
+  <button class="hamburger" onclick="toggleSidebar()">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h16M3 11h16M3 16h16"/></svg>
+  </button>
+  <span class="mobile-brand">AvyCloud</span>
+  <div style="margin-left:auto;display:flex;gap:4px;">
+    <button class="topbar-btn" style="color:rgba(255,255,255,0.7);" onclick="toggleTheme()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1"/></svg>
+    </button>
+    <button class="topbar-btn" style="color:rgba(255,255,255,0.7);position:relative;">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5.5a4 4 0 00-8 0c0 4.5-2 6-2 6h12s-2-1.5-2-6M9.2 14a1.3 1.3 0 01-2.4 0"/></svg>
+      <span class="dot" style="border-color:var(--avy-deep);"></span>
+    </button>
+  </div>
+</div>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">A</div>
+    <span class="sidebar-brand">AvyCloud</span>
+  </div>
+  <div class="sidebar-section">
+    <a class="nav-item" href="dashboard-v2.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg><span>Dashboard</span></a>
+    <a class="nav-item active" href="#"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12M4 8h12M4 12h8M4 16h10"/></svg><span>Produkte</span><span class="nav-badge">1.247</span></a>
+    <a class="nav-item" href="orders.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h2v2H4zM4 9h2v2H4zM4 14h2v2H4zM9 5h7M9 10h7M9 15h5"/></svg><span>Bestellungen</span><span class="nav-badge">23</span></a>
+    <a class="nav-item" href="ebay-listings.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z"/></svg><span>eBay Listings</span></a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Operations</div>
+    <a class="nav-item" href="product-input.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 13v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3M10 3v10M7 6l3-3 3 3"/></svg><span>Identifizieren</span></a>
+    <a class="nav-item" href="operations-desktop.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="6" height="10" rx="1"/><rect x="11" y="5" width="6" height="10" rx="1"/></svg><span>Stow / Pick</span></a>
+    <a class="nav-item" href="warehouse.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17V7l7-4 7 4v10M3 7h14M7 17v-6h6v6"/></svg><span>Warehouse</span></a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">System</div>
+    <a class="nav-item" href="categories.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5a2 2 0 012-2h3l2 2h5a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V5z"/></svg><span>Kategorien</span></a>
+    <a class="nav-item" href="admin.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"/></svg><span>Admin</span></a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="user-avatar">OG</div>
+      <div><div class="user-name">Oguz</div><div class="user-role">Admin</div></div>
+    </div>
+  </div>
+</nav>
+
+<!-- Main -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-search" onclick="openCmd()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3 3"/></svg>
+      <span>Suchen...</span>
+      <kbd>&#8984;K</kbd>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Theme wechseln">
+        <svg id="theme-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
+      </button>
+      <button class="topbar-btn" title="Benachrichtigungen">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6.75a4.5 4.5 0 00-9 0c0 5.25-2.25 6.75-2.25 6.75h13.5s-2.25-1.5-2.25-6.75M10.3 15.75a1.5 1.5 0 01-2.6 0"/></svg>
+        <span class="dot"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="page-header">
+    <div>
+      <h1>Produkte <span class="header-count-badge">1.247</span></h1>
+      <div class="page-header-sub">Produktkatalog verwalten</div>
+    </div>
+    <div class="page-header-actions">
+      <button class="btn btn-secondary" onclick="showToast('info', 'Import gestartet', 'Die CSV-Datei wird verarbeitet...')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8.5v3a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 012 11.5v-3M7 9V1M4 4l3 3 3-3"/></svg>
+        Importieren
+      </button>
+      <button class="btn btn-primary" onclick="showToast('success', 'Produkt erstellt', 'Ein neues Produkt wurde erfolgreich angelegt.')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 2v10M2 7h10"/></svg>
+        Produkt erstellen
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-search">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3 3"/></svg>
+        <input type="text" placeholder="Produkte durchsuchen..." id="tableSearch" oninput="filterTable()">
+      </div>
+      <div class="filter-pills">
+        <button class="filter-pill active" onclick="setFilter(this, 'alle')">Alle<span class="pill-count">1.247</span></button>
+        <button class="filter-pill" onclick="setFilter(this, 'aktiv')">Aktiv<span class="pill-count">1.089</span></button>
+        <button class="filter-pill" onclick="setFilter(this, 'entwurf')">Entwurf<span class="pill-count">124</span></button>
+        <button class="filter-pill" onclick="setFilter(this, 'archiviert')">Archiviert<span class="pill-count">34</span></button>
+      </div>
+      <div class="filter-actions">
+        <button class="filter-btn" onclick="showToast('info', 'Sortierung', 'Sortieroptionen werden geladen...')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h10M4 7h6M6 10h2"/></svg>
+          Sortieren
+        </button>
+        <button class="filter-btn" onclick="showToast('info', 'Spalten', 'Spalteneinstellungen werden geladen...')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="4" height="4" rx="0.5"/><rect x="8" y="2" width="4" height="4" rx="0.5"/><rect x="2" y="8" width="4" height="4" rx="0.5"/><rect x="8" y="8" width="4" height="4" rx="0.5"/></svg>
+          Spalten
+        </button>
+      </div>
+    </div>
+
+    <!-- Product Table -->
+    <div class="table-card">
+      <div class="table-wrap">
+        <table class="product-table" id="productTable">
+          <thead>
+            <tr>
+              <th class="checkbox-cell"><input type="checkbox" class="custom-checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
+              <th class="sortable" onclick="sortTable(1)" style="min-width:280px;">
+                Produkt
+                <span class="sort-arrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 2l3 4H2z"/></svg></span>
+              </th>
+              <th class="sortable" onclick="sortTable(2)">
+                Kategorie
+                <span class="sort-arrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 2l3 4H2z"/></svg></span>
+              </th>
+              <th class="sortable" onclick="sortTable(3)" style="text-align:right;">
+                Lagerbestand
+                <span class="sort-arrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 2l3 4H2z"/></svg></span>
+              </th>
+              <th class="sortable" onclick="sortTable(4)" style="text-align:right;">
+                Preis
+                <span class="sort-arrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 2l3 4H2z"/></svg></span>
+              </th>
+              <th class="sortable" onclick="sortTable(5)">
+                Status
+                <span class="sort-arrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 2l3 4H2z"/></svg></span>
+              </th>
+              <th>eBay</th>
+              <th style="width:40px;"></th>
+            </tr>
+          </thead>
+          <tbody id="productTableBody">
+            <tr data-status="aktiv" data-name="Samsung Galaxy S24 Ultra">
+              <td class="checkbox-cell"><input type="checkbox" class="custom-checkbox row-checkbox" onchange="updateBulkBar()"></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb"><div class="product-thumb-placeholder">&#128241;</div></div>
+                  <div class="product-info">
+                    <div class="product-name">Samsung Galaxy S24 Ultra</div>
+                    <div class="product-sku">SKU-SM-S24U-256</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="category-tag">Smartphones</span></td>
+              <td style="text-align:right;"><span class="stock-ok">142</span></td>
+              <td style="text-align:right;"><span class="price-cell">1.249,00 &euro;</span></td>
+              <td><span class="status-badge aktiv"><span class="status-dot"></span>Aktiv</span></td>
+              <td><span class="ebay-badge listed"><span class="status-dot"></span>Gelistet</span></td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr data-status="aktiv" data-name="Apple iPhone 15 Pro Max">
+              <td class="checkbox-cell"><input type="checkbox" class="custom-checkbox row-checkbox" onchange="updateBulkBar()"></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb"><div class="product-thumb-placeholder">&#128241;</div></div>
+                  <div class="product-info">
+                    <div class="product-name">Apple iPhone 15 Pro Max</div>
+                    <div class="product-sku">SKU-APL-IP15PM-256</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="category-tag">Smartphones</span></td>
+              <td style="text-align:right;"><span class="stock-ok">89</span></td>
+              <td style="text-align:right;"><span class="price-cell">1.449,00 &euro;</span></td>
+              <td><span class="status-badge aktiv"><span class="status-dot"></span>Aktiv</span></td>
+              <td><span class="ebay-badge listed"><span class="status-dot"></span>Gelistet</span></td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr data-status="aktiv" data-name="Apple iPad Pro 12.9 M2">
+              <td class="checkbox-cell"><input type="checkbox" class="custom-checkbox row-checkbox" onchange="updateBulkBar()"></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb"><div class="product-thumb-placeholder">&#128187;</div></div>
+                  <div class="product-info">
+                    <div class="product-name">Apple iPad Pro 12.9" M2</div>
+                    <div class="product-sku">SKU-APL-IPADP-M2</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="category-tag">Tablets</span></td>
+              <td style="text-align:right;"><span class="stock-warn">18</span></td>
+              <td style="text-align:right;"><span class="price-cell">1.299,00 &euro;</span></td>
+              <td><span class="status-badge aktiv"><span class="status-dot"></span>Aktiv</span></td>
+              <td><span class="ebay-badge listed"><span class="status-dot"></span>Gelistet</span></td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr data-status="entwurf" data-name="Sony WH-1000XM5">
+              <td class="checkbox-cell"><input type="checkbox" class="custom-checkbox row-checkbox" onchange="updateBulkBar()"></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb"><div class="product-thumb-placeholder">&#127911;</div></div>
+                  <div class="product-info">
+                    <div class="product-name">Sony WH-1000XM5</div>
+                    <div class="product-sku">SKU-SNY-WH5-BLK</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="category-tag">Kopfh&ouml;rer</span></td>
+              <td style="text-align:right;"><span class="stock-ok">67</span></td>
+              <td style="text-align:right;"><span class="price-cell">329,00 &euro;</span></td>
+              <td><span class="status-badge entwurf"><span class="status-dot"></span>Entwurf</span></td>
+              <td><span class="ebay-badge unlisted"><span class="status-dot"></span>Nicht gelistet</span></td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr data-status="aktiv" data-name="Apple MacBook Air M3">
+              <td class="checkbox-cell"><input type="checkbox" class="custom-checkbox row-checkbox" onchange="updateBulkBar()"></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb"><div class="product-thumb-placeholder">&#128187;</div></div>
+                  <div class="product-info">
+                    <div class="product-name">Apple MacBook Air M3</div>
+                    <div class="product-sku">SKU-APL-MBA-M3-256</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="category-tag">Laptops</span></td>
+              <td style="text-align:right;"><span class="stock-ok">34</span></td>
+              <td style="text-align:right;"><span class="price-cell">1.199,00 &euro;</span></td>
+              <td><span class="status-badge aktiv"><span class="status-dot"></span>Aktiv</span></td>
+              <td><span class="ebay-badge listed"><span class="status-dot"></span>Gelistet</span></td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr data-status="aktiv" data-name="Samsung Galaxy Tab S9">
+              <td class="checkbox-cell"><input type="checkbox" class="custom-checkbox row-checkbox" onchange="updateBulkBar()"></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb"><div class="product-thumb-placeholder">&#128187;</div></div>
+                  <div class="product-info">
+                    <div class="product-name">Samsung Galaxy Tab S9</div>
+                    <div class="product-sku">SKU-SM-TABS9-128</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="category-tag">Tablets</span></td>
+              <td style="text-align:right;"><span class="stock-low">3</span></td>
+              <td style="text-align:right;"><span class="price-cell">749,00 &euro;</span></td>
+              <td><span class="status-badge aktiv"><span class="status-dot"></span>Aktiv</span></td>
+              <td><span class="ebay-badge listed"><span class="status-dot"></span>Gelistet</span></td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr data-status="archiviert" data-name="Google Pixel 7 Pro">
+              <td class="checkbox-cell"><input type="checkbox" class="custom-checkbox row-checkbox" onchange="updateBulkBar()"></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb"><div class="product-thumb-placeholder">&#128241;</div></div>
+                  <div class="product-info">
+                    <div class="product-name">Google Pixel 7 Pro</div>
+                    <div class="product-sku">SKU-GGL-PX7P-128</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="category-tag">Smartphones</span></td>
+              <td style="text-align:right;"><span class="stock-low">0</span></td>
+              <td style="text-align:right;"><span class="price-cell">649,00 &euro;</span></td>
+              <td><span class="status-badge archiviert"><span class="status-dot"></span>Archiviert</span></td>
+              <td><span class="ebay-badge unlisted"><span class="status-dot"></span>Nicht gelistet</span></td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr data-status="aktiv" data-name="Apple AirPods Pro 2">
+              <td class="checkbox-cell"><input type="checkbox" class="custom-checkbox row-checkbox" onchange="updateBulkBar()"></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb"><div class="product-thumb-placeholder">&#127911;</div></div>
+                  <div class="product-info">
+                    <div class="product-name">Apple AirPods Pro 2</div>
+                    <div class="product-sku">SKU-APL-APP2-USB</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="category-tag">Kopfh&ouml;rer</span></td>
+              <td style="text-align:right;"><span class="stock-ok">256</span></td>
+              <td style="text-align:right;"><span class="price-cell">279,00 &euro;</span></td>
+              <td><span class="status-badge aktiv"><span class="status-dot"></span>Aktiv</span></td>
+              <td><span class="ebay-badge listed"><span class="status-dot"></span>Gelistet</span></td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr data-status="entwurf" data-name="Lenovo ThinkPad X1 Carbon">
+              <td class="checkbox-cell"><input type="checkbox" class="custom-checkbox row-checkbox" onchange="updateBulkBar()"></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb"><div class="product-thumb-placeholder">&#128187;</div></div>
+                  <div class="product-info">
+                    <div class="product-name">Lenovo ThinkPad X1 Carbon</div>
+                    <div class="product-sku">SKU-LNV-X1C-G11</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="category-tag">Laptops</span></td>
+              <td style="text-align:right;"><span class="stock-warn">12</span></td>
+              <td style="text-align:right;"><span class="price-cell">1.849,00 &euro;</span></td>
+              <td><span class="status-badge entwurf"><span class="status-dot"></span>Entwurf</span></td>
+              <td><span class="ebay-badge unlisted"><span class="status-dot"></span>Nicht gelistet</span></td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr data-status="aktiv" data-name="Bose QuietComfort Ultra">
+              <td class="checkbox-cell"><input type="checkbox" class="custom-checkbox row-checkbox" onchange="updateBulkBar()"></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb"><div class="product-thumb-placeholder">&#127911;</div></div>
+                  <div class="product-info">
+                    <div class="product-name">Bose QuietComfort Ultra</div>
+                    <div class="product-sku">SKU-BSE-QCU-BLK</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="category-tag">Kopfh&ouml;rer</span></td>
+              <td style="text-align:right;"><span class="stock-warn">8</span></td>
+              <td style="text-align:right;"><span class="price-cell">349,00 &euro;</span></td>
+              <td><span class="status-badge aktiv"><span class="status-dot"></span>Aktiv</span></td>
+              <td><span class="ebay-badge listed"><span class="status-dot"></span>Gelistet</span></td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-bar">
+        <div class="pagination-info"><strong>1&ndash;10</strong> von <strong>1.247</strong> Produkte</div>
+        <div class="pagination-buttons">
+          <button class="page-btn" disabled title="Vorherige Seite">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3L5 7l4 4"/></svg>
+          </button>
+          <button class="page-btn active">1</button>
+          <button class="page-btn" onclick="showToast('info','Navigation','Seite 2 wird geladen...')">2</button>
+          <button class="page-btn" onclick="showToast('info','Navigation','Seite 3 wird geladen...')">3</button>
+          <span class="page-ellipsis">&hellip;</span>
+          <button class="page-btn" onclick="showToast('info','Navigation','Seite 125 wird geladen...')">125</button>
+          <button class="page-btn" onclick="showToast('info','Navigation','Naechste Seite wird geladen...')" title="Naechste Seite">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3l4 4-4 4"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Bulk Action Bar -->
+<div class="bulk-bar" id="bulkBar">
+  <span class="bulk-bar-count" id="bulkCount">0 ausgewaehlt</span>
+  <div class="bulk-bar-divider"></div>
+  <div class="bulk-bar-actions">
+    <button class="bulk-btn" onclick="showToast('info', 'eBay Listen', 'Ausgewaehlte Produkte werden auf eBay gelistet...')">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5.5"/><path d="M2 7h10M7 1.5a7.5 7.5 0 012 5.5 7.5 7.5 0 01-2 5.5 7.5 7.5 0 01-2-5.5A7.5 7.5 0 017 1.5z"/></svg>
+      eBay Listen
+    </button>
+    <button class="bulk-btn" onclick="showToast('info', 'Preis aendern', 'Massenpreisaenderung wird vorbereitet...')">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v12M4 3.5h4.5a2 2 0 010 4H4M4 7.5h5a2 2 0 010 4H3.5"/></svg>
+      Preis &auml;ndern
+    </button>
+    <button class="bulk-btn" onclick="showToast('warning', 'Archivieren', 'Ausgewaehlte Produkte werden archiviert...')">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2" width="11" height="3" rx="1"/><path d="M2.5 5v6.5a1 1 0 001 1h7a1 1 0 001-1V5M5.5 8h3"/></svg>
+      Archivieren
+    </button>
+    <button class="bulk-btn danger" onclick="showToast('error', 'Loeschen', 'Ausgewaehlte Produkte werden geloescht...')">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h10M5 4V2.5a.5.5 0 01.5-.5h3a.5.5 0 01.5.5V4M11 4v7.5a1.5 1.5 0 01-1.5 1.5h-5A1.5 1.5 0 013 11.5V4"/></svg>
+      L&ouml;schen
+    </button>
+  </div>
+  <button class="bulk-bar-close" onclick="clearSelection()" title="Auswahl aufheben">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+  </button>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Command Palette -->
+<div class="cmd-overlay" id="cmdOverlay" onclick="if(event.target===this)closeCmd()">
+  <div class="cmd-box">
+    <div class="cmd-input-wrap">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M13 13l3 3"/></svg>
+      <input class="cmd-input" id="cmdInput" placeholder="Suche oder Befehl eingeben..." autofocus>
+      <kbd style="font-family:inherit;font-size:11px;padding:2px 6px;border-radius:4px;background:var(--surface-secondary);border:1px solid var(--border);color:var(--text-tertiary);">ESC</kbd>
+    </div>
+    <div class="cmd-results">
+      <div class="cmd-group-label">Navigation</div>
+      <div class="cmd-item" onclick="window.location='dashboard-v2.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/></svg>Dashboard</div>
+      <div class="cmd-item selected" onclick="window.location='products-v2.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h12M3 7h12M3 11h8M3 15h10"/></svg>Produkte<kbd>1.247</kbd></div>
+      <div class="cmd-item" onclick="window.location='orders.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h2v2H3zM3 8h2v2H3zM3 13h2v2H3zM8 4h7M8 9h7M8 14h5"/></svg>Bestellungen<kbd>23 offen</kbd></div>
+      <div class="cmd-group-label">Aktionen</div>
+      <div class="cmd-item" onclick="closeCmd();showToast('success','Produkt erstellt','Ein neues Produkt wurde angelegt.')"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3v12M3 9h12"/></svg>Neues Produkt erstellen<kbd>&#8984;N</kbd></div>
+      <div class="cmd-item" onclick="closeCmd();showToast('info','Import','CSV Import wird gestartet...')"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 11v4a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 013 15v-4M9 11V2M6 5l3 3 3-3"/></svg>Produkte importieren</div>
+      <div class="cmd-item" onclick="closeCmd();showToast('info','Export','Produktliste wird exportiert...')"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 11v4a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 013 15v-4M9 2v9M6 5l3-3 3 3"/></svg>Produkte exportieren</div>
+    </div>
+    <div class="cmd-footer">
+      <div class="cmd-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigieren</div>
+      <div class="cmd-hint"><kbd>&crarr;</kbd> Oeffnen</div>
+      <div class="cmd-hint"><kbd>ESC</kbd> Schliessen</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ Theme ============
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('avy-theme', isDark ? 'light' : 'dark');
+}
+(function() {
+  const saved = localStorage.getItem('avy-theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+
+// ============ Mobile Sidebar ============
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.querySelector('.sidebar-overlay').classList.toggle('active');
+}
+
+// ============ Command Palette ============
+function openCmd() { document.getElementById('cmdOverlay').classList.add('active'); document.getElementById('cmdInput').focus(); }
+function closeCmd() { document.getElementById('cmdOverlay').classList.remove('active'); document.getElementById('cmdInput').value = ''; }
+document.addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openCmd(); }
+  if (e.key === 'Escape') closeCmd();
+});
+
+// ============ Filter Pills ============
+let currentFilter = 'alle';
+function setFilter(btn, filter) {
+  btn.parentElement.querySelectorAll('.filter-pill').forEach(function(p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+  currentFilter = filter;
+  filterTable();
+}
+
+// ============ Table Search + Filter ============
+function filterTable() {
+  var query = document.getElementById('tableSearch').value.toLowerCase();
+  var rows = document.querySelectorAll('#productTableBody tr');
+  rows.forEach(function(row) {
+    var name = (row.getAttribute('data-name') || '').toLowerCase();
+    var status = (row.getAttribute('data-status') || '').toLowerCase();
+    var text = row.textContent.toLowerCase();
+    var matchSearch = !query || text.indexOf(query) !== -1;
+    var matchFilter = currentFilter === 'alle' || status === currentFilter;
+    row.style.display = (matchSearch && matchFilter) ? '' : 'none';
+  });
+}
+
+// ============ Sort Table ============
+var sortState = {};
+function sortTable(colIndex) {
+  var ths = document.querySelectorAll('.product-table thead th');
+  var dir = sortState[colIndex] === 'asc' ? 'desc' : 'asc';
+  sortState = {};
+  sortState[colIndex] = dir;
+
+  // Update header classes
+  ths.forEach(function(th, i) {
+    th.classList.remove('sorted', 'desc');
+    if (i === colIndex) {
+      th.classList.add('sorted');
+      if (dir === 'desc') th.classList.add('desc');
+    }
+  });
+
+  var tbody = document.getElementById('productTableBody');
+  var rows = Array.from(tbody.querySelectorAll('tr'));
+  rows.sort(function(a, b) {
+    var cellA = a.children[colIndex];
+    var cellB = b.children[colIndex];
+    var valA = (cellA ? cellA.textContent : '').trim();
+    var valB = (cellB ? cellB.textContent : '').trim();
+
+    // Try numeric sort for price and stock
+    var numA = parseFloat(valA.replace(/[^0-9,.-]/g, '').replace('.', '').replace(',', '.'));
+    var numB = parseFloat(valB.replace(/[^0-9,.-]/g, '').replace('.', '').replace(',', '.'));
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return dir === 'asc' ? numA - numB : numB - numA;
+    }
+    // String sort
+    return dir === 'asc' ? valA.localeCompare(valB, 'de') : valB.localeCompare(valA, 'de');
+  });
+  rows.forEach(function(row) { tbody.appendChild(row); });
+}
+
+// ============ Checkbox / Bulk Actions ============
+function toggleSelectAll(master) {
+  var checkboxes = document.querySelectorAll('.row-checkbox');
+  checkboxes.forEach(function(cb) {
+    if (cb.closest('tr').style.display !== 'none') {
+      cb.checked = master.checked;
+    }
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  var checked = document.querySelectorAll('.row-checkbox:checked');
+  var bar = document.getElementById('bulkBar');
+  var count = checked.length;
+  document.getElementById('bulkCount').textContent = count + ' ausgewaehlt';
+  if (count > 0) {
+    bar.classList.add('visible');
+  } else {
+    bar.classList.remove('visible');
+  }
+  // Update master checkbox
+  var all = document.querySelectorAll('.row-checkbox');
+  var visible = Array.from(all).filter(function(cb) { return cb.closest('tr').style.display !== 'none'; });
+  var allChecked = visible.length > 0 && visible.every(function(cb) { return cb.checked; });
+  document.getElementById('selectAll').checked = allChecked;
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-checkbox').forEach(function(cb) { cb.checked = false; });
+  document.getElementById('selectAll').checked = false;
+  updateBulkBar();
+}
+
+// ============ Toast System ============
+var toastId = 0;
+function showToast(type, title, desc) {
+  var id = ++toastId;
+  var cs = getComputedStyle(document.documentElement);
+  var colors = {
+    success: cs.getPropertyValue('--success').trim(),
+    error: cs.getPropertyValue('--error').trim(),
+    info: cs.getPropertyValue('--info').trim(),
+    warning: cs.getPropertyValue('--warning').trim()
+  };
+  var icons = {
+    success: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="' + colors.success + '" stroke-width="1.5"/><path d="M6 9l2 2 4-4" stroke="' + colors.success + '" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    error: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="' + colors.error + '" stroke-width="1.5"/><path d="M6.75 6.75l4.5 4.5M11.25 6.75l-4.5 4.5" stroke="' + colors.error + '" stroke-width="1.5"/></svg>',
+    info: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="' + colors.info + '" stroke-width="1.5"/><path d="M9 7v4M9 12.5v.5" stroke="' + colors.info + '" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    warning: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2l7.5 13H1.5z" stroke="' + colors.warning + '" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 7.5v3M9 12.5v.5" stroke="' + colors.warning + '" stroke-width="1.5" stroke-linecap="round"/></svg>'
+  };
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = '<div class="toast-icon">' + icons[type] + '</div><div class="toast-body"><div class="toast-title">' + title + '</div>' + (desc ? '<div class="toast-desc">' + desc + '</div>' : '') + '</div><button class="toast-close" onclick="removeToast(this.parentElement)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg></button><div class="toast-progress ' + type + '" style="width:100%;animation:shrink 5s linear forwards;"></div>';
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(function() { removeToast(el); }, 5000);
+}
+function removeToast(el) { if (!el || el.classList.contains('leaving')) return; el.classList.add('leaving'); setTimeout(function() { el.remove(); }, 300); }
+</script>
+
+</body>
+</html>

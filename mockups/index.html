@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud — Mockup Overview v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --avy-deep: #0A2540;
+  --avy-purple: #635BFF;
+  --avy-purple-hover: #5148E5;
+  --avy-purple-light: #818CF8;
+  --avy-gradient: linear-gradient(135deg, #635BFF, #0070F3);
+  --bg: #F6F9FC; --surface: #FFFFFF; --surface-hover: #FAFBFD; --surface-secondary: #F0F3F7;
+  --text-primary: #0A2540; --text-secondary: #425466; --text-tertiary: #8898AA;
+  --border: #E3E8EE; --border-hover: #C1C9D2;
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.03), 0 3px 6px rgba(0,0,0,0.02);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 16px 48px rgba(0,0,0,0.08);
+  --success: #0E9F6E; --warning: #D97706; --error: #DC2626; --info: #0070F3;
+  --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+}
+[data-theme="dark"] {
+  --bg: #0B0F14; --surface: #151A21; --surface-hover: #1A2029; --surface-secondary: #1E252E;
+  --text-primary: #F1F3F5; --text-secondary: #8898AA; --text-tertiary: #5E6E80;
+  --border: #1E2A36; --border-hover: #2A3A4A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.3);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg); color: var(--text-primary);
+  min-height: 100vh; padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Header */
+.header {
+  background: var(--avy-deep);
+  padding: 48px 40px 56px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 600px 400px at 30% 50%, rgba(99,91,255,0.15), transparent),
+    radial-gradient(ellipse 500px 300px at 70% 50%, rgba(0,112,243,0.1), transparent);
+}
+.header > * { position: relative; z-index: 1; }
+.header-logo {
+  width: 48px; height: 48px; background: var(--avy-gradient);
+  border-radius: 14px; display: inline-flex; align-items: center; justify-content: center;
+  color: white; font-weight: 800; font-size: 22px; margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(99,91,255,0.4);
+}
+.header h1 {
+  font-size: 36px; font-weight: 800; color: white; letter-spacing: -0.03em; margin-bottom: 8px;
+}
+.header p {
+  font-size: 16px; color: rgba(255,255,255,0.6); max-width: 480px; margin: 0 auto 24px;
+}
+.version-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 14px; border-radius: 20px;
+  background: rgba(99,91,255,0.15); border: 1px solid rgba(99,91,255,0.25);
+  font-size: 12px; font-weight: 600; color: var(--avy-purple-light);
+}
+.version-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: #0E9F6E; }
+.stats-row {
+  display: flex; gap: 40px; justify-content: center; margin-top: 28px;
+}
+.stat { text-align: center; }
+.stat-value { font-size: 28px; font-weight: 800; color: white; }
+.stat-label { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+.theme-btn {
+  position: absolute; top: 20px; right: 24px; z-index: 10;
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.6); transition: all 150ms;
+}
+.theme-btn:hover { background: rgba(255,255,255,0.14); color: white; }
+
+/* Content */
+.content { max-width: 1200px; margin: 0 auto; padding: 40px 32px 80px; }
+
+.section { margin-bottom: 48px; }
+.section-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+}
+.section-icon {
+  width: 28px; height: 28px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.section-title { font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+.section-count { font-size: 12px; font-weight: 600; color: var(--text-tertiary); background: var(--surface-secondary); padding: 2px 8px; border-radius: 10px; }
+
+/* Cards Grid */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.mockup-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.mockup-card:hover {
+  border-color: var(--avy-purple);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.mockup-card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: radial-gradient(300px circle at var(--mouse-x, 50%) var(--mouse-y, 0%), rgba(99,91,255,0.08), transparent 40%);
+  opacity: 0;
+  transition: opacity 300ms;
+  pointer-events: none;
+}
+.mockup-card:hover::after { opacity: 1; }
+.mockup-card > * { position: relative; z-index: 1; }
+
+.card-icon-row { display: flex; align-items: center; gap: 10px; }
+.card-icon {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.card-name { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+.card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.card-tag {
+  font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 4px;
+  background: var(--surface-secondary); color: var(--text-tertiary);
+}
+.card-tag.desktop { background: rgba(0,112,243,0.08); color: var(--info); }
+.card-tag.mobile { background: rgba(14,159,110,0.08); color: var(--success); }
+.card-tag.auth { background: rgba(99,91,255,0.08); color: var(--avy-purple); }
+.card-tag.new { background: rgba(14,159,110,0.1); color: var(--success); font-weight: 600; }
+
+.card-arrow {
+  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  color: var(--text-tertiary); opacity: 0; transition: all 200ms;
+}
+.mockup-card:hover .card-arrow { opacity: 1; transform: translateY(-50%) translateX(2px); color: var(--avy-purple); }
+
+/* Footer */
+.footer {
+  text-align: center; padding: 32px; border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--text-tertiary);
+}
+
+@media (max-width: 768px) {
+  .header { padding: 32px 20px 40px; }
+  .header h1 { font-size: 24px; }
+  .stats-row { gap: 24px; }
+  .stat-value { font-size: 22px; }
+  .content { padding: 24px 16px 60px; }
+  .cards-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <button class="theme-btn" onclick="toggleTheme()">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
+  </button>
+  <div class="header-logo">A</div>
+  <h1>AvyCloud Redesign v2</h1>
+  <p>Stripe/Vercel-inspired Design System. Premium UI fuer smarte Lagerverwaltung.</p>
+  <div class="version-badge"><span class="dot"></span>Design System v2.1 — Live Mockups</div>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-value">13</div><div class="stat-label">Screens</div></div>
+    <div class="stat"><div class="stat-value">v2</div><div class="stat-label">Design</div></div>
+    <div class="stat"><div class="stat-value">2</div><div class="stat-label">Themes</div></div>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- Auth -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(99,91,255,0.1);">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--avy-purple)" stroke-width="1.5"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
+      </div>
+      <span class="section-title">Authentifizierung</span>
+      <span class="section-count">1 Screen</span>
+    </div>
+    <div class="cards-grid">
+      <a class="mockup-card" href="login-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(99,91,255,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--avy-purple)" stroke-width="1.5"><rect x="3" y="8" width="12" height="8" rx="2"/><path d="M6 8V5.5a3 3 0 016 0V8"/></svg></div>
+          <span class="card-name">Login</span>
+        </div>
+        <div class="card-desc">Split-Layout Login mit Google SSO, Passwort-Reset Flow, Premium Brand-Panel</div>
+        <div class="card-tags"><span class="card-tag auth">Auth</span><span class="card-tag">Responsive</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- Desktop Hauptseiten -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(0,112,243,0.1);">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--info)" stroke-width="1.5"><rect x="2" y="3" width="12" height="9" rx="1.5"/><path d="M5 14h6"/></svg>
+      </div>
+      <span class="section-title">Desktop Screens</span>
+      <span class="section-count">9 Screens</span>
+    </div>
+    <div class="cards-grid">
+      <a class="mockup-card" href="dashboard-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(0,112,243,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--info)" stroke-width="1.5"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/></svg></div>
+          <span class="card-name">Dashboard</span>
+        </div>
+        <div class="card-desc">KPI Cards mit Cursor-Glow, Umsatz-Chart, Bestellungen, Activity Feed, Command Palette</div>
+        <div class="card-tags"><span class="card-tag desktop">Desktop</span><span class="card-tag">Toast System</span><span class="card-tag">Sync Banner</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+
+      <a class="mockup-card" href="products-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(0,112,243,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--info)" stroke-width="1.5"><path d="M3 3h12M3 7h12M3 11h8M3 15h10"/></svg></div>
+          <span class="card-name">Produkte</span>
+        </div>
+        <div class="card-desc">Produkttabelle mit Filtern, Sortierung, Bulk Actions, Pagination, eBay-Status</div>
+        <div class="card-tags"><span class="card-tag desktop">Desktop</span><span class="card-tag">AdminTable</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+
+      <a class="mockup-card" href="product-sheet-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(0,112,243,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--info)" stroke-width="1.5"><rect x="3" y="2" width="12" height="14" rx="2"/><path d="M7 6h4M7 9h4M7 12h2"/></svg></div>
+          <span class="card-name">Produkt-Editor</span>
+        </div>
+        <div class="card-desc">Split-View Editor: Bilder, Grunddaten, Spezifikationen, Lager, Preise, eBay-Status</div>
+        <div class="card-tags"><span class="card-tag desktop">Desktop</span><span class="card-tag">Split View</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+
+      <a class="mockup-card" href="orders-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(217,119,6,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--warning)" stroke-width="1.5"><path d="M3 3h2v2H3zM3 8h2v2H3zM3 13h2v2H3zM8 4h7M8 9h7M8 14h5"/></svg></div>
+          <span class="card-name">Bestellungen</span>
+        </div>
+        <div class="card-desc">Bestelltabelle mit Status-Tabs, Fulfillment-Timeline, Detail-Slideout, Bulk Actions</div>
+        <div class="card-tags"><span class="card-tag desktop">Desktop</span><span class="card-tag">Slideout Panel</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+
+      <a class="mockup-card" href="ebay-listings-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(14,159,110,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--success)" stroke-width="1.5"><circle cx="9" cy="9" r="6.5"/><path d="M2.5 9h13M9 2.5c2 2 2.5 4 2.5 6.5S11 15.5 9 15.5 6.5 13 6.5 9 7 2.5 9 2.5z"/></svg></div>
+          <span class="card-name">eBay Listings</span>
+        </div>
+        <div class="card-desc">Listing-Sync, Preis-Gap Analyse, Status-Tracking, Bulk-Sync, Live Progress</div>
+        <div class="card-tags"><span class="card-tag desktop">Desktop</span><span class="card-tag">Sync Engine</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+
+      <a class="mockup-card" href="operations-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(14,159,110,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--success)" stroke-width="1.5"><rect x="2" y="4" width="6" height="10" rx="1"/><rect x="10" y="4" width="6" height="10" rx="1"/></svg></div>
+          <span class="card-name">Stow / Pick</span>
+        </div>
+        <div class="card-desc">Warehouse Operations: Einlagern & Kommissionieren mit Scanner, Queues, Echtzeit-Status</div>
+        <div class="card-tags"><span class="card-tag desktop">Desktop</span><span class="card-tag">Workflows</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+
+      <a class="mockup-card" href="warehouse-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(99,91,255,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--avy-purple)" stroke-width="1.5"><path d="M2 15V6l7-4 7 4v9M2 6h14M6 15v-5h6v5"/></svg></div>
+          <span class="card-name">Warehouse</span>
+        </div>
+        <div class="card-desc">Visuelles Lager-Grid, Bin-Management, Zonen-Navigation, Heatmap-Auslastung</div>
+        <div class="card-tags"><span class="card-tag desktop">Desktop</span><span class="card-tag">Visual Grid</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+
+      <a class="mockup-card" href="categories-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(217,119,6,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--warning)" stroke-width="1.5"><path d="M2 5a2 2 0 012-2h3l2 2h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V5z"/></svg></div>
+          <span class="card-name">Kategorien</span>
+        </div>
+        <div class="card-desc">eBay Kategorie-Baum, Profil-Editor, Listing-Templates, Preisregeln</div>
+        <div class="card-tags"><span class="card-tag desktop">Desktop</span><span class="card-tag">Tree View</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+
+      <a class="mockup-card" href="admin-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(220,38,38,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--error)" stroke-width="1.5"><circle cx="9" cy="9" r="3"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4 4l1.4 1.4M12.6 12.6L14 14M4 14l1.4-1.4M12.6 5.4L14 4"/></svg></div>
+          <span class="card-name">Admin</span>
+        </div>
+        <div class="card-desc">Benutzer, Rollen, Gruppen, LLM-Konfiguration, Integrationen, Bulk Actions</div>
+        <div class="card-tags"><span class="card-tag desktop">Desktop</span><span class="card-tag">Multi-Tab</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- Input/Identifizierung -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(99,91,255,0.1);">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--avy-purple)" stroke-width="1.5"><path d="M13 10v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3M8 2v8M5 5l3-3 3 3"/></svg>
+      </div>
+      <span class="section-title">Produkt-Input</span>
+      <span class="section-count">1 Screen</span>
+    </div>
+    <div class="cards-grid">
+      <a class="mockup-card" href="product-input-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(99,91,255,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--avy-purple)" stroke-width="1.5"><path d="M15 11v4a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 013 15v-4M9 2v9M6 5l3-3 3 3"/></svg></div>
+          <span class="card-name">Identifizierung</span>
+        </div>
+        <div class="card-desc">KI-Produkterkennung per Bild, Barcode-Scanner, manuelle Eingabe, Batch-Modus</div>
+        <div class="card-tags"><span class="card-tag desktop">Desktop</span><span class="card-tag">KI/Gemini</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- Mobile -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(14,159,110,0.1);">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--success)" stroke-width="1.5"><rect x="4" y="1" width="8" height="14" rx="2"/><path d="M7 12h2"/></svg>
+      </div>
+      <span class="section-title">Mobile Screens</span>
+      <span class="section-count">2 Screens</span>
+    </div>
+    <div class="cards-grid">
+      <a class="mockup-card" href="mobile-dashboard-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(14,159,110,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--success)" stroke-width="1.5"><rect x="4.5" y="1.5" width="9" height="15" rx="2"/><path d="M7.5 14h3"/></svg></div>
+          <span class="card-name">Mobile Dashboard</span>
+        </div>
+        <div class="card-desc">Mobile KPIs, Quick Actions, Activity Feed, Bottom Tab Bar, Pull-to-Refresh</div>
+        <div class="card-tags"><span class="card-tag mobile">Mobile</span><span class="card-tag">Touch-first</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+
+      <a class="mockup-card" href="mobile-operations-v2.html" onmousemove="trackMouse(event, this)">
+        <div class="card-icon-row">
+          <div class="card-icon" style="background:rgba(14,159,110,0.08);"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--success)" stroke-width="1.5"><rect x="4.5" y="1.5" width="9" height="15" rx="2"/><path d="M8 6h2M7 9h4M8 12h2"/></svg></div>
+          <span class="card-name">Mobile Operations</span>
+        </div>
+        <div class="card-desc">Mobile Stow/Pick mit grossen Touch-Targets, Scanner, Checklisten, Erfolgs-Animationen</div>
+        <div class="card-tags"><span class="card-tag mobile">Mobile</span><span class="card-tag">Warehouse</span><span class="card-tag new">v2</span></div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- Design System Info -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(99,91,255,0.1);">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--avy-purple)" stroke-width="1.5"><path d="M8 2v12M2 8h12"/></svg>
+      </div>
+      <span class="section-title">Design System v2.1</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Brand</div>
+        <div style="display:flex;gap:6px;">
+          <div style="width:32px;height:32px;border-radius:6px;background:#0A2540;" title="Avy Deep"></div>
+          <div style="width:32px;height:32px;border-radius:6px;background:#635BFF;" title="Avy Purple"></div>
+          <div style="width:32px;height:32px;border-radius:6px;background:#0070F3;" title="Avy Blue"></div>
+          <div style="width:32px;height:32px;border-radius:6px;background:linear-gradient(135deg,#635BFF,#0070F3);" title="Gradient"></div>
+        </div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Semantic</div>
+        <div style="display:flex;gap:6px;">
+          <div style="width:32px;height:32px;border-radius:6px;background:#0E9F6E;" title="Success"></div>
+          <div style="width:32px;height:32px;border-radius:6px;background:#D97706;" title="Warning"></div>
+          <div style="width:32px;height:32px;border-radius:6px;background:#DC2626;" title="Error"></div>
+          <div style="width:32px;height:32px;border-radius:6px;background:#0070F3;" title="Info"></div>
+        </div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Typography</div>
+        <div style="font-size:13px;color:var(--text-secondary);">Inter 400-800<br>14px Base</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Features</div>
+        <div style="font-size:13px;color:var(--text-secondary);">Light + Dark Mode<br>5 Breakpoints<br>Toast System</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  AvyCloud Redesign v2.1 — Stripe/Vercel Design Language — 13 Screens — Feb 2026
+</div>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('avy-theme', isDark ? 'light' : 'dark');
+}
+(function() {
+  const saved = localStorage.getItem('avy-theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+function trackMouse(e, el) {
+  const r = el.getBoundingClientRect();
+  el.style.setProperty('--mouse-x', (e.clientX - r.left) + 'px');
+  el.style.setProperty('--mouse-y', (e.clientY - r.top) + 'px');
+}
+</script>
+</body>
+</html>

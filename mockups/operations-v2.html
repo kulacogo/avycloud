@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud — Warehouse Operations</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   AVYCLOUD DESIGN SYSTEM v2.1
+   Warehouse Operations — Stow / Pick
+   ═══════════════════════════════════════════ */
+:root {
+  --avy-deep: #0A2540;
+  --avy-purple: #635BFF;
+  --avy-purple-hover: #5148E5;
+  --avy-purple-light: #818CF8;
+  --avy-purple-glow: rgba(99, 91, 255, 0.12);
+  --avy-gradient: linear-gradient(135deg, #635BFF, #0070F3);
+  --bg: #F6F9FC; --surface: #FFFFFF; --surface-hover: #FAFBFD; --surface-secondary: #F0F3F7;
+  --text-primary: #0A2540; --text-secondary: #425466; --text-tertiary: #8898AA;
+  --text-on-dark: #FFFFFF; --text-on-dark-muted: rgba(255,255,255,0.65);
+  --border: #E3E8EE; --border-hover: #C1C9D2;
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.03), 0 3px 6px rgba(0,0,0,0.02);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 16px 48px rgba(0,0,0,0.08);
+  --shadow-focus: 0 0 0 3px var(--avy-purple-glow);
+  --success: #0E9F6E; --success-bg: #ECFDF5; --success-border: #A7F3D0;
+  --warning: #D97706; --warning-bg: #FFFBEB; --warning-border: #FDE68A;
+  --error: #DC2626; --error-bg: #FEF2F2; --error-border: #FECACA;
+  --info: #0070F3; --info-bg: #EFF6FF; --info-border: #BFDBFE;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px;
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+  --sidebar-w: 248px;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+[data-theme="dark"] {
+  --bg: #0B0F14; --surface: #151A21; --surface-hover: #1A2029; --surface-secondary: #1E252E;
+  --text-primary: #F1F3F5; --text-secondary: #8898AA; --text-tertiary: #5E6E80;
+  --border: #1E2A36; --border-hover: #2A3A4A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.3);
+  --success-bg: rgba(14,159,110,0.1); --success-border: rgba(14,159,110,0.25);
+  --warning-bg: rgba(217,119,6,0.1); --warning-border: rgba(217,119,6,0.25);
+  --error-bg: rgba(220,38,38,0.1); --error-border: rgba(220,38,38,0.25);
+  --info-bg: rgba(0,112,243,0.1); --info-border: rgba(0,112,243,0.25);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text-primary);
+  font-size: 14px; line-height: 1.5; min-height: 100vh; display: flex;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══════ SIDEBAR ═══════ */
+.sidebar {
+  width: var(--sidebar-w); height: 100vh; position: fixed;
+  left: 0; top: 0; background: var(--avy-deep);
+  display: flex; flex-direction: column; z-index: 50;
+  overflow-y: auto; overflow-x: hidden;
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar::-webkit-scrollbar { width: 0; }
+.sidebar-header { padding: 20px 20px 24px; display: flex; align-items: center; gap: 12px; }
+.sidebar-logo {
+  width: 28px; height: 28px; background: var(--avy-gradient); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 800; font-size: 14px;
+  box-shadow: 0 2px 8px rgba(99,91,255,0.4); flex-shrink: 0;
+}
+.sidebar-brand { font-size: 16px; font-weight: 700; color: var(--text-on-dark); letter-spacing: -0.02em; }
+.sidebar-section { padding: 0 12px; margin-bottom: 8px; }
+.sidebar-label {
+  font-size: 11px; font-weight: 600; color: var(--text-on-dark-muted);
+  text-transform: uppercase; letter-spacing: 0.06em; padding: 0 8px; margin-bottom: 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+  border-radius: var(--radius-sm); color: var(--text-on-dark-muted);
+  cursor: pointer; transition: all 150ms ease; text-decoration: none;
+  font-size: 13.5px; font-weight: 500; position: relative; margin-bottom: 1px;
+}
+.nav-item:hover { color: var(--text-on-dark); background: rgba(255,255,255,0.06); }
+.nav-item.active { color: var(--text-on-dark); background: rgba(255,255,255,0.1); }
+.nav-item.active::before {
+  content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 16px; background: var(--avy-purple); border-radius: 0 3px 3px 0;
+}
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; }
+.nav-item.active .nav-icon, .nav-item:hover .nav-icon { opacity: 1; }
+.nav-badge {
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 10px;
+  margin-left: auto; background: rgba(99,91,255,0.2); color: var(--avy-purple-light);
+}
+.sidebar-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 12px 20px; }
+.sidebar-footer { margin-top: auto; padding: 16px 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--radius-sm); cursor: pointer; transition: background 150ms ease; }
+.sidebar-user:hover { background: rgba(255,255,255,0.06); }
+.user-avatar { width: 30px; height: 30px; border-radius: 8px; background: var(--avy-gradient); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px; flex-shrink: 0; }
+.user-name { font-size: 13px; font-weight: 500; color: var(--text-on-dark); }
+.user-role { font-size: 11px; color: var(--text-on-dark-muted); }
+
+/* Mobile */
+.mobile-header { display: none; height: 56px; background: var(--avy-deep); padding: 0 16px; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 60; }
+.hamburger { background: none; border: none; color: white; cursor: pointer; padding: 4px; }
+.mobile-brand { font-size: 15px; font-weight: 700; color: white; }
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 45; backdrop-filter: blur(4px); }
+
+/* ═══════ MAIN ═══════ */
+.main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+  height: 56px; padding: 0 var(--space-8); display: flex; align-items: center; gap: 16px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+  position: sticky; top: 0; z-index: 40;
+}
+.topbar-search {
+  display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; transition: all var(--transition); min-width: 240px;
+}
+.topbar-search:hover { border-color: var(--border-hover); box-shadow: var(--shadow-sm); }
+.topbar-search svg { color: var(--text-tertiary); flex-shrink: 0; }
+.topbar-search span { color: var(--text-tertiary); font-size: 13px; }
+.topbar-search kbd {
+  font-family: inherit; font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 4px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-tertiary); margin-left: auto;
+}
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.topbar-btn {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary); cursor: pointer; background: transparent; border: none;
+  transition: all 150ms ease; position: relative;
+}
+.topbar-btn:hover { background: var(--surface-secondary); color: var(--text-secondary); }
+.topbar-btn .dot {
+  position: absolute; top: 7px; right: 7px; width: 7px; height: 7px;
+  border-radius: 50%; background: var(--avy-purple); border: 2px solid var(--surface);
+}
+.theme-toggle {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: transparent; border: 1px solid var(--border);
+  color: var(--text-tertiary); transition: all 150ms ease;
+}
+.theme-toggle:hover { border-color: var(--border-hover); color: var(--text-secondary); }
+
+/* ═══════ PAGE HEADER ═══════ */
+.page-header { padding: var(--space-6) var(--space-8) 0; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.page-header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.page-header-sub { font-size: 14px; color: var(--text-tertiary); margin-top: 2px; }
+.page-header-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+  border-radius: var(--radius-md); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition); border: none; font-family: inherit;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--avy-purple); color: white; }
+.btn-primary:hover { background: var(--avy-purple-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,91,255,0.3); }
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--border-hover); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.btn-ghost { background: transparent; color: var(--text-secondary); }
+.btn-ghost:hover { background: var(--surface-secondary); color: var(--text-primary); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { background: #0B8A5E; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(14,159,110,0.3); }
+.btn-lg { padding: 12px 24px; font-size: 15px; border-radius: var(--radius-lg); }
+
+/* ═══════ CONTENT ═══════ */
+.content { padding: var(--space-5) var(--space-8) var(--space-12); flex: 1; }
+
+/* Card */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); transition: border-color var(--transition); }
+.card:hover { border-color: var(--border-hover); }
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--border);
+}
+.card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.card-body { padding: var(--space-5); }
+
+/* ═══════ MODE TABS ═══════ */
+.mode-tabs {
+  display: flex; gap: 4px; background: var(--surface-secondary); border-radius: var(--radius-lg);
+  padding: 4px; margin-bottom: var(--space-6);
+}
+.mode-tab {
+  flex: 1; padding: 12px 24px; border-radius: var(--radius-md); font-size: 15px; font-weight: 600;
+  color: var(--text-tertiary); cursor: pointer; transition: all var(--transition);
+  border: none; background: none; font-family: inherit; text-align: center;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.mode-tab:hover { color: var(--text-secondary); }
+.mode-tab.active {
+  background: var(--surface); color: var(--text-primary); box-shadow: var(--shadow-sm);
+}
+.mode-tab .tab-count {
+  font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 10px;
+  background: var(--avy-purple-glow); color: var(--avy-purple);
+}
+.mode-tab.active .tab-count { background: var(--avy-purple); color: white; }
+
+/* ═══════ PANELS ═══════ */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.ops-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
+
+/* ═══════ SCANNER INPUT ═══════ */
+.scanner-wrap {
+  position: relative; margin-bottom: var(--space-5);
+}
+.scanner-input {
+  width: 100%; padding: 16px 16px 16px 48px; font-size: 17px; font-weight: 500;
+  border: 2px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); color: var(--text-primary); font-family: inherit;
+  transition: all var(--transition); outline: none;
+}
+.scanner-input:focus {
+  border-color: var(--avy-purple); box-shadow: var(--shadow-focus);
+}
+.scanner-input::placeholder { color: var(--text-tertiary); font-weight: 400; }
+.scanner-icon {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+  color: var(--text-tertiary); transition: color var(--transition);
+}
+.scanner-input:focus ~ .scanner-icon { color: var(--avy-purple); }
+.scanner-status {
+  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  font-size: 12px; font-weight: 500; color: var(--text-tertiary);
+  display: flex; align-items: center; gap: 6px;
+}
+.scanner-status .live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--success);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ═══════ SCANNED ITEM CARD ═══════ */
+.scanned-item {
+  background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius-lg);
+  padding: var(--space-5); margin-bottom: var(--space-5); transition: all 300ms ease;
+}
+.scanned-item.highlight { border-color: var(--avy-purple); box-shadow: var(--shadow-focus); animation: slideDown 300ms ease; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } }
+.scanned-item-inner { display: flex; gap: var(--space-5); }
+.scanned-img {
+  width: 80px; height: 80px; border-radius: var(--radius-md); background: var(--surface-secondary);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.scanned-img svg { color: var(--text-tertiary); }
+.scanned-details { flex: 1; min-width: 0; }
+.scanned-name { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.scanned-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: var(--space-3); }
+.scanned-tag {
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+  background: var(--surface-secondary); color: var(--text-secondary); font-family: 'SF Mono','Fira Code','Consolas', monospace;
+}
+.bin-tag {
+  background: var(--avy-purple-glow); color: var(--avy-purple); font-size: 13px;
+  font-weight: 700; padding: 4px 12px; border-radius: var(--radius-sm);
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: 'SF Mono','Fira Code','Consolas', monospace;
+}
+.scanned-actions {
+  display: flex; gap: var(--space-3); align-items: center; margin-top: var(--space-4);
+}
+.qty-input {
+  width: 72px; padding: 8px 12px; font-size: 15px; font-weight: 600;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--surface); color: var(--text-primary); text-align: center;
+  font-family: inherit; outline: none; transition: all var(--transition);
+}
+.qty-input:focus { border-color: var(--avy-purple); box-shadow: var(--shadow-focus); }
+
+/* ═══════ STOW QUEUE ═══════ */
+.queue-list { display: flex; flex-direction: column; gap: 2px; }
+.queue-item {
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md); transition: all 150ms ease; cursor: pointer;
+  border: 1px solid transparent;
+}
+.queue-item:hover { background: var(--surface-hover); border-color: var(--border); }
+.queue-thumb {
+  width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--surface-secondary);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.queue-thumb svg { width: 16px; height: 16px; color: var(--text-tertiary); }
+.queue-info { flex: 1; min-width: 0; }
+.queue-name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.queue-sub { font-size: 11px; color: var(--text-tertiary); display: flex; gap: 8px; align-items: center; }
+.queue-bin {
+  font-size: 11px; font-weight: 700; color: var(--avy-purple);
+  font-family: 'SF Mono','Fira Code','Consolas', monospace;
+  background: var(--avy-purple-glow); padding: 1px 6px; border-radius: 3px;
+}
+.queue-qty { font-size: 12px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+.queue-status {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  display: flex; align-items: center; gap: 4px; white-space: nowrap;
+}
+.queue-status.waiting { color: var(--text-tertiary); background: var(--surface-secondary); }
+.queue-status.active { color: var(--warning); background: var(--warning-bg); }
+.queue-status.active .status-pulse {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--warning); animation: pulse 2s infinite;
+}
+.queue-status.done { color: var(--success); background: var(--success-bg); }
+.queue-done-btn {
+  width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 150ms; color: var(--text-tertiary); flex-shrink: 0;
+}
+.queue-done-btn:hover { border-color: var(--success); color: var(--success); background: var(--success-bg); }
+
+/* ═══════ PICK PANEL ═══════ */
+.pick-order-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--space-4); flex-wrap: wrap; gap: 8px;
+}
+.pick-order-id {
+  font-size: 16px; font-weight: 700; color: var(--avy-purple);
+  font-family: 'SF Mono','Fira Code','Consolas', monospace;
+}
+.pick-customer { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+
+.pick-progress { margin-bottom: var(--space-5); }
+.pick-progress-bar {
+  height: 8px; background: var(--surface-secondary); border-radius: 4px; overflow: hidden;
+  margin-bottom: 6px;
+}
+.pick-progress-fill {
+  height: 100%; border-radius: 4px; background: var(--avy-gradient);
+  transition: width 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.pick-progress-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.pick-progress-label {
+  display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--text-secondary);
+}
+
+.pick-items { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--space-5); }
+.pick-item {
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md); cursor: pointer; transition: all 150ms;
+  border: 1px solid transparent;
+}
+.pick-item:hover { background: var(--surface-hover); border-color: var(--border); }
+.pick-item.checked { opacity: 0.5; }
+.pick-item.checked .pick-item-name { text-decoration: line-through; color: var(--text-tertiary); }
+.pick-checkbox {
+  width: 22px; height: 22px; border-radius: var(--radius-sm); border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: all 150ms; cursor: pointer; background: var(--surface);
+}
+.pick-item.checked .pick-checkbox {
+  background: var(--success); border-color: var(--success); color: white;
+}
+.pick-item-info { flex: 1; min-width: 0; }
+.pick-item-name { font-size: 13px; font-weight: 500; color: var(--text-primary); transition: all 150ms; }
+.pick-item-sub { font-size: 11px; color: var(--text-tertiary); display: flex; gap: 8px; align-items: center; }
+.pick-item-bin {
+  font-size: 12px; font-weight: 700; color: var(--avy-purple);
+  font-family: 'SF Mono','Fira Code','Consolas', monospace;
+  background: var(--avy-purple-glow); padding: 2px 8px; border-radius: 4px;
+}
+.pick-item-qty { font-size: 13px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+
+/* Next in queue */
+.next-queue { margin-top: var(--space-4); }
+.next-queue-title { font-size: 12px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: var(--space-3); }
+.next-order {
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md); border: 1px solid var(--border); margin-bottom: var(--space-2);
+  transition: all 150ms; cursor: pointer;
+}
+.next-order:hover { border-color: var(--border-hover); box-shadow: var(--shadow-sm); }
+.next-order-id {
+  font-size: 12px; font-weight: 700; color: var(--avy-purple);
+  font-family: 'SF Mono','Fira Code','Consolas', monospace;
+}
+.next-order-info { flex: 1; }
+.next-order-customer { font-size: 12px; color: var(--text-secondary); }
+.next-order-items { font-size: 11px; color: var(--text-tertiary); }
+.next-order-arrow { color: var(--text-tertiary); opacity: 0; transition: opacity 150ms; }
+.next-order:hover .next-order-arrow { opacity: 1; }
+
+/* ═══════ UEBERSICHT TAB ═══════ */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); margin-bottom: var(--space-6); }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: var(--space-5); transition: all 250ms ease; cursor: default;
+}
+.stat-card:hover { border-color: var(--border-hover); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.stat-label { font-size: 12px; font-weight: 500; color: var(--text-tertiary); margin-bottom: var(--space-2); display: flex; align-items: center; gap: 6px; }
+.stat-value { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; color: var(--text-primary); }
+.stat-sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+.stat-up { color: var(--success); }
+.stat-down { color: var(--error); }
+
+.overview-grid { display: grid; grid-template-columns: 1fr 320px; gap: var(--space-6); }
+
+/* Activity feed */
+.feed-list { max-height: 440px; overflow-y: auto; }
+.feed-list::-webkit-scrollbar { width: 4px; }
+.feed-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.feed-item {
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border);
+  transition: background 150ms;
+}
+.feed-item:last-child { border-bottom: none; }
+.feed-item:hover { background: var(--surface-hover); }
+.feed-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.feed-dot.stow { background: var(--info); }
+.feed-dot.pick { background: var(--success); }
+.feed-dot.alert { background: var(--warning); }
+.feed-text { font-size: 13px; color: var(--text-secondary); flex: 1; line-height: 1.4; }
+.feed-text strong { color: var(--text-primary); font-weight: 600; }
+.feed-time { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; margin-top: 1px; }
+
+/* Workers */
+.worker-item {
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.worker-item:last-child { border-bottom: none; }
+.worker-avatar {
+  width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; font-size: 12px; font-weight: 600; color: white; flex-shrink: 0;
+}
+.worker-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.worker-task { font-size: 11px; color: var(--text-tertiary); }
+.worker-status {
+  margin-left: auto; font-size: 10px; font-weight: 600; padding: 2px 8px;
+  border-radius: 10px; display: flex; align-items: center; gap: 4px;
+}
+.worker-status.active { color: var(--success); background: var(--success-bg); }
+.worker-status.idle { color: var(--text-tertiary); background: var(--surface-secondary); }
+
+/* ═══════ SOUND TOGGLE ═══════ */
+.sound-toggle {
+  display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+  border-radius: var(--radius-md); border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer; transition: all 150ms;
+  font-size: 12px; font-weight: 500; color: var(--text-secondary); font-family: inherit;
+}
+.sound-toggle:hover { border-color: var(--border-hover); }
+.sound-toggle.on { border-color: var(--avy-purple); color: var(--avy-purple); background: var(--avy-purple-glow); }
+
+/* ═══════ TOAST ═══════ */
+.toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column-reverse; gap: 8px; pointer-events: none; }
+.toast {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 16px; border-radius: var(--radius-lg);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg); min-width: 320px; max-width: 420px;
+  animation: toastIn 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto; position: relative; overflow: hidden;
+}
+.toast.leaving { animation: toastOut 300ms ease forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(-8px) scale(0.96); } }
+.toast-icon { flex-shrink: 0; margin-top: 1px; }
+.toast-body { flex: 1; }
+.toast-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.toast-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.toast-close { background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: 2px; border-radius: 4px; flex-shrink: 0; }
+.toast-close:hover { background: var(--surface-secondary); }
+.toast-progress { position: absolute; bottom: 0; left: 0; height: 3px; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.toast-progress.success { background: var(--success); }
+.toast-progress.error { background: var(--error); }
+.toast-progress.info { background: var(--info); }
+.toast-progress.warning { background: var(--warning); }
+
+/* ═══════ SUCCESS ANIMATION ═══════ */
+.success-overlay {
+  position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center;
+  background: rgba(14,159,110,0.08); backdrop-filter: blur(2px);
+  animation: fadeIn 200ms ease; pointer-events: none;
+}
+.success-check {
+  width: 80px; height: 80px; border-radius: 50%; background: var(--success);
+  display: flex; align-items: center; justify-content: center;
+  animation: popIn 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 8px 32px rgba(14,159,110,0.4);
+}
+@keyframes popIn { 0% { transform: scale(0); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes fadeIn { from { opacity: 0; } }
+
+/* ═══════ COMMAND PALETTE ═══════ */
+.cmd-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 200; align-items: flex-start; justify-content: center; padding-top: 15vh; }
+.cmd-overlay.active { display: flex; animation: fadeIn 150ms ease; }
+.cmd-box {
+  width: 560px; max-width: 90vw; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); overflow: hidden;
+  animation: slideDown 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cmd-input-wrap { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.cmd-input {
+  flex: 1; border: none; background: none; font-size: 15px; font-weight: 500;
+  color: var(--text-primary); outline: none; font-family: inherit;
+}
+.cmd-input::placeholder { color: var(--text-tertiary); }
+.cmd-results { max-height: 320px; overflow-y: auto; padding: 8px; }
+.cmd-group-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 8px 4px; }
+.cmd-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border-radius: var(--radius-sm); cursor: pointer; transition: background 100ms;
+  font-size: 13px; color: var(--text-secondary); font-weight: 500;
+}
+.cmd-item:hover, .cmd-item.selected { background: var(--surface-secondary); color: var(--text-primary); }
+.cmd-item-icon { width: 18px; height: 18px; color: var(--text-tertiary); flex-shrink: 0; }
+.cmd-item:hover .cmd-item-icon { color: var(--avy-purple); }
+.cmd-item kbd { margin-left: auto; font-family: inherit; font-size: 11px; font-weight: 500; color: var(--text-tertiary); background: var(--bg); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; }
+.cmd-footer { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; gap: 16px; }
+.cmd-hint { font-size: 11px; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px; }
+.cmd-hint kbd { font-family: inherit; background: var(--surface-secondary); border: 1px solid var(--border); padding: 0 4px; border-radius: 3px; font-size: 10px; }
+
+/* ═══════ RESPONSIVE ═══════ */
+@media (max-width: 1280px) {
+  .ops-grid { gap: var(--space-4); }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .overview-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); position: fixed; z-index: 55; }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay.active { display: block; }
+  .mobile-header { display: flex; }
+  .main { margin-left: 0; }
+  .topbar { display: none; }
+  .page-header { padding: var(--space-4) var(--space-4) 0; }
+  .content { padding: var(--space-4) var(--space-4) var(--space-8); }
+  .mode-tabs { flex-direction: column; }
+  .ops-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .overview-grid { grid-template-columns: 1fr; }
+  .page-header-actions { width: 100%; }
+  .toast { min-width: auto; margin: 0 12px; }
+}
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .scanned-item-inner { flex-direction: column; }
+  .scanned-img { width: 100%; height: 120px; }
+}
+
+/* Shrink for toast */
+@keyframes shrink { from { width: 100%; } to { width: 0%; } }
+</style>
+</head>
+<body>
+
+<!-- Mobile Header -->
+<div class="mobile-header">
+  <button class="hamburger" onclick="toggleSidebar()">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h16M3 11h16M3 16h16"/></svg>
+  </button>
+  <span class="mobile-brand">AvyCloud</span>
+  <div style="margin-left:auto;display:flex;gap:4px;">
+    <button class="topbar-btn" style="color:rgba(255,255,255,0.7);" onclick="toggleTheme()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1"/></svg>
+    </button>
+  </div>
+</div>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">A</div>
+    <span class="sidebar-brand">AvyCloud</span>
+  </div>
+  <div class="sidebar-section">
+    <a class="nav-item" href="dashboard-v2.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg><span>Dashboard</span></a>
+    <a class="nav-item" href="products.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12M4 8h12M4 12h8M4 16h10"/></svg><span>Produkte</span><span class="nav-badge">1.247</span></a>
+    <a class="nav-item" href="orders.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h2v2H4zM4 9h2v2H4zM4 14h2v2H4zM9 5h7M9 10h7M9 15h5"/></svg><span>Bestellungen</span><span class="nav-badge">23</span></a>
+    <a class="nav-item" href="ebay-listings.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z"/></svg><span>eBay Listings</span></a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Operations</div>
+    <a class="nav-item" href="product-input.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 13v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3M10 3v10M7 6l3-3 3 3"/></svg><span>Identifizieren</span></a>
+    <a class="nav-item active" href="operations-v2.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="6" height="10" rx="1"/><rect x="11" y="5" width="6" height="10" rx="1"/></svg><span>Stow / Pick</span></a>
+    <a class="nav-item" href="warehouse.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17V7l7-4 7 4v10M3 7h14M7 17v-6h6v6"/></svg><span>Warehouse</span></a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">System</div>
+    <a class="nav-item" href="categories.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5a2 2 0 012-2h3l2 2h5a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V5z"/></svg><span>Kategorien</span></a>
+    <a class="nav-item" href="admin.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"/></svg><span>Admin</span></a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="user-avatar">OG</div>
+      <div><div class="user-name">Oguz</div><div class="user-role">Admin</div></div>
+    </div>
+  </div>
+</nav>
+
+<!-- Main -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-search" onclick="openCmd()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3 3"/></svg>
+      <span>Suchen...</span>
+      <kbd>&#8984;K</kbd>
+    </div>
+    <div class="topbar-right">
+      <button class="sound-toggle" id="soundToggle" onclick="toggleSound()">
+        <svg id="soundIcon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5.5h2l3-3v9l-3-3H2a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5z"/><path d="M9.5 4.5a3.5 3.5 0 010 5M11 3a5.5 5.5 0 010 8"/></svg>
+        <span id="soundLabel">Sound An</span>
+      </button>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Theme wechseln">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
+      </button>
+      <button class="topbar-btn" title="Benachrichtigungen">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6.75a4.5 4.5 0 00-9 0c0 5.25-2.25 6.75-2.25 6.75h13.5s-2.25-1.5-2.25-6.75M10.3 15.75a1.5 1.5 0 01-2.6 0"/></svg>
+        <span class="dot"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="page-header">
+    <div>
+      <h1>Warehouse Operations</h1>
+      <div class="page-header-sub">Einlagern &amp; Kommissionieren</div>
+    </div>
+    <div class="page-header-actions">
+      <button class="btn btn-secondary btn-sm" onclick="showToast('info','Export','Ops-Report wird generiert...')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8.5v3a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 012 11.5v-3M7 1v8M4 4l3-3 3 3"/></svg>
+        Export
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Mode Tabs -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="switchTab('stow', this)">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 10v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5M9 2v9M6 5l3-3 3 3"/></svg>
+        Stow
+        <span class="tab-count">8</span>
+      </button>
+      <button class="mode-tab" onclick="switchTab('pick', this)">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 10v5a1 1 0 001 1h8a1 1 0 001-1v-5M9 12V2M6 9l3 3 3-3"/></svg>
+        Pick
+        <span class="tab-count">5</span>
+      </button>
+      <button class="mode-tab" onclick="switchTab('overview', this)">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h5v5H3zM10 3h5v5h-5zM3 10h5v5H3zM10 10h5v5h-5z"/></svg>
+        Uebersicht
+      </button>
+    </div>
+
+    <!-- ═══════ STOW TAB ═══════ -->
+    <div class="tab-panel active" id="tab-stow">
+      <div class="ops-grid">
+        <!-- Left: Scanner + Scanned Item -->
+        <div>
+          <div class="scanner-wrap">
+            <input class="scanner-input" id="scannerInput" type="text" placeholder="Barcode / SKU scannen..." autofocus autocomplete="off" onkeydown="if(event.key==='Enter')handleScan()">
+            <svg class="scanner-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5V3h4M13 3h4v2M3 15v2h4M13 17h4v-2M7 7v6M10 7v6M13 7v6"/></svg>
+            <div class="scanner-status"><span class="live-dot"></span>Scanner bereit</div>
+          </div>
+
+          <!-- Scanned Item Card -->
+          <div class="scanned-item highlight" id="scannedItem">
+            <div class="scanned-item-inner">
+              <div class="scanned-img">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="4" y="4" width="24" height="24" rx="4"/><circle cx="12" cy="14" r="3"/><path d="M4 24l6-6 4 4 6-8 8 10"/></svg>
+              </div>
+              <div class="scanned-details">
+                <div class="scanned-name" id="scannedName">Samsung Galaxy S24 Ultra Schutzhuelle</div>
+                <div class="scanned-meta">
+                  <span class="scanned-tag" id="scannedSku">SKU-4829</span>
+                  <span class="scanned-tag" id="scannedEan">EAN 4012345678901</span>
+                </div>
+                <div style="margin-bottom:var(--space-2);">
+                  <span style="font-size:12px;color:var(--text-tertiary);margin-right:8px;">Vorgeschlagener Platz:</span>
+                  <span class="bin-tag" id="scannedBin">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12V5l5-3 5 3v7M2 5h10M5 12V9h4v3"/></svg>
+                    A-03-12
+                  </span>
+                </div>
+                <div class="scanned-actions">
+                  <label style="font-size:12px;font-weight:500;color:var(--text-secondary);">Menge:</label>
+                  <input class="qty-input" id="stowQty" type="number" value="1" min="1">
+                  <button class="btn btn-primary btn-lg" style="flex:1;" onclick="confirmStow()">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l4 4 6-7"/></svg>
+                    Einlagern bestaetigen
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State (hidden by default) -->
+          <div id="emptyScanned" style="display:none; text-align:center; padding:48px 24px; color:var(--text-tertiary);">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:16px;opacity:0.4;"><path d="M8 14V8h8M32 8h8v6M8 34v6h8M32 40h8v-6M18 18v12M24 18v12M30 18v12"/></svg>
+            <div style="font-size:15px;font-weight:500;">Barcode scannen um zu starten</div>
+            <div style="font-size:13px;margin-top:4px;">Scanne einen Artikel-Barcode oder gib eine SKU ein</div>
+          </div>
+        </div>
+
+        <!-- Right: Stow Queue -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Stow-Warteschlange</span>
+            <span style="font-size:12px;color:var(--text-tertiary);font-weight:500;">8 Artikel</span>
+          </div>
+          <div class="card-body" style="padding:var(--space-2);">
+            <div class="queue-list" id="stowQueue">
+              <div class="queue-item">
+                <div class="queue-thumb"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="12" height="12" rx="2"/></svg></div>
+                <div class="queue-info">
+                  <div class="queue-name">Samsung Galaxy S24 Ultra Schutzhuelle</div>
+                  <div class="queue-sub"><span class="queue-bin">A-03-12</span><span>SKU-4829</span></div>
+                </div>
+                <div class="queue-qty">x1</div>
+                <div class="queue-status active"><span class="status-pulse"></span>In Bearbeitung</div>
+              </div>
+              <div class="queue-item">
+                <div class="queue-thumb"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="12" height="12" rx="2"/></svg></div>
+                <div class="queue-info">
+                  <div class="queue-name">Apple MagSafe Ladegeraet 15W</div>
+                  <div class="queue-sub"><span class="queue-bin">B-01-04</span><span>SKU-3281</span></div>
+                </div>
+                <div class="queue-qty">x3</div>
+                <div class="queue-status waiting">Wartend</div>
+              </div>
+              <div class="queue-item">
+                <div class="queue-thumb"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="12" height="12" rx="2"/></svg></div>
+                <div class="queue-info">
+                  <div class="queue-name">Anker PowerCore 20000mAh</div>
+                  <div class="queue-sub"><span class="queue-bin">A-05-08</span><span>SKU-1192</span></div>
+                </div>
+                <div class="queue-qty">x2</div>
+                <div class="queue-status waiting">Wartend</div>
+              </div>
+              <div class="queue-item">
+                <div class="queue-thumb"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="12" height="12" rx="2"/></svg></div>
+                <div class="queue-info">
+                  <div class="queue-name">Sony WH-1000XM5 Kopfhoerer</div>
+                  <div class="queue-sub"><span class="queue-bin">C-02-01</span><span>SKU-7744</span></div>
+                </div>
+                <div class="queue-qty">x1</div>
+                <div class="queue-status waiting">Wartend</div>
+              </div>
+              <div class="queue-item">
+                <div class="queue-thumb"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="12" height="12" rx="2"/></svg></div>
+                <div class="queue-info">
+                  <div class="queue-name">Logitech MX Master 3S Maus</div>
+                  <div class="queue-sub"><span class="queue-bin">B-04-11</span><span>SKU-5560</span></div>
+                </div>
+                <div class="queue-qty">x2</div>
+                <div class="queue-status waiting">Wartend</div>
+              </div>
+              <div class="queue-item">
+                <div class="queue-thumb"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="12" height="12" rx="2"/></svg></div>
+                <div class="queue-info">
+                  <div class="queue-name">USB-C Kabel 2m Nylon 3er-Pack</div>
+                  <div class="queue-sub"><span class="queue-bin">D-01-03</span><span>SKU-0098</span></div>
+                </div>
+                <div class="queue-qty">x10</div>
+                <div class="queue-status waiting">Wartend</div>
+              </div>
+              <div class="queue-item">
+                <div class="queue-thumb"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="12" height="12" rx="2"/></svg></div>
+                <div class="queue-info">
+                  <div class="queue-name">iPad Air 5 Folio Case Navy</div>
+                  <div class="queue-sub"><span class="queue-bin">A-02-07</span><span>SKU-6612</span></div>
+                </div>
+                <div class="queue-qty">x4</div>
+                <div class="queue-status waiting">Wartend</div>
+              </div>
+              <div class="queue-item">
+                <div class="queue-thumb"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="12" height="12" rx="2"/></svg></div>
+                <div class="queue-info">
+                  <div class="queue-name">Belkin Boost Charge Pro 3in1</div>
+                  <div class="queue-sub"><span class="queue-bin">B-03-09</span><span>SKU-4401</span></div>
+                </div>
+                <div class="queue-qty">x1</div>
+                <div class="queue-status waiting">Wartend</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ PICK TAB ═══════ -->
+    <div class="tab-panel" id="tab-pick">
+      <div class="ops-grid">
+        <!-- Left: Active Pick List -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Aktive Kommissionierung</span>
+            <span style="font-size:12px;font-weight:500;color:var(--text-tertiary);">Laufende Bestellung</span>
+          </div>
+          <div class="card-body">
+            <div class="pick-order-header">
+              <div>
+                <div class="pick-order-id">#AV-2847</div>
+                <div class="pick-customer">Max Mustermann &mdash; eBay Bestellung</div>
+              </div>
+              <span class="queue-status active" style="font-size:12px;padding:4px 12px;"><span class="status-pulse"></span>In Bearbeitung</span>
+            </div>
+
+            <div class="pick-progress">
+              <div class="pick-progress-bar">
+                <div class="pick-progress-fill" id="pickFill" style="width:60%;"></div>
+              </div>
+              <div class="pick-progress-label">
+                <span id="pickCount">3 / 5 Artikel gepickt</span>
+                <span id="pickPercent">60%</span>
+              </div>
+            </div>
+
+            <div class="pick-items" id="pickItems">
+              <div class="pick-item checked" onclick="togglePick(this)">
+                <div class="pick-checkbox"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></div>
+                <div class="pick-item-info">
+                  <div class="pick-item-name">Samsung Galaxy S24 Ultra Schutzhuelle</div>
+                  <div class="pick-item-sub">SKU-4829 <span class="pick-item-bin">A-03-12</span></div>
+                </div>
+                <div class="pick-item-qty">x1</div>
+              </div>
+              <div class="pick-item checked" onclick="togglePick(this)">
+                <div class="pick-checkbox"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></div>
+                <div class="pick-item-info">
+                  <div class="pick-item-name">USB-C Kabel 2m Nylon 3er-Pack</div>
+                  <div class="pick-item-sub">SKU-0098 <span class="pick-item-bin">D-01-03</span></div>
+                </div>
+                <div class="pick-item-qty">x2</div>
+              </div>
+              <div class="pick-item checked" onclick="togglePick(this)">
+                <div class="pick-checkbox"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></div>
+                <div class="pick-item-info">
+                  <div class="pick-item-name">Apple MagSafe Ladegeraet 15W</div>
+                  <div class="pick-item-sub">SKU-3281 <span class="pick-item-bin">B-01-04</span></div>
+                </div>
+                <div class="pick-item-qty">x1</div>
+              </div>
+              <div class="pick-item" onclick="togglePick(this)">
+                <div class="pick-checkbox"></div>
+                <div class="pick-item-info">
+                  <div class="pick-item-name">Anker PowerCore 20000mAh</div>
+                  <div class="pick-item-sub">SKU-1192 <span class="pick-item-bin">A-05-08</span></div>
+                </div>
+                <div class="pick-item-qty">x1</div>
+              </div>
+              <div class="pick-item" onclick="togglePick(this)">
+                <div class="pick-checkbox"></div>
+                <div class="pick-item-info">
+                  <div class="pick-item-name">Logitech MX Master 3S Maus</div>
+                  <div class="pick-item-sub">SKU-5560 <span class="pick-item-bin">B-04-11</span></div>
+                </div>
+                <div class="pick-item-qty">x1</div>
+              </div>
+            </div>
+
+            <!-- Pick Route Visual -->
+            <div style="background:var(--surface-secondary);border-radius:var(--radius-md);padding:var(--space-4);margin-bottom:var(--space-4);">
+              <div style="font-size:12px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:var(--space-3);">Optimale Pick-Route</div>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span class="pick-item-bin" style="opacity:0.4;text-decoration:line-through;">A-03-12</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><path d="M3 7h8M8 4l3 3-3 3"/></svg>
+                <span class="pick-item-bin" style="opacity:0.4;text-decoration:line-through;">B-01-04</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><path d="M3 7h8M8 4l3 3-3 3"/></svg>
+                <span class="pick-item-bin" style="opacity:0.4;text-decoration:line-through;">D-01-03</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--avy-purple)" stroke-width="1.5"><path d="M3 7h8M8 4l3 3-3 3"/></svg>
+                <span class="pick-item-bin" style="font-size:13px;padding:4px 10px;border:2px solid var(--avy-purple);">A-05-08</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><path d="M3 7h8M8 4l3 3-3 3"/></svg>
+                <span class="pick-item-bin">B-04-11</span>
+              </div>
+            </div>
+
+            <button class="btn btn-success btn-lg" style="width:100%;" onclick="completePick()" id="completePickBtn" disabled>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l4 4 6-7"/></svg>
+              Bestellung abschliessen
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Next In Queue -->
+        <div>
+          <div class="card" style="margin-bottom:var(--space-5);">
+            <div class="card-header">
+              <span class="card-title">Naechste Bestellungen</span>
+              <span style="font-size:12px;color:var(--text-tertiary);font-weight:500;">4 wartend</span>
+            </div>
+            <div class="card-body" style="padding:var(--space-3);">
+              <div class="next-order">
+                <div class="next-order-info">
+                  <div class="next-order-id">#AV-2846</div>
+                  <div class="next-order-customer">Lisa Schmidt</div>
+                  <div class="next-order-items">3 Artikel &middot; Bins: A-01, B-02, C-04</div>
+                </div>
+                <svg class="next-order-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+              </div>
+              <div class="next-order">
+                <div class="next-order-info">
+                  <div class="next-order-id">#AV-2845</div>
+                  <div class="next-order-customer">Markus Weber</div>
+                  <div class="next-order-items">7 Artikel &middot; Bins: A-03, B-01, D-02, C-01</div>
+                </div>
+                <svg class="next-order-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+              </div>
+              <div class="next-order">
+                <div class="next-order-info">
+                  <div class="next-order-id">#AV-2844</div>
+                  <div class="next-order-customer">Anna Fischer</div>
+                  <div class="next-order-items">1 Artikel &middot; Bin: A-02</div>
+                </div>
+                <svg class="next-order-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pick Scanner -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Artikel scannen</span>
+            </div>
+            <div class="card-body">
+              <div class="scanner-wrap" style="margin-bottom:0;">
+                <input class="scanner-input" id="pickScannerInput" type="text" placeholder="Artikel scannen zum Abharken..." autocomplete="off" onkeydown="if(event.key==='Enter')handlePickScan()" style="font-size:15px;padding:12px 12px 12px 44px;">
+                <svg class="scanner-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" style="left:14px;"><path d="M3 5V3h3M12 3h3v2M3 13v2h3M12 15h3v-2M6 6v6M9 6v6M12 6v6"/></svg>
+              </div>
+              <div style="font-size:11px;color:var(--text-tertiary);margin-top:var(--space-2);text-align:center;">Naechster Artikel: <strong style="color:var(--avy-purple);">A-05-08</strong> &mdash; Anker PowerCore</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ UEBERSICHT TAB ═══════ -->
+    <div class="tab-panel" id="tab-overview">
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 8v4a1 1 0 01-1 1H4a1 1 0 01-1-1V8M7 1v8M4.5 3.5L7 1l2.5 2.5"/></svg>
+            Heute eingelagert
+          </div>
+          <div class="stat-value">147</div>
+          <div class="stat-sub stat-up">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 2l3 4H2z"/></svg>
+            +23% vs. gestern
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8v4a1 1 0 001 1h6a1 1 0 001-1V8M7 10V1M4.5 7.5L7 10l2.5-2.5"/></svg>
+            Heute gepickt
+          </div>
+          <div class="stat-value">89</div>
+          <div class="stat-sub stat-up">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 2l3 4H2z"/></svg>
+            +8% vs. gestern
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5.5"/><path d="M7 4v3l2 1.5"/></svg>
+            Durchschn. Zeit / Artikel
+          </div>
+          <div class="stat-value">18s</div>
+          <div class="stat-sub stat-up">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 2l3 4H2z"/></svg>
+            2s schneller
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v12M1 7h12"/></svg>
+            Fehlerquote
+          </div>
+          <div class="stat-value">0.3%</div>
+          <div class="stat-sub stat-down">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 8l3-4H2z"/></svg>
+            +0.1% vs. gestern
+          </div>
+        </div>
+      </div>
+
+      <div class="overview-grid">
+        <!-- Activity Feed -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Aktivitaets-Feed</span>
+            <span style="font-size:12px;color:var(--text-tertiary);font-weight:500;">Live</span>
+          </div>
+          <div class="feed-list">
+            <div class="feed-item"><div class="feed-dot stow"></div><div class="feed-text"><strong>Samsung Galaxy S24 Huelle</strong> eingelagert in <strong>A-03-12</strong></div><div class="feed-time">gerade</div></div>
+            <div class="feed-item"><div class="feed-dot pick"></div><div class="feed-text"><strong>#AV-2847</strong> &mdash; Apple MagSafe aus <strong>B-01-04</strong> gepickt</div><div class="feed-time">vor 2m</div></div>
+            <div class="feed-item"><div class="feed-dot pick"></div><div class="feed-text"><strong>#AV-2847</strong> &mdash; USB-C Kabel aus <strong>D-01-03</strong> gepickt</div><div class="feed-time">vor 3m</div></div>
+            <div class="feed-item"><div class="feed-dot stow"></div><div class="feed-text"><strong>Anker PowerCore 20000</strong> x2 eingelagert in <strong>A-05-08</strong></div><div class="feed-time">vor 5m</div></div>
+            <div class="feed-item"><div class="feed-dot pick"></div><div class="feed-text"><strong>#AV-2847</strong> &mdash; Samsung Huelle aus <strong>A-03-12</strong> gepickt</div><div class="feed-time">vor 8m</div></div>
+            <div class="feed-item"><div class="feed-dot alert"></div><div class="feed-text"><strong>Bin C-02-01</strong> fast voll &mdash; nur noch 2 Plaetze frei</div><div class="feed-time">vor 12m</div></div>
+            <div class="feed-item"><div class="feed-dot stow"></div><div class="feed-text"><strong>Sony WH-1000XM5</strong> eingelagert in <strong>C-02-01</strong></div><div class="feed-time">vor 15m</div></div>
+            <div class="feed-item"><div class="feed-dot pick"></div><div class="feed-text"><strong>#AV-2846</strong> Kommissionierung abgeschlossen &mdash; 3 Artikel</div><div class="feed-time">vor 18m</div></div>
+            <div class="feed-item"><div class="feed-dot stow"></div><div class="feed-text"><strong>Logitech MX Master 3S</strong> x2 eingelagert in <strong>B-04-11</strong></div><div class="feed-time">vor 22m</div></div>
+            <div class="feed-item"><div class="feed-dot alert"></div><div class="feed-text"><strong>Barcode-Fehler</strong> bei Scan &mdash; unbekannte EAN 9012345678999</div><div class="feed-time">vor 25m</div></div>
+            <div class="feed-item"><div class="feed-dot pick"></div><div class="feed-text"><strong>#AV-2845</strong> Kommissionierung gestartet &mdash; 7 Artikel</div><div class="feed-time">vor 30m</div></div>
+          </div>
+        </div>
+
+        <!-- Workers -->
+        <div class="card" style="align-self:start;">
+          <div class="card-header">
+            <span class="card-title">Aktive Mitarbeiter</span>
+            <span style="font-size:12px;color:var(--text-tertiary);font-weight:500;">3 online</span>
+          </div>
+          <div style="padding:var(--space-2) 0;">
+            <div class="worker-item">
+              <div class="worker-avatar" style="background:var(--avy-gradient);">OG</div>
+              <div>
+                <div class="worker-name">Oguz</div>
+                <div class="worker-task">Stow &mdash; Samsung Huelle &rarr; A-03-12</div>
+              </div>
+              <div class="worker-status active"><span style="width:6px;height:6px;border-radius:50%;background:var(--success);"></span>Aktiv</div>
+            </div>
+            <div class="worker-item">
+              <div class="worker-avatar" style="background:linear-gradient(135deg,#0070F3,#00C2FF);">MK</div>
+              <div>
+                <div class="worker-name">Marie K.</div>
+                <div class="worker-task">Pick &mdash; #AV-2846 (3/3)</div>
+              </div>
+              <div class="worker-status active"><span style="width:6px;height:6px;border-radius:50%;background:var(--success);"></span>Aktiv</div>
+            </div>
+            <div class="worker-item">
+              <div class="worker-avatar" style="background:linear-gradient(135deg,#D97706,#FBBF24);">TW</div>
+              <div>
+                <div class="worker-name">Thomas W.</div>
+                <div class="worker-task">Pause seit 14:32</div>
+              </div>
+              <div class="worker-status idle">Pause</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Command Palette -->
+<div class="cmd-overlay" id="cmdOverlay" onclick="if(event.target===this)closeCmd()">
+  <div class="cmd-box">
+    <div class="cmd-input-wrap">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M13 13l3 3"/></svg>
+      <input class="cmd-input" id="cmdInput" placeholder="Suche oder Befehl eingeben..." autofocus>
+      <kbd style="font-family:inherit;font-size:11px;padding:2px 6px;border-radius:4px;background:var(--surface-secondary);border:1px solid var(--border);color:var(--text-tertiary);">ESC</kbd>
+    </div>
+    <div class="cmd-results">
+      <div class="cmd-group-label">Navigation</div>
+      <div class="cmd-item" onclick="window.location='dashboard-v2.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/></svg>Dashboard</div>
+      <div class="cmd-item" onclick="window.location='products.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h12M3 7h12M3 11h8M3 15h10"/></svg>Produkte<kbd>1.247</kbd></div>
+      <div class="cmd-item" onclick="window.location='orders.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h2v2H3zM3 8h2v2H3zM3 13h2v2H3zM8 4h7M8 9h7M8 14h5"/></svg>Bestellungen<kbd>23</kbd></div>
+      <div class="cmd-group-label">Aktionen</div>
+      <div class="cmd-item" onclick="closeCmd();switchTab('stow',document.querySelector('.mode-tab'))"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 10v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5M9 2v9M6 5l3-3 3 3"/></svg>Stow-Modus<kbd>1</kbd></div>
+      <div class="cmd-item" onclick="closeCmd();switchTab('pick',document.querySelectorAll('.mode-tab')[1])"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 10v5a1 1 0 001 1h8a1 1 0 001-1v-5M9 12V2M6 9l3 3 3-3"/></svg>Pick-Modus<kbd>2</kbd></div>
+    </div>
+    <div class="cmd-footer">
+      <div class="cmd-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigieren</div>
+      <div class="cmd-hint"><kbd>&crarr;</kbd> Oeffnen</div>
+      <div class="cmd-hint"><kbd>ESC</kbd> Schliessen</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════ THEME ═══════ */
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('avy-theme', isDark ? 'light' : 'dark');
+}
+(function() {
+  const saved = localStorage.getItem('avy-theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+
+/* ═══════ SIDEBAR MOBILE ═══════ */
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.querySelector('.sidebar-overlay').classList.toggle('active');
+}
+
+/* ═══════ CMD PALETTE ═══════ */
+function openCmd() { document.getElementById('cmdOverlay').classList.add('active'); document.getElementById('cmdInput').focus(); }
+function closeCmd() { document.getElementById('cmdOverlay').classList.remove('active'); document.getElementById('cmdInput').value = ''; }
+document.addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openCmd(); }
+  if (e.key === 'Escape') closeCmd();
+  // Tab shortcuts
+  if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (e.key === '1' && document.activeElement.tagName !== 'INPUT') { switchTab('stow', document.querySelectorAll('.mode-tab')[0]); }
+    if (e.key === '2' && document.activeElement.tagName !== 'INPUT') { switchTab('pick', document.querySelectorAll('.mode-tab')[1]); }
+    if (e.key === '3' && document.activeElement.tagName !== 'INPUT') { switchTab('overview', document.querySelectorAll('.mode-tab')[2]); }
+  }
+});
+
+/* ═══════ TAB SWITCHING ═══════ */
+function switchTab(name, btn) {
+  document.querySelectorAll('.mode-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  else document.querySelectorAll('.mode-tab').forEach(function(t, i) {
+    if ((name === 'stow' && i === 0) || (name === 'pick' && i === 1) || (name === 'overview' && i === 2)) t.classList.add('active');
+  });
+  var panel = document.getElementById('tab-' + name);
+  if (panel) panel.classList.add('active');
+  if (name === 'stow') { setTimeout(function() { document.getElementById('scannerInput').focus(); }, 100); }
+  if (name === 'pick') { setTimeout(function() { document.getElementById('pickScannerInput').focus(); }, 100); }
+}
+
+/* ═══════ SOUND TOGGLE ═══════ */
+var soundEnabled = true;
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  var btn = document.getElementById('soundToggle');
+  var label = document.getElementById('soundLabel');
+  if (soundEnabled) {
+    btn.classList.add('on');
+    label.textContent = 'Sound An';
+  } else {
+    btn.classList.remove('on');
+    label.textContent = 'Sound Aus';
+  }
+}
+document.getElementById('soundToggle').classList.add('on');
+
+function playBeep() {
+  if (!soundEnabled) return;
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 1200;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.12);
+  } catch(e) {}
+}
+
+function playSuccess() {
+  if (!soundEnabled) return;
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [800, 1200].forEach(function(freq, i) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.12, ctx.currentTime + i * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 0.2);
+      osc.start(ctx.currentTime + i * 0.1);
+      osc.stop(ctx.currentTime + i * 0.1 + 0.2);
+    });
+  } catch(e) {}
+}
+
+/* ═══════ STOW SCANNER ═══════ */
+var demoProducts = [
+  { name: 'Apple MagSafe Ladegeraet 15W', sku: 'SKU-3281', ean: 'EAN 4012345678902', bin: 'B-01-04' },
+  { name: 'Anker PowerCore 20000mAh', sku: 'SKU-1192', ean: 'EAN 4012345678903', bin: 'A-05-08' },
+  { name: 'Sony WH-1000XM5 Kopfhoerer', sku: 'SKU-7744', ean: 'EAN 4012345678904', bin: 'C-02-01' },
+  { name: 'Logitech MX Master 3S Maus', sku: 'SKU-5560', ean: 'EAN 4012345678905', bin: 'B-04-11' },
+  { name: 'USB-C Kabel 2m Nylon 3er-Pack', sku: 'SKU-0098', ean: 'EAN 4012345678906', bin: 'D-01-03' },
+  { name: 'iPad Air 5 Folio Case Navy', sku: 'SKU-6612', ean: 'EAN 4012345678907', bin: 'A-02-07' },
+  { name: 'Belkin Boost Charge Pro 3in1', sku: 'SKU-4401', ean: 'EAN 4012345678908', bin: 'B-03-09' },
+];
+var scanIndex = 0;
+
+function handleScan() {
+  var input = document.getElementById('scannerInput');
+  if (!input.value.trim()) return;
+  var product = demoProducts[scanIndex % demoProducts.length];
+  scanIndex++;
+  playBeep();
+  document.getElementById('scannedName').textContent = product.name;
+  document.getElementById('scannedSku').textContent = product.sku;
+  document.getElementById('scannedEan').textContent = product.ean;
+  document.getElementById('scannedBin').innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12V5l5-3 5 3v7M2 5h10M5 12V9h4v3"/></svg>' + product.bin;
+  document.getElementById('stowQty').value = 1;
+  var card = document.getElementById('scannedItem');
+  card.style.display = 'block';
+  document.getElementById('emptyScanned').style.display = 'none';
+  card.classList.remove('highlight');
+  void card.offsetWidth;
+  card.classList.add('highlight');
+  input.value = '';
+  input.focus();
+}
+
+/* ═══════ CONFIRM STOW ═══════ */
+function confirmStow() {
+  var name = document.getElementById('scannedName').textContent;
+  playSuccess();
+  showSuccessAnimation();
+  showToast('success', 'Eingelagert!', name + ' wurde erfolgreich eingelagert.');
+
+  // Animate first queue item out
+  var queue = document.getElementById('stowQueue');
+  var first = queue.querySelector('.queue-item');
+  if (first) {
+    first.style.transition = 'all 300ms ease';
+    first.style.opacity = '0';
+    first.style.transform = 'translateX(-20px)';
+    setTimeout(function() { first.remove(); }, 300);
+  }
+
+  // Update next item to active
+  setTimeout(function() {
+    var next = queue.querySelector('.queue-item .queue-status.waiting');
+    if (next) {
+      next.className = 'queue-status active';
+      next.innerHTML = '<span class="status-pulse"></span>In Bearbeitung';
+    }
+  }, 350);
+
+  document.getElementById('scannerInput').focus();
+}
+
+/* ═══════ SUCCESS ANIMATION ═══════ */
+function showSuccessAnimation() {
+  var overlay = document.createElement('div');
+  overlay.className = 'success-overlay';
+  overlay.innerHTML = '<div class="success-check"><svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><path d="M10 18l6 6 10-12"/></svg></div>';
+  document.body.appendChild(overlay);
+  setTimeout(function() {
+    overlay.style.transition = 'opacity 300ms';
+    overlay.style.opacity = '0';
+    setTimeout(function() { overlay.remove(); }, 300);
+  }, 600);
+}
+
+/* ═══════ PICK TOGGLE ═══════ */
+function togglePick(item) {
+  item.classList.toggle('checked');
+  var cb = item.querySelector('.pick-checkbox');
+  if (item.classList.contains('checked')) {
+    cb.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg>';
+    playBeep();
+  } else {
+    cb.innerHTML = '';
+  }
+  updatePickProgress();
+}
+
+function updatePickProgress() {
+  var items = document.querySelectorAll('#pickItems .pick-item');
+  var checked = document.querySelectorAll('#pickItems .pick-item.checked');
+  var total = items.length;
+  var done = checked.length;
+  var pct = Math.round((done / total) * 100);
+
+  document.getElementById('pickFill').style.width = pct + '%';
+  document.getElementById('pickCount').textContent = done + ' / ' + total + ' Artikel gepickt';
+  document.getElementById('pickPercent').textContent = pct + '%';
+
+  var btn = document.getElementById('completePickBtn');
+  if (done === total) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  } else {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+  }
+}
+
+function completePick() {
+  playSuccess();
+  showSuccessAnimation();
+  showToast('success', 'Bestellung abgeschlossen!', '#AV-2847 wurde vollstaendig kommissioniert und ist bereit zum Verpacken.');
+}
+
+function handlePickScan() {
+  var input = document.getElementById('pickScannerInput');
+  if (!input.value.trim()) return;
+  playBeep();
+  // Find next unchecked item
+  var unchecked = document.querySelector('#pickItems .pick-item:not(.checked)');
+  if (unchecked) {
+    togglePick(unchecked);
+  }
+  input.value = '';
+  input.focus();
+}
+
+/* ═══════ TOAST SYSTEM ═══════ */
+function showToast(type, title, desc) {
+  var colors = { success: '#0E9F6E', error: '#DC2626', info: '#0070F3', warning: '#D97706' };
+  var c = colors[type] || colors.info;
+  var icons = {
+    success: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="'+c+'" stroke-width="1.5"/><path d="M6 9l2 2 4-4" stroke="'+c+'" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    error: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="'+c+'" stroke-width="1.5"/><path d="M6.75 6.75l4.5 4.5M11.25 6.75l-4.5 4.5" stroke="'+c+'" stroke-width="1.5"/></svg>',
+    info: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="'+c+'" stroke-width="1.5"/><path d="M9 7v4M9 12.5v.5" stroke="'+c+'" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    warning: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2l7.5 13H1.5z" stroke="'+c+'" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 7.5v3M9 12.5v.5" stroke="'+c+'" stroke-width="1.5" stroke-linecap="round"/></svg>'
+  };
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = '<div class="toast-icon">'+(icons[type]||icons.info)+'</div><div class="toast-body"><div class="toast-title">'+title+'</div>'+(desc?'<div class="toast-desc">'+desc+'</div>':'')+'</div><button class="toast-close" onclick="removeToast(this.parentElement)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg></button><div class="toast-progress '+type+'" style="width:100%;animation:shrink 4s linear forwards;"></div>';
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(function() { removeToast(el); }, 4000);
+}
+
+function removeToast(el) {
+  if (!el || el.classList.contains('leaving')) return;
+  el.classList.add('leaving');
+  setTimeout(function() { el.remove(); }, 300);
+}
+
+/* Initialize pick progress */
+updatePickProgress();
+</script>
+</body>
+</html>

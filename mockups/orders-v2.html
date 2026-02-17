@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud — Bestellungen</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   AVYCLOUD DESIGN SYSTEM v2.1
+   Premium — Stripe/Vercel Quality
+   Orders / Bestellungen Page
+   ═══════════════════════════════════════════ */
+
+:root {
+  --avy-deep: #0A2540;
+  --avy-purple: #635BFF;
+  --avy-purple-hover: #5148E5;
+  --avy-purple-light: #818CF8;
+  --avy-purple-glow: rgba(99, 91, 255, 0.12);
+  --avy-gradient: linear-gradient(135deg, #635BFF, #0070F3);
+
+  --bg: #F6F9FC;
+  --surface: #FFFFFF;
+  --surface-hover: #FAFBFD;
+  --surface-secondary: #F0F3F7;
+
+  --text-primary: #0A2540;
+  --text-secondary: #425466;
+  --text-tertiary: #8898AA;
+  --text-on-dark: #FFFFFF;
+  --text-on-dark-muted: rgba(255,255,255,0.65);
+
+  --border: #E3E8EE;
+  --border-hover: #C1C9D2;
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.03), 0 3px 6px rgba(0,0,0,0.02);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 16px 48px rgba(0,0,0,0.08);
+  --shadow-focus: 0 0 0 3px var(--avy-purple-glow);
+
+  --success: #0E9F6E; --success-bg: #ECFDF5; --success-border: #A7F3D0;
+  --warning: #D97706; --warning-bg: #FFFBEB; --warning-border: #FDE68A;
+  --error: #DC2626;   --error-bg: #FEF2F2;   --error-border: #FECACA;
+  --info: #0070F3;    --info-bg: #EFF6FF;     --info-border: #BFDBFE;
+
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px;
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+  --sidebar-w: 248px;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  --bg: #0B0F14; --surface: #151A21; --surface-hover: #1A2029; --surface-secondary: #1E252E;
+  --text-primary: #F1F3F5; --text-secondary: #8898AA; --text-tertiary: #5E6E80;
+  --border: #1E2A36; --border-hover: #2A3A4A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.3);
+  --success-bg: rgba(14,159,110,0.1); --success-border: rgba(14,159,110,0.25);
+  --warning-bg: rgba(217,119,6,0.1); --warning-border: rgba(217,119,6,0.25);
+  --error-bg: rgba(220,38,38,0.1); --error-border: rgba(220,38,38,0.25);
+  --info-bg: rgba(0,112,243,0.1); --info-border: rgba(0,112,243,0.25);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text-primary);
+  font-size: 14px; line-height: 1.5; min-height: 100vh; display: flex;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══════ SIDEBAR ═══════ */
+.sidebar {
+  width: var(--sidebar-w); height: 100vh; position: fixed;
+  left: 0; top: 0; background: var(--avy-deep);
+  display: flex; flex-direction: column; z-index: 50;
+  overflow-y: auto; overflow-x: hidden;
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar::-webkit-scrollbar { width: 0; }
+.sidebar-header { padding: 20px 20px 24px; display: flex; align-items: center; gap: 12px; }
+.sidebar-logo {
+  width: 28px; height: 28px; background: var(--avy-gradient); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 800; font-size: 14px;
+  box-shadow: 0 2px 8px rgba(99,91,255,0.4); flex-shrink: 0;
+}
+.sidebar-brand { font-size: 16px; font-weight: 700; color: var(--text-on-dark); letter-spacing: -0.02em; }
+.sidebar-section { padding: 0 12px; margin-bottom: 8px; }
+.sidebar-label {
+  font-size: 11px; font-weight: 600; color: var(--text-on-dark-muted);
+  text-transform: uppercase; letter-spacing: 0.06em; padding: 0 8px; margin-bottom: 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+  border-radius: var(--radius-sm); color: var(--text-on-dark-muted);
+  cursor: pointer; transition: all 150ms ease; text-decoration: none;
+  font-size: 13.5px; font-weight: 500; position: relative; margin-bottom: 1px;
+}
+.nav-item:hover { color: var(--text-on-dark); background: rgba(255,255,255,0.06); }
+.nav-item.active { color: var(--text-on-dark); background: rgba(255,255,255,0.1); }
+.nav-item.active::before {
+  content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 16px; background: var(--avy-purple); border-radius: 0 3px 3px 0;
+}
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; }
+.nav-item.active .nav-icon, .nav-item:hover .nav-icon { opacity: 1; }
+.nav-badge {
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 10px;
+  margin-left: auto; background: rgba(99,91,255,0.2); color: var(--avy-purple-light);
+}
+.sidebar-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 12px 20px; }
+.sidebar-footer { margin-top: auto; padding: 16px 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--radius-sm); cursor: pointer; transition: background 150ms ease; }
+.sidebar-user:hover { background: rgba(255,255,255,0.06); }
+.user-avatar { width: 30px; height: 30px; border-radius: 8px; background: var(--avy-gradient); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px; flex-shrink: 0; }
+.user-name { font-size: 13px; font-weight: 500; color: var(--text-on-dark); }
+.user-role { font-size: 11px; color: var(--text-on-dark-muted); }
+
+/* Mobile header */
+.mobile-header { display: none; height: 56px; background: var(--avy-deep); padding: 0 16px; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 60; }
+.hamburger { background: none; border: none; color: white; cursor: pointer; padding: 4px; }
+.mobile-brand { font-size: 15px; font-weight: 700; color: white; }
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 45; backdrop-filter: blur(4px); }
+
+/* ═══════ MAIN ═══════ */
+.main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+.topbar {
+  height: 56px; padding: 0 var(--space-8); display: flex; align-items: center; gap: 16px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+  position: sticky; top: 0; z-index: 40;
+}
+.topbar-search {
+  display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; transition: all var(--transition); min-width: 240px;
+}
+.topbar-search:hover { border-color: var(--border-hover); box-shadow: var(--shadow-sm); }
+.topbar-search svg { color: var(--text-tertiary); flex-shrink: 0; }
+.topbar-search span { color: var(--text-tertiary); font-size: 13px; }
+.topbar-search kbd {
+  font-family: inherit; font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 4px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-tertiary); margin-left: auto;
+}
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.topbar-btn {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary); cursor: pointer; background: transparent; border: none;
+  transition: all 150ms ease; position: relative;
+}
+.topbar-btn:hover { background: var(--surface-secondary); color: var(--text-secondary); }
+.topbar-btn .dot {
+  position: absolute; top: 7px; right: 7px; width: 7px; height: 7px;
+  border-radius: 50%; background: var(--avy-purple); border: 2px solid var(--surface);
+}
+.theme-toggle {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: transparent; border: 1px solid var(--border);
+  color: var(--text-tertiary); transition: all 150ms ease;
+}
+.theme-toggle:hover { border-color: var(--border-hover); color: var(--text-secondary); }
+
+/* ═══════ PAGE HEADER ═══════ */
+.page-header { padding: var(--space-6) var(--space-8) 0; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.page-header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.page-header-sub { font-size: 14px; color: var(--text-tertiary); margin-top: 2px; }
+.page-header-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+  border-radius: var(--radius-md); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition); border: none; font-family: inherit;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--avy-purple); color: white; }
+.btn-primary:hover { background: var(--avy-purple-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,91,255,0.3); }
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--border-hover); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.btn-ghost { background: transparent; color: var(--text-secondary); }
+.btn-ghost:hover { background: var(--surface-secondary); color: var(--text-primary); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
+.btn-danger { background: var(--error); color: white; }
+.btn-danger:hover { background: #B91C1C; }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { background: #059669; }
+
+/* ═══════ CONTENT ═══════ */
+.content { padding: var(--space-5) var(--space-8) var(--space-12); flex: 1; }
+
+/* ═══════ KPI SUMMARY ROW (compact) ═══════ */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); margin-bottom: var(--space-6); }
+.kpi-mini {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5); transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex; align-items: center; gap: var(--space-4); cursor: default;
+}
+.kpi-mini:hover { border-color: var(--border-hover); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.kpi-mini-icon {
+  width: 40px; height: 40px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.kpi-mini-icon.blue { background: var(--info-bg); color: var(--info); }
+.kpi-mini-icon.yellow { background: var(--warning-bg); color: var(--warning); }
+.kpi-mini-icon.green { background: var(--success-bg); color: var(--success); }
+.kpi-mini-icon.red { background: var(--error-bg); color: var(--error); }
+.kpi-mini-label { font-size: 12px; font-weight: 500; color: var(--text-tertiary); margin-bottom: 1px; }
+.kpi-mini-value { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+.kpi-mini-value.blue { color: var(--info); }
+.kpi-mini-value.yellow { color: var(--warning); }
+.kpi-mini-value.green { color: var(--success); }
+.kpi-mini-value.red { color: var(--error); }
+
+/* ═══════ FILTER / TAB BAR ═══════ */
+.filter-bar {
+  display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-5);
+  flex-wrap: wrap;
+}
+.pill-tabs {
+  display: flex; gap: 2px; background: var(--surface-secondary); border-radius: var(--radius-md);
+  padding: 3px; flex-shrink: 0;
+}
+.pill-tab {
+  padding: 6px 14px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600;
+  color: var(--text-tertiary); cursor: pointer; transition: all 150ms; border: none;
+  background: none; font-family: inherit; white-space: nowrap;
+}
+.pill-tab:hover { color: var(--text-secondary); }
+.pill-tab.active { background: var(--surface); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.pill-tab .pill-count { font-weight: 500; opacity: 0.65; margin-left: 2px; }
+
+.filter-right { margin-left: auto; display: flex; gap: var(--space-3); align-items: center; }
+.date-picker-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+  border-radius: var(--radius-md); font-size: 12.5px; font-weight: 500;
+  cursor: pointer; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-secondary); font-family: inherit; transition: all var(--transition);
+}
+.date-picker-btn:hover { border-color: var(--border-hover); box-shadow: var(--shadow-sm); }
+.filter-search {
+  display: flex; align-items: center; gap: 8px; padding: 7px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  transition: all var(--transition); min-width: 200px;
+}
+.filter-search:focus-within { border-color: var(--avy-purple); box-shadow: var(--shadow-focus); }
+.filter-search input {
+  border: none; background: none; font-size: 13px; color: var(--text-primary);
+  outline: none; font-family: inherit; width: 100%;
+}
+.filter-search input::placeholder { color: var(--text-tertiary); }
+
+/* ═══════ ORDERS TABLE ═══════ */
+.table-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  overflow: hidden; transition: border-color var(--transition);
+}
+.table-card:hover { border-color: var(--border-hover); }
+.table-scroll { overflow-x: auto; }
+.orders-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+.orders-table th {
+  text-align: left; font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 12px 16px;
+  border-bottom: 1px solid var(--border); background: var(--surface-secondary);
+  white-space: nowrap; cursor: pointer; user-select: none; transition: color 150ms;
+  position: sticky; top: 0; z-index: 2;
+}
+.orders-table th:hover { color: var(--text-secondary); }
+.orders-table th.sortable::after {
+  content: ''; display: inline-block; width: 0; height: 0; margin-left: 6px;
+  border-left: 3.5px solid transparent; border-right: 3.5px solid transparent;
+  border-top: 4px solid var(--text-tertiary); vertical-align: middle; opacity: 0.4;
+  transition: opacity 150ms;
+}
+.orders-table th.sortable:hover::after { opacity: 0.8; }
+.orders-table th.sorted-asc::after { opacity: 1; border-top-color: var(--avy-purple); }
+.orders-table th.sorted-desc::after { opacity: 1; transform: rotate(180deg); border-top-color: var(--avy-purple); }
+.orders-table th:first-child { width: 40px; }
+.orders-table td {
+  padding: 14px 16px; font-size: 13px; border-bottom: 1px solid var(--border);
+  color: var(--text-secondary); transition: all 150ms; vertical-align: middle;
+}
+.orders-table tbody tr { cursor: pointer; transition: background 150ms; }
+.orders-table tbody tr:last-child td { border-bottom: none; }
+.orders-table tbody tr:hover { background: var(--surface-hover); }
+.orders-table tbody tr:hover td { color: var(--text-primary); }
+.orders-table tbody tr.selected { background: var(--avy-purple-glow); }
+
+/* Checkbox */
+.checkbox-wrap { display: flex; align-items: center; justify-content: center; }
+.checkbox {
+  width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border);
+  cursor: pointer; transition: all 150ms; appearance: none; -webkit-appearance: none;
+  background: var(--surface); display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.checkbox:checked {
+  background: var(--avy-purple); border-color: var(--avy-purple);
+}
+.checkbox:checked::after {
+  content: ''; width: 10px; height: 10px; position: absolute;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 5l2.5 2.5L8 3' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+.checkbox:focus { box-shadow: var(--shadow-focus); }
+
+/* Order ID */
+.order-id {
+  font-weight: 600; color: var(--avy-purple);
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 12.5px;
+  text-decoration: none; transition: color 150ms;
+}
+.order-id:hover { color: var(--avy-purple-hover); text-decoration: underline; }
+
+/* Status Badge */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600;
+  padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+}
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.status-badge.neu { color: var(--info); background: var(--info-bg); }
+.status-badge.neu .status-dot { background: var(--info); }
+.status-badge.kommissioniert { color: var(--warning); background: var(--warning-bg); }
+.status-badge.kommissioniert .status-dot { background: var(--warning); animation: pulse 2s infinite; }
+.status-badge.verpackt { color: #EA580C; background: rgba(234,88,12,0.08); }
+.status-badge.verpackt .status-dot { background: #EA580C; }
+.status-badge.versendet { color: var(--success); background: var(--success-bg); }
+.status-badge.versendet .status-dot { background: var(--success); }
+.status-badge.storniert { color: var(--error); background: var(--error-bg); }
+.status-badge.storniert .status-dot { background: var(--error); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* Fulfillment */
+.fulfillment-cell { display: flex; flex-direction: column; gap: 3px; }
+.fulfillment-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.fulfillment-bar { width: 60px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.fulfillment-fill { height: 100%; border-radius: 2px; transition: width 300ms ease; }
+.fulfillment-fill.low { background: var(--warning); }
+.fulfillment-fill.mid { background: var(--info); }
+.fulfillment-fill.full { background: var(--success); }
+.fulfillment-text { font-size: 11.5px; color: var(--text-tertiary); white-space: nowrap; }
+
+/* Row Action Chevron */
+.row-action { opacity: 0; transition: opacity 150ms; color: var(--text-tertiary); cursor: pointer; flex-shrink: 0; }
+.orders-table tbody tr:hover .row-action { opacity: 1; }
+.row-action:hover { color: var(--avy-purple); }
+
+/* Amount */
+.amount { font-weight: 600; color: var(--text-primary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ═══════ PAGINATION ═══════ */
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-4) var(--space-5); border-top: 1px solid var(--border);
+}
+.pagination-info { font-size: 12.5px; color: var(--text-tertiary); font-weight: 500; }
+.pagination-buttons { display: flex; gap: 4px; }
+.page-btn {
+  min-width: 32px; height: 32px; padding: 0 8px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary);
+  cursor: pointer; transition: all 150ms; font-family: inherit;
+}
+.page-btn:hover:not(:disabled):not(.active) { border-color: var(--border-hover); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.page-btn.active { background: var(--avy-purple); border-color: var(--avy-purple); color: white; }
+.page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.page-btn svg { width: 14px; height: 14px; }
+
+/* ═══════ BULK ACTION BAR ═══════ */
+.bulk-bar {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--avy-deep); color: white; padding: 10px 20px;
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.08);
+  display: flex; align-items: center; gap: var(--space-4);
+  z-index: 80; transition: transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(12px); min-width: 520px;
+}
+.bulk-bar.visible { transform: translateX(-50%) translateY(0); }
+.bulk-bar-count { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.bulk-bar-divider { width: 1px; height: 24px; background: rgba(255,255,255,0.15); }
+.bulk-bar-actions { display: flex; gap: 6px; }
+.bulk-btn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px;
+  border-radius: var(--radius-sm); font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06);
+  color: white; font-family: inherit; transition: all 150ms; white-space: nowrap;
+}
+.bulk-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
+.bulk-close {
+  margin-left: auto; background: none; border: none; color: rgba(255,255,255,0.5);
+  cursor: pointer; padding: 4px; border-radius: 4px; transition: all 150ms;
+}
+.bulk-close:hover { color: white; background: rgba(255,255,255,0.1); }
+
+/* ═══════ ORDER DETAIL SLIDE-OUT ═══════ */
+.slideout-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px);
+  z-index: 100; opacity: 0; pointer-events: none; transition: opacity 300ms ease;
+}
+.slideout-overlay.active { opacity: 1; pointer-events: auto; }
+.slideout-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 520px; max-width: 100vw;
+  background: var(--surface); box-shadow: var(--shadow-lg);
+  z-index: 101; transform: translateX(100%); transition: transform 350ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.slideout-panel.active { transform: translateX(0); }
+.slideout-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.slideout-header-left { display: flex; align-items: center; gap: var(--space-3); }
+.slideout-order-id {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 15px; font-weight: 700; color: var(--avy-purple);
+}
+.slideout-close {
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--text-tertiary);
+  cursor: pointer; transition: all 150ms;
+}
+.slideout-close:hover { background: var(--surface-secondary); color: var(--text-primary); }
+.slideout-body { flex: 1; overflow-y: auto; padding: var(--space-6); }
+.slideout-body::-webkit-scrollbar { width: 5px; }
+.slideout-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.detail-section { margin-bottom: var(--space-6); }
+.detail-section-title { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-3); }
+.detail-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+.detail-label { color: var(--text-tertiary); }
+.detail-value { color: var(--text-primary); font-weight: 500; }
+
+/* Items list */
+.detail-items { display: flex; flex-direction: column; gap: var(--space-3); }
+.detail-item {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-md);
+  background: var(--surface-secondary); transition: background 150ms;
+}
+.detail-item:hover { background: var(--bg); }
+.detail-item-thumb {
+  width: 44px; height: 44px; border-radius: var(--radius-sm);
+  background: var(--border); display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary); font-size: 11px; font-weight: 600; flex-shrink: 0;
+  overflow: hidden;
+}
+.detail-item-info { flex: 1; min-width: 0; }
+.detail-item-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.detail-item-sku { font-size: 11px; color: var(--text-tertiary); font-family: 'SF Mono', 'Fira Code', monospace; }
+.detail-item-qty { font-size: 12px; color: var(--text-secondary); font-weight: 500; white-space: nowrap; }
+.detail-item-price { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+
+/* Fulfillment Timeline */
+.timeline { position: relative; padding-left: 28px; }
+.timeline-line { position: absolute; left: 11px; top: 12px; bottom: 12px; width: 2px; background: var(--border); }
+.timeline-step { position: relative; padding: 8px 0; display: flex; align-items: flex-start; gap: var(--space-3); }
+.timeline-dot {
+  width: 22px; height: 22px; border-radius: 50%; position: absolute; left: -28px; top: 8px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--border); background: var(--surface); transition: all 200ms;
+}
+.timeline-dot.completed { border-color: var(--success); background: var(--success); }
+.timeline-dot.active { border-color: var(--avy-purple); background: var(--avy-purple); box-shadow: 0 0 0 4px var(--avy-purple-glow); }
+.timeline-dot.pending { border-color: var(--border); }
+.timeline-step-content { flex: 1; }
+.timeline-step-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.timeline-step-label.pending { color: var(--text-tertiary); }
+.timeline-step-time { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+
+/* Slideout Actions */
+.slideout-actions {
+  display: flex; gap: var(--space-3); padding: var(--space-5) var(--space-6);
+  border-top: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap;
+}
+.slideout-actions .btn { flex: 1; justify-content: center; min-width: 0; }
+
+/* ═══════ TOAST NOTIFICATIONS ═══════ */
+.toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column-reverse; gap: 8px; pointer-events: none; }
+.toast {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 16px; border-radius: var(--radius-lg);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg); min-width: 320px; max-width: 420px;
+  animation: toastIn 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto; position: relative; overflow: hidden;
+}
+.toast.leaving { animation: toastOut 300ms ease forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(-8px) scale(0.96); } }
+.toast-icon { flex-shrink: 0; margin-top: 1px; }
+.toast-body { flex: 1; }
+.toast-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.toast-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+.toast-close { background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: 2px; border-radius: 4px; flex-shrink: 0; }
+.toast-close:hover { background: var(--surface-secondary); }
+.toast-progress { position: absolute; bottom: 0; left: 0; height: 3px; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.toast-progress.success { background: var(--success); }
+.toast-progress.error { background: var(--error); }
+.toast-progress.info { background: var(--info); }
+.toast-progress.warning { background: var(--warning); }
+
+/* ═══════ COMMAND PALETTE ═══════ */
+.cmd-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 200; align-items: flex-start; justify-content: center; padding-top: 15vh; }
+.cmd-overlay.active { display: flex; animation: fadeIn 150ms ease; }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } }
+.cmd-box {
+  width: 560px; max-width: 90vw; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); overflow: hidden;
+  animation: slideDown 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cmd-input-wrap { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.cmd-input {
+  flex: 1; border: none; background: none; font-size: 15px; font-weight: 500;
+  color: var(--text-primary); outline: none; font-family: inherit;
+}
+.cmd-input::placeholder { color: var(--text-tertiary); }
+.cmd-results { max-height: 320px; overflow-y: auto; padding: 8px; }
+.cmd-group-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 8px 4px; }
+.cmd-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border-radius: var(--radius-sm); cursor: pointer; transition: background 100ms;
+  font-size: 13px; color: var(--text-secondary); font-weight: 500;
+}
+.cmd-item:hover, .cmd-item.selected { background: var(--surface-secondary); color: var(--text-primary); }
+.cmd-item-icon { width: 18px; height: 18px; color: var(--text-tertiary); flex-shrink: 0; }
+.cmd-item:hover .cmd-item-icon { color: var(--avy-purple); }
+.cmd-item kbd { margin-left: auto; font-family: inherit; font-size: 11px; font-weight: 500; color: var(--text-tertiary); background: var(--bg); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; }
+.cmd-footer { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; gap: 16px; }
+.cmd-hint { font-size: 11px; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px; }
+.cmd-hint kbd { font-family: inherit; background: var(--surface-secondary); border: 1px solid var(--border); padding: 0 4px; border-radius: 3px; font-size: 10px; }
+
+/* ═══════ RESPONSIVE ═══════ */
+@media (max-width: 1024px) {
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .pill-tabs { overflow-x: auto; }
+  .filter-right { margin-left: 0; }
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); position: fixed; z-index: 55; }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay.active { display: block; }
+  .mobile-header { display: flex; }
+  .main { margin-left: 0; }
+  .topbar { display: none; }
+  .page-header { padding: var(--space-4) var(--space-4) 0; }
+  .content { padding: var(--space-4) var(--space-4) var(--space-8); }
+  .kpi-row { grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+  .page-header-actions { width: 100%; }
+  .page-header-actions .btn { flex: 1; justify-content: center; }
+  .slideout-panel { width: 100vw; }
+  .bulk-bar { min-width: auto; left: 16px; right: 16px; transform: translateX(0) translateY(80px); }
+  .bulk-bar.visible { transform: translateX(0) translateY(0); }
+}
+@media (max-width: 480px) {
+  .kpi-row { grid-template-columns: 1fr; }
+  .toast { min-width: auto; margin: 0 12px; }
+}
+
+/* ═══════ UTILITY ═══════ */
+@keyframes shrink { from { width: 100%; } to { width: 0%; } }
+</style>
+</head>
+<body>
+
+<!-- Mobile Header -->
+<div class="mobile-header">
+  <button class="hamburger" onclick="toggleSidebar()">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h16M3 11h16M3 16h16"/></svg>
+  </button>
+  <span class="mobile-brand">AvyCloud</span>
+  <div style="margin-left:auto;display:flex;gap:4px;">
+    <button class="topbar-btn" style="color:rgba(255,255,255,0.7);" onclick="toggleTheme()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1"/></svg>
+    </button>
+    <button class="topbar-btn" style="color:rgba(255,255,255,0.7);position:relative;">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5.5a4 4 0 00-8 0c0 4.5-2 6-2 6h12s-2-1.5-2-6M9.2 14a1.3 1.3 0 01-2.4 0"/></svg>
+      <span class="dot" style="border-color:var(--avy-deep);"></span>
+    </button>
+  </div>
+</div>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">A</div>
+    <span class="sidebar-brand">AvyCloud</span>
+  </div>
+  <div class="sidebar-section">
+    <a class="nav-item" href="dashboard-v2.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg><span>Dashboard</span></a>
+    <a class="nav-item" href="products.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12M4 8h12M4 12h8M4 16h10"/></svg><span>Produkte</span><span class="nav-badge">1.247</span></a>
+    <a class="nav-item active" href="orders-v2.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h2v2H4zM4 9h2v2H4zM4 14h2v2H4zM9 5h7M9 10h7M9 15h5"/></svg><span>Bestellungen</span><span class="nav-badge">23</span></a>
+    <a class="nav-item" href="ebay-listings.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z"/></svg><span>eBay Listings</span></a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Operations</div>
+    <a class="nav-item" href="product-input.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 13v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3M10 3v10M7 6l3-3 3 3"/></svg><span>Identifizieren</span></a>
+    <a class="nav-item" href="operations-desktop.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="6" height="10" rx="1"/><rect x="11" y="5" width="6" height="10" rx="1"/></svg><span>Stow / Pick</span></a>
+    <a class="nav-item" href="warehouse.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17V7l7-4 7 4v10M3 7h14M7 17v-6h6v6"/></svg><span>Warehouse</span></a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">System</div>
+    <a class="nav-item" href="categories.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5a2 2 0 012-2h3l2 2h5a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V5z"/></svg><span>Kategorien</span></a>
+    <a class="nav-item" href="admin.html"><svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"/></svg><span>Admin</span></a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="user-avatar">OG</div>
+      <div><div class="user-name">Oguz</div><div class="user-role">Admin</div></div>
+    </div>
+  </div>
+</nav>
+
+<!-- Main -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-search" onclick="openCmd()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3 3"/></svg>
+      <span>Suchen...</span>
+      <kbd>&#8984;K</kbd>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Theme wechseln">
+        <svg id="theme-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
+      </button>
+      <button class="topbar-btn" title="Benachrichtigungen">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6.75a4.5 4.5 0 00-9 0c0 5.25-2.25 6.75-2.25 6.75h13.5s-2.25-1.5-2.25-6.75M10.3 15.75a1.5 1.5 0 01-2.6 0"/></svg>
+        <span class="dot"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div>
+      <h1>Bestellungen</h1>
+      <div class="page-header-sub">23 offene Bestellungen</div>
+    </div>
+    <div class="page-header-actions">
+      <button class="btn btn-secondary" onclick="showToast('info', 'Export gestartet', 'Bestellungen werden als CSV exportiert...')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8.5v3a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 012 11.5v-3M7 1v8M4 4l3-3 3 3"/></svg>
+        Exportieren
+      </button>
+      <button class="btn btn-primary" onclick="showToast('success', 'Bereit', 'Neues Bestellformular geoeffnet.')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 2v10M2 7h10"/></svg>
+        Bestellung erfassen
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- KPI Summary Row -->
+    <div class="kpi-row">
+      <div class="kpi-mini">
+        <div class="kpi-mini-icon blue">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/></svg>
+        </div>
+        <div>
+          <div class="kpi-mini-label">Offene</div>
+          <div class="kpi-mini-value blue">23</div>
+        </div>
+      </div>
+      <div class="kpi-mini">
+        <div class="kpi-mini-icon yellow">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h2v2H4zM4 9h2v2H4zM4 14h2v2H4zM9 5h7M9 10h7M9 15h5"/></svg>
+        </div>
+        <div>
+          <div class="kpi-mini-label">Kommissioniert</div>
+          <div class="kpi-mini-value yellow">8</div>
+        </div>
+      </div>
+      <div class="kpi-mini">
+        <div class="kpi-mini-icon green">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 12l3 3 7-8"/><rect x="2" y="2" width="16" height="16" rx="3"/></svg>
+        </div>
+        <div>
+          <div class="kpi-mini-label">Versendet heute</div>
+          <div class="kpi-mini-value green">12</div>
+        </div>
+      </div>
+      <div class="kpi-mini">
+        <div class="kpi-mini-icon red">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 6v4M10 13v.5"/><circle cx="10" cy="10" r="7"/></svg>
+        </div>
+        <div>
+          <div class="kpi-mini-label">Ueberfaellig</div>
+          <div class="kpi-mini-value red">5</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter / Tab Bar -->
+    <div class="filter-bar">
+      <div class="pill-tabs">
+        <button class="pill-tab active" onclick="setTab(this)">Alle <span class="pill-count">(156)</span></button>
+        <button class="pill-tab" onclick="setTab(this)">Neu <span class="pill-count">(23)</span></button>
+        <button class="pill-tab" onclick="setTab(this)">Kommissioniert <span class="pill-count">(8)</span></button>
+        <button class="pill-tab" onclick="setTab(this)">Verpackt <span class="pill-count">(4)</span></button>
+        <button class="pill-tab" onclick="setTab(this)">Versendet <span class="pill-count">(121)</span></button>
+      </div>
+      <div class="filter-right">
+        <button class="date-picker-btn">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2.5" width="11" height="10" rx="1.5"/><path d="M1.5 5.5h11M4.5 1v2.5M9.5 1v2.5"/></svg>
+          Letzte 30 Tage
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg>
+        </button>
+        <div class="filter-search">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><circle cx="6" cy="6" r="4"/><path d="M10 10l2.5 2.5"/></svg>
+          <input type="text" placeholder="Bestellungen suchen..." id="tableSearch" oninput="filterTable(this.value)">
+        </div>
+      </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="table-card">
+      <div class="table-scroll">
+        <table class="orders-table" id="ordersTable">
+          <thead>
+            <tr>
+              <th><div class="checkbox-wrap"><input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></div></th>
+              <th class="sortable">Bestell-Nr</th>
+              <th class="sortable">Datum</th>
+              <th class="sortable">Kunde</th>
+              <th class="sortable">Artikel</th>
+              <th class="sortable">Status</th>
+              <th class="sortable" style="text-align:right">Betrag</th>
+              <th>Fulfillment</th>
+              <th style="width:36px"></th>
+            </tr>
+          </thead>
+          <tbody id="ordersBody">
+            <tr onclick="openSlideout(0)" data-order="0">
+              <td onclick="event.stopPropagation()"><div class="checkbox-wrap"><input type="checkbox" class="checkbox row-check" onchange="updateBulk()"></div></td>
+              <td><a class="order-id" href="#" onclick="event.preventDefault();event.stopPropagation();openSlideout(0)">#AV-2847</a></td>
+              <td>17.02.2026</td>
+              <td>Max Mustermann</td>
+              <td>3 Artikel</td>
+              <td><span class="status-badge neu"><span class="status-dot"></span>Neu</span></td>
+              <td style="text-align:right"><span class="amount">189,90 &euro;</span></td>
+              <td>
+                <div class="fulfillment-cell">
+                  <div class="fulfillment-bar-wrap">
+                    <div class="fulfillment-bar"><div class="fulfillment-fill low" style="width:0%"></div></div>
+                    <span class="fulfillment-text">Ausstehend</span>
+                  </div>
+                </div>
+              </td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr onclick="openSlideout(1)" data-order="1">
+              <td onclick="event.stopPropagation()"><div class="checkbox-wrap"><input type="checkbox" class="checkbox row-check" onchange="updateBulk()"></div></td>
+              <td><a class="order-id" href="#" onclick="event.preventDefault();event.stopPropagation();openSlideout(1)">#AV-2846</a></td>
+              <td>17.02.2026</td>
+              <td>Lisa Schmidt</td>
+              <td>1 Artikel</td>
+              <td><span class="status-badge kommissioniert"><span class="status-dot"></span>Kommissioniert</span></td>
+              <td style="text-align:right"><span class="amount">234,50 &euro;</span></td>
+              <td>
+                <div class="fulfillment-cell">
+                  <div class="fulfillment-bar-wrap">
+                    <div class="fulfillment-bar"><div class="fulfillment-fill mid" style="width:66%"></div></div>
+                    <span class="fulfillment-text">2/3 gepickt</span>
+                  </div>
+                </div>
+              </td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr onclick="openSlideout(2)" data-order="2">
+              <td onclick="event.stopPropagation()"><div class="checkbox-wrap"><input type="checkbox" class="checkbox row-check" onchange="updateBulk()"></div></td>
+              <td><a class="order-id" href="#" onclick="event.preventDefault();event.stopPropagation();openSlideout(2)">#AV-2845</a></td>
+              <td>16.02.2026</td>
+              <td>Markus Weber</td>
+              <td>2 Artikel</td>
+              <td><span class="status-badge verpackt"><span class="status-dot"></span>Verpackt</span></td>
+              <td style="text-align:right"><span class="amount">156,00 &euro;</span></td>
+              <td>
+                <div class="fulfillment-cell">
+                  <div class="fulfillment-bar-wrap">
+                    <div class="fulfillment-bar"><div class="fulfillment-fill full" style="width:100%"></div></div>
+                    <span class="fulfillment-text">Versandlabel erstellt</span>
+                  </div>
+                </div>
+              </td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr onclick="openSlideout(3)" data-order="3">
+              <td onclick="event.stopPropagation()"><div class="checkbox-wrap"><input type="checkbox" class="checkbox row-check" onchange="updateBulk()"></div></td>
+              <td><a class="order-id" href="#" onclick="event.preventDefault();event.stopPropagation();openSlideout(3)">#AV-2844</a></td>
+              <td>16.02.2026</td>
+              <td>Anna Fischer</td>
+              <td>5 Artikel</td>
+              <td><span class="status-badge neu"><span class="status-dot"></span>Neu</span></td>
+              <td style="text-align:right"><span class="amount">78,90 &euro;</span></td>
+              <td>
+                <div class="fulfillment-cell">
+                  <div class="fulfillment-bar-wrap">
+                    <div class="fulfillment-bar"><div class="fulfillment-fill low" style="width:0%"></div></div>
+                    <span class="fulfillment-text">Ausstehend</span>
+                  </div>
+                </div>
+              </td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr onclick="openSlideout(4)" data-order="4">
+              <td onclick="event.stopPropagation()"><div class="checkbox-wrap"><input type="checkbox" class="checkbox row-check" onchange="updateBulk()"></div></td>
+              <td><a class="order-id" href="#" onclick="event.preventDefault();event.stopPropagation();openSlideout(4)">#AV-2843</a></td>
+              <td>15.02.2026</td>
+              <td>Thomas Klein</td>
+              <td>2 Artikel</td>
+              <td><span class="status-badge versendet"><span class="status-dot"></span>Versendet</span></td>
+              <td style="text-align:right"><span class="amount">312,00 &euro;</span></td>
+              <td>
+                <div class="fulfillment-cell">
+                  <div class="fulfillment-bar-wrap">
+                    <div class="fulfillment-bar"><div class="fulfillment-fill full" style="width:100%"></div></div>
+                    <span class="fulfillment-text">DHL: 1Z9E4820...</span>
+                  </div>
+                </div>
+              </td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr onclick="openSlideout(5)" data-order="5">
+              <td onclick="event.stopPropagation()"><div class="checkbox-wrap"><input type="checkbox" class="checkbox row-check" onchange="updateBulk()"></div></td>
+              <td><a class="order-id" href="#" onclick="event.preventDefault();event.stopPropagation();openSlideout(5)">#AV-2842</a></td>
+              <td>15.02.2026</td>
+              <td>Sandra Mueller</td>
+              <td>1 Artikel</td>
+              <td><span class="status-badge kommissioniert"><span class="status-dot"></span>Kommissioniert</span></td>
+              <td style="text-align:right"><span class="amount">549,00 &euro;</span></td>
+              <td>
+                <div class="fulfillment-cell">
+                  <div class="fulfillment-bar-wrap">
+                    <div class="fulfillment-bar"><div class="fulfillment-fill mid" style="width:50%"></div></div>
+                    <span class="fulfillment-text">1/2 gepickt</span>
+                  </div>
+                </div>
+              </td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr onclick="openSlideout(6)" data-order="6">
+              <td onclick="event.stopPropagation()"><div class="checkbox-wrap"><input type="checkbox" class="checkbox row-check" onchange="updateBulk()"></div></td>
+              <td><a class="order-id" href="#" onclick="event.preventDefault();event.stopPropagation();openSlideout(6)">#AV-2841</a></td>
+              <td>14.02.2026</td>
+              <td>Peter Hoffmann</td>
+              <td>4 Artikel</td>
+              <td><span class="status-badge versendet"><span class="status-dot"></span>Versendet</span></td>
+              <td style="text-align:right"><span class="amount">423,80 &euro;</span></td>
+              <td>
+                <div class="fulfillment-cell">
+                  <div class="fulfillment-bar-wrap">
+                    <div class="fulfillment-bar"><div class="fulfillment-fill full" style="width:100%"></div></div>
+                    <span class="fulfillment-text">GLS: 3S0281940...</span>
+                  </div>
+                </div>
+              </td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+            <tr onclick="openSlideout(7)" data-order="7">
+              <td onclick="event.stopPropagation()"><div class="checkbox-wrap"><input type="checkbox" class="checkbox row-check" onchange="updateBulk()"></div></td>
+              <td><a class="order-id" href="#" onclick="event.preventDefault();event.stopPropagation();openSlideout(7)">#AV-2840</a></td>
+              <td>14.02.2026</td>
+              <td>Julia Braun</td>
+              <td>2 Artikel</td>
+              <td><span class="status-badge storniert"><span class="status-dot"></span>Storniert</span></td>
+              <td style="text-align:right"><span class="amount" style="text-decoration:line-through;color:var(--text-tertiary);">67,40 &euro;</span></td>
+              <td>
+                <div class="fulfillment-cell">
+                  <div class="fulfillment-bar-wrap">
+                    <span class="fulfillment-text" style="color:var(--error);">Storniert am 15.02.</span>
+                  </div>
+                </div>
+              </td>
+              <td><svg class="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Pagination -->
+      <div class="pagination">
+        <div class="pagination-info">1&ndash;8 von 156 Bestellungen</div>
+        <div class="pagination-buttons">
+          <button class="page-btn" disabled title="Vorherige">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8.5 3L4.5 7l4 4"/></svg>
+          </button>
+          <button class="page-btn active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">3</button>
+          <button class="page-btn" style="pointer-events:none;border:none;background:none;color:var(--text-tertiary);">...</button>
+          <button class="page-btn">20</button>
+          <button class="page-btn" title="Naechste">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5.5 3l4 4-4 4"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Bulk Action Bar -->
+<div class="bulk-bar" id="bulkBar">
+  <span class="bulk-bar-count" id="bulkCount">0 ausgewaehlt</span>
+  <div class="bulk-bar-divider"></div>
+  <div class="bulk-bar-actions">
+    <button class="bulk-btn" onclick="showToast('info','Labels','Versandlabels werden generiert...')">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="10" height="10" rx="1.5"/><path d="M5 5h4M5 7.5h4M5 10h2"/></svg>
+      Labels drucken
+    </button>
+    <button class="bulk-btn" onclick="showToast('success','Kommissionierung','Kommissionierung fuer ausgewaehlte Bestellungen gestartet.')">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h2v2H3zM3 6.5h2v2H3zM3 10h2v2H3zM7 4h4M7 7.5h4M7 11h3"/></svg>
+      Kommissionieren
+    </button>
+    <button class="bulk-btn" onclick="showToast('success','Versendet','Ausgewaehlte Bestellungen als versendet markiert.')">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 7l3.5 3.5L12 4"/></svg>
+      Als versendet
+    </button>
+  </div>
+  <button class="bulk-close" onclick="clearSelection()" title="Auswahl aufheben">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+  </button>
+</div>
+
+<!-- Order Detail Slide-out -->
+<div class="slideout-overlay" id="slideoutOverlay" onclick="closeSlideout()"></div>
+<div class="slideout-panel" id="slideoutPanel">
+  <div class="slideout-header">
+    <div class="slideout-header-left">
+      <span class="slideout-order-id" id="slideoutOrderId">#AV-2847</span>
+      <span class="status-badge neu" id="slideoutStatus"><span class="status-dot"></span><span id="slideoutStatusText">Neu</span></span>
+    </div>
+    <button class="slideout-close" onclick="closeSlideout()">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4.5 4.5l9 9M13.5 4.5l-9 9"/></svg>
+    </button>
+  </div>
+  <div class="slideout-body" id="slideoutBody">
+    <!-- Content populated by JS -->
+  </div>
+  <div class="slideout-actions" id="slideoutActions">
+    <!-- Buttons populated by JS -->
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Command Palette -->
+<div class="cmd-overlay" id="cmdOverlay" onclick="if(event.target===this)closeCmd()">
+  <div class="cmd-box">
+    <div class="cmd-input-wrap">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M13 13l3 3"/></svg>
+      <input class="cmd-input" id="cmdInput" placeholder="Suche oder Befehl eingeben..." autofocus>
+      <kbd style="font-family:inherit;font-size:11px;padding:2px 6px;border-radius:4px;background:var(--surface-secondary);border:1px solid var(--border);color:var(--text-tertiary);">ESC</kbd>
+    </div>
+    <div class="cmd-results">
+      <div class="cmd-group-label">Navigation</div>
+      <div class="cmd-item" onclick="window.location='dashboard-v2.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/></svg>Dashboard</div>
+      <div class="cmd-item" onclick="window.location='products.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h12M3 7h12M3 11h8M3 15h10"/></svg>Produkte<kbd>1.247</kbd></div>
+      <div class="cmd-item selected" onclick="window.location='orders-v2.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h2v2H3zM3 8h2v2H3zM3 13h2v2H3zM8 4h7M8 9h7M8 14h5"/></svg>Bestellungen<kbd>23 offen</kbd></div>
+      <div class="cmd-item" onclick="window.location='ebay-listings.html'"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="6"/><path d="M3 9h12M9 3a8 8 0 012 6 8 8 0 01-2 6 8 8 0 01-2-6A8 8 0 019 3z"/></svg>eBay Listings</div>
+      <div class="cmd-group-label">Aktionen</div>
+      <div class="cmd-item" onclick="closeCmd();showToast('info','Export','Bestellungen werden exportiert...')"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 11v4a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 013 15v-4M9 2v9M6 5l3-3 3 3"/></svg>Bestellungen exportieren<kbd>&#8984;E</kbd></div>
+      <div class="cmd-item" onclick="closeCmd();showToast('success','Neu','Neues Bestellformular geoeffnet.')"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3v12M3 9h12"/></svg>Bestellung erfassen<kbd>&#8984;N</kbd></div>
+      <div class="cmd-item" onclick="closeCmd();showToast('info','Sync','eBay Sync wird gestartet...')"><svg class="cmd-item-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 9a6 6 0 01-6 6M3 9a6 6 0 016-6"/><path d="M11 5.5l2-2 2 2M7 12.5l-2 2-2-2"/></svg>eBay Sync starten<kbd>&#8984;S</kbd></div>
+    </div>
+    <div class="cmd-footer">
+      <div class="cmd-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigieren</div>
+      <div class="cmd-hint"><kbd>&crarr;</kbd> Oeffnen</div>
+      <div class="cmd-hint"><kbd>ESC</kbd> Schliessen</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   AVYCLOUD ORDERS — INTERACTIVE LOGIC
+   ═══════════════════════════════════════════ */
+
+// ─── Order Data ───
+const orders = [
+  {
+    id: '#AV-2847', date: '17.02.2026', customer: 'Max Mustermann',
+    email: 'max@mustermann.de', address: 'Berliner Str. 42, 10115 Berlin',
+    status: 'neu', statusLabel: 'Neu', statusClass: 'neu',
+    amount: '189,90', articles: 3,
+    items: [
+      { name: 'Vintage Rolex Submariner 1680', sku: 'WCH-1680-BLK', qty: 1, price: '89,90' },
+      { name: 'Cartier Santos Medium Gold', sku: 'WCH-SNT-GLD', qty: 1, price: '65,00' },
+      { name: 'Uhrenbox Leder schwarz 6er', sku: 'ACC-BOX-6BK', qty: 1, price: '35,00' }
+    ],
+    timeline: [
+      { label: 'Bestellt', time: '17.02.2026, 09:14', state: 'completed' },
+      { label: 'Kommissioniert', time: '', state: 'active' },
+      { label: 'Verpackt', time: '', state: 'pending' },
+      { label: 'Versendet', time: '', state: 'pending' }
+    ],
+    actions: ['start-picking', 'print-label']
+  },
+  {
+    id: '#AV-2846', date: '17.02.2026', customer: 'Lisa Schmidt',
+    email: 'lisa.schmidt@web.de', address: 'Hauptstr. 17, 80331 Muenchen',
+    status: 'kommissioniert', statusLabel: 'Kommissioniert', statusClass: 'kommissioniert',
+    amount: '234,50', articles: 1,
+    items: [
+      { name: 'Omega Seamaster 300m Blue', sku: 'WCH-OMG-SM3', qty: 1, price: '189,50' },
+      { name: 'NATO Strap Marine 20mm', sku: 'ACC-NATO-20M', qty: 1, price: '25,00' },
+      { name: 'Politur-Set Premium', sku: 'ACC-POL-PRM', qty: 1, price: '20,00' }
+    ],
+    timeline: [
+      { label: 'Bestellt', time: '17.02.2026, 08:22', state: 'completed' },
+      { label: 'Kommissioniert', time: '17.02.2026, 10:45', state: 'completed' },
+      { label: 'Verpackt', time: '', state: 'active' },
+      { label: 'Versendet', time: '', state: 'pending' }
+    ],
+    actions: ['print-label', 'mark-packed']
+  },
+  {
+    id: '#AV-2845', date: '16.02.2026', customer: 'Markus Weber',
+    email: 'markus.weber@gmx.de', address: 'Rheinufer 8, 50668 Koeln',
+    status: 'verpackt', statusLabel: 'Verpackt', statusClass: 'verpackt',
+    amount: '156,00', articles: 2,
+    items: [
+      { name: 'Seiko Presage Cocktail Time', sku: 'WCH-SEI-CCK', qty: 1, price: '120,00' },
+      { name: 'Lederband braun 20mm Krok', sku: 'ACC-LB-20BR', qty: 1, price: '36,00' }
+    ],
+    timeline: [
+      { label: 'Bestellt', time: '16.02.2026, 14:33', state: 'completed' },
+      { label: 'Kommissioniert', time: '16.02.2026, 16:10', state: 'completed' },
+      { label: 'Verpackt', time: '17.02.2026, 09:05', state: 'completed' },
+      { label: 'Versendet', time: '', state: 'active' }
+    ],
+    actions: ['print-label', 'mark-shipped']
+  },
+  {
+    id: '#AV-2844', date: '16.02.2026', customer: 'Anna Fischer',
+    email: 'a.fischer@outlook.de', address: 'Marktplatz 3, 70173 Stuttgart',
+    status: 'neu', statusLabel: 'Neu', statusClass: 'neu',
+    amount: '78,90', articles: 5,
+    items: [
+      { name: 'Casio G-Shock DW-5600', sku: 'WCH-GS-5600', qty: 2, price: '39,90' },
+      { name: 'Ersatz-Armband G-Shock', sku: 'ACC-GS-BAND', qty: 2, price: '12,00' },
+      { name: 'Uhren-Reinigungstuch Set', sku: 'ACC-CLN-SET', qty: 1, price: '15,00' }
+    ],
+    timeline: [
+      { label: 'Bestellt', time: '16.02.2026, 18:55', state: 'completed' },
+      { label: 'Kommissioniert', time: '', state: 'active' },
+      { label: 'Verpackt', time: '', state: 'pending' },
+      { label: 'Versendet', time: '', state: 'pending' }
+    ],
+    actions: ['start-picking', 'print-label']
+  },
+  {
+    id: '#AV-2843', date: '15.02.2026', customer: 'Thomas Klein',
+    email: 'tklein@t-online.de', address: 'Bahnhofstr. 55, 20095 Hamburg',
+    status: 'versendet', statusLabel: 'Versendet', statusClass: 'versendet',
+    amount: '312,00', articles: 2,
+    items: [
+      { name: 'Tudor Black Bay 58 Blue', sku: 'WCH-TUD-BB58', qty: 1, price: '275,00' },
+      { name: 'Uhrenrolle Reise Leder', sku: 'ACC-ROLL-LTH', qty: 1, price: '37,00' }
+    ],
+    timeline: [
+      { label: 'Bestellt', time: '15.02.2026, 11:20', state: 'completed' },
+      { label: 'Kommissioniert', time: '15.02.2026, 14:30', state: 'completed' },
+      { label: 'Verpackt', time: '16.02.2026, 08:45', state: 'completed' },
+      { label: 'Versendet', time: '16.02.2026, 15:22', state: 'completed' }
+    ],
+    actions: []
+  },
+  {
+    id: '#AV-2842', date: '15.02.2026', customer: 'Sandra Mueller',
+    email: 's.mueller@gmail.com', address: 'Lerchenweg 12, 60313 Frankfurt',
+    status: 'kommissioniert', statusLabel: 'Kommissioniert', statusClass: 'kommissioniert',
+    amount: '549,00', articles: 1,
+    items: [
+      { name: 'Breitling Navitimer B01 43', sku: 'WCH-BRT-NAV', qty: 1, price: '499,00' },
+      { name: 'Breitling Service Kit', sku: 'ACC-BRT-SVC', qty: 1, price: '50,00' }
+    ],
+    timeline: [
+      { label: 'Bestellt', time: '15.02.2026, 09:08', state: 'completed' },
+      { label: 'Kommissioniert', time: '15.02.2026, 12:34', state: 'completed' },
+      { label: 'Verpackt', time: '', state: 'active' },
+      { label: 'Versendet', time: '', state: 'pending' }
+    ],
+    actions: ['print-label', 'mark-packed']
+  },
+  {
+    id: '#AV-2841', date: '14.02.2026', customer: 'Peter Hoffmann',
+    email: 'p.hoffmann@firma.de', address: 'Am Anger 7, 01067 Dresden',
+    status: 'versendet', statusLabel: 'Versendet', statusClass: 'versendet',
+    amount: '423,80', articles: 4,
+    items: [
+      { name: 'IWC Portugieser Chrono', sku: 'WCH-IWC-PRT', qty: 1, price: '345,00' },
+      { name: 'Kalbsleder Strap schwarz 22mm', sku: 'ACC-KL-22BK', qty: 1, price: '38,80' },
+      { name: 'Federsteg-Werkzeug Pro', sku: 'TLS-FST-PRO', qty: 1, price: '22,00' },
+      { name: 'Microfiber Poliertuch 5er', sku: 'ACC-MFC-5PK', qty: 1, price: '18,00' }
+    ],
+    timeline: [
+      { label: 'Bestellt', time: '14.02.2026, 10:44', state: 'completed' },
+      { label: 'Kommissioniert', time: '14.02.2026, 13:15', state: 'completed' },
+      { label: 'Verpackt', time: '14.02.2026, 16:20', state: 'completed' },
+      { label: 'Versendet', time: '15.02.2026, 09:12', state: 'completed' }
+    ],
+    actions: []
+  },
+  {
+    id: '#AV-2840', date: '14.02.2026', customer: 'Julia Braun',
+    email: 'julia.braun@posteo.de', address: 'Schlossallee 22, 90402 Nuernberg',
+    status: 'storniert', statusLabel: 'Storniert', statusClass: 'storniert',
+    amount: '67,40', articles: 2,
+    items: [
+      { name: 'Citizen Eco-Drive BM8180', sku: 'WCH-CTZ-ECO', qty: 1, price: '49,90' },
+      { name: 'NATO Strap oliv 20mm', sku: 'ACC-NATO-OLV', qty: 1, price: '17,50' }
+    ],
+    timeline: [
+      { label: 'Bestellt', time: '14.02.2026, 20:15', state: 'completed' },
+      { label: 'Storniert', time: '15.02.2026, 08:30', state: 'completed' }
+    ],
+    actions: []
+  }
+];
+
+// ─── Theme ───
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('avy-theme', isDark ? 'light' : 'dark');
+}
+(function() {
+  const saved = localStorage.getItem('avy-theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+
+// ─── Mobile sidebar ───
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.querySelector('.sidebar-overlay').classList.toggle('active');
+}
+
+// ─── Command Palette ───
+function openCmd() { document.getElementById('cmdOverlay').classList.add('active'); document.getElementById('cmdInput').focus(); }
+function closeCmd() { document.getElementById('cmdOverlay').classList.remove('active'); document.getElementById('cmdInput').value = ''; }
+document.addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openCmd(); }
+  if (e.key === 'Escape') {
+    if (document.getElementById('cmdOverlay').classList.contains('active')) { closeCmd(); return; }
+    if (document.getElementById('slideoutPanel').classList.contains('active')) { closeSlideout(); return; }
+  }
+});
+
+// ─── Pill Tabs ───
+function setTab(btn) {
+  btn.parentElement.querySelectorAll('.pill-tab').forEach(function(p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+// ─── Table Search ───
+function filterTable(query) {
+  var rows = document.querySelectorAll('#ordersBody tr');
+  var q = query.toLowerCase();
+  rows.forEach(function(row) {
+    var text = row.textContent.toLowerCase();
+    row.style.display = text.includes(q) ? '' : 'none';
+  });
+}
+
+// ─── Select All / Bulk Actions ───
+function toggleSelectAll(el) {
+  var checks = document.querySelectorAll('.row-check');
+  checks.forEach(function(c) { c.checked = el.checked; c.closest('tr').classList.toggle('selected', el.checked); });
+  updateBulk();
+}
+
+function updateBulk() {
+  var checks = document.querySelectorAll('.row-check:checked');
+  var count = checks.length;
+  var bar = document.getElementById('bulkBar');
+  document.getElementById('bulkCount').textContent = count + ' ausgewaehlt';
+  if (count > 0) {
+    bar.classList.add('visible');
+  } else {
+    bar.classList.remove('visible');
+  }
+  // update select all state
+  var all = document.querySelectorAll('.row-check');
+  var selectAll = document.getElementById('selectAll');
+  selectAll.checked = count === all.length && count > 0;
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-check').forEach(function(c) { c.checked = false; c.closest('tr').classList.remove('selected'); });
+  document.getElementById('selectAll').checked = false;
+  updateBulk();
+}
+
+// ─── Slideout Panel ───
+function openSlideout(index) {
+  var order = orders[index];
+  if (!order) return;
+
+  document.getElementById('slideoutOrderId').textContent = order.id;
+  var statusBadge = document.getElementById('slideoutStatus');
+  statusBadge.className = 'status-badge ' + order.statusClass;
+  document.getElementById('slideoutStatusText').textContent = order.statusLabel;
+
+  // Build body
+  var html = '';
+
+  // Order Info
+  html += '<div class="detail-section">';
+  html += '<div class="detail-section-title">Bestelldetails</div>';
+  html += '<div class="detail-row"><span class="detail-label">Bestellnummer</span><span class="detail-value">' + order.id + '</span></div>';
+  html += '<div class="detail-row"><span class="detail-label">Datum</span><span class="detail-value">' + order.date + '</span></div>';
+  html += '<div class="detail-row"><span class="detail-label">Betrag</span><span class="detail-value" style="font-weight:700;">' + order.amount + ' &euro;</span></div>';
+  html += '</div>';
+
+  // Customer Info
+  html += '<div class="detail-section">';
+  html += '<div class="detail-section-title">Kunde</div>';
+  html += '<div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">' + order.customer + '</span></div>';
+  html += '<div class="detail-row"><span class="detail-label">E-Mail</span><span class="detail-value" style="color:var(--avy-purple);">' + order.email + '</span></div>';
+  html += '<div class="detail-row"><span class="detail-label">Adresse</span><span class="detail-value">' + order.address + '</span></div>';
+  html += '</div>';
+
+  // Items
+  html += '<div class="detail-section">';
+  html += '<div class="detail-section-title">Artikel (' + order.items.length + ')</div>';
+  html += '<div class="detail-items">';
+  order.items.forEach(function(item) {
+    var initials = item.name.split(' ').slice(0,2).map(function(w) { return w[0]; }).join('');
+    html += '<div class="detail-item">';
+    html += '<div class="detail-item-thumb">' + initials + '</div>';
+    html += '<div class="detail-item-info"><div class="detail-item-name">' + item.name + '</div><div class="detail-item-sku">' + item.sku + '</div></div>';
+    html += '<div class="detail-item-qty">' + item.qty + 'x</div>';
+    html += '<div class="detail-item-price">' + item.price + ' &euro;</div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+
+  // Fulfillment Timeline
+  html += '<div class="detail-section">';
+  html += '<div class="detail-section-title">Fulfillment</div>';
+  html += '<div class="timeline"><div class="timeline-line"></div>';
+  order.timeline.forEach(function(step) {
+    var dotIcon = '';
+    if (step.state === 'completed') {
+      dotIcon = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 6l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    } else if (step.state === 'active') {
+      dotIcon = '<svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" fill="white"/></svg>';
+    }
+    html += '<div class="timeline-step">';
+    html += '<div class="timeline-dot ' + step.state + '">' + dotIcon + '</div>';
+    html += '<div class="timeline-step-content">';
+    html += '<div class="timeline-step-label' + (step.state === 'pending' ? ' pending' : '') + '">' + step.label + '</div>';
+    if (step.time) {
+      html += '<div class="timeline-step-time">' + step.time + '</div>';
+    }
+    html += '</div></div>';
+  });
+  html += '</div></div>';
+
+  document.getElementById('slideoutBody').innerHTML = html;
+
+  // Build actions
+  var actionsHtml = '';
+  if (order.actions.indexOf('start-picking') !== -1) {
+    actionsHtml += '<button class="btn btn-primary" onclick="showToast(\'success\',\'Kommissionierung\',\'Kommissionierung fuer ' + order.id + ' gestartet.\');closeSlideout();"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h2v2H3zM3 6.5h2v2H3zM3 10h2v2H3zM7 4h4M7 7.5h4M7 11h3"/></svg>Kommissionieren starten</button>';
+  }
+  if (order.actions.indexOf('print-label') !== -1) {
+    actionsHtml += '<button class="btn btn-secondary" onclick="showToast(\'info\',\'Label\',\'Versandlabel fuer ' + order.id + ' wird gedruckt.\');"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="10" height="6" rx="1"/><path d="M4 6V3a1 1 0 011-1h4a1 1 0 011 1v3"/><path d="M4 9h3"/></svg>Label drucken</button>';
+  }
+  if (order.actions.indexOf('mark-packed') !== -1) {
+    actionsHtml += '<button class="btn btn-secondary" onclick="showToast(\'success\',\'Verpackt\',\'' + order.id + ' als verpackt markiert.\');closeSlideout();"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="10" height="9" rx="1.5"/><path d="M2 6h10M5.5 3V1.5M8.5 3V1.5"/></svg>Als verpackt markieren</button>';
+  }
+  if (order.actions.indexOf('mark-shipped') !== -1) {
+    actionsHtml += '<button class="btn btn-success" onclick="showToast(\'success\',\'Versendet\',\'' + order.id + ' als versendet markiert.\');closeSlideout();"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 7l3.5 3.5L12 4"/></svg>Als versendet markieren</button>';
+  }
+  if (actionsHtml === '') {
+    if (order.status === 'versendet') {
+      actionsHtml = '<button class="btn btn-secondary" style="flex:1;justify-content:center;" onclick="showToast(\'info\',\'Tracking\',\'Sendungsverfolgung wird geoeffnet...\')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 4l6-2.5L13 4v6l-6 2.5L1 10V4zM7 6.5V12M1 4l6 2.5 6-2.5"/></svg>Sendungsverfolgung</button>';
+    } else if (order.status === 'storniert') {
+      actionsHtml = '<button class="btn btn-secondary" style="flex:1;justify-content:center;opacity:0.6;cursor:default;">Bestellung storniert</button>';
+    }
+  }
+  document.getElementById('slideoutActions').innerHTML = actionsHtml;
+
+  // Show
+  document.getElementById('slideoutOverlay').classList.add('active');
+  document.getElementById('slideoutPanel').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSlideout() {
+  document.getElementById('slideoutOverlay').classList.remove('active');
+  document.getElementById('slideoutPanel').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+// ─── Toast System ───
+var toastId = 0;
+function showToast(type, title, desc) {
+  var id = ++toastId;
+  var colors = { success: '#0E9F6E', error: '#DC2626', info: '#0070F3', warning: '#D97706' };
+  var c = colors[type] || colors.info;
+  var icons = {
+    success: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="' + c + '" stroke-width="1.5"/><path d="M6 9l2 2 4-4" stroke="' + c + '" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    error: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="' + c + '" stroke-width="1.5"/><path d="M6.75 6.75l4.5 4.5M11.25 6.75l-4.5 4.5" stroke="' + c + '" stroke-width="1.5"/></svg>',
+    info: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="' + c + '" stroke-width="1.5"/><path d="M9 7v4M9 12.5v.5" stroke="' + c + '" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    warning: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2l7.5 13H1.5z" stroke="' + c + '" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 7.5v3M9 12.5v.5" stroke="' + c + '" stroke-width="1.5" stroke-linecap="round"/></svg>'
+  };
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = '<div class="toast-icon">' + (icons[type] || icons.info) + '</div><div class="toast-body"><div class="toast-title">' + title + '</div>' + (desc ? '<div class="toast-desc">' + desc + '</div>' : '') + '</div><button class="toast-close" onclick="removeToast(this.parentElement)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg></button><div class="toast-progress ' + type + '" style="width:100%;animation:shrink 5s linear forwards;"></div>';
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(function() { removeToast(el); }, 5000);
+}
+function removeToast(el) { if (!el || el.classList.contains('leaving')) return; el.classList.add('leaving'); setTimeout(function() { el.remove(); }, 300); }
+
+// ─── Keyboard: close slideout ───
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    if (document.getElementById('slideoutPanel').classList.contains('active')) {
+      closeSlideout();
+    }
+  }
+});
+</script>
+
+</body>
+</html>

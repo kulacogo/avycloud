@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud Redesign - Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #09090B; --surface-1: #18181B; --surface-2: #27272A; --surface-3: #3F3F46;
+    --border: #27272A; --border-subtle: #3F3F46;
+    --text: #FAFAFA; --text-secondary: #A1A1AA; --text-muted: #71717A;
+    --primary: #6366F1; --primary-hover: #4F46E5; --primary-light: #818CF8;
+    --success: #10B981; --warning: #F59E0B; --error: #EF4444; --info: #3B82F6;
+    --sidebar-w: 260px; --sidebar-collapsed: 72px;
+    --transition-fast: 100ms ease; --transition-normal: 200ms ease; --transition-slow: 300ms ease;
+  }
+  [data-theme="light"] {
+    --bg: #FAFAFA; --surface-1: #FFFFFF; --surface-2: #F4F4F5; --surface-3: #E4E4E7;
+    --border: #E4E4E7; --border-subtle: #D4D4D8;
+    --text: #09090B; --text-secondary: #52525B; --text-muted: #A1A1AA;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.5; min-height: 100vh; display: flex; }
+
+  /* Sidebar */
+  .sidebar { width: var(--sidebar-w); height: 100vh; position: fixed; left: 0; top: 0; background: var(--surface-1); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 50; transition: width var(--transition-slow); overflow: hidden; }
+  .sidebar.collapsed { width: var(--sidebar-collapsed); }
+  .sidebar-header { padding: 20px 20px 16px; display: flex; align-items: center; gap: 12px; }
+  .sidebar-logo { width: 32px; height: 32px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 16px; flex-shrink: 0; }
+  .sidebar-brand { font-size: 18px; font-weight: 700; white-space: nowrap; background: linear-gradient(135deg, var(--primary-light), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .collapsed .sidebar-brand { display: none; }
+  .sidebar-section { padding: 8px 12px; }
+  .sidebar-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0 8px; margin-bottom: 4px; white-space: nowrap; }
+  .collapsed .sidebar-label { display: none; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; color: var(--text-secondary); cursor: pointer; transition: all var(--transition-fast); text-decoration: none; font-size: 14px; font-weight: 500; position: relative; white-space: nowrap; }
+  .nav-item:hover { background: var(--surface-2); color: var(--text); }
+  .nav-item.active { background: var(--primary); color: white; }
+  .nav-icon { width: 20px; height: 20px; flex-shrink: 0; opacity: 0.8; }
+  .nav-item.active .nav-icon { opacity: 1; }
+  .nav-text { font-size: 14px; font-weight: 500; }
+  .collapsed .nav-text { display: none; }
+  .nav-badge { background: var(--surface-3); color: var(--text-secondary); font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px; margin-left: auto; }
+  .collapsed .nav-badge { position: absolute; top: 2px; right: 2px; padding: 0 4px; font-size: 9px; }
+  .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid var(--border); }
+  .sidebar-toggle { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; color: var(--text-muted); cursor: pointer; transition: all var(--transition-fast); width: 100%; border: none; background: none; font-family: inherit; font-size: 13px; }
+  .sidebar-toggle:hover { background: var(--surface-2); color: var(--text-secondary); }
+  .user-avatar { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--primary), #EC4899); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 13px; flex-shrink: 0; }
+
+  /* Main Content */
+  .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; transition: margin-left var(--transition-slow); }
+  .sidebar.collapsed ~ .main { margin-left: var(--sidebar-collapsed); }
+
+  /* Top Bar */
+  .topbar { height: 56px; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 32px; gap: 16px; background: var(--surface-1); position: sticky; top: 0; z-index: 40; backdrop-filter: blur(12px); }
+  .search-trigger { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); cursor: pointer; font-size: 13px; min-width: 240px; transition: all var(--transition-fast); }
+  .search-trigger:hover { border-color: var(--border-subtle); color: var(--text-secondary); }
+  .search-kbd { font-size: 11px; background: var(--surface-3); padding: 2px 6px; border-radius: 4px; font-family: inherit; margin-left: auto; color: var(--text-muted); }
+  .topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .icon-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; background: none; color: var(--text-secondary); cursor: pointer; transition: all var(--transition-fast); }
+  .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+  .theme-toggle { position: relative; }
+
+  /* Page Content */
+  .page { padding: 32px; max-width: 1400px; }
+  .page-greeting { font-size: 28px; font-weight: 600; margin-bottom: 4px; }
+  .page-subtitle { color: var(--text-secondary); font-size: 15px; margin-bottom: 32px; }
+
+  /* Metric Cards - Bento Grid */
+  .bento-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+  .metric-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; padding: 24px; transition: all var(--transition-normal); position: relative; overflow: hidden; }
+  .metric-card:hover { border-color: var(--border-subtle); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+  .metric-label { font-size: 13px; color: var(--text-muted); font-weight: 500; margin-bottom: 8px; }
+  .metric-value { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+  .metric-trend { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; margin-top: 8px; padding: 2px 8px; border-radius: 6px; }
+  .metric-trend.up { color: var(--success); background: rgba(16,185,129,0.1); }
+  .metric-trend.down { color: var(--error); background: rgba(239,68,68,0.1); }
+  .metric-card .glow { position: absolute; top: -50%; right: -50%; width: 100%; height: 100%; border-radius: 50%; filter: blur(60px); opacity: 0.06; pointer-events: none; background: var(--primary); }
+
+  /* Content Grid */
+  .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 32px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+  .card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+  .card-subtitle { font-size: 13px; color: var(--text-muted); }
+
+  /* Chart Placeholder */
+  .chart-area { height: 220px; position: relative; display: flex; align-items: flex-end; gap: 8px; padding-top: 20px; }
+  .chart-bar { flex: 1; border-radius: 6px 6px 0 0; transition: all var(--transition-slow); cursor: pointer; position: relative; background: var(--primary); }
+  .chart-bar:hover { background: var(--primary-light); }
+  .chart-bar::after { content: attr(data-label); position: absolute; bottom: -24px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+  .chart-bar::before { content: attr(data-value); position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--text-secondary); font-weight: 500; opacity: 0; transition: opacity var(--transition-fast); }
+  .chart-bar:hover::before { opacity: 1; }
+
+  /* Activity Feed */
+  .activity-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .activity-dot.sync { background: var(--success); }
+  .activity-dot.import { background: var(--info); }
+  .activity-dot.error { background: var(--error); }
+  .activity-dot.update { background: var(--warning); }
+  .activity-text { font-size: 14px; color: var(--text-secondary); }
+  .activity-text strong { color: var(--text); font-weight: 500; }
+  .activity-time { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* Status Grid */
+  .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .status-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--surface-2); border-radius: 10px; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .status-count { font-size: 20px; font-weight: 700; }
+  .status-label { font-size: 13px; color: var(--text-secondary); }
+
+  /* Top Products */
+  .product-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; transition: all var(--transition-fast); }
+  .product-row:hover { background: var(--surface-2); margin: 0 -12px; padding: 10px 12px; border-radius: 8px; }
+  .product-row:last-child { border-bottom: none; }
+  .product-thumb { width: 40px; height: 40px; border-radius: 8px; background: var(--surface-2); object-fit: cover; }
+  .product-info { flex: 1; }
+  .product-name { font-size: 14px; font-weight: 500; }
+  .product-brand { font-size: 12px; color: var(--text-muted); }
+  .product-price { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+
+  /* Range Selector */
+  .range-selector { display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 10px; }
+  .range-btn { padding: 6px 14px; border-radius: 8px; border: none; background: none; color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; transition: all var(--transition-fast); font-family: inherit; }
+  .range-btn:hover { color: var(--text-secondary); }
+  .range-btn.active { background: var(--surface-3); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+
+  /* Command Palette */
+  .cmd-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: flex-start; justify-content: center; padding-top: 20vh; }
+  .cmd-overlay.open { display: flex; animation: fadeIn 0.15s ease; }
+  .cmd-dialog { width: 560px; background: var(--surface-1); border: 1px solid var(--border-subtle); border-radius: 16px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); overflow: hidden; animation: slideUp 0.2s ease; }
+  .cmd-input { width: 100%; padding: 16px 20px; border: none; background: none; color: var(--text); font-size: 16px; font-family: inherit; outline: none; border-bottom: 1px solid var(--border); }
+  .cmd-input::placeholder { color: var(--text-muted); }
+  .cmd-group { padding: 8px; }
+  .cmd-group-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 12px 4px; }
+  .cmd-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; color: var(--text-secondary); cursor: pointer; transition: background var(--transition-fast); }
+  .cmd-item:hover, .cmd-item.selected { background: var(--surface-2); color: var(--text); }
+  .cmd-item-icon { width: 18px; height: 18px; opacity: 0.6; }
+  .cmd-item-text { font-size: 14px; }
+  .cmd-item-kbd { margin-left: auto; font-size: 11px; color: var(--text-muted); }
+  .cmd-footer { padding: 8px 16px; border-top: 1px solid var(--border); display: flex; gap: 16px; font-size: 12px; color: var(--text-muted); }
+  .cmd-footer kbd { background: var(--surface-3); padding: 1px 5px; border-radius: 3px; font-family: inherit; }
+
+  /* Skeleton */
+  .skeleton { background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .bento-grid { grid-template-columns: repeat(2, 1fr); }
+    .content-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0 !important; }
+    .bento-grid { grid-template-columns: 1fr 1fr; }
+    .page { padding: 20px; }
+    .metric-value { font-size: 24px; }
+    .page-greeting { font-size: 22px; }
+  }
+
+  /* Toast */
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+  .toast { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: slideUp 0.3s ease; min-width: 320px; }
+  .toast-icon { width: 20px; height: 20px; flex-shrink: 0; }
+  .toast-text { font-size: 14px; }
+  .toast-progress { position: absolute; bottom: 0; left: 0; height: 2px; background: var(--text-muted); border-radius: 0 0 12px 12px; animation: progress 5s linear forwards; }
+  @keyframes progress { from { width: 100%; } to { width: 0; } }
+
+  /* Page transition */
+  .page-content { animation: slideIn 0.3s ease; }
+
+  /* Theme toggle animation */
+  .theme-icon { transition: transform 0.3s ease; }
+  .theme-icon:hover { transform: rotate(30deg); }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">A</div>
+    <span class="sidebar-brand">AvyCloud</span>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Main</div>
+    <a class="nav-item active" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="7" height="7" rx="2"/><rect x="11" y="2" width="7" height="7" rx="2"/><rect x="2" y="11" width="7" height="7" rx="2"/><rect x="11" y="11" width="7" height="7" rx="2"/></svg>
+      <span class="nav-text">Dashboard</span>
+    </a>
+    <a class="nav-item" href="products.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l7-4 7 4M3 7l7 4M3 7v6l7 4M17 7l-7 4M17 7v6l-7 4M10 11v7"/></svg>
+      <span class="nav-text">Produkte</span>
+      <span class="nav-badge">12</span>
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12v12H4z" rx="2"/><path d="M4 8h12"/><path d="M8 8v8"/></svg>
+      <span class="nav-text">Bestellungen</span>
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Operations</div>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h2v10H3zM7 3h2v14H7zM11 7h2v6h-2zM15 5h2v10h-2z"/></svg>
+      <span class="nav-text">Identifizieren</span>
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6h16v10H2z" rx="1"/><path d="M6 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M10 10v2"/></svg>
+      <span class="nav-text">Warehouse</span>
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 5l3 3-3 3"/><path d="M3 10h14"/><path d="M6 15l-3-3 3-3"/></svg>
+      <span class="nav-text">Pick & Pack</span>
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Channels</div>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h14v14H3z" rx="2"/><path d="M7 7h6M7 10h6M7 13h4"/></svg>
+      <span class="nav-text">eBay Listings</span>
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h4v4H3zM9 5h4v4H9zM3 11h4v4H3zM9 11h4v4H9z"/></svg>
+      <span class="nav-text">Kategorien</span>
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">System</div>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/></svg>
+      <span class="nav-text">Admin</span>
+    </a>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="sidebar-toggle" onclick="toggleSidebar()">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 4l-6 6 6 6"/></svg>
+      <span class="nav-text" style="font-size:13px;">Zuklappen</span>
+    </button>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:12px;padding:8px;border-radius:8px;background:var(--surface-2);">
+      <div class="user-avatar">O</div>
+      <div class="nav-text">
+        <div style="font-size:13px;font-weight:500;">Oguz</div>
+        <div style="font-size:11px;color:var(--text-muted);">Admin</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<div class="main" id="main">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="search-trigger" onclick="openCmd()">
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4 4"/></svg>
+      <span>Suchen oder Befehl...</span>
+      <span class="search-kbd">Cmd+K</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" title="Benachrichtigungen">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 2a5 5 0 015 5v3l2 2H3l2-2V7a5 5 0 015-5zM8 17h4"/></svg>
+      </button>
+      <button class="icon-btn theme-toggle" onclick="toggleTheme()" title="Theme wechseln">
+        <svg class="theme-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="4"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.9 4.9l1.4 1.4M13.7 13.7l1.4 1.4M4.9 15.1l1.4-1.4M13.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <div class="user-avatar" style="width:32px;height:32px;font-size:12px;cursor:pointer;">O</div>
+    </div>
+  </div>
+
+  <!-- Page Content -->
+  <div class="page page-content">
+    <!-- Greeting -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+      <div>
+        <h1 class="page-greeting">Guten Morgen, Oguz</h1>
+        <p class="page-subtitle">Hier ist dein Ueberblick fuer heute.</p>
+      </div>
+      <div class="range-selector">
+        <button class="range-btn active" onclick="selectRange(this)">7 Tage</button>
+        <button class="range-btn" onclick="selectRange(this)">Monat</button>
+        <button class="range-btn" onclick="selectRange(this)">Jahr</button>
+        <button class="range-btn" onclick="selectRange(this)">Heute</button>
+      </div>
+    </div>
+
+    <!-- Metric Cards -->
+    <div class="bento-grid" style="margin-top:24px;">
+      <div class="metric-card">
+        <div class="glow"></div>
+        <div class="metric-label">Gesamtprodukte</div>
+        <div class="metric-value">1.247</div>
+        <div class="metric-trend up">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5-5 5 5"/></svg>
+          +3.2% vs. Vorwoche
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="glow"></div>
+        <div class="metric-label">Auf Lager</div>
+        <div class="metric-value">892</div>
+        <div class="metric-trend down">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+          -2 seit gestern
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="glow"></div>
+        <div class="metric-label">Offene Bestellungen</div>
+        <div class="metric-value">23</div>
+        <div class="metric-trend up">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5-5 5 5"/></svg>
+          +5 heute
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="glow"></div>
+        <div class="metric-label">Umsatz (7 Tage)</div>
+        <div class="metric-value">12.450 &euro;</div>
+        <div class="metric-trend up">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5-5 5 5"/></svg>
+          +18.5% vs. Vorwoche
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts + Activity -->
+    <div class="content-grid">
+      <div class="card">
+        <div class="card-title">
+          <span>Bestellungen (7 Tage)</span>
+          <span class="card-subtitle">124 gesamt</span>
+        </div>
+        <div class="chart-area">
+          <div class="chart-bar" style="height:60%;background:var(--primary);" data-label="Mo" data-value="14"></div>
+          <div class="chart-bar" style="height:80%;background:var(--primary);" data-label="Di" data-value="19"></div>
+          <div class="chart-bar" style="height:45%;background:var(--primary);" data-label="Mi" data-value="11"></div>
+          <div class="chart-bar" style="height:95%;background:var(--primary);" data-label="Do" data-value="23"></div>
+          <div class="chart-bar" style="height:70%;background:var(--primary);" data-label="Fr" data-value="17"></div>
+          <div class="chart-bar" style="height:55%;background:var(--primary);" data-label="Sa" data-value="13"></div>
+          <div class="chart-bar" style="height:40%;background:var(--primary);" data-label="So" data-value="9"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Letzte Aktivitaeten</div>
+        <div class="activity-item">
+          <div class="activity-dot sync"></div>
+          <div>
+            <div class="activity-text"><strong>Nike Air Max 90</strong> erfolgreich synchronisiert</div>
+            <div class="activity-time">vor 2 Minuten</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot import"></div>
+          <div>
+            <div class="activity-text"><strong>3 Produkte</strong> importiert</div>
+            <div class="activity-time">vor 5 Minuten</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot update"></div>
+          <div>
+            <div class="activity-text"><strong>eBay Sync</strong> abgeschlossen (12 Updates)</div>
+            <div class="activity-time">vor 1 Stunde</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot error"></div>
+          <div>
+            <div class="activity-text"><strong>Adidas UltraBoost</strong> Sync fehlgeschlagen</div>
+            <div class="activity-time">vor 2 Stunden</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot sync"></div>
+          <div>
+            <div class="activity-text"><strong>Quality Gate</strong> fuer 8 Produkte bestanden</div>
+            <div class="activity-time">vor 3 Stunden</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status + Top Products -->
+    <div class="content-grid">
+      <div class="card">
+        <div class="card-title">Bestellstatus</div>
+        <div class="status-grid">
+          <div class="status-item">
+            <div class="status-dot" style="background:var(--info);"></div>
+            <div>
+              <div class="status-count">12</div>
+              <div class="status-label">Neu</div>
+            </div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot" style="background:var(--warning);"></div>
+            <div>
+              <div class="status-count">8</div>
+              <div class="status-label">Kommissioniert</div>
+            </div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot" style="background:var(--primary);"></div>
+            <div>
+              <div class="status-count">5</div>
+              <div class="status-label">Verpackt</div>
+            </div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot" style="background:var(--success);"></div>
+            <div>
+              <div class="status-count">89</div>
+              <div class="status-label">Versendet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Top Produkte</div>
+        <div class="product-row">
+          <div class="product-thumb" style="background:linear-gradient(135deg,#334155,#475569);"></div>
+          <div class="product-info">
+            <div class="product-name">Nike Air Max 90</div>
+            <div class="product-brand">Nike - Sneaker</div>
+          </div>
+          <div class="product-price">89,99 &euro;</div>
+        </div>
+        <div class="product-row">
+          <div class="product-thumb" style="background:linear-gradient(135deg,#1e293b,#334155);"></div>
+          <div class="product-info">
+            <div class="product-name">Adidas UltraBoost 22</div>
+            <div class="product-brand">Adidas - Laufschuhe</div>
+          </div>
+          <div class="product-price">119,99 &euro;</div>
+        </div>
+        <div class="product-row">
+          <div class="product-thumb" style="background:linear-gradient(135deg,#374151,#4B5563);"></div>
+          <div class="product-info">
+            <div class="product-name">Puma RS-X</div>
+            <div class="product-brand">Puma - Lifestyle</div>
+          </div>
+          <div class="product-price">79,99 &euro;</div>
+        </div>
+        <div class="product-row">
+          <div class="product-thumb" style="background:linear-gradient(135deg,#1f2937,#374151);"></div>
+          <div class="product-info">
+            <div class="product-name">New Balance 574</div>
+            <div class="product-brand">New Balance - Classic</div>
+          </div>
+          <div class="product-price">94,99 &euro;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Command Palette -->
+<div class="cmd-overlay" id="cmdPalette">
+  <div class="cmd-dialog">
+    <input class="cmd-input" placeholder="Suchen oder Befehl eingeben..." id="cmdInput" autofocus>
+    <div class="cmd-group">
+      <div class="cmd-group-label">Zuletzt</div>
+      <div class="cmd-item selected">
+        <svg class="cmd-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>
+        <span class="cmd-item-text">Nike Air Max 90 - Bearbeiten</span>
+      </div>
+      <div class="cmd-item">
+        <svg class="cmd-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>
+        <span class="cmd-item-text">Dashboard - Letzte 7 Tage</span>
+      </div>
+    </div>
+    <div class="cmd-group">
+      <div class="cmd-group-label">Navigation</div>
+      <div class="cmd-item">
+        <svg class="cmd-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="7" height="7" rx="2"/><rect x="11" y="2" width="7" height="7" rx="2"/><rect x="2" y="11" width="7" height="7" rx="2"/><rect x="11" y="11" width="7" height="7" rx="2"/></svg>
+        <span class="cmd-item-text">Gehe zu Dashboard</span>
+      </div>
+      <div class="cmd-item">
+        <svg class="cmd-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l7-4 7 4M3 7l7 4M3 7v6l7 4M17 7l-7 4M17 7v6l-7 4M10 11v7"/></svg>
+        <span class="cmd-item-text">Gehe zu Produkte</span>
+      </div>
+      <div class="cmd-item">
+        <svg class="cmd-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6h16v10H2z" rx="1"/><path d="M6 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        <span class="cmd-item-text">Gehe zu Warehouse</span>
+      </div>
+    </div>
+    <div class="cmd-group">
+      <div class="cmd-group-label">Aktionen</div>
+      <div class="cmd-item">
+        <svg class="cmd-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12"/></svg>
+        <span class="cmd-item-text">Neues Produkt identifizieren</span>
+        <span class="cmd-item-kbd">I</span>
+      </div>
+      <div class="cmd-item">
+        <svg class="cmd-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 5l3 3-3 3M3 10h14"/></svg>
+        <span class="cmd-item-text">eBay Sync starten</span>
+        <span class="cmd-item-kbd">S</span>
+      </div>
+      <div class="cmd-item">
+        <svg class="cmd-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="4"/><path d="M10 2v2M10 16v2"/></svg>
+        <span class="cmd-item-text">Theme wechseln</span>
+        <span class="cmd-item-kbd">T</span>
+      </div>
+    </div>
+    <div class="cmd-footer">
+      <span><kbd>&uarr;&darr;</kbd> Navigieren</span>
+      <span><kbd>Enter</kbd> Ausfuehren</span>
+      <span><kbd>Esc</kbd> Schliessen</span>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toasts">
+  <div class="toast" style="animation-delay:0.5s;">
+    <svg class="toast-icon" style="color:var(--success);" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="7"/><path d="M7 10l2 2 4-4"/></svg>
+    <div>
+      <div class="toast-text" style="font-weight:500;">Produkt gespeichert</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Aenderungen wurden uebernommen.</div>
+    </div>
+    <div class="toast-progress"></div>
+  </div>
+</div>
+
+<script>
+  // Sidebar Toggle
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('collapsed');
+    const main = document.getElementById('main');
+    if (sidebar.classList.contains('collapsed')) {
+      main.style.marginLeft = 'var(--sidebar-collapsed)';
+    } else {
+      main.style.marginLeft = 'var(--sidebar-w)';
+    }
+  }
+
+  // Theme Toggle
+  function toggleTheme() {
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme');
+    html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  }
+
+  // Command Palette
+  function openCmd() {
+    document.getElementById('cmdPalette').classList.add('open');
+    setTimeout(() => document.getElementById('cmdInput').focus(), 100);
+  }
+  function closeCmd() {
+    document.getElementById('cmdPalette').classList.remove('open');
+  }
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      const overlay = document.getElementById('cmdPalette');
+      if (overlay.classList.contains('open')) closeCmd();
+      else openCmd();
+    }
+    if (e.key === 'Escape') closeCmd();
+  });
+  document.getElementById('cmdPalette').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeCmd();
+  });
+
+  // Range Selector
+  function selectRange(btn) {
+    document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // Auto-hide toast after 5s
+  setTimeout(() => {
+    const toasts = document.getElementById('toasts');
+    if (toasts.children.length > 0) {
+      toasts.children[0].style.opacity = '0';
+      toasts.children[0].style.transform = 'translateX(100%)';
+      toasts.children[0].style.transition = 'all 0.3s ease';
+      setTimeout(() => toasts.children[0]?.remove(), 300);
+    }
+  }, 5000);
+
+  // Animate chart bars on load
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.chart-bar').forEach((bar, i) => {
+      const height = bar.style.height;
+      bar.style.height = '0';
+      bar.style.transition = `height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 80}ms`;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { bar.style.height = height; });
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

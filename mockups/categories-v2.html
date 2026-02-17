@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud — Kategorie-Profile</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* =============================================
+   AVYCLOUD DESIGN SYSTEM v2
+   Stripe/Vercel Inspired
+   ============================================= */
+
+:root {
+  --avy-deep: #0A2540;
+  --avy-purple: #635BFF;
+  --avy-purple-hover: #5148E5;
+  --avy-purple-light: #818CF8;
+  --avy-purple-glow: rgba(99, 91, 255, 0.12);
+  --avy-gradient: linear-gradient(135deg, #635BFF, #0070F3);
+
+  --bg: #F6F9FC; --surface: #FFFFFF; --surface-hover: #FAFBFD; --surface-secondary: #F0F3F7;
+  --text-primary: #0A2540; --text-secondary: #425466; --text-tertiary: #8898AA;
+  --text-on-dark: #FFFFFF; --text-on-dark-muted: rgba(255,255,255,0.65);
+  --border: #E3E8EE; --border-hover: #C1C9D2;
+
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.03), 0 3px 6px rgba(0,0,0,0.02);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 16px 48px rgba(0,0,0,0.08);
+  --shadow-focus: 0 0 0 3px var(--avy-purple-glow);
+
+  --success: #0E9F6E; --success-bg: #ECFDF5;
+  --warning: #D97706; --warning-bg: #FFFBEB;
+  --error: #DC2626; --error-bg: #FEF2F2;
+  --info: #0070F3; --info-bg: #EFF6FF;
+
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+  --sidebar-w: 248px;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  --bg: #0B0F14; --surface: #151A21; --surface-hover: #1A2029; --surface-secondary: #1E252E;
+  --text-primary: #F1F3F5; --text-secondary: #8898AA; --text-tertiary: #5E6E80;
+  --border: #1E2A36; --border-hover: #2A3A4A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.3);
+  --success-bg: rgba(14,159,110,0.1);
+  --warning-bg: rgba(217,119,6,0.1);
+  --error-bg: rgba(220,38,38,0.1);
+  --info-bg: rgba(0,112,243,0.1);
+}
+
+/* ======= RESET ======= */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ======= SIDEBAR ======= */
+.sidebar {
+  width: var(--sidebar-w);
+  height: 100vh;
+  position: fixed;
+  left: 0; top: 0;
+  background: var(--avy-deep);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.sidebar::-webkit-scrollbar { width: 0; }
+
+.sidebar-header {
+  padding: 20px 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sidebar-logo {
+  width: 28px; height: 28px;
+  background: var(--avy-gradient);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 800; font-size: 14px;
+  box-shadow: 0 2px 8px rgba(99,91,255,0.4);
+  flex-shrink: 0;
+}
+.sidebar-brand {
+  font-size: 16px; font-weight: 700;
+  color: var(--text-on-dark);
+  letter-spacing: -0.02em;
+}
+
+.sidebar-section { padding: 0 12px; margin-bottom: 8px; }
+.sidebar-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-on-dark-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 8px;
+  margin-bottom: 4px;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-on-dark-muted);
+  cursor: pointer;
+  transition: all 150ms ease;
+  text-decoration: none;
+  font-size: 13.5px; font-weight: 500;
+  position: relative;
+  margin-bottom: 1px;
+}
+.nav-item:hover {
+  color: var(--text-on-dark);
+  background: rgba(255,255,255,0.06);
+}
+.nav-item.active {
+  color: var(--text-on-dark);
+  background: rgba(255,255,255,0.1);
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -12px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 16px;
+  background: var(--avy-purple);
+  border-radius: 0 3px 3px 0;
+}
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; }
+.nav-item.active .nav-icon, .nav-item:hover .nav-icon { opacity: 1; }
+
+.nav-badge {
+  font-size: 10px; font-weight: 600;
+  padding: 1px 7px; border-radius: 10px;
+  margin-left: auto;
+  background: rgba(99,91,255,0.2);
+  color: var(--avy-purple-light);
+}
+
+.sidebar-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 12px 20px; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.sidebar-user {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: background 150ms ease;
+}
+.sidebar-user:hover { background: rgba(255,255,255,0.06); }
+.user-avatar {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--avy-gradient);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 600; font-size: 12px;
+  flex-shrink: 0;
+}
+.user-name { font-size: 13px; font-weight: 500; color: var(--text-on-dark); }
+.user-role { font-size: 11px; color: var(--text-on-dark-muted); }
+
+/* ======= MAIN CONTENT ======= */
+.main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+.topbar {
+  height: 56px;
+  padding: 0 32px;
+  display: flex; align-items: center; gap: 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky; top: 0; z-index: 40;
+  flex-shrink: 0;
+}
+.topbar-search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition);
+  min-width: 240px;
+}
+.topbar-search:hover { border-color: var(--border-hover); }
+.topbar-search svg { color: var(--text-tertiary); flex-shrink: 0; }
+.topbar-search span { color: var(--text-tertiary); font-size: 13px; }
+.topbar-search kbd {
+  font-family: inherit; font-size: 11px; font-weight: 500;
+  padding: 1px 6px; border-radius: 4px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-tertiary); margin-left: auto;
+}
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.topbar-btn {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary); cursor: pointer;
+  background: transparent; border: none;
+  transition: all 150ms ease;
+  position: relative;
+}
+.topbar-btn:hover { background: var(--surface-secondary); color: var(--text-secondary); }
+.topbar-btn .dot {
+  position: absolute; top: 7px; right: 7px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--avy-purple); border: 2px solid var(--surface);
+}
+.theme-toggle {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: transparent; border: 1px solid var(--border);
+  color: var(--text-tertiary); transition: all 150ms ease;
+}
+.theme-toggle:hover { border-color: var(--border-hover); color: var(--text-secondary); }
+
+/* ======= PAGE HEADER ======= */
+.page-header {
+  padding: 28px 32px 0;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.page-header-text h1 {
+  font-size: 24px; font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.page-header-sub {
+  font-size: 14px; color: var(--text-tertiary);
+  margin-top: 2px;
+}
+.page-header-actions {
+  display: flex; gap: 10px; align-items: center;
+}
+
+/* ======= BUTTONS ======= */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  border: none;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--avy-purple);
+  color: white;
+  box-shadow: 0 1px 2px rgba(99,91,255,0.2);
+}
+.btn-primary:hover {
+  background: var(--avy-purple-hover);
+  box-shadow: 0 2px 8px rgba(99,91,255,0.3);
+  transform: translateY(-1px);
+}
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+}
+.btn-ghost:hover {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* ======= SPLIT LAYOUT ======= */
+.content-area {
+  flex: 1;
+  padding: 24px 32px 32px;
+  overflow-y: auto;
+}
+
+.split-panels {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  min-height: 600px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* LEFT PANEL: CATEGORY TREE */
+.panel-left {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-left-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.panel-left-header h3 {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+.tree-search {
+  position: relative;
+}
+.tree-search svg {
+  position: absolute;
+  left: 10px; top: 50%;
+  transform: translateY(-50%);
+  width: 15px; height: 15px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+.tree-search input {
+  width: 100%;
+  padding: 7px 10px 7px 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: all var(--transition);
+}
+.tree-search input::placeholder { color: var(--text-tertiary); }
+.tree-search input:focus {
+  border-color: var(--avy-purple);
+  box-shadow: var(--shadow-focus);
+  background: var(--surface);
+}
+
+.panel-left-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.panel-left-body::-webkit-scrollbar { width: 5px; }
+.panel-left-body::-webkit-scrollbar-track { background: transparent; }
+.panel-left-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+.panel-left-body::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+/* Tree Nodes */
+.tree-node {
+  user-select: none;
+}
+.tree-node-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 16px 5px 0;
+  cursor: pointer;
+  transition: all 100ms ease;
+  position: relative;
+  border-left: 3px solid transparent;
+}
+.tree-node-row:hover {
+  background: var(--surface-hover);
+}
+.tree-node-row.selected {
+  background: var(--avy-purple-glow);
+  border-left-color: var(--avy-purple);
+}
+.tree-node-row.selected .tree-node-label {
+  color: var(--avy-purple);
+  font-weight: 600;
+}
+.tree-expand {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: all 100ms ease;
+  color: var(--text-tertiary);
+}
+.tree-expand:hover { background: var(--surface-secondary); color: var(--text-secondary); }
+.tree-expand svg {
+  width: 12px; height: 12px;
+  transition: transform 150ms ease;
+}
+.tree-expand.expanded svg { transform: rotate(90deg); }
+.tree-expand.leaf { visibility: hidden; }
+.tree-node-icon {
+  width: 16px; height: 16px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+.tree-node-row.selected .tree-node-icon { color: var(--avy-purple); }
+.tree-node-label {
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tree-node-count {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  background: var(--surface-secondary);
+  padding: 0 6px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.tree-node-row.selected .tree-node-count {
+  background: rgba(99,91,255,0.12);
+  color: var(--avy-purple);
+}
+.tree-children {
+  display: none;
+}
+.tree-children.open {
+  display: block;
+}
+
+/* Indent levels */
+.tree-depth-0 .tree-node-row { padding-left: 12px; }
+.tree-depth-1 .tree-node-row { padding-left: 30px; }
+.tree-depth-2 .tree-node-row { padding-left: 48px; }
+.tree-depth-3 .tree-node-row { padding-left: 66px; }
+
+/* RIGHT PANEL: PROFILE EDITOR */
+.panel-right {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-right-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.panel-right-header h3 {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-primary);
+}
+.panel-right-header .breadcrumb-trail {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  display: flex; align-items: center; gap: 4px;
+}
+.breadcrumb-trail span { color: var(--text-secondary); font-weight: 500; }
+.panel-right-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+.panel-right-body::-webkit-scrollbar { width: 5px; }
+.panel-right-body::-webkit-scrollbar-track { background: transparent; }
+.panel-right-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* Form Elements */
+.form-group {
+  margin-bottom: 20px;
+}
+.form-label {
+  display: block;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.form-label-normal {
+  display: block;
+  font-size: 13px; font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: all var(--transition);
+}
+.form-input:focus {
+  border-color: var(--avy-purple);
+  box-shadow: var(--shadow-focus);
+  background: var(--surface);
+}
+.form-input::placeholder { color: var(--text-tertiary); }
+.form-input[readonly] {
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  cursor: default;
+}
+.form-input[readonly]:focus {
+  border-color: var(--border);
+  box-shadow: none;
+}
+textarea.form-input {
+  resize: vertical;
+  min-height: 80px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.form-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.form-section-title {
+  font-size: 15px; font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.form-section-title svg { width: 16px; height: 16px; color: var(--avy-purple); }
+
+.category-id-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--avy-purple); text-decoration: none;
+  font-size: 12px; font-weight: 500;
+}
+.category-id-link:hover { text-decoration: underline; }
+.category-id-link svg { width: 12px; height: 12px; }
+
+/* Variable Tags */
+.var-tags {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 6px;
+}
+.var-tag {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px;
+  background: var(--avy-purple-glow);
+  color: var(--avy-purple);
+  border-radius: 4px;
+  font-size: 11px; font-weight: 600;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.var-tag:hover {
+  background: rgba(99,91,255,0.2);
+}
+
+/* Item Specifics Table */
+.specifics-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.specifics-table th {
+  text-align: left;
+  font-size: 11px; font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.specifics-table td {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.specifics-table tr:last-child td { border-bottom: none; }
+.specifics-table tr:hover td { background: var(--surface-hover); }
+.specifics-table .ebay-field {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.specifics-table .product-field {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: var(--avy-purple);
+  background: var(--avy-purple-glow);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.specifics-table .mapping-arrow {
+  color: var(--text-tertiary);
+  text-align: center;
+  font-size: 14px;
+}
+.specifics-table .required-badge {
+  display: inline-block;
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--error-bg);
+  color: var(--error);
+  margin-left: 6px;
+}
+.specifics-table .optional-badge {
+  display: inline-block;
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-secondary);
+  color: var(--text-tertiary);
+  margin-left: 6px;
+}
+.add-mapping-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--avy-purple);
+  font-size: 12px; font-weight: 500;
+  transition: all 150ms ease;
+}
+.add-mapping-row:hover { background: var(--avy-purple-glow); }
+.add-mapping-row svg { width: 14px; height: 14px; }
+
+/* Pricing Section */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.pricing-card {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+.pricing-card-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.pricing-card .form-input {
+  background: var(--surface);
+}
+.pricing-suffix {
+  display: flex; align-items: center; gap: 0;
+}
+.pricing-suffix .form-input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.pricing-suffix .suffix {
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 10px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--text-tertiary);
+  font-size: 12px; font-weight: 600;
+  height: 34px;
+}
+
+/* Description Editor */
+.desc-editor {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.desc-toolbar {
+  display: flex; align-items: center; gap: 2px;
+  padding: 6px 8px;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.desc-toolbar-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 100ms ease;
+}
+.desc-toolbar-btn:hover { background: var(--surface); color: var(--text-primary); }
+.desc-toolbar-btn.active { background: var(--avy-purple-glow); color: var(--avy-purple); }
+.desc-toolbar-btn svg { width: 15px; height: 15px; }
+.desc-toolbar-sep {
+  width: 1px; height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+.desc-body {
+  min-height: 120px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.7;
+  outline: none;
+  background: var(--bg);
+}
+.desc-body:focus { background: var(--surface); }
+
+/* Editor Footer */
+.editor-footer {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 10px;
+  padding-top: 20px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* ======= PROFILE CARDS GRID ======= */
+.profiles-section {
+  margin-top: 24px;
+}
+.profiles-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.profiles-section-header h2 {
+  font-size: 16px; font-weight: 700;
+  color: var(--text-primary);
+}
+.profiles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.profile-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.profile-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.profile-card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: radial-gradient(300px circle at var(--mx, 50%) var(--my, 0%), var(--avy-purple-glow), transparent 50%);
+  opacity: 0;
+  transition: opacity 250ms ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.profile-card:hover::after { opacity: 1; }
+.profile-card > * { position: relative; z-index: 1; }
+.profile-card-name {
+  font-size: 14px; font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.profile-card-category {
+  font-size: 12px; color: var(--text-tertiary);
+  margin-bottom: 12px;
+}
+.profile-card-meta {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.profile-card-stat {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-secondary);
+}
+.profile-card-stat svg { width: 13px; height: 13px; color: var(--text-tertiary); }
+.profile-card-time {
+  font-size: 11px; color: var(--text-tertiary);
+}
+.profile-card-badge {
+  position: absolute;
+  top: 12px; right: 12px;
+  font-size: 10px; font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  z-index: 1;
+}
+.profile-card-badge.active { background: var(--success-bg); color: var(--success); }
+.profile-card-badge.draft { background: var(--warning-bg); color: var(--warning); }
+
+/* ======= COMMAND PALETTE ======= */
+.cmd-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 20vh;
+}
+.cmd-overlay.open { display: flex; }
+.cmd-dialog {
+  width: 560px;
+  max-height: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: cmdIn 150ms ease;
+}
+@keyframes cmdIn { from { opacity: 0; transform: scale(0.96) translateY(-8px); } }
+.cmd-input-wrap {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.cmd-input-wrap svg { width: 18px; height: 18px; color: var(--text-tertiary); flex-shrink: 0; }
+.cmd-input {
+  flex: 1; border: none; outline: none;
+  background: transparent;
+  font-size: 15px; color: var(--text-primary);
+  font-family: inherit;
+}
+.cmd-input::placeholder { color: var(--text-tertiary); }
+.cmd-results { padding: 8px; max-height: 320px; overflow-y: auto; }
+.cmd-group-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 10px 4px;
+}
+.cmd-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.cmd-item:hover, .cmd-item.active { background: var(--surface-secondary); }
+.cmd-item-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-secondary);
+  flex-shrink: 0;
+}
+.cmd-item-icon svg { width: 15px; height: 15px; color: var(--text-secondary); }
+.cmd-item-label { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.cmd-item-desc { font-size: 11px; color: var(--text-tertiary); }
+.cmd-item-kbd {
+  margin-left: auto;
+  font-size: 11px; color: var(--text-tertiary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* ======= TOAST ======= */
+.toast-container {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  z-index: 300;
+  display: flex; flex-direction: column-reverse; gap: 8px;
+}
+.toast {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 300px;
+  max-width: 420px;
+  animation: toastIn 300ms ease;
+  transition: all 300ms ease;
+}
+.toast.leaving {
+  opacity: 0;
+  transform: translateX(100px);
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(20px); } }
+.toast-icon {
+  width: 20px; height: 20px; flex-shrink: 0;
+}
+.toast-icon.success { color: var(--success); }
+.toast-icon.error { color: var(--error); }
+.toast-icon.info { color: var(--info); }
+.toast-icon.warning { color: var(--warning); }
+.toast-text { flex: 1; font-size: 13px; color: var(--text-primary); font-weight: 500; }
+.toast-close {
+  background: none; border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+  transition: all 100ms ease;
+}
+.toast-close:hover { background: var(--surface-secondary); color: var(--text-primary); }
+
+/* ======= RESPONSIVE ======= */
+@media (max-width: 1200px) {
+  .pricing-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 1024px) {
+  .split-panels {
+    grid-template-columns: 1fr;
+  }
+  .panel-left {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 360px;
+  }
+  .profiles-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .page-header { padding: 20px 16px 0; flex-direction: column; }
+  .content-area { padding: 16px; }
+  .topbar { padding: 0 16px; }
+  .topbar-search { min-width: 0; flex: 1; }
+  .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  .pricing-grid { grid-template-columns: 1fr; }
+  .profiles-grid { grid-template-columns: 1fr; }
+  .page-header-actions { width: 100%; }
+  .page-header-actions .btn { flex: 1; justify-content: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ======= SIDEBAR ======= -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">A</div>
+    <span class="sidebar-brand">AvyCloud</span>
+  </div>
+
+  <div class="sidebar-section">
+    <a class="nav-item" href="dashboard-v2.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>
+      <span>Dashboard</span>
+    </a>
+    <a class="nav-item" href="products.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12M4 8h12M4 12h8M4 16h10"/></svg>
+      <span>Produkte</span>
+      <span class="nav-badge">1.247</span>
+    </a>
+    <a class="nav-item" href="orders.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h2v2H4zM4 9h2v2H4zM4 14h2v2H4zM9 5h7M9 10h7M9 15h5"/></svg>
+      <span>Bestellungen</span>
+      <span class="nav-badge">23</span>
+    </a>
+    <a class="nav-item" href="ebay-listings.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z"/></svg>
+      <span>eBay Listings</span>
+    </a>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Operations</div>
+    <a class="nav-item" href="product-input.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 13v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3M10 3v10M7 6l3-3 3 3"/></svg>
+      <span>Identifizieren</span>
+    </a>
+    <a class="nav-item" href="operations-desktop.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="6" height="10" rx="1"/><rect x="11" y="5" width="6" height="10" rx="1"/><path d="M6 2v3M14 2v3M6 15v3M14 15v3"/></svg>
+      <span>Stow / Pick</span>
+    </a>
+    <a class="nav-item" href="warehouse.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17V7l7-4 7 4v10"/><path d="M3 7h14M7 17v-6h6v6"/></svg>
+      <span>Warehouse</span>
+    </a>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">System</div>
+    <a class="nav-item active" href="categories-v2.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5a2 2 0 012-2h3l2 2h5a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V5z"/></svg>
+      <span>Kategorien</span>
+    </a>
+    <a class="nav-item" href="admin.html">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"/></svg>
+      <span>Admin</span>
+    </a>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="user-avatar">OG</div>
+      <div>
+        <div class="user-name">Oguz</div>
+        <div class="user-role">Admin</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ======= MAIN ======= -->
+<main class="main">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-search" onclick="openCommandPalette()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3 3"/></svg>
+      <span>Suchen...</span>
+      <kbd>&thinsp;&#8984;K&thinsp;</kbd>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Theme wechseln" id="themeToggleBtn">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" id="themeIcon"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
+      </button>
+      <button class="topbar-btn" title="Benachrichtigungen">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6.75a4.5 4.5 0 00-9 0c0 5.25-2.25 6.75-2.25 6.75h13.5s-2.25-1.5-2.25-6.75M10.3 15.75a1.5 1.5 0 01-2.6 0"/></svg>
+        <span class="dot"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-header-text">
+      <h1>Kategorie-Profile</h1>
+      <div class="page-header-sub">eBay-Kategorien &amp; Listing-Templates verwalten</div>
+    </div>
+    <div class="page-header-actions">
+      <button class="btn btn-secondary" onclick="showToast('info', 'Kategorien werden aktualisiert...')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8a6 6 0 01-6 6M2 8a6 6 0 016-6"/><path d="M10 5l2-2 2 2M6 11l-2 2-2-2"/></svg>
+        Kategorien aktualisieren
+      </button>
+      <button class="btn btn-primary" onclick="showToast('success', 'Neues Profil erstellt')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>
+        + Profil erstellen
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content-area">
+
+    <!-- Split Panels -->
+    <div class="split-panels">
+
+      <!-- LEFT: Category Tree -->
+      <div class="panel-left">
+        <div class="panel-left-header">
+          <h3>Kategorie-Baum</h3>
+          <div class="tree-search">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3 3"/></svg>
+            <input type="text" placeholder="Kategorie suchen..." id="treeSearchInput" oninput="filterTree(this.value)">
+          </div>
+        </div>
+        <div class="panel-left-body" id="treeContainer">
+          <!-- Tree rendered by JS -->
+        </div>
+      </div>
+
+      <!-- RIGHT: Profile Editor -->
+      <div class="panel-right">
+        <div class="panel-right-header">
+          <h3>Profil-Editor</h3>
+          <div class="breadcrumb-trail" id="editorBreadcrumb">
+            Elektronik <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 1.5l4 3.5-4 3.5"/></svg>
+            Computer &amp; Tablets <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 1.5l4 3.5-4 3.5"/></svg>
+            <span>Laptops &amp; Notebooks</span>
+          </div>
+        </div>
+        <div class="panel-right-body" id="editorBody">
+
+          <!-- Profile Name -->
+          <div class="form-section-title">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4a2 2 0 012-2h3l2 2h3a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V4z"/></svg>
+            Profil-Einstellungen
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Profilname</label>
+              <input class="form-input" type="text" value="Laptops & Notebooks Standard" id="profileName">
+            </div>
+            <div class="form-group">
+              <label class="form-label">eBay Kategorie-ID</label>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <input class="form-input" type="text" value="175672" readonly id="categoryIdField">
+                <a href="#" class="category-id-link" title="Auf eBay ansehen">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8.5v4a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 012 12.5v-7A1.5 1.5 0 013.5 4H8"/><path d="M10 2h4v4M6.5 9.5L14 2"/></svg>
+                  eBay
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Title Template -->
+          <div style="margin-top:8px;" class="form-section-title">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M5 4v9M11 4v9M2 7h12"/></svg>
+            Listing-Template
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Titel-Template</label>
+            <input class="form-input" type="text" value="{brand} {model} {condition} - {feature}" id="titleTemplate">
+            <div class="var-tags">
+              <span class="var-tag" onclick="insertVar('titleTemplate', '{brand}')">{brand}</span>
+              <span class="var-tag" onclick="insertVar('titleTemplate', '{model}')">{model}</span>
+              <span class="var-tag" onclick="insertVar('titleTemplate', '{condition}')">{condition}</span>
+              <span class="var-tag" onclick="insertVar('titleTemplate', '{feature}')">{feature}</span>
+              <span class="var-tag" onclick="insertVar('titleTemplate', '{sku}')">{sku}</span>
+              <span class="var-tag" onclick="insertVar('titleTemplate', '{color}')">{color}</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Beschreibungs-Template</label>
+            <div class="desc-editor">
+              <div class="desc-toolbar">
+                <button class="desc-toolbar-btn active" title="Fett"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2h5a3 3 0 011.5 5.6A3.5 3.5 0 019.5 14H4V2zm2 5h3a1 1 0 000-2H6v2zm0 2v3h3.5a1.5 1.5 0 000-3H6z"/></svg></button>
+                <button class="desc-toolbar-btn" title="Kursiv"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M6 2h6v2h-2l-3 8h2v2H3v-2h2l3-8H6V2z"/></svg></button>
+                <button class="desc-toolbar-btn" title="Unterstrichen"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2v6a4 4 0 008 0V2h-2v6a2 2 0 01-4 0V2H4zm-1 12h10v1H3v-1z"/></svg></button>
+                <div class="desc-toolbar-sep"></div>
+                <button class="desc-toolbar-btn" title="Liste"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 4h8M5 8h8M5 12h6M2 4h.5M2 8h.5M2 12h.5"/></svg></button>
+                <button class="desc-toolbar-btn" title="Link"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.5 8.5a3 3 0 004.24 0l1.5-1.5a3 3 0 00-4.24-4.24l-.87.87"/><path d="M9.5 7.5a3 3 0 00-4.24 0l-1.5 1.5a3 3 0 004.24 4.24l.87-.87"/></svg></button>
+                <div class="desc-toolbar-sep"></div>
+                <button class="desc-toolbar-btn" title="Variable einfuegen"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l3 4-3 4M8 12h4"/></svg></button>
+              </div>
+              <div class="desc-body" contenteditable="true">
+                <p><strong>{brand} {model}</strong></p>
+                <p>Zustand: {condition}</p>
+                <br>
+                <p>Technische Details:</p>
+                <ul>
+                  <li>Prozessor: {processor}</li>
+                  <li>RAM: {ram}</li>
+                  <li>Speicher: {storage}</li>
+                  <li>Display: {display_size}"</li>
+                </ul>
+                <br>
+                <p>Lieferumfang: Geraet, Netzteil, Originalverpackung (wenn vorhanden)</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item Specifics -->
+          <div style="margin-top:8px;" class="form-section-title">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/><circle cx="14" cy="12" r="1.5"/></svg>
+            Item Specifics Mapping
+          </div>
+
+          <table class="specifics-table">
+            <thead>
+              <tr>
+                <th style="width:35%">eBay-Feld</th>
+                <th style="width:10%"></th>
+                <th style="width:35%">Produkt-Feld</th>
+                <th style="width:20%">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="ebay-field">Marke</td>
+                <td class="mapping-arrow">&rarr;</td>
+                <td><span class="product-field">brand</span></td>
+                <td><span class="required-badge">Pflicht</span></td>
+              </tr>
+              <tr>
+                <td class="ebay-field">Modell</td>
+                <td class="mapping-arrow">&rarr;</td>
+                <td><span class="product-field">model</span></td>
+                <td><span class="required-badge">Pflicht</span></td>
+              </tr>
+              <tr>
+                <td class="ebay-field">Prozessor</td>
+                <td class="mapping-arrow">&rarr;</td>
+                <td><span class="product-field">processor</span></td>
+                <td><span class="required-badge">Pflicht</span></td>
+              </tr>
+              <tr>
+                <td class="ebay-field">Arbeitsspeicher</td>
+                <td class="mapping-arrow">&rarr;</td>
+                <td><span class="product-field">ram</span></td>
+                <td><span class="required-badge">Pflicht</span></td>
+              </tr>
+              <tr>
+                <td class="ebay-field">Festplattenkapazitaet</td>
+                <td class="mapping-arrow">&rarr;</td>
+                <td><span class="product-field">storage</span></td>
+                <td><span class="optional-badge">Optional</span></td>
+              </tr>
+              <tr>
+                <td class="ebay-field">Bildschirmgroesse</td>
+                <td class="mapping-arrow">&rarr;</td>
+                <td><span class="product-field">display_size</span></td>
+                <td><span class="optional-badge">Optional</span></td>
+              </tr>
+              <tr>
+                <td class="ebay-field">Betriebssystem</td>
+                <td class="mapping-arrow">&rarr;</td>
+                <td><span class="product-field">os</span></td>
+                <td><span class="optional-badge">Optional</span></td>
+              </tr>
+              <tr>
+                <td class="ebay-field">Farbe</td>
+                <td class="mapping-arrow">&rarr;</td>
+                <td><span class="product-field">color</span></td>
+                <td><span class="optional-badge">Optional</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="add-mapping-row" onclick="showToast('info', 'Neues Mapping hinzugefuegt')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
+            Mapping hinzufuegen
+          </div>
+
+          <!-- Pricing Rules -->
+          <div style="margin-top:16px;" class="form-section-title">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8a7 7 0 1114 0A7 7 0 011 8z"/><path d="M8 4v4.5l3 1.5"/></svg>
+            Preis-Regeln
+          </div>
+
+          <div class="pricing-grid">
+            <div class="pricing-card">
+              <div class="pricing-card-label">Aufschlag</div>
+              <div class="pricing-suffix">
+                <input class="form-input" type="number" value="15" step="0.5">
+                <span class="suffix">%</span>
+              </div>
+            </div>
+            <div class="pricing-card">
+              <div class="pricing-card-label">Mindestpreis</div>
+              <div class="pricing-suffix">
+                <input class="form-input" type="number" value="9.99" step="0.01">
+                <span class="suffix">&euro;</span>
+              </div>
+            </div>
+            <div class="pricing-card">
+              <div class="pricing-card-label">Versandkosten</div>
+              <div class="pricing-suffix">
+                <input class="form-input" type="number" value="5.99" step="0.01">
+                <span class="suffix">&euro;</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer Actions -->
+          <div class="editor-footer">
+            <button class="btn btn-ghost" onclick="showToast('info', 'Formular zurueckgesetzt')">Zuruecksetzen</button>
+            <button class="btn btn-primary" onclick="showToast('success', 'Profil gespeichert')">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+              Speichern
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Profile Cards Grid -->
+    <div class="profiles-section">
+      <div class="profiles-section-header">
+        <h2>Gespeicherte Profile</h2>
+        <button class="btn btn-ghost btn-sm">Alle anzeigen &rarr;</button>
+      </div>
+      <div class="profiles-grid" id="profilesGrid">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- ======= COMMAND PALETTE ======= -->
+<div class="cmd-overlay" id="cmdOverlay" onclick="if(event.target===this)closeCommandPalette()">
+  <div class="cmd-dialog">
+    <div class="cmd-input-wrap">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3 3"/></svg>
+      <input class="cmd-input" type="text" placeholder="Suchen oder Befehl eingeben..." id="cmdInput" oninput="filterCommands(this.value)">
+    </div>
+    <div class="cmd-results" id="cmdResults">
+      <div class="cmd-group-label">Navigation</div>
+      <div class="cmd-item" onclick="window.location='dashboard-v2.html'">
+        <div class="cmd-item-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg></div>
+        <div><div class="cmd-item-label">Dashboard</div><div class="cmd-item-desc">Uebersicht anzeigen</div></div>
+      </div>
+      <div class="cmd-item" onclick="window.location='products.html'">
+        <div class="cmd-item-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 3h10M3 6h10M3 9h6M3 12h8"/></svg></div>
+        <div><div class="cmd-item-label">Produkte</div><div class="cmd-item-desc">Produktkatalog verwalten</div></div>
+      </div>
+      <div class="cmd-item active">
+        <div class="cmd-item-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 4a2 2 0 012-2h3l2 2h3a2 2 0 012 2v5a2 2 0 01-2 2H4a2 2 0 01-2-2V4z"/></svg></div>
+        <div><div class="cmd-item-label">Kategorien</div><div class="cmd-item-desc">eBay-Kategorien verwalten</div></div>
+      </div>
+      <div class="cmd-group-label">Aktionen</div>
+      <div class="cmd-item" onclick="showToast('success','Neues Profil erstellt');closeCommandPalette()">
+        <div class="cmd-item-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg></div>
+        <div><div class="cmd-item-label">Neues Profil erstellen</div><div class="cmd-item-desc">Kategorie-Profil anlegen</div></div>
+        <span class="cmd-item-kbd">N</span>
+      </div>
+      <div class="cmd-item" onclick="showToast('info','Kategorien werden synchronisiert...');closeCommandPalette()">
+        <div class="cmd-item-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8a6 6 0 01-6 6M2 8a6 6 0 016-6"/><path d="M10 5l2-2 2 2M6 11l-2 2-2-2"/></svg></div>
+        <div><div class="cmd-item-label">Kategorien aktualisieren</div><div class="cmd-item-desc">eBay-Kategorien synchronisieren</div></div>
+        <span class="cmd-item-kbd">R</span>
+      </div>
+      <div class="cmd-item" onclick="toggleTheme();closeCommandPalette()">
+        <div class="cmd-item-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1"/></svg></div>
+        <div><div class="cmd-item-label">Theme wechseln</div><div class="cmd-item-desc">Zwischen Hell und Dunkel wechseln</div></div>
+        <span class="cmd-item-kbd">T</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= TOAST CONTAINER ======= -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* =============================================
+   CATEGORY TREE DATA
+   ============================================= */
+const TREE_DATA = [
+  {
+    id: 'elektronik', label: 'Elektronik', count: 2843, children: [
+      {
+        id: 'comp-tablets', label: 'Computer & Tablets', count: 1245, children: [
+          { id: 'laptops', label: 'Laptops & Notebooks', count: 487, ebayId: '175672', children: [
+            { id: 'laptops-windows', label: 'Windows Laptops', count: 312, ebayId: '175673' },
+            { id: 'laptops-mac', label: 'MacBooks', count: 145, ebayId: '175674' },
+            { id: 'laptops-chrome', label: 'Chromebooks', count: 30, ebayId: '175675' }
+          ]},
+          { id: 'desktops', label: 'Desktop-PCs', count: 234, ebayId: '175676', children: [
+            { id: 'desktops-tower', label: 'Tower PCs', count: 156, ebayId: '175677' },
+            { id: 'desktops-mini', label: 'Mini PCs', count: 78, ebayId: '175678' }
+          ]},
+          { id: 'tablets', label: 'Tablets', count: 189, ebayId: '175679', children: [
+            { id: 'tablets-ipad', label: 'iPads', count: 98, ebayId: '175680' },
+            { id: 'tablets-android', label: 'Android Tablets', count: 67, ebayId: '175681' },
+            { id: 'tablets-win', label: 'Windows Tablets', count: 24, ebayId: '175682' }
+          ]},
+          { id: 'comp-zubehoer', label: 'Zubehoer', count: 335, ebayId: '175683' }
+        ]
+      },
+      {
+        id: 'handys', label: 'Handys & Zubehoer', count: 876, children: [
+          { id: 'smartphones', label: 'Smartphones', count: 542, ebayId: '9355', children: [
+            { id: 'smartphones-apple', label: 'Apple iPhones', count: 234, ebayId: '9356' },
+            { id: 'smartphones-samsung', label: 'Samsung Galaxy', count: 189, ebayId: '9357' },
+            { id: 'smartphones-other', label: 'Andere Marken', count: 119, ebayId: '9358' }
+          ]},
+          { id: 'handy-zubehoer', label: 'Handy-Zubehoer', count: 334, ebayId: '9394' }
+        ]
+      },
+      {
+        id: 'tv-audio', label: 'TV, Video & Audio', count: 456, children: [
+          { id: 'fernseher', label: 'Fernseher', count: 178, ebayId: '11071' },
+          { id: 'kopfhoerer', label: 'Kopfhoerer', count: 145, ebayId: '112529' },
+          { id: 'lautsprecher', label: 'Lautsprecher', count: 133, ebayId: '14990' }
+        ]
+      },
+      { id: 'kameras', label: 'Kameras & Foto', count: 266, ebayId: '625', children: [
+        { id: 'dslr', label: 'Spiegelreflexkameras', count: 89, ebayId: '31388' },
+        { id: 'mirrorless', label: 'Systemkameras', count: 112, ebayId: '31390' },
+        { id: 'cam-zubehoer', label: 'Kamera-Zubehoer', count: 65, ebayId: '15200' }
+      ]}
+    ]
+  },
+  {
+    id: 'kleidung', label: 'Kleidung & Accessoires', count: 1567, children: [
+      {
+        id: 'herrenschuhe', label: 'Herrenschuhe', count: 534, children: [
+          { id: 'sneaker-herren', label: 'Sneaker', count: 312, ebayId: '15709' },
+          { id: 'stiefel-herren', label: 'Stiefel', count: 134, ebayId: '11498' },
+          { id: 'sport-herren', label: 'Sportschuhe', count: 88, ebayId: '15710' }
+        ]
+      },
+      {
+        id: 'damenschuhe', label: 'Damenschuhe', count: 478, children: [
+          { id: 'sneaker-damen', label: 'Sneaker', count: 267, ebayId: '95672' },
+          { id: 'stiefel-damen', label: 'Stiefel', count: 145, ebayId: '11632' },
+          { id: 'pumps', label: 'Pumps', count: 66, ebayId: '55793' }
+        ]
+      },
+      {
+        id: 'kinderschuhe', label: 'Kinderschuhe', count: 345, children: [
+          { id: 'sneaker-kinder', label: 'Sneaker', count: 198, ebayId: '57929' },
+          { id: 'sandalen-kinder', label: 'Sandalen', count: 87, ebayId: '57974' },
+          { id: 'stiefel-kinder', label: 'Stiefel', count: 60, ebayId: '57975' }
+        ]
+      },
+      { id: 'uhren', label: 'Uhren & Schmuck', count: 210, ebayId: '281' }
+    ]
+  },
+  {
+    id: 'auto-motorrad', label: 'Auto & Motorrad', count: 934, children: [
+      { id: 'autoteile', label: 'Autoteile & Zubehoer', count: 567, ebayId: '6028', children: [
+        { id: 'motor-teile', label: 'Motor & Getriebe', count: 234, ebayId: '33612' },
+        { id: 'bremsen', label: 'Bremsen', count: 167, ebayId: '33564' },
+        { id: 'karosserie', label: 'Karosserie', count: 166, ebayId: '33640' }
+      ]},
+      { id: 'reifen', label: 'Reifen & Felgen', count: 234, ebayId: '66476' },
+      { id: 'motorrad', label: 'Motorrad-Teile', count: 133, ebayId: '10063' }
+    ]
+  },
+  {
+    id: 'haus-garten', label: 'Haus & Garten', count: 678, children: [
+      { id: 'moebel', label: 'Moebel', count: 234, ebayId: '11700' },
+      { id: 'werkzeug', label: 'Werkzeug', count: 189, ebayId: '631' },
+      { id: 'garten', label: 'Gartengeraete', count: 145, ebayId: '159912' },
+      { id: 'beleuchtung', label: 'Beleuchtung', count: 110, ebayId: '20697' }
+    ]
+  },
+  {
+    id: 'spielzeug', label: 'Spielzeug & Hobby', count: 445, children: [
+      { id: 'lego', label: 'LEGO', count: 198, ebayId: '19006' },
+      { id: 'modellbau', label: 'Modellbau', count: 134, ebayId: '1188' },
+      { id: 'brettspiele', label: 'Brett- & Kartenspiele', count: 113, ebayId: '2550' }
+    ]
+  }
+];
+
+/* Build tree DOM */
+let selectedNodeId = 'laptops';
+
+function buildTree(nodes, depth = 0, parentEl) {
+  nodes.forEach(node => {
+    const hasChildren = node.children && node.children.length > 0;
+    const wrapper = document.createElement('div');
+    wrapper.className = `tree-node tree-depth-${depth}`;
+    wrapper.dataset.id = node.id;
+    wrapper.dataset.label = node.label.toLowerCase();
+
+    const row = document.createElement('div');
+    row.className = 'tree-node-row' + (node.id === selectedNodeId ? ' selected' : '');
+    row.onclick = (e) => {
+      e.stopPropagation();
+      selectTreeNode(node, row);
+    };
+
+    // Expand button
+    const expand = document.createElement('div');
+    expand.className = 'tree-expand' + (!hasChildren ? ' leaf' : (depth < 1 || node.id === 'comp-tablets' || node.id === 'laptops' ? ' expanded' : ''));
+    expand.innerHTML = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1l4 4-4 4"/></svg>';
+    expand.onclick = (e) => {
+      e.stopPropagation();
+      if (!hasChildren) return;
+      expand.classList.toggle('expanded');
+      const childContainer = wrapper.querySelector(':scope > .tree-children');
+      if (childContainer) childContainer.classList.toggle('open');
+    };
+    row.appendChild(expand);
+
+    // Icon
+    const icon = document.createElement('div');
+    icon.className = 'tree-node-icon';
+    if (hasChildren) {
+      icon.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5a2 2 0 012-2h3l2 2h3a2 2 0 012 2v5a2 2 0 01-2 2H4a2 2 0 01-2-2V5z"/></svg>';
+    } else {
+      icon.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h8v12H4zM7 2v3h3"/></svg>';
+    }
+    row.appendChild(icon);
+
+    // Label
+    const label = document.createElement('span');
+    label.className = 'tree-node-label';
+    label.textContent = node.label;
+    row.appendChild(label);
+
+    // Count
+    const count = document.createElement('span');
+    count.className = 'tree-node-count';
+    count.textContent = node.count.toLocaleString('de-DE');
+    row.appendChild(count);
+
+    wrapper.appendChild(row);
+
+    if (hasChildren) {
+      const childContainer = document.createElement('div');
+      childContainer.className = 'tree-children' + (depth < 1 || node.id === 'comp-tablets' || node.id === 'laptops' ? ' open' : '');
+      buildTree(node.children, depth + 1, childContainer);
+      wrapper.appendChild(childContainer);
+    }
+
+    parentEl.appendChild(wrapper);
+  });
+}
+
+function selectTreeNode(node, rowEl) {
+  // Deselect all
+  document.querySelectorAll('.tree-node-row.selected').forEach(r => r.classList.remove('selected'));
+  rowEl.classList.add('selected');
+  selectedNodeId = node.id;
+  updateEditor(node);
+}
+
+function updateEditor(node) {
+  // Build breadcrumb from path
+  const path = findPath(TREE_DATA, node.id);
+  const bc = document.getElementById('editorBreadcrumb');
+  const arrow = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 1.5l4 3.5-4 3.5"/></svg>';
+  bc.innerHTML = path.map((p, i) => i === path.length - 1 ? `<span>${p}</span>` : p).join(` ${arrow} `);
+
+  // Update fields
+  document.getElementById('profileName').value = node.label + ' Standard';
+  document.getElementById('categoryIdField').value = node.ebayId || '—';
+}
+
+function findPath(nodes, targetId, path = []) {
+  for (const n of nodes) {
+    const newPath = [...path, n.label];
+    if (n.id === targetId) return newPath;
+    if (n.children) {
+      const found = findPath(n.children, targetId, newPath);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function filterTree(query) {
+  const q = query.toLowerCase().trim();
+  const allNodes = document.querySelectorAll('.tree-node');
+
+  if (!q) {
+    allNodes.forEach(n => {
+      n.style.display = '';
+    });
+    return;
+  }
+
+  // Hide all first
+  allNodes.forEach(n => n.style.display = 'none');
+
+  // Show matching and their ancestors
+  allNodes.forEach(n => {
+    if (n.dataset.label && n.dataset.label.includes(q)) {
+      n.style.display = '';
+      // Show all ancestors
+      let parent = n.parentElement;
+      while (parent) {
+        if (parent.classList && parent.classList.contains('tree-node')) {
+          parent.style.display = '';
+        }
+        if (parent.classList && parent.classList.contains('tree-children')) {
+          parent.classList.add('open');
+        }
+        parent = parent.parentElement;
+      }
+      // Show children
+      n.querySelectorAll('.tree-node').forEach(c => c.style.display = '');
+      const childContainer = n.querySelector('.tree-children');
+      if (childContainer) childContainer.classList.add('open');
+    }
+  });
+}
+
+/* Init tree */
+document.addEventListener('DOMContentLoaded', () => {
+  buildTree(TREE_DATA, 0, document.getElementById('treeContainer'));
+  renderProfiles();
+  initTheme();
+});
+
+/* =============================================
+   PROFILE CARDS
+   ============================================= */
+const PROFILES = [
+  { name: 'Laptops & Notebooks Standard', category: 'Elektronik > Computer & Tablets', products: 487, modified: 'vor 2 Std', status: 'active' },
+  { name: 'Smartphones Apple', category: 'Elektronik > Handys & Zubehoer', products: 234, modified: 'vor 5 Std', status: 'active' },
+  { name: 'Sneaker Herren Nike', category: 'Kleidung > Herrenschuhe', products: 312, modified: 'Gestern', status: 'active' },
+  { name: 'Autoteile Motor', category: 'Auto & Motorrad > Autoteile', products: 234, modified: 'vor 2 Tagen', status: 'draft' },
+  { name: 'LEGO Sets', category: 'Spielzeug & Hobby > LEGO', products: 198, modified: 'vor 3 Tagen', status: 'active' },
+  { name: 'Kopfhoerer & Audio', category: 'Elektronik > TV, Video & Audio', products: 145, modified: 'Letzte Woche', status: 'draft' },
+];
+
+function renderProfiles() {
+  const grid = document.getElementById('profilesGrid');
+  grid.innerHTML = PROFILES.map(p => `
+    <div class="profile-card" onmousemove="trackCardMouse(event,this)" onclick="showToast('info','Profil geladen: ${p.name}')">
+      <span class="profile-card-badge ${p.status}">${p.status === 'active' ? 'Aktiv' : 'Entwurf'}</span>
+      <div class="profile-card-name">${p.name}</div>
+      <div class="profile-card-category">${p.category}</div>
+      <div class="profile-card-meta">
+        <div class="profile-card-stat">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h8M4 7h8M4 10h5M4 13h6"/></svg>
+          ${p.products} Produkte
+        </div>
+        <div class="profile-card-time">${p.modified}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function trackCardMouse(e, el) {
+  const r = el.getBoundingClientRect();
+  el.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+  el.style.setProperty('--my', (e.clientY - r.top) + 'px');
+}
+
+/* =============================================
+   INSERT VARIABLE
+   ============================================= */
+function insertVar(fieldId, varStr) {
+  const field = document.getElementById(fieldId);
+  if (!field) return;
+  const start = field.selectionStart;
+  const end = field.selectionEnd;
+  const val = field.value;
+  field.value = val.substring(0, start) + varStr + val.substring(end);
+  field.focus();
+  field.setSelectionRange(start + varStr.length, start + varStr.length);
+}
+
+/* =============================================
+   THEME TOGGLE
+   ============================================= */
+function initTheme() {
+  const saved = localStorage.getItem('avy-theme');
+  if (saved === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    updateThemeIcon(true);
+  }
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('avy-theme', isDark ? 'light' : 'dark');
+  updateThemeIcon(!isDark);
+}
+
+function updateThemeIcon(isDark) {
+  const icon = document.getElementById('themeIcon');
+  if (isDark) {
+    icon.innerHTML = '<path d="M13.5 8a5.5 5.5 0 01-10.4 2.5A5.5 5.5 0 008 2.5a4 4 0 005.5 5.5z" fill="none" stroke="currentColor" stroke-width="1.5"/>';
+  } else {
+    icon.innerHTML = '<circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/>';
+  }
+}
+
+/* =============================================
+   COMMAND PALETTE
+   ============================================= */
+function openCommandPalette() {
+  document.getElementById('cmdOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('cmdInput').focus(), 100);
+}
+
+function closeCommandPalette() {
+  document.getElementById('cmdOverlay').classList.remove('open');
+  document.getElementById('cmdInput').value = '';
+}
+
+function filterCommands(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('.cmd-item').forEach(item => {
+    const text = item.textContent.toLowerCase();
+    item.style.display = text.includes(q) ? '' : 'none';
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    const overlay = document.getElementById('cmdOverlay');
+    if (overlay.classList.contains('open')) {
+      closeCommandPalette();
+    } else {
+      openCommandPalette();
+    }
+  }
+  if (e.key === 'Escape') {
+    closeCommandPalette();
+  }
+});
+
+/* =============================================
+   TOAST SYSTEM
+   ============================================= */
+function showToast(type, message) {
+  const container = document.getElementById('toastContainer');
+  const icons = {
+    success: '<svg class="toast-icon success" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>',
+    error: '<svg class="toast-icon error" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"/></svg>',
+    info: '<svg class="toast-icon info" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"/></svg>',
+    warning: '<svg class="toast-icon warning" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"/></svg>'
+  };
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `
+    ${icons[type] || icons.info}
+    <span class="toast-text">${message}</span>
+    <button class="toast-close" onclick="dismissToast(this.parentElement)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  `;
+  container.appendChild(toast);
+
+  setTimeout(() => dismissToast(toast), 4000);
+}
+
+function dismissToast(el) {
+  if (!el || el.classList.contains('leaving')) return;
+  el.classList.add('leaving');
+  setTimeout(() => el.remove(), 300);
+}
+</script>
+
+</body>
+</html>
