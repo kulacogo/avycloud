@@ -1471,6 +1471,26 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   {isImproving ? t('common.improving') : t('common.improve')}
                 </button>
               )}
+              <button
+                type="button"
+                onClick={handlePublishToEbay}
+                disabled={isPublishingEbay}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-sky-700 text-white font-medium rounded-lg hover:bg-sky-600 transition-colors disabled:bg-sky-900 disabled:cursor-wait w-full sm:w-auto"
+              >
+                {isPublishingEbay ? (
+                  <Spinner className="w-4 h-4" />
+                ) : (
+                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="10" cy="10" r="7" />
+                    <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
+                  </svg>
+                )}
+                {ebayPublishStatus === 'verifying'
+                  ? 'Prüfe...'
+                  : ebayPublishStatus === 'publishing'
+                    ? 'Listing...'
+                    : 'eBay'}
+              </button>
             </div>
           </div>
         </header>

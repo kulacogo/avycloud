@@ -2142,7 +2142,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
   ]);
 
   const renderSelectionBar = () => {
-    if (selectedIds.size === 0) return null;
     return (
       <div className="rounded-xl border border-slate-700 bg-slate-950/30 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="text-xs text-slate-200">
