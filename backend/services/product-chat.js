@@ -24,7 +24,12 @@ const {
   canonicalizeAttributesStrict,
   isBlockedAttributeKey,
 } = require('../lib/attribute-policy');
-const { getRequiredAspects, buildRequiredAspectMeta, getRequiredAspectCatalogStats } = require('../lib/ebay-taxonomy');
+const {
+  getRequiredAspects,
+  getCategoryAspectCatalog,
+  buildRequiredAspectMeta,
+  getRequiredAspectCatalogStats,
+} = require('../lib/ebay-taxonomy');
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 const { getRulebookConfigCached } = require('../lib/rulebook-config');
 const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
@@ -1102,6 +1107,7 @@ function buildProductContext(product, { attachments = [], mode = 'short', market
   const dimensions = extractDimensionsFromAttributes(attributes);
   const categoryIdRaw = resolveProductCategoryId(product, attributes);
   const requiredAspects = categoryIdRaw ? getRequiredAspects(categoryIdRaw) : [];
+  const aspectCatalog = categoryIdRaw ? getCategoryAspectCatalog(categoryIdRaw) : null;
   const requiredMeta = buildRequiredAspectMeta(categoryIdRaw, product?.details?.attributes || {});
   const aspectStats = getRequiredAspectCatalogStats();
   const vehicleFitmentMode = categoryIdRaw ? getVehicleFitmentMode(categoryIdRaw) : null;
@@ -1126,6 +1132,23 @@ function buildProductContext(product, { attachments = [], mode = 'short', market
     ebay: {
       categoryId: categoryIdRaw,
       required_aspects: Array.isArray(requiredAspects) ? requiredAspects : [],
+      allowed_aspects:
+        aspectCatalog && Array.isArray(aspectCatalog.allAspects) ? aspectCatalog.allAspects : Array.isArray(requiredAspects) ? requiredAspects : [],
+      aspect_catalog_meta: {
+        has_catalog_entry: Boolean(aspectCatalog?.hasCatalogEntry),
+        has_aspect_data: Boolean(aspectCatalog?.hasAspectData),
+        counts: {
+          required: Array.isArray(aspectCatalog?.requiredAspects) ? aspectCatalog.requiredAspects.length : 0,
+          recommended: Array.isArray(aspectCatalog?.recommendedAspects) ? aspectCatalog.recommendedAspects.length : 0,
+          optional: Array.isArray(aspectCatalog?.optionalAspects) ? aspectCatalog.optionalAspects.length : 0,
+          allowed: Array.isArray(aspectCatalog?.allAspects) ? aspectCatalog.allAspects.length : 0,
+        },
+      },
+      aspect_catalog: {
+        required: Array.isArray(aspectCatalog?.requiredAspects) ? aspectCatalog.requiredAspects : [],
+        recommended: Array.isArray(aspectCatalog?.recommendedAspects) ? aspectCatalog.recommendedAspects : [],
+        optional: Array.isArray(aspectCatalog?.optionalAspects) ? aspectCatalog.optionalAspects : [],
+      },
       required_aspects_meta: {
         category_known: Boolean(requiredMeta?.categoryKnown),
         has_aspect_data: Boolean(requiredMeta?.hasAspectData),
@@ -1238,7 +1261,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     'You have full product context (data, images, OCR, identifiers, inventory, warehouse info) and must cross-check for inconsistencies or missing facts.',
     'For category work: use only valid eBay category IDs/breadcrumbs and treat ebay.required_aspects_meta.missing_required_aspects as mandatory enrichment backlog.',
     'Title rule: build search-native eBay titles using ebay.title_insights.top_tokens when available; never include EAN/GTIN/UPC/ISBN, SKU/internal IDs, or marketing fluff.',
-    'Aspect naming rule: when proposing attributes for eBay, prefer exact keys from ebay.required_aspects and do not invent marketplace-specific alias keys.',
+    'Aspect naming rule: when proposing attributes for eBay, use ONLY exact keys from ebay.allowed_aspects (fallback: ebay.required_aspects). Never invent new attribute keys.',
     'Encoding rule: return plain UTF-8 text values (e.g. "60 °C", "Öko-Tex"), never HTML entities like "&deg;" or "&Ouml;".',
     'Use BrightData web_fetch only when external validation (competitors, specs) is truly needed; cite when you do.',
     'Interpret every supplied image (product gallery + user attachments) in concise wording; if imagery is weak, state what to shoot next.',
@@ -1280,7 +1303,7 @@ function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingF
   lines.push('Category rule: use only valid eBay category IDs/breadcrumbs; do not propose non-eBay categories.');
   lines.push('Title rule: prioritize ebay.title_insights.top_tokens as buyer search keywords; keep title <=80 chars and factual.');
   lines.push('Never include EAN/GTIN/UPC/ISBN or unverifiable claims in titles.');
-  lines.push('Aspect rule: prioritize filling ebay.required_aspects_meta.missing_required_aspects with evidence-backed values, and use exact aspect names from ebay.required_aspects.');
+  lines.push('Aspect rule: prioritize filling ebay.required_aspects_meta.missing_required_aspects with evidence-backed values, and use ONLY exact aspect names from ebay.allowed_aspects (fallback: ebay.required_aspects).');
   lines.push('Output encoding rule: never use HTML entities in attribute values; use plain UTF-8 characters.');
   lines.push('If you propose edits, remember the {"edit": {...}} JSON rule.');
   return lines.join('\n\n');

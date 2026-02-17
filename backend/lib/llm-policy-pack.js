@@ -51,6 +51,7 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
       '- Nutze Web-Daten nur, wenn sie dir durch das System bereitgestellt werden (Tools / WEB-EVIDENZ).',
       '- Erfinde keine Fakten. Wenn etwas nicht belegbar ist: leer lassen und als Unsicherheit markieren.',
       '- Titel/Highlights/Beschreibung sollen faktenbasiert und suchstark sein; keine Platzhaltertexte.',
+      '- eBay Attribute-Governance: Wenn dir pro Kategorie Aspects geliefert werden (ebay.allowed_aspects oder ebay.required_aspects), verwende NUR diese Keys (exakte Schreibweise). Erfinde keine neuen Attribut-Keys.',
     ].join('\n');
   }
   return [
@@ -68,6 +69,7 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     '- Wenn unsicher: Feld leer lassen + in notes/warnings markieren. AUSNAHME: eBay Pflicht-Item-Specifics (required aspects) sollen nach bestem Wissen aus den Belegen ausgefüllt werden; nur wenn wirklich unbelegbar: "Unbekannt" + Warning.',
     '- Attribute müssen neutral sein (nicht marktplatz-spezifisch). KEINE Attribute/Keys, die "ebay" oder "kaufland" enthalten (z.B. ebay_*_id/path, ebayCategory*, kaufland_*_id/path).',
     '- Keine internen/Meta-Keys als Attribute (z.B. product-id, *_id, text_*, features|*).',
+    '- eBay Attribute-Governance: Wenn dir pro Kategorie eine Allowlist geliefert wird (ebay.allowed_aspects), verwende NUR Keys aus dieser Liste (exakte Schreibweise). Erfinde keine neuen Attribut-Keys.',
     '- Keine doppelten Attribute: keine strukturellen Dubletten (Case/Whitespace) und keine semantischen Dubletten (Synonyme). Konflikte sind Fehler; dann Feld leer lassen und Warning setzen.',
     '- Barcodes: niemals raten. Nur setzen, wenn der Code in den bereitgestellten Belegen (OCR/WEB-EVIDENZ) vorkommt UND die Checkdigit stimmt (8/12/13/14 Ziffern). Sonst leer lassen.',
     '- Zustand: Default NEU. "Gebraucht/Used" nur, wenn es explizit vom Nutzer gelockt wurde (condition_locked). Sonst niemals setzen.',

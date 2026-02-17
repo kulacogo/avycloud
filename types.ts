@@ -485,6 +485,62 @@ export interface EbayCategoryOption {
   leaf?: boolean;
 }
 
+export type EbayAspectUsage = 'RECOMMENDED' | 'OPTIONAL';
+
+export interface EbayAspectCatalogRow {
+  name: string;
+  required: boolean;
+  usage: EbayAspectUsage | null;
+  dataType: string | null;
+  advancedDataType: string | null;
+  mode: string | null;
+  format: string | null;
+  itemToAspectCardinality: string | null;
+  maxLength: number | null;
+  enabledForVariations: boolean | null;
+  applicableTo: string[];
+  expectedRequiredByDate: string | null;
+  valuesCount: number;
+}
+
+export interface EbayCategoryTaxonomyEntry {
+  id: string;
+  name: string;
+  breadcrumb: string;
+  root?: string;
+  leaf?: boolean;
+  banned?: boolean;
+}
+
+export interface EbayCategoryAspectCatalog {
+  categoryId: string | null;
+  hasCatalogEntry?: boolean;
+  hasAspectData: boolean;
+  requiredAspects: string[];
+  recommendedAspects: string[];
+  optionalAspects: string[];
+  allAspects: string[];
+  aspects: EbayAspectCatalogRow[];
+}
+
+export interface EbayTaxonomyCategoriesResponse {
+  ok: true;
+  data: {
+    items: EbayCategoryTaxonomyEntry[];
+    total: number;
+    includeBanned: boolean;
+    leafOnly: boolean;
+  };
+}
+
+export interface EbayTaxonomyCategoryAspectsResponse {
+  ok: true;
+  data: {
+    category: EbayCategoryTaxonomyEntry;
+    catalog: EbayCategoryAspectCatalog;
+  };
+}
+
 export interface BaseLinkerCategoryOption {
   id: string;
   name: string;

@@ -57,6 +57,7 @@ const { getGeminiApiKey, __unsafeGetCachedKeySource } = require('./lib/gemini-cl
 const { fetchWithUnlocker } = require('./lib/web-unlocker');
 const { search: searchEvidence, searchSite: searchEvidenceSite } = require('./lib/evidence-provider');
 const { isBannedEbayBreadcrumb } = require('./lib/ebay-category-governance');
+const { getCategoryAspectCatalog } = require('./lib/ebay-taxonomy');
 const { enqueueJob, startJobRunner } = require('./services/job-runner');
 const { runCloudRunJob } = require('./lib/cloud-run-jobs');
 const { enqueueImproveJob, startImproveRunner } = require('./services/improve-runner');
@@ -4050,6 +4051,86 @@ app.get('/api/ebay/categories', (req, res) => {
   } catch (error) {
     console.error('Failed to search eBay categories:', error);
     res.status(500).json({ error: { message: 'Failed to search categories.' } });
+  }
+});
+
+// --- eBay Taxonomy (Admin viewer) ---
+// Provides a complete category list (incl. leaf flag) and per-category aspects catalog (required/recommended/optional).
+app.get('/api/ebay/taxonomy/categories', requirePermission('products', 'read'), (req, res) => {
+  try {
+    const includeBanned =
+      String(req.query.includeBanned || req.query.include_banned || '')
+        .trim()
+        .toLowerCase() === 'true';
+    const leafOnly =
+      String(req.query.leafOnly || req.query.leaf_only || '')
+        .trim()
+        .toLowerCase() === 'true';
+
+    const { entries } = getEbayCategoryEntries();
+    const items = entries
+      .filter((entry) => (includeBanned ? true : !entry.banned))
+      .filter((entry) => (leafOnly ? Boolean(entry.leaf) : true))
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        breadcrumb: entry.breadcrumb,
+        root: entry.root || '',
+        leaf: Boolean(entry.leaf),
+        banned: Boolean(entry.banned),
+      }));
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        items,
+        total: items.length,
+        includeBanned,
+        leafOnly,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to load eBay taxonomy categories:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to load eBay taxonomy categories.' },
+    });
+  }
+});
+
+app.get('/api/ebay/taxonomy/categories/:id/aspects', requirePermission('products', 'read'), (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Category id is required.' } });
+    }
+    const { byId } = getEbayCategoryEntries();
+    const entry = byId.get(id) || null;
+    if (!entry) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'Category not found.' } });
+    }
+
+    const catalog = getCategoryAspectCatalog(id);
+    return res.status(200).json({
+      ok: true,
+      data: {
+        category: {
+          id: entry.id,
+          name: entry.name,
+          breadcrumb: entry.breadcrumb,
+          root: entry.root || '',
+          leaf: Boolean(entry.leaf),
+          banned: Boolean(entry.banned),
+        },
+        catalog,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to load eBay taxonomy aspects:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to load eBay taxonomy aspects.' },
+    });
   }
 });
 

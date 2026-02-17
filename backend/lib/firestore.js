@@ -18,7 +18,10 @@ const {
   normalizeGpsrPhone,
 } = require('./gpsr-manufacturer-registry');
 const { decodeHtmlEntitiesDeep } = require('./html-entities');
-const { getRequiredAspects: getEbayRequiredAspects } = require('./ebay-taxonomy');
+const {
+  getRequiredAspects: getEbayRequiredAspects,
+  getCategoryAspectCatalog: getEbayCategoryAspectCatalog,
+} = require('./ebay-taxonomy');
 const {
   isBannedEbayBreadcrumb,
   getEbayCategoryBreadcrumbRoot,
@@ -1163,6 +1166,19 @@ function enforceEbayAspects(product) {
   const requiredAspectsRaw = getEbayRequiredAspects(catId);
   const requiredAspects = Array.isArray(requiredAspectsRaw) ? requiredAspectsRaw : [];
   const categoryPath = product?.identification?.category || null;
+  const taxonomy = getEbayCategoryAspectCatalog(catId);
+  const enforceAllowlist = Boolean(taxonomy?.hasCatalogEntry);
+  const allowedTaxonomyAspects = Array.isArray(taxonomy?.allAspects) ? taxonomy.allAspects : [];
+  const allowedLowerSet = new Set(
+    allowedTaxonomyAspects
+      .map((n) => normalizeLower(n))
+      .filter(Boolean)
+  );
+  // AvyCloud-internal keys that are explicitly allowed even if not present in eBay taxonomy aspects.
+  // These are *not* "invented" keys; they are stable system fields used by downstream flows.
+  const ALWAYS_ALLOWED_KEYS_LOWER = new Set(
+    ['k-typ', 'ktyp', 'k typ', 'weight', 'gewicht (kg)', 'gewicht(kg)'].map((k) => normalizeLower(k))
+  );
 
   // Vehicle fitment (K-Typ) enforcement for categories where eBay supports vehicle fitment lists.
   // We do NOT invent K-Typ here. If missing (and we have an MPN), we add a warning so automation/UI can surface it.
@@ -1180,12 +1196,15 @@ function enforceEbayAspects(product) {
       );
     }
   }
-  const canonicalByLower = new Map(
-    requiredAspects
-      .map((n) => normalizeKey(n))
-      .filter(Boolean)
-      .map((n) => [normalizeLower(n), n])
-  );
+  const canonicalByLower = new Map();
+  [...allowedTaxonomyAspects, ...requiredAspects]
+    .map((n) => normalizeKey(n))
+    .filter(Boolean)
+    .forEach((n) => {
+      const k = normalizeLower(n);
+      if (!k || canonicalByLower.has(k)) return;
+      canonicalByLower.set(k, n);
+    });
 
   const keptAspects = {};
   const nextExtra = { ...(existingExtra || {}) };
@@ -1239,8 +1258,24 @@ function enforceEbayAspects(product) {
       return;
     }
 
-    // Canonicalize required aspect names for consistent formatting
+    // Canonicalize aspect names (required/recommended/optional) to official eBay localized keys when possible.
     const canonicalName = canonicalByLower.get(lower) || finalKey;
+    const canonicalLower = normalizeLower(canonicalName);
+
+    // Governance: if we have a taxonomy allowlist for this category, do not keep invented / non-taxonomy keys
+    // in the main datasheet (details.attributes). Preserve them in attributes_extra for forensics.
+    if (enforceAllowlist) {
+      const allowed = allowedLowerSet.has(canonicalLower) || ALWAYS_ALLOWED_KEYS_LOWER.has(canonicalLower);
+      if (!allowed) {
+        // Never keep marketplace-specific keys anywhere (including attributes_extra).
+        const originalLower = normalizeLower(originalKey);
+        if (!(originalLower.includes('ebay') || originalLower.includes('kaufland'))) {
+          nextExtra[originalKey] = val;
+        }
+        return;
+      }
+    }
+
     if (Object.prototype.hasOwnProperty.call(keptAspects, canonicalName)) {
       // Preserve duplicates rather than overwriting
       const prev = keptAspects[canonicalName];

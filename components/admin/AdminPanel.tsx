@@ -5,9 +5,10 @@ import { AdminGroupManagement } from './AdminGroupManagement';
 import { AdminLlmManagement } from './AdminLlmManagement';
 import { AdminBulkActions } from './AdminBulkActions';
 import { AdminIntegrations } from './AdminIntegrations';
+import { AdminEbayTaxonomy } from './AdminEbayTaxonomy';
 import { PageHeader } from '../ui/PageHeader';
 
-type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations';
+type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations' | 'ebay';
 
 export const AdminPanel: React.FC = () => {
   const [tab, setTab] = React.useState<Tab>('users');
@@ -71,6 +72,15 @@ export const AdminPanel: React.FC = () => {
         >
           Integrations
         </button>
+        <button
+          type="button"
+          onClick={() => setTab('ebay')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+            tab === 'ebay' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+          }`}
+        >
+          eBay
+        </button>
       </div>
 
       {tab === 'users' ? (
@@ -81,6 +91,8 @@ export const AdminPanel: React.FC = () => {
         <AdminLlmManagement />
       ) : tab === 'bulk' ? (
         <AdminBulkActions />
+      ) : tab === 'ebay' ? (
+        <AdminEbayTaxonomy />
       ) : tab === 'integrations' ? (
         <AdminIntegrations />
       ) : (

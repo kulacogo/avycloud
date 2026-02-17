@@ -218,6 +218,7 @@ function getCategoryAspectCatalog(categoryId) {
   if (!categoryId) {
     return {
       categoryId: null,
+      hasCatalogEntry: false,
       hasAspectData: false,
       requiredAspects: [],
       recommendedAspects: [],
@@ -230,6 +231,7 @@ function getCategoryAspectCatalog(categoryId) {
   if (!key) {
     return {
       categoryId: null,
+      hasCatalogEntry: false,
       hasAspectData: false,
       requiredAspects: [],
       recommendedAspects: [],
@@ -238,6 +240,7 @@ function getCategoryAspectCatalog(categoryId) {
       aspects: [],
     };
   }
+  const hasCatalogEntry = Object.prototype.hasOwnProperty.call(aspectCatalogByCategory || {}, key);
   const entry = aspectCatalogByCategory?.[key];
   const aspectRows = Array.isArray(entry?.aspects) ? entry.aspects : [];
   const requiredFromRows = dedupeAspectNames(
@@ -291,6 +294,7 @@ function getCategoryAspectCatalog(categoryId) {
 
   return {
     categoryId: key,
+    hasCatalogEntry,
     hasAspectData,
     requiredAspects: requiredAspectsOut,
     recommendedAspects: recommendedAspectsOut,

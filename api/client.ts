@@ -14,6 +14,8 @@ import {
   ProductEnrichmentRecord,
   InventoryRecord,
   EbayCategoryOption,
+  EbayCategoryTaxonomyEntry,
+  EbayCategoryAspectCatalog,
   BaseLinkerCategoryOption,
   DashboardMetrics,
   EbayListingRow,
@@ -473,6 +475,37 @@ export async function searchEbayCategories({
   const res = await fetchApi(url.toString(), { method: 'GET' });
   const data = await parseResponse(res);
   return (data?.items || []) as EbayCategoryOption[];
+}
+
+export async function fetchEbayTaxonomyCategories(params?: {
+  includeBanned?: boolean;
+  leafOnly?: boolean;
+}): Promise<EbayCategoryTaxonomyEntry[]> {
+  const url = new URL(`${BACKEND_URL}/api/ebay/taxonomy/categories`);
+  if (params?.includeBanned) url.searchParams.set('includeBanned', 'true');
+  if (params?.leafOnly) url.searchParams.set('leafOnly', 'true');
+  // Keep caches honest in admin UIs
+  url.searchParams.set('t', String(Date.now()));
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load eBay taxonomy categories');
+  }
+  return (data?.data?.items || []) as EbayCategoryTaxonomyEntry[];
+}
+
+export async function fetchEbayTaxonomyCategoryAspects(categoryId: string): Promise<EbayCategoryAspectCatalog> {
+  const id = String(categoryId || '').trim();
+  if (!id) throw new Error('categoryId is required');
+  const safe = encodeURIComponent(id);
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/taxonomy/categories/${safe}/aspects?t=${Date.now()}`, {
+    method: 'GET',
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load eBay taxonomy aspects');
+  }
+  return (data?.data?.catalog || null) as EbayCategoryAspectCatalog;
 }
 
 // --- eBay Integration (OAuth + Listing Snapshots) ---
