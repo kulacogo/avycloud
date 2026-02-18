@@ -1224,6 +1224,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   rows={2}
                   style={{ wordBreak: 'break-word' }}
                 />
+                <div className="flex justify-end mt-0.5">
+                  <span className={`text-xs tabular-nums ${
+                    (localProduct.identification.name?.length || 0) > 80
+                      ? 'text-red-400 font-semibold'
+                      : (localProduct.identification.name?.length || 0) >= 70
+                      ? 'text-amber-400'
+                      : 'text-slate-500'
+                  }`}>
+                    {localProduct.identification.name?.length || 0}/80
+                  </span>
+                </div>
               ) : (
                 <h1
                   className={`text-2xl sm:text-3xl font-bold break-words leading-tight ${
