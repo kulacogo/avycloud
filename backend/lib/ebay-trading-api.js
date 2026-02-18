@@ -621,6 +621,57 @@ async function getSellerProfiles({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   };
 }
 
+async function getCategoryInfo(categoryId, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const id = safeString(categoryId);
+  if (!id) throw Object.assign(new Error('categoryId is required'), { code: 'EBAY_CATEGORY_ID_REQUIRED' });
+  const cfg = await getEbayTradingConfig();
+  const requestXml = buildRequestRoot(
+    'GetCategories',
+    `<CategoryID>${escapeXml(id)}</CategoryID><LevelLimit>1</LevelLimit><ViewAllNodes>true</ViewAllNodes>`,
+    cfg.userToken,
+    cfg.compatibilityLevel
+  );
+  const result = await callTradingApi('GetCategories', requestXml, { timeoutMs });
+  const categories = asArray(result?.response?.CategoryArray?.Category);
+  const cat = categories.find((c) => safeString(c?.CategoryID) === id) || categories[0] || {};
+  return {
+    categoryId: id,
+    name: safeString(cat?.CategoryName) || null,
+    level: toNumber(cat?.CategoryLevel),
+    parentId: safeString(cat?.CategoryParentID) || null,
+    isLeaf: safeString(cat?.LeafCategory).toLowerCase() === 'true',
+  };
+}
+
+async function getCategorySpecifics(categoryId, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const id = safeString(categoryId);
+  if (!id) throw Object.assign(new Error('categoryId is required'), { code: 'EBAY_CATEGORY_ID_REQUIRED' });
+  const cfg = await getEbayTradingConfig();
+  const requestXml = buildRequestRoot(
+    'GetCategorySpecifics',
+    `<CategoryID>${escapeXml(id)}</CategoryID>`,
+    cfg.userToken,
+    cfg.compatibilityLevel
+  );
+  const result = await callTradingApi('GetCategorySpecifics', requestXml, { timeoutMs });
+  const recommendations = asArray(result?.response?.Recommendations);
+  const specifics = recommendations
+    .flatMap((rec) => asArray(rec?.NameRecommendation))
+    .map((nr) => {
+      const rules = nr?.ValidationRules || {};
+      const minValues = toNumber(rules?.MinValues) || 0;
+      return {
+        name: safeString(nr?.Name),
+        required: minValues > 0,
+        minValues,
+        maxValues: toNumber(rules?.MaxValues) || null,
+        valueRecommendations: asArray(nr?.ValueRecommendation).map((vr) => safeString(vr?.Value)).filter(Boolean),
+      };
+    })
+    .filter((s) => s.name);
+  return { categoryId: id, specifics };
+}
+
 async function fetchTradingStatus() {
   const cfg = await getEbayTradingConfig();
   return {
@@ -644,6 +695,8 @@ module.exports = {
   getMyeBaySellingActive,
   getItemDetails,
   getSellerProfiles,
+  getCategoryInfo,
+  getCategorySpecifics,
   reviseFixedPriceItem,
   reviseItem,
   addFixedPriceItem,

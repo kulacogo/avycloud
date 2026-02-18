@@ -258,6 +258,10 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     null | 'removeBg' | 'auto' | 'rotate90' | 'rotate180' | 'brighten'
   >(null);
   const [improveError, setImproveError] = useState<string | null>(null);
+  const [improveStatus, setImproveStatus] = useState<string | null>(null);
+  const [improvePercent, setImprovePercent] = useState<number | null>(null);
+  const progressThrottleRef = useRef<number>(0);
+  const improveStartedAtRef = useRef<number>(0);
   const removeBackgroundFnRef = useRef<RemoveBackgroundFn | null>(null);
   const isCrossOriginIsolated = typeof window !== 'undefined' && (window as any).crossOriginIsolated === true;
 
@@ -266,6 +270,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     setActiveIndex(0);
     setLightboxIndex(null);
     setImproveError(null);
+    setImproveStatus(null);
+    setImprovePercent(null);
   }, [resetKey]);
 
   // Keep the active index in-bounds when images are removed.
@@ -276,6 +282,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   useEffect(() => {
     setImproveError(null);
+    setImproveStatus(null);
+    setImprovePercent(null);
   }, [activeIndex]);
 
   if (!images || images.length === 0) {
@@ -362,6 +370,10 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
       setImproving(true);
       setImproveAction(action);
       setImproveError(null);
+      setImproveStatus(null);
+      setImprovePercent(null);
+      progressThrottleRef.current = 0;
+      improveStartedAtRef.current = Date.now();
 
       try {
         const inputBlob = await fetchImageBlob(src);
@@ -390,6 +402,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
       } finally {
         setImproving(false);
         setImproveAction(null);
+        setImproveStatus(null);
+        setImprovePercent(null);
       }
     },
     [activeIndex, activeRealImage, isActiveReal, isEditing, onUpdateImage, t]
@@ -400,10 +414,60 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
       'removeBg',
       async (inputBlob) => {
         const removeBackground = await getRemoveBackgroundFn();
+        setImproveStatus(t('sheet.gallery.improve.status.starting'));
+        setImprovePercent(null);
+
+        const progress = (key: string, current: number, total: number) => {
+          const now = Date.now();
+          if (progressThrottleRef.current && now - progressThrottleRef.current < 180) return;
+          progressThrottleRef.current = now;
+
+          const percent = total > 0 ? Math.max(0, Math.min(100, Math.round((current / total) * 100))) : null;
+          if (typeof percent === 'number' && Number.isFinite(percent)) {
+            setImprovePercent(percent);
+          } else {
+            setImprovePercent(null);
+          }
+
+          const keyStr = String(key || '');
+          const asMb = (bytes: number) => `${(Math.max(0, bytes) / (1024 * 1024)).toFixed(1)} MB`;
+
+          if (keyStr.startsWith('fetch:')) {
+            const resource = keyStr.slice('fetch:'.length);
+            const label =
+              resource.includes('/models/')
+                ? t('sheet.gallery.improve.status.downloadModel')
+                : resource.includes('onnxruntime-web')
+                  ? t('sheet.gallery.improve.status.downloadRuntime')
+                  : t('sheet.gallery.improve.status.downloading');
+            const details = total > 0 ? ` (${asMb(current)} / ${asMb(total)})` : '';
+            setImproveStatus(`${label}${details}`);
+            return;
+          }
+
+          if (keyStr.startsWith('compute:')) {
+            const step = keyStr.slice('compute:'.length);
+            const label =
+              step === 'decode'
+                ? t('sheet.gallery.improve.status.decode')
+                : step === 'inference'
+                  ? t('sheet.gallery.improve.status.inference')
+                  : step === 'mask'
+                    ? t('sheet.gallery.improve.status.mask')
+                    : step === 'encode'
+                      ? t('sheet.gallery.improve.status.encode')
+                      : t('sheet.gallery.improve.status.processing');
+            setImproveStatus(label);
+          }
+        };
+
         // Default config works without special headers; COOP/COEP only improves performance (SharedArrayBuffer).
         return await removeBackground(inputBlob, {
-          device: 'cpu',
-          output: { format: 'image/png', quality: 0.8, type: 'foreground' },
+          device: 'gpu',
+          // Faster + smaller download than medium. Quality is usually sufficient for catalog/gallery usage.
+          model: 'small',
+          progress,
+          output: { format: 'image/png', quality: 0.8 },
         });
       },
       t('sheet.gallery.improve.note.bgRemoved')
@@ -428,6 +492,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   const improveButtons = useMemo(() => {
     if (!isEditing || !isActiveReal || typeof onUpdateImage !== 'function') return null;
+    const elapsedSeconds = improving ? Math.max(0, Math.round((Date.now() - improveStartedAtRef.current) / 1000)) : 0;
     return (
       <div className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
         <div className="flex items-center justify-between gap-3">
@@ -435,10 +500,18 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           {improving ? (
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <Spinner className="w-4 h-4" />
-              <span>{t('sheet.gallery.improve.working')}</span>
+              <span>{improveStatus || t('sheet.gallery.improve.working')}</span>
+              {elapsedSeconds >= 10 ? <span className="text-[11px] text-slate-500">({elapsedSeconds}s)</span> : null}
             </div>
           ) : null}
         </div>
+        {improving && typeof improvePercent === 'number' ? (
+          <div className="mt-2">
+            <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+              <div className="h-full bg-sky-500/80" style={{ width: `${improvePercent}%` }} />
+            </div>
+          </div>
+        ) : null}
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             type="button"
@@ -490,11 +563,16 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         {improving && improveAction === 'removeBg' && !isCrossOriginIsolated ? (
           <div className="mt-2 text-[11px] text-slate-500">{t('sheet.gallery.improve.hint.performance')}</div>
         ) : null}
+        {improving && improveAction === 'removeBg' ? (
+          <div className="mt-1 text-[11px] text-slate-500">{t('sheet.gallery.improve.hint.firstRun')}</div>
+        ) : null}
       </div>
     );
   }, [
     improveAction,
     improveError,
+    improvePercent,
+    improveStatus,
     improving,
     isCrossOriginIsolated,
     isActiveReal,

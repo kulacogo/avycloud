@@ -2257,6 +2257,32 @@ app.get('/api/ebay/seller-profiles', requirePermission('products', 'read'), asyn
   }
 });
 
+app.get('/api/ebay/category-info/:categoryId', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const categoryId = String(req.params.categoryId || '').trim();
+    if (!categoryId) return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing categoryId' } });
+    const { getCategoryInfo } = require('./lib/ebay-trading-api');
+    const data = await getCategoryInfo(categoryId);
+    return res.status(200).json({ ok: true, data });
+  } catch (error) {
+    console.error('Failed to get eBay category info:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: error?.message || 'Failed to get category info' } });
+  }
+});
+
+app.get('/api/ebay/category-specifics/:categoryId', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const categoryId = String(req.params.categoryId || '').trim();
+    if (!categoryId) return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing categoryId' } });
+    const { getCategorySpecifics } = require('./lib/ebay-trading-api');
+    const data = await getCategorySpecifics(categoryId);
+    return res.status(200).json({ ok: true, data });
+  } catch (error) {
+    console.error('Failed to get eBay category specifics:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: error?.message || 'Failed to get category specifics' } });
+  }
+});
+
 app.get('/api/ebay/offers', requirePermission('products', 'read'), async (req, res) => {
   try {
     const sku = typeof req.query?.sku === 'string' ? req.query.sku : '';

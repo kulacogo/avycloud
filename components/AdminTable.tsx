@@ -37,6 +37,7 @@ type ColumnId =
   | 'pendingIntake'
   | 'storage'
   | 'baselinker'
+  | 'ebay'
   | 'lastSold'
   | 'syncStatus'
   | 'saveStatus'
@@ -46,7 +47,7 @@ type ColumnId =
 
 type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'syncStatus', 'lastSaved'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'syncStatus', 'lastSaved'],
   warehouse: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'syncStatus', 'saveStatus'],
   pricing: ['nameBrand', 'price', 'sku', 'barcode', 'qualityGate', 'pendingIntake', 'baselinker', 'syncStatus', 'lastSynced'],
   minimal: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'baselinker', 'syncStatus'],
@@ -655,6 +656,27 @@ const AdminTable: React.FC<AdminTableProps> = ({
         },
       },
       {
+        id: 'ebay',
+        label: 'eBay',
+        sortKey: 'marketplace.ebay.itemId',
+        defaultVisible: true,
+        render: ({ product }) => {
+          const itemId = (product as any)?.marketplace?.ebay?.itemId;
+          const publishedAt = (product as any)?.marketplace?.ebay?.publishedAt;
+          const dateStr = publishedAt ? new Date(publishedAt).toLocaleDateString('de-DE') : null;
+          return (
+            <span
+              title={itemId ? `ItemID: ${itemId}${dateStr ? ` · gelistet am ${dateStr}` : ''}` : 'Noch nicht auf eBay gelistet'}
+              className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                itemId ? 'bg-sky-500/20 text-sky-300' : 'bg-slate-700 text-slate-500'
+              }`}
+            >
+              {itemId ? 'gelistet' : '—'}
+            </span>
+          );
+        },
+      },
+      {
         id: 'lastSold',
         label: t('table.lastSold'),
         sortKey: 'details.attributes.lastSoldAt',
@@ -1175,16 +1197,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
       const readyIds = verifyResult.items.filter((item) => item.canPublish).map((item) => item.productId);
       const publishResult = await bulkPublishToEbay(readyIds);
       const { success, failed } = publishResult.summary;
-      const failDetails = publishResult.results
+      const blockedItems = verifyResult.items.filter((item) => !item.canPublish);
+      const detailLines: string[] = [];
+      publishResult.results
         .filter((r) => !r.ok)
         .slice(0, 5)
-        .map((r) => `${r.productId}: ${r.blockers?.join(', ') || r.warnings?.join(', ') || 'Fehler'}`)
-        .join('\n');
+        .forEach((r) => detailLines.push(`✗ ${r.productId}: ${r.blockers?.join(', ') || r.warnings?.join(', ') || 'Fehler'}`));
+      blockedItems
+        .slice(0, 5)
+        .forEach((item) => detailLines.push(`⊘ ${item.productId}: ${item.blockers?.join(', ') || 'Geblockt'}`));
       setNotice({
-        tone: failed === 0 ? 'success' : 'warning',
+        tone: failed === 0 && blocked === 0 ? 'success' : 'warning',
         title: 'eBay Publish abgeschlossen',
-        message: `Erfolgreich: ${success}, Fehlgeschlagen: ${failed}`,
-        details: failDetails || undefined,
+        message: `Gelistet: ${success}${failed > 0 ? `, Fehlgeschlagen: ${failed}` : ''}${blocked > 0 ? `, Übersprungen: ${blocked}` : ''}`,
+        details: detailLines.length > 0 ? detailLines.join('\n') : undefined,
       });
       if (success > 0) {
         try {

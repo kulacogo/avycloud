@@ -8,6 +8,8 @@ const { getRequiredAspects } = require('./ebay-taxonomy');
 const {
   getMyeBaySellingActive,
   getItemDetails,
+  getCategoryInfo,
+  getCategorySpecifics,
   reviseFixedPriceItem,
   reviseItem,
   addFixedPriceItem,
@@ -2966,7 +2968,33 @@ function validatePublishReadiness(product, overrides = {}) {
   const desc = safeString(deriveProductDescription(product));
   if (!desc) warnings.push('Keine Produktbeschreibung vorhanden – Template-Sektion wird leer.');
 
+  const hasShippingProfile = Boolean(
+    safeString(overrides.shippingProfileId) || safeString(process.env.EBAY_DEFAULT_SHIPPING_PROFILE_ID)
+  );
+  if (!hasShippingProfile) {
+    blockers.push('Kein Versandprofil konfiguriert. Bitte EBAY_DEFAULT_SHIPPING_PROFILE_ID setzen oder /api/ebay/seller-profiles aufrufen.');
+  }
+
   return { canPublish: blockers.length === 0, blockers, warnings };
+}
+
+async function checkCategoryIsLeaf(product, overrides) {
+  const categoryId =
+    safeString(overrides.primaryCategoryId) ||
+    safeString(product?.details?.categoryId) ||
+    safeString(product?.classification?.ebayCategoryId) ||
+    safeString(product?.marketplace?.ebay?.categoryId) ||
+    safeString(product?.categoryId);
+  if (!categoryId) return null;
+  try {
+    const info = await getCategoryInfo(categoryId);
+    if (!info.isLeaf) {
+      return `Kategorie ${categoryId}${info.name ? ` (${info.name})` : ''} ist keine Unterkategorie. Bitte eine spezifischere Kategorie wählen.`;
+    }
+    return null;
+  } catch {
+    return null; // Bei API-Fehler nicht blockieren
+  }
 }
 
 async function verifyPublishProduct(productId, overrides = {}) {
@@ -2977,7 +3005,9 @@ async function verifyPublishProduct(productId, overrides = {}) {
   const product = { id: doc.id, ...doc.data() };
 
   const readiness = validatePublishReadiness(product, overrides);
-  if (!readiness.canPublish) {
+  const categoryBlocker = await checkCategoryIsLeaf(product, overrides);
+  if (categoryBlocker) readiness.blockers.push(categoryBlocker);
+  if (!readiness.canPublish || categoryBlocker) {
     return { productId: id, canPublish: false, blockers: readiness.blockers, warnings: readiness.warnings, fees: null };
   }
 
@@ -3004,7 +3034,9 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
   const product = { id: doc.id, ...doc.data() };
 
   const readiness = validatePublishReadiness(product, overrides);
-  if (!readiness.canPublish) {
+  const categoryBlocker = await checkCategoryIsLeaf(product, overrides);
+  if (categoryBlocker) readiness.blockers.push(categoryBlocker);
+  if (!readiness.canPublish || categoryBlocker) {
     return { productId: id, ok: false, blockers: readiness.blockers, warnings: readiness.warnings };
   }
 
