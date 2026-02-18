@@ -501,8 +501,8 @@ function buildAddFixedPriceItemXml(item, cfg) {
   const postalCode = safeString(item?.postalCode);
   if (postalCode) fields.push(`<PostalCode>${escapeXml(postalCode)}</PostalCode>`);
 
-  const location = safeString(item?.location);
-  if (location) fields.push(`<Location>${escapeXml(location)}</Location>`);
+  const location = safeString(item?.location) || 'Deutschland';
+  fields.push(`<Location>${escapeXml(location)}</Location>`);
 
   const sku = safeString(item?.sku);
   if (sku) fields.push(`<SKU>${escapeXml(sku)}</SKU>`);
