@@ -758,7 +758,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
           const parsed = JSON.parse(stored) as ColumnId[];
           const valid = parsed.filter((id) => columnDefinitions.some((col) => col.id === id));
           if (valid.length > 0) {
-            return valid;
+            // Neu hinzugefügte Spalten (defaultVisible: true im Standard-Preset) automatisch ergänzen
+            const newDefaults = COLUMN_PRESETS.standard.filter(
+              (id) => !valid.includes(id) && columnDefinitions.some((col) => col.id === id && col.defaultVisible)
+            );
+            return newDefaults.length > 0 ? [...valid, ...newDefaults] : valid;
           }
         }
       } catch (error) {

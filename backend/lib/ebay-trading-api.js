@@ -625,21 +625,30 @@ async function getCategoryInfo(categoryId, { timeoutMs = DEFAULT_TIMEOUT_MS } = 
   const id = safeString(categoryId);
   if (!id) throw Object.assign(new Error('categoryId is required'), { code: 'EBAY_CATEGORY_ID_REQUIRED' });
   const cfg = await getEbayTradingConfig();
+  // NOTE: LevelLimit is absolute in eBay's hierarchy (level 1 = root), NOT relative to CategoryID.
+  // Omitting LevelLimit returns the subtree from the specified category (just the node itself if it's a leaf).
   const requestXml = buildRequestRoot(
     'GetCategories',
-    `<CategoryID>${escapeXml(id)}</CategoryID><LevelLimit>1</LevelLimit><ViewAllNodes>true</ViewAllNodes>`,
+    `<CategoryID>${escapeXml(id)}</CategoryID><ViewAllNodes>true</ViewAllNodes>`,
     cfg.userToken,
     cfg.compatibilityLevel
   );
   const result = await callTradingApi('GetCategories', requestXml, { timeoutMs });
   const categories = asArray(result?.response?.CategoryArray?.Category);
-  const cat = categories.find((c) => safeString(c?.CategoryID) === id) || categories[0] || {};
+  const cat = categories.find((c) => safeString(c?.CategoryID) === id);
+  if (!cat) {
+    // Category not found in response – assume valid leaf to avoid false blocks
+    return { categoryId: id, name: null, level: null, parentId: null, isLeaf: true };
+  }
+  // LeafCategory is parsed as boolean by fast-xml-parser (parseTagValue: true)
+  const leafRaw = cat?.LeafCategory;
+  const isLeaf = leafRaw === true || safeString(leafRaw).toLowerCase() === 'true';
   return {
     categoryId: id,
     name: safeString(cat?.CategoryName) || null,
     level: toNumber(cat?.CategoryLevel),
     parentId: safeString(cat?.CategoryParentID) || null,
-    isLeaf: safeString(cat?.LeafCategory).toLowerCase() === 'true',
+    isLeaf,
   };
 }
 
