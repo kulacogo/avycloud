@@ -2241,6 +2241,21 @@ app.get('/api/ebay/trading/status', requirePermission('products', 'read'), async
   }
 });
 
+app.get('/api/ebay/seller-profiles', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const { getSellerProfiles } = require('./lib/ebay-trading-api');
+    const data = await getSellerProfiles();
+    return res.status(200).json({ ok: true, data });
+  } catch (error) {
+    const code = error?.code === 'EBAY_TRADING_CONFIG_MISSING' ? 400 : 500;
+    console.error('Failed to load eBay seller profiles:', error);
+    return res.status(code).json({
+      ok: false,
+      error: { code, message: error?.message || 'Failed to load eBay seller profiles' },
+    });
+  }
+});
+
 app.get('/api/ebay/offers', requirePermission('products', 'read'), async (req, res) => {
   try {
     const sku = typeof req.query?.sku === 'string' ? req.query.sku : '';

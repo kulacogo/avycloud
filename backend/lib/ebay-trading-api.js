@@ -586,6 +586,41 @@ async function verifyAddFixedPriceItem(item, { timeoutMs = DEFAULT_TIMEOUT_MS } 
   };
 }
 
+async function getSellerProfiles({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const cfg = await getEbayTradingConfig();
+  const requestXml = buildRequestRoot(
+    'GetSellerProfiles',
+    `<ProfileType>SHIPPING</ProfileType><ProfileType>RETURN_POLICY</ProfileType><ProfileType>PAYMENT</ProfileType>`,
+    cfg.userToken,
+    cfg.compatibilityLevel
+  );
+  const result = await callTradingApi('GetSellerProfiles', requestXml, { timeoutMs });
+  const response = result?.response || {};
+
+  const shippingProfiles = asArray(response?.ShippingProfileList?.ShippingProfile).map((p) => ({
+    id: safeString(p?.ShippingProfileID),
+    name: safeString(p?.ShippingProfileName),
+  })).filter((p) => p.id);
+
+  const returnProfiles = asArray(response?.ReturnPolicyProfileList?.ReturnPolicyProfile).map((p) => ({
+    id: safeString(p?.ReturnPolicyProfileID),
+    name: safeString(p?.ReturnPolicyProfileName),
+  })).filter((p) => p.id);
+
+  const paymentProfiles = asArray(response?.PaymentProfileList?.PaymentProfile).map((p) => ({
+    id: safeString(p?.PaymentProfileID),
+    name: safeString(p?.PaymentProfileName),
+  })).filter((p) => p.id);
+
+  return {
+    ack: result.ack,
+    warnings: result.errors,
+    shippingProfiles,
+    returnProfiles,
+    paymentProfiles,
+  };
+}
+
 async function fetchTradingStatus() {
   const cfg = await getEbayTradingConfig();
   return {
@@ -608,6 +643,7 @@ module.exports = {
   callTradingApi,
   getMyeBaySellingActive,
   getItemDetails,
+  getSellerProfiles,
   reviseFixedPriceItem,
   reviseItem,
   addFixedPriceItem,

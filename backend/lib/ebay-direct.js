@@ -2913,9 +2913,9 @@ function mapProductToEbayItem(product, overrides = {}) {
     location: safeString(overrides.location) || undefined,
     listingDuration: safeString(overrides.listingDuration) || 'GTC',
     dispatchTimeMax: overrides.dispatchTimeMax ?? 3,
-    shippingProfileId: safeString(overrides.shippingProfileId) || undefined,
-    returnProfileId: safeString(overrides.returnProfileId) || undefined,
-    paymentProfileId: safeString(overrides.paymentProfileId) || undefined,
+    shippingProfileId: safeString(overrides.shippingProfileId) || safeString(process.env.EBAY_DEFAULT_SHIPPING_PROFILE_ID) || undefined,
+    returnProfileId: safeString(overrides.returnProfileId) || safeString(process.env.EBAY_DEFAULT_RETURN_PROFILE_ID) || undefined,
+    paymentProfileId: safeString(overrides.paymentProfileId) || safeString(process.env.EBAY_DEFAULT_PAYMENT_PROFILE_ID) || undefined,
   };
 }
 
