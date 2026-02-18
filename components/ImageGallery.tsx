@@ -1,35 +1,252 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ProductImage } from '../types';
 import { DownloadIcon } from './icons/Icons';
+import { Spinner } from './Spinner';
 import { useI18n } from '../i18n';
 
 interface ImageGalleryProps {
   images: ProductImage[];
+  resetKey?: string;
   isEditing?: boolean;
   onDeleteImage?: (index: number) => void;
   onReorder?: (fromIndex: number, toIndex: number) => void;
   onRegenerateImage?: (index: number) => void;
   regeneratingIndex?: number | null;
+  onUpdateImage?: (index: number, next: ProductImage) => void;
 }
+
+type RemoveBackgroundFn = (
+  image: ImageData | ArrayBuffer | Uint8Array | Blob | URL | string,
+  // The lib supports a Config object; keep unknown here to avoid coupling to version-specific types.
+  config?: unknown
+) => Promise<Blob>;
+
+const blobToDataUrl = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Failed to read image blob.'));
+    reader.readAsDataURL(blob);
+  });
+
+const canvasToBlob = (canvas: HTMLCanvasElement, type = 'image/png', quality?: number) =>
+  new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Failed to encode image.'));
+      },
+      type,
+      quality
+    );
+  });
+
+const clampByte = (v: number) => Math.max(0, Math.min(255, v));
+
+const appendNote = (prevNotes: string | undefined, tag: string) => {
+  const prev = (prevNotes || '').trim();
+  if (!prev) return tag;
+  if (prev.toLowerCase().includes(tag.toLowerCase())) return prev;
+  return `${prev} · ${tag}`;
+};
+
+const fetchImageBlob = async (src: string) => {
+  const response = await fetch(src, { mode: 'cors' });
+  if (!response.ok) {
+    throw new Error(`Image fetch failed (${response.status}).`);
+  }
+  return await response.blob();
+};
+
+const loadCanvasSource = async (blob: Blob): Promise<{
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  cleanup: () => void;
+}> => {
+  if (typeof createImageBitmap === 'function') {
+    const bitmap = await createImageBitmap(blob);
+    return {
+      source: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      cleanup: () => bitmap.close?.(),
+    };
+  }
+
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('Failed to decode image.'));
+      el.src = url;
+    });
+    return {
+      source: img,
+      width: img.naturalWidth || img.width,
+      height: img.naturalHeight || img.height,
+      cleanup: () => URL.revokeObjectURL(url),
+    };
+  } catch (err) {
+    URL.revokeObjectURL(url);
+    throw err;
+  }
+};
+
+const rotateBlob = async (blob: Blob, degrees: 90 | 180) => {
+  const { source, width, height, cleanup } = await loadCanvasSource(blob);
+  const canvas = document.createElement('canvas');
+  if (degrees === 90) {
+    canvas.width = height;
+    canvas.height = width;
+  } else {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    cleanup();
+    throw new Error('Canvas is not available in this browser.');
+  }
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate((degrees * Math.PI) / 180);
+  ctx.drawImage(source, -width / 2, -height / 2);
+  cleanup();
+  return await canvasToBlob(canvas, 'image/png');
+};
+
+const brightenBlob = async (blob: Blob, delta: number) => {
+  const { source, width, height, cleanup } = await loadCanvasSource(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) {
+    cleanup();
+    throw new Error('Canvas is not available in this browser.');
+  }
+  ctx.drawImage(source, 0, 0);
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = img.data;
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = clampByte(data[i] + delta);
+    data[i + 1] = clampByte(data[i + 1] + delta);
+    data[i + 2] = clampByte(data[i + 2] + delta);
+  }
+  ctx.putImageData(img, 0, 0);
+  cleanup();
+  return await canvasToBlob(canvas, 'image/png');
+};
+
+const autoAdjustBlob = async (blob: Blob) => {
+  const { source, width, height, cleanup } = await loadCanvasSource(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) {
+    cleanup();
+    throw new Error('Canvas is not available in this browser.');
+  }
+  ctx.drawImage(source, 0, 0);
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = img.data;
+
+  const histR = new Uint32Array(256);
+  const histG = new Uint32Array(256);
+  const histB = new Uint32Array(256);
+  let count = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3];
+    if (a === 0) continue;
+    histR[data[i]]++;
+    histG[data[i + 1]]++;
+    histB[data[i + 2]]++;
+    count++;
+  }
+
+  if (count === 0) {
+    cleanup();
+    return await canvasToBlob(canvas, 'image/png');
+  }
+
+  const percentileIndex = (hist: Uint32Array, pct: number) => {
+    const target = count * pct;
+    let cum = 0;
+    for (let i = 0; i < 256; i++) {
+      cum += hist[i];
+      if (cum >= target) return i;
+    }
+    return 255;
+  };
+
+  const lowPct = 0.01;
+  const highPct = 0.99;
+  const lowR = percentileIndex(histR, lowPct);
+  const lowG = percentileIndex(histG, lowPct);
+  const lowB = percentileIndex(histB, lowPct);
+  const highR = percentileIndex(histR, highPct);
+  const highG = percentileIndex(histG, highPct);
+  const highB = percentileIndex(histB, highPct);
+
+  const scale = (v: number, low: number, high: number) => {
+    if (high <= low) return v;
+    return clampByte(Math.round(((v - low) * 255) / (high - low)));
+  };
+
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3];
+    if (a === 0) continue;
+    data[i] = scale(data[i], lowR, highR);
+    data[i + 1] = scale(data[i + 1], lowG, highG);
+    data[i + 2] = scale(data[i + 2], lowB, highB);
+  }
+
+  ctx.putImageData(img, 0, 0);
+  cleanup();
+  return await canvasToBlob(canvas, 'image/png');
+};
 
 const ImageGallery: React.FC<ImageGalleryProps> = ({
   images,
+  resetKey,
   isEditing = false,
   onDeleteImage,
   onReorder,
   onRegenerateImage,
   regeneratingIndex = null,
+  onUpdateImage,
 }) => {
   const { t } = useI18n();
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [improving, setImproving] = useState(false);
+  const [improveAction, setImproveAction] = useState<
+    null | 'removeBg' | 'auto' | 'rotate90' | 'rotate180' | 'brighten'
+  >(null);
+  const [improveError, setImproveError] = useState<string | null>(null);
+  const removeBackgroundFnRef = useRef<RemoveBackgroundFn | null>(null);
+  const isCrossOriginIsolated = typeof window !== 'undefined' && (window as any).crossOriginIsolated === true;
 
   useEffect(() => {
-    // Reset to the first image when the product changes
+    // Reset to the first image when the product changes (caller-provided key)
     setActiveIndex(0);
-  }, [images]);
+    setLightboxIndex(null);
+    setImproveError(null);
+  }, [resetKey]);
+
+  // Keep the active index in-bounds when images are removed.
+  useEffect(() => {
+    const max = Math.max(0, (images?.length || 0) - 1);
+    setActiveIndex((prev) => Math.max(0, Math.min(prev, max)));
+  }, [images?.length]);
+
+  useEffect(() => {
+    setImproveError(null);
+  }, [activeIndex]);
 
   if (!images || images.length === 0) {
     return (
@@ -56,6 +273,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   const activeImage = padded[activeIndex] || padded[0];
   const originalCount = images?.length || 0;
   const isActiveReal = activeIndex < originalCount;
+  const activeRealImage = isActiveReal ? images[activeIndex] : null;
   const resolveSrc = (img: ProductImage | any) => (img?.url_or_base64 ? img.url_or_base64 : img?.url ? img.url : '');
   const placeholder = 'https://placehold.co/600x600/1f2937/94a3b8?text=No+Image';
 
@@ -84,6 +302,172 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     onReorder(dragIndex, boundedTarget);
     setDragIndex(null);
   };
+
+  const getRemoveBackgroundFn = useCallback(async (): Promise<RemoveBackgroundFn> => {
+    if (removeBackgroundFnRef.current) return removeBackgroundFnRef.current;
+    const mod = await import('@imgly/background-removal');
+    const fn = (mod as any).default as RemoveBackgroundFn;
+    if (typeof fn !== 'function') {
+      throw new Error('Background removal library did not load correctly.');
+    }
+    removeBackgroundFnRef.current = fn;
+    return fn;
+  }, []);
+
+  const applyImprove = useCallback(
+    async (
+      action: NonNullable<typeof improveAction>,
+      process: (input: Blob) => Promise<Blob>,
+      noteTag: string
+    ) => {
+      if (!isEditing || !isActiveReal || !activeRealImage || typeof onUpdateImage !== 'function') return;
+      const src = resolveSrc(activeRealImage) || '';
+      if (!src) return;
+
+      setImproving(true);
+      setImproveAction(action);
+      setImproveError(null);
+
+      try {
+        const inputBlob = await fetchImageBlob(src);
+        const outBlob = await process(inputBlob);
+        const dataUrl = await blobToDataUrl(outBlob);
+        const next: ProductImage = {
+          ...activeRealImage,
+          url_or_base64: dataUrl,
+          notes: appendNote(activeRealImage.notes, noteTag),
+          mimeType: outBlob.type || activeRealImage.mimeType || null,
+        };
+        onUpdateImage(activeIndex, next);
+      } catch (err: any) {
+        const message = err?.message ? String(err.message) : t('sheet.gallery.improve.error.generic');
+        // Common failure mode: CORS fetch of external URLs.
+        const isCors =
+          /cors/i.test(message) ||
+          /failed to fetch/i.test(message) ||
+          /networkerror/i.test(message) ||
+          /tainted/i.test(message);
+        setImproveError(isCors ? t('sheet.gallery.improve.error.cors') : message);
+      } finally {
+        setImproving(false);
+        setImproveAction(null);
+      }
+    },
+    [activeIndex, activeRealImage, isActiveReal, isEditing, onUpdateImage, t]
+  );
+
+  const handleRemoveBackground = useCallback(() => {
+    void applyImprove(
+      'removeBg',
+      async (inputBlob) => {
+        const removeBackground = await getRemoveBackgroundFn();
+        // Default config works without special headers; COOP/COEP only improves performance (SharedArrayBuffer).
+        return await removeBackground(inputBlob, {
+          device: 'cpu',
+          output: { format: 'image/png', type: 'foreground' },
+        });
+      },
+      t('sheet.gallery.improve.note.bgRemoved')
+    );
+  }, [applyImprove, getRemoveBackgroundFn, t]);
+
+  const handleAutoAdjust = useCallback(() => {
+    void applyImprove('auto', autoAdjustBlob, t('sheet.gallery.improve.note.autoAdjusted'));
+  }, [applyImprove, t]);
+
+  const handleRotate90 = useCallback(() => {
+    void applyImprove('rotate90', (b) => rotateBlob(b, 90), t('sheet.gallery.improve.note.rotated90'));
+  }, [applyImprove, t]);
+
+  const handleRotate180 = useCallback(() => {
+    void applyImprove('rotate180', (b) => rotateBlob(b, 180), t('sheet.gallery.improve.note.rotated180'));
+  }, [applyImprove, t]);
+
+  const handleBrighten = useCallback(() => {
+    void applyImprove('brighten', (b) => brightenBlob(b, 18), t('sheet.gallery.improve.note.brightened'));
+  }, [applyImprove, t]);
+
+  const improveButtons = useMemo(() => {
+    if (!isEditing || !isActiveReal || typeof onUpdateImage !== 'function') return null;
+    return (
+      <div className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs font-semibold text-slate-200">{t('sheet.gallery.improve.title')}</div>
+          {improving ? (
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <Spinner className="w-4 h-4" />
+              <span>{t('sheet.gallery.improve.working')}</span>
+            </div>
+          ) : null}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleRemoveBackground}
+            disabled={improving}
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600 disabled:opacity-50"
+            title={t('sheet.gallery.improve.removeBg')}
+          >
+            {t('sheet.gallery.improve.removeBg')}
+          </button>
+          <button
+            type="button"
+            onClick={handleAutoAdjust}
+            disabled={improving}
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600 disabled:opacity-50"
+            title={t('sheet.gallery.improve.auto')}
+          >
+            {t('sheet.gallery.improve.auto')}
+          </button>
+          <button
+            type="button"
+            onClick={handleRotate90}
+            disabled={improving}
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600 disabled:opacity-50"
+            title={t('sheet.gallery.improve.rotate90')}
+          >
+            {t('sheet.gallery.improve.rotate90')}
+          </button>
+          <button
+            type="button"
+            onClick={handleRotate180}
+            disabled={improving}
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600 disabled:opacity-50"
+            title={t('sheet.gallery.improve.rotate180')}
+          >
+            {t('sheet.gallery.improve.rotate180')}
+          </button>
+          <button
+            type="button"
+            onClick={handleBrighten}
+            disabled={improving}
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600 disabled:opacity-50"
+            title={t('sheet.gallery.improve.brighten')}
+          >
+            {t('sheet.gallery.improve.brighten')}
+          </button>
+        </div>
+        {improveError ? <div className="mt-2 text-xs text-rose-300">{improveError}</div> : null}
+        {improving && improveAction === 'removeBg' && !isCrossOriginIsolated ? (
+          <div className="mt-2 text-[11px] text-slate-500">{t('sheet.gallery.improve.hint.performance')}</div>
+        ) : null}
+      </div>
+    );
+  }, [
+    improveAction,
+    improveError,
+    improving,
+    isCrossOriginIsolated,
+    isActiveReal,
+    isEditing,
+    onUpdateImage,
+    handleAutoAdjust,
+    handleBrighten,
+    handleRemoveBackground,
+    handleRotate180,
+    handleRotate90,
+    t,
+  ]);
 
   return (
     <div>
@@ -136,6 +520,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             <span className="absolute bottom-2 left-2 px-2 py-1 text-xs bg-sky-500/80 text-white rounded">{t('sheet.gallery.aiBadge')}</span>
         )}
       </div>
+      {improveButtons}
       <div className="grid grid-cols-4 gap-2 mt-2">
         {padded.map((image, index) => {
           const isReal = index < originalCount;

@@ -385,6 +385,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     [updateImages]
   );
 
+  const handleUpdateImage = useCallback(
+    (index: number, next: ProductImage) => {
+      updateImages((images) => {
+        if (index < 0 || index >= images.length) return images;
+        images[index] = next;
+        return images;
+      });
+    },
+    [updateImages]
+  );
+
   const handleAddImageFromUrl = useCallback(() => {
     const url = newImageUrl.trim();
     if (!url) return;
@@ -1499,9 +1510,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           <div id="media-gallery" className="md:col-span-2">
             <ImageGallery
               images={localProduct.details.images}
+              resetKey={localProduct.id}
               isEditing={isEditing}
               onDeleteImage={isEditing ? handleDeleteImage : undefined}
               onReorder={isEditing ? handleReorderImages : undefined}
+              onUpdateImage={isEditing ? handleUpdateImage : undefined}
             />
             {isEditing && (
               <div className="mt-4 space-y-3">
