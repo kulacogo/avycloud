@@ -2926,6 +2926,12 @@ function validatePublishReadiness(product, overrides = {}) {
   const identifiers = details?.identifiers || {};
   const pricing = details?.pricing?.lowest_price || {};
 
+  const existingItemId = safeString(product?.marketplace?.ebay?.itemId);
+  if (existingItemId) {
+    blockers.push(`Bereits auf eBay gelistet (ItemID: ${existingItemId}). Artikel kann nicht erneut gelistet werden.`);
+    return { canPublish: false, blockers, warnings };
+  }
+
   const title = safeString(overrides.title) || safeString(deriveProductTitle(product));
   if (!title) blockers.push('Kein Titel vorhanden.');
   else if (title.length > 80) warnings.push(`Titel ist ${title.length} Zeichen lang (max 80).`);

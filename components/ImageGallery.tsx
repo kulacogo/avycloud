@@ -4,6 +4,7 @@ import { ProductImage } from '../types';
 import { DownloadIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import { useI18n } from '../i18n';
+import { getBackendUrl } from '../api/client';
 
 interface ImageGalleryProps {
   images: ProductImage[];
@@ -52,11 +53,40 @@ const appendNote = (prevNotes: string | undefined, tag: string) => {
 };
 
 const fetchImageBlob = async (src: string) => {
-  const response = await fetch(src, { mode: 'cors' });
-  if (!response.ok) {
-    throw new Error(`Image fetch failed (${response.status}).`);
+  const trimmed = String(src || '').trim();
+  if (!trimmed) {
+    throw new Error('Missing image src.');
   }
-  return await response.blob();
+
+  // Data URLs are same-origin and safe to fetch directly.
+  if (trimmed.startsWith('data:')) {
+    const response = await fetch(trimmed);
+    if (!response.ok) {
+      throw new Error(`Image fetch failed (${response.status}).`);
+    }
+    return await response.blob();
+  }
+
+  // 1) Try direct fetch first (fast path when CORS allows it).
+  try {
+    const response = await fetch(trimmed, { mode: 'cors' });
+    if (response.ok) {
+      return await response.blob();
+    }
+  } catch {
+    // ignore and fall back to backend proxy
+  }
+
+  // 2) Fallback: use backend proxy to bypass CORS restrictions (public allowlist on backend).
+  const proxyUrl = new URL(`${getBackendUrl()}/api/image-proxy`);
+  proxyUrl.searchParams.set('url', trimmed);
+  const proxyRes = await fetch(proxyUrl.toString(), { mode: 'cors' });
+  if (!proxyRes.ok) {
+    const body = await proxyRes.text().catch(() => '');
+    const hint = body ? ` ${body.slice(0, 160)}` : '';
+    throw new Error(`Image proxy failed (${proxyRes.status}).${hint}`);
+  }
+  return await proxyRes.blob();
 };
 
 const loadCanvasSource = async (blob: Blob): Promise<{
@@ -306,7 +336,12 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   const getRemoveBackgroundFn = useCallback(async (): Promise<RemoveBackgroundFn> => {
     if (removeBackgroundFnRef.current) return removeBackgroundFnRef.current;
     const mod = await import('@imgly/background-removal');
-    const fn = (mod as any).default as RemoveBackgroundFn;
+    // Note: @imgly/background-removal v1.7.0 ships JS with named exports (removeBackground),
+    // while its .d.ts also declares a default export. Resolve both to be robust.
+    const fn =
+      ((mod as any).removeBackground as RemoveBackgroundFn | undefined) ||
+      ((mod as any).default as RemoveBackgroundFn | undefined) ||
+      ((mod as any).default?.removeBackground as RemoveBackgroundFn | undefined);
     if (typeof fn !== 'function') {
       throw new Error('Background removal library did not load correctly.');
     }
@@ -340,7 +375,11 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         };
         onUpdateImage(activeIndex, next);
       } catch (err: any) {
-        const message = err?.message ? String(err.message) : t('sheet.gallery.improve.error.generic');
+        const rawMessage = err?.message ? String(err.message) : '';
+        const message =
+          rawMessage && !/background removal library did not load correctly/i.test(rawMessage)
+            ? rawMessage
+            : t('sheet.gallery.improve.error.generic');
         // Common failure mode: CORS fetch of external URLs.
         const isCors =
           /cors/i.test(message) ||
@@ -364,7 +403,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         // Default config works without special headers; COOP/COEP only improves performance (SharedArrayBuffer).
         return await removeBackground(inputBlob, {
           device: 'cpu',
-          output: { format: 'image/png', type: 'foreground' },
+          output: { format: 'image/png', quality: 0.8, type: 'foreground' },
         });
       },
       t('sheet.gallery.improve.note.bgRemoved')

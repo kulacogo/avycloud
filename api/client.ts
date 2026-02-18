@@ -79,6 +79,8 @@ const BACKEND_URL = (() => {
   return envUrl || 'https://product-hub-backend-79205549235.europe-west3.run.app';
 })();
 
+export const getBackendUrl = () => BACKEND_URL;
+
 const FALLBACK_BACKEND_URLS = (() => {
   const envList = String(import.meta.env.VITE_BACKEND_FALLBACK_URLS || '')
     .split(',')
