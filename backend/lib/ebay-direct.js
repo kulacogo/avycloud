@@ -3005,9 +3005,7 @@ async function verifyPublishProduct(productId, overrides = {}) {
   const product = { id: doc.id, ...doc.data() };
 
   const readiness = validatePublishReadiness(product, overrides);
-  const categoryBlocker = await checkCategoryIsLeaf(product, overrides);
-  if (categoryBlocker) readiness.blockers.push(categoryBlocker);
-  if (!readiness.canPublish || categoryBlocker) {
+  if (!readiness.canPublish) {
     return { productId: id, canPublish: false, blockers: readiness.blockers, warnings: readiness.warnings, fees: null };
   }
 
@@ -3034,9 +3032,7 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
   const product = { id: doc.id, ...doc.data() };
 
   const readiness = validatePublishReadiness(product, overrides);
-  const categoryBlocker = await checkCategoryIsLeaf(product, overrides);
-  if (categoryBlocker) readiness.blockers.push(categoryBlocker);
-  if (!readiness.canPublish || categoryBlocker) {
+  if (!readiness.canPublish) {
     return { productId: id, ok: false, blockers: readiness.blockers, warnings: readiness.warnings };
   }
 
