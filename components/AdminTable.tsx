@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, type ProductBulkActionName } from '../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbayListingLinks, type ProductBulkActionName } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import {
   normalizeSyncStatus,
@@ -250,6 +250,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [syncInventoryId] = useState('78659');
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [ebayPublishInProgress, setEbayPublishInProgress] = useState(false);
+  // productId → itemId map from ebayListingLinks (matched listings)
+  const [ebayLinkedMap, setEbayLinkedMap] = useState<Map<string, string>>(new Map());
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [improveInProgress, setImproveInProgress] = useState(false);
   const [improveMessage, setImproveMessage] = useState<string | null>(null);
@@ -282,6 +284,21 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, []);
 
   useEffect(() => {}, []);
+
+  // Load eBay listing links (productId → itemId) once on mount
+  useEffect(() => {
+    fetchEbayListingLinks(500)
+      .then((links) => {
+        const map = new Map<string, string>();
+        links.forEach((link: any) => {
+          if (link.status === 'matched' && link.productId && link.itemId) {
+            map.set(link.productId, link.itemId);
+          }
+        });
+        setEbayLinkedMap(map);
+      })
+      .catch(() => {/* ignore – column zeigt dann keine Daten */});
+  }, []);
 
   useEffect(() => {
     if (!isMobile) {
@@ -658,15 +675,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
       {
         id: 'ebay',
         label: 'eBay',
-        sortKey: 'marketplace.ebay.itemId',
         defaultVisible: true,
         render: ({ product }) => {
-          const itemId = (product as any)?.marketplace?.ebay?.itemId;
-          const publishedAt = (product as any)?.marketplace?.ebay?.publishedAt;
-          const dateStr = publishedAt ? new Date(publishedAt).toLocaleDateString('de-DE') : null;
+          // Primär: aus ebayListingLinks (matched via SKU/EAN wie auf der eBay-Seite)
+          // Fallback: marketplace.ebay.itemId (direkt gepublishte Artikel)
+          const itemId = ebayLinkedMap.get(product.id) || (product as any)?.marketplace?.ebay?.itemId;
           return (
             <span
-              title={itemId ? `ItemID: ${itemId}${dateStr ? ` · gelistet am ${dateStr}` : ''}` : 'Noch nicht auf eBay gelistet'}
+              title={itemId ? `eBay ItemID: ${itemId}` : 'Nicht auf eBay gelistet'}
               className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
                 itemId ? 'bg-sky-500/20 text-sky-300' : 'bg-slate-700 text-slate-500'
               }`}
@@ -1223,6 +1239,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
         } catch {
           // ignore
         }
+        // eBay Map neu laden damit neu gelistete Artikel sofort den Indikator bekommen
+        fetchEbayListingLinks(500).then((links) => {
+          const map = new Map<string, string>();
+          links.forEach((link: any) => {
+            if (link.status === 'matched' && link.productId && link.itemId) {
+              map.set(link.productId, link.itemId);
+            }
+          });
+          setEbayLinkedMap(map);
+        }).catch(() => {});
       }
       setSelectedIds(new Set());
     } catch (err: any) {
