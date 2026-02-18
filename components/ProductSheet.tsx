@@ -1214,27 +1214,29 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1 min-w-0">
               {isEditing ? (
-                <textarea
-                  id="p-name"
-                  value={localProduct.identification.name}
-                  onChange={(e) => handleFieldChange('identification.name', e.target.value)}
-                  className={`w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none border-b resize-y min-h-[3.5rem] leading-tight ${
-                    hasQualityIssue('identification.name') ? 'border-red-400' : 'border-sky-500'
-                  }`}
-                  rows={2}
-                  style={{ wordBreak: 'break-word' }}
-                />
-                <div className="flex justify-end mt-0.5">
-                  <span className={`text-xs tabular-nums ${
-                    (localProduct.identification.name?.length || 0) > 80
-                      ? 'text-red-400 font-semibold'
-                      : (localProduct.identification.name?.length || 0) >= 70
-                      ? 'text-amber-400'
-                      : 'text-slate-500'
-                  }`}>
-                    {localProduct.identification.name?.length || 0}/80
-                  </span>
-                </div>
+                <>
+                  <textarea
+                    id="p-name"
+                    value={localProduct.identification.name}
+                    onChange={(e) => handleFieldChange('identification.name', e.target.value)}
+                    className={`w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none border-b resize-y min-h-[3.5rem] leading-tight ${
+                      hasQualityIssue('identification.name') ? 'border-red-400' : 'border-sky-500'
+                    }`}
+                    rows={2}
+                    style={{ wordBreak: 'break-word' }}
+                  />
+                  <div className="flex justify-end mt-0.5">
+                    <span className={`text-xs tabular-nums ${
+                      (localProduct.identification.name?.length || 0) > 80
+                        ? 'text-red-400 font-semibold'
+                        : (localProduct.identification.name?.length || 0) >= 70
+                        ? 'text-amber-400'
+                        : 'text-slate-500'
+                    }`}>
+                      {localProduct.identification.name?.length || 0}/80
+                    </span>
+                  </div>
+                </>
               ) : (
                 <h1
                   className={`text-2xl sm:text-3xl font-bold break-words leading-tight ${

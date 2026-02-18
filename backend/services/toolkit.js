@@ -166,7 +166,7 @@ const brightdataSearchToolDefinition = {
   type: 'function',
   name: 'brightdata_web_search',
   description:
-    'Websuche über BrightData SERP (und interne Evidence-Provider Logik). Nutze dies, um Marketplace-Produktseiten (ebay.de, kaufland.de, hood.de) zu finden.',
+    'Websuche über BrightData SERP (und interne Evidence-Provider Logik) im gesamten Web, um Produktseiten, Hersteller-Datenblätter/Manuals, Bilder und Preise zu finden.',
   strict: false,
   parameters: {
     type: 'object',

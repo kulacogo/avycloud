@@ -263,7 +263,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeScope, setActiveScope] = useState<string | null>(null);
   const [attachmentDrafts, setAttachmentDrafts] = useState<AttachmentDraft[]>([]);
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
@@ -282,17 +281,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     images: false,
     gpsr: false,
     category: false,
-    // Research strategy
-    marketplaceFirst: true,
-    broadFallback: true,
     maxPagesToFetch: 2,
   }));
 
   const applyPromptScene = useCallback((scene: string) => {
     const base = {
-      // default research behavior
-      marketplaceFirst: true,
-      broadFallback: true,
+      // default research behavior (always broad web search)
       maxPagesToFetch: 2,
       // default content goals
       title: false,
@@ -364,18 +358,15 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     if (promptConfig.gpsr) goals.push('GPSR/Herstellerdaten');
     if (promptConfig.category) goals.push('Kategorie');
 
-    const research = [
-      promptConfig.marketplaceFirst ? 'Marketplace-first (ebay.de/kaufland.de/hood.de)' : null,
-      promptConfig.broadFallback ? 'Fallback: breite Websuche (ohne site-Limit)' : null,
-      `Fetch: max. ${Math.max(1, Math.min(3, Number(promptConfig.maxPagesToFetch) || 2))} Seiten lesen`,
-    ]
-      .filter(Boolean)
-      .join(', ');
+    const maxFetch = Math.max(1, Math.min(5, Number(promptConfig.maxPagesToFetch) || 2));
 
     return [
-      `Ziel: ${goals.length ? goals.join(', ') : 'Datenblatt verbessern'}.`,
-      `Recherche: ${research}.`,
+      'Übergeordnetes Ziel: Produktdaten marketplace-ready machen (faktisch, vollständig, keine erfundenen Angaben).',
+      `Ziel (dieser Schritt): ${goals.length ? goals.join(', ') : 'Datenblatt verbessern'}.`,
+      'Recherche: breite Websuche (ohne site-Limit; Marktplätze sind nur eine Quelle unter vielen).',
+      `Fetch: max. ${maxFetch} Seiten laden.`,
       'Bitte arbeite evidenzbasiert: erst suchen, dann 1–2 passende Seiten laden, dann Änderungen vorschlagen.',
+      'Wichtig: Ändere nur die angefragten Felder (z. B. bei Attributen keinen neuen Titel vorschlagen).',
       'Gib Änderungen immer als update_product_datasheet aus (damit ich sie direkt übernehmen kann).',
     ].join(' ');
   }, [promptConfig]);
@@ -388,7 +379,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       'description',
       'pricing',
       'gtin',
+      'images',
       'gpsr',
+      'category',
     ];
     const selected = keys.filter((k) => Boolean((promptConfig as any)[k]));
     if (selected.length !== 1) return 'datasheet';
@@ -400,6 +393,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     if (only === 'highlights') return 'highlights';
     if (only === 'attributes') return 'attributes';
     if (only === 'gpsr') return 'gpsr';
+    if (only === 'images') return 'images';
+    if (only === 'category') return 'category';
     return 'datasheet';
   }, [promptConfig]);
 
@@ -670,7 +665,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       const payloadMessage = trimmedInput || 'Bitte analysiere die angehängten Dateien.';
 
       try {
-        const scope = scopeOverride ?? activeScope;
+        // Scope is derived from options (not from prompt text), so it remains stable even if the user edits the prompt.
+        const scope = scopeOverride ?? derivedScope;
         const result = await chatWithAssistant(product.id, payloadMessage, outgoingFiles, scope);
         if (!result.ok || !result.data) {
           throw new Error(result.error?.message || 'Unbekannter Fehler');
@@ -708,7 +704,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         setIsLoading(false);
       }
     },
-    [activeScope, attachmentDrafts, input, isLoading, product.id, t]
+    [attachmentDrafts, derivedScope, input, isLoading, product.id, t]
   );
 
   return (
@@ -723,7 +719,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           type="button"
           onClick={() => {
             setInput(buildSmartPrompt());
-            setActiveScope(derivedScope);
           }}
           className="rounded-full border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:border-sky-500 hover:text-white"
           title="Erzeugt einen smarten Prompt aus den Optionen."
@@ -907,7 +902,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                 onClick={() => {
                   const smart = buildSmartPrompt();
                   setInput(smart);
-                  setActiveScope(derivedScope);
                 }}
                 className="rounded-full bg-slate-800 px-3 py-1 text-[12px] text-slate-200 hover:bg-slate-700"
                 title="Schreibt den smarten Prompt in die Eingabe."
@@ -944,22 +938,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
 
             <div className="flex flex-wrap gap-2 text-[12px]">
               <label className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
-                <input
-                  type="checkbox"
-                  checked={promptConfig.marketplaceFirst}
-                  onChange={(e) => setPromptConfig((prev) => ({ ...prev, marketplaceFirst: e.target.checked }))}
-                />
-                Marketplace-first
-              </label>
-              <label className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
-                <input
-                  type="checkbox"
-                  checked={promptConfig.broadFallback}
-                  onChange={(e) => setPromptConfig((prev) => ({ ...prev, broadFallback: e.target.checked }))}
-                />
-                Broad-Fallback
-              </label>
-              <label className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
                 Fetch-Seiten
                 <select
                   value={promptConfig.maxPagesToFetch}
@@ -969,13 +947,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   <option value={1}>1</option>
                   <option value={2}>2</option>
                   <option value={3}>3</option>
+                  <option value={4}>4</option>
+                  <option value={5}>5</option>
                 </select>
               </label>
               <button
                 type="button"
                 onClick={() => {
                   const smart = buildSmartPrompt();
-                  setActiveScope(derivedScope);
                   void handleSend(smart, derivedScope);
                 }}
                 className="rounded-full bg-sky-600 px-3 py-1 text-[12px] font-semibold text-white hover:bg-sky-500"
@@ -990,8 +969,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           value={input}
           onChange={(v) => {
             setInput(v);
-            // Free typing should not keep a stale scope implicitly.
-            setActiveScope(null);
           }}
           onSend={() => void handleSend()}
           disabled={isLoading}

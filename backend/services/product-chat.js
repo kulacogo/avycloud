@@ -63,8 +63,6 @@ function strictRulesEnabled() {
   return b(process.env.CHAT_STRICT_RULES_ENABLED) || b(process.env.STRICT_RULES_ENABLED);
 }
 
-const MARKETPLACE_SITES = ['ebay.de', 'kaufland.de', 'hood.de'];
-
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
 }
@@ -132,21 +130,44 @@ function decodePlainText(value) {
   return decodeHtmlEntitiesDeep(value).replace(/\s+/g, ' ').trim();
 }
 
-function preferMarketplaceUrl(url = '') {
+const EVIDENCE_URL_BONUS_TOKENS = [
+  'datenblatt',
+  'datasheet',
+  'manual',
+  'bedienungsanleitung',
+  'spec',
+  'specs',
+  'specification',
+  'technical',
+  'produktseite',
+];
+
+function scoreEvidenceUrl({ url = '', title = '', snippet = '' } = {}) {
   const u = safeString(url).toLowerCase();
-  if (!u) return 0;
-  if (u.includes('ebay.de')) return 3;
-  if (u.includes('kaufland.de')) return 3;
-  if (u.includes('hood.de')) return 3;
-  return 0;
+  const t = safeString(title).toLowerCase();
+  const s = safeString(snippet);
+  if (!u.startsWith('http')) return -999;
+
+  let score = 0;
+  if (u.endsWith('.pdf')) score += 4;
+  if (EVIDENCE_URL_BONUS_TOKENS.some((tok) => u.includes(tok) || t.includes(tok))) score += 2;
+  if (s.length >= 140) score += 1;
+  if (/\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(u)) score -= 5;
+  return score;
 }
 
 function pickBestUrl(results = []) {
   const list = Array.isArray(results) ? results : [];
   const scored = list
-    .map((r) => ({ url: r?.url || '', title: r?.title || '', snippet: r?.snippet || '', score: preferMarketplaceUrl(r?.url) }))
+    .map((r, idx) => ({
+      url: r?.url || '',
+      title: r?.title || '',
+      snippet: r?.snippet || '',
+      score: scoreEvidenceUrl({ url: r?.url, title: r?.title, snippet: r?.snippet }),
+      idx,
+    }))
     .filter((r) => safeString(r.url).startsWith('http'));
-  scored.sort((a, b) => (b.score || 0) - (a.score || 0));
+  scored.sort((a, b) => (b.score || 0) - (a.score || 0) || (a.idx || 0) - (b.idx || 0));
   return scored[0] || null;
 }
 
@@ -179,48 +200,25 @@ async function forceOneEvidencePass(product, userMessage, { scope = null, notesO
   let usedQuery = '';
 
   for (const query of candidates) {
-    // 1) Marketplace-first search
-    const primary = await executeBrightdataSearchToolCall({
-      arguments: JSON.stringify({ query, locale, limit: 8, sites: MARKETPLACE_SITES }),
+    // Broad web search (no site-limits). We do NOT prefer marketplaces over the wider web.
+    const broad = await executeBrightdataSearchToolCall({
+      arguments: JSON.stringify({ query, locale, limit: 8 }),
     });
     traces.push({
       type: 'brightdata',
-      engine: primary.engine,
-      query: primary.query,
-      summary: (primary.results || []).slice(0, 8).map((r) => ({
+      engine: broad.engine,
+      query: broad.query,
+      summary: (broad.results || []).slice(0, 8).map((r) => ({
         title: r.title || '',
-        source: r.site || 'marketplace',
+        source: r.site || 'web',
         url: r.url || '',
         snippet: r.snippet || '',
         price: null,
       })),
-      error: primary.error || null,
+      error: broad.error || null,
     });
-    results = primary?.results || [];
+    results = broad?.results || [];
     usedQuery = query;
-
-    // 2) Fallback: unrestricted web search (still BrightData-backed)
-    if (!Array.isArray(results) || results.length < 2) {
-      const broad = await executeBrightdataSearchToolCall({
-        arguments: JSON.stringify({ query, locale, limit: 8 }),
-      });
-      traces.push({
-        type: 'brightdata',
-        engine: broad.engine,
-        query: broad.query,
-        summary: (broad.results || []).slice(0, 8).map((r) => ({
-          title: r.title || '',
-          source: r.site || 'web',
-          url: r.url || '',
-          snippet: r.snippet || '',
-          price: null,
-        })),
-        error: broad.error || null,
-      });
-      if (Array.isArray(broad?.results) && broad.results.length) {
-        results = broad.results;
-      }
-    }
 
     if (Array.isArray(results) && results.length > 0) {
       break;
@@ -236,7 +234,7 @@ async function forceOneEvidencePass(product, userMessage, { scope = null, notesO
           summary: 'Web-Recherche (BrightData): keine Treffer',
           notes: {
             unsure: [
-              `Keine verwertbaren Web-Treffer gefunden (Marketplace-first + broad web search). Query candidates tried: ${candidates.slice(0, 4).join(' | ')}`,
+              `Keine verwertbaren Web-Treffer gefunden (broad web search). Query candidates tried: ${candidates.slice(0, 4).join(' | ')}`,
             ],
             warnings: [],
           },
@@ -1257,6 +1255,7 @@ function buildSystemPrompt(locale = 'de-DE') {
   const rulesOn = policyEnabled === '1' || policyEnabled === 'true' || policyEnabled === 'yes';
   return [
     'You are the AvyStock Product CoPilot.',
+    'Primary objective: make the product data marketplace-ready (complete, factual, compliant). Prioritize evidence-backed identifiers/specs and filling missing required aspects.',
     'You always respond in SHORT, ACTIONABLE messages by default (≤10 short sentences or ~1000 characters, ≤3 bullets, no section headers).',
     'You have full product context (data, images, OCR, identifiers, inventory, warehouse info) and must cross-check for inconsistencies or missing facts.',
     'For category work: use only valid eBay category IDs/breadcrumbs and treat ebay.required_aspects_meta.missing_required_aspects as mandatory enrichment backlog.',
@@ -1278,7 +1277,7 @@ function buildSystemPrompt(locale = 'de-DE') {
         ]
       : [
           'QUALITY GOALS (non-binding):',
-          '- Prefer marketplace-evidence titles; keep them searchable and ≤80 chars.',
+          '- Prefer evidence-backed, search-native titles; keep them searchable and ≤80 chars.',
         ]),
     'Only call generate_ai_images when the user EXPLICITLY requests AI-rendered images (e.g. "erstelle KI-Bilder", "generiere Bilder"). For "Web-Produktbilder" or "Produktbilder suchen", always use web search tools instead.',
     'Default language: ' + locale + '. Keep responses direct, avoid filler, offer deeper details only on request.',
@@ -1338,7 +1337,7 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
   const allow = {
     title: !normalizedScope || normalizedScope === 'title' || normalizedScope === 'datasheet',
     brand: !normalizedScope || normalizedScope === 'datasheet',
-    category: !normalizedScope || normalizedScope === 'datasheet',
+    category: !normalizedScope || normalizedScope === 'datasheet' || normalizedScope === 'category',
     sku: !normalizedScope || normalizedScope === 'datasheet',
     barcodes: !normalizedScope || normalizedScope === 'gtin' || normalizedScope === 'datasheet',
     pricing: !normalizedScope || normalizedScope === 'pricing' || normalizedScope === 'datasheet',
@@ -1346,7 +1345,7 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
     highlights: !normalizedScope || normalizedScope === 'highlights' || normalizedScope === 'datasheet',
     attributes: !normalizedScope || normalizedScope === 'attributes' || normalizedScope === 'datasheet',
     gpsr: !normalizedScope || normalizedScope === 'gpsr' || normalizedScope === 'datasheet',
-    notes: !normalizedScope || normalizedScope === 'datasheet',
+    notes: true,
   };
 
   if (entry.summary) result.summary = entry.summary;
@@ -1775,8 +1774,8 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   CRITICAL RULES:
   1. DO NOT ASK the user for search queries or "what marketplace to check". derivation of queries is YOUR job.
   2. Web research strategy (BrightData):
-     - FIRST: call brightdata_web_search with sites=["ebay.de","kaufland.de","hood.de"] (marketplace-first).
-     - IF results are empty/insufficient: call brightdata_web_search again WITHOUT sites (unrestricted web).
+     - ALWAYS start with brightdata_web_search WITHOUT "sites" (unrestricted web).
+     - If results are empty/insufficient: refine the query (barcode/EAN, brand + model, MPN) and search again (still unrestricted).
   3. After you found candidate URLs, fetch the best 1-2 pages via 'web_fetch' and extract facts from them (no guessing).
   4. Never say "I can search if you want". JUST SEARCH.
   5. **ALWAYS** use the 'update_product_datasheet' tool when you propose ANY data changes (title, description, attributes, etc.). Do NOT just output JSON text. The tool call IS the way to propose changes.
@@ -1827,7 +1826,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     {
       text: buildUserPrompt({
         message: scope && String(scope).trim()
-          ? `${userMessage}\n\nSCOPE=${String(scope).trim()} (STRICT: only propose edits inside this scope; do not change title/category unless scope=datasheet or scope=title.)`
+          ? `${userMessage}\n\nSCOPE=${String(scope).trim()} (STRICT: only propose edits inside this scope; do not change title unless scope=datasheet or scope=title; do not change category unless scope=datasheet or scope=category.)`
           : userMessage,
         locale,
         mode: conversationMode,
@@ -1840,7 +1839,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     currentMessageParts.push({
       text: `
       IMPORTANT: The user explicitly wants a barcode/EAN. None is in the context.
-      ACTION REQUIRED: Do NOT ask questions. Immediately run brightdata_web_search with sites=["ebay.de","kaufland.de","hood.de"] for "${product?.identification?.brand || ''} ${product?.identification?.name || ''} EAN".
+      ACTION REQUIRED: Do NOT ask questions. Immediately run brightdata_web_search (unrestricted, no sites) for "${product?.identification?.brand || ''} ${product?.identification?.name || ''} EAN".
       Then extract the EAN from results and return it via update_product_datasheet.
       `});
   }
@@ -1873,7 +1872,10 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         const { name, args } = call;
 
         if (name === 'brightdata_web_search') {
-          const result = await executeBrightdataSearchToolCall({ arguments: JSON.stringify(args) });
+          // Chat policy: always use unrestricted web search (ignore site-limits).
+          const cleanedArgs = args && typeof args === 'object' ? { ...args } : {};
+          delete cleanedArgs.sites;
+          const result = await executeBrightdataSearchToolCall({ arguments: JSON.stringify(cleanedArgs) });
           serpTrace.push({
             type: 'brightdata',
             engine: result.engine,
@@ -1891,7 +1893,13 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         }
         else if (name === 'serpapi_web_search') {
           // Map args back to tool expectations if needed, but Gemini gives object
-          const result = await executeSerpapiToolCall({ arguments: JSON.stringify(args) });
+          // Chat policy: prefer broad web engines (avoid marketplace-only SerpAPI engines).
+          const cleanedArgs = args && typeof args === 'object' ? { ...args } : {};
+          const engineLower = safeString(cleanedArgs.engine).toLowerCase();
+          if (engineLower === 'ebay' || engineLower === 'ebay_product' || engineLower === 'amazon') {
+            cleanedArgs.engine = 'google';
+          }
+          const result = await executeSerpapiToolCall({ arguments: JSON.stringify(cleanedArgs) });
           serpTrace.push({
             type: 'serpapi',
             engine: result.engine,
@@ -2093,9 +2101,8 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       }
     }
 
-    // Make the user-visible message reflect EXACTLY ONE title (the structured, coerced one).
-    // Otherwise we can end up with two different titles in the chat text (model text + "final title" suffix),
-    // which is confusing and can look like the assistant "changed its mind".
+    // Only in "title" scope: make the user-visible message reflect EXACTLY ONE title (the structured, coerced one).
+    // For non-title scopes we must NOT overwrite the assistant message with a title suggestion.
     const lastTitleChange = [...(datasheetChanges || [])]
       .reverse()
       .find((change) => {
@@ -2109,7 +2116,8 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     const finalTitleRaw =
       (lastTitleChange && (lastTitleChange.title || lastTitleChange.identity?.name)) || '';
     const finalTitle = typeof finalTitleRaw === 'string' ? finalTitleRaw.trim() : '';
-    if (finalTitle) {
+    const scopeKey = safeString(scope).toLowerCase();
+    if (finalTitle && scopeKey === 'title') {
       responseText = `Titel-Vorschlag (${finalTitle.length}/80): ${finalTitle}`;
     }
 
