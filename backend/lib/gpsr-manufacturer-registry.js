@@ -245,6 +245,20 @@ function mergePreferMoreComplete(base, incoming) {
   return out;
 }
 
+function mergePreferIncoming(base, incoming) {
+  const a = normalizeGpsrObject(base);
+  const b = normalizeGpsrObject(incoming);
+  // Overwrite only with non-empty, non-placeholder incoming fields.
+  // Never delete existing fields by writing empty values.
+  const out = { ...a, ...b };
+  // Derive country_code if possible (deterministic, no guessing)
+  if (!safeString(out.country_code) && safeString(out.entity_country)) {
+    const code = normalizeCountryCode(out.entity_country);
+    if (code) out.country_code = code;
+  }
+  return out;
+}
+
 async function getManufacturerGpsrByName(name) {
   const candidates = manufacturerKeyCandidates(name);
   const found = [];
@@ -282,6 +296,7 @@ async function upsertManufacturerGpsr({
   confidence = null,
   sources = [],
   from_product_id = null,
+  overwrite = false,
 } = {}) {
   const name = safeString(manufacturer_name);
   const key = normalizeManufacturerKey(name);
@@ -296,17 +311,23 @@ async function upsertManufacturerGpsr({
     const snap = await tx.get(docRef);
     const existing = snap.exists ? snap.data() || {} : {};
 
-    const mergedGpsr = mergePreferMoreComplete(existing.gpsr, incomingGpsr);
+    const mergedGpsr = overwrite
+      ? mergePreferIncoming(existing.gpsr, incomingGpsr)
+      : mergePreferMoreComplete(existing.gpsr, incomingGpsr);
     const existingScore = scoreGpsr(existing.gpsr);
     const mergedScore = scoreGpsr(mergedGpsr);
 
     const existingConf = typeof existing.confidence === 'number' ? existing.confidence : 0;
     const incomingConf = typeof confidence === 'number' ? confidence : 0;
 
+    const changed =
+      JSON.stringify(normalizeGpsrObject(existing.gpsr)) !== JSON.stringify(normalizeGpsrObject(mergedGpsr));
+
     // Prefer higher completeness; break ties with confidence.
-    const shouldUpdate =
-      mergedScore > existingScore ||
-      (mergedScore === existingScore && incomingConf > existingConf);
+    const shouldUpdate = overwrite
+      ? changed
+      : mergedScore > existingScore ||
+        (mergedScore === existingScore && incomingConf > existingConf);
 
     const next = {
       manufacturer_name: name,
@@ -351,6 +372,7 @@ module.exports = {
   normalizeGpsrPhone,
   normalizeGpsrObject,
   scoreGpsr,
+  mergePreferIncoming,
   mergePreferMoreComplete,
   getManufacturerGpsrByName,
   upsertManufacturerGpsr,

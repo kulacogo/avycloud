@@ -12,6 +12,7 @@ const { getVehicleFitmentMode } = require('./vehicle-fitment');
 const { buildBaselinkerCategoryDetails } = require('./baselinker-category-resolver');
 const {
   getManufacturerGpsrByName,
+  upsertManufacturerGpsr,
   mergePreferMoreComplete,
   normalizeGpsrObject,
   normalizeCountryCode,
@@ -26,6 +27,8 @@ const {
   isBannedEbayBreadcrumb,
   getEbayCategoryBreadcrumbRoot,
 } = require('./ebay-category-governance');
+
+const safeString = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
 
 function isFirestoreSpecialValue(value) {
   if (!value) return false;
@@ -2349,6 +2352,52 @@ async function saveProduct(product, options = {}) {
         safeString(attrs.Marke) ||
         '';
       if (manufacturerHint) {
+        // 0) If GPSR is already "known" (required fields present) during a manual UI save,
+        // write it once into the central manufacturer registry so other products can reuse it.
+        // This prevents per-product variance for the same manufacturer.
+        try {
+          const normalized = normalizeGpsrObject({ ...gpsrObj, manufacturer_name: manufacturerHint });
+          const required = [
+            'entity_country',
+            'manufacturer_name',
+            'manufacturer_address',
+            'manufacturer_city',
+            'manufacturer_postalcode',
+            'email',
+          ];
+          const hasRequired = required.every((k) => Boolean(safeString(normalized?.[k])));
+          const dq = productWithEbay?.ops?.data_quality || {};
+          const marker = dq?.gpsr_web_enrich_v1 || dq?.gpsr_manufacturer_enrich_v1 || null;
+          const sources = Array.isArray(marker?.sources) ? marker.sources : [];
+          const confidence = typeof marker?.confidence === 'number' ? marker.confidence : null;
+          const allowRegistryWrite = hasRequired && (isManualSave || sources.length > 0);
+          if (allowRegistryWrite) {
+            const res = await upsertManufacturerGpsr({
+              manufacturer_name: manufacturerHint,
+              gpsr: normalized,
+              confidence,
+              sources,
+              from_product_id: productWithEbay?.id || product?.id || null,
+              // Manual UI saves are the human correction path → allow overwriting registry fields.
+              overwrite: Boolean(isManualSave),
+            }).catch(() => null);
+            if (res?.ok) {
+              productWithEbay.ops = productWithEbay.ops || {};
+              productWithEbay.ops.data_quality = productWithEbay.ops.data_quality || {};
+              productWithEbay.ops.data_quality.gpsr_registry_upsert_v1 = {
+                at_iso: new Date().toISOString(),
+                manufacturer: manufacturerHint,
+                registry_key: res.key || null,
+                sources_count: sources.length,
+                confidence: confidence ?? null,
+                overwrite: Boolean(isManualSave),
+              };
+            }
+          }
+        } catch {
+          // non-blocking
+        }
+
         const reg = await getManufacturerGpsrByName(manufacturerHint).catch(() => null);
         const regGpsr = reg?.gpsr && typeof reg.gpsr === 'object' ? reg.gpsr : null;
         if (regGpsr && Object.keys(regGpsr).length) {
@@ -2373,7 +2422,7 @@ async function saveProduct(product, options = {}) {
     try {
       const enforceEnabled =
         (process.env.GPSR_REGISTRY_ENFORCE ?? '').toString().toLowerCase() === 'true' ||
-        (await getRuntimeFlagBoolean('gpsrRegistryEnforce', false));
+        (await getRuntimeFlagBoolean('gpsrRegistryEnforce', true));
       if (enforceEnabled) {
         const brand = safeString(productWithEbay?.identification?.brand || '');
         if (brand) {
@@ -2458,10 +2507,50 @@ async function getProduct(productId) {
     }
     
     const data = doc.data();
-    return {
+    const out = {
       ...data,
       id: data?.id || doc.id,
     };
+    // Apply central manufacturer GPSR registry on read so products with the same manufacturer
+    // never show incomplete/variant GPSR data in the UI (without requiring a re-save).
+    try {
+      const attrs =
+        out?.details?.attributes && typeof out.details.attributes === 'object' && !Array.isArray(out.details.attributes)
+          ? out.details.attributes
+          : {};
+      const gpsrObj =
+        out?.details?.gpsr && typeof out.details.gpsr === 'object' && !Array.isArray(out.details.gpsr) ? out.details.gpsr : {};
+      const manufacturerHint =
+        safeString(gpsrObj.manufacturer_name) ||
+        safeString(out?.identification?.brand) ||
+        safeString(out?.details?.brand) ||
+        safeString(attrs.Hersteller) ||
+        safeString(attrs.Marke) ||
+        '';
+      if (manufacturerHint) {
+        const reg = await getManufacturerGpsrByName(manufacturerHint).catch(() => null);
+        const regGpsr = reg?.gpsr && typeof reg.gpsr === 'object' ? reg.gpsr : null;
+        if (regGpsr && Object.keys(regGpsr).length) {
+          out.details = out.details || {};
+          const enforceEnabled = await getRuntimeFlagBoolean('gpsrRegistryEnforce', true).catch(() => true);
+          if (enforceEnabled) {
+            const next = { ...(gpsrObj || {}) };
+            for (const [k, v] of Object.entries(regGpsr)) {
+              if (v !== undefined && v !== null && String(v).trim() !== '') {
+                next[k] = v;
+              }
+            }
+            if (!safeString(next.manufacturer_name)) next.manufacturer_name = manufacturerHint;
+            out.details.gpsr = next;
+          } else {
+            out.details.gpsr = mergePreferMoreComplete(gpsrObj, regGpsr);
+          }
+        }
+      }
+    } catch {
+      // non-blocking
+    }
+    return out;
   } catch (error) {
     console.error('Failed to get product from Firestore:', error);
     throw new Error(`Failed to get product: ${error.message}`);
