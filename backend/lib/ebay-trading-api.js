@@ -535,7 +535,9 @@ function buildAddFixedPriceItemXml(item, cfg) {
   const ean = safeString(item?.ean);
   const mpn = safeString(item?.mpn);
   const brand = safeString(item?.brand);
-  if (ean || mpn || brand) {
+  // Only include ProductListingDetails when we actually have a catalog identifier.
+  // (IncludeeBayProductDetails is meaningful only with ePID/GTIN/BrandMPN identifiers.)
+  if (ean || mpn) {
     const pld = [];
     if (ean) pld.push(`<EAN>${escapeXml(ean)}</EAN>`);
     if (mpn) pld.push(`<BrandMPN><Brand>${escapeXml(brand || 'Unbranded')}</Brand><MPN>${escapeXml(mpn)}</MPN></BrandMPN>`);

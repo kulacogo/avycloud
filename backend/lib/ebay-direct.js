@@ -124,8 +124,22 @@ function coerceEbayCategoryId(value) {
 function isCatalogBasedListing(listing) {
   const pld = listing?.productListingDetails;
   if (!pld || typeof pld !== 'object') return false;
-  const id = safeString(pld?.ProductReferenceID || pld?.ProductReferenceId || pld?.productReferenceID || pld?.productReferenceId);
+  const id = safeString(
+    pld?.ProductReferenceID ||
+      pld?.ProductReferenceId ||
+      pld?.productReferenceID ||
+      pld?.productReferenceId
+  );
   if (id) return true;
+  // Trading API: GTIN fields can also indicate catalog adoption (EAN/UPC/ISBN)
+  const ean = safeString(pld?.EAN || pld?.GTIN || pld?.gtin);
+  const upc = safeString(pld?.UPC || pld?.upc);
+  const isbn = safeString(pld?.ISBN || pld?.isbn);
+  if (ean || upc || isbn) return true;
+  // BrandMPN is a catalog identifier only as a pair
+  const brand = safeString(pld?.BrandMPN?.Brand);
+  const mpn = safeString(pld?.BrandMPN?.MPN);
+  if (brand && mpn) return true;
   return false;
 }
 
@@ -3114,6 +3128,26 @@ function mapProductToEbayItem(product, overrides = {}) {
     itemSpecifics['Marke'] = [brand];
   }
 
+  // IMPORTANT (PBSE Phase 2):
+  // When the listing is associated to a catalog product (via EAN/BrandMPN/etc.),
+  // eBay rejects/ignores PRODUCT aspects passed through ItemSpecifics.
+  // We pre-filter technical keys (e.g. "Kategorie") and product-only aspects here
+  // to avoid Verify/AddFixedPriceItem failures.
+  const publishListingStub =
+    ean || (mpn && brand)
+      ? {
+          productListingDetails: {
+            EAN: ean || undefined,
+            BrandMPN: mpn ? { Brand: brand || 'Unbranded', MPN: mpn } : undefined,
+          },
+        }
+      : null;
+  const filteredSpecifics = filterPatchItemSpecificsForListing({
+    categoryId: primaryCategoryId,
+    listing: publishListingStub,
+    itemSpecifics,
+  });
+
   return {
     title,
     subtitle,
@@ -3128,7 +3162,7 @@ function mapProductToEbayItem(product, overrides = {}) {
     ean,
     mpn,
     brand,
-    itemSpecifics,
+    itemSpecifics: filteredSpecifics.itemSpecifics,
     country: safeString(overrides.country) || 'DE',
     postalCode: safeString(overrides.postalCode) || undefined,
     location: safeString(overrides.location) || undefined,
