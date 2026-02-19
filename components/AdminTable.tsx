@@ -685,15 +685,27 @@ const AdminTable: React.FC<AdminTableProps> = ({
           // Primär: aus ebayListingLinks (matched via SKU/EAN wie auf der eBay-Seite)
           // Fallback: marketplace.ebay.itemId (direkt gepublishte Artikel)
           const itemId = ebayLinkedMap.get(product.id) || (product as any)?.marketplace?.ebay?.itemId;
+          const viewUrl = itemId ? `https://www.ebay.de/itm/${encodeURIComponent(String(itemId).trim())}` : '';
           return (
-            <span
-              title={itemId ? `eBay ItemID: ${itemId}` : 'Nicht auf eBay gelistet'}
-              className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                itemId ? 'bg-sky-500/20 text-sky-300' : 'bg-slate-700 text-slate-500'
-              }`}
-            >
-              {itemId ? 'gelistet' : '—'}
-            </span>
+            itemId ? (
+              <a
+                href={viewUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title={`eBay öffnen (ItemID: ${itemId})`}
+                className="inline-flex items-center justify-center rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-200 hover:bg-sky-500/30 hover:text-sky-100"
+              >
+                gelistet
+              </a>
+            ) : (
+              <span
+                title="Nicht auf eBay gelistet"
+                className="inline-flex items-center justify-center rounded-full bg-slate-700 px-2 py-0.5 text-xs font-semibold text-slate-500"
+              >
+                —
+              </span>
+            )
           );
         },
       },

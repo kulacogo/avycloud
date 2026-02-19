@@ -1473,6 +1473,22 @@ app.get('/api/admin/llm/health', requirePermission('admin', 'llm.read'), async (
     let keySource = null;
     let models = null;
     let modelsError = null;
+    const parseBool = (raw) => {
+      const v = (raw ?? '').toString().trim().toLowerCase();
+      if (!v) return null;
+      if (v === '1' || v === 'true' || v === 'yes' || v === 'y') return true;
+      if (v === '0' || v === 'false' || v === 'no' || v === 'n') return false;
+      return null;
+    };
+    const normalizeBucketName = (raw) => {
+      const s = raw == null ? '' : String(raw).trim();
+      if (!s) return '';
+      return s.replace(/^gs:\/\//i, '').replace(/\/+$/, '').trim();
+    };
+    const titlePolicyDisabledFlag = parseBool(process.env.TITLE_POLICY_DISABLED ?? process.env.DISABLE_TITLE_POLICY);
+    const titlePolicyEnabledFlag = parseBool(process.env.TITLE_POLICY_ENABLED);
+    const titlePolicyDisabled =
+      titlePolicyDisabledFlag !== null ? titlePolicyDisabledFlag : titlePolicyEnabledFlag !== null ? !titlePolicyEnabledFlag : false;
 
     try {
       const key = await getGeminiApiKey();
@@ -1512,6 +1528,12 @@ app.get('/api/admin/llm/health', requirePermission('admin', 'llm.read'), async (
         keyError,
         models,
         modelsError,
+        flags: {
+          qualityGateEnabled: parseBool(process.env.QUALITY_GATE_ENABLED) === true,
+          rulebookEnabled: parseBool(process.env.RULEBOOK_ENABLED) === true,
+          titlePolicyDisabled,
+          storageBucket: normalizeBucketName(process.env.STORAGE_BUCKET) || 'prodsandjobs',
+        },
       },
     });
   } catch (error) {
@@ -3279,7 +3301,7 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
     // Retry once if still not eBay-ready (title/desc/highlights/attrs). This keeps Identify outputs stable.
     try {
       const { evaluateEbayReady } = require('./lib/datasheet-quality');
-      const eval1 = evaluateEbayReady(product);
+      const eval1 = evaluateEbayReady(product, { force: true });
       if (!eval1.ok && eval1.issues && eval1.issues.length) {
         await runDatasheetReview([product], {
           locale,
@@ -3321,6 +3343,24 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
       console.warn('Identify BaseLinker category assignment failed (continuing):', e?.message || e);
     }
 
+    // 3.8) Compute and persist quality snapshot (independent of QUALITY_GATE_ENABLED).
+    // This powers UI/debug dashboards and helps explain "why not ebay-ready" without blocking saves.
+    let finalQuality = null;
+    try {
+      const { evaluateEbayReady } = require('./lib/datasheet-quality');
+      finalQuality = evaluateEbayReady(product, { force: true });
+      product.ops = product.ops || {};
+      product.ops.data_quality = product.ops.data_quality || {};
+      product.ops.data_quality.identify_v2_quality_v1 = {
+        checked_at_iso: new Date().toISOString(),
+        ok: Boolean(finalQuality.ok),
+        issues: Array.isArray(finalQuality.issues) ? finalQuality.issues.slice(0, 40) : [],
+        snapshot: finalQuality.snapshot || null,
+      };
+    } catch (e) {
+      finalQuality = null;
+    }
+
     // 4) Persist (SYSTEM mode => invariants enforced; never treated as manual UI edit).
     await saveProduct(product, {
       allowCategoryChange: true,
@@ -3343,6 +3383,9 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
         llm: result.llm,
         barcodeInsights: result.barcodeInsights,
         quality: result.quality,
+        ebayReady: finalQuality ? Boolean(finalQuality.ok) : null,
+        ebayReadyIssues: finalQuality ? finalQuality.issues || [] : [],
+        ebayReadySnapshot: finalQuality ? finalQuality.snapshot || null : null,
       },
     });
   } catch (error) {

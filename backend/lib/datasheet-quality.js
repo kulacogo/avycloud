@@ -26,9 +26,11 @@ function hasImages(product) {
  * Evaluate whether a product is "eBay-ready" for AvyCloud.
  * This is intentionally stricter than "minimal identification".
  */
-function evaluateEbayReady(product) {
+function evaluateEbayReady(product, options = {}) {
+  const force = Boolean(options && typeof options === 'object' && options.force === true);
   const enabled = (process.env.QUALITY_GATE_ENABLED || '').toString().trim().toLowerCase();
-  if (!(enabled === '1' || enabled === 'true' || enabled === 'yes')) {
+  const gateEnabled = enabled === '1' || enabled === 'true' || enabled === 'yes';
+  if (!gateEnabled && !force) {
     // Default: disabled (no rule-based blocking). Still return a lightweight snapshot for UI.
     const title = safeString(product?.identification?.name);
     const desc = safeString(product?.details?.short_description || product?.details?.description);
@@ -70,7 +72,9 @@ function evaluateEbayReady(product) {
     if (code && !issues.includes(code)) issues.push(code);
   });
   // Keep legacy "too_short" signal only for extremely short titles.
-  if (title && title.length > 0 && title.length < 20) issues.push('title_too_short');
+  if (title && title.length > 0 && title.length < 20 && !issues.includes('title_too_short')) {
+    issues.push('title_too_short');
+  }
 
   // Text quality (from review rules)
   if (!desc) issues.push('description_missing');
@@ -88,14 +92,29 @@ function evaluateEbayReady(product) {
   // Required eBay item specifics (Pflichtmerkmale) must not be empty.
   const catId = safeString(product?.details?.categoryId || product?.details?.ebayCategoryId);
   const required = catId ? getRequiredAspects(catId) : [];
-  const attrs = product?.details?.attributes && typeof product.details.attributes === 'object' ? product.details.attributes : {};
+  const attrsRaw =
+    product?.details?.attributes && typeof product.details.attributes === 'object' ? product.details.attributes : {};
+  const attrs =
+    attrsRaw && typeof attrsRaw === 'object' && !Array.isArray(attrsRaw) ? attrsRaw : {};
+  const attrsLower = {};
+  for (const [k, v] of Object.entries(attrs)) {
+    const key = safeString(k).toLowerCase();
+    if (!key) continue;
+    const val = v == null ? '' : String(v).trim();
+    if (!val) continue;
+    // Prefer first non-empty value per normalized key.
+    if (attrsLower[key]) continue;
+    attrsLower[key] = val;
+  }
   let missingRequiredCount = 0;
   if (Array.isArray(required) && required.length) {
     const missing = required.filter((key) => {
       const k = typeof key === 'string' ? key.trim() : '';
       if (!k) return false;
-      const val = attrs[k];
-      return val == null || String(val).trim() === '';
+      const direct = attrs[k];
+      if (direct != null && String(direct).trim() !== '') return false;
+      const lowerVal = attrsLower[String(k).trim().toLowerCase()];
+      return !lowerVal;
     });
     if (missing.length) {
       missingRequiredCount = missing.length;

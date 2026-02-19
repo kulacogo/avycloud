@@ -34,7 +34,7 @@ async function main() {
 
   for (const p of products) {
     const src = String(p?.ops?.last_saved_source || 'unknown');
-    const q = evaluateEbayReady(p);
+    const q = evaluateEbayReady(p, { force: true });
     summary[src] = summary[src] || { total: 0, ebay_ready: 0, not_ready: 0 };
     summary[src].total += 1;
     if (q.ok) summary[src].ebay_ready += 1;

@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { FieldValue } = require('@google-cloud/firestore');
 
 const { firestore, getAllProducts } = require('./firestore');
-const { getRequiredAspects } = require('./ebay-taxonomy');
+const { getRequiredAspects, getCategoryAspectCatalog } = require('./ebay-taxonomy');
 const {
   getMyeBaySellingActive,
   getItemDetails,
@@ -103,6 +103,112 @@ function normalizeProfileKey(value) {
 
 function normalizeDigits(value) {
   return safeString(value).replace(/\D+/g, '');
+}
+
+function coerceEbayCategoryId(value) {
+  const raw = safeString(value);
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  if (/^\d+$/.test(trimmed)) return trimmed;
+  // Common display formats: "Foo (26196)" or "Foo [26196]"
+  const paren = trimmed.match(/\((\d{1,10})\)\s*$/);
+  if (paren) return paren[1];
+  const bracket = trimmed.match(/\[(\d{1,10})\]\s*$/);
+  if (bracket) return bracket[1];
+  // Conservative fallback: only accept a short digits-only extraction from short strings.
+  const digits = trimmed.replace(/\D+/g, '');
+  if (/^\d{1,10}$/.test(digits) && trimmed.length <= 70) return digits;
+  return '';
+}
+
+function isCatalogBasedListing(listing) {
+  const pld = listing?.productListingDetails;
+  if (!pld || typeof pld !== 'object') return false;
+  const id = safeString(pld?.ProductReferenceID || pld?.ProductReferenceId || pld?.productReferenceID || pld?.productReferenceId);
+  if (id) return true;
+  return false;
+}
+
+const TECHNICAL_SPECIFIC_TOKENS = new Set([
+  'category',
+  'kategorie',
+  'categoryid',
+  'ebaycategoryid',
+  'categorypath',
+  'ebaycategorypath',
+  'categorybreadcrumb',
+  'ebaycategorybreadcrumb',
+]);
+
+function buildAspectTokenMeta(categoryId) {
+  const catalog = getCategoryAspectCatalog(categoryId);
+  const rows = Array.isArray(catalog?.aspects) ? catalog.aspects : [];
+  const byToken = new Map();
+  rows.forEach((row) => {
+    const name = safeString(row?.name);
+    const token = normalizeSpecificToken(name);
+    if (!token) return;
+    if (byToken.has(token)) return;
+    const applicableTo = Array.isArray(row?.applicableTo) ? row.applicableTo.map((x) => safeString(x)).filter(Boolean) : [];
+    const maxLength = typeof row?.maxLength === 'number' && Number.isFinite(row.maxLength) ? row.maxLength : null;
+    const itemToAspectCardinality = safeString(row?.itemToAspectCardinality);
+    byToken.set(token, {
+      name,
+      required: Boolean(row?.required),
+      applicableTo,
+      maxLength,
+      itemToAspectCardinality,
+    });
+  });
+  return { catalog, byToken };
+}
+
+function sanitizeSpecificValues(valuesRaw, meta) {
+  const values = asArray(valuesRaw).map((x) => safeString(x)).filter(Boolean);
+  if (!values.length) return [];
+  const cardinality = safeString(meta?.itemToAspectCardinality).toUpperCase();
+  const maxLength = typeof meta?.maxLength === 'number' && Number.isFinite(meta.maxLength) ? meta.maxLength : null;
+  const limited = cardinality && cardinality !== 'MULTI' ? values.slice(0, 1) : values;
+  return limited
+    .map((v) => {
+      const trimmed = safeString(v).replace(/\s+/g, ' ').trim();
+      if (!trimmed) return '';
+      if (maxLength && trimmed.length > maxLength) return trimmed.slice(0, maxLength).trim();
+      return trimmed;
+    })
+    .filter(Boolean);
+}
+
+function filterPatchItemSpecificsForListing({ categoryId, listing, itemSpecifics }) {
+  const specifics = itemSpecifics && typeof itemSpecifics === 'object' ? itemSpecifics : {};
+  const { byToken } = buildAspectTokenMeta(categoryId);
+  const catalogBased = isCatalogBasedListing(listing);
+  const out = {};
+  const dropped = [];
+
+  Object.entries(specifics).forEach(([rawKey, rawVals]) => {
+    const key = safeString(rawKey);
+    if (!key) return;
+    const token = normalizeSpecificToken(key);
+    if (TECHNICAL_SPECIFIC_TOKENS.has(token)) {
+      dropped.push({ key, reason: 'technical' });
+      return;
+    }
+    const meta = byToken.get(token) || null;
+    if (catalogBased && meta) {
+      const applicableTo = Array.isArray(meta.applicableTo) ? meta.applicableTo : [];
+      const productOnly = applicableTo.includes('PRODUCT') && !applicableTo.includes('ITEM');
+      if (productOnly) {
+        dropped.push({ key, reason: 'product_aspect' });
+        return;
+      }
+    }
+    const values = sanitizeSpecificValues(rawVals, meta);
+    if (!values.length) return;
+    out[key] = values;
+  });
+
+  return { itemSpecifics: out, dropped, catalogBased };
 }
 
 function cleanUndefined(value) {
@@ -776,7 +882,9 @@ ul {
 
 function deriveProductCategoryId(product) {
   const details = product?.details || {};
-  return safeString(details?.categoryId || details?.ebayCategoryId) || null;
+  const raw = safeString(details?.categoryId || details?.ebayCategoryId);
+  const coerced = coerceEbayCategoryId(raw);
+  return coerced || null;
 }
 
 function collectListingIdentifiers(listing) {
@@ -1516,7 +1624,7 @@ function buildGapsForListing({ listing, link, product, existingGapDoc, categoryP
     return gaps;
   }
 
-  const listingCategory = safeString(listing?.primaryCategoryId);
+  const listingCategory = coerceEbayCategoryId(listing?.primaryCategoryId) || safeString(listing?.primaryCategoryId);
   const productCategory = safeString(deriveProductCategoryId(product));
   if (listingCategory && productCategory && listingCategory !== productCategory) {
     addGap(gaps, existingById, {
@@ -1530,10 +1638,26 @@ function buildGapsForListing({ listing, link, product, existingGapDoc, categoryP
     });
   }
 
-  const requiredAspects = asArray(getRequiredAspects(listingCategory)).map((x) => safeString(x)).filter(Boolean);
+  const rawRequiredAspects = asArray(getRequiredAspects(listingCategory)).map((x) => safeString(x)).filter(Boolean);
   const listingSpecifics = mapListingSpecifics(listing);
+  const { byToken: aspectMetaByToken } = buildAspectTokenMeta(listingCategory);
+  const catalogBased = isCatalogBasedListing(listing);
+  const productOnlyTokens = new Set();
+  if (catalogBased) {
+    aspectMetaByToken.forEach((meta, token) => {
+      const applicableTo = Array.isArray(meta?.applicableTo) ? meta.applicableTo : [];
+      const productOnly = applicableTo.includes('PRODUCT') && !applicableTo.includes('ITEM');
+      if (productOnly) productOnlyTokens.add(token);
+    });
+  }
+  const requiredAspects = catalogBased
+    ? rawRequiredAspects.filter((label) => !productOnlyTokens.has(normalizeSpecificToken(label)))
+    : rawRequiredAspects;
   const labelPolicy = buildSpecificLabelPolicy({ requiredAspects, listingSpecifics, categoryProfile });
   const relevantTokens = buildRelevantSpecificTokens({ requiredAspects, listingSpecifics, categoryProfile });
+  if (catalogBased && productOnlyTokens.size) {
+    productOnlyTokens.forEach((token) => relevantTokens.delete(token));
+  }
   const productSpecificsRaw = normalizeProductSpecifics(product);
   const productSpecificsAliased = applyCategoryProfileAliasesToSpecifics(productSpecificsRaw, categoryProfile);
   const productSpecificsCanonical = canonicalizeSpecificKeys(productSpecificsAliased, labelPolicy);
@@ -2141,42 +2265,75 @@ function selectSyncCandidatesFromGaps(gapDoc) {
 
 function computeSyncPatch({ listing, gapDoc, product = null }) {
   const selectedGaps = selectSyncCandidatesFromGaps(gapDoc);
-  const listingCategory = safeString(listing?.primaryCategoryId);
+  const listingCategory = coerceEbayCategoryId(listing?.primaryCategoryId) || safeString(listing?.primaryCategoryId);
   const targetCategoryFromGap = selectedGaps
     .map((gap) => ({
       type: safeLower(gap?.type),
       field: safeLower(gap?.field),
-      value: safeString(gap?.avyValue),
+      value: coerceEbayCategoryId(gap?.avyValue) || safeString(gap?.avyValue),
     }))
     .find((entry) => entry.type === 'category' && entry.field.includes('category') && entry.value);
-  const effectiveCategoryId = safeString(targetCategoryFromGap?.value || listingCategory);
+  const effectiveCategoryId = coerceEbayCategoryId(targetCategoryFromGap?.value || listingCategory) || safeString(targetCategoryFromGap?.value || listingCategory);
   const listingSpecifics = mapListingSpecifics(listing);
-  const requiredAspects = asArray(getRequiredAspects(effectiveCategoryId)).map((x) => safeString(x)).filter(Boolean);
+  const rawRequiredAspects = asArray(getRequiredAspects(effectiveCategoryId)).map((x) => safeString(x)).filter(Boolean);
+  const { byToken: aspectMetaByToken } = buildAspectTokenMeta(effectiveCategoryId);
+  const catalogBased = isCatalogBasedListing(listing);
+  const productOnlyTokens = new Set();
+  if (catalogBased) {
+    aspectMetaByToken.forEach((meta, token) => {
+      const applicableTo = Array.isArray(meta?.applicableTo) ? meta.applicableTo : [];
+      const productOnly = applicableTo.includes('PRODUCT') && !applicableTo.includes('ITEM');
+      if (productOnly) productOnlyTokens.add(token);
+    });
+  }
+  const requiredAspects = catalogBased
+    ? rawRequiredAspects.filter((label) => !productOnlyTokens.has(normalizeSpecificToken(label)))
+    : rawRequiredAspects;
   const labelPolicy = buildSpecificLabelPolicy({ requiredAspects, listingSpecifics, categoryProfile: null });
   const patch = {
     itemId: listing?.itemId,
   };
   const touchedGapIds = [];
+  const desiredSpecificByToken = new Map();
+  const gapTokenById = new Map();
+  const touch = (gap) => {
+    const id = safeString(gap?.id);
+    if (id) touchedGapIds.push(id);
+  };
+  const sameValueList = (a, b) => {
+    const left = asArray(a).map((x) => safeString(x)).filter(Boolean).slice().sort((x, y) => x.localeCompare(y));
+    const right = asArray(b).map((x) => safeString(x)).filter(Boolean).slice().sort((x, y) => x.localeCompare(y));
+    if (left.length !== right.length) return false;
+    return left.every((v, i) => v === right[i]);
+  };
 
   selectedGaps.forEach((gap) => {
     const field = safeLower(gap?.field);
     const type = safeLower(gap?.type);
     if (!field || !type) return;
-    touchedGapIds.push(safeString(gap.id));
 
     if (type === 'category' && field.includes('category')) {
-      const val = safeString(gap?.avyValue);
-      if (val) patch.primaryCategoryId = val;
+      const val = coerceEbayCategoryId(gap?.avyValue);
+      if (val) {
+        patch.primaryCategoryId = val;
+        touch(gap);
+      }
       return;
     }
     if (type === 'content') {
       if (field === 'title') {
         const val = safeString(gap?.avyValue);
-        if (val) patch.title = val;
+        if (val) {
+          patch.title = val;
+          touch(gap);
+        }
       }
       if (field === 'subtitle') {
         const val = safeString(gap?.avyValue);
-        if (val) patch.subtitle = val;
+        if (val) {
+          patch.subtitle = val;
+          touch(gap);
+        }
       }
       if (field === 'description') {
         const val =
@@ -2185,7 +2342,10 @@ function computeSyncPatch({ listing, gapDoc, product = null }) {
             product,
             titleOverride: patch.title || listing?.title || null,
           }) || safeString(deriveProductDescription(product)) || safeString(gap?.avyValue);
-        if (val) patch.description = val;
+        if (val) {
+          patch.description = val;
+          touch(gap);
+        }
       }
       return;
     }
@@ -2198,6 +2358,10 @@ function computeSyncPatch({ listing, gapDoc, product = null }) {
       const values = asArray(gap?.avyValue).map((v) => safeString(v)).filter(Boolean);
       if (values.length) {
         patch.itemSpecifics[key] = values;
+        if (token) {
+          desiredSpecificByToken.set(token, values);
+          gapTokenById.set(safeString(gap?.id), token);
+        }
       }
     }
   });
@@ -2253,6 +2417,40 @@ function computeSyncPatch({ listing, gapDoc, product = null }) {
     patch.itemSpecifics = mergedSpecifics;
   }
 
+  if (patch.primaryCategoryId) {
+    const coerced = coerceEbayCategoryId(patch.primaryCategoryId);
+    if (coerced) patch.primaryCategoryId = coerced;
+    else delete patch.primaryCategoryId;
+  }
+
+  if (patch.itemSpecifics && typeof patch.itemSpecifics === 'object' && Object.keys(patch.itemSpecifics).length) {
+    const filtered = filterPatchItemSpecificsForListing({
+      categoryId: effectiveCategoryId,
+      listing,
+      itemSpecifics: patch.itemSpecifics,
+    });
+    patch.itemSpecifics = filtered.itemSpecifics;
+
+    // Only mark item-specific gaps as touched when their desired token survives filtering.
+    if (gapTokenById.size) {
+      const norm = normalizeSpecificsMap(patch.itemSpecifics);
+      for (const [gapId, token] of gapTokenById.entries()) {
+        if (!gapId || !token) continue;
+        const desired = desiredSpecificByToken.get(token) || [];
+        const patched = norm[token] || [];
+        if (patched.length && sameValueList(patched, desired)) {
+          // Ensure the gap is considered touched (it may have been skipped earlier due to filtering).
+          touchedGapIds.push(gapId);
+        }
+      }
+    }
+
+    // If everything was filtered out, do not send ItemSpecifics at all.
+    if (!patch.itemSpecifics || Object.keys(patch.itemSpecifics).length === 0) {
+      delete patch.itemSpecifics;
+    }
+  }
+
   return {
     patch,
     touchedGapIds: Array.from(new Set(touchedGapIds.filter(Boolean))),
@@ -2263,7 +2461,12 @@ function evaluateSyncBlockers(listing, patch) {
   const blockers = [];
   const warnings = [];
   const bidCount = toNumber(listing?.bidCount) || 0;
-  const hasCategoryChange = Boolean(safeString(patch?.primaryCategoryId));
+  const patchCategoryRaw = safeString(patch?.primaryCategoryId);
+  const patchCategoryId = patchCategoryRaw ? coerceEbayCategoryId(patchCategoryRaw) : '';
+  if (patchCategoryRaw && !patchCategoryId) {
+    blockers.push('Kategorie-Änderung blockiert: Ungültige Kategorie-ID (erwarte numerische CategoryID).');
+  }
+  const hasCategoryChange = Boolean(patchCategoryId);
   if (hasCategoryChange && bidCount > 0) {
     blockers.push('Kategorie-Änderung blockiert: Listing hat bereits Gebote.');
   }
@@ -2282,8 +2485,24 @@ function evaluateSyncBlockers(listing, patch) {
   const patchItemSpecifics = patch?.itemSpecifics && typeof patch.itemSpecifics === 'object' ? patch.itemSpecifics : {};
   const hasItemSpecificUpdates = Object.keys(patchItemSpecifics).length > 0;
   if (hasItemSpecificUpdates) {
-    const effectiveCategoryId = safeString(patch?.primaryCategoryId || listing?.primaryCategoryId);
-    const requiredAspects = asArray(getRequiredAspects(effectiveCategoryId)).map((x) => safeString(x)).filter(Boolean);
+    const effectiveCategoryId =
+      patchCategoryId ||
+      coerceEbayCategoryId(listing?.primaryCategoryId) ||
+      safeString(listing?.primaryCategoryId);
+    const rawRequiredAspects = asArray(getRequiredAspects(effectiveCategoryId)).map((x) => safeString(x)).filter(Boolean);
+    const { byToken: aspectMetaByToken } = buildAspectTokenMeta(effectiveCategoryId);
+    const catalogBased = isCatalogBasedListing(listing);
+    const requiredAspects = catalogBased
+      ? rawRequiredAspects.filter((label) => {
+          const token = normalizeSpecificToken(label);
+          if (!token) return true;
+          const meta = aspectMetaByToken.get(token);
+          if (!meta) return true;
+          const applicableTo = Array.isArray(meta?.applicableTo) ? meta.applicableTo : [];
+          const productOnly = applicableTo.includes('PRODUCT') && !applicableTo.includes('ITEM');
+          return !productOnly;
+        })
+      : rawRequiredAspects;
     if (requiredAspects.length) {
       const listingNorm = normalizeSpecificsMap(mapListingSpecifics(listing));
       const patchNorm = normalizeSpecificsMap(patchItemSpecifics);

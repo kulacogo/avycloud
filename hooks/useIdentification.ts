@@ -40,6 +40,8 @@ const PHASE_MESSAGES: Record<string, string> = {
 const isPlaceholderIdentifiedName = (value?: string | null) => {
   const v = String(value || '').trim();
   if (!v) return true;
+  // Bare generic placeholders
+  if (/^(artikel|produkt|product|item)$/i.test(v)) return true;
   if (/^unbekannt(es)? produkt/i.test(v)) return true;
   // "Produkt 1", "Ürün 1", ...
   if (/^(produkt|product|ürün|urun|artikel)\s*#?\s*\d+\b/i.test(v)) return true;
@@ -133,8 +135,15 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
           const hasDesc = !!finalProduct.details?.short_description?.trim();
           const hasImages =
             Array.isArray(finalProduct.details?.images) && finalProduct.details.images.length > 0;
-          if (!hasName || !hasDesc || !hasImages) {
-            throw new Error('Identify hat ein unvollständiges Datenblatt geliefert. Bitte erneut versuchen.');
+          const requireImages = group.images.length > 0;
+          const missing: string[] = [];
+          if (!hasName) missing.push('Titel');
+          if (!hasDesc) missing.push('Beschreibung');
+          if (requireImages && !hasImages) missing.push('Bilder');
+          if (missing.length) {
+            throw new Error(
+              `Identify hat ein unvollständiges Datenblatt geliefert (${missing.join(', ')} fehlt). Bitte erneut versuchen.`
+            );
           }
 
           try {

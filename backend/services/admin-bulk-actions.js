@@ -11,7 +11,12 @@ const { uploadJobFile } = require('../lib/storage');
 const { createJob: createBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('../lib/baselinker-sync-jobs');
 const { enqueueBaseLinkerSyncJob } = require('./baselinker-sync-runner');
 
-const EXPORT_BUCKET = 'prodsandjobs';
+const normalizeBucketName = (raw) => {
+  const s = raw == null ? '' : String(raw).trim();
+  if (!s) return '';
+  return s.replace(/^gs:\/\//i, '').replace(/\/+$/, '').trim();
+};
+const EXPORT_BUCKET = normalizeBucketName(process.env.STORAGE_BUCKET) || 'prodsandjobs';
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();

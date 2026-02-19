@@ -25,6 +25,14 @@ function isUnknownToken(v) {
   return false;
 }
 
+function isGenericTitle(title) {
+  const t = safeString(title).toLowerCase();
+  if (!t) return true;
+  // Avoid saving "Artikel"/"Produkt"/"Product" as a "real" title; these are fallback placeholders.
+  if (t === 'artikel' || t === 'produkt' || t === 'product' || t === 'item') return true;
+  return false;
+}
+
 function dedupe(values = []) {
   return Array.from(new Set((values || []).filter(Boolean)));
 }
@@ -228,7 +236,7 @@ function normalizeSkuCandidate(value, record = {}) {
 function buildProductFromV2Record(record, options = {}) {
   const manualBarcodes = parseBarcodeString(options?.barcodes || '');
   const productId = pickProductId(record, options?.fallbackId);
-  const brand = normalizeValue(record?.brand) || 'Unbekannt';
+  const brand = normalizeValue(record?.brand);
   const model = normalizeValue(record?.model);
   const variant = normalizeValue(record?.variant);
 
@@ -237,7 +245,10 @@ function buildProductFromV2Record(record, options = {}) {
     normalizeValue(record?.title_kaufland) ||
     [brand, model, variant].filter(Boolean).join(' ').trim();
 
-  const name = titleCandidate || (options?.label ? `Unbekanntes Produkt (${options.label})` : 'Unbekanntes Produkt');
+  const usableTitle = isGenericTitle(titleCandidate) ? '' : titleCandidate;
+  const name =
+    usableTitle ||
+    (options?.label ? `Unbekanntes Produkt (${options.label})` : 'Unbekanntes Produkt');
 
   const shortDescription =
     normalizeValue(record?.description_kaufland) ||
@@ -256,7 +267,7 @@ function buildProductFromV2Record(record, options = {}) {
       method: record?.input_mode === 'label' ? 'barcode' : 'image',
       barcodes: barcodes.length ? barcodes : undefined,
       name,
-      brand,
+      brand: brand || '',
       category: normalizeValue(record?.internalCategory) || 'Unkategorisiert',
       confidence: computeConfidence(record),
       sku: normalizeSkuCandidate(record?.sku, record) || undefined,

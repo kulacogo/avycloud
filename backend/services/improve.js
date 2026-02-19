@@ -917,7 +917,7 @@ async function improveExistingProduct(productId, onProgress) {
   // Retry once if still not eBay-ready (incl. missing required aspects).
   try {
     const { evaluateEbayReady } = require('../lib/datasheet-quality');
-    const eval1 = evaluateEbayReady(mergedProduct);
+    const eval1 = evaluateEbayReady(mergedProduct, { force: true });
     if (!eval1.ok && eval1.issues && eval1.issues.length) {
       await runDatasheetReview([mergedProduct], {
         locale: product.locale || 'de-DE',

@@ -359,10 +359,12 @@ const buildWebHintLines = (ocrPayload = {}) => {
 };
 
 async function uploadReferenceImages(files = []) {
+  const candidates = Array.isArray(files)
+    ? files.filter((f) => f?.buffer && f?.mimetype && String(f.mimetype).startsWith('image/'))
+    : [];
   const uploaded = [];
-  for (let idx = 0; idx < files.length; idx += 1) {
-    const file = files[idx];
-    if (!file?.buffer || !file?.mimetype?.startsWith('image/')) continue;
+  for (let idx = 0; idx < candidates.length; idx += 1) {
+    const file = candidates[idx];
     try {
       const result = await uploadImage(
         file.buffer,
@@ -378,6 +380,13 @@ async function uploadReferenceImages(files = []) {
     } catch (error) {
       console.warn('Failed to upload reference image for v2 pipeline:', error.message);
     }
+  }
+  // If the user uploaded images but we couldn't store a single one, treat as fatal:
+  // without images the UI cannot proceed and downstream quality gates can fail (images_missing).
+  if (candidates.length > 0 && uploaded.length === 0) {
+    throw new Error(
+      'Image upload failed (no reference images stored). Check Cloud Storage bucket configuration/permissions (STORAGE_BUCKET).'
+    );
   }
   return uploaded;
 }

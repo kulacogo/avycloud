@@ -755,6 +755,7 @@ function looksUnknown(value) {
   const v = (value || '').toString().trim().toLowerCase();
   if (!v) return true;
   if (v === 'unknown' || v === 'unbekannt') return true;
+  if (v === 'artikel' || v === 'produkt' || v === 'product' || v === 'item') return true;
   if (v.startsWith('unknown')) return true;
   if (v.startsWith('unbekannt')) return true;
   // Guard against placeholder titles like "Produkt 1", "Ürün 1"
@@ -1622,17 +1623,6 @@ function applyReviewResult(product, review, { titleHintTokens = [] } = {}) {
       ? String(existingAttrs[existingKTypKey]).trim()
       : '';
 
-  if (typeof review.title === 'string' && review.title.trim().length >= 10) {
-    const extraHintTokens = Array.isArray(titleHintTokens)
-      ? titleHintTokens.map(normalizeTitleInsightToken).filter(isValidTitleInsightToken).slice(0, 12)
-      : [];
-    product.identification.name = coerceTitleToPolicy(product, review.title, {
-      minLen: 65,
-      maxLen: 80,
-      softMaxLen: 75,
-      extraHintTokens,
-    });
-  }
   if (typeof review.short_description === 'string' && review.short_description.trim().length > 0) {
     const cleanedDescription = sanitizeListingText(review.short_description);
     if (cleanedDescription) {
@@ -1682,6 +1672,45 @@ function applyReviewResult(product, review, { titleHintTokens = [] } = {}) {
     }
 
     product.details.attributes = sanitizeAttributesMap(attrs);
+  }
+
+  // Sync identification.brand from the post-review attributes map when upstream brand is missing/placeholder.
+  // This is important because title-policy and many downstream checks rely on identification.brand.
+  try {
+    const currentBrand = safeString(product?.identification?.brand);
+    const attrs =
+      product?.details?.attributes && typeof product.details.attributes === 'object'
+        ? product.details.attributes
+        : {};
+    const findAttrValue = (...needles) => {
+      const want = new Set(needles.map((n) => String(n || '').trim().toLowerCase()).filter(Boolean));
+      for (const [k, v] of Object.entries(attrs || {})) {
+        const nk = String(k || '').trim().toLowerCase();
+        if (!want.has(nk)) continue;
+        const val = safeString(v);
+        if (val && !looksUnknown(val)) return val;
+      }
+      return '';
+    };
+    const brandCandidate = findAttrValue('marke', 'hersteller', 'brand');
+    if (brandCandidate && (looksUnknown(currentBrand) || currentBrand.length < 2)) {
+      product.identification.brand = brandCandidate;
+    }
+  } catch {
+    // non-blocking
+  }
+
+  // Coerce title AFTER attributes/brand were updated so schema inference has better inputs.
+  if (typeof review.title === 'string' && review.title.trim().length >= 10) {
+    const extraHintTokens = Array.isArray(titleHintTokens)
+      ? titleHintTokens.map(normalizeTitleInsightToken).filter(isValidTitleInsightToken).slice(0, 12)
+      : [];
+    product.identification.name = coerceTitleToPolicy(product, review.title, {
+      minLen: 65,
+      maxLen: 80,
+      softMaxLen: 75,
+      extraHintTokens,
+    });
   }
 
   // Optional identifiers update (only when non-empty)
@@ -3020,7 +3049,7 @@ async function runProductIdentification({
   const issuesById = {};
   const failing = [];
   for (const p of bundle.products || []) {
-    const q = evaluateEbayReady(p);
+    const q = evaluateEbayReady(p, { force: true });
     qualityById[p?.id || Math.random().toString(36)] = q;
     if (!q.ok) {
       failing.push(p);
@@ -3053,7 +3082,7 @@ async function runProductIdentification({
     serpTrace,
     modelUsed: targetModelName,
     qualityReport: (bundle.products || []).map((p) => {
-      const q = evaluateEbayReady(p);
+      const q = evaluateEbayReady(p, { force: true });
       return {
         id: p?.id,
         ok: q.ok,

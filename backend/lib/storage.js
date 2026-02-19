@@ -7,18 +7,61 @@ const storage = new Storage({
 });
 
 const PREFERRED_BUCKET = 'prodsandjobs';
-const envBucket = process.env.STORAGE_BUCKET;
+const normalizeBucketName = (raw) => {
+  const s = raw == null ? '' : String(raw).trim();
+  if (!s) return '';
+  return s.replace(/^gs:\/\//i, '').replace(/\/+$/, '').trim();
+};
 
-if (envBucket && envBucket !== PREFERRED_BUCKET) {
-  console.warn(
-    `[storage] STORAGE_BUCKET="${envBucket}" ignored – forcing ${PREFERRED_BUCKET} as required bucket.`
-  );
-}
-
-const BUCKET_NAME = PREFERRED_BUCKET;
+const BUCKET_NAME = normalizeBucketName(process.env.STORAGE_BUCKET) || PREFERRED_BUCKET;
 const MIN_IMAGE_LONGEST_EDGE = parseInt(process.env.MIN_IMAGE_LONGEST_EDGE || '1200', 10);
 const MAX_IMAGE_LONGEST_EDGE = parseInt(process.env.MAX_IMAGE_LONGEST_EDGE || '2000', 10);
 let bucket;
+let initPromise = null;
+
+async function ensurePublicBucketReadAccess(b) {
+  // We *try* to ensure public read access because the app returns public GCS URLs.
+  // This is best-effort: org policies like "Public access prevention" can block it.
+  try {
+    await b.makePublic();
+    console.log(`Bucket ${BUCKET_NAME} is now public (makePublic).`);
+    return { ok: true, method: 'makePublic' };
+  } catch (aclError) {
+    // Uniform bucket-level access disables ACLs and can make makePublic fail with 400.
+    console.warn(
+      `Warning: Could not make bucket ${BUCKET_NAME} public via ACL (might be enforced by IAM/uniform access):`,
+      aclError?.message || aclError
+    );
+  }
+
+  // Fallback: Use IAM policy binding (docs recommend adding allUsers -> roles/storage.objectViewer).
+  // IMPORTANT: Always read the current policy first to avoid overwriting existing bindings.
+  try {
+    const [policy] = await b.iam.getPolicy({ requestedPolicyVersion: 3 });
+    const bindings = Array.isArray(policy?.bindings) ? policy.bindings : [];
+    const roleName = 'roles/storage.objectViewer';
+    const member = 'allUsers';
+
+    let binding = bindings.find((x) => x && x.role === roleName && !x.condition);
+    if (!binding) {
+      binding = { role: roleName, members: [member] };
+      bindings.push(binding);
+    } else {
+      binding.members = Array.isArray(binding.members) ? binding.members : [];
+      if (!binding.members.includes(member)) {
+        binding.members.push(member);
+      }
+    }
+
+    policy.bindings = bindings;
+    await b.iam.setPolicy(policy);
+    console.log(`Bucket ${BUCKET_NAME} is now public (IAM roles/storage.objectViewer -> allUsers).`);
+    return { ok: true, method: 'iamPolicy' };
+  } catch (iamError) {
+    console.warn(`Warning: Could not set IAM public read policy for ${BUCKET_NAME}:`, iamError?.message || iamError);
+    return { ok: false, method: 'iamPolicy', error: iamError?.message || String(iamError) };
+  }
+}
 
 async function initializeBucket() {
   try {
@@ -32,42 +75,31 @@ async function initializeBucket() {
       });
     }
 
-    // Always try to ensure public access, even if bucket exists
-    try {
-      await bucket.makePublic();
-      console.log(`Bucket ${BUCKET_NAME} is now public.`);
-    } catch (aclError) {
-      console.warn(`Warning: Could not make bucket ${BUCKET_NAME} public via ACL (might be enforced by IAM):`, aclError.message);
-      // Fallback: Try to set IAM policy for public read if ACL fails
-      try {
-        await bucket.iam.setPolicy({
-          bindings: [
-            {
-              role: 'roles/storage.objectViewer',
-              members: ['allUsers'],
-            },
-          ],
-        });
-        console.log(`Bucket ${BUCKET_NAME} IAM policy updated to public.`);
-      } catch (iamError) {
-        console.warn(`Warning: Could not set IAM policy for ${BUCKET_NAME}:`, iamError.message);
-      }
-    }
+    // Best-effort: ensure objects are reachable via public URL.
+    await ensurePublicBucketReadAccess(bucket);
 
     console.log(`Using Cloud Storage bucket: ${BUCKET_NAME}`);
   } catch (error) {
     console.error('Failed to initialize bucket:', error);
+    // Keep a bucket reference so callers can still attempt operations; failures will surface at call sites.
     bucket = storage.bucket(BUCKET_NAME);
   }
 }
 
 async function ensureBucket() {
-  if (!bucket) {
-    await initializeBucket();
+  if (initPromise) {
+    await initPromise;
+    return;
   }
+  if (bucket) return;
+  initPromise = initializeBucket().finally(() => {
+    initPromise = null;
+  });
+  await initPromise;
 }
 
-initializeBucket();
+// Fire-and-forget init to surface misconfig early; calls are still guarded by ensureBucket().
+ensureBucket().catch(() => {});
 
 async function normalizeImageBuffer(buffer, mimeType) {
   try {

@@ -601,10 +601,23 @@ async function addFixedPriceItem(item, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) 
 
 async function verifyAddFixedPriceItem(item, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const cfg = await getEbayTradingConfig();
-  const innerXml = buildAddFixedPriceItemXml(item, cfg)
-    .replace('<AddFixedPriceItemRequest', '<VerifyAddFixedPriceItemRequest')
-    .replace('</AddFixedPriceItemRequest>', '</VerifyAddFixedPriceItemRequest>');
-  const result = await callTradingApi('VerifyAddFixedPriceItem', innerXml, { timeoutMs });
+  const buildXml = (i) =>
+    buildAddFixedPriceItemXml(i, cfg)
+      .replace('<AddFixedPriceItemRequest', '<VerifyAddFixedPriceItemRequest')
+      .replace('</AddFixedPriceItemRequest>', '</VerifyAddFixedPriceItemRequest>');
+  let result;
+  try {
+    result = await callTradingApi('VerifyAddFixedPriceItem', buildXml(item), { timeoutMs });
+  } catch (err) {
+    // If eBay rejects the category, retry without <PrimaryCategory> so eBay
+    // can auto-assign the correct category via GTIN/EAN catalog matching.
+    if (err.code === 'EBAY_TRADING_CALL_FAILED' && isCategoryMismatchError(err.details?.errors)) {
+      const itemWithoutCategory = { ...item, primaryCategoryId: undefined };
+      result = await callTradingApi('VerifyAddFixedPriceItem', buildXml(itemWithoutCategory), { timeoutMs });
+    } else {
+      throw err;
+    }
+  }
   const response = result?.response || {};
   return {
     ack: result.ack,

@@ -141,6 +141,10 @@ async function getRulebookConfig({ maxAgeMs = 30_000 } = {}) {
   return await loadRulebookConfigFromFirestore();
 }
 
+// Warm the in-memory cache on startup so admin edits survive process restarts.
+// Best-effort only; callers can still rely on DEFAULT_CONFIG if Firestore is unavailable.
+getRulebookConfig({ maxAgeMs: 0 }).catch(() => {});
+
 module.exports = {
   DEFAULT_CONFIG,
   getRulebookConfigCached,

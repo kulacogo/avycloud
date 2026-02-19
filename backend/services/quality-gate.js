@@ -238,7 +238,7 @@ async function compressImagePart({ base64, mimeType }) {
 }
 
 function buildRuleIssues(product, { webEvidence } = {}) {
-  const q = evaluateEbayReady(product);
+  const q = evaluateEbayReady(product, { force: true });
   const issues = [];
   const details = product?.details || {};
   const attrs = details?.attributes && typeof details.attributes === 'object' ? details.attributes : {};
