@@ -211,6 +211,25 @@ function isAckSuccess(ack) {
   return value === 'success' || value === 'warning';
 }
 
+// eBay error codes that indicate the specified category is wrong and eBay wants to
+// auto-assign it (e.g. via GTIN/EAN catalog match). Retrying without <PrimaryCategory>
+// lets eBay pick the correct category from its catalog.
+const CATEGORY_MISMATCH_CODES = new Set([
+  '21916248', // Item must be in the catalog category
+  '21919077', // Category has been changed for this listing
+  '21919197', // Category is not valid for catalog-based listing
+  '21916284', // Item is listed in the wrong category
+]);
+
+function isCategoryMismatchError(errors) {
+  if (!Array.isArray(errors) || !errors.length) return false;
+  return errors.some((e) => {
+    if (CATEGORY_MISMATCH_CODES.has(safeString(e?.code))) return true;
+    const msg = (safeString(e?.longMessage) + ' ' + safeString(e?.shortMessage)).toLowerCase();
+    return msg.includes('kategorie') || msg.includes('category');
+  });
+}
+
 function mapItemSpecifics(itemSpecificsNode) {
   const out = {};
   const list = asArray(itemSpecificsNode?.NameValueList);
@@ -469,8 +488,9 @@ function buildAddFixedPriceItemXml(item, cfg) {
   if (subtitle) fields.push(`<SubTitle>${escapeXml(subtitle)}</SubTitle>`);
 
   const categoryId = safeString(item?.primaryCategoryId);
-  if (!categoryId) throw Object.assign(new Error('primaryCategoryId is required'), { code: 'EBAY_ADD_FIELD_MISSING' });
-  fields.push(`<PrimaryCategory><CategoryID>${escapeXml(categoryId)}</CategoryID></PrimaryCategory>`);
+  if (categoryId) {
+    fields.push(`<PrimaryCategory><CategoryID>${escapeXml(categoryId)}</CategoryID></PrimaryCategory>`);
+  }
 
   if (typeof item?.description === 'string') {
     fields.push(`<Description>${asCdata(item.description)}</Description>`);
@@ -551,8 +571,19 @@ function buildAddFixedPriceItemXml(item, cfg) {
 
 async function addFixedPriceItem(item, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const cfg = await getEbayTradingConfig();
-  const requestXml = buildAddFixedPriceItemXml(item, cfg);
-  const result = await callTradingApi('AddFixedPriceItem', requestXml, { timeoutMs });
+  let result;
+  try {
+    result = await callTradingApi('AddFixedPriceItem', buildAddFixedPriceItemXml(item, cfg), { timeoutMs });
+  } catch (err) {
+    // If eBay rejects the category, retry without <PrimaryCategory> so eBay
+    // can auto-assign the correct category via GTIN/EAN catalog matching.
+    if (err.code === 'EBAY_TRADING_CALL_FAILED' && isCategoryMismatchError(err.details?.errors)) {
+      const itemWithoutCategory = { ...item, primaryCategoryId: undefined };
+      result = await callTradingApi('AddFixedPriceItem', buildAddFixedPriceItemXml(itemWithoutCategory, cfg), { timeoutMs });
+    } else {
+      throw err;
+    }
+  }
   const response = result?.response || {};
   return {
     ack: result.ack,
