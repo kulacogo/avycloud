@@ -195,7 +195,16 @@ function sanitizeSpecificValues(valuesRaw, meta) {
 
 function filterPatchItemSpecificsForListing({ categoryId, listing, itemSpecifics }) {
   const specifics = itemSpecifics && typeof itemSpecifics === 'object' ? itemSpecifics : {};
-  const { byToken } = buildAspectTokenMeta(categoryId);
+  const requestedCategoryId = safeString(categoryId);
+  const listingCategoryId =
+    coerceEbayCategoryId(listing?.primaryCategoryId) || safeString(listing?.primaryCategoryId);
+  const primaryMeta = buildAspectTokenMeta(requestedCategoryId);
+  const primaryByToken = primaryMeta?.byToken instanceof Map ? primaryMeta.byToken : new Map();
+  const fallbackByToken = (() => {
+    if (!listingCategoryId || listingCategoryId === requestedCategoryId) return new Map();
+    const fallbackMeta = buildAspectTokenMeta(listingCategoryId);
+    return fallbackMeta?.byToken instanceof Map ? fallbackMeta.byToken : new Map();
+  })();
   const catalogBased = isCatalogBasedListing(listing);
   const out = {};
   const dropped = [];
@@ -208,13 +217,35 @@ function filterPatchItemSpecificsForListing({ categoryId, listing, itemSpecifics
       dropped.push({ key, reason: 'technical' });
       return;
     }
-    const meta = byToken.get(token) || null;
-    if (catalogBased && meta) {
-      const applicableTo = Array.isArray(meta.applicableTo) ? meta.applicableTo : [];
-      const productOnly = applicableTo.includes('PRODUCT') && !applicableTo.includes('ITEM');
-      if (productOnly) {
-        dropped.push({ key, reason: 'product_aspect' });
-        return;
+    const primaryTokenMeta = primaryByToken.get(token) || null;
+    const fallbackTokenMeta = fallbackByToken.get(token) || null;
+    const meta = primaryTokenMeta || fallbackTokenMeta || null;
+    if (catalogBased) {
+      if (primaryTokenMeta) {
+        const applicableTo = Array.isArray(primaryTokenMeta.applicableTo) ? primaryTokenMeta.applicableTo : [];
+        // If the requested category's metadata doesn't tell us if this is PRODUCT vs ITEM,
+        // fall back to the listing category's metadata when available.
+        if (applicableTo.length) {
+          const productOnly = applicableTo.includes('PRODUCT') && !applicableTo.includes('ITEM');
+          if (productOnly) {
+            dropped.push({ key, reason: 'product_aspect' });
+            return;
+          }
+        } else if (fallbackTokenMeta) {
+          const fbApplicableTo = Array.isArray(fallbackTokenMeta.applicableTo) ? fallbackTokenMeta.applicableTo : [];
+          const productOnly = fbApplicableTo.includes('PRODUCT') && !fbApplicableTo.includes('ITEM');
+          if (productOnly) {
+            dropped.push({ key, reason: 'product_aspect' });
+            return;
+          }
+        }
+      } else if (fallbackTokenMeta) {
+        const applicableTo = Array.isArray(fallbackTokenMeta.applicableTo) ? fallbackTokenMeta.applicableTo : [];
+        const productOnly = applicableTo.includes('PRODUCT') && !applicableTo.includes('ITEM');
+        if (productOnly) {
+          dropped.push({ key, reason: 'product_aspect' });
+          return;
+        }
       }
     }
     const values = sanitizeSpecificValues(rawVals, meta);
@@ -222,7 +253,7 @@ function filterPatchItemSpecificsForListing({ categoryId, listing, itemSpecifics
     out[key] = values;
   });
 
-  return { itemSpecifics: out, dropped, catalogBased };
+  return { itemSpecifics: out, dropped, catalogBased, metaCategoryId: requestedCategoryId || null };
 }
 
 function cleanUndefined(value) {
