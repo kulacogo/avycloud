@@ -200,6 +200,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterQuality') as any) || 'all';
   });
+  const [filterEbay, setFilterEbay] = useState<'all' | 'listed' | 'notListed'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterEbay') as any) || 'all';
+  });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(() => {
     if (typeof window === 'undefined') return { key: 'ops.last_saved_iso', direction: 'desc' };
     try {
@@ -675,6 +679,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       {
         id: 'ebay',
         label: 'eBay',
+        sortKey: 'ebay.listed',
         defaultVisible: true,
         render: ({ product }) => {
           // Primär: aus ebayListingLinks (matched via SKU/EAN wie auf der eBay-Seite)
@@ -962,6 +967,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterQuality === 'error' && gateHas && gateErrors > 0) ||
         (filterQuality === 'issues' && gateHasIssues);
 
+      const isEbayListed = Boolean(
+        ebayLinkedMap.get(p.id) || (p as any)?.marketplace?.ebay?.itemId
+      );
+      const matchesEbay =
+        filterEbay === 'all' ||
+        (filterEbay === 'listed' && isEbayListed) ||
+        (filterEbay === 'notListed' && !isEbayListed);
+
       return (
         matchesSearch &&
         matchesStatus &&
@@ -975,7 +988,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         matchesReserved &&
         matchesAvailable &&
         matchesCompleteness &&
-        matchesQuality
+        matchesQuality &&
+        matchesEbay
       );
     });
 
@@ -1003,6 +1017,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
             return (primaryBin(product) || '').toString().toLowerCase();
           case 'identification.name':
             return (product.identification?.name || '').toString().toLowerCase();
+          case 'ebay.listed':
+            return Boolean(ebayLinkedMap.get(product.id) || (product as any)?.marketplace?.ebay?.itemId) ? 1 : 0;
           default:
             return getNestedValue(product, key);
         }
@@ -1045,6 +1061,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     filterAvailable,
     filterCompleteness,
     filterQuality,
+    filterEbay,
+    ebayLinkedMap,
     sortConfig,
   ]);
 
@@ -1653,6 +1671,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterAvailable', filterAvailable);
   }, [filterAvailable]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterEbay', filterEbay);
+  }, [filterEbay]);
   // Note: legacy filters (inventoryId, eBay category) removed to reduce UI clutter.
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1845,6 +1867,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <option value="all">BaseLinker: Alle</option>
             <option value="linked">BaseLinker: verknüpft</option>
             <option value="unlinked">BaseLinker: nicht verknüpft</option>
+          </select>
+          <select
+            id="table-filter-ebay"
+            value={filterEbay}
+            onChange={(e) => setFilterEbay(e.target.value as any)}
+            className={filterControlClass}
+          >
+            <option value="all">eBay: Alle</option>
+            <option value="listed">eBay: gelistet</option>
+            <option value="notListed">eBay: nicht gelistet</option>
           </select>
           <select
             id="table-filter-weight"
