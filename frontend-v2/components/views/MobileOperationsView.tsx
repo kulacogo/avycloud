@@ -11,6 +11,7 @@ type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'opera
 type MobilePickTask = {
   orderId: string;
   orderNumber?: string | null;
+  orderCreatedAt?: string | null;
   itemId: string;
   name: string;
   sku: string;
@@ -375,25 +376,42 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const pickTasks = useMemo(() => {
     const tasks: MobilePickTask[] = [];
 
-    const chooseBestBin = (product: Product | null) => {
-      if (!product) return null;
+    // Allocate available BIN quantities across tasks deterministically so multiple orders
+    // don't all "claim" the same BIN when stock is split (prevents impossible pick routes).
+    const binPoolByProductId = new Map<string, Array<{ code: string; quantity: number }>>();
+
+    const getBinPool = (product: Product): Array<{ code: string; quantity: number }> => {
+      const cached = binPoolByProductId.get(product.id);
+      if (cached) return cached;
+
       const bins = Array.isArray(product.storageBins) ? product.storageBins : [];
-      const positive = bins
+      const pool = bins
         .filter((b) => b && b.code && Number(b.quantity || 0) > 0)
         .map((b) => ({
           code: String(b.code).toUpperCase(),
           quantity: getAdjustedBinQty(product.id, String(b.code), Number(b.quantity || 0) || 0),
         }))
         .filter((b) => b.quantity > 0);
-      if (positive.length) {
-        positive.sort((a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code));
-        return positive[0];
-      }
-      if (product.storage?.binCode) {
+
+      if (!pool.length && product.storage?.binCode) {
         const base = Number(product.storage.quantity || 0) || 0;
-        return { code: String(product.storage.binCode).toUpperCase(), quantity: getAdjustedBinQty(product.id, String(product.storage.binCode), base) };
+        const adjusted = getAdjustedBinQty(product.id, String(product.storage.binCode), base);
+        if (adjusted > 0) {
+          pool.push({ code: String(product.storage.binCode).toUpperCase(), quantity: adjusted });
+        }
       }
-      return null;
+
+      pool.sort((a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code));
+      binPoolByProductId.set(product.id, pool);
+      return pool;
+    };
+
+    const chooseAllocatableBin = (product: Product | null) => {
+      if (!product) return null;
+      const pool = getBinPool(product);
+      if (!pool.length) return null;
+      pool.sort((a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code));
+      return pool.find((b) => b.quantity > 0) || null;
     };
 
     openOrders.forEach((order) => {
@@ -418,9 +436,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           normalizeScan(product?.id) ||
           itemId;
 
-        const bestBin =
-          chooseBestBin(product) ||
-          (hint?.binCode ? { code: String(hint.binCode).toUpperCase(), quantity: Number(hint.quantityAvailable || 0) || 0 } : null);
+        const allocatedBin = chooseAllocatableBin(product);
+        const fallbackHintBin = hint?.binCode ? String(hint.binCode).toUpperCase() : '';
+        const bestBin = allocatedBin || (fallbackHintBin ? { code: fallbackHintBin, quantity: Number(hint.quantityAvailable || 0) || 0 } : null);
 
         const binCode = bestBin?.code || '';
         const availableInBin = Number.isFinite(Number(bestBin?.quantity)) ? Number(bestBin?.quantity || 0) : null;
@@ -429,9 +447,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             ? Math.max(1, Math.min(remainingTotal, availableInBin))
             : Math.max(1, remainingTotal);
 
+        if (allocatedBin) {
+          allocatedBin.quantity = Math.max(0, allocatedBin.quantity - suggestedQty);
+        }
+
         tasks.push({
           orderId: order.id,
           orderNumber: order.number,
+          orderCreatedAt: order.createdAt || null,
           itemId,
           name: hint?.productName || product?.identification?.name || it.name,
           sku: skuCandidate,
@@ -831,12 +854,20 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           setPickMessageTone('error');
           return;
         }
-        if (matches.length > 1) {
-          setPickMessage(t('ops.mobile.pick.scan.ambiguous'));
-          setPickMessageTone('error');
-          return;
-        }
-        const candidate = matches[0];
+        // If multiple orders contain the same SKU in the same BIN, pick the oldest order first (FIFO)
+        // to keep the scanner flow unblocked and deterministic.
+        const candidate =
+          matches.length > 1
+            ? [...matches].sort((a, b) => {
+                const aTs = Date.parse(a.orderCreatedAt || '') || 0;
+                const bTs = Date.parse(b.orderCreatedAt || '') || 0;
+                if (aTs !== bTs) return aTs - bTs;
+                const aOrder = (a.orderNumber || a.orderId || '').toString();
+                const bOrder = (b.orderNumber || b.orderId || '').toString();
+                if (aOrder !== bOrder) return aOrder.localeCompare(bOrder);
+                return (a.itemId || '').localeCompare(b.itemId || '');
+              })[0]
+            : matches[0];
         const key = `${candidate.orderId}-${candidate.itemId}-${candidate.binCode}`;
         const targetQty = Math.max(1, Number(candidate.suggestedQty || 1) || 1);
         setHighlightKey(key);

@@ -23,16 +23,49 @@ function setCacheEntry(cache, keys, value) {
   });
 }
 
+function normalizeBinCode(value) {
+  if (!value) return '';
+  return String(value).trim().toUpperCase();
+}
+
 function buildPickHint(product, fallbackItem) {
   if (!product) return null;
-  const primaryBin =
-    product.storage?.binCode ||
-    (Array.isArray(product.storageBins) && product.storageBins.length > 0 ? product.storageBins[0]?.code : null);
-  const primaryQuantity =
-    product.storage?.quantity ||
-    (Array.isArray(product.storageBins) && product.storageBins.length > 0 ? product.storageBins[0]?.quantity : null) ||
-    product.inventory?.quantity ||
-    null;
+
+  const rawBins = Array.isArray(product.storageBins) ? product.storageBins : [];
+  const bins = rawBins
+    .map((b) => ({
+      code: normalizeBinCode(b?.code || b?.binCode),
+      quantity: Number(b?.quantity || 0) || 0,
+    }))
+    .filter((b) => Boolean(b.code));
+
+  // Prefer a stable "primary" bin if the product has one, but ensure the quantity matches THAT bin
+  // (not a potentially aggregated product.storage.quantity).
+  const storagePrimaryCode = normalizeBinCode(product.storage?.binCode);
+  const primaryFromBins = storagePrimaryCode ? bins.find((b) => b.code === storagePrimaryCode) : null;
+
+  let primaryBin = storagePrimaryCode || null;
+  let primaryQuantity = null;
+
+  if (primaryBin) {
+    if (primaryFromBins) {
+      primaryQuantity = primaryFromBins.quantity;
+    } else if (typeof product.storage?.quantity === 'number' && Number.isFinite(product.storage.quantity)) {
+      primaryQuantity = product.storage.quantity;
+    }
+  } else if (bins.length) {
+    // No explicit primary bin → pick the bin with stock (or the first known bin as fallback).
+    const candidates = bins.filter((b) => b.quantity > 0);
+    const list = candidates.length ? candidates : bins;
+    list.sort((a, b) => (b.quantity - a.quantity) || a.code.localeCompare(b.code));
+    primaryBin = list[0]?.code || null;
+    primaryQuantity = typeof list[0]?.quantity === 'number' ? list[0].quantity : null;
+  }
+
+  if (primaryQuantity == null) {
+    const invQty = product.inventory?.quantity;
+    primaryQuantity = typeof invQty === 'number' && Number.isFinite(invQty) ? invQty : null;
+  }
 
   return {
     productId: product.id,
@@ -106,5 +139,6 @@ async function attachPickHintsToOrders(orders = []) {
 
 module.exports = {
   attachPickHintsToOrders,
+  __test__buildPickHint: buildPickHint,
 };
 

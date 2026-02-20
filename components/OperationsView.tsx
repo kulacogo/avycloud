@@ -277,20 +277,38 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     const normalizeSku = (value?: string | null) =>
       (value || '').toString().trim().toUpperCase();
 
-    const chooseBestBinForProduct = (product: Product | null) => {
-      if (!product) return null;
+    // Allocate available BIN quantities across tasks deterministically so split stock
+    // doesn't produce impossible pick routes (e.g. 2 picks from a BIN that only has 1).
+    const binPoolByProductId = new Map<string, Array<{ code: string; quantity: number }>>();
+
+    const getBinPool = (product: Product): Array<{ code: string; quantity: number }> => {
+      const cached = binPoolByProductId.get(product.id);
+      if (cached) return cached;
+
       const bins = Array.isArray(product.storageBins) ? product.storageBins : [];
-      const positive = bins
+      const pool = bins
         .filter((b) => b && b.code && Number(b.quantity || 0) > 0)
-        .map((b) => ({ code: String(b.code).toUpperCase(), quantity: Number(b.quantity || 0) || 0 }));
-      if (positive.length) {
-        positive.sort((a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code));
-        return positive[0];
+        .map((b) => ({ code: String(b.code).toUpperCase(), quantity: Number(b.quantity || 0) || 0 }))
+        .filter((b) => b.quantity > 0);
+
+      if (!pool.length && product.storage?.binCode) {
+        const base = Number(product.storage.quantity || 0) || 0;
+        if (base > 0) {
+          pool.push({ code: String(product.storage.binCode).toUpperCase(), quantity: base });
+        }
       }
-      if (product.storage?.binCode) {
-        return { code: String(product.storage.binCode).toUpperCase(), quantity: Number(product.storage.quantity || 0) || 0 };
-      }
-      return null;
+
+      pool.sort((a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code));
+      binPoolByProductId.set(product.id, pool);
+      return pool;
+    };
+
+    const chooseAllocatableBin = (product: Product | null) => {
+      if (!product) return null;
+      const pool = getBinPool(product);
+      if (!pool.length) return null;
+      pool.sort((a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code));
+      return pool.find((b) => b.quantity > 0) || null;
     };
 
     openOrders.forEach((order) => {
@@ -318,9 +336,9 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
         if (!skuCandidate) return;
 
-        const bestBin =
-          chooseBestBinForProduct(product) ||
-          (hint?.binCode ? { code: String(hint.binCode).toUpperCase(), quantity: Number(hint.quantityAvailable || 0) || 0 } : null);
+        const allocatedBin = chooseAllocatableBin(product);
+        const fallbackHintBin = hint?.binCode ? String(hint.binCode).toUpperCase() : '';
+        const bestBin = allocatedBin || (fallbackHintBin ? { code: fallbackHintBin, quantity: Number(hint.quantityAvailable || 0) || 0 } : null);
 
         const binCode = bestBin?.code || '';
         const availableInBin =
@@ -334,6 +352,10 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           typeof availableInBin === 'number' && Number.isFinite(availableInBin) && availableInBin > 0
             ? Math.max(1, Math.min(remainingTotal, availableInBin))
             : remainingTotal;
+
+        if (allocatedBin) {
+          allocatedBin.quantity = Math.max(0, allocatedBin.quantity - pickNow);
+        }
 
         tasks.push({
           orderId: order.id,
