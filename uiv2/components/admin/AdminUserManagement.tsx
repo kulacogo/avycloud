@@ -1,4 +1,5 @@
 import React from 'react';
+import { Pencil, Trash2, RefreshCw, Copy } from 'lucide-react';
 import { adminInviteUser, adminListUsers, adminSetUserRoles, type AdminUserRecord } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { Notice } from '../ui/Notice';
@@ -6,6 +7,21 @@ import { Notice } from '../ui/Notice';
 const ROLE_OPTIONS = ['admin', 'manager', 'operation', 'catalog'] as const;
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
+const getInitials = (email: string) => {
+  const name = email.split('@')[0] || '';
+  const parts = name.split(/[._-]/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
+
+const AVATAR_COLORS = [
+  'linear-gradient(135deg, #635BFF, #0070F3)',
+  'linear-gradient(135deg, #0E9F6E, #059669)',
+  'linear-gradient(135deg, #D97706, #F59E0B)',
+  'linear-gradient(135deg, #DC2626, #F87171)',
+  'linear-gradient(135deg, #5E6E80, #8898AA)',
+];
 
 export const AdminUserManagement: React.FC = () => {
   const { logout } = useAuth();
@@ -67,23 +83,9 @@ export const AdminUserManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold">Admin: User Management</h2>
-          <p className="text-sm text-[color:var(--text-tertiary)]">User anlegen, Rollen zuweisen, Zugang aktivieren via Mail-Links.</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => logout()}
-          className="rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-secondary)] px-4 py-2 text-sm font-semibold text-[color:white]"
-        >
-          Logout
-        </button>
-      </div>
-
+    <>
       {error && (
-        <div className="rounded-xl border border-[var(--error-border)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[color:var(--error)]">
+        <div className="alert alert-error" style={{ marginBottom: 'var(--space-5)' }}>
           {error}
         </div>
       )}
@@ -92,80 +94,107 @@ export const AdminUserManagement: React.FC = () => {
         <Notice tone={notice.tone} title={notice.title} onDismiss={() => setNotice(null)} details={notice.details} />
       ) : null}
 
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/60 p-5 space-y-4">
-        <h3 className="font-semibold">User einladen</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input
-            type="email"
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-            placeholder="user@trendocean.de"
-            className="md:col-span-2 rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] px-3 py-2.5 text-[color:var(--text-primary)] outline-none focus:border-[var(--avy-purple)]"
-          />
-          <button
-            type="button"
-            disabled={inviting || !inviteEmail.trim()}
-            onClick={invite}
-            className="rounded-xl bg-[var(--avy-purple)] hover:bg-[var(--avy-purple-hover)] disabled:opacity-60 px-4 py-2.5 font-semibold text-[color:white]"
-          >
-            {inviting ? 'Sende…' : 'Invite senden'}
-          </button>
+      {/* Invite Card */}
+      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+        <div className="card-header">
+          <span className="card-title">User einladen</span>
         </div>
-        <div className="flex flex-wrap gap-3">
-          {ROLE_OPTIONS.map((role) => (
-            <label key={role} className="flex items-center gap-2 text-sm text-[color:var(--text-primary)]">
+        <div style={{ padding: 'var(--space-5) var(--space-6)' }}>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">E-Mail Adresse</label>
               <input
-                type="checkbox"
-                checked={inviteRoles.includes(role)}
-                onChange={() => toggleInviteRole(role)}
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="user@trendocean.de"
+                className="form-input"
               />
-              <span>{role}</span>
-            </label>
-          ))}
+            </div>
+            <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button
+                type="button"
+                disabled={inviting || !inviteEmail.trim()}
+                onClick={invite}
+                className="btn btn-primary"
+              >
+                {inviting ? 'Sende...' : 'Invite senden'}
+              </button>
+            </div>
+            <div className="form-group full">
+              <label className="form-label">Rollen zuweisen</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                {ROLE_OPTIONS.map((role) => (
+                  <label key={role} className="toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={inviteRoles.includes(role)}
+                      onChange={() => toggleInviteRole(role)}
+                    />
+                    <span>{role}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="form-hint" style={{ marginTop: '8px' }}>
+                Der Invite enthalt <strong>Passwort-Reset</strong> + <strong>E-Mail-Verifizierung</strong>.
+              </div>
+            </div>
+          </div>
         </div>
-        <p className="text-xs text-[color:var(--text-tertiary)]">
-          Der Invite enthält <strong>Passwort-Reset</strong> + <strong>E-Mail-Verifizierung</strong>.
-        </p>
       </div>
 
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/60 p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">Users</h3>
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-secondary)] disabled:opacity-60 px-3 py-2 text-sm font-semibold text-[color:white]"
-          >
-            Refresh
-          </button>
+      {/* Users Table */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Alle Benutzer ({users.length})</span>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button type="button" onClick={load} disabled={loading} className="btn btn-secondary btn-sm">
+              <RefreshCw size={12} />
+              Refresh
+            </button>
+          </div>
         </div>
-
-        {loading ? (
-          <div className="text-sm text-[color:var(--text-tertiary)]">Lade…</div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="min-w-full text-sm">
-              <thead className="text-[color:var(--text-tertiary)]">
+        <div style={{ overflowX: 'auto' }}>
+          {loading ? (
+            <div style={{ padding: 'var(--space-6)', fontSize: '13px', color: 'var(--text-tertiary)' }}>Lade...</div>
+          ) : (
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="text-left py-2 pr-3">Email</th>
-                  <th className="text-left py-2 pr-3">UID</th>
-                  <th className="text-left py-2 pr-3">Roles</th>
-                  <th className="text-left py-2 pr-3">Aktion</th>
+                  <th>Benutzer</th>
+                  <th className="hide-mobile">UID</th>
+                  <th>Rollen</th>
+                  <th style={{ textAlign: 'right' }}>Aktionen</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => {
+                {users.map((u, idx) => {
                   const uid = (u.uid as string) || u.id;
                   const roles = Array.isArray(u.roles) ? u.roles : [];
+                  const email = u.email || '';
                   return (
-                    <tr key={uid} className="border-t border-[var(--border)]">
-                      <td className="py-2 pr-3 text-[color:var(--text-primary)]">{u.email || '—'}</td>
-                      <td className="py-2 pr-3 text-xs text-[color:var(--text-tertiary)]">{uid}</td>
-                      <td className="py-2 pr-3">
-                        <div className="flex flex-wrap gap-2">
+                    <tr key={uid}>
+                      <td>
+                        <div className="user-cell">
+                          <div
+                            className="avatar"
+                            style={{ background: AVATAR_COLORS[idx % AVATAR_COLORS.length] }}
+                          >
+                            {getInitials(email || uid)}
+                          </div>
+                          <div>
+                            <div className="user-cell-name">{email || uid}</div>
+                            <div className="user-cell-email">{uid}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="hide-mobile" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                        {uid}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                           {ROLE_OPTIONS.map((role) => (
-                            <label key={role} className="flex items-center gap-1 text-xs text-[color:var(--text-primary)]">
+                            <label key={role} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
                               <input
                                 type="checkbox"
                                 checked={roles.includes(role)}
@@ -175,39 +204,48 @@ export const AdminUserManagement: React.FC = () => {
                                     : [...roles, role];
                                   updateUserRoles(uid, next);
                                 }}
+                                style={{ accentColor: 'var(--avy-purple)' }}
                               />
-                              <span>{role}</span>
+                              <span className={`role-badge ${role}`}>{role}</span>
                             </label>
                           ))}
                         </div>
                       </td>
-                      <td className="py-2 pr-3">
-                        <button
-                          type="button"
-                          className="rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-secondary)] px-3 py-1.5 text-xs font-semibold text-[color:white]"
-                          onClick={() => {
-                            navigator.clipboard?.writeText(String(u.email || '')).catch(() => {});
-                          }}
-                        >
-                          Email kopieren
-                        </button>
+                      <td>
+                        <div className="action-group" style={{ justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            className="action-btn"
+                            title="Email kopieren"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(String(email)).catch(() => {});
+                            }}
+                          >
+                            <Copy size={14} />
+                          </button>
+                          <button type="button" className="action-btn" title="Bearbeiten">
+                            <Pencil size={14} />
+                          </button>
+                          <button type="button" className="action-btn danger" title="Loeschen">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="py-4 text-[color:var(--text-tertiary)]">
+                    <td colSpan={4} style={{ color: 'var(--text-tertiary)', textAlign: 'center', padding: 'var(--space-8)' }}>
                       Keine Users gefunden.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
-

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Plus, RefreshCw, Trash2, UserPlus, UserMinus } from 'lucide-react';
 import {
   adminCreateGroup,
   adminDeleteGroup,
@@ -22,6 +23,21 @@ const normalizeId = (value: string) =>
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
+
+const AVATAR_COLORS = [
+  'linear-gradient(135deg, #635BFF, #0070F3)',
+  'linear-gradient(135deg, #0E9F6E, #059669)',
+  'linear-gradient(135deg, #D97706, #F59E0B)',
+  'linear-gradient(135deg, #DC2626, #F87171)',
+  'linear-gradient(135deg, #5E6E80, #8898AA)',
+];
+
+const getInitials = (email: string) => {
+  const name = email.split('@')[0] || '';
+  const parts = name.split(/[._-]/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
 
 export const AdminGroupManagement: React.FC = () => {
   const [groups, setGroups] = React.useState<AdminGroupRecord[]>([]);
@@ -131,24 +147,16 @@ export const AdminGroupManagement: React.FC = () => {
       await adminDeleteGroup(selectedGroupId);
       setSelectedGroupId(null);
       await load();
-      setNotice({ tone: 'success', title: 'Gruppe gelöscht' });
+      setNotice({ tone: 'success', title: 'Gruppe geloescht' });
     } catch (e: any) {
       setError(e?.message || 'Failed to delete group');
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold">Admin: Groups</h2>
-        <p className="text-sm text-[color:var(--text-tertiary)]">
-          Best practice: Rechte werden primär über Rollen vergeben. Gruppen bündeln Rollen; User können zusätzlich direkte
-          Overrides bekommen (sparsam nutzen).
-        </p>
-      </div>
-
+    <>
       {error && (
-        <div className="rounded-xl border border-[var(--error-border)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[color:var(--error)]">
+        <div className="alert alert-error" style={{ marginBottom: 'var(--space-5)' }}>
           {error}
         </div>
       )}
@@ -158,18 +166,18 @@ export const AdminGroupManagement: React.FC = () => {
 
       <ConfirmDialog
         open={deleteDialogOpen}
-        title="Gruppe löschen?"
+        title="Gruppe loeschen?"
         tone="danger"
         description={
           selectedGroupId ? (
             <span>
-              Gruppe <b>{selectedGroupId}</b> wird dauerhaft gelöscht.
+              Gruppe <b>{selectedGroupId}</b> wird dauerhaft geloescht.
             </span>
           ) : (
-            'Gruppe wird dauerhaft gelöscht.'
+            'Gruppe wird dauerhaft geloescht.'
           )
         }
-        confirmLabel="Löschen"
+        confirmLabel="Loeschen"
         onCancel={() => setDeleteDialogOpen(false)}
         onConfirm={async () => {
           await confirmDeleteSelectedGroup();
@@ -177,155 +185,194 @@ export const AdminGroupManagement: React.FC = () => {
         }}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/60 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Gruppen</h3>
-            <button
-              type="button"
-              onClick={load}
-              disabled={loading}
-              className="rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-secondary)] disabled:opacity-60 px-3 py-2 text-sm font-semibold text-[color:white]"
-            >
-              Refresh
-            </button>
-          </div>
+      {/* Header with new group creation */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-5)' }}>
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>Gruppen verwalten</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Organisiere Benutzer in Arbeitsgruppen</div>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button type="button" onClick={load} disabled={loading} className="btn btn-secondary btn-sm">
+            <RefreshCw size={12} />
+            Refresh
+          </button>
+        </div>
+      </div>
 
-          <div className="space-y-2">
-            <input
-              value={newGroupName}
-              onChange={(e) => {
-                setNewGroupName(e.target.value);
-                if (!newGroupId.trim()) setNewGroupId(normalizeId(e.target.value));
-              }}
-              placeholder="Group name (z.B. Lager-Team)"
-              className="w-full rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] px-3 py-2.5 text-[color:var(--text-primary)] outline-none focus:border-[var(--avy-purple)]"
-            />
-            <input
-              value={newGroupId}
-              onChange={(e) => setNewGroupId(e.target.value)}
-              placeholder="groupId (optional, z.B. lager-team)"
-              className="w-full rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] px-3 py-2.5 text-[color:var(--text-primary)] outline-none focus:border-[var(--avy-purple)]"
-            />
-            <button
-              type="button"
-              onClick={create}
-              disabled={!newGroupName.trim()}
-              className="w-full rounded-xl bg-[var(--avy-purple)] hover:bg-[var(--avy-purple-hover)] disabled:opacity-60 px-4 py-2.5 font-semibold text-[color:white]"
-            >
+      {/* Create Group Card */}
+      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+        <div className="card-header">
+          <span className="card-title">Neue Gruppe erstellen</span>
+        </div>
+        <div style={{ padding: 'var(--space-5) var(--space-6)' }}>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">Gruppenname</label>
+              <input
+                value={newGroupName}
+                onChange={(e) => {
+                  setNewGroupName(e.target.value);
+                  if (!newGroupId.trim()) setNewGroupId(normalizeId(e.target.value));
+                }}
+                placeholder="z.B. Lager-Team"
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Group ID <span className="form-label-sub">(optional)</span></label>
+              <input
+                value={newGroupId}
+                onChange={(e) => setNewGroupId(e.target.value)}
+                placeholder="z.B. lager-team"
+                className="form-input"
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--space-4)' }}>
+            <button type="button" onClick={create} disabled={!newGroupName.trim()} className="btn btn-primary">
+              <Plus size={14} />
               Gruppe erstellen
             </button>
           </div>
-
-          <div className="space-y-1">
-            {groups.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => setSelectedGroupId(g.id)}
-                className={`w-full text-left rounded-xl px-3 py-2 text-sm transition-colors ${
-                  selectedGroupId === g.id ? 'bg-[var(--avy-purple-glow)] text-[color:white]' : 'bg-[var(--surface-secondary)]/30 text-[color:var(--text-primary)] hover:bg-[var(--surface)]/40'
-                }`}
-              >
-                <div className="font-semibold">{g.name || g.id}</div>
-                <div className="text-xs text-[color:var(--text-tertiary)]">{g.id}</div>
-              </button>
-            ))}
-            {groups.length === 0 && <div className="text-sm text-[color:var(--text-tertiary)]">Keine Gruppen.</div>}
-          </div>
-        </div>
-
-        <div className="lg:col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/60 p-5 space-y-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="font-semibold">Details</h3>
-              <p className="text-xs text-[color:var(--text-tertiary)]">Gruppe: {selectedGroup?.id || '—'}</p>
-            </div>
-            <button
-              type="button"
-              onClick={deleteSelectedGroup}
-              disabled={!selectedGroupId}
-              className="rounded-xl bg-[var(--error)] hover:bg-[#B91C1C] disabled:opacity-60 px-4 py-2 text-sm font-semibold text-[color:white]"
-            >
-              Gruppe löschen
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-sm font-semibold">Rollen der Gruppe</div>
-            <div className="flex flex-wrap gap-3">
-              {ROLE_OPTIONS.map((role) => (
-                <label key={role} className="flex items-center gap-2 text-sm text-[color:var(--text-primary)]">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(selectedGroup?.roleIds?.includes(role))}
-                    onChange={() => toggleGroupRole(role)}
-                    disabled={!selectedGroup}
-                  />
-                  <span>{role}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="text-sm font-semibold">Members</div>
-              <div className="space-y-1 max-h-[320px] overflow-auto">
-                {members.map((u) => {
-                  const uid = (u.uid as string) || u.id;
-                  return (
-                    <div key={uid} className="flex items-center justify-between gap-2 rounded-xl bg-[var(--surface-secondary)]/30 px-3 py-2">
-                      <div className="min-w-0">
-                        <div className="text-sm text-[color:var(--text-primary)] truncate">{u.email || uid}</div>
-                        <div className="text-xs text-[color:var(--text-tertiary)] truncate">{uid}</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeUserFromGroup(uid)}
-                        className="rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-secondary)] px-3 py-1.5 text-xs font-semibold text-[color:white]"
-                      >
-                        Entfernen
-                      </button>
-                    </div>
-                  );
-                })}
-                {selectedGroupId && members.length === 0 && (
-                  <div className="text-sm text-[color:var(--text-tertiary)]">Keine Members.</div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-sm font-semibold">User hinzufügen</div>
-              <div className="space-y-1 max-h-[320px] overflow-auto">
-                {users.map((u) => {
-                  const uid = (u.uid as string) || u.id;
-                  const inGroup = Boolean(selectedGroupId && Array.isArray((u as any).groupIds) && (u as any).groupIds.includes(selectedGroupId));
-                  return (
-                    <div key={uid} className="flex items-center justify-between gap-2 rounded-xl bg-[var(--surface-secondary)]/20 px-3 py-2">
-                      <div className="min-w-0">
-                        <div className="text-sm text-[color:var(--text-primary)] truncate">{u.email || uid}</div>
-                        <div className="text-xs text-[color:var(--text-tertiary)] truncate">{uid}</div>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={!selectedGroupId || inGroup}
-                        onClick={() => addUserToGroup(uid)}
-                        className="rounded-lg bg-[var(--avy-purple)] hover:bg-[var(--avy-purple)] disabled:opacity-60 px-3 py-1.5 text-xs font-semibold text-[color:white]"
-                      >
-                        {inGroup ? '✓' : 'Add'}
-                      </button>
-                    </div>
-                  );
-                })}
-                {users.length === 0 && <div className="text-sm text-[color:var(--text-tertiary)]">Keine Users geladen.</div>}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
-    </div>
+
+      {/* Group Cards Grid */}
+      <div className="group-grid" style={{ marginBottom: 'var(--space-6)' }}>
+        {groups.map((g) => {
+          const groupMembers = users.filter((u) => Array.isArray((u as any).groupIds) && (u as any).groupIds.includes(g.id));
+          const isSelected = selectedGroupId === g.id;
+          return (
+            <div
+              key={g.id}
+              className="group-card"
+              style={{
+                cursor: 'pointer',
+                borderColor: isSelected ? 'var(--avy-purple)' : undefined,
+                boxShadow: isSelected ? 'var(--shadow-focus)' : undefined,
+              }}
+              onClick={() => setSelectedGroupId(g.id)}
+            >
+              <div className="group-card-name">{g.name || g.id}</div>
+              <div className="group-card-desc">{g.id}</div>
+              <div className="group-card-members">
+                <div className="group-card-avatars">
+                  {groupMembers.slice(0, 3).map((u, idx) => {
+                    const uid = (u.uid as string) || u.id;
+                    return (
+                      <div
+                        key={uid}
+                        className="avatar"
+                        style={{ background: AVATAR_COLORS[idx % AVATAR_COLORS.length] }}
+                      >
+                        {getInitials(u.email || uid)}
+                      </div>
+                    );
+                  })}
+                </div>
+                <span className="group-card-count">
+                  {groupMembers.length} {groupMembers.length === 1 ? 'Mitglied' : 'Mitglieder'}
+                </span>
+              </div>
+              <div className="group-card-footer">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setSelectedGroupId(g.id); }}>
+                  Bearbeiten
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {groups.length === 0 && (
+          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Keine Gruppen.</div>
+        )}
+      </div>
+
+      {/* Selected Group Detail */}
+      {selectedGroup && (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Details: {selectedGroup.name || selectedGroup.id}</span>
+            <button type="button" onClick={deleteSelectedGroup} disabled={!selectedGroupId} className="btn btn-danger btn-sm">
+              <Trash2 size={12} />
+              Gruppe loeschen
+            </button>
+          </div>
+          <div style={{ padding: 'var(--space-5) var(--space-6)' }}>
+            {/* Group Roles */}
+            <div style={{ marginBottom: 'var(--space-5)' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: 'var(--space-3)' }}>Rollen der Gruppe</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                {ROLE_OPTIONS.map((role) => (
+                  <label key={role} className="toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(selectedGroup?.roleIds?.includes(role))}
+                      onChange={() => toggleGroupRole(role)}
+                      disabled={!selectedGroup}
+                    />
+                    <span>{role}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Members + Add User side by side */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-5)' }}>
+              {/* Members */}
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: 'var(--space-3)' }}>Members</div>
+                <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {members.map((u) => {
+                    const uid = (u.uid as string) || u.id;
+                    return (
+                      <div key={uid} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-secondary)' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email || uid}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{uid}</div>
+                        </div>
+                        <button type="button" onClick={() => removeUserFromGroup(uid)} className="btn btn-secondary btn-sm">
+                          <UserMinus size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {selectedGroupId && members.length === 0 && (
+                    <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Keine Members.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Add User */}
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: 'var(--space-3)' }}>User hinzufuegen</div>
+                <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {users.map((u) => {
+                    const uid = (u.uid as string) || u.id;
+                    const inGroup = Boolean(selectedGroupId && Array.isArray((u as any).groupIds) && (u as any).groupIds.includes(selectedGroupId));
+                    return (
+                      <div key={uid} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-secondary)', opacity: inGroup ? 0.5 : 1 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email || uid}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{uid}</div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!selectedGroupId || inGroup}
+                          onClick={() => addUserToGroup(uid)}
+                          className="btn btn-primary btn-sm"
+                        >
+                          <UserPlus size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {users.length === 0 && <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Keine Users geladen.</div>}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
-

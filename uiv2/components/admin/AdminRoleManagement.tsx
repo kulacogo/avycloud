@@ -1,4 +1,5 @@
 import React from 'react';
+import { Star, CheckSquare, Warehouse, Eye, RefreshCw, Pencil, Save } from 'lucide-react';
 import { adminListRoles, adminUpdateRole, type AdminRoleRecord } from '../../api/client';
 
 type PermissionMatrix = Record<string, Record<string, boolean>>;
@@ -43,11 +44,30 @@ const setPermission = (matrix: PermissionMatrix, moduleId: string, action: strin
   return next;
 };
 
+const countPermissions = (matrix: PermissionMatrix | undefined): number => {
+  if (!matrix) return 0;
+  let count = 0;
+  for (const mod of Object.values(matrix)) {
+    for (const v of Object.values(mod)) {
+      if (v) count++;
+    }
+  }
+  return count;
+};
+
+const ROLE_ICONS: Record<string, { icon: React.ReactNode; bg: string }> = {
+  admin: { icon: <Star size={20} strokeWidth={1.5} style={{ color: 'var(--avy-purple)' }} />, bg: 'var(--avy-purple-glow)' },
+  manager: { icon: <CheckSquare size={20} strokeWidth={1.5} style={{ color: 'var(--info)' }} />, bg: 'var(--info-bg)' },
+  operation: { icon: <Warehouse size={20} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />, bg: 'var(--surface-secondary)' },
+  catalog: { icon: <Eye size={20} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />, bg: 'var(--surface-secondary)' },
+};
+
 export const AdminRoleManagement: React.FC = () => {
   const [roles, setRoles] = React.useState<AdminRoleRecord[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [savingRoleId, setSavingRoleId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [expandedRoleId, setExpandedRoleId] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     setError(null);
@@ -92,91 +112,112 @@ export const AdminRoleManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold">Admin: Roles & Rechte</h2>
-          <p className="text-sm text-[color:var(--text-tertiary)]">Rechte pro Role definieren (Backend ist Source of Truth).</p>
-        </div>
-        <button
-          type="button"
-          onClick={load}
-          disabled={loading}
-          className="rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-secondary)] disabled:opacity-60 px-4 py-2 text-sm font-semibold text-[color:white]"
-        >
-          Refresh
-        </button>
-      </div>
-
+    <>
       {error && (
-        <div className="rounded-xl border border-[var(--error-border)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[color:var(--error)]">
+        <div className="alert alert-error" style={{ marginBottom: 'var(--space-5)' }}>
           {error}
         </div>
       )}
 
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-5)' }}>
+        <button type="button" onClick={load} disabled={loading} className="btn btn-secondary btn-sm">
+          <RefreshCw size={12} />
+          Refresh
+        </button>
+      </div>
+
       {loading ? (
-        <div className="text-sm text-[color:var(--text-tertiary)]">Lade…</div>
+        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Lade...</div>
       ) : (
-        <div className="space-y-5">
+        <div className="role-grid">
           {roles.map((role) => {
             const matrix = (role.permissions || {}) as PermissionMatrix;
+            const permCount = countPermissions(matrix);
+            const iconConfig = ROLE_ICONS[role.id] || ROLE_ICONS.catalog;
+            const isExpanded = expandedRoleId === role.id;
+
             return (
-              <div key={role.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/60 p-5 space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-semibold">{role.id}</h3>
-                    <p className="text-xs text-[color:var(--text-tertiary)]">{role.name || ''}</p>
+              <div key={role.id} className="role-card">
+                <div className="role-card-header">
+                  <div className="role-card-icon" style={{ background: iconConfig.bg }}>
+                    {iconConfig.icon}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => saveRole(role)}
-                    disabled={savingRoleId === role.id}
-                    className="rounded-xl bg-[var(--avy-purple)] hover:bg-[var(--avy-purple-hover)] disabled:opacity-60 px-4 py-2 text-sm font-semibold text-[color:white]"
-                  >
-                    {savingRoleId === role.id ? 'Speichere…' : 'Speichern'}
-                  </button>
+                </div>
+                <div className="role-card-name">{role.name || role.id}</div>
+                <div className="role-card-desc">{role.id}</div>
+                <div className="role-card-meta">
+                  <div className="role-card-stat">
+                    <div className="role-card-stat-value">{permCount}</div>
+                    <div className="role-card-stat-label">Berechtigungen</div>
+                  </div>
                 </div>
 
-                <div className="overflow-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="text-[color:var(--text-tertiary)]">
-                      <tr>
-                        <th className="text-left py-2 pr-3">Modul</th>
-                        <th className="text-left py-2 pr-3">Rechte</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {MODULES.map((mod) => (
-                        <tr key={mod.id} className="border-t border-[var(--border)]">
-                          <td className="py-2 pr-3 text-[color:var(--text-primary)] whitespace-nowrap">{mod.label}</td>
-                          <td className="py-2 pr-3">
-                            <div className="flex flex-wrap gap-3">
-                              {mod.actions.map((action) => (
-                                <label key={action} className="flex items-center gap-2 text-xs text-[color:var(--text-primary)]">
-                                  <input
-                                    type="checkbox"
-                                    checked={getPermission(matrix, mod.id, action)}
-                                    onChange={(e) => updateLocalPermission(role.id, mod.id, action, e.target.checked)}
-                                  />
-                                  <span>
-                                    {mod.id}.{action}
-                                  </span>
-                                </label>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {isExpanded && (
+                  <div className="role-card-permissions">
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Modul</th>
+                            <th>Rechte</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {MODULES.map((mod) => (
+                            <tr key={mod.id}>
+                              <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{mod.label}</td>
+                              <td>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                  {mod.actions.map((action) => (
+                                    <label key={action} className="toggle-row" style={{ fontSize: '12px' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={getPermission(matrix, mod.id, action)}
+                                        onChange={(e) => updateLocalPermission(role.id, mod.id, action, e.target.checked)}
+                                      />
+                                      <span>{mod.id}.{action}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="role-card-footer">
+                  {isExpanded && (
+                    <button
+                      type="button"
+                      onClick={() => saveRole(role)}
+                      disabled={savingRoleId === role.id}
+                      className="btn btn-primary btn-sm"
+                      style={{ marginRight: '8px' }}
+                    >
+                      <Save size={12} />
+                      {savingRoleId === role.id ? 'Speichere...' : 'Speichern'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setExpandedRoleId(isExpanded ? null : role.id)}
+                  >
+                    <Pencil size={12} />
+                    {isExpanded ? 'Schliessen' : 'Bearbeiten'}
+                  </button>
                 </div>
               </div>
             );
           })}
-          {roles.length === 0 && <div className="text-sm text-[color:var(--text-tertiary)]">Keine Rollen gefunden.</div>}
+          {roles.length === 0 && (
+            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Keine Rollen gefunden.</div>
+          )}
         </div>
       )}
-    </div>
+    </>
   );
 };
-

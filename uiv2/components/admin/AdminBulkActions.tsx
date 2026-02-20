@@ -1,4 +1,5 @@
 import React from 'react';
+import { Play, RefreshCw, Upload, FileText, Trash2, Users } from 'lucide-react';
 import { adminGetBulkJob, adminRunBulkAction } from '../../api/client';
 import { Spinner } from '../Spinner';
 import { Notice } from '../ui/Notice';
@@ -63,129 +64,186 @@ export const AdminBulkActions: React.FC = () => {
   }, [jobId, refreshJob]);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/50 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold text-[color:white]">Bulk Actions</h3>
-            <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
-              Konsolidierte Bulk-Tasks für Produkt-Details (Titel/Preis/Kategorie). Läuft asynchron als Admin-Job.
-            </p>
+    <>
+      <div style={{ marginBottom: 'var(--space-5)' }}>
+        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>Massenoperationen</div>
+        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Konsolidierte Bulk-Tasks fur Produkt-Details (Titel/Preis/Kategorie). Lauft asynchron als Admin-Job.</div>
+      </div>
+
+      {/* Main Bulk Action Config Card */}
+      <div className="bulk-card" style={{ flexDirection: 'column', gap: 'var(--space-5)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', width: '100%' }}>
+          <div className="bulk-info">
+            <div className="bulk-title">Bulk Action starten</div>
+            <div className="bulk-desc">Wahle die Aktion, konfiguriere die Parameter und starte den Job.</div>
           </div>
-          <button
-            type="button"
-            onClick={run}
-            disabled={running}
-            className="inline-flex items-center gap-2 rounded-xl bg-[var(--avy-purple)] px-4 py-2 text-sm font-semibold text-[color:white] hover:bg-[var(--avy-purple-hover)] disabled:opacity-60"
-          >
-            {running ? <Spinner className="h-4 w-4" /> : null}
+          <button type="button" onClick={run} disabled={running} className="btn btn-primary">
+            {running ? <Spinner className="h-4 w-4" /> : <Play size={14} />}
             Start
           </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-6 gap-3">
-          <label className="flex flex-col gap-1 text-sm text-[color:var(--text-primary)] md:col-span-2">
-            <span className="text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">Action</span>
+        <div className="form-grid" style={{ width: '100%' }}>
+          <div className="form-group">
+            <label className="form-label">Action</label>
             <select
               value={action}
               onChange={(e) => setAction(e.target.value as Action)}
-              className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
+              className="form-select"
             >
               <option value="price">Preis refresh (NEW-only)</option>
               <option value="title">Titel normalisieren (Policy)</option>
               <option value="category">Kategorie IDs backfill (eBay/Kaufland)</option>
-              <option value="ktype">K‑Typ (noch nicht konsolidiert)</option>
+              <option value="ktype">K-Typ (noch nicht konsolidiert)</option>
               <option value="export_marketplace">Export Marketplace (CSV+JSON)</option>
             </select>
-          </label>
+          </div>
 
-          <label className="flex items-center gap-2 text-sm text-[color:var(--text-primary)] md:col-span-1">
-            <input type="checkbox" checked={apply} onChange={(e) => setApply(e.target.checked)} />
-            Write
-          </label>
+          <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--space-4)' }}>
+            <label className="toggle-row">
+              <input type="checkbox" checked={apply} onChange={(e) => setApply(e.target.checked)} />
+              <span>Write</span>
+            </label>
+            <label className="toggle-row">
+              <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} />
+              <span>Debug</span>
+            </label>
+          </div>
 
-          <label className="flex flex-col gap-1 text-sm text-[color:var(--text-primary)]">
-            <span className="text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">limit</span>
+          <div className="form-group">
+            <label className="form-label">Limit</label>
             <input
               type="number"
               min={1}
               max={20000}
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value) || 1)}
-              className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
+              className="form-input"
             />
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-1 text-sm text-[color:var(--text-primary)]">
-            <span className="text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">offset</span>
+          <div className="form-group">
+            <label className="form-label">Offset</label>
             <input
               type="number"
               min={0}
               value={offset}
               onChange={(e) => setOffset(Math.max(0, Number(e.target.value) || 0))}
-              className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
+              className="form-input"
             />
-          </label>
-
-          <label className="flex items-center gap-2 text-sm text-[color:var(--text-primary)]">
-            <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} />
-            Debug
-          </label>
+          </div>
         </div>
 
-        {action === 'price' ? (
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <label className="flex flex-col gap-1 text-sm text-[color:var(--text-primary)]">
-              <span className="text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">maxAgeDays (0 = nur missing)</span>
-              <input
-                type="number"
-                min={0}
-                max={365}
-                value={maxAgeDays}
-                onChange={(e) => setMaxAgeDays(Math.max(0, Number(e.target.value) || 0))}
-                className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
-              />
-            </label>
+        {action === 'price' && (
+          <div className="form-group" style={{ width: '100%' }}>
+            <label className="form-label">maxAgeDays <span className="form-label-sub">(0 = nur missing)</span></label>
+            <input
+              type="number"
+              min={0}
+              max={365}
+              value={maxAgeDays}
+              onChange={(e) => setMaxAgeDays(Math.max(0, Number(e.target.value) || 0))}
+              className="form-input"
+              style={{ maxWidth: '200px' }}
+            />
           </div>
-        ) : null}
+        )}
 
-        {action === 'title' ? (
-          <div className="mt-3">
-            <label className="flex items-center gap-2 text-sm text-[color:var(--text-primary)]">
+        {action === 'title' && (
+          <div style={{ width: '100%' }}>
+            <label className="toggle-row">
               <input type="checkbox" checked={includeUi} onChange={(e) => setIncludeUi(e.target.checked)} />
-              Auch UI-saved Produkte anfassen (includeUi)
+              <span>Auch UI-saved Produkte anfassen (includeUi)</span>
             </label>
           </div>
-        ) : null}
+        )}
 
-        {error ? <div className="mt-4"><Notice tone="error" title="Fehler" details={error} /></div> : null}
+        {error && (
+          <div style={{ width: '100%' }}>
+            <Notice tone="error" title="Fehler" details={error} />
+          </div>
+        )}
       </div>
 
-      {jobId ? (
-        <div className="rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/50 p-4 space-y-3">
-          <div className="flex items-center justify-between gap-3">
+      {/* Static Bulk Action Cards (from mockup) */}
+      <div className="bulk-card">
+        <div className="bulk-icon" style={{ background: 'var(--info-bg)' }}>
+          <Upload size={20} strokeWidth={1.5} style={{ color: 'var(--info)' }} />
+        </div>
+        <div className="bulk-info">
+          <div className="bulk-title">CSV Import</div>
+          <div className="bulk-desc">Importiere Benutzer aus einer CSV-Datei. Format: Name, E-Mail, Rolle, Gruppe.</div>
+        </div>
+        <div className="bulk-actions">
+          <button type="button" className="btn btn-secondary btn-sm">Vorlage herunterladen</button>
+          <button type="button" className="btn btn-primary btn-sm">Importieren</button>
+        </div>
+      </div>
+
+      <div className="bulk-card">
+        <div className="bulk-icon" style={{ background: 'var(--warning-bg)' }}>
+          <Users size={20} strokeWidth={1.5} style={{ color: 'var(--warning)' }} />
+        </div>
+        <div className="bulk-info">
+          <div className="bulk-title">Rollen zuweisen</div>
+          <div className="bulk-desc">Weise mehreren Benutzern gleichzeitig eine neue Rolle zu.</div>
+        </div>
+        <div className="bulk-actions">
+          <button type="button" className="btn btn-secondary btn-sm">Ausfuehren</button>
+        </div>
+      </div>
+
+      <div className="bulk-card">
+        <div className="bulk-icon" style={{ background: 'var(--success-bg)' }}>
+          <FileText size={20} strokeWidth={1.5} style={{ color: 'var(--success)' }} />
+        </div>
+        <div className="bulk-info">
+          <div className="bulk-title">Export Benutzerliste</div>
+          <div className="bulk-desc">Exportiere alle Benutzer mit Rollen und Status als CSV- oder Excel-Datei.</div>
+        </div>
+        <div className="bulk-actions">
+          <button type="button" className="btn btn-secondary btn-sm">CSV</button>
+          <button type="button" className="btn btn-secondary btn-sm">Excel</button>
+        </div>
+      </div>
+
+      <div className="bulk-card">
+        <div className="bulk-icon" style={{ background: 'var(--error-bg)' }}>
+          <Trash2 size={20} strokeWidth={1.5} style={{ color: 'var(--error)' }} />
+        </div>
+        <div className="bulk-info">
+          <div className="bulk-title">Inaktive Benutzer bereinigen</div>
+          <div className="bulk-desc">Deaktiviere oder loesche alle Benutzer, die sich seit uber 90 Tagen nicht angemeldet haben.</div>
+        </div>
+        <div className="bulk-actions">
+          <button type="button" className="btn btn-danger btn-sm">Bereinigen</button>
+        </div>
+      </div>
+
+      {/* Job Status */}
+      {jobId && (
+        <div className="card" style={{ marginTop: 'var(--space-5)' }}>
+          <div className="card-header">
             <div>
-              <p className="text-sm font-semibold text-[color:white]">Job</p>
-              <p className="text-xs text-[color:var(--text-tertiary)] font-mono">{jobId}</p>
+              <span className="card-title">Job</span>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'monospace', marginTop: '2px' }}>{jobId}</div>
             </div>
-            <button
-              type="button"
-              onClick={refreshJob}
-              className="inline-flex items-center gap-2 rounded-xl bg-[var(--surface-hover)]/80 px-3 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[var(--surface)]"
-            >
+            <button type="button" onClick={refreshJob} className="btn btn-secondary btn-sm">
+              <RefreshCw size={12} />
               Refresh
             </button>
           </div>
-          {job ? (
-            <pre className="overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--border)]/60 bg-[var(--bg)]/40 p-3 text-xs text-[color:var(--text-primary)]">
-              {JSON.stringify(job, null, 2)}
-            </pre>
-          ) : (
-            <div className="text-xs text-[color:var(--text-tertiary)]">Loading…</div>
-          )}
+          <div style={{ padding: 'var(--space-4)' }}>
+            {job ? (
+              <pre style={{ overflow: 'auto', whiteSpace: 'pre-wrap', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--surface-secondary)', padding: 'var(--space-3)', fontSize: '11px', color: 'var(--text-primary)' }}>
+                {JSON.stringify(job, null, 2)}
+              </pre>
+            ) : (
+              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Loading...</div>
+            )}
+          </div>
         </div>
-      ) : null}
-    </div>
+      )}
+    </>
   );
 };
-

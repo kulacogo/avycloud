@@ -1,92 +1,88 @@
 import React from 'react';
+import { UserPlus } from 'lucide-react';
 import { AdminUserManagement } from './AdminUserManagement';
 import { AdminRoleManagement } from './AdminRoleManagement';
 import { AdminGroupManagement } from './AdminGroupManagement';
 import { AdminLlmManagement } from './AdminLlmManagement';
 import { AdminBulkActions } from './AdminBulkActions';
 import { AdminIntegrations } from './AdminIntegrations';
-import { PageHeader } from '../ui/PageHeader';
 
 type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations';
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'users', label: 'Benutzer' },
+  { id: 'roles', label: 'Rollen' },
+  { id: 'groups', label: 'Gruppen' },
+  { id: 'llm', label: 'LLM-Konfiguration' },
+  { id: 'integrations', label: 'Integrationen' },
+  { id: 'bulk', label: 'Bulk Actions' },
+];
 
 export const AdminPanel: React.FC = () => {
   const [tab, setTab] = React.useState<Tab>('users');
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Admin" />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setTab('users')}
-          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'users' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
-          }`}
-        >
-          Users
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('groups')}
-          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'groups' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
-          }`}
-        >
-          Groups
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('roles')}
-          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'roles' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
-          }`}
-        >
-          Roles
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('llm')}
-          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'llm' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
-          }`}
-        >
-          LLM
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('bulk')}
-          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'bulk' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
-          }`}
-        >
-          Bulk
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('integrations')}
-          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'integrations' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
-          }`}
-        >
-          Integrations
-        </button>
+    <>
+      <div className="page-header">
+        <div>
+          <h1>Administration</h1>
+          <div className="page-header-sub">System- und Benutzerverwaltung</div>
+        </div>
+        <div className="page-header-actions">
+          <button className="btn btn-primary" type="button">
+            <UserPlus size={14} />
+            Benutzer einladen
+          </button>
+        </div>
       </div>
 
-      {tab === 'users' ? (
-        <AdminUserManagement />
-      ) : tab === 'groups' ? (
-        <AdminGroupManagement />
-      ) : tab === 'llm' ? (
-        <AdminLlmManagement />
-      ) : tab === 'bulk' ? (
-        <AdminBulkActions />
-      ) : tab === 'integrations' ? (
-        <AdminIntegrations />
-      ) : (
-        <AdminRoleManagement />
-      )}
-    </div>
+      <div className="content">
+        {/* Tab Navigation (Desktop) */}
+        <div className="tab-nav">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={`tab-btn${tab === t.id ? ' active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Panels */}
+        {tab === 'users' && (
+          <div className="tab-panel" key="users">
+            <AdminUserManagement />
+          </div>
+        )}
+        {tab === 'groups' && (
+          <div className="tab-panel" key="groups">
+            <AdminGroupManagement />
+          </div>
+        )}
+        {tab === 'roles' && (
+          <div className="tab-panel" key="roles">
+            <AdminRoleManagement />
+          </div>
+        )}
+        {tab === 'llm' && (
+          <div className="tab-panel" key="llm">
+            <AdminLlmManagement />
+          </div>
+        )}
+        {tab === 'integrations' && (
+          <div className="tab-panel" key="integrations">
+            <AdminIntegrations />
+          </div>
+        )}
+        {tab === 'bulk' && (
+          <div className="tab-panel" key="bulk">
+            <AdminBulkActions />
+          </div>
+        )}
+      </div>
+    </>
   );
 };
-

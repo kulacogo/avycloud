@@ -1,4 +1,5 @@
 import React from 'react';
+import { RefreshCw, Save, Zap } from 'lucide-react';
 import {
   adminActivateLlmVersion,
   adminCreateLlmVersion,
@@ -113,16 +114,9 @@ export const AdminLlmManagement: React.FC = () => {
   const versions = Array.isArray(detail?.versions) ? detail.versions : [];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold">Admin: LLM Management</h2>
-        <p className="text-sm text-[color:var(--text-tertiary)]">
-          Listet die vorhandenen LLM-Einsatzbereiche (Scopes) und erlaubt Prompt/Rules Edits mit Versionierung.
-        </p>
-      </div>
-
+    <>
       {error && (
-        <div className="rounded-xl border border-[var(--error-border)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[color:var(--error)]">
+        <div className="alert alert-error" style={{ marginBottom: 'var(--space-5)' }}>
           {error}
         </div>
       )}
@@ -130,158 +124,184 @@ export const AdminLlmManagement: React.FC = () => {
         <Notice tone={notice.tone} title={notice.title} details={notice.details} onDismiss={() => setNotice(null)} />
       ) : null}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/60 p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Scopes</h3>
-            <button
-              type="button"
-              onClick={loadScopes}
-              disabled={loading}
-              className="rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-secondary)] disabled:opacity-60 px-3 py-2 text-sm font-semibold text-[color:white]"
-            >
-              Refresh
-            </button>
-          </div>
-          <div className="space-y-1">
-            {scopes.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSelectedScopeId(s.id)}
-                className={`w-full text-left rounded-xl px-3 py-2 text-sm transition-colors ${
-                  selectedScopeId === s.id ? 'bg-[var(--avy-purple-glow)] text-[color:white]' : 'bg-[var(--surface-secondary)]/30 text-[color:var(--text-primary)] hover:bg-[var(--surface)]/40'
-                }`}
-              >
-                <div className="font-semibold">{s.name || s.id}</div>
-                <div className="text-xs text-[color:var(--text-tertiary)]">{s.id}</div>
-              </button>
-            ))}
-            {scopes.length === 0 && <div className="text-sm text-[color:var(--text-tertiary)]">Keine Scopes.</div>}
-          </div>
+      {/* LLM Config Card */}
+      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+        <div className="card-header">
+          <span className="card-title">LLM Provider Einstellungen</span>
+          <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Konfiguration der KI-Dienste</span>
         </div>
-
-        <div className="lg:col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/60 p-5 space-y-4">
-          <div className="space-y-1">
-            <div className="text-sm font-semibold">{scope?.name || scope?.id || '—'}</div>
-            <div className="text-xs text-[color:var(--text-tertiary)]">{scope?.purpose || ''}</div>
-            <div className="text-xs text-[color:var(--text-tertiary)]">
-              Default Model Env: <code>{scope?.defaultModelEnvKey || '—'}</code> · Active Version:{' '}
-              <code>{scope?.activeVersionId || '—'}</code>
-            </div>
-          </div>
-
-          {scope?.activeVersionId && (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/40 p-3 text-xs text-[color:var(--text-secondary)]">
-              <div className="flex flex-wrap gap-3 items-center">
-                <span className="font-semibold text-[color:var(--text-primary)]">Aktive Version:</span>
-                <span className="text-[color:var(--text-primary)]">{scope.activeVersionId}</span>
+        <div style={{ padding: 'var(--space-6)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--space-6)' }}>
+            {/* Scopes List */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>Scopes</span>
+                <button type="button" onClick={loadScopes} disabled={loading} className="btn btn-secondary btn-sm">
+                  <RefreshCw size={12} />
+                </button>
               </div>
-              <p className="mt-2 text-[color:var(--text-tertiary)]">
-                Felder unten sind mit der aktuell aktiven Version vorbelegt. Änderungen werden als neue Version gespeichert
-                und automatisch aktiviert.
-              </p>
-            </div>
-          )}
-
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/20 p-4 space-y-3">
-            <div className="flex flex-wrap gap-3">
-              <label className="text-xs text-[color:var(--text-secondary)]">
-                Prompt Mode
-                <select
-                  className="ml-2 bg-[var(--surface-secondary)]/60 border border-[var(--border)] rounded-lg px-2 py-1 text-[color:var(--text-primary)]"
-                  value={promptMode}
-                  onChange={(e) => setPromptMode(e.target.value as any)}
-                >
-                  <option value="append">append</option>
-                  <option value="replace">replace</option>
-                </select>
-              </label>
-              <label className="text-xs text-[color:var(--text-secondary)]">
-                Rules Mode
-                <select
-                  className="ml-2 bg-[var(--surface-secondary)]/60 border border-[var(--border)] rounded-lg px-2 py-1 text-[color:var(--text-primary)]"
-                  value={rulesMode}
-                  onChange={(e) => setRulesMode(e.target.value as any)}
-                >
-                  <option value="append">append</option>
-                  <option value="replace">replace</option>
-                </select>
-              </label>
-            </div>
-            <label className="block text-xs text-[color:var(--text-secondary)] space-y-1">
-              <span>Prompt Text (delta)</span>
-              <textarea
-                value={promptText}
-                onChange={(e) => setPromptText(e.target.value)}
-                rows={6}
-                className="w-full rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] px-3 py-2 text-[color:var(--text-primary)] outline-none focus:border-[var(--avy-purple)] font-mono text-xs"
-              />
-            </label>
-            <label className="block text-xs text-[color:var(--text-secondary)] space-y-1">
-              <span>Rules Text (delta)</span>
-              <textarea
-                value={rulesText}
-                onChange={(e) => setRulesText(e.target.value)}
-                rows={6}
-                className="w-full rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] px-3 py-2 text-[color:var(--text-primary)] outline-none focus:border-[var(--avy-purple)] font-mono text-xs"
-              />
-            </label>
-            <label className="block text-xs text-[color:var(--text-secondary)] space-y-1">
-              <span>Note (optional)</span>
-              <input
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className="w-full rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] px-3 py-2 text-[color:var(--text-primary)] outline-none focus:border-[var(--avy-purple)]"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={createVersion}
-              disabled={!selectedScopeId || saving}
-              className="rounded-xl bg-[var(--avy-purple)] hover:bg-[var(--avy-purple-hover)] disabled:opacity-60 px-4 py-2 text-sm font-semibold text-[color:white]"
-            >
-              {saving ? 'Speichere…' : 'Neue Version speichern & aktivieren'}
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-sm font-semibold">Versions</div>
-            <div className="space-y-2 max-h-[260px] overflow-auto">
-              {versions.map((v: any) => (
-                <div key={v.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/20 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-xs text-[color:var(--text-secondary)]">
-                      <div>
-                        <code>{v.id}</code> {scope?.activeVersionId === v.id ? <span className="text-[color:var(--avy-purple-light)]">ACTIVE</span> : null}
-                      </div>
-                      {v.note ? <div className="text-[color:var(--text-tertiary)]">{v.note}</div> : null}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {scopes.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setSelectedScopeId(s.id)}
+                    className={`btn ${selectedScopeId === s.id ? 'btn-primary' : 'btn-ghost'}`}
+                    style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{s.name || s.id}</div>
+                      <div style={{ fontSize: '11px', opacity: 0.7 }}>{s.id}</div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => activate(v.id)}
-                      disabled={saving || scope?.activeVersionId === v.id}
-                      className="rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-secondary)] disabled:opacity-60 px-3 py-1.5 text-xs font-semibold text-[color:white]"
-                    >
-                      Activate
-                    </button>
-                  </div>
-                  <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                    <div className="text-[color:var(--text-tertiary)]">
-                      promptMode: <code>{v.promptMode || 'append'}</code>
-                    </div>
-                    <div className="text-[color:var(--text-tertiary)]">
-                      rulesMode: <code>{v.rulesMode || 'append'}</code>
+                  </button>
+                ))}
+                {scopes.length === 0 && (
+                  <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Keine Scopes.</div>
+                )}
+              </div>
+            </div>
+
+            {/* Scope Detail / Editor */}
+            <div>
+              <div style={{ marginBottom: 'var(--space-4)' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{scope?.name || scope?.id || '--'}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{scope?.purpose || ''}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                  Default Model Env: <code>{scope?.defaultModelEnvKey || '--'}</code> | Active Version:{' '}
+                  <code>{scope?.activeVersionId || '--'}</code>
+                </div>
+              </div>
+
+              {scope?.activeVersionId && (
+                <div className="alert alert-info" style={{ marginBottom: 'var(--space-4)' }}>
+                  <Zap size={14} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '12px' }}>Aktive Version: {scope.activeVersionId}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Felder unten sind mit der aktuell aktiven Version vorbelegt. Anderungen werden als neue Version gespeichert und automatisch aktiviert.
                     </div>
                   </div>
                 </div>
-              ))}
-              {versions.length === 0 && <div className="text-sm text-[color:var(--text-tertiary)]">Noch keine Versionen.</div>}
+              )}
+
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">
+                    Prompt Mode
+                  </label>
+                  <select
+                    className="form-select"
+                    value={promptMode}
+                    onChange={(e) => setPromptMode(e.target.value as any)}
+                  >
+                    <option value="append">append</option>
+                    <option value="replace">replace</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">
+                    Rules Mode
+                  </label>
+                  <select
+                    className="form-select"
+                    value={rulesMode}
+                    onChange={(e) => setRulesMode(e.target.value as any)}
+                  >
+                    <option value="append">append</option>
+                    <option value="replace">replace</option>
+                  </select>
+                </div>
+                <div className="form-group full">
+                  <label className="form-label">Prompt Text (delta)</label>
+                  <textarea
+                    value={promptText}
+                    onChange={(e) => setPromptText(e.target.value)}
+                    rows={6}
+                    className="form-input"
+                    style={{ fontFamily: 'monospace', fontSize: '12px', minHeight: '120px', resize: 'vertical' }}
+                  />
+                </div>
+                <div className="form-group full">
+                  <label className="form-label">Rules Text (delta)</label>
+                  <textarea
+                    value={rulesText}
+                    onChange={(e) => setRulesText(e.target.value)}
+                    rows={6}
+                    className="form-input"
+                    style={{ fontFamily: 'monospace', fontSize: '12px', minHeight: '120px', resize: 'vertical' }}
+                  />
+                </div>
+                <div className="form-group full">
+                  <label className="form-label">Note (optional)</label>
+                  <input
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: 'var(--space-5)', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={createVersion}
+                  disabled={!selectedScopeId || saving}
+                  className="btn btn-primary"
+                >
+                  <Save size={14} />
+                  {saving ? 'Speichere...' : 'Neue Version speichern & aktivieren'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Versions */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Versions</span>
+        </div>
+        <div style={{ padding: 'var(--space-5)', maxHeight: '320px', overflowY: 'auto' }}>
+          {versions.map((v: any) => (
+            <div
+              key={v.id}
+              style={{
+                padding: 'var(--space-3) var(--space-4)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: 'var(--space-3)',
+                background: scope?.activeVersionId === v.id ? 'var(--avy-purple-glow)' : 'var(--surface)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  <code>{v.id}</code>{' '}
+                  {scope?.activeVersionId === v.id && (
+                    <span className="role-badge admin">ACTIVE</span>
+                  )}
+                  {v.note && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{v.note}</div>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => activate(v.id)}
+                  disabled={saving || scope?.activeVersionId === v.id}
+                  className="btn btn-secondary btn-sm"
+                >
+                  Activate
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                <span>promptMode: <code>{v.promptMode || 'append'}</code></span>
+                <span>rulesMode: <code>{v.rulesMode || 'append'}</code></span>
+              </div>
+            </div>
+          ))}
+          {versions.length === 0 && (
+            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Noch keine Versionen.</div>
+          )}
+        </div>
+      </div>
+    </>
   );
 };
-
