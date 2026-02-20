@@ -4,6 +4,23 @@ import { getProductAvailableQuantity, getProductPhysicalQuantity } from '../util
 import { fetchDashboardMetrics, fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi } from '../api/client';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
+import {
+  Package,
+  ShoppingBag,
+  Truck,
+  RefreshCw,
+  Camera,
+  CheckSquare,
+  Search,
+  Bell,
+  Sun,
+  Moon,
+  Home,
+  MoreVertical,
+  AlertCircle,
+  DollarSign,
+  ChevronRight,
+} from 'lucide-react';
 
 interface DashboardMobileProps {
   products: Product[];
@@ -13,44 +30,6 @@ interface DashboardMobileProps {
   rangePreset?: string;
   onRangePresetChange?: (preset: string) => void;
 }
-
-const StatCard: React.FC<{ label: string; value: string; sub?: string }> = ({ label, value, sub }) => (
-  <div className="rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] p-4 shadow-lg shadow-black/30">
-    <p className="text-xs uppercase tracking-wide text-[color:var(--text-tertiary)]">{label}</p>
-    <p className="text-2xl font-semibold text-[color:white] mt-1">{value}</p>
-    {sub && <p className="text-xs text-[color:var(--text-tertiary)] mt-1">{sub}</p>}
-  </div>
-);
-
-const ActionCard: React.FC<{
-  label: string;
-  value: string;
-  sub?: string;
-  onClick?: () => void;
-  tone?: 'primary' | 'success' | 'warn' | 'neutral';
-  disabled?: boolean;
-}> = ({ label, value, sub, onClick, tone = 'neutral', disabled }) => {
-  const toneClass =
-    tone === 'primary'
-      ? 'bg-[var(--avy-purple)] text-[color:white]'
-      : tone === 'success'
-        ? 'bg-[var(--success)] text-[color:white]'
-        : tone === 'warn'
-          ? 'bg-[var(--warning)] text-[color:white]'
-          : 'bg-[var(--surface-hover)] text-[color:white] border border-[var(--border)]';
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled || !onClick}
-      className={`w-full rounded-2xl p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99] disabled:opacity-40 ${toneClass}`}
-    >
-      <p className="text-xs uppercase tracking-wide opacity-90">{label}</p>
-      <p className="text-2xl font-semibold mt-1">{value}</p>
-      {sub && <p className="text-xs opacity-90 mt-1">{sub}</p>}
-    </button>
-  );
-};
 
 const safeCurrency = (code?: string) => {
   const c = (code || '').toString().trim().toUpperCase();
@@ -352,161 +331,292 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
 
   const isEmpty = products.length === 0;
 
+  const currentDate = new Date().toLocaleDateString(intlLocale, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   return (
-    <div className="space-y-4 max-w-xl mx-auto">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-[color:white]">{t('mobile.dashboard.title')}</h1>
-          <p className="text-xs text-[color:var(--text-tertiary)]">
-            {lastUpdatedAt ? t('mobile.dashboard.lastUpdated', { value: lastUpdatedAt.toLocaleString(intlLocale) }) : '—'}
-          </p>
+    <div className="mdash-phone">
+      {/* Mobile Header */}
+      <header className="mdash-header">
+        <div className="mdash-header-left">
+          <div className="mdash-header-logo">A</div>
+          <span className="mdash-header-brand">AvyCloud</span>
         </div>
-      </div>
-
-      {isEmpty && (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 p-4 text-sm text-[color:var(--text-secondary)]">
-          {isLoading ? t('status.loading.products') : t('mobile.dashboard.empty')}
+        <div className="mdash-header-right">
+          <button className="mdash-header-btn" type="button" title="Benachrichtigungen">
+            <Bell />
+            <span className="mdash-notif-dot" />
+          </button>
         </div>
-      )}
+      </header>
 
-      <div className="grid grid-cols-2 gap-3">
-        <ActionCard
-          tone="warn"
-          label={t('ops.mode.pick')}
-          value={`${openOrders.length}`}
-          sub={
-            openOrders.length === 0
-              ? t('ops.orders.none')
-              : nextPick
-                ? `${t('ops.labels.nextPick')}: ${nextPick.binCode || '—'} · ${nextPick.sku} · ${t('ops.labels.openRemaining', {
-                    count: nextPick.remaining,
-                  })}`
-                : t('ops.orders.open')
-          }
-          onClick={() => navigateTo('operations-pick')}
-        />
-        <ActionCard
-          tone="success"
-          label={t('ops.mode.stow')}
-          value={`${stowBacklog}`}
-          sub={t('table.binFilter.withoutBin')}
-          onClick={() => navigateTo('operations-stow')}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => navigateTo('search')}
-          className="w-full rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99]"
-        >
-          <p className="text-xs uppercase tracking-wide text-[color:var(--text-tertiary)]">{t('nav.search')}</p>
-          <p className="text-2xl font-semibold text-[color:white] mt-1">{t('mobile.dashboard.action.search')}</p>
-          <p className="text-xs text-[color:var(--text-tertiary)] mt-1">{t('mobile.dashboard.action.searchSub')}</p>
-        </button>
-        <button
-          type="button"
-          onClick={() => navigateTo('operations-identify')}
-          className="w-full rounded-2xl bg-[var(--avy-purple)] text-[color:white] p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99]"
-        >
-          <p className="text-xs uppercase tracking-wide opacity-90">{t('ops.mode.identify')}</p>
-          <p className="text-2xl font-semibold mt-1">{t('mobile.dashboard.action.identify')}</p>
-        </button>
-      </div>
-
-      {!isEmpty && (
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard
-            label="Inventar (mit Bestand)"
-            value={`${summary.inStock}`}
-            sub={`${summary.total} Produkte gesamt`}
-          />
-          <StatCard
-            label={t('mobile.dashboard.kpi.units')}
-            value={`${summary.qtySum}`}
-            sub={t('mobile.dashboard.kpi.unitsSub')}
-          />
-          <StatCard
-            label={t('mobile.dashboard.kpi.value')}
-            value={formatCurrency(summary.value, 'EUR')}
-            sub={t('mobile.dashboard.kpi.valueSub', { count: summary.synced })}
-          />
-        </div>
-      )}
-
-      <details className="rounded-2xl bg-[var(--surface-secondary)]/40 border border-[var(--border)] p-4">
-        <summary className="cursor-pointer select-none text-xs uppercase tracking-wide text-[color:var(--text-tertiary)]">
-          {t('mobile.dashboard.section.ordersRevenue')}
-        </summary>
-        <div className="mt-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] text-[color:var(--text-tertiary)]">
-              {metrics?.generated_at_iso
-                ? new Date(metrics.generated_at_iso).toLocaleString(intlLocale)
-                : metricsLoading
-                  ? t('common.loading')
-                  : '—'}
-            </p>
-            <select
-              value={activePreset}
-              onChange={(e) => setPreset(e.target.value)}
-              className="text-[11px] rounded-lg bg-[var(--surface-hover)]/90 border border-[var(--border)] px-2 py-1 text-[color:var(--text-primary)]"
-              aria-label="Dashboard Zeitraum"
-            >
-              {DASHBOARD_RANGE_PRESETS.map((p) => (
-                <option key={p.id} value={p.id} className="bg-[var(--surface-secondary)]">
-                  {p.label}
-                </option>
-              ))}
-            </select>
+      {/* Content */}
+      <div className="mdash-content">
+        {/* Greeting */}
+        <div className="mdash-greeting mdash-fade-up">
+          <h1>{t('mobile.dashboard.title')}</h1>
+          <div className="mdash-date">
+            {lastUpdatedAt
+              ? t('mobile.dashboard.lastUpdated', { value: lastUpdatedAt.toLocaleString(intlLocale) })
+              : currentDate}
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard
-              label={t('mobile.dashboard.metrics.revenueTotal')}
-              value={
-                metrics ? formatCurrency(metrics.revenue.all_non_cancelled_total || 0, metrics.currency || 'EUR') : '—'
-              }
-              sub={
-                metrics
-                  ? `${activeRangeLabel}: ${formatCurrency(metrics.revenue.window_non_cancelled_total || 0, metrics.currency || 'EUR')}`
-                  : undefined
-              }
-            />
-            <StatCard
-              label={t('mobile.dashboard.metrics.ordersCompleted')}
-              value={metrics ? `${metrics.orders.completed_total}` : '—'}
-              sub={metrics ? `${t('mobile.dashboard.metrics.month')}: ${metrics.orders.completed_month}` : undefined}
-            />
-            <StatCard
-              label={t('mobile.dashboard.metrics.returns')}
-              value={metrics ? `${metrics.orders.returns_total}` : '—'}
-              sub={metrics ? `${t('mobile.dashboard.metrics.month')}: ${metrics.orders.returns_month}` : undefined}
-            />
-            <StatCard
-              label={t('mobile.dashboard.metrics.openCurrent')}
-              value={metrics ? `${metrics.orders.open_current}` : '—'}
-              sub={t('mobile.dashboard.metrics.openCurrentSub')}
-            />
+        {/* Empty state */}
+        {isEmpty && (
+          <div className="mdash-empty-state mdash-fade-up">
+            {isLoading ? t('status.loading.products') : t('mobile.dashboard.empty')}
           </div>
+        )}
 
-          <div className="rounded bg-[var(--surface-hover)]/70 border border-[var(--border)] p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs uppercase tracking-wide text-[color:var(--text-tertiary)]">{t('mobile.dashboard.chart.title')}</p>
-              <p className="text-[11px] text-[color:var(--text-tertiary)]">
-                {volume7d.length
-                  ? t('mobile.dashboard.chart.ordersCount', {
-                      count: volume7d.reduce((s, d) => s + (Number(d.orders || 0) || 0), 0),
-                    })
-                  : '—'}
-              </p>
+        {/* Quick Stats 2x2 Grid */}
+        <div className="mdash-stats-grid mdash-fade-up">
+          <div className="mdash-stat-card" onClick={() => navigateTo('products')}>
+            <div className="mdash-stat-icon purple">
+              <Package size={16} />
             </div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] text-[color:var(--text-tertiary)]">{activeRangeLabel}</p>
+            <div className="mdash-stat-value">{summary.total.toLocaleString(intlLocale)}</div>
+            <div className="mdash-stat-label">{t('mobile.dashboard.kpi.products')}</div>
+          </div>
+          <div className="mdash-stat-card" onClick={() => navigateTo('operations-pick')}>
+            <div className="mdash-stat-icon blue">
+              <ShoppingBag size={16} />
             </div>
-            <div>
+            <div className="mdash-stat-value">{openOrders.length}</div>
+            <div className="mdash-stat-label">{t('ops.mode.pick')}</div>
+          </div>
+          <div className="mdash-stat-card" onClick={() => navigateTo('operations-stow')}>
+            <div className="mdash-stat-icon green">
+              <Truck size={16} />
+            </div>
+            <div className="mdash-stat-value">{summary.qtySum.toLocaleString(intlLocale)}</div>
+            <div className="mdash-stat-label">{t('mobile.dashboard.kpi.units')}</div>
+          </div>
+          <div className="mdash-stat-card">
+            <div className="mdash-stat-icon orange">
+              <RefreshCw size={16} />
+            </div>
+            <div className="mdash-stat-value">
+              {summary.total > 0 ? `${Math.round((summary.synced / summary.total) * 100)}%` : '—'}
+            </div>
+            <div className="mdash-stat-label">{t('mobile.dashboard.kpi.sync')}</div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mdash-section-title mdash-fade-up">{t('mobile.dashboard.action.search')}</div>
+        <div className="mdash-quick-actions-scroll mdash-fade-up">
+          <div className="mdash-action-card" onClick={() => navigateTo('operations-identify')}>
+            <div className="mdash-action-icon">
+              <Camera size={20} />
+            </div>
+            <span className="mdash-action-label">{t('ops.mode.identify')}</span>
+          </div>
+          <div className="mdash-action-card" onClick={() => navigateTo('operations-stow')}>
+            <div className="mdash-action-icon">
+              <Package size={20} />
+            </div>
+            <span className="mdash-action-label">{t('ops.mode.stow')}</span>
+          </div>
+          <div className="mdash-action-card" onClick={() => navigateTo('operations-pick')}>
+            <div className="mdash-action-icon">
+              <CheckSquare size={20} />
+            </div>
+            <span className="mdash-action-label">{t('ops.mode.pick')}</span>
+          </div>
+          <div className="mdash-action-card" onClick={() => navigateTo('search')}>
+            <div className="mdash-action-icon">
+              <Search size={20} />
+            </div>
+            <span className="mdash-action-label">{t('mobile.dashboard.action.search')}</span>
+          </div>
+        </div>
+
+        {/* Inventory KPI Activity Card */}
+        {!isEmpty && (
+          <div className="mdash-card mdash-fade-up">
+            <div className="mdash-card-header">
+              <h3>{t('mobile.dashboard.kpi.value')}</h3>
+              <button type="button" className="mdash-card-action" onClick={() => navigateTo('products')}>
+                {t('mobile.dashboard.action.search')}
+              </button>
+            </div>
+            <div className="mdash-activity-list">
+              <div className="mdash-activity-item">
+                <span className="mdash-activity-dot green" />
+                <div className="mdash-activity-content">
+                  <div className="mdash-activity-text">
+                    {t('mobile.dashboard.kpi.productsSub', { count: summary.inStock })}
+                  </div>
+                  <div className="mdash-activity-time">{`${summary.total} ${t('mobile.dashboard.kpi.products')}`}</div>
+                </div>
+              </div>
+              <div className="mdash-activity-item">
+                <span className="mdash-activity-dot blue" />
+                <div className="mdash-activity-content">
+                  <div className="mdash-activity-text">
+                    {t('mobile.dashboard.kpi.units')}: {summary.qtySum.toLocaleString(intlLocale)}
+                  </div>
+                  <div className="mdash-activity-time">{t('mobile.dashboard.kpi.unitsSub')}</div>
+                </div>
+              </div>
+              <div className="mdash-activity-item">
+                <span className="mdash-activity-dot purple" />
+                <div className="mdash-activity-content">
+                  <div className="mdash-activity-text">{formatCurrency(summary.value, 'EUR')}</div>
+                  <div className="mdash-activity-time">
+                    {t('mobile.dashboard.kpi.valueSub', { count: summary.synced })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pending Tasks */}
+        {(openOrders.length > 0 || stowBacklog > 0) && (
+          <>
+            <div className="mdash-section-title mdash-fade-up">{t('ops.mode.pick')}</div>
+
+            {openOrders.length > 0 && (
               <div
-                className="grid gap-2 items-end h-20"
+                className="mdash-task-card warning mdash-fade-up"
+                onClick={() => navigateTo('operations-pick')}
+              >
+                <div className="mdash-task-icon">
+                  <AlertCircle size={18} />
+                </div>
+                <div className="mdash-task-body">
+                  <div className="mdash-task-title">
+                    {openOrders.length} {t('ops.mode.pick')}
+                  </div>
+                  <div className="mdash-task-sub">
+                    {nextPick
+                      ? `${t('ops.labels.nextPick')}: ${nextPick.binCode || '\u2014'} \u00B7 ${nextPick.sku}`
+                      : t('ops.orders.open')}
+                  </div>
+                </div>
+                <div className="mdash-task-arrow">
+                  <ChevronRight size={16} />
+                </div>
+              </div>
+            )}
+
+            {stowBacklog > 0 && (
+              <div
+                className="mdash-task-card info mdash-fade-up"
+                onClick={() => navigateTo('operations-stow')}
+              >
+                <div className="mdash-task-icon">
+                  <DollarSign size={18} />
+                </div>
+                <div className="mdash-task-body">
+                  <div className="mdash-task-title">
+                    {stowBacklog} {t('ops.mode.stow')}
+                  </div>
+                  <div className="mdash-task-sub">{t('table.binFilter.withoutBin')}</div>
+                </div>
+                <div className="mdash-task-arrow">
+                  <ChevronRight size={16} />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Orders & Revenue (collapsible) */}
+        <details className="mdash-details-section mdash-fade-up">
+          <summary className="mdash-details-summary">
+            {t('mobile.dashboard.section.ordersRevenue')}
+          </summary>
+          <div className="mdash-details-body">
+            <div className="mdash-details-meta">
+              <span className="mdash-details-meta-text">
+                {metrics?.generated_at_iso
+                  ? new Date(metrics.generated_at_iso).toLocaleString(intlLocale)
+                  : metricsLoading
+                    ? t('common.loading')
+                    : '\u2014'}
+              </span>
+              <select
+                value={activePreset}
+                onChange={(e) => setPreset(e.target.value)}
+                className="mdash-details-select"
+                aria-label="Dashboard Zeitraum"
+              >
+                {DASHBOARD_RANGE_PRESETS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mdash-stats-grid">
+              <div className="mdash-stat-card">
+                <div className="mdash-stat-label">{t('mobile.dashboard.metrics.revenueTotal')}</div>
+                <div className="mdash-stat-value" style={{ fontSize: 16 }}>
+                  {metrics
+                    ? formatCurrency(metrics.revenue.all_non_cancelled_total || 0, metrics.currency || 'EUR')
+                    : '\u2014'}
+                </div>
+                {metrics && (
+                  <div className="mdash-stat-label">
+                    {activeRangeLabel}:{' '}
+                    {formatCurrency(metrics.revenue.window_non_cancelled_total || 0, metrics.currency || 'EUR')}
+                  </div>
+                )}
+              </div>
+              <div className="mdash-stat-card">
+                <div className="mdash-stat-label">{t('mobile.dashboard.metrics.ordersCompleted')}</div>
+                <div className="mdash-stat-value" style={{ fontSize: 16 }}>
+                  {metrics ? `${metrics.orders.completed_total}` : '\u2014'}
+                </div>
+                {metrics && (
+                  <div className="mdash-stat-label">
+                    {t('mobile.dashboard.metrics.month')}: {metrics.orders.completed_month}
+                  </div>
+                )}
+              </div>
+              <div className="mdash-stat-card">
+                <div className="mdash-stat-label">{t('mobile.dashboard.metrics.returns')}</div>
+                <div className="mdash-stat-value" style={{ fontSize: 16 }}>
+                  {metrics ? `${metrics.orders.returns_total}` : '\u2014'}
+                </div>
+                {metrics && (
+                  <div className="mdash-stat-label">
+                    {t('mobile.dashboard.metrics.month')}: {metrics.orders.returns_month}
+                  </div>
+                )}
+              </div>
+              <div className="mdash-stat-card">
+                <div className="mdash-stat-label">{t('mobile.dashboard.metrics.openCurrent')}</div>
+                <div className="mdash-stat-value" style={{ fontSize: 16 }}>
+                  {metrics ? `${metrics.orders.open_current}` : '\u2014'}
+                </div>
+                <div className="mdash-stat-label">{t('mobile.dashboard.metrics.openCurrentSub')}</div>
+              </div>
+            </div>
+
+            {/* Mini chart */}
+            <div className="mdash-chart-wrap">
+              <div className="mdash-chart-header">
+                <span className="mdash-chart-label">{t('mobile.dashboard.chart.title')}</span>
+                <span className="mdash-chart-count">
+                  {volume7d.length
+                    ? t('mobile.dashboard.chart.ordersCount', {
+                        count: volume7d.reduce((s, d) => s + (Number(d.orders || 0) || 0), 0),
+                      })
+                    : '\u2014'}
+                </span>
+              </div>
+              <div className="mdash-chart-range">{activeRangeLabel}</div>
+              <div
+                className="mdash-chart-bars"
                 style={{
                   gridTemplateColumns: `repeat(${Math.max(1, volume7d.length)}, minmax(0, 1fr))`,
                 }}
@@ -517,28 +627,57 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
                     const revenue = Number(d.revenue || 0) || 0;
                     const barPx = Math.max(6, Math.round((count / maxVolume) * 56));
                     return (
-                      <div key={d.date} className="h-full flex flex-col items-center justify-end gap-1">
+                      <div key={d.date} className="mdash-chart-bar-group">
                         <div
                           title={t('mobile.dashboard.chart.barTitle', {
                             date: d.date,
                             orders: count,
                             revenue: formatCurrency(revenue, metrics?.currency || 'EUR'),
                           })}
-                          className="w-full rounded-[2px] bg-[var(--avy-purple-hover)]/70"
-                          style={{ height: `${barPx}px`, borderRadius: '2px' }}
+                          className="mdash-chart-bar"
+                          style={{ height: `${barPx}px` }}
                         />
-                        <div className="text-[11px] text-[color:var(--text-secondary)] font-semibold tabular-nums">{count}</div>
+                        <div className="mdash-chart-bar-label">{count}</div>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-sm text-[color:var(--text-tertiary)]">{t('mobile.dashboard.chart.noData')}</div>
+                  <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>
+                    {t('mobile.dashboard.chart.noData')}
+                  </div>
                 )}
               </div>
             </div>
           </div>
-        </div>
-      </details>
+        </details>
+
+        {/* Spacer */}
+        <div style={{ height: 24 }} />
+      </div>
+
+      {/* Bottom Tab Bar */}
+      <nav className="mdash-tab-bar">
+        <button type="button" className="mdash-tab-item active" onClick={() => navigateTo('home')}>
+          <Home size={22} />
+          <span>Home</span>
+        </button>
+        <button type="button" className="mdash-tab-item" onClick={() => navigateTo('operations-identify')}>
+          <Camera size={22} />
+          <span>Scanner</span>
+        </button>
+        <button type="button" className="mdash-tab-item" onClick={() => navigateTo('products')}>
+          <Package size={22} />
+          <span>{t('mobile.dashboard.kpi.products')}</span>
+        </button>
+        <button type="button" className="mdash-tab-item" onClick={() => navigateTo('operations-pick')}>
+          <ShoppingBag size={22} />
+          <span>{t('ops.mode.pick')}</span>
+        </button>
+        <button type="button" className="mdash-tab-item" onClick={() => navigateTo('search')}>
+          <MoreVertical size={22} />
+          <span>{t('mobile.dashboard.action.search')}</span>
+        </button>
+      </nav>
     </div>
   );
 };

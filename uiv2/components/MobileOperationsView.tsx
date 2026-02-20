@@ -5,6 +5,10 @@ import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrd
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
+import {
+  Check, Camera, Search, Package, Minus, Plus, Image as ImageIcon,
+  ScanBarcode, ChevronDown, Delete, Eye, Upload
+} from 'lucide-react';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
@@ -32,49 +36,40 @@ interface MobileOperationsViewProps {
 }
 
 const SectionTitle: React.FC<{ title: string; desc?: string }> = ({ title, desc }) => (
-  <div className="space-y-1 mb-3">
-    <h2 className="text-xl font-semibold text-[color:white]">{title}</h2>
-    {desc && <p className="text-sm text-[color:var(--text-tertiary)]">{desc}</p>}
+  <div>
+    <div className="mob-section-title" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{title}</div>
+    {desc && <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 2 }}>{desc}</p>}
   </div>
 );
 
 const StatusBadge: React.FC<{ label: string; tone?: 'neutral' | 'success' | 'warn' }> = ({ label, tone = 'neutral' }) => {
-  const toneClasses =
-    tone === 'success'
-      ? 'bg-[var(--success-bg)] text-[color:var(--success)] border-[var(--success-border)]/60'
-      : tone === 'warn'
-        ? 'bg-[var(--warning-bg)] text-[color:var(--warning)] border-[var(--warning-border)]'
-        : 'bg-[var(--surface-hover)] text-[color:var(--text-primary)] border-[var(--border)]/60';
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border ${toneClasses}`}>
-      {label}
-    </span>
-  );
+  const cls = tone === 'success' ? 'mob-order-badge done' : 'mob-order-badge';
+  return <span className={cls}>{label}</span>;
 };
 
 const ProductCard: React.FC<{ product: Product; footer?: React.ReactNode }> = ({ product, footer }) => {
   const { t } = useI18n();
   return (
-  <div className="w-full text-left rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] p-3 flex gap-3 shadow-sm shadow-black/20">
-    <div className="w-12 h-12 rounded-lg bg-[var(--surface)] overflow-hidden flex items-center justify-center">
-      {product.details?.images?.[0]?.url_or_base64 ? (
-        <img src={product.details.images[0].url_or_base64} alt="" className="w-full h-full object-cover" />
-      ) : (
-          <span className="text-xs text-[color:var(--text-secondary)]">{t('common.noImage')}</span>
-      )}
+    <div className="mob-scanned-item">
+      <div className="mob-scanned-item-header">
+        <div className="mob-item-image">
+          {product.details?.images?.[0]?.url_or_base64 ? (
+            <img src={product.details.images[0].url_or_base64} alt="" />
+          ) : (
+            <ImageIcon size={24} />
+          )}
+        </div>
+        <div className="mob-item-info">
+          <div className="mob-item-name">{product.identification?.name}</div>
+          <div className="mob-item-sku">
+            {t('common.sku')} {product.identification?.sku || '—'} &middot; {t('common.bin')} {product.storage?.binCode || '—'}
+          </div>
+          <div className="mob-item-sku">{t('common.qty')} {getProductQuantity(product)}</div>
+        </div>
+      </div>
+      {footer && <div>{footer}</div>}
     </div>
-    <div className="flex-1">
-      <p className="text-sm font-semibold text-[color:white] line-clamp-2">{product.identification?.name}</p>
-      <p className="text-xs text-[color:var(--text-tertiary)]">
-          {t('common.sku')} {product.identification?.sku || '—'} · {t('common.bin')} {product.storage?.binCode || '—'}
-        </p>
-        <p className="text-xs text-[color:var(--text-tertiary)]">
-          {t('common.qty')} {getProductQuantity(product)}
-      </p>
-    </div>
-    {footer && <div className="flex flex-col items-end gap-1">{footer}</div>}
-  </div>
-);
+  );
 };
 
 const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, mode, onNavigate, onSelectProduct, onIdentify }) => {
@@ -901,235 +896,224 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   if (mode === 'operations-identify') {
     return (
-      <div className="space-y-4 max-w-xl mx-auto">
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            className="h-11 rounded-xl bg-[var(--surface-hover)]/70 text-[color:white] px-3 text-sm font-semibold border border-[var(--border)]"
-            onClick={addIdentifySlot}
-          >
+      <div className="mob-content">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <SectionTitle title={t('ops.mode.identify')} />
+          <button type="button" className="mob-pick-quick-btn" onClick={addIdentifySlot}>
             + {t('common.add')}
           </button>
         </div>
-        <SectionTitle title={t('ops.mode.identify')} />
-        <div className="grid grid-cols-1 gap-3">
-          {identifySlots.map((slot) => (
-            <div key={slot} className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-hover)]/70 p-4 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-[color:var(--text-primary)]">
-                  {t('input.groups.defaultName', { index: identifySlots.indexOf(slot) + 1 })}
-                </p>
-                <button
-                  type="button"
-                  className="rounded-full bg-[var(--surface-secondary)]/60 border border-[var(--border)] text-[color:var(--text-primary)] px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-                  onClick={() => clearIdentifySlot(slot)}
-                  disabled={!identifyImagesBySlot[slot]?.length}
-                >
-                  {t('common.clear')}
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  className="rounded-2xl bg-[var(--avy-purple)] text-[color:white] font-semibold py-3"
-                  onClick={() => triggerIdentifyInput(slot, 'camera')}
-                >
-                  {t('common.camera')}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-2xl bg-[var(--surface-hover)] text-[color:var(--text-primary)] font-semibold py-3 border border-[var(--border)]"
-                  onClick={() => triggerIdentifyInput(slot, 'upload')}
-                >
-                  {t('common.upload')}
-                </button>
-              </div>
-              {identifyImagesBySlot[slot]?.length ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-[color:var(--text-tertiary)]">{t('identifyQueue.files', { count: identifyImagesBySlot[slot].length })}</p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {identifyImagesBySlot[slot].slice(0, 8).map((img) => (
-                      <img
-                        key={img.id}
-                        src={img.previewUrl}
-                        alt=""
-                        className="w-full aspect-square object-cover rounded-lg border border-[var(--border)]"
-                        loading="lazy"
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              <input
-                ref={(el) => {
-                  cameraInputRefs.current[slot] = el;
-                }}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  handleIdentifyFilesSelected(slot, e.currentTarget.files);
-                  // allow re-selecting the same image(s)
-                  e.currentTarget.value = '';
-                }}
-              />
-              <input
-                ref={(el) => {
-                  uploadInputRefs.current[slot] = el;
-                }}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  handleIdentifyFilesSelected(slot, e.currentTarget.files);
-                  e.currentTarget.value = '';
-                }}
-              />
+        {identifySlots.map((slot) => (
+          <div key={slot} className="mob-identify-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span className="mob-item-name">{t('input.groups.defaultName', { index: identifySlots.indexOf(slot) + 1 })}</span>
               <button
                 type="button"
-                className="w-full rounded-2xl bg-[var(--success)] text-[color:white] font-semibold py-3 disabled:opacity-40"
+                className="mob-pick-quick-btn"
+                onClick={() => clearIdentifySlot(slot)}
                 disabled={!identifyImagesBySlot[slot]?.length}
-                onClick={() => {
-                  const images = (identifyImagesBySlot[slot] || []).map((img) => img.file);
-                  if (!images.length) return;
-                  const index = identifySlots.indexOf(slot) + 1;
-                  const payload: UploadGroupPayload[] = [
-                    { id: `mobile-slot-${slot}`, label: t('input.groups.defaultName', { index }), images },
-                  ];
-                  if (onIdentify) {
-                    onIdentify(payload, '');
-                    clearIdentifySlot(slot);
-                  } else {
-                    onNavigate('input');
-                  }
-                }}
+                style={{ opacity: identifyImagesBySlot[slot]?.length ? 1 : 0.4 }}
               >
-                {t('ops.identify.run')}
+                {t('common.clear')}
               </button>
             </div>
-          ))}
-        </div>
+            <div className="mob-identify-actions">
+              <button type="button" className="mob-identify-camera-btn" onClick={() => triggerIdentifyInput(slot, 'camera')}>
+                <Camera size={16} style={{ display: 'inline', verticalAlign: -2, marginRight: 6 }} />
+                {t('common.camera')}
+              </button>
+              <button type="button" className="mob-identify-upload-btn" onClick={() => triggerIdentifyInput(slot, 'upload')}>
+                <Upload size={16} style={{ display: 'inline', verticalAlign: -2, marginRight: 6 }} />
+                {t('common.upload')}
+              </button>
+            </div>
+            {identifyImagesBySlot[slot]?.length ? (
+              <div style={{ marginBottom: 12 }}>
+                <div className="mob-item-sku" style={{ marginBottom: 6 }}>{t('identifyQueue.files', { count: identifyImagesBySlot[slot].length })}</div>
+                <div className="mob-identify-preview-grid">
+                  {identifyImagesBySlot[slot].slice(0, 8).map((img) => (
+                    <img key={img.id} src={img.previewUrl} alt="" className="mob-identify-preview-img" loading="lazy" />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <input
+              ref={(el) => { cameraInputRefs.current[slot] = el; }}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => { handleIdentifyFilesSelected(slot, e.currentTarget.files); e.currentTarget.value = ''; }}
+            />
+            <input
+              ref={(el) => { uploadInputRefs.current[slot] = el; }}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => { handleIdentifyFilesSelected(slot, e.currentTarget.files); e.currentTarget.value = ''; }}
+            />
+            <button
+              type="button"
+              className="mob-identify-run-btn"
+              disabled={!identifyImagesBySlot[slot]?.length}
+              onClick={() => {
+                const images = (identifyImagesBySlot[slot] || []).map((img) => img.file);
+                if (!images.length) return;
+                const index = identifySlots.indexOf(slot) + 1;
+                const payload: UploadGroupPayload[] = [
+                  { id: `mobile-slot-${slot}`, label: t('input.groups.defaultName', { index }), images },
+                ];
+                if (onIdentify) {
+                  onIdentify(payload, '');
+                  clearIdentifySlot(slot);
+                } else {
+                  onNavigate('input');
+                }
+              }}
+            >
+              {t('ops.identify.run')}
+            </button>
+          </div>
+        ))}
       </div>
     );
   }
 
   if (mode === 'operations-stow') {
     const showKeypad = Boolean(stowSku && stowBin);
+    const resolvedProduct = stowSku ? resolveProductForStow(stowSku) : null;
     return (
-      <div className="space-y-3 max-w-xl mx-auto">
-        <SectionTitle title={t('ops.mode.stow')} />
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 p-3 space-y-2">
-          {stowMessage && <p className="text-xs text-[color:var(--success)]">{stowMessage}</p>}
-          <div className="grid grid-cols-2 gap-2 text-sm text-[color:var(--text-primary)]">
-            <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
-              <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.sku')}</p>
-              <p className="text-base font-semibold break-all">{stowSku || '—'}</p>
-            </div>
-            <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
-              <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.bin')}</p>
-              <p className="text-base font-semibold break-all">{stowBin || '—'}</p>
-            </div>
-          </div>
-          {showKeypad && (
-            <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-3 space-y-3">
-              <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('ops.mobile.qtyScannerOrPad')}</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  readOnly
-                  value={stowQty}
-                  className="flex-1 rounded-lg bg-[var(--surface-hover)] text-[color:white] text-xl font-semibold px-3 py-2 border border-[var(--border)]"
-                />
-                <button
-                  type="button"
-                  className="rounded-lg px-3 py-2 bg-[var(--surface)] text-[color:white] text-sm font-semibold"
-                  onClick={() => setStowQty(0)}
-                >
-                  {t('common.clear')}
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    className="rounded-lg bg-[var(--surface-hover)] text-[color:white] text-xl font-semibold py-3"
-                    onClick={() => setStowQty((prev) => Number(`${prev}${n}`))}
-                  >
-                    {n}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="rounded-lg bg-[var(--surface-hover)] text-[color:white] text-lg font-semibold py-3"
-                  onClick={() => setStowQty((prev) => Math.max(0, Math.floor(prev / 10)))}
-                >
-                  ⌫
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-[var(--surface-hover)] text-[color:white] text-xl font-semibold py-3"
-                  onClick={() => setStowQty((prev) => Number(`${prev}0`))}
-                >
-                  0
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-[var(--surface-hover)] text-[color:white] text-lg font-semibold py-3"
-                  onClick={() => setStowQty(0)}
-                >
-                  C
-                </button>
-              </div>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={!stowSku || !stowBin || stowQty <= 0}
-              onClick={handleSubmitStow}
-              className="rounded-lg bg-[var(--success)] text-[color:white] font-semibold py-3 disabled:opacity-40"
-            >
-              {t('ops.stow.submit')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setStowSku('');
-                setStowBin('');
-                setStowQty(1);
-              }}
-              className="rounded-lg bg-[var(--surface)] text-[color:white] font-semibold py-3"
-            >
-              {t('common.reset')}
-            </button>
-          </div>
+      <div className="mob-content">
+        {/* Scanner viewfinder */}
+        <div className="mob-scanner-viewfinder">
+          <div className="mob-viewfinder-corner bottom-left" />
+          <div className="mob-viewfinder-corner bottom-right" />
+          <div className="mob-scan-line" />
+          <ScanBarcode className="mob-scan-icon" />
+          <span className="mob-scan-text">{t('ops.mobile.scannerFocusHint')}</span>
         </div>
 
-        {stowEntries.length > 0 && (
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 p-3 space-y-2">
-            <p className="text-sm font-semibold text-[color:white]">{t('ops.mobile.stow.sessionTitle')}</p>
-            <div className="space-y-2">
-              {stowEntries.map((entry, idx) => (
-                <div key={`${entry.sku}-${entry.bin}-${idx}`} className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/60 p-2 text-sm text-[color:var(--text-primary)]">
-                  <div className="flex justify-between gap-2">
-                    <span className="font-semibold break-all">{entry.sku}</span>
-                    <span className="text-[color:var(--text-secondary)]">
-                      {t('common.qty')} {entry.qty}
-                    </span>
+        {/* Manual input row */}
+        <div className="mob-manual-input-row">
+          <input
+            type="text"
+            className="mob-manual-input"
+            placeholder={`${t('common.sku')} / EAN`}
+            inputMode="text"
+            autoComplete="off"
+            value={stowSku}
+            onChange={(e) => setStowSku(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleScannedValue(stowSku); }}
+          />
+          <button type="button" className="mob-manual-submit" onClick={() => handleScannedValue(stowSku)}>
+            <Search size={20} />
+          </button>
+        </div>
+
+        {/* Scanned item card */}
+        {stowSku && (
+          <div className="mob-scanned-item">
+            <div className="mob-scanned-item-header">
+              <div className="mob-item-image">
+                {resolvedProduct?.details?.images?.[0]?.url_or_base64 ? (
+                  <img src={resolvedProduct.details.images[0].url_or_base64} alt="" />
+                ) : (
+                  <ImageIcon size={24} />
+                )}
+              </div>
+              <div className="mob-item-info">
+                <div className="mob-item-name">{resolvedProduct?.identification?.name || stowSku}</div>
+                <div className="mob-item-sku">{stowSku}</div>
+              </div>
+            </div>
+
+            {stowMessage && (
+              <div className="mob-banner success" style={{ marginBottom: 16 }}>{stowMessage}</div>
+            )}
+
+            <div className="mob-bin-target">
+              <div>
+                <div className="mob-bin-label">{t('common.bin')}</div>
+                <div className="mob-bin-value">{stowBin || '—'}</div>
+              </div>
+            </div>
+
+            {showKeypad ? (
+              <>
+                <div className="mob-quantity-row">
+                  <span className="mob-quantity-label">{t('ops.mobile.qtyScannerOrPad')}</span>
+                  <div className="mob-quantity-stepper">
+                    <button type="button" className="mob-qty-btn" onClick={() => setStowQty((prev) => Math.max(1, prev - 1))}>
+                      <Minus size={18} />
+                    </button>
+                    <div className="mob-qty-value">{stowQty}</div>
+                    <button type="button" className="mob-qty-btn" onClick={() => setStowQty((prev) => prev + 1)}>
+                      <Plus size={18} />
+                    </button>
                   </div>
-                  <p className="text-xs text-[color:var(--text-tertiary)] break-all">
-                    {t('common.bin')} {entry.bin}
-                  </p>
+                </div>
+
+                <div className="mob-keypad" style={{ marginBottom: 16 }}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                    <button key={n} type="button" className="mob-keypad-btn" onClick={() => setStowQty((prev) => Number(`${prev}${n}`))}>
+                      {n}
+                    </button>
+                  ))}
+                  <button type="button" className="mob-keypad-btn" onClick={() => setStowQty((prev) => Math.max(0, Math.floor(prev / 10)))}>
+                    <Delete size={18} />
+                  </button>
+                  <button type="button" className="mob-keypad-btn" onClick={() => setStowQty((prev) => Number(`${prev}0`))}>
+                    0
+                  </button>
+                  <button type="button" className="mob-keypad-btn" onClick={() => setStowQty(0)}>
+                    C
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  className="mob-stow-btn"
+                  disabled={!stowSku || !stowBin || stowQty <= 0}
+                  onClick={handleSubmitStow}
+                >
+                  <Check size={20} />
+                  {t('ops.stow.submit')}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="mob-pick-cancel-btn"
+                style={{ width: '100%' }}
+                onClick={() => { setStowSku(''); setStowBin(''); setStowQty(1); }}
+              >
+                {t('common.reset')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Stow history */}
+        {stowEntries.length > 0 && (
+          <>
+            <div className="mob-section-title">{t('ops.mobile.stow.sessionTitle')}</div>
+            <div className="mob-stow-history">
+              {stowEntries.map((entry, idx) => (
+                <div key={`${entry.sku}-${entry.bin}-${idx}`} className="mob-history-item">
+                  <div className="mob-history-check"><Check size={14} /></div>
+                  <div className="mob-history-info">
+                    <div className="mob-history-name">{entry.sku}</div>
+                    <div className="mob-history-meta">
+                      <span className="mob-history-bin">{entry.bin}</span>
+                      <span>x{entry.qty}</span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
+          </>
         )}
       </div>
     );
@@ -1151,60 +1135,39 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               ? 'bin'
               : 'bin';
 
-    const scanBoxClass = (kind: 'bin' | 'sku') => {
-      const isExpected = expectedScan === kind;
-      return `rounded-2xl border p-3 ${
-        isExpected ? 'border-[var(--avy-purple)] bg-[var(--avy-purple-glow)]' : 'border-[var(--border)] bg-[var(--surface-secondary)]/40'
-      }`;
-    };
-
     return (
-      <div className="max-w-xl mx-auto flex flex-col gap-3">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-[color:white]">{t('ops.mode.pick')}</h2>
-          </div>
-          <div className="text-right text-xs text-[color:var(--text-tertiary)]">
-            <p className="font-semibold text-[color:var(--text-primary)] tabular-nums">{pickTasks.length}</p>
-            <p>{t('ops.badge.pick')}</p>
-          </div>
-        </div>
-
+      <div className="mob-content">
+        {/* Order card / scan status */}
         {ordersError ? (
-          <div className="rounded-2xl border border-[var(--error-border)] bg-[var(--error-bg)] p-3 text-sm text-[color:var(--error)]">
-            <p className="font-semibold">{t('ops.errors.ordersLoad')}</p>
-            <p className="mt-1 text-xs text-[color:var(--error)]/90 break-words">{ordersError}</p>
+          <div className="mob-banner error" style={{ marginBottom: 16 }}>
+            <strong>{t('ops.errors.ordersLoad')}</strong>
+            <div style={{ fontSize: 12, marginTop: 4, wordBreak: 'break-word' }}>{ordersError}</div>
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 p-3 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div className={scanBoxClass('bin')}>
-              <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.bin')}</p>
-              <p className="text-2xl font-extrabold text-[color:white] tracking-wider break-all">
-                {activeBin || `${t('ops.actions.scan')} ${t('common.bin')}`}
-              </p>
+        <div className="mob-scan-status">
+          <div className="mob-scan-status-grid">
+            <div className={`mob-scan-box${expectedScan === 'bin' ? ' active' : ''}`}>
+              <div className="mob-scan-box-label">{t('common.bin')}</div>
+              <div className="mob-scan-box-value large">{activeBin || `${t('ops.actions.scan')} ${t('common.bin')}`}</div>
             </div>
-            <div className={scanBoxClass('sku')}>
-              <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.sku')}</p>
-              <p className="text-base font-bold text-[color:white] break-all">
-                {activeSku || `${t('ops.actions.scan')} ${t('common.sku')}`}
-              </p>
+            <div className={`mob-scan-box${expectedScan === 'sku' ? ' active' : ''}`}>
+              <div className="mob-scan-box-label">{t('common.sku')}</div>
+              <div className="mob-scan-box-value">{activeSku || `${t('ops.actions.scan')} ${t('common.sku')}`}</div>
             </div>
           </div>
-
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-xs text-[color:var(--text-secondary)]">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 10 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
               {pendingPick ? t('ops.mobile.pick.qtyPadHint') : t('ops.mobile.scannerFocusHint')}
               {ordersLastOkIso ? (
-                <span className="block text-[11px] text-[color:var(--text-tertiary)] mt-1">
+                <span style={{ display: 'block', fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
                   {new Date(ordersLastOkIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               ) : null}
             </div>
             <button
               type="button"
-              className="shrink-0 rounded-xl bg-[var(--surface-secondary)]/50 border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[color:white]"
+              className="mob-pick-quick-btn"
               onClick={() => {
                 setActiveBin('');
                 setActiveSku('');
@@ -1218,146 +1181,127 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               {t('common.reset')}
             </button>
           </div>
-
           {pickMessage ? (
-            <p
-              className={`text-xs ${
-                pickMessageTone === 'error'
-                  ? 'text-[color:var(--error)]'
-                  : pickMessageTone === 'success'
-                    ? 'text-[color:var(--success)]'
-                    : 'text-[color:var(--avy-purple-light)]'
-              }`}
+            <div
+              className={`mob-banner ${pickMessageTone === 'error' ? 'error' : 'success'}`}
+              style={{ marginTop: 8 }}
             >
               {pickMessage}
-            </p>
+            </div>
           ) : null}
-          {ordersLoading ? <p className="text-xs text-[color:var(--text-tertiary)]">{t('ops.orders.loading')}</p> : null}
+          {ordersLoading ? <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 8 }}>{t('ops.orders.loading')}</div> : null}
         </div>
 
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/30 p-3">
+        {/* Pending pick task panel / next task hint */}
+        <div className="mob-pick-task-panel">
           {pendingPick ? (
-            <div className="space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[color:white] line-clamp-2">{pendingPick.name}</p>
-                  <p className="text-xs text-[color:var(--text-tertiary)] mt-1">
+            <>
+              <div className="mob-order-header">
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="mob-item-name" style={{ lineHeight: 1.3 }}>{pendingPick.name}</div>
+                  <div className="mob-item-sku" style={{ marginTop: 4 }}>
                     {t('common.order')} {pendingPick.orderNumber || pendingPick.orderId}
-                  </p>
+                  </div>
                 </div>
                 <StatusBadge label={t('ops.badge.pick')} tone="warn" />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.bin')}</p>
-                  <p className="text-3xl font-extrabold text-[color:white] tracking-wider break-all">
-                    {pendingPick.binCode || '—'}
-                  </p>
+              <div className="mob-scan-status-grid" style={{ marginTop: 8 }}>
+                <div className="mob-scan-box">
+                  <div className="mob-scan-box-label">{t('common.bin')}</div>
+                  <div className="mob-scan-box-value large">{pendingPick.binCode || '—'}</div>
                 </div>
-                <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.sku')}</p>
-                  <p className="text-lg font-bold text-[color:white] break-all">{pendingPick.sku || '—'}</p>
+                <div className="mob-scan-box">
+                  <div className="mob-scan-box-label">{t('common.sku')}</div>
+                  <div className="mob-scan-box-value">{pendingPick.sku || '—'}</div>
                 </div>
               </div>
-              <p className="text-xs text-[color:var(--text-secondary)]">
-                <span className="font-semibold text-[color:white]">
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>
+                <strong style={{ color: 'var(--text-primary)' }}>
                   {t('ops.labels.openRemaining', { count: pendingPick.remainingTotal })}
-                </span>
+                </strong>
                 {typeof pendingPick.availableInBin === 'number' ? (
                   <>
-                    {' '}
-                    ·{' '}
-                    <span className="font-semibold text-[color:white]">
+                    {' '}&middot;{' '}
+                    <strong style={{ color: 'var(--text-primary)' }}>
                       {t('ops.mobile.availableInBin', { value: pendingPick.availableInBin })}
-                    </span>
+                    </strong>
                   </>
                 ) : null}
-              </p>
-            </div>
+              </div>
+            </>
           ) : pickTasks.length === 0 && !ordersLoading ? (
-            <p className="text-sm text-[color:var(--text-secondary)]">{t('ops.orders.none')}</p>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{t('ops.orders.none')}</div>
           ) : nextTask ? (
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('ops.labels.nextPick')}</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.bin')}</p>
-                  <p className="text-3xl font-extrabold text-[color:white] tracking-wider break-all">{nextTask.binCode || '—'}</p>
+            <>
+              <div className="mob-scan-box-label" style={{ marginBottom: 8 }}>{t('ops.labels.nextPick')}</div>
+              <div className="mob-scan-status-grid">
+                <div className="mob-scan-box">
+                  <div className="mob-scan-box-label">{t('common.bin')}</div>
+                  <div className="mob-scan-box-value large">{nextTask.binCode || '—'}</div>
                   {nextBinGroupCount > 1 ? (
-                    <p className="text-[11px] text-[color:var(--text-tertiary)] mt-1">
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
                       {t('ops.mobile.pick.binGroupCount', { count: nextBinGroupCount })}
-                    </p>
+                    </div>
                   ) : null}
                 </div>
-                <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.sku')}</p>
-                  <p className="text-base font-bold text-[color:white] break-all">{nextTask.sku}</p>
-                  <p className="text-[11px] text-[color:var(--text-tertiary)] mt-1">{t('ops.labels.openRemaining', { count: nextTask.remainingTotal })}</p>
+                <div className="mob-scan-box">
+                  <div className="mob-scan-box-label">{t('common.sku')}</div>
+                  <div className="mob-scan-box-value">{nextTask.sku}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                    {t('ops.labels.openRemaining', { count: nextTask.remainingTotal })}
+                  </div>
                 </div>
               </div>
-            </div>
+            </>
           ) : null}
         </div>
 
+        {/* Route list (collapsible) */}
         {!pendingPick && pickTasks.length > 0 ? (
-          <details className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/40 p-3">
-            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-sm font-semibold text-[color:var(--text-primary)] flex items-center justify-between">
-              <span>
-                {t('ops.mobile.route')} ({pickTasks.length})
-              </span>
-              <span className="text-[color:var(--text-tertiary)]">▾</span>
-            </summary>
-            <div className="mt-3 space-y-2">
-              {pickTasks.slice(0, 100).map((task) => {
-                const key = `${task.orderId}-${task.itemId}-${task.binCode}`;
-                const isHighlighted = highlightKey === key;
-                return (
-                  <button
-                    type="button"
-                    key={key}
-                    onClick={() => {
-                      setPendingPick(task);
-                      setPendingPickQty(task.suggestedQty || 1);
-                      setActiveBin(task.binCode || '');
-                      setActiveSku(task.sku || '');
-                      setHighlightKey(key);
-                    }}
-                    className={`w-full text-left rounded-2xl border p-3 shadow-sm shadow-black/20 ${
-                      isHighlighted ? 'border-[var(--avy-purple)] bg-[var(--avy-purple-glow)]' : 'border-[var(--border)] bg-[var(--surface-secondary)]/50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[color:white] line-clamp-2">{task.name}</p>
-                        <p className="text-xs text-[color:var(--text-tertiary)] mt-1">
-                          {t('common.order')} {task.orderNumber || task.orderId}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                          <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
-                            {t('common.sku')}: <span className="font-semibold text-[color:white]">{task.sku}</span>
-                          </span>
-                          <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
-                            {t('ops.labels.openRemaining', { count: task.remainingTotal })}
-                          </span>
-                          <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
-                            {t('ops.pick.quantityHint', { value: task.suggestedQty })}
-                          </span>
+          <div className="mob-route-details">
+            <details>
+              <summary style={{ cursor: 'pointer', padding: '12px 16px', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
+                <span>{t('ops.mobile.route')} ({pickTasks.length})</span>
+                <ChevronDown size={16} style={{ color: 'var(--text-tertiary)' }} />
+              </summary>
+              <div className="mob-route-body">
+                {pickTasks.slice(0, 100).map((task) => {
+                  const key = `${task.orderId}-${task.itemId}-${task.binCode}`;
+                  const isHighlighted = highlightKey === key;
+                  return (
+                    <button
+                      type="button"
+                      key={key}
+                      onClick={() => {
+                        setPendingPick(task);
+                        setPendingPickQty(task.suggestedQty || 1);
+                        setActiveBin(task.binCode || '');
+                        setActiveSku(task.sku || '');
+                        setHighlightKey(key);
+                      }}
+                      className={`mob-route-item${isHighlighted ? ' highlighted' : ''}`}
+                      style={{ width: '100%', textAlign: 'left' }}
+                    >
+                      <div className="mob-route-item-info">
+                        <div className="mob-route-item-name">{task.name}</div>
+                        <div className="mob-route-item-meta">
+                          <span>{t('common.order')} {task.orderNumber || task.orderId}</span>
+                          <span>{t('common.sku')}: {task.sku}</span>
+                          <span>{t('ops.labels.openRemaining', { count: task.remainingTotal })}</span>
                         </div>
                       </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.bin')}</p>
-                        <p className="text-xl font-extrabold text-[color:white] tracking-wider">{task.binCode || '—'}</p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </details>
+                      <div className="mob-route-item-bin">{task.binCode || '—'}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </details>
+          </div>
         ) : null}
 
+        {/* Bottom bar with qty stepper and confirm/cancel */}
         {pendingPick ? (
-          <div className="sticky bottom-24 -mx-4 px-4 pt-3 pb-4 bg-[var(--bg)]/90 backdrop-blur border-t border-[var(--border)]">
+          <div className="mob-pick-bottom-bar">
             {(() => {
               const maxAllowed =
                 typeof pendingPick.availableInBin === 'number'
@@ -1371,71 +1315,42 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               };
 
               return (
-                <div className="space-y-3 max-w-xl mx-auto">
-                  <div className="rounded-2xl bg-[var(--surface-secondary)]/50 border border-[var(--border)] p-3 space-y-2">
-                    <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.qty')}</p>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="w-14 h-14 rounded-2xl bg-[var(--surface-hover)] text-[color:white] text-3xl font-extrabold border border-[var(--border)]"
-                        onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) - 1))}
-                      >
-                        −
-                      </button>
-                      <div className="flex-1 h-14 rounded-2xl bg-[var(--surface-hover)] text-[color:white] text-3xl font-extrabold border border-[var(--border)] flex items-center justify-center tabular-nums">
-                        {pendingPickQty}
-                      </div>
-                      <button
-                        type="button"
-                        className="w-14 h-14 rounded-2xl bg-[var(--surface-hover)] text-[color:white] text-3xl font-extrabold border border-[var(--border)]"
-                        onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) + 1))}
-                      >
-                        +
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="rounded-full bg-[var(--surface-hover)] text-[color:white] text-sm font-semibold px-3 py-2 border border-[var(--border)]"
-                        onClick={() => setPendingPickQty(clampQty(1))}
-                      >
-                        1
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-full bg-[var(--surface-hover)] text-[color:white] text-sm font-semibold px-3 py-2 border border-[var(--border)]"
-                        onClick={() => setPendingPickQty(clampQty(pendingPick.suggestedQty || 1))}
-                      >
-                        {t('ops.orders.auto')}
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-full bg-[var(--surface-hover)] text-[color:white] text-sm font-semibold px-3 py-2 border border-[var(--border)]"
-                        onClick={() => setPendingPickQty(clampQty(maxAllowed || pendingPick.remainingTotal || 1))}
-                      >
-                        Max
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-full bg-[var(--surface-hover)] text-[color:white] text-sm font-semibold px-3 py-2 border border-[var(--border)]"
-                        onClick={() => setPendingPickQty(0)}
-                      >
-                        {t('common.clear')}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
+                <>
+                  <div className="mob-pick-qty-stepper">
                     <button
                       type="button"
+                      className="mob-pick-qty-btn"
+                      onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) - 1))}
+                    >
+                      <Minus size={20} />
+                    </button>
+                    <div className="mob-pick-qty-display">{pendingPickQty}</div>
+                    <button
+                      type="button"
+                      className="mob-pick-qty-btn"
+                      onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) + 1))}
+                    >
+                      <Plus size={20} />
+                    </button>
+                  </div>
+                  <div className="mob-pick-quick-amounts">
+                    <button type="button" className="mob-pick-quick-btn" onClick={() => setPendingPickQty(clampQty(1))}>1</button>
+                    <button type="button" className="mob-pick-quick-btn" onClick={() => setPendingPickQty(clampQty(pendingPick.suggestedQty || 1))}>{t('ops.orders.auto')}</button>
+                    <button type="button" className="mob-pick-quick-btn" onClick={() => setPendingPickQty(clampQty(maxAllowed || pendingPick.remainingTotal || 1))}>Max</button>
+                    <button type="button" className="mob-pick-quick-btn" onClick={() => setPendingPickQty(0)}>{t('common.clear')}</button>
+                  </div>
+                  <div className="mob-pick-actions">
+                    <button
+                      type="button"
+                      className="mob-pick-confirm-btn"
                       disabled={!pendingPickQty || pendingPickQty <= 0}
                       onClick={() => void submitPick(pendingPick, pendingPickQty)}
-                      className="h-14 rounded-2xl bg-[var(--success)] text-[color:white] font-extrabold text-lg disabled:opacity-40"
                     >
                       {t('ops.pick.submit')}
                     </button>
                     <button
                       type="button"
+                      className="mob-pick-cancel-btn"
                       onClick={() => {
                         setPendingPick(null);
                         setPendingPickQty(1);
@@ -1443,12 +1358,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                         setActiveSku('');
                         setHighlightKey(null);
                       }}
-                      className="h-14 rounded-2xl bg-[var(--surface)] text-[color:white] font-semibold text-lg"
                     >
                       {t('common.cancel')}
                     </button>
                   </div>
-                </div>
+                </>
               );
             })()}
           </div>
@@ -1462,124 +1376,94 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       ? packItems.find((item) => item.orderKey === packScopedOrderKey) || null
       : null;
     return (
-      <div className="space-y-3 max-w-xl mx-auto">
+      <div className="mob-content">
         <SectionTitle title={t('ops.mode.pack')} />
+
         {packMessage ? (
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/40 p-3 text-sm text-[color:var(--text-primary)]">
-            {packMessage}
-          </div>
+          <div className="mob-banner success" style={{ marginTop: 12 }}>{packMessage}</div>
         ) : null}
+
         {packScopedOrderKey ? (
-          <div className="rounded-2xl border border-[var(--avy-purple)]/50 bg-[var(--avy-purple-glow)] p-3 flex items-center justify-between gap-3">
-            <p className="text-sm text-[color:var(--text-primary)]">
-              {t('ops.mobile.pack.scope.active')}: <span className="font-semibold">{scopedOrderPreview?.orderNumber || packScopedOrderKey}</span>
-            </p>
-            <button
-              type="button"
-              className="rounded-lg bg-[var(--surface-hover)] border border-[var(--border)] px-2.5 py-1.5 text-xs font-semibold text-[color:var(--text-primary)]"
-              onClick={() => setPackScopedOrderKey(null)}
-            >
+          <div className="mob-pack-card selected" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
+            <span style={{ fontSize: 14, color: 'var(--text-primary)' }}>
+              {t('ops.mobile.pack.scope.active')}: <strong>{scopedOrderPreview?.orderNumber || packScopedOrderKey}</strong>
+            </span>
+            <button type="button" className="mob-pick-quick-btn" onClick={() => setPackScopedOrderKey(null)}>
               {t('common.reset')}
             </button>
           </div>
         ) : null}
-        {ordersLoading && <p className="text-sm text-[color:var(--text-tertiary)]">{t('ops.orders.loading')}</p>}
-        {packItems.length === 0 && !ordersLoading && <p className="text-sm text-[color:var(--text-tertiary)]">{t('ops.mobile.pack.none')}</p>}
-        {packItems.slice(0, 100).map((item) => (
-          <button
-            type="button"
-            key={`${item.orderKey}-${item.sku}-${item.binCode}`}
-            onClick={() => setPackScopedOrderKey(item.orderKey)}
-            className={`w-full text-left rounded-2xl border p-3 shadow-sm shadow-black/20 ${
-              packScopedOrderKey === item.orderKey
-                ? 'border-[var(--avy-purple)] bg-[var(--avy-purple-glow)]'
-                : 'border-[var(--border)] bg-[var(--surface-hover)]'
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[color:white] line-clamp-2">{item.name}</p>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                  <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
-                    {t('common.order')}: <span className="font-semibold text-[color:white]">{item.orderNumber || item.orderId}</span>
-                  </span>
-                  {item.orderSourceId ? (
-                    <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
-                      {t('ops.mobile.pack.scope.source')}: <span className="font-semibold text-[color:white]">{item.orderSourceId}</span>
-                    </span>
-                  ) : null}
-                  <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
-                    {t('common.sku')}: <span className="font-semibold text-[color:white]">{item.sku || '—'}</span>
-                  </span>
-                  <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
-                    {t('common.bin')}: <span className="font-semibold text-[color:white]">{item.binCode || '—'}</span>
-                  </span>
+
+        {ordersLoading && <div style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 12 }}>{t('ops.orders.loading')}</div>}
+        {packItems.length === 0 && !ordersLoading && (
+          <div className="mob-completion-screen">
+            <div className="mob-completion-icon"><Check size={40} /></div>
+            <div className="mob-completion-title">{t('ops.mobile.pack.none')}</div>
+          </div>
+        )}
+
+        <div style={{ marginTop: 12 }}>
+          {packItems.slice(0, 100).map((item) => (
+            <button
+              type="button"
+              key={`${item.orderKey}-${item.sku}-${item.binCode}`}
+              onClick={() => setPackScopedOrderKey(item.orderKey)}
+              className={`mob-pack-card${packScopedOrderKey === item.orderKey ? ' selected' : ''}`}
+              style={{ width: '100%', textAlign: 'left' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="mob-item-name" style={{ marginBottom: 6 }}>{item.name}</div>
+                  <div className="mob-route-item-meta">
+                    <span>{t('common.order')}: <strong>{item.orderNumber || item.orderId}</strong></span>
+                    {item.orderSourceId ? <span>{t('ops.mobile.pack.scope.source')}: <strong>{item.orderSourceId}</strong></span> : null}
+                    <span>{t('common.sku')}: <strong>{item.sku || '—'}</strong></span>
+                    <span>{t('common.bin')}: <strong>{item.binCode || '—'}</strong></span>
+                  </div>
+                </div>
+                <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                  <div className="mob-scan-box-label">{t('common.qty')}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{item.qty}</div>
+                  <div style={{ marginTop: 4 }}><StatusBadge label={t('ops.badge.pack')} tone="warn" /></div>
                 </div>
               </div>
-              <div className="shrink-0 text-right">
-                <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.qty')}</p>
-                <p className="text-xl font-extrabold text-[color:white] tabular-nums">{item.qty}</p>
-                <div className="mt-1">
-                  <StatusBadge label={t('ops.badge.pack')} tone="warn" />
-                </div>
-              </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          ))}
+        </div>
       </div>
     );
   }
 
   // Hub
   return (
-    <div className="space-y-4 max-w-xl mx-auto">
-      <div className="flex items-center justify-between">
+    <div className="mob-content">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <h1 className="text-2xl font-semibold text-[color:white]">{t('ops.title')}</h1>
-          <p className="text-[color:var(--text-tertiary)] text-sm">{t('ops.subtitle')}</p>
+          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>{t('ops.title')}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 2 }}>{t('ops.subtitle')}</div>
         </div>
-        <div className="text-right text-xs text-[color:var(--text-tertiary)] space-y-0.5">
-          <p>
-            {t('ops.mode.stow')}: {stowList.length}
-          </p>
-          <p>
-            {t('ops.mode.pick')}: {pickList.length}
-          </p>
-          <p>
-            {t('ops.mode.pack')}: {packList.length}
-          </p>
+        <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-tertiary)' }}>
+          <div>{t('ops.mode.stow')}: {stowList.length}</div>
+          <div>{t('ops.mode.pick')}: {pickList.length}</div>
+          <div>{t('ops.mode.pack')}: {packList.length}</div>
         </div>
       </div>
-      <div className="flex flex-col gap-3">
-        <button
-          type="button"
-          className="w-full rounded-2xl bg-[var(--avy-purple)] text-[color:white] font-semibold py-4 text-lg"
-          onClick={() => onNavigate('operations-identify')}
-        >
-          {t('ops.mode.identify')}
-        </button>
-        <button
-          type="button"
-          className="w-full rounded-2xl bg-[var(--success)] text-[color:white] font-semibold py-4 text-lg"
-          onClick={() => onNavigate('operations-stow')}
-        >
-          {t('ops.mode.stow')}
-        </button>
-        <button
-          type="button"
-          className="w-full rounded-2xl bg-[var(--warning)] text-[color:white] font-semibold py-4 text-lg"
-          onClick={() => onNavigate('operations-pick')}
-        >
-          {t('ops.mode.pick')}
-        </button>
-        <button
-          type="button"
-          className="w-full rounded-2xl bg-[var(--surface)] text-[color:white] font-semibold py-4 text-lg"
-          onClick={() => onNavigate('operations-pack')}
-        >
-          {t('ops.mode.pack')}
-        </button>
-      </div>
+      <button type="button" className="mob-hub-btn" style={{ background: 'var(--avy-purple)' }} onClick={() => onNavigate('operations-identify')}>
+        <Eye size={20} />
+        {t('ops.mode.identify')}
+      </button>
+      <button type="button" className="mob-hub-btn" style={{ background: 'var(--success)' }} onClick={() => onNavigate('operations-stow')}>
+        <Package size={20} />
+        {t('ops.mode.stow')}
+      </button>
+      <button type="button" className="mob-hub-btn" style={{ background: 'var(--warning)' }} onClick={() => onNavigate('operations-pick')}>
+        <Check size={20} />
+        {t('ops.mode.pick')}
+      </button>
+      <button type="button" className="mob-hub-btn" style={{ background: 'var(--surface-secondary)', color: 'var(--text-primary)' }} onClick={() => onNavigate('operations-pack')}>
+        <Package size={20} />
+        {t('ops.mode.pack')}
+      </button>
     </div>
   );
 };

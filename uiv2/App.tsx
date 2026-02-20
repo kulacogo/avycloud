@@ -540,14 +540,7 @@ const AppInner: React.FC = () => {
     viewRef.current = view;
   }, [view]);
 
-  // Operations desktop gating: keep mobile flow intact, but avoid using OperationsView on desktop.
-  useEffect(() => {
-    if (isMobile) return;
-    if (!view || typeof view !== 'string') return;
-    if (view.startsWith('operations')) {
-      setView('dashboard');
-    }
-  }, [isMobile, view]);
+  // Operations views are now supported on both desktop and mobile.
 
   useEffect(() => {
     if (typeof document === 'undefined') return;

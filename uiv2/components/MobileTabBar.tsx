@@ -1,10 +1,5 @@
 import React from 'react';
-import homeLight from '../mobile icons/mobile home.png';
-import homeDark from '../mobile icons/mobile home dm.png';
-import searchLight from '../mobile icons/mobile search.png';
-import searchDark from '../mobile icons/mobile search dm.png';
-import opsLight from '../mobile icons/mobile operation.png';
-import opsDark from '../mobile icons/mobile operation dm.png';
+import { LayoutDashboard, Search, Layers } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { useAuth } from '../context/AuthContext';
 
@@ -16,11 +11,11 @@ interface MobileTabBarProps {
   theme: 'light' | 'dark';
 }
 
-const tabIcons = {
-  home: { light: homeLight, dark: homeDark },
-  search: { light: searchLight, dark: searchDark },
-  operations: { light: opsLight, dark: opsDark },
-} as const;
+const tabIcons: Record<MobileTab, React.ReactNode> = {
+  home: <LayoutDashboard className="mobile-tab-icon" />,
+  search: <Search className="mobile-tab-icon" />,
+  operations: <Layers className="mobile-tab-icon" />,
+};
 
 const tabs: { id: MobileTab; labelKey: string }[] = [
   { id: 'home', labelKey: 'nav.home' },
@@ -49,23 +44,20 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate, th
     return tabs.filter((tab) => (tab.id === 'operations' ? canOps : true));
   }, [hasPermission]);
   return (
-    <nav className="bg-[var(--surface-secondary)]/95 backdrop-blur-lg border-t border-[var(--border)] px-4 py-2 flex justify-around gap-2 pb-4 safe-area-bottom shadow-2xl shadow-black/40">
+    <nav className="mobile-tab-bar">
       {visibleTabs.map((tab) => {
         const active = isActive(currentView, tab.id);
-        const iconSrc = theme === 'dark' ? tabIcons[tab.id].dark : tabIcons[tab.id].light;
         return (
           <button
             key={tab.id}
             type="button"
             onClick={() => onNavigate(tab.id)}
-            className={`flex flex-col items-center justify-center flex-1 rounded-[8px] px-3 py-2 text-xs font-semibold transition ${
-              active ? 'bg-[var(--avy-purple)] text-[color:white] shadow-lg shadow-[var(--avy-purple)]/20' : 'text-[color:var(--text-primary)] bg-[var(--surface-hover)]/80'
-            }`}
+            className={`mobile-tab-btn${active ? ' active' : ''}`}
             aria-current={active ? 'page' : undefined}
             aria-label={t(tab.labelKey)}
           >
-            <img src={iconSrc} alt="" className="w-[30px] h-[30px]" draggable={false} />
-            <span className="mt-1">{t(tab.labelKey)}</span>
+            {tabIcons[tab.id]}
+            <span className="mobile-tab-label">{t(tab.labelKey)}</span>
           </button>
         );
       })}
