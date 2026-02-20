@@ -3,8 +3,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ProductImage } from '../../types';
 import { DownloadIcon } from '../icons/Icons';
 import { Spinner } from '../ui/Spinner';
+import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
 import { useI18n } from '../../i18n';
 import { getBackendUrl } from '../../api/client';
+import Cropper, { Area, MediaSize, Point, getInitialCropFromCroppedAreaPixels } from 'react-easy-crop';
 
 interface ImageGalleryProps {
   images: ProductImage[];
@@ -235,6 +238,81 @@ const autoAdjustBlob = async (blob: Blob) => {
   return await canvasToBlob(canvas, 'image/png');
 };
 
+const getRadianAngle = (degreeValue: number) => (degreeValue * Math.PI) / 180;
+
+const rotateSize = (width: number, height: number, rotation: number) => {
+  const rotRad = getRadianAngle(rotation);
+  return {
+    width: Math.abs(Math.cos(rotRad) * width) + Math.abs(Math.sin(rotRad) * height),
+    height: Math.abs(Math.sin(rotRad) * width) + Math.abs(Math.cos(rotRad) * height),
+  };
+};
+
+const getCropSize = (
+  mediaWidth: number,
+  mediaHeight: number,
+  containerWidth: number,
+  containerHeight: number,
+  aspect: number,
+  rotation = 0
+) => {
+  const rotated = rotateSize(mediaWidth, mediaHeight, rotation);
+  const fittingWidth = Math.min(rotated.width, containerWidth);
+  const fittingHeight = Math.min(rotated.height, containerHeight);
+
+  if (fittingWidth > fittingHeight * aspect) {
+    return { width: fittingHeight * aspect, height: fittingHeight };
+  }
+  return { width: fittingWidth, height: fittingWidth / aspect };
+};
+
+const cropBlob = async (
+  blob: Blob,
+  pixelCrop: Area,
+  rotation = 0,
+  flip: { horizontal: boolean; vertical: boolean } = { horizontal: false, vertical: false }
+) => {
+  const { source, width, height, cleanup } = await loadCanvasSource(blob);
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas is not available in this browser.');
+
+    const rotRad = getRadianAngle(rotation);
+    const bBox = rotateSize(width, height, rotation);
+    canvas.width = Math.round(bBox.width);
+    canvas.height = Math.round(bBox.height);
+
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(rotRad);
+    ctx.scale(flip.horizontal ? -1 : 1, flip.vertical ? -1 : 1);
+    ctx.translate(-width / 2, -height / 2);
+    ctx.drawImage(source, 0, 0);
+
+    const croppedCanvas = document.createElement('canvas');
+    const croppedCtx = croppedCanvas.getContext('2d');
+    if (!croppedCtx) throw new Error('Canvas is not available in this browser.');
+
+    croppedCanvas.width = Math.max(1, Math.round(pixelCrop.width));
+    croppedCanvas.height = Math.max(1, Math.round(pixelCrop.height));
+    croppedCtx.drawImage(
+      canvas,
+      Math.round(pixelCrop.x),
+      Math.round(pixelCrop.y),
+      Math.round(pixelCrop.width),
+      Math.round(pixelCrop.height),
+      0,
+      0,
+      Math.round(pixelCrop.width),
+      Math.round(pixelCrop.height)
+    );
+
+    return await canvasToBlob(croppedCanvas, 'image/png');
+  } finally {
+    cleanup();
+  }
+};
+
 const ImageGallery: React.FC<ImageGalleryProps> = ({
   images,
   resetKey,
@@ -261,6 +339,25 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   const removeBackgroundFnRef = useRef<RemoveBackgroundFn | null>(null);
   const isCrossOriginIsolated = typeof window !== 'undefined' && (window as any).crossOriginIsolated === true;
 
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropLoading, setCropLoading] = useState(false);
+  const [cropSaving, setCropSaving] = useState(false);
+  const [smartCropping, setSmartCropping] = useState(false);
+  const [usedSmartCrop, setUsedSmartCrop] = useState(false);
+  const [cropError, setCropError] = useState<string | null>(null);
+  const [cropSrcUrl, setCropSrcUrl] = useState<string | null>(null);
+  const [cropInputBlob, setCropInputBlob] = useState<Blob | null>(null);
+
+  const cropperContainerRef = useRef<HTMLDivElement | null>(null);
+  const [cropperContainerSize, setCropperContainerSize] = useState<{ width: number; height: number } | null>(null);
+  const [cropperMediaSize, setCropperMediaSize] = useState<MediaSize | null>(null);
+
+  const [cropPoint, setCropPoint] = useState<Point>({ x: 0, y: 0 });
+  const [cropZoom, setCropZoom] = useState(1);
+  const [cropRotation, setCropRotation] = useState(0);
+  const [aspectMode, setAspectMode] = useState<'original' | '1:1' | '4:3' | '16:9'>('original');
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+
   useEffect(() => {
     setActiveIndex(0);
     setLightboxIndex(null);
@@ -279,6 +376,33 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     setImproveStatus(null);
     setImprovePercent(null);
   }, [activeIndex]);
+
+  useEffect(() => {
+    if (!cropOpen) return;
+    const el = cropperContainerRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      const w = Math.max(0, Math.round(rect.width));
+      const h = Math.max(0, Math.round(rect.height));
+      setCropperContainerSize((prev) => {
+        if (prev && prev.width === w && prev.height === h) return prev;
+        return { width: w, height: h };
+      });
+    };
+
+    update();
+    if (typeof ResizeObserver === 'undefined') {
+      const onResize = () => update();
+      window.addEventListener('resize', onResize);
+      return () => window.removeEventListener('resize', onResize);
+    }
+
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [cropOpen]);
 
   if (!images || images.length === 0) {
     return (
@@ -478,6 +602,192 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     void applyImprove('brighten', (b) => brightenBlob(b, 18), t('sheet.gallery.improve.note.brightened'));
   }, [applyImprove, t]);
 
+  const closeCrop = useCallback(() => {
+    setCropOpen(false);
+    setCropError(null);
+    setCropSaving(false);
+    setSmartCropping(false);
+    setCropperMediaSize(null);
+    setCropperContainerSize(null);
+    setCroppedAreaPixels(null);
+    setCropPoint({ x: 0, y: 0 });
+    setCropZoom(1);
+    setCropRotation(0);
+    setAspectMode('original');
+    setUsedSmartCrop(false);
+    if (cropSrcUrl) {
+      URL.revokeObjectURL(cropSrcUrl);
+    }
+    setCropSrcUrl(null);
+    setCropInputBlob(null);
+  }, [cropSrcUrl]);
+
+  const openCrop = useCallback(async () => {
+    if (!isEditing || !isActiveReal || !activeRealImage || typeof onUpdateImage !== 'function') return;
+    const src = resolveSrc(activeRealImage) || '';
+    if (!src) return;
+
+    setCropLoading(true);
+    setCropError(null);
+    try {
+      const inputBlob = await fetchImageBlob(src);
+      const url = URL.createObjectURL(inputBlob);
+      setCropInputBlob(inputBlob);
+      setCropSrcUrl(url);
+      setCropOpen(true);
+      setCropPoint({ x: 0, y: 0 });
+      setCropZoom(1);
+      setCropRotation(0);
+      setAspectMode('original');
+      setCroppedAreaPixels(null);
+      setUsedSmartCrop(false);
+    } catch (err: any) {
+      setCropError(err?.message ? String(err.message) : t('sheet.gallery.improve.error.generic'));
+    } finally {
+      setCropLoading(false);
+    }
+  }, [activeRealImage, isActiveReal, isEditing, onUpdateImage, t]);
+
+  const cropAspect = useMemo(() => {
+    if (aspectMode === '1:1') return 1;
+    if (aspectMode === '4:3') return 4 / 3;
+    if (aspectMode === '16:9') return 16 / 9;
+    const w = cropperMediaSize?.naturalWidth || cropperMediaSize?.width || 4;
+    const h = cropperMediaSize?.naturalHeight || cropperMediaSize?.height || 3;
+    return w > 0 && h > 0 ? w / h : 4 / 3;
+  }, [aspectMode, cropperMediaSize]);
+
+  const cropSize = useMemo(() => {
+    if (!cropperMediaSize || !cropperContainerSize) return undefined;
+    const base = getCropSize(
+      cropperMediaSize.width,
+      cropperMediaSize.height,
+      cropperContainerSize.width,
+      cropperContainerSize.height,
+      cropAspect,
+      cropRotation
+    );
+    return { width: Math.max(1, Math.round(base.width)), height: Math.max(1, Math.round(base.height)) };
+  }, [cropAspect, cropRotation, cropperContainerSize, cropperMediaSize]);
+
+  const handleSmartCrop = useCallback(async () => {
+    if (!cropInputBlob || !cropSrcUrl) return;
+    if (!cropperMediaSize || !cropSize) {
+      setCropError('Smart Crop ist noch nicht bereit – Bild lädt noch.');
+      return;
+    }
+
+    setSmartCropping(true);
+    setCropError(null);
+    try {
+      const mod = await import('smartcrop');
+      const smartcrop = ((mod as any).default || (mod as any)) as any;
+      if (!smartcrop || typeof smartcrop.crop !== 'function') {
+        throw new Error('Smart-Crop Bibliothek konnte nicht geladen werden.');
+      }
+
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error('Bild konnte nicht geladen werden.'));
+        el.src = cropSrcUrl;
+      });
+
+      const aspect = cropAspect;
+      const maxW = Math.max(64, Math.min(1200, img.naturalWidth || img.width || 1200));
+      let targetW = Math.round(maxW);
+      let targetH = Math.round(targetW / aspect);
+      if (targetH > (img.naturalHeight || img.height || targetH)) {
+        const maxH = Math.max(64, Math.min(1200, img.naturalHeight || img.height || 1200));
+        targetH = Math.round(maxH);
+        targetW = Math.round(targetH * aspect);
+      }
+      targetW = Math.max(32, targetW);
+      targetH = Math.max(32, targetH);
+
+      const result = await smartcrop.crop(img, { width: targetW, height: targetH });
+      const top = result?.topCrop;
+      if (!top) {
+        throw new Error('Smart Crop hat kein Ergebnis geliefert.');
+      }
+
+      const rect: Area = {
+        x: Math.max(0, Math.round(top.x)),
+        y: Math.max(0, Math.round(top.y)),
+        width: Math.max(1, Math.round(top.width)),
+        height: Math.max(1, Math.round(top.height)),
+      };
+
+      // Smart crop is computed in natural image coordinates, so we reset rotation.
+      setCropRotation(0);
+      setCroppedAreaPixels(rect);
+      setUsedSmartCrop(true);
+
+      const helperCropSize =
+        cropperContainerSize && cropperMediaSize
+          ? (() => {
+              const base = getCropSize(
+                cropperMediaSize.width,
+                cropperMediaSize.height,
+                cropperContainerSize.width,
+                cropperContainerSize.height,
+                cropAspect,
+                0
+              );
+              return { width: Math.max(1, Math.round(base.width)), height: Math.max(1, Math.round(base.height)) };
+            })()
+          : cropSize;
+
+      const { crop, zoom } = getInitialCropFromCroppedAreaPixels(rect, cropperMediaSize, 0, helperCropSize, 1, 6);
+      setCropPoint(crop);
+      setCropZoom(zoom);
+    } catch (err: any) {
+      setCropError(err?.message ? String(err.message) : 'Smart Crop fehlgeschlagen.');
+    } finally {
+      setSmartCropping(false);
+    }
+  }, [cropAspect, cropInputBlob, cropSize, cropSrcUrl, cropperContainerSize, cropperMediaSize]);
+
+  const applyCrop = useCallback(async () => {
+    if (!isEditing || !isActiveReal || !activeRealImage || typeof onUpdateImage !== 'function') return;
+    if (!cropInputBlob || !croppedAreaPixels) {
+      setCropError('Bitte zuerst einen Ausschnitt wählen.');
+      return;
+    }
+
+    setCropSaving(true);
+    setCropError(null);
+    try {
+      const outBlob = await cropBlob(cropInputBlob, croppedAreaPixels, cropRotation);
+      const dataUrl = await blobToDataUrl(outBlob);
+      const noteTag = usedSmartCrop ? t('sheet.gallery.improve.note.smartCropped') : t('sheet.gallery.improve.note.cropped');
+      const next: ProductImage = {
+        ...activeRealImage,
+        url_or_base64: dataUrl,
+        notes: appendNote(activeRealImage.notes, noteTag),
+        mimeType: outBlob.type || activeRealImage.mimeType || null,
+      };
+      onUpdateImage(activeIndex, next);
+      closeCrop();
+    } catch (err: any) {
+      setCropError(err?.message ? String(err.message) : t('sheet.gallery.improve.error.generic'));
+    } finally {
+      setCropSaving(false);
+    }
+  }, [
+    activeIndex,
+    activeRealImage,
+    closeCrop,
+    cropInputBlob,
+    cropRotation,
+    croppedAreaPixels,
+    isActiveReal,
+    isEditing,
+    onUpdateImage,
+    t,
+    usedSmartCrop,
+  ]);
+
   const improveButtons = useMemo(() => {
     if (!isEditing || !isActiveReal || typeof onUpdateImage !== 'function') return null;
     const elapsedSeconds = improving ? Math.max(0, Math.round((Date.now() - improveStartedAtRef.current) / 1000)) : 0;
@@ -512,15 +822,25 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
               key={action}
               type="button"
               onClick={handler}
-              disabled={improving}
+              disabled={improving || cropOpen || cropLoading || cropSaving}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--surface-secondary)] text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-hover)] disabled:opacity-50 transition-all"
               title={label}
             >
               {label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => void openCrop()}
+            disabled={improving || cropOpen || cropLoading || cropSaving}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--surface-secondary)] text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-hover)] disabled:opacity-50 transition-all"
+            title={t('sheet.gallery.improve.crop')}
+          >
+            {cropLoading ? t('sheet.gallery.improve.working') : t('sheet.gallery.improve.crop')}
+          </button>
         </div>
         {improveError ? <div className="mt-2 text-xs text-[var(--error)]">{improveError}</div> : null}
+        {cropError ? <div className="mt-2 text-xs text-[var(--error)]">{cropError}</div> : null}
         {improving && improveAction === 'removeBg' && !isCrossOriginIsolated ? (
           <div className="mt-2 text-[11px] text-[var(--text-tertiary)]">{t('sheet.gallery.improve.hint.performance')}</div>
         ) : null}
@@ -530,6 +850,10 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
       </div>
     );
   }, [
+    cropError,
+    cropLoading,
+    cropOpen,
+    cropSaving,
     improveAction,
     improveError,
     improvePercent,
@@ -544,6 +868,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     handleRemoveBackground,
     handleRotate180,
     handleRotate90,
+    openCrop,
     t,
   ]);
 
@@ -612,8 +937,16 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
               key={index}
               role="button"
               tabIndex={0}
-              onClick={() => setActiveIndex(index)}
-              onKeyDown={(e) => e.key === 'Enter' && setActiveIndex(index)}
+              onClick={() => {
+                if (cropOpen || cropLoading || cropSaving || smartCropping) return;
+                setActiveIndex(index);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (cropOpen || cropLoading || cropSaving || smartCropping) return;
+                  setActiveIndex(index);
+                }
+              }}
               className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
                 index === activeIndex
                   ? 'border-[var(--avy-purple)] shadow-[var(--shadow-focus)]'
@@ -681,6 +1014,158 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           />
         </div>
       )}
+
+      {/* Crop modal */}
+      <Modal
+        open={cropOpen}
+        onClose={closeCrop}
+        title={t('sheet.gallery.improve.cropTitle')}
+        className="max-w-[980px] w-[95vw]"
+        footer={
+          <div className="flex items-center justify-between w-full gap-3">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void handleSmartCrop()}
+                disabled={smartCropping || cropSaving || !cropSrcUrl}
+                loading={smartCropping}
+              >
+                {t('sheet.gallery.improve.smartCrop')}
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={closeCrop} disabled={cropSaving || smartCropping}>
+                {t('common.cancel')}
+              </Button>
+              <Button size="sm" onClick={() => void applyCrop()} disabled={cropSaving || smartCropping} loading={cropSaving}>
+                {t('common.save')}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        {cropSrcUrl ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              <div className="lg:col-span-4">
+                <div
+                  ref={cropperContainerRef}
+                  className="relative w-full h-[440px] rounded-xl overflow-hidden border border-[var(--border)] bg-black/40"
+                >
+                  <Cropper
+                    image={cropSrcUrl}
+                    crop={cropPoint}
+                    zoom={cropZoom}
+                    rotation={cropRotation}
+                    aspect={cropAspect}
+                    cropSize={cropSize}
+                    onCropChange={setCropPoint}
+                    onZoomChange={setCropZoom}
+                    onRotationChange={setCropRotation}
+                    onMediaLoaded={(ms) => setCropperMediaSize(ms)}
+                    onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+                    showGrid
+                  />
+                </div>
+              </div>
+              <div className="lg:col-span-1 space-y-3">
+                <div>
+                  <div className="text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                    {t('sheet.gallery.improve.cropAspect')}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'original', label: t('sheet.gallery.improve.cropAspect.original') },
+                      { id: '1:1', label: '1:1' },
+                      { id: '4:3', label: '4:3' },
+                      { id: '16:9', label: '16:9' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setAspectMode(opt.id as any)}
+                        disabled={cropSaving || smartCropping}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                          aspectMode === opt.id
+                            ? 'bg-[var(--avy-purple)] text-white border-[var(--avy-purple)]'
+                            : 'bg-[var(--surface-secondary)] text-[var(--text-primary)] border-[var(--border)] hover:border-[var(--border-hover)]'
+                        } disabled:opacity-50`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                    {t('sheet.gallery.improve.cropZoom')}
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={6}
+                    step={0.01}
+                    value={cropZoom}
+                    onChange={(e) => setCropZoom(Number(e.target.value))}
+                    disabled={cropSaving || smartCropping}
+                    className="w-full"
+                  />
+                  <div className="mt-1 text-[11px] text-[var(--text-tertiary)]">{cropZoom.toFixed(2)}×</div>
+                </div>
+
+                <div>
+                  <div className="text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                    {t('sheet.gallery.improve.cropRotate')}
+                  </div>
+                  <input
+                    type="range"
+                    min={-45}
+                    max={45}
+                    step={0.1}
+                    value={cropRotation}
+                    onChange={(e) => setCropRotation(Number(e.target.value))}
+                    disabled={cropSaving || smartCropping}
+                    className="w-full"
+                  />
+                  <div className="mt-1 text-[11px] text-[var(--text-tertiary)]">{cropRotation.toFixed(1)}°</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCropRotation((v) => Math.max(-45, Math.min(45, v - 0.5)))}
+                      disabled={cropSaving || smartCropping}
+                      className="px-2 py-1 rounded-lg text-xs font-semibold bg-[var(--surface-secondary)] text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-hover)] disabled:opacity-50"
+                    >
+                      −0.5°
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCropRotation((v) => Math.max(-45, Math.min(45, v + 0.5)))}
+                      disabled={cropSaving || smartCropping}
+                      className="px-2 py-1 rounded-lg text-xs font-semibold bg-[var(--surface-secondary)] text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-hover)] disabled:opacity-50"
+                    >
+                      +0.5°
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCropRotation(0)}
+                      disabled={cropSaving || smartCropping}
+                      className="px-2 py-1 rounded-lg text-xs font-semibold bg-[var(--surface-secondary)] text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-hover)] disabled:opacity-50"
+                    >
+                      0°
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {cropError ? <div className="text-xs text-[var(--error)]">{cropError}</div> : null}
+          </div>
+        ) : (
+          <div className="text-sm text-[var(--text-tertiary)]">{t('sheet.gallery.improve.working')}</div>
+        )}
+      </Modal>
     </div>
   );
 };
