@@ -682,6 +682,36 @@ export async function fetchEbayListingLinks(limit = 200): Promise<any[]> {
   return Array.isArray(data?.data) ? data.data : [];
 }
 
+export async function fetchEbaySkuIndex(): Promise<{ sku: string; itemId: string; viewItemUrl: string | null }[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/sku-index`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load eBay SKU index');
+  }
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+
+export async function bulkUpdateEbayListings(params: {
+  itemIds?: string[];
+  applyAll?: boolean;
+}): Promise<{
+  summary: { total: number; success: number; failed: number; skipped: number };
+  results: any[];
+  dryRun: any;
+}> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/update/bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to bulk update eBay listings');
+  }
+  return data?.data;
+}
+
 export async function rebuildEbayGaps(payload?: { itemIds?: string[]; runId?: string }): Promise<any> {
   const res = await fetchApi(`${BACKEND_URL}/api/ebay/gaps/rebuild`, {
     method: 'POST',
