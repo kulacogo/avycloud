@@ -3293,12 +3293,34 @@ async function checkCategoryIsLeaf(product, overrides) {
   }
 }
 
+async function checkExistingEbayLink(productId) {
+  const snap = await firestore
+    .collection(EBAY_LINKS_COLLECTION)
+    .where('productId', '==', productId)
+    .where('status', '==', 'matched')
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  return snap.docs[0].data().itemId || snap.docs[0].id;
+}
+
 async function verifyPublishProduct(productId, overrides = {}) {
   const id = safeString(productId);
   if (!id) throw Object.assign(new Error('productId is required'), { code: 'EBAY_PUBLISH_ID_REQUIRED' });
   const doc = await firestore.collection(PRODUCTS_COLLECTION).doc(id).get();
   if (!doc.exists) throw Object.assign(new Error(`Produkt ${id} nicht gefunden`), { code: 'EBAY_PUBLISH_PRODUCT_NOT_FOUND' });
   const product = { id: doc.id, ...doc.data() };
+
+  const linkedItemId = await checkExistingEbayLink(id);
+  if (linkedItemId) {
+    return {
+      productId: id,
+      canPublish: false,
+      blockers: [`Bereits auf eBay gelistet (ItemID: ${linkedItemId}). Artikel kann nicht erneut gelistet werden.`],
+      warnings: [],
+      fees: null,
+    };
+  }
 
   const readiness = validatePublishReadiness(product, overrides);
   if (!readiness.canPublish) {
@@ -3326,6 +3348,16 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
   const doc = await firestore.collection(PRODUCTS_COLLECTION).doc(id).get();
   if (!doc.exists) throw Object.assign(new Error(`Produkt ${id} nicht gefunden`), { code: 'EBAY_PUBLISH_PRODUCT_NOT_FOUND' });
   const product = { id: doc.id, ...doc.data() };
+
+  const linkedItemId = await checkExistingEbayLink(id);
+  if (linkedItemId) {
+    return {
+      productId: id,
+      ok: false,
+      blockers: [`Bereits auf eBay gelistet (ItemID: ${linkedItemId}). Artikel kann nicht erneut gelistet werden.`],
+      warnings: [],
+    };
+  }
 
   const readiness = validatePublishReadiness(product, overrides);
   if (!readiness.canPublish) {
