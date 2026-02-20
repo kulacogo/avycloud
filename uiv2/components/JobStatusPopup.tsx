@@ -8,10 +8,10 @@ interface JobStatusPopupProps {
 }
 
 const phaseColor = (job: IdentificationJobStatus) => {
-  if (job.phase === 'error') return 'text-rose-300';
-  if (job.phase === 'complete') return 'text-emerald-300';
-  if (job.phase === 'cancelled') return 'text-amber-300';
-  return 'text-sky-200';
+  if (job.phase === 'error') return 'text-[color:var(--error)]';
+  if (job.phase === 'complete') return 'text-[color:var(--success)]';
+  if (job.phase === 'cancelled') return 'text-[color:var(--warning)]';
+  return 'text-[color:var(--avy-purple-light)]';
 };
 
 const JobStatusPopup: React.FC<JobStatusPopupProps> = ({ jobs, onCancel, onDismiss }) => {
@@ -19,8 +19,8 @@ const JobStatusPopup: React.FC<JobStatusPopupProps> = ({ jobs, onCancel, onDismi
 
   return (
     <div className="fixed bottom-6 right-6 z-50 w-full max-w-sm">
-      <div className="rounded-2xl border border-slate-700 bg-slate-900/95 shadow-2xl shadow-black/40 p-4 space-y-3">
-        <p className="text-sm font-semibold text-slate-200">Produkt-Uploads</p>
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/95 shadow-2xl shadow-black/40 p-4 space-y-3">
+        <p className="text-sm font-semibold text-[color:var(--text-primary)]">Produkt-Uploads</p>
         <div className="flex flex-col gap-3 max-h-96 overflow-y-auto pr-2">
           {jobs.map((job) => {
             const isActive =
@@ -36,18 +36,18 @@ const JobStatusPopup: React.FC<JobStatusPopupProps> = ({ jobs, onCancel, onDismi
             return (
               <div
                 key={job.localId}
-                className="rounded-xl border border-slate-700 bg-slate-800/80 p-3 flex flex-col gap-2"
+                className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)]/80 p-3 flex flex-col gap-2"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-100">{job.label}</p>
+                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">{job.label}</p>
                     <p className={`text-xs ${phaseColor(job)}`}>{icon} {job.message}</p>
                   </div>
                   {isActive ? (
                     <button
                       type="button"
                       onClick={() => onCancel(job.localId)}
-                      className="text-xs text-rose-300 hover:text-rose-100 transition-colors"
+                      className="text-xs text-[color:var(--error)] hover:text-[color:var(--error)] transition-colors"
                     >
                       Abbrechen
                     </button>
@@ -55,14 +55,14 @@ const JobStatusPopup: React.FC<JobStatusPopupProps> = ({ jobs, onCancel, onDismi
                     <button
                       type="button"
                       onClick={() => onDismiss(job.localId)}
-                      className="text-xs text-slate-400 hover:text-slate-100 transition-colors"
+                      className="text-xs text-[color:var(--text-tertiary)] hover:text-[color:var(--text-primary)] transition-colors"
                     >
                       Schließen
                     </button>
                   )}
                 </div>
                 {job.error && (
-                  <p className="text-xs text-rose-300 bg-rose-950/40 border border-rose-900 rounded-lg px-2 py-1">
+                  <p className="text-xs text-[color:var(--error)] bg-[var(--error-bg)] border border-[var(--error-border)] rounded-lg px-2 py-1">
                     {job.error}
                   </p>
                 )}

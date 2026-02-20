@@ -64,11 +64,11 @@ export const AdminJobsManagement: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
+      <div className="rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/50 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-white">Jobs</h3>
-            <p className="mt-1 text-sm text-slate-300">
+            <h3 className="text-lg font-semibold text-[color:white]">Jobs</h3>
+            <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
               Manuelle Trigger für Backend-Jobs (Cloud Run Jobs). Für GPSR gilt: Filter ist intern{' '}
               <span className="font-mono">Menge ≥ minQty</span> &amp; <span className="font-mono">needsGpsr</span> –{' '}
               <span className="font-mono">BIN</span> ist optional (Require BIN).
@@ -78,7 +78,7 @@ export const AdminJobsManagement: React.FC = () => {
             type="button"
             onClick={refreshStatus}
             disabled={statusLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-800/80 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--surface-hover)]/80 px-3 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[var(--surface)] disabled:opacity-60"
           >
             {statusLoading ? <Spinner className="w-4 h-4" /> : null}
             Status aktualisieren
@@ -108,11 +108,11 @@ export const AdminJobsManagement: React.FC = () => {
         ) : null}
       </div>
 
-      <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4 space-y-4">
+      <div className="rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/50 p-4 space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h4 className="text-base font-semibold text-white">GPSR Web Enrichment (initial)</h4>
-            <p className="text-xs text-slate-400">
+            <h4 className="text-base font-semibold text-[color:white]">GPSR Web Enrichment (initial)</h4>
+            <p className="text-xs text-[color:var(--text-tertiary)]">
               Startet den Cloud Run Job. Parameter werden als Env-Overrides übergeben (falls Container-Name konfiguriert ist).
             </p>
           </div>
@@ -120,7 +120,7 @@ export const AdminJobsManagement: React.FC = () => {
             type="button"
             onClick={runGpsrJob}
             disabled={running}
-            className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--avy-purple)] px-4 py-2 text-sm font-semibold text-[color:white] hover:bg-[var(--avy-purple-hover)] disabled:opacity-60"
           >
             {running ? <Spinner className="w-4 h-4" /> : null}
             Start
@@ -128,53 +128,53 @@ export const AdminJobsManagement: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <label className="flex items-center gap-2 text-sm text-slate-200">
+          <label className="flex items-center gap-2 text-sm text-[color:var(--text-primary)]">
             <input type="checkbox" checked={apply} onChange={(e) => setApply(e.target.checked)} />
             Änderungen speichern (write)
           </label>
 
-          <label className="flex flex-col gap-1 text-sm text-slate-200">
-            <span className="text-[11px] uppercase tracking-wide text-slate-400">limit</span>
+          <label className="flex flex-col gap-1 text-sm text-[color:var(--text-primary)]">
+            <span className="text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">limit</span>
             <input
               type="number"
               min={1}
               max={20000}
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value) || 1)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
             />
           </label>
 
-          <label className="flex flex-col gap-1 text-sm text-slate-200">
-            <span className="text-[11px] uppercase tracking-wide text-slate-400">concurrency</span>
+          <label className="flex flex-col gap-1 text-sm text-[color:var(--text-primary)]">
+            <span className="text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">concurrency</span>
             <input
               type="number"
               min={1}
               max={10}
               value={concurrency}
               onChange={(e) => setConcurrency(Number(e.target.value) || 1)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
             />
           </label>
 
-          <label className="flex flex-col gap-1 text-sm text-slate-200">
-            <span className="text-[11px] uppercase tracking-wide text-slate-400">minQty</span>
+          <label className="flex flex-col gap-1 text-sm text-[color:var(--text-primary)]">
+            <span className="text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">minQty</span>
             <input
               type="number"
               min={1}
               max={9999}
               value={minQty}
               onChange={(e) => setMinQty(Number(e.target.value) || 1)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
             />
           </label>
 
-          <label className="flex items-center gap-2 text-sm text-slate-200">
+          <label className="flex items-center gap-2 text-sm text-[color:var(--text-primary)]">
             <input type="checkbox" checked={requireBin} onChange={(e) => setRequireBin(e.target.checked)} />
             Require BIN
           </label>
 
-          <label className="flex items-center gap-2 text-sm text-slate-200">
+          <label className="flex items-center gap-2 text-sm text-[color:var(--text-primary)]">
             <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} />
             Debug
           </label>
@@ -183,9 +183,9 @@ export const AdminJobsManagement: React.FC = () => {
         {error ? <Notice tone="error" title="Fehler" details={error} /> : null}
 
         {lastResult ? (
-          <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Result</p>
-            <pre className="mt-2 overflow-auto whitespace-pre-wrap text-xs text-slate-200">
+          <div className="rounded-lg border border-[var(--border)]/60 bg-[var(--bg)]/40 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--text-secondary)]">Result</p>
+            <pre className="mt-2 overflow-auto whitespace-pre-wrap text-xs text-[color:var(--text-primary)]">
               {JSON.stringify(lastResult, null, 2)}
             </pre>
           </div>

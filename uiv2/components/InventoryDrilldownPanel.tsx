@@ -69,13 +69,13 @@ export const InventoryDrilldownPanel: React.FC<{
   }, [products, idSet, q]);
 
   return (
-    <div className="rounded-2xl bg-slate-900/60 p-4 ring-1 ring-slate-700/60">
+    <div className="rounded-2xl bg-[var(--surface-secondary)]/60 p-4 ring-1 ring-[var(--border)]/60">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-slate-100">{title}</div>
-          <div className="text-xs text-slate-400">
-            Treffer: <span className="text-slate-200">{filtered.length}</span> /{' '}
-            <span className="text-slate-200">{ids.length}</span>
+          <div className="text-sm font-semibold text-[color:var(--text-primary)]">{title}</div>
+          <div className="text-xs text-[color:var(--text-tertiary)]">
+            Treffer: <span className="text-[color:var(--text-primary)]">{filtered.length}</span> /{' '}
+            <span className="text-[color:var(--text-primary)]">{ids.length}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -83,12 +83,12 @@ export const InventoryDrilldownPanel: React.FC<{
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Suchen (Name, Marke, SKU, Kategorie)…"
-            className="w-56 rounded-xl bg-slate-800/70 px-3 py-2 text-xs text-slate-100 ring-1 ring-slate-700/60 placeholder:text-slate-500"
+            className="w-56 rounded-xl bg-[var(--surface-hover)]/70 px-3 py-2 text-xs text-[color:var(--text-primary)] ring-1 ring-[var(--border)]/60 placeholder:text-[color:var(--text-tertiary)]"
           />
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            className="rounded-xl bg-[var(--surface-hover)]/80 px-3 py-2 text-xs font-semibold text-[color:var(--text-primary)] hover:bg-[var(--surface)]"
             title="Schließen"
           >
             ✕
@@ -96,9 +96,9 @@ export const InventoryDrilldownPanel: React.FC<{
         </div>
       </div>
 
-      <div className="mt-3 overflow-auto rounded-xl ring-1 ring-slate-700/50">
+      <div className="mt-3 overflow-auto rounded-xl ring-1 ring-[var(--border)]/50">
         <table className="min-w-full text-left text-xs">
-          <thead className="bg-slate-900/60 text-slate-300">
+          <thead className="bg-[var(--surface-secondary)]/60 text-[color:var(--text-secondary)]">
             <tr>
               <th className="px-3 py-2 font-semibold">Produkt</th>
               <th className="px-3 py-2 font-semibold">SKU</th>
@@ -108,28 +108,28 @@ export const InventoryDrilldownPanel: React.FC<{
               <th className="px-3 py-2 font-semibold">K‑Typ</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 bg-slate-950/20">
+          <tbody className="divide-y divide-[var(--border)]/60 bg-[var(--bg)]/20">
             {filtered.map((p) => {
               const price = pickPrice(p);
               const gpsr = gpsrFilledNoPlaceholder(p);
               return (
                 <tr
                   key={p.id}
-                  className="cursor-pointer hover:bg-slate-900/40"
+                  className="cursor-pointer hover:bg-[var(--surface-secondary)]/40"
                   onClick={() => onOpenProductInNewTab(p.id)}
                   title="Produktdetails in neuem Tab öffnen"
                 >
                   <td className="px-3 py-2">
-                    <div className="font-semibold text-slate-100">{safe(p?.identification?.name) || '—'}</div>
-                    <div className="text-[11px] text-slate-400">{safe(p?.identification?.brand) || '—'}</div>
+                    <div className="font-semibold text-[color:var(--text-primary)]">{safe(p?.identification?.name) || '—'}</div>
+                    <div className="text-[11px] text-[color:var(--text-tertiary)]">{safe(p?.identification?.brand) || '—'}</div>
                   </td>
-                  <td className="px-3 py-2 font-mono text-slate-200">{pickSku(p) || '—'}</td>
-                  <td className="px-3 py-2 text-slate-300">{safe(p?.identification?.category) || '—'}</td>
-                  <td className="px-3 py-2 text-slate-300">{price == null ? '—' : `${price.toFixed(2)} €`}</td>
+                  <td className="px-3 py-2 font-mono text-[color:var(--text-primary)]">{pickSku(p) || '—'}</td>
+                  <td className="px-3 py-2 text-[color:var(--text-secondary)]">{safe(p?.identification?.category) || '—'}</td>
+                  <td className="px-3 py-2 text-[color:var(--text-secondary)]">{price == null ? '—' : `${price.toFixed(2)} €`}</td>
                   <td className="px-3 py-2">
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                        gpsr === 8 ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-200'
+                        gpsr === 8 ? 'bg-[var(--success-bg)] text-[color:var(--success)]' : 'bg-[var(--warning-bg)] text-[color:var(--warning)]'
                       }`}
                     >
                       {gpsr}/8
@@ -138,7 +138,7 @@ export const InventoryDrilldownPanel: React.FC<{
                   <td className="px-3 py-2">
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                        hasKtyp(p) ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700/60 text-slate-300'
+                        hasKtyp(p) ? 'bg-[var(--success-bg)] text-[color:var(--success)]' : 'bg-[var(--surface)]/60 text-[color:var(--text-secondary)]'
                       }`}
                     >
                       {hasKtyp(p) ? 'set' : '—'}
@@ -149,7 +149,7 @@ export const InventoryDrilldownPanel: React.FC<{
             })}
             {filtered.length === 0 ? (
               <tr>
-                <td className="px-3 py-6 text-center text-slate-500" colSpan={6}>
+                <td className="px-3 py-6 text-center text-[color:var(--text-tertiary)]" colSpan={6}>
                   Keine Treffer. Tipp: Suche nach SKU oder Marke.
                 </td>
               </tr>
@@ -158,7 +158,7 @@ export const InventoryDrilldownPanel: React.FC<{
         </table>
       </div>
 
-      <div className="mt-2 text-[11px] text-slate-500">
+      <div className="mt-2 text-[11px] text-[color:var(--text-tertiary)]">
         Tipp: Klick auf eine Zeile öffnet das Produkt in einem neuen Tab. Die Liste aktualisiert sich automatisch, wenn du oben einen anderen KPI auswählst.
       </div>
     </div>

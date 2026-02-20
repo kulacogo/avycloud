@@ -8,7 +8,10 @@ import ProductSheet from './components/ProductSheet';
 import AdminTable from './components/AdminTable';
 import WarehouseView from './components/WarehouseView';
 import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
+import { Topbar } from './components/Topbar';
 import { Spinner } from './components/Spinner';
+import { Menu, X } from 'lucide-react';
 import JobStatusPopup from './components/JobStatusPopup';
 import StatusDock from './components/StatusDock';
 import Dashboard from './components/Dashboard';
@@ -367,6 +370,7 @@ const AppInner: React.FC = () => {
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
   );
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const historyReadyRef = useRef(false);
   const skipNextHistoryPushRef = useRef(false);
   const lastHistoryStateRef = useRef<{ view: View; productId: string | null } | null>(null);
@@ -813,12 +817,12 @@ const AppInner: React.FC = () => {
             isImproving={Boolean(currentProduct && activeProductIds.has(currentProduct.id))}
           />
         ) : (
-          <div className="text-center p-8 text-slate-400">{t('app.sheet.empty')}</div>
+          <div className="text-center p-8 text-[color:var(--text-tertiary)]">{t('app.sheet.empty')}</div>
         );
       case 'inventory':
       case 'products':
         if (!hasPermission('products', 'read')) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-[color:var(--text-tertiary)]">{t('error.forbidden')}</div>;
         }
         return (
           <AdminTable
@@ -836,12 +840,12 @@ const AppInner: React.FC = () => {
         );
       case 'categories':
         if (!(hasPermission('categories', 'read') || hasPermission('categories', 'write'))) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-[color:var(--text-tertiary)]">{t('error.forbidden')}</div>;
         }
         return <CategoryManagement />;
       case 'ebay-listings':
         if (!(hasPermission('products', 'read') || hasPermission('products', 'write'))) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-[color:var(--text-tertiary)]">{t('error.forbidden')}</div>;
         }
         return <EbayListingsView />;
       case 'admin':
@@ -854,12 +858,12 @@ const AppInner: React.FC = () => {
             hasPermission('admin', 'reports.read')
           )
         ) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-[color:var(--text-tertiary)]">{t('error.forbidden')}</div>;
         }
         return <AdminPanel />;
       case 'warehouse':
         if (!(hasPermission('warehouse', 'read') || hasPermission('warehouse', 'write'))) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-[color:var(--text-tertiary)]">{t('error.forbidden')}</div>;
         }
         return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
       case 'dashboard':
@@ -884,7 +888,7 @@ const AppInner: React.FC = () => {
       case 'input':
       default:
         if (!hasPermission('identify', 'run')) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-[color:var(--text-tertiary)]">{t('error.forbidden')}</div>;
         }
         return <ProductInput onIdentify={handleIdentification} />;
     }
@@ -893,10 +897,10 @@ const AppInner: React.FC = () => {
   const renderLoadState = () => {
     if (productsLoading && products.length === 0) {
       return (
-        <div className="flex items-center justify-center h-[calc(100vh-10rem)] text-slate-200">
-          <div className="bg-slate-800/80 border border-slate-700 rounded-2xl px-6 py-5 shadow-xl text-center space-y-2">
+        <div className="flex items-center justify-center h-[calc(100vh-10rem)] text-[color:var(--text-primary)]">
+          <div className="bg-[var(--surface-secondary)]/80 border border-[var(--border)] rounded-2xl px-6 py-5 shadow-xl text-center space-y-2">
             <p className="text-lg font-semibold">{t('status.loading.products')}</p>
-            <p className="text-sm text-slate-400">{t('status.loading.hint')}</p>
+            <p className="text-sm text-[color:var(--text-tertiary)]">{t('status.loading.hint')}</p>
           </div>
         </div>
       );
@@ -905,56 +909,99 @@ const AppInner: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-200 font-sans flex flex-col">
-      <Header currentView={view} setView={setView} theme={theme} onToggleTheme={toggleTheme} />
-      <main
-        className="flex-1 w-full px-4 sm:px-6 lg:px-10 xl:px-16 py-4 safe-area-content"
-      >
-        {productsError && (
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-rose-800 bg-rose-900/50 px-4 py-3 text-sm text-rose-50">
-            <span>{productsError}</span>
-            <button
-              type="button"
-              onClick={loadProducts}
-              className="inline-flex items-center rounded-lg bg-rose-700 px-3 py-1.5 font-semibold text-white hover:bg-rose-600 transition-colors"
-            >
-              {t('error.reload')}
-            </button>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', color: 'var(--text-primary)' }}>
+      {/* Desktop Sidebar */}
+      {!isMobile && <Sidebar currentView={view} setView={setView} />}
+
+      {/* Mobile Sidebar Overlay */}
+      {isMobile && mobileMenuOpen && (
+        <>
+          <div className="sidebar-overlay" onClick={() => setMobileMenuOpen(false)} />
+          <div className="sidebar open">
+            <Sidebar currentView={view} setView={setView} onClose={() => setMobileMenuOpen(false)} />
           </div>
-        )}
-        {identificationError && (
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-rose-800 bg-rose-900/50 px-4 py-3 text-sm text-rose-50">
-            <span>{identificationError}</span>
-            <button
-              type="button"
-              onClick={clearError}
-              className="inline-flex items-center rounded-lg bg-rose-700 px-3 py-1.5 font-semibold text-white hover:bg-rose-600 transition-colors"
-            >
-              {t('common.close')}
-            </button>
-          </div>
-        )}
-        {renderLoadState()}
-      </main>
-      {isMobile && (
-        <div className="sm:hidden fixed left-0 right-0 bottom-0 z-40">
-          <MobileTabBar
-            currentView={view}
-            onNavigate={(next) => {
-              setView(next as View);
-            }}
-            theme={theme}
-          />
-        </div>
+        </>
       )}
+
+      {/* Main Content Area */}
+      <div className="main" style={isMobile ? { marginLeft: 0 } : undefined}>
+        {/* Mobile Header */}
+        {isMobile && (
+          <div className="mobile-header">
+            <button className="hamburger" onClick={() => setMobileMenuOpen(true)}>
+              <Menu size={22} />
+            </button>
+            <span className="mobile-brand">AvyCloud</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+              <button
+                className="topbar-btn"
+                style={{ color: 'rgba(255,255,255,0.7)' }}
+                onClick={toggleTheme}
+              >
+                {theme === 'dark' ? (
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="3.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1"/></svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 8.5A5.5 5.5 0 117.5 2.5a4 4 0 006 6z"/></svg>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Desktop Topbar */}
+        {!isMobile && <Topbar theme={theme} onToggleTheme={toggleTheme} />}
+
+        <main className="content safe-area-content">
+          {productsError && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 'var(--radius-lg)', background: 'var(--error-bg)', border: '1px solid var(--error-border)', marginBottom: 'var(--space-4)', fontSize: 13 }}>
+              <span style={{ color: 'var(--error)', flex: 1 }}>{productsError}</span>
+              <button
+                type="button"
+                onClick={loadProducts}
+                className="btn btn-danger btn-sm"
+              >
+                {t('error.reload')}
+              </button>
+            </div>
+          )}
+          {identificationError && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 'var(--radius-lg)', background: 'var(--error-bg)', border: '1px solid var(--error-border)', marginBottom: 'var(--space-4)', fontSize: 13 }}>
+              <span style={{ color: 'var(--error)', flex: 1 }}>{identificationError}</span>
+              <button
+                type="button"
+                onClick={clearError}
+                className="btn btn-ghost btn-sm"
+              >
+                {t('common.close')}
+              </button>
+            </div>
+          )}
+          {renderLoadState()}
+        </main>
+
+        {/* Mobile Bottom Tabs */}
+        {isMobile && (
+          <div className="sm:hidden fixed left-0 right-0 bottom-0 z-40">
+            <MobileTabBar
+              currentView={view}
+              onNavigate={(next) => {
+                setView(next as View);
+              }}
+              theme={theme}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Job Status Overlay */}
       {(jobsRunning || jobStatuses.length > 0 || improveJobStatuses.length > 0) && (
         <>
           {jobsRunning && (
-            <div className="fixed bottom-6 left-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
-              <Spinner className="w-6 h-6 text-sky-300" />
-              <div className="text-sm text-slate-100">
-                <p className="font-semibold">{t('status.backgroundUploads.title')}</p>
-                <p className="text-slate-400 text-xs">{t('status.backgroundUploads.subtitle')}</p>
+            <div style={{ position: 'fixed', bottom: 24, left: isMobile ? 16 : 272, zIndex: 40, display: 'flex', alignItems: 'center', gap: 12, borderRadius: 'var(--radius-lg)', background: 'var(--surface)', border: '1px solid var(--border)', padding: '12px 16px', boxShadow: 'var(--shadow-lg)', maxWidth: 340 }}>
+              <Spinner className="w-5 h-5" style={{ color: 'var(--avy-purple)' }} />
+              <div style={{ fontSize: 13 }}>
+                <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{t('status.backgroundUploads.title')}</p>
+                <p style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{t('status.backgroundUploads.subtitle')}</p>
               </div>
             </div>
           )}
@@ -992,12 +1039,12 @@ const AuthGate: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center">
-        <div className="flex items-center gap-3 rounded-2xl bg-slate-800/70 border border-white/10 px-6 py-5 shadow-xl">
-          <Spinner className="w-6 h-6 text-sky-300" />
-          <div className="text-sm">
-            <p className="font-semibold">{t('auth.loading.title')}</p>
-            <p className="text-slate-400 text-xs">{t('auth.loading.subtitle')}</p>
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 'var(--radius-lg)', background: 'var(--surface)', border: '1px solid var(--border)', padding: '20px 24px', boxShadow: 'var(--shadow-md)' }}>
+          <Spinner className="w-5 h-5" style={{ color: 'var(--avy-purple)' }} />
+          <div style={{ fontSize: 13 }}>
+            <p style={{ fontWeight: 600 }}>{t('auth.loading.title')}</p>
+            <p style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{t('auth.loading.subtitle')}</p>
           </div>
         </div>
       </div>
@@ -1006,18 +1053,18 @@ const AuthGate: React.FC = () => {
 
   if (initError) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
-        <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-4">
-          <h1 className="text-xl font-bold">{t('auth.devSetup.title')}</h1>
-          <p className="text-sm text-slate-300">
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}>
+        <div style={{ width: '100%', maxWidth: 640, borderRadius: 'var(--radius-xl)', background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', padding: 24 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>{t('auth.devSetup.title')}</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
             {t('auth.devSetup.description')}
           </p>
-          <div className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+          <div style={{ borderRadius: 'var(--radius-md)', background: 'var(--error-bg)', border: '1px solid var(--error-border)', padding: '12px 16px', fontSize: 13, color: 'var(--error)', marginBottom: 16 }}>
             {initError}
           </div>
-          <div className="text-sm text-slate-200 space-y-2">
-            <p className="font-semibold">{t('auth.devSetup.fixTitle')}</p>
-            <ol className="list-decimal list-inside text-slate-300 space-y-1">
+          <div style={{ fontSize: 14 }}>
+            <p style={{ fontWeight: 600, marginBottom: 8 }}>{t('auth.devSetup.fixTitle')}</p>
+            <ol style={{ listStyle: 'decimal inside', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 4 }}>
               <li>
                 {t('auth.devSetup.fix.step1.before')}{' '}
                 <span className="font-mono">.env.local</span> {t('auth.devSetup.fix.step1.after')}
@@ -1043,19 +1090,19 @@ const AuthGate: React.FC = () => {
 
   if (!isAdmin && !user.emailVerified) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
-        <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-4">
-          <h1 className="text-xl font-bold">{t('auth.verifyEmail.title')}</h1>
-          <p className="text-sm text-slate-300">
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}>
+        <div style={{ width: '100%', maxWidth: 480, borderRadius: 'var(--radius-xl)', background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700 }}>{t('auth.verifyEmail.title')}</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
             {t('auth.verifyEmail.description')}
           </p>
-          <div className="text-xs text-slate-500">
-            {t('auth.verifyEmail.signedInAs')}: <span className="text-slate-200">{user.email}</span>
+          <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+            {t('auth.verifyEmail.signedInAs')}: <span style={{ color: 'var(--text-primary)' }}>{user.email}</span>
           </div>
           <button
             type="button"
             onClick={() => logout()}
-            className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2.5 font-semibold text-white transition-colors"
+            className="btn btn-secondary"
           >
             {t('common.logout')}
           </button>

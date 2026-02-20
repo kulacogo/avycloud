@@ -79,8 +79,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped 
   return (
     <aside
       ref={containerRef}
-      className={`relative flex min-h-[420px] h-full flex-col overflow-hidden rounded-xl border border-slate-800/80 bg-slate-900/80 text-slate-100 ${
-        isDragActive ? 'ring-2 ring-sky-500' : ''
+      className={`relative flex min-h-[420px] h-full flex-col overflow-hidden rounded-xl border border-[var(--border)]/80 bg-[var(--surface-secondary)]/80 text-[color:var(--text-primary)] ${
+        isDragActive ? 'ring-2 ring-[var(--avy-purple)]' : ''
       }`}
       style={{
         width: isCompact ? '100%' : `${width}px`,
@@ -96,7 +96,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped 
           role="separator"
           tabIndex={0}
           aria-orientation="vertical"
-          className="absolute left-0 top-0 h-full w-1 cursor-col-resize rounded-l-xl bg-transparent transition hover:bg-sky-500/40"
+          className="absolute left-0 top-0 h-full w-1 cursor-col-resize rounded-l-xl bg-transparent transition hover:bg-[var(--avy-purple-hover)]/40"
           onMouseDown={handleResizeStart}
         />
       )}

@@ -15,10 +15,10 @@ interface DashboardMobileProps {
 }
 
 const StatCard: React.FC<{ label: string; value: string; sub?: string }> = ({ label, value, sub }) => (
-  <div className="rounded-2xl bg-slate-800 border border-white/5 p-4 shadow-lg shadow-black/30">
-    <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
-    <p className="text-2xl font-semibold text-white mt-1">{value}</p>
-    {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
+  <div className="rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] p-4 shadow-lg shadow-black/30">
+    <p className="text-xs uppercase tracking-wide text-[color:var(--text-tertiary)]">{label}</p>
+    <p className="text-2xl font-semibold text-[color:white] mt-1">{value}</p>
+    {sub && <p className="text-xs text-[color:var(--text-tertiary)] mt-1">{sub}</p>}
   </div>
 );
 
@@ -32,12 +32,12 @@ const ActionCard: React.FC<{
 }> = ({ label, value, sub, onClick, tone = 'neutral', disabled }) => {
   const toneClass =
     tone === 'primary'
-      ? 'bg-sky-600 text-white'
+      ? 'bg-[var(--avy-purple)] text-[color:white]'
       : tone === 'success'
-        ? 'bg-emerald-600 text-white'
+        ? 'bg-[var(--success)] text-[color:white]'
         : tone === 'warn'
-          ? 'bg-amber-600 text-white'
-          : 'bg-slate-800 text-white border border-white/5';
+          ? 'bg-[var(--warning)] text-[color:white]'
+          : 'bg-[var(--surface-hover)] text-[color:white] border border-[var(--border)]';
   return (
     <button
       type="button"
@@ -356,15 +356,15 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
     <div className="space-y-4 max-w-xl mx-auto">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-white">{t('mobile.dashboard.title')}</h1>
-          <p className="text-xs text-slate-500">
+          <h1 className="text-2xl font-semibold text-[color:white]">{t('mobile.dashboard.title')}</h1>
+          <p className="text-xs text-[color:var(--text-tertiary)]">
             {lastUpdatedAt ? t('mobile.dashboard.lastUpdated', { value: lastUpdatedAt.toLocaleString(intlLocale) }) : '—'}
           </p>
         </div>
       </div>
 
       {isEmpty && (
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-4 text-sm text-slate-300">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 p-4 text-sm text-[color:var(--text-secondary)]">
           {isLoading ? t('status.loading.products') : t('mobile.dashboard.empty')}
         </div>
       )}
@@ -398,16 +398,16 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         <button
           type="button"
           onClick={() => navigateTo('search')}
-          className="w-full rounded-2xl bg-slate-800 border border-white/5 p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99]"
+          className="w-full rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99]"
         >
-          <p className="text-xs uppercase tracking-wide text-slate-400">{t('nav.search')}</p>
-          <p className="text-2xl font-semibold text-white mt-1">{t('mobile.dashboard.action.search')}</p>
-          <p className="text-xs text-slate-400 mt-1">{t('mobile.dashboard.action.searchSub')}</p>
+          <p className="text-xs uppercase tracking-wide text-[color:var(--text-tertiary)]">{t('nav.search')}</p>
+          <p className="text-2xl font-semibold text-[color:white] mt-1">{t('mobile.dashboard.action.search')}</p>
+          <p className="text-xs text-[color:var(--text-tertiary)] mt-1">{t('mobile.dashboard.action.searchSub')}</p>
         </button>
         <button
           type="button"
           onClick={() => navigateTo('operations-identify')}
-          className="w-full rounded-2xl bg-sky-600 text-white p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99]"
+          className="w-full rounded-2xl bg-[var(--avy-purple)] text-[color:white] p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99]"
         >
           <p className="text-xs uppercase tracking-wide opacity-90">{t('ops.mode.identify')}</p>
           <p className="text-2xl font-semibold mt-1">{t('mobile.dashboard.action.identify')}</p>
@@ -434,13 +434,13 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         </div>
       )}
 
-      <details className="rounded-2xl bg-slate-900/40 border border-white/5 p-4">
-        <summary className="cursor-pointer select-none text-xs uppercase tracking-wide text-slate-400">
+      <details className="rounded-2xl bg-[var(--surface-secondary)]/40 border border-[var(--border)] p-4">
+        <summary className="cursor-pointer select-none text-xs uppercase tracking-wide text-[color:var(--text-tertiary)]">
           {t('mobile.dashboard.section.ordersRevenue')}
         </summary>
         <div className="mt-3 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-[color:var(--text-tertiary)]">
               {metrics?.generated_at_iso
                 ? new Date(metrics.generated_at_iso).toLocaleString(intlLocale)
                 : metricsLoading
@@ -450,11 +450,11 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
             <select
               value={activePreset}
               onChange={(e) => setPreset(e.target.value)}
-              className="text-[11px] rounded-lg bg-slate-800/90 border border-white/10 px-2 py-1 text-slate-200"
+              className="text-[11px] rounded-lg bg-[var(--surface-hover)]/90 border border-[var(--border)] px-2 py-1 text-[color:var(--text-primary)]"
               aria-label="Dashboard Zeitraum"
             >
               {DASHBOARD_RANGE_PRESETS.map((p) => (
-                <option key={p.id} value={p.id} className="bg-slate-900">
+                <option key={p.id} value={p.id} className="bg-[var(--surface-secondary)]">
                   {p.label}
                 </option>
               ))}
@@ -490,10 +490,10 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
             />
           </div>
 
-          <div className="rounded bg-slate-800/70 border border-white/5 p-4">
+          <div className="rounded bg-[var(--surface-hover)]/70 border border-[var(--border)] p-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs uppercase tracking-wide text-slate-400">{t('mobile.dashboard.chart.title')}</p>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs uppercase tracking-wide text-[color:var(--text-tertiary)]">{t('mobile.dashboard.chart.title')}</p>
+              <p className="text-[11px] text-[color:var(--text-tertiary)]">
                 {volume7d.length
                   ? t('mobile.dashboard.chart.ordersCount', {
                       count: volume7d.reduce((s, d) => s + (Number(d.orders || 0) || 0), 0),
@@ -502,7 +502,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
               </p>
             </div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] text-slate-500">{activeRangeLabel}</p>
+              <p className="text-[11px] text-[color:var(--text-tertiary)]">{activeRangeLabel}</p>
             </div>
             <div>
               <div
@@ -524,15 +524,15 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
                             orders: count,
                             revenue: formatCurrency(revenue, metrics?.currency || 'EUR'),
                           })}
-                          className="w-full rounded-[2px] bg-sky-500/70"
+                          className="w-full rounded-[2px] bg-[var(--avy-purple-hover)]/70"
                           style={{ height: `${barPx}px`, borderRadius: '2px' }}
                         />
-                        <div className="text-[11px] text-slate-300 font-semibold tabular-nums">{count}</div>
+                        <div className="text-[11px] text-[color:var(--text-secondary)] font-semibold tabular-nums">{count}</div>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-sm text-slate-400">{t('mobile.dashboard.chart.noData')}</div>
+                  <div className="text-sm text-[color:var(--text-tertiary)]">{t('mobile.dashboard.chart.noData')}</div>
                 )}
               </div>
             </div>

@@ -713,11 +713,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
 
   return (
     <ChatContainer onFilesDropped={handleFilesAdded}>
-      <header className="flex items-center justify-between border-b border-slate-800 px-4 py-3 text-xs uppercase tracking-wide text-slate-400">
-        <div className="flex items-center gap-2 text-slate-100">
-          <SparklesIcon className="h-4 w-4 text-sky-400" />
-          <span className="font-semibold text-sm text-white">{t('chat.header.title')}</span>
-          <span className="text-[11px] text-slate-500">{t('chat.header.subtitle')}</span>
+      <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3 text-xs uppercase tracking-wide text-[color:var(--text-tertiary)]">
+        <div className="flex items-center gap-2 text-[color:var(--text-primary)]">
+          <SparklesIcon className="h-4 w-4 text-[color:var(--avy-purple-light)]" />
+          <span className="font-semibold text-sm text-[color:white]">{t('chat.header.title')}</span>
+          <span className="text-[11px] text-[color:var(--text-tertiary)]">{t('chat.header.subtitle')}</span>
         </div>
         <button
           type="button"
@@ -725,7 +725,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             setInput(buildSmartPrompt());
             setActiveScope(derivedScope);
           }}
-          className="rounded-full border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:border-sky-500 hover:text-white"
+          className="rounded-full border border-[var(--border)] px-3 py-1 text-[11px] text-[color:var(--text-primary)] hover:border-[var(--avy-purple)] hover:text-[color:var(--text-primary)]"
           title="Erzeugt einen smarten Prompt aus den Optionen."
         >
           Prompt bauen
@@ -748,7 +748,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="flex items-center gap-2 rounded-2xl bg-slate-800/80 px-4 py-3 text-sm text-slate-200">
+              <div className="flex items-center gap-2 rounded-2xl bg-[var(--surface-hover)]/80 px-4 py-3 text-sm text-[color:var(--text-primary)]">
                 <Spinner className="h-4 w-4" />
                 {t('chat.ui.thinking')}
               </div>
@@ -757,24 +757,24 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         </div>
 
         {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
-          <div className="space-y-4 border-t border-slate-800 pt-3 text-xs text-slate-200">
+          <div className="space-y-4 border-t border-[var(--border)] pt-3 text-xs text-[color:var(--text-primary)]">
             {pendingChanges.length > 0 && (
-              <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
-                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
+              <details className="rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/60">
+                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-primary)]">
                   <span>{t('chat.ui.pendingChanges')}</span>
                   <span>{pendingChanges.length}</span>
                 </summary>
                 <div className="space-y-2 p-3">
                   {pendingChanges.map((item) => (
-                    <div key={item.id} className="rounded-xl border border-slate-700/70 bg-slate-900/70 p-3">
-                      <p className="text-sm font-semibold text-white">
+                    <div key={item.id} className="rounded-xl border border-[var(--border)]/70 bg-[var(--surface-secondary)]/70 p-3">
+                      <p className="text-sm font-semibold text-[color:white]">
                         {item.change.summary || t('chat.ui.changeFallback')}
                       </p>
                       <button
                         type="button"
                         onClick={() => handleApplyChange(item.id, item.change)}
                         disabled={applyingChangeIds.has(item.id)}
-                        className="mt-2 rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500 disabled:cursor-wait disabled:opacity-60"
+                        className="mt-2 rounded-full bg-[var(--avy-purple)] px-3 py-1 text-[11px] font-semibold text-[color:white] hover:bg-[var(--avy-purple-hover)] disabled:cursor-wait disabled:opacity-60"
                       >
                         {applyingChangeIds.has(item.id) ? 'Übernehme…' : t('chat.ui.apply')}
                       </button>
@@ -785,20 +785,20 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             )}
 
             {pendingImages.length > 0 && (
-              <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
-                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
+              <details className="rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/60">
+                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-primary)]">
                   <span>{t('chat.ui.imageSuggestions')}</span>
                   <span>{pendingImages.length}</span>
                 </summary>
                 <div className="space-y-2 p-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-[color:var(--text-tertiary)]">
                       Tipp: Du kannst alle Vorschläge mit einem Klick übernehmen.
                     </p>
                     <button
                       type="button"
                       onClick={handleApplyAllImages}
-                      className="rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
+                      className="rounded-full bg-[var(--avy-purple)] px-3 py-1 text-[11px] font-semibold text-[color:white] hover:bg-[var(--avy-purple-hover)]"
                     >
                       Alle hinzufügen
                     </button>
@@ -807,7 +807,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   {pendingImages.map((item) => (
                     <div
                       key={item.id}
-                      className="flex min-w-[160px] max-w-[160px] flex-col gap-2 rounded-xl border border-slate-700/60 bg-slate-900/70 p-2"
+                      className="flex min-w-[160px] max-w-[160px] flex-col gap-2 rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/70 p-2"
                     >
                       <img
                         src={resolveImageSrc(item.image.url_or_base64)}
@@ -821,11 +821,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                           )}`;
                         }}
                       />
-                      {item.rationale && <p className="text-[11px] text-slate-400 line-clamp-2">{item.rationale}</p>}
+                      {item.rationale && <p className="text-[11px] text-[color:var(--text-tertiary)] line-clamp-2">{item.rationale}</p>}
                       <button
                         type="button"
                         onClick={() => handleApplyImage(item.id)}
-                        className="rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
+                        className="rounded-full bg-[var(--avy-purple)] px-3 py-1 text-[11px] font-semibold text-[color:white] hover:bg-[var(--avy-purple-hover)]"
                       >
                         {t('chat.ui.addImage')}
                       </button>
@@ -837,19 +837,19 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             )}
 
             {serpInsights.length > 0 && (
-              <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
-                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
+              <details className="rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/60">
+                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-primary)]">
                   <span>{t('chat.ui.serpInsights')}</span>
                   <span>{serpInsights.length}</span>
                 </summary>
-                <div className="space-y-2 p-3 text-[11px] text-slate-200">
+                <div className="space-y-2 p-3 text-[11px] text-[color:var(--text-primary)]">
                   {serpInsights.map((entry, index) => (
-                    <div key={`${entry.engine}-${index}`} className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
-                      <div className="flex items-center justify-between text-slate-100">
+                    <div key={`${entry.engine}-${index}`} className="rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/70 p-3">
+                      <div className="flex items-center justify-between text-[color:var(--text-primary)]">
                         <span className="font-semibold">{entry.engine}</span>
-                        <span className="text-slate-400">{entry.query}</span>
+                        <span className="text-[color:var(--text-tertiary)]">{entry.query}</span>
                       </div>
-                      {entry.error && <p className="mt-1 text-red-400">{entry.error}</p>}
+                      {entry.error && <p className="mt-1 text-[color:var(--error)]">{entry.error}</p>}
                       {!entry.error &&
                         entry.summary?.slice(0, 2).map((item, idx) => (
                           <div key={idx} className="mt-1">
@@ -857,12 +857,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                               href={item.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-sky-400 underline hover:text-sky-200"
+                              className="text-[color:var(--avy-purple-light)] underline hover:text-[color:var(--avy-purple-light)]"
                             >
                               {item.title || item.url}
                             </a>
-                            {item.price && <span className="ml-1 text-slate-300">{String(item.price)}</span>}
-                            {item.source && <span className="ml-1 text-slate-400">({item.source})</span>}
+                            {item.price && <span className="ml-1 text-[color:var(--text-secondary)]">{String(item.price)}</span>}
+                            {item.source && <span className="ml-1 text-[color:var(--text-tertiary)]">({item.source})</span>}
                           </div>
                         ))}
                     </div>
@@ -874,9 +874,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         )}
       </div>
 
-      <div className="space-y-3 border-t border-slate-800 px-4 py-4">
-        <details className="rounded-2xl border border-slate-800 bg-slate-950/30 p-3">
-          <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+      <div className="space-y-3 border-t border-[var(--border)] px-4 py-4">
+        <details className="rounded-2xl border border-[var(--border)] bg-[var(--bg)]/30 p-3">
+          <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-secondary)]">
             Assistant Optionen
           </summary>
           <div className="mt-3 grid grid-cols-1 gap-3">
@@ -895,7 +895,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                     key={key}
                     type="button"
                     onClick={() => applyPromptScene(String(key))}
-                    className="rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500 hover:text-white"
+                    className="rounded-full border border-[var(--border)] bg-[var(--surface-secondary)]/40 px-3 py-1 text-[color:var(--text-primary)] hover:border-[var(--avy-purple)] hover:text-[color:var(--text-primary)]"
                     title="Setzt nur die Optionen (kein starrer Prompt)."
                   >
                     {label}
@@ -909,7 +909,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   setInput(smart);
                   setActiveScope(derivedScope);
                 }}
-                className="rounded-full bg-slate-800 px-3 py-1 text-[12px] text-slate-200 hover:bg-slate-700"
+                className="rounded-full bg-[var(--surface-hover)] px-3 py-1 text-[12px] text-[color:var(--text-primary)] hover:bg-[var(--surface)]"
                 title="Schreibt den smarten Prompt in die Eingabe."
               >
                 Vorschau in Eingabe
@@ -930,7 +930,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               ].map(([key, label]) => (
                 <label
                   key={key}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500"
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-secondary)]/40 px-3 py-1 text-[color:var(--text-primary)] hover:border-[var(--avy-purple)]"
                 >
                   <input
                     type="checkbox"
@@ -943,7 +943,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             </div>
 
             <div className="flex flex-wrap gap-2 text-[12px]">
-              <label className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
+              <label className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-secondary)]/40 px-3 py-1 text-[color:var(--text-primary)] hover:border-[var(--avy-purple)]">
                 <input
                   type="checkbox"
                   checked={promptConfig.marketplaceFirst}
@@ -951,7 +951,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                 />
                 Marketplace-first
               </label>
-              <label className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
+              <label className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-secondary)]/40 px-3 py-1 text-[color:var(--text-primary)] hover:border-[var(--avy-purple)]">
                 <input
                   type="checkbox"
                   checked={promptConfig.broadFallback}
@@ -959,12 +959,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                 />
                 Broad-Fallback
               </label>
-              <label className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
+              <label className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-secondary)]/40 px-3 py-1 text-[color:var(--text-primary)] hover:border-[var(--avy-purple)]">
                 Fetch-Seiten
                 <select
                   value={promptConfig.maxPagesToFetch}
                   onChange={(e) => setPromptConfig((prev) => ({ ...prev, maxPagesToFetch: Number(e.target.value) }))}
-                  className="rounded-md bg-slate-800 px-2 py-1 text-slate-200"
+                  className="rounded-md bg-[var(--surface-hover)] px-2 py-1 text-[color:var(--text-primary)]"
                 >
                   <option value={1}>1</option>
                   <option value={2}>2</option>
@@ -978,7 +978,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   setActiveScope(derivedScope);
                   void handleSend(smart, derivedScope);
                 }}
-                className="rounded-full bg-sky-600 px-3 py-1 text-[12px] font-semibold text-white hover:bg-sky-500"
+                className="rounded-full bg-[var(--avy-purple)] px-3 py-1 text-[12px] font-semibold text-[color:white] hover:bg-[var(--avy-purple-hover)]"
               >
                 Jetzt ausführen
               </button>

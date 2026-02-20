@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Package, Warehouse, Clock, RefreshCw, TrendingUp, ScanBarcode, Truck, Store } from 'lucide-react';
 import { DashboardMetrics, Product } from '../types';
 import { fetchDashboardMetrics } from '../api/client';
 import { getProductAvailableQuantity, getProductPhysicalQuantity, getProductReservedQuantity, normalizeSyncStatus } from '../utils/product';
@@ -34,17 +35,38 @@ const formatCurrency = (value: number, currency: string) => {
   }
 };
 
-const DashboardCard: React.FC<{
+const KpiCard: React.FC<{
+  icon: React.ReactNode;
   label: string;
   value: string;
   sublabel?: string;
-}> = ({ label, value, sublabel }) => (
-  <div className="bg-slate-800 rounded-lg p-5 border border-white/5 shadow-lg shadow-black/20">
-    <p className="text-sm uppercase tracking-wide text-slate-400">{label}</p>
-    <p className="text-3xl font-semibold text-white mt-2">{value}</p>
-    {sublabel && <p className="text-xs text-slate-400 mt-1">{sublabel}</p>}
-  </div>
-);
+  change?: { text: string; direction: 'up' | 'down' };
+}> = ({ icon, label, value, sublabel, change }) => {
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  const handleMouse = (e: React.MouseEvent) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--mouse-x', `${e.clientX - r.left}px`);
+    el.style.setProperty('--mouse-y', `${e.clientY - r.top}px`);
+  };
+
+  return (
+    <div className="kpi-card" ref={cardRef} onMouseMove={handleMouse}>
+      <div className="kpi-top">
+        <div className="kpi-label">{icon}{label}</div>
+        <TrendingUp size={14} className="kpi-trend-icon" />
+      </div>
+      <div className="kpi-value">{value}</div>
+      {change && (
+        <span className={`kpi-change ${change.direction}`}>
+          {change.direction === 'up' ? '▲' : '▼'} {change.text}
+        </span>
+      )}
+      {sublabel && <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>{sublabel}</div>}
+    </div>
+  );
+};
 
 export const Dashboard: React.FC<DashboardProps> = ({
   products,
@@ -95,7 +117,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     loadMetrics();
   }, [loadMetrics]);
 
-  // lightweight auto-refresh every 60s to keep dashboard fresh
   useEffect(() => {
     const interval = setInterval(() => {
       loadMetrics();
@@ -120,18 +141,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       const label = (() => {
         try {
           const dt = new Date(d.date);
-          if (bucket === 'month') {
-            return dt.toLocaleDateString('de-DE', { month: 'short' });
-          }
-          if (bucket === 'week') {
-            return dt.toLocaleDateString('de-DE', { day: '2-digit' });
-          }
-          if (bucket === 'hour') {
-            return dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-          }
-          if (chartCount <= 14) {
-            return dt.toLocaleDateString('de-DE', { weekday: 'short' });
-          }
+          if (bucket === 'month') return dt.toLocaleDateString('de-DE', { month: 'short' });
+          if (bucket === 'week') return dt.toLocaleDateString('de-DE', { day: '2-digit' });
+          if (bucket === 'hour') return dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+          if (chartCount <= 14) return dt.toLocaleDateString('de-DE', { weekday: 'short' });
           return dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
         } catch {
           return d.date;
@@ -171,78 +184,38 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const {
     totalProducts,
     totalStocked,
-    unsavedCount,
     savedCount,
-    savedPercentage,
-    syncCounts,
     inventoryQuantity,
     inventoryValue,
-    inventoryPhysicalQuantity,
-    inventoryReservedQuantity,
     primaryCurrency,
     valueByCurrency,
   } = useMemo(() => {
     const total = allProducts.length;
     const totalInStock = stockedProducts.length;
     const unsaved = allProducts.filter((p) => !p.ops?.last_saved_iso).length;
-    const savedPct = total === 0 ? 0 : Math.round(((total - unsaved) / total) * 100);
     const saved = Math.max(0, total - unsaved);
-    const syncBuckets = { synced: 0, pending: 0, failed: 0 };
-    let physicalQty = 0;
-    let reservedQty = 0;
     let availableQty = 0;
     const valueMap = new Map<string, number>();
-    const topProductList = allProducts
-      .map((product) => {
-        const quantityPhysical = getProductPhysicalQuantity(product);
-        const quantityReserved = getProductReservedQuantity(product);
-        const quantityAvailable = getProductAvailableQuantity(product);
-        const price = product.details?.pricing?.lowest_price;
-        // Use available quantity for value (sellable stock). Physical can be higher due to reservations.
-        const itemValue = quantityAvailable * (price?.amount ?? 0);
-        const currency = (price?.currency || 'EUR').toUpperCase();
-
-        physicalQty += quantityPhysical;
-        reservedQty += quantityReserved;
-        availableQty += quantityAvailable;
-        valueMap.set(currency, (valueMap.get(currency) ?? 0) + itemValue);
-
-        const syncStatus = normalizeSyncStatus(
-          product.ops?.sync_status ?? 'pending',
-          product.ops?.last_synced_iso
-        );
-        syncBuckets[syncStatus] += 1;
-
-        return {
-          id: product.id,
-          name: product.identification?.name || product.id,
-          sku: product.identification?.sku || product.details?.identifiers?.sku || '—',
-          quantity: quantityAvailable,
-          value: itemValue,
-          currency,
-        };
-      })
-      .sort((a, b) => b.value - a.value);
-
+    allProducts.forEach((product) => {
+      const quantityAvailable = getProductAvailableQuantity(product);
+      const price = product.details?.pricing?.lowest_price;
+      const itemValue = quantityAvailable * (price?.amount ?? 0);
+      const currency = (price?.currency || 'EUR').toUpperCase();
+      availableQty += quantityAvailable;
+      valueMap.set(currency, (valueMap.get(currency) ?? 0) + itemValue);
+    });
     const mostCommonCurrency =
       [...valueMap.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'EUR';
     const combinedValue = [...valueMap.values()].reduce((sum, value) => sum + value, 0);
 
-  return {
+    return {
       totalProducts: total,
       totalStocked: totalInStock,
-      unsavedCount: unsaved,
       savedCount: saved,
-      savedPercentage: savedPct,
-      syncCounts: syncBuckets,
       inventoryQuantity: availableQty,
-      inventoryPhysicalQuantity: physicalQty,
-      inventoryReservedQuantity: reservedQty,
       inventoryValue: combinedValue,
       primaryCurrency: mostCommonCurrency,
       valueByCurrency: valueMap,
-      // keep for potential later re-use, but not rendered on dashboard (per spec)
-      topProducts: topProductList.slice(0, 5),
     };
   }, [allProducts, stockedProducts]);
 
@@ -256,151 +229,223 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const statusCards = useMemo(
     () => [
-      { key: 'neu', label: 'Neu', value: orderMetrics.neu },
-      { key: 'kommissioniert', label: 'Kommissioniert', value: orderMetrics.kommissioniert },
-      { key: 'verpackt', label: 'Verpackt', value: orderMetrics.verpackt },
-      { key: 'versendet', label: 'Versendet', value: orderMetrics.versendet },
-      { key: 'zugestellt', label: 'Zugestellt', value: orderMetrics.zugestellt },
+      { key: 'neu', label: 'Neu', value: orderMetrics.neu, badgeClass: 'new' as const },
+      { key: 'kommissioniert', label: 'Kommissioniert', value: orderMetrics.kommissioniert, badgeClass: 'processing' as const },
+      { key: 'verpackt', label: 'Verpackt', value: orderMetrics.verpackt, badgeClass: 'processing' as const },
+      { key: 'versendet', label: 'Versendet', value: orderMetrics.versendet, badgeClass: 'shipped' as const },
+      { key: 'zugestellt', label: 'Zugestellt', value: orderMetrics.zugestellt, badgeClass: 'shipped' as const },
     ],
     [orderMetrics]
   );
 
   return (
-    <section className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-          <h1 className="text-3xl font-semibold text-white mb-1">Operations Dashboard</h1>
+    <div>
+      {/* Page Header */}
+      <div className="page-header">
+        <div>
+          <h1>Dashboard</h1>
+          <div className="page-header-sub">Operations & Inventory Overview</div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-100 border border-slate-600">
-            <span className="text-xs uppercase tracking-wide text-slate-300">Zeitraum</span>
-            <select
-              value={activePreset}
-              onChange={(e) => setPreset(e.target.value)}
-              className="bg-transparent text-sm font-semibold text-slate-100 outline-none"
-              aria-label="Dashboard Zeitraum"
-            >
-              {DASHBOARD_RANGE_PRESETS.map((p) => (
-                <option key={p.id} value={p.id} className="bg-slate-900">
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="page-header-actions">
+          <select
+            value={activePreset}
+            onChange={(e) => setPreset(e.target.value)}
+            className="btn btn-secondary"
+            style={{ appearance: 'auto', paddingRight: 32 }}
+            aria-label="Dashboard Zeitraum"
+          >
+            {DASHBOARD_RANGE_PRESETS.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <DashboardCard
-          label="Inventar (mit Bestand)"
-          value={totalStocked.toString()}
-        />
-        <DashboardCard
-          label="Bestandseinheiten (verfügbar)"
-          value={inventoryQuantity.toString()}
-        />
-        <DashboardCard
-          label="Bestandswert (verfügbar)"
-          value={formatCurrency(inventoryValue, primaryCurrency)}
-          sublabel={
-            valueByCurrency.size > 1
-              ? `weitere Währungen: ${[...valueByCurrency.entries()]
-                  .filter(([currency]) => currency !== primaryCurrency)
-                  .map(([currency, amount]) => `${currency} ${amount.toFixed(0)}`)
-                  .join(', ')}`
-              : undefined
-          }
-        />
-        <DashboardCard
-          label="Gespeicherte Produkte"
-          value={`${savedCount}`}
-          sublabel={totalProducts ? `von ${totalProducts}` : undefined}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-slate-800 rounded-2xl p-7 border border-white/5 shadow-inner shadow-black/20 space-y-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-white">Auftragsstatus</h2>
-          </div>
-          {metricsError && <p className="text-sm text-rose-300">{metricsError}</p>}
-          {metricsLoading ? (
-            <p className="text-sm text-slate-400">Lade Auftragszahlen …</p>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                {statusCards.map((card) => (
-                  <button
-                    key={card.key}
-                    type="button"
-                    onClick={() => navigateToDrilldown(card.key)}
-                    className="rounded-xl bg-slate-900/40 hover:bg-slate-900/60 border border-slate-700/60 px-3 py-3 text-left transition shadow-sm"
-                    title="Klicken für Produkt-Drilldown"
-                  >
-                    <p className="text-[11px] uppercase tracking-widest text-slate-400">{card.label}</p>
-                    <p className="text-3xl font-semibold text-white mt-1">{card.value}</p>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      {card.key === 'neu' ? '→ Inventory' : '→ Products'}
-                    </p>
-                  </button>
-                ))}
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Offen (nur neu)</p>
-                  <p className="text-3xl font-semibold text-white mt-1">{orderMetrics.open}</p>
-                  <p className="text-xs text-slate-400 mt-1">Gesamt aktiv (ohne storniert): {orderMetrics.total}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Gesamtumsatz (alle, ohne Storniert)</p>
-                  <p className="text-3xl font-semibold text-white mt-1">
-                    {formatCurrency(orderMetrics.revenueAllNonCancelled, orderMetrics.currency)}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {activeRangeLabel} (ohne Storno): {formatCurrency(orderMetrics.revenueWindowNonCancelled, orderMetrics.currency)}
-                  </p>
-                </div>
-              </div>
-            </>
-          )}
+      <div className="content">
+        {/* KPI Grid */}
+        <div className="kpi-grid">
+          <KpiCard
+            icon={<Package size={15} />}
+            label="Inventar (mit Bestand)"
+            value={totalStocked.toString()}
+          />
+          <KpiCard
+            icon={<Warehouse size={15} />}
+            label="Bestandseinheiten"
+            value={inventoryQuantity.toString()}
+            sublabel="verfügbar"
+          />
+          <KpiCard
+            icon={<TrendingUp size={15} />}
+            label="Bestandswert"
+            value={formatCurrency(inventoryValue, primaryCurrency)}
+            sublabel={
+              valueByCurrency.size > 1
+                ? `weitere: ${[...valueByCurrency.entries()]
+                    .filter(([c]) => c !== primaryCurrency)
+                    .map(([c, a]) => `${c} ${a.toFixed(0)}`)
+                    .join(', ')}`
+                : undefined
+            }
+          />
+          <KpiCard
+            icon={<RefreshCw size={15} />}
+            label="Gespeicherte Produkte"
+            value={`${savedCount}`}
+            sublabel={totalProducts ? `von ${totalProducts}` : undefined}
+          />
         </div>
-        <div className="bg-slate-800 rounded-2xl p-5 border border-white/5 shadow-inner shadow-black/20">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-slate-400">Auftragsvolumen</p>
-              <h2 className="text-xl font-semibold text-white">{activeRangeLabel}</h2>
-            </div>
-          </div>
-          {metricsLoading ? (
-            <p className="text-sm text-slate-400">Synchronisiere Diagramm …</p>
-          ) : (
-            <div>
-              <div
-                className="grid gap-3 items-end"
-                style={{
-                  gridTemplateColumns: `repeat(${Math.max(1, orderMetrics.chart.length)}, minmax(0, 1fr))`,
-                }}
-              >
-                {orderMetrics.chart.map((day) => (
-                  <div key={day.key} className="flex flex-col items-center gap-2">
-                    <div className="w-full h-24 bg-slate-900 rounded-full overflow-hidden flex items-end">
-                      <span
-                        className="w-full bg-sky-500 rounded-full transition-all"
-                        style={{ height: `${(day.count / orderMetrics.maxChartCount) * 100 || 4}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-slate-400">{day.label}</span>
-                    <span className="text-xs font-semibold text-white">{day.count}</span>
+
+        {/* Main Grid */}
+        <div className="main-grid">
+          {/* Left: Order Status + Chart */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+            {/* Order Status Card */}
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Auftragsstatus</span>
+                <span className="card-action" style={{ cursor: 'default' }}>{activeRangeLabel}</span>
+              </div>
+              <div className="card-body">
+                {metricsError && (
+                  <div style={{ fontSize: 13, color: 'var(--error)', marginBottom: 12 }}>{metricsError}</div>
+                )}
+                {metricsLoading ? (
+                  <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
+                    Lade Auftragszahlen …
                   </div>
-                ))}
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 'var(--space-3)' }}>
+                      {statusCards.map((card) => (
+                        <button
+                          key={card.key}
+                          type="button"
+                          onClick={() => navigateToDrilldown(card.key)}
+                          style={{
+                            padding: 'var(--space-3) var(--space-4)',
+                            background: 'var(--surface-secondary)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius-md)',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'all var(--transition)',
+                            fontFamily: 'inherit',
+                          }}
+                          title="Klicken für Drilldown"
+                        >
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            {card.label}
+                          </div>
+                          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginTop: 4 }}>
+                            {card.value}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', marginTop: 'var(--space-5)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--border)' }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Offen (nur neu)</div>
+                        <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginTop: 4 }}>{orderMetrics.open}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>Gesamt aktiv: {orderMetrics.total}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Gesamtumsatz</div>
+                        <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginTop: 4 }}>
+                          {formatCurrency(orderMetrics.revenueAllNonCancelled, orderMetrics.currency)}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                          {activeRangeLabel}: {formatCurrency(orderMetrics.revenueWindowNonCancelled, orderMetrics.currency)}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-          )}
+
+            {/* Chart Card */}
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Auftragsvolumen</span>
+                <span className="card-action" style={{ cursor: 'default' }}>{activeRangeLabel}</span>
+              </div>
+              <div className="card-body">
+                {metricsLoading ? (
+                  <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
+                    Synchronisiere Diagramm …
+                  </div>
+                ) : (
+                  <div className="chart-area">
+                    {orderMetrics.chart.map((day) => (
+                      <div key={day.key} className="chart-bar-group">
+                        <div
+                          className="chart-bar"
+                          style={{ height: `${(day.count / orderMetrics.maxChartCount) * 100 || 3}%` }}
+                        >
+                          <span className="chart-tooltip">{day.count} Aufträge</span>
+                        </div>
+                        <span className="chart-label">{day.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Quick Actions */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Schnellzugriff</span>
+              </div>
+              <div className="card-body">
+                <div className="quick-grid">
+                  <a className="quick-action" onClick={() => { window.location.hash = '#/input'; }} style={{ cursor: 'pointer' }}>
+                    <div className="quick-action-icon" style={{ background: 'var(--info-bg)' }}>
+                      <ScanBarcode size={16} style={{ color: 'var(--info)' }} />
+                    </div>
+                    <div>
+                      <div className="quick-action-title">Identifizieren</div>
+                      <div className="quick-action-desc">Produkte scannen</div>
+                    </div>
+                  </a>
+                  <a className="quick-action" onClick={() => { window.location.hash = '#/operations'; }} style={{ cursor: 'pointer' }}>
+                    <div className="quick-action-icon" style={{ background: 'var(--success-bg)' }}>
+                      <Truck size={16} style={{ color: 'var(--success)' }} />
+                    </div>
+                    <div>
+                      <div className="quick-action-title">Stow / Pick</div>
+                      <div className="quick-action-desc">Warehouse Ops</div>
+                    </div>
+                  </a>
+                  <a className="quick-action" onClick={() => { window.location.hash = '#/products'; }} style={{ cursor: 'pointer' }}>
+                    <div className="quick-action-icon" style={{ background: 'var(--warning-bg)' }}>
+                      <Package size={16} style={{ color: 'var(--warning)' }} />
+                    </div>
+                    <div>
+                      <div className="quick-action-title">Produkte</div>
+                      <div className="quick-action-desc">{totalProducts} gesamt</div>
+                    </div>
+                  </a>
+                  <a className="quick-action" onClick={() => { window.location.hash = '#/ebay'; }} style={{ cursor: 'pointer' }}>
+                    <div className="quick-action-icon" style={{ background: 'var(--avy-purple-glow)' }}>
+                      <Store size={16} style={{ color: 'var(--avy-purple)' }} />
+                    </div>
+                    <div>
+                      <div className="quick-action-title">eBay Sync</div>
+                      <div className="quick-action-desc">Listings prüfen</div>
+                    </div>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 };
 
 export default Dashboard;
-

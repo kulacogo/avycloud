@@ -96,42 +96,42 @@ export const AdminRoleManagement: React.FC = () => {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold">Admin: Roles & Rechte</h2>
-          <p className="text-sm text-slate-400">Rechte pro Role definieren (Backend ist Source of Truth).</p>
+          <p className="text-sm text-[color:var(--text-tertiary)]">Rechte pro Role definieren (Backend ist Source of Truth).</p>
         </div>
         <button
           type="button"
           onClick={load}
           disabled={loading}
-          className="rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white"
+          className="rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-secondary)] disabled:opacity-60 px-4 py-2 text-sm font-semibold text-[color:white]"
         >
           Refresh
         </button>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+        <div className="rounded-xl border border-[var(--error-border)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[color:var(--error)]">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="text-sm text-slate-400">Lade…</div>
+        <div className="text-sm text-[color:var(--text-tertiary)]">Lade…</div>
       ) : (
         <div className="space-y-5">
           {roles.map((role) => {
             const matrix = (role.permissions || {}) as PermissionMatrix;
             return (
-              <div key={role.id} className="rounded-2xl border border-white/10 bg-slate-800/60 p-5 space-y-4">
+              <div key={role.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/60 p-5 space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h3 className="font-semibold">{role.id}</h3>
-                    <p className="text-xs text-slate-400">{role.name || ''}</p>
+                    <p className="text-xs text-[color:var(--text-tertiary)]">{role.name || ''}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => saveRole(role)}
                     disabled={savingRoleId === role.id}
-                    className="rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white"
+                    className="rounded-xl bg-[var(--avy-purple)] hover:bg-[var(--avy-purple-hover)] disabled:opacity-60 px-4 py-2 text-sm font-semibold text-[color:white]"
                   >
                     {savingRoleId === role.id ? 'Speichere…' : 'Speichern'}
                   </button>
@@ -139,7 +139,7 @@ export const AdminRoleManagement: React.FC = () => {
 
                 <div className="overflow-auto">
                   <table className="min-w-full text-sm">
-                    <thead className="text-slate-400">
+                    <thead className="text-[color:var(--text-tertiary)]">
                       <tr>
                         <th className="text-left py-2 pr-3">Modul</th>
                         <th className="text-left py-2 pr-3">Rechte</th>
@@ -147,12 +147,12 @@ export const AdminRoleManagement: React.FC = () => {
                     </thead>
                     <tbody>
                       {MODULES.map((mod) => (
-                        <tr key={mod.id} className="border-t border-white/5">
-                          <td className="py-2 pr-3 text-slate-200 whitespace-nowrap">{mod.label}</td>
+                        <tr key={mod.id} className="border-t border-[var(--border)]">
+                          <td className="py-2 pr-3 text-[color:var(--text-primary)] whitespace-nowrap">{mod.label}</td>
                           <td className="py-2 pr-3">
                             <div className="flex flex-wrap gap-3">
                               {mod.actions.map((action) => (
-                                <label key={action} className="flex items-center gap-2 text-xs text-slate-100">
+                                <label key={action} className="flex items-center gap-2 text-xs text-[color:var(--text-primary)]">
                                   <input
                                     type="checkbox"
                                     checked={getPermission(matrix, mod.id, action)}
@@ -173,7 +173,7 @@ export const AdminRoleManagement: React.FC = () => {
               </div>
             );
           })}
-          {roles.length === 0 && <div className="text-sm text-slate-400">Keine Rollen gefunden.</div>}
+          {roles.length === 0 && <div className="text-sm text-[color:var(--text-tertiary)]">Keine Rollen gefunden.</div>}
         </div>
       )}
     </div>

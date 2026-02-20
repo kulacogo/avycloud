@@ -190,12 +190,12 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     (status: ScanStatus) => {
       const base = 'px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide';
       if (status === 'ok') {
-        return <span className={`${base} bg-emerald-500/20 text-emerald-300`}>{t('ops.pick.steps.ok')}</span>;
+        return <span className={`${base} bg-[var(--success-bg)] text-[color:var(--success)]`}>{t('ops.pick.steps.ok')}</span>;
       }
       if (status === 'mismatch') {
-        return <span className={`${base} bg-rose-500/20 text-rose-200`}>{t('ops.pick.steps.mismatch')}</span>;
+        return <span className={`${base} bg-[var(--error-bg)] text-[color:var(--error)]`}>{t('ops.pick.steps.mismatch')}</span>;
       }
-      return <span className={`${base} bg-slate-700 text-slate-300`}>{t('ops.pick.steps.pending')}</span>;
+      return <span className={`${base} bg-[var(--surface)] text-[color:var(--text-secondary)]`}>{t('ops.pick.steps.pending')}</span>;
     },
     [t]
   );
@@ -794,17 +794,17 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
   return (
     <section className="space-y-6">
-      <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg space-y-4">
+      <div className="bg-[var(--surface-hover)] rounded-2xl p-5 border border-[var(--border)] shadow-lg space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-widest text-slate-400">BaseLinker</p>
-            <h2 className="text-xl font-semibold text-white">{t('ops.orders.section')}</h2>
+            <p className="text-sm uppercase tracking-widest text-[color:var(--text-tertiary)]">BaseLinker</p>
+            <h2 className="text-xl font-semibold text-[color:white]">{t('ops.orders.section')}</h2>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)] cursor-pointer">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-slate-500 bg-slate-900 text-sky-500 focus:ring-sky-500"
+                className="h-4 w-4 rounded border-[var(--border-hover)] bg-[var(--surface-secondary)] text-[color:var(--avy-purple)] focus:ring-[var(--avy-purple)]"
                 checked={autoOrderSync}
                 onChange={handleAutoSyncToggle}
               />
@@ -814,7 +814,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               type="button"
               onClick={() => handleSyncOrders(true)}
               disabled={isSyncingOrders}
-              className="inline-flex items-center gap-2 rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--avy-purple)] px-4 py-2 text-sm font-semibold text-[color:white] disabled:opacity-50"
             >
               {isSyncingOrders ? t('ops.orders.syncing') : t('ops.orders.sync')}
             </button>
@@ -822,64 +822,64 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               <button
                 type="button"
                 onClick={() => setShowOrdersPanel((prev) => !prev)}
-                className="inline-flex items-center rounded-full border border-slate-600 px-3 py-2 text-sm text-slate-100 hover:border-slate-400"
+                className="inline-flex items-center rounded-full border border-[var(--border-hover)] px-3 py-2 text-sm text-[color:var(--text-primary)] hover:border-[var(--border-hover)]"
               >
                 {showOrdersPanel ? t('ops.orders.hide') : t('ops.orders.show')}
               </button>
             )}
           </div>
         </div>
-        {orderStatusMessage && <div className="text-sm text-emerald-300 bg-emerald-900/30 px-3 py-2 rounded">{orderStatusMessage}</div>}
+        {orderStatusMessage && <div className="text-sm text-[color:var(--success)] bg-[var(--success-bg)] px-3 py-2 rounded">{orderStatusMessage}</div>}
         {(ordersError || orderErrorMessage) && (
-          <div className="text-sm text-rose-300 bg-rose-900/30 px-3 py-2 rounded">{ordersError || orderErrorMessage}</div>
+          <div className="text-sm text-[color:var(--error)] bg-[var(--error-bg)] px-3 py-2 rounded">{ordersError || orderErrorMessage}</div>
         )}
         {showOrdersPanel && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
-                <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.open')}</p>
-                <p className="text-2xl font-semibold text-white mt-1">{orderSummary.open}</p>
+              <div className="bg-[var(--surface-secondary)]/40 rounded-xl p-4 border border-[var(--border)]">
+                <p className="text-xs uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('ops.orders.open')}</p>
+                <p className="text-2xl font-semibold text-[color:white] mt-1">{orderSummary.open}</p>
               </div>
-              <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
-                <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.total')}</p>
-                <p className="text-2xl font-semibold text-white mt-1">{orderSummary.total}</p>
+              <div className="bg-[var(--surface-secondary)]/40 rounded-xl p-4 border border-[var(--border)]">
+                <p className="text-xs uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('ops.orders.total')}</p>
+                <p className="text-2xl font-semibold text-[color:white] mt-1">{orderSummary.total}</p>
               </div>
-              <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
-                <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.today')}</p>
-                <p className="text-2xl font-semibold text-white mt-1">{orderSummary.pickedToday}</p>
+              <div className="bg-[var(--surface-secondary)]/40 rounded-xl p-4 border border-[var(--border)]">
+                <p className="text-xs uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('ops.orders.today')}</p>
+                <p className="text-2xl font-semibold text-[color:white] mt-1">{orderSummary.pickedToday}</p>
               </div>
             </div>
-            <div className="bg-slate-900/40 rounded-2xl p-4 border border-slate-700">
+            <div className="bg-[var(--surface-secondary)]/40 rounded-2xl p-4 border border-[var(--border)]">
               {ordersLoading ? (
-                <p className="text-slate-400 text-sm">{t('ops.orders.loading')}</p>
+                <p className="text-[color:var(--text-tertiary)] text-sm">{t('ops.orders.loading')}</p>
               ) : openOrders.length === 0 ? (
-                <p className="text-slate-400 text-sm">{t('ops.orders.none')}</p>
+                <p className="text-[color:var(--text-tertiary)] text-sm">{t('ops.orders.none')}</p>
               ) : (
                 <div className="space-y-3">
                   <ul className="space-y-3">
                     {visibleOrders.map((order) => (
-                      <li key={order.id} className="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+                      <li key={order.id} className="bg-[var(--surface-secondary)]/60 border border-[var(--border)] rounded-xl p-3">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div>
-                            <p className="text-sm font-semibold text-white">
+                            <p className="text-sm font-semibold text-[color:white]">
                               {order.customer?.name || t('ops.labels.unknownCustomer')}
                             </p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-[color:var(--text-tertiary)]">
                               {order.items.length} Positionen · {formatOrderDate(order.createdAt)}
                             </p>
                             {typeof order.totalAmount === 'number' && (
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs text-[color:var(--text-tertiary)]">
                                 {order.currency || 'EUR'} {order.totalAmount.toFixed(2)}
                               </p>
                             )}
-                            <div className="mt-2 text-xs text-slate-300 space-y-1">
+                            <div className="mt-2 text-xs text-[color:var(--text-secondary)] space-y-1">
                               {order.items.slice(0, 3).map((item) => (
                                 <p key={item.id}>
                                   {item.quantity}× {item.name}
                                 </p>
                               ))}
                               {order.items.length > 3 && (
-                                <p className="text-slate-500">
+                                <p className="text-[color:var(--text-tertiary)]">
                                   {t('ops.labels.additionalItems', { count: order.items.length - 3 })}
                                 </p>
                               )}
@@ -887,7 +887,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                           </div>
                           <div className="flex items-center gap-2">
                             <span
-                              className={`text-xs font-semibold ${order.status === 'picked' ? 'text-emerald-300' : 'text-slate-400'
+                              className={`text-xs font-semibold ${order.status === 'picked' ? 'text-[color:var(--success)]' : 'text-[color:var(--text-tertiary)]'
                                 }`}
                             >
                               {order.statusLabel}
@@ -902,7 +902,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       <button
                         type="button"
                         onClick={() => setShowAllOpenOrders((prev) => !prev)}
-                        className="text-sm text-sky-300 hover:text-sky-200 underline-offset-4 underline"
+                        className="text-sm text-[color:var(--avy-purple-light)] hover:text-[color:var(--avy-purple-light)] underline-offset-4 underline"
                       >
                         {showAllOpenOrders ? t('ops.orders.less') : `${t('ops.orders.more')} (${openOrders.length})`}
                       </button>
@@ -915,8 +915,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         )}
       </div>
 
-      <header className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg">
-        <h1 className="text-2xl font-semibold text-white mb-4">{t('ops.title')}</h1>
+      <header className="bg-[var(--surface-hover)] rounded-2xl p-5 border border-[var(--border)] shadow-lg">
+        <h1 className="text-2xl font-semibold text-[color:white] mb-4">{t('ops.title')}</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {WORKFLOW_CARDS.map((card) => {
             const active = workflow === card.mode;
@@ -925,13 +925,13 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 key={card.mode}
                 type="button"
                 onClick={() => setWorkflow(card.mode)}
-                className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition ${active ? 'border-sky-500 bg-sky-500/20 text-white shadow-lg shadow-sky-900/30' : 'border-slate-700 bg-slate-900/40 text-slate-300 hover:border-slate-500'
+                className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition ${active ? 'border-[var(--avy-purple)] bg-[var(--avy-purple-hover)]/20 text-[color:white] shadow-lg shadow-[var(--avy-purple)]/15' : 'border-[var(--border)] bg-[var(--surface-secondary)]/40 text-[color:var(--text-secondary)] hover:border-[var(--border-hover)]'
                   }`}
               >
-                <span className={`p-3 rounded-2xl ${active ? 'bg-sky-600/30 text-white' : 'bg-slate-800 text-slate-200'}`}>{card.icon}</span>
+                <span className={`p-3 rounded-2xl ${active ? 'bg-[var(--avy-purple)]/30 text-[color:white]' : 'bg-[var(--surface-hover)] text-[color:var(--text-primary)]'}`}>{card.icon}</span>
                 <div>
                   <p className="font-semibold">{t(card.titleKey)}</p>
-                  <p className="text-xs text-slate-400">{t(card.subtitleKey)}</p>
+                  <p className="text-xs text-[color:var(--text-tertiary)]">{t(card.subtitleKey)}</p>
                 </div>
               </button>
             );
@@ -941,36 +941,36 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           <button
             type="button"
             onClick={() => onSwitchView?.('input')}
-            className="rounded-full border border-slate-600 px-4 py-2 text-sm text-slate-100 hover:border-slate-400"
+            className="rounded-full border border-[var(--border-hover)] px-4 py-2 text-sm text-[color:var(--text-primary)] hover:border-[var(--border-hover)]"
           >
             {t('ops.mode.identify')}
           </button>
           <button
             type="button"
             onClick={() => setWorkflow('stow')}
-            className={`rounded-full px-4 py-2 text-sm ${workflow === 'stow' ? 'bg-emerald-600 text-white' : 'border border-slate-600 text-slate-100 hover:border-slate-400'}`}
+            className={`rounded-full px-4 py-2 text-sm ${workflow === 'stow' ? 'bg-[var(--success)] text-[color:white]' : 'border border-[var(--border-hover)] text-[color:var(--text-primary)] hover:border-[var(--border-hover)]'}`}
           >
             {t('ops.mode.stow')}
           </button>
           <button
             type="button"
             onClick={() => setWorkflow('pick')}
-            className={`rounded-full px-4 py-2 text-sm ${workflow === 'pick' ? 'bg-amber-600 text-white' : 'border border-slate-600 text-slate-100 hover:border-slate-400'}`}
+            className={`rounded-full px-4 py-2 text-sm ${workflow === 'pick' ? 'bg-[var(--warning)] text-[color:white]' : 'border border-[var(--border-hover)] text-[color:var(--text-primary)] hover:border-[var(--border-hover)]'}`}
           >
             {t('ops.mode.pick')}
           </button>
         </div>
       </header>
 
-      <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg space-y-4">
+      <div className="bg-[var(--surface-hover)] rounded-2xl p-5 border border-[var(--border)] shadow-lg space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm uppercase tracking-widest text-slate-400">{t('ops.labels.activeWorkflow')}</p>
-            <h2 className="text-xl font-semibold text-white">{workflow === 'stow' ? t('ops.mode.stow') : t('ops.mode.pick')}</h2>
+            <p className="text-sm uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('ops.labels.activeWorkflow')}</p>
+            <h2 className="text-xl font-semibold text-[color:white]">{workflow === 'stow' ? t('ops.mode.stow') : t('ops.mode.pick')}</h2>
           </div>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:border-slate-400"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--border-hover)] px-4 py-2 text-sm text-[color:var(--text-primary)] hover:border-[var(--border-hover)]"
             onClick={() => setScannerTarget(workflow === 'stow' ? 'stowSku' : 'pickBin')}
           >
             <CameraIcon className="w-4 h-4" />
@@ -978,8 +978,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           </button>
         </div>
 
-        {statusMessage && <div className="text-sm text-emerald-300 bg-emerald-900/30 px-3 py-2 rounded">{statusMessage}</div>}
-        {errorMessage && <div className="text-sm text-rose-300 bg-rose-900/30 px-3 py-2 rounded">{errorMessage}</div>}
+        {statusMessage && <div className="text-sm text-[color:var(--success)] bg-[var(--success-bg)] px-3 py-2 rounded">{statusMessage}</div>}
+        {errorMessage && <div className="text-sm text-[color:var(--error)] bg-[var(--error-bg)] px-3 py-2 rounded">{errorMessage}</div>}
 
         {workflow === 'stow' ? (
           <div
@@ -992,62 +992,62 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             }}
           >
             {/* Produkt */}
-            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-              <label className="text-xs text-slate-400 uppercase tracking-wide block mb-2">{t('ops.stow.product')}</label>
+            <div className="bg-[var(--surface-secondary)]/50 p-4 rounded-xl border border-[var(--border)]">
+              <label className="text-xs text-[color:var(--text-tertiary)] uppercase tracking-wide block mb-2">{t('ops.stow.product')}</label>
               <div className="flex gap-3">
                 <input
                   value={stowSku}
                   ref={stowSkuRef}
                   onChange={(e) => setStowSku(e.target.value)}
-                  className="flex-1 bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-base text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="flex-1 bg-[var(--bg)] border border-[var(--border-hover)] rounded-xl px-4 py-3 text-base text-[color:white] focus:ring-2 focus:ring-[var(--avy-purple)] outline-none"
                   placeholder={t('ops.stow.product')}
                 />
                 <button
                   type="button"
                   onClick={() => setScannerTarget('stowSku')}
-                  className="px-4 py-3 rounded-xl bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform"
+                  className="px-4 py-3 rounded-xl bg-[var(--surface)] text-[color:white] hover:bg-[var(--surface-secondary)] active:scale-95 transition-transform"
                 >
                   <CameraIcon className="w-6 h-6" />
                 </button>
               </div>
               {matchedStowProduct ? (
-                <div className="mt-3 bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                  <p className="text-sm font-medium text-white">{matchedStowProduct.identification?.name}</p>
+                <div className="mt-3 bg-[var(--surface-hover)]/50 p-3 rounded-lg border border-[var(--border)]/50">
+                  <p className="text-sm font-medium text-[color:white]">{matchedStowProduct.identification?.name}</p>
                   {matchedStowProduct.storage?.binCode && (
-                    <p className="text-xs text-emerald-400 mt-1">
+                    <p className="text-xs text-[color:var(--success)] mt-1">
                       {t('ops.labels.currentBin', { code: matchedStowProduct.storage.binCode })}
                     </p>
                   )}
                 </div>
               ) : (
-                stowSku && <div className="mt-2 text-sm text-rose-400">{t('ops.labels.noProductFound')}</div>
+                stowSku && <div className="mt-2 text-sm text-[color:var(--error)]">{t('ops.labels.noProductFound')}</div>
               )}
             </div>
 
             {/* Bin & Menge */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                <label className="text-xs text-slate-400 uppercase tracking-wide block mb-2">{t('ops.stow.bin')}</label>
+              <div className="bg-[var(--surface-secondary)]/50 p-4 rounded-xl border border-[var(--border)]">
+                <label className="text-xs text-[color:var(--text-tertiary)] uppercase tracking-wide block mb-2">{t('ops.stow.bin')}</label>
                 <div className="flex gap-3">
                   <input
                     value={stowBin}
                     ref={stowBinRef}
                     onChange={(e) => setStowBin(e.target.value.toUpperCase())}
-                    className="flex-1 bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-base text-white uppercase font-mono focus:ring-2 focus:ring-sky-500 outline-none"
+                    className="flex-1 bg-[var(--bg)] border border-[var(--border-hover)] rounded-xl px-4 py-3 text-base text-[color:white] uppercase font-mono focus:ring-2 focus:ring-[var(--avy-purple)] outline-none"
                     placeholder="BIN..."
                   />
                   <button
                     type="button"
                     onClick={() => setScannerTarget('stowBin')}
-                    className="px-4 py-3 rounded-xl bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform"
+                    className="px-4 py-3 rounded-xl bg-[var(--surface)] text-[color:white] hover:bg-[var(--surface-secondary)] active:scale-95 transition-transform"
                   >
                     <CameraIcon className="w-6 h-6" />
                   </button>
                 </div>
               </div>
 
-              <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                <label className="text-xs text-slate-400 uppercase tracking-wide block mb-2">{t('ops.stow.quantity')}</label>
+              <div className="bg-[var(--surface-secondary)]/50 p-4 rounded-xl border border-[var(--border)]">
+                <label className="text-xs text-[color:var(--text-tertiary)] uppercase tracking-wide block mb-2">{t('ops.stow.quantity')}</label>
                 <input
                   type="number"
                   min={1}
@@ -1060,7 +1060,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       setStowQuantity(Math.max(1, Number(val)));
                     }
                   }}
-                  className="w-full bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-base text-white font-mono focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full bg-[var(--bg)] border border-[var(--border-hover)] rounded-xl px-4 py-3 text-base text-[color:white] font-mono focus:ring-2 focus:ring-[var(--avy-purple)] outline-none"
                 />
               </div>
             </div>
@@ -1071,7 +1071,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 type="button"
                 onClick={() => handleStow(false)}
                 disabled={isSubmitting || !stowSku || !stowBin || !stowQuantity}
-                className="w-full py-4 rounded-xl bg-sky-600 text-white font-semibold shadow-lg shadow-sky-900/20 hover:bg-sky-500 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                className="w-full py-4 rounded-xl bg-[var(--avy-purple)] text-[color:white] font-semibold shadow-lg shadow-[var(--avy-purple)]/10 hover:bg-[var(--avy-purple-hover)] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
               >
                 {t('ops.stow.submit')}
               </button>
@@ -1079,7 +1079,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 type="button"
                 onClick={() => handleStow(true)}
                 disabled={isSubmitting || !stowSku || !stowBin || !stowQuantity}
-                className="w-full py-4 rounded-xl bg-slate-700 text-white font-semibold border border-slate-600 hover:bg-slate-600 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                className="w-full py-4 rounded-xl bg-[var(--surface)] text-[color:white] font-semibold border border-[var(--border-hover)] hover:bg-[var(--surface-secondary)] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
               >
                 {t('ops.stow.submit.next')}
               </button>
@@ -1095,56 +1095,56 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               }
             }}
           >
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <div className="rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-bg)] p-4">
               {nextPickTask ? (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-amber-200">
+                  <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-[color:var(--warning)]">
                     <span>{t('ops.labels.nextPick')}</span>
                     <span>{t('ops.labels.openRemaining', { count: pickRouteTasks.length })}</span>
                   </div>
                   <div>
-                    <p className="text-lg font-semibold text-white">{nextPickTask.itemName}</p>
-                    <p className="text-sm text-slate-300">
+                    <p className="text-lg font-semibold text-[color:white]">{nextPickTask.itemName}</p>
+                    <p className="text-sm text-[color:var(--text-secondary)]">
                       Auftrag {nextPickTask.orderNumber || nextPickTask.orderId} ·{' '}
                       {nextPickTask.customer || t('ops.labels.unknownCustomer')}
                     </p>
                   </div>
                   {nextPickTask.image && (
-                    <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/70 p-3">
+                    <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/70 p-3">
                       <img
                         src={resolveImageSrc(nextPickTask.image)}
                         alt={nextPickTask.itemName}
-                        className="h-16 w-16 rounded-lg border border-slate-700 object-cover"
+                        className="h-16 w-16 rounded-lg border border-[var(--border)] object-cover"
                         loading="lazy"
                       />
-                      <div className="text-xs text-slate-300">
+                      <div className="text-xs text-[color:var(--text-secondary)]">
                         <p>Visuelle Referenz</p>
-                        <p className="text-[11px] text-slate-500">Nutze zur Identifikation im Bin</p>
+                        <p className="text-[11px] text-[color:var(--text-tertiary)]">Nutze zur Identifikation im Bin</p>
                       </div>
                     </div>
                   )}
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-3 text-sm">
-                    <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.labels.stepBin')}</p>
-                      <p className={`text-xl font-semibold ${nextPickTask.binCode ? 'text-amber-300' : 'text-rose-400'}`}>
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/70 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-[color:var(--text-tertiary)]">{t('ops.labels.stepBin')}</p>
+                      <p className={`text-xl font-semibold ${nextPickTask.binCode ? 'text-[color:var(--warning)]' : 'text-[color:var(--error)]'}`}>
                         {nextPickTask.binCode || 'Kein Platz'}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.labels.stepSku')}</p>
-                      <p className="text-base font-semibold text-white break-all">{nextPickTask.sku || '—'}</p>
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/70 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-[color:var(--text-tertiary)]">{t('ops.labels.stepSku')}</p>
+                      <p className="text-base font-semibold text-[color:white] break-all">{nextPickTask.sku || '—'}</p>
                     </div>
-                    <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.labels.quantity')}</p>
-                      <p className="text-xl font-semibold text-white">{nextPickTask.quantity}</p>
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/70 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-[color:var(--text-tertiary)]">{t('ops.labels.quantity')}</p>
+                      <p className="text-xl font-semibold text-[color:white]">{nextPickTask.quantity}</p>
                       {typeof nextPickTask.available === 'number' && (
-                        <p className="text-[11px] text-slate-400">
+                        <p className="text-[11px] text-[color:var(--text-tertiary)]">
                           {t('ops.labels.stock', { value: nextPickTask.available })}
                         </p>
                       )}
                     </div>
                   </div>
-                  <p className="text-[12px] text-slate-400">
+                  <p className="text-[12px] text-[color:var(--text-tertiary)]">
                     {t('ops.labels.pickInstructions', {
                       bin: nextPickTask.binCode || 'Lagerplatz',
                       sku: nextPickTask.sku || '—',
@@ -1155,14 +1155,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       type="button"
                       onClick={() => nextPickTask.binCode && loadBinDetail(nextPickTask.binCode)}
                       disabled={!nextPickTask.binCode}
-                      className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400 disabled:opacity-50"
+                      className="rounded-full border border-[var(--border-hover)] px-3 py-1.5 text-[color:var(--text-primary)] hover:border-[var(--border-hover)] disabled:opacity-50"
                     >
                       {t('ops.actions.reloadBin')}
                     </button>
                     <button
                       type="button"
                       onClick={() => markPickTaskCompleted(nextPickTask.itemId)}
-                      className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400"
+                      className="rounded-full border border-[var(--border-hover)] px-3 py-1.5 text-[color:var(--text-primary)] hover:border-[var(--border-hover)]"
                     >
                       {t('ops.actions.skipOrder')}
                     </button>
@@ -1170,7 +1170,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       <button
                         type="button"
                         onClick={() => setSkippedPickItemIds([])}
-                        className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400"
+                        className="rounded-full border border-[var(--border-hover)] px-3 py-1.5 text-[color:var(--text-primary)] hover:border-[var(--border-hover)]"
                       >
                         {t('ops.actions.resetRoute')}
                       </button>
@@ -1178,33 +1178,33 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-slate-300">{t('ops.labels.noPickTasks')}</div>
+                <div className="text-sm text-[color:var(--text-secondary)]">{t('ops.labels.noPickTasks')}</div>
               )}
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/60 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.pick.steps.bin')}</p>
-                    <p className={`text-xl font-semibold ${nextPickTask?.binCode ? 'text-white' : 'text-rose-400'}`}>
+                    <p className="text-[10px] uppercase tracking-wide text-[color:var(--text-tertiary)]">{t('ops.pick.steps.bin')}</p>
+                    <p className={`text-xl font-semibold ${nextPickTask?.binCode ? 'text-[color:white]' : 'text-[color:var(--error)]'}`}>
                       {nextPickTask?.binCode || 'Kein Platz'}
                     </p>
                   </div>
                   {renderScanStatusBadge(pickScanStatus.bin)}
                 </div>
-                <div className="mt-3 space-y-1 text-xs text-slate-400">
+                <div className="mt-3 space-y-1 text-xs text-[color:var(--text-tertiary)]">
                   <p>
-                    {t('ops.pick.steps.expected')}: <span className="text-slate-200">{nextPickTask?.binCode || 'Beliebig'}</span>
+                    {t('ops.pick.steps.expected')}: <span className="text-[color:var(--text-primary)]">{nextPickTask?.binCode || 'Beliebig'}</span>
                   </p>
                   <p>
-                    {t('ops.pick.steps.scanned')}: <span className="text-slate-200">{pickBin || t('ops.pick.steps.pending')}</span>
+                    {t('ops.pick.steps.scanned')}: <span className="text-[color:var(--text-primary)]">{pickBin || t('ops.pick.steps.pending')}</span>
                   </p>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => setScannerTarget('pickBin')}
-                    className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
+                    className="rounded-full border border-[var(--border-hover)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-primary)] hover:border-[var(--border-hover)]"
                   >
                     {t('ops.pick.steps.cta')}
                   </button>
@@ -1214,33 +1214,33 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       const code = pickBin || nextPickTask?.binCode || '';
                       loadBinDetail(code);
                     }}
-                    className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
+                    className="rounded-full border border-[var(--border-hover)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-primary)] hover:border-[var(--border-hover)]"
                   >
                     {t('ops.actions.reloadBin')}
                   </button>
                 </div>
               </div>
-              <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/60 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.pick.steps.sku')}</p>
-                    <p className="text-base font-semibold text-white break-all">{nextPickTask?.sku || '—'}</p>
+                    <p className="text-[10px] uppercase tracking-wide text-[color:var(--text-tertiary)]">{t('ops.pick.steps.sku')}</p>
+                    <p className="text-base font-semibold text-[color:white] break-all">{nextPickTask?.sku || '—'}</p>
                   </div>
                   {renderScanStatusBadge(pickScanStatus.sku)}
                 </div>
-                <div className="mt-3 space-y-1 text-xs text-slate-400">
+                <div className="mt-3 space-y-1 text-xs text-[color:var(--text-tertiary)]">
                   <p>
-                    {t('ops.pick.steps.expected')}: <span className="text-slate-200">{nextPickTask?.sku || '—'}</span>
+                    {t('ops.pick.steps.expected')}: <span className="text-[color:var(--text-primary)]">{nextPickTask?.sku || '—'}</span>
                   </p>
                   <p>
-                    {t('ops.pick.steps.scanned')}: <span className="text-slate-200">{pickSku || t('ops.pick.steps.pending')}</span>
+                    {t('ops.pick.steps.scanned')}: <span className="text-[color:var(--text-primary)]">{pickSku || t('ops.pick.steps.pending')}</span>
                   </p>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => setScannerTarget('pickSku')}
-                    className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
+                    className="rounded-full border border-[var(--border-hover)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-primary)] hover:border-[var(--border-hover)]"
                   >
                     {t('ops.pick.steps.cta')}
                   </button>
@@ -1250,7 +1250,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="text-xs text-slate-400 uppercase tracking-wide">{t('ops.pick.quantity')}</label>
+                <label className="text-xs text-[color:var(--text-tertiary)] uppercase tracking-wide">{t('ops.pick.quantity')}</label>
                 <input
                   type="number"
                   min={1}
@@ -1263,9 +1263,9 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       setPickQuantity(Math.max(1, Number(val)));
                     }
                   }}
-                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                  className="mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)] px-3 py-2 text-sm text-[color:white]"
                 />
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[color:var(--text-tertiary)]">
                   {t('ops.pick.quantityHint', { value: nextPickTask?.quantity || 1 })}
                 </p>
               </div>
@@ -1273,7 +1273,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 <button
                   type="button"
                   onClick={handleResetPickScans}
-                  className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
+                  className="rounded-full border border-[var(--border-hover)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-primary)] hover:border-[var(--border-hover)]"
                 >
                   {t('ops.pick.reset')}
                 </button>
@@ -1281,19 +1281,19 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             </div>
 
             {pickBinDetail && (
-              <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-4">
-                <h4 className="text-white font-semibold mb-2">BIN {pickBinDetail.code}</h4>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/60 p-4">
+                <h4 className="text-[color:white] font-semibold mb-2">BIN {pickBinDetail.code}</h4>
                 {pickBinDetail.products?.length ? (
                   <ul className="space-y-2 max-h-52 overflow-y-auto text-sm">
                     {pickBinDetail.products.map((item) => (
                       <li
                         key={item.productId}
-                        className={`flex items-center justify-between px-3 py-2 rounded ${pickSku && item.sku?.toLowerCase() === pickSku.toLowerCase() ? 'bg-sky-600/30' : 'bg-slate-800'
+                        className={`flex items-center justify-between px-3 py-2 rounded ${pickSku && item.sku?.toLowerCase() === pickSku.toLowerCase() ? 'bg-[var(--avy-purple)]/30' : 'bg-[var(--surface-hover)]'
                           }`}
                       >
                         <div>
-                          <p className="text-white">{item.name}</p>
-                          <p className="text-xs text-slate-400">
+                          <p className="text-[color:white]">{item.name}</p>
+                          <p className="text-xs text-[color:var(--text-tertiary)]">
                             SKU {item.sku} · Menge {item.quantity}
                           </p>
                         </div>
@@ -1301,14 +1301,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                           <img
                             src={resolveImageSrc(item.image)}
                             alt={item.name}
-                            className="w-12 h-12 object-cover rounded border border-slate-700"
+                            className="w-12 h-12 object-cover rounded border border-[var(--border)]"
                           />
                         )}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-slate-400 text-sm">{t('ops.labels.binEmpty')}</p>
+                  <p className="text-[color:var(--text-tertiary)] text-sm">{t('ops.labels.binEmpty')}</p>
                 )}
               </div>
             )}
@@ -1318,7 +1318,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 type="button"
                 onClick={handlePick}
                 disabled={!pickConfirmReady || isSubmitting}
-                className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-600"
+                className="rounded-full bg-[var(--success)] px-5 py-2 text-sm font-semibold text-[color:white] transition-colors hover:bg-[var(--success)] disabled:cursor-not-allowed disabled:bg-[var(--surface-secondary)]"
               >
                 {isSubmitting ? t('ops.pick.submitting') : t('ops.pick.submit')}
               </button>

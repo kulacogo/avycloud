@@ -4,24 +4,24 @@ type NoticeTone = 'info' | 'success' | 'warning' | 'error';
 
 const toneStyles: Record<NoticeTone, { box: string; title: string; body: string }> = {
   info: {
-    box: 'bg-sky-900/20 ring-sky-700/40',
-    title: 'text-sky-200',
-    body: 'text-slate-200',
+    box: 'bg-[var(--avy-purple-glow)] ring-[var(--avy-purple)]/30',
+    title: 'text-[color:var(--avy-purple-light)]',
+    body: 'text-[color:var(--text-primary)]',
   },
   success: {
-    box: 'bg-emerald-900/20 ring-emerald-700/40',
-    title: 'text-emerald-200',
-    body: 'text-slate-200',
+    box: 'bg-[var(--success-bg)] ring-[var(--success-border)]',
+    title: 'text-[color:var(--success)]',
+    body: 'text-[color:var(--text-primary)]',
   },
   warning: {
-    box: 'bg-amber-900/20 ring-amber-700/40',
-    title: 'text-amber-200',
-    body: 'text-slate-200',
+    box: 'bg-[var(--warning-bg)] ring-[var(--warning-border)]',
+    title: 'text-[color:var(--warning)]',
+    body: 'text-[color:var(--text-primary)]',
   },
   error: {
-    box: 'bg-rose-900/25 ring-rose-700/40',
-    title: 'text-rose-200',
-    body: 'text-rose-100',
+    box: 'bg-[var(--error-bg)] ring-[var(--error-border)]',
+    title: 'text-[color:var(--error)]',
+    body: 'text-[color:var(--error)]',
   },
 };
 
@@ -49,10 +49,10 @@ export const Notice: React.FC<{
           {children ? <div className={`mt-1 ${styles.body}`}>{children}</div> : null}
           {details ? (
             <details className="mt-2">
-              <summary className="cursor-pointer select-none text-xs text-slate-300 hover:text-white">
+              <summary className="cursor-pointer select-none text-xs text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]">
                 Details
               </summary>
-              <div className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-200">{details}</div>
+              <div className="mt-2 whitespace-pre-wrap break-words text-xs text-[color:var(--text-primary)]">{details}</div>
             </details>
           ) : null}
         </div>
@@ -60,7 +60,7 @@ export const Notice: React.FC<{
           <button
             type="button"
             onClick={onDismiss}
-            className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-slate-200 hover:bg-white/10"
+            className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-[color:var(--text-primary)] hover:bg-[var(--surface-hover)]"
             aria-label="Hinweis schließen"
           >
             ✕

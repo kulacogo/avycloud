@@ -79,12 +79,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-slate-500">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">
         <button
           type="button"
           aria-label={t('chat.input.clear')}
           onClick={onClearChat}
-          className="rounded-full border border-slate-700 px-3 py-1 text-slate-300 hover:border-sky-500 hover:text-white"
+          className="rounded-full border border-[var(--border)] px-3 py-1 text-[color:var(--text-secondary)] hover:border-[var(--avy-purple)] hover:text-[color:var(--text-primary)]"
         >
           {t('chat.input.clear')}
         </button>
@@ -92,7 +92,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           type="button"
           aria-label={t('chat.input.upload')}
           onClick={handleAttachClick}
-          className="rounded-full border border-slate-700 px-3 py-1 text-slate-300 hover:border-sky-500 hover:text-white"
+          className="rounded-full border border-[var(--border)] px-3 py-1 text-[color:var(--text-secondary)] hover:border-[var(--avy-purple)] hover:text-[color:var(--text-primary)]"
         >
           {t('chat.input.upload')}
         </button>
@@ -100,17 +100,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
           type="button"
           aria-label={t('chat.input.context')}
           onClick={onInsertContext}
-          className="rounded-full border border-slate-700 px-3 py-1 text-slate-300 hover:border-sky-500 hover:text-white"
+          className="rounded-full border border-[var(--border)] px-3 py-1 text-[color:var(--text-secondary)] hover:border-[var(--avy-purple)] hover:text-[color:var(--text-primary)]"
         >
           {t('chat.input.context')}
         </button>
-        <span className="ml-auto text-[10px] text-slate-500">
+        <span className="ml-auto text-[10px] text-[color:var(--text-tertiary)]">
           {characters}/{charLimit}
         </span>
       </div>
 
       {attachments.length > 0 && (
-        <details className="rounded-2xl border border-slate-700/70 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+        <details className="rounded-2xl border border-[var(--border)]/70 bg-[var(--surface-secondary)]/60 px-3 py-2 text-xs text-[color:var(--text-secondary)]">
           <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wide">
             {t('chat.input.attachments', { count: attachments.length })}
           </summary>
@@ -139,14 +139,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
           value={value}
           onChange={(event) => onChange(event.target.value.slice(0, charLimit))}
           onKeyDown={handleKeyDown}
-          className="h-12 flex-1 resize-none rounded-2xl bg-slate-800/80 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          className="h-12 flex-1 resize-none rounded-2xl bg-[var(--surface-hover)]/80 px-4 py-3 text-sm text-[color:var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--avy-purple)]"
         />
         <div className="flex flex-col gap-2">
           <button
             type="button"
           aria-label={t('chat.input.attachButton')}
             onClick={handleAttachClick}
-            className="flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/70 px-3 py-2 text-slate-200 hover:border-sky-400 hover:text-white"
+            className="flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 px-3 py-2 text-[color:var(--text-primary)] hover:border-[var(--avy-purple)] hover:text-[color:var(--text-primary)]"
           >
             <PaperClipIcon className="h-4 w-4" />
             <span className="ml-2 text-xs uppercase tracking-wide">{t('chat.input.attachButton')}</span>
@@ -156,7 +156,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             aria-label={t('chat.input.send')}
             onClick={onSend}
             disabled={disabled || (!value.trim() && attachments.length === 0)}
-            className="flex items-center justify-center rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-600"
+            className="flex items-center justify-center rounded-2xl bg-[var(--avy-purple)] px-4 py-3 text-sm font-semibold text-[color:white] hover:bg-[var(--avy-purple-hover)] disabled:cursor-not-allowed disabled:bg-[var(--surface-secondary)]"
           >
             <SendIcon className="h-4 w-4" />
           </button>

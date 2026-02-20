@@ -33,18 +33,18 @@ interface MobileOperationsViewProps {
 
 const SectionTitle: React.FC<{ title: string; desc?: string }> = ({ title, desc }) => (
   <div className="space-y-1 mb-3">
-    <h2 className="text-xl font-semibold text-white">{title}</h2>
-    {desc && <p className="text-sm text-slate-400">{desc}</p>}
+    <h2 className="text-xl font-semibold text-[color:white]">{title}</h2>
+    {desc && <p className="text-sm text-[color:var(--text-tertiary)]">{desc}</p>}
   </div>
 );
 
 const StatusBadge: React.FC<{ label: string; tone?: 'neutral' | 'success' | 'warn' }> = ({ label, tone = 'neutral' }) => {
   const toneClasses =
     tone === 'success'
-      ? 'bg-emerald-900/60 text-emerald-200 border-emerald-700/60'
+      ? 'bg-[var(--success-bg)] text-[color:var(--success)] border-[var(--success-border)]/60'
       : tone === 'warn'
-        ? 'bg-amber-900/60 text-amber-100 border-amber-700/60'
-        : 'bg-slate-800 text-slate-200 border-slate-700/60';
+        ? 'bg-[var(--warning-bg)] text-[color:var(--warning)] border-[var(--warning-border)]'
+        : 'bg-[var(--surface-hover)] text-[color:var(--text-primary)] border-[var(--border)]/60';
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border ${toneClasses}`}>
       {label}
@@ -55,20 +55,20 @@ const StatusBadge: React.FC<{ label: string; tone?: 'neutral' | 'success' | 'war
 const ProductCard: React.FC<{ product: Product; footer?: React.ReactNode }> = ({ product, footer }) => {
   const { t } = useI18n();
   return (
-  <div className="w-full text-left rounded-2xl bg-slate-800 border border-white/5 p-3 flex gap-3 shadow-sm shadow-black/20">
-    <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden flex items-center justify-center">
+  <div className="w-full text-left rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] p-3 flex gap-3 shadow-sm shadow-black/20">
+    <div className="w-12 h-12 rounded-lg bg-[var(--surface)] overflow-hidden flex items-center justify-center">
       {product.details?.images?.[0]?.url_or_base64 ? (
         <img src={product.details.images[0].url_or_base64} alt="" className="w-full h-full object-cover" />
       ) : (
-          <span className="text-xs text-slate-300">{t('common.noImage')}</span>
+          <span className="text-xs text-[color:var(--text-secondary)]">{t('common.noImage')}</span>
       )}
     </div>
     <div className="flex-1">
-      <p className="text-sm font-semibold text-white line-clamp-2">{product.identification?.name}</p>
-      <p className="text-xs text-slate-400">
+      <p className="text-sm font-semibold text-[color:white] line-clamp-2">{product.identification?.name}</p>
+      <p className="text-xs text-[color:var(--text-tertiary)]">
           {t('common.sku')} {product.identification?.sku || '—'} · {t('common.bin')} {product.storage?.binCode || '—'}
         </p>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-[color:var(--text-tertiary)]">
           {t('common.qty')} {getProductQuantity(product)}
       </p>
     </div>
@@ -905,7 +905,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         <div className="flex items-center justify-end gap-2">
           <button
             type="button"
-            className="h-11 rounded-xl bg-slate-800/70 text-white px-3 text-sm font-semibold border border-slate-700"
+            className="h-11 rounded-xl bg-[var(--surface-hover)]/70 text-[color:white] px-3 text-sm font-semibold border border-[var(--border)]"
             onClick={addIdentifySlot}
           >
             + {t('common.add')}
@@ -914,14 +914,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         <SectionTitle title={t('ops.mode.identify')} />
         <div className="grid grid-cols-1 gap-3">
           {identifySlots.map((slot) => (
-            <div key={slot} className="rounded-2xl border border-dashed border-white/15 bg-slate-800/70 p-4 space-y-3">
+            <div key={slot} className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-hover)]/70 p-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-slate-100">
+                <p className="text-sm font-semibold text-[color:var(--text-primary)]">
                   {t('input.groups.defaultName', { index: identifySlots.indexOf(slot) + 1 })}
                 </p>
                 <button
                   type="button"
-                  className="rounded-full bg-slate-900/60 border border-slate-700 text-slate-100 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                  className="rounded-full bg-[var(--surface-secondary)]/60 border border-[var(--border)] text-[color:var(--text-primary)] px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
                   onClick={() => clearIdentifySlot(slot)}
                   disabled={!identifyImagesBySlot[slot]?.length}
                 >
@@ -931,14 +931,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  className="rounded-2xl bg-sky-600 text-white font-semibold py-3"
+                  className="rounded-2xl bg-[var(--avy-purple)] text-[color:white] font-semibold py-3"
                   onClick={() => triggerIdentifyInput(slot, 'camera')}
                 >
                   {t('common.camera')}
                 </button>
                 <button
                   type="button"
-                  className="rounded-2xl bg-slate-800 text-slate-100 font-semibold py-3 border border-slate-700"
+                  className="rounded-2xl bg-[var(--surface-hover)] text-[color:var(--text-primary)] font-semibold py-3 border border-[var(--border)]"
                   onClick={() => triggerIdentifyInput(slot, 'upload')}
                 >
                   {t('common.upload')}
@@ -946,14 +946,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               </div>
               {identifyImagesBySlot[slot]?.length ? (
                 <div className="space-y-2">
-                  <p className="text-xs text-slate-400">{t('identifyQueue.files', { count: identifyImagesBySlot[slot].length })}</p>
+                  <p className="text-xs text-[color:var(--text-tertiary)]">{t('identifyQueue.files', { count: identifyImagesBySlot[slot].length })}</p>
                   <div className="grid grid-cols-4 gap-2">
                     {identifyImagesBySlot[slot].slice(0, 8).map((img) => (
                       <img
                         key={img.id}
                         src={img.previewUrl}
                         alt=""
-                        className="w-full aspect-square object-cover rounded-lg border border-slate-700"
+                        className="w-full aspect-square object-cover rounded-lg border border-[var(--border)]"
                         loading="lazy"
                       />
                     ))}
@@ -990,7 +990,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               />
               <button
                 type="button"
-                className="w-full rounded-2xl bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
+                className="w-full rounded-2xl bg-[var(--success)] text-[color:white] font-semibold py-3 disabled:opacity-40"
                 disabled={!identifyImagesBySlot[slot]?.length}
                 onClick={() => {
                   const images = (identifyImagesBySlot[slot] || []).map((img) => img.file);
@@ -1021,21 +1021,21 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     return (
       <div className="space-y-3 max-w-xl mx-auto">
         <SectionTitle title={t('ops.mode.stow')} />
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
-          {stowMessage && <p className="text-xs text-emerald-300">{stowMessage}</p>}
-          <div className="grid grid-cols-2 gap-2 text-sm text-slate-200">
-            <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 p-3 space-y-2">
+          {stowMessage && <p className="text-xs text-[color:var(--success)]">{stowMessage}</p>}
+          <div className="grid grid-cols-2 gap-2 text-sm text-[color:var(--text-primary)]">
+            <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
+              <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.sku')}</p>
               <p className="text-base font-semibold break-all">{stowSku || '—'}</p>
             </div>
-            <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
+            <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
+              <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.bin')}</p>
               <p className="text-base font-semibold break-all">{stowBin || '—'}</p>
             </div>
           </div>
           {showKeypad && (
-            <div className="rounded-xl bg-slate-900/60 border border-white/10 p-3 space-y-3">
-              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('ops.mobile.qtyScannerOrPad')}</p>
+            <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-3 space-y-3">
+              <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('ops.mobile.qtyScannerOrPad')}</p>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -1043,11 +1043,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   pattern="[0-9]*"
                   readOnly
                   value={stowQty}
-                  className="flex-1 rounded-lg bg-slate-800 text-white text-xl font-semibold px-3 py-2 border border-slate-700"
+                  className="flex-1 rounded-lg bg-[var(--surface-hover)] text-[color:white] text-xl font-semibold px-3 py-2 border border-[var(--border)]"
                 />
                 <button
                   type="button"
-                  className="rounded-lg px-3 py-2 bg-slate-700 text-white text-sm font-semibold"
+                  className="rounded-lg px-3 py-2 bg-[var(--surface)] text-[color:white] text-sm font-semibold"
                   onClick={() => setStowQty(0)}
                 >
                   {t('common.clear')}
@@ -1058,7 +1058,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   <button
                     key={n}
                     type="button"
-                    className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
+                    className="rounded-lg bg-[var(--surface-hover)] text-[color:white] text-xl font-semibold py-3"
                     onClick={() => setStowQty((prev) => Number(`${prev}${n}`))}
                   >
                     {n}
@@ -1066,21 +1066,21 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 ))}
                 <button
                   type="button"
-                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
+                  className="rounded-lg bg-[var(--surface-hover)] text-[color:white] text-lg font-semibold py-3"
                   onClick={() => setStowQty((prev) => Math.max(0, Math.floor(prev / 10)))}
                 >
                   ⌫
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
+                  className="rounded-lg bg-[var(--surface-hover)] text-[color:white] text-xl font-semibold py-3"
                   onClick={() => setStowQty((prev) => Number(`${prev}0`))}
                 >
                   0
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
+                  className="rounded-lg bg-[var(--surface-hover)] text-[color:white] text-lg font-semibold py-3"
                   onClick={() => setStowQty(0)}
                 >
                   C
@@ -1093,7 +1093,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               type="button"
               disabled={!stowSku || !stowBin || stowQty <= 0}
               onClick={handleSubmitStow}
-              className="rounded-lg bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
+              className="rounded-lg bg-[var(--success)] text-[color:white] font-semibold py-3 disabled:opacity-40"
             >
               {t('ops.stow.submit')}
             </button>
@@ -1104,7 +1104,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 setStowBin('');
                 setStowQty(1);
               }}
-              className="rounded-lg bg-slate-700 text-white font-semibold py-3"
+              className="rounded-lg bg-[var(--surface)] text-[color:white] font-semibold py-3"
             >
               {t('common.reset')}
             </button>
@@ -1112,18 +1112,18 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         </div>
 
         {stowEntries.length > 0 && (
-          <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
-            <p className="text-sm font-semibold text-white">{t('ops.mobile.stow.sessionTitle')}</p>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 p-3 space-y-2">
+            <p className="text-sm font-semibold text-[color:white]">{t('ops.mobile.stow.sessionTitle')}</p>
             <div className="space-y-2">
               {stowEntries.map((entry, idx) => (
-                <div key={`${entry.sku}-${entry.bin}-${idx}`} className="rounded-xl border border-white/10 bg-slate-900/60 p-2 text-sm text-slate-200">
+                <div key={`${entry.sku}-${entry.bin}-${idx}`} className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/60 p-2 text-sm text-[color:var(--text-primary)]">
                   <div className="flex justify-between gap-2">
                     <span className="font-semibold break-all">{entry.sku}</span>
-                    <span className="text-slate-300">
+                    <span className="text-[color:var(--text-secondary)]">
                       {t('common.qty')} {entry.qty}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 break-all">
+                  <p className="text-xs text-[color:var(--text-tertiary)] break-all">
                     {t('common.bin')} {entry.bin}
                   </p>
                 </div>
@@ -1154,7 +1154,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     const scanBoxClass = (kind: 'bin' | 'sku') => {
       const isExpected = expectedScan === kind;
       return `rounded-2xl border p-3 ${
-        isExpected ? 'border-sky-500 bg-sky-900/20' : 'border-white/10 bg-slate-900/40'
+        isExpected ? 'border-[var(--avy-purple)] bg-[var(--avy-purple-glow)]' : 'border-[var(--border)] bg-[var(--surface-secondary)]/40'
       }`;
     };
 
@@ -1162,49 +1162,49 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       <div className="max-w-xl mx-auto flex flex-col gap-3">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-white">{t('ops.mode.pick')}</h2>
+            <h2 className="text-xl font-semibold text-[color:white]">{t('ops.mode.pick')}</h2>
           </div>
-          <div className="text-right text-xs text-slate-400">
-            <p className="font-semibold text-slate-200 tabular-nums">{pickTasks.length}</p>
+          <div className="text-right text-xs text-[color:var(--text-tertiary)]">
+            <p className="font-semibold text-[color:var(--text-primary)] tabular-nums">{pickTasks.length}</p>
             <p>{t('ops.badge.pick')}</p>
           </div>
         </div>
 
         {ordersError ? (
-          <div className="rounded-2xl border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-100">
+          <div className="rounded-2xl border border-[var(--error-border)] bg-[var(--error-bg)] p-3 text-sm text-[color:var(--error)]">
             <p className="font-semibold">{t('ops.errors.ordersLoad')}</p>
-            <p className="mt-1 text-xs text-rose-200/90 break-words">{ordersError}</p>
+            <p className="mt-1 text-xs text-[color:var(--error)]/90 break-words">{ordersError}</p>
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div className={scanBoxClass('bin')}>
-              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
-              <p className="text-2xl font-extrabold text-white tracking-wider break-all">
+              <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.bin')}</p>
+              <p className="text-2xl font-extrabold text-[color:white] tracking-wider break-all">
                 {activeBin || `${t('ops.actions.scan')} ${t('common.bin')}`}
               </p>
             </div>
             <div className={scanBoxClass('sku')}>
-              <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
-              <p className="text-base font-bold text-white break-all">
+              <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.sku')}</p>
+              <p className="text-base font-bold text-[color:white] break-all">
                 {activeSku || `${t('ops.actions.scan')} ${t('common.sku')}`}
               </p>
             </div>
           </div>
 
           <div className="flex items-start justify-between gap-3">
-            <div className="text-xs text-slate-300">
+            <div className="text-xs text-[color:var(--text-secondary)]">
               {pendingPick ? t('ops.mobile.pick.qtyPadHint') : t('ops.mobile.scannerFocusHint')}
               {ordersLastOkIso ? (
-                <span className="block text-[11px] text-slate-500 mt-1">
+                <span className="block text-[11px] text-[color:var(--text-tertiary)] mt-1">
                   {new Date(ordersLastOkIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               ) : null}
             </div>
             <button
               type="button"
-              className="shrink-0 rounded-xl bg-slate-900/50 border border-white/10 px-3 py-2 text-xs font-semibold text-white"
+              className="shrink-0 rounded-xl bg-[var(--surface-secondary)]/50 border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[color:white]"
               onClick={() => {
                 setActiveBin('');
                 setActiveSku('');
@@ -1223,51 +1223,51 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             <p
               className={`text-xs ${
                 pickMessageTone === 'error'
-                  ? 'text-rose-300'
+                  ? 'text-[color:var(--error)]'
                   : pickMessageTone === 'success'
-                    ? 'text-emerald-300'
-                    : 'text-sky-200'
+                    ? 'text-[color:var(--success)]'
+                    : 'text-[color:var(--avy-purple-light)]'
               }`}
             >
               {pickMessage}
             </p>
           ) : null}
-          {ordersLoading ? <p className="text-xs text-slate-400">{t('ops.orders.loading')}</p> : null}
+          {ordersLoading ? <p className="text-xs text-[color:var(--text-tertiary)]">{t('ops.orders.loading')}</p> : null}
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-slate-900/30 p-3">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/30 p-3">
           {pendingPick ? (
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white line-clamp-2">{pendingPick.name}</p>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-sm font-semibold text-[color:white] line-clamp-2">{pendingPick.name}</p>
+                  <p className="text-xs text-[color:var(--text-tertiary)] mt-1">
                     {t('common.order')} {pendingPick.orderNumber || pendingPick.orderId}
                   </p>
                 </div>
                 <StatusBadge label={t('ops.badge.pick')} tone="warn" />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
-                  <p className="text-3xl font-extrabold text-white tracking-wider break-all">
+                <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
+                  <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.bin')}</p>
+                  <p className="text-3xl font-extrabold text-[color:white] tracking-wider break-all">
                     {pendingPick.binCode || '—'}
                   </p>
                 </div>
-                <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
-                  <p className="text-lg font-bold text-white break-all">{pendingPick.sku || '—'}</p>
+                <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
+                  <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.sku')}</p>
+                  <p className="text-lg font-bold text-[color:white] break-all">{pendingPick.sku || '—'}</p>
                 </div>
               </div>
-              <p className="text-xs text-slate-300">
-                <span className="font-semibold text-white">
+              <p className="text-xs text-[color:var(--text-secondary)]">
+                <span className="font-semibold text-[color:white]">
                   {t('ops.labels.openRemaining', { count: pendingPick.remainingTotal })}
                 </span>
                 {typeof pendingPick.availableInBin === 'number' ? (
                   <>
                     {' '}
                     ·{' '}
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-[color:white]">
                       {t('ops.mobile.availableInBin', { value: pendingPick.availableInBin })}
                     </span>
                   </>
@@ -1275,24 +1275,24 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               </p>
             </div>
           ) : pickTasks.length === 0 && !ordersLoading ? (
-            <p className="text-sm text-slate-300">{t('ops.orders.none')}</p>
+            <p className="text-sm text-[color:var(--text-secondary)]">{t('ops.orders.none')}</p>
           ) : nextTask ? (
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.labels.nextPick')}</p>
+              <p className="text-xs uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('ops.labels.nextPick')}</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
-                  <p className="text-3xl font-extrabold text-white tracking-wider break-all">{nextTask.binCode || '—'}</p>
+                <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
+                  <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.bin')}</p>
+                  <p className="text-3xl font-extrabold text-[color:white] tracking-wider break-all">{nextTask.binCode || '—'}</p>
                   {nextBinGroupCount > 1 ? (
-                    <p className="text-[11px] text-slate-400 mt-1">
+                    <p className="text-[11px] text-[color:var(--text-tertiary)] mt-1">
                       {t('ops.mobile.pick.binGroupCount', { count: nextBinGroupCount })}
                     </p>
                   ) : null}
                 </div>
-                <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.sku')}</p>
-                  <p className="text-base font-bold text-white break-all">{nextTask.sku}</p>
-                  <p className="text-[11px] text-slate-400 mt-1">{t('ops.labels.openRemaining', { count: nextTask.remainingTotal })}</p>
+                <div className="rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] p-2">
+                  <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.sku')}</p>
+                  <p className="text-base font-bold text-[color:white] break-all">{nextTask.sku}</p>
+                  <p className="text-[11px] text-[color:var(--text-tertiary)] mt-1">{t('ops.labels.openRemaining', { count: nextTask.remainingTotal })}</p>
                 </div>
               </div>
             </div>
@@ -1300,12 +1300,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         </div>
 
         {!pendingPick && pickTasks.length > 0 ? (
-          <details className="rounded-2xl border border-white/10 bg-slate-800/40 p-3">
-            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-sm font-semibold text-slate-100 flex items-center justify-between">
+          <details className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/40 p-3">
+            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-sm font-semibold text-[color:var(--text-primary)] flex items-center justify-between">
               <span>
                 {t('ops.mobile.route')} ({pickTasks.length})
               </span>
-              <span className="text-slate-400">▾</span>
+              <span className="text-[color:var(--text-tertiary)]">▾</span>
             </summary>
             <div className="mt-3 space-y-2">
               {pickTasks.slice(0, 100).map((task) => {
@@ -1323,30 +1323,30 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                       setHighlightKey(key);
                     }}
                     className={`w-full text-left rounded-2xl border p-3 shadow-sm shadow-black/20 ${
-                      isHighlighted ? 'border-sky-500 bg-sky-900/30' : 'border-white/5 bg-slate-900/50'
+                      isHighlighted ? 'border-[var(--avy-purple)] bg-[var(--avy-purple-glow)]' : 'border-[var(--border)] bg-[var(--surface-secondary)]/50'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white line-clamp-2">{task.name}</p>
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-sm font-semibold text-[color:white] line-clamp-2">{task.name}</p>
+                        <p className="text-xs text-[color:var(--text-tertiary)] mt-1">
                           {t('common.order')} {task.orderNumber || task.orderId}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                          <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                            {t('common.sku')}: <span className="font-semibold text-white">{task.sku}</span>
+                          <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
+                            {t('common.sku')}: <span className="font-semibold text-[color:white]">{task.sku}</span>
                           </span>
-                          <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                          <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
                             {t('ops.labels.openRemaining', { count: task.remainingTotal })}
                           </span>
-                          <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+                          <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
                             {t('ops.pick.quantityHint', { value: task.suggestedQty })}
                           </span>
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
-                        <p className="text-xl font-extrabold text-white tracking-wider">{task.binCode || '—'}</p>
+                        <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.bin')}</p>
+                        <p className="text-xl font-extrabold text-[color:white] tracking-wider">{task.binCode || '—'}</p>
                       </div>
                     </div>
                   </button>
@@ -1357,7 +1357,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         ) : null}
 
         {pendingPick ? (
-          <div className="sticky bottom-24 -mx-4 px-4 pt-3 pb-4 bg-slate-950/90 backdrop-blur border-t border-white/10">
+          <div className="sticky bottom-24 -mx-4 px-4 pt-3 pb-4 bg-[var(--bg)]/90 backdrop-blur border-t border-[var(--border)]">
             {(() => {
               const maxAllowed =
                 typeof pendingPick.availableInBin === 'number'
@@ -1372,22 +1372,22 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
               return (
                 <div className="space-y-3 max-w-xl mx-auto">
-                  <div className="rounded-2xl bg-slate-900/50 border border-white/10 p-3 space-y-2">
-                    <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.qty')}</p>
+                  <div className="rounded-2xl bg-[var(--surface-secondary)]/50 border border-[var(--border)] p-3 space-y-2">
+                    <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.qty')}</p>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        className="w-14 h-14 rounded-2xl bg-slate-800 text-white text-3xl font-extrabold border border-white/10"
+                        className="w-14 h-14 rounded-2xl bg-[var(--surface-hover)] text-[color:white] text-3xl font-extrabold border border-[var(--border)]"
                         onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) - 1))}
                       >
                         −
                       </button>
-                      <div className="flex-1 h-14 rounded-2xl bg-slate-800 text-white text-3xl font-extrabold border border-white/10 flex items-center justify-center tabular-nums">
+                      <div className="flex-1 h-14 rounded-2xl bg-[var(--surface-hover)] text-[color:white] text-3xl font-extrabold border border-[var(--border)] flex items-center justify-center tabular-nums">
                         {pendingPickQty}
                       </div>
                       <button
                         type="button"
-                        className="w-14 h-14 rounded-2xl bg-slate-800 text-white text-3xl font-extrabold border border-white/10"
+                        className="w-14 h-14 rounded-2xl bg-[var(--surface-hover)] text-[color:white] text-3xl font-extrabold border border-[var(--border)]"
                         onClick={() => setPendingPickQty((prev) => clampQty((Number(prev) || 0) + 1))}
                       >
                         +
@@ -1396,28 +1396,28 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
+                        className="rounded-full bg-[var(--surface-hover)] text-[color:white] text-sm font-semibold px-3 py-2 border border-[var(--border)]"
                         onClick={() => setPendingPickQty(clampQty(1))}
                       >
                         1
                       </button>
                       <button
                         type="button"
-                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
+                        className="rounded-full bg-[var(--surface-hover)] text-[color:white] text-sm font-semibold px-3 py-2 border border-[var(--border)]"
                         onClick={() => setPendingPickQty(clampQty(pendingPick.suggestedQty || 1))}
                       >
                         {t('ops.orders.auto')}
                       </button>
                       <button
                         type="button"
-                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
+                        className="rounded-full bg-[var(--surface-hover)] text-[color:white] text-sm font-semibold px-3 py-2 border border-[var(--border)]"
                         onClick={() => setPendingPickQty(clampQty(maxAllowed || pendingPick.remainingTotal || 1))}
                       >
                         Max
                       </button>
                       <button
                         type="button"
-                        className="rounded-full bg-slate-800 text-white text-sm font-semibold px-3 py-2 border border-white/10"
+                        className="rounded-full bg-[var(--surface-hover)] text-[color:white] text-sm font-semibold px-3 py-2 border border-[var(--border)]"
                         onClick={() => setPendingPickQty(0)}
                       >
                         {t('common.clear')}
@@ -1430,7 +1430,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                       type="button"
                       disabled={!pendingPickQty || pendingPickQty <= 0}
                       onClick={() => void submitPick(pendingPick, pendingPickQty)}
-                      className="h-14 rounded-2xl bg-emerald-600 text-white font-extrabold text-lg disabled:opacity-40"
+                      className="h-14 rounded-2xl bg-[var(--success)] text-[color:white] font-extrabold text-lg disabled:opacity-40"
                     >
                       {t('ops.pick.submit')}
                     </button>
@@ -1443,7 +1443,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                         setActiveSku('');
                         setHighlightKey(null);
                       }}
-                      className="h-14 rounded-2xl bg-slate-700 text-white font-semibold text-lg"
+                      className="h-14 rounded-2xl bg-[var(--surface)] text-[color:white] font-semibold text-lg"
                     >
                       {t('common.cancel')}
                     </button>
@@ -1465,26 +1465,26 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       <div className="space-y-3 max-w-xl mx-auto">
         <SectionTitle title={t('ops.mode.pack')} />
         {packMessage ? (
-          <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-3 text-sm text-slate-200">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/40 p-3 text-sm text-[color:var(--text-primary)]">
             {packMessage}
           </div>
         ) : null}
         {packScopedOrderKey ? (
-          <div className="rounded-2xl border border-sky-500/50 bg-sky-900/20 p-3 flex items-center justify-between gap-3">
-            <p className="text-sm text-slate-100">
+          <div className="rounded-2xl border border-[var(--avy-purple)]/50 bg-[var(--avy-purple-glow)] p-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-[color:var(--text-primary)]">
               {t('ops.mobile.pack.scope.active')}: <span className="font-semibold">{scopedOrderPreview?.orderNumber || packScopedOrderKey}</span>
             </p>
             <button
               type="button"
-              className="rounded-lg bg-slate-800 border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-slate-100"
+              className="rounded-lg bg-[var(--surface-hover)] border border-[var(--border)] px-2.5 py-1.5 text-xs font-semibold text-[color:var(--text-primary)]"
               onClick={() => setPackScopedOrderKey(null)}
             >
               {t('common.reset')}
             </button>
           </div>
         ) : null}
-        {ordersLoading && <p className="text-sm text-slate-400">{t('ops.orders.loading')}</p>}
-        {packItems.length === 0 && !ordersLoading && <p className="text-sm text-slate-400">{t('ops.mobile.pack.none')}</p>}
+        {ordersLoading && <p className="text-sm text-[color:var(--text-tertiary)]">{t('ops.orders.loading')}</p>}
+        {packItems.length === 0 && !ordersLoading && <p className="text-sm text-[color:var(--text-tertiary)]">{t('ops.mobile.pack.none')}</p>}
         {packItems.slice(0, 100).map((item) => (
           <button
             type="button"
@@ -1492,33 +1492,33 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             onClick={() => setPackScopedOrderKey(item.orderKey)}
             className={`w-full text-left rounded-2xl border p-3 shadow-sm shadow-black/20 ${
               packScopedOrderKey === item.orderKey
-                ? 'border-sky-500 bg-sky-900/20'
-                : 'border-white/5 bg-slate-800'
+                ? 'border-[var(--avy-purple)] bg-[var(--avy-purple-glow)]'
+                : 'border-[var(--border)] bg-[var(--surface-hover)]'
             }`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white line-clamp-2">{item.name}</p>
+                <p className="text-sm font-semibold text-[color:white] line-clamp-2">{item.name}</p>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                  <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                    {t('common.order')}: <span className="font-semibold text-white">{item.orderNumber || item.orderId}</span>
+                  <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
+                    {t('common.order')}: <span className="font-semibold text-[color:white]">{item.orderNumber || item.orderId}</span>
                   </span>
                   {item.orderSourceId ? (
-                    <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                      {t('ops.mobile.pack.scope.source')}: <span className="font-semibold text-white">{item.orderSourceId}</span>
+                    <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
+                      {t('ops.mobile.pack.scope.source')}: <span className="font-semibold text-[color:white]">{item.orderSourceId}</span>
                     </span>
                   ) : null}
-                  <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                    {t('common.sku')}: <span className="font-semibold text-white">{item.sku || '—'}</span>
+                  <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
+                    {t('common.sku')}: <span className="font-semibold text-[color:white]">{item.sku || '—'}</span>
                   </span>
-                  <span className="px-2 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
-                    {t('common.bin')}: <span className="font-semibold text-white">{item.binCode || '—'}</span>
+                  <span className="px-2 py-1 rounded-full border border-[var(--border)] bg-white/5 text-[color:var(--text-primary)]">
+                    {t('common.bin')}: <span className="font-semibold text-[color:white]">{item.binCode || '—'}</span>
                   </span>
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.qty')}</p>
-                <p className="text-xl font-extrabold text-white tabular-nums">{item.qty}</p>
+                <p className="text-[11px] uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('common.qty')}</p>
+                <p className="text-xl font-extrabold text-[color:white] tabular-nums">{item.qty}</p>
                 <div className="mt-1">
                   <StatusBadge label={t('ops.badge.pack')} tone="warn" />
                 </div>
@@ -1535,10 +1535,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     <div className="space-y-4 max-w-xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">{t('ops.title')}</h1>
-          <p className="text-slate-400 text-sm">{t('ops.subtitle')}</p>
+          <h1 className="text-2xl font-semibold text-[color:white]">{t('ops.title')}</h1>
+          <p className="text-[color:var(--text-tertiary)] text-sm">{t('ops.subtitle')}</p>
         </div>
-        <div className="text-right text-xs text-slate-400 space-y-0.5">
+        <div className="text-right text-xs text-[color:var(--text-tertiary)] space-y-0.5">
           <p>
             {t('ops.mode.stow')}: {stowList.length}
           </p>
@@ -1553,28 +1553,28 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       <div className="flex flex-col gap-3">
         <button
           type="button"
-          className="w-full rounded-2xl bg-sky-600 text-white font-semibold py-4 text-lg"
+          className="w-full rounded-2xl bg-[var(--avy-purple)] text-[color:white] font-semibold py-4 text-lg"
           onClick={() => onNavigate('operations-identify')}
         >
           {t('ops.mode.identify')}
         </button>
         <button
           type="button"
-          className="w-full rounded-2xl bg-emerald-600 text-white font-semibold py-4 text-lg"
+          className="w-full rounded-2xl bg-[var(--success)] text-[color:white] font-semibold py-4 text-lg"
           onClick={() => onNavigate('operations-stow')}
         >
           {t('ops.mode.stow')}
         </button>
         <button
           type="button"
-          className="w-full rounded-2xl bg-amber-600 text-white font-semibold py-4 text-lg"
+          className="w-full rounded-2xl bg-[var(--warning)] text-[color:white] font-semibold py-4 text-lg"
           onClick={() => onNavigate('operations-pick')}
         >
           {t('ops.mode.pick')}
         </button>
         <button
           type="button"
-          className="w-full rounded-2xl bg-slate-700 text-white font-semibold py-4 text-lg"
+          className="w-full rounded-2xl bg-[var(--surface)] text-[color:white] font-semibold py-4 text-lg"
           onClick={() => onNavigate('operations-pack')}
         >
           {t('ops.mode.pack')}

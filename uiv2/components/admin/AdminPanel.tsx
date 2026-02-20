@@ -21,7 +21,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('users')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'users' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'users' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
           }`}
         >
           Users
@@ -30,7 +30,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('groups')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'groups' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'groups' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
           }`}
         >
           Groups
@@ -39,7 +39,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('roles')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'roles' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'roles' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
           }`}
         >
           Roles
@@ -48,7 +48,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('llm')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'llm' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'llm' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
           }`}
         >
           LLM
@@ -57,7 +57,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('bulk')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'bulk' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'bulk' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
           }`}
         >
           Bulk
@@ -66,7 +66,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('integrations')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'integrations' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'integrations' ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-primary)] hover:bg-[var(--surface)]'
           }`}
         >
           Integrations

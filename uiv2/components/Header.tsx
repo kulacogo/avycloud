@@ -206,8 +206,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     const targetHash = nav.view === 'ebay-listings' ? '#/ebay' : `#/${nav.view}`;
     const baseClass = `hidden sm:inline-flex w-12 h-12 rounded-2xl items-center justify-center transition-all ${
       currentView === nav.view
-        ? 'bg-sky-600 text-white shadow-md shadow-sky-900/40'
-        : 'bg-slate-800/70 text-slate-300 hover:bg-slate-700 hover:text-white'
+        ? 'bg-[var(--avy-purple)] text-[color:white] shadow-md shadow-[var(--avy-purple)]/20'
+        : 'bg-[var(--surface-hover)]/70 text-[color:var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[color:var(--text-primary)]'
     }`;
     return (
       <a
@@ -275,7 +275,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
 
   return (
     <>
-      <header className="safe-area-header bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-white/5">
+      <header className="safe-area-header bg-[var(--surface-secondary)]/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/40 border-b border-[var(--border)]">
         <div className="w-full px-3 sm:px-4 lg:px-8 py-1.5">
           <div className="flex items-center gap-3 w-full">
             <div className="flex items-center gap-3 flex-shrink-0">
@@ -305,7 +305,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <select
                 value={locale}
                 onChange={(e) => setLocale(e.target.value as any)}
-                className="bg-transparent w-[33px] h-[33px] text-[15px] text-slate-100 text-center focus:outline-none border-none appearance-none cursor-pointer"
+                className="bg-transparent w-[33px] h-[33px] text-[15px] text-[color:var(--text-primary)] text-center focus:outline-none border-none appearance-none cursor-pointer"
                 aria-label={t('lang.label')}
               >
                 <option value="de">DE</option>
@@ -329,7 +329,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                     strokeWidth="1.8"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="w-6 h-6 text-slate-200"
+                    className="w-6 h-6 text-[color:var(--text-primary)]"
                     aria-hidden="true"
                   >
                     <circle cx="12" cy="12" r="4" />
@@ -352,7 +352,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                     strokeWidth="1.8"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="w-6 h-6 text-slate-200"
+                    className="w-6 h-6 text-[color:var(--text-primary)]"
                     aria-hidden="true"
                   >
                     <path d="M21 12.8A8 8 0 1 1 11.2 3a6 6 0 0 0 9.8 9.8Z" />
@@ -362,7 +362,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={() => logout()}
-                className="hidden sm:inline-flex rounded-xl bg-slate-700 hover:bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white"
+                className="hidden sm:inline-flex rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-secondary)] px-3 py-1.5 text-xs font-semibold text-[color:white]"
               >
                 {t('common.logout')}
               </button>

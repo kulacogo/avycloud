@@ -126,28 +126,28 @@ export const ResetPasswordScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-5">
+    <div className="min-h-screen bg-[var(--surface-secondary)] text-[color:var(--text-primary)] flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/60 shadow-2xl shadow-black/40 p-6 space-y-5">
         <div className="space-y-1">
           <h1 className="text-xl font-bold">{t('auth.reset.title')}</h1>
-          <p className="text-sm text-slate-400">{t('auth.reset.subtitle')}</p>
+          <p className="text-sm text-[color:var(--text-tertiary)]">{t('auth.reset.subtitle')}</p>
         </div>
 
-        {loading && <p className="text-sm text-slate-300">{t('auth.reset.checking')}</p>}
+        {loading && <p className="text-sm text-[color:var(--text-secondary)]">{t('auth.reset.checking')}</p>}
 
         {!loading && email && (
-          <div className="text-xs text-slate-500">
-            {t('auth.reset.accountLabel')} <span className="text-slate-200">{email}</span>
+          <div className="text-xs text-[color:var(--text-tertiary)]">
+            {t('auth.reset.accountLabel')} <span className="text-[color:var(--text-primary)]">{email}</span>
           </div>
         )}
 
         {error && (
-          <div className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+          <div className="rounded-xl border border-[var(--error-border)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[color:var(--error)]">
             {error}
           </div>
         )}
         {success && (
-          <div className="rounded-xl border border-emerald-800 bg-emerald-900/30 px-4 py-3 text-sm text-emerald-50">
+          <div className="rounded-xl border border-[var(--success-border)] bg-[var(--success-bg)] px-4 py-3 text-sm text-[color:var(--success)]">
             {success}
           </div>
         )}
@@ -155,24 +155,24 @@ export const ResetPasswordScreen: React.FC = () => {
         {!loading && !success && (
           <form onSubmit={onSubmit} className="space-y-4">
             <label className="block space-y-1">
-              <span className="text-sm text-slate-300">{t('auth.reset.newPasswordLabel')}</span>
+              <span className="text-sm text-[color:var(--text-secondary)]">{t('auth.reset.newPasswordLabel')}</span>
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 autoComplete="new-password"
-                className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+                className="w-full rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] px-3 py-2.5 text-[color:var(--text-primary)] outline-none focus:border-[var(--avy-purple)]"
                 required
               />
             </label>
             <label className="block space-y-1">
-              <span className="text-sm text-slate-300">{t('auth.reset.confirmPasswordLabel')}</span>
+              <span className="text-sm text-[color:var(--text-secondary)]">{t('auth.reset.confirmPasswordLabel')}</span>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
-                className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+                className="w-full rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] px-3 py-2.5 text-[color:var(--text-primary)] outline-none focus:border-[var(--avy-purple)]"
                 required
               />
             </label>
@@ -180,38 +180,38 @@ export const ResetPasswordScreen: React.FC = () => {
             <button
               type="submit"
               disabled={submitting || !oobCode}
-              className="w-full rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 disabled:hover:bg-sky-600 px-4 py-2.5 font-semibold text-white transition-colors"
+              className="w-full rounded-xl bg-[var(--avy-purple)] hover:bg-[var(--avy-purple-hover)] disabled:opacity-60 disabled:hover:bg-[var(--avy-purple)] px-4 py-2.5 font-semibold text-[color:white] transition-colors"
             >
               {submitting ? t('auth.reset.submitting') : t('auth.reset.submit')}
             </button>
           </form>
         )}
 
-        <div className="border-t border-white/10 pt-4 space-y-3">
-          <div className="text-xs text-slate-500">
+        <div className="border-t border-[var(--border)] pt-4 space-y-3">
+          <div className="text-xs text-[color:var(--text-tertiary)]">
             {t('auth.reset.resend.hint')}
           </div>
           <form onSubmit={onResend} className="space-y-2">
             <label className="block space-y-1">
-              <span className="text-xs text-slate-300">{t('auth.reset.resend.emailLabel')}</span>
+              <span className="text-xs text-[color:var(--text-secondary)]">{t('auth.reset.resend.emailLabel')}</span>
               <input
                 type="email"
                 value={resendEmail}
                 onChange={(e) => setResendEmail(e.target.value)}
                 placeholder="name@trendocean.de"
                 autoComplete="email"
-                className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+                className="w-full rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] px-3 py-2.5 text-[color:var(--text-primary)] outline-none focus:border-[var(--avy-purple)]"
                 required
               />
             </label>
             <button
               type="submit"
               disabled={resendSubmitting}
-              className="w-full rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-60 disabled:hover:bg-slate-700 px-4 py-2.5 font-semibold text-white transition-colors"
+              className="w-full rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-secondary)] disabled:opacity-60 disabled:hover:bg-[var(--surface)] px-4 py-2.5 font-semibold text-[color:white] transition-colors"
             >
               {resendSubmitting ? t('auth.reset.resend.submitting') : t('auth.reset.resend.submit')}
             </button>
-            {resendMessage && <p className="text-xs text-slate-400">{resendMessage}</p>}
+            {resendMessage && <p className="text-xs text-[color:var(--text-tertiary)]">{resendMessage}</p>}
           </form>
         </div>
 
@@ -220,7 +220,7 @@ export const ResetPasswordScreen: React.FC = () => {
           onClick={() => {
             window.location.href = '/';
           }}
-          className="text-left text-xs text-slate-400 hover:text-slate-200 underline underline-offset-4"
+          className="text-left text-xs text-[color:var(--text-tertiary)] hover:text-[color:var(--text-primary)] underline underline-offset-4"
         >
           {t('auth.reset.backToLogin')}
         </button>

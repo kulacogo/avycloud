@@ -49,7 +49,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate, th
     return tabs.filter((tab) => (tab.id === 'operations' ? canOps : true));
   }, [hasPermission]);
   return (
-    <nav className="bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-4 py-2 flex justify-around gap-2 pb-4 safe-area-bottom shadow-2xl shadow-black/40">
+    <nav className="bg-[var(--surface-secondary)]/95 backdrop-blur-lg border-t border-[var(--border)] px-4 py-2 flex justify-around gap-2 pb-4 safe-area-bottom shadow-2xl shadow-black/40">
       {visibleTabs.map((tab) => {
         const active = isActive(currentView, tab.id);
         const iconSrc = theme === 'dark' ? tabIcons[tab.id].dark : tabIcons[tab.id].light;
@@ -59,7 +59,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate, th
             type="button"
             onClick={() => onNavigate(tab.id)}
             className={`flex flex-col items-center justify-center flex-1 rounded-[8px] px-3 py-2 text-xs font-semibold transition ${
-              active ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40' : 'text-slate-200 bg-slate-800/80'
+              active ? 'bg-[var(--avy-purple)] text-[color:white] shadow-lg shadow-[var(--avy-purple)]/20' : 'text-[color:var(--text-primary)] bg-[var(--surface-hover)]/80'
             }`}
             aria-current={active ? 'page' : undefined}
             aria-label={t(tab.labelKey)}

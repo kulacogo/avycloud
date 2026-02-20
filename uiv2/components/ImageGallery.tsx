@@ -33,7 +33,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   if (!images || images.length === 0) {
     return (
-      <div className="flex items-center justify-center w-full h-48 sm:h-56 bg-slate-700 rounded-lg text-slate-400 text-sm">
+      <div className="flex items-center justify-center w-full h-48 sm:h-56 bg-[var(--surface)] rounded-lg text-[color:var(--text-tertiary)] text-sm">
         {t('sheet.gallery.empty')}
       </div>
     );
@@ -87,7 +87,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   return (
     <div>
-      <div className="relative w-full aspect-[4/3] max-h-[420px] md:max-h-[360px] bg-slate-700 rounded-lg overflow-hidden group">
+      <div className="relative w-full aspect-[4/3] max-h-[420px] md:max-h-[360px] bg-[var(--surface)] rounded-lg overflow-hidden group">
         <img
           src={resolveSrc(activeImage) || placeholder}
           alt={`Product image ${activeIndex + 1}`}
@@ -99,7 +99,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           <button
             aria-label="Delete selected image"
             onClick={() => onDeleteImage(activeIndex)}
-            className="absolute top-2 left-2 px-2 py-1 text-xs bg-red-600 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute top-2 left-2 px-2 py-1 text-xs bg-[var(--error)] text-[color:white] rounded opacity-0 group-hover:opacity-100 transition-opacity"
           >
             Delete
           </button>
@@ -108,7 +108,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           <button
             type="button"
             onClick={() => openLightbox(activeIndex)}
-            className="p-2 bg-black/50 text-white rounded-full"
+            className="p-2 bg-black/50 text-[color:white] rounded-full"
             aria-label={t('sheet.gallery.open')}
           >
             🔍
@@ -116,7 +116,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           <a
             href={resolveSrc(activeImage) || '#'}
             download={`product-image-${activeIndex + 1}`}
-            className="p-2 bg-black/50 text-white rounded-full"
+            className="p-2 bg-black/50 text-[color:white] rounded-full"
             aria-label={t('sheet.gallery.download')}
           >
             <DownloadIcon />
@@ -125,7 +125,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             <button
               type="button"
               onClick={() => onRegenerateImage(activeIndex)}
-              className="px-3 py-1 bg-sky-600 text-xs rounded-full text-white"
+              className="px-3 py-1 bg-[var(--avy-purple)] text-xs rounded-full text-[color:white]"
               disabled={regeneratingIndex === activeIndex}
             >
               {regeneratingIndex === activeIndex ? t('sheet.gallery.rerendering') : t('sheet.gallery.rerender')}
@@ -133,7 +133,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           )}
         </div>
         {activeImage.source === 'generated' && (
-            <span className="absolute bottom-2 left-2 px-2 py-1 text-xs bg-sky-500/80 text-white rounded">{t('sheet.gallery.aiBadge')}</span>
+            <span className="absolute bottom-2 left-2 px-2 py-1 text-xs bg-[var(--avy-purple-hover)]/80 text-[color:white] rounded">{t('sheet.gallery.aiBadge')}</span>
         )}
       </div>
       <div className="grid grid-cols-4 gap-2 mt-2">
@@ -147,7 +147,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             onClick={() => setActiveIndex(index)}
             onKeyDown={(e) => e.key === 'Enter' && setActiveIndex(index)}
             className={`relative aspect-square rounded-md overflow-hidden border-2 transition-colors cursor-pointer ${
-              index === activeIndex ? 'border-sky-500' : 'border-transparent hover:border-slate-500'
+              index === activeIndex ? 'border-[var(--avy-purple)]' : 'border-transparent hover:border-[var(--border-hover)]'
             }`}
             draggable={isEditing && isReal}
             onDragStart={() => handleDragStart(index)}
@@ -183,7 +183,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                     onDeleteImage(index);
                   }
                 }}
-                className="absolute top-1 right-1 px-1 py-0.5 text-[10px] bg-red-600 text-white rounded opacity-0 hover:opacity-100 transition-opacity"
+                className="absolute top-1 right-1 px-1 py-0.5 text-[10px] bg-[var(--error)] text-[color:white] rounded opacity-0 hover:opacity-100 transition-opacity"
               >
                 ×
               </span>
@@ -195,7 +195,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <button
             type="button"
-            className="absolute top-4 right-4 px-3 py-1 text-sm rounded-full bg-white/80 text-slate-900"
+            className="absolute top-4 right-4 px-3 py-1 text-sm rounded-full bg-[var(--surface)] text-[color:var(--text-primary)]"
             onClick={closeLightbox}
           >
             Schließen

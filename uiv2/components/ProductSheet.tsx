@@ -1111,13 +1111,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       className="grid grid-cols-1 gap-6 w-full relative items-start lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]"
     >
       {notification && (
-        <div className={`fixed top-20 right-8 p-4 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white`}>
+        <div className={`fixed top-20 right-8 p-4 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-[var(--success)]' : 'bg-[var(--error)]'} text-[color:white]`}>
           {notification.message}
         </div>
       )}
 
       <div className="space-y-5">
-        <header className="p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
+        <header className="p-4 bg-[var(--surface-secondary)]/70 border border-[var(--border)] rounded-xl shadow-lg">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1 min-w-0">
               {isEditing ? (
@@ -1126,7 +1126,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   value={localProduct.identification.name}
                   onChange={(e) => handleFieldChange('identification.name', e.target.value)}
                   className={`w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none border-b resize-y min-h-[3.5rem] leading-tight ${
-                    hasQualityIssue('identification.name') ? 'border-red-400' : 'border-sky-500'
+                    hasQualityIssue('identification.name') ? 'border-[var(--error)]' : 'border-[var(--avy-purple)]'
                   }`}
                   rows={2}
                   style={{ wordBreak: 'break-word' }}
@@ -1134,30 +1134,30 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               ) : (
                 <h1
                   className={`text-2xl sm:text-3xl font-bold break-words leading-tight ${
-                    hasQualityIssue('identification.name') ? 'text-red-200' : ''
+                    hasQualityIssue('identification.name') ? 'text-[color:var(--error)]' : ''
                   }`}
                   style={{ wordBreak: 'break-word' }}
                 >
                   {localProduct.identification.name}
                 </h1>
               )}
-              <p id="p-brand-cat" className="text-slate-400 mt-1">
+              <p id="p-brand-cat" className="text-[color:var(--text-tertiary)] mt-1">
                 <input
                   value={localProduct.identification.brand}
                   onChange={(e) => handleFieldChange('identification.brand', e.target.value)}
                   readOnly={!isEditing}
                   className={`bg-transparent inline-block outline-none ${
-                    isEditing ? (hasQualityIssue('identification.brand') ? 'border-b border-red-400' : 'border-b border-sky-500') : ''
+                    isEditing ? (hasQualityIssue('identification.brand') ? 'border-b border-[var(--error)]' : 'border-b border-[var(--avy-purple)]') : ''
                   }`}
                 />
                 {' · '}
                 {isEditing ? (
-                  <span className="inline-flex flex-col gap-1 text-xs text-slate-200">
+                  <span className="inline-flex flex-col gap-1 text-xs text-[color:var(--text-primary)]">
                     <input
                       value={categoryQuery}
                       onChange={(e) => setCategoryQuery(e.target.value)}
                       className={`bg-transparent border-b outline-none ${
-                        hasQualityIssue('details.baselinkerCategoryPath') ? 'border-red-400' : 'border-sky-500'
+                        hasQualityIssue('details.baselinkerCategoryPath') ? 'border-[var(--error)]' : 'border-[var(--avy-purple)]'
                       }`}
                       placeholder="BaseLinker Kategorie suchen..."
                     />
@@ -1168,7 +1168,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         ''
                       }
                       onChange={(e) => handleCategorySelect(e.target.value)}
-                      className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200"
+                      className="bg-[var(--surface-hover)] border border-[var(--border)] rounded-md px-2 py-1 text-xs text-[color:var(--text-primary)]"
                     >
                       <option value="">Kategorie auswählen...</option>
                       {categorySelectOptions.map((option) => (
@@ -1177,22 +1177,22 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         </option>
                       ))}
                     </select>
-                    {categoryLoading && <span className="text-[10px] text-slate-500">Lade Kategorien…</span>}
-                    {categoryError && <span className="text-[10px] text-red-400">{categoryError}</span>}
+                    {categoryLoading && <span className="text-[10px] text-[color:var(--text-tertiary)]">Lade Kategorien…</span>}
+                    {categoryError && <span className="text-[10px] text-[color:var(--error)]">{categoryError}</span>}
                   </span>
                 ) : (
-                  <span className="text-sky-400">
+                  <span className="text-[color:var(--avy-purple-light)]">
                     {localProduct.details?.baselinkerCategoryPath ||
                       String((((localProduct.details?.baselinkerCategories || {}) as any)?.['91387'] || '') as any) ||
                       '—'}
                     {localProduct.details?.baselinkerCategoryId ? (
-                      <span className="text-slate-500"> ({localProduct.details.baselinkerCategoryId})</span>
+                      <span className="text-[color:var(--text-tertiary)]"> ({localProduct.details.baselinkerCategoryId})</span>
                     ) : null}
                   </span>
                 )}
               </p>
 
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-2">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-[color:var(--text-tertiary)] mt-2">
                 <span>
                   SKU:{' '}
                   {localProduct.identification.sku || localProduct.details.identifiers?.sku || t('common.skuFallback')}
@@ -1201,7 +1201,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   id="btn-print-label"
                   onClick={handlePrintLabel}
                   disabled={!localProduct.identification.sku || isPrintingLabel}
-                  className="flex items-center px-3 py-1.5 bg-slate-700 text-white rounded-full hover:bg-slate-600 disabled:opacity-40"
+                  className="flex items-center px-3 py-1.5 bg-[var(--surface)] text-[color:white] rounded-full hover:bg-[var(--surface-secondary)] disabled:opacity-40"
                   title={t('sheet.buttons.printLabelTitle')}
                 >
                   <PrintIcon />
@@ -1210,7 +1210,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               </div>
               {isEditing ? (
                 <div className="mt-3">
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-1">
                     {t('common.barcodeLabel')}
                   </label>
                   <textarea
@@ -1220,76 +1220,76 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       setIsDirty(true);
                     }}
                     rows={Math.min(4, Math.max(2, barcodeInput.split('\n').length || 2))}
-                    className={`w-full bg-slate-800 border rounded-lg p-2 text-xs text-slate-200 ${
-                      hasQualityIssue('identification.barcodes') || hasQualityIssue('details.identifiers') ? 'border-red-500/60' : 'border-slate-700'
+                    className={`w-full bg-[var(--surface-hover)] border rounded-lg p-2 text-xs text-[color:var(--text-primary)] ${
+                      hasQualityIssue('identification.barcodes') || hasQualityIssue('details.identifiers') ? 'border-[var(--error)]/60' : 'border-[var(--border)]'
                     }`}
                     placeholder={t('input.barcodes.placeholder')}
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">{t('input.barcodes.hint')}</p>
+                  <p className="text-[11px] text-[color:var(--text-tertiary)] mt-1">{t('input.barcodes.hint')}</p>
                   <div className="text-[11px] mt-1">
                     {editingBarcodeSummary.hasValid ? (
-                      <span className="text-emerald-300">
+                      <span className="text-[color:var(--success)]">
                         {editingBarcodeSummary.gtin
                           ? t('sheet.barcodes.statusValidGtin', { code: editingBarcodeSummary.gtin })
                           : t('sheet.barcodes.statusValidEan', { code: editingBarcodeSummary.ean })}
                       </span>
                     ) : (
-                      <span className="text-amber-300">{t('sheet.barcodes.statusMissing')}</span>
+                      <span className="text-[color:var(--warning)]">{t('sheet.barcodes.statusMissing')}</span>
                     )}
                   </div>
                 </div>
               ) : (
                 <div className="mt-1">
-                  <p id="p-barcodes" className="text-xs text-slate-500">
+                  <p id="p-barcodes" className="text-xs text-[color:var(--text-tertiary)]">
                     {t('common.barcodeLabel')}: {localProduct.identification.barcodes?.join(', ') || t('common.na')}
                   </p>
-                  <div className="flex flex-wrap gap-2 text-[11px] text-slate-400 mt-1">
+                  <div className="flex flex-wrap gap-2 text-[11px] text-[color:var(--text-tertiary)] mt-1">
                     {currentBarcodeSummary.gtin && (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/30">
+                      <span className="px-2 py-0.5 rounded-full bg-[var(--success-bg)] text-[color:var(--success)] border border-[var(--success-border)]">
                         {t('sheet.barcodes.statusValidGtin', { code: currentBarcodeSummary.gtin })}
                       </span>
                     )}
                     {!currentBarcodeSummary.gtin && currentBarcodeSummary.ean && (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/30">
+                      <span className="px-2 py-0.5 rounded-full bg-[var(--success-bg)] text-[color:var(--success)] border border-[var(--success-border)]">
                         {t('sheet.barcodes.statusValidEan', { code: currentBarcodeSummary.ean })}
                       </span>
                     )}
                     {!currentBarcodeSummary.hasValid && (
-                      <span className="text-amber-300">{t('sheet.barcodes.statusMissing')}</span>
+                      <span className="text-[color:var(--warning)]">{t('sheet.barcodes.statusMissing')}</span>
                     )}
                   </div>
                 </div>
               )}
 
-              <div className="mt-4 border border-slate-800 rounded-lg bg-slate-950/40 p-3">
+              <div className="mt-4 border border-[var(--border)] rounded-lg bg-[var(--bg)]/40 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-slate-200">Quality Gate</span>
+                      <span className="text-xs font-semibold text-[color:var(--text-primary)]">Quality Gate</span>
                       {qualityGate?.checked_at_iso ? (
-                        <span className="text-[11px] text-slate-500">
+                        <span className="text-[11px] text-[color:var(--text-tertiary)]">
                           {new Date(qualityGate.checked_at_iso).toLocaleString('de-DE')}
                         </span>
                       ) : (
-                        <span className="text-[11px] text-slate-500">noch nicht geprüft</span>
+                        <span className="text-[11px] text-[color:var(--text-tertiary)]">noch nicht geprüft</span>
                       )}
                       {qualityGate && qualityErrorCount === 0 && qualityWarnCount === 0 && qualityIssues.length === 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/30 text-[11px]">
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--success-bg)] text-[color:var(--success)] border border-[var(--success-border)] text-[11px]">
                           OK
                         </span>
                       )}
                       {qualityGate && qualityHasWarns && (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 border border-amber-500/30 text-[11px]">
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--warning-bg)] text-[color:var(--warning)] border border-[var(--warning-border)] text-[11px]">
                           W{qualityWarnCount}
                         </span>
                       )}
                       {qualityGate && qualityHasErrors && (
-                        <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-200 border border-red-500/30 text-[11px]">
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--error-bg)] text-[color:var(--error)] border border-[var(--error-border)] text-[11px]">
                           E{qualityErrorCount}{qualityWarnCount ? ` W${qualityWarnCount}` : ''}
                         </span>
                       )}
                     </div>
-                    {qualityGate?.summary && <div className="text-[12px] text-slate-300 mt-1">{qualityGate.summary}</div>}
+                    {qualityGate?.summary && <div className="text-[12px] text-[color:var(--text-secondary)] mt-1">{qualityGate.summary}</div>}
                   </div>
                   <button
                     type="button"
@@ -1297,10 +1297,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     disabled={qualityBusy}
                     className={`px-3 py-1.5 rounded-md text-xs font-semibold ${
                       qualityHasErrors
-                        ? 'bg-red-600 text-white hover:bg-red-500'
+                        ? 'bg-[var(--error)] text-[color:white] hover:bg-[#B91C1C]'
                         : qualityHasWarns
-                          ? 'bg-amber-600 text-white hover:bg-amber-500'
-                          : 'bg-slate-700 text-slate-100 hover:bg-slate-600'
+                          ? 'bg-[var(--warning)] text-[color:white] hover:bg-[var(--warning)]'
+                          : 'bg-[var(--surface)] text-[color:var(--text-primary)] hover:bg-[var(--surface-secondary)]'
                     } ${qualityBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
                     title="Quality Gate manuell ausführen"
                   >
@@ -1308,7 +1308,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </button>
                 </div>
 
-                {qualityMessage && <div className="text-[11px] text-slate-400 mt-2">{qualityMessage}</div>}
+                {qualityMessage && <div className="text-[11px] text-[color:var(--text-tertiary)] mt-2">{qualityMessage}</div>}
 
                 {qualityIssues.length > 0 && (
                   <div className="mt-2 space-y-1">
@@ -1317,47 +1317,47 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         <span
                           className={`mt-0.5 px-1.5 py-0.5 rounded border text-[10px] uppercase ${
                             issue?.severity === 'error'
-                              ? 'bg-red-500/15 text-red-200 border-red-500/30'
+                              ? 'bg-[var(--error-bg)] text-[color:var(--error)] border-[var(--error-border)]'
                               : issue?.severity === 'warn'
-                                ? 'bg-amber-500/15 text-amber-200 border-amber-500/30'
-                                : 'bg-slate-600/20 text-slate-200 border-slate-600/30'
+                                ? 'bg-[var(--warning-bg)] text-[color:var(--warning)] border-[var(--warning-border)]'
+                                : 'bg-[var(--surface-secondary)]/20 text-[color:var(--text-primary)] border-[var(--border-hover)]/30'
                           }`}
                         >
                           {issue?.severity || 'info'}
                         </span>
-                        <div className="text-slate-200">
+                        <div className="text-[color:var(--text-primary)]">
                           <span className="font-semibold">{issue?.code}</span>: {issue?.message}
                         </div>
                       </div>
                     ))}
                     {qualityIssues.length > 6 && (
-                      <div className="text-[11px] text-slate-500">… und {qualityIssues.length - 6} weitere</div>
+                      <div className="text-[11px] text-[color:var(--text-tertiary)]">… und {qualityIssues.length - 6} weitere</div>
                     )}
                   </div>
                 )}
 
                 {qualityGate?.evidence?.query && (
-                  <div className="mt-3 border-t border-slate-800 pt-2">
-                    <div className="text-[11px] text-slate-500">Web-Evidenz Query:</div>
-                    <div className="text-[12px] text-slate-200 font-mono break-words">{qualityGate.evidence.query}</div>
+                  <div className="mt-3 border-t border-[var(--border)] pt-2">
+                    <div className="text-[11px] text-[color:var(--text-tertiary)]">Web-Evidenz Query:</div>
+                    <div className="text-[12px] text-[color:var(--text-primary)] font-mono break-words">{qualityGate.evidence.query}</div>
                     {Array.isArray(qualityGate?.evidence?.pages) && qualityGate.evidence.pages.length > 0 && (
                       <div className="mt-2 space-y-1">
-                        <div className="text-[11px] text-slate-500">Quellen:</div>
+                        <div className="text-[11px] text-[color:var(--text-tertiary)]">Quellen:</div>
                         {qualityGate.evidence.pages.slice(0, 3).map((p: any, idx: number) => (
                           <div key={`qg-evidence-${idx}`} className="text-[12px]">
                             <a
                               href={p?.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-sky-400 hover:underline break-words"
+                              className="text-[color:var(--avy-purple-light)] hover:underline break-words"
                             >
                               {p?.title || p?.url}
                             </a>
-                            {p?.via && <span className="ml-2 text-[11px] text-slate-500">({p.via})</span>}
+                            {p?.via && <span className="ml-2 text-[11px] text-[color:var(--text-tertiary)]">({p.via})</span>}
                           </div>
                         ))}
                         {qualityGate.evidence.pages.length > 3 && (
-                          <div className="text-[11px] text-slate-500">… und {qualityGate.evidence.pages.length - 3} weitere</div>
+                          <div className="text-[11px] text-[color:var(--text-tertiary)]">… und {qualityGate.evidence.pages.length - 3} weitere</div>
                         )}
                       </div>
                     )}
@@ -1369,7 +1369,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               <button
                 id="btn-edit"
                 onClick={() => setIsEditing(v => !v)}
-                className={`flex items-center justify-center px-4 py-2 font-medium rounded-lg transition-colors w-full sm:w-auto ${isEditing ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-sky-600 text-white hover:bg-sky-500'
+                className={`flex items-center justify-center px-4 py-2 font-medium rounded-lg transition-colors w-full sm:w-auto ${isEditing ? 'bg-[var(--surface)] text-[color:white] hover:bg-[var(--surface-secondary)]' : 'bg-[var(--avy-purple)] text-[color:white] hover:bg-[var(--avy-purple-hover)]'
                   }`}
               >
                 <EditIcon /><span className="ml-2">{isEditing ? t('common.editing') : t('common.edit')}</span>
@@ -1378,7 +1378,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 id="btn-save"
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex items-center justify-center px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-500 transition-colors disabled:bg-emerald-900 disabled:cursor-not-allowed w-full sm:w-auto"
+                className="flex items-center justify-center px-4 py-2 bg-[var(--success)] text-[color:white] font-medium rounded-lg hover:bg-[var(--success)] transition-colors disabled:bg-[var(--surface-secondary)] disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 <SaveIcon /><span className="ml-2">{isSaving ? t('common.saving') : t('common.save')}</span>
               </button>
@@ -1387,7 +1387,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   type="button"
                   onClick={() => onImprove(localProduct.id)}
                   disabled={Boolean(isImproving)}
-                  className="flex items-center justify-center px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-500 transition-colors disabled:opacity-60 w-full sm:w-auto"
+                  className="flex items-center justify-center px-4 py-2 bg-[var(--avy-purple)] text-[color:white] font-medium rounded-lg hover:bg-[var(--avy-purple-hover)] transition-colors disabled:opacity-60 w-full sm:w-auto"
                 >
                   {isImproving ? t('common.improving') : t('common.improve')}
                 </button>
@@ -1410,7 +1410,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <input
                     type="text"
                     placeholder={t('sheet.upload.urlPlaceholder')}
-                    className="flex-1 bg-slate-700 border border-slate-600 rounded-lg p-2 text-slate-200"
+                    className="flex-1 bg-[var(--surface)] border border-[var(--border-hover)] rounded-lg p-2 text-[color:var(--text-primary)]"
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
                     onKeyDown={(e) => {
@@ -1423,24 +1423,24 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <button
                     type="button"
                     onClick={handleAddImageFromUrl}
-                    className="px-4 py-2 bg-slate-600 rounded-lg text-white font-semibold hover:bg-slate-500 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-[var(--surface-secondary)] rounded-lg text-[color:white] font-semibold hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50"
                     disabled={!newImageUrl.trim()}
                   >
                     {t('sheet.upload.urlButton')}
                   </button>
                 </div>
                 <div
-                  className={`rounded-xl border-2 border-dashed p-4 text-center text-xs sm:text-sm transition-colors ${isUploadDragActive ? 'border-sky-500 bg-slate-800/60' : 'border-slate-600 bg-slate-900/40'}`}
+                  className={`rounded-xl border-2 border-dashed p-4 text-center text-xs sm:text-sm transition-colors ${isUploadDragActive ? 'border-[var(--avy-purple)] bg-[var(--surface-hover)]/60' : 'border-[var(--border-hover)] bg-[var(--surface-secondary)]/40'}`}
                   onDragOver={handleUploadDragOver}
                   onDragEnter={handleUploadDragOver}
                   onDragLeave={handleUploadDragLeave}
                   onDrop={handleUploadDrop}
                 >
-                  <p className="text-sm font-semibold text-white">{t('sheet.upload.dragTitle')}</p>
-                  <p className="text-slate-400 mt-1">{t('sheet.upload.dragHint')}</p>
-                  <div className="mt-3 flex items-center justify-center gap-2 text-slate-400 text-xs uppercase tracking-wide">
+                  <p className="text-sm font-semibold text-[color:white]">{t('sheet.upload.dragTitle')}</p>
+                  <p className="text-[color:var(--text-tertiary)] mt-1">{t('sheet.upload.dragHint')}</p>
+                  <div className="mt-3 flex items-center justify-center gap-2 text-[color:var(--text-tertiary)] text-xs uppercase tracking-wide">
                     <span>{t('sheet.upload.or')}</span>
-                    <label className="cursor-pointer rounded-full border border-slate-600 px-3 py-1 text-white">
+                    <label className="cursor-pointer rounded-full border border-[var(--border-hover)] px-3 py-1 text-[color:white]">
                       {t('sheet.upload.fileBtn')}
                       <input
                         type="file"
@@ -1457,19 +1457,19 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       />
                     </label>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-2">{t('sheet.upload.support')}</p>
+                  <p className="text-[11px] text-[color:var(--text-tertiary)] mt-2">{t('sheet.upload.support')}</p>
                 </div>
               </div>
             )}
             {isEditing && (
-              <div className="mt-4 pt-4 border-t border-slate-700 space-y-3">
+              <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-1">
                     {t('sheet.ai.referenceLabel')}
                   </label>
                   {referenceImages.length ? (
                     <select
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
+                      className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[color:var(--text-primary)]"
                       value={selectedReferenceIndex >= 0 ? selectedReferenceIndex : ''}
                       onChange={(e) => setSelectedReferenceIndex(Number(e.target.value))}
                     >
@@ -1483,23 +1483,23 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       })}
                     </select>
                   ) : (
-                    <p className="text-xs text-amber-400">{t('sheet.ai.noReference')}</p>
+                    <p className="text-xs text-[color:var(--warning)]">{t('sheet.ai.noReference')}</p>
                   )}
                 </div>
                 <button
                   onClick={handleGenerateImages}
                   disabled={isGeneratingImages || !selectedReferenceImage}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-violet-500 hover:to-indigo-500 transition-all disabled:opacity-40 shadow-lg shadow-indigo-900/20"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-[color:white] font-semibold rounded-xl hover:from-violet-500 hover:to-indigo-500 transition-all disabled:opacity-40 shadow-lg shadow-indigo-900/20"
                 >
-                  {isGeneratingImages ? <Spinner className="w-5 h-5 text-white" /> : <MagicIcon className="w-5 h-5" />}
+                  {isGeneratingImages ? <Spinner className="w-5 h-5 text-[color:white]" /> : <MagicIcon className="w-5 h-5" />}
                   <span>{isGeneratingImages ? t('sheet.ai.running') : t('sheet.ai.cta')}</span>
                 </button>
-                <p className="text-xs text-slate-400 text-center">{t('sheet.ai.helper')}</p>
+                <p className="text-xs text-[color:var(--text-tertiary)] text-center">{t('sheet.ai.helper')}</p>
               </div>
             )}
           </div>
-          <section id="highlights" className="md:col-span-3 p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
-            <h3 className="text-lg font-semibold mb-2 text-white">{t('sheet.highlights')}</h3>
+          <section id="highlights" className="md:col-span-3 p-4 bg-[var(--surface-secondary)]/70 border border-[var(--border)] rounded-xl shadow-lg">
+            <h3 className="text-lg font-semibold mb-2 text-[color:white]">{t('sheet.highlights')}</h3>
             {isEditing ? (
               <textarea
                 defaultValue={(localProduct.details.key_features || []).join('\n')}
@@ -1512,45 +1512,45 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   setIsDirty(true);
                 }}
                 placeholder={t('sheet.highlights.placeholder')}
-                className="w-full min-h-[110px] bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-200"
+                className="w-full min-h-[110px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg p-3 text-[color:var(--text-primary)]"
               />
             ) : highlightList.length ? (
-              <ul className="space-y-2 list-disc list-inside text-slate-300 text-sm">
+              <ul className="space-y-2 list-disc list-inside text-[color:var(--text-secondary)] text-sm">
                 {highlightList.map((feature, index) => (
                   <li key={index}>{feature}</li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-400">{t('sheet.highlights.empty')}</p>
+              <p className="text-sm text-[color:var(--text-tertiary)]">{t('sheet.highlights.empty')}</p>
             )}
           </section>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <section id="description" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
-            <h3 className="text-xl font-semibold mb-3 text-white">{t('sheet.description')}</h3>
+          <section id="description" className="p-4 bg-[var(--surface-hover)] rounded-lg shadow-lg h-full">
+            <h3 className="text-xl font-semibold mb-3 text-[color:white]">{t('sheet.description')}</h3>
             {isEditing ? (
               <textarea
                 defaultValue={localProduct.details.short_description}
                 onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
-                className="w-full min-h-[120px] bg-slate-700 border border-slate-600 rounded-lg p-3 text-slate-200"
+                className="w-full min-h-[120px] bg-[var(--surface)] border border-[var(--border-hover)] rounded-lg p-3 text-[color:var(--text-primary)]"
               />
             ) : (
-              <p className="text-slate-300 leading-relaxed text-sm sm:text-base">{descriptionText}</p>
+              <p className="text-[color:var(--text-secondary)] leading-relaxed text-sm sm:text-base">{descriptionText}</p>
             )}
           </section>
 
-          <section id="gpsr" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
+          <section id="gpsr" className="p-4 bg-[var(--surface-hover)] rounded-lg shadow-lg h-full">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-xl font-semibold mb-3 text-white">GPSR</h3>
+              <h3 className="text-xl font-semibold mb-3 text-[color:white]">GPSR</h3>
               {!hasAnyGpsr && !isEditing ? (
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300 border border-slate-600/40">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--surface)]/60 text-[color:var(--text-secondary)] border border-[var(--border-hover)]/40">
                   leer
                 </span>
               ) : null}
             </div>
 
-            <p className="text-xs text-slate-400 mb-3">
+            <p className="text-xs text-[color:var(--text-tertiary)] mb-3">
               GPSR/Compliance Herstellerdaten (wird aus Identify/Jobs strukturiert unter <span className="font-mono">details.gpsr</span> gespeichert).
             </p>
 
@@ -1570,17 +1570,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 const value = typeof gpsr?.[key] === 'string' ? gpsr[key] : '';
                 return (
                   <div key={key} className="flex flex-col gap-1">
-                    <div className="text-xs font-semibold text-slate-300">{label}</div>
+                    <div className="text-xs font-semibold text-[color:var(--text-secondary)]">{label}</div>
                     {isEditing ? (
                       <input
                         value={value}
                         onChange={(e) => updateGpsrField(String(key), e.target.value)}
-                        className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-200 text-sm"
+                        className="w-full bg-[var(--surface)] border border-[var(--border-hover)] rounded-lg px-3 py-2 text-[color:var(--text-primary)] text-sm"
                         placeholder="—"
                       />
                     ) : (
-                      <div className="text-sm text-slate-200 break-words">
-                        {value ? value : <span className="text-slate-500">—</span>}
+                      <div className="text-sm text-[color:var(--text-primary)] break-words">
+                        {value ? value : <span className="text-[color:var(--text-tertiary)]">—</span>}
                       </div>
                     )}
                   </div>
@@ -1589,21 +1589,21 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             </div>
           </section>
 
-          <section id="attributes" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
-            <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.attributes')}</h3>
+          <section id="attributes" className="p-4 bg-[var(--surface-hover)] rounded-lg shadow-lg h-full">
+            <h3 className="text-xl font-semibold mb-4 text-[color:white]">{t('sheet.attributes')}</h3>
 
-            <div className="mb-4 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
+            <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]/60 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <div className="text-sm font-semibold text-slate-200">K-Typ</div>
+                    <div className="text-sm font-semibold text-[color:var(--text-primary)]">K-Typ</div>
                     {requiresKTyp && !ktypValue && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-600/30 text-amber-200 border border-amber-500/30">
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--warning)]/30 text-[color:var(--warning)] border border-[var(--warning-border)]">
                         Pflicht (Auto/KFZ/Motorrad)
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-400">
+                  <p className="mt-1 text-[11px] text-[color:var(--text-tertiary)]">
                     Format: <span className="font-mono">19974|57446|57448</span> (optional mit Kommentar nach Komma je Eintrag).
                   </p>
                 </div>
@@ -1631,21 +1631,21 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     });
                     setIsDirty(true);
                   }}
-                  className="mt-3 w-full min-h-[70px] bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200"
+                  className="mt-3 w-full min-h-[70px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg p-2 text-[color:var(--text-primary)]"
                 />
               ) : (
-                <div className="mt-3 text-sm text-slate-200 whitespace-pre-wrap break-words">
-                  {ktypValue ? ktypValue : <span className="text-slate-500">—</span>}
+                <div className="mt-3 text-sm text-[color:var(--text-primary)] whitespace-pre-wrap break-words">
+                  {ktypValue ? ktypValue : <span className="text-[color:var(--text-tertiary)]">—</span>}
                 </div>
               )}
             </div>
 
             {localProduct?.ops?.data_quality?.ktype_enrich_v1 ? (
-              <details className="mb-4 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
-                <summary className="cursor-pointer text-sm font-semibold text-slate-200">
+              <details className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]/60 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-[color:var(--text-primary)]">
                   K-Typ Trace (ops.data_quality.ktype_enrich_v1)
                 </summary>
-                <pre className="mt-3 overflow-auto whitespace-pre-wrap text-xs text-slate-200">
+                <pre className="mt-3 overflow-auto whitespace-pre-wrap text-xs text-[color:var(--text-primary)]">
                   {JSON.stringify(localProduct.ops.data_quality.ktype_enrich_v1, null, 2)}
                 </pre>
               </details>
@@ -1665,8 +1665,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <section id="pricing" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
-            <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.pricing')}</h3>
+          <section id="pricing" className="p-4 bg-[var(--surface-hover)] rounded-lg shadow-lg h-full">
+            <h3 className="text-xl font-semibold mb-4 text-[color:white]">{t('sheet.pricing')}</h3>
             <PricingInfo
               pricing={localProduct.details?.pricing}
               isEditing={isEditing}
@@ -1677,47 +1677,47 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             />
           </section>
 
-          <section id="storage" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
-            <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.storage')}</h3>
+          <section id="storage" className="p-4 bg-[var(--surface-hover)] rounded-lg shadow-lg h-full">
+            <h3 className="text-xl font-semibold mb-4 text-[color:white]">{t('sheet.storage')}</h3>
             {binsLoading ? (
-              <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.loading')}</p>
+              <p className="text-[color:var(--text-tertiary)] text-sm mb-3">{t('sheet.storage.loading')}</p>
             ) : binsError ? (
-              <p className="text-rose-300 text-sm mb-3">{binsError}</p>
+              <p className="text-[color:var(--error)] text-sm mb-3">{binsError}</p>
             ) : productBins.length ? (
               <div className="mb-4 space-y-2 max-h-56 overflow-auto pr-1">
                 {productBins.map((bin) => (
-                  <div key={bin.code} className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
+                  <div key={bin.code} className="rounded border border-[var(--border)] bg-[var(--surface-secondary)]/60 px-3 py-2 text-sm text-[color:var(--text-primary)]">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-semibold text-white">{bin.code}</div>
-                      <div className="text-xs text-slate-400">
+                      <div className="font-semibold text-[color:white]">{bin.code}</div>
+                      <div className="text-xs text-[color:var(--text-tertiary)]">
                         Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
                       </div>
-                      <div className="text-xs text-slate-300">Menge {bin.quantity ?? bin.productCount ?? 0}</div>
+                      <div className="text-xs text-[color:var(--text-secondary)]">Menge {bin.quantity ?? bin.productCount ?? 0}</div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.none')}</p>
+              <p className="text-[color:var(--text-tertiary)] text-sm mb-3">{t('sheet.storage.none')}</p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.binLabel')}</label>
+                <label className="block text-xs text-[color:var(--text-tertiary)] mb-1">{t('sheet.storage.binLabel')}</label>
                 <input
                   value={binCodeInput}
                   onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
                   placeholder={t('sheet.storage.binPlaceholder')}
-                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+                  className="w-full bg-[var(--surface-secondary)] border border-[var(--border)] rounded px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.quantity')}</label>
+                <label className="block text-xs text-[color:var(--text-tertiary)] mb-1">{t('sheet.storage.quantity')}</label>
                 <input
                   type="number"
                   min={1}
                   value={binQuantity}
                   onChange={(e) => setBinQuantity(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+                  className="w-full bg-[var(--surface-secondary)] border border-[var(--border)] rounded px-3 py-2 text-sm"
                 />
               </div>
             </div>
@@ -1725,14 +1725,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               <button
                 onClick={handleAssignBin}
                 disabled={isAssigningBin}
-                className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-500 disabled:opacity-40"
+                className="px-4 py-2 bg-[var(--avy-purple)] text-[color:white] rounded hover:bg-[var(--avy-purple-hover)] disabled:opacity-40"
               >
                 {isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}
               </button>
               {binCodeInput && (
                 <button
                   onClick={handleRemoveBin}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
+                  className="px-4 py-2 bg-[var(--error)] text-[color:white] rounded hover:bg-[#B91C1C]"
                 >
                   {t('sheet.storage.remove')}
                 </button>
@@ -1742,14 +1742,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </div>
 
         {false && (
-        <section className="p-4 bg-slate-800 rounded-lg shadow-lg space-y-3">
+        <section className="p-4 bg-[var(--surface-hover)] rounded-lg shadow-lg space-y-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <h3 className="text-xl font-semibold text-white">{t('sheet.inventory.title')}</h3>
-              <p className="text-sm text-slate-200">
+              <h3 className="text-xl font-semibold text-[color:white]">{t('sheet.inventory.title')}</h3>
+              <p className="text-sm text-[color:var(--text-primary)]">
                 {localProduct.inventory?.inventoryName || t('sheet.inventory.none')}
               </p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[color:var(--text-tertiary)]">
                 {localProduct.inventory?.inventoryId || t('sheet.inventory.helper')}
               </p>
             </div>
@@ -1758,7 +1758,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 type="button"
                 onClick={handleInventoryLabel}
                 disabled={!localProduct.inventory?.inventoryId}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-hover)] px-3 py-1.5 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[var(--surface)] transition-colors disabled:opacity-50"
               >
                 <PrintIcon className="w-4 h-4" />
                 {t('sheet.inventory.printLabel')}
@@ -1767,7 +1767,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 type="button"
                 onClick={() => syncInventoryList()}
                 disabled={inventorySyncing}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-hover)] px-3 py-1.5 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[var(--surface)] transition-colors disabled:opacity-60"
               >
                 {inventorySyncing ? <Spinner className="w-4 h-4" /> : <RefreshIcon className="w-4 h-4" />}
                 {inventorySyncing ? t('sheet.inventory.syncing') : t('sheet.inventory.sync')}
@@ -1775,14 +1775,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             </div>
           </div>
           <div className="space-y-2">
-            <label className="block text-xs text-slate-400 uppercase tracking-wide">
+            <label className="block text-xs text-[color:var(--text-tertiary)] uppercase tracking-wide">
               {t('sheet.inventory.selectLabel')}
             </label>
             <select
               value={localProduct.inventory?.inventoryId || ''}
               onChange={(event) => handleInventoryAssign(event.target.value)}
               disabled={assigningInventory}
-              className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 disabled:opacity-50"
+              className="w-full rounded-xl border border-[var(--border-hover)] bg-[var(--surface-secondary)] px-3 py-2 text-sm text-[color:var(--text-primary)] disabled:opacity-50"
             >
               <option value="">{t('sheet.inventory.selectPlaceholder')}</option>
               {inventories.map((inv) => (
@@ -1801,25 +1801,25 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   : null
               }
               disabled={!localProduct.inventory?.inventoryId}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-hover)] px-3 py-1.5 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[var(--surface)] transition-colors disabled:opacity-50"
             >
               <BarcodeIcon className="w-4 h-4" />
               {t('sheet.inventory.setActive')}
             </button>
           </div>
-          {inventoryMessage && <p className="text-xs text-slate-400">{inventoryMessage}</p>}
+          {inventoryMessage && <p className="text-xs text-[color:var(--text-tertiary)]">{inventoryMessage}</p>}
         </section>
         )}
 
-        <section className="p-4 bg-slate-800 rounded-lg shadow-lg">
-          <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.actions.title')}</h3>
+        <section className="p-4 bg-[var(--surface-hover)] rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-4 text-[color:white]">{t('sheet.actions.title')}</h3>
           <div className="actions flex flex-wrap gap-4 items-center">
             {/* Fixed BaseLinker inventory (78659), no selector */}
             <button
               id="btn-sync"
               onClick={handleSync}
               disabled={isSyncing}
-              className="flex items-center justify-center px-4 py-2 bg-slate-700 text-slate-200 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait"
+              className="flex items-center justify-center px-4 py-2 bg-[var(--surface)] text-[color:var(--text-primary)] font-semibold rounded-lg hover:bg-[var(--surface-secondary)] transition-colors disabled:bg-[var(--surface-secondary)] disabled:cursor-wait"
             >
               {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}
               <span className="ml-2">{t('sheet.actions.sync')}</span>

@@ -64,11 +64,11 @@ export const AdminBulkActions: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
+      <div className="rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/50 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-white">Bulk Actions</h3>
-            <p className="mt-1 text-sm text-slate-300">
+            <h3 className="text-lg font-semibold text-[color:white]">Bulk Actions</h3>
+            <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
               Konsolidierte Bulk-Tasks für Produkt-Details (Titel/Preis/Kategorie). Läuft asynchron als Admin-Job.
             </p>
           </div>
@@ -76,7 +76,7 @@ export const AdminBulkActions: React.FC = () => {
             type="button"
             onClick={run}
             disabled={running}
-            className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--avy-purple)] px-4 py-2 text-sm font-semibold text-[color:white] hover:bg-[var(--avy-purple-hover)] disabled:opacity-60"
           >
             {running ? <Spinner className="h-4 w-4" /> : null}
             Start
@@ -84,12 +84,12 @@ export const AdminBulkActions: React.FC = () => {
         </div>
 
         <div className="mt-4 grid grid-cols-1 md:grid-cols-6 gap-3">
-          <label className="flex flex-col gap-1 text-sm text-slate-200 md:col-span-2">
-            <span className="text-[11px] uppercase tracking-wide text-slate-400">Action</span>
+          <label className="flex flex-col gap-1 text-sm text-[color:var(--text-primary)] md:col-span-2">
+            <span className="text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">Action</span>
             <select
               value={action}
               onChange={(e) => setAction(e.target.value as Action)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
             >
               <option value="price">Preis refresh (NEW-only)</option>
               <option value="title">Titel normalisieren (Policy)</option>
@@ -99,35 +99,35 @@ export const AdminBulkActions: React.FC = () => {
             </select>
           </label>
 
-          <label className="flex items-center gap-2 text-sm text-slate-200 md:col-span-1">
+          <label className="flex items-center gap-2 text-sm text-[color:var(--text-primary)] md:col-span-1">
             <input type="checkbox" checked={apply} onChange={(e) => setApply(e.target.checked)} />
             Write
           </label>
 
-          <label className="flex flex-col gap-1 text-sm text-slate-200">
-            <span className="text-[11px] uppercase tracking-wide text-slate-400">limit</span>
+          <label className="flex flex-col gap-1 text-sm text-[color:var(--text-primary)]">
+            <span className="text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">limit</span>
             <input
               type="number"
               min={1}
               max={20000}
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value) || 1)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
             />
           </label>
 
-          <label className="flex flex-col gap-1 text-sm text-slate-200">
-            <span className="text-[11px] uppercase tracking-wide text-slate-400">offset</span>
+          <label className="flex flex-col gap-1 text-sm text-[color:var(--text-primary)]">
+            <span className="text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">offset</span>
             <input
               type="number"
               min={0}
               value={offset}
               onChange={(e) => setOffset(Math.max(0, Number(e.target.value) || 0))}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
             />
           </label>
 
-          <label className="flex items-center gap-2 text-sm text-slate-200">
+          <label className="flex items-center gap-2 text-sm text-[color:var(--text-primary)]">
             <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} />
             Debug
           </label>
@@ -135,15 +135,15 @@ export const AdminBulkActions: React.FC = () => {
 
         {action === 'price' ? (
           <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <label className="flex flex-col gap-1 text-sm text-slate-200">
-              <span className="text-[11px] uppercase tracking-wide text-slate-400">maxAgeDays (0 = nur missing)</span>
+            <label className="flex flex-col gap-1 text-sm text-[color:var(--text-primary)]">
+              <span className="text-[11px] uppercase tracking-wide text-[color:var(--text-tertiary)]">maxAgeDays (0 = nur missing)</span>
               <input
                 type="number"
                 min={0}
                 max={365}
                 value={maxAgeDays}
                 onChange={(e) => setMaxAgeDays(Math.max(0, Number(e.target.value) || 0))}
-                className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
               />
             </label>
           </div>
@@ -151,7 +151,7 @@ export const AdminBulkActions: React.FC = () => {
 
         {action === 'title' ? (
           <div className="mt-3">
-            <label className="flex items-center gap-2 text-sm text-slate-200">
+            <label className="flex items-center gap-2 text-sm text-[color:var(--text-primary)]">
               <input type="checkbox" checked={includeUi} onChange={(e) => setIncludeUi(e.target.checked)} />
               Auch UI-saved Produkte anfassen (includeUi)
             </label>
@@ -162,26 +162,26 @@ export const AdminBulkActions: React.FC = () => {
       </div>
 
       {jobId ? (
-        <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4 space-y-3">
+        <div className="rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/50 p-4 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-white">Job</p>
-              <p className="text-xs text-slate-400 font-mono">{jobId}</p>
+              <p className="text-sm font-semibold text-[color:white]">Job</p>
+              <p className="text-xs text-[color:var(--text-tertiary)] font-mono">{jobId}</p>
             </div>
             <button
               type="button"
               onClick={refreshJob}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-800/80 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--surface-hover)]/80 px-3 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[var(--surface)]"
             >
               Refresh
             </button>
           </div>
           {job ? (
-            <pre className="overflow-auto whitespace-pre-wrap rounded-lg border border-slate-700/60 bg-slate-950/40 p-3 text-xs text-slate-200">
+            <pre className="overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--border)]/60 bg-[var(--bg)]/40 p-3 text-xs text-[color:var(--text-primary)]">
               {JSON.stringify(job, null, 2)}
             </pre>
           ) : (
-            <div className="text-xs text-slate-400">Loading…</div>
+            <div className="text-xs text-[color:var(--text-tertiary)]">Loading…</div>
           )}
         </div>
       ) : null}

@@ -100,8 +100,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const bubbleClasses =
     role === 'user'
-      ? 'bg-sky-600/90 text-white'
-      : 'bg-slate-800/90 text-slate-100 border border-slate-700/60';
+      ? 'bg-[var(--avy-purple)]/90 text-[color:white]'
+      : 'bg-[var(--surface-hover)]/90 text-[color:var(--text-primary)] border border-[var(--border)]/60';
 
   return (
     <div className={`flex ${role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -110,7 +110,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {segments.map((segment, index) => {
             if (segment.type === 'code') {
               return (
-                <div key={`code-${index}`} className="relative rounded-xl bg-slate-900/80 p-3 font-mono text-xs text-slate-200">
+                <div key={`code-${index}`} className="relative rounded-xl bg-[var(--surface-secondary)]/80 p-3 font-mono text-xs text-[color:var(--text-primary)]">
                   <pre className="overflow-auto whitespace-pre-wrap">
                     <code>{segment.value}</code>
                   </pre>
@@ -118,7 +118,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     type="button"
                     aria-label="Code kopieren"
                     onClick={() => navigator.clipboard?.writeText(segment.value)}
-                    className="absolute right-2 top-2 rounded-md bg-slate-800/80 px-2 py-1 text-[10px] text-slate-200 hover:bg-slate-700"
+                    className="absolute right-2 top-2 rounded-md bg-[var(--surface-hover)]/80 px-2 py-1 text-[10px] text-[color:var(--text-primary)] hover:bg-[var(--surface)]"
                   >
                     Copy
                   </button>
@@ -137,7 +137,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       href={part}
                       target="_blank"
                       rel="noreferrer"
-                      className="break-words text-sky-300 underline hover:text-sky-200"
+                      className="break-words text-[color:var(--avy-purple-light)] underline hover:text-[color:var(--avy-purple-light)]"
                     >
                       {part}
                     </a>
@@ -150,8 +150,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           })}
 
           {role === 'assistant' && datasheetChanges.length > 0 && (
-            <div className="space-y-2 rounded-xl border border-slate-700/60 bg-slate-900/60 p-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300">Übernehmbare Daten</p>
+            <div className="space-y-2 rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/60 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-secondary)]">Übernehmbare Daten</p>
               {datasheetChanges.map((entry) => {
                 const fieldKeys = describeChangeFields(entry.change);
                 const proposedTitle =
@@ -162,28 +162,28 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       : '';
                 const titleLen = proposedTitle ? proposedTitle.length : 0;
                 return (
-                  <div key={entry.id} className="flex flex-col gap-2 rounded-lg bg-slate-900/80 p-3 text-xs text-slate-200">
+                  <div key={entry.id} className="flex flex-col gap-2 rounded-lg bg-[var(--surface-secondary)]/80 p-3 text-xs text-[color:var(--text-primary)]">
                     <div>
-                      <p className="text-sm font-semibold text-white">{entry.change.summary || 'Änderung aus Chat'}</p>
+                      <p className="text-sm font-semibold text-[color:white]">{entry.change.summary || 'Änderung aus Chat'}</p>
                       {fieldKeys.length > 0 && (
-                        <p className="text-[11px] text-slate-400">Felder: {fieldKeys.join(', ')}</p>
+                        <p className="text-[11px] text-[color:var(--text-tertiary)]">Felder: {fieldKeys.join(', ')}</p>
                       )}
                       {proposedTitle && (
-                        <div className="mt-2 rounded-lg bg-slate-950/30 p-2 ring-1 ring-slate-700/40">
+                        <div className="mt-2 rounded-lg bg-[var(--bg)]/30 p-2 ring-1 ring-[var(--border)]/40">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-tertiary)]">
                               Titel-Vorschlag
                             </p>
                             <span
                               className={`text-[11px] font-semibold ${
-                                titleLen > 80 ? 'text-rose-300' : titleLen < 55 ? 'text-amber-200' : 'text-slate-300'
+                                titleLen > 80 ? 'text-[color:var(--error)]' : titleLen < 55 ? 'text-[color:var(--warning)]' : 'text-[color:var(--text-secondary)]'
                               }`}
                               title="eBay Hard-Limit: 80 Zeichen."
                             >
                               {titleLen}/80
                             </span>
                           </div>
-                          <p className="mt-1 text-sm text-slate-100">{proposedTitle}</p>
+                          <p className="mt-1 text-sm text-[color:var(--text-primary)]">{proposedTitle}</p>
                         </div>
                       )}
                     </div>
@@ -192,7 +192,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         type="button"
                         onClick={() => onApplyDatasheetChange(entry.id, entry.change)}
                         disabled={Boolean(applyingChangeIds?.has(entry.id))}
-                        className="self-start rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500 disabled:cursor-wait disabled:opacity-60"
+                        className="self-start rounded-full bg-[var(--avy-purple)] px-3 py-1 text-[11px] font-semibold text-[color:white] hover:bg-[var(--avy-purple-hover)] disabled:cursor-wait disabled:opacity-60"
                       >
                         {applyingChangeIds?.has(entry.id) ? 'Übernehme…' : 'Übernehmen'}
                       </button>
@@ -204,8 +204,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
 
           {attachments.length > 0 && (
-            <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
-              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+            <details className="rounded-xl border border-[var(--border)]/60 bg-[var(--surface-secondary)]/60">
+              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-secondary)]">
                 Anhänge ({attachments.length})
               </summary>
               <div className="grid gap-3 p-3 sm:grid-cols-2">
@@ -216,7 +216,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             </details>
           )}
         </div>
-        <span className="mt-2 block text-right text-[10px] uppercase tracking-wide text-slate-400">
+        <span className="mt-2 block text-right text-[10px] uppercase tracking-wide text-[color:var(--text-tertiary)]">
           {formatTime(timestamp)}
         </span>
       </div>

@@ -50,15 +50,15 @@ const MobileSearchView: React.FC<MobileSearchViewProps> = ({ products, onSelectP
     <div className="space-y-4 max-w-xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">{t('nav.search')}</h1>
-          <p className="text-slate-400 text-sm">{t('mobile.search.subtitle')}</p>
+          <h1 className="text-2xl font-semibold text-[color:white]">{t('nav.search')}</h1>
+          <p className="text-[color:var(--text-tertiary)] text-sm">{t('mobile.search.subtitle')}</p>
         </div>
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-[color:var(--text-tertiary)]">
           {hasQuery ? t('mobile.search.resultsCount', { count: filtered.length }) : t('mobile.search.tapToSearch')}
         </span>
       </div>
 
-      <div className="rounded-2xl bg-slate-800 border border-white/5 p-3">
+      <div className="rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] p-3">
         <input
           value={term}
           onChange={(e) => setTerm(e.target.value)}
@@ -66,47 +66,47 @@ const MobileSearchView: React.FC<MobileSearchViewProps> = ({ products, onSelectP
           autoFocus
           inputMode="search"
           enterKeyHint="search"
-          className="w-full bg-slate-900 text-slate-100 rounded-xl px-4 py-3 text-base focus:outline-none border border-slate-700"
+          className="w-full bg-[var(--surface-secondary)] text-[color:var(--text-primary)] rounded-xl px-4 py-3 text-base focus:outline-none border border-[var(--border)]"
         />
       </div>
 
       <div className="space-y-3">
         {!hasQuery && (
-          <p className="text-sm text-slate-400">{t('mobile.search.hint')}</p>
+          <p className="text-sm text-[color:var(--text-tertiary)]">{t('mobile.search.hint')}</p>
         )}
         {isLoading && !hasQuery && products.length === 0 && (
-          <p className="text-sm text-slate-400">{t('status.loading.products')}</p>
+          <p className="text-sm text-[color:var(--text-tertiary)]">{t('status.loading.products')}</p>
         )}
-        {showEmpty && <p className="text-sm text-slate-400">{t('mobile.search.noProducts')}</p>}
+        {showEmpty && <p className="text-sm text-[color:var(--text-tertiary)]">{t('mobile.search.noProducts')}</p>}
 
         {hasQuery && visible.map((p) => (
           <button
             key={p.id}
             type="button"
             onClick={() => onSelectProduct(p.id)}
-            className="w-full text-left rounded-2xl bg-slate-800 border border-white/5 p-3 shadow-sm shadow-black/30 active:scale-[0.99] transition"
+            className="w-full text-left rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] p-3 shadow-sm shadow-black/30 active:scale-[0.99] transition"
           >
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden flex items-center justify-center">
+              <div className="w-12 h-12 rounded-lg bg-[var(--surface)] overflow-hidden flex items-center justify-center">
                 {p.details?.images?.[0]?.url_or_base64 ? (
                   <img src={p.details.images[0].url_or_base64} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-xs text-slate-300">{t('common.noImage')}</span>
+                  <span className="text-xs text-[color:var(--text-secondary)]">{t('common.noImage')}</span>
                 )}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-white line-clamp-2">{p.identification?.name}</p>
-                <p className="text-xs text-slate-400">
+                <p className="text-sm font-semibold text-[color:white] line-clamp-2">{p.identification?.name}</p>
+                <p className="text-xs text-[color:var(--text-tertiary)]">
                   {t('common.sku')} {p.identification?.sku || '—'} · {t('common.bin')} {p.storage?.binCode || '—'}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-white">
+                <p className="text-sm text-[color:white]">
                   {p.details?.pricing?.lowest_price?.amount
                     ? formatMoney(p.details.pricing.lowest_price.amount, p.details?.pricing?.lowest_price?.currency)
                     : '—'}
                 </p>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[color:var(--text-tertiary)]">
                   {t('common.qty')} {getProductQuantity(p)}
                 </p>
               </div>
@@ -115,10 +115,10 @@ const MobileSearchView: React.FC<MobileSearchViewProps> = ({ products, onSelectP
         ))}
 
         {hasQuery && filtered.length === 0 && !isLoading && products.length > 0 && (
-          <p className="text-sm text-slate-400">{t('mobile.search.noResults')}</p>
+          <p className="text-sm text-[color:var(--text-tertiary)]">{t('mobile.search.noResults')}</p>
         )}
         {hasQuery && filtered.length > visible.length && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[color:var(--text-tertiary)]">
             {t('mobile.search.showingFirst', { shown: visible.length, total: filtered.length })}
           </p>
         )}

@@ -5,10 +5,10 @@ import { IdentificationJob } from '../types';
 import { Spinner } from './Spinner';
 
 const STATUS_META = {
-  pending: { color: 'bg-amber-500/20 text-amber-100 border border-amber-400/40' },
-  processing: { color: 'bg-sky-500/20 text-sky-100 border border-sky-400/40' },
-  failed: { color: 'bg-rose-500/20 text-rose-100 border border-rose-400/40' },
-  done: { color: 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/40' },
+  pending: { color: 'bg-[var(--warning-bg)] text-[color:var(--warning)] border border-[var(--warning)]/40' },
+  processing: { color: 'bg-[var(--avy-purple-hover)]/20 text-[color:var(--avy-purple-light)] border border-[var(--avy-purple)]' },
+  failed: { color: 'bg-[var(--error-bg)] text-[color:var(--error)] border border-[var(--error-border)]' },
+  done: { color: 'bg-[var(--success-bg)] text-[color:var(--success)] border border-[var(--success-border)]/60' },
 };
 
 const formatRelative = (iso?: string | null) => {
@@ -111,14 +111,14 @@ const IdentifyQueueView: React.FC = () => {
     <section className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-white">{t('identifyQueue.title')}</h1>
-          <p className="text-slate-400">{t('identifyQueue.description')}</p>
+          <h1 className="text-3xl font-semibold text-[color:white]">{t('identifyQueue.title')}</h1>
+          <p className="text-[color:var(--text-tertiary)]">{t('identifyQueue.description')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={refresh}
-            className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white hover:bg-white/10 transition"
+            className="px-4 py-2 rounded-xl border border-[var(--border)] bg-white/5 text-sm text-[color:white] hover:bg-[var(--surface-hover)] transition"
           >
             {t('actions.refresh')}
           </button>
@@ -127,8 +127,8 @@ const IdentifyQueueView: React.FC = () => {
             onClick={() => setAutoRefresh((value) => !value)}
             className={`px-4 py-2 rounded-xl border text-sm transition ${
               autoRefresh
-                ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100'
-                : 'border-slate-600 bg-slate-800 text-slate-200'
+                ? 'border-[var(--success-border)]/60 bg-[var(--success-bg)] text-[color:var(--success)]'
+                : 'border-[var(--border-hover)] bg-[var(--surface-hover)] text-[color:var(--text-primary)]'
             }`}
           >
             {autoRefresh ? t('identifyQueue.autoRefreshOn') : t('identifyQueue.autoRefreshOff')}
@@ -137,7 +137,7 @@ const IdentifyQueueView: React.FC = () => {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-rose-500/40 bg-rose-500/15 text-rose-50 px-4 py-3 text-sm">
+        <div className="rounded-2xl border border-[var(--error-border)] bg-[var(--error-bg)] text-[color:var(--error)] px-4 py-3 text-sm">
           {error}
         </div>
       )}
@@ -146,10 +146,10 @@ const IdentifyQueueView: React.FC = () => {
         {statusOptions.map((option) => (
           <div
             key={option.key}
-            className="rounded-2xl border border-white/5 bg-slate-900/60 p-4 shadow-inner shadow-black/30"
+            className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/60 p-4 shadow-inner shadow-black/30"
           >
-            <p className="text-xs uppercase tracking-widest text-slate-400">{option.label}</p>
-            <p className="text-3xl font-semibold text-white mt-1">
+            <p className="text-xs uppercase tracking-widest text-[color:var(--text-tertiary)]">{option.label}</p>
+            <p className="text-3xl font-semibold text-[color:white] mt-1">
               {stats[option.key] ?? 0}
             </p>
           </div>
@@ -166,7 +166,7 @@ const IdentifyQueueView: React.FC = () => {
               type="button"
               onClick={() => toggleStatus(option.key)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                isActive ? meta.color : 'bg-slate-800 text-slate-300 border border-white/10'
+                isActive ? meta.color : 'bg-[var(--surface-hover)] text-[color:var(--text-secondary)] border border-[var(--border)]'
               }`}
             >
               {option.label}
@@ -176,21 +176,21 @@ const IdentifyQueueView: React.FC = () => {
         <button
           type="button"
           onClick={resetStatuses}
-          className="px-3 py-1.5 rounded-full text-xs border border-white/10 text-slate-300 hover:text-white hover:border-white/30 transition"
+          className="px-3 py-1.5 rounded-full text-xs border border-[var(--border)] text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] hover:border-[var(--border-hover)] transition"
         >
           {t('identifyQueue.resetFilters')}
         </button>
         {lastUpdated && (
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-[color:var(--text-tertiary)]">
             {t('identifyQueue.lastUpdated', { value: formatRelative(lastUpdated) })}
           </span>
         )}
       </div>
 
-      <div className="bg-slate-900/60 border border-white/5 rounded-2xl overflow-hidden">
+      <div className="bg-[var(--surface-secondary)]/60 border border-[var(--border)] rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-900/80 text-slate-400 uppercase text-xs tracking-widest">
+            <thead className="bg-[var(--surface-secondary)]/80 text-[color:var(--text-tertiary)] uppercase text-xs tracking-widest">
               <tr>
                 <th className="text-left px-4 py-3 font-semibold">{t('identifyQueue.columns.job')}</th>
                 <th className="text-left px-4 py-3 font-semibold">{t('identifyQueue.columns.status')}</th>
@@ -200,7 +200,7 @@ const IdentifyQueueView: React.FC = () => {
                 <th className="text-right px-4 py-3 font-semibold">{t('identifyQueue.columns.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 text-slate-100">
+            <tbody className="divide-y divide-white/5 text-[color:var(--text-primary)]">
               {jobs.map((job) => {
                 const payload = getPayloadSummary(job);
                 const result = getResultSummary(job);
@@ -210,44 +210,44 @@ const IdentifyQueueView: React.FC = () => {
                 return (
                   <tr key={job.id} className="hover:bg-white/5 transition-colors">
                     <td className="px-4 py-4 space-y-1">
-                      <p className="font-mono text-xs text-slate-300">{job.id}</p>
-                      <p className="text-xs text-slate-500">{formatDateTime(job.createdAt)}</p>
+                      <p className="font-mono text-xs text-[color:var(--text-secondary)]">{job.id}</p>
+                      <p className="text-xs text-[color:var(--text-tertiary)]">{formatDateTime(job.createdAt)}</p>
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${statusMeta.color}`}>
                         {statusLabels[job.status as keyof typeof statusLabels] || job.status}
                       </span>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-[color:var(--text-tertiary)] mt-1">
                         {t('identifyQueue.attempts', { count: job.attempts || 0 })}
                       </p>
                     </td>
                     <td className="px-4 py-4">
-                      <p className="text-sm text-white">{formatRelative(job.createdAt)}</p>
+                      <p className="text-sm text-[color:white]">{formatRelative(job.createdAt)}</p>
                       {job.startedAt && (
-                        <p className="text-xs text-slate-500">{t('identifyQueue.processingSince', { value: formatRelative(job.startedAt) })}</p>
+                        <p className="text-xs text-[color:var(--text-tertiary)]">{t('identifyQueue.processingSince', { value: formatRelative(job.startedAt) })}</p>
                       )}
                     </td>
                     <td className="px-4 py-4">
                       {payload.barcodes ? (
-                        <p className="text-xs text-slate-200 break-words">{payload.barcodes}</p>
+                        <p className="text-xs text-[color:var(--text-primary)] break-words">{payload.barcodes}</p>
                       ) : (
-                        <p className="text-xs text-slate-500">—</p>
+                        <p className="text-xs text-[color:var(--text-tertiary)]">—</p>
                       )}
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-[color:var(--text-tertiary)] mt-1">
                         {t('identifyQueue.files', { count: payload.fileCount || 0 })}
                       </p>
                     </td>
                     <td className="px-4 py-4">
                       {job.status === 'failed' && job.error?.message && (
-                        <p className="text-xs text-rose-300">{job.error.message}</p>
+                        <p className="text-xs text-[color:var(--error)]">{job.error.message}</p>
                       )}
                       {result ? (
                         <>
-                          <p className="text-sm text-white">{result.label}</p>
-                          {result.details && <p className="text-xs text-slate-500">{result.details}</p>}
+                          <p className="text-sm text-[color:white]">{result.label}</p>
+                          {result.details && <p className="text-xs text-[color:var(--text-tertiary)]">{result.details}</p>}
                         </>
                       ) : (
-                        job.status !== 'failed' && <p className="text-xs text-slate-500">—</p>
+                        job.status !== 'failed' && <p className="text-xs text-[color:var(--text-tertiary)]">—</p>
                       )}
                     </td>
                     <td className="px-4 py-4 text-right">
@@ -256,12 +256,12 @@ const IdentifyQueueView: React.FC = () => {
                           type="button"
                           onClick={() => handleRetry(job.id)}
                           disabled={isRetrying}
-                          className="px-3 py-1.5 rounded-lg text-xs font-medium border border-white/15 text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border)] text-[color:white] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition"
                         >
                           {isRetrying ? t('identifyQueue.retrying') : t('identifyQueue.actions.retry')}
                         </button>
                       ) : (
-                        <span className="text-xs text-slate-500">—</span>
+                        <span className="text-xs text-[color:var(--text-tertiary)]">—</span>
                       )}
                     </td>
                   </tr>
@@ -271,7 +271,7 @@ const IdentifyQueueView: React.FC = () => {
           </table>
         </div>
         {jobs.length === 0 && !isLoading && (
-          <p className="text-center text-slate-400 text-sm py-8">{t('identifyQueue.empty')}</p>
+          <p className="text-center text-[color:var(--text-tertiary)] text-sm py-8">{t('identifyQueue.empty')}</p>
         )}
         {isLoading && (
           <div className="flex items-center justify-center py-6">
@@ -285,7 +285,7 @@ const IdentifyQueueView: React.FC = () => {
           <button
             type="button"
             onClick={loadMore}
-            className="px-6 py-2 rounded-xl border border-white/10 bg-white/5 text-white text-sm hover:bg-white/10 transition"
+            className="px-6 py-2 rounded-xl border border-[var(--border)] bg-white/5 text-[color:white] text-sm hover:bg-[var(--surface-hover)] transition"
           >
             {t('identifyQueue.actions.loadMore')}
           </button>

@@ -60,7 +60,7 @@ export const AdminIntegrations: React.FC = () => {
   }, [reload]);
 
   const statusBadge = useMemo(() => {
-    const tone = connected ? 'bg-emerald-600/20 text-emerald-200 border-emerald-500/30' : 'bg-slate-800/60 text-slate-200 border-white/10';
+    const tone = connected ? 'bg-[var(--success)]/20 text-[color:var(--success)] border-[var(--success-border)]' : 'bg-[var(--surface-hover)]/60 text-[color:var(--text-primary)] border-[var(--border)]';
     const label = connected ? 'Verbunden' : 'Nicht verbunden';
     return (
       <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${tone}`}>
@@ -118,14 +118,14 @@ export const AdminIntegrations: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/40 p-5 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <h3 className="text-lg font-semibold">eBay.de Verbindung</h3>
               {statusBadge}
             </div>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-[color:var(--text-tertiary)]">
               OAuth Login + Listing-Snapshots (MIP CSV Import / API-Read). Damit Improve/Chat wissen, was live ist und was fehlt.
             </p>
           </div>
@@ -133,7 +133,7 @@ export const AdminIntegrations: React.FC = () => {
             <button
               type="button"
               onClick={reload}
-              className="rounded-xl bg-slate-800/80 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+              className="rounded-xl bg-[var(--surface-hover)]/80 px-4 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[var(--surface)] transition-colors"
               disabled={loading}
             >
               Status aktualisieren
@@ -141,7 +141,7 @@ export const AdminIntegrations: React.FC = () => {
             <button
               type="button"
               onClick={handleConnect}
-              className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 transition-colors"
+              className="rounded-xl bg-[var(--avy-purple)] px-4 py-2 text-sm font-semibold text-[color:white] hover:bg-[var(--avy-purple-hover)] transition-colors"
               disabled={loading}
             >
               Mit eBay verbinden
@@ -150,7 +150,7 @@ export const AdminIntegrations: React.FC = () => {
         </div>
 
         <HelpDisclosure title="Technische Hinweise (wichtig)">
-          <ul className="list-disc pl-5 space-y-1 text-sm text-slate-300">
+          <ul className="list-disc pl-5 space-y-1 text-sm text-[color:var(--text-secondary)]">
             <li>
               eBay nutzt als <code>redirect_uri</code> den <b>RuName</b> (nicht die Callback-URL). Das muss im Backend als <code>EBAY_RU_NAME</code> konfiguriert sein.
             </li>
@@ -161,46 +161,46 @@ export const AdminIntegrations: React.FC = () => {
         </HelpDisclosure>
 
         {error && (
-          <div className="rounded-xl border border-rose-800 bg-rose-900/40 p-3 text-sm text-rose-100">
+          <div className="rounded-xl border border-[var(--error-border)] bg-[var(--error-bg)] p-3 text-sm text-[color:var(--error)]">
             {error}
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-xl border border-white/10 bg-slate-950/30 p-4 space-y-3">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)]/30 p-4 space-y-3">
             <h4 className="font-semibold">MIP CSV Import</h4>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[color:var(--text-tertiary)]">
               Importiert Listing-Snapshots pro SKU (Titel, Beschreibung, Bilder, CategoryId, Item specifics). Duplikate pro SKU werden automatisch „best-effort“ konsolidiert.
             </p>
             <input
               type="file"
               accept=".csv,text/csv"
               onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-              className="block w-full text-sm text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-200 hover:file:bg-slate-700"
+              className="block w-full text-sm text-[color:var(--text-primary)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--surface-hover)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[color:var(--text-primary)] hover:file:bg-[var(--surface)]"
             />
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleImport}
                 disabled={!csvFile || loading}
-                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-60 transition-colors"
+                className="rounded-xl bg-[var(--success)] px-4 py-2 text-sm font-semibold text-[color:white] hover:bg-[var(--success)] disabled:opacity-60 transition-colors"
               >
                 Import starten
               </button>
               {csvFile && (
-                <span className="text-xs text-slate-400">{csvFile.name}</span>
+                <span className="text-xs text-[color:var(--text-tertiary)]">{csvFile.name}</span>
               )}
             </div>
             {importReport && (
-              <pre className="max-h-64 overflow-auto rounded-xl bg-slate-950/70 border border-white/10 p-3 text-xs text-slate-200">
+              <pre className="max-h-64 overflow-auto rounded-xl bg-[var(--bg)]/70 border border-[var(--border)] p-3 text-xs text-[color:var(--text-primary)]">
 {pretty(importReport)}
               </pre>
             )}
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-slate-950/30 p-4 space-y-3">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)]/30 p-4 space-y-3">
             <h4 className="font-semibold">API Test (getOffers by SKU)</h4>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[color:var(--text-tertiary)]">
               Prüft live die eBay Inventory API Verbindung. Voraussetzung: eBay ist verbunden.
             </p>
             <div className="flex items-center gap-2">
@@ -208,24 +208,24 @@ export const AdminIntegrations: React.FC = () => {
                 value={testSku}
                 onChange={(e) => setTestSku(e.target.value)}
                 placeholder="SKU-123..."
-                className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-600/50"
+                className="w-full rounded-xl bg-[var(--surface-secondary)]/60 border border-[var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--avy-purple)]/40"
               />
               <button
                 type="button"
                 onClick={handleTestOffers}
                 disabled={!testSku.trim() || loading}
-                className="rounded-xl bg-slate-800/80 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+                className="rounded-xl bg-[var(--surface-hover)]/80 px-4 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[var(--surface)] transition-colors"
               >
                 Abrufen
               </button>
             </div>
             {offersError && (
-              <div className="rounded-xl border border-rose-800 bg-rose-900/40 p-3 text-sm text-rose-100">
+              <div className="rounded-xl border border-[var(--error-border)] bg-[var(--error-bg)] p-3 text-sm text-[color:var(--error)]">
                 {offersError}
               </div>
             )}
             {offers && (
-              <pre className="max-h-64 overflow-auto rounded-xl bg-slate-950/70 border border-white/10 p-3 text-xs text-slate-200">
+              <pre className="max-h-64 overflow-auto rounded-xl bg-[var(--bg)]/70 border border-[var(--border)] p-3 text-xs text-[color:var(--text-primary)]">
 {pretty(offers)}
               </pre>
             )}
@@ -233,11 +233,11 @@ export const AdminIntegrations: React.FC = () => {
         </div>
 
         {status && (
-          <details className="rounded-xl border border-white/10 bg-slate-950/30 p-4">
-            <summary className="cursor-pointer select-none text-sm font-semibold text-slate-200">
+          <details className="rounded-xl border border-[var(--border)] bg-[var(--bg)]/30 p-4">
+            <summary className="cursor-pointer select-none text-sm font-semibold text-[color:var(--text-primary)]">
               Debug: Verbindung (ohne Tokens)
             </summary>
-            <pre className="mt-3 max-h-64 overflow-auto text-xs text-slate-200">
+            <pre className="mt-3 max-h-64 overflow-auto text-xs text-[color:var(--text-primary)]">
 {pretty(status)}
             </pre>
           </details>
