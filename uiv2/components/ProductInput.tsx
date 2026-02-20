@@ -283,195 +283,299 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   }, []);
 
   return (
-    <div className="w-full p-4 sm:p-8 bg-[var(--surface-hover)] rounded-2xl shadow-2xl mt-4 space-y-6 pb-16 sm:pb-8 safe-area-bottom">
-      {notice ? (
-        <Notice tone={notice.tone} title={notice.title} details={notice.details} onDismiss={() => setNotice(null)} />
-      ) : null}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[color:var(--text-primary)]">
-              <CameraIcon className="w-7 h-7" />
-              <span className="font-semibold">{t('input.groups.title')}</span>
-            </div>
-            <button
-              type="button"
-              onClick={addGroup}
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-hover)] px-3 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[var(--surface)] transition-colors"
-            >
-              <span className="text-lg leading-none">＋</span>
-              {t('input.groups.add')}
-            </button>
-          </div>
-          <p className="text-xs text-[color:var(--text-tertiary)]">
-            Tipp: <span className="text-[color:var(--text-primary)] font-semibold">pro Produkt eine Gruppe</span>. Wenn in einer Gruppe mehrere verschiedene Produkte gemischt sind, kann Identify sie nicht zuverlässig auseinanderhalten.
-          </p>
-          <div className="space-y-4">
-            {groups.map((group, index) => (
-              <div key={group.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/50 p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-[color:var(--text-primary)]">{group.name}</p>
-                  {groups.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeGroup(group.id)}
-                      className="text-xs text-[color:var(--error)] hover:text-[color:var(--error)] transition-colors"
-                    >
-                      {t('input.groups.remove')}
-                    </button>
-                  )}
-          </div>
-          <div
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => handleDrop(group.id, e)}
-                  className="flex flex-col gap-4 rounded-xl border-2 border-dashed border-[var(--border-hover)] bg-[var(--surface-secondary)]/40 p-4 transition-colors hover:border-[var(--avy-purple)]"
-                >
-                  <div className="flex flex-col lg:flex-row gap-3">
-                    {/* Mobile-safe file picker: label(htmlFor)+input(sr-only) is the most reliable across iOS/PWA shells */}
-                    <input
-                      id={`group-files-${group.id}`}
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      className="sr-only"
-                      onChange={(event) => handleFileChange(group.id, event)}
-                    />
-                    <label
-                      htmlFor={`group-files-${group.id}`}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--surface)] px-4 py-3 text-[color:var(--text-primary)] font-semibold hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
-                    >
-                      <UploadIcon className="w-5 h-5" />
-                      {t('input.groups.files')}
-                    </label>
-
-                    {/* Camera: on iOS (or when getUserMedia isn't available), use a capture file input. */}
-                    {isIOSDevice || !supportsBrowserCamera ? (
-                      <>
-                        <input
-                          id={`group-camera-${group.id}`}
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          className="sr-only"
-                          onChange={(event) => handleFileChange(group.id, event)}
-                        />
-                        <label
-                          htmlFor={`group-camera-${group.id}`}
-                          className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--surface)] px-4 py-3 text-[color:var(--text-primary)] font-semibold hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
-                        >
-                          <CameraIcon className="w-5 h-5" />
-                          {t('input.groups.cameraOpen')}
-                        </label>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleCameraButtonClick(group.id)}
-                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--surface)] px-4 py-3 text-[color:var(--text-primary)] font-semibold hover:bg-[var(--surface-secondary)] transition-colors"
-                      >
-                        <CameraIcon className="w-5 h-5" />
-                        {isCameraOn && cameraTargetGroup === group.id
-                          ? t('input.groups.cameraClose')
-                          : t('input.groups.cameraOpen')}
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {group.images.map((image) => (
-                      <div
-                        key={image.id}
-                        draggable
-                        onDragStart={(event) => handleDragStart(event, group.id, image.id)}
-                        className="relative group rounded-xl overflow-hidden border border-[var(--border-hover)]"
-                      >
-                        <img
-                          src={image.preview}
-                          alt={image.file.name}
-                          className="h-28 w-full object-cover pointer-events-none select-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(group.id, image.id)}
-                          className="absolute top-2 right-2 rounded-full bg-black/70 text-[color:white] w-6 h-6 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    ))}
-                    {!group.images.length && (
-                      <div className="h-28 rounded-xl border border-[var(--border-hover)] border-dashed flex items-center justify-center text-[color:var(--text-tertiary)] text-sm">
-                        {t('input.groups.dropHint')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {cameraError && cameraTargetGroup === group.id && (
-                  <p className="text-xs text-[color:var(--error)]">{cameraError}</p>
-                )}
-              </div>
-            ))}
-          </div>
+    <div>
+      {/* Page Header */}
+      <div className="page-header">
+        <div>
+          <h1>Produkt-Identifizierung</h1>
+          <div className="page-header-sub">Produkte per Bild, Barcode oder manuell erfassen</div>
         </div>
+      </div>
 
-          {isCameraOn && !isIOSDevice && (
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/70 p-4 space-y-3">
-            <p className="text-sm text-[color:var(--text-primary)]">
-              {t('input.camera.active', {
-                name: groups.find((g) => g.id === cameraTargetGroup)?.name || t('input.groups.unknown'),
-              })}
-            </p>
-            <div className="relative">
-              <video ref={videoRef} className="w-full rounded-xl bg-black" />
+      <div className="content">
+        {notice ? (
+          <Notice tone={notice.tone} title={notice.title} details={notice.details} onDismiss={() => setNotice(null)} />
+        ) : null}
+
+        <form onSubmit={handleSubmit}>
+
+          {/* ---- Image Upload Card ---- */}
+          <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+            <div className="card-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CameraIcon style={{ width: '18px', height: '18px', color: 'var(--avy-purple)' }} />
+                <span className="card-title">{t('input.groups.title')}</span>
+              </div>
               <button
                 type="button"
-                onClick={captureImage}
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-[var(--avy-purple)] px-5 py-2 text-sm font-semibold text-[color:white] shadow-lg hover:bg-[var(--avy-purple-hover)] transition-colors"
+                onClick={addGroup}
+                className="btn btn-secondary btn-sm"
               >
-                {t('input.camera.capture')}
+                <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span>
+                {t('input.groups.add')}
               </button>
             </div>
+            <div className="card-body">
+              <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: 'var(--space-4)' }}>
+                Tipp: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>pro Produkt eine Gruppe</span>. Wenn in einer Gruppe mehrere verschiedene Produkte gemischt sind, kann Identify sie nicht zuverlässig auseinanderhalten.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                {groups.map((group, index) => (
+                  <div
+                    key={group.id}
+                    className="card"
+                    style={{ borderRadius: 'var(--radius-lg)' }}
+                  >
+                    <div className="card-header">
+                      <span className="card-title">{group.name}</span>
+                      {groups.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeGroup(group.id)}
+                          className="btn btn-danger btn-sm"
+                        >
+                          {t('input.groups.remove')}
+                        </button>
+                      )}
+                    </div>
+                    <div className="card-body">
+                      <div
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => handleDrop(group.id, e)}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 'var(--space-4)',
+                          borderRadius: 'var(--radius-lg)',
+                          border: '2px dashed var(--border)',
+                          background: 'var(--surface-hover)',
+                          padding: 'var(--space-4)',
+                          transition: 'border-color var(--transition)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                          {/* Mobile-safe file picker: label(htmlFor)+input(sr-only) is the most reliable across iOS/PWA shells */}
+                          <input
+                            id={`group-files-${group.id}`}
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={(event) => handleFileChange(group.id, event)}
+                          />
+                          <label
+                            htmlFor={`group-files-${group.id}`}
+                            className="btn btn-secondary"
+                            style={{ flex: 1, justifyContent: 'center', cursor: 'pointer' }}
+                          >
+                            <UploadIcon style={{ width: '16px', height: '16px' }} />
+                            {t('input.groups.files')}
+                          </label>
+
+                          {/* Camera: on iOS (or when getUserMedia isn't available), use a capture file input. */}
+                          {isIOSDevice || !supportsBrowserCamera ? (
+                            <>
+                              <input
+                                id={`group-camera-${group.id}`}
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="sr-only"
+                                onChange={(event) => handleFileChange(group.id, event)}
+                              />
+                              <label
+                                htmlFor={`group-camera-${group.id}`}
+                                className="btn btn-secondary"
+                                style={{ flex: 1, justifyContent: 'center', cursor: 'pointer' }}
+                              >
+                                <CameraIcon style={{ width: '16px', height: '16px' }} />
+                                {t('input.groups.cameraOpen')}
+                              </label>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleCameraButtonClick(group.id)}
+                              className="btn btn-secondary"
+                              style={{ flex: 1, justifyContent: 'center' }}
+                            >
+                              <CameraIcon style={{ width: '16px', height: '16px' }} />
+                              {isCameraOn && cameraTargetGroup === group.id
+                                ? t('input.groups.cameraClose')
+                                : t('input.groups.cameraOpen')}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Image thumbnails grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 'var(--space-3)' }}>
+                          {group.images.map((image) => (
+                            <div
+                              key={image.id}
+                              draggable
+                              onDragStart={(event) => handleDragStart(event, group.id, image.id)}
+                              style={{
+                                position: 'relative',
+                                borderRadius: 'var(--radius-md)',
+                                overflow: 'hidden',
+                                border: '1px solid var(--border)',
+                              }}
+                            >
+                              <img
+                                src={image.preview}
+                                alt={image.file.name}
+                                style={{
+                                  height: '112px',
+                                  width: '100%',
+                                  objectFit: 'cover',
+                                  pointerEvents: 'none',
+                                  userSelect: 'none',
+                                  display: 'block',
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeImage(group.id, image.id)}
+                                style={{
+                                  position: 'absolute',
+                                  top: '6px',
+                                  right: '6px',
+                                  borderRadius: '50%',
+                                  background: 'rgba(0,0,0,0.7)',
+                                  color: 'white',
+                                  width: '24px',
+                                  height: '24px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '14px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  opacity: 0.8,
+                                  transition: 'opacity 150ms',
+                                }}
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          ))}
+                          {!group.images.length && (
+                            <div
+                              style={{
+                                height: '112px',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px dashed var(--border)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'var(--text-tertiary)',
+                                fontSize: '13px',
+                              }}
+                            >
+                              {t('input.groups.dropHint')}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {cameraError && cameraTargetGroup === group.id && (
+                        <p style={{ fontSize: '12px', color: 'var(--error)', marginTop: 'var(--space-2)' }}>{cameraError}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ---- Camera Live Preview ---- */}
+          {isCameraOn && !isIOSDevice && (
+            <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+              <div className="card-header">
+                <span className="card-title">
+                  {t('input.camera.active', {
+                    name: groups.find((g) => g.id === cameraTargetGroup)?.name || t('input.groups.unknown'),
+                  })}
+                </span>
+              </div>
+              <div className="card-body" style={{ position: 'relative' }}>
+                <video
+                  ref={videoRef}
+                  style={{
+                    width: '100%',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'black',
+                    display: 'block',
+                  }}
+                />
+                <div style={{ marginTop: 'var(--space-3)', textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={captureImage}
+                    className="btn btn-primary"
+                  >
+                    {t('input.camera.capture')}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
           {isIOSDevice && (
-          <p className="text-xs text-[color:var(--text-tertiary)] text-center">{t('input.camera.iosNote')}</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'center', marginBottom: 'var(--space-4)' }}>
+              {t('input.camera.iosNote')}
+            </p>
           )}
 
-        <div>
-          <div className="flex items-center mb-2 text-[color:var(--text-primary)]">
-            <BarcodeIcon className="w-6 h-6 mr-2" />
-            <span className="font-semibold">{t('input.barcodes.label')}</span>
+          {/* ---- Barcode Card ---- */}
+          <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+            <div className="card-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BarcodeIcon style={{ width: '18px', height: '18px', color: 'var(--info)' }} />
+                <span className="card-title">{t('input.barcodes.label')}</span>
+              </div>
+            </div>
+            <div className="card-body">
+              <div className="form-group">
+                <label className="form-label">{t('input.barcodes.label')}</label>
+                <textarea
+                  value={barcodes}
+                  onChange={(e) => setBarcodes(e.target.value)}
+                  placeholder={t('input.barcodes.placeholder')}
+                  className="form-input"
+                  rows={3}
+                />
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)' }}>
+                {t('input.barcodes.hint')}
+              </p>
+              <div style={{ fontSize: '12px' }}>
+                {manualBarcodeSummary.hasValid ? (
+                  <span style={{ color: 'var(--success)' }}>
+                    {manualBarcodeSummary.gtin
+                      ? t('input.barcodes.statusValidGtin', { code: manualBarcodeSummary.gtin })
+                      : t('input.barcodes.statusValidEan', { code: manualBarcodeSummary.ean })}
+                  </span>
+                ) : (
+                  <span style={{ color: 'var(--warning)' }}>{t('input.barcodes.statusMissing')}</span>
+                )}
+              </div>
+            </div>
           </div>
-          <textarea
-            value={barcodes}
-            onChange={(e) => setBarcodes(e.target.value)}
-            placeholder={t('input.barcodes.placeholder')}
-            className="w-full rounded-xl border border-[var(--border-hover)] bg-[var(--surface-secondary)]/60 p-3 text-sm text-[color:var(--text-primary)] focus:border-[var(--avy-purple)] focus:ring-2 focus:ring-[var(--avy-purple)]"
-            rows={3}
-          />
-          <p className="text-xs text-[color:var(--text-tertiary)] mt-1">{t('input.barcodes.hint')}</p>
-          <div className="text-xs mt-1">
-            {manualBarcodeSummary.hasValid ? (
-              <span className="text-[color:var(--success)]">
-                {manualBarcodeSummary.gtin
-                  ? t('input.barcodes.statusValidGtin', { code: manualBarcodeSummary.gtin })
-                  : t('input.barcodes.statusValidEan', { code: manualBarcodeSummary.ean })}
-              </span>
-            ) : (
-              <span className="text-[color:var(--warning)]">{t('input.barcodes.statusMissing')}</span>
-            )}
-          </div>
-        </div>
 
-        <div className="text-center pt-2">
-          <button
-            type="submit"
-            className="w-full sm:w-auto px-12 py-4 bg-[var(--avy-purple)] text-[color:white] text-lg font-bold rounded-xl hover:bg-[var(--avy-purple-hover)] transition-transform transform hover:scale-105"
-          >
-            {t('input.submit')}
-          </button>
-        </div>
-      </form>
+          {/* ---- Submit ---- */}
+          <div style={{ textAlign: 'center', paddingTop: 'var(--space-2)' }}>
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg"
+              style={{ minWidth: '200px' }}
+            >
+              {t('input.submit')}
+            </button>
+          </div>
+
+        </form>
+      </div>
     </div>
   );
 };

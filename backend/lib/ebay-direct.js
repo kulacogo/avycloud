@@ -1001,6 +1001,7 @@ function listingHashPayload(listing) {
   return {
     itemId: safeString(listing?.itemId),
     sku: safeString(listing?.sku),
+    skuIndex: asArray(listing?.skuIndex).map((v) => safeString(v)).filter(Boolean),
     title: safeString(listing?.title),
     subtitle: safeString(listing?.subtitle),
     description: safeString(listing?.description),
@@ -1102,9 +1103,16 @@ async function upsertLiveListings(listings = [], { runId = null, actor = null } 
     .map((listing) => {
       const itemId = safeString(listing?.itemId);
       if (!itemId) return null;
+      const primarySku = safeString(listing?.sku);
+      const variationSkus = Array.from(
+        new Set(asArray(listing?.variationSkus).map((v) => safeString(v)).filter(Boolean))
+      );
+      const skuIndex = Array.from(new Set([primarySku, ...variationSkus].map((v) => safeString(v)).filter(Boolean)));
       const payload = {
         itemId,
-        sku: safeString(listing?.sku) || null,
+        sku: primarySku || null,
+        skuIndex: skuIndex.length ? skuIndex : null,
+        variationSkus: variationSkus.length ? variationSkus : null,
         title: safeString(listing?.title) || null,
         subtitle: safeString(listing?.subtitle) || null,
         description: safeString(listing?.description) || null,

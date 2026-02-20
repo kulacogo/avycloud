@@ -100,144 +100,232 @@ export const CategoryManagement: React.FC = () => {
   }, [profile, selected]);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-[color:white]">{t('categories.title')}</h1>
-          <p className="text-sm text-[color:var(--text-tertiary)]">{t('categories.subtitle')}</p>
+    <>
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-header-text">
+          <h1>{t('categories.title')}</h1>
+          <div className="page-header-sub">{t('categories.subtitle')}</div>
+        </div>
+        <div className="page-header-actions">
+          <button className="btn btn-secondary" type="button" disabled={loading}>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M14 8a6 6 0 01-6 6M2 8a6 6 0 016-6" />
+              <path d="M10 5l2-2 2 2M6 11l-2 2-2-2" />
+            </svg>
+            {t('categories.refresh') || 'Kategorien aktualisieren'}
+          </button>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 p-4 space-y-3">
-        <label className="text-xs uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('categories.searchLabel')}</label>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded-xl bg-[var(--bg)] border border-[var(--border)] px-4 py-3 text-[color:white]"
-          placeholder={t('categories.searchPlaceholder')}
-        />
-        <div className="text-xs text-[color:var(--text-tertiary)]">
-          {canSearch ? t('categories.searchHintReady') : t('categories.searchHint')}
-        </div>
-      </div>
+      {/* Content Area */}
+      <div className="content-area">
 
-      {error && (
-        <div className="rounded-xl border border-[var(--error-border)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[color:var(--error)]">
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t('categories.results')}</p>
-            {loading && <p className="text-xs text-[color:var(--text-tertiary)]">{t('common.loading') || 'Loading…'}</p>}
+        {/* Error Alert */}
+        {error && (
+          <div className="alert alert-error" style={{ marginBottom: 16 }}>
+            {error}
           </div>
-          <div className="max-h-[60vh] overflow-auto space-y-2">
-            {results.map((cat) => {
-              const active = selected?.id === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => void selectCategory(cat)}
-                  className={`w-full text-left rounded-xl border px-3 py-2 transition ${
-                    active ? 'border-[var(--avy-purple)] bg-[var(--avy-purple-hover)]/10' : 'border-[var(--border)] bg-[var(--surface-secondary)]/40 hover:border-[var(--border-hover)]'
-                  }`}
-                >
-                  <p className="text-sm font-semibold text-[color:white]">{cat.name}</p>
-                  <p className="text-xs text-[color:var(--text-tertiary)] break-words">{cat.breadcrumb}</p>
-                  <p className="text-[11px] text-[color:var(--text-tertiary)]">ID: {cat.id}</p>
-                </button>
-              );
-            })}
-            {!loading && canSearch && results.length === 0 && (
-              <p className="text-sm text-[color:var(--text-tertiary)]">{t('categories.noResults')}</p>
-            )}
-          </div>
-        </div>
+        )}
 
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/70 p-4 space-y-4">
-          <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t('categories.profile')}</p>
-          {!selected || !profile ? (
-            <p className="text-sm text-[color:var(--text-tertiary)]">{t('categories.selectHint')}</p>
-          ) : (
-            <>
-              <div className="space-y-1">
-                <p className="text-xs uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('categories.selected')}</p>
-                <p className="text-sm text-[color:white] font-semibold">{selected.name}</p>
-                <p className="text-xs text-[color:var(--text-tertiary)] break-words">{selected.breadcrumb}</p>
-                <p className="text-[11px] text-[color:var(--text-tertiary)]">ID: {selected.id}</p>
-              </div>
+        {/* Split Panels */}
+        <div className="split-panels">
 
-              <label className="inline-flex items-center gap-2 text-sm text-[color:var(--text-primary)]">
+          {/* LEFT: Category Search & Results */}
+          <div className="panel-left">
+            <div className="panel-left-header">
+              <h3>{t('categories.searchLabel') || 'Kategorie-Baum'}</h3>
+              <div className="tree-search">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="7" cy="7" r="4.5" />
+                  <path d="M11 11l3 3" />
+                </svg>
                 <input
-                  type="checkbox"
-                  checked={Boolean(profile.enabled)}
-                  onChange={(e) => setProfile((prev) => (prev ? { ...prev, enabled: e.target.checked } : prev))}
-                />
-                {t('categories.enabled')}
-              </label>
-
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('categories.canonicalAttributes')}</label>
-                <textarea
-                  value={canonicalText}
-                  onChange={(e) => {
-                    const lines = e.target.value
-                      .split('\n')
-                      .map((l) => l.trim())
-                      .filter(Boolean);
-                    setProfile((prev) => (prev ? { ...prev, canonicalAttributes: lines } : prev));
-                  }}
-                  rows={8}
-                  className="w-full rounded-xl bg-[var(--bg)] border border-[var(--border)] px-4 py-3 text-[color:white] font-mono text-sm"
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t('categories.searchPlaceholder')}
                 />
               </div>
-
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('categories.attributeAliases')}</label>
-                <textarea
-                  value={aliasesText}
-                  onChange={(e) => {
-                    const raw = safeString(e.target.value);
-                    try {
-                      const parsed = raw ? JSON.parse(raw) : {};
-                      setProfile((prev) => (prev ? { ...prev, attributeAliases: parsed } : prev));
-                      setError(null);
-                    } catch (err: any) {
-                      setError(err?.message || 'Invalid JSON');
-                    }
-                  }}
-                  rows={10}
-                  className="w-full rounded-xl bg-[var(--bg)] border border-[var(--border)] px-4 py-3 text-[color:white] font-mono text-sm"
-                />
-                <p className="text-xs text-[color:var(--text-tertiary)]">{t('categories.attributeAliasesHint')}</p>
+              <div className="form-hint" style={{ marginTop: 6 }}>
+                {canSearch ? t('categories.searchHintReady') : t('categories.searchHint')}
               </div>
+            </div>
+            <div className="panel-left-body">
+              {loading && results.length === 0 && (
+                <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text-tertiary)' }}>
+                  {t('common.loading') || 'Loading...'}
+                </div>
+              )}
+              {results.map((cat) => {
+                const active = selected?.id === cat.id;
+                return (
+                  <div className="tree-node" key={cat.id}>
+                    <div
+                      className={`tree-node-row${active ? ' selected' : ''}`}
+                      onClick={() => void selectCategory(cat)}
+                    >
+                      <span className="tree-node-label">{cat.name}</span>
+                      <span className="tree-node-id">ID: {cat.id}</span>
+                    </div>
+                    {cat.breadcrumb && (
+                      <div style={{
+                        padding: '0 16px 6px 16px',
+                        fontSize: 11,
+                        color: 'var(--text-tertiary)',
+                        wordBreak: 'break-word',
+                      }}>
+                        {cat.breadcrumb}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {!loading && canSearch && results.length === 0 && (
+                <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text-tertiary)' }}>
+                  {t('categories.noResults')}
+                </div>
+              )}
+            </div>
+          </div>
 
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-widest text-[color:var(--text-tertiary)]">{t('categories.notes')}</label>
-                <textarea
-                  value={profile.notes || ''}
-                  onChange={(e) => setProfile((prev) => (prev ? { ...prev, notes: e.target.value } : prev))}
-                  rows={3}
-                  className="w-full rounded-xl bg-[var(--bg)] border border-[var(--border)] px-4 py-3 text-[color:white] text-sm"
-                />
-              </div>
+          {/* RIGHT: Profile Editor */}
+          <div className="panel-right">
+            <div className="panel-right-header">
+              <h3>{t('categories.profile') || 'Profil-Editor'}</h3>
+              {selected && (
+                <div className="breadcrumb-trail">
+                  <span>{selected.name}</span>
+                </div>
+              )}
+            </div>
+            <div className="panel-right-body">
+              {!selected || !profile ? (
+                <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
+                  {t('categories.selectHint')}
+                </div>
+              ) : (
+                <>
+                  {/* Profile Settings Section */}
+                  <div className="form-section-title">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M2 4a2 2 0 012-2h3l2 2h3a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V4z" />
+                    </svg>
+                    {t('categories.selected') || 'Profil-Einstellungen'}
+                  </div>
 
-              <button
-                type="button"
-                onClick={() => void onSave()}
-                disabled={saving}
-                className="w-full rounded-2xl bg-[var(--avy-purple)] text-[color:white] font-semibold py-3 disabled:opacity-50"
-              >
-                {saving ? t('common.saving') : t('common.save')}
-              </button>
-            </>
-          )}
+                  <div className="form-group">
+                    <label className="form-label-upper">{t('categories.selected')}</label>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {selected.name}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-tertiary)', wordBreak: 'break-word', marginTop: 2 }}>
+                      {selected.breadcrumb}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                      ID: {selected.id}
+                    </div>
+                  </div>
+
+                  {/* Enabled toggle */}
+                  <div className="form-group">
+                    <label className="toggle-row">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(profile.enabled)}
+                        onChange={(e) => setProfile((prev) => (prev ? { ...prev, enabled: e.target.checked } : prev))}
+                      />
+                      {t('categories.enabled')}
+                    </label>
+                  </div>
+
+                  {/* Canonical Attributes */}
+                  <div style={{ marginTop: 8 }} className="form-section-title">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M2 4h12M2 8h12M2 12h8" />
+                    </svg>
+                    {t('categories.canonicalAttributes')}
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label-upper">{t('categories.canonicalAttributes')}</label>
+                    <textarea
+                      className="form-input"
+                      value={canonicalText}
+                      onChange={(e) => {
+                        const lines = e.target.value
+                          .split('\n')
+                          .map((l) => l.trim())
+                          .filter(Boolean);
+                        setProfile((prev) => (prev ? { ...prev, canonicalAttributes: lines } : prev));
+                      }}
+                      rows={8}
+                      style={{ fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace", fontSize: 12, lineHeight: 1.6 }}
+                    />
+                  </div>
+
+                  {/* Attribute Aliases */}
+                  <div style={{ marginTop: 8 }} className="form-section-title">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M2 4h12M2 8h12M2 12h8" />
+                      <circle cx="14" cy="12" r="1.5" />
+                    </svg>
+                    {t('categories.attributeAliases')}
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label-upper">{t('categories.attributeAliases')}</label>
+                    <textarea
+                      className="form-input"
+                      value={aliasesText}
+                      onChange={(e) => {
+                        const raw = safeString(e.target.value);
+                        try {
+                          const parsed = raw ? JSON.parse(raw) : {};
+                          setProfile((prev) => (prev ? { ...prev, attributeAliases: parsed } : prev));
+                          setError(null);
+                        } catch (err: any) {
+                          setError(err?.message || 'Invalid JSON');
+                        }
+                      }}
+                      rows={10}
+                      style={{ fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace", fontSize: 12, lineHeight: 1.6 }}
+                    />
+                    <div className="form-hint">{t('categories.attributeAliasesHint')}</div>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="form-group">
+                    <label className="form-label-upper">{t('categories.notes')}</label>
+                    <textarea
+                      className="form-input"
+                      value={profile.notes || ''}
+                      onChange={(e) => setProfile((prev) => (prev ? { ...prev, notes: e.target.value } : prev))}
+                      rows={3}
+                    />
+                  </div>
+
+                  {/* Footer Actions */}
+                  <div className="editor-footer">
+                    <button
+                      className="btn btn-primary"
+                      type="button"
+                      onClick={() => void onSave()}
+                      disabled={saving}
+                    >
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                        <path d="M3 8.5l3.5 3.5 6.5-7" />
+                      </svg>
+                      {saving ? t('common.saving') : t('common.save')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
-    </div>
+    </>
   );
 };
-

@@ -13,7 +13,6 @@ import {
 } from '../api/client';
 import { WarehouseBin, WarehouseLayout } from '../types';
 import { PrintIcon } from './icons/Icons';
-import { PageHeader } from './ui/PageHeader';
 import { HelpDisclosure } from './ui/HelpDisclosure';
 import { Notice } from './ui/Notice';
 import { ConfirmDialog } from './ui/ConfirmDialog';
@@ -412,33 +411,44 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
 
   const selectedGangBins = selectedGang != null ? binsByGang.get(selectedGang) || [] : [];
 
+  // Compute KPI values from zones data
+  const totalBins = zones.reduce((sum, z) => sum + (z.binCount || 0), 0);
+  const totalProducts = zones.reduce((sum, z) => sum + (z.totalProducts || 0), 0);
+  const occupiedBins = bins.filter((b) => b.productCount > 0).length;
+  const freeBins = bins.length - occupiedBins;
+  const occupancyPct = bins.length > 0 ? ((occupiedBins / bins.length) * 100).toFixed(1) : '0';
+
   return (
-    <section className="space-y-6">
-      <PageHeader
-        title="Warehouse"
-        subtitle="Lagerstruktur (Zonen/BINs) ansehen, Labels drucken und BIN-Inhalte verwalten."
-      >
-        <HelpDisclosure title="Wie nutze ich Warehouse? (2 Minuten)">
-          <ol className="list-decimal pl-5 space-y-1">
-            <li>
-              <b>Zone/Etage wählen</b> → du siehst alle BINs in diesem Bereich.
-            </li>
-            <li>
-              <b>Gang → Regal → BIN</b> auswählen → Details & enthaltene Produkte erscheinen rechts/unten.
-            </li>
-            <li>
-              <b>Labels drucken</b>: wähle BINs (Checkbox) oder nutze “Zone/Gang/Regal markieren”.
-            </li>
-            <li>
-              <b>Aufräumen</b>: Produkte aus BINs entfernen oder (leer) Struktur löschen.
-            </li>
-          </ol>
-        </HelpDisclosure>
-      </PageHeader>
+    <section className="content">
+      {/* ── Page Header ── */}
+      <div className="page-header">
+        <div>
+          <h1>Warehouse</h1>
+          <div className="page-header-sub">Lagerverwaltung &amp; Bin-Uebersicht</div>
+        </div>
+        <div className="page-header-actions">
+          <HelpDisclosure title="Wie nutze ich Warehouse? (2 Minuten)">
+            <ol style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '4px', listStyle: 'decimal' }}>
+              <li>
+                <b>Zone/Etage wählen</b> → du siehst alle BINs in diesem Bereich.
+              </li>
+              <li>
+                <b>Gang → Regal → BIN</b> auswählen → Details & enthaltene Produkte erscheinen rechts/unten.
+              </li>
+              <li>
+                <b>Labels drucken</b>: wähle BINs (Checkbox) oder nutze "Zone/Gang/Regal markieren".
+              </li>
+              <li>
+                <b>Aufräumen</b>: Produkte aus BINs entfernen oder (leer) Struktur löschen.
+              </li>
+            </ol>
+          </HelpDisclosure>
+        </div>
+      </div>
 
       {zones.length === 0 ? (
         <Notice tone="info" title="Noch keine Lagerstruktur">
-          Lege zuerst eine Zone/Etage-Struktur an (unten: „Neue Lagerstruktur anlegen“). Danach kannst du Bins auswählen und Labels drucken.
+          Lege zuerst eine Zone/Etage-Struktur an (unten: „Neue Lagerstruktur anlegen"). Danach kannst du Bins auswählen und Labels drucken.
         </Notice>
       ) : null}
 
@@ -461,254 +471,330 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
         />
       ) : null}
 
-      {/* Header moved to PageHeader above */}
-
-      <div className="bg-[var(--surface-hover)] rounded-lg p-4 shadow border border-[var(--border)] space-y-3">
-        <h3 className="text-lg font-semibold text-[color:white]">BIN-Auswahl & Druck</h3>
-        <div className="text-xs text-[color:var(--text-tertiary)]">
-          Bereich: {selectedZone ? `${selectedZone.zone}/${selectedZone.etage}` : '—'}
-          {selectedGang != null ? ` · Gang ${selectedGang}` : ''}
-          {selectedRegal != null ? ` · Regal ${selectedRegal}` : ''}
+      {/* ── KPI Cards ── */}
+      <div className="kpi-grid">
+        <div className="kpi-card">
+          <div className="kpi-top">
+            <div className="kpi-label">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1" /><rect x="9" y="2" width="5" height="5" rx="1" /><rect x="2" y="9" width="5" height="5" rx="1" /><rect x="9" y="9" width="5" height="5" rx="1" /></svg>
+              Bins gesamt
+            </div>
+          </div>
+          <div className="kpi-value">{totalBins}</div>
+          <span className="kpi-change up">{zones.length} Zonen aktiv</span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={selectAllInZone}
-            className="px-3 py-1.5 rounded-lg bg-[var(--surface)] text-sm text-[color:white] hover:bg-[var(--surface-secondary)]"
-          >
-            Zone markieren
-          </button>
-          <button
-            type="button"
-            onClick={selectCurrentGang}
-            disabled={selectedGang == null}
-            className="px-3 py-1.5 rounded-lg text-sm text-[color:white] disabled:opacity-40 bg-[var(--surface)] hover:bg-[var(--surface-secondary)]"
-          >
-            Gang markieren
-          </button>
-          <button
-            type="button"
-            onClick={selectCurrentRegal}
-            disabled={selectedGang == null || selectedRegal == null}
-            className="px-3 py-1.5 rounded-lg text-sm text-[color:white] disabled:opacity-40 bg-[var(--surface)] hover:bg-[var(--surface-secondary)]"
-          >
-            Regal markieren
-          </button>
-          <button
-            type="button"
-            onClick={clearSelection}
-            className="px-3 py-1.5 rounded-lg bg-[var(--surface)] text-sm text-[color:white] hover:bg-[var(--surface-secondary)]"
-          >
-            Auswahl leeren
-          </button>
+        <div className="kpi-card">
+          <div className="kpi-top">
+            <div className="kpi-label">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 14V6l6-4 6 4v8" /><path d="M6 14v-4h4v4" /></svg>
+              Produkte gesamt
+            </div>
+          </div>
+          <div className="kpi-value">{totalProducts}</div>
+          <span className="kpi-change neutral">Alle Zonen</span>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-[color:var(--text-secondary)]">Ausgewählte Bins: {selectedCount}</span>
-          <button
-            type="button"
-            onClick={handlePrintSelectedBins}
-            disabled={!selectedCount && !selectedZone}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--success)] text-[color:white] disabled:opacity-40"
-          >
-            <PrintIcon className="w-4 h-4" />
-            BIN Labels drucken
-          </button>
+        <div className="kpi-card">
+          <div className="kpi-top">
+            <div className="kpi-label">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="12" height="12" rx="2" /><path d="M5 5l6 6M11 5l-6 6" opacity="0.3" /></svg>
+              Freie Bins
+            </div>
+          </div>
+          <div className="kpi-value">{freeBins}</div>
+          <span className="kpi-change down">{selectedZone ? `${selectedZone.zone}/${selectedZone.etage}` : '--'}</span>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-top">
+            <div className="kpi-label">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6" /><path d="M8 4v4l3 2" /></svg>
+              Auslastung
+            </div>
+          </div>
+          <div className="kpi-value">{occupancyPct}%</div>
+          <div className="kpi-progress-wrap">
+            <div className="kpi-progress-bar"><div className="kpi-progress-fill" style={{ width: `${occupancyPct}%` }} /></div>
+            <div className="kpi-progress-label"><span>{occupiedBins} / {bins.length} Bins</span><span>{occupancyPct}%</span></div>
+          </div>
         </div>
       </div>
 
-      <div className="bg-[var(--surface-hover)] rounded-lg p-4 shadow">
-        <h3 className="text-xl font-semibold text-[color:white] mb-3">Neue Lagerstruktur anlegen</h3>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <div>
-            <label className="block text-sm text-[color:var(--text-tertiary)] mb-1">Zone</label>
-            <select
-              value={layoutForm.zone}
-              onChange={(e) => setLayoutForm((prev) => ({ ...prev, zone: e.target.value }))}
-              className="w-full bg-[var(--surface)] border border-[var(--border-hover)] rounded px-3 py-2"
+      {/* ── BIN Selection & Print Card ── */}
+      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+        <div className="card-header">
+          <span className="card-title">BIN-Auswahl &amp; Druck</span>
+          <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+            Bereich: {selectedZone ? `${selectedZone.zone}/${selectedZone.etage}` : '\u2014'}
+            {selectedGang != null ? ` \u00B7 Gang ${selectedGang}` : ''}
+            {selectedRegal != null ? ` \u00B7 Regal ${selectedRegal}` : ''}
+          </span>
+        </div>
+        <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+            <button type="button" onClick={selectAllInZone} className="btn btn-secondary btn-sm">
+              Zone markieren
+            </button>
+            <button type="button" onClick={selectCurrentGang} disabled={selectedGang == null} className="btn btn-secondary btn-sm">
+              Gang markieren
+            </button>
+            <button type="button" onClick={selectCurrentRegal} disabled={selectedGang == null || selectedRegal == null} className="btn btn-secondary btn-sm">
+              Regal markieren
+            </button>
+            <button type="button" onClick={clearSelection} className="btn btn-ghost btn-sm">
+              Auswahl leeren
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 500 }}>Ausgewählte Bins: {selectedCount}</span>
+            <button
+              type="button"
+              onClick={handlePrintSelectedBins}
+              disabled={!selectedCount && !selectedZone}
+              className="btn btn-success"
             >
-              {ZONE_OPTIONS.map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-[color:var(--text-tertiary)] mb-1">Etage</label>
-            <select
-              value={layoutForm.etage}
-              onChange={(e) => setLayoutForm((prev) => ({ ...prev, etage: e.target.value }))}
-              className="w-full bg-[var(--surface)] border border-[var(--border-hover)] rounded px-3 py-2"
-            >
-              {ETAGE_OPTIONS.map((e) => (
-                <option key={e} value={e}>
-                  {e}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-[color:var(--text-tertiary)] mb-1">Gänge (z.B. 1-3)</label>
-            <input
-              value={layoutForm.gangs}
-              onChange={(e) => setLayoutForm((prev) => ({ ...prev, gangs: e.target.value }))}
-              className="w-full bg-[var(--surface)] border border-[var(--border-hover)] rounded px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-[color:var(--text-tertiary)] mb-1">Regale (z.B. 1-4)</label>
-            <input
-              value={layoutForm.regale}
-              onChange={(e) => setLayoutForm((prev) => ({ ...prev, regale: e.target.value }))}
-              className="w-full bg-[var(--surface)] border border-[var(--border-hover)] rounded px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-[color:var(--text-tertiary)] mb-1">Ebenen (z.B. A-E)</label>
-            <input
-              value={layoutForm.ebenen}
-              onChange={(e) => setLayoutForm((prev) => ({ ...prev, ebenen: e.target.value }))}
-              className="w-full bg-[var(--surface)] border border-[var(--border-hover)] rounded px-3 py-2"
-            />
+              <PrintIcon className="w-4 h-4" />
+              BIN Labels drucken
+            </button>
           </div>
         </div>
-        <button
-          onClick={handleCreateLayout}
-          className="mt-4 px-4 py-2 bg-[var(--avy-purple)] text-[color:white] rounded hover:bg-[var(--avy-purple-hover)]"
-        >
-          Bins generieren
-        </button>
       </div>
 
-      <div className="bg-[var(--surface-hover)] rounded-lg p-4 shadow">
-        <h3 className="text-xl font-semibold text-[color:white] mb-3">Zonenübersicht</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* ── New Layout Form Card ── */}
+      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+        <div className="card-header">
+          <span className="card-title">Neue Lagerstruktur anlegen</span>
+        </div>
+        <div className="card-body">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 'var(--space-3)' }}>
+            <div className="form-group">
+              <label className="form-label">Zone</label>
+              <select
+                value={layoutForm.zone}
+                onChange={(e) => setLayoutForm((prev) => ({ ...prev, zone: e.target.value }))}
+                className="form-input"
+              >
+                {ZONE_OPTIONS.map((z) => (
+                  <option key={z} value={z}>{z}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Etage</label>
+              <select
+                value={layoutForm.etage}
+                onChange={(e) => setLayoutForm((prev) => ({ ...prev, etage: e.target.value }))}
+                className="form-input"
+              >
+                {ETAGE_OPTIONS.map((e) => (
+                  <option key={e} value={e}>{e}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Gänge (z.B. 1-3)</label>
+              <input
+                value={layoutForm.gangs}
+                onChange={(e) => setLayoutForm((prev) => ({ ...prev, gangs: e.target.value }))}
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Regale (z.B. 1-4)</label>
+              <input
+                value={layoutForm.regale}
+                onChange={(e) => setLayoutForm((prev) => ({ ...prev, regale: e.target.value }))}
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Ebenen (z.B. A-E)</label>
+              <input
+                value={layoutForm.ebenen}
+                onChange={(e) => setLayoutForm((prev) => ({ ...prev, ebenen: e.target.value }))}
+                className="form-input"
+              />
+            </div>
+          </div>
+          <div style={{ marginTop: 'var(--space-4)' }}>
+            <button onClick={handleCreateLayout} className="btn btn-primary">
+              Bins generieren
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Zone Tabs ── */}
+      <div className="zone-tabs-wrap" style={{ marginBottom: 'var(--space-5)' }}>
+        <div className="zone-tabs-scroll" style={{ display: 'flex', gap: 'var(--space-2)', overflowX: 'auto', paddingBottom: '2px' }}>
           {zones.map((zone) => (
             <button
               key={zone.id}
               onClick={() => setSelectedZone(zone)}
-              className={`text-left p-3 rounded border ${
-                selectedZone?.id === zone.id ? 'border-[var(--avy-purple)] bg-[var(--surface)]' : 'border-[var(--border)] hover:border-[var(--avy-purple)]'
-              }`}
+              className={`zone-tab${selectedZone?.id === zone.id ? ' active' : ''}`}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
+                background: selectedZone?.id === zone.id ? 'var(--avy-purple-glow)' : 'var(--surface)',
+                border: `1px solid ${selectedZone?.id === zone.id ? 'var(--avy-purple)' : 'var(--border)'}`,
+                borderRadius: 'var(--radius-lg)', cursor: 'pointer', whiteSpace: 'nowrap',
+                transition: 'all var(--transition)',
+              }}
             >
-              <div className="text-lg font-semibold text-[color:white]">
-                Zone {zone.zone} / {zone.etage}
+              <div style={{
+                width: '28px', height: '28px', borderRadius: 'var(--radius-sm)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 700, fontSize: '13px', color: 'white', flexShrink: 0,
+                background: 'var(--avy-gradient)',
+              }}>
+                {zone.zone}
               </div>
-              <div className="text-sm text-[color:var(--text-secondary)]">{zone.binCount} Bins · {zone.totalProducts || 0} Produkte</div>
-              <div className="text-xs text-[color:var(--text-tertiary)]">
-                Gänge {zone.gangs?.join(', ')} · Regale {zone.regale?.join(', ')} · Ebenen {zone.ebenen?.join(', ')}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: selectedZone?.id === zone.id ? 'var(--avy-purple)' : 'var(--text-primary)' }}>
+                  Zone {zone.zone} / {zone.etage}
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500 }}>
+                  {zone.binCount} Bins &middot; {zone.totalProducts || 0} Produkte
+                </span>
               </div>
             </button>
           ))}
         </div>
       </div>
 
+      {/* ── Warehouse Main Grid ── */}
       {selectedZone && (
-        <div className="bg-[var(--surface-hover)] rounded-lg p-4 shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-xl font-semibold text-[color:white]">
-                Zone {selectedZone.zone} / {selectedZone.etage}
-              </h3>
-              <p className="text-[color:var(--text-tertiary)] text-sm">{bins.length} Bins insgesamt</p>
+        <div className={`warehouse-main${binDetail ? ' with-panel' : ''}`} style={{
+          display: 'grid',
+          gridTemplateColumns: binDetail ? '1fr 380px' : '1fr',
+          gap: 'var(--space-6)',
+        }}>
+          {/* Grid Container */}
+          <div className="card">
+            <div className="card-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="card-title">
+                  Zone {selectedZone.zone} / {selectedZone.etage}
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 500 }}>
+                  {bins.length} Bins insgesamt
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {selectedBin && (
+                  <button onClick={() => openBinLabelWindow(selectedBin.code)} className="btn btn-success btn-sm">
+                    <PrintIcon className="w-4 h-4" /> BIN Label
+                  </button>
+                )}
+              </div>
             </div>
-            {selectedBin && (
-              <button
-                onClick={() => openBinLabelWindow(selectedBin.code)}
-                className="flex items-center px-3 py-1.5 text-sm bg-[var(--success)] text-[color:white] rounded-md"
-              >
-                <PrintIcon className="w-4 h-4 mr-1.5" /> BIN Label
-              </button>
-            )}
-          </div>
+            <div className="card-body">
+              {/* Gang tabs */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+                {Array.from(binsByGang.keys())
+                  .sort((a, b) => a - b)
+                  .map((gang) => (
+                    <button
+                      key={gang}
+                      onClick={() => {
+                        setSelectedGang(gang);
+                        setSelectedRegal(null);
+                        setSelectedBin(null);
+                        setBinDetail(null);
+                      }}
+                      className={`btn btn-sm ${selectedGang === gang ? 'btn-primary' : 'btn-secondary'}`}
+                    >
+                      Gang {gang}
+                    </button>
+                  ))}
+              </div>
 
-          <div className="flex flex-wrap gap-2 mb-4">
-            {Array.from(binsByGang.keys())
-              .sort((a, b) => a - b)
-              .map((gang) => (
+              {/* Delete actions */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
                 <button
-                  key={gang}
-                  onClick={() => {
-                    setSelectedGang(gang);
-                    setSelectedRegal(null);
-                    setSelectedBin(null);
-                    setBinDetail(null);
-                  }}
-                  className={`px-3 py-1 rounded ${
-                    selectedGang === gang ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface)] text-[color:var(--text-primary)]'
-                  }`}
+                  type="button"
+                  disabled={!selectedZone || selectedGang == null || deletingStructure}
+                  onClick={handleDeleteGang}
+                  className="btn btn-danger btn-sm"
+                  title="Löscht alle leeren Bins in diesem Gang."
                 >
-                  Gang {gang}
+                  Gang löschen
                 </button>
-              ))}
-          </div>
+                <button
+                  type="button"
+                  disabled={!selectedZone || selectedGang == null || selectedRegal == null || deletingStructure}
+                  onClick={handleDeleteRegal}
+                  className="btn btn-danger btn-sm"
+                  title="Löscht alle leeren Bins in diesem Regal (innerhalb des gewählten Gangs)."
+                >
+                  Regal löschen
+                </button>
+                <button
+                  type="button"
+                  disabled={!selectedZone || !selectedBin || deletingStructure}
+                  onClick={handleDeleteEbene}
+                  className="btn btn-danger btn-sm"
+                  title="Löscht den aktuell ausgewählten BIN (Ebene)."
+                >
+                  Ebene löschen
+                </button>
+                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                  Löschen ist nur möglich, wenn die betroffenen Bins leer sind.
+                </span>
+              </div>
 
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <button
-              type="button"
-              disabled={!selectedZone || selectedGang == null || deletingStructure}
-              onClick={handleDeleteGang}
-              className="px-3 py-1.5 rounded-lg bg-[var(--error)] text-sm text-[color:white] disabled:opacity-40 hover:bg-[#B91C1C]"
-              title="Löscht alle leeren Bins in diesem Gang."
-            >
-              Gang löschen
-            </button>
-            <button
-              type="button"
-              disabled={!selectedZone || selectedGang == null || selectedRegal == null || deletingStructure}
-              onClick={handleDeleteRegal}
-              className="px-3 py-1.5 rounded-lg bg-[var(--error)] text-sm text-[color:white] disabled:opacity-40 hover:bg-[#B91C1C]"
-              title="Löscht alle leeren Bins in diesem Regal (innerhalb des gewählten Gangs)."
-            >
-              Regal löschen
-            </button>
-            <button
-              type="button"
-              disabled={!selectedZone || !selectedBin || deletingStructure}
-              onClick={handleDeleteEbene}
-              className="px-3 py-1.5 rounded-lg bg-[var(--error)] text-sm text-[color:white] disabled:opacity-40 hover:bg-[#B91C1C]"
-              title="Löscht den aktuell ausgewählten BIN (Ebene)."
-            >
-              Ebene löschen
-            </button>
-            <span className="text-xs text-[color:var(--text-tertiary)]">
-              Löschen ist nur möglich, wenn die betroffenen Bins leer sind.
-            </span>
-          </div>
-
-          {isLoadingBins ? (
-            <div className="text-[color:var(--text-secondary)]">Lade Bins...</div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h4 className="text-lg text-[color:white] mb-2">Regale & Ebenen</h4>
-                <div className="space-y-3 max-h-[480px] overflow-y-auto pr-2">
+              {/* Bin grid */}
+              {isLoadingBins ? (
+                <div style={{ color: 'var(--text-secondary)', padding: 'var(--space-4)' }}>Lade Bins...</div>
+              ) : (
+                <div className="wh-grid-wrapper">
                   {regaleForSelectedGang.map(({ regal, bins: binList }) => (
-                    <div key={regal} className="border border-[var(--border)] rounded">
+                    <div key={regal} className="wh-aisle" style={{ marginBottom: 'var(--space-5)' }}>
                       <button
-                        className="w-full text-left px-3 py-2 bg-[var(--surface)] text-[color:white]"
+                        className="wh-aisle-label"
                         onClick={() => {
                           setSelectedRegal(regal);
                           setSelectedBin(null);
                           setBinDetail(null);
                         }}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '6px',
+                          fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)',
+                          textTransform: 'uppercase', letterSpacing: '0.06em',
+                          marginBottom: 'var(--space-3)', padding: '3px 10px',
+                          background: selectedRegal === regal ? 'var(--avy-purple-glow)' : 'var(--surface-secondary)',
+                          borderRadius: '20px', border: 'none', cursor: 'pointer',
+                          transition: 'all var(--transition)',
+                        }}
                       >
                         Regal {regal}
                       </button>
-                      <div className="grid grid-cols-5 gap-2 p-3">
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '6px' }}>
                         {binList.map((bin) => {
                           const isActive = selectedBin?.code === bin.code;
                           const isMarked = selectedBinCodes.has(bin.code);
+                          const binState = bin.productCount === 0 ? 'empty' : 'partial';
                           return (
-                            <div key={bin.code} className="relative">
+                            <div key={bin.code} style={{ position: 'relative' }}>
                               <button
                                 onClick={() => handleSelectBin(bin)}
-                                className={`w-full px-2 py-2 rounded text-xs transition ${
-                                  isActive ? 'bg-[var(--avy-purple)] text-[color:white]' : 'bg-[var(--surface)] text-[color:var(--text-primary)]'
-                                } ${isMarked ? 'ring-2 ring-[var(--success)]' : ''}`}
+                                className={`bin-cell ${binState}${isActive ? ' selected' : ''}`}
+                                style={{
+                                  width: '100%', aspectRatio: '4/3', minHeight: '56px',
+                                  background: isActive ? 'var(--avy-purple-glow)' : (binState === 'empty' ? 'var(--surface-secondary)' : 'var(--surface)'),
+                                  border: `1.5px solid ${isActive ? 'var(--avy-purple)' : 'var(--border)'}`,
+                                  borderRadius: 'var(--radius-md)', padding: '6px 8px',
+                                  cursor: 'pointer', transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                                  display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                                  position: 'relative', overflow: 'hidden',
+                                  boxShadow: isActive ? 'var(--shadow-focus), var(--shadow-md)' : (isMarked ? '0 0 0 2px var(--success)' : 'none'),
+                                }}
                               >
-                                <div className="font-semibold">{bin.ebene}</div>
-                                <div>{bin.productCount} Stk</div>
+                                <div style={{ fontFamily: "'SF Mono', 'Fira Code', monospace", fontSize: '10px', fontWeight: 600, color: binState === 'empty' ? 'var(--text-tertiary)' : 'var(--text-secondary)', letterSpacing: '0.02em' }}>
+                                  {bin.ebene}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '4px' }}>
+                                  <span style={{ fontSize: '10px', fontWeight: 600, color: bin.productCount > 0 ? 'var(--avy-purple)' : 'var(--text-tertiary)' }}>
+                                    {bin.productCount} Stk
+                                  </span>
+                                </div>
                               </button>
                               <button
                                 type="button"
@@ -716,12 +802,18 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                                   event.stopPropagation();
                                   toggleBinSelection(bin.code);
                                 }}
-                                className={`absolute -top-2 -right-2 w-6 h-6 rounded-full text-xs font-bold ${
-                                  isMarked ? 'bg-[var(--success)] text-[color:white]' : 'bg-[var(--surface-secondary)] text-[color:white]'
-                                }`}
+                                style={{
+                                  position: 'absolute', top: '-8px', right: '-8px',
+                                  width: '22px', height: '22px', borderRadius: '50%',
+                                  fontSize: '11px', fontWeight: 700, border: 'none', cursor: 'pointer',
+                                  background: isMarked ? 'var(--success)' : 'var(--surface-secondary)',
+                                  color: isMarked ? 'white' : 'var(--text-secondary)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 150ms ease',
+                                }}
                                 title={isMarked ? 'Aus Auswahl entfernen' : 'Zur Auswahl hinzufügen'}
                               >
-                                {isMarked ? '✓' : '+'}
+                                {isMarked ? '\u2713' : '+'}
                               </button>
                             </div>
                           );
@@ -730,69 +822,161 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* Detail Panel */}
+          {binDetail && (
+            <div className="detail-panel active" style={{
+              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
+              position: 'sticky', top: '76px', maxHeight: 'calc(100vh - 100px)', overflowY: 'auto',
+              display: 'block',
+            }}>
+              <div className="detail-panel-header" style={{
+                padding: 'var(--space-5) var(--space-5) var(--space-4)',
+                borderBottom: '1px solid var(--border)', display: 'flex',
+                alignItems: 'flex-start', justifyContent: 'space-between',
+              }}>
+                <div className="detail-panel-title" style={{
+                  fontFamily: "'SF Mono', 'Fira Code', monospace",
+                  fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)',
+                }}>
+                  {binDetail.code}
+                </div>
+                <button
+                  className="btn btn-ghost btn-icon btn-sm"
+                  onClick={() => { setSelectedBin(null); setBinDetail(null); }}
+                  title="Schliessen"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+                </button>
               </div>
 
-              <div>
-                <h4 className="text-lg text-[color:white] mb-2">BIN Detail</h4>
-                {binDetail ? (
-                  <div className="bg-[var(--surface)] rounded p-4 space-y-3">
-                    <div className="text-2xl font-semibold">{binDetail.code}</div>
-                    <div className="text-[color:var(--text-secondary)] text-sm">
-                      Gang {binDetail.gang} · Regal {binDetail.regal} · Ebene {binDetail.ebene}
+              {/* Location section */}
+              <div className="detail-section" style={{ padding: 'var(--space-4) var(--space-5)', borderBottom: '1px solid var(--border)' }}>
+                <div className="detail-section-title" style={{
+                  fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)',
+                  textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 'var(--space-3)',
+                }}>Standort</div>
+                <div className="detail-meta-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: '2px' }}>Gang</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{binDetail.gang}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: '2px' }}>Regal</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{binDetail.regal}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: '2px' }}>Ebene</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{binDetail.ebene}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: '2px' }}>Eingelagert seit</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                      {binDetail.firstStoredAt ? new Date(binDetail.firstStoredAt).toLocaleString('de-DE') : 'leer'}
                     </div>
-                    <div className="text-[color:var(--text-primary)]">
-                      {binDetail.productCount || 0} Produkte ·{' '}
-                      {binDetail.firstStoredAt ? `seit ${new Date(binDetail.firstStoredAt).toLocaleString('de-DE')}` : 'leer'}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={!selectedBin || deletingStructure}
-                        onClick={handleDeleteEbene}
-                        className="px-3 py-1.5 rounded bg-[var(--error)] text-[color:white] text-sm disabled:opacity-40 hover:bg-[#B91C1C]"
-                        title="Löscht diesen BIN (nur wenn leer)"
-                      >
-                        Ebene löschen
-                      </button>
-                      <span className="text-xs text-[color:var(--text-secondary)]">Nur möglich, wenn der BIN leer ist.</span>
-                    </div>
+                  </div>
+                </div>
+              </div>
 
-                    <div className="border-t border-[var(--border-hover)] pt-3">
-                      <h5 className="text-[color:white] font-semibold mb-2">Produkte</h5>
-                      {binDetail.products?.length ? (
-                        <ul className="space-y-2 max-h-48 overflow-y-auto">
-                          {binDetail.products.map((item: any) => (
-                            <li key={item.productId} className="flex justify-between items-center bg-[var(--surface-hover)] px-3 py-2 rounded">
-                              <div>
-                                <div className="text-[color:white] text-sm">{item.name}</div>
-                                <div className="text-xs text-[color:var(--text-tertiary)]">
-                                  SKU {item.sku} · Menge {item.quantity}
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => handleRemoveProduct(item.productId)}
-                                disabled={removingProductId === item.productId}
-                                className="text-xs text-[color:var(--error)] hover:text-[color:var(--error)]"
-                              >
-                                {removingProductId === item.productId ? '...' : 'Entfernen'}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div className="text-[color:var(--text-tertiary)] text-sm">Keine Produkte eingelagert.</div>
-                      )}
-                    </div>
+              {/* Capacity section */}
+              <div className="detail-section" style={{ padding: 'var(--space-4) var(--space-5)', borderBottom: '1px solid var(--border)' }}>
+                <div className="detail-section-title" style={{
+                  fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)',
+                  textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 'var(--space-3)',
+                }}>Kapazität</div>
+                <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                  {binDetail.productCount || 0} Produkte
+                </div>
+              </div>
 
+              {/* Actions */}
+              <div className="detail-section" style={{ padding: 'var(--space-4) var(--space-5)', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <button
+                    type="button"
+                    disabled={!selectedBin || deletingStructure}
+                    onClick={handleDeleteEbene}
+                    className="btn btn-danger btn-sm"
+                    title="Löscht diesen BIN (nur wenn leer)"
+                  >
+                    Ebene löschen
+                  </button>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Nur möglich, wenn der BIN leer ist.</span>
+                </div>
+              </div>
+
+              {/* Products section */}
+              <div className="detail-section" style={{ padding: 'var(--space-4) var(--space-5)' }}>
+                <div className="detail-section-title" style={{
+                  fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)',
+                  textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 'var(--space-3)',
+                }}>Produkte in diesem Bin</div>
+                {binDetail.products?.length ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', maxHeight: '240px', overflowY: 'auto' }}>
+                    {binDetail.products.map((item: any) => (
+                      <div key={item.productId} className="detail-product" style={{
+                        display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-3)',
+                        background: 'var(--surface-secondary)', borderRadius: 'var(--radius-md)',
+                        transition: 'all 150ms',
+                      }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.name}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: "'SF Mono', monospace" }}>
+                            SKU {item.sku} &middot; Menge {item.quantity}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveProduct(item.productId)}
+                          disabled={removingProductId === item.productId}
+                          className="btn btn-danger btn-sm"
+                          style={{ flexShrink: 0 }}
+                        >
+                          {removingProductId === item.productId ? '...' : 'Entfernen'}
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <div className="text-[color:var(--text-tertiary)]">Bitte einen BIN auswählen.</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Keine Produkte eingelagert.</div>
                 )}
               </div>
             </div>
           )}
         </div>
       )}
+
+      {/* Legend */}
+      <div className="legend" style={{
+        display: 'flex', alignItems: 'center', gap: 'var(--space-5)', flexWrap: 'wrap',
+        padding: 'var(--space-4) var(--space-6)', background: 'var(--surface)',
+        border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
+        marginTop: 'var(--space-5)',
+      }}>
+        <div className="legend-title" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Legende
+        </div>
+        <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+          <div style={{ width: '16px', height: '12px', borderRadius: '3px', background: 'var(--surface-secondary)', border: '1.5px solid var(--border)' }} />
+          Leer
+        </div>
+        <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+          <div style={{ width: '16px', height: '12px', borderRadius: '3px', background: 'var(--surface)', border: '1.5px solid var(--info)', borderLeftWidth: '3px' }} />
+          Teilbelegt
+        </div>
+        <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+          <div style={{ width: '16px', height: '12px', borderRadius: '3px', background: 'var(--surface)', border: '1.5px solid var(--avy-purple)', borderLeftWidth: '3px' }} />
+          Voll (&gt;80%)
+        </div>
+        <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+          <div style={{ width: '16px', height: '12px', borderRadius: '3px', background: 'var(--error-bg)', border: '1.5px solid var(--error-border)', borderLeftWidth: '3px' }} />
+          Überlauf
+        </div>
+      </div>
     </section>
   );
 };

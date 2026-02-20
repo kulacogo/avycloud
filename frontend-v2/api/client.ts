@@ -682,7 +682,7 @@ export async function fetchEbayListingLinks(limit = 200): Promise<any[]> {
   return Array.isArray(data?.data) ? data.data : [];
 }
 
-export async function fetchEbaySkuIndex(): Promise<{ sku: string; itemId: string; viewItemUrl: string | null }[]> {
+export async function fetchEbaySkuIndex(): Promise<{ sku: string | null; itemId: string; productId: string | null; viewItemUrl: string | null }[]> {
   const res = await fetchApi(`${BACKEND_URL}/api/ebay/sku-index`, { method: 'GET' });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) {

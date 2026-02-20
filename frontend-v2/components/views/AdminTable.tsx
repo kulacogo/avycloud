@@ -301,8 +301,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         const pidMap = new Map<string, string>();
         entries.forEach((entry) => {
           const url = entry.viewItemUrl || `https://www.ebay.de/itm/${encodeURIComponent(entry.itemId)}`;
-          if (entry.sku) {
-            const key = String(entry.sku).trim().toUpperCase();
+          const key = normalizeSku(entry.sku);
+          if (key) {
             urlMap.set(key, url);
             itemIdMap.set(key, entry.itemId);
           }
@@ -697,12 +697,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
         render: ({ product }) => {
           // SKU-Match aus Trading-API-Sync (ebayListingsLive), productId-Match aus ebayListingLinks,
           // Fallback auf marketplace.ebay.itemId
-          const productSku = String(
-            (product as any)?.identification?.sku || product.details?.identifiers?.sku || ''
-          ).trim().toUpperCase();
+          const skuCandidates = Array.from(
+            new Set(
+              [
+                normalizeSku(product.details?.identifiers?.sku),
+                normalizeSku((product as any)?.identification?.sku),
+              ].filter(Boolean)
+            )
+          );
           const pidItemId = ebayProductIdMap.get(product.id);
+          const skuUrl = skuCandidates.map((sku) => ebayLinkedMap.get(sku)).find(Boolean) || null;
           const viewItemUrl =
-            (productSku ? ebayLinkedMap.get(productSku) : null) ||
+            skuUrl ||
             (pidItemId ? `https://www.ebay.de/itm/${encodeURIComponent(pidItemId)}` : null) ||
             ((product as any)?.marketplace?.ebay?.itemId
               ? `https://www.ebay.de/itm/${encodeURIComponent(String((product as any).marketplace.ebay.itemId).trim())}`
@@ -1000,11 +1006,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterQuality === 'error' && gateHas && gateErrors > 0) ||
         (filterQuality === 'issues' && gateHasIssues);
 
-      const pSku = String(
-        (p as any)?.identification?.sku || p.details?.identifiers?.sku || ''
-      ).trim().toUpperCase();
+      const pSkuCandidates = Array.from(
+        new Set(
+          [
+            normalizeSku(p.details?.identifiers?.sku),
+            normalizeSku((p as any)?.identification?.sku),
+          ].filter(Boolean)
+        )
+      );
+      const hasSkuMatch = pSkuCandidates.some((sku) => Boolean(ebayLinkedMap.get(sku)));
       const isEbayListed = Boolean(
-        (pSku ? ebayLinkedMap.get(pSku) : null) ||
+        hasSkuMatch ||
         ebayProductIdMap.get(p.id) ||
         (p as any)?.marketplace?.ebay?.itemId
       );
@@ -1056,11 +1068,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
           case 'identification.name':
             return (product.identification?.name || '').toString().toLowerCase();
           case 'ebay.listed': {
-            const sortSku = String(
-              (product as any)?.identification?.sku || product.details?.identifiers?.sku || ''
-            ).trim().toUpperCase();
+            const sortSkuCandidates = Array.from(
+              new Set(
+                [
+                  normalizeSku(product.details?.identifiers?.sku),
+                  normalizeSku((product as any)?.identification?.sku),
+                ].filter(Boolean)
+              )
+            );
+            const hasSkuMatch = sortSkuCandidates.some((sku) => Boolean(ebayLinkedMap.get(sku)));
             return Boolean(
-              (sortSku ? ebayLinkedMap.get(sortSku) : null) ||
+              hasSkuMatch ||
               ebayProductIdMap.get(product.id) ||
               (product as any)?.marketplace?.ebay?.itemId
             ) ? 1 : 0;

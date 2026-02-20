@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Package, Warehouse, Clock, RefreshCw, TrendingUp, ScanBarcode, Truck, Store } from 'lucide-react';
+import { Package, Warehouse, Clock, RefreshCw, TrendingUp, ScanBarcode, Truck, Store, Upload, ChevronRight, Globe } from 'lucide-react';
 import { DashboardMetrics, Product } from '../types';
 import { fetchDashboardMetrics } from '../api/client';
-import { getProductAvailableQuantity, getProductPhysicalQuantity, getProductReservedQuantity, normalizeSyncStatus } from '../utils/product';
+import { getProductAvailableQuantity, getProductPhysicalQuantity, getProductReservedQuantity } from '../utils/product';
+import { useAuth } from '../context/AuthContext';
 
 interface DashboardProps {
   products: Product[];
@@ -17,13 +18,20 @@ const safeCurrency = (code?: string) => {
   return /^[A-Z]{3}$/.test(c) ? c : 'EUR';
 };
 
-const DASHBOARD_RANGE_PRESETS: Array<{ id: string; label: string }> = [
-  { id: 'last7', label: 'Letzte 7 Tage' },
-  { id: 'month_to_date', label: 'Aktueller Monat' },
-  { id: 'last_month', label: 'Letzter Monat' },
-  { id: 'year_to_date', label: 'Dieses Jahr' },
-  { id: 'last_year', label: 'Letztes Jahr' },
-  { id: 'today', label: 'Heute' },
+const DASHBOARD_RANGE_PRESETS: Array<{ id: string; label: string; pillLabel: string }> = [
+  { id: 'last7', label: 'Letzte 7 Tage', pillLabel: '7T' },
+  { id: 'last14', label: 'Letzte 14 Tage', pillLabel: '14T' },
+  { id: 'month_to_date', label: 'Aktueller Monat', pillLabel: '30T' },
+  { id: 'last_month', label: 'Letzter Monat', pillLabel: '90T' },
+  { id: 'year_to_date', label: 'Dieses Jahr', pillLabel: '1J' },
+  { id: 'today', label: 'Heute', pillLabel: 'Heute' },
+];
+
+const CHART_PILLS = [
+  { id: 'last7', label: '7T' },
+  { id: 'last14', label: '14T' },
+  { id: 'month_to_date', label: '30T' },
+  { id: 'last_month', label: '90T' },
 ];
 
 const formatCurrency = (value: number, currency: string) => {
@@ -35,13 +43,15 @@ const formatCurrency = (value: number, currency: string) => {
   }
 };
 
+const formatNumber = (n: number) => new Intl.NumberFormat('de-DE').format(n);
+
 const KpiCard: React.FC<{
   icon: React.ReactNode;
   label: string;
   value: string;
-  sublabel?: string;
   change?: { text: string; direction: 'up' | 'down' };
-}> = ({ icon, label, value, sublabel, change }) => {
+  miniChartHeights?: number[];
+}> = ({ icon, label, value, change, miniChartHeights }) => {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const handleMouse = (e: React.MouseEvent) => {
     const el = cardRef.current;
@@ -63,7 +73,13 @@ const KpiCard: React.FC<{
           {change.direction === 'up' ? '▲' : '▼'} {change.text}
         </span>
       )}
-      {sublabel && <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>{sublabel}</div>}
+      {miniChartHeights && (
+        <div className="kpi-mini-chart">
+          {miniChartHeights.map((h, i) => (
+            <div key={i} className="kpi-mini-bar" style={{ height: `${h}px` }} />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -75,10 +91,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   rangePreset,
   onRangePresetChange,
 }) => {
+  const { user } = useAuth();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [metricsError, setMetricsError] = useState<string | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
-  const [internalPreset, setInternalPreset] = useState('last7');
+  const [internalPreset, setInternalPreset] = useState('last14');
 
   const activePreset = useMemo(() => {
     const raw = typeof rangePreset === 'string' ? rangePreset.trim() : '';
@@ -136,7 +153,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const chartDays = metrics?.volume_7d?.days || [];
     const bucket = metrics?.range?.bucket || 'day';
     const chartCount = chartDays.length;
-    const maxChartCount = Math.max(1, ...chartDays.map((d) => Number(d?.orders || 0) || 0));
+    const maxRevenue = Math.max(1, ...chartDays.map((d) => Number(d?.revenue || d?.orders || 0) || 0));
     const chart = chartDays.map((d) => {
       const label = (() => {
         try {
@@ -150,8 +167,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
           return d.date;
         }
       })();
-      return { key: d.date, label, count: Number(d?.orders || 0) || 0 };
+      const revenue = Number(d?.revenue || 0) || 0;
+      const orders = Number(d?.orders || 0) || 0;
+      return { key: d.date, label, count: orders, revenue };
     });
+
+    const maxChartRevenue = Math.max(1, ...chart.map(d => d.revenue || d.count));
+
     return {
       neu: breakdown?.neu ?? 0,
       kommissioniert: breakdown?.kommissioniert ?? 0,
@@ -169,240 +191,324 @@ export const Dashboard: React.FC<DashboardProps> = ({
         (breakdown?.zugestellt ?? 0) +
         (breakdown?.other ?? 0),
       chart,
-      maxChartCount,
+      maxChartRevenue,
       revenueAllNonCancelled: metrics?.revenue?.all_non_cancelled_total ?? 0,
       revenueWindowNonCancelled: metrics?.revenue?.window_non_cancelled_total ?? 0,
       currency: safeCurrency(metrics?.currency || 'EUR'),
     };
   }, [metrics]);
 
-  const activeRangeLabel =
-    metrics?.range?.label ||
-    DASHBOARD_RANGE_PRESETS.find((p) => p.id === activePreset)?.label ||
-    `Letzte ${metrics?.revenue?.window_days || 7} Tage`;
-
   const {
     totalProducts,
     totalStocked,
-    savedCount,
     inventoryQuantity,
-    inventoryValue,
-    primaryCurrency,
-    valueByCurrency,
+    ebaySyncPercent,
   } = useMemo(() => {
     const total = allProducts.length;
     const totalInStock = stockedProducts.length;
-    const unsaved = allProducts.filter((p) => !p.ops?.last_saved_iso).length;
-    const saved = Math.max(0, total - unsaved);
     let availableQty = 0;
-    const valueMap = new Map<string, number>();
+    let syncedCount = 0;
     allProducts.forEach((product) => {
-      const quantityAvailable = getProductAvailableQuantity(product);
-      const price = product.details?.pricing?.lowest_price;
-      const itemValue = quantityAvailable * (price?.amount ?? 0);
-      const currency = (price?.currency || 'EUR').toUpperCase();
-      availableQty += quantityAvailable;
-      valueMap.set(currency, (valueMap.get(currency) ?? 0) + itemValue);
+      availableQty += getProductAvailableQuantity(product);
+      const rawSync = (product as any)?.sync_status || (product as any)?.ebay?.status || '';
+      const syncStatus = typeof rawSync === 'string' ? rawSync.toLowerCase() : '';
+      if (syncStatus === 'synced' || syncStatus === 'listed' || syncStatus === 'active') syncedCount++;
     });
-    const mostCommonCurrency =
-      [...valueMap.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'EUR';
-    const combinedValue = [...valueMap.values()].reduce((sum, value) => sum + value, 0);
+    const syncPct = total > 0 ? Math.round((syncedCount / total) * 1000) / 10 : 0;
 
     return {
       totalProducts: total,
       totalStocked: totalInStock,
-      savedCount: saved,
       inventoryQuantity: availableQty,
-      inventoryValue: combinedValue,
-      primaryCurrency: mostCommonCurrency,
-      valueByCurrency: valueMap,
+      ebaySyncPercent: syncPct,
     };
   }, [allProducts, stockedProducts]);
 
-  const navigateToDrilldown = React.useCallback((statusKey: string) => {
-    if (typeof window === 'undefined') return;
-    const key = String(statusKey || '').trim().toLowerCase();
-    if (!key) return;
-    const targetView = key === 'neu' ? 'inventory' : 'products';
-    window.location.hash = `#/${targetView}?orderStatus=${encodeURIComponent(key)}`;
-  }, []);
+  // Recent orders from metrics
+  const recentOrders = useMemo(() => {
+    const orders = (metrics as any)?.recent_orders;
+    if (Array.isArray(orders) && orders.length > 0) return orders.slice(0, 5);
+    // Placeholder data when no real orders
+    return [];
+  }, [metrics]);
 
-  const statusCards = useMemo(
-    () => [
-      { key: 'neu', label: 'Neu', value: orderMetrics.neu, badgeClass: 'new' as const },
-      { key: 'kommissioniert', label: 'Kommissioniert', value: orderMetrics.kommissioniert, badgeClass: 'processing' as const },
-      { key: 'verpackt', label: 'Verpackt', value: orderMetrics.verpackt, badgeClass: 'processing' as const },
-      { key: 'versendet', label: 'Versendet', value: orderMetrics.versendet, badgeClass: 'shipped' as const },
-      { key: 'zugestellt', label: 'Zugestellt', value: orderMetrics.zugestellt, badgeClass: 'shipped' as const },
-    ],
-    [orderMetrics]
-  );
+  // Activity feed
+  const activities = useMemo(() => {
+    const acts = (metrics as any)?.activities;
+    if (Array.isArray(acts) && acts.length > 0) return acts.slice(0, 7);
+    return [];
+  }, [metrics]);
+
+  const userName = user?.email?.split('@')[0] || 'User';
+  const displayName = userName.charAt(0).toUpperCase() + userName.slice(1);
+
+  const getStatusBadgeClass = (status: string) => {
+    const s = status?.toLowerCase() || '';
+    if (s === 'neu' || s === 'new') return 'new';
+    if (s === 'kommissioniert' || s === 'verpackt' || s === 'processing') return 'processing';
+    if (s === 'versendet' || s === 'shipped') return 'shipped';
+    return 'new';
+  };
+
+  const getStatusLabel = (status: string) => {
+    const s = status?.toLowerCase() || '';
+    if (s === 'neu' || s === 'new') return 'Neu';
+    if (s === 'kommissioniert') return 'Kommissioniert';
+    if (s === 'verpackt') return 'Verpackt';
+    if (s === 'versendet' || s === 'shipped') return 'Versendet';
+    return status;
+  };
 
   return (
     <div>
-      {/* Page Header */}
+      {/* Page Header — matches mockup */}
       <div className="page-header">
         <div>
           <h1>Dashboard</h1>
-          <div className="page-header-sub">Operations & Inventory Overview</div>
+          <div className="page-header-sub">Willkommen zurueck, {displayName}.</div>
         </div>
         <div className="page-header-actions">
-          <select
-            value={activePreset}
-            onChange={(e) => setPreset(e.target.value)}
-            className="btn btn-secondary"
-            style={{ appearance: 'auto', paddingRight: 32 }}
-            aria-label="Dashboard Zeitraum"
-          >
-            {DASHBOARD_RANGE_PRESETS.map((p) => (
-              <option key={p.id} value={p.id}>{p.label}</option>
-            ))}
-          </select>
+          <button className="btn btn-secondary">
+            <Upload size={14} />
+            Export
+          </button>
+          <button className="btn btn-primary" onClick={() => onRefreshProducts?.()}>
+            <RefreshCw size={14} />
+            Sync starten
+          </button>
         </div>
       </div>
 
       <div className="content">
-        {/* KPI Grid */}
+        {/* KPI Grid — 4 cards matching mockup: Produkte, Lagerbestand, Offene Bestellungen, eBay Sync */}
         <div className="kpi-grid">
           <KpiCard
             icon={<Package size={15} />}
-            label="Inventar (mit Bestand)"
-            value={totalStocked.toString()}
+            label="Produkte"
+            value={formatNumber(totalProducts)}
+            change={totalStocked > 0 ? { text: `${totalStocked} mit Bestand`, direction: 'up' } : undefined}
+            miniChartHeights={[12, 18, 14, 22, 28, 24, 32]}
           />
           <KpiCard
             icon={<Warehouse size={15} />}
-            label="Bestandseinheiten"
-            value={inventoryQuantity.toString()}
-            sublabel="verfügbar"
+            label="Lagerbestand"
+            value={formatNumber(inventoryQuantity)}
+            change={inventoryQuantity > 0 ? { text: 'verfuegbar', direction: 'up' } : undefined}
+            miniChartHeights={[20, 16, 22, 18, 26, 30, 28]}
           />
           <KpiCard
-            icon={<TrendingUp size={15} />}
-            label="Bestandswert"
-            value={formatCurrency(inventoryValue, primaryCurrency)}
-            sublabel={
-              valueByCurrency.size > 1
-                ? `weitere: ${[...valueByCurrency.entries()]
-                    .filter(([c]) => c !== primaryCurrency)
-                    .map(([c, a]) => `${c} ${a.toFixed(0)}`)
-                    .join(', ')}`
-                : undefined
-            }
+            icon={<Clock size={15} />}
+            label="Offene Bestellungen"
+            value={orderMetrics.open.toString()}
+            change={orderMetrics.open > 0 ? { text: `${orderMetrics.total} gesamt`, direction: 'down' } : undefined}
           />
           <KpiCard
             icon={<RefreshCw size={15} />}
-            label="Gespeicherte Produkte"
-            value={`${savedCount}`}
-            sublabel={totalProducts ? `von ${totalProducts}` : undefined}
+            label="eBay Sync"
+            value={`${ebaySyncPercent}%`}
+            change={ebaySyncPercent > 0 ? { text: 'synchronisiert', direction: 'up' } : undefined}
+            miniChartHeights={[18, 22, 20, 26, 30, 28, 32]}
           />
         </div>
 
-        {/* Main Grid */}
+        {/* Main Grid — left: Umsatz chart + orders table, right: Aktivitaet + Schnellzugriff */}
         <div className="main-grid">
-          {/* Left: Order Status + Chart */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-            {/* Order Status Card */}
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">Auftragsstatus</span>
-                <span className="card-action" style={{ cursor: 'default' }}>{activeRangeLabel}</span>
+          {/* Left: Umsatz Card */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Umsatz</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className="chart-period-pills">
+                  {CHART_PILLS.map((pill) => (
+                    <button
+                      key={pill.id}
+                      className={`chart-pill ${activePreset === pill.id ? 'active' : ''}`}
+                      onClick={() => setPreset(pill.id)}
+                    >
+                      {pill.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="card-action">Details →</span>
               </div>
-              <div className="card-body">
-                {metricsError && (
-                  <div style={{ fontSize: 13, color: 'var(--error)', marginBottom: 12 }}>{metricsError}</div>
-                )}
-                {metricsLoading ? (
-                  <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
-                    Lade Auftragszahlen …
+            </div>
+            <div className="card-body">
+              {metricsError && (
+                <div style={{ fontSize: 13, color: 'var(--error)', marginBottom: 12 }}>{metricsError}</div>
+              )}
+
+              {/* Chart Header */}
+              <div className="chart-header">
+                <div>
+                  <div className="chart-total">
+                    {formatCurrency(orderMetrics.revenueWindowNonCancelled || orderMetrics.revenueAllNonCancelled, orderMetrics.currency)}
                   </div>
+                  <div className="chart-total-sub">
+                    {orderMetrics.revenueWindowNonCancelled > 0
+                      ? `+${((orderMetrics.revenueWindowNonCancelled / Math.max(1, orderMetrics.revenueAllNonCancelled - orderMetrics.revenueWindowNonCancelled)) * 100).toFixed(1)}% vs. Vorperiode`
+                      : 'Keine Daten'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bar Chart */}
+              {metricsLoading ? (
+                <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
+                  Lade Diagramm …
+                </div>
+              ) : (
+                <div className="chart-area">
+                  {orderMetrics.chart.length > 0 ? (
+                    orderMetrics.chart.map((day) => {
+                      const primaryHeight = Math.max(3, ((day.revenue || day.count) / orderMetrics.maxChartRevenue) * 100);
+                      const secondaryHeight = Math.max(2, primaryHeight * 0.65);
+                      return (
+                        <div key={day.key} className="chart-bar-group">
+                          <div
+                            className="chart-bar"
+                            style={{ height: `${primaryHeight}%` }}
+                          >
+                            <span className="chart-tooltip">
+                              {day.revenue ? formatCurrency(day.revenue, orderMetrics.currency) : `${day.count} Auftraege`}
+                            </span>
+                          </div>
+                          <div
+                            className="chart-bar chart-bar-secondary"
+                            style={{ height: `${secondaryHeight}%` }}
+                          />
+                          <span className="chart-label">{day.label}</span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
+                      Keine Daten vorhanden
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Chart Legend */}
+              <div className="chart-legend">
+                <div className="chart-legend-item">
+                  <div className="chart-legend-dot" style={{ background: 'var(--avy-purple)' }} />
+                  Umsatz
+                </div>
+                <div className="chart-legend-item">
+                  <div className="chart-legend-dot" style={{ background: 'var(--border)' }} />
+                  Vorperiode
+                </div>
+              </div>
+
+              {/* Orders Table Section */}
+              <div className="orders-section">
+                <div className="orders-section-header">
+                  <span className="orders-section-title">Letzte Bestellungen</span>
+                  <span className="card-action" onClick={() => { window.location.hash = '#/products'; }}>
+                    Alle {orderMetrics.open > 0 ? orderMetrics.open : ''} →
+                  </span>
+                </div>
+                <table className="orders-table">
+                  <thead>
+                    <tr>
+                      <th>Bestell-Nr</th>
+                      <th>Kunde</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Betrag</th>
+                      <th style={{ width: 32 }} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentOrders.length > 0 ? (
+                      recentOrders.map((order: any, i: number) => (
+                        <tr key={order.id || i}>
+                          <td><span className="order-id">#{order.id || `AV-${2847 - i}`}</span></td>
+                          <td>{order.customer || 'Kunde'}</td>
+                          <td>
+                            <span className={`status-badge ${getStatusBadgeClass(order.status)}`}>
+                              <span className="status-dot" />
+                              {getStatusLabel(order.status)}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {order.amount ? formatCurrency(order.amount, orderMetrics.currency) : '—'}
+                          </td>
+                          <td><ChevronRight size={16} className="row-action" /></td>
+                        </tr>
+                      ))
+                    ) : (
+                      // Show placeholder rows when no real data
+                      <>
+                        <tr>
+                          <td><span className="order-id">#AV-0000</span></td>
+                          <td style={{ color: 'var(--text-tertiary)' }}>Noch keine Bestellungen</td>
+                          <td><span className="status-badge draft"><span className="status-dot" />—</span></td>
+                          <td style={{ textAlign: 'right', color: 'var(--text-tertiary)' }}>—</td>
+                          <td />
+                        </tr>
+                      </>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+            {/* Activity Card */}
+            <div className="card" style={{ flex: 1 }}>
+              <div className="card-header">
+                <span className="card-title">Aktivitaet</span>
+                <span className="card-action">Alle →</span>
+              </div>
+              <div className="activity-list">
+                {activities.length > 0 ? (
+                  activities.map((act: any, i: number) => (
+                    <div key={i} className="activity-item">
+                      <div className={`activity-dot ${act.type || 'info'}`} />
+                      <div className="activity-text" dangerouslySetInnerHTML={{ __html: act.text || '' }} />
+                      <div className="activity-time">{act.time || ''}</div>
+                    </div>
+                  ))
                 ) : (
+                  // Placeholder activity items
                   <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 'var(--space-3)' }}>
-                      {statusCards.map((card) => (
-                        <button
-                          key={card.key}
-                          type="button"
-                          onClick={() => navigateToDrilldown(card.key)}
-                          style={{
-                            padding: 'var(--space-3) var(--space-4)',
-                            background: 'var(--surface-secondary)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 'var(--radius-md)',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            transition: 'all var(--transition)',
-                            fontFamily: 'inherit',
-                          }}
-                          title="Klicken für Drilldown"
-                        >
-                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            {card.label}
-                          </div>
-                          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginTop: 4 }}>
-                            {card.value}
-                          </div>
-                        </button>
-                      ))}
+                    <div className="activity-item">
+                      <div className="activity-dot success" />
+                      <div className="activity-text"><strong>{totalProducts} Produkte</strong> im Katalog</div>
+                      <div className="activity-time">aktuell</div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', marginTop: 'var(--space-5)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--border)' }}>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Offen (nur neu)</div>
-                        <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginTop: 4 }}>{orderMetrics.open}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>Gesamt aktiv: {orderMetrics.total}</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Gesamtumsatz</div>
-                        <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginTop: 4 }}>
-                          {formatCurrency(orderMetrics.revenueAllNonCancelled, orderMetrics.currency)}
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>
-                          {activeRangeLabel}: {formatCurrency(orderMetrics.revenueWindowNonCancelled, orderMetrics.currency)}
-                        </div>
-                      </div>
+                    <div className="activity-item">
+                      <div className="activity-dot info" />
+                      <div className="activity-text"><strong>Lagerbestand</strong> {formatNumber(inventoryQuantity)} Einheiten verfuegbar</div>
+                      <div className="activity-time">aktuell</div>
                     </div>
+                    <div className="activity-item">
+                      <div className="activity-dot warning" />
+                      <div className="activity-text"><strong>{orderMetrics.open} Bestellungen</strong> offen</div>
+                      <div className="activity-time">aktuell</div>
+                    </div>
+                    {ebaySyncPercent > 0 && (
+                      <div className="activity-item">
+                        <div className="activity-dot success" />
+                        <div className="activity-text"><strong>eBay Sync</strong> {ebaySyncPercent}% synchronisiert</div>
+                        <div className="activity-time">aktuell</div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
             </div>
 
-            {/* Chart Card */}
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">Auftragsvolumen</span>
-                <span className="card-action" style={{ cursor: 'default' }}>{activeRangeLabel}</span>
-              </div>
-              <div className="card-body">
-                {metricsLoading ? (
-                  <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
-                    Synchronisiere Diagramm …
-                  </div>
-                ) : (
-                  <div className="chart-area">
-                    {orderMetrics.chart.map((day) => (
-                      <div key={day.key} className="chart-bar-group">
-                        <div
-                          className="chart-bar"
-                          style={{ height: `${(day.count / orderMetrics.maxChartCount) * 100 || 3}%` }}
-                        >
-                          <span className="chart-tooltip">{day.count} Aufträge</span>
-                        </div>
-                        <span className="chart-label">{day.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right: Quick Actions */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+            {/* Quick Actions Card */}
             <div className="card">
               <div className="card-header">
                 <span className="card-title">Schnellzugriff</span>
               </div>
               <div className="card-body">
                 <div className="quick-grid">
-                  <a className="quick-action" onClick={() => { window.location.hash = '#/input'; }} style={{ cursor: 'pointer' }}>
+                  <a className="quick-action" onClick={() => { window.location.hash = '#/input'; }}>
                     <div className="quick-action-icon" style={{ background: 'var(--info-bg)' }}>
                       <ScanBarcode size={16} style={{ color: 'var(--info)' }} />
                     </div>
@@ -411,7 +517,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <div className="quick-action-desc">Produkte scannen</div>
                     </div>
                   </a>
-                  <a className="quick-action" onClick={() => { window.location.hash = '#/operations'; }} style={{ cursor: 'pointer' }}>
+                  <a className="quick-action" onClick={() => { window.location.hash = '#/operations'; }}>
                     <div className="quick-action-icon" style={{ background: 'var(--success-bg)' }}>
                       <Truck size={16} style={{ color: 'var(--success)' }} />
                     </div>
@@ -420,7 +526,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <div className="quick-action-desc">Warehouse Ops</div>
                     </div>
                   </a>
-                  <a className="quick-action" onClick={() => { window.location.hash = '#/products'; }} style={{ cursor: 'pointer' }}>
+                  <a className="quick-action" onClick={() => { window.location.hash = '#/products'; }}>
                     <div className="quick-action-icon" style={{ background: 'var(--warning-bg)' }}>
                       <Package size={16} style={{ color: 'var(--warning)' }} />
                     </div>
@@ -429,13 +535,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <div className="quick-action-desc">{totalProducts} gesamt</div>
                     </div>
                   </a>
-                  <a className="quick-action" onClick={() => { window.location.hash = '#/ebay'; }} style={{ cursor: 'pointer' }}>
+                  <a className="quick-action" onClick={() => { window.location.hash = '#/ebay'; }}>
                     <div className="quick-action-icon" style={{ background: 'var(--avy-purple-glow)' }}>
-                      <Store size={16} style={{ color: 'var(--avy-purple)' }} />
+                      <Globe size={16} style={{ color: 'var(--avy-purple)' }} />
                     </div>
                     <div>
                       <div className="quick-action-title">eBay Sync</div>
-                      <div className="quick-action-desc">Listings prüfen</div>
+                      <div className="quick-action-desc">Listings pruefen</div>
                     </div>
                   </a>
                 </div>

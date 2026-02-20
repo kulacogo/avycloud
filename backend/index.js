@@ -2444,28 +2444,50 @@ app.get('/api/ebay/sku-index', requirePermission('products', 'read'), async (req
       firestore.collection('ebayListingsLive').where('active', '==', true).get(),
       firestore.collection('ebayListingLinks').where('status', '==', 'matched').get(),
     ]);
-    // Build itemId → {sku, viewItemUrl} from live listings
+    // Build itemId → {skus[], viewItemUrl} from live listings
     const liveByItemId = new Map();
     liveSnap.docs.forEach((doc) => {
       const d = doc.data() || {};
-      liveByItemId.set(doc.id, { sku: d.sku || null, viewItemUrl: d.viewItemUrl || null });
+      const rawList = Array.isArray(d.skuIndex) ? d.skuIndex : d.sku ? [d.sku] : [];
+      const skus = (Array.isArray(rawList) ? rawList : [rawList])
+        .map((v) => String(v || '').trim())
+        .filter(Boolean);
+      liveByItemId.set(doc.id, { skus, viewItemUrl: d.viewItemUrl || null });
     });
     // Build itemId → productId from matched links
     const productIdByItemId = new Map();
     linksSnap.docs.forEach((doc) => {
       const d = doc.data() || {};
+      // Only trust links for itemIds confirmed active via Trading API ingest (ebayListingsLive.active=true).
+      // This prevents stale link docs from marking inactive/ended listings as "listed".
+      if (!liveByItemId.has(doc.id)) return;
       if (d.productId) productIdByItemId.set(doc.id, d.productId);
     });
     // Merge: all itemIds from both sources
     const allItemIds = new Set([...liveByItemId.keys(), ...productIdByItemId.keys()]);
-    const rows = Array.from(allItemIds)
-      .map((itemId) => {
-        const live = liveByItemId.get(itemId) || {};
-        const productId = productIdByItemId.get(itemId) || null;
-        return { itemId, sku: live.sku || null, productId, viewItemUrl: live.viewItemUrl || null };
-      })
-      .filter((r) => r.sku || r.productId);
-    return res.status(200).json({ ok: true, data: rows });
+    const rows = [];
+    const seen = new Set();
+    Array.from(allItemIds).forEach((itemId) => {
+      const live = liveByItemId.get(itemId) || {};
+      const productId = productIdByItemId.get(itemId) || null;
+      const viewItemUrl = live.viewItemUrl || null;
+      const skus = Array.isArray(live.skus) ? live.skus : [];
+      if (skus.length) {
+        skus.forEach((sku) => {
+          const key = `${itemId}::${sku}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          rows.push({ itemId, sku, productId, viewItemUrl });
+        });
+      } else {
+        const key = `${itemId}::`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        rows.push({ itemId, sku: null, productId, viewItemUrl });
+      }
+    });
+    const filtered = rows.filter((r) => r.sku || r.productId);
+    return res.status(200).json({ ok: true, data: filtered });
   } catch (error) {
     console.error('Failed to build eBay SKU index:', error);
     return res.status(500).json({

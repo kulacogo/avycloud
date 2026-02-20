@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Eye, EyeOff, ArrowLeft, Layers, Sparkles, RefreshCw, Package } from 'lucide-react';
+import { Sun, Moon, Eye, EyeOff, ArrowLeft, Layers, Sparkles, RefreshCw, Package, BarChart3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { requestPasswordReset } from '../api/client';
 import { useI18n } from '../i18n';
@@ -84,17 +84,17 @@ export const LoginScreen: React.FC = () => {
       {/* Left branded panel */}
       <div className="brand-panel">
         <div className="brand-logo">
-          <div className="brand-logo-icon">A</div>
+          <div className="brand-logo-icon">
+            <Layers size={20} />
+          </div>
           <span className="brand-logo-text">AvyCloud</span>
-          <span className="brand-mobile-tagline" style={{ display: 'none' }}>
-            Smarte Lagerverwaltung
-          </span>
+          <span className="brand-mobile-tagline">Smarte Lagerverwaltung</span>
         </div>
 
         <div className="brand-content">
           <h2 className="brand-headline">
             Smarte Lagerverwaltung<br />
-            für deinen <span>eBay-Handel</span>
+            f&uuml;r deinen <span>eBay-Handel</span>
           </h2>
 
           <div className="feature-list">
@@ -103,7 +103,7 @@ export const LoginScreen: React.FC = () => {
                 <Sparkles size={20} />
               </div>
               <div className="feature-text">
-                <h4>Produktidentifizierung mit KI</h4>
+                <h4>KI-gestuetzte Identifizierung</h4>
                 <p>Automatische Erkennung und Klassifizierung deiner Produkte mit intelligenter Bildanalyse.</p>
               </div>
             </div>
@@ -112,8 +112,8 @@ export const LoginScreen: React.FC = () => {
                 <RefreshCw size={20} />
               </div>
               <div className="feature-text">
-                <h4>Automatische eBay-Synchronisation</h4>
-                <p>Echtzeit-Sync deiner Listings, Bestellungen und Bestände zwischen AvyCloud und eBay.</p>
+                <h4>eBay Synchronisation</h4>
+                <p>Echtzeit-Sync deiner Listings, Bestellungen und Bestaende zwischen AvyCloud und eBay.</p>
               </div>
             </div>
             <div className="feature-item">
@@ -121,8 +121,17 @@ export const LoginScreen: React.FC = () => {
                 <Package size={20} />
               </div>
               <div className="feature-text">
-                <h4>Intelligentes Warehouse Management</h4>
-                <p>Optimierte Lagerplätze, Kommissionierung und Bestandsverwaltung in Echtzeit.</p>
+                <h4>Warehouse Management</h4>
+                <p>Optimierte Lagerplaetze, Kommissionierung und Bestandsverwaltung in Echtzeit.</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <div className="feature-icon">
+                <BarChart3 size={20} />
+              </div>
+              <div className="feature-text">
+                <h4>Analytics &amp; Reporting</h4>
+                <p>Umfassende Auswertungen und Berichte fuer datengetriebene Entscheidungen.</p>
               </div>
             </div>
           </div>
@@ -135,7 +144,7 @@ export const LoginScreen: React.FC = () => {
             ))}
           </div>
           <span className="trust-text">
-            Vertraut von <strong>50+ eBay-Händlern</strong>
+            Vertraut von <strong>50+ eBay-Haendlern</strong>
           </span>
         </div>
       </div>
@@ -145,26 +154,20 @@ export const LoginScreen: React.FC = () => {
         {/* Theme toggle */}
         <button
           type="button"
+          className="theme-toggle"
           onClick={toggleTheme}
-          style={{
-            position: 'absolute', top: 24, right: 24, width: 40, height: 40,
-            borderRadius: 'var(--radius-md)', border: '1px solid var(--border)',
-            background: 'var(--surface)', cursor: 'pointer', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)',
-            transition: 'all var(--transition)',
-          }}
-          aria-label="Toggle theme"
+          aria-label="Design wechseln"
         >
           {theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
 
         <div className="form-container">
           {!showReset ? (
-            /* ─── LOGIN VIEW ─── */
+            /* --- LOGIN VIEW --- */
             <>
               <div className="form-header">
-                <h1>{t('auth.login.title')}</h1>
-                <p>{t('auth.login.subtitle', { domain: '@trendocean.de' })}</p>
+                <h1>Willkommen zurueck</h1>
+                <p>Geben Sie Ihre E-Mail und Ihr Passwort ein</p>
               </div>
 
               {error && (
@@ -212,7 +215,7 @@ export const LoginScreen: React.FC = () => {
                         cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         borderRadius: 'var(--radius-sm)', color: 'var(--text-tertiary)',
                       }}
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-label={showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -231,7 +234,7 @@ export const LoginScreen: React.FC = () => {
               </form>
             </>
           ) : (
-            /* ─── FORGOT PASSWORD VIEW ─── */
+            /* --- FORGOT PASSWORD VIEW --- */
             <>
               <div className="form-header">
                 <h1>{t('auth.login.reset.title') || 'Passwort zurücksetzen'}</h1>

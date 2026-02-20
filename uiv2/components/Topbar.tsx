@@ -14,7 +14,7 @@ export const Topbar: React.FC<TopbarProps> = ({ theme, onToggleTheme }) => {
     <div className="topbar">
       <div className="topbar-search">
         <Search size={16} />
-        <span>{t('search.placeholder') || 'Suchen...'}</span>
+        <span>Suchen...</span>
         <kbd>⌘K</kbd>
       </div>
 

@@ -324,6 +324,14 @@ function mapItemSpecifics(itemSpecificsNode) {
   return out;
 }
 
+function extractVariationSkus(item = {}) {
+  // Per eBay Trading API docs, multi-variation listings define SKUs at:
+  // Item.Variations.Variation[].SKU (not Item.SKU).
+  const variations = asArray(item?.Variations?.Variation);
+  const skus = variations.map((v) => safeString(v?.SKU)).filter(Boolean);
+  return Array.from(new Set(skus));
+}
+
 function mapActiveListingItem(item = {}) {
   const currentPrice = item?.SellingStatus?.CurrentPrice;
   return {
@@ -353,6 +361,7 @@ function mapListingDetail(item = {}) {
   return {
     itemId: safeString(item?.ItemID),
     sku: safeString(item?.SKU) || null,
+    variationSkus: extractVariationSkus(item),
     title: safeString(item?.Title) || null,
     subtitle: safeString(item?.SubTitle) || null,
     description: safeString(item?.Description) || null,

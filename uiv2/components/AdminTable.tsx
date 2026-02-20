@@ -1428,20 +1428,21 @@ const AdminTable: React.FC<AdminTableProps> = ({
     children,
     widthClass,
   }) => {
+    const isSorted = sortConfig?.key === sortKey;
     if (!sortKey) {
       return (
-        <th className={`p-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-secondary)] whitespace-nowrap ${widthClass || ''}`}>
+        <th className={widthClass || ''}>
           {children}
         </th>
       );
     }
     return (
       <th
-        className={`p-3 cursor-pointer text-xs font-semibold uppercase tracking-wide text-[color:var(--text-secondary)] whitespace-nowrap ${widthClass || ''}`}
+        className={`sortable ${isSorted ? 'sorted' : ''} ${widthClass || ''}`}
         onClick={() => requestSort(sortKey)}
       >
         {children}
-        {sortConfig?.key === sortKey && (sortConfig.direction === 'asc' ? ' ▲' : ' ▼')}
+        {isSorted && sortConfig && <span className="sort-arrow">{sortConfig.direction === 'asc' ? ' ▲' : ' ▼'}</span>}
       </th>
     );
   };
@@ -2171,20 +2172,38 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   return (
     <>
-      <section id="admin-table" className="space-y-4">
-        <PageHeader
-          title={mode === 'inventory' ? t('nav.inventory') : mode === 'products' ? t('nav.products') : t('inventory.title')}
-        />
+      <section id="admin-table">
+        {/* Page Header — v2 mockup */}
+        <div className="page-header">
+          <div>
+            <h1>
+              {mode === 'inventory' ? t('nav.inventory') : mode === 'products' ? t('nav.products') : t('inventory.title')}{' '}
+              <span className="header-count-badge">{new Intl.NumberFormat('de-DE').format(products.length)}</span>
+            </h1>
+            <div className="page-header-sub">Produktkatalog verwalten</div>
+          </div>
+          <div className="page-header-actions">
+            <button className="btn btn-secondary" onClick={() => setKtypeModalOpen(true)}>
+              <SearchIcon className="w-4 h-4" />
+              Importieren
+            </button>
+            <button className="btn btn-primary" onClick={() => onSelectProduct('new')}>
+              + Produkt erstellen
+            </button>
+          </div>
+        </div>
 
         {notice ? (
-          <Notice
-            tone={notice.tone}
-            title={notice.title}
-            details={notice.details}
-            onDismiss={() => setNotice(null)}
-          >
-            {notice.message}
-          </Notice>
+          <div style={{ padding: '0 var(--space-8)' }}>
+            <Notice
+              tone={notice.tone}
+              title={notice.title}
+              details={notice.details}
+              onDismiss={() => setNotice(null)}
+            >
+              {notice.message}
+            </Notice>
+          </div>
         ) : null}
 
         {confirmDialog ? (
@@ -2201,239 +2220,221 @@ const AdminTable: React.FC<AdminTableProps> = ({
           />
         ) : null}
 
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/40 p-4 space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[220px]">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--text-tertiary)]" />
-              <input
-                id="table-search"
-                type="text"
-                placeholder={t('table.search')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-[var(--surface-hover)]/70 border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--avy-purple)] text-sm"
-              />
-            </div>
-            <div className="flex items-center gap-2 text-xs text-[color:var(--text-tertiary)]">
-              <span>
-                {filteredAndSortedProducts.length} / {products.length} Produkte
-              </span>
-              <button type="button" onClick={resetFilters} className="text-[color:var(--avy-purple-light)] hover:underline">
-                Filter zurücksetzen
-              </button>
-            </div>
-          </div>
-          {isMobile ? (
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-secondary)]/40">
-              <button
-                type="button"
-                onClick={() => setMobileFiltersOpen((prev) => !prev)}
-                className="w-full px-4 py-2 text-sm font-semibold text-[color:var(--text-primary)] flex items-center justify-between"
-              >
-                <span>{mobileFiltersOpen ? 'Filter schließen' : 'Filter öffnen'}</span>
-                <span>{mobileFiltersOpen ? '−' : '+'}</span>
-              </button>
-              {mobileFiltersOpen && <div className="p-3 space-y-3">{renderFilterControls()}</div>}
-            </div>
-          ) : (
-            <div className="space-y-3">{renderFilterControls()}</div>
-          )}
+        <div className="content">
+          {/* Table Card — v2 mockup structure */}
+          <div className="table-card">
+            {/* Filter Bar */}
+            <div className="filter-bar">
+              <div className="filter-search">
+                <SearchIcon className="w-4 h-4" style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                <input
+                  id="table-search"
+                  type="text"
+                  placeholder="Produkte durchsuchen..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
 
-          {activeFilterChips.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {activeFilterChips.map((chip) => (
+              <div className="filter-pills">
                 <button
-                  key={chip.key}
-                  type="button"
-                  onClick={chip.onClear}
-                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg)]/30 px-3 py-1 text-xs text-[color:var(--text-primary)] hover:border-[var(--border-hover)]"
-                  title="Filter entfernen"
+                  className={`filter-pill ${filterStatus === 'all' ? 'active' : ''}`}
+                  onClick={() => setFilterStatus('all')}
                 >
-                  <span className="whitespace-nowrap">{chip.label}</span>
-                  <span className="text-[color:var(--text-tertiary)]">×</span>
+                  Alle <span className="pill-count">{products.length}</span>
                 </button>
-              ))}
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="text-xs text-[color:var(--avy-purple-light)] hover:underline"
-              >
-                Alles löschen
-              </button>
+                <button
+                  className={`filter-pill ${filterStatus === 'synced' ? 'active' : ''}`}
+                  onClick={() => setFilterStatus('synced')}
+                >
+                  Aktiv <span className="pill-count">{products.filter(p => normalizeSyncStatus((p as any).sync_status as SyncStatus) === 'synced').length}</span>
+                </button>
+                <button
+                  className={`filter-pill ${filterStatus === 'pending' ? 'active' : ''}`}
+                  onClick={() => setFilterStatus('pending')}
+                >
+                  Entwurf <span className="pill-count">{products.filter(p => normalizeSyncStatus((p as any).sync_status as SyncStatus) === 'pending').length}</span>
+                </button>
+                <button
+                  className={`filter-pill ${filterStatus === 'failed' ? 'active' : ''}`}
+                  onClick={() => setFilterStatus('failed')}
+                >
+                  Fehler <span className="pill-count">{products.filter(p => normalizeSyncStatus((p as any).sync_status as SyncStatus) === 'failed').length}</span>
+                </button>
+              </div>
+
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                {isMobile ? (
+                  <button className="filter-btn" onClick={() => setMobileFiltersOpen((prev) => !prev)}>
+                    {mobileFiltersOpen ? 'Filter −' : 'Filter +'}
+                  </button>
+                ) : null}
+                <button className="filter-btn" onClick={resetFilters}>
+                  Zuruecksetzen
+                </button>
+              </div>
             </div>
-          ) : null}
 
-          {renderSelectionBar()}
-        </div>
-
-        {filteredAndSortedProducts.length === 0 ? (
-          <div className="rounded-xl bg-[var(--surface-secondary)]/40 p-4 text-sm text-[color:var(--text-secondary)] ring-1 ring-[var(--border)]/50">
-            {mode === 'inventory' ? (
-              <>
-                <b>Keine Inventory-Artikel gefunden.</b>
-                <div className="mt-1 text-[color:var(--text-tertiary)]">
-                  Typische Ursachen: kein Bestand oder kein BIN. (Sync/Listing/Bilder/Vollständigkeit kannst du über Filter zusätzlich einschränken.)
-                </div>
-              </>
-            ) : mode === 'products' ? (
-              <>
-                <b>Keine Products (Backlog) gefunden.</b>
-                <div className="mt-1 text-[color:var(--text-tertiary)]">Prüfe Suche/Filter oder ob alle Produkte bereits Inventory-Kriterien erfüllen.</div>
-              </>
-            ) : (
-              <b>Keine Produkte gefunden.</b>
+            {/* Expanded filters */}
+            {(isMobile ? mobileFiltersOpen : true) && (
+              <div style={{ padding: 'var(--space-3) var(--space-5)', borderBottom: '1px solid var(--border)' }}>
+                {renderFilterControls()}
+              </div>
             )}
-          </div>
-        ) : null}
 
-        <div className="overflow-x-auto">
-          <table id="grid" className="w-full text-left min-w-[1000px]">
-            <thead className="bg-[var(--surface)]/50">
-              <tr>
-                <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-secondary)]">
-                  <input
-                    type="checkbox"
-                    name="select-all-products"
-                    onChange={handleSelectAll}
-                    checked={
-                      selectedIds.size > 0 &&
-                      selectedIds.size === pageProducts.length &&
-                      pageProducts.length > 0
-                    }
-                    className="bg-[var(--surface-secondary)] border-[var(--border-hover)]"
-                  />
-                </th>
-                {visibleColumnDefinitions.map((column) => {
-                  const isThumbnail = column.id === 'thumbnail';
+            {/* Active filter chips */}
+            {activeFilterChips.length > 0 && (
+              <div style={{ padding: 'var(--space-3) var(--space-5)', borderBottom: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                {activeFilterChips.map((chip) => (
+                  <span key={chip.key} className="filter-chip" onClick={chip.onClear} style={{ cursor: 'pointer' }}>
+                    {chip.label}
+                    <span className="remove">×</span>
+                  </span>
+                ))}
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  style={{ fontSize: 12, color: 'var(--avy-purple)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Alles loeschen
+                </button>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {filteredAndSortedProducts.length === 0 ? (
+              <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 14 }}>
+                {mode === 'inventory'
+                  ? 'Keine Inventory-Artikel gefunden.'
+                  : mode === 'products'
+                    ? 'Keine Products (Backlog) gefunden.'
+                    : 'Keine Produkte gefunden.'}
+              </div>
+            ) : (
+              /* Product Table */
+              <div className="table-wrap">
+                <table className="product-table" id="grid">
+                  <thead>
+                    <tr>
+                      <th className="checkbox-cell" style={{ width: 44 }}>
+                        <input
+                          type="checkbox"
+                          className="custom-checkbox"
+                          name="select-all-products"
+                          onChange={handleSelectAll}
+                          checked={
+                            selectedIds.size > 0 &&
+                            selectedIds.size === pageProducts.length &&
+                            pageProducts.length > 0
+                          }
+                        />
+                      </th>
+                      {visibleColumnDefinitions.map((column) => (
+                        <SortableHeader key={column.id} sortKey={column.sortKey} widthClass={column.widthClass}>
+                          {column.label}
+                        </SortableHeader>
+                      ))}
+                      <th style={{ width: 40 }} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageProducts.map(p => (
+                      <tr
+                        key={p.id}
+                        ref={(el) => { rowRefs.current[p.id] = el; }}
+                        data-product-row={p.id}
+                        className={selectedIds.has(p.id) ? 'selected' : ''}
+                        onClick={() => onSelectProduct(p.id)}
+                      >
+                        <td className="checkbox-cell" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            className="custom-checkbox"
+                            name={`select-product-${p.id}`}
+                            checked={selectedIds.has(p.id)}
+                            onChange={() => handleSelectOne(p.id)}
+                          />
+                        </td>
+                        {visibleColumnDefinitions.map((column) => (
+                          <td key={`${p.id}-${column.id}`}>
+                            {column.render({ product: p, onSelectProduct })}
+                          </td>
+                        ))}
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <svg className="row-action" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 4l4 4-4 4" /></svg>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination Bar — v2 */}
+            <div className="pagination-bar">
+              <div className="pagination-info">
+                <strong>{Math.min((currentPage - 1) * pageSize + 1, filteredAndSortedProducts.length)}–{Math.min(currentPage * pageSize, filteredAndSortedProducts.length)}</strong> von <strong>{new Intl.NumberFormat('de-DE').format(filteredAndSortedProducts.length)}</strong> Produkte
+              </div>
+              <div className="pagination-buttons">
+                <button
+                  className="page-btn"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  ‹
+                </button>
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let page: number;
+                  if (totalPages <= 5) {
+                    page = i + 1;
+                  } else if (currentPage <= 3) {
+                    page = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    page = totalPages - 4 + i;
+                  } else {
+                    page = currentPage - 2 + i;
+                  }
                   return (
-                    <SortableHeader key={column.id} sortKey={column.sortKey} widthClass={column.widthClass}>
-                      {column.label}
-                    </SortableHeader>
+                    <button
+                      key={page}
+                      className={`page-btn ${currentPage === page ? 'active' : ''}`}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
                   );
                 })}
-                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-secondary)] whitespace-nowrap">
-                  {t('table.actions.label')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageProducts.map(p => (
-                <tr
-                  key={p.id}
-                  ref={(el) => {
-                    rowRefs.current[p.id] = el;
-                  }}
-                  data-product-row={p.id}
-                  className="border-b border-[var(--border)] hover:bg-[var(--surface)]/50 transition-colors"
+                {totalPages > 5 && currentPage < totalPages - 2 && (
+                  <>
+                    <span className="page-ellipsis">…</span>
+                    <button className="page-btn" onClick={() => setCurrentPage(totalPages)}>{totalPages}</button>
+                  </>
+                )}
+                <button
+                  className="page-btn"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
                 >
-                  <td className="p-3">
-                    <input
-                      type="checkbox"
-                      name={`select-product-${p.id}`}
-                      checked={selectedIds.has(p.id)}
-                      onChange={() => handleSelectOne(p.id)}
-                      className="bg-[var(--surface-secondary)] border-[var(--border-hover)]"
-                    />
-                  </td>
-                  {visibleColumnDefinitions.map((column) => (
-                    <td
-                      key={`${p.id}-${column.id}`}
-                      className="p-3 align-top"
-                      style={column.id === 'thumbnail' ? { width: '80px' } : undefined}
-                    >
-                      {column.render({ product: p, onSelectProduct })}
-                    </td>
-                  ))}
-                  <td className="p-3">
-                    <div className="flex flex-col gap-2">
-
-                      <button
-                        className="px-2 py-1 text-xs bg-[var(--error)] text-[color:white] rounded-md"
-                        onClick={async () => {
-                          setConfirmDialog({
-                            title: 'Produkt löschen?',
-                            tone: 'danger',
-                            description: (
-                              <span>
-                                <b>{p.identification?.name || p.id}</b> wird dauerhaft gelöscht.
-                              </span>
-                            ),
-                            confirmLabel: 'Löschen',
-                            onConfirm: async () => {
-                              setConfirmDialog((prev) => (prev ? { ...prev, confirmBusy: true } : prev));
-                              try {
-                                const res = await deleteProduct(p.id);
-                                if (res.ok) {
-                                  onUpdateProducts(products.filter((x) => x.id !== p.id));
-                                  setNotice({ tone: 'success', title: 'Produkt gelöscht', message: p.identification?.name || p.id });
-                                } else {
-                                  setNotice({
-                                    tone: 'error',
-                                    title: 'Löschen fehlgeschlagen',
-                                    details: res.error?.message || 'Unknown error',
-                                  });
-                                }
-                              } finally {
-                                setConfirmDialog(null);
-                              }
-                            },
-                          });
-                        }}
-                      >
-                        {t('table.actions.delete')}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-[color:var(--text-tertiary)]">
-          <div className="flex items-center gap-2">
-            <span>Zeige</span>
-            <select
-              title="Items per page"
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                if (typeof window !== 'undefined') {
-                  window.sessionStorage.setItem('avystock:admin-table:pageSize', e.target.value);
-                }
-              }}
-              className="bg-[var(--surface)] border border-[var(--border-hover)] rounded px-2 py-1 text-[color:var(--text-primary)] focus:ring-2 focus:ring-[var(--avy-purple)] outline-none"
-            >
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-              <option value={200}>200</option>
-            </select>
-            <span>Einträge</span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <span>
-              Seite {currentPage} von {totalPages}
-            </span>
-            <div className="flex gap-1">
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 rounded bg-[var(--surface)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[color:var(--text-primary)]"
-              >
-                Zurück
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 rounded bg-[var(--surface)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[color:var(--text-primary)]"
-              >
-                Weiter
-              </button>
+                  ›
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* Selection/Bulk Bar */}
+          {selectedIds.size > 0 && (
+            <div className="bulk-bar">
+              <span className="bulk-bar-count">{selectedIds.size} ausgewaehlt</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <ActionButton icon={<SyncIcon className="w-4 h-4" />} label={t('table.actions.syncSelected')} onClick={handleBatchSync} disabled={syncInProgress} tone="primary" />
+                {onImproveSelected ? (
+                  <ActionButton icon={<OperationsIcon className="w-4 h-4" />} label="Verbessern" onClick={() => { const ids = Array.from(selectedIds); if (!ids.length) return; setImproveInProgress(true); setImproveMessage(`Verbessern gestartet (${ids.length}) …`); try { onImproveSelected(ids); } catch {} finally { setTimeout(() => setImproveInProgress(false), 3000); } }} disabled={improveInProgress} tone="accent" />
+                ) : null}
+                <ActionButton icon={<PrintIcon className="w-4 h-4" />} label="Label drucken" onClick={handleBatchLabelPrint} />
+                <ActionButton icon={<TrashIcon className="w-4 h-4" />} label="Loeschen" onClick={handleBatchDelete} tone="danger" />
+              </div>
+            </div>
+          )}
         </div>
       </section >
       {inventoryModalOpen && (

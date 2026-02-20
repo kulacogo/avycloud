@@ -911,7 +911,7 @@ const AppInner: React.FC = () => {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', color: 'var(--text-primary)' }}>
       {/* Desktop Sidebar */}
-      {!isMobile && <Sidebar currentView={view} setView={setView} />}
+      {!isMobile && <Sidebar currentView={view} setView={setView} productCount={products.length || undefined} />}
 
       {/* Mobile Sidebar Overlay */}
       {isMobile && mobileMenuOpen && (

@@ -2,11 +2,12 @@ import React from 'react';
 import {
   LayoutDashboard,
   Package,
-  ScanBarcode,
+  ShoppingCart,
+  Globe,
+  Upload,
+  Columns2,
   Warehouse,
-  Truck,
-  Store,
-  Tags,
+  FolderOpen,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -35,93 +36,60 @@ interface SidebarProps {
   currentView: View;
   setView: (view: View) => void;
   onClose?: () => void;
+  productCount?: number;
+  openOrderCount?: number;
 }
 
 interface NavItem {
   id: View;
   icon: React.ReactNode;
-  labelKey: string;
+  label: string;
+  badge?: number | string;
+  permCheck?: () => boolean;
 }
 
 interface NavSection {
-  labelKey: string;
+  label?: string;
   items: NavItem[];
 }
 
-const NAV_SECTIONS: NavSection[] = [
-  {
-    labelKey: 'nav.section.main',
-    items: [
-      { id: 'dashboard', icon: <LayoutDashboard size={18} />, labelKey: 'nav.dashboard' },
-      { id: 'products', icon: <Package size={18} />, labelKey: 'nav.products' },
-    ],
-  },
-  {
-    labelKey: 'nav.section.operations',
-    items: [
-      { id: 'input', icon: <ScanBarcode size={18} />, labelKey: 'nav.input' },
-      { id: 'warehouse', icon: <Warehouse size={18} />, labelKey: 'nav.warehouse' },
-      { id: 'operations', icon: <Truck size={18} />, labelKey: 'nav.operations' },
-    ],
-  },
-  {
-    labelKey: 'nav.section.channels',
-    items: [
-      { id: 'ebay-listings', icon: <Store size={18} />, labelKey: 'nav.ebay' },
-      { id: 'categories', icon: <Tags size={18} />, labelKey: 'nav.categories' },
-    ],
-  },
-  {
-    labelKey: 'nav.section.system',
-    items: [
-      { id: 'admin', icon: <Settings size={18} />, labelKey: 'nav.admin' },
-    ],
-  },
-];
-
-const SECTION_LABELS: Record<string, string> = {
-  'nav.section.main': 'MAIN',
-  'nav.section.operations': 'OPERATIONS',
-  'nav.section.channels': 'CHANNELS',
-  'nav.section.system': 'SYSTEM',
-};
-
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onClose }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onClose, productCount, openOrderCount }) => {
   const { t } = useI18n();
   const { logout, hasPermission, isAdmin, user } = useAuth();
 
-  const isNavAllowed = React.useCallback(
-    (view: View) => {
-      if (view === 'dashboard') return true;
-      if (view === 'inventory' || view === 'products') return hasPermission('products', 'read');
-      if (view === 'ebay-listings') return hasPermission('products', 'read') || hasPermission('products', 'write');
-      if (view === 'input') return hasPermission('identify', 'run');
-      if (view === 'categories') return hasPermission('categories', 'read') || hasPermission('categories', 'write');
-      if (view === 'warehouse') return hasPermission('warehouse', 'read') || hasPermission('warehouse', 'write');
-      if (view === 'operations') {
-        return (
-          hasPermission('warehouse', 'read') ||
-          hasPermission('warehouse', 'write') ||
-          hasPermission('orders', 'read') ||
-          hasPermission('orders', 'pick') ||
-          hasPermission('orders', 'pack') ||
-          hasPermission('identify', 'run')
-        );
-      }
-      if (view === 'admin') {
-        if (isAdmin) return true;
-        return (
-          hasPermission('admin', 'users.read') ||
-          hasPermission('admin', 'roles.read') ||
-          hasPermission('admin', 'groups.read') ||
-          hasPermission('admin', 'llm.read') ||
-          hasPermission('admin', 'reports.read')
-        );
-      }
-      return true;
+  const canProducts = hasPermission('products', 'read');
+  const canOrders = hasPermission('orders', 'read') || hasPermission('orders', 'pick') || hasPermission('orders', 'pack');
+  const canIdentify = hasPermission('identify', 'run');
+  const canWarehouse = hasPermission('warehouse', 'read') || hasPermission('warehouse', 'write');
+  const canOps = canWarehouse || canOrders || canIdentify;
+  const canCategories = hasPermission('categories', 'read') || hasPermission('categories', 'write');
+  const canAdmin = isAdmin || hasPermission('admin', 'users.read') || hasPermission('admin', 'roles.read') || hasPermission('admin', 'groups.read') || hasPermission('admin', 'llm.read') || hasPermission('admin', 'reports.read');
+
+  const sections: NavSection[] = [
+    {
+      /* No label for MAIN - matches mockup */
+      items: [
+        { id: 'dashboard', icon: <LayoutDashboard size={18} />, label: t('nav.dashboard') },
+        { id: 'products', icon: <Package size={18} />, label: t('nav.products'), badge: productCount || undefined, permCheck: () => canProducts },
+        { id: 'ebay-listings', icon: <Globe size={18} />, label: 'eBay Listings', permCheck: () => canProducts },
+      ],
     },
-    [hasPermission, isAdmin]
-  );
+    {
+      label: 'OPERATIONS',
+      items: [
+        { id: 'input', icon: <Upload size={18} />, label: t('nav.input') || 'Identifizieren', permCheck: () => canIdentify },
+        { id: 'operations', icon: <Columns2 size={18} />, label: 'Stow / Pick', permCheck: () => canOps },
+        { id: 'warehouse', icon: <Warehouse size={18} />, label: 'Warehouse', permCheck: () => canWarehouse },
+      ],
+    },
+    {
+      label: 'SYSTEM',
+      items: [
+        { id: 'categories', icon: <FolderOpen size={18} />, label: t('nav.categories'), permCheck: () => canCategories },
+        { id: 'admin', icon: <Settings size={18} />, label: t('nav.admin'), permCheck: () => canAdmin },
+      ],
+    },
+  ];
 
   const isActive = (itemView: View) => {
     if (itemView === 'operations') {
@@ -149,26 +117,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onClose 
       </div>
 
       {/* Navigation Sections */}
-      {NAV_SECTIONS.map((section) => {
-        const visibleItems = section.items.filter((item) => isNavAllowed(item.id));
+      {sections.map((section, idx) => {
+        const visibleItems = section.items.filter((item) => !item.permCheck || item.permCheck());
         if (visibleItems.length === 0) return null;
         return (
-          <div key={section.labelKey} className="sidebar-section">
-            <div className="sidebar-label">{SECTION_LABELS[section.labelKey] || t(section.labelKey)}</div>
-            {visibleItems.map((item) => (
-              <div
-                key={item.id}
-                className={`nav-item ${isActive(item.id) ? 'active' : ''}`}
-                onClick={() => handleNav(item.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && handleNav(item.id)}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                {t(item.labelKey)}
-              </div>
-            ))}
-          </div>
+          <React.Fragment key={idx}>
+            {idx > 0 && <div className="sidebar-divider" />}
+            <div className="sidebar-section">
+              {section.label && <div className="sidebar-label">{section.label}</div>}
+              {visibleItems.map((item) => (
+                <div
+                  key={item.id}
+                  className={`nav-item ${isActive(item.id) ? 'active' : ''}`}
+                  onClick={() => handleNav(item.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && handleNav(item.id)}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-label">{item.label}</span>
+                  {item.badge != null && (
+                    <span className="nav-badge">{typeof item.badge === 'number' && item.badge > 999 ? `${Math.round(item.badge / 1000 * 10) / 10}k` : item.badge}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </React.Fragment>
         );
       })}
 
@@ -180,7 +154,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onClose 
             <div className="user-name">{userName}</div>
             <div className="user-role" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <LogOut size={11} />
-              {t('common.logout')}
+              {t('common.logout') || 'Abmelden'}
             </div>
           </div>
         </div>
