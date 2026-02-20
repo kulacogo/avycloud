@@ -1,0 +1,97 @@
+name: Deploy Frontend to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      # Vite reads VITE_* variables at build time.
+      # Store these as GitHub Actions Variables (preferred) or Secrets.
+      VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY || secrets.VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN || secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID || secrets.VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID || secrets.VITE_FIREBASE_APP_ID }}
+      VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET || secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID || secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+      # Optional backend overrides for frontend build (must be origin-only URLs).
+      VITE_BACKEND_URL: ${{ vars.VITE_BACKEND_URL || secrets.VITE_BACKEND_URL }}
+      VITE_BACKEND_FALLBACK_URLS: ${{ vars.VITE_BACKEND_FALLBACK_URLS || secrets.VITE_BACKEND_FALLBACK_URLS }}
+      # Default is 'session' in code; set explicitly if you want different behavior.
+      VITE_AUTH_PERSISTENCE: ${{ vars.VITE_AUTH_PERSISTENCE || secrets.VITE_AUTH_PERSISTENCE }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify required frontend env vars are set
+        run: |
+          missing=0
+          for v in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Missing required build env var: ${v}. Add it as a GitHub Actions Variable (preferred) or Secret."
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Validate backend URL env format (origin only)
+        run: |
+          node - <<'NODE'
+          function checkOriginOnly(name, raw) {
+            const value = String(raw || '').trim();
+            if (!value) return;
+            let url;
+            try {
+              url = new URL(value);
+            } catch {
+              console.error(`::error::${name} is not a valid absolute URL: ${value}`);
+              process.exitCode = 1;
+              return;
+            }
+            const hasPath = url.pathname && url.pathname !== '/';
+            const hasQuery = Boolean(url.search);
+            const hasHash = Boolean(url.hash);
+            if (hasPath || hasQuery || hasHash) {
+              console.error(
+                `::error::${name} must be origin-only (scheme + host). Remove path/query/hash: ${value}`
+              );
+              process.exitCode = 1;
+            }
+          }
+
+          checkOriginOnly('VITE_BACKEND_URL', process.env.VITE_BACKEND_URL);
+
+          const fallbacks = String(process.env.VITE_BACKEND_FALLBACK_URLS || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          for (const candidate of fallbacks) {
+            checkOriginOnly('VITE_BACKEND_FALLBACK_URLS', candidate);
+          }
+
+          if (process.exitCode) process.exit(process.exitCode);
+          NODE
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          projectId: avycloud
+

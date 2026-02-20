@@ -1,0 +1,4507 @@
+{
+  "file": "/Users/oguz/Dev/avycloud/Bericht zur Angebotsqualität für trendocean - DE - 29.01.2026 03-32 MEZ.xlsx",
+  "sheets": [
+    {
+      "name": "Zusammenfassung",
+      "rowCount": 52,
+      "firstLines": [
+        "Hallo trendocean,",
+        "Unten sehen Sie eine Übersicht Ihrer 10 Kategorien mit den meisten aktiven Angeboten und unsere Empfehlungen.",
+        "Über die Tabs unten auf der Seite erhalten Sie weitere Details zu den einzelnen Kategorien, einschließlich Empfehlungen zu den Angeboten.",
+        "Feedback geben",
+        "Empfehlungen nach Angebot anzeigen (weiter zu „Sonstige“)"
+      ],
+      "tables": [
+        {
+          "title": "Feedback geben",
+          "rowCount": 2,
+          "headers": [
+            "col_1",
+            "Autoteile & Zubehör > Sonstige  /  Angebotszustand: Neu",
+            "col_3",
+            "Ihr Rang nach Umsatz (Gesamtbruttoumsatz): 947 von 21,147 Verkäufern in dieser Kategorie und für diesen Zustand",
+            "Status:",
+            "4 Angebote können optimiert werden",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "col_11",
+            "col_12"
+          ],
+          "topCategoricals": {}
+        },
+        {
+          "title": "Empfehlungen nach Angebot anzeigen (weiter zu „Sonstige“)",
+          "rowCount": 2,
+          "headers": [
+            "col_1",
+            "Herrenschuhe>Sneaker  /  Angebotszustand: Neu",
+            "col_3",
+            "Ihr Rang nach Umsatz (Gesamtbruttoumsatz): 418 von 13,094 Verkäufern in dieser Kategorie und für diesen Zustand",
+            "Status:",
+            "7 Angebote können optimiert werden",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "col_11",
+            "col_12"
+          ],
+          "topCategoricals": {}
+        },
+        {
+          "title": "Empfehlungen nach Angebot anzeigen (weiter zu „Herrenschuhe＞Sneaker“)",
+          "rowCount": 4,
+          "headers": [
+            "col_1",
+            "Bettwaren, -wäsche & Matratzen > Bettlaken  /  Angebotszustand: Neu",
+            "col_3",
+            "Ihr Rang nach Umsatz (Gesamtbruttoumsatz): 179 von 1,637 Verkäufern in dieser Kategorie und für diesen Zustand",
+            "Status:",
+            "7 Angebote können optimiert werden",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "col_11",
+            "col_12"
+          ],
+          "topCategoricals": {}
+        },
+        {
+          "title": "Empfehlungen nach Angebot anzeigen (weiter zu „Bettlaken“)",
+          "rowCount": 2,
+          "headers": [
+            "col_1",
+            "Damenschuhe>Sneaker  /  Angebotszustand: Neu",
+            "col_3",
+            "Ihr Rang nach Umsatz (Gesamtbruttoumsatz): 257 von 6,864 Verkäufern in dieser Kategorie und für diesen Zustand",
+            "Status:",
+            "5 Angebote können optimiert werden",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "col_11",
+            "col_12"
+          ],
+          "topCategoricals": {}
+        },
+        {
+          "title": "Empfehlungen nach Angebot anzeigen (weiter zu „Damenschuhe＞Sneaker“)",
+          "rowCount": 2,
+          "headers": [
+            "col_1",
+            "Stiefel & Stiefeletten  /  Angebotszustand: Neu",
+            "col_3",
+            "Ihr Rang nach Umsatz (Gesamtbruttoumsatz): 472 von 30,071 Verkäufern in dieser Kategorie und für diesen Zustand",
+            "Status:",
+            "4 Angebote können optimiert werden",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "col_11",
+            "col_12"
+          ],
+          "topCategoricals": {}
+        },
+        {
+          "title": "Empfehlungen nach Angebot anzeigen (weiter zu „Stiefel ＆ Stiefeletten“)",
+          "rowCount": 3,
+          "headers": [
+            "col_1",
+            "Bremsen & Bremsenteile > Bremsscheiben  /  Angebotszustand: Neu",
+            "col_3",
+            "Ihr Rang nach Umsatz (Gesamtbruttoumsatz): 193 von 3,460 Verkäufern in dieser Kategorie und für diesen Zustand",
+            "Status:",
+            "6 Angebote können optimiert werden",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "col_11",
+            "col_12"
+          ],
+          "topCategoricals": {}
+        },
+        {
+          "title": "Empfehlungen nach Angebot anzeigen (weiter zu „Bremsscheiben“)",
+          "rowCount": 2,
+          "headers": [
+            "col_1",
+            "Tinte, Toner & Papier > Tonerkassetten  /  Angebotszustand: Neu",
+            "col_3",
+            "Ihr Rang nach Umsatz (Gesamtbruttoumsatz): 537 von 11,927 Verkäufern in dieser Kategorie und für diesen Zustand",
+            "Status:",
+            "2 Angebote können optimiert werden",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "col_11",
+            "col_12"
+          ],
+          "topCategoricals": {}
+        },
+        {
+          "title": "Empfehlungen nach Angebot anzeigen (weiter zu „Tonerkassetten“)",
+          "rowCount": 2,
+          "headers": [
+            "col_1",
+            "Möbelschutzhüllen  /  Angebotszustand: Neu",
+            "col_3",
+            "Ihr Rang nach Umsatz (Gesamtbruttoumsatz): 189 von 2,346 Verkäufern in dieser Kategorie und für diesen Zustand",
+            "Status:",
+            "0 Angebote können optimiert werden",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "col_11",
+            "col_12"
+          ],
+          "topCategoricals": {}
+        },
+        {
+          "title": "Empfehlungen nach Angebot anzeigen (weiter zu „Möbelschutzhüllen“)",
+          "rowCount": 3,
+          "headers": [
+            "col_1",
+            "Herrenmode > Unterwäsche  /  Angebotszustand: Neu",
+            "col_3",
+            "Ihr Rang nach Umsatz (Gesamtbruttoumsatz): 541 von 5,578 Verkäufern in dieser Kategorie und für diesen Zustand",
+            "Status:",
+            "4 Angebote können optimiert werden",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "col_11",
+            "col_12"
+          ],
+          "topCategoricals": {}
+        },
+        {
+          "title": null,
+          "rowCount": 1,
+          "headers": [
+            "col_1",
+            "Verbessern",
+            "Empfehlungen",
+            "Warum wir das empfehlen?",
+            "col_5",
+            "Mehr erfahren",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "col_11",
+            "col_12"
+          ],
+          "topCategoricals": {}
+        }
+      ]
+    },
+    {
+      "name": "Ratgeber",
+      "rowCount": 25,
+      "firstLines": [
+        "Ratgeber",
+        "Der Bericht zur Angebotsqualität gibt Ihnen eine Leistungsübersicht über Ihre 10 größten Kategorien (basierend auf der Anzahl aktiver Angebote) sowie Empfehlungen und Benchmark-Daten, mit denen Sie Ihre Angebote optimieren können.",
+        "Der Bericht liefert ein deutliches Bild Ihrer Performance und gibt Empfehlungen, wie Sie Ihre Angebote optimieren können, um Sichtbarkeit und Umsatz zu erhöhen.",
+        "So nutzen Sie diesen Bericht",
+        "Verwenden Sie die Tabs am unteren Bildschirmrand, um durch Excel zu navigieren.",
+        "● Die Analyse und Vorschläge sind für Ihr gesamtes Konto nach Kategorie verfügbar"
+      ],
+      "tables": []
+    },
+    {
+      "name": "Google Shopping: Abgelehnte Produkte",
+      "rowCount": 19,
+      "firstLines": [
+        "eBay sendet ausgewählte, passende Angebote von Verkäufern an Google, die dann in den Google-Produktanzeigen erscheinen.",
+        "Einige Angebote werden von Google abgelehnt, da sie die Anforderungen nicht erfüllen.",
+        "Dieser Tab enthält Angaben zu den abgelehnten Angeboten sowie die Gründe für die Ablehnung.",
+        "< Zurück zur Übersicht",
+        "Abgelehnte Produkte - Zusammenfassung",
+        "Unzulässige Angebote bearbeiten/aktualisieren"
+      ],
+      "tables": [
+        {
+          "title": "Die ersten 5 Angebote bei eBay gebündelt bearbeiten",
+          "rowCount": 5,
+          "headers": [
+            "col_1",
+            "Kategorie",
+            "Artikel",
+            "Angebotstitel",
+            "Google-Problem",
+            "col_6",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "col_11",
+            "col_12",
+            "col_13",
+            "col_14",
+            "col_15",
+            "col_16",
+            "col_17",
+            "col_18",
+            "col_19",
+            "col_20",
+            "col_21",
+            "col_22",
+            "col_23",
+            "col_24",
+            "col_25",
+            "col_26",
+            "col_27",
+            "col_28",
+            "col_29",
+            "col_30",
+            "col_31",
+            "col_32",
+            "col_33"
+          ],
+          "topCategoricals": {
+            "Kategorie": [
+              [
+                "Tonerkassetten",
+                5
+              ]
+            ],
+            "Artikel": [
+              [
+                "389371528018",
+                1
+              ],
+              [
+                "389380534068",
+                1
+              ],
+              [
+                "389380523670",
+                1
+              ],
+              [
+                "389419918126",
+                1
+              ],
+              [
+                "389423575944",
+                1
+              ]
+            ],
+            "Angebotstitel": [
+              [
+                "Canon Toner 718 Schwarz Original für gestochen scharfe Laserdrucke",
+                1
+              ],
+              [
+                "Lasertoner B423K Schwarz für Brother Drucker - Hohe Seitenleistung",
+                1
+              ],
+              [
+                "B423K Toner für Brother – Gestochen scharfe & kostengünstige Drucke",
+                1
+              ],
+              [
+                "Canon Tonerkartusche 716 Schwarz, MPN 1980B002, Laser-Drucktechnologie",
+                1
+              ],
+              [
+                "Kompatibel Brother Tonerpatrone B423M Schwarz",
+                1
+              ]
+            ],
+            "Google-Problem": [
+              [
+                "Fehlende Anforderungen zu Druckerpatronen",
+                5
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sonstige",
+      "rowCount": 41,
+      "firstLines": [
+        "< Zurück zur Übersicht",
+        "Käufertrichter",
+        "Klickrate",
+        "Konversion"
+      ],
+      "tables": [
+        {
+          "title": "Käufertrichter",
+          "rowCount": 22,
+          "headers": [
+            "col_1",
+            "Verkäufer in diesem Bereich: 21,147",
+            "col_3",
+            "col_4",
+            "col_5",
+            "vgl. mit Zeitraum - 31 Tage",
+            "col_7",
+            "Optimierungsempfehlungen",
+            "col_9",
+            "col_10",
+            "Warum wir das empfehlen?",
+            "col_12",
+            "col_13",
+            "col_14",
+            "col_15",
+            "col_16",
+            "col_17",
+            "col_18",
+            "col_19",
+            "col_20",
+            "col_21",
+            "col_22",
+            "col_23",
+            "col_24",
+            "col_25",
+            "col_26",
+            "col_27",
+            "col_28",
+            "col_29",
+            "col_30",
+            "col_31",
+            "col_32",
+            "col_33",
+            "col_34",
+            "col_35",
+            "col_36",
+            "col_37",
+            "col_38",
+            "col_39",
+            "col_40",
+            "col_41",
+            "col_42",
+            "col_43",
+            "col_44",
+            "col_45"
+          ],
+          "topCategoricals": {
+            "Verkäufer in diesem Bereich: 21,147": [
+              [
+                "trendocean",
+                3
+              ],
+              [
+                "Mehr Benchmarks",
+                1
+              ],
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Top 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ],
+              [
+                "Untere 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ]
+            ],
+            "col_4": [
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Durchschnittlich pro Tag",
+                1
+              ],
+              [
+                "46",
+                1
+              ],
+              [
+                "Klickrate",
+                1
+              ],
+              [
+                "Rate",
+                1
+              ]
+            ],
+            "vgl. mit Zeitraum - 31 Tage": [
+              [
+                "Rang im Vergleich zu anderen Verkäufern",
+                3
+              ],
+              [
+                "1624",
+                1
+              ],
+              [
+                "2486",
+                1
+              ],
+              [
+                "978",
+                1
+              ],
+              [
+                "Tägliche Impressions pro Angebot",
+                1
+              ]
+            ],
+            "col_7": [
+              [
+                "1",
+                7
+              ],
+              [
+                "0",
+                2
+              ],
+              [
+                "Empfohlene Artikelmerkmale angegeben",
+                1
+              ]
+            ],
+            "Optimierungsempfehlungen": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Ihre Angebotsqualität entspricht dem höchsten Benchmark-Wert",
+                2
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "● Vergewissern Sie sich, dass Ihre Angebote 6 Fotos enthalten",
+                1
+              ],
+              [
+                "Marke",
+                1
+              ]
+            ],
+            "col_9": [
+              [
+                "0.5",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "Herstellernummer",
+                1
+              ],
+              [
+                "0.26132265",
+                1
+              ],
+              [
+                "0.27782357",
+                1
+              ]
+            ],
+            "col_10": [
+              [
+                "0.75",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "EAN",
+                1
+              ],
+              [
+                "0.16112225",
+                1
+              ],
+              [
+                "0.065539986",
+                1
+              ]
+            ],
+            "Warum wir das empfehlen?": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Ihre Angebote",
+                1
+              ],
+              [
+                "5.625",
+                1
+              ],
+              [
+                "14 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.119839676",
+                1
+              ]
+            ],
+            "col_12": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Top 10% der angezeigten Angebote in der eBay-Suche",
+                1
+              ],
+              [
+                "6",
+                1
+              ],
+              [
+                "30 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.38316634",
+                1
+              ]
+            ]
+          }
+        },
+        {
+          "title": "* Angezeigt werden nur aktive Angebote, sortiert nach Angebotsalter in Tagen, letzte Bearbeitung: DE - 29.01.2026 03-32 MEZ",
+          "rowCount": 8,
+          "headers": [
+            "col_1",
+            "Angebotstitel",
+            "col_3",
+            "col_4",
+            "Aktion",
+            "Tägliche Impressions pro Angebot",
+            "Klickrate",
+            "Konversionsrate",
+            "Anzahl der Fotos",
+            "Empfohlene Artikelmerkmale angegeben",
+            "Empfohlene Artikelmerkmale hinzufügen",
+            "Marke",
+            "Herstellernummer",
+            "EAN",
+            "14 Tage Rücknahme",
+            "30 Tage Rücknahme",
+            "60 Tage Rücknahme",
+            "Anzahl der Suchbegriffe im Titel",
+            "Voraussichtliche Bearbeitungszeit",
+            "Rücknahme akzeptiert",
+            "Verkäufer zahlt Rücknahme",
+            "Kostenloser Versand",
+            "Anzeigen",
+            "Tarif für Anzeigen",
+            "Mengenrabatt",
+            "Multi-Rabatt",
+            "Sonderaktion + Preissenkung",
+            "Preisvorschlag",
+            "ISBN",
+            "Artikelnummer",
+            "Preis",
+            "Artikel weicht erheblich von der Beschreibung ab (90 Tage)",
+            "Artikel nicht erhalten (90 Tage)",
+            "Negative Bewertungen (90 Tage)",
+            "Verfügbare Stückzahl",
+            "Versandkosten",
+            "Angebotsalter in Tagen",
+            "Anzahl der Verkäufe in den letzten 31 Tagen",
+            "Bestandseinheit",
+            "Anzahl der Beobachter",
+            "Google Shopping: Abgelehnte Produkte",
+            "Tatsächliche Bearbeitungszeit",
+            "Tatsächliche Versandzeit",
+            "Artikelzustand",
+            "Preistendenz bei eBay"
+          ],
+          "topCategoricals": {
+            "Angebotstitel": [
+              [
+                "EURO DRIVELINE Antriebswelle Vorderachse links für VW Lupo, Polo, Scirocco W135",
+                1
+              ],
+              [
+                "Android Autoradio 6S9701P, HD Touchscreen, GPS, DSP",
+                1
+              ],
+              [
+                "Piaggio Keilriemen Antrieb für Piaggio MP3 530 HPE 1A020495",
+                1
+              ],
+              [
+                "Sonnenschutz Panoramadach hinten für Tesla Model 3 Y CLI10206PDH",
+                1
+              ],
+              [
+                "Anhängerspiegel Außenspiegel EMUK 100303 NEU",
+                1
+              ]
+            ],
+            "Aktion": [
+              [
+                "Bearbeiten",
+                8
+              ]
+            ],
+            "Tägliche Impressions pro Angebot": [
+              [
+                "9",
+                1
+              ],
+              [
+                "84",
+                1
+              ],
+              [
+                "5",
+                1
+              ],
+              [
+                "18",
+                1
+              ],
+              [
+                "96",
+                1
+              ]
+            ],
+            "Klickrate": [
+              [
+                "Keine Klicks",
+                2
+              ],
+              [
+                "0.0011437286",
+                1
+              ],
+              [
+                "0.0061728393999999995",
+                1
+              ],
+              [
+                "0.013215859000000002",
+                1
+              ],
+              [
+                "0.0008624407",
+                1
+              ]
+            ],
+            "Konversionsrate": [
+              [
+                "Keine Verkäufe",
+                8
+              ]
+            ],
+            "Anzahl der Fotos": [
+              [
+                "5",
+                3
+              ],
+              [
+                "6",
+                2
+              ],
+              [
+                "7",
+                2
+              ],
+              [
+                "4",
+                1
+              ]
+            ],
+            "Empfohlene Artikelmerkmale angegeben": [
+              [
+                "1",
+                5
+              ],
+              [
+                "Keine Angabe",
+                3
+              ]
+            ],
+            "Marke": [
+              [
+                "Keine Angabe",
+                8
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Herrenschuhe>Sneaker",
+      "rowCount": 40,
+      "firstLines": [
+        "< Zurück zur Übersicht",
+        "Käufertrichter",
+        "Klickrate",
+        "Konversion"
+      ],
+      "tables": [
+        {
+          "title": "Käufertrichter",
+          "rowCount": 22,
+          "headers": [
+            "col_1",
+            "Verkäufer in diesem Bereich: 13,094",
+            "col_3",
+            "col_4",
+            "col_5",
+            "vgl. mit Zeitraum - 31 Tage",
+            "col_7",
+            "Optimierungsempfehlungen",
+            "col_9",
+            "col_10",
+            "Warum wir das empfehlen?",
+            "col_12",
+            "col_13",
+            "col_14",
+            "col_15",
+            "col_16",
+            "col_17",
+            "col_18",
+            "col_19",
+            "col_20",
+            "col_21",
+            "col_22",
+            "col_23",
+            "col_24",
+            "col_25",
+            "col_26",
+            "col_27",
+            "col_28",
+            "col_29",
+            "col_30",
+            "col_31",
+            "col_32",
+            "col_33",
+            "col_34",
+            "col_35",
+            "col_36",
+            "col_37",
+            "col_38",
+            "col_39",
+            "col_40",
+            "col_41",
+            "col_42",
+            "col_43",
+            "col_44",
+            "col_45"
+          ],
+          "topCategoricals": {
+            "Verkäufer in diesem Bereich: 13,094": [
+              [
+                "trendocean",
+                3
+              ],
+              [
+                "Mehr Benchmarks",
+                1
+              ],
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Top 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ],
+              [
+                "Untere 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ]
+            ],
+            "col_4": [
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Durchschnittlich pro Tag",
+                1
+              ],
+              [
+                "581",
+                1
+              ],
+              [
+                "Klickrate",
+                1
+              ],
+              [
+                "Rate",
+                1
+              ]
+            ],
+            "vgl. mit Zeitraum - 31 Tage": [
+              [
+                "Rang im Vergleich zu anderen Verkäufern",
+                3
+              ],
+              [
+                "146",
+                1
+              ],
+              [
+                "3488",
+                1
+              ],
+              [
+                "620",
+                1
+              ],
+              [
+                "Tägliche Impressions pro Angebot",
+                1
+              ]
+            ],
+            "col_7": [
+              [
+                "1",
+                7
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "Marke",
+                1
+              ]
+            ],
+            "Optimierungsempfehlungen": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Ihre Angebotsqualität entspricht dem höchsten Benchmark-Wert",
+                2
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "● Geben Sie mindestens 6 empfohlene Artikelmerkmale an",
+                1
+              ],
+              [
+                "Herstellernummer",
+                1
+              ]
+            ],
+            "col_9": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "EAN",
+                1
+              ],
+              [
+                "0.075980395",
+                1
+              ],
+              [
+                "0.07510204",
+                1
+              ]
+            ],
+            "col_10": [
+              [
+                "0",
+                3
+              ],
+              [
+                "14 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.068627454",
+                1
+              ],
+              [
+                "0.050612245",
+                1
+              ],
+              [
+                "0.05331992",
+                1
+              ]
+            ],
+            "Warum wir das empfehlen?": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Ihre Angebote",
+                1
+              ],
+              [
+                "2.3333333",
+                1
+              ],
+              [
+                "30 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.11846405",
+                1
+              ]
+            ],
+            "col_12": [
+              [
+                "0",
+                4
+              ],
+              [
+                "Top 10% der angezeigten Angebote in der eBay-Suche",
+                1
+              ],
+              [
+                "6",
+                1
+              ],
+              [
+                "60 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.006535948",
+                1
+              ]
+            ]
+          }
+        },
+        {
+          "title": "* Angezeigt werden nur aktive Angebote, sortiert nach Angebotsalter in Tagen, letzte Bearbeitung: DE - 29.01.2026 03-32 MEZ",
+          "rowCount": 7,
+          "headers": [
+            "col_1",
+            "Angebotstitel",
+            "col_3",
+            "col_4",
+            "Aktion",
+            "Tägliche Impressions pro Angebot",
+            "Klickrate",
+            "Konversionsrate",
+            "Empfohlene Artikelmerkmale angegeben",
+            "Empfohlene Artikelmerkmale hinzufügen",
+            "Marke",
+            "Herstellernummer",
+            "EAN",
+            "14 Tage Rücknahme",
+            "30 Tage Rücknahme",
+            "60 Tage Rücknahme",
+            "Anzahl der Fotos",
+            "Anzahl der Suchbegriffe im Titel",
+            "Voraussichtliche Bearbeitungszeit",
+            "Rücknahme akzeptiert",
+            "Verkäufer zahlt Rücknahme",
+            "Kostenloser Versand",
+            "Anzeigen",
+            "Tarif für Anzeigen",
+            "Mengenrabatt",
+            "Multi-Rabatt",
+            "Sonderaktion + Preissenkung",
+            "Preisvorschlag",
+            "ISBN",
+            "Artikelnummer",
+            "Preis",
+            "Artikel weicht erheblich von der Beschreibung ab (90 Tage)",
+            "Artikel nicht erhalten (90 Tage)",
+            "Negative Bewertungen (90 Tage)",
+            "Verfügbare Stückzahl",
+            "Versandkosten",
+            "Angebotsalter in Tagen",
+            "Anzahl der Verkäufe in den letzten 31 Tagen",
+            "Bestandseinheit",
+            "Anzahl der Beobachter",
+            "Google Shopping: Abgelehnte Produkte",
+            "Tatsächliche Bearbeitungszeit",
+            "Tatsächliche Versandzeit",
+            "Artikelzustand",
+            "Preistendenz bei eBay"
+          ],
+          "topCategoricals": {
+            "Angebotstitel": [
+              [
+                "Skechers Street UNO – Stand on Air Herren Sneaker, weiß, Air-Cooled Memory Foam",
+                1
+              ],
+              [
+                "Tommy Hilfiger Essential Runner Metallics Sneaker Ancient White Größe 40 Neu mit",
+                1
+              ],
+              [
+                "ASICS EX89 Herren Sneaker White/White aus Wildleder mit Gum-Sohle Größe 41.5",
+                1
+              ],
+              [
+                "Mountain Guide Cuando Herren Outdoor-Sportschuh navy/khaki – wasserdicht & rutsc",
+                1
+              ],
+              [
+                "Altra Escalante 4 Herren Laufschuhe Black/White – Größe EU 48 (UK 12, US 13)",
+                1
+              ]
+            ],
+            "Aktion": [
+              [
+                "Bearbeiten",
+                7
+              ]
+            ],
+            "Tägliche Impressions pro Angebot": [
+              [
+                "1436",
+                1
+              ],
+              [
+                "704",
+                1
+              ],
+              [
+                "805",
+                1
+              ],
+              [
+                "22",
+                1
+              ],
+              [
+                "200",
+                1
+              ]
+            ],
+            "Klickrate": [
+              [
+                "0.001728822",
+                1
+              ],
+              [
+                "0.0019676933",
+                1
+              ],
+              [
+                "0.0018422106",
+                1
+              ],
+              [
+                "Keine Klicks",
+                1
+              ],
+              [
+                "0.0017736214",
+                1
+              ]
+            ],
+            "Konversionsrate": [
+              [
+                "Keine Verkäufe",
+                7
+              ]
+            ],
+            "Empfohlene Artikelmerkmale angegeben": [
+              [
+                "2",
+                4
+              ],
+              [
+                "1",
+                2
+              ],
+              [
+                "5",
+                1
+              ]
+            ],
+            "Marke": [
+              [
+                "SKECHERS",
+                1
+              ],
+              [
+                "Tommy Hilfiger",
+                1
+              ],
+              [
+                "ASICS",
+                1
+              ],
+              [
+                "Mountain Guide",
+                1
+              ],
+              [
+                "Altra",
+                1
+              ]
+            ],
+            "Herstellernummer": [
+              [
+                "Keine Angabe",
+                7
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bettlaken",
+      "rowCount": 40,
+      "firstLines": [
+        "< Zurück zur Übersicht",
+        "Käufertrichter",
+        "Klickrate"
+      ],
+      "tables": [
+        {
+          "title": "Käufertrichter",
+          "rowCount": 3,
+          "headers": [
+            "col_1",
+            "Verkäufer in diesem Bereich: 1,637",
+            "col_3",
+            "col_4",
+            "col_5",
+            "vgl. mit Zeitraum - 31 Tage",
+            "col_7",
+            "Optimierungsempfehlungen",
+            "col_9",
+            "col_10",
+            "Warum wir das empfehlen?",
+            "col_12",
+            "col_13",
+            "col_14",
+            "col_15",
+            "col_16",
+            "col_17",
+            "col_18",
+            "col_19",
+            "col_20",
+            "col_21",
+            "col_22",
+            "col_23",
+            "col_24",
+            "col_25",
+            "col_26",
+            "col_27",
+            "col_28",
+            "col_29",
+            "col_30",
+            "col_31",
+            "col_32",
+            "col_33",
+            "col_34",
+            "col_35",
+            "col_36",
+            "col_37",
+            "col_38",
+            "col_39",
+            "col_40",
+            "col_41",
+            "col_42",
+            "col_43",
+            "col_44",
+            "col_45"
+          ],
+          "topCategoricals": {}
+        },
+        {
+          "title": null,
+          "rowCount": 15,
+          "headers": [
+            "col_1",
+            "col_2",
+            "col_3",
+            "Konversion",
+            "col_5",
+            "col_6",
+            "col_7",
+            "col_8",
+            "col_9",
+            "col_10",
+            "Ihre Angebote",
+            "Top 10% der verkauften Angebote",
+            "Untere 10% der verkauften Angebote",
+            "col_14",
+            "col_15",
+            "col_16",
+            "col_17",
+            "col_18",
+            "col_19",
+            "col_20",
+            "col_21",
+            "col_22",
+            "col_23",
+            "col_24",
+            "col_25",
+            "col_26",
+            "col_27",
+            "col_28",
+            "col_29",
+            "col_30",
+            "col_31",
+            "col_32",
+            "col_33",
+            "col_34",
+            "col_35",
+            "col_36",
+            "col_37",
+            "col_38",
+            "col_39",
+            "col_40",
+            "col_41",
+            "col_42",
+            "col_43",
+            "col_44",
+            "col_45"
+          ],
+          "topCategoricals": {
+            "col_2": [
+              [
+                "trendocean",
+                3
+              ],
+              [
+                "Mehr Benchmarks",
+                1
+              ],
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Top 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ],
+              [
+                "Untere 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ]
+            ],
+            "col_6": [
+              [
+                "Rang im Vergleich zu anderen Verkäufern",
+                1
+              ],
+              [
+                "247",
+                1
+              ],
+              [
+                "Tägliche Impressions pro Angebot",
+                1
+              ],
+              [
+                "8",
+                1
+              ],
+              [
+                "1210",
+                1
+              ]
+            ],
+            "col_7": [
+              [
+                "3",
+                3
+              ],
+              [
+                "5",
+                3
+              ],
+              [
+                "4",
+                3
+              ],
+              [
+                "Empfohlene Artikelmerkmale angegeben",
+                1
+              ]
+            ],
+            "col_8": [
+              [
+                "0.2857143",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "● Vergewissern Sie sich, dass Ihre Angebote 8 Fotos enthalten",
+                1
+              ],
+              [
+                "Herstellernummer",
+                1
+              ],
+              [
+                "0.43312103",
+                1
+              ]
+            ],
+            "col_9": [
+              [
+                "0.14285715",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "EAN",
+                1
+              ],
+              [
+                "0.40764332",
+                1
+              ],
+              [
+                "0.29113925",
+                1
+              ]
+            ],
+            "col_10": [
+              [
+                "0",
+                3
+              ],
+              [
+                "14 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.15286624",
+                1
+              ],
+              [
+                "0.101265825",
+                1
+              ],
+              [
+                "0.22222222",
+                1
+              ]
+            ],
+            "Ihre Angebote": [
+              [
+                "1",
+                3
+              ],
+              [
+                "4.285714",
+                1
+              ],
+              [
+                "30 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.7133758",
+                1
+              ],
+              [
+                "0.43037975",
+                1
+              ]
+            ],
+            "Top 10% der verkauften Angebote": [
+              [
+                "0",
+                4
+              ],
+              [
+                "8",
+                1
+              ],
+              [
+                "60 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.01910828",
+                1
+              ],
+              [
+                "0.012658228",
+                1
+              ]
+            ]
+          }
+        },
+        {
+          "title": "* Angezeigt werden nur aktive Angebote, sortiert nach Angebotsalter in Tagen, letzte Bearbeitung: DE - 29.01.2026 03-32 MEZ",
+          "rowCount": 7,
+          "headers": [
+            "col_1",
+            "Angebotstitel",
+            "col_3",
+            "col_4",
+            "Aktion",
+            "Tägliche Impressions pro Angebot",
+            "Klickrate",
+            "Konversionsrate",
+            "Marke",
+            "Voraussichtliche Bearbeitungszeit",
+            "Anzahl der Fotos",
+            "Empfohlene Artikelmerkmale angegeben",
+            "Empfohlene Artikelmerkmale hinzufügen",
+            "Herstellernummer",
+            "EAN",
+            "14 Tage Rücknahme",
+            "30 Tage Rücknahme",
+            "60 Tage Rücknahme",
+            "Anzahl der Suchbegriffe im Titel",
+            "Rücknahme akzeptiert",
+            "Verkäufer zahlt Rücknahme",
+            "Kostenloser Versand",
+            "Anzeigen",
+            "Tarif für Anzeigen",
+            "Mengenrabatt",
+            "Multi-Rabatt",
+            "Sonderaktion + Preissenkung",
+            "Preisvorschlag",
+            "ISBN",
+            "Artikelnummer",
+            "Preis",
+            "Artikel weicht erheblich von der Beschreibung ab (90 Tage)",
+            "Artikel nicht erhalten (90 Tage)",
+            "Negative Bewertungen (90 Tage)",
+            "Verfügbare Stückzahl",
+            "Versandkosten",
+            "Angebotsalter in Tagen",
+            "Anzahl der Verkäufe in den letzten 31 Tagen",
+            "Bestandseinheit",
+            "Anzahl der Beobachter",
+            "Google Shopping: Abgelehnte Produkte",
+            "Tatsächliche Bearbeitungszeit",
+            "Tatsächliche Versandzeit",
+            "Artikelzustand",
+            "Preistendenz bei eBay"
+          ],
+          "topCategoricals": {
+            "Angebotstitel": [
+              [
+                "Villa Grinario Spannbettlaken weich atmungsaktiv 100x200 grau",
+                1
+              ],
+              [
+                "Villa Grinario Jersey-Spannbettuch 100/200 Blau",
+                1
+              ],
+              [
+                "Villa Grinario Spannbettlaken – Fester Sitz & weiche Baumwolle",
+                1
+              ],
+              [
+                "Villa Grinario Spannbettlaken Jersey atmungsaktiv 100x200 cm",
+                1
+              ],
+              [
+                "Villa Grinario Jersey-Spannbettuch 100/200 Rot",
+                1
+              ]
+            ],
+            "Aktion": [
+              [
+                "Bearbeiten",
+                7
+              ]
+            ],
+            "Tägliche Impressions pro Angebot": [
+              [
+                "3",
+                2
+              ],
+              [
+                "4",
+                1
+              ],
+              [
+                "13",
+                1
+              ],
+              [
+                "5",
+                1
+              ],
+              [
+                "18",
+                1
+              ]
+            ],
+            "Klickrate": [
+              [
+                "Keine Klicks",
+                5
+              ],
+              [
+                "0.0023364486000000003",
+                1
+              ],
+              [
+                "0.008802817",
+                1
+              ]
+            ],
+            "Konversionsrate": [
+              [
+                "Keine Verkäufe",
+                7
+              ]
+            ],
+            "Marke": [
+              [
+                "Villa Grinario",
+                5
+              ],
+              [
+                "Beautex",
+                1
+              ],
+              [
+                "Keine Angabe",
+                1
+              ]
+            ],
+            "Voraussichtliche Bearbeitungszeit": [
+              [
+                "2",
+                7
+              ]
+            ],
+            "Anzahl der Fotos": [
+              [
+                "4",
+                3
+              ],
+              [
+                "5",
+                3
+              ],
+              [
+                "3",
+                1
+              ]
+            ],
+            "Empfohlene Artikelmerkmale angegeben": [
+              [
+                "3",
+                3
+              ],
+              [
+                "4",
+                2
+              ],
+              [
+                "5",
+                1
+              ],
+              [
+                "2",
+                1
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Damenschuhe>Sneaker",
+      "rowCount": 40,
+      "firstLines": [
+        "< Zurück zur Übersicht",
+        "Käufertrichter",
+        "Klickrate",
+        "Konversion"
+      ],
+      "tables": [
+        {
+          "title": "Käufertrichter",
+          "rowCount": 22,
+          "headers": [
+            "col_1",
+            "Verkäufer in diesem Bereich: 6,864",
+            "col_3",
+            "col_4",
+            "col_5",
+            "vgl. mit Zeitraum - 31 Tage",
+            "col_7",
+            "Optimierungsempfehlungen",
+            "col_9",
+            "col_10",
+            "Warum wir das empfehlen?",
+            "col_12",
+            "col_13",
+            "col_14",
+            "col_15",
+            "col_16",
+            "col_17",
+            "col_18",
+            "col_19",
+            "col_20",
+            "col_21",
+            "col_22",
+            "col_23",
+            "col_24",
+            "col_25",
+            "col_26",
+            "col_27",
+            "col_28",
+            "col_29",
+            "col_30",
+            "col_31",
+            "col_32",
+            "col_33",
+            "col_34",
+            "col_35",
+            "col_36",
+            "col_37",
+            "col_38",
+            "col_39",
+            "col_40",
+            "col_41",
+            "col_42",
+            "col_43",
+            "col_44",
+            "col_45"
+          ],
+          "topCategoricals": {
+            "Verkäufer in diesem Bereich: 6,864": [
+              [
+                "trendocean",
+                3
+              ],
+              [
+                "Mehr Benchmarks",
+                1
+              ],
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Top 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ],
+              [
+                "Untere 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ]
+            ],
+            "col_4": [
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Durchschnittlich pro Tag",
+                1
+              ],
+              [
+                "557",
+                1
+              ],
+              [
+                "Klickrate",
+                1
+              ],
+              [
+                "Rate",
+                1
+              ]
+            ],
+            "vgl. mit Zeitraum - 31 Tage": [
+              [
+                "Rang im Vergleich zu anderen Verkäufern",
+                3
+              ],
+              [
+                "65",
+                1
+              ],
+              [
+                "2479",
+                1
+              ],
+              [
+                "287",
+                1
+              ],
+              [
+                "Tägliche Impressions pro Angebot",
+                1
+              ]
+            ],
+            "col_7": [
+              [
+                "1",
+                7
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "Marke",
+                1
+              ]
+            ],
+            "Optimierungsempfehlungen": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Ihre Angebotsqualität entspricht dem höchsten Benchmark-Wert",
+                2
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "● Geben Sie mindestens 6 empfohlene Artikelmerkmale an",
+                1
+              ],
+              [
+                "Herstellernummer",
+                1
+              ]
+            ],
+            "col_9": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "EAN",
+                1
+              ],
+              [
+                "0.054298643",
+                1
+              ],
+              [
+                "0.057228915",
+                1
+              ]
+            ],
+            "col_10": [
+              [
+                "0",
+                3
+              ],
+              [
+                "14 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.09049774",
+                1
+              ],
+              [
+                "0.034638554",
+                1
+              ],
+              [
+                "0.068041235",
+                1
+              ]
+            ],
+            "Warum wir das empfehlen?": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Ihre Angebote",
+                1
+              ],
+              [
+                "4.6666665",
+                1
+              ],
+              [
+                "30 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.078431375",
+                1
+              ]
+            ],
+            "col_12": [
+              [
+                "0",
+                4
+              ],
+              [
+                "Top 10% der angezeigten Angebote in der eBay-Suche",
+                1
+              ],
+              [
+                "6",
+                1
+              ],
+              [
+                "60 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.0030165913",
+                1
+              ]
+            ]
+          }
+        },
+        {
+          "title": "* Angezeigt werden nur aktive Angebote, sortiert nach Angebotsalter in Tagen, letzte Bearbeitung: DE - 29.01.2026 03-32 MEZ",
+          "rowCount": 7,
+          "headers": [
+            "col_1",
+            "Angebotstitel",
+            "col_3",
+            "col_4",
+            "Aktion",
+            "Tägliche Impressions pro Angebot",
+            "Klickrate",
+            "Konversionsrate",
+            "Empfohlene Artikelmerkmale angegeben",
+            "Empfohlene Artikelmerkmale hinzufügen",
+            "Marke",
+            "Herstellernummer",
+            "EAN",
+            "14 Tage Rücknahme",
+            "30 Tage Rücknahme",
+            "60 Tage Rücknahme",
+            "Anzahl der Fotos",
+            "Anzahl der Suchbegriffe im Titel",
+            "Voraussichtliche Bearbeitungszeit",
+            "Rücknahme akzeptiert",
+            "Verkäufer zahlt Rücknahme",
+            "Kostenloser Versand",
+            "Anzeigen",
+            "Tarif für Anzeigen",
+            "Mengenrabatt",
+            "Multi-Rabatt",
+            "Sonderaktion + Preissenkung",
+            "Preisvorschlag",
+            "ISBN",
+            "Artikelnummer",
+            "Preis",
+            "Artikel weicht erheblich von der Beschreibung ab (90 Tage)",
+            "Artikel nicht erhalten (90 Tage)",
+            "Negative Bewertungen (90 Tage)",
+            "Verfügbare Stückzahl",
+            "Versandkosten",
+            "Angebotsalter in Tagen",
+            "Anzahl der Verkäufe in den letzten 31 Tagen",
+            "Bestandseinheit",
+            "Anzahl der Beobachter",
+            "Google Shopping: Abgelehnte Produkte",
+            "Tatsächliche Bearbeitungszeit",
+            "Tatsächliche Versandzeit",
+            "Artikelzustand",
+            "Preistendenz bei eBay"
+          ],
+          "topCategoricals": {
+            "Angebotstitel": [
+              [
+                "adidas Samba LT W Damen Sneaker Schwarz Weiß Leder Retro NEU OVP Gr. 44",
+                1
+              ],
+              [
+                "adidas Samba OG J Kinder Sneaker weiß/grün mit Gum-Sohle Größe 38 2/3",
+                1
+              ],
+              [
+                "adidas SL 72 OG W Damen Sneaker Semi Pink / Red Glow Pink NEU OVP Gr. 38",
+                1
+              ],
+              [
+                "adidas Handball Spezial W Damen Sneaker Hellgrau / Hellblau Retro NEU OVP Gr. 38",
+                1
+              ],
+              [
+                "Pepe Jeans London W Albal Damen Sneaker Elegant Gold / Beige NEU OVP Gr. 40",
+                1
+              ]
+            ],
+            "Aktion": [
+              [
+                "Bearbeiten",
+                7
+              ]
+            ],
+            "Tägliche Impressions pro Angebot": [
+              [
+                "337",
+                1
+              ],
+              [
+                "686",
+                1
+              ],
+              [
+                "324",
+                1
+              ],
+              [
+                "780",
+                1
+              ],
+              [
+                "118",
+                1
+              ]
+            ],
+            "Klickrate": [
+              [
+                "0.00019144252",
+                1
+              ],
+              [
+                "0.0011282437",
+                1
+              ],
+              [
+                "0.00049682036",
+                1
+              ],
+              [
+                "0.0005783929",
+                1
+              ],
+              [
+                "0.0005433306000000001",
+                1
+              ]
+            ],
+            "Konversionsrate": [
+              [
+                "Keine Verkäufe",
+                7
+              ]
+            ],
+            "Empfohlene Artikelmerkmale angegeben": [
+              [
+                "5",
+                3
+              ],
+              [
+                "7",
+                1
+              ],
+              [
+                "2",
+                1
+              ],
+              [
+                "6",
+                1
+              ],
+              [
+                "3",
+                1
+              ]
+            ],
+            "Marke": [
+              [
+                "adidas",
+                4
+              ],
+              [
+                "Pepe Jeans",
+                1
+              ],
+              [
+                "ARKK Copenhagen",
+                1
+              ],
+              [
+                "PUMA",
+                1
+              ]
+            ],
+            "Herstellernummer": [
+              [
+                "Keine Angabe",
+                7
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stiefel & Stiefeletten",
+      "rowCount": 40,
+      "firstLines": [
+        "< Zurück zur Übersicht",
+        "Käufertrichter",
+        "Klickrate",
+        "Konversion"
+      ],
+      "tables": [
+        {
+          "title": "Käufertrichter",
+          "rowCount": 22,
+          "headers": [
+            "col_1",
+            "Verkäufer in diesem Bereich: 30,071",
+            "col_3",
+            "col_4",
+            "col_5",
+            "vgl. mit Zeitraum - 31 Tage",
+            "col_7",
+            "Optimierungsempfehlungen",
+            "col_9",
+            "col_10",
+            "Warum wir das empfehlen?",
+            "col_12",
+            "col_13",
+            "col_14",
+            "col_15",
+            "col_16",
+            "col_17",
+            "col_18",
+            "col_19",
+            "col_20",
+            "col_21",
+            "col_22",
+            "col_23",
+            "col_24",
+            "col_25",
+            "col_26",
+            "col_27",
+            "col_28",
+            "col_29",
+            "col_30",
+            "col_31",
+            "col_32",
+            "col_33",
+            "col_34",
+            "col_35",
+            "col_36",
+            "col_37",
+            "col_38",
+            "col_39",
+            "col_40",
+            "col_41",
+            "col_42",
+            "col_43",
+            "col_44",
+            "col_45"
+          ],
+          "topCategoricals": {
+            "Verkäufer in diesem Bereich: 30,071": [
+              [
+                "trendocean",
+                3
+              ],
+              [
+                "Mehr Benchmarks",
+                1
+              ],
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Top 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ],
+              [
+                "Untere 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ]
+            ],
+            "col_4": [
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Durchschnittlich pro Tag",
+                1
+              ],
+              [
+                "287",
+                1
+              ],
+              [
+                "Klickrate",
+                1
+              ],
+              [
+                "Rate",
+                1
+              ]
+            ],
+            "vgl. mit Zeitraum - 31 Tage": [
+              [
+                "Rang im Vergleich zu anderen Verkäufern",
+                3
+              ],
+              [
+                "1095",
+                1
+              ],
+              [
+                "11117",
+                1
+              ],
+              [
+                "588",
+                1
+              ],
+              [
+                "Tägliche Impressions pro Angebot",
+                1
+              ]
+            ],
+            "col_7": [
+              [
+                "7",
+                3
+              ],
+              [
+                "6",
+                2
+              ],
+              [
+                "5",
+                2
+              ],
+              [
+                "Empfohlene Artikelmerkmale angegeben",
+                1
+              ],
+              [
+                "3",
+                1
+              ]
+            ],
+            "Optimierungsempfehlungen": [
+              [
+                "1",
+                7
+              ],
+              [
+                "Ihre Angebotsqualität entspricht dem höchsten Benchmark-Wert",
+                2
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "● Erwägen Sie eine Erhöhung des Anzeigentarifs auf 9%",
+                1
+              ],
+              [
+                "Marke",
+                1
+              ]
+            ],
+            "col_9": [
+              [
+                "0.14285715",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "Herstellernummer",
+                1
+              ],
+              [
+                "0.039099157",
+                1
+              ],
+              [
+                "0.04323308",
+                1
+              ]
+            ],
+            "col_10": [
+              [
+                "0.71428573",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "EAN",
+                1
+              ],
+              [
+                "0.024710666",
+                1
+              ],
+              [
+                "0.03634085",
+                1
+              ]
+            ],
+            "Warum wir das empfehlen?": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Ihre Angebote",
+                1
+              ],
+              [
+                "0.06757143",
+                1
+              ],
+              [
+                "14 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.04222709",
+                1
+              ]
+            ],
+            "col_12": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Top 10% der angezeigten Angebote in der eBay-Suche",
+                1
+              ],
+              [
+                "0.09",
+                1
+              ],
+              [
+                "30 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.057241164",
+                1
+              ]
+            ]
+          }
+        },
+        {
+          "title": "* Angezeigt werden nur aktive Angebote, sortiert nach Angebotsalter in Tagen, letzte Bearbeitung: DE - 29.01.2026 03-32 MEZ",
+          "rowCount": 7,
+          "headers": [
+            "col_1",
+            "Angebotstitel",
+            "col_3",
+            "col_4",
+            "Aktion",
+            "Tägliche Impressions pro Angebot",
+            "Klickrate",
+            "Konversionsrate",
+            "Tarif für Anzeigen",
+            "Empfohlene Artikelmerkmale angegeben",
+            "Empfohlene Artikelmerkmale hinzufügen",
+            "Marke",
+            "Herstellernummer",
+            "EAN",
+            "14 Tage Rücknahme",
+            "30 Tage Rücknahme",
+            "60 Tage Rücknahme",
+            "Anzahl der Fotos",
+            "Anzahl der Suchbegriffe im Titel",
+            "Voraussichtliche Bearbeitungszeit",
+            "Rücknahme akzeptiert",
+            "Verkäufer zahlt Rücknahme",
+            "Kostenloser Versand",
+            "Anzeigen",
+            "Mengenrabatt",
+            "Multi-Rabatt",
+            "Sonderaktion + Preissenkung",
+            "Preisvorschlag",
+            "ISBN",
+            "Artikelnummer",
+            "Preis",
+            "Artikel weicht erheblich von der Beschreibung ab (90 Tage)",
+            "Artikel nicht erhalten (90 Tage)",
+            "Negative Bewertungen (90 Tage)",
+            "Verfügbare Stückzahl",
+            "Versandkosten",
+            "Angebotsalter in Tagen",
+            "Anzahl der Verkäufe in den letzten 31 Tagen",
+            "Bestandseinheit",
+            "Anzahl der Beobachter",
+            "Google Shopping: Abgelehnte Produkte",
+            "Tatsächliche Bearbeitungszeit",
+            "Tatsächliche Versandzeit",
+            "Artikelzustand",
+            "Preistendenz bei eBay"
+          ],
+          "topCategoricals": {
+            "Angebotstitel": [
+              [
+                "MJCM Sana Tango Chacita, schwarz, offener Zehenbereich, niedriger Absatz, Größe",
+                1
+              ],
+              [
+                "Paul Green Damen Schnürschuhe 2688-00x Softlack Schwarz, Größe 38,5 (US 7,5)",
+                1
+              ],
+              [
+                "TT. BAGATT Leder Stiefeletten Damen EU 38 Echtleder NEU",
+                1
+              ],
+              [
+                "TT. BAGATT Leder Stiefeletten Damen EU 39 Echtleder NEU",
+                1
+              ],
+              [
+                "TT. BAGATT Leder Stiefeletten Damen EU 40 Echtleder NEU",
+                1
+              ]
+            ],
+            "Aktion": [
+              [
+                "Bearbeiten",
+                7
+              ]
+            ],
+            "Tägliche Impressions pro Angebot": [
+              [
+                "87",
+                2
+              ],
+              [
+                "4",
+                1
+              ],
+              [
+                "265",
+                1
+              ],
+              [
+                "110",
+                1
+              ],
+              [
+                "70",
+                1
+              ]
+            ],
+            "Klickrate": [
+              [
+                "Keine Klicks",
+                1
+              ],
+              [
+                "0.0018232648",
+                1
+              ],
+              [
+                "0.0015151516000000002",
+                1
+              ],
+              [
+                "0.0028735632",
+                1
+              ],
+              [
+                "0.0011848340999999999",
+                1
+              ]
+            ],
+            "Konversionsrate": [
+              [
+                "Keine Verkäufe",
+                7
+              ]
+            ],
+            "Tarif für Anzeigen": [
+              [
+                "0.047",
+                2
+              ],
+              [
+                "0.163",
+                2
+              ],
+              [
+                "0.11",
+                1
+              ],
+              [
+                "0.051",
+                1
+              ],
+              [
+                "0.040999999999999995",
+                1
+              ]
+            ],
+            "Empfohlene Artikelmerkmale angegeben": [
+              [
+                "Keine Angabe",
+                2
+              ],
+              [
+                "11",
+                1
+              ],
+              [
+                "9",
+                1
+              ],
+              [
+                "10",
+                1
+              ],
+              [
+                "12",
+                1
+              ]
+            ],
+            "Marke": [
+              [
+                "Bagatt",
+                5
+              ],
+              [
+                "MJCM SARL",
+                1
+              ],
+              [
+                "Paul Green",
+                1
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bremsscheiben",
+      "rowCount": 39,
+      "firstLines": [
+        "< Zurück zur Übersicht",
+        "Käufertrichter",
+        "Klickrate"
+      ],
+      "tables": [
+        {
+          "title": "Käufertrichter",
+          "rowCount": 22,
+          "headers": [
+            "col_1",
+            "Verkäufer in diesem Bereich: 3,460",
+            "col_3",
+            "col_4",
+            "col_5",
+            "vgl. mit Zeitraum - 31 Tage",
+            "col_7",
+            "Optimierungsempfehlungen",
+            "col_9",
+            "col_10",
+            "Warum wir das empfehlen?",
+            "col_12",
+            "col_13",
+            "col_14",
+            "col_15",
+            "col_16",
+            "col_17",
+            "col_18",
+            "col_19",
+            "col_20",
+            "col_21",
+            "col_22",
+            "col_23",
+            "col_24",
+            "col_25",
+            "col_26",
+            "col_27",
+            "col_28",
+            "col_29",
+            "col_30",
+            "col_31",
+            "col_32",
+            "col_33",
+            "col_34",
+            "col_35",
+            "col_36",
+            "col_37",
+            "col_38",
+            "col_39",
+            "col_40",
+            "col_41",
+            "col_42",
+            "col_43",
+            "col_44",
+            "col_45"
+          ],
+          "topCategoricals": {
+            "Verkäufer in diesem Bereich: 3,460": [
+              [
+                "trendocean",
+                3
+              ],
+              [
+                "Mehr Benchmarks",
+                1
+              ],
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Top 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ],
+              [
+                "Untere 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ]
+            ],
+            "col_4": [
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Durchschnittlich pro Tag",
+                1
+              ],
+              [
+                "41",
+                1
+              ],
+              [
+                "Klickrate",
+                1
+              ],
+              [
+                "Rate",
+                1
+              ]
+            ],
+            "vgl. mit Zeitraum - 31 Tage": [
+              [
+                "Rang im Vergleich zu anderen Verkäufern",
+                3
+              ],
+              [
+                "255",
+                1
+              ],
+              [
+                "887",
+                1
+              ],
+              [
+                "215",
+                1
+              ],
+              [
+                "Tägliche Impressions pro Angebot",
+                1
+              ]
+            ],
+            "col_7": [
+              [
+                "4",
+                6
+              ],
+              [
+                "3",
+                2
+              ],
+              [
+                "Empfohlene Artikelmerkmale angegeben",
+                1
+              ],
+              [
+                "2",
+                1
+              ]
+            ],
+            "Optimierungsempfehlungen": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "● Optimieren Sie Ihre voraussichtliche Bearbeitungszeit",
+                1
+              ],
+              [
+                "Ihre Angebotsqualität entspricht dem höchsten Benchmark-Wert",
+                1
+              ],
+              [
+                "● Vergewissern Sie sich, dass Ihre Angebote 6 Fotos enthalten",
+                1
+              ]
+            ],
+            "col_9": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "Herstellernummer",
+                1
+              ],
+              [
+                "0.43916914",
+                1
+              ],
+              [
+                "0.43491125",
+                1
+              ]
+            ],
+            "col_10": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "EAN",
+                1
+              ],
+              [
+                "0.28486648",
+                1
+              ],
+              [
+                "0.19822486",
+                1
+              ]
+            ],
+            "Warum wir das empfehlen?": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Ihre Angebote",
+                2
+              ],
+              [
+                "2",
+                1
+              ],
+              [
+                "6",
+                1
+              ],
+              [
+                "14 Tage Rücknahme",
+                1
+              ]
+            ],
+            "col_12": [
+              [
+                "1",
+                4
+              ],
+              [
+                "Top 10% der angezeigten Angebote in der eBay-Suche",
+                1
+              ],
+              [
+                "Top 10% der verkauften Angebote",
+                1
+              ],
+              [
+                "6",
+                1
+              ],
+              [
+                "30 Tage Rücknahme",
+                1
+              ]
+            ]
+          }
+        },
+        {
+          "title": "* Angezeigt werden nur aktive Angebote, sortiert nach Angebotsalter in Tagen, letzte Bearbeitung: DE - 29.01.2026 03-32 MEZ",
+          "rowCount": 6,
+          "headers": [
+            "col_1",
+            "Angebotstitel",
+            "col_3",
+            "col_4",
+            "Aktion",
+            "Tägliche Impressions pro Angebot",
+            "Klickrate",
+            "Konversionsrate",
+            "Voraussichtliche Bearbeitungszeit",
+            "Anzahl der Fotos",
+            "Empfohlene Artikelmerkmale angegeben",
+            "Empfohlene Artikelmerkmale hinzufügen",
+            "Marke",
+            "Herstellernummer",
+            "EAN",
+            "14 Tage Rücknahme",
+            "30 Tage Rücknahme",
+            "60 Tage Rücknahme",
+            "Anzahl der Suchbegriffe im Titel",
+            "Rücknahme akzeptiert",
+            "Verkäufer zahlt Rücknahme",
+            "Kostenloser Versand",
+            "Anzeigen",
+            "Tarif für Anzeigen",
+            "Mengenrabatt",
+            "Multi-Rabatt",
+            "Sonderaktion + Preissenkung",
+            "Preisvorschlag",
+            "ISBN",
+            "Artikelnummer",
+            "Preis",
+            "Artikel weicht erheblich von der Beschreibung ab (90 Tage)",
+            "Artikel nicht erhalten (90 Tage)",
+            "Negative Bewertungen (90 Tage)",
+            "Verfügbare Stückzahl",
+            "Versandkosten",
+            "Angebotsalter in Tagen",
+            "Anzahl der Verkäufe in den letzten 31 Tagen",
+            "Bestandseinheit",
+            "Anzahl der Beobachter",
+            "Google Shopping: Abgelehnte Produkte",
+            "Tatsächliche Bearbeitungszeit",
+            "Tatsächliche Versandzeit",
+            "Artikelzustand",
+            "Preistendenz bei eBay"
+          ],
+          "topCategoricals": {
+            "Angebotstitel": [
+              [
+                "TRW Bremsscheibe Hinterachse 9mm für Honda Accord DF4982",
+                1
+              ],
+              [
+                "VAICO Bremsscheibe Hinterachse für Ford Kuga Galaxy Focus Mondeo V25-40006",
+                1
+              ],
+              [
+                "ATE Bremsscheibe Hinten 12mm für Audi A4/A5/A6/A7/Q5 OE: 412178",
+                1
+              ],
+              [
+                "ATE Bremsscheibe 321mm für Hyundai Kia Vorderachse OE 24.0128-0248.1",
+                1
+              ],
+              [
+                "TRW Bremsscheibe Vorderachse für Audi A4 A5 A6 DF4866S",
+                1
+              ]
+            ],
+            "Aktion": [
+              [
+                "Bearbeiten",
+                6
+              ]
+            ],
+            "Tägliche Impressions pro Angebot": [
+              [
+                "64",
+                1
+              ],
+              [
+                "5",
+                1
+              ],
+              [
+                "16",
+                1
+              ],
+              [
+                "38",
+                1
+              ],
+              [
+                "45",
+                1
+              ]
+            ],
+            "Klickrate": [
+              [
+                "Keine Klicks",
+                2
+              ],
+              [
+                "0.0015",
+                1
+              ],
+              [
+                "0.0019646366000000003",
+                1
+              ],
+              [
+                "0.0016835017999999998",
+                1
+              ],
+              [
+                "0.0032626426",
+                1
+              ]
+            ],
+            "Konversionsrate": [
+              [
+                "Keine Verkäufe",
+                6
+              ]
+            ],
+            "Voraussichtliche Bearbeitungszeit": [
+              [
+                "2",
+                6
+              ]
+            ],
+            "Anzahl der Fotos": [
+              [
+                "5",
+                2
+              ],
+              [
+                "7",
+                2
+              ],
+              [
+                "3",
+                1
+              ],
+              [
+                "9",
+                1
+              ]
+            ],
+            "Empfohlene Artikelmerkmale angegeben": [
+              [
+                "4",
+                2
+              ],
+              [
+                "5",
+                2
+              ],
+              [
+                "3",
+                1
+              ],
+              [
+                "2",
+                1
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tonerkassetten",
+      "rowCount": 38,
+      "firstLines": [
+        "< Zurück zur Übersicht",
+        "Käufertrichter",
+        "Klickrate",
+        "Konversion"
+      ],
+      "tables": [
+        {
+          "title": "Käufertrichter",
+          "rowCount": 22,
+          "headers": [
+            "col_1",
+            "Verkäufer in diesem Bereich: 11,927",
+            "col_3",
+            "col_4",
+            "col_5",
+            "vgl. mit Zeitraum - 31 Tage",
+            "col_7",
+            "Optimierungsempfehlungen",
+            "col_9",
+            "col_10",
+            "Warum wir das empfehlen?",
+            "col_12",
+            "col_13",
+            "col_14",
+            "col_15",
+            "col_16",
+            "col_17",
+            "col_18",
+            "col_19",
+            "col_20",
+            "col_21",
+            "col_22",
+            "col_23",
+            "col_24",
+            "col_25",
+            "col_26",
+            "col_27",
+            "col_28",
+            "col_29",
+            "col_30",
+            "col_31",
+            "col_32",
+            "col_33",
+            "col_34",
+            "col_35",
+            "col_36",
+            "col_37",
+            "col_38",
+            "col_39",
+            "col_40",
+            "col_41",
+            "col_42",
+            "col_43",
+            "col_44",
+            "col_45"
+          ],
+          "topCategoricals": {
+            "Verkäufer in diesem Bereich: 11,927": [
+              [
+                "trendocean",
+                3
+              ],
+              [
+                "Mehr Benchmarks",
+                1
+              ],
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Top 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ],
+              [
+                "Untere 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ]
+            ],
+            "col_4": [
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Durchschnittlich pro Tag",
+                1
+              ],
+              [
+                "20",
+                1
+              ],
+              [
+                "Klickrate",
+                1
+              ],
+              [
+                "Rate",
+                1
+              ]
+            ],
+            "vgl. mit Zeitraum - 31 Tage": [
+              [
+                "Rang im Vergleich zu anderen Verkäufern",
+                3
+              ],
+              [
+                "686",
+                1
+              ],
+              [
+                "2068",
+                1
+              ],
+              [
+                "501",
+                1
+              ],
+              [
+                "Tägliche Impressions pro Angebot",
+                1
+              ]
+            ],
+            "col_7": [
+              [
+                "5",
+                3
+              ],
+              [
+                "4",
+                3
+              ],
+              [
+                "3",
+                2
+              ],
+              [
+                "Empfohlene Artikelmerkmale angegeben",
+                1
+              ],
+              [
+                "2",
+                1
+              ]
+            ],
+            "Optimierungsempfehlungen": [
+              [
+                "1",
+                5
+              ],
+              [
+                "Ihre Angebotsqualität entspricht dem höchsten Benchmark-Wert",
+                2
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "● Erwägen Sie eine Erhöhung des Anzeigentarifs auf 9%",
+                1
+              ],
+              [
+                "Marke",
+                1
+              ]
+            ],
+            "col_9": [
+              [
+                "0.8",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "Herstellernummer",
+                1
+              ],
+              [
+                "0.45941806",
+                1
+              ],
+              [
+                "0.271035",
+                1
+              ]
+            ],
+            "col_10": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "EAN",
+                1
+              ],
+              [
+                "0.29862174",
+                1
+              ],
+              [
+                "0.16455697",
+                1
+              ]
+            ],
+            "Warum wir das empfehlen?": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Ihre Angebote",
+                1
+              ],
+              [
+                "0.0898",
+                1
+              ],
+              [
+                "14 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.048238896",
+                1
+              ]
+            ],
+            "col_12": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Top 10% der angezeigten Angebote in der eBay-Suche",
+                1
+              ],
+              [
+                "0.09",
+                1
+              ],
+              [
+                "30 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.080398165",
+                1
+              ]
+            ]
+          }
+        },
+        {
+          "title": "* Angezeigt werden nur aktive Angebote, sortiert nach Angebotsalter in Tagen, letzte Bearbeitung: DE - 29.01.2026 03-32 MEZ",
+          "rowCount": 5,
+          "headers": [
+            "col_1",
+            "Angebotstitel",
+            "col_3",
+            "col_4",
+            "Aktion",
+            "Tägliche Impressions pro Angebot",
+            "Klickrate",
+            "Konversionsrate",
+            "Tarif für Anzeigen",
+            "Empfohlene Artikelmerkmale angegeben",
+            "Empfohlene Artikelmerkmale hinzufügen",
+            "Marke",
+            "Herstellernummer",
+            "EAN",
+            "14 Tage Rücknahme",
+            "30 Tage Rücknahme",
+            "60 Tage Rücknahme",
+            "Anzahl der Fotos",
+            "Anzahl der Suchbegriffe im Titel",
+            "Voraussichtliche Bearbeitungszeit",
+            "Rücknahme akzeptiert",
+            "Verkäufer zahlt Rücknahme",
+            "Kostenloser Versand",
+            "Anzeigen",
+            "Mengenrabatt",
+            "Multi-Rabatt",
+            "Sonderaktion + Preissenkung",
+            "Preisvorschlag",
+            "ISBN",
+            "Artikelnummer",
+            "Preis",
+            "Artikel weicht erheblich von der Beschreibung ab (90 Tage)",
+            "Artikel nicht erhalten (90 Tage)",
+            "Negative Bewertungen (90 Tage)",
+            "Verfügbare Stückzahl",
+            "Versandkosten",
+            "Angebotsalter in Tagen",
+            "Anzahl der Verkäufe in den letzten 31 Tagen",
+            "Bestandseinheit",
+            "Anzahl der Beobachter",
+            "Google Shopping: Abgelehnte Produkte",
+            "Tatsächliche Bearbeitungszeit",
+            "Tatsächliche Versandzeit",
+            "Artikelzustand",
+            "Preistendenz bei eBay"
+          ],
+          "topCategoricals": {
+            "Angebotstitel": [
+              [
+                "Canon Toner 718 Schwarz Original für gestochen scharfe Laserdrucke",
+                1
+              ],
+              [
+                "Lasertoner B423K Schwarz für Brother Drucker - Hohe Seitenleistung",
+                1
+              ],
+              [
+                "B423K Toner für Brother – Gestochen scharfe & kostengünstige Drucke",
+                1
+              ],
+              [
+                "Canon Tonerkartusche 716 Schwarz, MPN 1980B002, Laser-Drucktechnologie",
+                1
+              ],
+              [
+                "Kompatibel Brother Tonerpatrone B423M Schwarz",
+                1
+              ]
+            ],
+            "Aktion": [
+              [
+                "Bearbeiten",
+                5
+              ]
+            ],
+            "Tägliche Impressions pro Angebot": [
+              [
+                "5",
+                2
+              ],
+              [
+                "46",
+                1
+              ],
+              [
+                "16",
+                1
+              ],
+              [
+                "9",
+                1
+              ]
+            ],
+            "Klickrate": [
+              [
+                "0.005434782500000001",
+                2
+              ],
+              [
+                "0.001397624",
+                1
+              ],
+              [
+                "0.001980198",
+                1
+              ],
+              [
+                "0.0066225165",
+                1
+              ]
+            ],
+            "Konversionsrate": [
+              [
+                "Keine Verkäufe",
+                5
+              ]
+            ],
+            "Tarif für Anzeigen": [
+              [
+                "0.07",
+                2
+              ],
+              [
+                "0.11",
+                1
+              ],
+              [
+                "0.12",
+                1
+              ],
+              [
+                "0.155",
+                1
+              ]
+            ],
+            "Empfohlene Artikelmerkmale angegeben": [
+              [
+                "5",
+                2
+              ],
+              [
+                "4",
+                1
+              ],
+              [
+                "7",
+                1
+              ],
+              [
+                "6",
+                1
+              ]
+            ],
+            "Marke": [
+              [
+                "Canon",
+                2
+              ],
+              [
+                "SAD",
+                1
+              ],
+              [
+                "JOIDWAY",
+                1
+              ],
+              [
+                "Kompatibel",
+                1
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Möbelschutzhüllen",
+      "rowCount": 38,
+      "firstLines": [
+        "< Zurück zur Übersicht",
+        "Käufertrichter",
+        "Klickrate",
+        "Konversion"
+      ],
+      "tables": [
+        {
+          "title": "Käufertrichter",
+          "rowCount": 22,
+          "headers": [
+            "col_1",
+            "Verkäufer in diesem Bereich: 2,346",
+            "col_3",
+            "col_4",
+            "col_5",
+            "vgl. mit Zeitraum - 31 Tage",
+            "col_7",
+            "Optimierungsempfehlungen",
+            "col_9",
+            "col_10",
+            "Warum wir das empfehlen?",
+            "col_12",
+            "col_13",
+            "col_14",
+            "col_15",
+            "col_16",
+            "col_17",
+            "col_18",
+            "col_19",
+            "col_20",
+            "col_21",
+            "col_22",
+            "col_23",
+            "col_24",
+            "col_25",
+            "col_26",
+            "col_27",
+            "col_28",
+            "col_29",
+            "col_30",
+            "col_31",
+            "col_32",
+            "col_33",
+            "col_34",
+            "col_35",
+            "col_36",
+            "col_37",
+            "col_38",
+            "col_39",
+            "col_40",
+            "col_41",
+            "col_42",
+            "col_43",
+            "col_44",
+            "col_45"
+          ],
+          "topCategoricals": {
+            "Verkäufer in diesem Bereich: 2,346": [
+              [
+                "trendocean",
+                3
+              ],
+              [
+                "Mehr Benchmarks",
+                1
+              ],
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Top 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ],
+              [
+                "Untere 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ]
+            ],
+            "col_4": [
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Durchschnittlich pro Tag",
+                1
+              ],
+              [
+                "8",
+                1
+              ],
+              [
+                "Klickrate",
+                1
+              ],
+              [
+                "Rate",
+                1
+              ]
+            ],
+            "vgl. mit Zeitraum - 31 Tage": [
+              [
+                "Rang im Vergleich zu anderen Verkäufern",
+                3
+              ],
+              [
+                "526",
+                1
+              ],
+              [
+                "295",
+                1
+              ],
+              [
+                "259",
+                1
+              ],
+              [
+                "Tägliche Impressions pro Angebot",
+                1
+              ]
+            ],
+            "col_7": [
+              [
+                "3",
+                3
+              ],
+              [
+                "5",
+                3
+              ],
+              [
+                "4",
+                3
+              ],
+              [
+                "Empfohlene Artikelmerkmale angegeben",
+                1
+              ]
+            ],
+            "Optimierungsempfehlungen": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Ihre Angebotsqualität entspricht dem höchsten Benchmark-Wert",
+                2
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "● Optimieren Sie Ihre voraussichtliche Bearbeitungszeit",
+                1
+              ],
+              [
+                "Marke",
+                1
+              ]
+            ],
+            "col_9": [
+              [
+                "0.4",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "Herstellernummer",
+                1
+              ],
+              [
+                "0.45714286",
+                1
+              ],
+              [
+                "0.47841728",
+                1
+              ]
+            ],
+            "col_10": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "EAN",
+                1
+              ],
+              [
+                "0.4107143",
+                1
+              ],
+              [
+                "0.35971224",
+                1
+              ]
+            ],
+            "Warum wir das empfehlen?": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Ihre Angebote",
+                1
+              ],
+              [
+                "2",
+                1
+              ],
+              [
+                "14 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.092857145",
+                1
+              ]
+            ],
+            "col_12": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Top 10% der angezeigten Angebote in der eBay-Suche",
+                1
+              ],
+              [
+                "2",
+                1
+              ],
+              [
+                "30 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.76428574",
+                1
+              ]
+            ]
+          }
+        },
+        {
+          "title": "* Angezeigt werden nur aktive Angebote, sortiert nach Angebotsalter in Tagen, letzte Bearbeitung: DE - 29.01.2026 03-32 MEZ",
+          "rowCount": 5,
+          "headers": [
+            "col_1",
+            "Angebotstitel",
+            "col_3",
+            "col_4",
+            "Aktion",
+            "Tägliche Impressions pro Angebot",
+            "Klickrate",
+            "Konversionsrate",
+            "Voraussichtliche Bearbeitungszeit",
+            "Empfohlene Artikelmerkmale angegeben",
+            "Empfohlene Artikelmerkmale hinzufügen",
+            "Marke",
+            "Herstellernummer",
+            "EAN",
+            "14 Tage Rücknahme",
+            "30 Tage Rücknahme",
+            "60 Tage Rücknahme",
+            "Anzahl der Fotos",
+            "Anzahl der Suchbegriffe im Titel",
+            "Rücknahme akzeptiert",
+            "Verkäufer zahlt Rücknahme",
+            "Kostenloser Versand",
+            "Anzeigen",
+            "Tarif für Anzeigen",
+            "Mengenrabatt",
+            "Multi-Rabatt",
+            "Sonderaktion + Preissenkung",
+            "Preisvorschlag",
+            "ISBN",
+            "Artikelnummer",
+            "Preis",
+            "Artikel weicht erheblich von der Beschreibung ab (90 Tage)",
+            "Artikel nicht erhalten (90 Tage)",
+            "Negative Bewertungen (90 Tage)",
+            "Verfügbare Stückzahl",
+            "Versandkosten",
+            "Angebotsalter in Tagen",
+            "Anzahl der Verkäufe in den letzten 31 Tagen",
+            "Bestandseinheit",
+            "Anzahl der Beobachter",
+            "Google Shopping: Abgelehnte Produkte",
+            "Tatsächliche Bearbeitungszeit",
+            "Tatsächliche Versandzeit",
+            "Artikelzustand",
+            "Preistendenz bei eBay"
+          ],
+          "topCategoricals": {
+            "Angebotstitel": [
+              [
+                "acamp Sonnenschirm Schutzhülle: Premium Ganzjahresschutz bis 400cm",
+                1
+              ],
+              [
+                "acamp Schutzhülle Cappa für Ampelschirme – Ganzjahresschutz bis 300cm",
+                1
+              ],
+              [
+                "acamp Strandkorb Schutzhülle Cappa – Optimaler Ganzjahresschutz",
+                1
+              ],
+              [
+                "acamp Schutzhülle Cappa für ovale Tische - Wasserdicht & UV-beständig",
+                1
+              ],
+              [
+                "acamp Hängesessel Schutzhülle: Ganzjähriger Premium Wetterschutz Ø110x200cm",
+                1
+              ]
+            ],
+            "Aktion": [
+              [
+                "Bearbeiten",
+                5
+              ]
+            ],
+            "Tägliche Impressions pro Angebot": [
+              [
+                "5",
+                2
+              ],
+              [
+                "16",
+                1
+              ],
+              [
+                "9",
+                1
+              ],
+              [
+                "3",
+                1
+              ]
+            ],
+            "Klickrate": [
+              [
+                "0.0039447729999999995",
+                1
+              ],
+              [
+                "0.020905924",
+                1
+              ],
+              [
+                "0.005464481",
+                1
+              ],
+              [
+                "0.010101009999999999",
+                1
+              ],
+              [
+                "Keine Klicks",
+                1
+              ]
+            ],
+            "Konversionsrate": [
+              [
+                "Keine Verkäufe",
+                5
+              ]
+            ],
+            "Voraussichtliche Bearbeitungszeit": [
+              [
+                "2",
+                5
+              ]
+            ],
+            "Empfohlene Artikelmerkmale angegeben": [
+              [
+                "4",
+                2
+              ],
+              [
+                "1",
+                1
+              ],
+              [
+                "5",
+                1
+              ],
+              [
+                "2",
+                1
+              ]
+            ],
+            "Marke": [
+              [
+                "Acamp",
+                5
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Unterwäsche",
+      "rowCount": 37,
+      "firstLines": [
+        "< Zurück zur Übersicht",
+        "Käufertrichter",
+        "Konversion"
+      ],
+      "tables": [
+        {
+          "title": "Käufertrichter",
+          "rowCount": 22,
+          "headers": [
+            "col_1",
+            "Verkäufer in diesem Bereich: 5,578",
+            "col_3",
+            "col_4",
+            "col_5",
+            "vgl. mit Zeitraum - 31 Tage",
+            "col_7",
+            "Optimierungsempfehlungen",
+            "col_9",
+            "col_10",
+            "Warum wir das empfehlen?",
+            "col_12",
+            "col_13",
+            "col_14",
+            "col_15",
+            "col_16",
+            "col_17",
+            "col_18",
+            "col_19",
+            "col_20",
+            "col_21",
+            "col_22",
+            "col_23",
+            "col_24",
+            "col_25",
+            "col_26",
+            "col_27",
+            "col_28",
+            "col_29",
+            "col_30",
+            "col_31",
+            "col_32",
+            "col_33",
+            "col_34",
+            "col_35",
+            "col_36",
+            "col_37",
+            "col_38",
+            "col_39",
+            "col_40",
+            "col_41",
+            "col_42",
+            "col_43",
+            "col_44",
+            "col_45"
+          ],
+          "topCategoricals": {
+            "Verkäufer in diesem Bereich: 5,578": [
+              [
+                "trendocean",
+                3
+              ],
+              [
+                "Mehr Benchmarks",
+                1
+              ],
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Top 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ],
+              [
+                "Untere 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ]
+            ],
+            "col_4": [
+              [
+                "Impressions in der eBay-Suche",
+                1
+              ],
+              [
+                "Durchschnittlich pro Tag",
+                1
+              ],
+              [
+                "154",
+                1
+              ],
+              [
+                "Klickrate",
+                1
+              ],
+              [
+                "Rate",
+                1
+              ]
+            ],
+            "vgl. mit Zeitraum - 31 Tage": [
+              [
+                "Rang im Vergleich zu anderen Verkäufern",
+                3
+              ],
+              [
+                "599",
+                1
+              ],
+              [
+                "1377",
+                1
+              ],
+              [
+                "952",
+                1
+              ],
+              [
+                "Tägliche Impressions pro Angebot",
+                1
+              ]
+            ],
+            "col_7": [
+              [
+                "2",
+                8
+              ],
+              [
+                "Empfohlene Artikelmerkmale angegeben",
+                1
+              ],
+              [
+                "1",
+                1
+              ]
+            ],
+            "Optimierungsempfehlungen": [
+              [
+                "1",
+                5
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "● Erwägen Sie eine Erhöhung des Anzeigentarifs auf 9%",
+                1
+              ],
+              [
+                "● Fügen Sie die Preisvorschlag-Option für 45% Ihrer Angebote hinzu",
+                1
+              ],
+              [
+                "Ihre Angebotsqualität entspricht dem höchsten Benchmark-Wert",
+                1
+              ]
+            ],
+            "col_9": [
+              [
+                "0.5",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "Herstellernummer",
+                1
+              ],
+              [
+                "0.1741573",
+                1
+              ],
+              [
+                "0.23551401",
+                1
+              ]
+            ],
+            "col_10": [
+              [
+                "0.5",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "EAN",
+                1
+              ],
+              [
+                "0.22846442",
+                1
+              ],
+              [
+                "0.29345796",
+                1
+              ]
+            ],
+            "Warum wir das empfehlen?": [
+              [
+                "0",
+                4
+              ],
+              [
+                "Ihre Angebote",
+                2
+              ],
+              [
+                "0.089",
+                1
+              ],
+              [
+                "14 Tage Rücknahme",
+                1
+              ],
+              [
+                "0.11235955",
+                1
+              ]
+            ],
+            "col_12": [
+              [
+                "1",
+                3
+              ],
+              [
+                "Top 10% der angezeigten Angebote in der eBay-Suche",
+                1
+              ],
+              [
+                "0.09",
+                1
+              ],
+              [
+                "Top 10% der aufgerufenen (angeklickten) Angebote",
+                1
+              ],
+              [
+                "0.45",
+                1
+              ]
+            ]
+          }
+        },
+        {
+          "title": "* Angezeigt werden nur aktive Angebote, sortiert nach Angebotsalter in Tagen, letzte Bearbeitung: DE - 29.01.2026 03-32 MEZ",
+          "rowCount": 4,
+          "headers": [
+            "col_1",
+            "Angebotstitel",
+            "col_3",
+            "col_4",
+            "Aktion",
+            "Tägliche Impressions pro Angebot",
+            "Klickrate",
+            "Konversionsrate",
+            "Tarif für Anzeigen",
+            "Preisvorschlag",
+            "Empfohlene Artikelmerkmale angegeben",
+            "Empfohlene Artikelmerkmale hinzufügen",
+            "Marke",
+            "Herstellernummer",
+            "EAN",
+            "14 Tage Rücknahme",
+            "30 Tage Rücknahme",
+            "60 Tage Rücknahme",
+            "Anzahl der Fotos",
+            "Anzahl der Suchbegriffe im Titel",
+            "Voraussichtliche Bearbeitungszeit",
+            "Rücknahme akzeptiert",
+            "Verkäufer zahlt Rücknahme",
+            "Kostenloser Versand",
+            "Anzeigen",
+            "Mengenrabatt",
+            "Multi-Rabatt",
+            "Sonderaktion + Preissenkung",
+            "ISBN",
+            "Artikelnummer",
+            "Preis",
+            "Artikel weicht erheblich von der Beschreibung ab (90 Tage)",
+            "Artikel nicht erhalten (90 Tage)",
+            "Negative Bewertungen (90 Tage)",
+            "Verfügbare Stückzahl",
+            "Versandkosten",
+            "Angebotsalter in Tagen",
+            "Anzahl der Verkäufe in den letzten 31 Tagen",
+            "Bestandseinheit",
+            "Anzahl der Beobachter",
+            "Google Shopping: Abgelehnte Produkte",
+            "Tatsächliche Bearbeitungszeit",
+            "Tatsächliche Versandzeit",
+            "Artikelzustand",
+            "Preistendenz bei eBay"
+          ],
+          "topCategoricals": {}
+        }
+      ]
+    },
+    {
+      "name": "Bücher",
+      "rowCount": 39,
+      "firstLines": [
+        "< Zurück zur Übersicht",
+        "Käufertrichter",
+        "Impressions in der eBay-Suche",
+        "Klickrate",
+        "Konversion"
+      ],
+      "tables": [
+        {
+          "title": "Mehr Benchmarks",
+          "rowCount": 11,
+          "headers": [
+            "col_1",
+            "Impressions in der eBay-Suche",
+            "col_3",
+            "col_4",
+            "col_5",
+            "Tägliche Impressions pro Angebot",
+            "Empfohlene Artikelmerkmale angegeben",
+            "Marke",
+            "Herstellernummer",
+            "EAN",
+            "14 Tage Rücknahme",
+            "30 Tage Rücknahme",
+            "60 Tage Rücknahme",
+            "Anzahl der Fotos",
+            "Anzahl der Suchbegriffe im Titel",
+            "Voraussichtliche Bearbeitungszeit",
+            "Rücknahme akzeptiert",
+            "Verkäufer zahlt Rücknahme",
+            "Kostenloser Versand",
+            "Anzeigen",
+            "Tarif für Anzeigen",
+            "Mengenrabatt",
+            "Multi-Rabatt",
+            "Sonderaktion + Preissenkung",
+            "Preisvorschlag",
+            "ISBN",
+            "Artikel weicht erheblich von der Beschreibung ab (90 Tage)",
+            "Artikel nicht erhalten (90 Tage)",
+            "Negative Bewertungen (90 Tage)",
+            "Tatsächliche Bearbeitungszeit",
+            "Tatsächliche Versandzeit",
+            "col_32",
+            "col_33",
+            "col_34",
+            "col_35",
+            "col_36",
+            "col_37",
+            "col_38",
+            "col_39",
+            "col_40",
+            "col_41",
+            "col_42",
+            "col_43",
+            "col_44",
+            "col_45"
+          ],
+          "topCategoricals": {
+            "Impressions in der eBay-Suche": [
+              [
+                "trendocean",
+                3
+              ],
+              [
+                "Top 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ],
+              [
+                "Untere 10% der in der eBay-Suche angezeigten Artikel je Verkäufer",
+                1
+              ],
+              [
+                "Klickrate",
+                1
+              ],
+              [
+                "Top 10% der von Käufern aufgerufenen Artikel je Verkäufer",
+                1
+              ]
+            ],
+            "Tägliche Impressions pro Angebot": [
+              [
+                "68",
+                1
+              ],
+              [
+                "125",
+                1
+              ],
+              [
+                "1",
+                1
+              ],
+              [
+                "Klickrate",
+                1
+              ],
+              [
+                "0.0047",
+                1
+              ]
+            ],
+            "Empfohlene Artikelmerkmale angegeben": [
+              [
+                "7",
+                3
+              ],
+              [
+                "5",
+                3
+              ],
+              [
+                "4",
+                2
+              ],
+              [
+                "3",
+                1
+              ]
+            ],
+            "Marke": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "0.12628041",
+                1
+              ],
+              [
+                "0.11722748",
+                1
+              ],
+              [
+                "0.16879432",
+                1
+              ]
+            ],
+            "Herstellernummer": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "0.049135722",
+                1
+              ],
+              [
+                "0.047914404",
+                1
+              ],
+              [
+                "0.06382979",
+                1
+              ]
+            ],
+            "EAN": [
+              [
+                "0",
+                3
+              ],
+              [
+                "Nicht relevant",
+                2
+              ],
+              [
+                "0.06434059",
+                1
+              ],
+              [
+                "0.08605985",
+                1
+              ],
+              [
+                "0.08652482",
+                1
+              ]
+            ],
+            "14 Tage Rücknahme": [
+              [
+                "0",
+                3
+              ],
+              [
+                "0.06306018",
+                1
+              ],
+              [
+                "0.033338502",
+                1
+              ],
+              [
+                "0.04446489",
+                1
+              ],
+              [
+                "0.08912537",
+                1
+              ]
+            ],
+            "30 Tage Rücknahme": [
+              [
+                "1",
+                3
+              ],
+              [
+                "0.100992315",
+                1
+              ],
+              [
+                "0.05861374",
+                1
+              ],
+              [
+                "0.065930694",
+                1
+              ],
+              [
+                "0.15031593",
+                1
+              ]
+            ]
+          }
+        },
+        {
+          "title": "* Angezeigt werden nur aktive Angebote, sortiert nach Angebotsalter in Tagen, letzte Bearbeitung: DE - 29.01.2026 03-32 MEZ",
+          "rowCount": 6,
+          "headers": [
+            "col_1",
+            "Angebotstitel",
+            "col_3",
+            "col_4",
+            "Aktion",
+            "Tägliche Impressions pro Angebot",
+            "Klickrate",
+            "Konversionsrate",
+            "Empfohlene Artikelmerkmale angegeben",
+            "Empfohlene Artikelmerkmale hinzufügen",
+            "Marke",
+            "Herstellernummer",
+            "EAN",
+            "14 Tage Rücknahme",
+            "30 Tage Rücknahme",
+            "60 Tage Rücknahme",
+            "Anzahl der Fotos",
+            "Anzahl der Suchbegriffe im Titel",
+            "Voraussichtliche Bearbeitungszeit",
+            "Rücknahme akzeptiert",
+            "Verkäufer zahlt Rücknahme",
+            "Kostenloser Versand",
+            "Anzeigen",
+            "Tarif für Anzeigen",
+            "Mengenrabatt",
+            "Multi-Rabatt",
+            "Sonderaktion + Preissenkung",
+            "Preisvorschlag",
+            "ISBN",
+            "Artikelnummer",
+            "Preis",
+            "Artikel weicht erheblich von der Beschreibung ab (90 Tage)",
+            "Artikel nicht erhalten (90 Tage)",
+            "Negative Bewertungen (90 Tage)",
+            "Verfügbare Stückzahl",
+            "Versandkosten",
+            "Angebotsalter in Tagen",
+            "Anzahl der Verkäufe in den letzten 31 Tagen",
+            "Bestandseinheit",
+            "Anzahl der Beobachter",
+            "Google Shopping: Abgelehnte Produkte",
+            "Tatsächliche Bearbeitungszeit",
+            "Tatsächliche Versandzeit",
+            "Artikelzustand",
+            "Preistendenz bei eBay"
+          ],
+          "topCategoricals": {
+            "Angebotstitel": [
+              [
+                "Olivia Huth: Hilfst du mir? Dann teilen wir! Freundschaft & Teilen ab 3 Jahren",
+                1
+              ],
+              [
+                "SCM Bilderbuch: Mut & Freundschaft ab 3 Jahren – Stärkt soziale Kompetenzen",
+                1
+              ],
+              [
+                "Heike Faller: Hundert, Was du im Leben lernen wirst. Zeitlose Lebensweisheiten",
+                1
+              ],
+              [
+                "molino Bilderbuch Hannelore: Zauberhaftes Zirkusabenteuer, fördert Fantasie",
+                1
+              ],
+              [
+                "Reader's Digest Sachbuch: Weltgeschichte verstehen – Fundiertes Wissen",
+                1
+              ]
+            ],
+            "Aktion": [
+              [
+                "Bearbeiten",
+                6
+              ]
+            ],
+            "Tägliche Impressions pro Angebot": [
+              [
+                "4",
+                1
+              ],
+              [
+                "26",
+                1
+              ],
+              [
+                "32",
+                1
+              ],
+              [
+                "1",
+                1
+              ],
+              [
+                "22",
+                1
+              ]
+            ],
+            "Klickrate": [
+              [
+                "Keine Klicks",
+                5
+              ],
+              [
+                "0.00099108025",
+                1
+              ]
+            ],
+            "Konversionsrate": [
+              [
+                "Keine Verkäufe",
+                6
+              ]
+            ],
+            "Empfohlene Artikelmerkmale angegeben": [
+              [
+                "7",
+                3
+              ],
+              [
+                "6",
+                1
+              ],
+              [
+                "9",
+                1
+              ],
+              [
+                "4",
+                1
+              ]
+            ],
+            "Marke": [
+              [
+                "Keine Angabe",
+                6
+              ]
+            ],
+            "Herstellernummer": [
+              [
+                "Keine Angabe",
+                6
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

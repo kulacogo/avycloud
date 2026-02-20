@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud Redesign - Mockup Overview</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #09090B; --surface-1: #18181B; --surface-2: #27272A; --surface-3: #3F3F46;
+    --border: #27272A; --border-subtle: #3F3F46;
+    --text: #FAFAFA; --text-secondary: #A1A1AA; --text-muted: #71717A;
+    --primary: #6366F1; --primary-hover: #4F46E5; --primary-light: #818CF8;
+    --success: #10B981; --warning: #F59E0B; --error: #EF4444; --info: #3B82F6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 60px 40px; }
+
+  /* Hero */
+  .hero { text-align: center; margin-bottom: 72px; }
+  .logo { width: 64px; height: 64px; background: var(--primary); border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 28px; margin-bottom: 24px; box-shadow: 0 0 40px rgba(99,102,241,0.3); }
+  h1 { font-size: 48px; font-weight: 800; background: linear-gradient(135deg, var(--primary-light), #EC4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 16px; }
+  .subtitle { font-size: 20px; color: var(--text-secondary); max-width: 600px; margin: 0 auto; line-height: 1.6; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); border-radius: 20px; font-size: 13px; font-weight: 500; color: var(--primary-light); margin-bottom: 24px; }
+  .stats { display: flex; gap: 32px; justify-content: center; margin-top: 32px; }
+  .stat { text-align: center; }
+  .stat-value { font-size: 32px; font-weight: 800; color: var(--primary-light); }
+  .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Section */
+  .section { max-width: 1200px; margin: 0 auto 64px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .section-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .section-title { font-size: 22px; font-weight: 700; }
+  .section-count { font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--text-secondary); padding: 2px 10px; border-radius: 10px; margin-left: auto; }
+
+  /* Grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; transition: all 0.3s ease; cursor: pointer; text-decoration: none; color: inherit; position: relative; }
+  .card:hover { border-color: var(--primary); transform: translateY(-4px); box-shadow: 0 16px 48px rgba(99,102,241,0.12); }
+  .card-preview { height: 180px; background: var(--surface-2); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--border); }
+  .card-preview-icon { color: var(--text-muted); opacity: 0.25; }
+  .card-body { padding: 20px; }
+  .card-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .card-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .card-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .card-tags { display: flex; gap: 5px; margin-top: 14px; flex-wrap: wrap; }
+  .tag { padding: 2px 8px; background: var(--surface-2); border-radius: 5px; font-size: 10px; font-weight: 500; color: var(--text-secondary); }
+  .card-status { position: absolute; top: 12px; right: 12px; padding: 3px 10px; border-radius: 8px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .status-new { background: rgba(99,102,241,0.15); color: var(--primary-light); }
+
+  /* Features */
+  .features { max-width: 1200px; margin: 48px auto 0; }
+  .features h2 { font-size: 28px; font-weight: 700; margin-bottom: 32px; text-align: center; }
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .feature { padding: 24px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; }
+  .feature-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+  .feature-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .feature-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+  /* Footer */
+  .footer { text-align: center; margin-top: 80px; padding: 40px; color: var(--text-muted); font-size: 13px; }
+
+  @media (max-width: 768px) {
+    body { padding: 40px 16px; }
+    h1 { font-size: 32px; }
+    .stats { gap: 20px; }
+    .stat-value { font-size: 24px; }
+    .grid { grid-template-columns: 1fr; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .section-header { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="logo">A</div>
+  <div class="badge">
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M10 0l2.5 7.5L20 10l-7.5 2.5L10 20l-2.5-7.5L0 10l7.5-2.5z"/></svg>
+    UI/UX Redesign Proposal
+  </div>
+  <h1>AvyCloud v2</h1>
+  <p class="subtitle">Ganzheitliches Redesign aller 15 Screens. Klicke auf eine Karte, um den interaktiven Mockup zu sehen.</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-value">15</div><div class="stat-label">Screens</div></div>
+    <div class="stat"><div class="stat-value">6</div><div class="stat-label">Admin Tabs</div></div>
+    <div class="stat"><div class="stat-value">2</div><div class="stat-label">Mobile Views</div></div>
+  </div>
+</div>
+
+<!-- ═══════════ AUTH ═══════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(139,92,246,0.15);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    </div>
+    <div class="section-title">Authentifizierung</div>
+    <div class="section-count">1 Screen</div>
+  </div>
+  <div class="grid">
+    <a class="card" href="login.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></svg>
+      </div>
+      <span class="card-status status-new">Neu</span>
+      <div class="card-body">
+        <div class="card-label" style="color:#8B5CF6;">Auth</div>
+        <div class="card-title">Login & Passwort Reset</div>
+        <div class="card-desc">Zentriertes Login-Formular mit Theme Toggle und expandierbarem Passwort-vergessen Flow.</div>
+        <div class="card-tags">
+          <span class="tag">Theme Toggle</span>
+          <span class="tag">Password Reset</span>
+          <span class="tag">Validation</span>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══════════ DESKTOP HAUPTSEITEN ═══════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(99,102,241,0.15);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary-light)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    </div>
+    <div class="section-title">Desktop Hauptseiten</div>
+    <div class="section-count">8 Screens</div>
+  </div>
+  <div class="grid">
+    <a class="card" href="dashboard.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="64" height="64" viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="28" height="28" rx="6"/><rect x="44" y="8" width="28" height="28" rx="6"/><rect x="8" y="44" width="28" height="28" rx="6"/><rect x="44" y="44" width="28" height="28" rx="6"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-label" style="color:var(--primary-light);">Hauptseite</div>
+        <div class="card-title">Dashboard</div>
+        <div class="card-desc">Bento Grid Layout mit KPI-Karten, Charts, Activity Feed und Command Palette (Cmd+K).</div>
+        <div class="card-tags">
+          <span class="tag">Bento Grid</span>
+          <span class="tag">Cmd+K</span>
+          <span class="tag">Charts</span>
+          <span class="tag">Sidebar</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="card" href="products.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="64" height="64" viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h56M12 36h56M12 52h56M12 68h56"/><rect x="12" y="8" width="56" height="8" rx="2"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-label" style="color:var(--primary-light);">Datentabelle</div>
+        <div class="card-title">Produktliste</div>
+        <div class="card-desc">Moderne Tabelle mit Filter Chips, Column Manager, Bulk Actions Bar und Hover-Reveal Row Actions.</div>
+        <div class="card-tags">
+          <span class="tag">Filter Chips</span>
+          <span class="tag">Bulk Actions</span>
+          <span class="tag">Column Manager</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="card" href="product-sheet.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="64" height="64" viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="44" height="64" rx="4"/><rect x="56" y="8" width="16" height="64" rx="4"/><path d="M16 24h28M16 32h20M16 40h24"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-label" style="color:var(--primary-light);">Editor</div>
+        <div class="card-title">Product Sheet</div>
+        <div class="card-desc">Split-View mit scrollbarem Content und fixem Context Panel (Quality Score, Sync, AI Chat).</div>
+        <div class="card-tags">
+          <span class="tag">Split View</span>
+          <span class="tag">Quality Ring</span>
+          <span class="tag">AI Chat</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="card" href="orders.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><path d="M9 14l2 2 4-4"/></svg>
+      </div>
+      <span class="card-status status-new">Neu</span>
+      <div class="card-body">
+        <div class="card-label" style="color:var(--success);">Fulfillment</div>
+        <div class="card-title">Bestellungen</div>
+        <div class="card-desc">Bestelltabelle mit 6 Status-Typen, Fulfillment-Workflow, Filter Chips und Pagination.</div>
+        <div class="card-tags">
+          <span class="tag">Status Pipeline</span>
+          <span class="tag">Filter</span>
+          <span class="tag">Fulfillment</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="card" href="operations-desktop.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><rect x="2" y="7" width="8" height="10" rx="1"/><rect x="14" y="7" width="8" height="10" rx="1"/></svg>
+      </div>
+      <span class="card-status status-new">Neu</span>
+      <div class="card-body">
+        <div class="card-label" style="color:var(--warning);">Warehouse Ops</div>
+        <div class="card-title">Operations Desktop</div>
+        <div class="card-desc">Desktop Stow/Pick Workflows mit Scanner Input, Produkt-Details und Bin-Zuordnung.</div>
+        <div class="card-tags">
+          <span class="tag">Stow Mode</span>
+          <span class="tag">Pick Mode</span>
+          <span class="tag">Scanner</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="card" href="warehouse.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21V12h6v9"/><path d="M3 8h18"/></svg>
+      </div>
+      <span class="card-status status-new">Neu</span>
+      <div class="card-body">
+        <div class="card-label" style="color:var(--info);">Layout</div>
+        <div class="card-title">Warehouse & Bins</div>
+        <div class="card-desc">Hierarchische Navigation (Zone > Gang > Regal > Ebene) mit Bin-Grid und Detail-Panel.</div>
+        <div class="card-tags">
+          <span class="tag">Bin Grid</span>
+          <span class="tag">Zonen</span>
+          <span class="tag">Hierarchie</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="card" href="ebay-listings.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+      </div>
+      <span class="card-status status-new">Neu</span>
+      <div class="card-body">
+        <div class="card-label" style="color:#EC4899;">Channels</div>
+        <div class="card-title">eBay Listings</div>
+        <div class="card-desc">Listings-Tabelle mit Sync-Status, Gap-Analyse, Bulk Actions und 4 Status-Overview-Karten.</div>
+        <div class="card-tags">
+          <span class="tag">Sync Status</span>
+          <span class="tag">Gap Analyse</span>
+          <span class="tag">Bulk Sync</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="card" href="categories.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+      </div>
+      <span class="card-status status-new">Neu</span>
+      <div class="card-body">
+        <div class="card-label" style="color:var(--warning);">Verwaltung</div>
+        <div class="card-title">Kategorien & Profile</div>
+        <div class="card-desc">Split-Panel mit Kategorie-Suche links und Profil-Editor rechts (Attribute, Aliases).</div>
+        <div class="card-tags">
+          <span class="tag">Split Panel</span>
+          <span class="tag">Profil Editor</span>
+          <span class="tag">Suche</span>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══════════ INPUT & IDENTIFIZIERUNG ═══════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(236,72,153,0.15);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EC4899" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    </div>
+    <div class="section-title">Produkt-Identifizierung</div>
+    <div class="section-count">1 Screen</div>
+  </div>
+  <div class="grid">
+    <a class="card" href="product-input.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </div>
+      <span class="card-status status-new">Neu</span>
+      <div class="card-body">
+        <div class="card-label" style="color:#EC4899;">Input</div>
+        <div class="card-title">Produkt-Input & Upload</div>
+        <div class="card-desc">Upload-Gruppen mit Drag & Drop Zonen, Bild-Preview, Barcode-Eingabe und AI-Identifizierung.</div>
+        <div class="card-tags">
+          <span class="tag">Drag & Drop</span>
+          <span class="tag">Barcode</span>
+          <span class="tag">AI Identify</span>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══════════ ADMIN ═══════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(239,68,68,0.15);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--error)" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+    </div>
+    <div class="section-title">Administration</div>
+    <div class="section-count">1 Screen &middot; 6 Tabs</div>
+  </div>
+  <div class="grid">
+    <a class="card" href="admin.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>
+      <span class="card-status status-new">Neu</span>
+      <div class="card-body">
+        <div class="card-label" style="color:var(--error);">Admin</div>
+        <div class="card-title">Admin Panel (6 Tabs)</div>
+        <div class="card-desc">Benutzer, Gruppen, Rollen (Permission Matrix), LLM Config, Bulk Actions und Integrationen.</div>
+        <div class="card-tags">
+          <span class="tag">Benutzer</span>
+          <span class="tag">Rollen</span>
+          <span class="tag">LLM</span>
+          <span class="tag">Integrationen</span>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══════════ MOBILE ═══════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(16,185,129,0.15);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+    </div>
+    <div class="section-title">Mobile Screens</div>
+    <div class="section-count">3 Screens</div>
+  </div>
+  <div class="grid">
+    <a class="card" href="mobile-operations.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="48" height="64" viewBox="0 0 60 80" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="4" width="44" height="72" rx="8"/><path d="M8 14h44M8 62h44"/><circle cx="30" cy="68" r="3"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-label" style="color:var(--success);">Mobile</div>
+        <div class="card-title">Operations / Scanner</div>
+        <div class="card-desc">Mobile-first Scanner mit Mode Selector, Bottom Sheet und Scan-Erfolgs-Animation.</div>
+        <div class="card-tags">
+          <span class="tag">Bottom Sheet</span>
+          <span class="tag">Scanner</span>
+          <span class="tag">Touch</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="card" href="mobile-dashboard.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="48" height="64" viewBox="0 0 60 80" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="4" width="44" height="72" rx="8"/><rect x="14" y="20" width="14" height="14" rx="4"/><rect x="32" y="20" width="14" height="14" rx="4"/><rect x="14" y="38" width="14" height="14" rx="4"/><rect x="32" y="38" width="14" height="14" rx="4"/></svg>
+      </div>
+      <span class="card-status status-new">Neu</span>
+      <div class="card-body">
+        <div class="card-label" style="color:var(--success);">Mobile</div>
+        <div class="card-title">Mobile Dashboard</div>
+        <div class="card-desc">Quick Actions Grid, Stats-Karten, Bestellliste und Revenue-Chart mit Bottom Tab Bar.</div>
+        <div class="card-tags">
+          <span class="tag">Quick Actions</span>
+          <span class="tag">Stats</span>
+          <span class="tag">Tab Bar</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="card" href="mobile-search.html">
+      <div class="card-preview">
+        <svg class="card-preview-icon" width="48" height="64" viewBox="0 0 60 80" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="4" width="44" height="72" rx="8"/><circle cx="26" cy="28" r="8"/><path d="M32 34l6 6"/><rect x="14" y="44" width="32" height="6" rx="2"/><rect x="14" y="54" width="32" height="6" rx="2"/></svg>
+      </div>
+      <span class="card-status status-new">Neu</span>
+      <div class="card-body">
+        <div class="card-label" style="color:var(--success);">Mobile</div>
+        <div class="card-title">Mobile Suche</div>
+        <div class="card-desc">Produktsuche mit Karten-Ansicht, Thumbnail, SKU, Bin-Standort und Preis.</div>
+        <div class="card-tags">
+          <span class="tag">Suche</span>
+          <span class="tag">Produkt-Karten</span>
+          <span class="tag">Tab Bar</span>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══════════ DESIGN SYSTEM ═══════════ -->
+<div class="features">
+  <h2>Design System Highlights</h2>
+  <div class="feature-grid">
+    <div class="feature">
+      <div class="feature-icon" style="background:rgba(99,102,241,0.15);">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="var(--primary-light)" stroke-width="1.5"><path d="M13 4l-6 6 6 6"/></svg>
+      </div>
+      <div class="feature-title">Collapsible Sidebar</div>
+      <div class="feature-desc">Hierarchische Navigation mit Labels, Sections und Badges. Minimierbar auf 72px Icon-only Modus.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon" style="background:rgba(245,158,11,0.15);">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="var(--warning)" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4 4"/></svg>
+      </div>
+      <div class="feature-title">Command Palette</div>
+      <div class="feature-desc">Cmd+K Power-User Interface: Navigation, Suche und Aktionen. Nach Vorbild von Linear und Notion.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon" style="background:rgba(16,185,129,0.15);">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="var(--success)" stroke-width="1.5"><path d="M3 8l7-4 7 4v6l-7 4-7-4V8z"/></svg>
+      </div>
+      <div class="feature-title">Indigo Brand Identity</div>
+      <div class="feature-desc">Indigo #6366F1 als Primary, Zinc-basierte Neutrals. Konsistentes Farbsystem ueber alle 15 Screens.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon" style="background:rgba(59,130,246,0.15);">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="var(--info)" stroke-width="1.5"><path d="M4 8h4v4H4zM12 4h4v4h-4zM12 12h4v4h-4zM4 16h4v1H4z"/></svg>
+      </div>
+      <div class="feature-title">Bento Grid Dashboard</div>
+      <div class="feature-desc">Metriken, Charts und Activity Feed in einem modernen Bento-Grid Layout mit Animationen.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon" style="background:rgba(236,72,153,0.15);">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#EC4899" stroke-width="1.5"><path d="M10 0l2.5 7.5L20 10l-7.5 2.5L10 20l-2.5-7.5L0 10l7.5-2.5z"/></svg>
+      </div>
+      <div class="feature-title">Micro-Interactions</div>
+      <div class="feature-desc">Spring Animations, Chart Reveal, Toast Stacking, Skeleton Loading fuer ein polished Erlebnis.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon" style="background:rgba(139,92,246,0.15);">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#8B5CF6" stroke-width="1.5"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 7h6M7 10h6M7 13h4"/></svg>
+      </div>
+      <div class="feature-title">Inter 15px Typography</div>
+      <div class="feature-desc">15px Base statt 12px. Modulare Type Scale mit Inter Font fuer optimale Lesbarkeit in allen Views.</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <p>AvyCloud UI/UX Redesign Mockups &mdash; Phase 0 Complete</p>
+  <p style="margin-top:8px;">15 Screens | 6 Admin Tabs | 3 Mobile Views | 1 Design System</p>
+  <p style="margin-top:8px;font-size:11px;">Alle Dateien in <code style="background:var(--surface-2);padding:2px 6px;border-radius:4px;">/mockups/</code> &mdash; Keine Aenderungen am produktiven Code</p>
+</div>
+
+</body>
+</html>

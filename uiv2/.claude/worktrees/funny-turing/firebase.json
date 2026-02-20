@@ -1,0 +1,40 @@
+{
+  "hosting": {
+    "site": "avycloud",
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "backend/**",
+      "README.md",
+      "metadata.json"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|jsx|ts|tsx)",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "text/javascript; charset=utf-8"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(jpg|jpeg|gif|png|webp|avif)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=7200"
+          }
+        ]
+      }
+    ]
+  }
+}

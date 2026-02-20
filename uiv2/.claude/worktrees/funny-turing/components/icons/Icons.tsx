@@ -1,0 +1,127 @@
+
+import React from 'react';
+
+const Icon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5" {...props}>
+    {props.children}
+  </svg>
+);
+
+export const EditIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+  </Icon>
+);
+export const SaveIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </Icon>
+);
+export const SyncIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0011.664 0l3.181-3.183m-3.181-4.991v4.99" />
+  </Icon>
+);
+export const GenerateIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.562L16.25 22.5l-.648-1.938a2.25 2.25 0 01-1.473-1.473L12 18.75l1.938-.648a2.25 2.25 0 011.473-1.473L16.25 15l.648 1.938a2.25 2.25 0 011.473 1.473L20.25 18.75l-1.938.648a2.25 2.25 0 01-1.473 1.473z" />
+  </Icon>
+);
+export const UploadIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></Icon>;
+export const BarcodeIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V17.25m12 0h-12M15.75 17.25v-3.375a1.125 1.125 0 011.125-1.125h.375V9.375c0-.621-.504-1.125-1.125-1.125h-9.75A1.125 1.125 0 003.75 9.375v1.5h.375c.621 0 1.125.504 1.125 1.125v3.375m0 0h12" /></Icon>;
+export const CameraIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></Icon>;
+export const SendIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+  </Icon>
+);
+export const PaperClipIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7.828L7.05 15.95a3 3 0 104.243 4.243l8.122-8.121a4.5 4.5 0 00-6.364-6.364L4.222 14.535" />
+  </Icon>
+);
+export const SparklesIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.562L16.25 22.5l-.648-1.938a2.25 2.25 0 01-1.473-1.473L12 18.75l1.938-.648a2.25 2.25 0 011.473-1.473L16.25 15l.648 1.938a2.25 2.25 0 011.473 1.473L20.25 18.75l-1.938.648a2.25 2.25 0 01-1.473 1.473z" /></Icon>;
+export const DownloadIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+  </Icon>
+);
+export const LinkIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></Icon>;
+export const RefreshIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0011.664 0l3.181-3.183" /></Icon>;
+export const ExportIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></Icon>;
+export const SearchIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></Icon>;
+export const LogoIcon = (props: React.SVGProps<SVGSVGElement>) => <Icon {...props} stroke="none" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5-10-5-10 5zM12 13.5l-10-5V12l10 5 10-5V8.5l-10 5z" /></Icon>;
+export const TableIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125h17.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h.008v.008h-.008v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.375 4.5h17.25m-17.25 0a1.125 1.125 0 01-1.125 1.125v1.5c0 .621.504-1.125 1.125 1.125h17.25c.621 0 1.125.504 1.125 1.125v-1.5c0-.621-.504-1.125-1.125-1.125m-17.25 0h.008v.008h-.008V4.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+  </Icon>
+);
+export const PlusCircleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </Icon>
+);
+export const SheetIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75c0-.231-.035-.454-.1-.664M6.75 7.5h1.5v.75h-1.5V7.5zm-1.5 0h.008v.008H5.25V7.5z" />
+  </Icon>
+);
+export const PrintIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 9V4.5A1.5 1.5 0 017.5 3h9A1.5 1.5 0 0118 4.5V9m-12 0h12m-12 0a2.25 2.25 0 00-2.25 2.25V15h3v3.75c0 .414.336.75.75.75h7.5a.75.75 0 00.75-.75V15h3v-3.75A2.25 2.25 0 0018 9M9 15h6" />
+  </Icon>
+);
+export const WarehouseIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 10l9-7 9 7v10.5a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 20.5V10z"
+    />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7 13h3v7H7zM14 13h3v7h-3z" />
+  </Icon>
+);
+export const SunIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 5.25V3m0 18v-2.25m6.364-9.114l1.59-.918m-15.908.918l-1.59-.918M18.75 12h2.25M3 12h2.25m12.364 5.864l1.59.918m-15.908-.918l-1.59.918M16.5 12a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+  </Icon>
+);
+export const MoonIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" />
+  </Icon>
+);
+export const DashboardIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3.75 3v18m16.5 0V3m-13.5 0v7.5m4.5-7.5v4.5m4.5-4.5v10.5m-9 0V21m4.5-6v6m4.5-1.5V21"
+    />
+  </Icon>
+);
+
+export const OperationsIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M12 8.25a3.75 3.75 0 103.75 3.75A3.75 3.75 0 0012 8.25zm0-5.25v2.25m0 13.5V21m7.5-9h2.25M2.25 12H4.5m13.182-5.318l1.59-1.59M4.728 19.272l1.59-1.59m0-10.364l-1.59-1.59m13.544 13.544l-1.59-1.59"
+    />
+  </Icon>
+);
+export const TrashIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.11 1.022.173m-1.022-.173L18.16 19.673A2.25 2.25 0 0115.916 21H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .57c.34-.064.68-.122 1.022-.173m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.02-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+  </Icon>
+);
+
+
+export const MagicIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.562L16.25 22.5l-.648-1.938a2.25 2.25 0 01-1.473-1.473L12 18.75l1.938-.648a2.25 2.25 0 011.473-1.473L16.25 15l.648 1.938a2.25 2.25 0 011.473 1.473L20.25 18.75l-1.938.648a2.25 2.25 0 01-1.473 1.473z" />
+  </Icon>
+);
+
+// Alias for home to avoid import errors in mobile tab bar
+export const HomeIcon = DashboardIcon;

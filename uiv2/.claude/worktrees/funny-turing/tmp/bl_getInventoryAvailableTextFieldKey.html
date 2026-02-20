@@ -1,0 +1,1092 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="https://api.baselinker.com/css/style.css" type="text/css" />
+    <link rel="stylesheet" href="https://api.baselinker.com/css/media_query.css" type="text/css" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script><link href='https://fonts.googleapis.com/css?family=Open+Sans:300,400,700&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
+    <title>API documentation - baselinker.com</title>
+    <style>
+    .header {
+        font-size:25px;
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+    }
+    .main_text {
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+        font-size:15px;
+    }
+    #top {
+        box-shadow: 0 0 16px 0 rgba(0, 0, 0, 0.176);
+        padding: 20px;
+        background-color:#205470;
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+        font-size:20px;
+        color:#FFF;
+    }
+    #top a {
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+        font-size:20px;
+        color:#FFF;
+    }
+    #top img {
+        vertical-align: middle;
+        padding-right:100px;
+    }
+    .table {width:100%;}
+    .table td {
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+        font-size:15px;
+        padding:10px;
+        border:1px solid #ccc;
+    }
+    * {
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+        font-size:15px;
+    }
+    .table td ul { margin: 10px 20px; }
+    .table .method_name { font-weight: bold; font-style: italic }
+    b {
+        font-weight:700;
+    }
+     .grey_button {
+        background-color: #ddd;
+        color: #000;
+        font-family: "Open Sans", verdana;
+        font-weight: 400;
+        font-size:15px;
+        padding:8px;
+        margin:5px;
+        border-radius: 5px;
+        width:250px;
+        float:left; margin-right:20px;
+    }
+    .grey_button:hover {
+         background-color: #aaa;
+    }
+    input, select, textarea {
+        font-family:verdana;
+        font-size:12px;
+        color:#000;
+        padding:1px;
+    }
+    code {
+        background-color: #eee;
+        border-radius: 3px;
+        font-family: courier, monospace;
+        padding: 0 3px;
+        display: block;
+    }
+    .select2-container--default .select2-results__group {
+        font-weight: bold !important;
+    }
+    </style>
+</head>
+<body>
+<div id="container"  style="background: none;">
+    <div id="top">
+        <a href="/"><img src="/layout/logo-base-light.svg" style="width: 120px;" />
+            API documentation</a>
+    </div>
+    <div id="main" style="margin:0px;">
+        <div class="main_text" style="padding: 50px;">            <a href="/"><div class="grey_button">Method list</div></a>
+            <a href="/?tester&method=getInventoryAvailableTextFieldKey"><div class="grey_button">Test your request</div></a>
+            <a href="/?changelog"><div class="grey_button">Changelog</div></a>
+            <div style="clear:both"></div><BR><BR>
+                                    <div style="float: right; margin: 10px;"><script type="text/javascript" src="https://app.getresponse.com/view_webform_v2.js?u=GmUih&webforms_id=hhssL" data-webform-id="hhssL"></script></div>
+                        <div class="header">Introduction</div>
+                        The API enables the information exchange between an external system and BaseLinker.<BR>
+                        Communication uses data in JSON format. To make a request to the API, send the proper POST request to:
+                        <BR><B>https://api.baselinker.com/connector.php</B><BR>
+                        <BR>
+                        To send a request for each method a <B>token</B> is required. The token is assigned directly to the BaseLinker user account.
+                        User can generate API token in BaseLinker panel in "Account & other -> My account -> API" section.<br />
+                        Authorization with http header (X-BLToken) is recommended.
+                        <BR><BR>
+
+                        3 values must be submitted to the connector.php file via POST:<BR>
+                        <ol>
+                            <li><s><B>token</B> - unique user API key</s> - DEPRECATED, please use <i>X-BLToken</i> header</li>
+                            <li><B>method</B> - the name of the requested API method</li>
+                            <li><B>parameters</B> - arguments of the requested function in JSON format</li>
+                        </ol>
+                        <BR>
+                        Sample:
+                        <code >
+                        curl 'https://api.baselinker.com/connector.php' -H 'X-BLToken: 1-23-ABC' --data-raw 'method=getOrders&amp;parameters=%7B%22date_from%22%3A+1407341754%7D'
+                        </code>
+                        <BR>
+                        <div class="header">Request limit</div>
+                        The API request limit is <b>100 requests per minute</b>.
+                        <BR><BR><BR>
+                        <div class="header">Latest changes</div>
+                        The API was last updated <b>2025-10-21</b>.
+                        <BR><BR><BR>
+                        <div class="header">Encoding standards</div>
+                        The API uses UTF-8.<br/>
+                        The API expects base64 content in some endpoints and it is very important to replace "+" character with "%2B" sequence before sending it to our API to avoid an incorrect decoding.
+                        <BR><BR><BR>
+                        <div class="header">Product catalog</div><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=addInventoryPriceGroup'>addInventoryPriceGroup</B></a></td><td>The method allows to create a price group in BaseLinker storage. Providing a price group ID will update the existing price group. Such price groups may be later assigned in addInventory method. </td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteInventoryPriceGroup'>deleteInventoryPriceGroup</B></a></td><td>The method allows you to remove the price group from BaseLinker storage.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryPriceGroups'>getInventoryPriceGroups</B></a></td><td>The method allows to retrieve price groups existing in BaseLinker storage</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInventoryWarehouse'>addInventoryWarehouse</B></a></td><td>The method allows you to add a new warehouse available in BaseLinker inventories. Adding a warehouse with the same identifier again will cause updates of the previously saved warehouse. The method does not allow editing warehouses created automatically for the purpose of keeping external stocks of shops, wholesalers etc. Such warehouse may be later used in addInventory method.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteInventoryWarehouse'>deleteInventoryWarehouse</B></a></td><td>The method allows you to remove the warehouse available in BaseLinker inventories. The method does not allow to remove warehouses created automatically for the purpose of keeping external stocks of shops, wholesalers etc.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryWarehouses'>getInventoryWarehouses</B></a></td><td>The method allows you to retrieve a list of warehouses available in BaseLinker inventories. The method also returns information about the warehouses created automatically for the purpose of keeping external stocks (shops, wholesalers etc.)</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInventory'>addInventory</B></a></td><td>The method allows you to add the BaseLinker catalogs. Adding a catalog with the same identifier again will cause updates of the previously saved catalog.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteInventory'>deleteInventory</B></a></td><td>The method allows you to delete a catalog from BaseLinker storage.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventories'>getInventories</B></a></td><td>The method allows you to retrieve a list of catalogs available in the BaseLinker storage.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInventoryCategory'>addInventoryCategory</B></a></td><td>The method allows you to add a category to the BaseLinker catalog. Adding a category with the same identifier again, updates the previously saved category</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteInventoryCategory'>deleteInventoryCategory</B></a></td><td>The method allows you to remove categories from BaseLinker warehouse. Along with the category, the products contained therein are removed (however, this does not apply to products in subcategories). The subcategories will be changed to the highest level categories.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryCategories'>getInventoryCategories</B></a></td><td>The method allows you to retrieve a list of categories for a BaseLinker catalog.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryTags'>getInventoryTags</B></a></td><td>The method allows you to retrieve a list of tags for a BaseLinker catalog.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInventoryManufacturer'>addInventoryManufacturer</B></a></td><td>The method allows you to add a manufacturer to the BaseLinker catalog. Adding a manufacturer with the same identifier again, updates the previously saved manufacturer</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteInventoryManufacturer'>deleteInventoryManufacturer</B></a></td><td>The method allows you to remove manufacturer from BaseLinker catalog</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryManufacturers'>getInventoryManufacturers</B></a></td><td>The method allows you to retrieve a list of manufacturers for a BaseLinker catalog.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryExtraFields'>getInventoryExtraFields</B></a></td><td>The method allows you to retrieve a list of extra fields for a BaseLinker catalog.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryIntegrations'>getInventoryIntegrations</B></a></td><td>The method returns a list of integrations where text values in the catalog can be overwritten. The returned data contains a list of accounts for each integration and a list of languages supported by the integration</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryAvailableTextFieldKeys'>getInventoryAvailableTextFieldKeys</B></a></td><td>The method returns a list of product text fields that can be overwritten for specific integration.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInventoryProduct'>addInventoryProduct</B></a></td><td>The method allows you to add a new product to BaseLinker catalog. Entering the product with the ID updates previously saved product.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteInventoryProduct'>deleteInventoryProduct</B></a></td><td>The method allows you to remove the product from BaseLinker catalog.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryProductsData'>getInventoryProductsData</B></a></td><td>The method allows you to retrieve detailed data for selected products from the BaseLinker inventory.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryProductsList'>getInventoryProductsList</B></a></td><td>The method allows to retrieve a basic data of chosen products from BaseLinker catalogs.<br><br><b>Performance Recommendation:</b> For retrieving product prices and stock (especially with variants), use the dedicated <span class="method_name">getInventoryProductsPrices</span> and <span class="method_name">getInventoryProductsStock</span> methods. This method should be used primarily for basic product information.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryProductsStock'>getInventoryProductsStock</B></a></td><td>The method allows you to retrieve stock data of products from BaseLinker catalogs.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=updateInventoryProductsStock'>updateInventoryProductsStock</B></a></td><td>The method allows to update stocks of products (and/or their variants) in BaseLinker catalog. Maximum 1000 products at a time.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryProductsPrices'>getInventoryProductsPrices</B></a></td><td>The method allows to retrieve the gross prices of products from BaseLinker inventories.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=updateInventoryProductsPrices'>updateInventoryProductsPrices</B></a></td><td>The method allows bulk update of gross prices of products (and/or their variants) in the BaseLinker catalog. Maximum 1000 products at a time.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryProductLogs'>getInventoryProductLogs</B></a></td><td>The method allows to retrieve a list of events related to product change (or their variants) in the BaseLinker catalog.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=runProductMacroTrigger'>runProductMacroTrigger</B></a></td><td>The method allows you to run personal trigger for products automatic actions.</td></tr></table><BR><BR><div class="header">Inventory documents</div><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=addInventoryDocument'>addInventoryDocument</B></a></td><td>The method allows you to create a new inventory document in BaseLinker storage. Documents are created as draft and need to be confirmed by the user or setInventoryDocumentStatusConfirmed API method.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setInventoryDocumentStatusConfirmed'>setInventoryDocumentStatusConfirmed</B></a></td><td>The method allows you to confirm an inventory document, which will affect the stock levels in the warehouse.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryDocuments'>getInventoryDocuments</B></a></td><td>This method allows you to retrieve a list of inventory documents from BaseLinker. It supports pagination and optional filtering by document type, date range, etc.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryDocumentItems'>getInventoryDocumentItems</B></a></td><td>This method allows you to retrieve document items for specific or for all inventory documents in BaseLinker. In case of a large number of items, pagination is possible.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInventoryDocumentItems'>addInventoryDocumentItems</B></a></td><td>The method allows you to add items to an existing inventory document.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryDocumentSeries'>getInventoryDocumentSeries</B></a></td><td>This method allows you to retrieve information about available inventory document series in BaseLinker. Each series can be linked to a specific warehouse (warehouse_id) and can have its own numbering format settings.</td></tr></table><BR><BR><div class="header">Inventory purchase orders</div><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryPurchaseOrders'>getInventoryPurchaseOrders</B></a></td><td>The method allows you to retrieve a list of purchase orders from BaseLinker storage.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryPurchaseOrderItems'>getInventoryPurchaseOrderItems</B></a></td><td>The method allows you to retrieve items from a specific purchase order.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryPurchaseOrderSeries'>getInventoryPurchaseOrderSeries</B></a></td><td>The method allows you to retrieve a list of purchase order document series available in BaseLinker storage.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInventoryPurchaseOrder'>addInventoryPurchaseOrder</B></a></td><td>The method allows you to create a new purchase order in BaseLinker storage. Orders are created as drafts by default.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInventoryPurchaseOrderItems'>addInventoryPurchaseOrderItems</B></a></td><td>The method allows you to add items to an existing purchase order.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setInventoryPurchaseOrderStatus'>setInventoryPurchaseOrderStatus</B></a></td><td>The method allows you to change the status of a purchase order.</td></tr></table><BR><BR><div class="header">Inventory suppliers</div><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=getInventorySuppliers'>getInventorySuppliers</B></a></td><td>The method allows you to retrieve a list of suppliers available in BaseLinker storage.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInventorySupplier'>addInventorySupplier</B></a></td><td>The method allows you to add a new supplier or update an existing one in BaseLinker storage.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteInventorySupplier'>deleteInventorySupplier</B></a></td><td>The method allows you to remove a supplier from BaseLinker storage.</td></tr></table><BR><BR><div class="header">Inventory payers</div><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryPayers'>getInventoryPayers</B></a></td><td>The method allows you to retrieve a list of payers available in BaseLinker storage.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInventoryPayer'>addInventoryPayer</B></a></td><td>The method allows you to add a new payer or update an existing one in BaseLinker storage.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteInventoryPayer'>deleteInventoryPayer</B></a></td><td>The method allows you to remove a payer from BaseLinker storage.</td></tr></table><BR><BR><div class="header">External storages</div><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=getExternalStoragesList'>getExternalStoragesList</B></a></td><td>The method allows you to retrieve a list of available external storages (shops, wholesalers) that can be referenced via API.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getExternalStorageCategories'>getExternalStorageCategories</B></a></td><td>The method allows you to retrieve a category list from an external storage (shop/wholesale) connected to BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getExternalStorageProductsData'>getExternalStorageProductsData</B></a></td><td>The method allows to retrieve detailed data of selected products from an external storage (shop/wholesaler) connected to BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getExternalStorageProductsList'>getExternalStorageProductsList</B></a></td><td>The method allows to retrieve detailed data of selected products from an external storage (shop/wholesaler) connected to BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getExternalStorageProductsQuantity'>getExternalStorageProductsQuantity</B></a></td><td>The method allows to retrieve stock from an external storage (shop/wholesaler) connected to BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getExternalStorageProductsPrices'>getExternalStorageProductsPrices</B></a></td><td>The method allows to retrieve product prices from an external storage (shop/wholesaler) connected to BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=updateExternalStorageProductsQuantity'>updateExternalStorageProductsQuantity</B></a></td><td>The method allows to bulk update the product stock (and/or variants) in an external storage (shop/wholesaler) connected to BaseLinker. Maximum 1000 products at a time.</td></tr></table><BR><BR><div class="header">Orders</div><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=getJournalList'>getJournalList</B></a></td><td>The method allows you to download a list of order events from the last 3 days. Contact Base support to activate this method on your account. By default it will return empty response.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addOrder'>addOrder</B></a></td><td>The method allows adding a new order to the BaseLinker order manager.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addOrderDuplicate'>addOrderDuplicate</B></a></td><td>The method allows you to add a new order to the BaseLinker order manager by duplicating an existing order. The new order will have the same data as the original order, but with a different ID.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderSources'>getOrderSources</B></a></td><td>The method returns types of order sources along with their IDs. Order sources are grouped by their type that corresponds to a field order_source from the getOrders method. Available source types are  "personal", "shop" or "marketplace_code" e.g. "ebay", "amazon", "ceneo", "emag", "allegro", etc. </td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderExtraFields'>getOrderExtraFields</B></a></td><td>The method returns extra fields defined for the orders. Values of those fields can be set with method <span class="method_name">setOrderFields</span>. In order to retrieve values of those fields set parameter include_custom_extra_fields in method <span class="method_name">getOrders</span></td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrders'>getOrders</B></a></td><td>The method allows you to download orders from a specific date from the BaseLinker order manager. The order list can be limited using the filters described in the method parameters. A maximum of 100 orders are returned at a time.<BR><BR>                                        It is recommended to download only confirmed orders (get_unconfirmed_orders = false). Unconfirmed orders may be incomplete. The user may be, for example, in the process of creating an order - it already exists in the database, but not all information is completed. Unconfirmed orders may contain only a partial list of products and may be changed soon. Confirmed orders usually do not change anymore and can be safely downloaded to an external system.                                        <BR><BR>The best way to download the ongoing orders is:<BR>                                         Collecting new order identifiers using getJournalList.<BR><BR>Or, using this method:<BR>                                         1. Setting the starting date and specifying it in the date_confirmed_from field<BR>                                         2. Processing of all received orders. If 100 orders are received, there may be even more to download.<BR>                                         3. Downloading the next package of orders by entering the value of the date_confirmed field from last downloaded order in the date_confirmed_from field. In order to avoid downloading the same orders value of date_confirmed should be increased by 1 second. This operation is repeated until you receive a package with less than 100 orders (this means that there are no more orders left to download).<BR>                                         4. Saving the date_confirmed last processed order. You can download orders from this date onwards so that you do not download the same order twice. It is not possible for an order to 'jump' into the database with an earlier confirmation date. This way you can be sure that all confirmed orders have been downloaded.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderTransactionData'>getOrderTransactionData</B></a></td><td>The method allows you to retrieve transaction details for a selected order</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrdersByEmail'>getOrdersByEmail</B></a></td><td>The method allows to search for orders related to the given e-mail address. This function is designed to be used in plugins for mail clients (Thunderbird, Outlook, etc.).</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrdersByPhone'>getOrdersByPhone</B></a></td><td>The method allows you to search for orders related to the given phone number. This function is intended for use in caller recognition programs.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteOrders'>deleteOrders</B></a></td><td>The method allows you to delete multiple orders from the BaseLinker order manager.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInvoice'>addInvoice</B></a></td><td>The method allows to issue an order invoice.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addInvoiceCorrection'>addInvoiceCorrection</B></a></td><td>The method allows to issue an order invoice correction. 
+              <br>Either <b>original_invoice_id</b> or <b>return_order_id</b> must be provided.
+              <br>If <b>return_order_id</b> is provided, all other fields will be ignored (except series_id) and invoice will be created with data from the return order.
+              <br>If field is optional and not provided, it will be set according to the series settings or default values.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInvoices'>getInvoices</B></a></td><td>The method allows you to download invoices issued from the BaseLinker order manager. The list of invoices can be limited using filters described in the method parameters. Maximum 100 invoices are returned at a time. </td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getSeries'>getSeries</B></a></td><td>The method allows to download a series of invoice/receipt numbering.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderStatusList'>getOrderStatusList</B></a></td><td>The method allows you to download order statuses created by the customer in the BaseLinker order manager.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderPaymentsHistory'>getOrderPaymentsHistory</B></a></td><td>The method allows you to retrieve payment history for a selected order, including an external payment identifier from the payment gateway. One order can have multiple payment history entries, caused by surcharges, order value changes, manual payment editing</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderPickPackHistory'>getOrderPickPackHistory</B></a></td><td>The method allows you to retrieve pick pack history for a selected order.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getNewReceipts'>getNewReceipts</B></a></td><td>The method allows you to retrieve receipts waiting to be issued. This method should be used in creating integration with a fiscal printer. The method can be requested for new receipts every e.g. 10 seconds. If any receipts appear in response, they should be confirmed by the setOrderReceipt method after printing to disappear from the waiting list.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getReceipts'>getReceipts</B></a></td><td>The method allows you to retrieve issued receipts. Max 100 receipts are returned at a time. To retrieve a list of new receipts (when integrating a fiscal printer), use the getNewReceipts method.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getReceipt'>getReceipt</B></a></td><td>The method allows you to retrieve a single receipt from the BaseLinker order manager. To retrieve a list of new receipts (when integrating a fiscal printer), use the getNewReceipts method.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrderFields'>setOrderFields</B></a></td><td>The method allows you to edit selected fields (e.g. address data, notes, etc.) of a specific order. Only the fields that you want to edit should be given, other fields can be omitted in the request.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addOrderProduct'>addOrderProduct</B></a></td><td>The method allows you to add a new product to your order.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrderProductFields'>setOrderProductFields</B></a></td><td>The method allows you to edit the data of selected items (e.g. prices, quantities etc.) of a specific order. Only the fields that you want to edit should be given, the remaining fields can be omitted in the request.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteOrderProduct'>deleteOrderProduct</B></a></td><td>The method allows you to remove a specific product from the order.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrderPayment'>setOrderPayment</B></a></td><td>The method allows you to add a payment to the order.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrderStatus'>setOrderStatus</B></a></td><td>The method allows you to change order status.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrderStatuses'>setOrderStatuses</B></a></td><td>The method allows you to batch set orders statuses</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrderReceipt'>setOrderReceipt</B></a></td><td>The method allows you to mark orders with a receipt already issued.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addOrderInvoiceFile'>addOrderInvoiceFile</B></a></td><td>The method allows you to add an external file to an invoice previously issued from BaseLinker. It enables replacing a standard invoice from BaseLinker with an invoice issued e.g. in an ERP program.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addOrderReceiptFile'>addOrderReceiptFile</B></a></td><td>The method allows you to add an external file to a receipt previously issued from BaseLinker. It enables replacing a standard receipt from BaseLinker with a receipt issued e.g. in an ERP program.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addOrderBySplit'>addOrderBySplit</B></a></td><td>Creates a new order by splitting selected products from an existing order. The new order inherits all fields and information from the original one.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrdersMerge'>setOrdersMerge</B></a></td><td>Merges multiple orders into one, based on the selected merge mode.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInvoiceFile'>getInvoiceFile</B></a></td><td>The method allows you to get the invoice file from BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=runOrderMacroTrigger'>runOrderMacroTrigger</B></a></td><td>The method allows you to run personal trigger for orders automatic actions.</td></tr></table><BR><BR><div class="header">Order returns</div><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=getOrderReturnJournalList'>getOrderReturnJournalList</B></a></td><td>The method allows you to download a list of return events from the last 3 days.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addOrderReturn'>addOrderReturn</B></a></td><td>The method allows adding a new order return to BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderReturnExtraFields'>getOrderReturnExtraFields</B></a></td><td>The method returns extra fields defined for order returns. Values of those fields can be set with method <span class="method_name">setOrderReturnFields</span>. To retrieve values of those fields set parameter include_custom_extra_fields in method <span class="method_name">getOrderReturns</span></td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderReturns'>getOrderReturns</B></a></td><td>The method allows you to download order returns from a specific date from the BaseLinker return manager. The return list can be limited using the filters described in the method parameters. A maximum of 100 order returns are returned at a time.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderReturnStatusList'>getOrderReturnStatusList</B></a></td><td>The method allows you to download order return statuses created by the customer in the BaseLinker order manager.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderReturnPaymentsHistory'>getOrderReturnPaymentsHistory</B></a></td><td>The method allows you to retrieve payment history for a selected order, including an external payment identifier from the payment gateway. One order can have multiple payment history entries, caused by surcharges, order value changes, manual payment editing</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrderReturnFields'>setOrderReturnFields</B></a></td><td>The method allows you to edit selected fields of a specific order return. Only the fields that you want to edit should be given, other fields can be omitted in the request.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addOrderReturnProduct'>addOrderReturnProduct</B></a></td><td>Add new product to existing order return</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrderReturnProductFields'>setOrderReturnProductFields</B></a></td><td>The method allows you to edit the data of selected items (e.g. prices, quantities etc.) of a specific order. Only the fields that you want to edit should be given, the remaining fields can be omitted in the request.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteOrderReturnProduct'>deleteOrderReturnProduct</B></a></td><td>The method allows you to remove a specific product from the return.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrderReturnRefund'>setOrderReturnRefund</B></a></td><td>The method allows you to mark an order return as refunded. Note this method doesn't issue an actual money refund.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderReturnReasonsList'>getOrderReturnReasonsList</B></a></td><td>The method returns a list of order return reasons. Values of those fields can be set with method <span class="method_name">setOrderReturnFields</span>.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrderReturnStatus'>setOrderReturnStatus</B></a></td><td>The method allows you to change order return status.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setOrderReturnStatuses'>setOrderReturnStatuses</B></a></td><td>The method allows you to batch set order return statuses.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=runOrderReturnMacroTrigger'>runOrderReturnMacroTrigger</B></a></td><td>The method allows you to run personal trigger for order returns automatic actions.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderReturnProductStatuses'>getOrderReturnProductStatuses</B></a></td><td>The method returns a list of order return item statuses. Values of those fields can be set with method <span class="method_name">setOrderReturnFields</span>.</td></tr></table><BR><BR><div class="header">Courier shipments</div><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=createPackage'>createPackage</B></a></td><td>The method allows you to create a shipment in the system of the selected courier.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=createPackageManual'>createPackageManual</B></a></td><td>The method allows you to enter the shipping number and the name of the courier to the order (function used only to add shipments created outside BaseLinker)</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getCouriersList'>getCouriersList</B></a></td><td>The method allows you to retrieve a list of available couriers.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getCourierFields'>getCourierFields</B></a></td><td>The method allows you to retrieve the form fields for creating shipments for the selected courier.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getCourierServices'>getCourierServices</B></a></td><td>The method allows you to retrieve additional courier services, which depend on other shipment settings. Used only for X-press, BrokerSystem, Wysyłam z Allegro, ErliPRO couriers. Not applicable to other couriers whose forms have fixed options. The details of the package should be sent with the method (the format as in createPackage) in order to receive a list of additional services</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getCourierAccounts'>getCourierAccounts</B></a></td><td>The method allows you to retrieve the list of accounts connected to a given courier.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getLabel'>getLabel</B></a></td><td>The method allows you to download a shipping label (consignment) for a selected shipment.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getProtocol'>getProtocol</B></a></td><td>The method allows you to download a parcel protocol for selected shipments if the protocol is available for chosen courier</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getCourierDocument'>getCourierDocument</B></a></td><td>The method allows you to download a parcel document</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getOrderPackages'>getOrderPackages</B></a></td><td>The method allows you to download shipments previously created for the selected order.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getPackageDetails'>getPackageDetails</B></a></td><td>This method allows to get detailed information about a package. If the package contains multiple subpackages, information about all of them is included in the response.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getCourierPackagesStatusHistory'>getCourierPackagesStatusHistory</B></a></td><td>The method allows you to retrieve the history of the status list of the given shipments. Maximum 100 shipments at a time</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteCourierPackage'>deleteCourierPackage</B></a></td><td>The method allows you to delete a previously created shipment. The method removes the shipment from the BaseLinker system and from the courier system if the courier API allows it</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=runRequestParcelPickup'>runRequestParcelPickup</B></a></td><td>The method allows you to request a parcel pickup for previously created shipments. The method sends a parcel pickup request to courier API if the courier API allows it</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getRequestParcelPickupFields'>getRequestParcelPickupFields</B></a></td><td>The method allows you to retrieve additional fields for a parcel pickup request.</td></tr></table><BR><BR><div class="header">Products storage [OBSOLETE]</div><br><p>When referring to external warehouses (shop_*, warehouse_*) due to different performance of external warehouses, different integration methods and their specific requirements, the response standard may differ from the one described in the documentation.</p><br><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=getStoragesList'>getStoragesList</B></a></td><td>This method allows downloading a list of available storages that can be accessed via API.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addCategory'>addCategory</B></a></td><td>The method allows adding a category to the BaseLinker storage. Adding a category with the same ID again, updates the previously saved category.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addProduct'>addProduct</B></a></td><td>The method allows you to add a new product to BaseLinker storage. Entering the product with the ID updates previously saved product.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=addProductVariant'>addProductVariant</B></a></td><td>The method allows to add a new variant to the product in BaseLinker storage. Providing the variant together with the ID, causes an update of the previously saved variant.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteCategory'>deleteCategory</B></a></td><td>The method allows you to remove categories from BaseLinker storage. Along with the category, the products contained therein are removed (however, this does not apply to products in subcategories). The subcategories will be changed to the highest level categories.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteProduct'>deleteProduct</B></a></td><td>The method allows you to remove the product from BaseLinker storage.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=deleteProductVariant'>deleteProductVariant</B></a></td><td>The method allows you to remove the product from BaseLinker storage.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getCategories'>getCategories</B></a></td><td>The method allows you to download a list of categories for a BaseLinker storage or a shop storage connected to BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getProductsData'>getProductsData</B></a></td><td>The method allows to download detailed data of selected products from the BaseLinker storage or a shop/wholesaler storage connected to BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getProductsList'>getProductsList</B></a></td><td>The method allows to download detailed data of selected products from the BaseLinker storage or a shop/wholesaler storage connected to BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getProductsQuantity'>getProductsQuantity</B></a></td><td>The method allows to retrieve stock from the BaseLinker storage or the shop/wholesaler storage connected to BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getProductsPrices'>getProductsPrices</B></a></td><td>The method allows you to fetch prices of products from the BaseLinker storage or the shop/wholesaler storage connected to BaseLinker.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=updateProductsQuantity'>updateProductsQuantity</B></a></td><td>The method allows to bulk update the product stock (and/or variants) in BaseLinker storage or in a shop/wholesaler storage connected to BaseLinker. Maximum 1000 products at a time.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=updateProductsPrices'>updateProductsPrices</B></a></td><td>The method allows for bulk update of product prices (and/or variants) in BaseLinker storage. Maximum 1000 products at a time.</td></tr></table><BR><BR><div class="header">Printouts</div><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=getOrderPrintoutTemplates'>getOrderPrintoutTemplates</B></a></td><td>Returns a list of all configured printout templates available for orders. The output includes technical identifiers used when executing a printout.</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getInventoryPrintoutTemplates'>getInventoryPrintoutTemplates</B></a></td><td>Returns a list of all configured printout templates available for inventory (products).</td></tr></table><BR><BR><div class="header">Base Connect</div><table class="table"><tr><td style='width:100px;'><B><a href='index.php?method=getConnectIntegrations'>getConnectIntegrations</B></a></td><td>The method allows you to retrieve a list of all Base Connect integrations on this account</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getConnectIntegrationContractors'>getConnectIntegrationContractors</B></a></td><td>The method allows you to retrieve a list of contractors connected to the selected Base Connect integration</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=getConnectContractorCreditHistory'>getConnectContractorCreditHistory</B></a></td><td>The method allows you to retrieve an information about chosen contractor trade credit history</td></tr><tr><td style='width:100px;'><B><a href='index.php?method=setConnectContractorCreditLimit'>setConnectContractorCreditLimit</B></a></td><td>The method allows you to set new trade credit limit for chosen contractor</td></tr></table><BR><BR>
+                    
+                </div>
+            </div>
+        </div>
+
+<script>
+    function send()
+    {
+        $("#response_div").slideDown();
+        $("#response").html("Loading..");
+
+        $.ajax({
+            type: "POST",
+            url: "connector.php",
+            headers: {"X-BLToken": $("#token").val()},
+            data: {method: $("#method").val(), parameters: $("#parameters").val() }
+        })
+        .done(function( data ) {
+                try
+                {
+                    if (!isJson(data)) {
+                        data2 = JSON.stringify(data, null, 2);
+                    } else {
+                        data2 = JSON.stringify(JSON.parse(data), null, 2);
+                    }
+
+                    $("#response").html(data2);
+                }
+                catch(e)
+                {
+                    $("#response").html(data );
+                }
+        });
+    }
+
+    function isJson(str) {
+        try {
+            JSON.parse(str);
+        } catch (e) {
+            return false;
+        }
+        return true;
+    }
+
+    function paste_example()
+    {
+        examples = new Array();
+                                        examples['getStoragesList'] = '{}';
+                                        examples['addCategory'] = '{\n\
+"storage_id": "bl_1",\n\
+"name": "Shoes",\n\
+"parent_id": 0\n\
+}';
+                                        examples['addProduct'] = '{\n\
+"storage_id": "bl_1",\n\
+"product_id": "2685",\n\
+"sku": "EPL-432",\n\
+"ean": "983628103943",\n\
+"asin": "B07STORAGE1",\n\
+"location": "A1-13-7",\n\
+"name": "Harry Potter and the Chamber of Secrets",\n\
+"quantity": 12,\n\
+"price_brutto": 19.50,\n\
+"price_wholesale_netto": 12.44,\n\
+"tax_rate": 23,\n\
+"weight": 0.250,\n\
+"description": "Basic book description",\n\
+"description_extra1": "Additional description, e.g. of the entire product category",\n\
+"description_extra2": "Second additional description - e.g. IMG tags with photos from an external server",\n\
+"man_name": "Media Rodzina",\n\
+"category_id": "3",\n\
+"images": [\n\
+                "url:http://placehold.it/250x250/image.jpg",\n\
+                "url:http://placehold.it/250x250/image2.jpg",\n\
+                "url:http://placehold.it/350x350/image34.jpg"\n\
+          ],\n\
+"features": [\n\
+                {"name":"Cover","value":"Hardcover"},\n\
+                {"name":"Pages","value":"300"},\n\
+                {"name":"Language","value":"Polish"}\n\
+              ]\n\
+}';
+                                        examples['addProductVariant'] = '{\n\
+"storage_id": "bl_1",\n\
+"product_id": "2685",\n\
+"variant_id": 0,\n\
+"name": "red XL",\n\
+"sku": "EPL-432-XL",\n\
+"ean": "983628103950",\n\
+"asin": "B07VARIANT1",\n\
+"quantity": 2,\n\
+"price_brutto": 19.50\n\
+}';
+                                        examples['deleteCategory'] = '{\n\
+"storage_id": "bl_1",\n\
+"category_id": "543"\n\
+}';
+                                        examples['deleteProduct'] = '{\n\
+"storage_id": "bl_1",\n\
+"product_id": "3245"\n\
+}';
+                                        examples['deleteProductVariant'] = '{\n\
+"storage_id": "bl_1",\n\
+"product_id": "3245",\n\
+"variant_id": "5132"\n\
+}';
+                                        examples['getCategories'] = '{\n\
+"storage_id": "bl_1"\n\
+}';
+                                        examples['getProductsData'] = '{\n\
+"storage_id": "bl_1",\n\
+"products": [524,734]\n\
+}';
+                                        examples['getProductsList'] = '{\n\
+"storage_id": "bl_1",\n\
+"filter_category_id": 543\n\
+}';
+                                        examples['getProductsQuantity'] = '{\n\
+"storage_id": "bl_1"\n\
+}';
+                                        examples['getProductsPrices'] = '{\n\
+"storage_id": "bl_1"\n\
+}';
+                                        examples['updateProductsQuantity'] = '{\n\
+  "storage_id": "bl_1",\n\
+  "products": [\n\
+     [1081730, 0, 100],\n\
+     [1081730, 1734642, 150]\n\
+ ]}';
+                                        examples['updateProductsPrices'] = '{\n\
+   "storage_id": "bl_1",\n\
+   "products": [\n\
+        {"product_id": 1081730, "variant_id": 0, "price_brutto": 10, "price_wholesale": 20, "tax_rate": 23},\n\
+        {"product_id": 1081730, "variant_id": 1764564, "price_brutto": 100, "tax_rate": 23}\n\
+ ]}';
+                                        examples['addInventoryPriceGroup'] = '{\n\
+    "name": "USA",\n\
+    "description": "Price group for US market",\n\
+    "currency": "USD"\n\
+}';
+                                        examples['deleteInventoryPriceGroup'] = '{\n\
+    "price_group_id": 105\n\
+}';
+                                        examples['getInventoryPriceGroups'] = '{}';
+                                        examples['addInventoryWarehouse'] = '{\n\
+    "name": "Berlin",\n\
+    "description": "Warehouse located in Berlin",\n\
+    "stock_edition": false\n\
+}';
+                                        examples['deleteInventoryWarehouse'] = '{\n\
+    "warehouse_id": 206\n\
+}';
+                                        examples['getInventoryWarehouses'] = '{}';
+                                        examples['addInventory'] = '{\n\
+    "name": "Additional catalog",\n\
+    "description": "Additional product catalog",\n\
+    "languages": ["en", "de"],\n\
+    "default_language": "en",\n\
+    "price_groups": [105],\n\
+    "default_price_group": 105,\n\
+    "warehouses": ["bl_205", "shop_2334"],\n\
+    "default_warehouse": "bl_205",\n\
+    "reservations": true\n\
+}';
+                                        examples['deleteInventory'] = '{\n\
+    "inventory_id": 307\n\
+}';
+                                        examples['getInventories'] = '{}';
+                                        examples['addInventoryCategory'] = '{\n\
+    "name": "Textiles",\n\
+    "parent_id": 5\n\
+}';
+                                        examples['deleteInventoryCategory'] = '{\n\
+    "category_id": 6\n\
+}';
+                                        examples['getInventoryCategories'] = '{}';
+                                        examples['getInventoryTags'] = '{}';
+                                        examples['addInventoryManufacturer'] = '{\n\
+    "name": "Test manufacturer 2"\n\
+}';
+                                        examples['deleteInventoryManufacturer'] = '{\n\
+    "manufacturer_id": 8\n\
+}';
+                                        examples['getInventoryManufacturers'] = '{}';
+                                        examples['getInventoryExtraFields'] = '{}';
+                                        examples['getInventoryIntegrations'] = '{\n\
+    "inventory_id": 307\n\
+}';
+                                        examples['getInventoryAvailableTextFieldKeys'] = '{\n\
+    "inventory_id": 307\n\
+}';
+                                        examples['addInventoryProduct'] = '{\n\
+    "inventory_id": "307",\n\
+    "product_id": "2685",\n\
+    "is_bundle": false,\n\
+    "sku": "EPL-432",\n\
+    "ean": "983628103943",\n\
+    "ean_additional": [\n\
+        {\n\
+          "ean": "983628103944",\n\
+          "quantity": 4\n\
+        },\n\
+        {\n\
+          "ean": "983628103945",\n\
+          "quantity": 8\n\
+        }\n\
+      ],\n\
+    "asin": "B07EXAMPLE1",\n\
+    "tags": ["Summer", "Winter"],\n\
+    "tax_rate": 23,\n\
+    "weight": 0.25,\n\
+    "height": 0.3,\n\
+    "width": 0.2,\n\
+    "length": 0.05,\n\
+    "average_cost": 120.98,\n\
+    "star": 2,\n\
+    "manufacturer_id": 5,\n\
+    "category_id": 3,\n\
+    "prices": {\n\
+        "105": 20.99,\n\
+        "106": 23.99\n\
+    },\n\
+    "stock": {\n\
+        "bl_206": 5,\n\
+        "bl_207": 7\n\
+    },\n\
+    "locations": {\n\
+        "bl_206": "A-5-2",\n\
+        "bl_207": "B-1-5"\n\
+    },\n\
+    "text_fields": {\n\
+        "name": "Harry Potter and the Chamber of Secrets",\n\
+        "description": "Basic book description",\n\
+        "description_extra1": "Additional description, e.g. of the entire product category",\n\
+        "description_extra2": "Second additional description - e.g. IMG tags with photos from an external server",\n\
+        "features": {\n\
+            "Cover":"Hardcover",\n\
+            "Pages":"300",\n\
+            "Language":"English"\n\
+        },\n\
+        "name|de": "Harry Potter und die Kammer des Schreckens"\n\
+    },\n\
+    "images": {\n\
+        "0": "url:http://placehold.it/250x250/image.jpg",\n\
+        "3": "url:http://placehold.it/250x250/image2.jpg",\n\
+        "5": "url:http://placehold.it/350x350/image34.jpg"\n\
+    },\n\
+    "links": {\n\
+        "shop_23": {\n\
+            "product_id": 8,\n\
+            "variant_id": 3\n\
+        }\n\
+    }\n\
+}';
+                                        examples['deleteInventoryProduct'] = '{\n\
+    "product_id": 8\n\
+}';
+                                        examples['getInventoryProductsData'] = '{\n\
+    "inventory_id": "307",\n\
+    "products": [2685]\n\
+}';
+                                        examples['getInventoryProductsList'] = '{\n\
+    "inventory_id": "307",\n\
+    "filter_id": 2685\n\
+}';
+                                        examples['getInventoryProductsStock'] = '{\n\
+    "inventory_id": "307"\n\
+}';
+                                        examples['updateInventoryProductsStock'] = '{\n\
+    "inventory_id": "307",\n\
+    "products": {\n\
+        "2685": {\n\
+            "bl_206": 5,\n\
+            "bl_207": 7\n\
+        },\n\
+        "2687": {\n\
+            "bl_206": 2,\n\
+            "bl_207": 4\n\
+        }\n\
+    }\n\
+}';
+                                        examples['getInventoryProductsPrices'] = '{\n\
+    "inventory_id": "307"\n\
+}';
+                                        examples['updateInventoryProductsPrices'] = '{\n\
+    "inventory_id": "307",\n\
+    "products": {\n\
+        "2685": {\n\
+            "105": 21.99,\n\
+            "106": 24.99\n\
+        },\n\
+        "2687": {\n\
+            "105": 21.99,\n\
+            "106": 23.99\n\
+        }\n\
+    }\n\
+}';
+                                        examples['getInventoryProductLogs'] = '{\n\
+    "product_id": "2685",\n\
+    "date_from": 1592904594,\n\
+    "page": 2\n\
+}';
+                                        examples['getExternalStoragesList'] = '{}';
+                                        examples['getExternalStorageCategories'] = '{\n\
+    "storage_id": "shop_2445"\n\
+}';
+                                        examples['getExternalStorageProductsData'] = '{\n\
+    "storage_id": "shop_2445",\n\
+    "products": [524,734]\n\
+}';
+                                        examples['getExternalStorageProductsList'] = '{\n\
+    "storage_id": "shop_2445",\n\
+    "filter_category_id": 543\n\
+}';
+                                        examples['getExternalStorageProductsQuantity'] = '{\n\
+    "storage_id": "shop_2445"\n\
+}';
+                                        examples['getExternalStorageProductsPrices'] = '{\n\
+    "storage_id": "shop_2445"\n\
+}';
+                                        examples['updateExternalStorageProductsQuantity'] = '{\n\
+    "storage_id": "shop_2445",\n\
+    "products": [\n\
+        [1081730, 0, 100],\n\
+        [1081730, 1734642, 150]\n\
+    ]\n\
+}';
+                                        examples['getJournalList'] = '{\n\
+    "last_log_id": 654258,\n\
+    "logs_types": [7, 13]\n\
+}';
+                                        examples['addOrder'] = '{\n\
+      "order_status_id": "6624",\n\
+      "date_add": "1768442776",\n\
+      "user_comments": "User comment",\n\
+      "admin_comments": "Seller test comments",\n\
+      "phone": "693123123",\n\
+      "email": "test@test.com",\n\
+      "user_login": "nick1",\n\
+      "currency": "GBP",\n\
+      "payment_method": "PayPal",\n\
+      "payment_method_cod": "0",\n\
+      "paid": "1",\n\
+      "delivery_method": "Expedited shipping",\n\
+      "delivery_price": "10",\n\
+      "delivery_fullname": "John Doe",\n\
+      "delivery_company": "Company",\n\
+      "delivery_address": "Long Str 12",\n\
+      "delivery_city": "London",\n\
+      "delivery_state": "",\n\
+      "delivery_postcode": "E2 8HQ",\n\
+      "delivery_country_code": "GB",\n\
+      "delivery_point_id": "",\n\
+      "delivery_point_name": "",\n\
+      "delivery_point_address": "",\n\
+      "delivery_point_postcode": "",\n\
+      "delivery_point_city": "",\n\
+      "invoice_fullname": "John Doe",\n\
+      "invoice_company": "Company",\n\
+      "invoice_nip": "GB8943245",\n\
+      "invoice_address": "Long Str 12",\n\
+      "invoice_city": "London",\n\
+      "invoice_state": "",\n\
+      "invoice_postcode": "E2 8HQ",\n\
+      "invoice_country_code": "GB",\n\
+      "want_invoice": "0",\n\
+      "extra_field_1": "field test 1",\n\
+      "extra_field_2": "",\n\
+      "custom_extra_fields": {\n\
+          "135": "B2B",\n\
+          "172": "1646913115"\n\
+      },\n\
+      "products": [\n\
+        {\n\
+          "storage": "db",\n\
+          "storage_id": 0,\n\
+          "product_id": "5434",\n\
+          "variant_id": 52124,\n\
+          "location": "A1-13-7",\n\
+          "name": "Harry Potter and the Chamber of Secrets",\n\
+          "sku": "LU4235",\n\
+          "ean": "1597368451236",\n\
+          "price_brutto": 20.00,\n\
+          "tax_rate": 23,\n\
+          "quantity": 2,\n\
+          "weight": 1\n\
+        }\n\
+      ]\n\
+}';
+                                        examples['addOrderDuplicate'] = '{\n\
+        "order_id": 12345\n\
+}';
+                                        examples['getOrderSources'] = '{}';
+                                        examples['getOrderExtraFields'] = '{}';
+                                        examples['getOrders'] = '{\n\
+    "date_confirmed_from": 1407341754,\n\
+    "get_unconfirmed_orders": false\n\
+}';
+                                                        examples['getOrderTransactionData'] = '{\n\
+        "order_id": 143477867,\n\
+        "include_complex_taxes": true,\n\
+        "include_amazon_data": false\n\
+}';
+                                        examples['getOrdersByEmail'] = '{\n\
+    "email": "test@test.com"\n\
+}';
+                                        examples['getOrdersByPhone'] = '{\n\
+    "phone": "+48123456789"\n\
+}';
+                                                        examples['deleteOrders'] = '{\n\
+        "order_ids": [\n\
+          12345,\n\
+          123456,\n\
+          1234567\n\
+        ]\n\
+}';
+                                        examples['addInvoice'] = '{\n\
+    "order_id": 3754894,\n\
+    "series_id": 15\n\
+}';
+                                        examples['addInvoiceCorrection'] = '{\n\
+    "original_invoice_id": 1,\n\
+    "series_id": 2,\n\
+    "date_sell": 1407341754,\n\
+    "correcting_reason": 1,\n\
+    "correcting_items": 1,\n\
+    "correcting_data": 1,\n\
+    "invoice_fullname": "John Doe",\n\
+    "invoice_company": "Big Company",\n\
+    "invoice_address": "Street 10",\n\
+    "invoice_postcode": "01-234",\n\
+    "invoice_city": "Warsaw",\n\
+    "invoice_state": "Masovian",\n\
+    "invoice_country_code": "PL",\n\
+    "invoice_nip": "1234567890",\n\
+    "items": [\n\
+        {\n\
+            "item_name": "Test Product",\n\
+            "item_sku": "TestProductSku",\n\
+            "item_ean": "12345678",\n\
+            "item_quantity": 1,\n\
+            "item_price_brutto": 25.00,\n\
+            "item_tax_rate": 19.00\n\
+        }\n\
+    ],\n\
+    "fv_payment": "Transfer",\n\
+    "fv_person": "Kierownik"\n\
+}';
+                                        examples['getInvoices'] = '{\n\
+    "date_from": 1407341754\n\
+}';
+                                        examples['getSeries'] = '{}';
+                                        examples['getOrderStatusList'] = '[]';
+                                        examples['getOrderPaymentsHistory'] = '{\n\
+    "order_id": 3754894\n\
+}';
+                                        examples['getOrderPickPackHistory'] = '{\n\
+    "order_id": 3754894\n\
+}';
+                                        examples['getNewReceipts'] = '{\n\
+    "series_id": 0,\n\
+    "id_from": 1\n\
+ }';
+                                        examples['getReceipts'] = '{\n\
+    "series_id": 0,\n\
+    "id_from": 1\n\
+ }';
+                                        examples['getReceipt'] = '{\n\
+   "order_id":143476260\n\
+}';
+                                        examples['setOrderFields'] = '{\n\
+    "order_id": 3754894,\n\
+    "admin_comments": "New seller comments",\n\
+    "delivery_method": "New delivery method name"\n\
+}';
+                                        examples['addOrderProduct'] = '{\n\
+    "order_id": 3754894,\n\
+    "storage": "db",\n\
+    "storage_id": 0,\n\
+    "product_id": "5434",\n\
+    "variant_id": 52124,\n\
+    "name": "Harry Potter and the Chamber of Secrets",\n\
+    "sku": "LU4235",\n\
+    "ean": "1597368451236",\n\
+    "location": "A1-13-7",\n\
+    "attributes": "colour red",\n\
+    "price_brutto": 20.00,\n\
+    "tax_rate": 23,\n\
+    "quantity": 2,\n\
+    "weight": 1\n\
+}';
+                                        examples['setOrderProductFields'] = '{\n\
+    "order_id": 3754894,\n\
+    "order_product_id": "59157160",\n\
+    "attributes": "new product attribute",\n\
+    "quantity": "5"\n\
+}';
+                                        examples['deleteOrderProduct'] = '{\n\
+    "order_id": 3754894,\n\
+    "order_product_id": "59157160"\n\
+}';
+                                        examples['setOrderPayment'] = '{\n\
+    "order_id": 3754894,\n\
+    "payment_done": 120.57,\n\
+    "payment_date": 1444736731,\n\
+    "payment_comment": "bank transfer mBank 12.10.2015"\n\
+}';
+                                        examples['setOrderStatus'] = '{\n\
+    "order_id": 3754894,\n\
+    "status_id": 34562\n\
+}';
+                                        examples['setOrderStatuses'] = '{\n\
+    "order_ids": [3754894, 3754895],\n\
+    "status_id": 2\n\
+}';
+                                        examples['setOrderReceipt'] = '{\n\
+    "receipt_id": 153845,\n\
+    "receipt_nr": "FP 23212",\n\
+    "date": 1407341754,\n\
+    "printer_error": false,\n\
+    "printer_name": "Fiscal123"\n\
+}';
+                                        examples['addOrderInvoiceFile'] = '{\n\
+    "invoice_id": 153845,\n\
+    "file": "data:4AAQSkZJRgABA[...]",\n\
+    "external_invoice_number": "FV 101/03/2020"\n\
+}';
+                                        examples['addOrderReceiptFile'] = '{\n\
+    "receipt_id": 153845,\n\
+    "file": "data:4AAQSkZJRgABA[...]",\n\
+    "external_receipt_number": "RC40/08/2023"\n\
+}';
+                                        examples['addOrderBySplit'] = '{\n\
+        "order_id": 1234567,\n\
+        "items_to_split": [\n\
+            {\n\
+                "order_product_id": 123,\n\
+                "quantity": 2\n\
+            },\n\
+            {\n\
+                "order_product_id": 456,\n\
+                "quantity": 1\n\
+            },\n\
+            {\n\
+                "order_product_id": 789,\n\
+                "quantity": 3\n\
+            }\n\
+        ],\n\
+        "delivery_cost_to_split": 123.00\n\
+}';
+                                        examples['setOrdersMerge'] = '{\n\
+        "main_order_id": 1234567,\n\
+        "order_ids_to_merge": [\n\
+            2345678,\n\
+            3456789,\n\
+            4567890\n\
+        ],\n\
+        "merge_mode": "technical_merge",\n\
+        "sum_delivery_costs": true\n\
+}';
+                                        examples['getInvoiceFile'] = '{\n\
+    "invoice_id": 153845\n\
+}';
+                                        examples['runOrderMacroTrigger'] = '{\n\
+    "order_id":"143476260",\n\
+    "trigger_id":"12413"\n\
+}';
+                                        examples['runProductMacroTrigger'] = '{\n\
+        "product_id":"143476260",\n\
+        "trigger_id":"12413"\n\
+    }';
+                                        examples['addInventoryDocument'] = '{\n\
+        "warehouse_id": 205,\n\
+        "document_type": 2,\n\
+        "date_add": 1740479190,\n\
+        "date_execute": 1740479190\n\
+}';
+                                        examples['setInventoryDocumentStatusConfirmed'] = '{\n\
+        "document_id": 101\n\
+}';
+                                        examples['getInventoryDocuments'] = '{\n\
+        "filter_document_type": 1,\n\
+        "filter_date_from": 1693459200,\n\
+        "page": 1\n\
+}';
+                                        examples['getInventoryDocumentItems'] = '{\n\
+        "document_id": 101,\n\
+        "page": 1\n\
+}';
+                                        examples['addInventoryDocumentItems'] = '{\n\
+        "document_id": 101,\n\
+        "items": [\n\
+            {\n\
+                "product_id": 5432,\n\
+                "quantity": 5,\n\
+                "price": 10.99,\n\
+                "location_name": "A-1-2",\n\
+                "expiry_date": "2023-12-31",\n\
+                "batch": "LOT2021",\n\
+                "serial_no": "SN20211231001",\n\
+                "comments": "Important item"\n\
+            }\n\
+        ]\n\
+}';
+                                        examples['getInventoryDocumentSeries'] = '{}';
+                                        examples['getInventoryPurchaseOrders'] = '{\n\
+        "date_from": 1609459200,\n\
+        "date_to": 1640995199,\n\
+        "page": 1\n\
+    }';
+                                        examples['getInventoryPurchaseOrderItems'] = '{\n\
+        "order_id": 1234\n\
+}';
+                                        examples['getInventoryPurchaseOrderSeries'] = '{\n\
+        "warehouse_id": 1\n\
+}';
+                                        examples['addInventoryPurchaseOrder'] = '{\n\
+        "series_id": 15,\n\
+        "warehouse_id": 1,\n\
+        "supplier_id": 5,\n\
+        "payer_id": 1,\n\
+        "currency": "EUR",\n\
+        "date_created": 1640908800,\n\
+        "name": "Monthly stock delivery",\n\
+        "notes": "Monthly stock delivery",\n\
+        "invoice_no": "FV/2021/12/123"\n\
+}';
+                                        examples['addInventoryPurchaseOrderItems'] = '{\n\
+        "order_id": 1234,\n\
+        "items": [\n\
+            {\n\
+                "product_id": 5432,\n\
+                "quantity": 5,\n\
+                "item_cost": 10.99,\n\
+                "supplier_code": "SUP-001",\n\
+                "location": "A-1-2",\n\
+                "batch": "LOT2021",\n\
+                "expiry_date": "2023-12-31",\n\
+                "serial_no": "SN20211231001",\n\
+                "comments": "Important item"\n\
+            }\n\
+        ]\n\
+}';
+                                        examples['setInventoryPurchaseOrderStatus'] = '{\n\
+        "order_id": 1234,\n\
+        "status": 2,\n\
+        "completed_items": [\n\
+            {\n\
+                "item_id": 1,\n\
+                "completed_quantity": 3\n\
+            }\n\
+        ]\n\
+}';
+                                        examples['getInventoryPayers'] = '{\n\
+        "filter_id": 1,\n\
+        "filter_name": "Company"\n\
+}';
+                                        examples['addInventoryPayer'] = '{\n\
+    "name": "Company Ltd",\n\
+    "address": "123 Main Street",\n\
+    "postcode": "12-345",\n\
+    "city": "London",\n\
+    "tax_no": "GB123456789"\n\
+}';
+                                        examples['deleteInventoryPayer'] = '{\n\
+        "payer_id": 1\n\
+}';
+                                        examples['getInventorySuppliers'] = '{\n\
+        "filter_id": 1,\n\
+        "filter_name": "Example Supplier"\n\
+}';
+                                        examples['addInventorySupplier'] = '{\n\
+        "name": "Supplier Ltd",\n\
+        "take_product_cost_from": "cost",\n\
+        "take_product_code_from": "sku",\n\
+        "address": "123 Main Street",\n\
+        "postcode": "12-345",\n\
+        "city": "London",\n\
+        "phone": "+44123456789",\n\
+        "email": "contact@supplier.com",\n\
+        "email_copy_to": "manager@supplier.com",\n\
+        "currency": "GBP"\n\
+}';
+                                        examples['deleteInventorySupplier'] = '{\n\
+        "supplier_id": 1\n\
+}';
+                                        examples['createPackage'] = '{\n\
+    "order_id": 6910995,\n\
+    "courier_code": "dhl",\n\
+    "account_id": 33,\n\
+    "fields": [\n\
+        {\n\
+            "id":"service",\n\
+            "value":"dhl"\n\
+        },\n\
+        {\n\
+            "id":"cod",\n\
+            "value":"101"\n\
+        },\n\
+        {\n\
+            "id":"insurance",\n\
+            "value":"55"\n\
+        },\n\
+        {\n\
+            "id":"package_description",\n\
+            "value":"Shipment description"\n\
+        }\n\
+    ],\n\
+    "packages":[\n\
+        {\n\
+            "length":11,\n\
+            "height":12,\n\
+            "width":13,\n\
+            "weight":4,\n\
+            "size_custom":1\n\
+        }\n\
+    ]\n\
+}';
+                                        examples['createPackageManual'] = '{\n\
+    "order_id": 6910995,\n\
+    "courier_code": "dhl",\n\
+    "package_number": "622222044730624327700197",\n\
+    "pickup_date": "1487006161",\n\
+    "return_shipment": true\n\
+}';
+                                        examples['getCouriersList'] = '[]';
+                                        examples['getCourierFields'] = '{\n\
+    "courier_code": "pkwid"\n\
+}';
+                                        examples['getCourierServices'] = '{\n\
+    "order_id": 6911000,\n\
+    "courier_code": "xpress",\n\
+    "account_id": 294,\n\
+    "fields": [\n\
+        {\n\
+            "id":"package_type",\n\
+            "value":"Package"\n\
+        },\n\
+        {\n\
+            "id":"pickup_date",\n\
+            "value":"1487006161"\n\
+        },\n\
+        {\n\
+            "id":"pickup_hour",\n\
+            "value":"19"\n\
+        },\n\
+        {\n\
+            "id":"pickup_minute",\n\
+            "value":"16"\n\
+        },\n\
+        {\n\
+            "id":"service",\n\
+            "value":"5127"\n\
+        },\n\
+        {\n\
+            "id":"package_description",\n\
+            "value":"shipment description"\n\
+        }\n\
+    ],\n\
+    "packages":[\n\
+        {\n\
+            "length":11,\n\
+            "height":12,\n\
+            "width":13,\n\
+            "weight":4\n\
+        }\n\
+    ]\n\
+}';
+                                        examples['getCourierAccounts'] = '{\n\
+    "courier_code": "pkwid"\n\
+}';
+                                        examples['getLabel'] = '{\n\
+    "courier_code": "dhl",\n\
+    "package_id": 7323859\n\
+}';
+                                        examples['getProtocol'] = '{\n\
+    "courier_code": "raben",\n\
+    "package_ids": [7323859,8421839]\n\
+}';
+                                        examples['getCourierDocument'] = '{\n\
+    "courier_code": "flipkartshipping",\n\
+    "document_type": "manifest",\n\
+    "account_id": 16\n\
+}';
+                                        examples['getOrderPackages'] = '{\n\
+    "order_id": 6910995\n\
+}';
+                                        examples['getPackageDetails'] = '{\n\
+    "package_id": 7323859\n\
+}';
+                                        examples['getCourierPackagesStatusHistory'] = '{\n\
+    "package_ids": [\n\
+        7323859\n\
+    ]\n\
+}';
+                                        examples['deleteCourierPackage'] = '{\n\
+    "courier_code": "dhl",\n\
+    "package_id": 77014696,\n\
+    "package_number": "622222044730624327700197"\n\
+}';
+                                        examples['runRequestParcelPickup'] = '{\n\
+    "courier_code": "dpd",\n\
+    "package_numbers": [\n\
+        "0000000815947Q",\n\
+        "0000000633844Q"\n\
+    ],\n\
+    "account_id": 1645,\n\
+    "fields": [\n\
+        {\n\
+            "id": "pickup_date",\n\
+            "value": 1642672310\n\
+        }\n\
+    ]\n\
+}';
+                                        examples['getRequestParcelPickupFields'] = '{\n\
+    "courier_code":"dpd"\n\
+}';
+                                                                                                                                                                                                                                                                        examples['getOrderReturnJournalList'] = '{\n\
+        "last_log_id": 654258,\n\
+        "logs_types": [7, 13]\n\
+      }';
+                                        examples['addOrderReturn'] = '{\n\
+      "order_id": "151502889",\n\
+      "status_id": "1009",\n\
+      "reference_number": "R1234",\n\
+      "date_add": "1768442776",\n\
+      "currency": "GBP",\n\
+      "refunded": "0",\n\
+      "admin_comments": "Seller test comments",\n\
+      "email": "test@test.com",\n\
+      "phone": "693123123",\n\
+      "user_login": "nick1",\n\
+      "delivery_price": "10",\n\
+      "delivery_fullname": "John Doe",\n\
+      "delivery_company": "Company",\n\
+      "delivery_address": "Long Str 12",\n\
+      "delivery_postcode": "E2 8HQ",\n\
+      "delivery_city": "London",\n\
+      "delivery_state": "",\n\
+      "delivery_country_code": "GB",\n\
+      "extra_field_1": "field test 1",\n\
+      "extra_field_2": "",\n\
+      "custom_extra_fields": {\n\
+          "125": "888579",\n\
+          "126": "return info"\n\
+      },\n\
+      "products": [\n\
+        {\n\
+          "order_product_id": "59157160",\n\
+          "storage": "db",\n\
+          "storage_id": 0,\n\
+          "product_id": "5434",\n\
+          "variant_id": 52124,\n\
+          "name": "Harry Potter and the Chamber of Secrets",\n\
+          "sku": "LU4235",\n\
+          "ean": "1597368451236",\n\
+          "location": "A1-13-7",\n\
+          "price_brutto": 20.00,\n\
+          "tax_rate": 23,\n\
+          "quantity": 2,\n\
+          "weight": 1,\n\
+          "status_id": 1003,\n\
+          "return_reason_id": 1006\n\
+        }\n\
+      ],\n\
+      "refund_account_number": "12345678901234567890123456",\n\
+      "refund_iban": "PL61109010140000071219812874",\n\
+      "refund_swift": "WBKPPLPP"\n\
+    }';
+                                        examples['getOrderReturnExtraFields'] = '{}';
+                                        examples['getOrderReturns'] = '{\n\
+    "date_confirmed_from": 1407341754,\n\
+    "get_unconfirmed_orders": false\n\
+}';
+                                        examples['getOrderReturnStatusList'] = '{}';
+                                        examples['getOrderReturnPaymentsHistory'] = '{\n\
+        "return_id": 1102\n\
+        }';
+                                        examples['setOrderReturnFields'] = '{\n\
+        "return_id": 1102,\n\
+        "admin_comments": "New seller comments",\n\
+        "extra_field_1": "Very important client"\n\
+    }';
+                                        examples['addOrderReturnProduct'] = '{\n\
+        "return_id": 60,\n\
+        "order_product_id": "59157160",\n\
+        "storage": "db",\n\
+        "storage_id": 0,\n\
+        "product_id": "5434",\n\
+        "variant_id": 52124,\n\
+        "auction_id": "1234567890",\n\
+        "name": "Harry Potter and the Chamber of Secrets",\n\
+        "sku": "LU4235",\n\
+        "ean": "1597368451236",\n\
+        "location": "A1-13-7",\n\
+        "attributes": "colour red",\n\
+        "price_brutto": 20.00,\n\
+        "tax_rate": 23,\n\
+        "quantity": 2,\n\
+        "weight": 1,\n\
+        "status_id": 1003,\n\
+        "return_reason_id": 1006\n\
+    }';
+                                        examples['setOrderReturnProductFields'] = '{\n\
+        "return_id": 1102,\n\
+        "order_return_product_id": 1232\n\
+        "attributes": "new product attribute",\n\
+        "quantity": "5"\n\
+    }';
+                                        examples['deleteOrderReturnProduct'] = '{\n\
+        "return_id": 1102,\n\
+        "order_return_product_id": 1232\n\
+    }';
+                                        examples['setOrderReturnRefund'] = '{\n\
+        "return_id": 1102,\n\
+        "order_refund_done": 25.50,\n\
+        "refund_date": 1702905036,\n\
+        "refund_comment": "by paypal"\n\
+    }';
+                                        examples['getOrderReturnReasonsList'] = '{}';
+                                        examples['setOrderReturnStatus'] = '{\n\
+        "return_id": 1102,\n\
+        "status_id": 10224\n\
+    }';
+                                        examples['setOrderReturnStatuses'] = '{\n\
+        "return_ids": [1102, 1105],\n\
+        "status_id": 10224\n\
+    }';
+                                        examples['runOrderReturnMacroTrigger'] = '{\n\
+        "return_id": 1102,\n\
+        "trigger_id": 1241\n\
+        }';
+                                        examples['getOrderReturnProductStatuses'] = '{}';
+                                                                        examples['getConnectIntegrations'] = '{}';
+                                        examples['getConnectIntegrationContractors'] = '{\n\
+        "connect_integration_id": 1\n\
+}';
+                                        examples['getConnectContractorCreditHistory'] = '{\n\
+        "connect_contractor_id": 2\n\
+}';
+                                                        examples['setConnectContractorCreditLimit'] = '{\n\
+        "contractor_id": 2,\n\
+        "new_limit": 10000.00,\n\
+        "message": "Sample history message"\n\
+}';
+                                        examples['getOrderPrintoutTemplates'] = '';
+                                        examples['getInventoryPrintoutTemplates'] = '';
+                                                                                                                                                                                                                                                                                        
+        method = $('#method').val();
+        $("#parameters").val(examples[method]);
+    }
+</script>
+</body>
+</html>

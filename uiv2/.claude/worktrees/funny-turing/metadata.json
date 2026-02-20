@@ -1,0 +1,8 @@
+
+{
+  "name": "Product Intelligence Hub",
+  "description": "An AI-powered application to identify products from images and barcodes, enrich their data using Gemini, find the best market price, and manage them in a centralized system. It features a detailed product datasheet view and a comprehensive admin table for batch operations.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

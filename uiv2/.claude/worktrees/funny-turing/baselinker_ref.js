@@ -1,0 +1,268 @@
+const { getSecrets } = require('./secrets');
+const { updateProductSyncStatus } = require('./firestore');
+
+// Rate limiting: max 5 concurrent requests to respect 100 RPM limit
+let activeRequests = 0;
+const MAX_CONCURRENT_REQUESTS = 5;
+const requestQueue = [];
+
+/**
+ * Simple rate limiter
+ */
+async function acquireRequestSlot() {
+  while (activeRequests >= MAX_CONCURRENT_REQUESTS) {
+    await new Promise(resolve => requestQueue.push(resolve));
+  }
+  activeRequests++;
+}
+
+function releaseRequestSlot() {
+  activeRequests--;
+  if (requestQueue.length > 0) {
+    const resolve = requestQueue.shift();
+    resolve();
+  }
+}
+
+/**
+ * Exponential backoff with jitter
+ */
+function calculateBackoffMs(attempt) {
+  const baseDelayMs = 1000;
+  const maxDelayMs = 30000;
+  const jitter = Math.random() * 0.3; // 0-30% jitter
+  const delay = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs);
+  return Math.floor(delay * (1 + jitter));
+}
+
+/**
+ * Makes a request to BaseLinker API with retry logic
+ * @param {string} method - BaseLinker API method name
+ * @param {object} parameters - Method parameters
+ * @param {number} maxRetries - Maximum retry attempts
+ */
+async function makeBaseLinkerRequest(method, parameters, maxRetries = 3) {
+  const { baseApiToken } = await getSecrets();
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      await acquireRequestSlot();
+      
+      const response = await fetch('https://api.baselinker.com/connector.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-BLToken': baseApiToken
+        },
+        body: new URLSearchParams({
+          method: method,
+          parameters: JSON.stringify(parameters)
+        })
+      });
+      
+      const data = await response.json();
+      
+      // BaseLinker returns status in the response body
+      if (data.status === 'SUCCESS') {
+        return { ok: true, data };
+      }
+      
+      // Handle rate limiting
+      if (response.status === 429 || data.error_code === 'RATE_LIMIT') {
+        if (attempt < maxRetries) {
+          const delayMs = calculateBackoffMs(attempt);
+          console.log(`Rate limited, retrying in ${delayMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          continue;
+        }
+      }
+      
+      // Handle other errors
+      return {
+        ok: false,
+        error: {
+          code: data.error_code || 'UNKNOWN_ERROR',
+          message: data.error_message || 'Unknown error occurred'
+        }
+      };
+      
+    } catch (error) {
+      // Network or parsing errors
+      if (attempt < maxRetries) {
+        const delayMs = calculateBackoffMs(attempt);
+        console.log(`Request failed, retrying in ${delayMs}ms...`, error.message);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        continue;
+      }
+      
+      return {
+        ok: false,
+        error: {
+          code: 'NETWORK_ERROR',
+          message: error.message
+        }
+      };
+    } finally {
+      releaseRequestSlot();
+    }
+  }
+}
+
+/**
+ * Maps a local product to BaseLinker addInventoryProduct format
+ * @param {object} product - Local product object
+ * @param {string} inventoryId - BaseLinker inventory ID
+ */
+function mapToBaseLinkerProduct(product, inventoryId) {
+  // Extract all attributes as text parameters for BaseLinker
+  const textFields = {};
+  const attributes = product.details?.attributes || {};
+  
+  // Map attributes to BaseLinker text fields (text_field_1 through text_field_xxx)
+  let fieldIndex = 1;
+  for (const [key, value] of Object.entries(attributes)) {
+    if (fieldIndex <= 30) { // BaseLinker typically supports up to 30 custom text fields
+      textFields[`text_field_${fieldIndex}`] = `${key}: ${value}`;
+      fieldIndex++;
+    }
+  }
+  
+  // Map key features to additional text fields
+  if (product.details?.key_features) {
+    product.details.key_features.forEach((feature, index) => {
+      if (fieldIndex <= 30) {
+        textFields[`text_field_${fieldIndex}`] = feature;
+        fieldIndex++;
+      }
+    });
+  }
+
+  const payload = {
+    inventory_id: inventoryId,
+    products: [
+      {
+        // Product ID - use EAN/GTIN as ID if available, otherwise use our ID
+        id: product.details?.identifiers?.ean || product.details?.identifiers?.gtin || product.id,
+        
+        // Basic identifiers
+        ean: product.details?.identifiers?.ean || 
+             product.details?.identifiers?.gtin ||
+             (product.identification?.barcodes && product.identification.barcodes.length > 0 ? product.identification.barcodes[0] : ''),
+        
+        sku: product.details?.identifiers?.sku || product.details?.identifiers?.mpn || product.id,
+        
+        // Product information
+        name: product.identification?.name || '',
+        manufacturer: product.identification?.brand || '',
+        
+        // Descriptions - BaseLinker supports both short and long descriptions
+        description: product.details?.short_description || '',
+        description_extra1: product.details?.key_features ? product.details.key_features.join('\n') : '',
+        
+        // Category and taxonomy
+        category_id: 0, // Would need to map to BaseLinker category structure
+        
+        // Physical attributes
+        weight: parseFloat(product.details?.attributes?.weight) || 0,
+        height: parseFloat(product.details?.attributes?.height) || 0,
+        width: parseFloat(product.details?.attributes?.width) || 0,
+        length: parseFloat(product.details?.attributes?.length) || 0,
+        
+        // Pricing - BaseLinker uses price groups
+        prices: {
+          '1': product.details?.pricing?.lowest_price?.amount || 0 // Default price group
+        },
+        
+        // Stock levels per warehouse (use numeric warehouse key "1")
+        stock: {
+          '1': parseInt(product.details?.attributes?.stock) || 0
+        },
+        
+        // Tax rate (German standard VAT)
+        tax_rate: 19,
+        
+        // Images - limit to 3 as requested
+        images: (product.details?.images || [])
+          .filter(img => img.url_or_base64 && img.url_or_base64.startsWith('http'))
+          .slice(0, 3) // Maximum 3 images
+          .map(img => img.url_or_base64),
+        
+        // All custom text fields from attributes
+        ...textFields,
+        
+        // Additional BaseLinker fields
+        is_bundle: false,
+        bundle_products: [],
+        
+        // Links to external sources
+        links: product.details?.pricing?.lowest_price?.sources?.map(source => ({
+          url: source.url,
+          name: source.name
+        })) || []
+      }
+    ]
+  };
+  
+  return payload;
+}
+
+/**
+ * Simple EAN validation
+ */
+function isValidEAN(code) {
+  return /^[0-9]{8,13}$/.test(code);
+}
+
+/**
+ * Syncs a single product to BaseLinker
+ */
+async function syncProductToBaseLinker(product) {
+  try {
+    const { baseInventoryId } = await getSecrets();
+    const payload = mapToBaseLinkerProduct(product, baseInventoryId);
+    
+    console.log('Syncing product to BaseLinker:', product.id);
+    const result = await makeBaseLinkerRequest('addInventoryProduct', payload);
+    
+    if (result.ok) {
+      return {
+        id: product.id,
+        status: 'synced',
+        message: 'Successfully synced to BaseLinker'
+      };
+    } else {
+      return {
+        id: product.id,
+        status: 'failed',
+        message: result.error.message || 'Sync failed'
+      };
+    }
+  } catch (error) {
+    console.error('Failed to sync product:', error);
+    return {
+      id: product.id,
+      status: 'failed',
+      message: error.message
+    };
+  }
+}
+
+/**
+ * Syncs multiple products to BaseLinker
+ */
+async function syncProductsToBaseLinker(products) {
+  // Process products with controlled concurrency
+  const results = [];
+  
+  for (const product of products) {
+    const result = await syncProductToBaseLinker(product);
+    results.push(result);
+  }
+  
+  return results;
+}
+
+module.exports = {
+  syncProductToBaseLinker,
+  syncProductsToBaseLinker
+};

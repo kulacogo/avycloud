@@ -1,0 +1,1223 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="https://api.baselinker.com/css/style.css" type="text/css" />
+    <link rel="stylesheet" href="https://api.baselinker.com/css/media_query.css" type="text/css" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script><link href='https://fonts.googleapis.com/css?family=Open+Sans:300,400,700&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
+    <title>API documentation - baselinker.com</title>
+    <style>
+    .header {
+        font-size:25px;
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+    }
+    .main_text {
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+        font-size:15px;
+    }
+    #top {
+        box-shadow: 0 0 16px 0 rgba(0, 0, 0, 0.176);
+        padding: 20px;
+        background-color:#205470;
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+        font-size:20px;
+        color:#FFF;
+    }
+    #top a {
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+        font-size:20px;
+        color:#FFF;
+    }
+    #top img {
+        vertical-align: middle;
+        padding-right:100px;
+    }
+    .table {width:100%;}
+    .table td {
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+        font-size:15px;
+        padding:10px;
+        border:1px solid #ccc;
+    }
+    * {
+        font-family: "Open Sans", verdana;
+        font-weight: 300;
+        font-size:15px;
+    }
+    .table td ul { margin: 10px 20px; }
+    .table .method_name { font-weight: bold; font-style: italic }
+    b {
+        font-weight:700;
+    }
+     .grey_button {
+        background-color: #ddd;
+        color: #000;
+        font-family: "Open Sans", verdana;
+        font-weight: 400;
+        font-size:15px;
+        padding:8px;
+        margin:5px;
+        border-radius: 5px;
+        width:250px;
+        float:left; margin-right:20px;
+    }
+    .grey_button:hover {
+         background-color: #aaa;
+    }
+    input, select, textarea {
+        font-family:verdana;
+        font-size:12px;
+        color:#000;
+        padding:1px;
+    }
+    code {
+        background-color: #eee;
+        border-radius: 3px;
+        font-family: courier, monospace;
+        padding: 0 3px;
+        display: block;
+    }
+    .select2-container--default .select2-results__group {
+        font-weight: bold !important;
+    }
+    </style>
+</head>
+<body>
+<div id="container"  style="background: none;">
+    <div id="top">
+        <a href="/"><img src="/layout/logo-base-light.svg" style="width: 120px;" />
+            API documentation</a>
+    </div>
+    <div id="main" style="margin:0px;">
+        <div class="main_text" style="padding: 50px;">            <a href="/"><div class="grey_button">Method list</div></a>
+            <a href="/?tester&method=addInventoryProduct"><div class="grey_button">Test your request</div></a>
+            <a href="/?changelog"><div class="grey_button">Changelog</div></a>
+            <div style="clear:both"></div><BR><BR>
+                                    <div class="header">addInventoryProduct</div>
+            The method allows you to add a new product to BaseLinker catalog. Entering the product with the ID updates previously saved product.
+            <BR><BR><BR>
+            <div class="header">Input parameters<div>
+                    <table class="table">
+                        <tr><td style='width:150px;'><B>inventory_id</a></td><td>varchar(30)</td><td>Catalog ID. The list of identifiers can be retrieved using the method <span class="method_name">getInventories</span>. (inventory_id field).</td></tr><tr><td style='width:150px;'><B>product_id</a></td><td>varchar(30)</td><td>Main product identifier, given only during the update. Should be left blank when creating a new product. The new product identifier is returned as a response to this method.</td></tr><tr><td style='width:150px;'><B>parent_id</a></td><td>varchar(30)</td><td>Product parent ID. To be provided only if the added/edited product is a variant of another product.</td></tr><tr><td style='width:150px;'><B>is_bundle</a></td><td>bool</td><td>Is the given product a part of a bundle</td></tr><tr><td style='width:150px;'><B>sku</a></td><td>varchar(50)</td><td>Product SKU number.</td></tr><tr><td style='width:150px;'><B>ean</a></td><td>varchar(32)</td><td>Product EAN number.</td></tr><tr><td style='width:150px;'><B>ean_additional</a></td><td>array</td><td>A list containing EAN numbers. Each EAN data should be an array containing the fields listed below:<ul></ul><li><B>ean</B> (string) - EAN number</li><li><B>quantity</B> (int) - quantity of product with given EAN number</li></ul></td></tr><tr><td style='width:150px;'><B>asin</a></td><td>varchar(50)</td><td>Product ASIN number.</td></tr><tr><td style='width:150px;'><B>tags</a></td><td>array</td><td>A list containing tag names. If:<ul>
+            <li>No tags are provided in the API request, the product retains its existing tags (e.g., A, B, C).</li>
+            <li>Tags A, B, and C are provided in the API request, the product retains its existing tags (A, B, C).</li>
+            <li>Tags B and C are provided in the API request, tag A is removed from the product, leaving tags B and C.</li>
+            <li>An empty list of tags is provided in the API request, all existing tags (A, B, C) are removed from the product.</li>
+            </ul></td></tr><tr><td style='width:150px;'><B>tax_rate</a></td><td>float</td><td>VAT tax rate e.g. "23", (value from range 0-100, EXCEPTION values: "-1" for "EXPT"/"ZW" exempt from VAT, "-0.02" for "NP" annotation, "-0.03" for "OO" VAT reverse charge)</td></tr><tr><td style='width:150px;'><B>weight</a></td><td>decimal(10,2)</td><td>Weight in kilograms.</td></tr><tr><td style='width:150px;'><B>height</a></td><td>decimal(10,2)</td><td>Product height</td></tr><tr><td style='width:150px;'><B>width</a></td><td>decimal(10,2)</td><td>Product width</td></tr><tr><td style='width:150px;'><B>length</a></td><td>decimal(10,2)</td><td>Product length</td></tr><tr><td style='width:150px;'><B>average_cost</a></td><td>decimal(10,2)</td><td>Product average cost. If storage documents are turned off, this field sets product average cost. If storage documents are turned on, a value in this field can be set in two cases: while creating a new product or when a current average cost is set to 0.</td></tr><tr><td style='width:150px;'><B>star</a></td><td>int</td><td>Product star type. It takes from 0 to 5 values. 0 means no starring.</td></tr><tr><td style='width:150px;'><B>manufacturer_id</a></td><td>int</td><td>Product manufacturer ID. IDs can be retrieved with <span class="method_name">getInventoryManufacturers</span> method.</td></tr><tr><td style='width:150px;'><B>category_id</a></td><td>int</td><td>Product category ID (category must be previously created with <span class="method_name">addInventoryCategories</span>) method.</td></tr><tr><td style='width:150px;'><B>prices</a></td><td>array</td><td>A list containing product prices, where the key is the price group ID and value is a product gross price for a given price group. The list of price groups can be retrieved with <span class="method_name">getInventoryPriceGroups</span> method.</td></tr><tr><td style='width:150px;'><B>stock</a></td><td>array</td><td>A list containing product stocks, where the key is the warehouse ID and value is a product stock for a given warehouse. Warehouse ID should have the following format: "bl_[id:int]" (eg. "bl_123").The list of warehouse IDs can be retrieved with <span class="method_name">getInventoryWarehouses</span> method. Stocks <b>cannot be assigned</b> to the warehouses created automatically for purposes of keeping external stocks (shops, wholesalers, etc.).</td></tr><tr><td style='width:150px;'><B>locations</a></td><td>array</td><td>A list containing product locations where the key is the warehouse ID and value is a product location for a given warehouse, eg. "A-5-2". Warehouse ID should have the following format: "[type:bl|shop|warehouse]_[id:int]" (eg. "bl_123"). The list of warehouse IDs can be retrieved with <span class="method_name">getInventoryWarehouses</span> method. To assign multiple locations to a single warehouse, separate them with a semicolon.</td></tr><tr><td style='width:150px;'><B>text_fields</a></td><td>array</td><td>A list containing field text values (names, descriptions, etc.) of a product, where the key is the field text ID and value is the field value. The field text ID consists of the following components separated with the "|" character:<ul><li><b>[field]</b> - Field name. Accepted field names: "name", "description", "features", "description_extra1", "description_extra2", "description_extra3", "description_extra4", "extra_field_[extra-field-ID]" e.g. "extra_field_75". The list of extra fields IDs can be retrieved with <span class="method_name">getInventoryExtraFields</span> method.</li><li><b>[lang]</b> - A two-letter code of language, which gets assigned given value e.g. "en". If this value is not specified, the default catalog language is assigned. The list of languages available for each integration can be retrieved with <span class="method_name">getInventoryIntegrations</span> method.</li><li><b>[source_id]</b> - Integration ID provided when the given text field value is to be overwritten only for a specific integration. ID should have a following format: "[type:varchar]_[id:int]", where the type means a kind of integration (e.g. "ebay", "amazon", "google"), and ID is an account identifier for given integration (eg. "ebay_2445").<br>If a value is to be overwritten throughout the integration (e.g. for all Amazon accounts), the value "0" should be used as the identifier. (e.g. "amazon_0").</li></ul>Examples of text field identifiers: <ul><li>"name" - Default name assigned to the default language.</li><li>"name|de" - Name assigned to a particular language.</li><li>"name|de|amazon_0" - Name assigned to a specific language for all Amazon accounts.</li><li>"name|de|amazon_123" - Name assigned to a specific language for an Amazon account with ID 123.</li></ul>The list of all text field identifiers can be retrieved with the <span class="method_name">getInventoryAvailableTextFieldKeys</span> method.<br><br>In the case of the name and short additional fields, the character limit for the field value is 200. When specifying the value of a product feature (field "features"), provide a list where the key is the name of the parameter (e.g. "Colour") and the value is the value of that parameter (e.g. "White").<br><br><B>In case of file the following format is expected:</B><BR>{<BR>&nbsp;&nbsp;&nbsp;&nbsp;"title": "file.pdf" (varchar(40) - the file name)<BR>&nbsp;&nbsp;&nbsp;&nbsp;"file": "data:4AAQSkZJRgABA[...]" (base64 - the file body limited to 2MB)<BR>}</td></tr><tr><td style='width:150px;'><B>images</a></td><td>array</td><td>A list of product images (maximum 16). Each element of the list is a separate photo where the key is the photo position in the gallery (numbering from 0 to 15). You can delete a photo by sending "" at the selected position. You can submit a photo in binary format, or a link to the photo. In case of binary format, the photo should be coded in base64 and at the very beginning of the photo string the prefix "data:" should be provided. In case of link to the photo, the prefix "url:" must be given before the link. Example:<BR>{<BR>&nbsp;&nbsp;&nbsp;&nbsp;"0": "url:http://adres.pl/zdjecie.jpg", (url - the photo url limited to 1000 characters length)<BR>&nbsp;&nbsp;&nbsp;&nbsp;"3": "data:4AAQSkZJRgABA[...]", (base64 - the photo content limited to 2MB)<BR>&nbsp;&nbsp;&nbsp;&nbsp;"5": "", (empty - to delete the photo)<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...<BR>}</td></tr><tr><td style='width:150px;'><B>links</a></td><td>array</td><td>An array containing product links to external warehouses (e.g. shops, wholesalers). Each element of the array is a list in which the key is the identifier of the external warehouse in the format "[type:shop|warehouse]_[id:int]". (e.g. "shop_2445"). The warehouse identifiers can be retrieved with the <span class="method_name">getStoragesList</span> method. The value is an array containing the fields listed below.</td></tr><tr><td style='width:150px;'><B>| - product_id</a></td><td>varchar</td><td>Product identifier in external warehouse.</td></tr><tr><td style='width:150px;'><B>| - variant_id (optional)</a></td><td>varchar</td><td>Product variant identifier in the external warehouse. When assigning a link to a main product, this parameter shall be omitted or a value of 0 provided.</td></tr><tr><td style='width:150px;'><B>bundle_products</a></td><td>array</td><td>A list containing information about the products included in the bundle, where the key is the identifier of the product included in the bundle, and the value is the number of pieces of this product in the bundle.<BR>Subproducts can only be defined if the added/edited product is a bundle (is_bundle = true).</td></tr>                    </table>
+
+                    <BR><BR><BR>
+                    <div class="header">Output data</div>
+                    The method returns the data in JSON format.
+                    <table class="table">
+                        <tr><td style='width:200px; vertical-align:top'><B>status</a></td><td>varchar(30)</td><td>SUCCESS - request executed correctly<BR>ERROR - an error occurred during an API request. Error details will be described in 2 additional returned fields: error_message and error_code</td></tr><tr><td style='width:200px; vertical-align:top'><B>product_id</a></td><td>varchar(30)</td><td>The number of an added or updated product in the BaseLinker inventory. In an external application you should create a link between the internal number and the number received here. It will later be used to update the added product. This number will also be included in the order items in the getOrders function.</td></tr><tr><td style='width:200px; vertical-align:top'><B>warnings</a></td><td>object</td><td>An object with notes on adding a product (e.g. image errors or others that do not interrupt the request). Each object field informs about a separate error.</td></tr>                    </table>
+
+                    <BR><BR><BR>
+                    <div class="header">Sample</div>
+                    Input data:<BR>
+                    <textarea style="width:100%; height:200px;" autocomplete="off">{
+    "inventory_id": "307",
+    "product_id": "2685",
+    "is_bundle": false,
+    "sku": "EPL-432",
+    "ean": "983628103943",
+    "ean_additional": [
+        {
+          "ean": "983628103944",
+          "quantity": 4
+        },
+        {
+          "ean": "983628103945",
+          "quantity": 8
+        }
+      ],
+    "asin": "B07EXAMPLE1",
+    "tags": ["Summer", "Winter"],
+    "tax_rate": 23,
+    "weight": 0.25,
+    "height": 0.3,
+    "width": 0.2,
+    "length": 0.05,
+    "average_cost": 120.98,
+    "star": 2,
+    "manufacturer_id": 5,
+    "category_id": 3,
+    "prices": {
+        "105": 20.99,
+        "106": 23.99
+    },
+    "stock": {
+        "bl_206": 5,
+        "bl_207": 7
+    },
+    "locations": {
+        "bl_206": "A-5-2",
+        "bl_207": "B-1-5"
+    },
+    "text_fields": {
+        "name": "Harry Potter and the Chamber of Secrets",
+        "description": "Basic book description",
+        "description_extra1": "Additional description, e.g. of the entire product category",
+        "description_extra2": "Second additional description - e.g. IMG tags with photos from an external server",
+        "features": {
+            "Cover":"Hardcover",
+            "Pages":"300",
+            "Language":"English"
+        },
+        "name|de": "Harry Potter und die Kammer des Schreckens"
+    },
+    "images": {
+        "0": "url:http://placehold.it/250x250/image.jpg",
+        "3": "url:http://placehold.it/250x250/image2.jpg",
+        "5": "url:http://placehold.it/350x350/image34.jpg"
+    },
+    "links": {
+        "shop_23": {
+            "product_id": 8,
+            "variant_id": 3
+        }
+    }
+}</textarea>
+                    Output data:<BR>
+                    <textarea style="width:100%; height:200px;" autocomplete="off">{
+    "status": "SUCCESS",
+    "product_id": 2685
+}</textarea>
+                                        A sample request in PHP:<BR>
+                    <textarea style="width:100%; height:200px;"><?php
+$methodParams = '{
+    "inventory_id": "307",
+    "product_id": "2685",
+    "is_bundle": false,
+    "sku": "EPL-432",
+    "ean": "983628103943",
+    "ean_additional": [
+        {
+            "ean": "983628103944",
+            "quantity": 4
+        },
+        {
+            "ean": "983628103945",
+            "quantity": 8
+        }
+    ],
+    "asin": "B07EXAMPLE1",
+    "tags": [
+        "Summer",
+        "Winter"
+    ],
+    "tax_rate": 23,
+    "weight": 0.25,
+    "height": 0.3,
+    "width": 0.2,
+    "length": 0.05,
+    "average_cost": 120.98,
+    "star": 2,
+    "manufacturer_id": 5,
+    "category_id": 3,
+    "prices": {
+        "105": 20.99,
+        "106": 23.99
+    },
+    "stock": {
+        "bl_206": 5,
+        "bl_207": 7
+    },
+    "locations": {
+        "bl_206": "A-5-2",
+        "bl_207": "B-1-5"
+    },
+    "text_fields": {
+        "name": "Harry Potter and the Chamber of Secrets",
+        "description": "Basic book description",
+        "description_extra1": "Additional description, e.g. of the entire product category",
+        "description_extra2": "Second additional description - e.g. IMG tags with photos from an external server",
+        "features": {
+            "Cover": "Hardcover",
+            "Pages": "300",
+            "Language": "English"
+        },
+        "name|de": "Harry Potter und die Kammer des Schreckens"
+    },
+    "images": {
+        "0": "url:http:\/\/placehold.it\/250x250\/image.jpg",
+        "3": "url:http:\/\/placehold.it\/250x250\/image2.jpg",
+        "5": "url:http:\/\/placehold.it\/350x350\/image34.jpg"
+    },
+    "links": {
+        "shop_23": {
+            "product_id": 8,
+            "variant_id": 3
+        }
+    }
+}';
+$apiParams = [
+    "method" => "addInventoryProduct",
+    "parameters" => $methodParams
+];
+
+$curl = curl_init("https://api.baselinker.com/connector.php");
+curl_setopt($curl, CURLOPT_POST, 1);
+curl_setopt($curl, CURLOPT_HTTPHEADER, ["X-BLToken: xxx"]);
+curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($apiParams));
+$response = curl_exec($curl);</textarea>
+
+                    
+                </div>
+            </div>
+        </div>
+
+<script>
+    function send()
+    {
+        $("#response_div").slideDown();
+        $("#response").html("Loading..");
+
+        $.ajax({
+            type: "POST",
+            url: "connector.php",
+            headers: {"X-BLToken": $("#token").val()},
+            data: {method: $("#method").val(), parameters: $("#parameters").val() }
+        })
+        .done(function( data ) {
+                try
+                {
+                    if (!isJson(data)) {
+                        data2 = JSON.stringify(data, null, 2);
+                    } else {
+                        data2 = JSON.stringify(JSON.parse(data), null, 2);
+                    }
+
+                    $("#response").html(data2);
+                }
+                catch(e)
+                {
+                    $("#response").html(data );
+                }
+        });
+    }
+
+    function isJson(str) {
+        try {
+            JSON.parse(str);
+        } catch (e) {
+            return false;
+        }
+        return true;
+    }
+
+    function paste_example()
+    {
+        examples = new Array();
+                                        examples['getStoragesList'] = '{}';
+                                        examples['addCategory'] = '{\n\
+"storage_id": "bl_1",\n\
+"name": "Shoes",\n\
+"parent_id": 0\n\
+}';
+                                        examples['addProduct'] = '{\n\
+"storage_id": "bl_1",\n\
+"product_id": "2685",\n\
+"sku": "EPL-432",\n\
+"ean": "983628103943",\n\
+"asin": "B07STORAGE1",\n\
+"location": "A1-13-7",\n\
+"name": "Harry Potter and the Chamber of Secrets",\n\
+"quantity": 12,\n\
+"price_brutto": 19.50,\n\
+"price_wholesale_netto": 12.44,\n\
+"tax_rate": 23,\n\
+"weight": 0.250,\n\
+"description": "Basic book description",\n\
+"description_extra1": "Additional description, e.g. of the entire product category",\n\
+"description_extra2": "Second additional description - e.g. IMG tags with photos from an external server",\n\
+"man_name": "Media Rodzina",\n\
+"category_id": "3",\n\
+"images": [\n\
+                "url:http://placehold.it/250x250/image.jpg",\n\
+                "url:http://placehold.it/250x250/image2.jpg",\n\
+                "url:http://placehold.it/350x350/image34.jpg"\n\
+          ],\n\
+"features": [\n\
+                {"name":"Cover","value":"Hardcover"},\n\
+                {"name":"Pages","value":"300"},\n\
+                {"name":"Language","value":"Polish"}\n\
+              ]\n\
+}';
+                                        examples['addProductVariant'] = '{\n\
+"storage_id": "bl_1",\n\
+"product_id": "2685",\n\
+"variant_id": 0,\n\
+"name": "red XL",\n\
+"sku": "EPL-432-XL",\n\
+"ean": "983628103950",\n\
+"asin": "B07VARIANT1",\n\
+"quantity": 2,\n\
+"price_brutto": 19.50\n\
+}';
+                                        examples['deleteCategory'] = '{\n\
+"storage_id": "bl_1",\n\
+"category_id": "543"\n\
+}';
+                                        examples['deleteProduct'] = '{\n\
+"storage_id": "bl_1",\n\
+"product_id": "3245"\n\
+}';
+                                        examples['deleteProductVariant'] = '{\n\
+"storage_id": "bl_1",\n\
+"product_id": "3245",\n\
+"variant_id": "5132"\n\
+}';
+                                        examples['getCategories'] = '{\n\
+"storage_id": "bl_1"\n\
+}';
+                                        examples['getProductsData'] = '{\n\
+"storage_id": "bl_1",\n\
+"products": [524,734]\n\
+}';
+                                        examples['getProductsList'] = '{\n\
+"storage_id": "bl_1",\n\
+"filter_category_id": 543\n\
+}';
+                                        examples['getProductsQuantity'] = '{\n\
+"storage_id": "bl_1"\n\
+}';
+                                        examples['getProductsPrices'] = '{\n\
+"storage_id": "bl_1"\n\
+}';
+                                        examples['updateProductsQuantity'] = '{\n\
+  "storage_id": "bl_1",\n\
+  "products": [\n\
+     [1081730, 0, 100],\n\
+     [1081730, 1734642, 150]\n\
+ ]}';
+                                        examples['updateProductsPrices'] = '{\n\
+   "storage_id": "bl_1",\n\
+   "products": [\n\
+        {"product_id": 1081730, "variant_id": 0, "price_brutto": 10, "price_wholesale": 20, "tax_rate": 23},\n\
+        {"product_id": 1081730, "variant_id": 1764564, "price_brutto": 100, "tax_rate": 23}\n\
+ ]}';
+                                        examples['addInventoryPriceGroup'] = '{\n\
+    "name": "USA",\n\
+    "description": "Price group for US market",\n\
+    "currency": "USD"\n\
+}';
+                                        examples['deleteInventoryPriceGroup'] = '{\n\
+    "price_group_id": 105\n\
+}';
+                                        examples['getInventoryPriceGroups'] = '{}';
+                                        examples['addInventoryWarehouse'] = '{\n\
+    "name": "Berlin",\n\
+    "description": "Warehouse located in Berlin",\n\
+    "stock_edition": false\n\
+}';
+                                        examples['deleteInventoryWarehouse'] = '{\n\
+    "warehouse_id": 206\n\
+}';
+                                        examples['getInventoryWarehouses'] = '{}';
+                                        examples['addInventory'] = '{\n\
+    "name": "Additional catalog",\n\
+    "description": "Additional product catalog",\n\
+    "languages": ["en", "de"],\n\
+    "default_language": "en",\n\
+    "price_groups": [105],\n\
+    "default_price_group": 105,\n\
+    "warehouses": ["bl_205", "shop_2334"],\n\
+    "default_warehouse": "bl_205",\n\
+    "reservations": true\n\
+}';
+                                        examples['deleteInventory'] = '{\n\
+    "inventory_id": 307\n\
+}';
+                                        examples['getInventories'] = '{}';
+                                        examples['addInventoryCategory'] = '{\n\
+    "name": "Textiles",\n\
+    "parent_id": 5\n\
+}';
+                                        examples['deleteInventoryCategory'] = '{\n\
+    "category_id": 6\n\
+}';
+                                        examples['getInventoryCategories'] = '{}';
+                                        examples['getInventoryTags'] = '{}';
+                                        examples['addInventoryManufacturer'] = '{\n\
+    "name": "Test manufacturer 2"\n\
+}';
+                                        examples['deleteInventoryManufacturer'] = '{\n\
+    "manufacturer_id": 8\n\
+}';
+                                        examples['getInventoryManufacturers'] = '{}';
+                                        examples['getInventoryExtraFields'] = '{}';
+                                        examples['getInventoryIntegrations'] = '{\n\
+    "inventory_id": 307\n\
+}';
+                                        examples['getInventoryAvailableTextFieldKeys'] = '{\n\
+    "inventory_id": 307\n\
+}';
+                                        examples['addInventoryProduct'] = '{\n\
+    "inventory_id": "307",\n\
+    "product_id": "2685",\n\
+    "is_bundle": false,\n\
+    "sku": "EPL-432",\n\
+    "ean": "983628103943",\n\
+    "ean_additional": [\n\
+        {\n\
+          "ean": "983628103944",\n\
+          "quantity": 4\n\
+        },\n\
+        {\n\
+          "ean": "983628103945",\n\
+          "quantity": 8\n\
+        }\n\
+      ],\n\
+    "asin": "B07EXAMPLE1",\n\
+    "tags": ["Summer", "Winter"],\n\
+    "tax_rate": 23,\n\
+    "weight": 0.25,\n\
+    "height": 0.3,\n\
+    "width": 0.2,\n\
+    "length": 0.05,\n\
+    "average_cost": 120.98,\n\
+    "star": 2,\n\
+    "manufacturer_id": 5,\n\
+    "category_id": 3,\n\
+    "prices": {\n\
+        "105": 20.99,\n\
+        "106": 23.99\n\
+    },\n\
+    "stock": {\n\
+        "bl_206": 5,\n\
+        "bl_207": 7\n\
+    },\n\
+    "locations": {\n\
+        "bl_206": "A-5-2",\n\
+        "bl_207": "B-1-5"\n\
+    },\n\
+    "text_fields": {\n\
+        "name": "Harry Potter and the Chamber of Secrets",\n\
+        "description": "Basic book description",\n\
+        "description_extra1": "Additional description, e.g. of the entire product category",\n\
+        "description_extra2": "Second additional description - e.g. IMG tags with photos from an external server",\n\
+        "features": {\n\
+            "Cover":"Hardcover",\n\
+            "Pages":"300",\n\
+            "Language":"English"\n\
+        },\n\
+        "name|de": "Harry Potter und die Kammer des Schreckens"\n\
+    },\n\
+    "images": {\n\
+        "0": "url:http://placehold.it/250x250/image.jpg",\n\
+        "3": "url:http://placehold.it/250x250/image2.jpg",\n\
+        "5": "url:http://placehold.it/350x350/image34.jpg"\n\
+    },\n\
+    "links": {\n\
+        "shop_23": {\n\
+            "product_id": 8,\n\
+            "variant_id": 3\n\
+        }\n\
+    }\n\
+}';
+                                        examples['deleteInventoryProduct'] = '{\n\
+    "product_id": 8\n\
+}';
+                                        examples['getInventoryProductsData'] = '{\n\
+    "inventory_id": "307",\n\
+    "products": [2685]\n\
+}';
+                                        examples['getInventoryProductsList'] = '{\n\
+    "inventory_id": "307",\n\
+    "filter_id": 2685\n\
+}';
+                                        examples['getInventoryProductsStock'] = '{\n\
+    "inventory_id": "307"\n\
+}';
+                                        examples['updateInventoryProductsStock'] = '{\n\
+    "inventory_id": "307",\n\
+    "products": {\n\
+        "2685": {\n\
+            "bl_206": 5,\n\
+            "bl_207": 7\n\
+        },\n\
+        "2687": {\n\
+            "bl_206": 2,\n\
+            "bl_207": 4\n\
+        }\n\
+    }\n\
+}';
+                                        examples['getInventoryProductsPrices'] = '{\n\
+    "inventory_id": "307"\n\
+}';
+                                        examples['updateInventoryProductsPrices'] = '{\n\
+    "inventory_id": "307",\n\
+    "products": {\n\
+        "2685": {\n\
+            "105": 21.99,\n\
+            "106": 24.99\n\
+        },\n\
+        "2687": {\n\
+            "105": 21.99,\n\
+            "106": 23.99\n\
+        }\n\
+    }\n\
+}';
+                                        examples['getInventoryProductLogs'] = '{\n\
+    "product_id": "2685",\n\
+    "date_from": 1592904594,\n\
+    "page": 2\n\
+}';
+                                        examples['getExternalStoragesList'] = '{}';
+                                        examples['getExternalStorageCategories'] = '{\n\
+    "storage_id": "shop_2445"\n\
+}';
+                                        examples['getExternalStorageProductsData'] = '{\n\
+    "storage_id": "shop_2445",\n\
+    "products": [524,734]\n\
+}';
+                                        examples['getExternalStorageProductsList'] = '{\n\
+    "storage_id": "shop_2445",\n\
+    "filter_category_id": 543\n\
+}';
+                                        examples['getExternalStorageProductsQuantity'] = '{\n\
+    "storage_id": "shop_2445"\n\
+}';
+                                        examples['getExternalStorageProductsPrices'] = '{\n\
+    "storage_id": "shop_2445"\n\
+}';
+                                        examples['updateExternalStorageProductsQuantity'] = '{\n\
+    "storage_id": "shop_2445",\n\
+    "products": [\n\
+        [1081730, 0, 100],\n\
+        [1081730, 1734642, 150]\n\
+    ]\n\
+}';
+                                        examples['getJournalList'] = '{\n\
+    "last_log_id": 654258,\n\
+    "logs_types": [7, 13]\n\
+}';
+                                        examples['addOrder'] = '{\n\
+      "order_status_id": "6624",\n\
+      "date_add": "1768442776",\n\
+      "user_comments": "User comment",\n\
+      "admin_comments": "Seller test comments",\n\
+      "phone": "693123123",\n\
+      "email": "test@test.com",\n\
+      "user_login": "nick1",\n\
+      "currency": "GBP",\n\
+      "payment_method": "PayPal",\n\
+      "payment_method_cod": "0",\n\
+      "paid": "1",\n\
+      "delivery_method": "Expedited shipping",\n\
+      "delivery_price": "10",\n\
+      "delivery_fullname": "John Doe",\n\
+      "delivery_company": "Company",\n\
+      "delivery_address": "Long Str 12",\n\
+      "delivery_city": "London",\n\
+      "delivery_state": "",\n\
+      "delivery_postcode": "E2 8HQ",\n\
+      "delivery_country_code": "GB",\n\
+      "delivery_point_id": "",\n\
+      "delivery_point_name": "",\n\
+      "delivery_point_address": "",\n\
+      "delivery_point_postcode": "",\n\
+      "delivery_point_city": "",\n\
+      "invoice_fullname": "John Doe",\n\
+      "invoice_company": "Company",\n\
+      "invoice_nip": "GB8943245",\n\
+      "invoice_address": "Long Str 12",\n\
+      "invoice_city": "London",\n\
+      "invoice_state": "",\n\
+      "invoice_postcode": "E2 8HQ",\n\
+      "invoice_country_code": "GB",\n\
+      "want_invoice": "0",\n\
+      "extra_field_1": "field test 1",\n\
+      "extra_field_2": "",\n\
+      "custom_extra_fields": {\n\
+          "135": "B2B",\n\
+          "172": "1646913115"\n\
+      },\n\
+      "products": [\n\
+        {\n\
+          "storage": "db",\n\
+          "storage_id": 0,\n\
+          "product_id": "5434",\n\
+          "variant_id": 52124,\n\
+          "location": "A1-13-7",\n\
+          "name": "Harry Potter and the Chamber of Secrets",\n\
+          "sku": "LU4235",\n\
+          "ean": "1597368451236",\n\
+          "price_brutto": 20.00,\n\
+          "tax_rate": 23,\n\
+          "quantity": 2,\n\
+          "weight": 1\n\
+        }\n\
+      ]\n\
+}';
+                                        examples['addOrderDuplicate'] = '{\n\
+        "order_id": 12345\n\
+}';
+                                        examples['getOrderSources'] = '{}';
+                                        examples['getOrderExtraFields'] = '{}';
+                                        examples['getOrders'] = '{\n\
+    "date_confirmed_from": 1407341754,\n\
+    "get_unconfirmed_orders": false\n\
+}';
+                                                        examples['getOrderTransactionData'] = '{\n\
+        "order_id": 143477867,\n\
+        "include_complex_taxes": true,\n\
+        "include_amazon_data": false\n\
+}';
+                                        examples['getOrdersByEmail'] = '{\n\
+    "email": "test@test.com"\n\
+}';
+                                        examples['getOrdersByPhone'] = '{\n\
+    "phone": "+48123456789"\n\
+}';
+                                                        examples['deleteOrders'] = '{\n\
+        "order_ids": [\n\
+          12345,\n\
+          123456,\n\
+          1234567\n\
+        ]\n\
+}';
+                                        examples['addInvoice'] = '{\n\
+    "order_id": 3754894,\n\
+    "series_id": 15\n\
+}';
+                                        examples['addInvoiceCorrection'] = '{\n\
+    "original_invoice_id": 1,\n\
+    "series_id": 2,\n\
+    "date_sell": 1407341754,\n\
+    "correcting_reason": 1,\n\
+    "correcting_items": 1,\n\
+    "correcting_data": 1,\n\
+    "invoice_fullname": "John Doe",\n\
+    "invoice_company": "Big Company",\n\
+    "invoice_address": "Street 10",\n\
+    "invoice_postcode": "01-234",\n\
+    "invoice_city": "Warsaw",\n\
+    "invoice_state": "Masovian",\n\
+    "invoice_country_code": "PL",\n\
+    "invoice_nip": "1234567890",\n\
+    "items": [\n\
+        {\n\
+            "item_name": "Test Product",\n\
+            "item_sku": "TestProductSku",\n\
+            "item_ean": "12345678",\n\
+            "item_quantity": 1,\n\
+            "item_price_brutto": 25.00,\n\
+            "item_tax_rate": 19.00\n\
+        }\n\
+    ],\n\
+    "fv_payment": "Transfer",\n\
+    "fv_person": "Kierownik"\n\
+}';
+                                        examples['getInvoices'] = '{\n\
+    "date_from": 1407341754\n\
+}';
+                                        examples['getSeries'] = '{}';
+                                        examples['getOrderStatusList'] = '[]';
+                                        examples['getOrderPaymentsHistory'] = '{\n\
+    "order_id": 3754894\n\
+}';
+                                        examples['getOrderPickPackHistory'] = '{\n\
+    "order_id": 3754894\n\
+}';
+                                        examples['getNewReceipts'] = '{\n\
+    "series_id": 0,\n\
+    "id_from": 1\n\
+ }';
+                                        examples['getReceipts'] = '{\n\
+    "series_id": 0,\n\
+    "id_from": 1\n\
+ }';
+                                        examples['getReceipt'] = '{\n\
+   "order_id":143476260\n\
+}';
+                                        examples['setOrderFields'] = '{\n\
+    "order_id": 3754894,\n\
+    "admin_comments": "New seller comments",\n\
+    "delivery_method": "New delivery method name"\n\
+}';
+                                        examples['addOrderProduct'] = '{\n\
+    "order_id": 3754894,\n\
+    "storage": "db",\n\
+    "storage_id": 0,\n\
+    "product_id": "5434",\n\
+    "variant_id": 52124,\n\
+    "name": "Harry Potter and the Chamber of Secrets",\n\
+    "sku": "LU4235",\n\
+    "ean": "1597368451236",\n\
+    "location": "A1-13-7",\n\
+    "attributes": "colour red",\n\
+    "price_brutto": 20.00,\n\
+    "tax_rate": 23,\n\
+    "quantity": 2,\n\
+    "weight": 1\n\
+}';
+                                        examples['setOrderProductFields'] = '{\n\
+    "order_id": 3754894,\n\
+    "order_product_id": "59157160",\n\
+    "attributes": "new product attribute",\n\
+    "quantity": "5"\n\
+}';
+                                        examples['deleteOrderProduct'] = '{\n\
+    "order_id": 3754894,\n\
+    "order_product_id": "59157160"\n\
+}';
+                                        examples['setOrderPayment'] = '{\n\
+    "order_id": 3754894,\n\
+    "payment_done": 120.57,\n\
+    "payment_date": 1444736731,\n\
+    "payment_comment": "bank transfer mBank 12.10.2015"\n\
+}';
+                                        examples['setOrderStatus'] = '{\n\
+    "order_id": 3754894,\n\
+    "status_id": 34562\n\
+}';
+                                        examples['setOrderStatuses'] = '{\n\
+    "order_ids": [3754894, 3754895],\n\
+    "status_id": 2\n\
+}';
+                                        examples['setOrderReceipt'] = '{\n\
+    "receipt_id": 153845,\n\
+    "receipt_nr": "FP 23212",\n\
+    "date": 1407341754,\n\
+    "printer_error": false,\n\
+    "printer_name": "Fiscal123"\n\
+}';
+                                        examples['addOrderInvoiceFile'] = '{\n\
+    "invoice_id": 153845,\n\
+    "file": "data:4AAQSkZJRgABA[...]",\n\
+    "external_invoice_number": "FV 101/03/2020"\n\
+}';
+                                        examples['addOrderReceiptFile'] = '{\n\
+    "receipt_id": 153845,\n\
+    "file": "data:4AAQSkZJRgABA[...]",\n\
+    "external_receipt_number": "RC40/08/2023"\n\
+}';
+                                        examples['addOrderBySplit'] = '{\n\
+        "order_id": 1234567,\n\
+        "items_to_split": [\n\
+            {\n\
+                "order_product_id": 123,\n\
+                "quantity": 2\n\
+            },\n\
+            {\n\
+                "order_product_id": 456,\n\
+                "quantity": 1\n\
+            },\n\
+            {\n\
+                "order_product_id": 789,\n\
+                "quantity": 3\n\
+            }\n\
+        ],\n\
+        "delivery_cost_to_split": 123.00\n\
+}';
+                                        examples['setOrdersMerge'] = '{\n\
+        "main_order_id": 1234567,\n\
+        "order_ids_to_merge": [\n\
+            2345678,\n\
+            3456789,\n\
+            4567890\n\
+        ],\n\
+        "merge_mode": "technical_merge",\n\
+        "sum_delivery_costs": true\n\
+}';
+                                        examples['getInvoiceFile'] = '{\n\
+    "invoice_id": 153845\n\
+}';
+                                        examples['runOrderMacroTrigger'] = '{\n\
+    "order_id":"143476260",\n\
+    "trigger_id":"12413"\n\
+}';
+                                        examples['runProductMacroTrigger'] = '{\n\
+        "product_id":"143476260",\n\
+        "trigger_id":"12413"\n\
+    }';
+                                        examples['addInventoryDocument'] = '{\n\
+        "warehouse_id": 205,\n\
+        "document_type": 2,\n\
+        "date_add": 1740479190,\n\
+        "date_execute": 1740479190\n\
+}';
+                                        examples['setInventoryDocumentStatusConfirmed'] = '{\n\
+        "document_id": 101\n\
+}';
+                                        examples['getInventoryDocuments'] = '{\n\
+        "filter_document_type": 1,\n\
+        "filter_date_from": 1693459200,\n\
+        "page": 1\n\
+}';
+                                        examples['getInventoryDocumentItems'] = '{\n\
+        "document_id": 101,\n\
+        "page": 1\n\
+}';
+                                        examples['addInventoryDocumentItems'] = '{\n\
+        "document_id": 101,\n\
+        "items": [\n\
+            {\n\
+                "product_id": 5432,\n\
+                "quantity": 5,\n\
+                "price": 10.99,\n\
+                "location_name": "A-1-2",\n\
+                "expiry_date": "2023-12-31",\n\
+                "batch": "LOT2021",\n\
+                "serial_no": "SN20211231001",\n\
+                "comments": "Important item"\n\
+            }\n\
+        ]\n\
+}';
+                                        examples['getInventoryDocumentSeries'] = '{}';
+                                        examples['getInventoryPurchaseOrders'] = '{\n\
+        "date_from": 1609459200,\n\
+        "date_to": 1640995199,\n\
+        "page": 1\n\
+    }';
+                                        examples['getInventoryPurchaseOrderItems'] = '{\n\
+        "order_id": 1234\n\
+}';
+                                        examples['getInventoryPurchaseOrderSeries'] = '{\n\
+        "warehouse_id": 1\n\
+}';
+                                        examples['addInventoryPurchaseOrder'] = '{\n\
+        "series_id": 15,\n\
+        "warehouse_id": 1,\n\
+        "supplier_id": 5,\n\
+        "payer_id": 1,\n\
+        "currency": "EUR",\n\
+        "date_created": 1640908800,\n\
+        "name": "Monthly stock delivery",\n\
+        "notes": "Monthly stock delivery",\n\
+        "invoice_no": "FV/2021/12/123"\n\
+}';
+                                        examples['addInventoryPurchaseOrderItems'] = '{\n\
+        "order_id": 1234,\n\
+        "items": [\n\
+            {\n\
+                "product_id": 5432,\n\
+                "quantity": 5,\n\
+                "item_cost": 10.99,\n\
+                "supplier_code": "SUP-001",\n\
+                "location": "A-1-2",\n\
+                "batch": "LOT2021",\n\
+                "expiry_date": "2023-12-31",\n\
+                "serial_no": "SN20211231001",\n\
+                "comments": "Important item"\n\
+            }\n\
+        ]\n\
+}';
+                                        examples['setInventoryPurchaseOrderStatus'] = '{\n\
+        "order_id": 1234,\n\
+        "status": 2,\n\
+        "completed_items": [\n\
+            {\n\
+                "item_id": 1,\n\
+                "completed_quantity": 3\n\
+            }\n\
+        ]\n\
+}';
+                                        examples['getInventoryPayers'] = '{\n\
+        "filter_id": 1,\n\
+        "filter_name": "Company"\n\
+}';
+                                        examples['addInventoryPayer'] = '{\n\
+    "name": "Company Ltd",\n\
+    "address": "123 Main Street",\n\
+    "postcode": "12-345",\n\
+    "city": "London",\n\
+    "tax_no": "GB123456789"\n\
+}';
+                                        examples['deleteInventoryPayer'] = '{\n\
+        "payer_id": 1\n\
+}';
+                                        examples['getInventorySuppliers'] = '{\n\
+        "filter_id": 1,\n\
+        "filter_name": "Example Supplier"\n\
+}';
+                                        examples['addInventorySupplier'] = '{\n\
+        "name": "Supplier Ltd",\n\
+        "take_product_cost_from": "cost",\n\
+        "take_product_code_from": "sku",\n\
+        "address": "123 Main Street",\n\
+        "postcode": "12-345",\n\
+        "city": "London",\n\
+        "phone": "+44123456789",\n\
+        "email": "contact@supplier.com",\n\
+        "email_copy_to": "manager@supplier.com",\n\
+        "currency": "GBP"\n\
+}';
+                                        examples['deleteInventorySupplier'] = '{\n\
+        "supplier_id": 1\n\
+}';
+                                        examples['createPackage'] = '{\n\
+    "order_id": 6910995,\n\
+    "courier_code": "dhl",\n\
+    "account_id": 33,\n\
+    "fields": [\n\
+        {\n\
+            "id":"service",\n\
+            "value":"dhl"\n\
+        },\n\
+        {\n\
+            "id":"cod",\n\
+            "value":"101"\n\
+        },\n\
+        {\n\
+            "id":"insurance",\n\
+            "value":"55"\n\
+        },\n\
+        {\n\
+            "id":"package_description",\n\
+            "value":"Shipment description"\n\
+        }\n\
+    ],\n\
+    "packages":[\n\
+        {\n\
+            "length":11,\n\
+            "height":12,\n\
+            "width":13,\n\
+            "weight":4,\n\
+            "size_custom":1\n\
+        }\n\
+    ]\n\
+}';
+                                        examples['createPackageManual'] = '{\n\
+    "order_id": 6910995,\n\
+    "courier_code": "dhl",\n\
+    "package_number": "622222044730624327700197",\n\
+    "pickup_date": "1487006161",\n\
+    "return_shipment": true\n\
+}';
+                                        examples['getCouriersList'] = '[]';
+                                        examples['getCourierFields'] = '{\n\
+    "courier_code": "pkwid"\n\
+}';
+                                        examples['getCourierServices'] = '{\n\
+    "order_id": 6911000,\n\
+    "courier_code": "xpress",\n\
+    "account_id": 294,\n\
+    "fields": [\n\
+        {\n\
+            "id":"package_type",\n\
+            "value":"Package"\n\
+        },\n\
+        {\n\
+            "id":"pickup_date",\n\
+            "value":"1487006161"\n\
+        },\n\
+        {\n\
+            "id":"pickup_hour",\n\
+            "value":"19"\n\
+        },\n\
+        {\n\
+            "id":"pickup_minute",\n\
+            "value":"16"\n\
+        },\n\
+        {\n\
+            "id":"service",\n\
+            "value":"5127"\n\
+        },\n\
+        {\n\
+            "id":"package_description",\n\
+            "value":"shipment description"\n\
+        }\n\
+    ],\n\
+    "packages":[\n\
+        {\n\
+            "length":11,\n\
+            "height":12,\n\
+            "width":13,\n\
+            "weight":4\n\
+        }\n\
+    ]\n\
+}';
+                                        examples['getCourierAccounts'] = '{\n\
+    "courier_code": "pkwid"\n\
+}';
+                                        examples['getLabel'] = '{\n\
+    "courier_code": "dhl",\n\
+    "package_id": 7323859\n\
+}';
+                                        examples['getProtocol'] = '{\n\
+    "courier_code": "raben",\n\
+    "package_ids": [7323859,8421839]\n\
+}';
+                                        examples['getCourierDocument'] = '{\n\
+    "courier_code": "flipkartshipping",\n\
+    "document_type": "manifest",\n\
+    "account_id": 16\n\
+}';
+                                        examples['getOrderPackages'] = '{\n\
+    "order_id": 6910995\n\
+}';
+                                        examples['getPackageDetails'] = '{\n\
+    "package_id": 7323859\n\
+}';
+                                        examples['getCourierPackagesStatusHistory'] = '{\n\
+    "package_ids": [\n\
+        7323859\n\
+    ]\n\
+}';
+                                        examples['deleteCourierPackage'] = '{\n\
+    "courier_code": "dhl",\n\
+    "package_id": 77014696,\n\
+    "package_number": "622222044730624327700197"\n\
+}';
+                                        examples['runRequestParcelPickup'] = '{\n\
+    "courier_code": "dpd",\n\
+    "package_numbers": [\n\
+        "0000000815947Q",\n\
+        "0000000633844Q"\n\
+    ],\n\
+    "account_id": 1645,\n\
+    "fields": [\n\
+        {\n\
+            "id": "pickup_date",\n\
+            "value": 1642672310\n\
+        }\n\
+    ]\n\
+}';
+                                        examples['getRequestParcelPickupFields'] = '{\n\
+    "courier_code":"dpd"\n\
+}';
+                                                                                                                                                                                                                                                                        examples['getOrderReturnJournalList'] = '{\n\
+        "last_log_id": 654258,\n\
+        "logs_types": [7, 13]\n\
+      }';
+                                        examples['addOrderReturn'] = '{\n\
+      "order_id": "151502889",\n\
+      "status_id": "1009",\n\
+      "reference_number": "R1234",\n\
+      "date_add": "1768442776",\n\
+      "currency": "GBP",\n\
+      "refunded": "0",\n\
+      "admin_comments": "Seller test comments",\n\
+      "email": "test@test.com",\n\
+      "phone": "693123123",\n\
+      "user_login": "nick1",\n\
+      "delivery_price": "10",\n\
+      "delivery_fullname": "John Doe",\n\
+      "delivery_company": "Company",\n\
+      "delivery_address": "Long Str 12",\n\
+      "delivery_postcode": "E2 8HQ",\n\
+      "delivery_city": "London",\n\
+      "delivery_state": "",\n\
+      "delivery_country_code": "GB",\n\
+      "extra_field_1": "field test 1",\n\
+      "extra_field_2": "",\n\
+      "custom_extra_fields": {\n\
+          "125": "888579",\n\
+          "126": "return info"\n\
+      },\n\
+      "products": [\n\
+        {\n\
+          "order_product_id": "59157160",\n\
+          "storage": "db",\n\
+          "storage_id": 0,\n\
+          "product_id": "5434",\n\
+          "variant_id": 52124,\n\
+          "name": "Harry Potter and the Chamber of Secrets",\n\
+          "sku": "LU4235",\n\
+          "ean": "1597368451236",\n\
+          "location": "A1-13-7",\n\
+          "price_brutto": 20.00,\n\
+          "tax_rate": 23,\n\
+          "quantity": 2,\n\
+          "weight": 1,\n\
+          "status_id": 1003,\n\
+          "return_reason_id": 1006\n\
+        }\n\
+      ],\n\
+      "refund_account_number": "12345678901234567890123456",\n\
+      "refund_iban": "PL61109010140000071219812874",\n\
+      "refund_swift": "WBKPPLPP"\n\
+    }';
+                                        examples['getOrderReturnExtraFields'] = '{}';
+                                        examples['getOrderReturns'] = '{\n\
+    "date_confirmed_from": 1407341754,\n\
+    "get_unconfirmed_orders": false\n\
+}';
+                                        examples['getOrderReturnStatusList'] = '{}';
+                                        examples['getOrderReturnPaymentsHistory'] = '{\n\
+        "return_id": 1102\n\
+        }';
+                                        examples['setOrderReturnFields'] = '{\n\
+        "return_id": 1102,\n\
+        "admin_comments": "New seller comments",\n\
+        "extra_field_1": "Very important client"\n\
+    }';
+                                        examples['addOrderReturnProduct'] = '{\n\
+        "return_id": 60,\n\
+        "order_product_id": "59157160",\n\
+        "storage": "db",\n\
+        "storage_id": 0,\n\
+        "product_id": "5434",\n\
+        "variant_id": 52124,\n\
+        "auction_id": "1234567890",\n\
+        "name": "Harry Potter and the Chamber of Secrets",\n\
+        "sku": "LU4235",\n\
+        "ean": "1597368451236",\n\
+        "location": "A1-13-7",\n\
+        "attributes": "colour red",\n\
+        "price_brutto": 20.00,\n\
+        "tax_rate": 23,\n\
+        "quantity": 2,\n\
+        "weight": 1,\n\
+        "status_id": 1003,\n\
+        "return_reason_id": 1006\n\
+    }';
+                                        examples['setOrderReturnProductFields'] = '{\n\
+        "return_id": 1102,\n\
+        "order_return_product_id": 1232\n\
+        "attributes": "new product attribute",\n\
+        "quantity": "5"\n\
+    }';
+                                        examples['deleteOrderReturnProduct'] = '{\n\
+        "return_id": 1102,\n\
+        "order_return_product_id": 1232\n\
+    }';
+                                        examples['setOrderReturnRefund'] = '{\n\
+        "return_id": 1102,\n\
+        "order_refund_done": 25.50,\n\
+        "refund_date": 1702905036,\n\
+        "refund_comment": "by paypal"\n\
+    }';
+                                        examples['getOrderReturnReasonsList'] = '{}';
+                                        examples['setOrderReturnStatus'] = '{\n\
+        "return_id": 1102,\n\
+        "status_id": 10224\n\
+    }';
+                                        examples['setOrderReturnStatuses'] = '{\n\
+        "return_ids": [1102, 1105],\n\
+        "status_id": 10224\n\
+    }';
+                                        examples['runOrderReturnMacroTrigger'] = '{\n\
+        "return_id": 1102,\n\
+        "trigger_id": 1241\n\
+        }';
+                                        examples['getOrderReturnProductStatuses'] = '{}';
+                                                                        examples['getConnectIntegrations'] = '{}';
+                                        examples['getConnectIntegrationContractors'] = '{\n\
+        "connect_integration_id": 1\n\
+}';
+                                        examples['getConnectContractorCreditHistory'] = '{\n\
+        "connect_contractor_id": 2\n\
+}';
+                                                        examples['setConnectContractorCreditLimit'] = '{\n\
+        "contractor_id": 2,\n\
+        "new_limit": 10000.00,\n\
+        "message": "Sample history message"\n\
+}';
+                                        examples['getOrderPrintoutTemplates'] = '';
+                                        examples['getInventoryPrintoutTemplates'] = '';
+                                                                                                                                                                                                                                                                                        
+        method = $('#method').val();
+        $("#parameters").val(examples[method]);
+    }
+</script>
+</body>
+</html>

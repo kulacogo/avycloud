@@ -1,0 +1,572 @@
+[
+  {
+    "category_id": 5799383,
+    "name": "Heißluftfritteuse",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799384,
+    "name": "Saugroboter",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799385,
+    "name": "Bürostuhl",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799386,
+    "name": "Standmixer",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799388,
+    "name": "Pflanzsubstrat / Spezial-Substrat für Palmen",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799389,
+    "name": "Kinderroller / Tretroller",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799390,
+    "name": "Fensterfolie / Energiesparfolie",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799391,
+    "name": "Akku-Staubsauger",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799392,
+    "name": "Sägekettenöl",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799394,
+    "name": "Elektro-Roller",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799395,
+    "name": "Standventilator",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799396,
+    "name": "Küchen-, Grillzubehör / Wok / Gusseisenpfanne",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799397,
+    "name": "Satteltasche / Fahrrad-Zubehör",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799398,
+    "name": "Handtuchhalter / Handtuchhalter für Tür / Dusche",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799399,
+    "name": "Spannbettlaken",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799400,
+    "name": "Haushalt & Küche",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799401,
+    "name": "Küchengeräte",
+    "parent_id": 5799400
+  },
+  {
+    "category_id": 5799402,
+    "name": "Heißluftfritteusen",
+    "parent_id": 5799401
+  },
+  {
+    "category_id": 5799403,
+    "name": "Dutch Oven / Feuertopf",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799404,
+    "name": "Fahrradsattel",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799405,
+    "name": "Klimageräte",
+    "parent_id": 5799400
+  },
+  {
+    "category_id": 5799406,
+    "name": "Ventilatoren",
+    "parent_id": 5799405
+  },
+  {
+    "category_id": 5799407,
+    "name": "Heizlüfter / Keramikheizlüfter",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799410,
+    "name": "Geschirr & Gläser",
+    "parent_id": 5799400
+  },
+  {
+    "category_id": 5799411,
+    "name": "Gläser",
+    "parent_id": 5799410
+  },
+  {
+    "category_id": 5799412,
+    "name": "Werkzeug & Garten",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799413,
+    "name": "Aufbewahrung",
+    "parent_id": 5799412
+  },
+  {
+    "category_id": 5799414,
+    "name": "Werkzeugkoffer & Boxen",
+    "parent_id": 5799413
+  },
+  {
+    "category_id": 5799415,
+    "name": "Garten & Pool",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799416,
+    "name": "Poolzubehör",
+    "parent_id": 5799415
+  },
+  {
+    "category_id": 5799417,
+    "name": "Schläuche & Verrohrung",
+    "parent_id": 5799416
+  },
+  {
+    "category_id": 5799418,
+    "name": "Sport & Freizeit",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799419,
+    "name": "Wintersport",
+    "parent_id": 5799418
+  },
+  {
+    "category_id": 5799420,
+    "name": "Schlitten",
+    "parent_id": 5799419
+  },
+  {
+    "category_id": 5799421,
+    "name": "Kinderroller",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799422,
+    "name": "Fitness & Training",
+    "parent_id": 5799418
+  },
+  {
+    "category_id": 5799423,
+    "name": "Yogamatten",
+    "parent_id": 5799422
+  },
+  {
+    "category_id": 5799424,
+    "name": "Elektronik",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799425,
+    "name": "Zahlungssysteme & POS-Hardware",
+    "parent_id": 5799424
+  },
+  {
+    "category_id": 5799426,
+    "name": "Radsport",
+    "parent_id": 5799418
+  },
+  {
+    "category_id": 5799427,
+    "name": "Fahrradsättel",
+    "parent_id": 5799426
+  },
+  {
+    "category_id": 5799428,
+    "name": "Fahrradpumpen",
+    "parent_id": 5799426
+  },
+  {
+    "category_id": 5799429,
+    "name": "Nudelmaschinen",
+    "parent_id": 5799401
+  },
+  {
+    "category_id": 5799430,
+    "name": "Milbensauger / Matratzenstaubsauger",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799431,
+    "name": "Sichtschutz & Rollos",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799432,
+    "name": "Weihnachtsdeko",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799433,
+    "name": "künstliche Bäume",
+    "parent_id": 5799432
+  },
+  {
+    "category_id": 5799434,
+    "name": "Tischdekoration",
+    "parent_id": 5799433
+  },
+  {
+    "category_id": 5799435,
+    "name": "Topfset / Kochgeschirr",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799436,
+    "name": "Yogamatte / Trainingsmatte",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5799437,
+    "name": "Fahrradtasche / Oberrohrtasche",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5811382,
+    "name": "Autoabdeckung / Hagelschutzplane",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5811384,
+    "name": "Luftentfeuchter / Feuchtigkeitsabsorber",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5811385,
+    "name": "Textil / Bettwaren",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5811386,
+    "name": "Spannbetttuch / Bettwäsche",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5811387,
+    "name": "Tablet-Bodenständer",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5811388,
+    "name": "Fahrradwerkzeug",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5811389,
+    "name": "Teleskopschiene / Schubladenschiene",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5811390,
+    "name": "Steckdosenleiste / Verlängerungskabel",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5811391,
+    "name": "Sattelregenschutz / Sattelbezug",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5811392,
+    "name": "Stand Up Paddle (SUP)",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5822574,
+    "name": "Rucksack / Rolltop",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5822575,
+    "name": "Trampoline",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5822738,
+    "name": "Heißluftfritteuse / Air Fryer",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5888961,
+    "name": "Sitzmöbel",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5924505,
+    "name": "Fahrrad",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5924591,
+    "name": "Bettlaken",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5924607,
+    "name": "Bettwäsche",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5924794,
+    "name": "Karaffen & Dekanter",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5924826,
+    "name": "Badewannen",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5924900,
+    "name": "Werkzeugkoffer",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928805,
+    "name": "Roboter",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928810,
+    "name": "Grillzubehör",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928815,
+    "name": "Duschregal / Über-Tür-Duschablage",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928820,
+    "name": "LED High Bay / Hallenleuchte",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928821,
+    "name": "Kartenleser für Automaten und Zahlungsterminals",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928822,
+    "name": "Gastronomie-Kochgeschirr- & zubehör",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928823,
+    "name": "Ofenrohr / Rauchrohr",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928824,
+    "name": "Pendel",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928825,
+    "name": "Schlaginstrumente",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928826,
+    "name": "Gartenbank",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928827,
+    "name": "Kinder",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928828,
+    "name": "Kindersitze",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928838,
+    "name": "Regale & Aufbewahrung",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928842,
+    "name": "Zelt- & Strandmuschelzubehör",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928844,
+    "name": "Sport & Fitness",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928846,
+    "name": "Beistelltisch / Side Table",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928847,
+    "name": "Servierwagen",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928848,
+    "name": "LED Strahler",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928852,
+    "name": "Staubsauger",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928856,
+    "name": "Elektromotorrad- & Elektrorollerteile & -zubehör",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928858,
+    "name": "Nass-Trocken-Sauger",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5928863,
+    "name": "Ventilator / Windmaschine",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5994907,
+    "name": "Campingliege",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996893,
+    "name": "Rucksack",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996894,
+    "name": "Rollos & Jalousien",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996895,
+    "name": "E-Scooter",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996896,
+    "name": "Hagelschutzplane",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996897,
+    "name": "Autoabdeckung",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996898,
+    "name": "Klimaleitungen, -schläuche & Anschlüsse",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996899,
+    "name": "Fahrradzubehör",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996900,
+    "name": "Kochen & Backen",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996901,
+    "name": "Fensterfolien",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996902,
+    "name": "Flüssigreiniger",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996903,
+    "name": "Roller",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996904,
+    "name": "Textil",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996905,
+    "name": "Boardwerkzeugsets & -taschen",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996906,
+    "name": "Geldspielautomaten",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996907,
+    "name": "Möbel & Wohnen",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996908,
+    "name": "Schlitten & Bobs",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996909,
+    "name": "Stand- & Tischventilatoren",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996910,
+    "name": "Hallenleuchte",
+    "parent_id": 0
+  },
+  {
+    "category_id": 5996911,
+    "name": "Elektrische Ventilatoren",
+    "parent_id": 0
+  },
+  {
+    "category_id": 6001015,
+    "name": "Nass-Trockensauger",
+    "parent_id": 0
+  }
+]
