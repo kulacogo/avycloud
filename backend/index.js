@@ -2435,6 +2435,31 @@ app.get('/api/ebay/listing-links', requirePermission('products', 'read'), async 
   }
 });
 
+// Lightweight SKU-index: returns all active eBay listings as [{sku, itemId, viewItemUrl}]
+// Used by the AdminTable eBay badge to match products by SKU without limit.
+app.get('/api/ebay/sku-index', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const snapshot = await firestore.collection('ebayListingsLive').where('active', '==', true).get();
+    const rows = snapshot.docs
+      .map((doc) => {
+        const d = doc.data() || {};
+        return {
+          sku: d.sku || null,
+          itemId: doc.id,
+          viewItemUrl: d.viewItemUrl || null,
+        };
+      })
+      .filter((r) => r.sku);
+    return res.status(200).json({ ok: true, data: rows });
+  } catch (error) {
+    console.error('Failed to build eBay SKU index:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to build eBay SKU index' },
+    });
+  }
+});
+
 app.post('/api/ebay/gaps/rebuild', requirePermission('products', 'write'), async (req, res) => {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
@@ -2633,6 +2658,36 @@ app.post('/api/ebay/sync/apply', requirePermission('products', 'write'), async (
     });
   }
 });
+
+app.post('/api/ebay/update/bulk', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const itemIds = Array.isArray(body.itemIds)
+      ? body.itemIds.map((x) => String(x || '').trim()).filter(Boolean)
+      : null;
+    const applyAll = body.applyAll === true;
+    if (!applyAll && (!itemIds || !itemIds.length)) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'itemIds oder applyAll erforderlich.' },
+      });
+    }
+    const { bulkUpdateListedProducts } = require('./lib/ebay-direct');
+    const out = await bulkUpdateListedProducts({
+      itemIds,
+      applyAll,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: out });
+  } catch (error) {
+    console.error('Failed to bulk update eBay listings:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to bulk update eBay listings' },
+    });
+  }
+});
+
 
 app.post('/api/ebay/reports/generate', requirePermission('products', 'read'), async (req, res) => {
   try {

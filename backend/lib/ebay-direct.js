@@ -530,7 +530,20 @@ function filterSpecificsByRelevantTokens(specifics = {}, relevantTokens = new Se
 function deriveProductTitle(product) {
   const brand = safeString(product?.identification?.brand);
   const name = safeString(product?.identification?.name);
-  return safeString([brand, name].filter(Boolean).join(' ')) || null;
+  // eBay title max length is 80. Also avoid duplicating the brand if the saved title already includes it.
+  let title = name;
+  if (!title && brand) title = brand;
+  if (title && brand) {
+    const b = brand.toLowerCase();
+    const t = title.toLowerCase();
+    if (!t.startsWith(b)) {
+      title = `${brand} ${title}`.trim();
+    }
+  }
+  if (title && title.length > 80) {
+    title = `${title.slice(0, 79).trimEnd()}…`;
+  }
+  return safeString(title) || null;
 }
 
 function deriveProductSubtitle(product) {
@@ -3159,23 +3172,13 @@ function mapProductToEbayItem(product, overrides = {}) {
     itemSpecifics['Marke'] = [brand];
   }
 
-  // IMPORTANT (PBSE Phase 2):
-  // When the listing is associated to a catalog product (via EAN/BrandMPN/etc.),
-  // eBay rejects/ignores PRODUCT aspects passed through ItemSpecifics.
-  // We pre-filter technical keys (e.g. "Kategorie") and product-only aspects here
-  // to avoid Verify/AddFixedPriceItem failures.
-  const publishListingStub =
-    ean || (mpn && brand)
-      ? {
-          productListingDetails: {
-            EAN: ean || undefined,
-            BrandMPN: mpn ? { Brand: brand || 'Unbranded', MPN: mpn } : undefined,
-          },
-        }
-      : null;
+  // Publish path: Always remove technical keys (e.g. "Kategorie") and enforce maxLength.
+  // Do NOT pre-drop PRODUCT aspects here because catalog matching may fail; eBay will then require seller-provided specifics.
+  // If eBay returns the PBSE/catalog "product aspects vs custom item specifics" error, the Trading API layer will retry
+  // with the offending specifics removed based on the API error payload.
   const filteredSpecifics = filterPatchItemSpecificsForListing({
     categoryId: primaryCategoryId,
-    listing: publishListingStub,
+    listing: null,
     itemSpecifics,
   });
 
@@ -3398,6 +3401,32 @@ async function bulkPublishProducts(productIds, overrides = {}, { actor = null } 
   return { summary: { total: ids.length, success, failed: ids.length - success }, results };
 }
 
+async function bulkUpdateListedProducts({ itemIds = null, applyAll = false, actor = null } = {}) {
+  let resolvedItemIds;
+
+  if (applyAll) {
+    const snap = await firestore
+      .collection(EBAY_LISTINGS_COLLECTION)
+      .where('active', '==', true)
+      .get();
+    resolvedItemIds = snap.docs.map((doc) => doc.id);
+  } else if (Array.isArray(itemIds) && itemIds.length > 0) {
+    resolvedItemIds = itemIds.map((x) => String(x || '').trim()).filter(Boolean);
+  } else {
+    return { summary: { total: 0, success: 0, failed: 0, skipped: 0 }, results: [], dryRun: null };
+  }
+
+  if (!resolvedItemIds.length) {
+    return { summary: { total: 0, success: 0, failed: 0, skipped: 0 }, results: [], dryRun: null };
+  }
+
+  // Gaps neu berechnen damit applySync aktuelle Diffs vorfindet
+  const runId = `update-${Date.now()}`;
+  await auditListingGaps({ itemIds: resolvedItemIds, runId, actor });
+
+  return applySync({ itemIds: resolvedItemIds, actor });
+}
+
 module.exports = {
   EBAY_LISTINGS_COLLECTION,
   EBAY_LINKS_COLLECTION,
@@ -3421,4 +3450,5 @@ module.exports = {
   publishProduct,
   bulkVerifyPublishProducts,
   bulkPublishProducts,
+  bulkUpdateListedProducts,
 };
