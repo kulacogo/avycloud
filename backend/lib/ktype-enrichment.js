@@ -18,12 +18,20 @@
  */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { Storage } = require('@google-cloud/storage');
 const { search, fetchText } = require('./evidence-provider');
 const { getVehicleFitmentMode } = require('./vehicle-fitment');
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
+}
+
+function normalizeBucketName(raw) {
+  const s = safeString(raw);
+  if (!s) return '';
+  return s.replace(/^gs:\/\//i, '').replace(/\/+$/, '').trim();
 }
 
 function normalizeNeedle(value = '') {
@@ -73,6 +81,81 @@ const MVL_CACHE_TTL_MS = 10 * 60 * 1000;
 let MOTO_CACHE = null; // { atMs, ok, jsonlPath, parsed, byMakeModelCcmYear, makes:Set, modelsByMake:Map }
 const MOTO_CACHE_TTL_MS = 10 * 60 * 1000;
 
+let GCS_CLIENT = null;
+function getGcsClient() {
+  if (GCS_CLIENT) return GCS_CLIENT;
+  GCS_CLIENT = new Storage({
+    projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
+  });
+  return GCS_CLIENT;
+}
+
+function parseGsUri(uri = '') {
+  const s = safeString(uri);
+  if (!s) return null;
+  const m = s.match(/^gs:\/\/([^/]+)\/(.+)$/i);
+  if (!m) return null;
+  return { bucket: m[1], object: m[2] };
+}
+
+function resolveMvlGcsUri() {
+  const direct = safeString(process.env.MVL_JSONL_GCS_URI || process.env.MVL_GCS_URI || '');
+  if (direct) return direct;
+  const bucket = normalizeBucketName(process.env.MVL_GCS_BUCKET || process.env.STORAGE_BUCKET) || 'prodsandjobs';
+  const object = safeString(process.env.MVL_GCS_OBJECT) || 'datasets/DE_MVL_2025_10.compact.jsonl';
+  if (!bucket || !object) return '';
+  return `gs://${bucket}/${object.replace(/^\/+/, '')}`;
+}
+
+let MVL_DOWNLOAD_INFLIGHT = null;
+async function ensureMvlJsonlDownloaded({ uri, destinationPath }) {
+  const dest = safeString(destinationPath);
+  if (!dest) return { ok: false, reason: 'destination_missing', path: null };
+  try {
+    if (fs.existsSync(dest)) {
+      const st = fs.statSync(dest);
+      if (st.isFile() && st.size > 1024) {
+        return { ok: true, via: 'cache', path: dest };
+      }
+    }
+  } catch {
+    // ignore and redownload
+  }
+
+  if (MVL_DOWNLOAD_INFLIGHT) return await MVL_DOWNLOAD_INFLIGHT;
+
+  MVL_DOWNLOAD_INFLIGHT = (async () => {
+    const gcsUri = safeString(uri);
+    const parsed = parseGsUri(gcsUri);
+    if (!parsed) {
+      return { ok: false, reason: 'invalid_gcs_uri', uri: gcsUri || null, path: null };
+    }
+
+    try {
+      // Ensure parent folder exists (Cloud Run FS is writable; local dev too).
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+    } catch {
+      // ignore
+    }
+
+    try {
+      const storage = getGcsClient();
+      await storage.bucket(parsed.bucket).file(parsed.object).download({ destination: dest });
+      const st = fs.statSync(dest);
+      if (!st.isFile() || st.size < 1024) {
+        return { ok: false, reason: 'downloaded_file_too_small', uri: gcsUri, path: dest };
+      }
+      return { ok: true, via: 'gcs', uri: gcsUri, path: dest, sizeBytes: st.size };
+    } catch (e) {
+      return { ok: false, reason: 'gcs_download_failed', uri: gcsUri, path: dest, error: safeString(e?.message || e) };
+    }
+  })().finally(() => {
+    MVL_DOWNLOAD_INFLIGHT = null;
+  });
+
+  return await MVL_DOWNLOAD_INFLIGHT;
+}
+
 function resolveMvlPath() {
   const env = safeString(process.env.MVL_JSONL_PATH || process.env.MVL_JSONL);
   if (env) return env;
@@ -80,6 +163,8 @@ function resolveMvlPath() {
   const candidates = [
     path.join(process.cwd(), 'backend', 'ebay-data', 'DE_MVL_2025_10.compact.jsonl'),
     path.join(process.cwd(), 'exports', 'DE_MVL_2025_10.compact.jsonl'),
+    // Cloud Run filesystem is writable but ephemeral; we may download the MVL here.
+    path.join(os.tmpdir(), 'DE_MVL_2025_10.compact.jsonl'),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
@@ -100,12 +185,30 @@ function resolveMotoPath() {
   return null;
 }
 
-function loadMvlIndex() {
+async function loadMvlIndex() {
   const now = Date.now();
   if (MVL_CACHE && now - (MVL_CACHE.atMs || 0) < MVL_CACHE_TTL_MS) return MVL_CACHE;
-  const jsonlPath = resolveMvlPath();
+  const configuredPath = resolveMvlPath();
+  let jsonlPath = configuredPath;
+  let download = null;
   if (!jsonlPath || !fs.existsSync(jsonlPath)) {
-    MVL_CACHE = { atMs: now, ok: false, reason: 'mvl_missing', jsonlPath: jsonlPath || null };
+    const uri = resolveMvlGcsUri();
+    const dest = path.join(os.tmpdir(), 'DE_MVL_2025_10.compact.jsonl');
+    download = await ensureMvlJsonlDownloaded({ uri, destinationPath: dest });
+    if (download?.ok && download?.path && fs.existsSync(download.path)) {
+      jsonlPath = download.path;
+    }
+  }
+  if (!jsonlPath || !fs.existsSync(jsonlPath)) {
+    MVL_CACHE = {
+      atMs: now,
+      ok: false,
+      reason: 'mvl_missing',
+      jsonlPath: jsonlPath || null,
+      configuredPath: configuredPath || null,
+      download: download || null,
+      gcsUri: resolveMvlGcsUri() || null,
+    };
     return MVL_CACHE;
   }
   const text = fs.readFileSync(jsonlPath, 'utf8');
@@ -140,7 +243,18 @@ function loadMvlIndex() {
       byHsnTsn.set(h, set);
     }
   }
-  MVL_CACHE = { atMs: now, ok: true, jsonlPath, parsed, byHsnTsn, makes, byMakePlatform };
+  MVL_CACHE = {
+    atMs: now,
+    ok: true,
+    jsonlPath,
+    configuredPath: configuredPath || null,
+    download: download || null,
+    gcsUri: resolveMvlGcsUri() || null,
+    parsed,
+    byHsnTsn,
+    makes,
+    byMakePlatform,
+  };
   return MVL_CACHE;
 }
 
@@ -410,7 +524,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
     return { ok: false, reason: 'missing_part_number' };
   }
 
-  const mvl = fitmentMode === 'auto' ? loadMvlIndex() : null;
+  const mvl = fitmentMode === 'auto' ? await loadMvlIndex() : null;
   const moto = fitmentMode === 'moto' ? loadMotoIndex() : null;
   if (fitmentMode === 'auto' && mvl && !mvl.ok) {
     product.notes = product.notes || {};
@@ -424,6 +538,9 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       catId: catId || null,
       mpn,
       mvl_path: mvl.jsonlPath || null,
+      mvl_configured_path: mvl.configuredPath || null,
+      mvl_gcs_uri: mvl.gcsUri || null,
+      mvl_download: mvl.download || null,
     });
     return { ok: false, reason: 'mvl_missing' };
   }

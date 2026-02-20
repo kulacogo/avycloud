@@ -191,11 +191,54 @@ function compactUnitToken(value = '') {
   s = s.replace(/[()]/g, ' ');
   s = s
     .replace(/×/g, 'x')
-    .replace(/\s*x\s*/gi, 'x')
+    // Join dimension separators only when used as multiplier/dimension marker.
+    // - "120 x 30" -> "120x30"
+    // - "2 x Flasche" -> "2x Flasche"
+    // Avoid touching normal words/acronyms like "ISOFIX" or model codes containing "X".
+    .replace(/(\d)\s*[xX]\s*(\d)/g, '$1x$2')
+    .replace(/(\d)\s*[xX]\s*(?=[A-Za-zÄÖÜäöü])/g, '$1x ')
     .replace(/(\d)\s+(mm|cm|m|l|ml|kg|g|w|kw|v|mah|gb|tb|mhz|ghz|rpm)\b/gi, '$1$2')
     .replace(/\s+/g, ' ')
     .trim();
   return s;
+}
+
+function formatPackSizeToken(value = '') {
+  const raw = safeString(value);
+  if (!raw) return '';
+  const compact = compactUnitToken(raw);
+  if (!compact) return '';
+
+  // Plain counts -> prefer German "8er Set"
+  if (/^\d{1,3}$/.test(compact)) {
+    const n = parseInt(compact, 10);
+    if (Number.isFinite(n) && n > 1) return `${n}er Set`;
+    return '';
+  }
+
+  // "8 Stück", "8 Stk", "8 Teile", "8 tlg."
+  const m = compact.match(/(\d{1,3})\s*(?:stk\.?|stück|teile|tlg\.?|teil|pcs?)\b/i);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    if (Number.isFinite(n) && n > 1) return `${n}er Set`;
+    return '';
+  }
+
+  return compact;
+}
+
+function extractFirstDimensionRangeToken(text = '') {
+  const raw = safeString(text);
+  if (!raw) return '';
+  const s = stripEmojis(raw);
+  const re = /\b(\d{1,5}(?:[.,]\d+)?)\s*(mm|cm|m)\s*(?:bis|to|[-–—])\s*(\d{1,5}(?:[.,]\d+)?)\s*\2\b/i;
+  const m = s.match(re);
+  if (!m) return '';
+  const a = String(m[1]).replace(',', '.').replace(/\.0$/g, '');
+  const b = String(m[3]).replace(',', '.').replace(/\.0$/g, '');
+  const unit = String(m[2] || '').toLowerCase();
+  if (!a || !b || !unit) return '';
+  return `${a}-${b}${unit}`;
 }
 
 function stripMarketingWords(text = '') {
@@ -316,6 +359,7 @@ function extractSpecTokensFromText(text = '') {
   const raw = safeString(text);
   if (!raw) return [];
   const s = stripEmojis(raw);
+  let scan = s;
   const found = [];
 
   const push = (val) => {
@@ -326,17 +370,30 @@ function extractSpecTokensFromText(text = '') {
     uniqPush(found, t);
   };
 
+  // Ranges like "43 cm bis 56 cm" or "43-56 cm" (keep as ONE token; otherwise unitRe would add both ends)
+  const rangeRe =
+    /\b(\d{1,5}(?:[.,]\d+)?)\s*(mm|cm|m|l|ml|kg|g|w|kw|v|mah|gb|tb|mhz|ghz|rpm)\s*(?:bis|to|[-–—])\s*(\d{1,5}(?:[.,]\d+)?)\s*\2\b/gi;
+  let m;
+  while ((m = rangeRe.exec(scan)) !== null) {
+    const a = String(m[1]).replace(',', '.').replace(/\.0$/g, '');
+    const b = String(m[3]).replace(',', '.').replace(/\.0$/g, '');
+    const unit = String(m[2] || '').toLowerCase();
+    if (!a || !b || !unit) continue;
+    push(`${a}-${b}${unit}`);
+  }
+  rangeRe.lastIndex = 0;
+  scan = scan.replace(rangeRe, ' ');
+
   // Dimensions like 120x30cm or 120 x 30 x 40 cm
   const dimRe = /\b\d{1,4}\s*(?:x|×)\s*\d{1,4}(?:\s*(?:x|×)\s*\d{1,4})?\s*(?:mm|cm|m)\b/gi;
-  let m;
-  while ((m = dimRe.exec(s)) !== null) {
+  while ((m = dimRe.exec(scan)) !== null) {
     push(m[0]);
   }
 
   // Numeric units
   const unitRe =
     /\b\d{1,5}(?:[.,]\d+)?\s*(?:mm|cm|m|l|ml|kg|g|w|kw|v|mah|gb|tb|mhz|ghz|rpm)\b/gi;
-  while ((m = unitRe.exec(s)) !== null) {
+  while ((m = unitRe.exec(scan)) !== null) {
     push(m[0]);
   }
 
@@ -357,7 +414,7 @@ function extractSpecTokensFromText(text = '') {
     'uhd',
     '4k',
   ];
-  const lower = s.toLowerCase();
+  const lower = scan.toLowerCase();
   keywordTokens.forEach((kw) => {
     if (lower.includes(kw)) {
       push(kw);
@@ -721,7 +778,6 @@ function inferSchemaId(product) {
   // Reason: some automotive category paths contain words like "Pflege" ("Öl, Pflege- & Schmiermittel")
   // which previously caused misclassification as "beauty".
   if (
-    category.includes('auto') ||
     category.includes('kfz') ||
     category.includes('motorrad') ||
     category.includes('fahrzeug') ||
@@ -758,13 +814,17 @@ function inferSchemaId(product) {
     return 'shoes';
   }
   // 3) Mode & Bekleidung
-  if (category.includes('mode') || category.includes('kleidung') || category.includes('bekleidung') || category.includes('textil')) {
+  // IMPORTANT:
+  // Many non-fashion home categories contain "textil/textilien" (e.g. "Badzubehör & -textilien").
+  // Classify as "fashion" only when the category clearly indicates apparel.
+  if (category.includes('mode') || category.includes('kleidung') || category.includes('bekleidung')) {
     return 'fashion';
   }
   // 11) Uhren & Schmuck
   if (category.includes('uhren') || category.includes('schmuck')) return 'watches_jewelry';
   // 9) Spielzeug & Baby
-  if (category.includes('spielzeug') || category.includes('baby') || category.includes('kinder')) return 'toys_baby';
+  // IMPORTANT: "Kinder*" appears in many non-toy home categories (e.g. Kindermöbel). Don't auto-classify those as toys.
+  if (category.includes('spielzeug') || category.includes('baby') || /\bkinderspielzeug\b/.test(categoryNorm)) return 'toys_baby';
   // 10) Büro & Schreibwaren
   if (category.includes('büro') || category.includes('schreibwaren')) return 'office';
   // 16) Haustierbedarf
@@ -938,7 +998,7 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const vehicleSeries = normalizeTitleToken(pickAttr(attrs, 'Baureihe', 'Kompatible Fahrzeugserie', 'Kompatible Fahrzeugserien'));
   const position = normalizeTitleToken(pickAttr(attrs, 'Einbauposition', 'Position'));
 
-  const measure = normalizeTitleToken(
+  let measure = normalizeTitleToken(
     compactUnitToken(
       pickAttr(attrs, 'Maße', 'Abmessungen', 'Durchmesser', 'Länge', 'Breite', 'Höhe', 'Tiefe', 'Lochkreis', 'Einbaugröße')
     )
@@ -993,7 +1053,7 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const sportType = normalizeTitleToken(pickAttr(attrs, 'Sportart', 'Sport'));
   const theme = normalizeTitleToken(pickAttr(attrs, 'Lizenz', 'Thema', 'Serie', 'Charakter'));
   const age = normalizeTitleToken(pickAttr(attrs, 'Altersempfehlung', 'Alter'));
-  const packSize = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Menge', 'Packung', 'Stückzahl', 'Anzahl')));
+  const packSize = normalizeTitleToken(formatPackSizeToken(pickAttr(attrs, 'Menge', 'Packung', 'Stückzahl', 'Anzahl', 'Anzahl der Teile')));
   const alloy = normalizeTitleToken(pickAttr(attrs, 'Material', 'Legierung', 'Metall'));
   const stone = normalizeTitleToken(pickAttr(attrs, 'Stein', 'Besatz', 'Edelstein'));
   const platform =
@@ -1016,6 +1076,13 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const accessories = normalizeTitleToken(pickAttr(attrs, 'Zubehör', 'Lieferumfang', 'Set', 'Set-Inhalt'));
   const energySource = normalizeTitleToken(pickAttr(attrs, 'Energiequelle', 'Energieversorgung', 'Stromversorgung', 'Akkutyp'));
   const techCompat = normalizeTitleToken(pickAttr(attrs, 'Technologie', 'Kompatibilität', 'Betriebsart', 'Anschlüsse', 'Geeignet für'));
+  const mounting = normalizeTitleToken(pickAttr(attrs, 'Montage', 'Montageart', 'Befestigung', 'Installation'));
+
+  // Prefer explicit dimension ranges from text (e.g. "43 cm bis 56 cm") for the primary measure token.
+  const measureRange = normalizeTitleToken(extractFirstDimensionRangeToken(hintText));
+  if (measureRange) {
+    measure = measureRange;
+  }
 
   switch (schemaId) {
     case 'electronics_computer': {
@@ -1117,24 +1184,62 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       // Titel_Regeln.csv (Haus, Garten & Baumarkt):
       // Template: [Produktart] [Material/Merkmal] [Maße/Menge] [Anwendung] [Marke]
       // Priorities: Produktart -> Maß/Menge -> Anwendung -> Material (brand at end).
+      const primaryMeasure = measure || capacity || packSize;
       pushA(productType);
       // Material/Merkmal early (as template suggests)
       pushA(material || extraFeature);
-      pushA(measure || capacity || packSize);
+      pushA(primaryMeasure);
 
       // Anwendung MUST appear for this bucket when we have it
       pushB(function1);
-      // Ensure brand is present (template ends with brand).
-      // Put it early in B so we don't accidentally fill up to softMax before reaching C.
-      pushB(brand);
+      // Pack size is a strong search token for home/organization items (prefer "8er Set").
+      if (packSize && packSize !== primaryMeasure) {
+        pushB(packSize);
+      }
 
-      // Additional factual specs if needed to reach 70–75 (no marketing, no SKU)
-      pushB(modelOrSeries);
+      // Additional factual tokens (no marketing, no SKU)
+      const rawFeatures = pickAttr(attrs, 'Besonderheiten', 'Feature', 'Eigenschaft', 'Hauptmerkmal');
+      const featureTokens = safeString(rawFeatures)
+        .split(/[,;]+/g)
+        .map((x) => normalizeTitleToken(x))
+        .filter(Boolean)
+        .slice(0, 3);
+      if (featureTokens.length) {
+        featureTokens.forEach((t) => pushB(t));
+      } else {
+        pushB(extraFeature);
+      }
+      // Ensure brand is present; keep it AFTER main spec tokens so it doesn't crowd out measure/pack/feature.
+      pushB(brand);
+      pushB(mounting);
+
+      // Keep short model/series tokens only (e.g. IKEA RANARP). Avoid long generic phrases.
+      const modelWords = safeString(modelOrSeries).split(/\s+/g).filter(Boolean);
+      if (modelOrSeries && modelWords.length <= 2 && safeString(modelOrSeries).length <= 20) {
+        pushB(modelOrSeries);
+      }
       pushB(power);
-      // Avoid voltage spam in home/garden titles; it's rarely part of the category search intent and crowds out Anwendung/Marke.
-      pushB(extraFeature);
-      pushB(coreFeature);
-      specsFromText.forEach((t) => pushB(t));
+
+      // As last resort, keep only high-signal spec tokens (avoid clutter like "1.5cm").
+      const keepHomeSpec = (tok) => {
+        const t = safeString(tok).toLowerCase();
+        if (!t) return false;
+        if (/\b\d{1,4}x\d{1,4}(?:x\d{1,4})?(mm|cm|m)\b/.test(t)) return true;
+        if (/\b\d{1,5}(?:\.\d+)?[-–]\d{1,5}(?:\.\d+)?(mm|cm|m|l|ml|kg|g|w|kw|v|mah|gb|tb|mhz|ghz|rpm)\b/.test(t)) return true;
+        // Big single dimensions only (>=10cm / >=100mm)
+        const dim = t.match(/^(\d{1,5}(?:\.\d+)?)(mm|cm|m)\b/);
+        if (dim) {
+          const val = parseFloat(dim[1]);
+          if (!Number.isFinite(val)) return false;
+          if (dim[2] === 'cm' && val < 10) return false;
+          if (dim[2] === 'mm' && val < 100) return false;
+          return true;
+        }
+        // Non-length units can be relevant
+        if (/^(\d{1,5}(?:\.\d+)?)(l|ml|kg|g|w|kw|v|mah|gb|tb|mhz|ghz|rpm)\b/.test(t)) return true;
+        return false;
+      };
+      specsFromText.filter(keepHomeSpec).forEach((t) => pushB(t));
 
       // Keep color only if we still have space (it is not part of the CSV template).
       // Note: brand already added above; keep condition last only if explicitly curated.
@@ -1175,7 +1280,40 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       return { schemaId, a, b, c };
     }
     case 'toys_baby': {
-      // [MARKE] [LIZENZ/THEMA] [SET/PRODUKT] [ALTER/GRÖSSE]
+      // Toys/Baby is broad. Special-case child car seats for better buyer-keyword titles.
+      const categoryCtx = safeString(product?.identification?.category);
+      const hintNorm = normalizeForSearch([categoryCtx, productTypeRaw, proposedTitle, titleHint].filter(Boolean).join(' '));
+      const isChildSeat =
+        /\b(kind(?:er)?sitz|autokindersitz|autositz)\b/.test(hintNorm) ||
+        /\bi[-\s]?size\b/.test(hintNorm) ||
+        /\bece\b/.test(hintNorm);
+
+      if (isChildSeat) {
+        const seatType =
+          /\bauto\b/.test(hintNorm) || /\bauto[-\s]?kindersitz/.test(hintNorm) || /\bauto[-\s]?kindersitze/.test(hintNorm)
+            ? 'Autokindersitz'
+            : productType || 'Kindersitz';
+        const rotation = /360\s*°|360°|\b360\s*(?:grad|degree)\b/i.test(hintText) ? '360°' : '';
+        const isize = /\bi[-\s]?size\b/i.test(hintText) ? 'i-Size' : '';
+        const ece = /\bece\b/i.test(hintText) && /\br\s*129\b/i.test(hintText) ? 'ECE R129' : '';
+        const range = normalizeTitleToken(extractFirstDimensionRangeToken(hintText));
+        const isofix = /\bisofix\b/i.test(hintText) ? 'ISOFIX' : '';
+
+        // [MARKE] [MODELL] [AUTOKINDERSITZ] [360°] [i-Size] [40-150cm] [ECE R129] [FARBE] [MPN]
+        pushA(brand);
+        pushA(model);
+        pushA(seatType);
+        pushB(rotation);
+        pushB(isize);
+        pushB(range);
+        pushB(ece);
+        pushB(isofix);
+        pushB(color);
+        pushC(mpn || modelOrMpn);
+        return { schemaId, a, b, c };
+      }
+
+      // Default template: [MARKE] [LIZENZ/THEMA] [PRODUKT] [MODELL] [ALTER/GRÖSSE]
       pushA(brand);
       pushA(theme);
       pushA(productType);
@@ -1384,7 +1522,12 @@ function assembleTitleFromPlan(plan, { targetMinLen, softMaxLen, maxLen } = {}) 
   const aCount = Array.isArray(plan?.a) ? plan.a.filter(Boolean).length : 0;
 
   // If > softMax, drop tail TOKENS (never drop A tokens)
+  // IMPORTANT: softMax is a preference, minLen/targetMin is the policy requirement.
+  // Never drop below targetMin just to satisfy softMax.
   while (normalizeSpaces(cleanedTokens.join(' ')).length > softMax && cleanedTokens.length > aCount) {
+    const nextTokens = cleanedTokens.slice(0, -1);
+    const nextTitle = normalizeSpaces(nextTokens.join(' '));
+    if (nextTitle.length < targetMin) break;
     cleanedTokens.pop();
   }
 

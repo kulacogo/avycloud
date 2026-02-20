@@ -230,6 +230,74 @@ function isCategoryMismatchError(errors) {
   });
 }
 
+function isProductAspectMisuseError(errors) {
+  if (!Array.isArray(errors) || !errors.length) return false;
+  return errors.some((e) => {
+    const msg = (safeString(e?.longMessage) + ' ' + safeString(e?.shortMessage)).toLowerCase();
+    const german =
+      msg.includes('produkt-artikelmerkmal') &&
+      (msg.includes('benutzerdefin') || msg.includes('benutzerdefini') || msg.includes('custom'));
+    const english =
+      msg.includes('product aspect') &&
+      (msg.includes('custom item specific') || msg.includes('custom item specifics') || msg.includes('custom'));
+    return german || english;
+  });
+}
+
+function normalizeAspectToken(value) {
+  return safeString(value)
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function extractMisusedAspectNames(errors) {
+  if (!Array.isArray(errors) || !errors.length) return [];
+  const messages = errors
+    .flatMap((e) => [safeString(e?.longMessage), safeString(e?.shortMessage)])
+    .filter(Boolean);
+  for (const msg of messages) {
+    const lower = msg.toLowerCase();
+    const looksLikeMisuse =
+      (lower.includes('produkt-artikelmerkmal') && (lower.includes('benutzerdefin') || lower.includes('custom'))) ||
+      (lower.includes('product aspect') && (lower.includes('custom item specific') || lower.includes('custom')));
+    if (!looksLikeMisuse) continue;
+    const idx = msg.indexOf(':');
+    if (idx < 0) continue;
+    const tail = msg.slice(idx + 1);
+    return tail
+      .split(',')
+      .map((x) => safeString(x).replace(/[.;]+$/g, '').trim())
+      .filter(Boolean)
+      .slice(0, 60);
+  }
+  return [];
+}
+
+function stripItemSpecificsByAspectNames(itemSpecifics, aspectNames = []) {
+  const specifics = itemSpecifics && typeof itemSpecifics === 'object' ? itemSpecifics : {};
+  const tokens = new Set(asArray(aspectNames).map((n) => normalizeAspectToken(n)).filter(Boolean));
+  if (!tokens.size) {
+    return { itemSpecifics: specifics, removed: [] };
+  }
+  const removed = [];
+  const out = {};
+  Object.entries(specifics).forEach(([k, v]) => {
+    const key = safeString(k);
+    if (!key) return;
+    const token = normalizeAspectToken(key);
+    if (token && tokens.has(token)) {
+      removed.push(key);
+      return;
+    }
+    out[key] = v;
+  });
+  return { itemSpecifics: out, removed };
+}
+
 function mapItemSpecifics(itemSpecificsNode) {
   const out = {};
   const list = asArray(itemSpecificsNode?.NameValueList);
@@ -573,16 +641,39 @@ function buildAddFixedPriceItemXml(item, cfg) {
 
 async function addFixedPriceItem(item, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const cfg = await getEbayTradingConfig();
+  let currentItem = item;
+  let triedNoCategory = false;
+  let triedStripProductAspects = false;
   let result;
-  try {
-    result = await callTradingApi('AddFixedPriceItem', buildAddFixedPriceItemXml(item, cfg), { timeoutMs });
-  } catch (err) {
-    // If eBay rejects the category, retry without <PrimaryCategory> so eBay
-    // can auto-assign the correct category via GTIN/EAN catalog matching.
-    if (err.code === 'EBAY_TRADING_CALL_FAILED' && isCategoryMismatchError(err.details?.errors)) {
-      const itemWithoutCategory = { ...item, primaryCategoryId: undefined };
-      result = await callTradingApi('AddFixedPriceItem', buildAddFixedPriceItemXml(itemWithoutCategory, cfg), { timeoutMs });
-    } else {
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      result = await callTradingApi('AddFixedPriceItem', buildAddFixedPriceItemXml(currentItem, cfg), { timeoutMs });
+      break;
+    } catch (err) {
+      const errors = err?.details?.errors;
+      // If eBay rejects the category, retry without <PrimaryCategory> so eBay
+      // can auto-assign the correct category via GTIN/EAN catalog matching.
+      if (!triedNoCategory && err.code === 'EBAY_TRADING_CALL_FAILED' && isCategoryMismatchError(errors)) {
+        triedNoCategory = true;
+        currentItem = { ...currentItem, primaryCategoryId: undefined };
+        continue;
+      }
+
+      // PBSE/catalog: eBay can reject PRODUCT aspects sent via ItemSpecifics.
+      // Retry once by removing only the offending aspect names listed in the API error message.
+      if (
+        !triedStripProductAspects &&
+        err.code === 'EBAY_TRADING_CALL_FAILED' &&
+        isProductAspectMisuseError(errors)
+      ) {
+        triedStripProductAspects = true;
+        const misused = extractMisusedAspectNames(errors);
+        const stripped = stripItemSpecificsByAspectNames(currentItem?.itemSpecifics, misused);
+        currentItem = { ...currentItem, itemSpecifics: stripped.itemSpecifics };
+        continue;
+      }
+
       throw err;
     }
   }
@@ -607,16 +698,39 @@ async function verifyAddFixedPriceItem(item, { timeoutMs = DEFAULT_TIMEOUT_MS } 
     buildAddFixedPriceItemXml(i, cfg)
       .replace('<AddFixedPriceItemRequest', '<VerifyAddFixedPriceItemRequest')
       .replace('</AddFixedPriceItemRequest>', '</VerifyAddFixedPriceItemRequest>');
+  let currentItem = item;
+  let triedNoCategory = false;
+  let triedStripProductAspects = false;
   let result;
-  try {
-    result = await callTradingApi('VerifyAddFixedPriceItem', buildXml(item), { timeoutMs });
-  } catch (err) {
-    // If eBay rejects the category, retry without <PrimaryCategory> so eBay
-    // can auto-assign the correct category via GTIN/EAN catalog matching.
-    if (err.code === 'EBAY_TRADING_CALL_FAILED' && isCategoryMismatchError(err.details?.errors)) {
-      const itemWithoutCategory = { ...item, primaryCategoryId: undefined };
-      result = await callTradingApi('VerifyAddFixedPriceItem', buildXml(itemWithoutCategory), { timeoutMs });
-    } else {
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      result = await callTradingApi('VerifyAddFixedPriceItem', buildXml(currentItem), { timeoutMs });
+      break;
+    } catch (err) {
+      const errors = err?.details?.errors;
+      // If eBay rejects the category, retry without <PrimaryCategory> so eBay
+      // can auto-assign the correct category via GTIN/EAN catalog matching.
+      if (!triedNoCategory && err.code === 'EBAY_TRADING_CALL_FAILED' && isCategoryMismatchError(errors)) {
+        triedNoCategory = true;
+        currentItem = { ...currentItem, primaryCategoryId: undefined };
+        continue;
+      }
+
+      // PBSE/catalog: eBay can reject PRODUCT aspects sent via ItemSpecifics.
+      // Retry once by removing only the offending aspect names listed in the API error message.
+      if (
+        !triedStripProductAspects &&
+        err.code === 'EBAY_TRADING_CALL_FAILED' &&
+        isProductAspectMisuseError(errors)
+      ) {
+        triedStripProductAspects = true;
+        const misused = extractMisusedAspectNames(errors);
+        const stripped = stripItemSpecificsByAspectNames(currentItem?.itemSpecifics, misused);
+        currentItem = { ...currentItem, itemSpecifics: stripped.itemSpecifics };
+        continue;
+      }
+
       throw err;
     }
   }

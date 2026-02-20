@@ -1,0 +1,179 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================
+   AVYCLOUD DESIGN SYSTEM v2.1 — CSS VARIABLES
+   Stripe/Vercel Quality — Light-First
+   ===================================================== */
+
+:root {
+  /* Core brand */
+  --avy-deep: #0A2540;
+  --avy-purple: #635BFF;
+  --avy-purple-hover: #5148E5;
+  --avy-purple-light: #818CF8;
+  --avy-purple-glow: rgba(99, 91, 255, 0.12);
+  --avy-gradient: linear-gradient(135deg, #635BFF, #0070F3);
+
+  /* Surfaces */
+  --bg: #F6F9FC;
+  --surface: #FFFFFF;
+  --surface-hover: #FAFBFD;
+  --surface-secondary: #F0F3F7;
+
+  /* Text */
+  --text-primary: #0A2540;
+  --text-secondary: #425466;
+  --text-tertiary: #8898AA;
+  --text-on-dark: #FFFFFF;
+  --text-on-dark-muted: rgba(255, 255, 255, 0.65);
+
+  /* Borders */
+  --border: #E3E8EE;
+  --border-hover: #C1C9D2;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.03), 0 3px 6px rgba(0,0,0,0.02);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 16px 48px rgba(0,0,0,0.08);
+  --shadow-focus: 0 0 0 3px var(--avy-purple-glow);
+
+  /* Semantic */
+  --success: #0E9F6E;
+  --success-bg: #ECFDF5;
+  --success-border: #A7F3D0;
+  --warning: #D97706;
+  --warning-bg: #FFFBEB;
+  --warning-border: #FDE68A;
+  --error: #DC2626;
+  --error-bg: #FEF2F2;
+  --error-border: #FECACA;
+  --info: #0070F3;
+  --info-bg: #EFF6FF;
+  --info-border: #BFDBFE;
+
+  /* Layout */
+  --sidebar-w: 248px;
+  --topbar-h: 56px;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  --bg: #0B0F14;
+  --surface: #151A21;
+  --surface-hover: #1A2029;
+  --surface-secondary: #1E252E;
+  --text-primary: #F1F3F5;
+  --text-secondary: #8898AA;
+  --text-tertiary: #5E6E80;
+  --border: #1E2A36;
+  --border-hover: #2A3A4A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.3);
+  --success-bg: rgba(14,159,110,0.1);
+  --success-border: rgba(14,159,110,0.25);
+  --warning-bg: rgba(217,119,6,0.1);
+  --warning-border: rgba(217,119,6,0.25);
+  --error-bg: rgba(220,38,38,0.1);
+  --error-border: rgba(220,38,38,0.25);
+  --info-bg: rgba(0,112,243,0.1);
+  --info-border: rgba(0,112,243,0.25);
+}
+
+/* =====================================================
+   BASE RESET
+   ===================================================== */
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* =====================================================
+   SCROLLBAR
+   ===================================================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-hover);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* =====================================================
+   FOCUS STYLES
+   ===================================================== */
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* =====================================================
+   SAFE AREA (iOS)
+   ===================================================== */
+
+.safe-area-header {
+  padding-top: calc(constant(safe-area-inset-top) + 0.5rem);
+  padding-top: calc(env(safe-area-inset-top) + 0.5rem);
+}
+
+.safe-area-content {
+  padding-bottom: calc(constant(safe-area-inset-bottom) + 5rem);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
+}
+
+.safe-area-bottom {
+  padding-bottom: calc(constant(safe-area-inset-bottom) + 1rem);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+}
+
+/* =====================================================
+   UTILITY LAYERS
+   ===================================================== */
+
+@layer components {
+  .avy-gradient {
+    background: var(--avy-gradient);
+  }
+
+  .avy-glow {
+    box-shadow: 0 4px 12px rgba(99, 91, 255, 0.3);
+  }
+
+  .avy-card {
+    @apply bg-surface border border-border rounded-lg transition-colors duration-200;
+  }
+
+  .avy-card:hover {
+    border-color: var(--border-hover);
+  }
+}
