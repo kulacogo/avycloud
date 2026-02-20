@@ -154,6 +154,30 @@ const TECHNICAL_SPECIFIC_TOKENS = new Set([
   'ebaycategorybreadcrumb',
 ]);
 
+// K-Typ (TecDoc kType) keys as they appear in product attributes (Baselinker format).
+// Values are pipe-separated numbers and must NOT be sent as ItemSpecifics —
+// they belong in ItemCompatibilityList instead.
+const KTYPE_SPECIFIC_KEYS = new Set(['k-typ', 'ktyp', 'k typ', 'ktyp id', 'ktypids', 'k-typ id']);
+
+function extractKTypeNumbers(itemSpecifics) {
+  const kTypeNumbers = [];
+  let foundKey = null;
+  for (const [key] of Object.entries(itemSpecifics)) {
+    if (KTYPE_SPECIFIC_KEYS.has(safeString(key).toLowerCase())) {
+      foundKey = key;
+      break;
+    }
+  }
+  if (!foundKey) return { kTypeNumbers, foundKey };
+  asArray(itemSpecifics[foundKey]).forEach((raw) => {
+    safeString(raw).split('|').forEach((part) => {
+      const n = part.trim();
+      if (n && /^\d+$/.test(n)) kTypeNumbers.push(n);
+    });
+  });
+  return { kTypeNumbers, foundKey };
+}
+
 function buildAspectTokenMeta(categoryId) {
   const catalog = getCategoryAspectCatalog(categoryId);
   const rows = Array.isArray(catalog?.aspects) ? catalog.aspects : [];
@@ -3181,6 +3205,15 @@ function mapProductToEbayItem(product, overrides = {}) {
     itemSpecifics['Marke'] = [brand];
   }
 
+  // Extract K-Typ fitment numbers before filtering. K-Typ must not be sent as
+  // an ItemSpecific (eBay enforces a 65-char value limit), but via ItemCompatibilityList.
+  const { kTypeNumbers, foundKey: kTypeKey } = extractKTypeNumbers(itemSpecifics);
+  if (kTypeKey) delete itemSpecifics[kTypeKey];
+  // eBay caps: each KType entry counts as 3 against the 3000-compatibility limit → max 1000.
+  const itemCompatibilityList = kTypeNumbers.length
+    ? kTypeNumbers.slice(0, 1000).map((n) => ({ ktype: n }))
+    : null;
+
   // Publish path: Always remove technical keys (e.g. "Kategorie") and enforce maxLength.
   // Do NOT pre-drop PRODUCT aspects here because catalog matching may fail; eBay will then require seller-provided specifics.
   // If eBay returns the PBSE/catalog "product aspects vs custom item specifics" error, the Trading API layer will retry
@@ -3206,6 +3239,7 @@ function mapProductToEbayItem(product, overrides = {}) {
     mpn,
     brand,
     itemSpecifics: filteredSpecifics.itemSpecifics,
+    itemCompatibilityList,
     country: safeString(overrides.country) || 'DE',
     postalCode: safeString(overrides.postalCode) || undefined,
     location: safeString(overrides.location) || undefined,

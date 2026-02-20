@@ -94,6 +94,17 @@ function buildNameValueListXml(itemSpecifics = {}) {
     .join('')}</ItemSpecifics>`;
 }
 
+// K-Typ (TecDoc kType) fitment data must be submitted via ItemCompatibilityList,
+// not as ItemSpecifics. Each kType number is a separate <Compatibility> entry.
+// eBay counts each KType entry as 3 against the 3000-compatibility limit.
+function buildCompatibilityListXml(list) {
+  if (!Array.isArray(list) || !list.length) return '';
+  const xml = list
+    .map(({ ktype }) => `<Compatibility><NameValueList><Name>KType</Name><Value>${escapeXml(safeString(ktype))}</Value></NameValueList></Compatibility>`)
+    .join('');
+  return `<ItemCompatibilityList>${xml}</ItemCompatibilityList>`;
+}
+
 async function resolveCredential(nameCandidates = []) {
   const names = asArray(nameCandidates).map((x) => safeString(x)).filter(Boolean);
   for (const name of names) {
@@ -615,6 +626,9 @@ function buildAddFixedPriceItemXml(item, cfg) {
 
   const specificsXml = buildNameValueListXml(item?.itemSpecifics || {});
   if (specificsXml) fields.push(specificsXml);
+
+  const compatibilityXml = buildCompatibilityListXml(item?.itemCompatibilityList);
+  if (compatibilityXml) fields.push(compatibilityXml);
 
   const dispatchTimeMax = item?.dispatchTimeMax ?? 3;
   fields.push(`<DispatchTimeMax>${escapeXml(String(dispatchTimeMax))}</DispatchTimeMax>`);
