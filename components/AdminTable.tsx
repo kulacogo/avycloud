@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbayListingLinks, type ProductBulkActionName } from '../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, bulkUpdateEbayListings, type ProductBulkActionName } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import {
   normalizeSyncStatus,
@@ -256,6 +256,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [ebayPublishInProgress, setEbayPublishInProgress] = useState(false);
   // productId → itemId map from ebayListingLinks (matched listings)
   const [ebayLinkedMap, setEbayLinkedMap] = useState<Map<string, string>>(new Map());
+  const [ebayItemIdMap, setEbayItemIdMap] = useState<Map<string, string>>(new Map()); // SKU → itemId
+  const [ebayUpdateInProgress, setEbayUpdateInProgress] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [improveInProgress, setImproveInProgress] = useState(false);
   const [improveMessage, setImproveMessage] = useState<string | null>(null);
@@ -289,17 +291,21 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   useEffect(() => {}, []);
 
-  // Load eBay listing links (productId → itemId) once on mount
+  // Load eBay SKU-index (alle aktiven Listings, SKU → viewItemUrl + itemId) once on mount
   useEffect(() => {
-    fetchEbayListingLinks(500)
-      .then((links) => {
-        const map = new Map<string, string>();
-        links.forEach((link: any) => {
-          if (link.status === 'matched' && link.productId && link.itemId) {
-            map.set(link.productId, link.itemId);
-          }
+    fetchEbaySkuIndex()
+      .then((entries) => {
+        const urlMap = new Map<string, string>();
+        const itemIdMap = new Map<string, string>();
+        entries.forEach((entry) => {
+          if (!entry.sku) return;
+          const key = String(entry.sku).trim().toUpperCase();
+          const url = entry.viewItemUrl || `https://www.ebay.de/itm/${encodeURIComponent(entry.itemId)}`;
+          urlMap.set(key, url);
+          itemIdMap.set(key, entry.itemId);
         });
-        setEbayLinkedMap(map);
+        setEbayLinkedMap(urlMap);
+        setEbayItemIdMap(itemIdMap);
       })
       .catch(() => {/* ignore – column zeigt dann keine Daten */});
   }, []);
@@ -682,18 +688,23 @@ const AdminTable: React.FC<AdminTableProps> = ({
         sortKey: 'ebay.listed',
         defaultVisible: true,
         render: ({ product }) => {
-          // Primär: aus ebayListingLinks (matched via SKU/EAN wie auf der eBay-Seite)
-          // Fallback: marketplace.ebay.itemId (direkt gepublishte Artikel)
-          const itemId = ebayLinkedMap.get(product.id) || (product as any)?.marketplace?.ebay?.itemId;
-          const viewUrl = itemId ? `https://www.ebay.de/itm/${encodeURIComponent(String(itemId).trim())}` : '';
+          // SKU-Match aus Trading-API-Sync (ebayListingsLive), Fallback auf marketplace.ebay.itemId
+          const productSku = String(
+            (product as any)?.identification?.sku || product.details?.identifiers?.sku || ''
+          ).trim().toUpperCase();
+          const viewItemUrl =
+            (productSku ? ebayLinkedMap.get(productSku) : null) ||
+            ((product as any)?.marketplace?.ebay?.itemId
+              ? `https://www.ebay.de/itm/${encodeURIComponent(String((product as any).marketplace.ebay.itemId).trim())}`
+              : null);
           return (
-            itemId ? (
+            viewItemUrl ? (
               <a
-                href={viewUrl}
+                href={viewItemUrl}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                title={`eBay öffnen (ItemID: ${itemId})`}
+                title="eBay-Listing öffnen"
                 className="inline-flex items-center justify-center rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-200 hover:bg-sky-500/30 hover:text-sky-100"
               >
                 gelistet
@@ -979,8 +990,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterQuality === 'error' && gateHas && gateErrors > 0) ||
         (filterQuality === 'issues' && gateHasIssues);
 
+      const pSku = String(
+        (p as any)?.identification?.sku || p.details?.identifiers?.sku || ''
+      ).trim().toUpperCase();
       const isEbayListed = Boolean(
-        ebayLinkedMap.get(p.id) || (p as any)?.marketplace?.ebay?.itemId
+        (pSku ? ebayLinkedMap.get(pSku) : null) ||
+        (p as any)?.marketplace?.ebay?.itemId
       );
       const matchesEbay =
         filterEbay === 'all' ||
@@ -1029,8 +1044,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
             return (primaryBin(product) || '').toString().toLowerCase();
           case 'identification.name':
             return (product.identification?.name || '').toString().toLowerCase();
-          case 'ebay.listed':
-            return Boolean(ebayLinkedMap.get(product.id) || (product as any)?.marketplace?.ebay?.itemId) ? 1 : 0;
+          case 'ebay.listed': {
+            const sortSku = String(
+              (product as any)?.identification?.sku || product.details?.identifiers?.sku || ''
+            ).trim().toUpperCase();
+            return Boolean(
+              (sortSku ? ebayLinkedMap.get(sortSku) : null) ||
+              (product as any)?.marketplace?.ebay?.itemId
+            ) ? 1 : 0;
+          }
           default:
             return getNestedValue(product, key);
         }
@@ -1269,15 +1291,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
         } catch {
           // ignore
         }
-        // eBay Map neu laden damit neu gelistete Artikel sofort den Indikator bekommen
-        fetchEbayListingLinks(500).then((links) => {
-          const map = new Map<string, string>();
-          links.forEach((link: any) => {
-            if (link.status === 'matched' && link.productId && link.itemId) {
-              map.set(link.productId, link.itemId);
-            }
+        // eBay Maps neu laden damit neu gelistete Artikel sofort den Indikator bekommen
+        fetchEbaySkuIndex().then((entries) => {
+          const urlMap = new Map<string, string>();
+          const itemIdMap = new Map<string, string>();
+          entries.forEach((entry) => {
+            if (!entry.sku) return;
+            const key = String(entry.sku).trim().toUpperCase();
+            const url = entry.viewItemUrl || `https://www.ebay.de/itm/${encodeURIComponent(entry.itemId)}`;
+            urlMap.set(key, url);
+            itemIdMap.set(key, entry.itemId);
           });
-          setEbayLinkedMap(map);
+          setEbayLinkedMap(urlMap);
+          setEbayItemIdMap(itemIdMap);
         }).catch(() => {});
       }
       setSelectedIds(new Set());
@@ -1289,6 +1315,75 @@ const AdminTable: React.FC<AdminTableProps> = ({
       });
     } finally {
       setEbayPublishInProgress(false);
+    }
+  };
+
+  const handleBatchUpdateEbay = async () => {
+    const ids = Array.from(selectedIds);
+    // Selektierte Produkte → itemIds über SKU-Lookup
+    const listedItemIds = ids
+      .map((pid) => {
+        const product = products.find((p) => p.id === pid);
+        if (!product) return null;
+        const sku = String(
+          (product as any)?.identification?.sku || product.details?.identifiers?.sku || ''
+        ).trim().toUpperCase();
+        return sku ? ebayItemIdMap.get(sku) : null;
+      })
+      .filter((id): id is string => Boolean(id));
+
+    if (!listedItemIds.length) {
+      setNotice({
+        tone: 'error',
+        title: 'eBay Update',
+        message: 'Keine der ausgewählten Produkte ist auf eBay gelistet.',
+      });
+      return;
+    }
+
+    if (!window.confirm(
+      `${listedItemIds.length} eBay-Listing${listedItemIds.length !== 1 ? 's' : ''} aktualisieren?\nNur geänderte Felder werden übertragen.\n\nFortfahren?`
+    )) return;
+
+    setEbayUpdateInProgress(true);
+    setNotice({ tone: 'info', title: 'eBay Update', message: `Aktualisiere ${listedItemIds.length} Listing${listedItemIds.length !== 1 ? 's' : ''}...` });
+
+    try {
+      const result = await bulkUpdateEbayListings({ itemIds: listedItemIds });
+      const { success, failed, skipped } = result.summary;
+      setNotice({
+        tone: failed === 0 ? 'success' : 'warning',
+        title: 'eBay Update abgeschlossen',
+        message: `Aktualisiert: ${success}${failed > 0 ? `, Fehlgeschlagen: ${failed}` : ''}${skipped > 0 ? `, Übersprungen: ${skipped}` : ''}`,
+      });
+    } catch (err: any) {
+      setNotice({ tone: 'error', title: 'eBay Update fehlgeschlagen', details: err?.message || String(err) });
+    } finally {
+      setEbayUpdateInProgress(false);
+    }
+  };
+
+  const handleUpdateAllEbay = async () => {
+    const total = ebayLinkedMap.size;
+    if (!window.confirm(
+      `Alle ${total} aktiven eBay-Listings aktualisieren?\nNur geänderte Felder werden übertragen.\nDies kann mehrere Minuten dauern.\n\nFortfahren?`
+    )) return;
+
+    setEbayUpdateInProgress(true);
+    setNotice({ tone: 'info', title: 'eBay Update', message: `Aktualisiere alle ${total} aktiven Listings...` });
+
+    try {
+      const result = await bulkUpdateEbayListings({ applyAll: true });
+      const { success, failed, skipped } = result.summary;
+      setNotice({
+        tone: failed === 0 ? 'success' : 'warning',
+        title: 'eBay Update abgeschlossen',
+        message: `Aktualisiert: ${success}${failed > 0 ? `, Fehlgeschlagen: ${failed}` : ''}${skipped > 0 ? `, Übersprungen: ${skipped}` : ''}`,
+      });
+    } catch (err: any) {
+      setNotice({ tone: 'error', title: 'eBay Update fehlgeschlagen', details: err?.message || String(err) });
+    } finally {
+      setEbayUpdateInProgress(false);
     }
   };
 
@@ -2241,6 +2336,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
     t,
   ]);
 
+  const hasSelectedEbayListings = useMemo(() => {
+    return Array.from(selectedIds).some((pid) => {
+      const product = products.find((p) => p.id === pid);
+      if (!product) return false;
+      const sku = String(
+        (product as any)?.identification?.sku || product.details?.identifiers?.sku || ''
+      ).trim().toUpperCase();
+      return Boolean(sku && ebayItemIdMap.has(sku));
+    });
+  }, [selectedIds, products, ebayItemIdMap]);
+
   const renderSelectionBar = () => {
     return (
       <div className="rounded-xl border border-slate-700 bg-slate-950/30 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -2267,6 +2373,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
             disabled={selectedIds.size === 0 || ebayPublishInProgress}
             tone="primary"
           />
+          {hasSelectedEbayListings && (
+            <ActionButton
+              icon={
+                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M4 4v5h5M16 16v-5h-5" />
+                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m18 0 4.36 4.36A9 9 0 0 1 3.51 15" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              }
+              label={ebayUpdateInProgress ? 'Wird aktualisiert...' : 'eBay aktualisieren'}
+              onClick={handleBatchUpdateEbay}
+              disabled={ebayUpdateInProgress || ebayPublishInProgress}
+              tone="primary"
+            />
+          )}
           {onImproveSelected ? (
             <ActionButton
               icon={<OperationsIcon className="w-4 h-4" />}
@@ -2337,6 +2457,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 className={menuItemClass}
               >
                 {ebayPublishInProgress ? 'eBay Publish läuft...' : 'Auf eBay listen'}
+              </button>
+              <button
+                type="button"
+                onClick={handleUpdateAllEbay}
+                disabled={ebayUpdateInProgress || ebayLinkedMap.size === 0}
+                className={menuItemClass}
+              >
+                {ebayUpdateInProgress ? 'eBay Update läuft...' : `Alle eBay-Listings aktualisieren (${ebayLinkedMap.size})`}
               </button>
 
               <div className="my-1 border-t border-slate-800" />
