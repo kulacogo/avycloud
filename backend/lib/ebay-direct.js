@@ -1028,6 +1028,7 @@ async function fetchLiveListingsFromEbay({
           const detail = await getItemDetails(entry.itemId, { timeoutMs });
           return {
             ok: true,
+            entry,
             data: {
               ...entry,
               ...detail.item,
@@ -1037,6 +1038,7 @@ async function fetchLiveListingsFromEbay({
         } catch (error) {
           return {
             ok: false,
+            entry,
             error: {
               itemId: entry.itemId,
               message: error?.message || String(error),
@@ -1046,8 +1048,15 @@ async function fetchLiveListingsFromEbay({
       })
     );
     responses.forEach((result) => {
-      if (result.ok) details.push(result.data);
-      else errors.push(result.error);
+      if (result.ok) {
+        details.push(result.data);
+      } else {
+        // GetItem failed — fall back to basic entry from GetMyeBaySelling so the item is
+        // not incorrectly deactivated by deactivateListingsMissingFromActiveSet.
+        // Basic entry already contains sku, title, viewItemUrl from the listing page.
+        if (result.entry) details.push(result.entry);
+        errors.push(result.error);
+      }
     });
   }
 
