@@ -2435,21 +2435,36 @@ app.get('/api/ebay/listing-links', requirePermission('products', 'read'), async 
   }
 });
 
-// Lightweight SKU-index: returns all active eBay listings as [{sku, itemId, viewItemUrl}]
-// Used by the AdminTable eBay badge to match products by SKU without limit.
+// Lightweight SKU-index: returns all active eBay listings as [{sku, productId, itemId, viewItemUrl}]
+// Joins ebayListingsLive (sku, viewItemUrl) with ebayListingLinks (productId) for full coverage.
+// Used by the AdminTable eBay badge to match products by SKU or productId.
 app.get('/api/ebay/sku-index', requirePermission('products', 'read'), async (req, res) => {
   try {
-    const snapshot = await firestore.collection('ebayListingsLive').where('active', '==', true).get();
-    const rows = snapshot.docs
-      .map((doc) => {
-        const d = doc.data() || {};
-        return {
-          sku: d.sku || null,
-          itemId: doc.id,
-          viewItemUrl: d.viewItemUrl || null,
-        };
+    const [liveSnap, linksSnap] = await Promise.all([
+      firestore.collection('ebayListingsLive').where('active', '==', true).get(),
+      firestore.collection('ebayListingLinks').where('status', '==', 'matched').get(),
+    ]);
+    // Build itemId → {sku, viewItemUrl} from live listings
+    const liveByItemId = new Map();
+    liveSnap.docs.forEach((doc) => {
+      const d = doc.data() || {};
+      liveByItemId.set(doc.id, { sku: d.sku || null, viewItemUrl: d.viewItemUrl || null });
+    });
+    // Build itemId → productId from matched links
+    const productIdByItemId = new Map();
+    linksSnap.docs.forEach((doc) => {
+      const d = doc.data() || {};
+      if (d.productId) productIdByItemId.set(doc.id, d.productId);
+    });
+    // Merge: all itemIds from both sources
+    const allItemIds = new Set([...liveByItemId.keys(), ...productIdByItemId.keys()]);
+    const rows = Array.from(allItemIds)
+      .map((itemId) => {
+        const live = liveByItemId.get(itemId) || {};
+        const productId = productIdByItemId.get(itemId) || null;
+        return { itemId, sku: live.sku || null, productId, viewItemUrl: live.viewItemUrl || null };
       })
-      .filter((r) => r.sku);
+      .filter((r) => r.sku || r.productId);
     return res.status(200).json({ ok: true, data: rows });
   } catch (error) {
     console.error('Failed to build eBay SKU index:', error);

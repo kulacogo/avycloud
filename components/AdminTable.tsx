@@ -257,6 +257,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   // productId → itemId map from ebayListingLinks (matched listings)
   const [ebayLinkedMap, setEbayLinkedMap] = useState<Map<string, string>>(new Map());
   const [ebayItemIdMap, setEbayItemIdMap] = useState<Map<string, string>>(new Map()); // SKU → itemId
+  const [ebayProductIdMap, setEbayProductIdMap] = useState<Map<string, string>>(new Map()); // productId → itemId
   const [ebayUpdateInProgress, setEbayUpdateInProgress] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [improveInProgress, setImproveInProgress] = useState(false);
@@ -291,21 +292,27 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   useEffect(() => {}, []);
 
-  // Load eBay SKU-index (alle aktiven Listings, SKU → viewItemUrl + itemId) once on mount
+  // Load eBay SKU-index (alle aktiven Listings, SKU → viewItemUrl + itemId, productId → itemId) once on mount
   useEffect(() => {
     fetchEbaySkuIndex()
       .then((entries) => {
         const urlMap = new Map<string, string>();
         const itemIdMap = new Map<string, string>();
+        const pidMap = new Map<string, string>();
         entries.forEach((entry) => {
-          if (!entry.sku) return;
-          const key = String(entry.sku).trim().toUpperCase();
           const url = entry.viewItemUrl || `https://www.ebay.de/itm/${encodeURIComponent(entry.itemId)}`;
-          urlMap.set(key, url);
-          itemIdMap.set(key, entry.itemId);
+          if (entry.sku) {
+            const key = String(entry.sku).trim().toUpperCase();
+            urlMap.set(key, url);
+            itemIdMap.set(key, entry.itemId);
+          }
+          if (entry.productId) {
+            pidMap.set(entry.productId, entry.itemId);
+          }
         });
         setEbayLinkedMap(urlMap);
         setEbayItemIdMap(itemIdMap);
+        setEbayProductIdMap(pidMap);
       })
       .catch(() => {/* ignore – column zeigt dann keine Daten */});
   }, []);
@@ -688,12 +695,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
         sortKey: 'ebay.listed',
         defaultVisible: true,
         render: ({ product }) => {
-          // SKU-Match aus Trading-API-Sync (ebayListingsLive), Fallback auf marketplace.ebay.itemId
+          // SKU-Match aus Trading-API-Sync (ebayListingsLive), productId-Match aus ebayListingLinks,
+          // Fallback auf marketplace.ebay.itemId
           const productSku = String(
             (product as any)?.identification?.sku || product.details?.identifiers?.sku || ''
           ).trim().toUpperCase();
+          const pidItemId = ebayProductIdMap.get(product.id);
           const viewItemUrl =
             (productSku ? ebayLinkedMap.get(productSku) : null) ||
+            (pidItemId ? `https://www.ebay.de/itm/${encodeURIComponent(pidItemId)}` : null) ||
             ((product as any)?.marketplace?.ebay?.itemId
               ? `https://www.ebay.de/itm/${encodeURIComponent(String((product as any).marketplace.ebay.itemId).trim())}`
               : null);
@@ -995,6 +1005,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       ).trim().toUpperCase();
       const isEbayListed = Boolean(
         (pSku ? ebayLinkedMap.get(pSku) : null) ||
+        ebayProductIdMap.get(p.id) ||
         (p as any)?.marketplace?.ebay?.itemId
       );
       const matchesEbay =
@@ -1050,6 +1061,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             ).trim().toUpperCase();
             return Boolean(
               (sortSku ? ebayLinkedMap.get(sortSku) : null) ||
+              ebayProductIdMap.get(product.id) ||
               (product as any)?.marketplace?.ebay?.itemId
             ) ? 1 : 0;
           }
@@ -1097,6 +1109,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     filterQuality,
     filterEbay,
     ebayLinkedMap,
+    ebayProductIdMap,
     sortConfig,
   ]);
 
@@ -1295,15 +1308,21 @@ const AdminTable: React.FC<AdminTableProps> = ({
         fetchEbaySkuIndex().then((entries) => {
           const urlMap = new Map<string, string>();
           const itemIdMap = new Map<string, string>();
+          const pidMap = new Map<string, string>();
           entries.forEach((entry) => {
-            if (!entry.sku) return;
-            const key = String(entry.sku).trim().toUpperCase();
             const url = entry.viewItemUrl || `https://www.ebay.de/itm/${encodeURIComponent(entry.itemId)}`;
-            urlMap.set(key, url);
-            itemIdMap.set(key, entry.itemId);
+            if (entry.sku) {
+              const key = String(entry.sku).trim().toUpperCase();
+              urlMap.set(key, url);
+              itemIdMap.set(key, entry.itemId);
+            }
+            if (entry.productId) {
+              pidMap.set(entry.productId, entry.itemId);
+            }
           });
           setEbayLinkedMap(urlMap);
           setEbayItemIdMap(itemIdMap);
+          setEbayProductIdMap(pidMap);
         }).catch(() => {});
       }
       setSelectedIds(new Set());
@@ -1328,7 +1347,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         const sku = String(
           (product as any)?.identification?.sku || product.details?.identifiers?.sku || ''
         ).trim().toUpperCase();
-        return sku ? ebayItemIdMap.get(sku) : null;
+        return (sku ? ebayItemIdMap.get(sku) : null) || ebayProductIdMap.get(pid) || null;
       })
       .filter((id): id is string => Boolean(id));
 
@@ -2343,9 +2362,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
       const sku = String(
         (product as any)?.identification?.sku || product.details?.identifiers?.sku || ''
       ).trim().toUpperCase();
-      return Boolean(sku && ebayItemIdMap.has(sku));
+      return Boolean(
+        (sku && ebayItemIdMap.has(sku)) ||
+        ebayProductIdMap.has(pid) ||
+        (product as any)?.marketplace?.ebay?.itemId
+      );
     });
-  }, [selectedIds, products, ebayItemIdMap]);
+  }, [selectedIds, products, ebayItemIdMap, ebayProductIdMap]);
 
   const renderSelectionBar = () => {
     return (
