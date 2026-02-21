@@ -1742,7 +1742,7 @@ function coerceTitleToPolicy(
     hintTitle = stripUsedCondition(hintTitle);
   }
   const injectedHints = Array.isArray(extraHintTokens)
-    ? extraHintTokens.map((v) => normalizeTitleToken(v)).filter(Boolean).slice(0, 8)
+    ? extraHintTokens.map((v) => normalizeTitleToken(v)).filter(Boolean).slice(0, 12)
     : [];
   if (injectedHints.length) {
     hintTitle = normalizeSpaces([hintTitle, ...injectedHints].join(' '));
@@ -1751,12 +1751,23 @@ function coerceTitleToPolicy(
 
   const schemaId = inferSchemaId(product);
   const plan = buildTitlePlanBySchema(product, schemaId, { proposedTitle: hintTitle });
+  // If we have explicit hint tokens (eBay top search tokens), treat them as additional spec candidates.
+  // This helps reach the target length without inventing new facts.
+  if (injectedHints.length) {
+    plan.b = Array.isArray(plan?.b) ? [...plan.b, ...injectedHints] : [...injectedHints];
+  }
+
+  const targetMinLen = Math.min(Math.max(20, Number(minLen) || DEFAULT_TITLE_TARGET_MIN_LEN), maxLen);
 
   let title = assembleTitleFromPlan(plan, {
-    targetMinLen: Math.min(Math.max(20, Number(minLen) || DEFAULT_TITLE_TARGET_MIN_LEN), maxLen),
+    targetMinLen,
     softMaxLen,
     maxLen,
   });
+  // If we still didn't reach the target length, append remaining hint tokens (best-effort, still deterministic).
+  if (injectedHints.length && title.length < targetMinLen) {
+    title = appendTokens(title, injectedHints, { minLen: targetMinLen, maxLen });
+  }
 
   if (!conditionLocked) {
     title = stripUsedCondition(title);

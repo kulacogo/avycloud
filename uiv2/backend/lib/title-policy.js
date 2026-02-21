@@ -32,16 +32,19 @@ const STOP_WORDS = new Set([
  * When disabled, we still do minimal deterministic sanitization + hard max length enforcement.
  */
 function isTitlePolicyDisabled() {
-  // Default: disabled. Opt-in only.
-  const enabled = (process.env.TITLE_POLICY_ENABLED || '').toString().trim().toLowerCase();
-  if (enabled === '1' || enabled === 'true' || enabled === 'yes') {
-    return false;
-  }
-  const v = (process.env.TITLE_POLICY_DISABLED || process.env.DISABLE_TITLE_POLICY || '').toString().trim().toLowerCase();
-  if (v === '0' || v === 'false' || v === 'no') {
-    return false;
-  }
-  return true;
+  // Default: enabled. Explicit opt-out via TITLE_POLICY_DISABLED=true.
+  const parseBool = (raw) => {
+    const v = (raw ?? '').toString().trim().toLowerCase();
+    if (!v) return null;
+    if (v === '1' || v === 'true' || v === 'yes' || v === 'y') return true;
+    if (v === '0' || v === 'false' || v === 'no' || v === 'n') return false;
+    return null;
+  };
+  const disabledFlag = parseBool(process.env.TITLE_POLICY_DISABLED ?? process.env.DISABLE_TITLE_POLICY);
+  if (disabledFlag !== null) return disabledFlag;
+  const enabledFlag = parseBool(process.env.TITLE_POLICY_ENABLED);
+  if (enabledFlag !== null) return !enabledFlag;
+  return false;
 }
 
 const SHORT_OK_WORDS = new Set([
@@ -1501,7 +1504,12 @@ function appendTokens(title, tokens, { minLen, maxLen }) {
 function coerceTitleToPolicy(
   product,
   proposedTitle,
-  { minLen = DEFAULT_TITLE_TARGET_MIN_LEN, maxLen = DEFAULT_TITLE_MAX_LEN, softMaxLen = DEFAULT_TITLE_SOFT_MAX_LEN } = {}
+  {
+    minLen = DEFAULT_TITLE_TARGET_MIN_LEN,
+    maxLen = DEFAULT_TITLE_MAX_LEN,
+    softMaxLen = DEFAULT_TITLE_SOFT_MAX_LEN,
+    extraHintTokens = [],
+  } = {}
 ) {
   // Web-only mode: do NOT apply schema rules. Keep only minimal sanitization + hard max length.
   if (isTitlePolicyDisabled()) {
@@ -1523,16 +1531,33 @@ function coerceTitleToPolicy(
   if (!conditionLocked) {
     hintTitle = stripUsedCondition(hintTitle);
   }
+  const injectedHints = Array.isArray(extraHintTokens)
+    ? extraHintTokens.map((v) => normalizeTitleToken(v)).filter(Boolean).slice(0, 12)
+    : [];
+  if (injectedHints.length) {
+    hintTitle = normalizeSpaces([hintTitle, ...injectedHints].join(' '));
+  }
   hintTitle = normalizeSpaces(hintTitle);
 
   const schemaId = inferSchemaId(product);
   const plan = buildTitlePlanBySchema(product, schemaId, { proposedTitle: hintTitle });
+  // If we have explicit hint tokens (eBay top search tokens), treat them as additional spec candidates.
+  // This helps reach the target length without inventing new facts.
+  if (injectedHints.length) {
+    plan.b = Array.isArray(plan?.b) ? [...plan.b, ...injectedHints] : [...injectedHints];
+  }
+
+  const targetMinLen = Math.min(Math.max(20, Number(minLen) || DEFAULT_TITLE_TARGET_MIN_LEN), maxLen);
 
   let title = assembleTitleFromPlan(plan, {
-    targetMinLen: Math.min(Math.max(20, Number(minLen) || DEFAULT_TITLE_TARGET_MIN_LEN), maxLen),
+    targetMinLen,
     softMaxLen,
     maxLen,
   });
+  // If we still didn't reach the target length, append remaining hint tokens (best-effort, still deterministic).
+  if (injectedHints.length && title.length < targetMinLen) {
+    title = appendTokens(title, injectedHints, { minLen: targetMinLen, maxLen });
+  }
 
   if (!conditionLocked) {
     title = stripUsedCondition(title);

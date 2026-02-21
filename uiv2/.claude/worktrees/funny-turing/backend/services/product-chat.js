@@ -1427,9 +1427,9 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
       const bucket = inferTitleCategory(draftProduct);
       const rule =
         (cfg?.title?.rulesBySchema && cfg.title.rulesBySchema[bucket]) || cfg?.title || {};
-      minLen = Number(rule?.minLen || 65);
+      minLen = Number(rule?.minLen || 70);
       maxLen = Number(rule?.maxLen || 80);
-      softMaxLen = Number(rule?.softMaxLen || 75);
+      softMaxLen = Number(rule?.softMaxLen || 80);
     }
     const coerced = coerceTitleToPolicy(draftProduct, rawTitleCandidate, { minLen, maxLen, softMaxLen });
     identityPatch.name = coerced;

@@ -1639,9 +1639,9 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
       const bucket = inferTitleCategory(draftProduct);
       const rule =
         (cfg?.title?.rulesBySchema && cfg.title.rulesBySchema[bucket]) || cfg?.title || {};
-      minLen = Number(rule?.minLen || 65);
+      minLen = Number(rule?.minLen || 70);
       maxLen = Number(rule?.maxLen || 80);
-      softMaxLen = Number(rule?.softMaxLen || 75);
+      softMaxLen = Number(rule?.softMaxLen || 80);
     }
     const extraHintTokens = Array.isArray(titleHintTokens)
       ? titleHintTokens.map(normalizeTitleInsightToken).filter(isValidTitleInsightToken).slice(0, 12)
