@@ -1272,7 +1272,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     ...(rulesOn
       ? [
           'QUALITY GOALS (non-binding):',
-          '- Title: mobile-first & searchable, preferably 65–75 chars, never exceed 80.',
+          '- Title: search-native & searchable, preferably 70–80 chars, never exceed 80.',
           '- No marketing fluff, no emojis, no duplicates, no leading symbols, no SKU/internal IDs.',
         ]
       : [

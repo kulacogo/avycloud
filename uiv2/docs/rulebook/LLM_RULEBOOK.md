@@ -24,7 +24,7 @@ Alle in AvyCloud eingesetzten LLMs (Identify / Improve / Chat) **müssen** ein *
 
 Hard Facts:
 - Mobile-first: **Priority A** muss **innerhalb der ersten ~60 Zeichen** vorkommen.
-- Länge: **optimal 65–75**, **Hard-Max 80**.
+- Länge: **70–80 (bevorzugt)**, **Hard-Max 80**.
 - Keine Emojis, keine Marketingfloskeln, keine Dubletten.
 
 #### Highlights (Bullets)

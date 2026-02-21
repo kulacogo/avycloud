@@ -1610,7 +1610,7 @@ function ensureTechnicalTitle(product, { minLen = 70, maxLen = 80 } = {}) {
     }
   }
 
-  // Best-effort: try to keep titles in the SEO-friendly range (optimal 65–75, hard max 80) by appending technical candidates.
+  // Best-effort: try to keep titles in the preferred range (70–80, hard max 80) by appending technical candidates.
   // Never invent tokens; only use known attributes/candidates.
   if (title.length < minLen) {
     for (const token of candidates) {

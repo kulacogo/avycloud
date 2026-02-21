@@ -69,7 +69,7 @@ async function main() {
     if (!isLikelyFashionProduct(p)) continue;
     const before = safeString(p?.identification?.name);
     if (!before) continue;
-    const after = coerceTitleToPolicy(p, before, { minLen: 55, maxLen: 80, softMaxLen: 75 });
+    const after = coerceTitleToPolicy(p, before, { minLen: 70, maxLen: 80, softMaxLen: 80 });
     if (!after || after === before) continue;
 
     changed += 1;

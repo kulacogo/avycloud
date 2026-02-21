@@ -36,6 +36,7 @@ const { createJob, getJob, listJobs, FieldValue } = require('./lib/jobs');
 const { parseKTypeEbayCsvToSkuMap } = require('./lib/ktype');
 const {
   runProductIdentification,
+  ensureCategories,
   ensurePriceCoverage,
   runDatasheetReview,
   prefetchWebEvidenceForIdentify,
@@ -57,7 +58,7 @@ const { getGeminiApiKey, __unsafeGetCachedKeySource } = require('./lib/gemini-cl
 const { fetchWithUnlocker } = require('./lib/web-unlocker');
 const { search: searchEvidence, searchSite: searchEvidenceSite } = require('./lib/evidence-provider');
 const { isBannedEbayBreadcrumb } = require('./lib/ebay-category-governance');
-const { getCategoryAspectCatalog } = require('./lib/ebay-taxonomy');
+const { getCategoryAspectCatalog, findEbayCategory } = require('./lib/ebay-taxonomy');
 const { enqueueJob, startJobRunner } = require('./services/job-runner');
 const { runCloudRunJob } = require('./lib/cloud-run-jobs');
 const { enqueueImproveJob, startImproveRunner } = require('./services/improve-runner');
@@ -3352,6 +3353,11 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
       inventoryId: inventoryId || null,
     });
 
+    // 3.0) Hard rule: no product may be persisted without an eBay category.
+    // v2 records often contain only a free-text internalCategory; `saveProduct()` will clear
+    // free-text categories when no valid `details.categoryId` exists, resulting in category-less products.
+    await ensureCategories([product]);
+
     product = applyEbayTaxonomy(product);
     product = applyKauflandTaxonomy(product);
 
@@ -3451,6 +3457,22 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
       };
     } catch (e) {
       finalQuality = null;
+    }
+
+    // 3.9) Final invariant: refuse to save without a valid (allowed) eBay category id.
+    const finalCategoryId = String(product?.details?.categoryId || '').trim();
+    const finalCategory = finalCategoryId ? findEbayCategory(finalCategoryId) : null;
+    const finalBreadcrumb = finalCategory?.breadcrumb ? String(finalCategory.breadcrumb) : '';
+    if (
+      !finalCategoryId ||
+      !finalCategory ||
+      !finalBreadcrumb ||
+      !finalBreadcrumb.includes('>') ||
+      isBannedEbayBreadcrumb(finalBreadcrumb)
+    ) {
+      throw new Error(
+        `Identify (v2) refused to save product without valid eBay category (categoryId="${finalCategoryId || ''}")`
+      );
     }
 
     // 4) Persist (SYSTEM mode => invariants enforced; never treated as manual UI edit).
@@ -5460,19 +5482,30 @@ app.post('/api/save', requirePermission('products', 'write'), async (req, res) =
       product.details.images.some(
         (img) => img && (img.url_or_base64 || img.url || img.href)
       );
+    const categoryId = String(product?.details?.categoryId || '').trim();
+    const resolvedCategory = categoryId ? findEbayCategory(categoryId) : null;
+    const breadcrumb = resolvedCategory?.breadcrumb ? String(resolvedCategory.breadcrumb) : '';
+    const hasValidCategory = Boolean(
+      categoryId &&
+      resolvedCategory &&
+      breadcrumb &&
+      breadcrumb.includes('>') &&
+      !isBannedEbayBreadcrumb(breadcrumb)
+    );
 
     if (
       !skuCandidate ||
       !nameCandidate ||
       !descCandidate ||
-      !hasImages
+      !hasImages ||
+      !hasValidCategory
     ) {
       return res.status(400).json({
         ok: false,
         error: {
           code: 400,
           message:
-            'Produkt unvollständig: SKU, Name, Beschreibung oder Bilder fehlen.',
+            'Produkt unvollständig: SKU, Name, Beschreibung, Kategorie oder Bilder fehlen/ungültig.',
         },
       });
     }

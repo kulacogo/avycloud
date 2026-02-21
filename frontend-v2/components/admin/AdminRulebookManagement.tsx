@@ -29,7 +29,7 @@ export const AdminRulebookManagement: React.FC = () => {
     null
   );
   const [cfg, setCfg] = React.useState<AdminRulebookConfig>({
-    title: { minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60, marketingWords: ['neu', 'top', 'neuware'] },
+    title: { minLen: 70, softMaxLen: 80, maxLen: 80, mobileMaxLen: 60, marketingWords: ['neu', 'top', 'neuware'] },
     highlights: { requireDashTemplate: true, rulesBySchema: {} },
     attributes: { canonicalKeyMap: {} },
   });
@@ -65,8 +65,8 @@ export const AdminRulebookManagement: React.FC = () => {
       const trs = (data.config as any)?.title?.rulesBySchema || {};
       const trows: TitleRuleRow[] = Object.entries(trs).map(([schemaId, rule]: any) => ({
         schemaId,
-        minLen: toNumber(rule?.minLen, toNumber(data.config?.title?.minLen, 65)),
-        softMaxLen: toNumber(rule?.softMaxLen, toNumber(data.config?.title?.softMaxLen, 75)),
+        minLen: toNumber(rule?.minLen, toNumber(data.config?.title?.minLen, 70)),
+        softMaxLen: toNumber(rule?.softMaxLen, toNumber(data.config?.title?.softMaxLen, 80)),
         maxLen: toNumber(rule?.maxLen, toNumber(data.config?.title?.maxLen, 80)),
         mobileMaxLen: toNumber(rule?.mobileMaxLen, toNumber(data.config?.title?.mobileMaxLen, 60)),
       }));
@@ -98,8 +98,8 @@ export const AdminRulebookManagement: React.FC = () => {
         ...(cfg || {}),
         title: {
           ...(cfg.title || {}),
-          minLen: toNumber(cfg?.title?.minLen, 65),
-          softMaxLen: toNumber(cfg?.title?.softMaxLen, 75),
+          minLen: toNumber(cfg?.title?.minLen, 70),
+          softMaxLen: toNumber(cfg?.title?.softMaxLen, 80),
           maxLen: toNumber(cfg?.title?.maxLen, 80),
           mobileMaxLen: toNumber(cfg?.title?.mobileMaxLen, 60),
           marketingWords: Array.isArray(cfg?.title?.marketingWords) ? cfg.title!.marketingWords : [],
@@ -109,8 +109,8 @@ export const AdminRulebookManagement: React.FC = () => {
               .map((r) => [
                 r.schemaId.trim(),
                 {
-                  minLen: toNumber(r.minLen, 65),
-                  softMaxLen: toNumber(r.softMaxLen, 75),
+                  minLen: toNumber(r.minLen, 70),
+                  softMaxLen: toNumber(r.softMaxLen, 80),
                   maxLen: toNumber(r.maxLen, 80),
                   mobileMaxLen: toNumber(r.mobileMaxLen, 60),
                 },
@@ -327,7 +327,7 @@ export const AdminRulebookManagement: React.FC = () => {
             onClick={() =>
               setTitleRows((prev) => [
                 ...prev,
-                { schemaId: 'Haus, Garten & Baumarkt', minLen: 65, softMaxLen: 75, maxLen: 80, mobileMaxLen: 60 },
+                { schemaId: 'Haus, Garten & Baumarkt', minLen: 70, softMaxLen: 80, maxLen: 80, mobileMaxLen: 60 },
               ])
             }
           >

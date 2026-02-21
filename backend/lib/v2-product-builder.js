@@ -239,6 +239,10 @@ function buildProductFromV2Record(record, options = {}) {
   const brand = normalizeValue(record?.brand);
   const model = normalizeValue(record?.model);
   const variant = normalizeValue(record?.variant);
+  const internalCategory = normalizeValue(record?.internalCategory);
+  const ebayCategoryIdRaw = normalizeValue(record?.ebayCategoryId);
+  const ebayCategoryId = ebayCategoryIdRaw && /^\d+$/.test(ebayCategoryIdRaw) ? ebayCategoryIdRaw : '';
+  const ebayCategoryPath = normalizeValue(record?.ebayCategoryPath);
 
   const titleCandidate =
     normalizeValue(record?.title_ebay) ||
@@ -268,11 +272,12 @@ function buildProductFromV2Record(record, options = {}) {
       barcodes: barcodes.length ? barcodes : undefined,
       name,
       brand: brand || '',
-      category: normalizeValue(record?.internalCategory) || 'Unkategorisiert',
+      category: (ebayCategoryPath && ebayCategoryPath.includes('>') ? ebayCategoryPath : internalCategory) || 'Unkategorisiert',
       confidence: computeConfidence(record),
       sku: normalizeSkuCandidate(record?.sku, record) || undefined,
     },
     details: {
+      categoryId: ebayCategoryId || undefined,
       short_description: shortDescription,
       key_features: keyFeatures,
       attributes,

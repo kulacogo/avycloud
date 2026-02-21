@@ -149,7 +149,7 @@ body {
 .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 45; backdrop-filter: blur(4px); }
 
 /* ═══════ MAIN LAYOUT ═══════ */
-.main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+.main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; max-width: calc(100vw - var(--sidebar-w)); }
 
 /* ═══════ TOPBAR ═══════ */
 .topbar {
@@ -220,7 +220,7 @@ body {
 .content { padding: var(--space-5) var(--space-8) var(--space-12); flex: 1; }
 
 /* ═══════ CARDS ═══════ */
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); transition: border-color var(--transition); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); transition: border-color var(--transition); overflow: hidden; }
 .card:hover { border-color: var(--border-hover); }
 .card-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -267,6 +267,12 @@ body {
 .status-badge.error .status-dot, .status-badge.failed .status-dot { background: var(--error); }
 .status-badge.draft { color: var(--text-tertiary); background: var(--surface-secondary); }
 .status-badge.draft .status-dot { background: var(--text-tertiary); }
+
+/* ═══════ GAP BADGES (eBay Listings) ═══════ */
+.gap-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+.gap-badge.critical { color: var(--error); background: var(--error-bg); border: 1px solid var(--error-border); }
+.gap-badge.warning { color: var(--warning); background: var(--warning-bg); border: 1px solid var(--warning-border); }
+.gap-badge.match { color: var(--success); background: var(--success-bg); border: 1px solid var(--success-border); }
 
 /* ═══════ TABLES ═══════ */
 .table-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); overflow: hidden; }
@@ -958,7 +964,7 @@ select.form-input { appearance: none; cursor: pointer; }
 .form-header p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
 .form-body { display: flex; flex-direction: column; gap: 20px; }
 .form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.form-panel .form-label { font-size: 13px; font-weight: 500; color: var(--text-primary); }
 .form-input {
   width: 100%; height: 44px; padding: 0 14px; border-radius: var(--radius-md);
   border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
@@ -1396,14 +1402,16 @@ select.form-input { appearance: none; cursor: pointer; }
 }
 .page-title-input.has-error { border-bottom-color: var(--error); }
 
+#product-sheet { overflow: hidden; max-width: 100%; }
+
 /* Split Layout */
 .split-layout {
-  display: grid; grid-template-columns: 1fr 380px;
+  display: grid; grid-template-columns: minmax(0, 1fr) 380px;
   gap: var(--space-6); padding: var(--space-5) var(--space-8) var(--space-12);
-  flex: 1; align-items: start;
+  flex: 1; align-items: start; max-width: 100%; overflow: hidden;
 }
-.left-col { display: flex; flex-direction: column; gap: var(--space-5); }
-.right-col { display: flex; flex-direction: column; gap: var(--space-4); position: sticky; top: 76px; }
+.left-col { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+.right-col { display: flex; flex-direction: column; gap: var(--space-4); position: sticky; top: 76px; min-width: 0; }
 
 /* Image Gallery (v2) */
 .image-main {
@@ -1511,7 +1519,7 @@ select.form-input { appearance: none; cursor: pointer; }
   padding: 12px 16px; border-bottom: 1px solid var(--border);
 }
 .ctx-title { font-size: 12px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 6px; }
-.ctx-body { padding: 14px 16px; }
+.ctx-body { padding: 14px 16px; overflow: hidden; word-break: break-word; }
 .ctx-row {
   display: flex; align-items: center; justify-content: space-between;
   padding: 6px 0; font-size: 13px;
@@ -1600,7 +1608,7 @@ select.form-input { appearance: none; cursor: pointer; }
 
 /* Product Sheet Responsive */
 @media (max-width: 1280px) {
-  .split-layout { grid-template-columns: 1fr 340px; }
+  .split-layout { grid-template-columns: minmax(0, 1fr) 320px; }
 }
 @media (max-width: 1024px) {
   .split-layout { grid-template-columns: 1fr; }

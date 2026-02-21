@@ -859,7 +859,7 @@ async function improveExistingProduct(productId, onProgress) {
   mergedProduct.identification.name = coerceTitleToPolicy(
     mergedProduct,
     mergedProduct.identification.name,
-    { minLen: 65, maxLen: 80, softMaxLen: 75 }
+    { minLen: 70, maxLen: 80, softMaxLen: 80 }
   );
 
   // Deterministic sanitization: never persist price/placeholder/template text,

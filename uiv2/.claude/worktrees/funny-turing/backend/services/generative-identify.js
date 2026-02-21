@@ -99,7 +99,7 @@ Aufgabe:
        - Kleidung/Schuhe/Sneaker: Marke + Produkttyp + Größe (keine kryptischen Modellcodes).
        - Haus, Bau & Ausstattung: Marke + Modell/Serie + Produkttyp.
      - Keine Marketingfloskeln, keine Emojis, keine Dubletten.
-     - eBay-Titel: optimal 65–75 Zeichen, Hard-Max 80.
+     - eBay-Titel: 70–80 Zeichen (bevorzugt), Hard-Max 80.
 4. Beschreibungen: kurzer Absatz mit Features / Nutzen (faktenbasiert, keine Wiederholungen).
 5. Priorisiere Barcodes: EAN = exakt 13 Ziffern, GTIN = exakt 14 Ziffern. Verwende nur Codes mit korrekter Checkdigit. Wenn keiner sicher ist, lasse EAN/GTIN/UPC leer.
 6. Bestimme eine passende Kategoriebezeichnung (interner Kategorie-String), z. B. "Schuhe > Sandalen".

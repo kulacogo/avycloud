@@ -146,7 +146,7 @@ async function main() {
       identification: { ...(data.identification || {}), brand: normalizedBrand },
     };
     const nextTitle = currentTitle
-      ? coerceTitleToPolicy(candidate, currentTitle, { minLen: 65, maxLen: 80, softMaxLen: 75 })
+      ? coerceTitleToPolicy(candidate, currentTitle, { minLen: 70, maxLen: 80, softMaxLen: 80 })
       : '';
     const titleChanged = Boolean(nextTitle) && nextTitle !== currentTitle;
 
@@ -255,7 +255,7 @@ async function main() {
       identification: { ...(data.identification || {}), brand: normalizedBrand },
     };
     const nextTitle = currentTitle
-      ? coerceTitleToPolicy(candidate, currentTitle, { minLen: 65, maxLen: 80, softMaxLen: 75 })
+      ? coerceTitleToPolicy(candidate, currentTitle, { minLen: 70, maxLen: 80, softMaxLen: 80 })
       : '';
     const titleChanged = Boolean(nextTitle) && nextTitle !== currentTitle;
 

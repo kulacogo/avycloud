@@ -11,7 +11,7 @@
  *   [BRAND] [PRODUCT TYPE] [MODEL/MPN] [CORE SPEC] [VARIANT] [CONDITION]
  * - No marketing fluff, no emojis, no duplicates.
  * - Length:
- *   - Optimal: 65–75 chars
+ *   - Preferred: 70–80 chars
  *   - Hard max (eBay): 80 chars
  *
  * LLM output is treated only as a hint-source for specs; final titles are built deterministically here.
@@ -102,8 +102,8 @@ function getRuntimeMarketingWords() {
 }
 
 const DEFAULT_TITLE_MAX_LEN = 80;
-const DEFAULT_TITLE_SOFT_MAX_LEN = 75;
-const DEFAULT_TITLE_TARGET_MIN_LEN = 65;
+const DEFAULT_TITLE_SOFT_MAX_LEN = 80;
+const DEFAULT_TITLE_TARGET_MIN_LEN = 70;
 const DEFAULT_TITLE_MOBILE_PRIORITY_MAX_LEN = 60;
 const { normalizeBrandDisplayCase } = require('./brand-normalize');
 

@@ -280,7 +280,7 @@ const marketingCopySchema = {
   additionalProperties: false,
   required: ['title', 'description', 'highlights'],
   properties: {
-    // Keep schema flexible to avoid blocked generations; enforce title policy in code after parsing (optimal 65–75, hard max 80).
+    // Keep schema flexible to avoid blocked generations; enforce title policy in code after parsing (70–80 preferred, hard max 80).
     title: { type: 'string', minLength: 20, maxLength: 140 },
     description: { type: 'string', minLength: 300 },
     highlights: {
@@ -493,7 +493,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     `- Du darfst KEINE eigenen Web-Calls ausführen. Wenn WEB-EVIDENZ im Prompt enthalten ist, darfst du sie nutzen.`,
     `- Wenn Informationen fehlen: Feld leer lassen + in notes.unsure dokumentieren.`,
     `- Ausgabe strikt im ProductBundle-Schema (kein Markdown, keine Freitexte).`,
-    `- Ziel: ein eBay-fertiges Produktdatenblatt (Titel optimal 65–75 Zeichen, Hard-Max 80, Beschreibung >= 300 Zeichen, 5–7 Highlights, Breadcrumb-Kategorie).`,
+    `- Ziel: ein eBay-fertiges Produktdatenblatt (Titel 70–80 Zeichen (bevorzugt), Hard-Max 80, Beschreibung >= 300 Zeichen, 5–7 Highlights, Breadcrumb-Kategorie).`,
   ].join('\n');
 }
 
@@ -570,7 +570,7 @@ function buildUserPrompt({
     `Aufgabe (mit optionaler WEB-EVIDENZ im Prompt):`,
     `1. Analysiere Bilder/OCR/Barcodes, um Marke/Modell zu erkennen.`,
     `2. Titel & Copy marketplace-ready:`,
-    `   - Titel: Mobile-first. Priorität A in den ersten 60 Zeichen (schema-/kategorieabhängig; siehe TITLE-SCHEMA GUIDELINES im Policy-Block). Optimal 65–75, Hard-Max 80.`,
+    `   - Titel: Priorität A in den ersten 60 Zeichen (schema-/kategorieabhängig; siehe TITLE-SCHEMA GUIDELINES im Policy-Block). 70–80 Zeichen (bevorzugt), Hard-Max 80.`,
     `   - Zustand: Wenn nicht explizit vorhanden, setze Attribut "Zustand" = "NEU". "Gebraucht" nur wenn im Datensatz gesetzt.`,
     `   - short_description: mind. 3 Absätze à 2 Sätze (Einsatz, Nutzen, Ausstattung, Material/Verarbeitung, Lieferumfang, Bedienung/Pflege).`,
     `   - key_features: 5-7 Nutzen-Bullets, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen).`,
@@ -1279,7 +1279,7 @@ const DATASHEET_REVIEW_SCHEMA = {
   additionalProperties: false,
   required: ['title', 'short_description', 'highlights', 'attributes', 'warnings'],
   properties: {
-    // Keep schema flexible to avoid blocked generations; enforce title policy in code after parsing (optimal 65–75, hard max 80).
+    // Keep schema flexible to avoid blocked generations; enforce title policy in code after parsing (70–80 preferred, hard max 80).
     title: { type: 'string', minLength: 15, maxLength: 140 },
     short_description: { type: 'string', minLength: 300, maxLength: 2000 },
     highlights: {
@@ -1441,7 +1441,7 @@ function applyReviewResult(product, review) {
       : '';
 
   if (typeof review.title === 'string' && review.title.trim().length >= 10) {
-    product.identification.name = coerceTitleToPolicy(product, review.title, { minLen: 65, maxLen: 80, softMaxLen: 75 });
+    product.identification.name = coerceTitleToPolicy(product, review.title, { minLen: 70, maxLen: 80, softMaxLen: 80 });
   }
   if (typeof review.short_description === 'string' && review.short_description.trim().length > 0) {
     const cleanedDescription = sanitizeListingText(review.short_description);
@@ -1955,7 +1955,7 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
 
         product.identification = {
           ...product.identification,
-          name: coerceTitleToPolicy(product, rewrite.title, { minLen: 65, maxLen: 80, softMaxLen: 75 }),
+          name: coerceTitleToPolicy(product, rewrite.title, { minLen: 70, maxLen: 80, softMaxLen: 80 }),
         };
         product.details = product.details || {};
         const cleanedDescription = sanitizeListingText(rewrite.description || '');

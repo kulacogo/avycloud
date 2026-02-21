@@ -1517,41 +1517,72 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 <span className="status-badge draft" style={{ fontSize: 11 }}>leer</span>
               )}
             </div>
-            <div className="card-body">
-              <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 12 }}>
+            <div className="card-body" style={{ padding: 0 }}>
+              <p style={{ fontSize: 12, color: 'var(--text-tertiary)', padding: 'var(--space-4) var(--space-5) 0' }}>
                 GPSR/Compliance Herstellerdaten
               </p>
-              <div className="form-row">
-                {([
-                  ['manufacturer_name', 'Hersteller Name'],
-                  ['manufacturer_address', 'Adresse'],
-                  ['manufacturer_city', 'Stadt'],
-                  ['manufacturer_postalcode', 'PLZ'],
-                  ['manufacturer_state_province', 'Bundesland'],
-                  ['entity_country', 'Land (EN)'],
-                  ['country_code', 'Country Code'],
-                  ['email', 'E-Mail'],
-                  ['manufacturer_phone', 'Telefon'],
-                  ['url', 'Website'],
-                ] as [string, string][]).map(([key, label]) => {
-                  const value = typeof gpsr?.[key] === 'string' ? gpsr[key] : '';
-                  return (
-                    <div key={key} className="form-group">
-                      <label className="form-label">{label}</label>
-                      {isEditing ? (
-                        <input
-                          className="form-input"
-                          value={value}
-                          onChange={(e) => updateGpsrField(key, e.target.value)}
-                          placeholder="--"
-                        />
-                      ) : (
-                        <input className="form-input" value={value || '--'} readOnly />
-                      )}
+              {isEditing ? (
+                <div style={{ padding: 'var(--space-4) var(--space-5)' }}>
+                  <div className="form-row">
+                    {([
+                      ['manufacturer_name', 'Hersteller Name'],
+                      ['manufacturer_address', 'Adresse'],
+                      ['manufacturer_city', 'Stadt'],
+                      ['manufacturer_postalcode', 'PLZ'],
+                      ['manufacturer_state_province', 'Bundesland'],
+                      ['entity_country', 'Land (EN)'],
+                      ['country_code', 'Country Code'],
+                      ['email', 'E-Mail'],
+                      ['manufacturer_phone', 'Telefon'],
+                      ['url', 'Website'],
+                    ] as [string, string][]).map(([key, label]) => {
+                      const value = typeof gpsr?.[key] === 'string' ? gpsr[key] : '';
+                      return (
+                        <div key={key} className="form-group">
+                          <label className="form-label">{label}</label>
+                          <input
+                            className="form-input"
+                            value={value}
+                            onChange={(e) => updateGpsrField(key, e.target.value)}
+                            placeholder="--"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="specs-grid">
+                  {([
+                    ['manufacturer_name', 'Hersteller Name'],
+                    ['manufacturer_address', 'Adresse'],
+                    ['manufacturer_city', 'Stadt'],
+                    ['manufacturer_postalcode', 'PLZ'],
+                    ['manufacturer_state_province', 'Bundesland'],
+                    ['entity_country', 'Land (EN)'],
+                    ['country_code', 'Country Code'],
+                    ['email', 'E-Mail'],
+                    ['manufacturer_phone', 'Telefon'],
+                    ['url', 'Website'],
+                  ] as [string, string][]).filter(([key]) => {
+                    const value = typeof gpsr?.[key] === 'string' ? gpsr[key] : '';
+                    return Boolean(value);
+                  }).map(([key, label]) => {
+                    const value = typeof gpsr?.[key] === 'string' ? gpsr[key] : '';
+                    return (
+                      <div key={key} className="spec-row">
+                        <div className="spec-key">{label}</div>
+                        <div className="spec-value">{value || '--'}</div>
+                      </div>
+                    );
+                  })}
+                  {!hasAnyGpsr && (
+                    <div style={{ padding: 'var(--space-4) var(--space-5)', fontSize: 13, color: 'var(--text-tertiary)' }}>
+                      Keine GPSR-Daten vorhanden.
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

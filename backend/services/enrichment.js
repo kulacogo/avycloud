@@ -425,7 +425,7 @@ const marketingCopySchema = {
   additionalProperties: false,
   required: ['title', 'description', 'highlights'],
   properties: {
-    // Keep schema flexible to avoid blocked generations; enforce title policy in code after parsing (optimal 65–75, hard max 80).
+    // Keep schema flexible to avoid blocked generations; enforce title policy in code after parsing (70–80 preferred, hard max 80).
     title: { type: 'string', minLength: 20, maxLength: 140 },
     description: { type: 'string', minLength: 300 },
     highlights: {
@@ -638,7 +638,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     `- Du darfst KEINE eigenen Web-Calls ausführen. Wenn WEB-EVIDENZ im Prompt enthalten ist, darfst du sie nutzen.`,
     `- Wenn Informationen fehlen: Feld leer lassen + in notes.unsure dokumentieren.`,
     `- Ausgabe strikt im ProductBundle-Schema (kein Markdown, keine Freitexte).`,
-    `- Ziel: ein eBay-fertiges Produktdatenblatt (Titel optimal 65–75 Zeichen, Hard-Max 80, Beschreibung >= 300 Zeichen, 5–7 Highlights, Breadcrumb-Kategorie).`,
+    `- Ziel: ein eBay-fertiges Produktdatenblatt (Titel 70–80 Zeichen (bevorzugt), Hard-Max 80, Beschreibung >= 300 Zeichen, 5–7 Highlights, Breadcrumb-Kategorie).`,
   ].join('\n');
 }
 
@@ -722,7 +722,7 @@ function buildUserPrompt({
     `Aufgabe (mit optionaler WEB-EVIDENZ im Prompt):`,
     `1. Analysiere Bilder/OCR/Barcodes, um Marke/Modell zu erkennen.`,
     `2. Titel & Copy marketplace-ready:`,
-    `   - Titel: Mobile-first. Priorität A in den ersten 60 Zeichen (schema-/kategorieabhängig; siehe TITLE-SCHEMA GUIDELINES im Policy-Block). Optimal 65–75, Hard-Max 80.`,
+    `   - Titel: Priorität A in den ersten 60 Zeichen (schema-/kategorieabhängig; siehe TITLE-SCHEMA GUIDELINES im Policy-Block). 70–80 Zeichen (bevorzugt), Hard-Max 80.`,
     `   - Titel muss search-native sein: nutze relevante Käufer-Keywords (falls vorhanden aus eBay Titel-Keyword-Hinweisen), keine Marketingfloskeln.`,
     `   - Nie EAN/GTIN/UPC/ISBN, SKU oder interne IDs im Titel ausgeben.`,
     `   - Zustand: Wenn nicht explizit vorhanden, setze Attribut "Zustand" = "NEU". "Gebraucht" nur wenn im Datensatz gesetzt.`,
@@ -1143,13 +1143,18 @@ async function ensureCategories(products = []) {
 
     const existingEbayIdRaw = p.details.categoryId || p.details.ebayCategoryId;
     const existingEbayId = existingEbayIdRaw ? String(existingEbayIdRaw).trim() : '';
-    const ebayIdOk = existingEbayId && marketplaceLookup.isValidEbayId(existingEbayId);
-    const existingCat = ebayIdOk ? findEbayCategory(existingEbayId) : null;
+    const existingCat =
+      existingEbayId && marketplaceLookup.isValidEbayId(existingEbayId)
+        ? findEbayCategory(existingEbayId)
+        : null;
     const existingBreadcrumb = existingCat?.breadcrumb ? String(existingCat.breadcrumb) : '';
+    // Valid only if taxonomy can resolve it to a known breadcrumb.
+    const ebayIdOk = Boolean(existingCat && existingBreadcrumb);
     // Prevent overly generic top-level categories (no '>' breadcrumb). We want a real category tree path.
     const ebayTooBroad = Boolean(existingBreadcrumb) && !existingBreadcrumb.includes('>');
+    const ebayBanned = Boolean(existingBreadcrumb) && isBannedEbayBreadcrumb(existingBreadcrumb);
 
-    if (!ebayIdOk || ebayTooBroad) {
+    if (!ebayIdOk || ebayTooBroad || ebayBanned) {
       const g = await resolveCategoryWithGemini(p, 'ebay');
       if (g?.id) {
         // Canonical category id is details.categoryId (single-category system).
@@ -1157,6 +1162,8 @@ async function ensureCategories(products = []) {
         // Legacy fields for backward compatibility (some scripts still read them)
         p.details.ebayCategoryId = g.id;
         p.details.ebayCategoryPath = g.path;
+        if (!p.identification) p.identification = {};
+        p.identification.category = g.path || p.identification.category || '';
       }
     }
 
@@ -1439,7 +1446,7 @@ const DATASHEET_REVIEW_SCHEMA = {
   additionalProperties: false,
   required: ['title', 'short_description', 'highlights', 'attributes', 'warnings'],
   properties: {
-    // Keep schema flexible to avoid blocked generations; enforce title policy in code after parsing (optimal 65–75, hard max 80).
+    // Keep schema flexible to avoid blocked generations; enforce title policy in code after parsing (70–80 preferred, hard max 80).
     title: { type: 'string', minLength: 15, maxLength: 140 },
     short_description: { type: 'string', minLength: 300, maxLength: 2000 },
     highlights: {
@@ -1706,9 +1713,9 @@ function applyReviewResult(product, review, { titleHintTokens = [] } = {}) {
       ? titleHintTokens.map(normalizeTitleInsightToken).filter(isValidTitleInsightToken).slice(0, 12)
       : [];
     product.identification.name = coerceTitleToPolicy(product, review.title, {
-      minLen: 65,
+      minLen: 70,
       maxLen: 80,
-      softMaxLen: 75,
+      softMaxLen: 80,
       extraHintTokens,
     });
   }
@@ -2193,9 +2200,9 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
         product.identification = {
           ...product.identification,
           name: coerceTitleToPolicy(product, rewrite.title, {
-            minLen: 65,
+            minLen: 70,
             maxLen: 80,
-            softMaxLen: 75,
+            softMaxLen: 80,
             extraHintTokens,
           }),
         };
@@ -3132,6 +3139,7 @@ async function runSmartImageRecovery(products = []) {
 
 module.exports = {
   runProductIdentification,
+  ensureCategories,
   ensurePriceCoverage,
   runDatasheetReview,
   prefetchWebEvidenceForIdentify,

@@ -3,7 +3,7 @@
  * Normalize product titles to policy:
  * - Mobile-first + SEO: Brand + ProductType + Model/MPN must be within first ~60 chars
  * - Fixed order: [BRAND] [PRODUCT TYPE] [MODEL/MPN] [CORE SPEC] [VARIANT] [CONDITION]
- * - Optimal length 65–75 chars, hard max 80
+ * - Preferred length 70–80 chars, hard max 80
  * - no SKU/internal ids, no emojis, no marketing fluff
  * - no "Gebraucht/Used" unless ops.condition_locked
  *
@@ -153,8 +153,8 @@ async function main() {
     const bucket = inferTitleCategory(data);
     const bySchema = cfg?.title?.rulesBySchema && typeof cfg.title.rulesBySchema === 'object' ? cfg.title.rulesBySchema : {};
     const rule = (bySchema && bySchema[bucket]) || cfg?.title || {};
-    const minLen = Number(rule?.minLen || 65);
-    const softMaxLen = Number(rule?.softMaxLen || 75);
+    const minLen = Number(rule?.minLen || 70);
+    const softMaxLen = Number(rule?.softMaxLen || 80);
     const maxLen = Number(rule?.maxLen || 80);
     const mobileMaxLen = Number(rule?.mobileMaxLen || 60);
 
@@ -291,7 +291,7 @@ async function main() {
     // Recompute updates from the snapshot we already have (stable for this run)
     const docData = snap.docs.find((d) => d.id === item.docId)?.data() || {};
     const currentTitle = safeString(docData?.identification?.name);
-    const nextTitle = coerceTitleToPolicy(docData, currentTitle, { minLen: 65, maxLen: 80, softMaxLen: 75 });
+    const nextTitle = coerceTitleToPolicy(docData, currentTitle, { minLen: 70, maxLen: 80, softMaxLen: 80 });
     if (!nextTitle || nextTitle.length === 0 || nextTitle.length > 80) continue;
     if (nextTitle === currentTitle) continue;
     const attrs =

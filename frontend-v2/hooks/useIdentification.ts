@@ -135,10 +135,12 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
           const hasDesc = !!finalProduct.details?.short_description?.trim();
           const hasImages =
             Array.isArray(finalProduct.details?.images) && finalProduct.details.images.length > 0;
+          const hasCategory = !!String(finalProduct.details?.categoryId || '').trim();
           const requireImages = group.images.length > 0;
           const missing: string[] = [];
           if (!hasName) missing.push('Titel');
           if (!hasDesc) missing.push('Beschreibung');
+          if (!hasCategory) missing.push('Kategorie');
           if (requireImages && !hasImages) missing.push('Bilder');
           if (missing.length) {
             throw new Error(

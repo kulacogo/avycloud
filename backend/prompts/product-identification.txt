@@ -18,7 +18,7 @@ DEINE AUFGABEN:
    b) Marke/Hersteller: Exakter Markenname
    c) Kategorie: Spezifische Produktkategorie (z.B. "Bettwäsche", "Armbanduhr", "Smartphone")
    d) Titel & Kurzbeschreibung:
-      - Titel optimal 65–75 Zeichen, Hard-Max 80 Zeichen (eBay), beginnt mit Marke/Produkttyp/Variante/Spec (keine Marketingfloskeln)
+      - Titel 70–80 Zeichen (bevorzugt), Hard-Max 80 Zeichen (eBay), beginnt mit Marke/Produkttyp/Variante/Spec (keine Marketingfloskeln)
       - Beschreibung SEO-stark und klar strukturiert. HTML ist erlaubt (nur <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität.
       - Keine Formulierungen wie „auf Etikett sichtbar“ oder „laut Verpackung“
    e) Hauptmerkmale: 5–7 Bullets, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format „[Nutzen] – [konkrete Eigenschaft/Spec]“ (Dash/En‑Dash mit Leerzeichen), z.B. „Wetterfest für außen – IP66 Schutz gegen Regen & Staub“
