@@ -1,9 +1,7 @@
-const { generateText } = require('../lib/gemini');
-
 /**
- * Generates detailed visual descriptions for product photography using Gemini.
+ * Generates strict, photorealistic studio packshot prompts.
  * @param {Object} product - The product object
- * @returns {Promise<{studio: string, lifestyle: string, detail: string}>}
+ * @returns {Promise<{studio: {front: string, angle: string, topdown: string, detail: string}}>}
  */
 function detectPrimaryColor(attributes = {}) {
   if (!attributes || typeof attributes !== 'object') return null;
@@ -44,17 +42,16 @@ function pickStudioBackground(colorDescriptor) {
 }
 
 function buildDefaultPromptSet(identity, studioBackground) {
-  const studioFront = `A photo of ${identity} on ${studioBackground}. Centered straight-on front view, soft studio lighting, ultra clean ecommerce aesthetic.`;
+  const subject = identity ? `the exact product (${identity})` : 'the exact product';
+  const baseRules =
+    'Photorealistic studio product photo, single product only. Use the provided reference image as strict visual ground truth: do not change shape, proportions, materials, color, labels, or attachments. No props, no packaging unless visible in the reference, no environment, no people, no hands. No text, no watermarks, no icons, no stickers, no overlays.';
+  const studioFront = `A photo of ${subject} on ${studioBackground}. Centered straight-on front view. Soft, even studio lighting. ${baseRules}`;
   return {
     studio: {
       front: studioFront,
-      detail: `A photo of ${identity} focusing on the main feature. Tight crop, razor sharp material detail, use ${studioBackground}.`,
-      topdown: `A photo of ${identity} from a perfectly vertical top-down camera angle on ${studioBackground}.`,
-    },
-    lifestyle: {
-      front: `A photo of ${identity} placed in a realistic environment appropriate for its use. The product remains the hero in the frame.`,
-      closeup: `A photo of ${identity} showing a close-up section in context, highlighting how the material or interface feels when touched or used.`,
-      inuse: `A photo of ${identity} being actively used in a natural scenario that matches its purpose. Humans or accessories may appear but the product design stays unchanged.`,
+      angle: `A photo of ${subject} on ${studioBackground}. 45-degree three-quarter angle view. Soft, even studio lighting. ${baseRules}`,
+      topdown: `A photo of ${subject} from a perfectly vertical top-down camera angle on ${studioBackground}. Centered. Soft, even studio lighting. ${baseRules}`,
+      detail: `A photo of ${subject} on ${studioBackground}. Close-up detail shot of a key functional area. Tight crop, razor sharp detail. Soft, even studio lighting. ${baseRules}`,
     },
   };
 }
@@ -70,139 +67,12 @@ async function generateVisualDescriptions(product) {
     .trim() || 'the product';
 
   const attributes = product.details?.attributes || {};
-  const features = product.details?.key_features || [];
   const colorDescriptor = detectPrimaryColor(attributes) || 'unknown';
-  const materialDescriptor = attributes.Material || attributes['Materialtyp'] || 'standard material';
-  const { background: studioBackground, directive: backgroundDirective } = pickStudioBackground(colorDescriptor);
+  const { background: studioBackground } = pickStudioBackground(colorDescriptor);
 
-const context = `
-Product Identity: ${identity}
-Attributes: ${JSON.stringify(attributes)}
-Key Features: ${features.join(', ')}
-Dominant Color: ${colorDescriptor}
-Material: ${materialDescriptor}
-Preferred studio background: ${studioBackground} (${backgroundDirective})
-  `;
-
-  const prompt = `
-You are a professional product photographer and art director.
-Your task is to generate 6 high-end image generation prompts for the following product:
-
-${context}
-
-First, extract the **Core Object Type** from the description (e.g., “Yoga Mat”, “Router”, “Water Pump”, “LED Floodlight”).
-Every generated image prompt MUST begin with:
-
-"A photo of [Core Object Type]…"
-
-------------------------------------------------------------
-GLOBAL IMAGE RULES (APPLY TO ALL 6 PROMPTS):
-- The final generated images must always be exactly 1:1 aspect ratio and 1024 × 1024 px resolution.
-- The Main product must remain unchanged in its design, proportions, details, and color.
-- Never add text, watermarks, icons, labels, stickers, or artificial overlays.
-- No gradients, no vignettes, no reflections, no color casts.
-- Composition must be centered, clean, and suitable for ecommerce marketplaces.
-- Lighting must always be soft, even, realistic, and not overly dramatic.
-
-------------------------------------------------------------
-BACKGROUND AUTO-SELECTION LOGIC:
-You have already determined that the product color "${colorDescriptor}" requires this background: ${studioBackground}. ${backgroundDirective}
-You MUST explicitly mention this background inside every studio prompt (front, detail, topdown) and you must never override it.
-If lifestyle prompts describe indoor scenes, keep lighting consistent with soft daylight.
-
-------------------------------------------------------------
-You must now generate **six separate prompts**, grouped exactly as follows:
-
-STUDIO IMAGES (3 TOTAL):
-1. studio_front:
-   A clean, centered straight-on front view of the Main product using the studio background rules above.
-2. studio_detail:
-   A close-up view focusing on the front section or key functional detail of the Main product.
-3. studio_topdown:
-   A perfectly vertical top-down shot of the Main product, centered, clean, evenly lit.
-
-LIFESTYLE IMAGES (3 TOTAL):
-4. lifestyle_front:
-   A realistic lifestyle scene showing the Main product clearly from the front in an authentic real-world environment appropriate to its use.
-5. lifestyle_closeup:
-   A lifestyle close-up showing a detail of the product in context, focusing on texture, function, or interaction.
-6. lifestyle_inuse:
-   A realistic in-use scene where the Main product is actively operated or interacted with in a natural environment. The product design must remain unchanged.
-
-Return ONLY the following JSON structure (with fully populated strings):
-{
-  "studio": {
-    "front": "",
-    "detail": "",
-    "topdown": ""
-  },
-  "lifestyle": {
-    "front": "",
-    "closeup": "",
-    "inuse": ""
-  }
-}
-Do not wrap the JSON in markdown or prose.
-  `;
-
-const defaultPrompts = buildDefaultPromptSet(identity, studioBackground);
-
-  const stripMarkdownFencesKeepContent = (text = '') => {
-    return String(text)
-      .replace(/```(?:json)?\s*/gi, '')
-      .replace(/```/g, '')
-      .trim();
-  };
-
-  const extractJsonObject = (text = '') => {
-    const s = stripMarkdownFencesKeepContent(text);
-    const start = s.indexOf('{');
-    if (start === -1) return null;
-    let depth = 0;
-    let inStr = false;
-    let escaped = false;
-    for (let i = start; i < s.length; i += 1) {
-      const ch = s[i];
-      if (inStr) {
-        if (escaped) escaped = false;
-        else if (ch === '\\') escaped = true;
-        else if (ch === '"') inStr = false;
-        continue;
-      }
-      if (ch === '"') {
-        inStr = true;
-        continue;
-      }
-      if (ch === '{') depth += 1;
-      if (ch === '}') depth -= 1;
-      if (depth === 0) {
-        return s.slice(start, i + 1).trim();
-      }
-    }
-    return null;
-  };
-
-  try {
-    const responseText = await generateText(prompt, { temperature: 0.6 });
-    const jsonPayload = extractJsonObject(responseText) || '';
-    const parsed = jsonPayload ? JSON.parse(jsonPayload) : null;
-
-    return {
-      studio: {
-        front: parsed?.studio?.front || defaultPrompts.studio.front,
-        detail: parsed?.studio?.detail || defaultPrompts.studio.detail,
-        topdown: parsed?.studio?.topdown || defaultPrompts.studio.topdown,
-      },
-      lifestyle: {
-        front: parsed?.lifestyle?.front || defaultPrompts.lifestyle.front,
-        closeup: parsed?.lifestyle?.closeup || defaultPrompts.lifestyle.closeup,
-        inuse: parsed?.lifestyle?.inuse || defaultPrompts.lifestyle.inuse,
-      },
-    };
-  } catch (error) {
-    console.error('Prompt generation failed:', error);
-    return defaultPrompts;
-  }
+  // Deterministic (non-LLM) prompt generation to avoid hallucinated scenes/props.
+  // Background selection is still data-driven via color heuristics.
+  return buildDefaultPromptSet(identity, studioBackground);
 }
 
 module.exports = {

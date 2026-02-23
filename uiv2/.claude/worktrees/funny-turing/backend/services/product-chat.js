@@ -449,7 +449,7 @@ const suggestImagesTool = {
 const generateAiImagesTool = {
   name: 'generate_ai_images',
   description:
-    'Generate new marketing-ready product renders via the approved GPT Image 1 pipeline. Provide a reference image from the current product plus the desired style.',
+    'Generate exactly 4 photorealistic studio packshots (front, 45° angle, top-down, detail) using a reference image from the current product. No lifestyle / real-world scenes.',
   parameters: {
     type: 'object',
     properties: {
@@ -461,20 +461,9 @@ const generateAiImagesTool = {
         type: 'string',
         description: 'Fallback: use a product image with this variant (front, angle, detail, pack, other).',
       },
-      mode: {
-        type: 'string',
-        enum: ['studio', 'lifestyle', 'detail', 'all'],
-        description: 'Desired render style. Defaults to all.',
-      },
-      sample_count: {
-        type: 'number',
-        minimum: 1,
-        maximum: 4,
-        description: 'How many variations should be generated (1-4).',
-      },
       rationale: {
         type: 'string',
-        description: 'Short note describing the creative goal or usage (e.g., Amazon hero, lifestyle social ad).',
+        description: 'Short note describing the goal (e.g., eBay hero packshot).',
       },
     },
     additionalProperties: false,
@@ -720,8 +709,6 @@ async function tryGenerateFallbackImages(product, existingKeys, neededCount = 1)
   try {
     const generation = await generateImagesForProduct(product, {
       referenceImage,
-      sampleCount: Math.max(neededCount, 1),
-      mode: 'all',
     });
     const aiImages = [];
     generation.images?.forEach((img) => {
@@ -1722,8 +1709,6 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
             try {
               const generation = await generateImagesForProduct(product, {
                 referenceImage,
-                sampleCount: Math.max(args.sample_count || 1, 1),
-                mode: args.mode || 'all'
               });
               // Add to imageSuggestions...
               const aiImages = generation.images.filter(img => {

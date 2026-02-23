@@ -103,16 +103,11 @@ async function fetchImageAsDataUrl(image) {
 }
 
 const VARIANT_SPECS = [
-  // 4 Studio-Perspektiven
+  // Exactly 4 studio packshots (no lifestyle images)
   { group: 'studio', key: 'front', type: 'studio_front' },
-  { group: 'studio', key: 'detail', type: 'studio_detail' },
-  { group: 'studio', key: 'topdown', type: 'studio_topdown' },
   { group: 'studio', key: 'angle', type: 'studio_angle' },
-  // 4 Lifestyle-Perspektiven
-  { group: 'lifestyle', key: 'front', type: 'lifestyle_front' },
-  { group: 'lifestyle', key: 'closeup', type: 'lifestyle_closeup' },
-  { group: 'lifestyle', key: 'inuse', type: 'lifestyle_inuse' },
-  { group: 'lifestyle', key: 'angle', type: 'lifestyle_angle' },
+  { group: 'studio', key: 'topdown', type: 'studio_topdown' },
+  { group: 'studio', key: 'detail', type: 'studio_detail' },
 ];
 
 function shouldIncludeVariant(mode, spec) {
@@ -130,7 +125,7 @@ async function generateImagesForProduct(product, options = {}) {
         throw new Error('Product ID is required');
     }
 
-  const { referenceImage, sampleCount = 1, mode = 'all' } = options;
+  const { referenceImage } = options;
   if (!referenceImage?.url_or_base64) {
     throw new Error('Reference image is required');
   }
@@ -142,7 +137,7 @@ async function generateImagesForProduct(product, options = {}) {
   const referenceDataUrl = await fetchImageAsDataUrl(referenceImage);
 
   // 3) Generate variants
-  const variants = VARIANT_SPECS.filter((spec) => shouldIncludeVariant(mode, spec));
+  const variants = VARIANT_SPECS;
   const generated = [];
 
   for (const spec of variants) {
@@ -155,7 +150,8 @@ async function generateImagesForProduct(product, options = {}) {
 
     const images = await generateProductImages({
       prompt,
-      count: Math.max(1, Math.min(sampleCount, 4)),
+      // Always generate exactly one image per variant (total: 4 studio images).
+      count: 1,
       aspectRatio: '1:1',
       referenceImageBase64: referenceDataUrl,
     });
@@ -177,7 +173,7 @@ async function generateImagesForProduct(product, options = {}) {
     }
   }
 
-  return { images: generated, prompts };
+  return { images: generated.slice(0, 4), prompts };
 }
 
 module.exports = {

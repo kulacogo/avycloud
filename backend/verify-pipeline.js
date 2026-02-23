@@ -23,7 +23,6 @@ async function verifyPipeline() {
         const prompts = await generateVisualDescriptions(mockProduct);
         console.log('✅ Prompts generated:');
         console.log('Studio:', prompts.studio);
-        console.log('Lifestyle:', prompts.lifestyle);
 
         if (!prompts.studio?.front?.includes('Lululemon')) {
             console.warn('⚠️ Warning: Brand name missing from studio prompt');
@@ -41,7 +40,6 @@ async function verifyPipeline() {
         // But we want to see if it gets to that point.
         await generateImagesForProduct(mockProduct, {
             referenceImage: { url_or_base64: 'invalid-url' },
-            mode: 'studio'
         });
     } catch (error) {
         if (error.message.includes('Invalid URL') || error.message.includes('fetch')) {

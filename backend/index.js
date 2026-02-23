@@ -3850,7 +3850,7 @@ const { generateImagesForProduct } = require('./services/image-generation');
 
 app.post('/api/generate-images', async (req, res) => {
   try {
-    const { productId, product, referenceImage, sampleCount } = req.body || {};
+    const { productId, product, referenceImage } = req.body || {};
 
     let targetProduct = product;
     if (!targetProduct && productId) {
@@ -3884,7 +3884,6 @@ app.post('/api/generate-images', async (req, res) => {
 
     const { images, prompts } = await generateImagesForProduct(targetProduct, {
       referenceImage,
-      sampleCount,
     });
 
     res.json({
