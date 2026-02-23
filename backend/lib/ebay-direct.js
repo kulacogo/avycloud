@@ -2585,6 +2585,113 @@ async function bulkPrepareMissingSpecificGaps({ itemIds = null, actor = null, mo
   };
 }
 
+async function bulkPrepareUpdateGaps({
+  itemIds = null,
+  actor = null,
+  types = ['content'],
+} = {}) {
+  const targetIds = Array.isArray(itemIds)
+    ? Array.from(new Set(itemIds.map((id) => safeString(id)).filter(Boolean)))
+    : null;
+  const snapshot = targetIds?.length
+    ? await firestore.getAll(...targetIds.map((id) => firestore.collection(EBAY_GAPS_COLLECTION).doc(id)))
+    : await firestore.collection(EBAY_GAPS_COLLECTION).get();
+  const docs = Array.isArray(snapshot.docs) ? snapshot.docs : snapshot;
+
+  const typeSet = new Set(asArray(types).map((t) => safeLower(t)).filter(Boolean));
+  if (!typeSet.size) typeSet.add('content');
+
+  let docsTouched = 0;
+  let gapsPrepared = 0;
+  const byItem = [];
+  const nowIso = new Date().toISOString();
+
+  for (const group of chunk(docs, 250)) {
+    const batch = firestore.batch();
+    group.forEach((doc) => {
+      if (!doc?.exists) return;
+      const itemId = safeString(doc.id);
+      const data = doc.data() || {};
+      const gaps = asArray(data.gaps);
+      let changed = 0;
+
+      const nextGaps = gaps.map((gap) => {
+        const type = safeLower(gap?.type);
+        if (!typeSet.has(type)) return gap;
+        const direction = safeLower(gap?.syncDirection);
+        if (direction !== 'accept_avy') return gap;
+        const status = safeLower(gap?.status);
+        if (status === 'ignored' || status === 'synced') return gap;
+
+        // Only prepare gaps that have an Avy value (or description which is templated at apply-time).
+        const field = safeLower(gap?.field);
+        const hasAvy = hasGapAvyValue(gap);
+        if (type === 'content' && field === 'description') {
+          // ok (computeSyncPatch will build a full template when product link exists)
+        } else if (!hasAvy) {
+          return gap;
+        }
+
+        const history = Array.isArray(gap?.history) ? gap.history.slice(-40) : [];
+        history.push({
+          action: 'bulk_update_ready_to_sync',
+          status: 'ready_to_sync',
+          note: null,
+          at: nowIso,
+        });
+        changed += 1;
+        return {
+          ...gap,
+          status: 'ready_to_sync',
+          resolution: cleanUndefined({
+            strategy: 'bulk_update_ready_to_sync',
+            note: null,
+            alias: null,
+            at: nowIso,
+          }),
+          history: history.slice(-40),
+          updatedAt: nowIso,
+        };
+      });
+
+      if (!changed) return;
+      docsTouched += 1;
+      gapsPrepared += changed;
+      byItem.push({ itemId, prepared: changed });
+
+      const summary = summarizeGaps(nextGaps);
+      const events = Array.isArray(data.events) ? data.events.slice(-199) : [];
+      events.push({
+        at: nowIso,
+        actor: actor || null,
+        action: 'bulk_update_ready_to_sync',
+        prepared: changed,
+      });
+      const ref = firestore.collection(EBAY_GAPS_COLLECTION).doc(itemId);
+      batch.set(
+        ref,
+        {
+          gaps: nextGaps,
+          summary,
+          events,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedAtIso: nowIso,
+        },
+        { merge: true }
+      );
+    });
+    await batch.commit();
+  }
+
+  return {
+    types: Array.from(typeSet),
+    docsTotal: docs.length,
+    docsTouched,
+    gapsPrepared,
+    byItem: byItem.slice(0, 200),
+  };
+}
+
 function selectSyncCandidatesFromGaps(gapDoc) {
   const gaps = asArray(gapDoc?.gaps);
   return gaps.filter((gap) => {
@@ -3850,6 +3957,10 @@ async function bulkUpdateListedProducts({ itemIds = null, applyAll = false, acto
   const runId = `update-${Date.now()}`;
   await auditListingGaps({ itemIds: resolvedItemIds, runId, actor });
 
+  // The AdminTable "eBay aktualisieren" action is meant to be a push-update:
+  // mark content gaps ready_to_sync so applySync actually has candidates.
+  await bulkPrepareUpdateGaps({ itemIds: resolvedItemIds, actor, types: ['content'] });
+
   return applySync({ itemIds: resolvedItemIds, actor });
 }
 
@@ -3868,6 +3979,7 @@ module.exports = {
   applyGapAction,
   bulkApplyGapActions,
   bulkPrepareMissingSpecificGaps,
+  bulkPrepareUpdateGaps,
   dryRunSync,
   applySync,
   createOperationalReports,
