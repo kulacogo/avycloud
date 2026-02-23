@@ -2358,6 +2358,40 @@ app.post('/api/ebay/listings/sync', requirePermission('products', 'write'), asyn
   }
 });
 
+// Fast/cheap refresh for "is listed" indicators: Trading API ActiveList only (no GetItem per listing).
+// Uses server-side cooldown/lock to avoid spam and cost.
+app.post('/api/ebay/listings/light-sync', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const maxPages = Number.isFinite(Number(body.maxPages)) ? Math.max(1, Math.min(200, Number(body.maxPages))) : 50;
+    const entriesPerPage = Number.isFinite(Number(body.entriesPerPage))
+      ? Math.max(1, Math.min(200, Number(body.entriesPerPage)))
+      : 200;
+    const timeoutMs = Number.isFinite(Number(body.timeoutMs)) ? Math.max(5000, Math.min(120000, Number(body.timeoutMs))) : 25000;
+    const runId = typeof body.runId === 'string' && body.runId.trim() ? body.runId.trim() : `light-${Date.now()}`;
+
+    const { syncLiveListingsLight } = require('./lib/ebay-direct');
+    const summary = await syncLiveListingsLight({
+      runId,
+      maxPages,
+      entriesPerPage,
+      timeoutMs,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: summary });
+  } catch (error) {
+    console.error('Failed to light-sync eBay live listings:', error);
+    const status = error?.code === 'EBAY_TRADING_CONFIG_MISSING' ? 400 : 500;
+    return res.status(status).json({
+      ok: false,
+      error: {
+        code: status,
+        message: error?.message || 'Failed to light-sync eBay listings',
+      },
+    });
+  }
+});
+
 app.get('/api/ebay/listings', requirePermission('products', 'read'), async (req, res) => {
   try {
     const limit = Number.isFinite(Number(req.query?.limit)) ? Number(req.query.limit) : 100;
@@ -2396,6 +2430,95 @@ app.get('/api/ebay/listings/:itemId/detail', requirePermission('products', 'read
     return res.status(500).json({
       ok: false,
       error: { code: 500, message: error?.message || 'Failed to load listing detail' },
+    });
+  }
+});
+
+app.get('/api/ebay/listings/:itemId/audit', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const itemId = String(req.params.itemId || '').trim();
+    if (!itemId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing itemId' } });
+    }
+    const { getListingAudit } = require('./lib/ebay-listing-audit');
+    const audit = await getListingAudit(itemId);
+    if (!audit) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'Audit not found' } });
+    }
+    return res.status(200).json({ ok: true, data: audit });
+  } catch (error) {
+    console.error('Failed to load eBay listing audit:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to load listing audit' },
+    });
+  }
+});
+
+app.post('/api/ebay/listings/:itemId/audit', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const itemId = String(req.params.itemId || '').trim();
+    if (!itemId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing itemId' } });
+    }
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const forceRefresh = body.forceRefresh === true;
+    const timeoutMs = Number.isFinite(Number(body.timeoutMs)) ? Math.max(5000, Math.min(120000, Number(body.timeoutMs))) : 25000;
+    const runId = typeof body.runId === 'string' && body.runId.trim() ? body.runId.trim() : `audit-${Date.now()}`;
+
+    const { computeListingAudit } = require('./lib/ebay-listing-audit');
+    const audit = await computeListingAudit(itemId, {
+      forceRefresh,
+      timeoutMs,
+      runId,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: audit });
+  } catch (error) {
+    console.error('Failed to compute eBay listing audit:', error);
+    const status = error?.code === 'EBAY_LISTING_NOT_FOUND' ? 404 : 500;
+    return res.status(status).json({
+      ok: false,
+      error: { code: status, message: error?.message || 'Failed to compute listing audit' },
+    });
+  }
+});
+
+app.post('/api/ebay/listings/:itemId/apply', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const itemId = String(req.params.itemId || '').trim();
+    if (!itemId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing itemId' } });
+    }
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const suggestionIds = Array.isArray(body.suggestionIds)
+      ? body.suggestionIds.map((x) => String(x || '').trim()).filter(Boolean)
+      : null;
+    const patch = body.patch && typeof body.patch === 'object' ? body.patch : null;
+    const timeoutMs = Number.isFinite(Number(body.timeoutMs)) ? Math.max(5000, Math.min(120000, Number(body.timeoutMs))) : 25000;
+    const runId = typeof body.runId === 'string' && body.runId.trim() ? body.runId.trim() : `apply-${Date.now()}`;
+
+    const { applyListingAuditSuggestions } = require('./lib/ebay-listing-audit');
+    const result = await applyListingAuditSuggestions(itemId, {
+      suggestionIds,
+      patch,
+      timeoutMs,
+      runId,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    return res.status(200).json({ ok: true, data: result });
+  } catch (error) {
+    console.error('Failed to apply eBay listing suggestions:', error);
+    const code = error?.code || '';
+    const status =
+      code === 'EBAY_APPLY_ITEM_ID_REQUIRED' || code === 'EBAY_APPLY_NO_PATCH' || code === 'EBAY_AUDIT_NOT_FOUND'
+        ? 400
+        : code === 'EBAY_APPLY_INVENTORY_MODEL'
+          ? 409
+          : 500;
+    return res.status(status).json({
+      ok: false,
+      error: { code: status, message: error?.message || 'Failed to apply listing suggestions' },
     });
   }
 });

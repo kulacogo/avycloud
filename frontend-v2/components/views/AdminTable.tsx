@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../../types';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, bulkUpdateEbayListings, type ProductBulkActionName } from '../../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, type ProductBulkActionName } from '../../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from '../icons/Icons';
 import {
   normalizeSyncStatus,
@@ -293,32 +293,126 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   useEffect(() => {}, []);
 
-  // Load eBay SKU-index (alle aktiven Listings, SKU → viewItemUrl + itemId, productId → itemId) once on mount
+  // Load eBay SKU-index (alle aktiven Listings) and keep it fresh via light-sync.
   useEffect(() => {
-    fetchEbaySkuIndex()
-      .then((entries) => {
+    let cancelled = false;
+    let inFlight = false;
+
+    const applyEntries = (entries: any[]) => {
+      const urlMap = new Map<string, string>();
+      const itemIdMap = new Map<string, string>();
+      const pidMap = new Map<string, string>();
+      const activeItemIds = new Set<string>();
+      (Array.isArray(entries) ? entries : []).forEach((entry) => {
+        const url = entry?.viewItemUrl || `https://www.ebay.de/itm/${encodeURIComponent(String(entry?.itemId || '').trim())}`;
+        if (entry?.itemId) activeItemIds.add(String(entry.itemId).trim());
+        const key = normalizeSku(entry?.sku);
+        if (key) {
+          urlMap.set(key, url);
+          itemIdMap.set(key, String(entry.itemId || '').trim());
+        }
+        if (entry?.productId) {
+          pidMap.set(String(entry.productId), String(entry.itemId || '').trim());
+        }
+      });
+      setEbayLinkedMap(urlMap);
+      setEbayItemIdMap(itemIdMap);
+      setEbayProductIdMap(pidMap);
+      setEbayActiveItemIds(activeItemIds);
+    };
+
+    const refresh = async (doLightSync: boolean) => {
+      if (cancelled || inFlight) return;
+      inFlight = true;
+      try {
+        const initial = await fetchEbaySkuIndex();
+        if (!cancelled) applyEntries(initial);
+      } catch {
+        // ignore – column shows empty state
+      }
+      if (doLightSync) {
+        try {
+          await lightSyncEbayLiveListings({});
+        } catch {
+          // ignore – fallback to cached sku-index
+        }
+        try {
+          const refreshed = await fetchEbaySkuIndex();
+          if (!cancelled) applyEntries(refreshed);
+        } catch {
+          // ignore
+        }
+      }
+      inFlight = false;
+    };
+
+    void refresh(true);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Background refresh loop (keeps eBay indicator up-to-date without running full audit).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let cancelled = false;
+    let inFlight = false;
+
+    const tick = async () => {
+      if (cancelled || inFlight) return;
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      inFlight = true;
+      try {
+        await lightSyncEbayLiveListings({});
+      } catch {
+        // ignore
+      }
+      try {
+        const entries = await fetchEbaySkuIndex();
+        if (cancelled) return;
         const urlMap = new Map<string, string>();
         const itemIdMap = new Map<string, string>();
         const pidMap = new Map<string, string>();
         const activeItemIds = new Set<string>();
-        entries.forEach((entry) => {
-          const url = entry.viewItemUrl || `https://www.ebay.de/itm/${encodeURIComponent(entry.itemId)}`;
-          if (entry.itemId) activeItemIds.add(String(entry.itemId).trim());
-          const key = normalizeSku(entry.sku);
+        (Array.isArray(entries) ? entries : []).forEach((entry) => {
+          const url = entry?.viewItemUrl || `https://www.ebay.de/itm/${encodeURIComponent(String(entry?.itemId || '').trim())}`;
+          if (entry?.itemId) activeItemIds.add(String(entry.itemId).trim());
+          const key = normalizeSku(entry?.sku);
           if (key) {
             urlMap.set(key, url);
-            itemIdMap.set(key, entry.itemId);
+            itemIdMap.set(key, String(entry.itemId || '').trim());
           }
-          if (entry.productId) {
-            pidMap.set(entry.productId, entry.itemId);
+          if (entry?.productId) {
+            pidMap.set(String(entry.productId), String(entry.itemId || '').trim());
           }
         });
         setEbayLinkedMap(urlMap);
         setEbayItemIdMap(itemIdMap);
         setEbayProductIdMap(pidMap);
         setEbayActiveItemIds(activeItemIds);
-      })
-      .catch(() => {/* ignore – column zeigt dann keine Daten */});
+      } catch {
+        // ignore
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void tick();
+    }, 2 * 60 * 1000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void tick();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   useEffect(() => {

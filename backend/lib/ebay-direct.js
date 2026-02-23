@@ -1021,31 +1021,11 @@ async function fetchLiveListingsFromEbay({
   detailConcurrency = 4,
   timeoutMs = 25000,
 } = {}) {
-  const pages = Math.max(1, Math.min(Number(maxPages) || 10, 200));
-  const perPage = Math.max(1, Math.min(Number(entriesPerPage) || 100, 200));
   const concurrency = Math.max(1, Math.min(Number(detailConcurrency) || 4, 10));
-
-  const activeItems = [];
-  let totalPages = 1;
-  for (let page = 1; page <= pages; page += 1) {
-    const result = await getMyeBaySellingActive({
-      pageNumber: page,
-      entriesPerPage: perPage,
-      timeoutMs,
-    });
-    totalPages = Math.max(totalPages, Number(result?.pagination?.totalPages) || 1);
-    activeItems.push(...(result?.items || []));
-    if (page >= totalPages) break;
-  }
-
-  const byItemId = new Map();
-  activeItems.forEach((item) => {
-    if (item?.itemId) byItemId.set(String(item.itemId), item);
-  });
-  const uniqueItems = Array.from(byItemId.values());
-
+  const summary = await fetchLiveListingSummariesFromEbay({ maxPages, entriesPerPage, timeoutMs });
+  const uniqueItems = Array.isArray(summary?.listings) ? summary.listings : [];
   const details = [];
-  const errors = [];
+  const errors = Array.isArray(summary?.errors) ? summary.errors.slice() : [];
   for (const group of chunk(uniqueItems, concurrency)) {
     const responses = await Promise.all(
       group.map(async (entry) => {
@@ -1088,13 +1068,51 @@ async function fetchLiveListingsFromEbay({
   return {
     listings: details.filter((x) => safeString(x?.itemId)),
     summary: {
-      pagesFetched: Math.min(totalPages, pages),
-      totalPagesReported: totalPages,
-      activeListings: uniqueItems.length,
+      pagesFetched: Number(summary?.summary?.pagesFetched) || 0,
+      totalPagesReported: Number(summary?.summary?.totalPagesReported) || 0,
+      activeListings: Number(summary?.summary?.activeListings) || uniqueItems.length,
       fetchedDetails: details.length,
       detailErrors: errors.length,
     },
     errors,
+  };
+}
+
+async function fetchLiveListingSummariesFromEbay({
+  maxPages = 10,
+  entriesPerPage = 100,
+  timeoutMs = 25000,
+} = {}) {
+  const pages = Math.max(1, Math.min(Number(maxPages) || 10, 200));
+  const perPage = Math.max(1, Math.min(Number(entriesPerPage) || 100, 200));
+
+  const activeItems = [];
+  let totalPages = 1;
+  for (let page = 1; page <= pages; page += 1) {
+    const result = await getMyeBaySellingActive({
+      pageNumber: page,
+      entriesPerPage: perPage,
+      timeoutMs,
+    });
+    totalPages = Math.max(totalPages, Number(result?.pagination?.totalPages) || 1);
+    activeItems.push(...(result?.items || []));
+    if (page >= totalPages) break;
+  }
+
+  const byItemId = new Map();
+  activeItems.forEach((item) => {
+    if (item?.itemId) byItemId.set(String(item.itemId), item);
+  });
+  const uniqueItems = Array.from(byItemId.values());
+
+  return {
+    listings: uniqueItems.filter((x) => safeString(x?.itemId)),
+    summary: {
+      pagesFetched: Math.min(totalPages, pages),
+      totalPagesReported: totalPages,
+      activeListings: uniqueItems.length,
+    },
+    errors: [],
   };
 }
 
@@ -1186,6 +1204,219 @@ async function upsertLiveListings(listings = [], { runId = null, actor = null } 
   }
 
   return { total: cleaned.length, written, changed, unchanged };
+}
+
+function listingSummaryHashPayload(listing) {
+  return {
+    itemId: safeString(listing?.itemId),
+    sku: safeString(listing?.sku),
+    title: safeString(listing?.title),
+    subtitle: safeString(listing?.subtitle),
+    categoryId: safeString(listing?.primaryCategoryId),
+    listingType: safeString(listing?.listingType),
+    listingStatus: safeString(listing?.listingStatus),
+    quantityAvailable: toNumber(listing?.quantityAvailable),
+    quantityTotal: toNumber(listing?.quantityTotal),
+    currentPrice: toNumber(listing?.currentPrice?.value ?? listing?.currentPrice),
+    currency: safeString(listing?.currency || listing?.currentPrice?.currency),
+    viewItemUrl: safeString(listing?.viewItemUrl),
+    startTime: safeString(listing?.startTime),
+    endTime: safeString(listing?.endTime),
+    bidCount: toNumber(listing?.bidCount),
+    primaryCategoryName: safeString(listing?.primaryCategoryName),
+  };
+}
+
+async function upsertLiveListingSummaries(listings = [], { runId = null, actor = null } = {}) {
+  const cleaned = listings
+    .map((listing) => {
+      const itemId = safeString(listing?.itemId);
+      if (!itemId) return null;
+      const currentPrice = listing?.currentPrice && typeof listing.currentPrice === 'object' ? listing.currentPrice : null;
+      const payload = {
+        itemId,
+        sku: safeString(listing?.sku) || null,
+        title: safeString(listing?.title) || null,
+        subtitle: safeString(listing?.subtitle) || null,
+        listingType: safeString(listing?.listingType) || null,
+        listingStatus: safeString(listing?.listingStatus) || null,
+        quantityAvailable: toNumber(listing?.quantityAvailable),
+        quantityTotal: toNumber(listing?.quantityTotal),
+        bidCount: toNumber(listing?.bidCount),
+        primaryCategoryId: safeString(listing?.primaryCategoryId) || null,
+        primaryCategoryName: safeString(listing?.primaryCategoryName) || null,
+        viewItemUrl: safeString(listing?.viewItemUrl) || null,
+        startTime: safeString(listing?.startTime) || null,
+        endTime: safeString(listing?.endTime) || null,
+        currency: safeString(currentPrice?.currency || listing?.currency) || null,
+        currentPrice: toNumber(currentPrice?.value ?? listing?.currentPrice),
+      };
+      const hash = hashObject(listingSummaryHashPayload(payload));
+      return { ...payload, snapshotHashSummary: hash };
+    })
+    .filter(Boolean);
+
+  if (!cleaned.length) {
+    return { total: 0, written: 0, changed: 0, unchanged: 0 };
+  }
+
+  const refs = cleaned.map((item) => firestore.collection(EBAY_LISTINGS_COLLECTION).doc(item.itemId));
+  const existingSnaps = await firestore.getAll(...refs);
+  const existingById = new Map();
+  existingSnaps.forEach((snap) => {
+    if (snap.exists) {
+      existingById.set(snap.id, snap.data() || {});
+    }
+  });
+
+  let written = 0;
+  let changed = 0;
+  let unchanged = 0;
+  const nowIso = new Date().toISOString();
+  for (const group of chunk(cleaned, 350)) {
+    const batch = firestore.batch();
+    group.forEach((item) => {
+      const existing = existingById.get(item.itemId) || null;
+      const sameHash = safeString(existing?.snapshotHashSummary) === safeString(item.snapshotHashSummary);
+      if (sameHash) unchanged += 1;
+      else changed += 1;
+      const docRef = firestore.collection(EBAY_LISTINGS_COLLECTION).doc(item.itemId);
+      // IMPORTANT: Summary sync must not null-out detail fields (description, specifics, pictures, ...)
+      // → only write summary-level keys here.
+      const payload = cleanUndefined({
+        itemId: item.itemId,
+        sku: item.sku,
+        title: item.title,
+        subtitle: item.subtitle,
+        listingType: item.listingType,
+        listingStatus: item.listingStatus,
+        quantityAvailable: item.quantityAvailable,
+        quantityTotal: item.quantityTotal,
+        bidCount: item.bidCount,
+        primaryCategoryId: item.primaryCategoryId,
+        primaryCategoryName: item.primaryCategoryName,
+        viewItemUrl: item.viewItemUrl,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        currency: item.currency,
+        currentPrice: item.currentPrice,
+        snapshotHashSummary: item.snapshotHashSummary,
+        active: true,
+        runId: runId || null,
+        source: {
+          mode: 'trading_api',
+          level: 'summary',
+          ingestedAt: nowIso,
+          actor: actor || null,
+        },
+        firstSeenAt: existing?.firstSeenAt || FieldValue.serverTimestamp(),
+        lastSeenAt: FieldValue.serverTimestamp(),
+        lastChangedAt: sameHash ? existing?.lastChangedAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      batch.set(docRef, payload, { merge: true });
+      written += 1;
+    });
+    await batch.commit();
+  }
+
+  return { total: cleaned.length, written, changed, unchanged };
+}
+
+async function syncLiveListingsLight(options = {}) {
+  const runId = safeString(options?.runId) || `light-${Date.now()}`;
+  const actor = options?.actor || null;
+  const maxPages = Number.isFinite(Number(options?.maxPages)) ? Number(options.maxPages) : 50;
+  const entriesPerPage = Number.isFinite(Number(options?.entriesPerPage)) ? Number(options.entriesPerPage) : 200;
+  const timeoutMs = Number.isFinite(Number(options?.timeoutMs)) ? Number(options.timeoutMs) : 25000;
+
+  const lockRef = firestore.collection('ops').doc('ebayLightSync');
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+
+  const lockSnap = await lockRef.get();
+  const lock = lockSnap.exists ? lockSnap.data() || {} : {};
+
+  const lastCompletedAtIso = safeString(lock?.lastCompletedAtIso);
+  const lastCompletedAtMs = lastCompletedAtIso ? Date.parse(lastCompletedAtIso) : NaN;
+  const running = Boolean(lock?.running);
+  const runningAtIso = safeString(lock?.runningAtIso);
+  const runningAtMs = runningAtIso ? Date.parse(runningAtIso) : NaN;
+
+  if (running && Number.isFinite(runningAtMs) && runningAtMs > now - 3 * 60_000) {
+    return { skipped: true, reason: 'running', runningAtIso, runId };
+  }
+  if (Number.isFinite(lastCompletedAtMs) && lastCompletedAtMs > now - 60_000) {
+    return { skipped: true, reason: 'cooldown', lastCompletedAtIso, runId };
+  }
+
+  await lockRef.set(
+    cleanUndefined({
+      running: true,
+      runningRunId: runId,
+      runningAtIso: nowIso,
+      runningActor: actor || null,
+      updatedAt: FieldValue.serverTimestamp(),
+    }),
+    { merge: true }
+  );
+
+  try {
+    const ingest = await fetchLiveListingSummariesFromEbay({ maxPages, entriesPerPage, timeoutMs });
+    const upsert = await upsertLiveListingSummaries(ingest.listings, { runId, actor });
+    const ingestPagesFetched = Number(ingest?.summary?.pagesFetched) || 0;
+    const ingestTotalPages = Number(ingest?.summary?.totalPagesReported) || 0;
+    const ingestIsComplete = ingestPagesFetched > 0 && ingestTotalPages > 0 && ingestPagesFetched >= ingestTotalPages;
+    const deactivation = ingestIsComplete
+      ? await deactivateListingsMissingFromActiveSet({
+          activeItemIds: ingest.listings.map((x) => safeString(x?.itemId)).filter(Boolean),
+          runId,
+          actor,
+        })
+      : {
+          scanned: 0,
+          deactivated: 0,
+          keptActive: 0,
+          skipped: true,
+          reason: 'partial_ingest_window',
+          pagesFetched: ingestPagesFetched,
+          totalPagesReported: ingestTotalPages,
+        };
+
+    const summary = {
+      runId,
+      actor,
+      generatedAt: new Date().toISOString(),
+      mode: 'light_sync',
+      ingest: ingest.summary,
+      upsert,
+      deactivation,
+    };
+
+    await lockRef.set(
+      cleanUndefined({
+        running: false,
+        lastCompletedAtIso: new Date().toISOString(),
+        lastCompletedRunId: runId,
+        lastSummary: summary,
+        lastError: null,
+        updatedAt: FieldValue.serverTimestamp(),
+      }),
+      { merge: true }
+    );
+
+    return summary;
+  } catch (error) {
+    await lockRef.set(
+      cleanUndefined({
+        running: false,
+        lastError: { message: error?.message || String(error), atIso: new Date().toISOString(), runId },
+        updatedAt: FieldValue.serverTimestamp(),
+      }),
+      { merge: true }
+    );
+    throw error;
+  }
 }
 
 async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runId = null, actor = null } = {}) {
@@ -3626,8 +3857,10 @@ module.exports = {
   EBAY_LISTINGS_COLLECTION,
   EBAY_LINKS_COLLECTION,
   EBAY_GAPS_COLLECTION,
+  fetchLiveListingSummariesFromEbay,
   fetchLiveListingsFromEbay,
   upsertLiveListings,
+  upsertLiveListingSummaries,
   listLiveListings,
   getListingDetail,
   buildProductListingLinks,
@@ -3638,6 +3871,7 @@ module.exports = {
   dryRunSync,
   applySync,
   createOperationalReports,
+  syncLiveListingsLight,
   syncLiveListingsAndAudit,
   mapProductToEbayItem,
   validatePublishReadiness,

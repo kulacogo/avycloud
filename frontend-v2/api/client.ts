@@ -629,6 +629,24 @@ export async function syncEbayLiveListings(payload?: {
   return data?.data;
 }
 
+export async function lightSyncEbayLiveListings(payload?: {
+  maxPages?: number;
+  entriesPerPage?: number;
+  timeoutMs?: number;
+  runId?: string;
+}): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listings/light-sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to light-sync eBay listings');
+  }
+  return data?.data;
+}
+
 export async function fetchEbayLiveListings(params?: {
   limit?: number;
   search?: string;
@@ -656,6 +674,50 @@ export async function fetchEbayLiveListingDetail(itemId: string): Promise<EbayLi
     throw new Error(data?.error?.message || 'Failed to load eBay listing detail');
   }
   return data?.data as EbayListingDetail;
+}
+
+export async function fetchEbayListingAudit(itemId: string): Promise<any> {
+  const key = encodeURIComponent(String(itemId || '').trim());
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listings/${key}/audit?t=${Date.now()}`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load eBay listing audit');
+  }
+  return data?.data;
+}
+
+export async function computeEbayListingAudit(
+  itemId: string,
+  payload?: { forceRefresh?: boolean; timeoutMs?: number; runId?: string }
+): Promise<any> {
+  const key = encodeURIComponent(String(itemId || '').trim());
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listings/${key}/audit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to compute eBay listing audit');
+  }
+  return data?.data;
+}
+
+export async function applyEbayListingSuggestions(
+  itemId: string,
+  payload?: { suggestionIds?: string[] | null; patch?: any; timeoutMs?: number; runId?: string }
+): Promise<any> {
+  const key = encodeURIComponent(String(itemId || '').trim());
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listings/${key}/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to apply eBay listing suggestions');
+  }
+  return data?.data;
 }
 
 export async function rebuildEbayListingLinks(payload?: { itemIds?: string[]; runId?: string }): Promise<any> {

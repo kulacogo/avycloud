@@ -47,7 +47,7 @@ import OperationsView from './components/views/OperationsView';
 import MobileSearchView from './components/views/MobileSearchView';
 import MobileOperationsView from './components/views/MobileOperationsView';
 import { CategoryManagement } from './components/views/CategoryManagement';
-import { EbayListingsView } from './components/views/EbayListingsView';
+import { EbayAuditView } from './components/views/EbayAuditView';
 import { AdminPanel } from './components/admin/AdminPanel';
 
 // Layout shell (v2.1 design system)
@@ -615,7 +615,7 @@ const AppInner: React.FC = () => {
         if (!(hasPermission('products', 'read') || hasPermission('products', 'write'))) {
           return <div className="text-center p-8 text-[var(--text-tertiary)]">{t('error.forbidden')}</div>;
         }
-        return <EbayListingsView />;
+        return <EbayAuditView />;
       case 'admin':
         if (
           !(

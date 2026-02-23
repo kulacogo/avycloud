@@ -358,6 +358,9 @@ function mapActiveListingItem(item = {}) {
 
 function mapListingDetail(item = {}) {
   const currentPrice = item?.SellingStatus?.CurrentPrice;
+  const pictureUrls = asArray(item?.PictureDetails?.PictureURL)
+    .map((url) => safeString(url))
+    .filter(Boolean);
   return {
     itemId: safeString(item?.ItemID),
     sku: safeString(item?.SKU) || null,
@@ -377,6 +380,7 @@ function mapListingDetail(item = {}) {
     endTime: toIso(item?.ListingDetails?.EndTime),
     timeLeft: safeString(item?.ListingDetails?.TimeLeft) || null,
     viewItemUrl: safeString(item?.ListingDetails?.ViewItemURL) || null,
+    pictureUrls: pictureUrls.length ? Array.from(new Set(pictureUrls)).slice(0, 24) : [],
     location: safeString(item?.Location) || null,
     country: safeString(item?.Country) || null,
     conditionId: safeString(item?.ConditionID) || null,
