@@ -22,6 +22,7 @@ const { normalizeHighlightsStrict } = require('../lib/highlights-policy');
 const {
   canonicalizeAttributeKey,
   canonicalizeAttributesStrict,
+  coerceAttributeValueToPolicy,
   isBlockedAttributeKey,
 } = require('../lib/attribute-policy');
 const { getRequiredAspects } = require('../lib/ebay-taxonomy');
@@ -1314,7 +1315,9 @@ function sanitizeDatasheetChange(entry, product, { scope = null } = {}) {
         // Never store internal/meta keys as attributes (delete-only).
         continue;
       }
-      cleaned[key] = value;
+      const coerced = coerceAttributeValueToPolicy(key, value, { maxLen: 60 });
+      if (!coerced) continue;
+      cleaned[key] = coerced;
     }
     if (Object.keys(cleaned).length) {
       result.attributes = cleaned;
@@ -1555,6 +1558,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
   6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
   7. GPSR updates MUST be returned under the top-level "gpsr" object (not in attributes). Never create keys like "GPSR Manufacturer name" inside attributes.
   8. BaseLinker category: if you change it, FIRST call 'baselinker_category_search', THEN set BOTH 'baselinkerCategoryId' and 'baselinkerCategoryPath' in update_product_datasheet.
+  9. ATTRIBUTE LENGTH: Attribute/item-specific values must be ≤60 characters (EXCEPTION: K-Typ). Titles are governed separately (≤80 chars).
 
   QUALITY BAR (non-binding):
   - Titles should be searchable and ≤80 chars.

@@ -35,6 +35,33 @@ function normVal(value) {
   }
 }
 
+const DEFAULT_ATTRIBUTE_VALUE_MAX_LEN = 60;
+
+function isKTypAttributeKey(key = '') {
+  const k = normKey(key).replace(/[^a-z0-9]/g, '');
+  return k === 'ktyp';
+}
+
+function truncateToMaxChars(text = '', maxLen = DEFAULT_ATTRIBUTE_VALUE_MAX_LEN) {
+  const raw = normalizeSpaces(text);
+  if (!raw) return '';
+  const limit = Math.max(1, Math.min(400, Number(maxLen) || DEFAULT_ATTRIBUTE_VALUE_MAX_LEN));
+  const chars = Array.from(raw);
+  if (chars.length <= limit) return raw;
+  const cut = chars.slice(0, limit).join('');
+  const idx = cut.lastIndexOf(' ');
+  const minBreak = Math.max(18, Math.floor(limit * 0.6));
+  const out = idx >= minBreak ? cut.slice(0, idx) : cut;
+  return normalizeSpaces(out);
+}
+
+function coerceAttributeValueToPolicy(key, value, { maxLen = DEFAULT_ATTRIBUTE_VALUE_MAX_LEN } = {}) {
+  const v = normVal(value);
+  if (!v) return '';
+  if (isKTypAttributeKey(key)) return v;
+  return truncateToMaxChars(v, maxLen);
+}
+
 // Hard-block keys that must never be stored as attributes (internal/marketplace/meta).
 function isBlockedAttributeKey(key) {
   const k = normKey(key);
@@ -140,7 +167,7 @@ function canonicalizeAttributesStrict(input) {
     const canonicalKey = canonicalizeAttributeKey(originalKey);
     if (!canonicalKey) continue;
 
-    const value = normVal(rawVal);
+    const value = coerceAttributeValueToPolicy(canonicalKey, rawVal);
     if (!value) continue;
 
     const ck = normKey(canonicalKey);
@@ -169,6 +196,7 @@ function canonicalizeAttributesStrict(input) {
 module.exports = {
   canonicalizeAttributesStrict,
   canonicalizeAttributeKey,
+  coerceAttributeValueToPolicy,
   isBlockedAttributeKey,
 };
 

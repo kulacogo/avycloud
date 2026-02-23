@@ -1784,12 +1784,22 @@ async function saveProduct(product, options = {}) {
     // Attributes:
     // - Automation: merge (existing survives if incoming omits keys).
     // - Manual: treat incoming as authoritative to support deletions/overwrites.
-    const mergedAttributes = replaceAttributes && incomingHasAttributes
+    const mergedAttributesRaw = replaceAttributes && incomingHasAttributes
       ? { ...normalizedIncomingAttributes }
       : {
           ...(existingDetails.attributes || {}),
           ...normalizedIncomingAttributes,
         };
+    // Enforce attribute value length policy (max 60 chars), except K-Typ.
+    const { coerceAttributeValueToPolicy } = require('./attribute-policy');
+    const mergedAttributes = {};
+    for (const [rawKey, rawVal] of Object.entries(mergedAttributesRaw || {})) {
+      const key = typeof rawKey === 'string' ? rawKey.trim() : rawKey == null ? '' : String(rawKey).trim();
+      if (!key) continue;
+      const value = coerceAttributeValueToPolicy(key, rawVal, { maxLen: 60 });
+      if (!value) continue;
+      mergedAttributes[key] = value;
+    }
 
     // Condition lock:
     // - Default listing condition is NEU.

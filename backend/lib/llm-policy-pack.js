@@ -52,6 +52,7 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
       '- Erfinde keine Fakten. Wenn etwas nicht belegbar ist: leer lassen und als Unsicherheit markieren.',
       '- Titel/Highlights/Beschreibung sollen faktenbasiert und suchstark sein; keine Platzhaltertexte.',
       '- eBay Attribute-Governance: Wenn dir pro Kategorie Aspects geliefert werden (ebay.allowed_aspects oder ebay.required_aspects), verwende NUR diese Keys (exakte Schreibweise). Erfinde keine neuen Attribut-Keys.',
+      '- Attribute/Parameter: Werte pro Feld maximal 60 Zeichen. AUSNAHME: Titel und K-Typ.',
     ].join('\n');
   }
   return [
@@ -70,6 +71,7 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     '- Attribute müssen neutral sein (nicht marktplatz-spezifisch). KEINE Attribute/Keys, die "ebay" oder "kaufland" enthalten (z.B. ebay_*_id/path, ebayCategory*, kaufland_*_id/path).',
     '- Keine internen/Meta-Keys als Attribute (z.B. product-id, *_id, text_*, features|*).',
     '- eBay Attribute-Governance: Wenn dir pro Kategorie eine Allowlist geliefert wird (ebay.allowed_aspects), verwende NUR Keys aus dieser Liste (exakte Schreibweise). Erfinde keine neuen Attribut-Keys.',
+    '- Attribute/Parameter: Werte pro Feld maximal 60 Zeichen. AUSNAHME: Titel und K-Typ.',
     '- Keine doppelten Attribute: keine strukturellen Dubletten (Case/Whitespace) und keine semantischen Dubletten (Synonyme). Konflikte sind Fehler; dann Feld leer lassen und Warning setzen.',
     '- Barcodes: niemals raten. Nur setzen, wenn der Code in den bereitgestellten Belegen (OCR/WEB-EVIDENZ) vorkommt UND die Checkdigit stimmt (8/12/13/14 Ziffern). Sonst leer lassen.',
     '- Zustand: Default NEU. "Gebraucht/Used" nur, wenn es explizit vom Nutzer gelockt wurde (condition_locked). Sonst niemals setzen.',

@@ -49,6 +49,7 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
       '- Nutze Web-Daten nur, wenn sie dir durch das System bereitgestellt werden (Tools / WEB-EVIDENZ).',
       '- Erfinde keine Fakten. Wenn etwas nicht belegbar ist: leer lassen und als Unsicherheit markieren.',
       '- Titel/Highlights/Beschreibung sollen faktenbasiert und suchstark sein; keine Platzhaltertexte.',
+      '- Attribute/Parameter: Werte pro Feld maximal 60 Zeichen. AUSNAHME: Titel und K-Typ.',
     ].join('\n');
   }
   return [
@@ -67,6 +68,7 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     '- Attribute müssen neutral sein (nicht marktplatz-spezifisch). KEINE Attribute/Keys, die "ebay" oder "kaufland" enthalten (z.B. ebay_*_id/path, ebayCategory*, kaufland_*_id/path).',
     '- Keine internen/Meta-Keys als Attribute (z.B. product-id, *_id, text_*, features|*).',
     '- Keine doppelten Attribute: keine strukturellen Dubletten (Case/Whitespace) und keine semantischen Dubletten (Synonyme). Konflikte sind Fehler; dann Feld leer lassen und Warning setzen.',
+    '- Attribute/Parameter: Werte pro Feld maximal 60 Zeichen. AUSNAHME: Titel und K-Typ.',
     '- Barcodes: niemals raten. Nur setzen, wenn der Code in den bereitgestellten Belegen (OCR/WEB-EVIDENZ) vorkommt UND die Checkdigit stimmt (8/12/13/14 Ziffern). Sonst leer lassen.',
     '- Zustand: Default NEU. "Gebraucht/Used" nur, wenn es explizit vom Nutzer gelockt wurde (condition_locked). Sonst niemals setzen.',
     '- Gewicht: immer als ZAHL in KG (ohne Einheit). Beispiele: 1 für 1kg, 0.75 für 750g. Wenn Gewicht nicht belegbar: Feld leer lassen (nicht raten).',

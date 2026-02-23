@@ -22,6 +22,7 @@ const { normalizeHighlightsStrict } = require('../lib/highlights-policy');
 const {
   canonicalizeAttributeKey,
   canonicalizeAttributesStrict,
+  coerceAttributeValueToPolicy,
   isBlockedAttributeKey,
 } = require('../lib/attribute-policy');
 const {
@@ -1517,8 +1518,9 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
         continue;
       }
       const value = typeof rawValue === 'string' ? decodePlainText(rawValue) : rawValue;
-      if (typeof value === 'string' && !value) continue;
-      cleaned[key] = value;
+      const coerced = coerceAttributeValueToPolicy(key, value, { maxLen: 60 });
+      if (!coerced) continue;
+      cleaned[key] = coerced;
     }
     let normalizedAttrs = cleaned;
     const categoryIdForAspects = resolveProductCategoryId(product);
@@ -1787,6 +1789,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
      - NEVER call generate_ai_images as a response to image search requests. AI image generation is ONLY for explicit requests like "erstelle KI-Bilder" or "generiere Render".
      - Product images must be REAL photos from manufacturer sites, shops, or marketplaces.
   10. SCOPE COMPLIANCE: Read the user's request carefully. If they ask for specific things (e.g. only images, only price, only title), do EXACTLY that. Do not add unrequested changes or commentary.
+  11. ATTRIBUTE LENGTH: Attribute/item-specific values must be ≤60 characters (EXCEPTION: K-Typ). Titles are governed separately (≤80 chars).
 
   QUALITY BAR (non-binding):
   - Titles should be searchable and ≤80 chars.

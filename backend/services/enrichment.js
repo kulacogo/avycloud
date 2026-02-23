@@ -1588,6 +1588,7 @@ function buildReviewPrompt(
     gpsrLine,
     titleInsightLine,
     '- Werte in Attributen/Highlights nur als Klartext UTF-8 ausgeben (keine HTML-Entities wie &deg; oder &Ouml;).',
+    '- Attribute/Parameter: Werte pro Feld maximal 60 Zeichen. AUSNAHME: Titel und K-Typ.',
     '- Titel strikt search-native: keine Marketingfloskeln, keine EAN/GTIN/UPC/ISBN, keine erfundenen Claims.',
     '- Plausibilitätscheck: Nutze WEB-EVIDENZ (Marktplatz-Suchergebnisse, falls enthalten) um Daten zu verifizieren und fehlende Spezifikationen zu ergänzen. Erfinde keine Werte.',
     '- Beschreibung: SEO-stark und gut lesbar. HTML ist erlaubt (nur <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität/Abmessungen/Gewicht (nur wenn belegbar). Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',

@@ -43,6 +43,7 @@ Hard Facts:
 - Regeln:
   - Hard-block: marketplace/meta keys (`ebay*`, `kaufland*`, `*_id`, `category_*`, `gpsr *`, …)
   - Canonical key mapping (konservativ, erweiterbar)
+  - Werte-Limit: **max 60 Zeichen** pro Wert (Ausnahmen: **K-Typ** und **Titel**)
   - **Konflikt-Dubletten** (Synonyme → gleicher Canonical-Key, aber unterschiedliche Werte) = **Fehler**
 
 ### Zentrale, zwingende Validierung (LLM-Output Gate)
