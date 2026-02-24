@@ -534,9 +534,22 @@ function buildReviseItemRequestXml(callName, patch, cfg) {
   if (specificsXml) {
     itemFields.push(specificsXml);
   }
+  const pictureUrls = asArray(patch?.pictureUrls || patch?.pictureDetails)
+    .map((u) => safeString(u))
+    .filter(Boolean);
+  if (pictureUrls.length) {
+    // Per Trading API docs: for revise calls, provide the complete set of PictureURL values you want the listing to include.
+    itemFields.push(
+      `<PictureDetails>${pictureUrls
+        .map((u) => `<PictureURL>${escapeXml(u)}</PictureURL>`)
+        .join('')}</PictureDetails>`
+    );
+  }
 
   if (itemFields.length <= 1) {
-    const error = new Error('No revisable fields provided. Expected category/title/subtitle/description/itemSpecifics.');
+    const error = new Error(
+      'No revisable fields provided. Expected category/title/subtitle/description/itemSpecifics/pictureUrls.'
+    );
     error.code = 'EBAY_REVISE_FIELDS_MISSING';
     throw error;
   }

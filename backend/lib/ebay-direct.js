@@ -782,6 +782,62 @@ function deriveProductPhotoUrl(product, listing = null) {
   );
 }
 
+const EBAY_PICTURE_URL_MAX_COUNT = 24;
+const EBAY_PICTURE_URL_MAX_LEN = 500;
+const EBAY_PICTURE_URLS_TOTAL_MAX_LEN = 3975;
+
+function sanitizeEbayPictureUrls(urls = []) {
+  const out = [];
+  const seen = new Set();
+  let total = 0;
+  asArray(urls).forEach((raw) => {
+    if (out.length >= EBAY_PICTURE_URL_MAX_COUNT) return;
+    let url = safeString(raw);
+    if (!url) return;
+    url = url.replace(/\s/g, '%20');
+    // Per Trading API docs: picture URLs must be HTTPS.
+    if (!/^https:\/\//i.test(url)) return;
+    // Per Trading API docs: semicolons are not allowed.
+    if (url.includes(';')) return;
+    if (url.length > EBAY_PICTURE_URL_MAX_LEN) return;
+    const key = url.toLowerCase();
+    if (seen.has(key)) return;
+    // Per Trading API docs: total length of all URLs must not exceed 3975 characters.
+    if (total + url.length > EBAY_PICTURE_URLS_TOTAL_MAX_LEN) return;
+    seen.add(key);
+    out.push(url);
+    total += url.length;
+  });
+  return out;
+}
+
+function extractProductPictureUrls(product, overrides = {}) {
+  const urls = [];
+  asArray(overrides.pictureUrls || product?.details?.images).forEach((entry) => {
+    if (!entry) return;
+    const url = safeString(
+      typeof entry === 'string' ? entry : entry?.url_or_base64 || entry?.url || entry?.src || entry?.imageUrl
+    );
+    if (url) urls.push(url);
+  });
+  // Include legacy locations too (some products store images outside details.images)
+  asArray(product?.images).forEach((entry) => {
+    if (!entry) return;
+    const url = safeString(
+      typeof entry === 'string' ? entry : entry?.url_or_base64 || entry?.url || entry?.src || entry?.imageUrl
+    );
+    if (url) urls.push(url);
+  });
+  return sanitizeEbayPictureUrls(urls);
+}
+
+function sameStringList(a = [], b = []) {
+  const left = asArray(a).map((x) => safeString(x)).filter(Boolean);
+  const right = asArray(b).map((x) => safeString(x)).filter(Boolean);
+  if (left.length !== right.length) return false;
+  return left.every((v, i) => v === right[i]);
+}
+
 function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = null, photoOverride = null }) {
   const auctionName = safeString(titleOverride) || safeString(listing?.title) || safeString(deriveProductTitle(product));
   const manufacturer = safeString(deriveProductManufacturer(product, listing)) || 'Unbekannt';
@@ -2172,6 +2228,27 @@ function buildGapsForListing({ listing, link, product, existingGapDoc, categoryP
     });
   }
 
+  const desiredPictureUrls = extractProductPictureUrls(product);
+  if (desiredPictureUrls.length) {
+    // Compare against last applied source URLs (not EPS URLs returned by GetItem),
+    // because eBay may return EPS-hosted equivalents that don't match the original source URLs.
+    const lastApplied = sanitizeEbayPictureUrls(listing?.pictureUrlsSource || []);
+    const needsUpdate = !lastApplied.length || !sameStringList(lastApplied, desiredPictureUrls);
+    if (needsUpdate) {
+      addGap(gaps, existingById, {
+        type: 'pictures',
+        field: 'picture_urls',
+        severity: 'warn',
+        listingValue: lastApplied.length ? lastApplied : null,
+        avyValue: desiredPictureUrls,
+        message: lastApplied.length
+          ? 'Produktbilder wurden in AvyCloud geaendert und sollten auf eBay aktualisiert werden.'
+          : 'Produktbilder wurden noch nicht nach eBay synchronisiert (oder Vergleichsbasis fehlt).',
+        syncDirection: 'accept_avy',
+      });
+    }
+  }
+
   return gaps;
 }
 
@@ -2786,6 +2863,14 @@ function computeSyncPatch({ listing, gapDoc, product = null }) {
       }
       return;
     }
+    if (type === 'pictures') {
+      const urls = sanitizeEbayPictureUrls(gap?.avyValue);
+      if (urls.length) {
+        patch.pictureUrls = urls;
+        touch(gap);
+      }
+      return;
+    }
     if (type === 'item_specific') {
       const rawField = safeString(gap?.field);
       const token = normalizeSpecificToken(rawField);
@@ -2860,6 +2945,15 @@ function computeSyncPatch({ listing, gapDoc, product = null }) {
     else delete patch.primaryCategoryId;
   }
 
+  if (patch.pictureUrls) {
+    const urls = sanitizeEbayPictureUrls(patch.pictureUrls);
+    if (urls.length) {
+      patch.pictureUrls = urls;
+    } else {
+      delete patch.pictureUrls;
+    }
+  }
+
   if (patch.itemSpecifics && typeof patch.itemSpecifics === 'object' && Object.keys(patch.itemSpecifics).length) {
     const filtered = filterPatchItemSpecificsForListing({
       categoryId: effectiveCategoryId,
@@ -2917,6 +3011,14 @@ function evaluateSyncBlockers(listing, patch) {
   const listingType = safeString(listing?.listingType);
   if (!listingType) {
     warnings.push('Listing-Typ unbekannt. Fallback auf ReviseItem.');
+  }
+
+  const patchPictures = sanitizeEbayPictureUrls(patch?.pictureUrls || []);
+  if (patch?.pictureUrls && !patchPictures.length) {
+    blockers.push('Bild-Update blockiert: Keine gueltigen HTTPS Picture URLs gefunden (mindestens 1 Bild erforderlich).');
+  }
+  if (patchPictures.length > EBAY_PICTURE_URL_MAX_COUNT) {
+    blockers.push(`Bild-Update blockiert: Zu viele Bilder (${patchPictures.length}). Max: ${EBAY_PICTURE_URL_MAX_COUNT}.`);
   }
 
   const patchItemSpecifics = patch?.itemSpecifics && typeof patch.itemSpecifics === 'object' ? patch.itemSpecifics : {};
@@ -3011,6 +3113,7 @@ async function dryRunSync({ itemIds = null, actor = null } = {}) {
       Boolean(patch?.title) ||
       Boolean(patch?.subtitle) ||
       Boolean(patch?.description) ||
+      (Array.isArray(patch?.pictureUrls) && patch.pictureUrls.length > 0) ||
       Boolean(Object.keys(patch?.itemSpecifics || {}).length);
 
     const { blockers, warnings } = evaluateSyncBlockers(listing, patch);
@@ -3144,6 +3247,8 @@ async function applySync({ itemIds = null, actor = null } = {}) {
               primaryCategoryId: safeString(listing?.primaryCategoryId) || null,
               primaryCategoryName: safeString(listing?.primaryCategoryName) || null,
               viewItemUrl: safeString(listing?.viewItemUrl) || null,
+              pictureUrls:
+                Array.isArray(listing?.pictureUrls) && listing.pictureUrls.length ? listing.pictureUrls : null,
               startTime: safeString(listing?.startTime) || null,
               endTime: safeString(listing?.endTime) || null,
               timeLeft: safeString(listing?.timeLeft) || null,
@@ -3175,6 +3280,7 @@ async function applySync({ itemIds = null, actor = null } = {}) {
       Boolean(patch?.title) ||
       Boolean(patch?.subtitle) ||
       Boolean(patch?.description) ||
+      (Array.isArray(patch?.pictureUrls) && patch.pictureUrls.length > 0) ||
       Boolean(Object.keys(patch?.itemSpecifics || {}).length);
     const guard = evaluateSyncBlockers(listing, patch);
     const blockers = Array.isArray(guard?.blockers) ? guard.blockers.slice() : [];
@@ -3202,13 +3308,23 @@ async function applySync({ itemIds = null, actor = null } = {}) {
         .collection(EBAY_LISTINGS_COLLECTION)
         .doc(String(itemId))
         .set(
-          {
+          cleanUndefined({
             syncState: 'synced',
             lastSyncAt: FieldValue.serverTimestamp(),
             lastSyncAtIso: new Date().toISOString(),
             lastSyncCall: callName,
             lastSyncError: null,
-          },
+            pictureUrlsSource:
+              Array.isArray(patch?.pictureUrls) && patch.pictureUrls.length
+                ? sanitizeEbayPictureUrls(patch.pictureUrls)
+                : undefined,
+            pictureUrlsSourceHash:
+              Array.isArray(patch?.pictureUrls) && patch.pictureUrls.length
+                ? hashObject(sanitizeEbayPictureUrls(patch.pictureUrls))
+                : undefined,
+            pictureUrlsSourceUpdatedAtIso:
+              Array.isArray(patch?.pictureUrls) && patch.pictureUrls.length ? new Date().toISOString() : undefined,
+          }),
           { merge: true }
         );
       results.push({
@@ -3959,7 +4075,7 @@ async function bulkUpdateListedProducts({ itemIds = null, applyAll = false, acto
 
   // The AdminTable "eBay aktualisieren" action is meant to be a push-update:
   // mark content gaps ready_to_sync so applySync actually has candidates.
-  await bulkPrepareUpdateGaps({ itemIds: resolvedItemIds, actor, types: ['content'] });
+  await bulkPrepareUpdateGaps({ itemIds: resolvedItemIds, actor, types: ['content', 'pictures'] });
 
   return applySync({ itemIds: resolvedItemIds, actor });
 }
