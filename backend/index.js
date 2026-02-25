@@ -95,6 +95,8 @@ const {
 } = require('./services/label-printer');
 const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked, markOrderAsPacked } = require('./services/order-sync');
+const { getCheckAccountBalances } = require('./lib/sevdesk');
+const { getShippingCostsSummary } = require('./lib/sendcloud');
 const { requireAuth } = require('./lib/auth');
 const { ensureDefaultRoles, requirePermission, resolvePermissionsForUser } = require('./lib/rbac');
 const {
@@ -6515,6 +6517,119 @@ app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async 
       },
     });
   }
+});
+
+// ─── Finance Dashboard Endpoint ──────────────────────────────────────────────
+// Returns SevDesk bank balances (Sichteinlagen + Business Card) and
+// SendCloud shipping cost totals for the requested time range + YTD.
+app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async (req, res) => {
+  const errors = [];
+
+  // Resolve time range from the same preset logic as /api/dashboard/metrics
+  const preset = typeof req.query?.preset === 'string' ? req.query.preset.trim() : 'last7';
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const toDateStr = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+
+  let rangeFrom;
+  switch (preset) {
+    case 'today': {
+      rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      break;
+    }
+    case 'month_to_date': {
+      rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      break;
+    }
+    case 'last_month': {
+      rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+      const lastDayPrev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
+      rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+      // Override rangeTo for last month
+      break;
+    }
+    case 'year_to_date': {
+      rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+      break;
+    }
+    case 'last_year': {
+      rangeFrom = new Date(Date.UTC(now.getUTCFullYear() - 1, 0, 1));
+      break;
+    }
+    default: { // last7 and any unknown
+      rangeFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    }
+  }
+
+  // Range end
+  let rangeTo = now;
+  if (preset === 'last_month') {
+    rangeTo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59));
+    rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  } else if (preset === 'last_year') {
+    rangeTo = new Date(Date.UTC(now.getUTCFullYear() - 1, 11, 31, 23, 59, 59));
+  }
+
+  const fromDateStr = toDateStr(rangeFrom);
+  const toDateStr2 = toDateStr(rangeTo);
+  const ytdFromStr = `${now.getUTCFullYear()}-01-01`;
+  const ytdToStr = toDateStr(now);
+
+  // Run both external API calls in parallel, failing gracefully
+  const [balanceResult, shippingResult, shippingYtdResult] = await Promise.allSettled([
+    getCheckAccountBalances({ timeoutMs: 15000 }),
+    getShippingCostsSummary(fromDateStr, toDateStr2, { timeoutMs: 25000 }),
+    // Only fetch YTD separately if not already YTD
+    (preset !== 'year_to_date' && !(preset === 'last_year'))
+      ? getShippingCostsSummary(ytdFromStr, ytdToStr, { timeoutMs: 25000 })
+      : Promise.resolve(null),
+  ]);
+
+  let accounts = [];
+  let totalBalance = 0;
+  if (balanceResult.status === 'fulfilled') {
+    accounts = balanceResult.value?.accounts || [];
+    totalBalance = balanceResult.value?.total || 0;
+  } else {
+    errors.push(`SevDesk: ${balanceResult.reason?.message || 'Fehler beim Abrufen der Kontostände'}`);
+  }
+
+  let shipping = null;
+  if (shippingResult.status === 'fulfilled') {
+    shipping = {
+      ...(shippingResult.value || {}),
+      from_date: fromDateStr,
+      to_date: toDateStr2,
+    };
+  } else {
+    errors.push(`SendCloud: ${shippingResult.reason?.message || 'Fehler beim Abrufen der Versandkosten'}`);
+  }
+
+  let shippingYtd = null;
+  if (shippingYtdResult.status === 'fulfilled' && shippingYtdResult.value !== null) {
+    shippingYtd = {
+      ...(shippingYtdResult.value || {}),
+      from_date: ytdFromStr,
+      to_date: ytdToStr,
+    };
+  } else if (shippingResult.status === 'fulfilled' && (preset === 'year_to_date' || preset === 'last_year')) {
+    // When preset IS year/last_year, the main shipping fetch already covers YTD
+    shippingYtd = shipping;
+  }
+
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    ok: true,
+    data: {
+      generated_at_iso: now.toISOString(),
+      accounts,
+      total_balance: totalBalance,
+      shipping,
+      shipping_ytd: shippingYtd,
+      errors,
+    },
+  });
 });
 
 app.post('/api/orders/sync', requirePermission('orders', 'read'), async (req, res) => {

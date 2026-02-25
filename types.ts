@@ -425,6 +425,30 @@ export interface DashboardMetrics {
   };
 }
 
+export interface FinanceAccountBalance {
+  id: string;
+  name: string;
+  balance: number;
+  currency: string;
+}
+
+export interface FinanceShipping {
+  total_cost: number;
+  parcel_count: number;
+  currency: string;
+  from_date: string;
+  to_date: string;
+}
+
+export interface FinanceMetrics {
+  generated_at_iso: string;
+  accounts: FinanceAccountBalance[];
+  total_balance: number;
+  shipping: FinanceShipping | null;
+  shipping_ytd: FinanceShipping | null;
+  errors: string[];
+}
+
 export type IdentifyPhase =
   | 'idle'
   | 'upload'

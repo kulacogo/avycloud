@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DashboardMetrics, Order, Product } from '../types';
+import { DashboardMetrics, FinanceMetrics, Order, Product } from '../types';
 import { getProductAvailableQuantity, getProductPhysicalQuantity } from '../utils/product';
-import { fetchDashboardMetrics, fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi } from '../api/client';
+import {
+  fetchDashboardMetrics,
+  fetchFinanceMetrics,
+  fetchOrders as fetchOrdersApi,
+  syncOrders as syncOrdersApi,
+} from '../api/client';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 
@@ -14,57 +19,110 @@ interface DashboardMobileProps {
   onRangePresetChange?: (preset: string) => void;
 }
 
-const StatCard: React.FC<{ label: string; value: string; sub?: string }> = ({ label, value, sub }) => (
-  <div className="rounded-2xl bg-slate-800 border border-white/5 p-4 shadow-lg shadow-black/30">
-    <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
-    <p className="text-2xl font-semibold text-white mt-1">{value}</p>
-    {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
-  </div>
+const PRESETS: Array<{ id: string; label: string }> = [
+  { id: 'today', label: 'Heute' },
+  { id: 'last7', label: '7 Tage' },
+  { id: 'month_to_date', label: 'Monat' },
+  { id: 'last_month', label: 'Vormonat' },
+  { id: 'year_to_date', label: 'YTD' },
+  { id: 'last_year', label: 'Vorjahr' },
+];
+
+const safeCur = (c?: string) => (/^[A-Z]{3}$/.test((c || '').toUpperCase()) ? c!.toUpperCase() : 'EUR');
+
+const fmt = (v: number, c = 'EUR') => {
+  try {
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: safeCur(c),
+      maximumFractionDigits: 0,
+    }).format(v);
+  } catch {
+    return `${v.toFixed(0)} ${c}`;
+  }
+};
+
+// ─── Micro components ────────────────────────────────────────────────────────
+
+const Skeleton: React.FC<{ w?: string; h?: string }> = ({ w = 'w-16', h = 'h-5' }) => (
+  <div className={`animate-pulse rounded bg-white/8 ${w} ${h}`} />
 );
 
-const ActionCard: React.FC<{
+interface TileProps {
   label: string;
-  value: string;
-  sub?: string;
+  value: React.ReactNode;
+  sub?: React.ReactNode;
+  tone?: 'default' | 'warn' | 'success' | 'violet' | 'sky';
   onClick?: () => void;
-  tone?: 'primary' | 'success' | 'warn' | 'neutral';
+  loading?: boolean;
   disabled?: boolean;
-}> = ({ label, value, sub, onClick, tone = 'neutral', disabled }) => {
-  const toneClass =
-    tone === 'primary'
-      ? 'bg-sky-600 text-white'
-      : tone === 'success'
-        ? 'bg-emerald-600 text-white'
-        : tone === 'warn'
-          ? 'bg-amber-600 text-white'
-          : 'bg-slate-800 text-white border border-white/5';
+}
+
+const toneClasses: Record<NonNullable<TileProps['tone']>, string> = {
+  default: 'bg-slate-800 border border-white/5',
+  warn: 'bg-amber-600',
+  success: 'bg-emerald-600',
+  violet: 'bg-violet-700/60 border border-violet-500/20',
+  sky: 'bg-sky-700/60 border border-sky-500/20',
+};
+
+const Tile: React.FC<TileProps> = ({ label, value, sub, tone = 'default', onClick, loading, disabled }) => {
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled || !onClick}
-      className={`w-full rounded-2xl p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99] disabled:opacity-40 ${toneClass}`}
+    <Tag
+      {...(onClick ? { type: 'button', onClick, disabled: disabled ?? false } : {})}
+      className={`w-full rounded-2xl p-4 text-left ${toneClasses[tone]} transition active:scale-[0.985] disabled:opacity-40`}
     >
-      <p className="text-xs uppercase tracking-wide opacity-90">{label}</p>
-      <p className="text-2xl font-semibold mt-1">{value}</p>
-      {sub && <p className="text-xs opacity-90 mt-1">{sub}</p>}
-    </button>
+      <p className="text-[10px] uppercase tracking-widest opacity-70 font-medium">{label}</p>
+      {loading ? (
+        <Skeleton w="w-20" h="h-7" />
+      ) : (
+        <p className="text-2xl font-bold text-white mt-1 tabular-nums leading-tight">{value}</p>
+      )}
+      {sub && !loading && (
+        <p className="text-[11px] mt-1 opacity-70 leading-snug">{sub}</p>
+      )}
+    </Tag>
   );
 };
 
-const safeCurrency = (code?: string) => {
-  const c = (code || '').toString().trim().toUpperCase();
-  return /^[A-Z]{3}$/.test(c) ? c : 'EUR';
+const Divider: React.FC<{ label: string }> = ({ label }) => (
+  <div className="flex items-center gap-2 mt-1">
+    <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">{label}</span>
+    <div className="flex-1 h-px bg-slate-700/60" />
+  </div>
+);
+
+// ─── Mini bar chart ──────────────────────────────────────────────────────────
+
+const MiniChart: React.FC<{
+  days: Array<{ date: string; orders: number; revenue: number }>;
+  currency: string;
+}> = ({ days, currency }) => {
+  const max = Math.max(1, ...days.map(d => d.orders));
+  const total = days.reduce((s, d) => s + d.orders, 0);
+  return (
+    <div>
+      <div className="flex items-end gap-1 h-14">
+        {days.map((d) => {
+          const h = Math.max(4, Math.round((d.orders / max) * 100));
+          return (
+            <div key={d.date} className="flex-1 flex flex-col items-center justify-end gap-0.5">
+              <div
+                className="w-full bg-sky-500/80 rounded-t"
+                style={{ height: `${h}%` }}
+                title={`${d.date}: ${d.orders} Aufträge · ${fmt(d.revenue, currency)}`}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-slate-600 mt-1 text-right">{total} Aufträge gesamt</p>
+    </div>
+  );
 };
 
-const DASHBOARD_RANGE_PRESETS: Array<{ id: string; label: string }> = [
-  { id: 'last7', label: 'Letzte 7 Tage' },
-  { id: 'month_to_date', label: 'Aktueller Monat' },
-  { id: 'last_month', label: 'Letzter Monat' },
-  { id: 'year_to_date', label: 'Dieses Jahr' },
-  { id: 'last_year', label: 'Letztes Jahr' },
-  { id: 'today', label: 'Heute' },
-];
+// ─── Main component ──────────────────────────────────────────────────────────
 
 const DashboardMobile: React.FC<DashboardMobileProps> = ({
   products,
@@ -74,472 +132,336 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
   rangePreset,
   onRangePresetChange,
 }) => {
-  const { t, locale } = useI18n();
+  const { locale } = useI18n();
+  const intlLocale = locale === 'de' ? 'de-DE' : locale === 'tr' ? 'tr-TR' : 'en-GB';
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [metricsLoading, setMetricsLoading] = useState(false);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
-  const refreshInFlightRef = useRef(false);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [finance, setFinance] = useState<FinanceMetrics | null>(null);
+  const [financeLoading, setFinanceLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const inFlightRef = useRef(false);
   const unmountedRef = useRef(false);
-  const activePresetRef = useRef('last7');
-
-  const dedupeOrders = useCallback((list: Order[]) => {
-    const seen = new Set<string>();
-    const result: Order[] = [];
-    const getOrderCouplingKey = (order: Order) => {
-      const src = (order.orderSource || '-').toString().trim() || '-';
-      const srcId = (order.orderSourceId || '-').toString().trim() || '-';
-      const orderId = (order.baselinkerId || order.id || '').toString().trim();
-      return order.baselinkerOrderKey || `${orderId}::${src}::${srcId}`;
-    };
-    list.forEach((order) => {
-      const key = getOrderCouplingKey(order);
-      if (seen.has(key)) return;
-      seen.add(key);
-      result.push(order);
-    });
-    return result;
-  }, []);
-
-  const intlLocale = locale === 'de' ? 'de-DE' : locale === 'tr' ? 'tr-TR' : 'en-GB';
 
   const [internalPreset, setInternalPreset] = useState('last7');
   const activePreset = useMemo(() => {
     const raw = typeof rangePreset === 'string' ? rangePreset.trim() : '';
-    if (raw && DASHBOARD_RANGE_PRESETS.some((p) => p.id === raw)) return raw;
-    return internalPreset;
+    return raw && PRESETS.some(p => p.id === raw) ? raw : internalPreset;
   }, [rangePreset, internalPreset]);
-  const lastMetricsPresetRef = useRef(activePreset);
 
-  useEffect(() => {
-    activePresetRef.current = activePreset;
-  }, [activePreset]);
+  const setPreset = useCallback((next: string) => {
+    if (onRangePresetChange) onRangePresetChange(next);
+    else setInternalPreset(next);
+  }, [onRangePresetChange]);
 
-  const loadMetrics = useCallback(async (presetOverride?: string) => {
-    setMetricsLoading(true);
+  const loadAll = useCallback(async ({ withSync }: { withSync: boolean }) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     try {
-      const preset =
-        presetOverride != null && String(presetOverride).trim()
-          ? String(presetOverride).trim()
-          : activePresetRef.current;
-      lastMetricsPresetRef.current = preset;
-      const longRange = preset === 'year_to_date' || preset === 'last_year';
-      const data = await fetchDashboardMetrics({ days: 7, preset }, { timeoutMs: longRange ? 60000 : 20000 });
-      setMetrics(data);
-    } catch (error) {
-      console.warn('Failed to load dashboard metrics', error);
-      setMetrics(null);
-    } finally {
-      setMetricsLoading(false);
-    }
-  }, []);
+      const longRange = activePreset === 'year_to_date' || activePreset === 'last_year';
 
-  useEffect(() => {
-    if (!activePreset) return;
-    if (lastMetricsPresetRef.current === activePreset) return;
-    void loadMetrics(activePreset);
-  }, [activePreset, loadMetrics]);
+      // Kick off all loads in parallel
+      const [, ordersData, metricsData, financeData] = await Promise.allSettled([
+        withSync ? syncOrdersApi({ timeoutMs: 20000 }).catch(() => null) : Promise.resolve(null),
+        fetchOrdersApi(100, { timeoutMs: 20000 }),
+        fetchDashboardMetrics({ days: 7, preset: activePreset }, { timeoutMs: longRange ? 60000 : 20000 }),
+        fetchFinanceMetrics(activePreset, { timeoutMs: 35000 }),
+      ]);
 
-  const setPreset = useCallback(
-    (next: string) => {
-      const v = String(next || '').trim();
-      if (!v) return;
-      activePresetRef.current = v;
-      if (onRangePresetChange) {
-        onRangePresetChange(v);
+      if (unmountedRef.current) return;
+
+      if (ordersData.status === 'fulfilled') {
+        const raw = (ordersData.value ?? []) as Order[];
+        // Deduplicate
+        const seen = new Set<string>();
+        setOrders(raw.filter(o => {
+          const k = o.baselinkerOrderKey || `${o.baselinkerId}::${o.orderSource}`;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        }));
+      }
+      if (metricsData.status === 'fulfilled') {
+        setMetrics(metricsData.value);
+        setMetricsLoading(false);
       } else {
-        setInternalPreset(v);
+        setMetricsLoading(false);
       }
-      void loadMetrics(v);
-    },
-    [onRangePresetChange, loadMetrics]
-  );
+      if (financeData.status === 'fulfilled') {
+        setFinance(financeData.value);
+        setFinanceLoading(false);
+      } else {
+        setFinanceLoading(false);
+      }
 
-  const formatCurrency = useCallback(
-    (value: number, currency: string) => {
-      const cur = safeCurrency(currency);
-      try {
-        return new Intl.NumberFormat(intlLocale, { style: 'currency', currency: cur }).format(value);
-      } catch {
-        return `${value.toFixed(2)} ${cur}`;
-      }
-    },
-    [intlLocale]
-  );
-
-  const loadOrders = useCallback(
-    async ({ sync }: { sync: boolean }) => {
-      try {
-        if (sync) {
-        try {
-            await syncOrdersApi({ timeoutMs: 20000 });
-        } catch (err) {
-          console.warn('Order sync failed (dashboard will still fetch)', err);
-          }
-        }
-        const data = await fetchOrdersApi(100, { timeoutMs: 20000 });
-        setOrders(dedupeOrders(data || []));
-      } catch {
-        setOrders([]);
-      }
-    },
-    [dedupeOrders]
-  );
-
-  const refreshAll = useCallback(
-    async ({ syncOrders, refreshProducts }: { syncOrders: boolean; refreshProducts: boolean }) => {
-      if (refreshInFlightRef.current) return;
-      refreshInFlightRef.current = true;
-      try {
-        await Promise.all([
-          refreshProducts && onRefreshProducts ? Promise.resolve(onRefreshProducts()) : Promise.resolve(),
-          loadOrders({ sync: syncOrders }),
-          loadMetrics(),
-        ]);
-        if (!unmountedRef.current) setLastUpdatedAt(new Date());
-      } finally {
-        refreshInFlightRef.current = false;
-      }
-    },
-    [loadMetrics, loadOrders, onRefreshProducts]
-  );
+      setLastUpdated(new Date());
+    } finally {
+      inFlightRef.current = false;
+    }
+  }, [activePreset]);
 
   useEffect(() => {
     unmountedRef.current = false;
-    let cancelled = false;
-    void refreshAll({ syncOrders: true, refreshProducts: false });
-    const interval = setInterval(() => {
-      if (cancelled) return;
-      void refreshAll({ syncOrders: false, refreshProducts: false });
-    }, activePreset === 'year_to_date' || activePreset === 'last_year' ? 5 * 60 * 1000 : 60000);
+    setMetricsLoading(true);
+    setFinanceLoading(true);
+    void loadAll({ withSync: true });
+    const interval = setInterval(
+      () => void loadAll({ withSync: false }),
+      activePreset === 'year_to_date' || activePreset === 'last_year' ? 5 * 60_000 : 60_000
+    );
     return () => {
-      cancelled = true;
       unmountedRef.current = true;
       clearInterval(interval);
     };
-  }, [refreshAll, activePreset]);
+  }, [loadAll, activePreset]);
 
-  const navigateTo = useCallback(
-    (view: string) => {
-      if (onNavigate) {
-        onNavigate(view);
-        return;
+  const nav = useCallback((view: string) => {
+    if (onNavigate) { onNavigate(view); return; }
+    const map: Record<string, string> = {
+      home: '#/home', search: '#/search',
+      'operations-pick': '#/operations/pick',
+      'operations-stow': '#/operations/stow',
+      'operations-identify': '#/operations/identify',
+    };
+    window.location.hash = map[view] || `#/${view}`;
+  }, [onNavigate]);
+
+  // ─── Derived data ─────────────────────────────────────────────────────────
+
+  const openOrders = useMemo(() => orders.filter(o => o.status === 'new'), [orders]);
+
+  const nextPick = useMemo(() => {
+    const norm = (v?: string | null) => (v || '').replace(/\s+/g, '').toUpperCase().replace(/^SKU[-_\s]*/i, '');
+    for (const order of openOrders) {
+      const items = Array.isArray((order as any).items) ? (order as any).items : [];
+      for (const item of items) {
+        if (item.pickCompleted) continue;
+        const qty = Number(item.quantity || 0);
+        if (!qty) continue;
+        const sku = norm(item.sku) || norm(item.ean) || item.id;
+        const hint = item.pickHint as any;
+        const prod = products.find(p => {
+          const vals = [
+            p.identification?.sku, p.details?.identifiers?.sku,
+            p.details?.identifiers?.ean, p.id,
+            ...(p.identification?.barcodes || []),
+          ].filter(Boolean).map(v => norm(String(v)));
+          return vals.includes(sku);
+        });
+        const bins = (prod?.storageBins || []).filter(b => (b.quantity || 0) > 0);
+        const bin = bins.sort((a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code))[0];
+        return {
+          sku,
+          binCode: bin?.code || prod?.storage?.binCode || hint?.binCode || '',
+          name: hint?.productName || prod?.identification?.name || item.name,
+          qty,
+        };
       }
-      // Fallback for older callers
-      const map: Record<string, string> = {
-        home: '#/home',
-        search: '#/search',
-        operations: '#/operations',
-        'operations-identify': '#/operations/identify',
-        'operations-stow': '#/operations/stow',
-        'operations-pick': '#/operations/pick',
-        'operations-pack': '#/operations/pack',
-      };
-      const hash = map[view] || `#/${view}`;
-      window.location.hash = hash;
-    },
-    [onNavigate]
-  );
-
-  const openOrders = useMemo(() => orders.filter((o) => o && o.status === 'new'), [orders]);
-
-  const volume7d = metrics?.volume_7d?.days || [];
-  const activeRangeLabel =
-    metrics?.range?.label ||
-    DASHBOARD_RANGE_PRESETS.find((p) => p.id === activePreset)?.label ||
-    `Letzte ${metrics?.revenue?.window_days || 7} Tage`;
-  const maxVolume = useMemo(() => {
-    const max = volume7d.reduce((m, d) => Math.max(m, Number(d?.orders || 0) || 0), 0);
-    return Math.max(1, max);
-  }, [volume7d]);
-
-  const summary = useMemo(() => {
-    const total = products.length;
-    const inStock = products.filter((p) => getProductAvailableQuantity(p) > 0).length;
-    const qtySum = products.reduce((s, p) => s + getProductAvailableQuantity(p), 0);
-    const priced = products.filter((p) => (p.details?.pricing?.lowest_price?.amount || 0) > 0);
-    const value = priced.reduce(
-      (s, p) => s + getProductAvailableQuantity(p) * (p.details?.pricing?.lowest_price?.amount || 0),
-      0
-    );
-    const pending = products.filter((p) => (p.ops?.sync_status || 'pending') !== 'synced').length;
-    const synced = products.length - pending;
-    const physical = products.reduce((s, p) => s + getProductPhysicalQuantity(p), 0);
-    return { total, inStock, qtySum, value, synced, pending, physical };
-  }, [products]);
+    }
+    return null;
+  }, [openOrders, products]);
 
   const stowBacklog = useMemo(
-    () => products.filter((p) => getProductPhysicalQuantity(p) > 0 && !p.storage?.binCode).length,
+    () => products.filter(p => getProductPhysicalQuantity(p) > 0 && !p.storage?.binCode).length,
     [products]
   );
 
-  const nextPick = useMemo(() => {
-    const tasks: Array<{ binCode: string; sku: string; name: string; remaining: number }> = [];
-    const normalizeScan = (val?: string | null) => (val || '').replace(/\s+/g, '').toUpperCase();
-    const normalizeSkuScan = (val?: string | null) => normalizeScan(val).replace(/^SKU[-_\s]*/i, '');
+  const invValue = useMemo(() => {
+    const priced = products.filter(p => (p.details?.pricing?.lowest_price?.amount || 0) > 0);
+    return priced.reduce(
+      (s, p) => s + getProductAvailableQuantity(p) * (p.details?.pricing?.lowest_price?.amount || 0),
+      0
+    );
+  }, [products]);
 
-    const resolveProductForItem = (item: any) => {
-      if (item?.productId) {
-        const byId = products.find((p) => p.id === item.productId) || null;
-        if (byId) return byId;
-      }
-      const keys = [item?.sku, item?.ean].filter(Boolean).map((v) => normalizeSkuScan(String(v)));
-      if (!keys.length) return null;
-      return (
-        products.find((p) => {
-          const candidateValues = [
-            p.identification?.sku,
-            p.details?.identifiers?.sku,
-            p.details?.identifiers?.ean,
-            p.details?.identifiers?.gtin,
-            p.details?.identifiers?.upc,
-            p.id,
-            ...(p.identification?.barcodes || []),
-          ]
-            .filter(Boolean)
-            .map((val) => normalizeSkuScan(String(val)));
-          return candidateValues.some((candidate) => keys.includes(candidate));
-        }) || null
-      );
-    };
+  const chartDays = metrics?.volume_7d?.days ?? [];
+  const currency = safeCur(metrics?.currency);
+  const revenueWindow = metrics?.revenue?.window_non_cancelled_total ?? 0;
+  const revenueYtd = metrics?.revenue?.all_non_cancelled_total ?? 0;
+  const shippingWindow = finance?.shipping?.total_cost ?? null;
+  const shippingYtd = finance?.shipping_ytd?.total_cost ?? null;
+  const presetLabel = metrics?.range?.label ?? PRESETS.find(p => p.id === activePreset)?.label ?? activePreset;
 
-    const chooseBestBin = (product: Product | null) => {
-      if (!product) return null;
-      const bins = Array.isArray(product.storageBins) ? product.storageBins : [];
-      const positive = bins
-        .filter((b) => b && b.code && Number(b.quantity || 0) > 0)
-        .map((b) => ({ code: String(b.code).toUpperCase(), quantity: Number(b.quantity || 0) || 0 }))
-        .filter((b) => b.quantity > 0);
-      if (positive.length) {
-        positive.sort((a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code));
-        return positive[0];
-      }
-      if (product.storage?.binCode) {
-        return { code: String(product.storage.binCode).toUpperCase(), quantity: Number(product.storage.quantity || 0) || 0 };
-      }
-      return null;
-    };
+  const bd = metrics?.orders?.status_breakdown;
+  const totalOrders = (bd?.neu ?? 0) + (bd?.kommissioniert ?? 0) + ((bd as any)?.verpackt ?? 0)
+    + (bd?.versendet ?? 0) + (bd?.zugestellt ?? 0);
 
-    openOrders.forEach((order) => {
-      const items = Array.isArray((order as any)?.items) ? (order as any).items : [];
-      items.forEach((it: any) => {
-        if (it.pickCompleted) return;
-        const remaining = Number(it.quantity || 0) || 0;
-        if (!remaining) return;
-        const hint = it.pickHint as any;
-        const product = resolveProductForItem(it);
-        const skuCandidate =
-          normalizeScan(it.sku) ||
-          normalizeScan(hint?.sku) ||
-          normalizeScan(it.ean) ||
-          normalizeScan(product?.details?.identifiers?.sku) ||
-          normalizeScan(product?.identification?.sku) ||
-          normalizeScan(product?.details?.identifiers?.ean) ||
-          normalizeScan(product?.details?.identifiers?.gtin) ||
-          normalizeScan(product?.id) ||
-          it.id;
-        const bestBin = chooseBestBin(product) || (hint?.binCode ? { code: String(hint.binCode).toUpperCase(), quantity: 0 } : null);
-        tasks.push({
-          binCode: bestBin?.code || '',
-          sku: skuCandidate,
-          name: hint?.productName || product?.identification?.name || it.name,
-          remaining,
-        });
-      });
-    });
-    tasks.sort((a, b) => compareBinCodesForPickRoute(a.binCode, b.binCode));
-    return tasks[0] || null;
-  }, [openOrders, products]);
-
-  const isEmpty = products.length === 0;
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4 max-w-xl mx-auto">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-white">{t('mobile.dashboard.title')}</h1>
-          <p className="text-xs text-slate-500">
-            {lastUpdatedAt ? t('mobile.dashboard.lastUpdated', { value: lastUpdatedAt.toLocaleString(intlLocale) }) : '—'}
-          </p>
+    <div className="space-y-3 max-w-xl mx-auto pb-6">
+
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <div>
+          <h1 className="text-xl font-bold text-white">Dashboard</h1>
+          {lastUpdated && (
+            <p className="text-[10px] text-slate-600">
+              {lastUpdated.toLocaleString(intlLocale, { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
         </div>
+        {/* Compact preset selector */}
+        <select
+          value={activePreset}
+          onChange={e => setPreset(e.target.value)}
+          className="text-xs rounded-lg bg-slate-800 border border-white/10 px-2 py-1.5 text-slate-200 outline-none"
+        >
+          {PRESETS.map(p => (
+            <option key={p.id} value={p.id} className="bg-slate-900">{p.label}</option>
+          ))}
+        </select>
       </div>
 
-      {isEmpty && (
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-4 text-sm text-slate-300">
-          {isLoading ? t('status.loading.products') : t('mobile.dashboard.empty')}
+      {products.length === 0 && (
+        <div className="rounded-2xl border border-white/8 bg-slate-800/60 p-4 text-sm text-slate-400">
+          {isLoading ? 'Lade Produkte…' : 'Keine Produkte geladen.'}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <ActionCard
+      {/* ── Operative Aktionen ── */}
+      <Divider label="Aktionen" />
+      <div className="grid grid-cols-2 gap-2.5">
+        <Tile
           tone="warn"
-          label={t('ops.mode.pick')}
-          value={`${openOrders.length}`}
+          label="Offene Aufträge"
+          value={openOrders.length}
           sub={
             openOrders.length === 0
-              ? t('ops.orders.none')
+              ? 'Alles erledigt'
               : nextPick
-                ? `${t('ops.labels.nextPick')}: ${nextPick.binCode || '—'} · ${nextPick.sku} · ${t('ops.labels.openRemaining', {
-                    count: nextPick.remaining,
-                  })}`
-                : t('ops.orders.open')
+                ? `Nächster: ${nextPick.binCode || '—'} · ${nextPick.sku}`
+                : `${openOrders.length} zu picken`
           }
-          onClick={() => navigateTo('operations-pick')}
+          onClick={() => nav('operations-pick')}
         />
-        <ActionCard
+        <Tile
           tone="success"
-          label={t('ops.mode.stow')}
-          value={`${stowBacklog}`}
-          sub={t('table.binFilter.withoutBin')}
-          onClick={() => navigateTo('operations-stow')}
+          label="Einlagern"
+          value={stowBacklog}
+          sub="Ohne Lagerplatz"
+          onClick={() => nav('operations-stow')}
+        />
+        <Tile
+          label="Suche"
+          value="→ Suchen"
+          sub="Produkt oder EAN"
+          onClick={() => nav('search')}
+        />
+        <Tile
+          tone="sky"
+          label="Identifizieren"
+          value="→ Scan"
+          sub="Barcode / Foto"
+          onClick={() => nav('operations-identify')}
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => navigateTo('search')}
-          className="w-full rounded-2xl bg-slate-800 border border-white/5 p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99]"
-        >
-          <p className="text-xs uppercase tracking-wide text-slate-400">{t('nav.search')}</p>
-          <p className="text-2xl font-semibold text-white mt-1">{t('mobile.dashboard.action.search')}</p>
-          <p className="text-xs text-slate-400 mt-1">{t('mobile.dashboard.action.searchSub')}</p>
-        </button>
-        <button
-          type="button"
-          onClick={() => navigateTo('operations-identify')}
-          className="w-full rounded-2xl bg-sky-600 text-white p-4 text-left shadow-lg shadow-black/30 transition active:scale-[0.99]"
-        >
-          <p className="text-xs uppercase tracking-wide opacity-90">{t('ops.mode.identify')}</p>
-          <p className="text-2xl font-semibold mt-1">{t('mobile.dashboard.action.identify')}</p>
-        </button>
+      {/* ── Zeitraum ── */}
+      <Divider label={presetLabel} />
+      <div className="grid grid-cols-2 gap-2.5">
+        <Tile
+          label="Umsatz (Brutto)"
+          value={metricsLoading ? '…' : fmt(revenueWindow, currency)}
+          sub="inkl. MwSt"
+          loading={metricsLoading}
+        />
+        <Tile
+          label="Aufträge"
+          value={metricsLoading ? '…' : totalOrders}
+          sub="nicht storniert"
+          loading={metricsLoading}
+        />
+        <Tile
+          label="Versandkosten"
+          value={financeLoading && shippingWindow === null ? '…' : shippingWindow !== null ? fmt(shippingWindow, 'EUR') : '—'}
+          sub={`${finance?.shipping?.parcel_count ?? '—'} Sendungen`}
+          loading={financeLoading && shippingWindow === null}
+          tone="default"
+        />
+        <Tile
+          label="Nach Versand"
+          value={
+            shippingWindow !== null && !metricsLoading
+              ? fmt(revenueWindow - shippingWindow, currency)
+              : '—'
+          }
+          sub="Brutto − Versand"
+          loading={(metricsLoading || (financeLoading && shippingWindow === null))}
+        />
       </div>
 
-      {!isEmpty && (
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard
-            label="Inventar (mit Bestand)"
-            value={`${summary.inStock}`}
-            sub={`${summary.total} Produkte gesamt`}
-          />
-          <StatCard
-            label={t('mobile.dashboard.kpi.units')}
-            value={`${summary.qtySum}`}
-            sub={t('mobile.dashboard.kpi.unitsSub')}
-          />
-          <StatCard
-            label={t('mobile.dashboard.kpi.value')}
-            value={formatCurrency(summary.value, 'EUR')}
-            sub={t('mobile.dashboard.kpi.valueSub', { count: summary.synced })}
-          />
+      {/* Mini chart */}
+      {chartDays.length > 0 && (
+        <div className="rounded-2xl bg-slate-800/60 border border-white/5 p-3">
+          <MiniChart days={chartDays as any} currency={currency} />
         </div>
       )}
 
-      <details className="rounded-2xl bg-slate-900/40 border border-white/5 p-4">
-        <summary className="cursor-pointer select-none text-xs uppercase tracking-wide text-slate-400">
-          {t('mobile.dashboard.section.ordersRevenue')}
-        </summary>
-        <div className="mt-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] text-slate-500">
-              {metrics?.generated_at_iso
-                ? new Date(metrics.generated_at_iso).toLocaleString(intlLocale)
-                : metricsLoading
-                  ? t('common.loading')
-                  : '—'}
-            </p>
-            <select
-              value={activePreset}
-              onChange={(e) => setPreset(e.target.value)}
-              className="text-[11px] rounded-lg bg-slate-800/90 border border-white/10 px-2 py-1 text-slate-200"
-              aria-label="Dashboard Zeitraum"
-            >
-              {DASHBOARD_RANGE_PRESETS.map((p) => (
-                <option key={p.id} value={p.id} className="bg-slate-900">
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* ── Finanzen ── */}
+      <Divider label="Finanzen & YTD" />
+      <div className="grid grid-cols-2 gap-2.5">
+        <Tile
+          label="Umsatz YTD"
+          value={metricsLoading ? '…' : fmt(revenueYtd, currency)}
+          sub="Seit 1. Januar"
+          loading={metricsLoading}
+        />
+        <Tile
+          label="Versandkosten YTD"
+          value={shippingYtd !== null ? fmt(shippingYtd, 'EUR') : '—'}
+          loading={financeLoading && shippingYtd === null}
+        />
+        {finance?.accounts?.map(acc => (
+          <Tile
+            key={acc.id}
+            tone="violet"
+            label={acc.name}
+            value={fmt(acc.balance, acc.currency)}
+            sub="Kontostand"
+            loading={financeLoading}
+          />
+        ))}
+        {!financeLoading && (!finance?.accounts || finance.accounts.length === 0) && (
+          <Tile
+            tone="violet"
+            label="Kontostände"
+            value="—"
+            sub={finance?.errors?.length ? 'SevDesk nicht verfügbar' : 'Keine Konten'}
+          />
+        )}
+      </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard
-              label={t('mobile.dashboard.metrics.revenueTotal')}
-              value={
-                metrics ? formatCurrency(metrics.revenue.all_non_cancelled_total || 0, metrics.currency || 'EUR') : '—'
-              }
-              sub={
-                metrics
-                  ? `${activeRangeLabel}: ${formatCurrency(metrics.revenue.window_non_cancelled_total || 0, metrics.currency || 'EUR')}`
-                  : undefined
-              }
-            />
-            <StatCard
-              label={t('mobile.dashboard.metrics.ordersCompleted')}
-              value={metrics ? `${metrics.orders.completed_total}` : '—'}
-              sub={metrics ? `${t('mobile.dashboard.metrics.month')}: ${metrics.orders.completed_month}` : undefined}
-            />
-            <StatCard
-              label={t('mobile.dashboard.metrics.returns')}
-              value={metrics ? `${metrics.orders.returns_total}` : '—'}
-              sub={metrics ? `${t('mobile.dashboard.metrics.month')}: ${metrics.orders.returns_month}` : undefined}
-            />
-            <StatCard
-              label={t('mobile.dashboard.metrics.openCurrent')}
-              value={metrics ? `${metrics.orders.open_current}` : '—'}
-              sub={t('mobile.dashboard.metrics.openCurrentSub')}
-            />
-          </div>
+      {/* ── Bestand ── */}
+      <Divider label="Bestand" />
+      <div className="grid grid-cols-2 gap-2.5">
+        <Tile
+          label="Im Bestand"
+          value={products.filter(p => getProductPhysicalQuantity(p) > 0).length}
+          sub={`von ${products.length} Produkten`}
+        />
+        <Tile
+          label="Einheiten"
+          value={products.reduce((s, p) => s + getProductAvailableQuantity(p), 0)}
+          sub="Verfügbar"
+        />
+        <Tile
+          label="Bestandswert"
+          value={fmt(invValue, 'EUR')}
+          sub="Verkaufspreis · Verfügbar"
+        />
+        <Tile
+          label="Sync"
+          value={`${products.filter(p => p.ops?.sync_status === 'synced').length} / ${products.length}`}
+          sub={
+            products.filter(p => p.ops?.sync_status === 'failed').length > 0
+              ? `${products.filter(p => p.ops?.sync_status === 'failed').length} fehlerhaft`
+              : 'Synchronisiert'
+          }
+        />
+      </div>
 
-          <div className="rounded bg-slate-800/70 border border-white/5 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs uppercase tracking-wide text-slate-400">{t('mobile.dashboard.chart.title')}</p>
-              <p className="text-[11px] text-slate-500">
-                {volume7d.length
-                  ? t('mobile.dashboard.chart.ordersCount', {
-                      count: volume7d.reduce((s, d) => s + (Number(d.orders || 0) || 0), 0),
-                    })
-                  : '—'}
-              </p>
-            </div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] text-slate-500">{activeRangeLabel}</p>
-            </div>
-            <div>
-              <div
-                className="grid gap-2 items-end h-20"
-                style={{
-                  gridTemplateColumns: `repeat(${Math.max(1, volume7d.length)}, minmax(0, 1fr))`,
-                }}
-              >
-                {volume7d.length ? (
-                  volume7d.map((d) => {
-                    const count = Number(d.orders || 0) || 0;
-                    const revenue = Number(d.revenue || 0) || 0;
-                    const barPx = Math.max(6, Math.round((count / maxVolume) * 56));
-                    return (
-                      <div key={d.date} className="h-full flex flex-col items-center justify-end gap-1">
-                        <div
-                          title={t('mobile.dashboard.chart.barTitle', {
-                            date: d.date,
-                            orders: count,
-                            revenue: formatCurrency(revenue, metrics?.currency || 'EUR'),
-                          })}
-                          className="w-full rounded-[2px] bg-sky-500/70"
-                          style={{ height: `${barPx}px`, borderRadius: '2px' }}
-                        />
-                        <div className="text-[11px] text-slate-300 font-semibold tabular-nums">{count}</div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-sm text-slate-400">{t('mobile.dashboard.chart.noData')}</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </details>
     </div>
   );
 };

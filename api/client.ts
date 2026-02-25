@@ -18,6 +18,7 @@ import {
   EbayCategoryAspectCatalog,
   BaseLinkerCategoryOption,
   DashboardMetrics,
+  FinanceMetrics,
   EbayListingRow,
   EbayListingDetail,
   EbayGapDoc,
@@ -2363,6 +2364,21 @@ export const fetchDashboardMetrics = async (
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Dashboard-Metriken konnten nicht geladen werden.');
+  }
+  return result?.data;
+};
+
+export const fetchFinanceMetrics = async (
+  preset: string = 'last7',
+  options?: { timeoutMs?: number }
+): Promise<FinanceMetrics> => {
+  const url = new URL(`${BACKEND_URL}/api/dashboard/finance`);
+  url.searchParams.set('preset', String(preset).trim() || 'last7');
+
+  const response = await fetchWithTimeout(url.toString(), undefined, options?.timeoutMs || 35000);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Finanzdaten konnten nicht geladen werden.');
   }
   return result?.data;
 };
