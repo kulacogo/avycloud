@@ -110,6 +110,42 @@ const VARIANT_SPECS = [
   { group: 'studio', key: 'detail', type: 'studio_detail' },
 ];
 
+function normalizeImageKey(value = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  // Keep it simple; we only need dedupe across identical URLs.
+  return raw.replace(/\s+/g, '').toLowerCase();
+}
+
+function collectReferenceCandidates(product, primaryReference) {
+  const out = [];
+  const seen = new Set();
+
+  const push = (img) => {
+    const url = img?.url_or_base64;
+    if (!url || typeof url !== 'string') return;
+    const key = normalizeImageKey(url);
+    if (!key || seen.has(key)) return;
+    if (isLikelyAiImage(img)) return;
+    seen.add(key);
+    out.push(img);
+  };
+
+  // 1) User-selected/explicit reference first (if it's a real image)
+  if (primaryReference && typeof primaryReference === 'object') {
+    push(primaryReference);
+  }
+
+  // 2) Fill up from existing real product images (different perspectives come from real photos)
+  const images = Array.isArray(product?.details?.images) ? product.details.images : [];
+  for (const img of images) {
+    push(img);
+    if (out.length >= 4) break;
+  }
+
+  return out;
+}
+
 function shouldIncludeVariant(mode, spec) {
   if (!mode || mode === 'all') return true;
   if (mode === 'studio') return spec.group === 'studio';
@@ -126,21 +162,36 @@ async function generateImagesForProduct(product, options = {}) {
     }
 
   const { referenceImage } = options;
-  if (!referenceImage?.url_or_base64) {
-    throw new Error('Reference image is required');
+  const referenceCandidates = collectReferenceCandidates(product, referenceImage).slice(0, 4);
+  if (!referenceCandidates.length) {
+    throw new Error('At least one real reference image is required');
   }
 
   // 1) Prompts
   const prompts = await generateVisualDescriptions(product);
 
-  // 2) Reference → data URL (PNG/JPEG, size-checked)
-  const referenceDataUrl = await fetchImageAsDataUrl(referenceImage);
+  // 2) References → data URLs (PNG/JPEG, size-checked)
+  const referenceDataUrls = [];
+  for (const img of referenceCandidates) {
+    try {
+      const dataUrl = await fetchImageAsDataUrl(img);
+      if (dataUrl) referenceDataUrls.push(dataUrl);
+    } catch (e) {
+      // best-effort: skip broken URLs
+    }
+  }
+  if (!referenceDataUrls.length) {
+    throw new Error('Reference images could not be downloaded');
+  }
 
   // 3) Generate variants
   const variants = VARIANT_SPECS;
   const generated = [];
 
-  for (const spec of variants) {
+  for (let i = 0; i < variants.length; i += 1) {
+    const spec = variants[i];
+    const referenceDataUrl = referenceDataUrls[i] || referenceDataUrls[0];
+    if (!referenceDataUrl) continue;
     const prompt =
       prompts?.[spec.group]?.[spec.key] ||
       prompts?.[spec.group]?.front ||

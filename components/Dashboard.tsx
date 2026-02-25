@@ -398,15 +398,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const loadingRef = useRef(false);
 
   const [internalPreset, setInternalPreset] = useState('month_to_date');
+  const isMonthPreset = (v: string) => /^month_\d{4}_\d{2}$/.test(v);
   const activePreset = useMemo(() => {
     const raw = typeof rangePreset === 'string' ? rangePreset.trim() : '';
-    return raw && PRESETS.some(p => p.id === raw) ? raw : internalPreset;
+    return raw && (PRESETS.some(p => p.id === raw) || isMonthPreset(raw)) ? raw : internalPreset;
   }, [rangePreset, internalPreset]);
 
   const setPreset = useCallback((next: string) => {
     if (onRangePresetChange) onRangePresetChange(next);
     else setInternalPreset(next);
   }, [onRangePresetChange]);
+
+  // Generate month options from Nov 2025 to current month (newest first)
+  const monthOptions = useMemo(() => {
+    const opts: { id: string; label: string }[] = [];
+    const now = new Date();
+    const start = new Date(Date.UTC(2025, 10, 1)); // Nov 2025
+    let d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    while (d >= start) {
+      const y = d.getUTCFullYear();
+      const m = d.getUTCMonth();
+      const id = `month_${y}_${String(m + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString('de-DE', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+      opts.push({ id, label });
+      d = new Date(Date.UTC(y, m - 1, 1));
+    }
+    return opts;
+  }, []);
 
   const loadAll = useCallback(async () => {
     if (loadingRef.current) return;
@@ -506,10 +524,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const shippingYtd = finance?.shipping_ytd?.total_cost ?? null;
   const revAfterShipping = shippingWindow !== null ? ord.revenueWindow - shippingWindow : null;
 
-  // Total balance (Gesamtsaldo)
+  // Total balance (Gesamtsaldo) — combined Sichteinlagen + BusinessCard
   const totalBalance = finance?.total_balance ?? null;
-  const sichteinlagen = finance?.accounts.find(a => a.name.toLowerCase().includes('sichteinlagen'));
-  const bizCard = finance?.accounts.find(a => a.name.toLowerCase().includes('businesscard') || a.name.toLowerCase().includes('business card'));
 
   // Total order count
   const totalOrders = ord.neu + ord.kommissioniert + ord.verpackt + ord.versendet + ord.zugestellt;
@@ -526,42 +542,65 @@ export const Dashboard: React.FC<DashboardProps> = ({
     <div className="space-y-7 pb-10">
 
       {/* ══ Header ══════════════════════════════════════════════════════ */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Operations Dashboard</h1>
-          <p className="text-xs text-slate-600 mt-0.5">
-            {nowStr ? `Stand: ${nowStr}` : 'Wird geladen…'}
-            <span className="mx-1.5 text-slate-700">·</span>
-            <span className="text-slate-600">Aufträge via BaseLinker</span>
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-1">
-          {PRESETS.map(p => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setPreset(p.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activePreset === p.id
-                  ? 'bg-sky-600 text-white shadow-sm shadow-sky-900/50'
-                  : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={loadAll}
-            title="Aktualisieren"
-            className="ml-1 p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-          </button>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Operations Dashboard</h1>
+            <p className="text-xs text-slate-600 mt-0.5">
+              {nowStr ? `Stand: ${nowStr}` : 'Wird geladen…'}
+              <span className="mx-1.5 text-slate-700">·</span>
+              <span className="text-slate-600">Aufträge via BaseLinker</span>
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5 items-start sm:items-end">
+            {/* Quick presets */}
+            <div className="flex flex-wrap items-center gap-1">
+              {PRESETS.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPreset(p.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    activePreset === p.id
+                      ? 'bg-sky-600 text-white shadow-sm shadow-sky-900/50'
+                      : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={loadAll}
+                title="Aktualisieren"
+                className="ml-1 p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                </svg>
+              </button>
+            </div>
+            {/* Month picker */}
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-[10px] uppercase tracking-widest text-slate-600 mr-0.5">Monat</span>
+              {monthOptions.map(m => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setPreset(m.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                    activePreset === m.id
+                      ? 'bg-violet-600 text-white shadow-sm shadow-violet-900/50'
+                      : 'text-slate-600 hover:text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -575,34 +614,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <Section title="Auf einen Blick">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Gesamtsaldo */}
-          <div className={`rounded-2xl border p-5 flex flex-col gap-2 ${colorBg.violet} ${colorBorder.violet}`}>
+          <div className={`rounded-2xl border p-5 flex flex-col gap-1 ${colorBg.violet} ${colorBorder.violet}`}>
             <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">Gesamtsaldo</p>
             {financeLoading ? <Skel w="w-32" h="h-10" /> : (
-              <p className="text-4xl font-bold text-violet-400 tabular-nums leading-none">
+              <p className={`text-4xl font-bold tabular-nums leading-none ${totalBalance !== null && totalBalance < 0 ? 'text-rose-400' : 'text-violet-400'}`}>
                 {totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '—'}
               </p>
             )}
-            <div className="flex gap-3 mt-1">
-              {financeLoading ? <Skel w="w-40" h="h-3" /> : (
-                <>
-                  {sichteinlagen && (
-                    <span className="text-xs text-slate-500">
-                      Sichteinl. <span className="text-slate-300">{fmtCur(sichteinlagen.balance, 'EUR')}</span>
-                    </span>
-                  )}
-                  {bizCard && (
-                    <span className="text-xs text-slate-500">
-                      BCard <span className={bizCard.balance < 0 ? 'text-rose-400' : 'text-slate-300'}>
-                        {fmtCur(bizCard.balance, 'EUR')}
-                      </span>
-                    </span>
-                  )}
-                  {!financeLoading && !sichteinlagen && !bizCard && finance?.errors?.length ? (
-                    <span className="text-xs text-amber-500">SevDesk nicht erreichbar</span>
-                  ) : null}
-                </>
-              )}
-            </div>
+            {financeLoading ? <Skel w="w-24" h="h-3" className="mt-1" /> : (
+              <p className="text-xs text-slate-500 mt-0.5">
+                {finance?.accounts?.length
+                  ? `${finance.accounts.length} Konto${finance.accounts.length > 1 ? 'en' : ''} · SevDesk`
+                  : finance?.errors?.length ? 'SevDesk nicht erreichbar' : 'SevDesk'}
+              </p>
+            )}
           </div>
 
           {/* Umsatz period */}
@@ -718,7 +743,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* ══ JAHRESÜBERBLICK ══════════════════════════════════════════════ */}
       <Section title="Jahresüberblick">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           <Card
             label="Umsatz Dieses Jahr"
             value={fmtCur(ord.revenueYtd, ord.currency, true)}
@@ -729,22 +754,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Card
             label="Versandkosten Dieses Jahr"
             value={shippingYtd !== null ? fmtCur(shippingYtd, 'EUR', true) : '—'}
-            sub={`${fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen · DHL/DPD`}
+            sub={finance?.shipping_ytd?.parcel_count
+              ? `${fmtNum(finance.shipping_ytd.parcel_count)} Sendungen`
+              : finance?.shipping_ytd?.order_count
+                ? `${fmtNum((finance.shipping_ytd as any).order_count)} Aufträge (Schätzung)`
+                : 'DHL/DPD'}
             color="amber"
             loading={financeLoading && shippingYtd === null}
           />
           <Card
-            label="Sichteinlagen"
-            value={sichteinlagen ? fmtCur(sichteinlagen.balance, 'EUR') : '—'}
-            sub="Kontostand"
-            color={sichteinlagen && sichteinlagen.balance >= 0 ? 'violet' : 'red'}
-            loading={financeLoading}
-          />
-          <Card
-            label="Business Card"
-            value={bizCard ? fmtCur(bizCard.balance, 'EUR') : '—'}
-            sub={bizCard && bizCard.balance < 0 ? 'Saldo negativ' : 'Kontostand'}
-            color={bizCard && bizCard.balance < 0 ? 'red' : 'violet'}
+            label="Kontostand"
+            value={totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '—'}
+            sub="Sichteinlagen + BusinessCard · SevDesk"
+            color={totalBalance !== null && totalBalance < 0 ? 'red' : 'violet'}
             loading={financeLoading}
           />
         </div>

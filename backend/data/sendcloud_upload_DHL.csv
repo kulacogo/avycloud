@@ -1,0 +1,49 @@
+method_id,friendly_name,from_country,to_country,min_weight,max_weight,price
+89,DHL Paket,DE,DE,0.010,1.001,4.35
+89,DHL Paket,DE,DE,1.001,3.001,4.90
+89,DHL Paket,DE,DE,3.001,5.001,5.95
+89,DHL Paket,DE,DE,5.001,10.001,8.00
+89,DHL Paket,DE,DE,10.001,20.001,12.90
+89,DHL Paket,DE,DE,20.001,31.501,15.65
+341,DHL Paket 0-2kg,DE,DE,0.010,1.001,4.35
+341,DHL Paket 0-2kg,DE,DE,1.001,2.001,4.90
+342,DHL Paket 2-5kg,DE,DE,2.001,3.001,4.90
+342,DHL Paket 2-5kg,DE,DE,3.001,5.001,5.95
+343,DHL Paket 5-10kg,DE,DE,5.001,10.001,8.00
+26849,DHL Paket 10-20kg,DE,DE,10.001,20.001,12.90
+26850,DHL Paket 20-31.5kg,DE,DE,20.001,31.501,15.65
+2830,DHL Kleinpaket 0-1kg,DE,DE,0.010,1.001,3.19
+2831,DHL Kleinpaket GoGreen 0-1kg,DE,DE,0.010,1.001,3.29
+2899,DHL Retoure Online,DE,DE,0.010,31.501,6.19
+26773,DHL Retoure Online + GoGreen,DE,DE,0.010,31.501,6.34
+8402,DHL Paket GoGreen 0-2kg,DE,DE,0.010,1.001,4.50
+8402,DHL Paket GoGreen 0-2kg,DE,DE,1.001,2.001,5.05
+8403,DHL Paket GoGreen 2-5kg,DE,DE,2.001,3.001,5.05
+8403,DHL Paket GoGreen 2-5kg,DE,DE,3.001,5.001,6.10
+8404,DHL Paket GoGreen 5-10kg,DE,DE,5.001,10.001,8.15
+26837,DHL Paket GoGreen 10-20kg,DE,DE,10.001,20.001,13.05
+26838,DHL Paket GoGreen 20-31.5kg,DE,DE,20.001,31.501,15.80
+3486,DHL Paket + Filial Routing,DE,DE,0.010,1.001,6.34
+3486,DHL Paket + Filial Routing,DE,DE,1.001,3.001,6.89
+3486,DHL Paket + Filial Routing,DE,DE,3.001,5.001,7.94
+3486,DHL Paket + Filial Routing,DE,DE,5.001,10.001,9.99
+3486,DHL Paket + Filial Routing,DE,DE,10.001,20.001,14.89
+3486,DHL Paket + Filial Routing,DE,DE,20.001,31.501,17.64
+3745,DHL Paket + Persönliche Übergabe,DE,DE,0.010,1.001,6.04
+3745,DHL Paket + Persönliche Übergabe,DE,DE,1.001,3.001,6.59
+3745,DHL Paket + Persönliche Übergabe,DE,DE,3.001,5.001,7.64
+3745,DHL Paket + Persönliche Übergabe,DE,DE,5.001,10.001,9.69
+3745,DHL Paket + Persönliche Übergabe,DE,DE,10.001,20.001,14.59
+3745,DHL Paket + Persönliche Übergabe,DE,DE,20.001,31.501,17.34
+91,DHL Paket + Keine Nachbarschaftszustellung,DE,DE,0.010,1.001,5.34
+91,DHL Paket + Keine Nachbarschaftszustellung,DE,DE,1.001,3.001,5.89
+91,DHL Paket + Keine Nachbarschaftszustellung,DE,DE,3.001,5.001,6.94
+91,DHL Paket + Keine Nachbarschaftszustellung,DE,DE,5.001,10.001,8.99
+91,DHL Paket + Keine Nachbarschaftszustellung,DE,DE,10.001,20.001,13.89
+91,DHL Paket + Keine Nachbarschaftszustellung,DE,DE,20.001,31.501,16.64
+8853,DHL Paket + Empfängerunterschrift,DE,DE,0.010,1.001,4.54
+8853,DHL Paket + Empfängerunterschrift,DE,DE,1.001,3.001,5.09
+8853,DHL Paket + Empfängerunterschrift,DE,DE,3.001,5.001,6.14
+8853,DHL Paket + Empfängerunterschrift,DE,DE,5.001,10.001,8.19
+8853,DHL Paket + Empfängerunterschrift,DE,DE,10.001,20.001,13.09
+8853,DHL Paket + Empfängerunterschrift,DE,DE,20.001,31.501,15.84

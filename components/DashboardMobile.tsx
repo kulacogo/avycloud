@@ -154,10 +154,28 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
   const unmountedRef = useRef(false);
 
   const [internalPreset, setInternalPreset] = useState('month_to_date');
+  const isMonthPreset = (v: string) => /^month_\d{4}_\d{2}$/.test(v);
   const activePreset = useMemo(() => {
     const raw = typeof rangePreset === 'string' ? rangePreset.trim() : '';
-    return raw && PRESETS.some(p => p.id === raw) ? raw : internalPreset;
+    return raw && (PRESETS.some(p => p.id === raw) || isMonthPreset(raw)) ? raw : internalPreset;
   }, [rangePreset, internalPreset]);
+
+  // Generate month options from Nov 2025 to current month (newest first)
+  const monthOptions = useMemo(() => {
+    const opts: { id: string; label: string }[] = [];
+    const now = new Date();
+    const start = new Date(Date.UTC(2025, 10, 1)); // Nov 2025
+    let d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    while (d >= start) {
+      const y = d.getUTCFullYear();
+      const m = d.getUTCMonth();
+      const id = `month_${y}_${String(m + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString('de-DE', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+      opts.push({ id, label });
+      d = new Date(Date.UTC(y, m - 1, 1));
+    }
+    return opts;
+  }, []);
 
   const setPreset = useCallback((next: string) => {
     if (onRangePresetChange) onRangePresetChange(next);
@@ -264,10 +282,6 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
   const shippingWindow = finance?.shipping?.total_cost ?? null;
   const shippingYtd = finance?.shipping_ytd?.total_cost ?? null;
   const totalBalance = finance?.total_balance ?? null;
-  const sichteinlagen = finance?.accounts.find(a => a.name.toLowerCase().includes('sichteinlagen'));
-  const bizCard = finance?.accounts.find(a =>
-    a.name.toLowerCase().includes('businesscard') || a.name.toLowerCase().includes('business card')
-  );
   const bd = metrics?.orders?.status_breakdown;
   const totalOrders = (bd?.neu ?? 0) + (bd?.kommissioniert ?? 0) + ((bd as any)?.verpackt ?? 0)
     + (bd?.versendet ?? 0) + (bd?.zugestellt ?? 0);
@@ -296,6 +310,11 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
           {PRESETS.map(p => (
             <option key={p.id} value={p.id} className="bg-slate-900">{p.label}</option>
           ))}
+          <optgroup label="── Monat ──" className="bg-slate-900">
+            {monthOptions.map(m => (
+              <option key={m.id} value={m.id} className="bg-slate-900">{m.label}</option>
+            ))}
+          </optgroup>
         </select>
       </div>
 
@@ -346,27 +365,17 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
       <div className="rounded-2xl border border-violet-500/20 bg-violet-800/30 p-4">
         <p className="text-[10px] uppercase tracking-widest text-violet-400/70 font-bold">Gesamtsaldo</p>
         {financeLoading ? <Skel w="w-32" h="h-8" /> : (
-          <p className="text-3xl font-bold text-violet-300 tabular-nums mt-1">
+          <p className={`text-3xl font-bold tabular-nums mt-1 ${totalBalance !== null && totalBalance < 0 ? 'text-rose-300' : 'text-violet-300'}`}>
             {totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '—'}
           </p>
         )}
-        <div className="flex gap-4 mt-2">
-          {sichteinlagen && (
-            <span className="text-xs text-violet-400/70">
-              Sichteinl. <span className="text-white font-semibold">{fmtCur(sichteinlagen.balance, 'EUR')}</span>
-            </span>
-          )}
-          {bizCard && (
-            <span className="text-xs text-violet-400/70">
-              BCard <span className={`font-semibold ${bizCard.balance < 0 ? 'text-rose-300' : 'text-white'}`}>
-                {fmtCur(bizCard.balance, 'EUR')}
-              </span>
-            </span>
-          )}
-          {!financeLoading && !sichteinlagen && !bizCard && (
-            <span className="text-xs text-amber-500">SevDesk nicht verfügbar</span>
-          )}
-        </div>
+        {financeLoading ? <Skel w="w-24" h="h-3" className="mt-2" /> : (
+          <p className="text-xs text-violet-400/70 mt-1">
+            {finance?.accounts?.length
+              ? `${finance.accounts.length} Konto${finance.accounts.length > 1 ? 'en' : ''} · SevDesk`
+              : finance?.errors?.length ? 'SevDesk nicht verfügbar' : 'SevDesk'}
+          </p>
+        )}
       </div>
 
       {/* ── Zeitraum ──────────────────────────────────── */}

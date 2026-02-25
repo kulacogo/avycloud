@@ -13,6 +13,7 @@ const {
   listOrders,
   getOrderSummary,
   getDashboardMetrics,
+  computeOrdersDeliveryTotal,
   findProductIdsByAliases,
   findProductByStrictIdentifier,
   adjustPendingIntakeQuantity,
@@ -6715,6 +6716,14 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
     rangeTo = new Date(Date.UTC(now.getUTCFullYear() - 1, 11, 31, 23, 59, 59));
   }
 
+  const monthPresetMatch = /^month_(\d{4})_(\d{2})$/.exec(preset);
+  if (monthPresetMatch) {
+    const year = parseInt(monthPresetMatch[1], 10);
+    const month = parseInt(monthPresetMatch[2], 10) - 1; // 0-indexed
+    rangeFrom = new Date(Date.UTC(year, month, 1));
+    rangeTo = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59)); // last day of month
+  }
+
   const fromDateStr = toDateStr(rangeFrom);
   const toDateStr2 = toDateStr(rangeTo);
   const ytdFromStr = `${now.getUTCFullYear()}-01-01`;
@@ -6741,22 +6750,53 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
 
   let shipping = null;
   if (shippingResult.status === 'fulfilled') {
-    shipping = {
-      ...(shippingResult.value || {}),
-      from_date: fromDateStr,
-      to_date: toDateStr2,
-    };
+    const sc = shippingResult.value || {};
+    // If SendCloud returned no useful data (0 parcels or 0 cost), fall back to order delivery prices
+    if (!sc.parcel_count && !sc.total_cost) {
+      try {
+        const ordersFallback = await computeOrdersDeliveryTotal(fromDateStr, toDateStr2);
+        shipping = {
+          ...ordersFallback,
+          from_date: fromDateStr,
+          to_date: toDateStr2,
+          source: 'orders',
+        };
+      } catch (fbErr) {
+        shipping = { ...sc, from_date: fromDateStr, to_date: toDateStr2 };
+        errors.push(`Versandkosten-Fallback: ${fbErr?.message || 'Fehler'}`);
+      }
+    } else {
+      shipping = { ...sc, from_date: fromDateStr, to_date: toDateStr2 };
+    }
   } else {
     errors.push(`SendCloud: ${shippingResult.reason?.message || 'Fehler beim Abrufen der Versandkosten'}`);
+    // Primary source failed — fall back to order delivery prices immediately
+    try {
+      const ordersFallback = await computeOrdersDeliveryTotal(fromDateStr, toDateStr2);
+      shipping = {
+        ...ordersFallback,
+        from_date: fromDateStr,
+        to_date: toDateStr2,
+        source: 'orders',
+      };
+    } catch (fbErr) {
+      errors.push(`Versandkosten-Fallback: ${fbErr?.message || 'Fehler'}`);
+    }
   }
 
   let shippingYtd = null;
   if (shippingYtdResult.status === 'fulfilled' && shippingYtdResult.value !== null) {
-    shippingYtd = {
-      ...(shippingYtdResult.value || {}),
-      from_date: ytdFromStr,
-      to_date: ytdToStr,
-    };
+    const scYtd = shippingYtdResult.value || {};
+    if (!scYtd.parcel_count && !scYtd.total_cost) {
+      try {
+        const ordersFallback = await computeOrdersDeliveryTotal(ytdFromStr, ytdToStr);
+        shippingYtd = { ...ordersFallback, from_date: ytdFromStr, to_date: ytdToStr, source: 'orders' };
+      } catch {
+        shippingYtd = { ...scYtd, from_date: ytdFromStr, to_date: ytdToStr };
+      }
+    } else {
+      shippingYtd = { ...scYtd, from_date: ytdFromStr, to_date: ytdToStr };
+    }
   } else if (shippingResult.status === 'fulfilled' && (preset === 'year_to_date' || preset === 'last_year')) {
     // When preset IS year/last_year, the main shipping fetch already covers YTD
     shippingYtd = shipping;

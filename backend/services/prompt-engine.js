@@ -44,14 +44,20 @@ function pickStudioBackground(colorDescriptor) {
 function buildDefaultPromptSet(identity, studioBackground) {
   const subject = identity ? `the exact product (${identity})` : 'the exact product';
   const baseRules =
-    'Photorealistic studio product photo, single product only. Use the provided reference image as strict visual ground truth: do not change shape, proportions, materials, color, labels, or attachments. No props, no packaging unless visible in the reference, no environment, no people, no hands. No text, no watermarks, no icons, no stickers, no overlays.';
-  const studioFront = `A photo of ${subject} on ${studioBackground}. Centered straight-on front view. Soft, even studio lighting. ${baseRules}`;
+    [
+      'IMAGE EDITING TASK (do not invent): Use the provided reference image as strict visual ground truth.',
+      'Keep the exact product identity and perspective. Do NOT change shape, proportions, materials, color, labels, logos, screws, cables, attachments, or included parts.',
+      `Allowed edits ONLY: replace background with ${studioBackground}, neutralize lighting to soft even studio light, and do minimal cleanup (dust/noise).`,
+      'Forbidden: adding/removing parts, changing viewpoint/perspective, adding props/packaging (unless already visible), adding environment/lifestyle, people/hands, text/watermarks/icons/stickers/overlays.',
+      'If unsure, preserve the reference image details exactly.',
+    ].join(' ');
+  const studioFront = `Edit the provided reference image into a photorealistic studio packshot of ${subject} on ${studioBackground}. Centered, clean edges, soft even studio lighting. ${baseRules}`;
   return {
     studio: {
       front: studioFront,
-      angle: `A photo of ${subject} on ${studioBackground}. 45-degree three-quarter angle view. Soft, even studio lighting. ${baseRules}`,
-      topdown: `A photo of ${subject} from a perfectly vertical top-down camera angle on ${studioBackground}. Centered. Soft, even studio lighting. ${baseRules}`,
-      detail: `A photo of ${subject} on ${studioBackground}. Close-up detail shot of a key functional area. Tight crop, razor sharp detail. Soft, even studio lighting. ${baseRules}`,
+      angle: `Edit the provided reference image into a photorealistic studio packshot of ${subject} on ${studioBackground}. Keep the original camera perspective (do not invent angles). Soft even studio lighting. ${baseRules}`,
+      topdown: `Edit the provided reference image into a photorealistic studio packshot of ${subject} on ${studioBackground}. Keep the original camera perspective (do not invent angles). Soft even studio lighting. ${baseRules}`,
+      detail: `Edit the provided reference image into a photorealistic studio packshot detail shot of ${subject} on ${studioBackground}. Tight crop on a key functional area that is visible in the reference image. Do not invent hidden details. Soft even studio lighting. ${baseRules}`,
     },
   };
 }

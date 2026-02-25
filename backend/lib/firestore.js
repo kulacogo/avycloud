@@ -3112,6 +3112,7 @@ async function getDashboardMetrics({ days = 7, preset = null } = {}) {
     if (v === 'last_month' || v === 'previous_month') return 'last_month';
     if (v === 'year' || v === 'this_year' || v === 'current_year' || v === 'ytd' || v === 'year_to_date') return 'year_to_date';
     if (v === 'last_year' || v === 'previous_year') return 'last_year';
+    if (/^month_\d{4}_\d{2}$/.test(v)) return v; // e.g. month_2025_11
     return null;
   };
 
@@ -3147,6 +3148,13 @@ async function getDashboardMetrics({ days = 7, preset = null } = {}) {
     rangeStart = utcYearStart(now.getUTCFullYear() - 1);
     rangeEndExclusive = utcYearStart(now.getUTCFullYear());
     rangeLabel = 'Letztes Jahr';
+  } else if (canonicalPreset && /^month_\d{4}_\d{2}$/.test(canonicalPreset)) {
+    const parts = canonicalPreset.split('_');
+    const year = parseInt(parts[1], 10);
+    const month = parseInt(parts[2], 10) - 1; // 0-indexed
+    rangeStart = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+    rangeEndExclusive = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0));
+    rangeLabel = new Date(Date.UTC(year, month, 1)).toLocaleString('de-DE', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   } else {
     rangeEndExclusive = now;
     rangeStart = utcDayStart(now);
@@ -3623,6 +3631,52 @@ async function logInventorySyncEvent({ productId, inventoryId, status, message }
   });
 }
 
+/**
+ * Sum `delivery_price` from BaseLinker orders stored in Firestore for the given date range.
+ * Uses `raw.delivery_price` (price included in order for shipping) as a shipping cost estimate.
+ * Excludes cancelled/returned orders.
+ *
+ * @param {string} fromDate - 'YYYY-MM-DD'
+ * @param {string} toDate   - 'YYYY-MM-DD'
+ * @returns {Promise<{total_cost: number, order_count: number, currency: string}>}
+ */
+async function computeOrdersDeliveryTotal(fromDate, toDate) {
+  const from = new Date(fromDate + 'T00:00:00Z');
+  const to = new Date(toDate + 'T23:59:59Z');
+
+  const snapshot = await firestore.collection(ORDERS_COLLECTION).get();
+
+  const normLabel = (s) => String(s || '').toLowerCase();
+  const isCancelled = (order) => {
+    const label = normLabel(order?.statusLabel || order?.status || '');
+    return label.includes('storniert') || label.includes('cancel');
+  };
+
+  let totalDelivery = 0;
+  let orderCount = 0;
+
+  for (const doc of snapshot.docs) {
+    const order = doc.data();
+    const createdAt = order.createdAt ? new Date(order.createdAt) : null;
+    if (!createdAt || createdAt < from || createdAt > to) continue;
+    if (isCancelled(order)) continue;
+
+    const rawPrice = order.raw?.delivery_price ?? order.raw?.shipping_price ?? null;
+    const price = rawPrice != null
+      ? parseFloat(String(rawPrice).replace(',', '.')) || 0
+      : 0;
+
+    totalDelivery += price;
+    orderCount++;
+  }
+
+  return {
+    total_cost: Math.round(totalDelivery * 100) / 100,
+    order_count: orderCount,
+    currency: 'EUR',
+  };
+}
+
 module.exports = {
   saveProduct,
   getProduct,
@@ -3652,5 +3706,6 @@ module.exports = {
   setProductInventory,
   assignInventoryToProducts,
   logInventorySyncEvent,
+  computeOrdersDeliveryTotal,
   firestore,
 };

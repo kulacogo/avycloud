@@ -1719,10 +1719,11 @@ function coerceTitleToPolicy(
     maxLen = DEFAULT_TITLE_MAX_LEN,
     softMaxLen = DEFAULT_TITLE_SOFT_MAX_LEN,
     extraHintTokens = [],
+    forcePolicy = false,
   } = {}
 ) {
   // Web-only mode: do NOT apply schema rules. Keep only minimal sanitization + hard max length.
-  if (isTitlePolicyDisabled()) {
+  if (!forcePolicy && isTitlePolicyDisabled()) {
     let t = stripEmojis(proposedTitle || '');
     t = stripMarkdownDecorations(t);
     t = stripSkuNoise(t);

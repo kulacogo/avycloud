@@ -4069,6 +4069,37 @@ async function bulkUpdateListedProducts({ itemIds = null, applyAll = false, acto
     return { summary: { total: 0, success: 0, failed: 0, skipped: 0 }, results: [], dryRun: null };
   }
 
+  // Ensure listing→product links exist before auditing gaps.
+  // Otherwise, gap computation cannot derive Avy-side desired values (title/pictures/description),
+  // and "update" appears to do nothing even though the listing is live (SKU-index match).
+  try {
+    const linkDocs = await firestore.getAll(
+      ...resolvedItemIds.map((id) => firestore.collection(EBAY_LINKS_COLLECTION).doc(String(id)))
+    );
+    const needsLinking = [];
+    linkDocs.forEach((doc) => {
+      if (!doc?.exists) {
+        needsLinking.push(String(doc.id));
+        return;
+      }
+      const data = doc.data() || {};
+      const status = safeLower(data?.status);
+      const productId = safeString(data?.productId);
+      if (status !== 'matched' || !productId) {
+        needsLinking.push(String(doc.id));
+      }
+    });
+    if (needsLinking.length) {
+      await buildProductListingLinks({
+        itemIds: needsLinking,
+        runId: `update-links-${Date.now()}`,
+        actor,
+      });
+    }
+  } catch (e) {
+    // best-effort; do not block update
+  }
+
   // Gaps neu berechnen damit applySync aktuelle Diffs vorfindet
   const runId = `update-${Date.now()}`;
   await auditListingGaps({ itemIds: resolvedItemIds, runId, actor });

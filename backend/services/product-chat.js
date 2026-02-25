@@ -1660,6 +1660,12 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
   }
 
   // Now coerce title using a draft product with merged patches (so brand/model/category/attributes are considered).
+  const scopeKey = safeString(scope).toLowerCase();
+  const shouldForceTitleCoercion = allow.title && (scopeKey === 'title' || scopeKey === 'datasheet');
+  if (!rawTitleCandidate && shouldForceTitleCoercion) {
+    rawTitleCandidate = safeString(product?.identification?.name || '');
+  }
+
   if (rawTitleCandidate) {
     const baseAttrs = toAttributesObject(product?.details?.attributes);
     const patchAttrs = result.attributes && typeof result.attributes === 'object' ? result.attributes : {};
@@ -1677,7 +1683,7 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
     };
     // Title policy is handled in `coerceTitleToPolicy` and is rule-free by default in this setup.
     // In strict mode we keep historical bucket-based min/soft limits; in no-rules mode we only enforce maxLen.
-    let minLen = 0;
+    let minLen = 70;
     let maxLen = 80;
     let softMaxLen = 80;
     if (strict) {
@@ -1697,6 +1703,9 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
       maxLen,
       softMaxLen,
       extraHintTokens,
+      // Chat must always produce an eBay-friendly title, even when TITLE_POLICY_DISABLED is set
+      // for other pipelines. This avoids persistently short titles from chat suggestions.
+      forcePolicy: true,
     });
     identityPatch.name = coerced;
     // Keep an explicit title field so the frontend can display/apply it directly.

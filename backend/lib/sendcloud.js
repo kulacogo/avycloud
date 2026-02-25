@@ -18,10 +18,21 @@ function loadPriceTable() {
   if (_priceTable) return _priceTable;
   _priceTable = [];
 
-  const files = [
+  // Deduplicated candidate paths: try backend/data/ first (Docker), then repo root (local dev).
+  const candidates = [
+    path.join(__dirname, '..', 'data', 'sendcloud_upload_DHL.csv'),
+    path.join(__dirname, '..', 'data', 'sendcloud_upload_DPD.csv'),
     path.join(__dirname, '..', '..', 'sendcloud_upload_DHL.csv'),
     path.join(__dirname, '..', '..', 'sendcloud_upload_DPD.csv'),
   ];
+  // De-duplicate by resolved path so we don't double-count if both resolve the same file.
+  const seen = new Set();
+  const files = candidates.filter(f => {
+    const resolved = path.resolve(f);
+    if (seen.has(resolved)) return false;
+    seen.add(resolved);
+    return true;
+  });
 
   for (const file of files) {
     try {
