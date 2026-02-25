@@ -112,8 +112,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onClose,
     <aside className="sidebar">
       {/* Header */}
       <div className="sidebar-header">
-        <div className="sidebar-logo">A</div>
-        <span className="sidebar-brand">AvyCloud</span>
+        <img src="/avy_logo.png" alt="avycloud" className="h-8 w-auto object-contain" draggable={false} />
       </div>
 
       {/* Navigation Sections */}

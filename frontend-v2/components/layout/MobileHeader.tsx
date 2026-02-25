@@ -42,12 +42,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = React.memo(
 
         {/* Brand */}
         <div className="flex items-center gap-2.5 flex-1">
-          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-[#635BFF] to-[#0070F3] flex items-center justify-center">
-            <span className="text-white text-2xs font-bold leading-none">A</span>
-          </div>
-          <span className="text-white font-semibold text-[15px] tracking-tight">
-            AvyCloud
-          </span>
+          <img src="/avy_logo.png" alt="avycloud" className="h-7 w-auto object-contain" draggable={false} />
         </div>
 
         {/* Theme toggle */}

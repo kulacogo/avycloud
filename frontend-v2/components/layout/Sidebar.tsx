@@ -134,13 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 h-14 flex-shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#635BFF] to-[#0070F3] flex items-center justify-center">
-            <span className="text-white text-sm font-bold leading-none">A</span>
-          </div>
-          <span className="text-white font-semibold text-[15px] tracking-tight">
-            AvyCloud
-          </span>
-          <span className="ml-auto text-2xs text-white/30 font-medium">v2</span>
+          <img src="/avy_logo.png" alt="avycloud" className="h-8 w-auto object-contain" draggable={false} />
         </div>
 
         {/* Navigation */}
