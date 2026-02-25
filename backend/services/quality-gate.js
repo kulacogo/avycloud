@@ -21,6 +21,7 @@ const { resolveModel } = require('../lib/model-select');
 const { getGeminiClient } = require('../lib/gemini-client');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { evaluateEbayReady } = require('../lib/datasheet-quality');
+const { buildEbayReadyIssuesDetailed } = require('../lib/ebay-ready-issues');
 const { isValidGtin, normalizeDigits } = require('../lib/gtin');
 const { searchWeb, fetchPageText } = require('../lib/web-search-html');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
@@ -246,52 +247,14 @@ function buildRuleIssues(product, { webEvidence } = {}) {
   const categoryLower = normalizeLower(product?.identification?.category);
   const descLower = normalizeLower(details?.short_description || details?.description);
 
-  const map = (code) => {
-    const base = { code, source: 'rule', confidence: 0.95 };
-    if (typeof code === 'string' && code.startsWith('missing_required_aspects:')) {
-      return {
-        ...base,
-        severity: 'error',
-        fields: ['details.attributes'],
-        message: `Pflicht-Item-Specifics fehlen/leer: ${code.replace(/^missing_required_aspects:\s*/i, '')}`,
-      };
-    }
-    switch (code) {
-      case 'title_missing':
-      case 'title_too_short':
-      case 'title_too_long':
-      case 'title_starts_with_symbol':
-      case 'title_starts_with_marketing':
-      case 'priority_a_not_in_first_60':
-      case 'priority_a_missing_in_title':
-      case 'priority_a_source_missing':
-      case 'order_priority_a':
-      case 'brand_missing':
-      case 'product_type_missing':
-      case 'model_or_mpn_missing':
-      case 'order_brand_after_producttype':
-      case 'order_producttype_after_model':
-      case 'order_brand_after_model':
-      case 'order_model_after_producttype':
-      case 'duplicate_word':
-        return { ...base, severity: 'error', fields: ['identification.name'], message: 'Titel verstößt gegen die Titel-Regeln (≤80 Zeichen, Mobile-first/Priorität A vorne).' };
-      case 'description_missing':
-      case 'description_too_short':
-        return { ...base, severity: 'error', fields: ['details.short_description'], message: 'Beschreibung fehlt/zu kurz (mind. 3 Absätze à 2 Sätze).' };
-      case 'highlights_too_few':
-        return { ...base, severity: 'warn', fields: ['details.key_features'], message: 'Zu wenige Highlights (5–7 erforderlich).' };
-      case 'category_not_breadcrumb':
-        return { ...base, severity: 'warn', fields: ['identification.category'], message: 'Kategorie ist kein Breadcrumb (muss ">").' };
-      case 'images_missing':
-        return { ...base, severity: 'error', fields: ['details.images'], message: 'Bilder fehlen.' };
-      case 'attributes_too_few':
-        return { ...base, severity: 'warn', fields: ['details.attributes'], message: 'Zu wenige Attribute (min. 5 empfohlen).' };
-      default:
-        return { ...base, severity: 'warn', fields: [], message: code };
-    }
-  };
-
-  (q.issues || []).forEach((code) => issues.push(map(code)));
+  const baseIssues =
+    Array.isArray(q?.issuesDetailed) && q.issuesDetailed.length
+      ? q.issuesDetailed
+      : buildEbayReadyIssuesDetailed(q?.issues || []);
+  baseIssues.forEach((i) => {
+    if (!i || typeof i !== 'object') return;
+    issues.push(i);
+  });
 
   // Additional deterministic checks
   const bar = pickPrimaryBarcode(product);

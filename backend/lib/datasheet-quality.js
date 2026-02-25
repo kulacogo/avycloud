@@ -67,6 +67,7 @@ function getPriceStatus(product) {
  */
 function evaluateEbayReady(product, options = {}) {
   const force = Boolean(options && typeof options === 'object' && options.force === true);
+  const ignorePrice = Boolean(options && typeof options === 'object' && options.ignorePrice === true);
   const enabled = (process.env.QUALITY_GATE_ENABLED || '').toString().trim().toLowerCase();
   const gateEnabled = enabled === '1' || enabled === 'true' || enabled === 'yes';
   if (!gateEnabled && !force) {
@@ -88,7 +89,7 @@ function evaluateEbayReady(product, options = {}) {
         attrs: attrsCount,
         category: normalizeSpaces(category).slice(0, 120),
         required_aspects_missing: 0,
-        price_ok: Boolean(price.ok),
+        price_ok: ignorePrice ? true : Boolean(price.ok),
       },
     };
   }
@@ -139,9 +140,11 @@ function evaluateEbayReady(product, options = {}) {
   }
 
   // Price must be present (>=1) and have evidence URLs (AvyCloud invariant).
-  if (!price.ok) {
-    if (price.amount != null && price.amount >= 1 && !price.hasEvidence) issues.push('price_evidence_missing');
-    else issues.push('price_missing');
+  if (!ignorePrice) {
+    if (!price.ok) {
+      if (price.amount != null && price.amount >= 1 && !price.hasEvidence) issues.push('price_evidence_missing');
+      else issues.push('price_missing');
+    }
   }
 
   // Required eBay item specifics (Pflichtmerkmale) must not be empty.
@@ -195,7 +198,7 @@ function evaluateEbayReady(product, options = {}) {
       attrs: attrsCount,
       category: normalizeSpaces(category).slice(0, 120),
       required_aspects_missing: missingRequiredCount,
-      price_ok: Boolean(price.ok),
+      price_ok: ignorePrice ? true : Boolean(price.ok),
       issue_counts: severity,
     },
     missingRequiredAspects,

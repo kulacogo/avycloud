@@ -254,6 +254,76 @@ async function fetchBrowseTitles({
   };
 }
 
+async function fetchBrowsePriceSamples({
+  categoryId,
+  marketplaceId = DEFAULT_MARKETPLACE_ID,
+  query = '',
+  gtin = '',
+  limit = 80,
+  env = DEFAULT_ENV,
+} = {}) {
+  const token = await getAppToken({ env });
+  const cappedLimit = Math.max(20, Math.min(200, Number(limit) || 80));
+  const q = safeString(query).slice(0, 100);
+  const g = safeString(gtin).replace(/[^\d]/g, '').slice(0, 14);
+  const cat = safeString(categoryId);
+
+  const params = new URLSearchParams();
+  if (cat) params.set('category_ids', cat);
+  params.set('limit', String(cappedLimit));
+  params.set('offset', '0');
+  if (g) {
+    params.set('gtin', g);
+  } else if (q) {
+    params.set('q', q);
+  }
+
+  const url = `${getIdentityBase(env)}/buy/browse/v1/item_summary/search?${params.toString()}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+      'X-EBAY-C-MARKETPLACE-ID': marketplaceId,
+      'Accept-Language': 'de-DE',
+    },
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`Browse search failed (${response.status}): ${text.slice(0, 300)}`);
+  }
+
+  const payload = JSON.parse(text);
+  const itemSummaries = Array.isArray(payload?.itemSummaries) ? payload.itemSummaries : [];
+  const samples = itemSummaries
+    .map((item) => {
+      const url = safeString(item?.itemWebUrl);
+      const valueRaw = item?.price?.value;
+      const currency = safeString(item?.price?.currency).toUpperCase();
+      const value =
+        typeof valueRaw === 'number' && Number.isFinite(valueRaw)
+          ? valueRaw
+          : typeof valueRaw === 'string'
+            ? Number(String(valueRaw).trim())
+            : NaN;
+      return {
+        itemId: safeString(item?.itemId),
+        title: safeString(item?.title),
+        url,
+        value: Number.isFinite(value) ? value : null,
+        currency: currency || null,
+      };
+    })
+    .filter((x) => x && x.url && typeof x.value === 'number' && Number.isFinite(x.value));
+
+  return {
+    href: safeString(payload?.href),
+    total: Number(payload?.total || itemSummaries.length || 0),
+    samples: samples.slice(0, cappedLimit),
+  };
+}
+
 async function fetchCategoryTitleInsights({
   categoryId,
   query = '',
@@ -345,5 +415,6 @@ async function fetchCategoryTitleInsights({
 
 module.exports = {
   fetchCategoryTitleInsights,
+  fetchBrowsePriceSamples,
   tokenizeTitle,
 };

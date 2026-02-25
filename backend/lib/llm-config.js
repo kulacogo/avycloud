@@ -120,6 +120,9 @@ async function ensureDefaultLlmScopeVersions() {
         'Ehrlichkeit: Behaupte niemals, du hättest Daten gefunden, wenn keine Tool-Calls/Belege vorhanden sind.',
         'Wenn du suchst: nutze mehrere Quellen (mindestens Google + eBay + Amazon; optional Shopping/weitere).',
         'Jede neue Faktenbehauptung (EAN/MPN/GPSR etc.) muss aus Evidence stammen; sonst als "unbelegt" markieren oder leer lassen.',
+        'eBay-Ready (DE): Titel ≤ 80 Zeichen, keine artikelfremden Keywords; gültige eBay Kategorie + kategorieabhängige Pflicht-Artikelmerkmale (required aspects) müssen befüllt und nicht leer sein.',
+        'Preis: nur setzen, wenn amount ≥ 1 EUR UND Evidence-URLs vorhanden sind (z.B. eBay itemWebUrl). Ohne Evidence: Preis leer lassen und Warning setzen.',
+        'Beschreibung: keine Kontaktinfos/URLs zum Wegleiten, kein aktiver Inhalt (Skripte/Formulare).',
       ].join('\n'),
     },
   };

@@ -14,7 +14,7 @@ const { enqueueQualityJob } = require('./quality-runner');
 const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
 const { buildRequiredAspectMeta, getRequiredAspectCatalogStats } = require('../lib/ebay-taxonomy');
 const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
-const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
+const { fetchCategoryTitleInsights, fetchBrowsePriceSamples } = require('../lib/ebay-browse-title-insights');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
@@ -38,6 +38,127 @@ const TITLE_INSIGHTS_TOKEN_RE = /^[0-9a-zA-ZäöüÄÖÜß+\-_/().]{2,24}$/;
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
+}
+
+function hasValidPriceEvidence(lowestPrice) {
+  const amountRaw = lowestPrice?.amount;
+  const amount =
+    typeof amountRaw === 'number' && Number.isFinite(amountRaw)
+      ? amountRaw
+      : typeof amountRaw === 'string'
+        ? Number(String(amountRaw).trim())
+        : NaN;
+  const sources = Array.isArray(lowestPrice?.sources) ? lowestPrice.sources : [];
+  const hasEvidence = sources.some((s) => s && typeof s.url === 'string' && s.url.trim());
+  return Number.isFinite(amount) && amount >= 1 && hasEvidence;
+}
+
+function medianNumber(values = []) {
+  const nums = (values || []).filter((n) => typeof n === 'number' && Number.isFinite(n)).sort((a, b) => a - b);
+  if (!nums.length) return null;
+  const mid = Math.floor(nums.length / 2);
+  return nums.length % 2 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+}
+
+function normalizeDigitsOnly(value) {
+  return String(value == null ? '' : value).replace(/[^\d]/g, '');
+}
+
+function pickBestGtinForBrowse(product) {
+  const ids = product?.details?.identifiers || {};
+  const candidates = []
+    .concat(Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : [])
+    .concat([ids?.ean, ids?.gtin, ids?.upc, product?.identification?.ean, product?.identification?.gtin])
+    .filter(Boolean)
+    .map((x) => normalizeDigitsOnly(x))
+    .filter((x) => x && /^\d+$/.test(x) && [8, 12, 13, 14].includes(x.length));
+  return candidates[0] || '';
+}
+
+function pickProductTypeForBrowseQuery(product) {
+  const attrs =
+    product?.details?.attributes && typeof product.details.attributes === 'object'
+      ? product.details.attributes
+      : {};
+  return safeString(attrs?.Produktart) || safeString(attrs?.Produkttyp) || safeString(attrs?.Artikeltyp) || '';
+}
+
+function buildBrowseQueryForProduct(product) {
+  const brand = safeString(product?.identification?.brand);
+  const title = safeString(product?.identification?.name);
+  const mpn =
+    safeString(product?.details?.identifiers?.mpn) ||
+    safeString(product?.details?.attributes?.Herstellernummer) ||
+    safeString(product?.details?.attributes?.MPN) ||
+    safeString(product?.details?.attributes?.mpn);
+  const type = pickProductTypeForBrowseQuery(product);
+  const parts = [];
+  if (brand) parts.push(brand);
+  if (type) parts.push(type);
+  if (mpn) parts.push(mpn);
+  const q = safeString(parts.join(' ')) || title || brand || mpn || '';
+  return safeString(q).slice(0, 100);
+}
+
+async function enrichPriceViaEbayBrowseBestEffort(product, { force = false, reason = 'improve' } = {}) {
+  if (!product) return { ok: false, updated: false, error: 'product_missing' };
+  product.details = product.details || {};
+  product.details.pricing = product.details.pricing || {};
+
+  const existing = product.details?.pricing?.lowest_price;
+  if (!force && hasValidPriceEvidence(existing)) {
+    return { ok: true, updated: false, data: { lowest_price: existing, price_confidence: product.details?.pricing?.price_confidence || 0.8 } };
+  }
+
+  const gtin = pickBestGtinForBrowse(product);
+  const query = gtin ? '' : buildBrowseQueryForProduct(product);
+  const categoryId = safeString(product?.details?.categoryId || '').replace(/\D+/g, '');
+  if (!gtin && !query) return { ok: false, updated: false, error: 'no_query' };
+
+  const res = await fetchBrowsePriceSamples({
+    categoryId: categoryId || undefined,
+    gtin: gtin || undefined,
+    query: query || undefined,
+    limit: 60,
+  });
+  const samples = Array.isArray(res?.samples) ? res.samples : [];
+  const eur = samples
+    .filter((s) => (s?.currency ? String(s.currency).toUpperCase() === 'EUR' : true))
+    .filter((s) => typeof s?.value === 'number' && Number.isFinite(s.value) && s.value >= 1)
+    .filter((s) => safeString(s?.url).startsWith('http'));
+  if (eur.length < 3) return { ok: false, updated: false, error: 'too_few_samples' };
+
+  const median = medianNumber(eur.map((s) => s.value));
+  if (median == null) return { ok: false, updated: false, error: 'no_median' };
+
+  const timestamp = new Date().toISOString();
+  const sorted = eur.slice().sort((a, b) => Math.abs(a.value - median) - Math.abs(b.value - median) || a.value - b.value);
+  const sources = sorted.slice(0, 6).map((s) => ({ name: 'ebay.de', url: s.url, price: s.value, checked_at: timestamp }));
+
+  const data = {
+    lowest_price: {
+      amount: median,
+      currency: 'EUR',
+      sources,
+      last_checked_iso: timestamp,
+    },
+    price_confidence: 0.7,
+  };
+
+  product.details.pricing.lowest_price = data.lowest_price;
+  product.details.pricing.price_confidence = data.price_confidence;
+  product.ops = product.ops || {};
+  product.ops.data_quality = product.ops.data_quality || {};
+  product.ops.data_quality.price_enrich_v1 = {
+    at_iso: timestamp,
+    via: 'ebay_browse',
+    reason,
+    query: gtin ? gtin : query,
+    categoryId: categoryId || null,
+    sources: (sources || []).map((s) => s?.url).filter(Boolean).slice(0, 6),
+  };
+
+  return { ok: true, updated: true, data };
 }
 
 function normalizeTitleInsightToken(raw) {
@@ -917,7 +1038,8 @@ async function improveExistingProduct(productId, onProgress) {
   // Retry once if still not eBay-ready (incl. missing required aspects).
   try {
     const { evaluateEbayReady } = require('../lib/datasheet-quality');
-    const eval1 = evaluateEbayReady(mergedProduct, { force: true });
+    // The post-review retry is meant to fix text/spec issues. Pricing is enriched separately.
+    const eval1 = evaluateEbayReady(mergedProduct, { force: true, ignorePrice: true });
     if (!eval1.ok && eval1.issues && eval1.issues.length) {
       await runDatasheetReview([mergedProduct], {
         locale: product.locale || 'de-DE',
@@ -967,6 +1089,21 @@ async function improveExistingProduct(productId, onProgress) {
     mergedProduct.identification.name,
     { minLen: 70, maxLen: 80, softMaxLen: 80, extraHintTokens }
   );
+
+  // Price enrichment (best-effort): prefer eBay Browse API evidence (no SerpAPI required).
+  try {
+    await enrichPriceViaEbayBrowseBestEffort(mergedProduct, { force: false, reason: 'improve' });
+  } catch (e) {
+    // best-effort only; never fail Improve due to price enrichment.
+    try {
+      mergedProduct.notes = mergedProduct.notes || {};
+      mergedProduct.notes.warnings = Array.from(
+        new Set([...(mergedProduct.notes.warnings || []), `Preis (eBay Browse) konnte nicht ermittelt werden: ${e?.message || String(e)}`])
+      );
+    } catch {
+      // ignore
+    }
+  }
 
   // Deterministic sanitization: never persist price/placeholder/template text,
   // even if the review step fails or the model violates instructions.
@@ -1028,6 +1165,23 @@ async function improveExistingProduct(productId, onProgress) {
     });
   } catch (e) {
     console.warn('[improve] BaseLinker category assignment failed (continuing):', e?.message || e);
+  }
+
+  // Persist Improve readiness snapshot (draft-friendly; downstream can block on errors).
+  try {
+    const { evaluateEbayReady } = require('../lib/datasheet-quality');
+    const qFinal = evaluateEbayReady(mergedProduct, { force: true });
+    mergedProduct.ops = mergedProduct.ops || {};
+    mergedProduct.ops.data_quality = mergedProduct.ops.data_quality || {};
+    mergedProduct.ops.data_quality.improve_quality_v1 = {
+      checked_at_iso: new Date().toISOString(),
+      ok: Boolean(qFinal.ok),
+      issues: Array.isArray(qFinal.issues) ? qFinal.issues.slice(0, 40) : [],
+      issues_detailed: Array.isArray(qFinal.issuesDetailed) ? qFinal.issuesDetailed.slice(0, 60) : [],
+      snapshot: qFinal.snapshot || null,
+    };
+  } catch (e) {
+    // best-effort
   }
 
   await saveProduct(mergedProduct, { source: 'job-improve', overwriteTextFields: true });

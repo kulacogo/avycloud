@@ -115,6 +115,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
 
       (async () => {
         try {
+          let readinessSuffix = '';
           updateJob(localId, {
             phase: 'processing',
             message: 'Vision/Gemini analysiert das Produkt …',
@@ -126,6 +127,22 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
           const identifyResult = await identifyProductV2(group.images, barcodes, 'de-DE', inventoryId || undefined);
           if (!identifyResult.ok || !identifyResult.data) {
             throw new Error(identifyResult.error?.message || 'Identify (v2) fehlgeschlagen.');
+          }
+
+          try {
+            const meta = identifyResult.meta || {};
+            const ebayReady = meta?.ebayReady;
+            const detailed = Array.isArray(meta?.ebayReadyIssuesDetailed) ? meta.ebayReadyIssuesDetailed : [];
+            const errCount = detailed.filter((i: any) => i?.severity === 'error').length;
+            const warnCount = detailed.filter((i: any) => i?.severity === 'warn').length;
+            const infoCount = detailed.filter((i: any) => i?.severity === 'info').length;
+            if (ebayReady === true) {
+              readinessSuffix = ' (eBay: OK)';
+            } else if (ebayReady === false) {
+              readinessSuffix = ` (eBay: E${errCount}${warnCount ? ` W${warnCount}` : ''}${infoCount ? ` I${infoCount}` : ''})`;
+            }
+          } catch {
+            readinessSuffix = '';
           }
 
           const finalProduct: Product = identifyResult.data;
@@ -175,7 +192,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
           }
           updateJob(localId, {
             phase: 'complete',
-            message: PHASE_MESSAGES.complete,
+            message: `${PHASE_MESSAGES.complete}${readinessSuffix}`,
             finishedAt: new Date().toISOString(),
           });
         } catch (err: any) {

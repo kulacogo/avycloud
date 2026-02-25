@@ -345,9 +345,16 @@ function buildRequiredAspectMeta(categoryId, attributes = null) {
   // so downstream LLM prompts can still enforce category governance consistently.
   const hasAspectData = categoryKnown || mapHasAspectData;
   const attributeMap = toAttributeMap(attributes);
+  const isNonEmptyValue = (v) => {
+    if (v === null || v === undefined) return false;
+    if (Array.isArray(v)) return v.some((x) => x != null && String(x).trim() !== '');
+    const s = typeof v === 'string' ? v.trim() : String(v).trim();
+    return Boolean(s);
+  };
   const providedKeys = new Set(
-    Object.keys(attributeMap || {})
-      .map((k) => normalizeAspectKey(k))
+    Object.entries(attributeMap || {})
+      .filter(([k, v]) => normalizeAspectKey(k) && isNonEmptyValue(v))
+      .map(([k]) => normalizeAspectKey(k))
       .filter(Boolean)
   );
   const missing = required.filter((aspect) => !providedKeys.has(normalizeAspectKey(aspect)));

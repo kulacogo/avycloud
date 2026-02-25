@@ -908,6 +908,63 @@ function toAttributesObject(attributes = []) {
   return {};
 }
 
+function applyDatasheetChangeToProductPreview(product, change) {
+  if (!product || typeof product !== 'object') return;
+  const c = change && typeof change === 'object' ? change : {};
+  const identity = c.identity && typeof c.identity === 'object' ? c.identity : {};
+
+  product.identification = product.identification || {};
+  product.details = product.details || {};
+  product.details.identifiers = product.details.identifiers || {};
+
+  const nextTitle = safeString(c.title || identity.name || identity.title);
+  if (nextTitle) {
+    product.identification.name = nextTitle;
+  }
+
+  const nextBrand = safeString(identity.brand);
+  if (nextBrand) {
+    product.identification.brand = nextBrand;
+  }
+
+  const nextCategory = safeString(identity.category);
+  if (nextCategory) {
+    product.identification.category = nextCategory;
+  }
+
+  const barcodeCandidates = []
+    .concat(Array.isArray(identity.barcodes) ? identity.barcodes : [])
+    .concat([identity.ean, identity.gtin, identity.upc])
+    .map((v) => safeString(v))
+    .filter(Boolean);
+  if (barcodeCandidates.length) {
+    const existing = Array.isArray(product.identification.barcodes) ? product.identification.barcodes : [];
+    const merged = Array.from(new Set(existing.concat(barcodeCandidates)));
+    product.identification.barcodes = merged;
+  }
+
+  if (typeof c.short_description === 'string') {
+    product.details.short_description = c.short_description;
+  }
+
+  if (Array.isArray(c.key_features)) {
+    product.details.key_features = c.key_features.filter((x) => typeof x === 'string').map((x) => x.trim()).filter(Boolean);
+  }
+
+  if (c.attributes && typeof c.attributes === 'object' && !Array.isArray(c.attributes)) {
+    const existingAttrs =
+      product.details.attributes && typeof product.details.attributes === 'object' && !Array.isArray(product.details.attributes)
+        ? product.details.attributes
+        : {};
+    product.details.attributes = { ...existingAttrs, ...c.attributes };
+  }
+
+  if (c.pricing && typeof c.pricing === 'object' && !Array.isArray(c.pricing)) {
+    const existingPricing = product.details.pricing && typeof product.details.pricing === 'object' ? product.details.pricing : {};
+    product.details.pricing = { ...existingPricing, ...c.pricing };
+  }
+}
+
 function resolveProductCategoryId(product, attributes = null) {
   const attrs = attributes && typeof attributes === 'object' ? attributes : toAttributesObject(product?.details?.attributes);
   return (
@@ -2109,11 +2166,37 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       responseText = `Titel-Vorschlag (${finalTitle.length}/80): ${finalTitle}`;
     }
 
+    let ebayReadiness = null;
+    try {
+      const { evaluateEbayReady } = require('../lib/datasheet-quality');
+      const before = evaluateEbayReady(product, { force: true });
+      const preview = JSON.parse(JSON.stringify(product));
+      (datasheetChanges || []).forEach((c) => applyDatasheetChangeToProductPreview(preview, c));
+      const after = evaluateEbayReady(preview, { force: true });
+      ebayReadiness = {
+        before: {
+          ok: Boolean(before?.ok),
+          issues: Array.isArray(before?.issues) ? before.issues.slice(0, 40) : [],
+          issuesDetailed: Array.isArray(before?.issuesDetailed) ? before.issuesDetailed.slice(0, 40) : [],
+          snapshot: before?.snapshot || null,
+        },
+        after: {
+          ok: Boolean(after?.ok),
+          issues: Array.isArray(after?.issues) ? after.issues.slice(0, 40) : [],
+          issuesDetailed: Array.isArray(after?.issuesDetailed) ? after.issuesDetailed.slice(0, 40) : [],
+          snapshot: after?.snapshot || null,
+        },
+      };
+    } catch {
+      ebayReadiness = null;
+    }
+
     return {
       message: responseText || 'Antwort generiert.',
       datasheetChanges,
       imageSuggestions,
       serpTrace,
+      ebayReadiness,
       modelUsed: modelName
     };
 

@@ -321,6 +321,118 @@ function hasValidPriceEvidence(lowestPrice) {
   return typeof amount === 'number' && Number.isFinite(amount) && amount >= 1 && hasEvidence;
 }
 
+function normalizeDigitsOnly(value) {
+  return String(value == null ? '' : value).replace(/[^\d]/g, '');
+}
+
+function pickBestGtinForBrowse(product) {
+  const ids = product?.details?.identifiers || {};
+  const candidates = []
+    .concat(Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : [])
+    .concat([ids?.ean, ids?.gtin, ids?.upc, product?.identification?.ean, product?.identification?.gtin])
+    .filter(Boolean)
+    .map((x) => normalizeDigitsOnly(x))
+    .filter((x) => x && /^\d+$/.test(x) && [8, 12, 13, 14].includes(x.length));
+  return candidates[0] || '';
+}
+
+function pickProductTypeForBrowseQuery(product) {
+  const attrs =
+    product?.details?.attributes && typeof product.details.attributes === 'object'
+      ? product.details.attributes
+      : {};
+  return (
+    priceSafeString(attrs?.Produktart) ||
+    priceSafeString(attrs?.Produkttyp) ||
+    priceSafeString(attrs?.Artikeltyp) ||
+    ''
+  );
+}
+
+function buildBrowseQueryForProduct(product) {
+  const brand = priceSafeString(product?.identification?.brand);
+  const title = priceSafeString(product?.identification?.name);
+  const mpn =
+    priceSafeString(product?.details?.identifiers?.mpn) ||
+    priceSafeString(product?.details?.attributes?.Herstellernummer) ||
+    priceSafeString(product?.details?.attributes?.MPN) ||
+    priceSafeString(product?.details?.attributes?.mpn);
+  const type = pickProductTypeForBrowseQuery(product);
+  const parts = [];
+  if (brand) parts.push(brand);
+  if (type) parts.push(type);
+  if (mpn) parts.push(mpn);
+  const q = priceSafeString(parts.join(' ')) || title || brand || mpn || '';
+  return priceSafeString(q).slice(0, 100);
+}
+
+async function findEbayBrowsePriceForProductV1(product) {
+  const gtin = pickBestGtinForBrowse(product);
+  const query = gtin ? '' : buildBrowseQueryForProduct(product);
+  const categoryId = priceSafeString(product?.details?.categoryId || '').replace(/\D+/g, '');
+  if (!gtin && !query) {
+    return { ok: false, reason: 'no_query', amount: null, sources: [] };
+  }
+
+  try {
+    const { fetchBrowsePriceSamples } = require('./lib/ebay-browse-title-insights');
+    const res = await fetchBrowsePriceSamples({
+      categoryId: categoryId || undefined,
+      gtin: gtin || undefined,
+      query: query || undefined,
+      limit: 60,
+    });
+    const samples = Array.isArray(res?.samples) ? res.samples : [];
+    const eur = samples
+      .filter((s) => (s?.currency ? String(s.currency).toUpperCase() === 'EUR' : true))
+      .filter((s) => typeof s?.value === 'number' && Number.isFinite(s.value) && s.value >= 1)
+      .filter((s) => priceSafeString(s?.url).startsWith('http'));
+
+    if (eur.length < 3) {
+      return {
+        ok: false,
+        reason: 'too_few_samples',
+        amount: null,
+        sources: [],
+        meta: { sampleCount: eur.length, total: Number(res?.total || 0) },
+      };
+    }
+
+    const median = medianNumber(eur.map((s) => s.value));
+    if (median == null) {
+      return { ok: false, reason: 'no_median', amount: null, sources: [] };
+    }
+
+    const timestamp = new Date().toISOString();
+    const sorted = eur
+      .slice()
+      .sort(
+        (a, b) =>
+          Math.abs(a.value - median) - Math.abs(b.value - median) || a.value - b.value
+      );
+    const sources = sorted.slice(0, 6).map((s) => ({
+      name: 'ebay.de',
+      url: s.url,
+      price: s.value,
+      checked_at: timestamp,
+    }));
+    return {
+      ok: true,
+      amount: median,
+      currency: 'EUR',
+      sources,
+      meta: {
+        via: gtin ? 'gtin' : 'q',
+        query: gtin ? gtin : query,
+        categoryId: categoryId || null,
+        total: Number(res?.total || 0),
+      },
+    };
+  } catch (e) {
+    return { ok: false, reason: 'browse_error', amount: null, sources: [], error: e?.message || String(e) };
+  }
+}
+
 async function findWebPriceForProductV1(product) {
   const brand = priceSafeString(product?.identification?.brand);
   const title = priceSafeString(product?.identification?.name);
@@ -493,6 +605,33 @@ async function enrichPriceForProductBestEffort(product, { force = false, reason 
       },
       serpTrace,
     };
+  }
+
+  const browse = await findEbayBrowsePriceForProductV1(product);
+  if (browse.ok && browse.amount && Array.isArray(browse.sources) && browse.sources.length) {
+    const timestamp = new Date().toISOString();
+    const data = {
+      lowest_price: {
+        amount: browse.amount,
+        currency: 'EUR',
+        sources: browse.sources,
+        last_checked_iso: timestamp,
+      },
+      price_confidence: 0.7,
+    };
+    product.details.pricing.lowest_price = data.lowest_price;
+    product.details.pricing.price_confidence = data.price_confidence;
+    product.ops = product.ops || {};
+    product.ops.data_quality = product.ops.data_quality || {};
+    product.ops.data_quality.price_enrich_v1 = {
+      at_iso: timestamp,
+      via: 'ebay_browse',
+      reason,
+      query: browse?.meta?.query || null,
+      categoryId: browse?.meta?.categoryId || null,
+      sources: (browse.sources || []).map((s) => s?.url).filter(Boolean).slice(0, 6),
+    };
+    return { ok: true, updated: true, data, serpTrace };
   }
 
   const web = await findWebPriceForProductV1(product);
@@ -3524,7 +3663,8 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
     // Retry once if still not eBay-ready (title/desc/highlights/attrs). This keeps Identify outputs stable.
     try {
       const { evaluateEbayReady } = require('./lib/datasheet-quality');
-      const eval1 = evaluateEbayReady(product, { force: true });
+      // The post-review retry is meant to fix text/spec issues. Pricing is enriched separately.
+      const eval1 = evaluateEbayReady(product, { force: true, ignorePrice: true });
       if (!eval1.ok && eval1.issues && eval1.issues.length) {
         await runDatasheetReview([product], {
           locale,
@@ -3578,6 +3718,9 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
         checked_at_iso: new Date().toISOString(),
         ok: Boolean(finalQuality.ok),
         issues: Array.isArray(finalQuality.issues) ? finalQuality.issues.slice(0, 40) : [],
+        issues_detailed: Array.isArray(finalQuality.issuesDetailed)
+          ? finalQuality.issuesDetailed.slice(0, 60)
+          : [],
         snapshot: finalQuality.snapshot || null,
       };
     } catch (e) {
@@ -3624,6 +3767,7 @@ app.post('/api/v2/identify', requirePermission('identify', 'run'), upload.array(
         quality: result.quality,
         ebayReady: finalQuality ? Boolean(finalQuality.ok) : null,
         ebayReadyIssues: finalQuality ? finalQuality.issues || [] : [],
+        ebayReadyIssuesDetailed: finalQuality ? finalQuality.issuesDetailed || [] : [],
         ebayReadySnapshot: finalQuality ? finalQuality.snapshot || null : null,
       },
     });

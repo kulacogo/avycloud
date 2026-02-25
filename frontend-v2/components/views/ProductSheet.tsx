@@ -16,6 +16,7 @@ import {
   setProductInventoryId,
   openInventoryLabelWindow,
   fetchEbayCategories,
+  refreshPrice,
   verifyEbayPublish,
   publishToEbay,
 } from '../../api/client';
@@ -154,6 +155,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [binsError, setBinsError] = useState<string | null>(null);
   const [qualityBusy, setQualityBusy] = useState(false);
   const [qualityMessage, setQualityMessage] = useState<string | null>(null);
+  const [priceBusy, setPriceBusy] = useState(false);
+  const [priceMessage, setPriceMessage] = useState<string | null>(null);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [selectedReferenceIndex, setSelectedReferenceIndex] = useState<number>(-1);
   const [isUploadDragActive, setIsUploadDragActive] = useState(false);
@@ -1156,9 +1159,50 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   );
   const qualityHasErrors = qualityErrorCount > 0;
   const qualityHasWarns = qualityErrorCount === 0 && qualityWarnCount > 0;
+
+  const identifyQuality = (localProduct as any)?.ops?.data_quality?.identify_v2_quality_v1 || null;
+  const improveQuality = (localProduct as any)?.ops?.data_quality?.improve_quality_v1 || null;
+  const readiness = useMemo(() => {
+    const a = identifyQuality;
+    const b = improveQuality;
+    if (!a && !b) return null;
+    if (a && !b) return a;
+    if (!a && b) return b;
+    const ta = Date.parse(String(a?.checked_at_iso || ''));
+    const tb = Date.parse(String(b?.checked_at_iso || ''));
+    if (Number.isFinite(tb) && Number.isFinite(ta)) return tb >= ta ? b : a;
+    return b || a;
+  }, [identifyQuality, improveQuality]);
+  const readinessIssues = useMemo(
+    () => (Array.isArray(readiness?.issues_detailed) ? readiness.issues_detailed : []),
+    [readiness]
+  );
+  const readinessErrorCount = useMemo(
+    () => readinessIssues.filter((i: any) => i?.severity === 'error').length,
+    [readinessIssues]
+  );
+  const readinessWarnCount = useMemo(
+    () => readinessIssues.filter((i: any) => i?.severity === 'warn').length,
+    [readinessIssues]
+  );
+  const readinessInfoCount = useMemo(
+    () => readinessIssues.filter((i: any) => i?.severity === 'info').length,
+    [readinessIssues]
+  );
+  const readinessHasErrors = Boolean(readiness && readinessErrorCount > 0);
+  const readinessHasWarns = Boolean(
+    readiness &&
+      !readinessHasErrors &&
+      (readinessWarnCount > 0 || readinessInfoCount > 0)
+  );
+  const highlightIssues = useMemo(
+    () => ([] as any[]).concat(qualityIssues || [], readinessIssues || []),
+    [qualityIssues, readinessIssues]
+  );
+
   const qualityAttributeHighlightKeys = useMemo(() => {
     const set = new Set<string>();
-    for (const issue of qualityIssues) {
+    for (const issue of highlightIssues) {
       const fields = Array.isArray(issue?.fields) ? issue.fields : [];
       for (const f of fields) {
         if (typeof f !== 'string') continue;
@@ -1168,13 +1212,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       }
     }
     return set;
-  }, [qualityIssues]);
+  }, [highlightIssues]);
   const hasQualityIssue = useCallback(
     (prefix: string) =>
-      qualityIssues.some((issue: any) =>
+      highlightIssues.some((issue: any) =>
         Array.isArray(issue?.fields) ? issue.fields.some((f: string) => typeof f === 'string' && f.startsWith(prefix)) : false
       ),
-    [qualityIssues]
+    [highlightIssues]
   );
 
   const runQualityGate = useCallback(async () => {
@@ -1197,6 +1241,25 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       setQualityBusy(false);
     }
   }, [localProduct.id, onUpdate, qualityBusy]);
+
+  const runPriceRefresh = useCallback(async () => {
+    if (priceBusy) return;
+    setPriceBusy(true);
+    setPriceMessage(null);
+    try {
+      const res = await refreshPrice(localProduct.id);
+      if (!res.ok) {
+        throw new Error(res.error?.message || t('sheet.priceRefresh.error'));
+      }
+      const refreshed = await fetchProductById(localProduct.id);
+      onUpdate(refreshed);
+      setPriceMessage(t('sheet.priceRefresh.success'));
+    } catch (error: any) {
+      setPriceMessage(error?.message || t('sheet.priceRefresh.error'));
+    } finally {
+      setPriceBusy(false);
+    }
+  }, [localProduct.id, onUpdate, priceBusy, t]);
 
   return (
     <section
@@ -1363,6 +1426,102 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </div>
                 </div>
               )}
+
+              <div className="mt-4 border border-[var(--border)] rounded-lg bg-[var(--bg)]/40 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                        {t('sheet.ebayReadiness.title')}
+                      </span>
+                      {readiness?.checked_at_iso ? (
+                        <span className="text-[11px] text-[var(--text-tertiary)]">
+                          {new Date(readiness.checked_at_iso).toLocaleString('de-DE')}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-[var(--text-tertiary)]">
+                          {t('sheet.ebayReadiness.notChecked')}
+                        </span>
+                      )}
+                      {readiness && !readinessHasErrors && !readinessHasWarns && (
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/30 text-[11px]">
+                          OK
+                        </span>
+                      )}
+                      {readiness && readinessHasWarns && (
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--warning)]/10 text-[var(--warning)] border border-[var(--warning)]/30 text-[11px]">
+                          W{readinessWarnCount}{readinessInfoCount ? ` I${readinessInfoCount}` : ''}
+                        </span>
+                      )}
+                      {readiness && readinessHasErrors && (
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--error)]/10 text-[var(--error)] border border-[var(--error)]/30 text-[11px]">
+                          E{readinessErrorCount}{readinessWarnCount ? ` W${readinessWarnCount}` : ''}{readinessInfoCount ? ` I${readinessInfoCount}` : ''}
+                        </span>
+                      )}
+                    </div>
+                    {!readiness && (
+                      <div className="text-[12px] text-[var(--text-tertiary)] mt-1">
+                        {t('sheet.ebayReadiness.none')}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={runPriceRefresh}
+                    disabled={priceBusy}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold bg-[var(--surface-hover)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] ${
+                      priceBusy ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    title={t('sheet.priceRefresh.cta')}
+                  >
+                    {priceBusy ? 'Preis…' : t('sheet.priceRefresh.cta')}
+                  </button>
+                </div>
+
+                {priceMessage && (
+                  <div className="text-[11px] text-[var(--text-tertiary)] mt-2">{priceMessage}</div>
+                )}
+
+                {readinessIssues.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {readinessIssues.slice(0, 5).map((issue: any, idx: number) => (
+                      <div key={`readiness-${issue?.code || 'issue'}-${idx}`} className="flex items-start gap-2 text-[12px]">
+                        <span
+                          className={`mt-0.5 px-1.5 py-0.5 rounded border text-[10px] uppercase ${
+                            issue?.severity === 'error'
+                              ? 'bg-[var(--error)]/10 text-[var(--error)] border-[var(--error)]/30'
+                              : issue?.severity === 'warn'
+                                ? 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/30'
+                                : 'bg-[var(--surface-hover)]/20 text-[var(--text-secondary)] border-[var(--border)]/30'
+                          }`}
+                        >
+                          {issue?.severity || 'info'}
+                        </span>
+                        <div className="text-[var(--text-secondary)] min-w-0">
+                          <div>
+                            <span className="font-semibold">{issue?.code}</span>: {issue?.message}
+                          </div>
+                          {issue?.source_url && (
+                            <a
+                              href={issue.source_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] text-[var(--avy-purple-light)] hover:underline break-words"
+                            >
+                              {t('sheet.ebayReadiness.source')}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {readinessIssues.length > 5 && (
+                      <div className="text-[11px] text-[var(--text-tertiary)]">
+                        … {t('sheet.ebayReadiness.more', { count: readinessIssues.length - 5 })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="mt-4 border border-[var(--border)] rounded-lg bg-[var(--bg)]/40 p-3">
                 <div className="flex items-start justify-between gap-3">

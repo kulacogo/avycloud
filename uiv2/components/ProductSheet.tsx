@@ -16,6 +16,7 @@ import {
   setProductInventoryId,
   openInventoryLabelWindow,
   fetchBaseLinkerCategories,
+  refreshPrice,
 } from '../api/client';
 import { EditIcon, SaveIcon, SyncIcon, PrintIcon, MagicIcon, RefreshIcon, BarcodeIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
@@ -149,6 +150,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [binsError, setBinsError] = useState<string | null>(null);
   const [qualityBusy, setQualityBusy] = useState(false);
   const [qualityMessage, setQualityMessage] = useState<string | null>(null);
+  const [priceBusy, setPriceBusy] = useState(false);
+  const [priceMessage, setPriceMessage] = useState<string | null>(null);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [selectedReferenceIndex, setSelectedReferenceIndex] = useState<number>(-1);
   const [isUploadDragActive, setIsUploadDragActive] = useState(false);
@@ -1068,9 +1071,50 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   );
   const qualityHasErrors = qualityErrorCount > 0;
   const qualityHasWarns = qualityErrorCount === 0 && qualityWarnCount > 0;
+
+  const identifyQuality = (localProduct as any)?.ops?.data_quality?.identify_v2_quality_v1 || null;
+  const improveQuality = (localProduct as any)?.ops?.data_quality?.improve_quality_v1 || null;
+  const readiness = useMemo(() => {
+    const a = identifyQuality;
+    const b = improveQuality;
+    if (!a && !b) return null;
+    if (a && !b) return a;
+    if (!a && b) return b;
+    const ta = Date.parse(String(a?.checked_at_iso || ''));
+    const tb = Date.parse(String(b?.checked_at_iso || ''));
+    if (Number.isFinite(tb) && Number.isFinite(ta)) return tb >= ta ? b : a;
+    return b || a;
+  }, [identifyQuality, improveQuality]);
+  const readinessIssues = useMemo(
+    () => (Array.isArray(readiness?.issues_detailed) ? readiness.issues_detailed : []),
+    [readiness]
+  );
+  const readinessErrorCount = useMemo(
+    () => readinessIssues.filter((i: any) => i?.severity === 'error').length,
+    [readinessIssues]
+  );
+  const readinessWarnCount = useMemo(
+    () => readinessIssues.filter((i: any) => i?.severity === 'warn').length,
+    [readinessIssues]
+  );
+  const readinessInfoCount = useMemo(
+    () => readinessIssues.filter((i: any) => i?.severity === 'info').length,
+    [readinessIssues]
+  );
+  const readinessHasErrors = Boolean(readiness && readinessErrorCount > 0);
+  const readinessHasWarns = Boolean(
+    readiness &&
+      !readinessHasErrors &&
+      (readinessWarnCount > 0 || readinessInfoCount > 0)
+  );
+  const highlightIssues = useMemo(
+    () => ([] as any[]).concat(qualityIssues || [], readinessIssues || []),
+    [qualityIssues, readinessIssues]
+  );
+
   const qualityAttributeHighlightKeys = useMemo(() => {
     const set = new Set<string>();
-    for (const issue of qualityIssues) {
+    for (const issue of highlightIssues) {
       const fields = Array.isArray(issue?.fields) ? issue.fields : [];
       for (const f of fields) {
         if (typeof f !== 'string') continue;
@@ -1080,13 +1124,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       }
     }
     return set;
-  }, [qualityIssues]);
+  }, [highlightIssues]);
   const hasQualityIssue = useCallback(
     (prefix: string) =>
-      qualityIssues.some((issue: any) =>
+      highlightIssues.some((issue: any) =>
         Array.isArray(issue?.fields) ? issue.fields.some((f: string) => typeof f === 'string' && f.startsWith(prefix)) : false
       ),
-    [qualityIssues]
+    [highlightIssues]
   );
 
   const runQualityGate = useCallback(async () => {
@@ -1109,6 +1153,25 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       setQualityBusy(false);
     }
   }, [localProduct.id, onUpdate, qualityBusy]);
+
+  const runPriceRefresh = useCallback(async () => {
+    if (priceBusy) return;
+    setPriceBusy(true);
+    setPriceMessage(null);
+    try {
+      const res = await refreshPrice(localProduct.id);
+      if (!res.ok) {
+        throw new Error(res.error?.message || t('sheet.priceRefresh.error'));
+      }
+      const refreshed = await fetchProductById(localProduct.id);
+      onUpdate(refreshed);
+      setPriceMessage(t('sheet.priceRefresh.success'));
+    } catch (error: any) {
+      setPriceMessage(error?.message || t('sheet.priceRefresh.error'));
+    } finally {
+      setPriceBusy(false);
+    }
+  }, [localProduct.id, onUpdate, priceBusy, t]);
 
   return (
     <section id="product-sheet">
@@ -1703,6 +1766,113 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     <span className="ctx-value ctx-value-mono">{localProduct.details.baselinkerCategoryId}</span>
                   </div>
                 </>
+              )}
+            </div>
+          </div>
+
+          {/* eBay Readiness Card */}
+          <div className="ctx-card">
+            <div className="ctx-header">
+              <span className="ctx-title">
+                <Globe size={14} />
+                {t('sheet.ebayReadiness.title')}
+              </span>
+              {readiness && !readinessHasErrors && !readinessHasWarns && (
+                <span className="status-badge active" style={{ fontSize: 11, padding: '2px 10px' }}>
+                  <span className="status-dot" />OK
+                </span>
+              )}
+              {readiness && readinessHasWarns && (
+                <span className="status-badge warning" style={{ fontSize: 11, padding: '2px 10px' }}>
+                  <span className="status-dot" />W{readinessWarnCount}{readinessInfoCount ? ` I${readinessInfoCount}` : ''}
+                </span>
+              )}
+              {readiness && readinessHasErrors && (
+                <span className="status-badge error" style={{ fontSize: 11, padding: '2px 10px' }}>
+                  <span className="status-dot" />E{readinessErrorCount}{readinessWarnCount ? ` W${readinessWarnCount}` : ''}{readinessInfoCount ? ` I${readinessInfoCount}` : ''}
+                </span>
+              )}
+              {!readiness && (
+                <span className="status-badge draft" style={{ fontSize: 11, padding: '2px 10px' }}>
+                  <span className="status-dot" />--
+                </span>
+              )}
+            </div>
+            <div className="ctx-body">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                  {readiness?.checked_at_iso
+                    ? new Date(readiness.checked_at_iso).toLocaleString('de-DE')
+                    : t('sheet.ebayReadiness.notChecked')}
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {onImprove && (
+                    <button
+                      className="btn btn-sm btn-secondary"
+                      onClick={() => onImprove(localProduct.id)}
+                      disabled={Boolean(isImproving)}
+                    >
+                      <Sparkles size={12} />
+                      {isImproving ? t('common.improving') : t('common.improve')}
+                    </button>
+                  )}
+                  <button className="btn btn-sm btn-secondary" onClick={runPriceRefresh} disabled={priceBusy}>
+                    {priceBusy ? <Spinner className="w-4 h-4" /> : <RefreshCw size={12} />}
+                    {t('sheet.priceRefresh.cta')}
+                  </button>
+                  <button className="btn btn-sm btn-secondary" onClick={runQualityGate} disabled={qualityBusy}>
+                    <ShieldCheck size={12} />
+                    {qualityBusy ? t('sheet.qualityGate.running') : t('sheet.qualityGate.cta')}
+                  </button>
+                </div>
+              </div>
+
+              {priceMessage && (
+                <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 8 }}>{priceMessage}</p>
+              )}
+
+              {!readiness && (
+                <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{t('sheet.ebayReadiness.none')}</p>
+              )}
+
+              {readinessIssues.length > 0 && (
+                <div className="quality-issue-list">
+                  {readinessIssues.slice(0, 5).map((issue: any, idx: number) => (
+                    <div key={`readiness-${issue?.code || 'issue'}-${idx}`} className="quality-issue-item">
+                      <span
+                        className="quality-severity-tag"
+                        style={{
+                          background: issue?.severity === 'error' ? 'var(--error-bg)' : issue?.severity === 'warn' ? 'var(--warning-bg)' : 'var(--surface-secondary)',
+                          color: issue?.severity === 'error' ? 'var(--error)' : issue?.severity === 'warn' ? 'var(--warning)' : 'var(--text-primary)',
+                          borderColor: issue?.severity === 'error' ? 'var(--error-border)' : issue?.severity === 'warn' ? 'var(--warning-border)' : 'var(--border)',
+                        }}
+                      >
+                        {issue?.severity || 'info'}
+                      </span>
+                      <div style={{ color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <div>
+                          <span style={{ fontWeight: 600 }}>{issue?.code}</span>: {issue?.message}
+                        </div>
+                        {issue?.source_url && (
+                          <a
+                            href={issue.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ctx-value-link"
+                            style={{ fontSize: 11, wordBreak: 'break-word' }}
+                          >
+                            {t('sheet.ebayReadiness.source')}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {readinessIssues.length > 5 && (
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                      ... {t('sheet.ebayReadiness.more', { count: readinessIssues.length - 5 })}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

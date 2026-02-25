@@ -39,6 +39,8 @@ function buildIssue(code, { missingRequiredAspects = null } = {}) {
     message: normalized,
     fields: [],
     confidence: 0.95,
+    source: 'rule',
+    evidence_urls: [],
     source_url: null,
   };
 
@@ -51,7 +53,11 @@ function buildIssue(code, { missingRequiredAspects = null } = {}) {
       ...base,
       code: 'missing_required_aspects',
       severity: 'error',
-      fields: ['details.attributes', 'details.categoryId'],
+      fields: [
+        'details.categoryId',
+        ...missing.slice(0, 25).map((k) => `details.attributes.${safeString(k)}`),
+        'details.attributes',
+      ],
       message: list ? `Pflicht-Artikelmerkmale (Item Specifics) fehlen/leer: ${list}${more}` : 'Pflicht-Artikelmerkmale (Item Specifics) fehlen/leer.',
       source_url: EBAY_SOURCE_URLS.itemSpecifics,
     };
