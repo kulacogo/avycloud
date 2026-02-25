@@ -87,6 +87,12 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      # Pin firebase-tools to avoid broken minimatch@5.1.9 dep in firebase-tools@15.7.0.
+      # FirebaseExtended/action-hosting-deploy uses the globally installed firebase binary
+      # when available, skipping the broken `npx firebase-tools@latest` download.
+      - name: Install firebase-tools (pinned)
+        run: npm install -g firebase-tools@14
+
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
