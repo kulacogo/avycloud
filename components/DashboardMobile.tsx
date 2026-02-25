@@ -19,64 +19,64 @@ interface DashboardMobileProps {
   onRangePresetChange?: (preset: string) => void;
 }
 
-const PRESETS: Array<{ id: string; label: string }> = [
+const PRESETS = [
   { id: 'today', label: 'Heute' },
   { id: 'last7', label: '7 Tage' },
   { id: 'month_to_date', label: 'Monat' },
   { id: 'last_month', label: 'Vormonat' },
-  { id: 'year_to_date', label: 'YTD' },
+  { id: 'year_to_date', label: 'Dieses Jahr' },
   { id: 'last_year', label: 'Vorjahr' },
 ];
 
-const safeCur = (c?: string) => (/^[A-Z]{3}$/.test((c || '').toUpperCase()) ? c!.toUpperCase() : 'EUR');
+const safeCur = (c?: string) =>
+  /^[A-Z]{3}$/.test((c || '').toUpperCase()) ? (c as string).toUpperCase() : 'EUR';
 
-const fmt = (v: number, c = 'EUR') => {
+const fmtCur = (v: number, c = 'EUR') => {
   try {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
       currency: safeCur(c),
-      maximumFractionDigits: 0,
+      maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : 2,
     }).format(v);
   } catch {
     return `${v.toFixed(0)} ${c}`;
   }
 };
+const fmtNum = (n: number) => new Intl.NumberFormat('de-DE').format(n);
 
-// ─── Micro components ────────────────────────────────────────────────────────
-
-const Skeleton: React.FC<{ w?: string; h?: string }> = ({ w = 'w-16', h = 'h-5' }) => (
-  <div className={`animate-pulse rounded bg-white/8 ${w} ${h}`} />
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+const Skel: React.FC<{ w?: string; h?: string }> = ({ w = 'w-20', h = 'h-7' }) => (
+  <div className={`animate-pulse rounded bg-white/6 ${w} ${h}`} />
 );
 
+// ─── Tile ─────────────────────────────────────────────────────────────────────
 interface TileProps {
   label: string;
   value: React.ReactNode;
   sub?: React.ReactNode;
-  tone?: 'default' | 'warn' | 'success' | 'violet' | 'sky';
+  color?: 'default' | 'warn' | 'success' | 'violet' | 'red' | 'blue';
   onClick?: () => void;
   loading?: boolean;
-  disabled?: boolean;
 }
 
-const toneClasses: Record<NonNullable<TileProps['tone']>, string> = {
-  default: 'bg-slate-800 border border-white/5',
-  warn: 'bg-amber-600',
-  success: 'bg-emerald-600',
-  violet: 'bg-violet-700/60 border border-violet-500/20',
-  sky: 'bg-sky-700/60 border border-sky-500/20',
+const toneBase: Record<NonNullable<TileProps['color']>, string> = {
+  default: 'bg-slate-800/80 border border-white/6',
+  warn: 'bg-amber-600/90 border border-amber-500/30',
+  success: 'bg-emerald-700/80 border border-emerald-500/30',
+  violet: 'bg-violet-800/60 border border-violet-500/20',
+  red: 'bg-rose-800/50 border border-rose-500/20',
+  blue: 'bg-sky-800/60 border border-sky-500/20',
 };
 
-const Tile: React.FC<TileProps> = ({ label, value, sub, tone = 'default', onClick, loading, disabled }) => {
+const Tile: React.FC<TileProps> = ({ label, value, sub, color = 'default', onClick, loading }) => {
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag
-      {...(onClick ? { type: 'button', onClick, disabled: disabled ?? false } : {})}
-      className={`w-full rounded-2xl p-4 text-left ${toneClasses[tone]} transition active:scale-[0.985] disabled:opacity-40`}
+      {...(onClick ? { type: 'button', onClick } : {})}
+      className={`w-full rounded-2xl p-4 text-left transition active:scale-[0.98] ${toneBase[color]}`}
     >
-      <p className="text-[10px] uppercase tracking-widest opacity-70 font-medium">{label}</p>
-      {loading ? (
-        <Skeleton w="w-20" h="h-7" />
-      ) : (
+      <p className="text-[10px] uppercase tracking-widest opacity-60 font-semibold">{label}</p>
+      {loading ? <Skel /> : (
         <p className="text-2xl font-bold text-white mt-1 tabular-nums leading-tight">{value}</p>
       )}
       {sub && !loading && (
@@ -86,44 +86,53 @@ const Tile: React.FC<TileProps> = ({ label, value, sub, tone = 'default', onClic
   );
 };
 
-const Divider: React.FC<{ label: string }> = ({ label }) => (
+// ─── Row divider ──────────────────────────────────────────────────────────────
+const RowLabel: React.FC<{ label: string }> = ({ label }) => (
   <div className="flex items-center gap-2 mt-1">
-    <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">{label}</span>
-    <div className="flex-1 h-px bg-slate-700/60" />
+    <span className="text-[10px] uppercase tracking-widest text-slate-600 font-bold">{label}</span>
+    <div className="flex-1 h-px bg-slate-800" />
   </div>
 );
 
-// ─── Mini bar chart ──────────────────────────────────────────────────────────
-
+// ─── Mini bar chart ───────────────────────────────────────────────────────────
 const MiniChart: React.FC<{
   days: Array<{ date: string; orders: number; revenue: number }>;
   currency: string;
 }> = ({ days, currency }) => {
-  const max = Math.max(1, ...days.map(d => d.orders));
-  const total = days.reduce((s, d) => s + d.orders, 0);
+  const max = Math.max(1, ...days.map(d => Number(d.orders || 0)));
+  const maxRev = Math.max(1, ...days.map(d => Number(d.revenue || 0)));
+  const total = days.reduce((s, d) => s + Number(d.orders || 0), 0);
+  const totalRev = days.reduce((s, d) => s + Number(d.revenue || 0), 0);
   return (
     <div>
-      <div className="flex items-end gap-1 h-14">
-        {days.map((d) => {
-          const h = Math.max(4, Math.round((d.orders / max) * 100));
+      <div className="flex items-end gap-1 h-16">
+        {days.map(d => {
+          const c = Number(d.orders || 0);
+          const r = Number(d.revenue || 0);
+          const bh = Math.max(4, Math.round((c / max) * 100));
+          const rh = Math.max(2, Math.round((r / maxRev) * 100));
           return (
-            <div key={d.date} className="flex-1 flex flex-col items-center justify-end gap-0.5">
-              <div
-                className="w-full bg-sky-500/80 rounded-t"
-                style={{ height: `${h}%` }}
-                title={`${d.date}: ${d.orders} Aufträge · ${fmt(d.revenue, currency)}`}
-              />
+            <div key={d.date}
+              className="relative flex-1 flex flex-col items-center justify-end h-full"
+              title={`${d.date}: ${c} Aufträge · ${fmtCur(r, currency)}`}
+            >
+              <div className="absolute bottom-0 w-full bg-emerald-500/15 rounded-t"
+                style={{ height: `${rh}%` }} />
+              <div className="relative w-full bg-sky-500/80 rounded-t"
+                style={{ height: `${bh}%` }} />
             </div>
           );
         })}
       </div>
-      <p className="text-[10px] text-slate-600 mt-1 text-right">{total} Aufträge gesamt</p>
+      <div className="flex justify-between mt-1.5">
+        <span className="text-[10px] text-slate-600">{total} Aufträge</span>
+        <span className="text-[10px] text-emerald-600">{fmtCur(totalRev, currency)}</span>
+      </div>
     </div>
   );
 };
 
-// ─── Main component ──────────────────────────────────────────────────────────
-
+// ─── Main ─────────────────────────────────────────────────────────────────────
 const DashboardMobile: React.FC<DashboardMobileProps> = ({
   products,
   onRefreshProducts,
@@ -144,7 +153,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
   const inFlightRef = useRef(false);
   const unmountedRef = useRef(false);
 
-  const [internalPreset, setInternalPreset] = useState('last7');
+  const [internalPreset, setInternalPreset] = useState('month_to_date');
   const activePreset = useMemo(() => {
     const raw = typeof rangePreset === 'string' ? rangePreset.trim() : '';
     return raw && PRESETS.some(p => p.id === raw) ? raw : internalPreset;
@@ -158,43 +167,26 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
   const loadAll = useCallback(async ({ withSync }: { withSync: boolean }) => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
+    const long = activePreset === 'year_to_date' || activePreset === 'last_year';
     try {
-      const longRange = activePreset === 'year_to_date' || activePreset === 'last_year';
-
-      // Kick off all loads in parallel
-      const [, ordersData, metricsData, financeData] = await Promise.allSettled([
-        withSync ? syncOrdersApi({ timeoutMs: 20000 }).catch(() => null) : Promise.resolve(null),
+      const [, ordRes, metRes, finRes] = await Promise.allSettled([
+        withSync ? syncOrdersApi({ timeoutMs: 20000 }).catch(() => null) : null,
         fetchOrdersApi(100, { timeoutMs: 20000 }),
-        fetchDashboardMetrics({ days: 7, preset: activePreset }, { timeoutMs: longRange ? 60000 : 20000 }),
+        fetchDashboardMetrics({ days: 7, preset: activePreset }, { timeoutMs: long ? 60000 : 20000 }),
         fetchFinanceMetrics(activePreset, { timeoutMs: 35000 }),
       ]);
-
       if (unmountedRef.current) return;
-
-      if (ordersData.status === 'fulfilled') {
-        const raw = (ordersData.value ?? []) as Order[];
-        // Deduplicate
+      if (ordRes.status === 'fulfilled') {
         const seen = new Set<string>();
-        setOrders(raw.filter(o => {
+        setOrders((ordRes.value ?? []).filter((o: Order) => {
           const k = o.baselinkerOrderKey || `${o.baselinkerId}::${o.orderSource}`;
-          if (seen.has(k)) return false;
-          seen.add(k);
-          return true;
+          return seen.has(k) ? false : (seen.add(k), true);
         }));
       }
-      if (metricsData.status === 'fulfilled') {
-        setMetrics(metricsData.value);
-        setMetricsLoading(false);
-      } else {
-        setMetricsLoading(false);
-      }
-      if (financeData.status === 'fulfilled') {
-        setFinance(financeData.value);
-        setFinanceLoading(false);
-      } else {
-        setFinanceLoading(false);
-      }
-
+      if (metRes.status === 'fulfilled') { setMetrics(metRes.value); setMetricsLoading(false); }
+      else setMetricsLoading(false);
+      if (finRes.status === 'fulfilled') { setFinance(finRes.value); setFinanceLoading(false); }
+      else setFinanceLoading(false);
       setLastUpdated(new Date());
     } finally {
       inFlightRef.current = false;
@@ -206,20 +198,15 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
     setMetricsLoading(true);
     setFinanceLoading(true);
     void loadAll({ withSync: true });
-    const interval = setInterval(
-      () => void loadAll({ withSync: false }),
-      activePreset === 'year_to_date' || activePreset === 'last_year' ? 5 * 60_000 : 60_000
-    );
-    return () => {
-      unmountedRef.current = true;
-      clearInterval(interval);
-    };
+    const long = activePreset === 'year_to_date' || activePreset === 'last_year';
+    const id = setInterval(() => void loadAll({ withSync: false }), long ? 5 * 60_000 : 60_000);
+    return () => { unmountedRef.current = true; clearInterval(id); };
   }, [loadAll, activePreset]);
 
   const nav = useCallback((view: string) => {
     if (onNavigate) { onNavigate(view); return; }
     const map: Record<string, string> = {
-      home: '#/home', search: '#/search',
+      search: '#/search',
       'operations-pick': '#/operations/pick',
       'operations-stow': '#/operations/stow',
       'operations-identify': '#/operations/identify',
@@ -227,14 +214,14 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
     window.location.hash = map[view] || `#/${view}`;
   }, [onNavigate]);
 
-  // ─── Derived data ─────────────────────────────────────────────────────────
-
+  // ─── Derived ─────────────────────────────────────────────────────────────────
   const openOrders = useMemo(() => orders.filter(o => o.status === 'new'), [orders]);
 
   const nextPick = useMemo(() => {
-    const norm = (v?: string | null) => (v || '').replace(/\s+/g, '').toUpperCase().replace(/^SKU[-_\s]*/i, '');
+    const norm = (v?: string | null) =>
+      (v || '').replace(/\s+/g, '').toUpperCase().replace(/^SKU[-_\s]*/i, '');
     for (const order of openOrders) {
-      const items = Array.isArray((order as any).items) ? (order as any).items : [];
+      const items: any[] = Array.isArray((order as any).items) ? (order as any).items : [];
       for (const item of items) {
         if (item.pickCompleted) continue;
         const qty = Number(item.quantity || 0);
@@ -250,13 +237,10 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
           return vals.includes(sku);
         });
         const bins = (prod?.storageBins || []).filter(b => (b.quantity || 0) > 0);
-        const bin = bins.sort((a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code))[0];
-        return {
-          sku,
-          binCode: bin?.code || prod?.storage?.binCode || hint?.binCode || '',
-          name: hint?.productName || prod?.identification?.name || item.name,
-          qty,
-        };
+        const bin = bins.sort(
+          (a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code)
+        )[0];
+        return { sku, binCode: bin?.code || prod?.storage?.binCode || hint?.binCode || '', qty };
       }
     }
     return null;
@@ -267,28 +251,29 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
     [products]
   );
 
-  const invValue = useMemo(() => {
-    const priced = products.filter(p => (p.details?.pricing?.lowest_price?.amount || 0) > 0);
-    return priced.reduce(
-      (s, p) => s + getProductAvailableQuantity(p) * (p.details?.pricing?.lowest_price?.amount || 0),
-      0
-    );
-  }, [products]);
+  const invValue = useMemo(() =>
+    products.filter(p => (p.details?.pricing?.lowest_price?.amount || 0) > 0).reduce(
+      (s, p) => s + getProductAvailableQuantity(p) * (p.details?.pricing?.lowest_price?.amount || 0), 0
+    ), [products]);
 
-  const chartDays = metrics?.volume_7d?.days ?? [];
   const currency = safeCur(metrics?.currency);
+  const chartDays = metrics?.volume_7d?.days ?? [];
   const revenueWindow = metrics?.revenue?.window_non_cancelled_total ?? 0;
   const revenueYtd = metrics?.revenue?.all_non_cancelled_total ?? 0;
+  const returnsTotal = metrics?.orders?.returns_total ?? 0;
   const shippingWindow = finance?.shipping?.total_cost ?? null;
   const shippingYtd = finance?.shipping_ytd?.total_cost ?? null;
-  const presetLabel = metrics?.range?.label ?? PRESETS.find(p => p.id === activePreset)?.label ?? activePreset;
-
+  const totalBalance = finance?.total_balance ?? null;
+  const sichteinlagen = finance?.accounts.find(a => a.name.toLowerCase().includes('sichteinlagen'));
+  const bizCard = finance?.accounts.find(a =>
+    a.name.toLowerCase().includes('businesscard') || a.name.toLowerCase().includes('business card')
+  );
   const bd = metrics?.orders?.status_breakdown;
   const totalOrders = (bd?.neu ?? 0) + (bd?.kommissioniert ?? 0) + ((bd as any)?.verpackt ?? 0)
     + (bd?.versendet ?? 0) + (bd?.zugestellt ?? 0);
+  const presetLabel = metrics?.range?.label ?? PRESETS.find(p => p.id === activePreset)?.label ?? activePreset;
 
-  // ─── Render ───────────────────────────────────────────────────────────────
-
+  // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3 max-w-xl mx-auto pb-6">
 
@@ -298,11 +283,11 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
           <h1 className="text-xl font-bold text-white">Dashboard</h1>
           {lastUpdated && (
             <p className="text-[10px] text-slate-600">
-              {lastUpdated.toLocaleString(intlLocale, { hour: '2-digit', minute: '2-digit' })}
+              {lastUpdated.toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' })}
+              {' · BaseLinker'}
             </p>
           )}
         </div>
-        {/* Compact preset selector */}
         <select
           value={activePreset}
           onChange={e => setPreset(e.target.value)}
@@ -320,121 +305,130 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         </div>
       )}
 
-      {/* ── Operative Aktionen ── */}
-      <Divider label="Aktionen" />
+      {/* ── Operative ─────────────────────────────────── */}
+      <RowLabel label="Aktionen" />
       <div className="grid grid-cols-2 gap-2.5">
         <Tile
-          tone="warn"
+          color="warn"
           label="Offene Aufträge"
           value={openOrders.length}
-          sub={
-            openOrders.length === 0
-              ? 'Alles erledigt'
-              : nextPick
-                ? `Nächster: ${nextPick.binCode || '—'} · ${nextPick.sku}`
-                : `${openOrders.length} zu picken`
-          }
+          sub={openOrders.length === 0
+            ? 'Alles erledigt'
+            : nextPick
+              ? `→ ${nextPick.binCode || '—'} · ${nextPick.sku}`
+              : `${openOrders.length} zu picken`}
           onClick={() => nav('operations-pick')}
         />
         <Tile
-          tone="success"
+          color="success"
           label="Einlagern"
           value={stowBacklog}
-          sub="Ohne Lagerplatz"
+          sub="Produkte ohne Lagerplatz"
           onClick={() => nav('operations-stow')}
         />
         <Tile
           label="Suche"
-          value="→ Suchen"
-          sub="Produkt oder EAN"
+          value="Suchen →"
+          sub="Produkt / EAN"
           onClick={() => nav('search')}
         />
         <Tile
-          tone="sky"
+          color="blue"
           label="Identifizieren"
-          value="→ Scan"
+          value="Scan →"
           sub="Barcode / Foto"
           onClick={() => nav('operations-identify')}
         />
       </div>
 
-      {/* ── Zeitraum ── */}
-      <Divider label={presetLabel} />
+      {/* ── Finanzen (hero) ────────────────────────────── */}
+      <RowLabel label="Finanzen" />
+      <div className="rounded-2xl border border-violet-500/20 bg-violet-800/30 p-4">
+        <p className="text-[10px] uppercase tracking-widest text-violet-400/70 font-bold">Gesamtsaldo</p>
+        {financeLoading ? <Skel w="w-32" h="h-8" /> : (
+          <p className="text-3xl font-bold text-violet-300 tabular-nums mt-1">
+            {totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '—'}
+          </p>
+        )}
+        <div className="flex gap-4 mt-2">
+          {sichteinlagen && (
+            <span className="text-xs text-violet-400/70">
+              Sichteinl. <span className="text-white font-semibold">{fmtCur(sichteinlagen.balance, 'EUR')}</span>
+            </span>
+          )}
+          {bizCard && (
+            <span className="text-xs text-violet-400/70">
+              BCard <span className={`font-semibold ${bizCard.balance < 0 ? 'text-rose-300' : 'text-white'}`}>
+                {fmtCur(bizCard.balance, 'EUR')}
+              </span>
+            </span>
+          )}
+          {!financeLoading && !sichteinlagen && !bizCard && (
+            <span className="text-xs text-amber-500">SevDesk nicht verfügbar</span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Zeitraum ──────────────────────────────────── */}
+      <RowLabel label={presetLabel} />
       <div className="grid grid-cols-2 gap-2.5">
         <Tile
-          label="Umsatz (Brutto)"
-          value={metricsLoading ? '…' : fmt(revenueWindow, currency)}
-          sub="inkl. MwSt"
+          label="Umsatz Brutto"
+          value={metricsLoading ? '…' : fmtCur(revenueWindow, currency)}
+          sub={`${fmtNum(totalOrders)} Aufträge`}
           loading={metricsLoading}
         />
         <Tile
-          label="Aufträge"
-          value={metricsLoading ? '…' : totalOrders}
-          sub="nicht storniert"
+          label="Retouren"
+          value={metricsLoading ? '…' : fmtNum(returnsTotal)}
+          sub="Bereits abgezogen"
+          color={returnsTotal > 0 ? 'red' : 'default'}
           loading={metricsLoading}
         />
         <Tile
           label="Versandkosten"
-          value={financeLoading && shippingWindow === null ? '…' : shippingWindow !== null ? fmt(shippingWindow, 'EUR') : '—'}
-          sub={`${finance?.shipping?.parcel_count ?? '—'} Sendungen`}
+          value={financeLoading && shippingWindow === null ? '…' : shippingWindow !== null ? fmtCur(shippingWindow, 'EUR') : '—'}
+          sub={`${fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen · DHL/DPD`}
           loading={financeLoading && shippingWindow === null}
-          tone="default"
         />
         <Tile
-          label="Nach Versand"
+          label="Umsatz nach Versand"
           value={
             shippingWindow !== null && !metricsLoading
-              ? fmt(revenueWindow - shippingWindow, currency)
+              ? fmtCur(revenueWindow - shippingWindow, currency)
               : '—'
           }
-          sub="Brutto − Versand"
-          loading={(metricsLoading || (financeLoading && shippingWindow === null))}
+          sub="Brutto − Versandkosten"
+          loading={metricsLoading || (financeLoading && shippingWindow === null)}
         />
       </div>
 
       {/* Mini chart */}
       {chartDays.length > 0 && (
-        <div className="rounded-2xl bg-slate-800/60 border border-white/5 p-3">
+        <div className="rounded-2xl bg-slate-800/60 border border-white/5 px-4 py-3">
           <MiniChart days={chartDays as any} currency={currency} />
         </div>
       )}
 
-      {/* ── Finanzen ── */}
-      <Divider label="Finanzen & YTD" />
+      {/* ── Jahresüberblick ───────────────────────────── */}
+      <RowLabel label="Dieses Jahr" />
       <div className="grid grid-cols-2 gap-2.5">
         <Tile
-          label="Umsatz YTD"
-          value={metricsLoading ? '…' : fmt(revenueYtd, currency)}
-          sub="Seit 1. Januar"
+          label="Umsatz Dieses Jahr"
+          value={metricsLoading ? '…' : fmtCur(revenueYtd, currency)}
+          sub="Jan–Dez · nach Retouren"
           loading={metricsLoading}
         />
         <Tile
-          label="Versandkosten YTD"
-          value={shippingYtd !== null ? fmt(shippingYtd, 'EUR') : '—'}
+          label="Versandkosten Dieses Jahr"
+          value={shippingYtd !== null ? fmtCur(shippingYtd, 'EUR') : '—'}
+          sub={`${fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen`}
           loading={financeLoading && shippingYtd === null}
         />
-        {finance?.accounts?.map(acc => (
-          <Tile
-            key={acc.id}
-            tone="violet"
-            label={acc.name}
-            value={fmt(acc.balance, acc.currency)}
-            sub="Kontostand"
-            loading={financeLoading}
-          />
-        ))}
-        {!financeLoading && (!finance?.accounts || finance.accounts.length === 0) && (
-          <Tile
-            tone="violet"
-            label="Kontostände"
-            value="—"
-            sub={finance?.errors?.length ? 'SevDesk nicht verfügbar' : 'Keine Konten'}
-          />
-        )}
       </div>
 
-      {/* ── Bestand ── */}
-      <Divider label="Bestand" />
+      {/* ── Bestand ───────────────────────────────────── */}
+      <RowLabel label="Bestand" />
       <div className="grid grid-cols-2 gap-2.5">
         <Tile
           label="Im Bestand"
@@ -443,22 +437,21 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         />
         <Tile
           label="Einheiten"
-          value={products.reduce((s, p) => s + getProductAvailableQuantity(p), 0)}
+          value={fmtNum(products.reduce((s, p) => s + getProductAvailableQuantity(p), 0))}
           sub="Verfügbar"
         />
         <Tile
           label="Bestandswert"
-          value={fmt(invValue, 'EUR')}
+          value={fmtCur(invValue, 'EUR')}
           sub="Verkaufspreis · Verfügbar"
         />
         <Tile
           label="Sync"
           value={`${products.filter(p => p.ops?.sync_status === 'synced').length} / ${products.length}`}
-          sub={
-            products.filter(p => p.ops?.sync_status === 'failed').length > 0
-              ? `${products.filter(p => p.ops?.sync_status === 'failed').length} fehlerhaft`
-              : 'Synchronisiert'
-          }
+          sub={products.filter(p => p.ops?.sync_status === 'failed').length > 0
+            ? `${products.filter(p => p.ops?.sync_status === 'failed').length} Fehler`
+            : 'Synchronisiert'}
+          color={products.filter(p => p.ops?.sync_status === 'failed').length > 0 ? 'red' : 'default'}
         />
       </div>
 

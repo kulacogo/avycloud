@@ -60,9 +60,9 @@ async function getCheckAccountBalances({ forceRefresh = false, timeoutMs = 15000
     clearTimeout(timer);
   }
 
-  // Filter: keep only "Sichteinlagen" and "Business Card"; exclude "Basiskonto"
-  const ALLOWED_KEYWORDS = ['sichteinlagen', 'business card'];
-  const EXCLUDE_KEYWORDS = ['basiskonto'];
+  // Filter: keep only "Sichteinlagen" and "BusinessCard" (with or without space); exclude "Basiskonto"
+  const ALLOWED_KEYWORDS = ['sichteinlagen', 'businesscard', 'business card'];
+  const EXCLUDE_KEYWORDS = ['basiskonto', 'stamm'];
 
   const relevant = allAccounts.filter((acc) => {
     const nameLower = (acc.name || '').toLowerCase();

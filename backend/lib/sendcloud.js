@@ -1,13 +1,87 @@
 
 'use strict';
 
+const path = require('path');
+const fs = require('fs');
 const { getSecretValue } = require('./secret-values');
 
 const SENDCLOUD_BASE_URL = 'https://panel.sendcloud.sc/api/v2';
 
-// Cache per date-range key: Map<string, { atMs, data }>
+// ─── CSV Price Table ────────────────────────────────────────────────────────
+// Load both carrier price tables at module startup for fast shipping cost
+// estimation when the SendCloud API returns price=0 (not configured for API).
+
+/** @type {Array<{method_id:number, min_weight:number, max_weight:number, price:number}>} */
+let _priceTable = null;
+
+function loadPriceTable() {
+  if (_priceTable) return _priceTable;
+  _priceTable = [];
+
+  const files = [
+    path.join(__dirname, '..', '..', 'sendcloud_upload_DHL.csv'),
+    path.join(__dirname, '..', '..', 'sendcloud_upload_DPD.csv'),
+  ];
+
+  for (const file of files) {
+    try {
+      const raw = fs.readFileSync(file, 'utf8');
+      const lines = raw.split('\n').filter(Boolean);
+      // Skip header line
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(',');
+        if (parts.length < 7) continue;
+        const [methodIdStr, , , , minWStr, maxWStr, priceStr] = parts;
+        const methodId = parseInt(methodIdStr.trim(), 10);
+        const minWeight = parseFloat(minWStr.trim());
+        const maxWeight = parseFloat(maxWStr.trim());
+        const price = parseFloat(priceStr.trim());
+        if (!isNaN(methodId) && !isNaN(price) && !isNaN(minWeight)) {
+          _priceTable.push({ method_id: methodId, min_weight: minWeight, max_weight: maxWeight, price });
+        }
+      }
+    } catch (err) {
+      console.warn(`[sendcloud] Could not load price table ${file}:`, err.message);
+    }
+  }
+
+  console.log(`[sendcloud] Loaded ${_priceTable.length} price table entries`);
+  return _priceTable;
+}
+
+/**
+ * Look up shipping cost from CSV price tables using method_id + weight.
+ * Returns 0 if no match found.
+ */
+function lookupCsvPrice(methodId, weightKg) {
+  const table = loadPriceTable();
+  const mid = Number(methodId);
+  const w = Number(weightKg) || 0;
+
+  // Find exact method_id + weight range match
+  for (const row of table) {
+    if (row.method_id === mid && w >= row.min_weight && w < row.max_weight) {
+      return row.price;
+    }
+  }
+
+  // Fallback: any entry for this method_id with closest weight range
+  const methodEntries = table.filter(r => r.method_id === mid).sort((a, b) => a.min_weight - b.min_weight);
+  if (methodEntries.length) {
+    // If weight exceeds all ranges, return last entry
+    const last = methodEntries[methodEntries.length - 1];
+    if (w >= last.max_weight) return last.price;
+    // If weight is below all ranges, return first
+    return methodEntries[0].price;
+  }
+
+  return 0;
+}
+
+// ─── Auth ───────────────────────────────────────────────────────────────────
+
 const SHIPPING_CACHE = new Map();
-const SHIPPING_TTL_MS = 15 * 60 * 1000; // 15 min
+const SHIPPING_TTL_MS = 15 * 60 * 1000;
 
 let _cachedAuth = null;
 
@@ -17,18 +91,20 @@ async function getSendCloudAuthHeader() {
     getSecretValue('SENDCLOUD_PUBLIC_KEY'),
     getSecretValue('SENDCLOUD_SECRET_KEY'),
   ]);
-  if (!pub || !sec) throw new Error('SENDCLOUD_PUBLIC_KEY / SENDCLOUD_SECRET_KEY not configured');
+  if (!pub || !sec) throw new Error('SENDCLOUD credentials not configured');
   _cachedAuth = 'Basic ' + Buffer.from(`${pub}:${sec}`).toString('base64');
   return _cachedAuth;
 }
 
+// ─── Main function ──────────────────────────────────────────────────────────
+
 /**
  * Returns total shipping costs for the given date range.
- * Paginates through all parcels and sums parcel `price` values.
+ * Uses parcel's own `price` field when available; falls back to CSV lookup
+ * when the API returns price="0" (common when pricing is not API-visible).
  *
  * @param {string} fromDate - 'YYYY-MM-DD'
  * @param {string} toDate   - 'YYYY-MM-DD'
- * @returns {Promise<{ total_cost: number, parcel_count: number, currency: string }>}
  */
 async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, forceRefresh = false } = {}) {
   const cacheKey = `${fromDate}:${toDate}`;
@@ -38,10 +114,14 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
     return cached.data;
   }
 
+  // Warm up price table in background (fast, sync FS read)
+  loadPriceTable();
+
   const authHeader = await getSendCloudAuthHeader();
   const deadline = Date.now() + timeoutMs;
 
   let totalCost = 0;
+  let csvFallbackCount = 0;
   let parcelCount = 0;
   let page = 1;
   const limit = 100;
@@ -68,7 +148,7 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
 
       if (!response.ok) {
         const body = await response.text().catch(() => '');
-        throw new Error(`SendCloud API returned ${response.status}: ${body.slice(0, 200)}`);
+        throw new Error(`SendCloud API ${response.status}: ${body.slice(0, 200)}`);
       }
 
       const data = await response.json();
@@ -78,31 +158,46 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
     }
 
     for (const parcel of parcels) {
-      // SendCloud v2: price is a string like "5.99"
-      // Multiple possible field names depending on version / configuration
-      const priceRaw =
+      // Try the API-provided price first
+      const apiPriceRaw =
         parcel.price ??
         parcel.shipment_cost?.price ??
         parcel.shipment_cost?.amount ??
-        parcel.insured_value ??
-        0;
-      const price = parseFloat(String(priceRaw || '0').replace(',', '.')) || 0;
-      totalCost += price;
+        null;
+      const apiPrice = apiPriceRaw !== null
+        ? parseFloat(String(apiPriceRaw).replace(',', '.')) || 0
+        : 0;
+
+      let cost = apiPrice;
+
+      // If API price is 0, fall back to CSV lookup
+      if (cost === 0) {
+        const methodId = parcel.shipment?.id ?? parcel.shipment_product?.id ?? 0;
+        const weightKg = parseFloat(String(parcel.weight || '0').replace(',', '.')) || 0;
+        if (methodId && weightKg > 0) {
+          cost = lookupCsvPrice(methodId, weightKg);
+          if (cost > 0) csvFallbackCount++;
+        }
+      }
+
+      totalCost += cost;
       parcelCount++;
     }
 
-    // SendCloud paginates: stop if fewer results than limit
     if (parcels.length < limit) break;
-
-    // Safety cap to avoid infinite loops
     if (parcelCount > 10000) break;
     page++;
+  }
+
+  if (csvFallbackCount > 0) {
+    console.log(`[sendcloud] ${csvFallbackCount}/${parcelCount} parcels priced via CSV table`);
   }
 
   const result = {
     total_cost: Math.round(totalCost * 100) / 100,
     parcel_count: parcelCount,
     currency: 'EUR',
+    csv_fallback_count: csvFallbackCount,
   };
 
   SHIPPING_CACHE.set(cacheKey, { atMs: now, data: result });

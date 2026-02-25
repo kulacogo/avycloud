@@ -1,0 +1,53 @@
+method_id,friendly_name,from_country,to_country,min_weight,max_weight,price
+85,DPD Classic KP,DE,DE,0.001,3.001,3.20
+111,DPD Classic 0-5kg,DE,DE,0.001,3.001,3.20
+111,DPD Classic 0-5kg,DE,DE,3.001,5.001,3.60
+112,DPD Classic 5-10kg,DE,DE,5.001,10.001,4.10
+113,DPD Classic 10-20kg,DE,DE,10.001,15.001,4.60
+113,DPD Classic 10-20kg,DE,DE,15.001,20.001,4.80
+114,DPD Classic 20-31.5kg,DE,DE,20.001,25.001,5.00
+114,DPD Classic 20-31.5kg,DE,DE,25.001,31.501,5.30
+3480,DPD Classic 0-20kg (Service point),DE,DE,0.001,3.001,2.72
+3480,DPD Classic 0-20kg (Service point),DE,DE,3.001,5.001,3.06
+3480,DPD Classic 0-20kg (Service point),DE,DE,5.001,10.001,3.49
+3480,DPD Classic 0-20kg (Service point),DE,DE,10.001,15.001,3.91
+3480,DPD Classic 0-20kg (Service point),DE,DE,15.001,20.001,4.08
+26561,DPD Classic 0-31.5kg - Incoterm DDP,DE,DE,0.001,3.001,3.20
+26561,DPD Classic 0-31.5kg - Incoterm DDP,DE,DE,3.001,5.001,3.60
+26561,DPD Classic 0-31.5kg - Incoterm DDP,DE,DE,5.001,10.001,4.10
+26561,DPD Classic 0-31.5kg - Incoterm DDP,DE,DE,10.001,15.001,4.60
+26561,DPD Classic 0-31.5kg - Incoterm DDP,DE,DE,15.001,20.001,4.80
+26561,DPD Classic 0-31.5kg - Incoterm DDP,DE,DE,20.001,25.001,5.00
+26561,DPD Classic 0-31.5kg - Incoterm DDP,DE,DE,25.001,31.501,5.30
+26562,DPD Classic KP - Incoterm DDP,DE,DE,0.001,3.001,3.20
+355,DPD Shop Return,DE,DE,0.001,20.001,0.80
+28754,DPD Shop Return - Labelless,DE,DE,0.001,20.001,0.80
+87,DPD Business Express 18:00,DE,DE,0.001,3.001,10.70
+87,DPD Business Express 18:00,DE,DE,3.001,5.001,11.10
+87,DPD Business Express 18:00,DE,DE,5.001,10.001,11.60
+87,DPD Business Express 18:00,DE,DE,10.001,15.001,12.10
+87,DPD Business Express 18:00,DE,DE,15.001,20.001,12.30
+87,DPD Business Express 18:00,DE,DE,20.001,25.001,12.50
+87,DPD Business Express 18:00,DE,DE,25.001,31.501,12.80
+51,DPD Business Express 12:00,DE,DE,0.001,3.001,13.20
+51,DPD Business Express 12:00,DE,DE,3.001,5.001,13.60
+51,DPD Business Express 12:00,DE,DE,5.001,10.001,14.10
+51,DPD Business Express 12:00,DE,DE,10.001,15.001,14.60
+51,DPD Business Express 12:00,DE,DE,15.001,20.001,14.80
+51,DPD Business Express 12:00,DE,DE,20.001,25.001,15.00
+51,DPD Business Express 12:00,DE,DE,25.001,31.501,15.30
+2923,DPD Express 08:30,DE,DE,0.001,3.001,49.40
+2923,DPD Express 08:30,DE,DE,3.001,5.001,49.80
+2923,DPD Express 08:30,DE,DE,5.001,10.001,50.30
+2923,DPD Express 08:30,DE,DE,10.001,15.001,50.80
+2923,DPD Express 08:30,DE,DE,15.001,20.001,51.00
+2923,DPD Express 08:30,DE,DE,20.001,25.001,51.20
+2923,DPD Express 08:30,DE,DE,25.001,31.501,51.50
+78,DPD Parcelletter,DE,DE,0.001,1.001,3.20
+1339,DPD Classic Reifen,DE,DE,0.001,3.001,10.20
+1339,DPD Classic Reifen,DE,DE,3.001,5.001,10.60
+1339,DPD Classic Reifen,DE,DE,5.001,10.001,11.10
+1339,DPD Classic Reifen,DE,DE,10.001,15.001,11.60
+1339,DPD Classic Reifen,DE,DE,15.001,20.001,11.80
+1339,DPD Classic Reifen,DE,DE,20.001,25.001,12.00
+1339,DPD Classic Reifen,DE,DE,25.001,31.501,12.30
