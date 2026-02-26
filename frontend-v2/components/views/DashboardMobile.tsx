@@ -107,6 +107,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
 
   const intlLocale = locale === 'de' ? 'de-DE' : locale === 'tr' ? 'tr-TR' : 'en-GB';
 
+  const [selectedBarIdx, setSelectedBarIdx] = useState<number | null>(null);
   const [internalPreset, setInternalPreset] = useState('last7');
   const activePreset = useMemo(() => {
     const raw = typeof rangePreset === 'string' ? rangePreset.trim() : '';
@@ -508,7 +509,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
             />
           </div>
 
-          {/* Simplified volume chart */}
+          {/* Volume chart — touch-interactive */}
           <div className="rounded-lg bg-[var(--surface-secondary)] border border-[var(--border)] p-4">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('mobile.dashboard.chart.title')}</p>
@@ -523,33 +524,53 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
             <div className="flex items-center justify-between mb-2">
               <p className="text-[11px] text-[var(--text-tertiary)]">{activeRangeLabel}</p>
             </div>
+
+            {/* Selected bar tooltip */}
+            {selectedBarIdx !== null && volume7d[selectedBarIdx] && (() => {
+              const d = volume7d[selectedBarIdx];
+              const count = Number(d.orders || 0) || 0;
+              const revenue = Number(d.revenue || 0) || 0;
+              return (
+                <div className="mb-2 flex items-center justify-between rounded-md bg-[var(--avy-deep)] text-white px-3 py-2 text-[11px] font-semibold">
+                  <span>{d.date}</span>
+                  <span>{count} {t('mobile.dashboard.chart.title')} · {formatCurrency(revenue, metrics?.currency || 'EUR')}</span>
+                </div>
+              );
+            })()}
+
             <div>
               <div
-                className="grid gap-2 items-end h-20"
+                className="grid items-end"
                 style={{
                   gridTemplateColumns: `repeat(${Math.max(1, volume7d.length)}, minmax(0, 1fr))`,
+                  gap: volume7d.length > 14 ? '2px' : '6px',
+                  height: `${Math.min(140, Math.max(80, volume7d.length <= 7 ? 120 : 100))}px`,
                 }}
               >
                 {volume7d.length ? (
-                  volume7d.map((d) => {
+                  volume7d.map((d, idx) => {
                     const count = Number(d.orders || 0) || 0;
-                    const revenue = Number(d.revenue || 0) || 0;
-                    const barPx = Math.max(6, Math.round((count / maxVolume) * 56));
+                    const maxH = volume7d.length <= 7 ? 96 : 76;
+                    const barPx = Math.max(4, Math.round((count / maxVolume) * maxH));
+                    const isSelected = selectedBarIdx === idx;
                     return (
-                      <div key={d.date} className="h-full flex flex-col items-center justify-end gap-1">
+                      <div
+                        key={d.date}
+                        className="h-full flex flex-col items-center justify-end gap-0.5 cursor-pointer"
+                        onClick={() => setSelectedBarIdx(isSelected ? null : idx)}
+                        onTouchEnd={(e) => { e.preventDefault(); setSelectedBarIdx(isSelected ? null : idx); }}
+                      >
                         <div
-                          title={t('mobile.dashboard.chart.barTitle', {
-                            date: d.date,
-                            orders: count,
-                            revenue: formatCurrency(revenue, metrics?.currency || 'EUR'),
-                          })}
-                          className="w-full rounded-sm"
+                          className="w-full rounded-sm transition-all duration-200"
                           style={{
                             height: `${barPx}px`,
-                            background: 'var(--avy-gradient)',
+                            background: isSelected ? 'var(--avy-purple)' : 'var(--avy-gradient)',
+                            opacity: selectedBarIdx !== null && !isSelected ? 0.4 : 1,
                           }}
                         />
-                        <div className="text-[11px] text-[var(--text-secondary)] font-semibold tabular-nums">{count}</div>
+                        <div className={`text-[10px] font-semibold tabular-nums truncate w-full text-center ${isSelected ? 'text-[var(--avy-purple)]' : 'text-[var(--text-secondary)]'}`}>
+                          {count}
+                        </div>
                       </div>
                     );
                   })

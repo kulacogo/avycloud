@@ -22,8 +22,8 @@ const ZONE_OPTIONS: Array<'X' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XQ'> = ['X', 'X
 const ETAGE_OPTIONS: Array<'GA' | 'UG' | 'EG'> = ['GA', 'UG', 'EG'];
 
 const ZONE_COLORS: Record<string, string> = {
-  X: '#635BFF', XS: '#0070F3', S: '#0E9F6E', M: '#D97706',
-  L: '#635BFF', XL: '#0070F3', XQ: '#0E9F6E',
+  X: 'var(--avy-purple)', XS: 'var(--info)', S: 'var(--success)', M: 'var(--warning)',
+  L: 'var(--avy-purple)', XL: 'var(--info)', XQ: 'var(--success)',
 };
 
 /* ------------------------------------------------------------------ */
@@ -700,7 +700,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <div className="mt-2">
               <div className="h-1.5 rounded-full bg-[var(--surface-secondary)] overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-[var(--avy-purple)] to-[#0070F3] transition-all duration-700"
+                  className="h-full rounded-full bg-gradient-to-r from-[var(--avy-purple)] to-[var(--info)] transition-all duration-700"
                   style={{ width: `${kpiStats.utilization}%` }}
                 />
               </div>
@@ -793,7 +793,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
             {zones.map((zone) => {
               const isActive = selectedZone?.id === zone.id;
-              const zoneColor = ZONE_COLORS[zone.zone] || '#635BFF';
+              const zoneColor = ZONE_COLORS[zone.zone] || 'var(--avy-purple)';
               return (
                 <button
                   key={zone.id}

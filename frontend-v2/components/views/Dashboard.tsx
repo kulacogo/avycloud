@@ -251,7 +251,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     { key: 'kommissioniert', label: 'Kommissioniert',  value: orderMetrics.kommissioniert, color: 'var(--warning)' },
     { key: 'verpackt',       label: 'Verpackt',        value: orderMetrics.verpackt,       color: 'var(--warning)' },
     { key: 'versendet',      label: 'Versendet',       value: orderMetrics.versendet,      color: 'var(--success)' },
-    { key: 'zugestellt',     label: 'Zugestellt',      value: orderMetrics.zugestellt,     color: '#10B981' },
+    { key: 'zugestellt',     label: 'Zugestellt',      value: orderMetrics.zugestellt,     color: 'var(--success)' },
   ], [orderMetrics]);
 
 
@@ -437,9 +437,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <div key={day.key} className="flex-1 flex flex-col items-center gap-1 group relative z-[1]">
                       <div className="relative w-full">
                         {/* Tooltip */}
-                        <div className="hidden group-hover:block absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-[#0A2540] text-white px-2 py-1 rounded text-[11px] font-semibold whitespace-nowrap z-20 shadow-lg pointer-events-none">
+                        <div className="hidden group-hover:block absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-[var(--avy-deep)] text-white px-2 py-1 rounded text-[11px] font-semibold whitespace-nowrap z-20 shadow-lg pointer-events-none">
                           {day.revenue > 0 ? formatCurrency(day.revenue, orderMetrics.currency) : day.count}
-                          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#0A2540]" />
+                          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--avy-deep)]" />
                         </div>
                         <div
                           className="w-full rounded-t-[3px] bg-[var(--avy-purple)] hover:brightness-110 transition-all duration-200 min-h-[2px] cursor-default"

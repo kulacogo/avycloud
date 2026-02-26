@@ -247,7 +247,13 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 src="/avy_logo.png"
                 alt="avycloud"
                 draggable={false}
-                style={{ height: 'clamp(2rem, 5vw, 7rem)', width: 'auto', objectFit: 'contain' }}
+                style={{
+                  height: '80px',
+                  width: '80px',
+                  objectFit: 'contain',
+                  marginLeft: '5px',
+                  marginRight: '5px',
+                }}
               />
             </div>
 

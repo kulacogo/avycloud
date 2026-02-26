@@ -106,8 +106,8 @@ const ActionButton: React.FC<{
   const toneClasses = {
     primary: 'bg-[var(--avy-purple)] text-[var(--text-primary)] hover:bg-[var(--avy-purple-hover)]',
     secondary: 'bg-[var(--surface-hover)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]',
-    danger: 'bg-red-600 text-[var(--text-primary)] hover:bg-red-500',
-    accent: 'bg-purple-600 text-[var(--text-primary)] hover:bg-purple-500',
+    danger: 'bg-[var(--error)] text-white hover:brightness-110',
+    accent: 'bg-[var(--avy-purple)] text-white hover:bg-[var(--avy-purple-hover)]',
   };
   return (
     <button
@@ -651,7 +651,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           return (
             <span
               title={title}
-              className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-500/15 text-red-200 border border-red-500/30"
+              className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-[var(--error-bg)] text-[var(--error)] border border-[var(--error-border)]"
             >
               {errors ? `E${errors}` : ''}{warns ? ` W${warns}` : issues.length ? ` ${issues.length}` : ''}
             </span>
@@ -2814,7 +2814,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                     <div className="flex flex-col gap-2">
 
                       <button
-                        className="px-2 py-1 text-xs bg-red-600 text-[var(--text-primary)] rounded-md"
+                        className="px-2 py-1 text-xs bg-[var(--error)] text-white rounded-md"
                         onClick={async () => {
                           setConfirmDialog({
                             title: 'Produkt löschen?',

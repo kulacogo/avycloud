@@ -1280,7 +1280,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   <div className="mb-5">
                     <div className="h-2 bg-[var(--surface-secondary)] rounded overflow-hidden mb-1.5">
                       <div
-                        className="h-full rounded bg-gradient-to-r from-[var(--avy-purple)] to-[#0070F3] transition-[width] duration-500 ease-out relative overflow-hidden"
+                        className="h-full rounded bg-gradient-to-r from-[var(--avy-purple)] to-[var(--info)] transition-[width] duration-500 ease-out relative overflow-hidden"
                         style={{ width: `${pickProgress.pct}%` }}
                       >
                         <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_1.5s_ease-in-out_infinite]" />

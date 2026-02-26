@@ -133,8 +133,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(
         `.trim()}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 h-14 flex-shrink-0">
-          <img src="/avy_logo.png" alt="avycloud" className="h-8 w-auto object-contain" draggable={false} />
+        <div className="flex items-center justify-center h-14 flex-shrink-0">
+          <img src="/avy_logo.png" alt="avycloud" className="h-10 w-auto object-contain" draggable={false} />
         </div>
 
         {/* Navigation */}

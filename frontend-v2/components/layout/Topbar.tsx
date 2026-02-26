@@ -61,8 +61,8 @@ export const Topbar: React.FC<TopbarProps> = React.memo(
           type="button"
           onClick={onToggleTheme}
           className="
-            w-9 h-9 flex items-center justify-center
-            border border-[var(--border)] rounded-lg
+            w-7 h-7 flex items-center justify-center
+            border border-[var(--border)] rounded-md
             text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]
             hover:border-[var(--border-hover)]
             transition-all duration-150
@@ -70,7 +70,7 @@ export const Topbar: React.FC<TopbarProps> = React.memo(
           aria-label="Toggle theme"
         >
           {/* Sun icon (light mode) / Moon icon (dark mode) */}
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 5.25V3m0 18v-2.25m6.364-9.114l1.59-.918m-15.908.918l-1.59-.918M18.75 12h2.25M3 12h2.25m12.364 5.864l1.59.918m-15.908-.918l-1.59.918M16.5 12a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
           </svg>
         </button>
