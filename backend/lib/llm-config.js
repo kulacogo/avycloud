@@ -100,6 +100,7 @@ async function ensureDefaultLlmScopeVersions() {
         'Pflichtfelder (wenn belegbar): identifiers.mpn (Herstellernummer), GPSR Herstellerdaten (Name, Adresse, Ort, PLZ, Land, E-Mail, Telefon).',
         'Titel-Logik: erste 3–5 Wörter CTR-kritisch (Marke + Produkttyp + Kernmerkmal), 70–80 Zeichen bevorzugt, max. 80.',
         'Keyword-Governance: 2-3 Kernbegriffe + max. 1-2 Synonyme; kein Keyword-Stuffing und keine artikelfremden Keywords.',
+        'Beschreibung: HTML-strukturiert (<p>, <ul>, <li>, <strong>) und bei ausreichender Beleglage substanziell (~180–240 Wörter).',
         'Bei Fahrzeugteilen: wenn Kategorie Fahrzeugverwendungsliste erlaubt, K-Typ als Attribut "K-Typ" pflegen (nur aus Evidence).',
         'Keine Fake-Antworten: Wenn du keine Belege findest, schreibe eine Warnung statt zu behaupten, dass Daten existieren.',
       ].join('\n'),
@@ -114,6 +115,7 @@ async function ensureDefaultLlmScopeVersions() {
         'Wenn Pflicht-Aspekte fehlen, ergänze sie nur wenn belegbar. Falls nicht belegbar: Warnung setzen; keine Halluzinationen.',
         'Titel-Logik: erste 3–5 Wörter CTR-kritisch (Marke + Produkttyp + Kernmerkmal), 70–80 Zeichen bevorzugt, max. 80.',
         'Keyword-Governance: 2-3 Kernbegriffe + max. 1-2 Synonyme; kein Keyword-Stuffing und keine artikelfremden Keywords.',
+        'Beschreibung: HTML-strukturiert (<p>, <ul>, <li>, <strong>) und bei ausreichender Beleglage substanziell (~180–240 Wörter).',
       ].join('\n'),
     },
     'chat.product': {
@@ -129,6 +131,7 @@ async function ensureDefaultLlmScopeVersions() {
         'Best-Match Fokus: Relevanz + Vollständigkeit + Qualität. Priorisiere fehlende Pflichtmerkmale und klare Suchintention.',
         'Titel-Logik: erste 3–5 Wörter CTR-kritisch (Marke + Produkttyp + Kernmerkmal), 70–80 Zeichen bevorzugt, max. 80.',
         'Keyword-Governance: 2-3 Kernbegriffe + max. 1-2 Synonyme; kein Keyword-Stuffing und keine artikelfremden Keywords.',
+        'Beschreibung: HTML-strukturiert (<p>, <ul>, <li>, <strong>) und bei ausreichender Beleglage substanziell (~180–240 Wörter).',
         'eBay-Ready (DE): Titel ≤ 80 Zeichen, keine artikelfremden Keywords; gültige eBay Kategorie + kategorieabhängige Pflicht-Artikelmerkmale (required aspects) müssen befüllt und nicht leer sein.',
         'Preis: nur setzen, wenn amount ≥ 1 EUR UND Evidence-URLs vorhanden sind (z.B. eBay itemWebUrl). Ohne Evidence: Preis leer lassen und Warning setzen.',
         'Beschreibung: keine Kontaktinfos/URLs zum Wegleiten, kein aktiver Inhalt (Skripte/Formulare).',

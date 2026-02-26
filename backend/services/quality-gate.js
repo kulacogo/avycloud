@@ -483,6 +483,7 @@ function buildLlmPrompt({ product, webEvidence, ruleIssues, locale }) {
     '- Prüfe das Datenblatt ganzheitlich auf Fehler, fehlende Pflichtinfos, falsche Bilder, unplausible Werte.',
     '- Prüfe Best-Match-Relevanz: Titel/Search-Intent, Vollständigkeit der Item Specifics, visuelle Qualität, Preisplausibilität.',
     '- Prüfe den Titel auf CTR-Relevanz in den ersten 3-5 Wörtern (Marke + Produkttyp + Kernmerkmal), ohne Keyword-Stuffing.',
+    '- Prüfe die Beschreibung auf HTML-Struktur (<p>, <ul>, <li>, <strong>) und ausreichende Substanz statt 1-Satz-Text.',
     '- Markiere artikelfremde oder manipulative Keywords als Fehler (Search/Browse Manipulation).',
     '- Prüfe, ob die Kategorie plausibel zum Produkttyp passt (z.B. E‑Scooter darf nicht unter "Fahrzeuge > Automobile" landen).',
     '- Prüfe, ob Marke/Hersteller/Modell durch Web-Evidenz oder Barcode/Label belegbar ist; sonst WARN mit niedriger confidence.',

@@ -14,7 +14,7 @@
  */
 
 const { coerceTitleToPolicy, validateTitleToPolicy } = require('./title-policy');
-const { sanitizeListingText } = require('./listing-sanitize');
+const { sanitizeDescriptionToHtml } = require('./listing-sanitize');
 const { normalizeHighlightsStrict } = require('./highlights-policy');
 const { canonicalizeAttributesStrict } = require('./attribute-policy');
 const { getRulebookConfigCached } = require('./rulebook-config');
@@ -45,7 +45,10 @@ function normalizeProductStrict(product, { source = 'unknown' } = {}) {
     next.identification = next.identification || {};
     next.details = next.details || {};
     if (typeof next.details.short_description === 'string') {
-      next.details.short_description = sanitizeListingText(next.details.short_description);
+      next.details.short_description = sanitizeDescriptionToHtml(next.details.short_description, {
+        maxLen: 3000,
+        minVisibleChars: 240,
+      });
     }
     return { ok: true, product: next, issues: [], source };
   }
@@ -79,7 +82,10 @@ function normalizeProductStrict(product, { source = 'unknown' } = {}) {
 
   // 2) Description sanitize (delete-only)
   if (typeof next.details.short_description === 'string') {
-    next.details.short_description = sanitizeListingText(next.details.short_description);
+    next.details.short_description = sanitizeDescriptionToHtml(next.details.short_description, {
+      maxLen: 3000,
+      minVisibleChars: 240,
+    });
   }
 
   // 3) Highlights strict
@@ -126,7 +132,10 @@ function normalizeProductForPolicyApply(product, { source = 'unknown' } = {}) {
     next.identification = next.identification || {};
     next.details = next.details || {};
     if (typeof next.details.short_description === 'string') {
-      next.details.short_description = sanitizeListingText(next.details.short_description);
+      next.details.short_description = sanitizeDescriptionToHtml(next.details.short_description, {
+        maxLen: 3000,
+        minVisibleChars: 240,
+      });
     }
     return { ok: true, product: next, issues: [], source };
   }
@@ -164,7 +173,10 @@ function normalizeProductForPolicyApply(product, { source = 'unknown' } = {}) {
 
   // Description sanitize (delete-only)
   if (typeof next.details.short_description === 'string') {
-    next.details.short_description = sanitizeListingText(next.details.short_description);
+    next.details.short_description = sanitizeDescriptionToHtml(next.details.short_description, {
+      maxLen: 3000,
+      minVisibleChars: 240,
+    });
   }
 
   // Highlights strict (apply only when valid)

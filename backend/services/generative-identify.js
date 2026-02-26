@@ -102,7 +102,7 @@ Aufgabe:
      - Keyword-Governance: 2-3 Kernbegriffe + max. 1-2 Synonym-Varianten, kein Keyword-Stuffing.
      - Keine Marketingfloskeln, keine Emojis, keine Dubletten.
      - eBay-Titel: 70–80 Zeichen (bevorzugt), Hard-Max 80.
-4. Beschreibungen: strukturiert, faktenbasiert, keine Wiederholungen. Bei ausreichender Beleglage ca. 180–240 Wörter, natürlich lesbar (kein Keyword-Stuffing).
+4. Beschreibungen: HTML-strukturiert (<p>, <ul>, <li>, <strong>), faktenbasiert, keine Wiederholungen. Bei ausreichender Beleglage ca. 180–240 Wörter, natürlich lesbar (kein Keyword-Stuffing).
 5. Priorisiere Barcodes: EAN = exakt 13 Ziffern, GTIN = exakt 14 Ziffern. Verwende nur Codes mit korrekter Checkdigit. Wenn keiner sicher ist, lasse EAN/GTIN/UPC leer.
 6. Bestimme eine passende Kategoriebezeichnung (interner Kategorie-String), z. B. "Schuhe > Sandalen".
 7. Erstelle Attribute/Item-Specifics als Liste aus { key, value } mit deutschen Schlüsseln (z. B. "Farbe": "Marineblau"). WICHTIG: technische Daten aus OCR/Label (Spannung/Leistung/Größe/Volumen/Modell/Herstellernummer) explizit als Attribute aufnehmen, wenn vorhanden.

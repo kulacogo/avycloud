@@ -17,7 +17,7 @@ const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { inferTitleCategory } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { getActiveLlmConfig } = require('../lib/llm-config');
-const { sanitizeListingText, sanitizeHighlights } = require('../lib/listing-sanitize');
+const { sanitizeListingText, sanitizeDescriptionToHtml, sanitizeHighlights } = require('../lib/listing-sanitize');
 const { normalizeHighlightsStrict } = require('../lib/highlights-policy');
 const {
   canonicalizeAttributeKey,
@@ -1330,6 +1330,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     'Title rule: build search-native eBay titles using ebay.title_insights.top_tokens when available; never include EAN/GTIN/UPC/ISBN, SKU/internal IDs, or marketing fluff.',
     'Title priority: first 3-5 words are CTR-critical on mobile; front-load brand + product type + key differentiator.',
     'Keyword governance: naturally include 2-3 primary buyer-intent keywords plus at most 1-2 synonym variants.',
+    'Description rule: provide structured HTML listing copy (<p>, <ul>, <li>, <strong>) and keep it substantial (target around 180-240 words when evidence is sufficient).',
     'Auto-parts title rule: prioritize part type + OE/MPN + installation position; keep compatibility mainly in K-Typ/item specifics.',
     'Aspect naming rule: when proposing attributes for eBay, use ONLY exact keys from ebay.allowed_aspects (fallback: ebay.required_aspects). Never invent new attribute keys.',
     'Encoding rule: return plain UTF-8 text values (e.g. "60 °C", "Öko-Tex"), never HTML entities like "&deg;" or "&Ouml;".',
@@ -1375,12 +1376,73 @@ function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingF
   lines.push('Title rule: prioritize ebay.title_insights.top_tokens as buyer search keywords; keep title <=80 chars and factual.');
   lines.push('Title rule: first 3-5 words are CTR-critical; front-load brand + product type + key differentiator.');
   lines.push('Keyword governance: use 2-3 primary buyer-intent keywords + max 1-2 synonyms; avoid keyword stuffing/chains.');
+  lines.push('Description rule: return HTML structure (<p>, <ul>, <li>, <strong>) and keep it substantial (target around 180-240 words when evidence is sufficient).');
   lines.push('Auto-parts title rule: prioritize part type + OE/MPN + installation position; keep compatibility mainly in K-Typ/item specifics.');
   lines.push('Never include EAN/GTIN/UPC/ISBN or unverifiable claims in titles.');
   lines.push('Aspect rule: prioritize filling ebay.required_aspects_meta.missing_required_aspects with evidence-backed values, and use ONLY exact aspect names from ebay.allowed_aspects (fallback: ebay.required_aspects).');
   lines.push('Output encoding rule: never use HTML entities in attribute values; use plain UTF-8 characters.');
   lines.push('If you propose edits, remember the {"edit": {...}} JSON rule.');
   return lines.join('\n\n');
+}
+
+function buildDescriptionFallbackFacts(product, entry = {}) {
+  const attrs = toAttributesObject(entry?.attributes || product?.details?.attributes);
+  const facts = [];
+  const pushFact = (value) => {
+    const text = safeString(value);
+    if (!text) return;
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    if (!normalized) return;
+    facts.push(normalized);
+  };
+
+  const brand = safeString(entry?.identity?.brand || product?.identification?.brand);
+  const productType = safeString(attrs?.Produktart || attrs?.Produkttyp || attrs?.Artikeltyp);
+  const modelOrRef = safeString(
+    attrs?.Modell ||
+      attrs?.Model ||
+      attrs?.Herstellernummer ||
+      attrs?.MPN ||
+      product?.details?.identifiers?.mpn
+  );
+  const dimensions = safeString(
+    attrs?.['Maße'] ||
+      attrs?.['Abmessungen'] ||
+      [attrs?.['Länge'], attrs?.['Breite'], attrs?.['Höhe'] || attrs?.['Dicke']].filter(Boolean).join(' x ')
+  );
+  const material = safeString(attrs?.Material || attrs?.Werkstoff || attrs?.Obermaterial);
+  const usage = safeString(
+    attrs?.Anwendung ||
+      attrs?.['Geeignet für'] ||
+      attrs?.Verwendungszweck ||
+      attrs?.Kompatibilität ||
+      [attrs?.Fahrzeugmarke, attrs?.Fahrzeugmodell].filter(Boolean).join(' ')
+  );
+
+  if (brand || productType) {
+    pushFact(`${[brand, productType].filter(Boolean).join(' ')} wird als passgenauer Artikel angeboten.`);
+  }
+  if (modelOrRef) {
+    pushFact(`Modell bzw. Referenznummer: ${modelOrRef}.`);
+  }
+  if (dimensions) {
+    pushFact(`Wichtige Maße/Formfaktoren: ${dimensions}.`);
+  }
+  if (material) {
+    pushFact(`Material und Verarbeitung: ${material}.`);
+  }
+  if (usage) {
+    pushFact(`Einsatzbereich bzw. Kompatibilität: ${usage}.`);
+  }
+
+  const highlights = Array.isArray(entry?.key_features) && entry.key_features.length
+    ? entry.key_features
+    : Array.isArray(product?.details?.key_features)
+      ? product.details.key_features
+      : [];
+  highlights.slice(0, 5).forEach((item) => pushFact(item));
+
+  return Array.from(new Set(facts));
 }
 
 function sanitizeImageSuggestions(entry) {
@@ -1424,9 +1486,18 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
 
   if (entry.summary) result.summary = entry.summary;
   if (allow.description && typeof entry.short_description === 'string') {
-    const cleaned = sanitizeListingText(entry.short_description, { maxLen: 2000 });
-    if (cleaned) {
-      result.short_description = cleaned;
+    const cleaned = sanitizeListingText(entry.short_description, { maxLen: 2600 });
+    const htmlDescription = sanitizeDescriptionToHtml(entry.short_description || cleaned, {
+      maxLen: 2600,
+      minVisibleChars: 320,
+      fallbackFacts: buildDescriptionFallbackFacts(product, entry),
+    });
+    if (htmlDescription) {
+      result.short_description = htmlDescription;
+      const visibleLen = safeString(htmlDescription.replace(/<[^>]+>/g, ' ')).length;
+      if (strict && visibleLen < 220) {
+        policyIssues.push('description:too_short_after_html_policy');
+      }
     } else {
       if (strict) policyIssues.push('description:rejected_empty_after_sanitize');
     }

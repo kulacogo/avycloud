@@ -183,7 +183,7 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
       from_date: fromDate,
       to_date: toDate,
       limit: String(limit),
-      page: String(page),
+      offset: String((page - 1) * limit), // SendCloud v2 uses offset, not page number
     });
 
     const controller = new AbortController();
@@ -207,6 +207,16 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
       clearTimeout(timer);
     }
 
+    // Diagnose: log date range and match stats for the first 3 pages
+    if (page <= 3 && parcels.length > 0) {
+      const dates = parcels.map(p => p.date_created || p.created_at || 'NULL').slice(0, 3);
+      const inRange = parcels.filter(p => {
+        const ms = parseSendCloudDate(p.date_created || p.created_at);
+        return !isNaN(ms) && ms >= fromMs && ms <= toMs;
+      }).length;
+      console.log(`[sendcloud] page ${page}: ${parcels.length} parcels, ${inRange} in range [${fromDate}–${toDate}], sample dates: ${dates.join(' | ')}`);
+    }
+
     let matchedOnPage = 0;
     for (const parcel of parcels) {
       // Client-side date guard — skip parcels outside the requested window.
@@ -214,8 +224,10 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
       // which JavaScript's Date constructor cannot parse (returns NaN).
       const createdRaw = parcel.date_created || parcel.created_at || null;
       const createdMs = parseSendCloudDate(createdRaw);
-      if (!isNaN(createdMs) && (createdMs < fromMs || createdMs > toMs)) {
-        continue; // outside range — skip this parcel
+      // Strict inclusion: skip if date is missing/unparseable OR outside window.
+      // A parcel with no date must NOT silently inflate the count.
+      if (isNaN(createdMs) || createdMs < fromMs || createdMs > toMs) {
+        continue;
       }
       matchedOnPage++;
 
@@ -281,4 +293,4 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
   return result;
 }
 
-module.exports = { getShippingCostsSummary };
+module.exports = { getShippingCostsSummary, loadPriceTable, lookupCsvPrice };

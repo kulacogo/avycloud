@@ -20,7 +20,7 @@ const { findKauflandCategory, getKauflandAttributes } = require('../lib/kaufland
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
 const { isValidGtin, normalizeDigits, getGtinType } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
-const { sanitizeListingText } = require('../lib/listing-sanitize');
+const { sanitizeListingText, sanitizeDescriptionToHtml } = require('../lib/listing-sanitize');
 const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { normalizeProductStrict } = require('../lib/llm-rulebook');
@@ -731,7 +731,7 @@ function buildUserPrompt({
     `   - Auto-Teile: OE/MPN + Einbauposition priorisieren; Fahrzeugkompatibilität vorrangig über K-Typ/Item Specifics statt langer Modelllisten im Titel.`,
     `   - Nie EAN/GTIN/UPC/ISBN, SKU oder interne IDs im Titel ausgeben.`,
     `   - Zustand: Wenn nicht explizit vorhanden, setze Attribut "Zustand" = "NEU". "Gebraucht" nur wenn im Datensatz gesetzt.`,
-    `   - short_description: 3 kurze Absätze (insgesamt ideal ~180–240 Wörter), natürlich lesbar, keine Keyword-Überladung.`,
+    `   - short_description: HTML-strukturiert (<p>, <ul>, <li>, <strong>) und 3 kurze Absätze (insgesamt ideal ~180–240 Wörter), natürlich lesbar, keine Keyword-Überladung.`,
     `   - key_features: 5-7 Nutzen-Bullets, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen).`,
     `   - Keine Preisangaben oder Preisorientierung in Titel/Beschreibung/Highlights.`,
     `3. Bilder: nur eindeutige, Dubletten entfernen.`,
@@ -1599,7 +1599,7 @@ function buildReviewPrompt(
     '- Titel Keyword-Governance: 2-3 Kernbegriffe + max. 1-2 passende Synonym-Varianten, keine redundanten Keyword-Ketten.',
     '- Auto-Teile: OE/MPN + Einbauposition priorisieren; Fahrzeugkompatibilität vorrangig über K-Typ/Item Specifics statt langer Modelllisten im Titel.',
     '- Plausibilitätscheck: Nutze WEB-EVIDENZ (Marktplatz-Suchergebnisse, falls enthalten) um Daten zu verifizieren und fehlende Spezifikationen zu ergänzen. Erfinde keine Werte.',
-    '- Beschreibung: SEO-stark und gut lesbar. HTML ist erlaubt (nur <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität/Abmessungen/Gewicht (nur wenn belegbar). Zielumfang bei ausreichender Beleglage: ca. 180–240 Wörter. Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',
+    '- Beschreibung: SEO-stark und gut lesbar. HTML-Struktur ist verpflichtend (nur <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität/Abmessungen/Gewicht (nur wenn belegbar). Zielumfang bei ausreichender Beleglage: ca. 180–240 Wörter. Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',
     '- Highlights: 5–7 Bulletpoints, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen). Neutral formulieren (kein "Ihr/Dein"), technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
     '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme).',
     '- Zustand: Wenn condition_locked=false, ist "Gebraucht/Used" nicht erlaubt (auf NEU normalisieren).',
@@ -1640,7 +1640,10 @@ function applyReviewResult(product, review, { titleHintTokens = [] } = {}) {
       : '';
 
   if (typeof review.short_description === 'string' && review.short_description.trim().length > 0) {
-    const cleanedDescription = sanitizeListingText(review.short_description);
+    const cleanedDescription = sanitizeDescriptionToHtml(review.short_description, {
+      maxLen: 3000,
+      minVisibleChars: 260,
+    });
     if (cleanedDescription) {
       product.details.short_description = cleanedDescription;
     }
