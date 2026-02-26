@@ -89,6 +89,38 @@ function lookupCsvPrice(methodId, weightKg) {
   return 0;
 }
 
+// ─── Date parser ─────────────────────────────────────────────────────────────
+/**
+ * Parses a SendCloud date string robustly.
+ * SendCloud API v2 returns dates as "DD-MM-YYYY HH:MM:SS" (European format).
+ * JavaScript's Date constructor cannot parse this format and returns NaN.
+ * Falls back to standard ISO parsing for future-proofing.
+ *
+ * @param {string|null|undefined} raw
+ * @returns {number} Unix ms, or NaN if unparseable
+ */
+function parseSendCloudDate(raw) {
+  if (!raw) return NaN;
+  const s = String(raw).trim();
+
+  // ISO / YYYY-MM-DD variants (already parseable by Date)
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    // Replace space separator with T for stricter parsing
+    const ms = new Date(s.replace(' ', 'T')).getTime();
+    if (!isNaN(ms)) return ms;
+  }
+
+  // SendCloud native: "DD-MM-YYYY HH:MM:SS" or "DD-MM-YYYY"
+  const m = /^(\d{2})-(\d{2})-(\d{4})(?:[\sT](\d{2}):(\d{2}):(\d{2}))?/.exec(s);
+  if (m) {
+    const [, dd, mm, yyyy, hh = '0', min = '0', sec = '0'] = m;
+    // Treat as UTC to be consistent with fromMs / toMs boundaries
+    return Date.UTC(+yyyy, +mm - 1, +dd, +hh, +min, +sec);
+  }
+
+  return NaN;
+}
+
 // ─── Auth ───────────────────────────────────────────────────────────────────
 
 const SHIPPING_CACHE = new Map();
@@ -136,6 +168,7 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
   let parcelCount = 0;
   let page = 1;
   const limit = 100;
+  let consecutivePagesWithNoMatch = 0;
 
   // Client-side date boundaries for validation.
   // SendCloud's server-side date filter can return all-time data if the
@@ -174,15 +207,17 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
       clearTimeout(timer);
     }
 
+    let matchedOnPage = 0;
     for (const parcel of parcels) {
-      // Client-side date guard — skip parcels outside the requested window
+      // Client-side date guard — skip parcels outside the requested window.
+      // Uses parseSendCloudDate() to handle SendCloud's "DD-MM-YYYY HH:MM:SS" format
+      // which JavaScript's Date constructor cannot parse (returns NaN).
       const createdRaw = parcel.date_created || parcel.created_at || null;
-      if (createdRaw) {
-        const createdMs = new Date(createdRaw).getTime();
-        if (!isNaN(createdMs) && (createdMs < fromMs || createdMs > toMs)) {
-          continue; // outside range — skip this parcel
-        }
+      const createdMs = parseSendCloudDate(createdRaw);
+      if (!isNaN(createdMs) && (createdMs < fromMs || createdMs > toMs)) {
+        continue; // outside range — skip this parcel
       }
+      matchedOnPage++;
 
       // Try the API-provided price first
       const apiPriceRaw =
@@ -211,6 +246,19 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
     }
 
     if (parcels.length < limit) break;
+
+    // If server-side date filter is being ignored and we've seen several consecutive
+    // pages with zero matching parcels, we've scrolled past the relevant window.
+    if (matchedOnPage === 0) {
+      consecutivePagesWithNoMatch++;
+      if (consecutivePagesWithNoMatch >= 3) {
+        console.log(`[sendcloud] Early stop: 3 consecutive pages with no matching parcels for ${fromDate}–${toDate}`);
+        break;
+      }
+    } else {
+      consecutivePagesWithNoMatch = 0;
+    }
+
     if (parcelCount > 5000) {
       console.warn(`[sendcloud] Safety limit: ${parcelCount} parcels counted for ${fromDate}–${toDate}, stopping.`);
       break;
