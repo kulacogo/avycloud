@@ -2347,11 +2347,13 @@ export const fetchOrders = async (limit = 200, options?: { timeoutMs?: number })
 };
 
 export const fetchDashboardMetrics = async (
-  input: number | { days?: number; preset?: string | null } = 7,
+  input: number | { days?: number; preset?: string | null; from_date?: string | null; to_date?: string | null } = 7,
   options?: { timeoutMs?: number }
 ): Promise<DashboardMetrics> => {
   const rawDays = typeof input === 'number' ? input : input?.days ?? 7;
   const rawPreset = typeof input === 'number' ? null : input?.preset ?? null;
+  const fromDate = typeof input === 'object' ? input?.from_date ?? null : null;
+  const toDate = typeof input === 'object' ? input?.to_date ?? null : null;
 
   const d = Math.min(Math.max(parseInt(String(rawDays), 10) || 7, 1), 60);
   const url = new URL(`${BACKEND_URL}/api/dashboard/metrics`);
@@ -2359,6 +2361,8 @@ export const fetchDashboardMetrics = async (
   if (rawPreset != null && String(rawPreset).trim()) {
     url.searchParams.set('preset', String(rawPreset).trim());
   }
+  if (fromDate) url.searchParams.set('from_date', fromDate);
+  if (toDate) url.searchParams.set('to_date', toDate);
 
   const response = await fetchWithTimeout(url.toString(), undefined, options?.timeoutMs || 25000);
   const result = await parseResponse(response);
@@ -2370,10 +2374,12 @@ export const fetchDashboardMetrics = async (
 
 export const fetchFinanceMetrics = async (
   preset: string = 'last7',
-  options?: { timeoutMs?: number }
+  options?: { timeoutMs?: number; from_date?: string; to_date?: string }
 ): Promise<FinanceMetrics> => {
   const url = new URL(`${BACKEND_URL}/api/dashboard/finance`);
   url.searchParams.set('preset', String(preset).trim() || 'last7');
+  if (options?.from_date) url.searchParams.set('from_date', options.from_date);
+  if (options?.to_date) url.searchParams.set('to_date', options.to_date);
 
   const response = await fetchWithTimeout(url.toString(), undefined, options?.timeoutMs || 35000);
   const result = await parseResponse(response);

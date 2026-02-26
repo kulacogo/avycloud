@@ -20,10 +20,12 @@ interface DashboardProps {
 const PRESETS = [
   { id: 'today', label: 'Heute' },
   { id: 'last7', label: 'Letzte 7 Tage' },
+  { id: 'this_week', label: 'Diese Woche' },
   { id: 'month_to_date', label: 'Dieser Monat' },
   { id: 'last_month', label: 'Letzter Monat' },
   { id: 'year_to_date', label: 'Dieses Jahr' },
-  { id: 'last_year', label: 'Letztes Jahr' },
+  { id: 'all_time', label: 'Gesamter Zeitraum' },
+  { id: 'custom', label: 'Benutzerdefiniert' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -399,10 +401,12 @@ const Delta: React.FC<{ value: number; suffix?: string }> = ({ value, suffix = '
 const DateRangePicker: React.FC<{
   activePreset: string;
   presetLabel: string;
-  monthOptions: { id: string; label: string }[];
   onSelect: (id: string) => void;
   onRefresh: () => void;
-}> = ({ activePreset, presetLabel, monthOptions, onSelect, onRefresh }) => {
+  customFrom: string;
+  customTo: string;
+  onCustomChange: (from: string, to: string) => void;
+}> = ({ activePreset, presetLabel, onSelect, onRefresh, customFrom, customTo, onCustomChange }) => {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
 
@@ -414,7 +418,10 @@ const DateRangePicker: React.FC<{
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleSelect = (id: string) => { onSelect(id); setOpen(false); };
+  const handleSelect = (id: string) => {
+    onSelect(id);
+    if (id !== 'custom') setOpen(false);
+  };
 
   return (
     <div ref={ref} className="relative flex items-center gap-2">
@@ -428,7 +435,7 @@ const DateRangePicker: React.FC<{
           <rect x="3" y="4" width="18" height="18" rx="2" />
           <path d="M16 2v4M8 2v4M3 10h18" />
         </svg>
-        <span className="max-w-[11rem] truncate">{presetLabel}</span>
+        <span className="max-w-[13rem] truncate">{presetLabel}</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-3.5 h-3.5 text-slate-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`}>
           <path d="M6 9l6 6 6-6" />
         </svg>
@@ -451,9 +458,8 @@ const DateRangePicker: React.FC<{
       {open && (
         <div
           className="absolute right-0 top-full mt-2 z-50 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden"
-          style={{ minWidth: '15rem' }}
+          style={{ minWidth: '16rem' }}
         >
-          {/* Quick presets */}
           <div className="p-2">
             <p className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold px-2 pt-1 pb-1.5">Zeitraum</p>
             {PRESETS.map(p => (
@@ -477,26 +483,34 @@ const DateRangePicker: React.FC<{
             ))}
           </div>
 
-          {/* Month picker */}
-          <div className="border-t border-white/[0.06] p-2">
-            <p className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold px-2 pt-1 pb-1.5">Einzelner Monat</p>
-            <div className="grid grid-cols-2 gap-1">
-              {monthOptions.map(m => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => handleSelect(m.id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm text-left transition-all ${
-                    activePreset === m.id
-                      ? 'bg-violet-600/20 text-violet-300 font-medium'
-                      : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
+          {/* Custom date range inputs */}
+          {activePreset === 'custom' && (
+            <div className="border-t border-white/[0.06] p-3 space-y-2">
+              <p className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold px-1">Von – Bis</p>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={e => onCustomChange(e.target.value, customTo)}
+                  className="flex-1 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50"
+                />
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={e => onCustomChange(customFrom, e.target.value)}
+                  className="flex-1 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { if (customFrom && customTo) setOpen(false); onRefresh(); }}
+                disabled={!customFrom || !customTo}
+                className="w-full py-1.5 rounded-lg bg-sky-600/20 text-sky-300 text-xs font-semibold hover:bg-sky-600/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Anwenden
+              </button>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -520,10 +534,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const loadingRef = useRef(false);
 
   const [internalPreset, setInternalPreset] = useState('month_to_date');
-  const isMonthPreset = (v: string) => /^month_\d{4}_\d{2}$/.test(v);
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  // Refs keep latest date values available inside loadAll without re-creating the callback
+  const customFromRef = useRef('');
+  const customToRef = useRef('');
+  customFromRef.current = customFrom;
+  customToRef.current = customTo;
+
   const activePreset = useMemo(() => {
     const raw = typeof rangePreset === 'string' ? rangePreset.trim() : '';
-    return raw && (PRESETS.some(p => p.id === raw) || isMonthPreset(raw)) ? raw : internalPreset;
+    return raw && PRESETS.some(p => p.id === raw) ? raw : internalPreset;
   }, [rangePreset, internalPreset]);
 
   const setPreset = useCallback((next: string) => {
@@ -531,33 +552,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
     else setInternalPreset(next);
   }, [onRangePresetChange]);
 
-  // Generate month options from Nov 2025 to current month (newest first)
-  const monthOptions = useMemo(() => {
-    const opts: { id: string; label: string }[] = [];
-    const now = new Date();
-    const start = new Date(Date.UTC(2025, 10, 1)); // Nov 2025
-    let d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    while (d >= start) {
-      const y = d.getUTCFullYear();
-      const m = d.getUTCMonth();
-      const id = `month_${y}_${String(m + 1).padStart(2, '0')}`;
-      const label = d.toLocaleString('de-DE', { month: 'short', year: '2-digit', timeZone: 'UTC' });
-      opts.push({ id, label });
-      d = new Date(Date.UTC(y, m - 1, 1));
-    }
-    return opts;
-  }, []);
-
   const loadAll = useCallback(async () => {
     if (loadingRef.current) return;
+    const from = customFromRef.current;
+    const to = customToRef.current;
+    // For custom preset, require both dates before fetching
+    if (activePreset === 'custom' && (!from || !to)) return;
     loadingRef.current = true;
-    const long = activePreset === 'year_to_date' || activePreset === 'last_year';
+    const long = activePreset === 'year_to_date' || activePreset === 'last_year' || activePreset === 'all_time';
     setMetricsLoading(true);
     setFinanceLoading(true);
+    const fromDate = activePreset === 'custom' ? from : undefined;
+    const toDate = activePreset === 'custom' ? to : undefined;
     try {
       const [mResult, fResult] = await Promise.allSettled([
-        fetchDashboardMetrics({ days: 7, preset: activePreset }, { timeoutMs: long ? 60000 : 28000 }),
-        fetchFinanceMetrics(activePreset, { timeoutMs: 40000 }),
+        fetchDashboardMetrics({ days: 7, preset: activePreset, from_date: fromDate, to_date: toDate }, { timeoutMs: long ? 90000 : 28000 }),
+        fetchFinanceMetrics(activePreset, { timeoutMs: 40000, from_date: fromDate, to_date: toDate }),
       ]);
       if (mResult.status === 'fulfilled') {
         setMetrics(mResult.value);
@@ -677,9 +687,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <DateRangePicker
             activePreset={activePreset}
             presetLabel={presetLabel}
-            monthOptions={monthOptions}
             onSelect={setPreset}
             onRefresh={loadAll}
+            customFrom={customFrom}
+            customTo={customTo}
+            onCustomChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }}
           />
         </div>
       </div>

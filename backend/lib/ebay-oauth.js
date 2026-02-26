@@ -61,11 +61,11 @@ function parseScopes(raw) {
 }
 
 async function getEbayScopes() {
-  // Default: inventory read + finances (for net revenue via eBay Finances API).
-  // sell.finances requires re-authorization if not already in the stored token's scopes.
+  // Default: inventory read only. sell.finances must be added explicitly via EBAY_SCOPES
+  // env var because it requires the eBay developer app to have the scope pre-approved;
+  // adding it to the fallback breaks the OAuth flow for apps that don't have it.
   const fallback = [
     'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly',
-    'https://api.ebay.com/oauth/api_scope/sell.finances',
   ];
   const fromEnv = parseScopes(process.env.EBAY_SCOPES);
   return fromEnv || fallback;
