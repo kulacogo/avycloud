@@ -335,6 +335,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       maxChartCount,
       revenueAllNonCancelled: metrics?.revenue?.all_non_cancelled_total ?? 0,
       revenueWindowNonCancelled: metrics?.revenue?.window_non_cancelled_total ?? 0,
+      ebayNetWindow: typeof metrics?.revenue?.ebay_net_window === 'number' ? metrics.revenue.ebay_net_window : null,
+      ebayNetYtd: typeof metrics?.revenue?.ebay_net_ytd === 'number' ? metrics.revenue.ebay_net_ytd : null,
       currency: safeCurrency(metrics?.currency || 'EUR'),
     };
   }, [metrics]);
@@ -766,9 +768,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="text-[22px] font-bold text-[var(--text-primary)] tracking-tight">
                   {formatCurrency(orderMetrics.revenueWindowNonCancelled, orderMetrics.currency)}
                 </div>
-                <div className="text-xs text-[var(--text-tertiary)] font-medium">
+                <div className="text-xs text-[var(--text-tertiary)] font-medium space-y-0.5">
                   {orderMetrics.revenueAllNonCancelled > 0 && (
-                    <>Gesamt: {formatCurrency(orderMetrics.revenueAllNonCancelled, orderMetrics.currency)}</>
+                    <div>Gesamt: {formatCurrency(orderMetrics.revenueAllNonCancelled, orderMetrics.currency)}</div>
+                  )}
+                  {orderMetrics.ebayNetWindow !== null && (
+                    <div className="text-[var(--avy-purple)] font-semibold">
+                      eBay Netto: {formatCurrency(orderMetrics.ebayNetWindow, orderMetrics.currency)}
+                      {orderMetrics.ebayNetYtd !== null && orderMetrics.ebayNetYtd !== orderMetrics.ebayNetWindow && (
+                        <span className="text-[var(--text-tertiary)] font-normal ml-2">
+                          (Gesamt: {formatCurrency(orderMetrics.ebayNetYtd, orderMetrics.currency)})
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

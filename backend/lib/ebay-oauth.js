@@ -61,8 +61,12 @@ function parseScopes(raw) {
 }
 
 async function getEbayScopes() {
-  // Default: read-only inventory access (sufficient to fetch offers/listings by SKU).
-  const fallback = ['https://api.ebay.com/oauth/api_scope/sell.inventory.readonly'];
+  // Default: inventory read + finances (for net revenue via eBay Finances API).
+  // sell.finances requires re-authorization if not already in the stored token's scopes.
+  const fallback = [
+    'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly',
+    'https://api.ebay.com/oauth/api_scope/sell.finances',
+  ];
   const fromEnv = parseScopes(process.env.EBAY_SCOPES);
   return fromEnv || fallback;
 }

@@ -481,7 +481,13 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
               }
               sub={
                 metrics
-                  ? `${activeRangeLabel}: ${formatCurrency(metrics.revenue.window_non_cancelled_total || 0, metrics.currency || 'EUR')}`
+                  ? (() => {
+                      const windowLabel = `${activeRangeLabel}: ${formatCurrency(metrics.revenue.window_non_cancelled_total || 0, metrics.currency || 'EUR')}`;
+                      const ebayNet = typeof metrics.revenue.ebay_net_window === 'number'
+                        ? ` · eBay Netto: ${formatCurrency(metrics.revenue.ebay_net_window, metrics.currency || 'EUR')}`
+                        : '';
+                      return windowLabel + ebayNet;
+                    })()
                   : undefined
               }
             />

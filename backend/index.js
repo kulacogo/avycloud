@@ -98,6 +98,7 @@ const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked, markOrderAsPacked } = require('./services/order-sync');
 const { getCheckAccountBalances, getShippingCostsFromSevDesk } = require('./lib/sevdesk');
 const { getShippingCostsSummaryFromBaseLinker } = require('./lib/baselinker-shipping');
+const { getEbayNetRevenueSummary } = require('./lib/ebay-finances');
 const { requireAuth } = require('./lib/auth');
 const { ensureDefaultRoles, requirePermission, resolvePermissionsForUser } = require('./lib/rbac');
 const {
@@ -6649,6 +6650,40 @@ app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async 
     } catch (err) {
       console.warn('Dashboard returns enrichment failed (falling back to order-status heuristics):', err?.message || err);
     }
+
+    // Enrich with eBay net revenue (after all marketplace fees) via eBay Finances API.
+    // Requires sell.finances scope — silently skipped if not authorized.
+    try {
+      const rangeStart = metrics?.range?.from_iso ? new Date(metrics.range.from_iso) : null;
+      const rangeEnd   = metrics?.range?.to_iso   ? new Date(metrics.range.to_iso)   : null;
+      const now = new Date();
+      const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0));
+      const pad = (n) => String(n).padStart(2, '0');
+      const toDateStr = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+
+      const windowFromDate = rangeStart ? toDateStr(rangeStart) : toDateStr(yearStart);
+      const windowToDate   = rangeEnd   ? toDateStr(new Date(rangeEnd.getTime() - 1)) : toDateStr(now);
+      const ytdFromDate    = toDateStr(yearStart);
+      const ytdToDate      = toDateStr(now);
+
+      const [ebayWindow, ebayYtd] = await Promise.all([
+        getEbayNetRevenueSummary(windowFromDate, windowToDate, { timeoutMs: 15000 }),
+        getEbayNetRevenueSummary(ytdFromDate, ytdToDate, { timeoutMs: 15000 }),
+      ]);
+
+      if (metrics?.revenue) {
+        if (ebayWindow !== null) {
+          metrics.revenue.ebay_net_window = ebayWindow.net_revenue;
+        }
+        if (ebayYtd !== null) {
+          metrics.revenue.ebay_net_ytd = ebayYtd.net_revenue;
+          metrics.revenue.ebay_net_source = 'ebay_finances';
+        }
+      }
+    } catch (err) {
+      console.warn('Dashboard eBay net revenue enrichment failed:', err?.message || err);
+    }
+
     res.setHeader('Cache-Control', 'no-store');
     res.json({ ok: true, data: metrics });
   } catch (error) {
