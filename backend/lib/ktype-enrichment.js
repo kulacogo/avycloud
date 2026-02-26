@@ -395,8 +395,73 @@ function hasKTyp(product) {
   if (!attrs || typeof attrs !== 'object') return false;
   return Object.keys(attrs).some((k) => {
     const lower = safeString(k).toLowerCase();
-    return lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ';
+    if (!(lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ')) return false;
+    const raw = safeString(attrs[k]);
+    if (!raw) return false;
+    // K-Type/ePID values are ID-like lists. Ignore placeholders/empty shells ("", "|", "n/a").
+    const parts = raw.split(/[|,;]+/).map((x) => safeString(x)).filter(Boolean);
+    if (!parts.length) return false;
+    return parts.some((p) => /^\d+$/.test(p));
   });
+}
+
+function collectLocalHsnTsnCandidates(product) {
+  const attrs = product?.details?.attributes && typeof product.details.attributes === 'object' ? product.details.attributes : {};
+  const extra =
+    product?.details?.attributes_extra && typeof product.details.attributes_extra === 'object'
+      ? product.details.attributes_extra
+      : {};
+  const ids = product?.details?.identifiers || {};
+  const out = new Set();
+
+  const pushCandidate = (raw) => {
+    const s = safeString(raw);
+    if (!s) return;
+    const n = normalizeHsnTsn(s);
+    if (n) out.add(n);
+    extractHsnTsnCandidates(s).forEach((pair) => out.add(pair));
+  };
+
+  const hsnTsnCombinedKeys = [
+    'HSN/TSN',
+    'HSN TSN',
+    'HSN-TSN',
+    'KBA',
+    'KBA-Nummer',
+    'KBA Nummer',
+    'Schlüsselnummer',
+    'Schlüsselnummern',
+  ];
+  pushCandidate(pickFromAttributes(attrs, hsnTsnCombinedKeys));
+  pushCandidate(pickFromAttributes(extra, hsnTsnCombinedKeys));
+  pushCandidate(ids?.hsn_tsn);
+  pushCandidate(ids?.hsnTsn);
+  pushCandidate(ids?.kba);
+
+  const hsn =
+    pickFromAttributes(attrs, ['HSN', 'HSN-Nr', 'HSN Nr', 'HSN Nummer']) ||
+    pickFromAttributes(extra, ['HSN', 'HSN-Nr', 'HSN Nr', 'HSN Nummer']) ||
+    safeString(ids?.hsn);
+  const tsn =
+    pickFromAttributes(attrs, ['TSN', 'TSN-Nr', 'TSN Nr', 'TSN Nummer']) ||
+    pickFromAttributes(extra, ['TSN', 'TSN-Nr', 'TSN Nr', 'TSN Nummer']) ||
+    safeString(ids?.tsn);
+  if (/^\d{4}$/.test(hsn) && /^[A-Z0-9]{3}$/i.test(tsn)) {
+    out.add(`${hsn}|${String(tsn).toUpperCase()}`);
+  }
+
+  const textBlob = [
+    safeString(product?.identification?.name),
+    safeString(product?.details?.short_description),
+    safeString(product?.details?.description),
+    JSON.stringify(attrs || {}),
+    JSON.stringify(extra || {}),
+  ]
+    .filter(Boolean)
+    .join('\n');
+  extractHsnTsnCandidates(textBlob).forEach((pair) => out.add(pair));
+
+  return Array.from(out);
 }
 
 function attachKTypeTrace(product, trace) {
@@ -424,6 +489,18 @@ function formatKTyp(ids = [], { maxLen = 0 } = {}) {
     out.push(p);
   }
   return out.join('|');
+}
+
+function clearKTypWarnings(product) {
+  if (!(product?.notes?.warnings && Array.isArray(product.notes.warnings))) return;
+  product.notes.warnings = product.notes.warnings.filter((w) => {
+    const s = safeString(w);
+    if (!s) return false;
+    if (/^K-Typ nicht angereichert:/i.test(s)) return false;
+    if (/^K-Typ konnte/i.test(s)) return false;
+    if (/^K-Typ fehlt:/i.test(s)) return false;
+    return true;
+  });
 }
 
 async function resolveEvidenceUrls(query, { limit = 6 } = {}) {
@@ -519,11 +596,6 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
     return { ok: false, reason: 'already_has_ktype' };
   }
   const mpn = pickPartNumber(product);
-  if (!mpn) {
-    attachKTypeTrace(product, { ok: false, reason: 'missing_part_number', fitment_mode: fitmentMode, catId: catId || null });
-    return { ok: false, reason: 'missing_part_number' };
-  }
-
   const mvl = fitmentMode === 'auto' ? await loadMvlIndex() : null;
   const moto = fitmentMode === 'moto' ? loadMotoIndex() : null;
   if (fitmentMode === 'auto' && mvl && !mvl.ok) {
@@ -558,6 +630,61 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       moto_path: moto.jsonlPath || null,
     });
     return { ok: false, reason: 'moto_missing' };
+  }
+
+  // Deterministic fast-path: if HSN/TSN is already present in product data, map it directly via MVL.
+  // This avoids flaky web-dependency and works even without MPN.
+  const localHsnTsn = fitmentMode === 'auto' ? collectLocalHsnTsnCandidates(product) : [];
+  if (fitmentMode === 'auto' && mvl?.ok && localHsnTsn.length) {
+    const mappedLocal = new Set();
+    for (const pair of localHsnTsn) {
+      const set = mvl.byHsnTsn.get(pair);
+      if (!set) continue;
+      for (const id of set.values()) mappedLocal.add(id);
+    }
+    const idsLocal = Array.from(mappedLocal).sort((a, b) => a - b).slice(0, maxKTypes);
+    if (idsLocal.length) {
+      product.details = product.details || {};
+      product.details.attributes =
+        product.details.attributes && typeof product.details.attributes === 'object' ? product.details.attributes : {};
+      product.details.attributes['K-Typ'] = formatKTyp(idsLocal, { maxLen: 0 });
+      attachKTypeTrace(product, {
+        ok: true,
+        reason,
+        source: 'local_hsn_tsn',
+        fitment_mode: fitmentMode,
+        catId: catId || null,
+        mpn: mpn || null,
+        hsn_tsn: localHsnTsn,
+        ktypes: idsLocal,
+        mvl_path: mvl?.jsonlPath || null,
+      });
+      clearKTypWarnings(product);
+      if (process.env.DEBUG_KTYPE) {
+        console.log('[ktype] enriched', {
+          productId: product?.id || null,
+          fitmentMode,
+          source: 'local_hsn_tsn',
+          count: idsLocal.length,
+          mpn: mpn || null,
+          mvl: mvl.jsonlPath,
+        });
+      }
+      return { ok: true, fitmentMode, ids: idsLocal };
+    }
+  }
+
+  if (!mpn) {
+    attachKTypeTrace(product, {
+      ok: false,
+      reason: 'missing_part_number',
+      fitment_mode: fitmentMode,
+      catId: catId || null,
+      hsn_tsn: localHsnTsn,
+      mvl_path: mvl?.jsonlPath || null,
+      moto_path: moto?.jsonlPath || null,
+    });
+    return { ok: false, reason: 'missing_part_number' };
   }
 
   const brand = safeString(product?.identification?.brand) || safeString(product?.details?.attributes?.Marke) || '';
@@ -670,6 +797,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
   attachKTypeTrace(product, {
     ok: true,
     reason,
+    source: 'web_evidence',
     fitment_mode: fitmentMode,
     catId: catId || null,
     mpn,
@@ -681,19 +809,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
     mvl_path: mvl?.jsonlPath || null,
     moto_path: moto?.jsonlPath || null,
   });
-
-  // If enrichment succeeded now, remove stale "not enriched" warnings from previous runs.
-  // Keep other warnings intact (pricing, compliance, etc.).
-  if (product?.notes?.warnings && Array.isArray(product.notes.warnings)) {
-    product.notes.warnings = product.notes.warnings.filter((w) => {
-      const s = safeString(w);
-      if (!s) return false;
-      if (/^K-Typ nicht angereichert:/i.test(s)) return false;
-      if (/^K-Typ konnte/i.test(s)) return false;
-      if (/^K-Typ fehlt:/i.test(s)) return false;
-      return true;
-    });
-  }
+  clearKTypWarnings(product);
 
   if (process.env.DEBUG_KTYPE) {
     console.log('[ktype] enriched', {
