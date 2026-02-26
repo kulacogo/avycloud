@@ -97,7 +97,7 @@ const {
 const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked, markOrderAsPacked } = require('./services/order-sync');
 const { getCheckAccountBalances } = require('./lib/sevdesk');
-const { getShippingCostsSummary } = require('./lib/sendcloud');
+const { getShippingCostsSummaryFromBaseLinker } = require('./lib/baselinker-shipping');
 const { requireAuth } = require('./lib/auth');
 const { ensureDefaultRoles, requirePermission, resolvePermissionsForUser } = require('./lib/rbac');
 const {
@@ -6732,10 +6732,10 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
   // Run both external API calls in parallel, failing gracefully
   const [balanceResult, shippingResult, shippingYtdResult] = await Promise.allSettled([
     getCheckAccountBalances({ timeoutMs: 15000 }),
-    getShippingCostsSummary(fromDateStr, toDateStr2, { timeoutMs: 25000 }),
+    getShippingCostsSummaryFromBaseLinker(fromDateStr, toDateStr2, { timeoutMs: 25000 }),
     // Only fetch YTD separately if not already YTD
     (preset !== 'year_to_date' && !(preset === 'last_year'))
-      ? getShippingCostsSummary(ytdFromStr, ytdToStr, { timeoutMs: 25000 })
+      ? getShippingCostsSummaryFromBaseLinker(ytdFromStr, ytdToStr, { timeoutMs: 25000 })
       : Promise.resolve(null),
   ]);
 
@@ -6751,7 +6751,7 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
   let shipping = null;
   if (shippingResult.status === 'fulfilled') {
     const sc = shippingResult.value || {};
-    // If SendCloud returned no useful data (0 parcels or 0 cost), fall back to order delivery prices
+    // If BaseLinker returned no useful data (0 parcels or 0 cost), fall back to order delivery prices
     if (!sc.parcel_count && !sc.total_cost) {
       try {
         const ordersFallback = await computeOrdersDeliveryTotal(fromDateStr, toDateStr2);
@@ -6769,7 +6769,7 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
       shipping = { ...sc, from_date: fromDateStr, to_date: toDateStr2 };
     }
   } else {
-    errors.push(`SendCloud: ${shippingResult.reason?.message || 'Fehler beim Abrufen der Versandkosten'}`);
+    errors.push(`BaseLinker-Versand: ${shippingResult.reason?.message || 'Fehler beim Abrufen der Versandkosten'}`);
     // Primary source failed — fall back to order delivery prices immediately
     try {
       const ordersFallback = await computeOrdersDeliveryTotal(fromDateStr, toDateStr2);

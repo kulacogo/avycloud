@@ -481,6 +481,79 @@ function buildCompositeLwhToken(attrs = {}) {
   return `${length.value}x${width.value}${length.unit}`;
 }
 
+function extractCanonicalFootwearType(text = '') {
+  const lower = safeString(text).toLowerCase();
+  if (!lower) return '';
+
+  const specific = [
+    { re: /\bstiefelett(?:e|en)\b/i, label: 'Stiefeletten' },
+    { re: /\bgummistiefel(?:n)?\b/i, label: 'Gummistiefel' },
+    { re: /\bstiefel\b/i, label: 'Stiefel' },
+    { re: /\bsneaker(?:s)?\b/i, label: 'Sneaker' },
+    { re: /\bsandal(?:e|en|ette|etten)\b/i, label: 'Sandalen' },
+    { re: /\bpumps?\b/i, label: 'Pumps' },
+    { re: /\bballerinas?\b/i, label: 'Ballerinas' },
+    { re: /\bloafers?\b/i, label: 'Loafer' },
+    { re: /\bmokassin(?:s)?\b/i, label: 'Mokassins' },
+    { re: /\bboots?\b/i, label: 'Boots' },
+  ];
+  const generic = [{ re: /\bschuh(?:e)?\b/i, label: 'Schuhe' }];
+
+  let best = null;
+  for (const item of specific) {
+    const idx = lower.search(item.re);
+    if (idx < 0) continue;
+    if (!best || idx < best.idx) {
+      best = { idx, label: item.label };
+    }
+  }
+  if (best) return best.label;
+
+  for (const item of generic) {
+    const idx = lower.search(item.re);
+    if (idx < 0) continue;
+    return item.label;
+  }
+  return '';
+}
+
+function hasFootwearKeyword(text = '') {
+  return Boolean(extractCanonicalFootwearType(text));
+}
+
+function sanitizeProductTypeForSchema(productType = '', schemaId = '', { audience = '', material = '', hintText = '' } = {}) {
+  let t = normalizeTitleToken(productType);
+  if (!t) return '';
+  if (schemaId !== 'shoes' && schemaId !== 'fashion') return t;
+
+  // Audience belongs in a dedicated token; keep product type clean.
+  if (safeString(audience)) {
+    t = normalizeSpaces(
+      t
+        .split(/\s+/g)
+        .filter((w) => !/^(damen|herren|kinder|unisex|women|men|kids)$/i.test(w))
+        .join(' ')
+    );
+  }
+
+  // Avoid repeating leather/material words in product type when material is already a separate token.
+  const materialNorm = normalizeMatch(material);
+  if (materialNorm.includes('leder') || materialNorm.includes('leather')) {
+    t = normalizeSpaces(t.replace(/\b(echtleder|leder|leather|kunstleder|wildleder|nubukleder)\b/gi, ' '));
+  }
+
+  const looksLikeFootwear = hasFootwearKeyword(t) || schemaId === 'shoes';
+  if (looksLikeFootwear) {
+    const canonical = extractCanonicalFootwearType(`${t} ${safeString(hintText)}`);
+    if (canonical) return canonical;
+  }
+
+  // Defensive anti-chain fallback for noisy product types.
+  const words = t.split(/\s+/g).filter(Boolean);
+  if (words.length > 4) return normalizeSpaces(words.slice(0, 4).join(' '));
+  return t;
+}
+
 function extractSpecTokensFromText(text = '') {
   const raw = safeString(text);
   if (!raw) return [];
@@ -1080,7 +1153,7 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       'Schuhart'
     ) ||
     normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '');
-  const productType = normalizeTitleToken(productTypeRaw);
+  const productTypeBase = normalizeTitleToken(productTypeRaw);
 
   const mpn =
     normalizeTitleToken(safeString(product?.details?.identifiers?.mpn)) ||
@@ -1145,6 +1218,7 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const power = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Leistung', 'Power')));
   const voltage = normalizeTitleToken(compactUnitToken(pickAttr(attrs, 'Spannung', 'Volt', 'Voltage')));
   const audience = normalizeTitleToken(pickAttr(attrs, 'Abteilung', 'Zielgruppe', 'Geschlecht'));
+  const productType = sanitizeProductTypeForSchema(productTypeBase, schemaId, { audience, material, hintText });
   const function1 = normalizeTitleToken(
     compactApplicationToken(
       pickAttr(

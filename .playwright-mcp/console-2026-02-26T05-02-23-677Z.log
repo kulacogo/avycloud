@@ -1,0 +1,4 @@
+[     604ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ https://app.getresponse.com/view_webform_v2.js?u=GmUih&webforms_id=hhssL:1
+[    1218ms] [WARNING] Error with Feature-Policy header: Unrecognized feature: 'ambient-light-sensor'. @ :0
+[    1218ms] [WARNING] Error with Feature-Policy header: Unrecognized feature: 'speaker'. @ :0
+[    1218ms] [WARNING] Error with Feature-Policy header: Unrecognized feature: 'vr'. @ :0
