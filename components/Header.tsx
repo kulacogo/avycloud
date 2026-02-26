@@ -3,6 +3,41 @@ import React from 'react';
 import { useI18n } from '../i18n';
 import { useAuth } from '../context/AuthContext';
 
+/**
+ * Processes the logo PNG at runtime to remove the opaque white background,
+ * making it render correctly on the dark header.
+ */
+function useTransparentLogo(src: string): string {
+  const [dataSrc, setDataSrc] = React.useState<string>(src);
+  React.useEffect(() => {
+    const img = new window.Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imageData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          // Remove near-white pixels (background + white design elements show as dark header)
+          if (d[i] > 245 && d[i + 1] > 245 && d[i + 2] > 245) {
+            d[i + 3] = 0;
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
+        setDataSrc(canvas.toDataURL('image/png'));
+      } catch {
+        // Cross-origin or canvas error — keep original
+      }
+    };
+    img.src = src;
+  }, [src]);
+  return dataSrc;
+}
+
 interface HeaderProps {
   currentView:
     | 'dashboard'
@@ -174,6 +209,7 @@ const NAV_ICONS: NavIconConfig[] = [
 export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onToggleTheme }) => {
   const { t, locale, setLocale } = useI18n();
   const { logout, hasPermission, isAdmin } = useAuth();
+  const logoSrc = useTransparentLogo('/avy_logo.png');
 
   const DesktopNavButton = ({ nav }: { nav: NavIconConfig }) => {
     const targetHash = nav.view === 'ebay-listings' ? '#/ebay' : `#/${nav.view}`;
@@ -247,7 +283,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
             {/* Logo — scales up to 7rem at large breakpoint */}
             <div className="flex-shrink-0">
               <img
-                src="/avy_logo.png"
+                src={logoSrc}
                 alt="avycloud"
                 draggable={false}
                 style={{ height: 'clamp(2rem, 5vw, 7rem)', width: 'auto', objectFit: 'contain' }}

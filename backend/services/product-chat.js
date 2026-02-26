@@ -84,6 +84,28 @@ function isValidTitleInsightToken(token) {
   return true;
 }
 
+function extractTitleCandidateFromAssistantMessage(text = '') {
+  const raw = safeString(text);
+  if (!raw) return '';
+  const lines = raw
+    .split(/\r?\n/g)
+    .map((line) => safeString(line))
+    .filter(Boolean);
+  for (const line of lines) {
+    const m = line.match(/titel[-\s]?vorschlag(?:\s*\(\d+\/80\))?\s*:\s*(.+)$/i);
+    if (m && m[1]) return safeString(m[1]);
+  }
+  for (const line of lines) {
+    const cleaned = safeString(line.replace(/^[-*•\d.)\s]+/, ''));
+    if (!cleaned) continue;
+    if (cleaned.length < 12 || cleaned.length > 140) continue;
+    if (/^\{/.test(cleaned) || /^\[/.test(cleaned)) continue;
+    if (/^(hinweis|begruendung|begründung|analyse|summary)\b/i.test(cleaned)) continue;
+    return cleaned;
+  }
+  return '';
+}
+
 function extractTitleInsightTokens(insights, { maxTokens = 8 } = {}) {
   const raw = Array.isArray(insights?.topTokens) ? insights.topTokens : [];
   const out = [];
@@ -2169,8 +2191,29 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       });
     const finalTitleRaw =
       (lastTitleChange && (lastTitleChange.title || lastTitleChange.identity?.name)) || '';
-    const finalTitle = typeof finalTitleRaw === 'string' ? finalTitleRaw.trim() : '';
+    let finalTitle = typeof finalTitleRaw === 'string' ? finalTitleRaw.trim() : '';
     const scopeKey = safeString(scope).toLowerCase();
+    if (!finalTitle && scopeKey === 'title') {
+      const rawCandidate =
+        extractTitleCandidateFromAssistantMessage(responseText) ||
+        safeString(product?.identification?.name) ||
+        safeString(userMessage);
+      const coerced = coerceTitleToPolicy(product, rawCandidate, {
+        minLen: 70,
+        maxLen: 80,
+        softMaxLen: 80,
+        extraHintTokens: Array.isArray(titleHintTokens) ? titleHintTokens : [],
+        forcePolicy: true,
+      });
+      if (coerced) {
+        finalTitle = coerced;
+        datasheetChanges.push({
+          summary: 'Titel-Vorschlag (normalisiert)',
+          title: coerced,
+          identity: { name: coerced },
+        });
+      }
+    }
     if (finalTitle && scopeKey === 'title') {
       responseText = `Titel-Vorschlag (${finalTitle.length}/80): ${finalTitle}`;
     }

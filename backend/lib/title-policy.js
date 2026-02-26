@@ -135,6 +135,56 @@ const TRAILING_CONNECTOR_WORDS = new Set([
   'als',
 ]);
 
+const TITLE_LOWERCASE_WORDS = new Set([
+  'und',
+  'oder',
+  'mit',
+  'ohne',
+  'für',
+  'fur',
+  'von',
+  'vom',
+  'zur',
+  'zum',
+  'im',
+  'am',
+  'an',
+  'auf',
+  'in',
+  'bei',
+  'als',
+  'der',
+  'die',
+  'das',
+  'des',
+  'dem',
+  'den',
+  'ein',
+  'eine',
+  'einer',
+  'eines',
+  'einen',
+]);
+
+const TITLE_UNIT_WORDS = new Set([
+  'mm',
+  'cm',
+  'm',
+  'l',
+  'ml',
+  'kg',
+  'g',
+  'w',
+  'kw',
+  'v',
+  'mah',
+  'gb',
+  'tb',
+  'mhz',
+  'ghz',
+  'rpm',
+]);
+
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
 }
@@ -288,6 +338,27 @@ function normalizeTitleToken(token = '') {
   return t;
 }
 
+function capitalizeFirstLetter(word = '', locale = 'de-DE') {
+  if (!word) return '';
+  return word.replace(/^\p{L}/u, (m) => m.toLocaleUpperCase(locale));
+}
+
+function applyBuyerSearchTitleCasing(title = '') {
+  const raw = normalizeSpaces(title);
+  if (!raw) return '';
+  const words = raw.split(/\s+/g).filter(Boolean);
+  const out = words.map((word, idx) => {
+    const lower = word.toLowerCase();
+    if (TITLE_UNIT_WORDS.has(lower)) return lower;
+    if (idx > 0 && TITLE_LOWERCASE_WORDS.has(lower)) return lower;
+    // Keep mixed-case/acronyms as-is (e.g. eBay, i-Size, BMW, ISOFIX, M.2).
+    if (/[A-ZÄÖÜ]/.test(word.slice(1))) return word;
+    if (/^\d/.test(word)) return word;
+    return capitalizeFirstLetter(word);
+  });
+  return normalizeSpaces(out.join(' '));
+}
+
 function isSkuLikeToken(token = '') {
   const t = safeString(token);
   if (!t) return false;
@@ -353,6 +424,56 @@ function isLikelyCodeLikeFashionModel(token = '') {
   if (compact.length >= 10 && vowels <= 1 && digits >= 3) return true;
   if (compact.length >= 12 && digits >= 4) return true;
   return false;
+}
+
+function isLikelyOpaqueModelCode(token = '') {
+  const t = safeString(token);
+  if (!t) return false;
+  const compact = t.replace(/\s+/g, '');
+  if (compact.length < 6) return false;
+  const hasLetters = /[a-z]/i.test(compact);
+  const hasDigits = /\d/.test(compact);
+  if (!hasLetters || !hasDigits) return false;
+  const vowels = (compact.match(/[aeiouäöü]/gi) || []).length;
+  const digits = (compact.match(/\d/g) || []).length;
+  if (compact.length >= 8 && vowels <= 2 && digits >= 2) return true;
+  if (compact.length >= 10 && digits >= 3) return true;
+  return false;
+}
+
+function shouldKeepModelTokenForSchema(schemaId, token = '') {
+  const t = safeString(token);
+  if (!t) return false;
+  // Technical domains: model/OE/MPN style tokens are often buyer-relevant.
+  if (schemaId === 'auto_parts' || schemaId === 'electronics_computer' || schemaId === 'photo_camcorder' || schemaId === 'tools_diy') {
+    return true;
+  }
+  // Consumer domains: remove opaque internal codes unless they look readable.
+  return !isLikelyOpaqueModelCode(t);
+}
+
+function parseSingleDimensionToken(token = '') {
+  const t = compactUnitToken(token);
+  const m = safeString(t).match(/^(\d{1,5}(?:[.,]\d+)?)(mm|cm|m)$/i);
+  if (!m) return null;
+  const value = String(m[1]).replace(',', '.').replace(/\.0$/g, '');
+  const unit = String(m[2] || '').toLowerCase();
+  if (!value || !unit) return null;
+  return { value, unit };
+}
+
+function buildCompositeLwhToken(attrs = {}) {
+  const length = parseSingleDimensionToken(pickAttr(attrs, 'Länge', 'Length'));
+  const width = parseSingleDimensionToken(pickAttr(attrs, 'Breite', 'Width'));
+  const height =
+    parseSingleDimensionToken(pickAttr(attrs, 'Höhe', 'Height')) ||
+    parseSingleDimensionToken(pickAttr(attrs, 'Dicke', 'Stärke', 'Tiefe', 'Depth'));
+  if (!length || !width) return '';
+  if (length.unit !== width.unit) return '';
+  if (height && height.unit === length.unit) {
+    return `${length.value}x${width.value}x${height.value}${length.unit}`;
+  }
+  return `${length.value}x${width.value}${length.unit}`;
 }
 
 function extractSpecTokensFromText(text = '') {
@@ -973,7 +1094,17 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
     .filter(Boolean)
     .join(' ');
   const extractedCodes = extractModelCandidatesFromText(hintText);
-  const modelOrMpn = mpn || model || oem || normalizeTitleToken(extractedCodes[0] || '');
+  const extractedCode = normalizeTitleToken(extractedCodes[0] || '');
+  let modelOrMpn = '';
+  if (schemaId === 'auto_parts' || schemaId === 'electronics_computer' || schemaId === 'photo_camcorder' || schemaId === 'tools_diy') {
+    modelOrMpn = mpn || model || oem || extractedCode;
+  } else {
+    const modelCandidate = shouldKeepModelTokenForSchema(schemaId, model) ? model : '';
+    const mpnCandidate = shouldKeepModelTokenForSchema(schemaId, mpn) ? mpn : '';
+    const oemCandidate = shouldKeepModelTokenForSchema(schemaId, oem) ? oem : '';
+    const extractedCandidate = shouldKeepModelTokenForSchema(schemaId, extractedCode) ? extractedCode : '';
+    modelOrMpn = modelCandidate || mpnCandidate || oemCandidate || extractedCandidate;
+  }
   const modelOrSeries = series || model || modelOrMpn;
 
   // Never inject "NEU/Gebraucht" into titles by default. Only include condition when explicitly curated.
@@ -1077,6 +1208,13 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
   const energySource = normalizeTitleToken(pickAttr(attrs, 'Energiequelle', 'Energieversorgung', 'Stromversorgung', 'Akkutyp'));
   const techCompat = normalizeTitleToken(pickAttr(attrs, 'Technologie', 'Kompatibilität', 'Betriebsart', 'Anschlüsse', 'Geeignet für'));
   const mounting = normalizeTitleToken(pickAttr(attrs, 'Montage', 'Montageart', 'Befestigung', 'Installation'));
+
+  // Prefer LxBxH style when dimensions are split across separate attributes.
+  // This is especially relevant for buyer decisions in consumer categories (e.g., sport/home goods).
+  const lwhMeasure = normalizeTitleToken(buildCompositeLwhToken(attrs));
+  if (lwhMeasure) {
+    measure = lwhMeasure;
+  }
 
   // Prefer explicit dimension ranges from text (e.g. "43 cm bis 56 cm") for the primary measure token.
   const measureRange = normalizeTitleToken(extractFirstDimensionRangeToken(hintText));
@@ -1270,12 +1408,15 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       return { schemaId, a, b, c };
     }
     case 'sport': {
-      // [MARKE] [SPORTART] [PRODUKTART] [MODELL] [GRÖSSE]
+      // [MARKE] [SPORTART] [PRODUKTART] [MASSE] [GROESSE] [MODELL (falls buyer-relevant)]
       pushA(brand);
       pushA(sportType);
       pushA(productType);
-      pushB(modelOrMpn);
+      pushB(measure);
       pushB(normSize);
+      if (modelOrMpn && shouldKeepModelTokenForSchema(schemaId, modelOrMpn)) {
+        pushB(modelOrMpn);
+      }
       pushC(condition);
       return { schemaId, a, b, c };
     }
@@ -1730,6 +1871,7 @@ function coerceTitleToPolicy(
     t = normalizeSpaces(t);
     t = stripLeadingNonAlnum(t);
     t = normalizeSpaces(t);
+    t = applyBuyerSearchTitleCasing(t);
     if (t.length > maxLen) t = truncateToMax(t, maxLen);
     return t;
   }
@@ -1778,6 +1920,9 @@ function coerceTitleToPolicy(
   title = normalizeSpaces(title);
   if (title.length > maxLen) title = truncateToMax(title, maxLen);
   title = stripDanglingTailTokens(title);
+  title = applyBuyerSearchTitleCasing(title);
+  title = normalizeSpaces(title);
+  if (title.length > maxLen) title = truncateToMax(title, maxLen);
   return title;
 }
 

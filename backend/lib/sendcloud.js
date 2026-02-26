@@ -149,7 +149,6 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
     const params = new URLSearchParams({
       from_date: fromDate,
       to_date: toDate,
-      ordering: '-date_created', // newest-first → enables early break
       limit: String(limit),
       page: String(page),
     });
@@ -175,20 +174,14 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
       clearTimeout(timer);
     }
 
-    let allParcelsOlderThanRange = parcels.length > 0;
     for (const parcel of parcels) {
       // Client-side date guard — skip parcels outside the requested window
       const createdRaw = parcel.date_created || parcel.created_at || null;
       if (createdRaw) {
         const createdMs = new Date(createdRaw).getTime();
-        if (!isNaN(createdMs)) {
-          if (createdMs >= fromMs) allParcelsOlderThanRange = false;
-          if (createdMs < fromMs || createdMs > toMs) {
-            continue; // outside range — skip this parcel
-          }
+        if (!isNaN(createdMs) && (createdMs < fromMs || createdMs > toMs)) {
+          continue; // outside range — skip this parcel
         }
-      } else {
-        allParcelsOlderThanRange = false; // no date field — include
       }
 
       // Try the API-provided price first
@@ -218,9 +211,6 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
     }
 
     if (parcels.length < limit) break;
-    // When sorted newest-first and all parcels on this page pre-date fromDate,
-    // subsequent pages will only be older — stop paginating.
-    if (allParcelsOlderThanRange) break;
     if (parcelCount > 5000) {
       console.warn(`[sendcloud] Safety limit: ${parcelCount} parcels counted for ${fromDate}–${toDate}, stopping.`);
       break;

@@ -1,4 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+
+function useTransparentLogo(src: string): string {
+  const [dataSrc, setDataSrc] = useState<string>(src);
+  useEffect(() => {
+    const img = new window.Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imageData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i] > 245 && d[i + 1] > 245 && d[i + 2] > 245) d[i + 3] = 0;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        setDataSrc(canvas.toDataURL('image/png'));
+      } catch { /* keep original */ }
+    };
+    img.src = src;
+  }, [src]);
+  return dataSrc;
+}
 
 /* -------------------------------------------------------
    Types
@@ -14,6 +40,7 @@ export interface MobileHeaderProps {
    ------------------------------------------------------- */
 export const MobileHeader: React.FC<MobileHeaderProps> = React.memo(
   ({ onToggleSidebar, onToggleTheme, className = '' }) => {
+    const logoSrc = useTransparentLogo('/avy_logo.png');
     return (
       <header
         className={`
@@ -42,7 +69,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = React.memo(
 
         {/* Brand */}
         <div className="flex items-center gap-2.5 flex-1">
-          <img src="/avy_logo.png" alt="avycloud" className="h-7 w-auto object-contain" draggable={false} />
+          <img src={logoSrc} alt="avycloud" className="h-7 w-auto object-contain" draggable={false} />
         </div>
 
         {/* Theme toggle */}
