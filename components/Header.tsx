@@ -39,7 +39,7 @@ const NAV_ICONS: NavIconConfig[] = [
     view: 'dashboard',
     label: 'nav.dashboard',
     iconNode: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         {/* Dashboard: 4-widget grid layout */}
         <rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
         <rect x="13" y="3" width="8" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
@@ -52,16 +52,13 @@ const NAV_ICONS: NavIconConfig[] = [
     view: 'input',
     label: 'nav.input',
     iconNode: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        {/* Barcode scanner with corner brackets */}
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        {/* Scan frame (corner brackets) + plus — "identify / add" */}
         <path d="M8 3H5a2 2 0 0 0-2 2v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         <path d="M16 3h3a2 2 0 0 1 2 2v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         <path d="M8 21H5a2 2 0 0 1-2-2v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         <path d="M16 21h3a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        <path d="M7 8v8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        <path d="M10 8v8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M13 8v8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        <path d="M16 8v8" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
+        <path d="M12 8.5v7M8.5 12h7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -69,7 +66,7 @@ const NAV_ICONS: NavIconConfig[] = [
     view: 'inventory',
     label: 'nav.inventory',
     iconNode: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         {/* Open crate / box */}
         <path d="M3 9l9-6 9 6v11H3V9Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
         <path d="M3 9h18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -83,7 +80,7 @@ const NAV_ICONS: NavIconConfig[] = [
     view: 'products',
     label: 'nav.products',
     iconNode: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         {/* Product catalog: list with thumbnails */}
         <rect x="3" y="4" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.6" />
         <path d="M10 6h11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -101,7 +98,7 @@ const NAV_ICONS: NavIconConfig[] = [
     view: 'admin',
     label: 'nav.admin',
     iconNode: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         {/* Shield with lock */}
         <path d="M12 2L4 5.5v6.5C4 17.11 7.41 21.37 12 22c4.59-.63 8-4.89 8-10V5.5L12 2Z"
           stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
@@ -114,7 +111,7 @@ const NAV_ICONS: NavIconConfig[] = [
     view: 'categories',
     label: 'nav.categories',
     iconNode: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         {/* Category grid: 4 distinct app tiles */}
         <rect x="2.5" y="2.5" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.6" />
         <rect x="13.5" y="2.5" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.6" />
@@ -127,7 +124,7 @@ const NAV_ICONS: NavIconConfig[] = [
     view: 'ebay-listings',
     label: 'nav.ebay',
     iconNode: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         {/* Storefront with awning waves */}
         <path d="M3 9.5h18L18.5 5a1.5 1.5 0 0 0-1.4-1H6.9A1.5 1.5 0 0 0 5.5 5L3 9.5Z"
           stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
@@ -143,7 +140,7 @@ const NAV_ICONS: NavIconConfig[] = [
     view: 'warehouse',
     label: 'nav.warehouse',
     iconNode: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         {/* Warehouse building with racking shelves */}
         <path d="M3 21V9L12 4l9 5v12H3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
         <path d="M3 21h18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -159,7 +156,7 @@ const NAV_ICONS: NavIconConfig[] = [
     view: 'operations',
     label: 'nav.operations',
     iconNode: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         {/* Two people — team / operations */}
         <circle cx="8" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.6" />
         <path d="M1.5 21v-1.5A5.5 5.5 0 0 1 7 14h2a5.5 5.5 0 0 1 5.5 5.5V21"
@@ -192,7 +189,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
             ? 'bg-sky-600 text-white shadow-md shadow-sky-900/40'
             : 'bg-slate-800/60 text-slate-400 hover:bg-slate-700 hover:text-white'
         }`}
-        style={{ width: '3.25rem', height: '3.25rem' }}
+        style={{ width: '3.5rem', height: '3.5rem' }}
         aria-current={isActive ? 'page' : undefined}
         aria-label={t(nav.label)}
         title={t(nav.label)}
@@ -244,8 +241,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
         <div className="w-full px-3 sm:px-5 lg:px-8 py-2">
           <div className="flex items-center gap-4 w-full">
 
-            {/* Logo — scales up to 7rem at large breakpoint */}
-            <div className="flex-shrink-0">
+            {/* Logo — slightly inset from left edge, scales at larger viewports */}
+            <div className="flex-shrink-0 ml-2 sm:ml-6 lg:ml-10">
               <img
                 src="/avy_logo.png"
                 alt="avycloud"
@@ -279,7 +276,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 <select
                   value={locale}
                   onChange={(e) => setLocale(e.target.value as any)}
-                  className="bg-slate-800/70 text-slate-200 font-medium pl-9 pr-3 h-10 rounded-xl border border-white/[0.08] focus:outline-none focus:border-sky-500/50 cursor-pointer appearance-none"
+                  className="bg-slate-800/70 text-slate-200 font-medium pl-9 pr-3 rounded-xl border border-white/[0.08] focus:outline-none focus:border-sky-500/50 cursor-pointer appearance-none"
+                  style={{ height: '3.5rem' }}
                   style={{ fontSize: '0.875rem' }}
                   aria-label={t('lang.label')}
                 >
@@ -294,7 +292,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 type="button"
                 onClick={onToggleTheme}
                 className="flex items-center justify-center rounded-xl bg-slate-800/70 border border-white/[0.08] text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
-                style={{ width: '2.5rem', height: '2.5rem' }}
+                style={{ width: '3.5rem', height: '3.5rem' }}
                 aria-label={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
                 title={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
               >
@@ -310,17 +308,18 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 )}
               </button>
 
-              {/* Logout */}
+              {/* Logout — icon only */}
               <button
                 type="button"
                 onClick={() => logout()}
-                className="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-slate-800/70 border border-white/[0.08] hover:bg-slate-700 px-3.5 text-slate-300 hover:text-white transition-all"
-                style={{ height: '2.5rem', fontSize: '0.875rem', fontWeight: 500 }}
+                className="hidden sm:inline-flex items-center justify-center rounded-xl bg-slate-800/70 border border-white/[0.08] text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                style={{ width: '3.5rem', height: '3.5rem' }}
+                aria-label={t('common.logout')}
+                title={t('common.logout')}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1rem', height: '1rem' }} aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1.3rem', height: '1.3rem' }} aria-hidden="true">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
                 </svg>
-                {t('common.logout')}
               </button>
             </div>
           </div>

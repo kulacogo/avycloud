@@ -386,16 +386,6 @@ const Section: React.FC<{ title: string; badge?: string; children: React.ReactNo
   </div>
 );
 
-// ─── Delta badge ──────────────────────────────────────────────────────────────
-const Delta: React.FC<{ value: number; suffix?: string }> = ({ value, suffix = '' }) => {
-  if (value === 0) return null;
-  const pos = value > 0;
-  return (
-    <span className={`text-[10px] font-semibold ${pos ? 'text-emerald-400' : 'text-rose-400'}`}>
-      {pos ? '▲' : '▼'} {Math.abs(value).toFixed(1)}{suffix}
-    </span>
-  );
-};
 
 // ─── Date Range Dropdown ──────────────────────────────────────────────────────
 const DateRangePicker: React.FC<{
@@ -659,8 +649,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Total balance (Gesamtsaldo) — combined Sichteinlagen + BusinessCard
   const totalBalance = finance?.total_balance ?? null;
 
-  // Total order count
-  const totalOrders = ord.neu + ord.kommissioniert + ord.verpackt + ord.versendet + ord.zugestellt;
 
   const navigateTo = useCallback((statusKey: string) => {
     const target = statusKey === 'neu' ? 'inventory' : 'products';
@@ -674,26 +662,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
     <div className="space-y-7 pb-10">
 
       {/* ══ Header ══════════════════════════════════════════════════════ */}
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Operations Dashboard</h1>
-            <p className="text-xs text-slate-600 mt-0.5">
-              {nowStr ? `Stand: ${nowStr}` : 'Wird geladen…'}
-              <span className="mx-1.5 text-slate-700">·</span>
-              <span className="text-slate-600">Aufträge via BaseLinker</span>
-            </p>
-          </div>
-          <DateRangePicker
-            activePreset={activePreset}
-            presetLabel={presetLabel}
-            onSelect={setPreset}
-            onRefresh={loadAll}
-            customFrom={customFrom}
-            customTo={customTo}
-            onCustomChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }}
-          />
-        </div>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-600">
+          {nowStr ? `Stand: ${nowStr}` : 'Wird geladen…'}
+        </p>
+        <DateRangePicker
+          activePreset={activePreset}
+          presetLabel={presetLabel}
+          onSelect={setPreset}
+          onRefresh={loadAll}
+          customFrom={customFrom}
+          customTo={customTo}
+          onCustomChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }}
+        />
       </div>
 
       {metricsError && (
