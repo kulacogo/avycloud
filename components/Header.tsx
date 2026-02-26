@@ -264,8 +264,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               {/* Language selector with globe icon */}
               <div className="relative flex items-center">
                 <svg
-                  className="absolute left-2.5 pointer-events-none text-slate-400"
-                  style={{ width: '1.1rem', height: '1.1rem' }}
+                  className="absolute left-3 pointer-events-none text-slate-400"
+                  style={{ width: '1.25rem', height: '1.25rem' }}
                   viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
                   aria-hidden="true"
                 >
@@ -276,9 +276,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 <select
                   value={locale}
                   onChange={(e) => setLocale(e.target.value as any)}
-                  className="bg-slate-800/70 text-slate-200 font-medium pl-9 pr-3 rounded-xl border border-white/[0.08] focus:outline-none focus:border-sky-500/50 cursor-pointer appearance-none"
-                  style={{ height: '3.5rem' }}
-                  style={{ fontSize: '0.875rem' }}
+                  className="bg-slate-800/70 text-slate-200 font-medium pl-10 pr-4 rounded-xl border border-white/[0.08] focus:outline-none focus:border-sky-500/50 cursor-pointer appearance-none"
+                  style={{ height: '3.5rem', fontSize: '0.9rem' }}
                   aria-label={t('lang.label')}
                 >
                   <option value="de">DE</option>

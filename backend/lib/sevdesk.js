@@ -147,11 +147,12 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
     clearTimeout(timer);
   }
 
-  // Filter to outgoing shipping carrier payments by payee name or description.
-  // "payee" maps to the "Name" column in SevDesk's Kontoauszug view.
+  // Filter to outgoing shipping carrier payments.
+  // Correct SevDesk field: "payeePayerName" (= "Name" column in Kontoauszug view).
+  // Only negative amounts (Ausgaben) are counted — positive = incoming/refunds.
   const isShipping = (t) => {
-    const payee = (t?.payee || t?.name || t?.entryText || '').toLowerCase();
-    const desc  = (t?.paymtPurpose || t?.description || t?.comment || '').toLowerCase();
+    const payee = (t?.payeePayerName || '').toLowerCase();
+    const desc  = (t?.paymtPurpose  || '').toLowerCase();
     return SHIPPING_SUPPLIER_KEYWORDS.some(kw => payee.includes(kw) || desc.includes(kw));
   };
 
@@ -160,16 +161,13 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
   const matched = [];
 
   for (const t of transactions) {
-    if (!isShipping(t)) continue;
-    // Outgoing payments have a negative amount; take absolute value.
     const raw = parseFloat(String(t?.amount || '0').replace(',', '.')) || 0;
+    if (raw >= 0) continue; // skip incoming payments and zero entries
+    if (!isShipping(t)) continue;
     const amount = Math.abs(raw);
-    if (amount <= 0) continue;
     totalCost += amount;
     txCount++;
-    const payee = t?.payee || t?.name || t?.entryText || '?';
-    const date  = t?.valueDate || t?.entryDate || '';
-    matched.push({ payee, amount, date });
+    matched.push({ payee: t?.payeePayerName || '?', amount, date: t?.valueDate || '' });
   }
 
   if (matched.length > 0) {
