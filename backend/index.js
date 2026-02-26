@@ -96,7 +96,7 @@ const {
 } = require('./services/label-printer');
 const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked, markOrderAsPacked } = require('./services/order-sync');
-const { getCheckAccountBalances } = require('./lib/sevdesk');
+const { getCheckAccountBalances, getShippingCostsFromSevDesk } = require('./lib/sevdesk');
 const { getShippingCostsSummaryFromBaseLinker } = require('./lib/baselinker-shipping');
 const { requireAuth } = require('./lib/auth');
 const { ensureDefaultRoles, requirePermission, resolvePermissionsForUser } = require('./lib/rbac');
@@ -6729,15 +6729,45 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
   const ytdFromStr = `${now.getUTCFullYear()}-01-01`;
   const ytdToStr = toDateStr(now);
 
-  // Run both external API calls in parallel, failing gracefully
-  const [balanceResult, shippingResult, shippingYtdResult] = await Promise.allSettled([
+  // Run external API calls in parallel, failing gracefully.
+  // Shipping cost: SevDesk (actual paid invoices) + BaseLinker (label count only).
+  // If SevDesk returns no shipping vouchers, fall back to BaseLinker CSV estimate.
+  const [balanceResult, sevdeskShippingResult, blShippingResult, sevdeskShippingYtdResult, blShippingYtdResult] = await Promise.allSettled([
     getCheckAccountBalances({ timeoutMs: 15000 }),
+    getShippingCostsFromSevDesk(fromDateStr, toDateStr2, { timeoutMs: 20000 }),
     getShippingCostsSummaryFromBaseLinker(fromDateStr, toDateStr2, { timeoutMs: 25000 }),
     // Only fetch YTD separately if not already YTD
+    (preset !== 'year_to_date' && !(preset === 'last_year'))
+      ? getShippingCostsFromSevDesk(ytdFromStr, ytdToStr, { timeoutMs: 20000 })
+      : Promise.resolve(null),
     (preset !== 'year_to_date' && !(preset === 'last_year'))
       ? getShippingCostsSummaryFromBaseLinker(ytdFromStr, ytdToStr, { timeoutMs: 25000 })
       : Promise.resolve(null),
   ]);
+
+  // Merge: use SevDesk total_cost (real invoices) + BaseLinker parcel_count
+  function mergeShipping(svResult, blResult) {
+    const sv = svResult?.status === 'fulfilled' ? (svResult.value || {}) : null;
+    const bl = blResult?.status  === 'fulfilled' ? (blResult.value  || {}) : null;
+    if (!sv && !bl) return null;
+    const parcelCount = bl?.parcel_count ?? 0;
+    // Prefer SevDesk cost if it has real vouchers; fall back to BaseLinker estimate
+    if (sv && sv.voucher_count > 0) {
+      return { total_cost: sv.total_cost, parcel_count: parcelCount, currency: 'EUR', source: 'sevdesk+baselinker' };
+    }
+    // SevDesk found nothing → use BaseLinker estimate
+    if (bl && bl.parcel_count > 0) {
+      return { ...bl };
+    }
+    return null;
+  }
+
+  const shippingMerged    = mergeShipping(sevdeskShippingResult,    blShippingResult);
+  const shippingYtdMerged = mergeShipping(sevdeskShippingYtdResult, blShippingYtdResult);
+
+  // Shim into the existing shippingResult / shippingYtdResult shape
+  const shippingResult    = { status: shippingMerged    ? 'fulfilled' : 'rejected', value: shippingMerged,    reason: new Error('Keine Versanddaten') };
+  const shippingYtdResult = { status: shippingYtdMerged ? 'fulfilled' : 'rejected', value: shippingYtdMerged, reason: new Error('Keine YTD-Versanddaten') };
 
   let accounts = [];
   let totalBalance = 0;
