@@ -254,32 +254,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     { key: 'zugestellt',     label: 'Zugestellt',      value: orderMetrics.zugestellt,     color: '#10B981' },
   ], [orderMetrics]);
 
-  /* ─── Estimated net revenue (eBay real + Kaufland est.) ─── */
-  const netRevenueEstimate = useMemo(() => {
-    const ebay = orderMetrics.ebayNetWindow;
-    const kauflandNet = orderMetrics.kauflandNetWindow;
-    if (ebay === null && kauflandNet === null) return null;
-    // Non-eBay, non-Kaufland portion: keep gross
-    const kauflandGross = orderMetrics.kauflandGrossWindow ?? 0;
-    const totalGross = orderMetrics.revenueWindow;
-    const ebayGrossApprox = ebay !== null ? (totalGross - kauflandGross) * 0.856 + kauflandGross : null; // rough
-    // Simple: total - eBay fees - Kaufland fees
-    // Better: gross - (gross-kauflandGross) + ebayNet - kauflandGross + kauflandNet
-    const nonEbayNonKaufland = totalGross - (kauflandGross || 0) - (ebay !== null ? (totalGross - kauflandGross - (kauflandGross || 0)) : 0);
-    // Simpler approach: if we have both numbers, sum the two net figures + rest of gross
-    if (ebay !== null && kauflandNet !== null) {
-      const restGross = totalGross - kauflandGross - (totalGross - kauflandGross); // = 0 edge case
-      // Actually: net = eBayNet + kauflandNet + (gross - ebay_portion_gross - kauflandGross)
-      // We don't know eBay gross exactly. Use ratio approach:
-      // eBay net is already after fees. Kaufland net = kaufland gross * 0.9.
-      // Rest gross = totalGross - kauflandGross - eBayGross_estimate
-      // Skip complex math; just show what we have
-      return { value: ebay + kauflandNet, partial: false };
-    }
-    if (ebay !== null) return { value: ebay + (kauflandNet ?? 0), partial: true };
-    if (kauflandNet !== null) return { value: kauflandNet, partial: true };
-    return null;
-  }, [orderMetrics]);
 
   /* ─── Navigate to order drilldown ─── */
   const navTo = React.useCallback((statusKey: string) => {
