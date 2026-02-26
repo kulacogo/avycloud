@@ -6411,6 +6411,7 @@ async function computeDashboardBaseLinkerOrdersAggregate({
   );
 
   const revenueByCurrency = new Map();
+  let kauflandGross = 0;
   let cursor = fromUnix;
   let processed = 0;
 
@@ -6459,6 +6460,10 @@ async function computeDashboardBaseLinkerOrdersAggregate({
         series[idx].revenue += value;
       }
       revenueByCurrency.set(currency, (revenueByCurrency.get(currency) || 0) + value);
+      // Track Kaufland gross separately (order_source contains 'kaufland')
+      if (orderSource.includes('kaufland') && currency === 'EUR') {
+        kauflandGross += value;
+      }
       processed += 1;
       if (processed >= DASHBOARD_ORDERS_MAX_ITEMS) break;
     }
@@ -6469,6 +6474,7 @@ async function computeDashboardBaseLinkerOrdersAggregate({
     cursor = lastConfirmed + 1;
   }
 
+  const KAUFLAND_FEE_PCT = 0.10; // ~10% Verkaufsprovision estimate based on invoices
   const data = {
     series: series.map((d) => ({
       date: d.date,
@@ -6478,6 +6484,8 @@ async function computeDashboardBaseLinkerOrdersAggregate({
     revenue_by_currency: Object.fromEntries(
       Array.from(revenueByCurrency.entries()).map(([k, v]) => [k, Number((Number(v || 0) || 0).toFixed(2))])
     ),
+    kaufland_gross: Math.round(kauflandGross * 100) / 100,
+    kaufland_net: Math.round(kauflandGross * (1 - KAUFLAND_FEE_PCT) * 100) / 100,
   };
 
   DASHBOARD_ORDERS_AGG_CACHE.set(cacheKey, { atMs: now, data });
@@ -6560,6 +6568,8 @@ app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async 
   try {
     const days = Math.min(Math.max(parseInt(req.query?.days || '7', 10) || 7, 1), 60);
     const preset = typeof req.query?.preset === 'string' ? String(req.query.preset).trim() : null;
+    const fromDate = typeof req.query?.from_date === 'string' ? req.query.from_date.trim() : null;
+    const toDate   = typeof req.query?.to_date   === 'string' ? req.query.to_date.trim()   : null;
     // Best-effort: trigger order sync in background so metrics converge to BaseLinker truth.
     // Do NOT await (avoid slow dashboard loads).
     try {
@@ -6567,7 +6577,7 @@ app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async 
     } catch {
       // ignore
     }
-    const metrics = await getDashboardMetrics({ days, preset });
+    const metrics = await getDashboardMetrics({ days, preset, fromDate, toDate });
 
     // Replace range revenue/volume with BaseLinker truth (supports long presets even if local order cache is pruned).
     try {
@@ -6591,6 +6601,9 @@ app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async 
           const windowRevenue = Number(agg?.revenue_by_currency?.[cur] || 0) || 0;
           if (metrics?.revenue) {
             metrics.revenue.window_non_cancelled_total = windowRevenue;
+            // Kaufland gross + estimated net (10% fee deduction)
+            metrics.revenue.kaufland_gross_window = agg.kaufland_gross ?? 0;
+            metrics.revenue.kaufland_net_window = agg.kaufland_net ?? 0;
           }
         }
 
@@ -6707,6 +6720,8 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
 
   // Resolve time range from the same preset logic as /api/dashboard/metrics
   const preset = typeof req.query?.preset === 'string' ? req.query.preset.trim() : 'last7';
+  const customFromDate = typeof req.query?.from_date === 'string' ? req.query.from_date.trim() : null;
+  const customToDate   = typeof req.query?.to_date   === 'string' ? req.query.to_date.trim()   : null;
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   const toDateStr = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
@@ -6717,15 +6732,17 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
       rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
       break;
     }
+    case 'this_week': {
+      const dow = now.getUTCDay() || 7;
+      rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (dow - 1)));
+      break;
+    }
     case 'month_to_date': {
       rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
       break;
     }
     case 'last_month': {
       rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-      const lastDayPrev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
-      rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-      // Override rangeTo for last month
       break;
     }
     case 'year_to_date': {
@@ -6734,6 +6751,14 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
     }
     case 'last_year': {
       rangeFrom = new Date(Date.UTC(now.getUTCFullYear() - 1, 0, 1));
+      break;
+    }
+    case 'all_time': {
+      rangeFrom = new Date(Date.UTC(2020, 0, 1));
+      break;
+    }
+    case 'custom': {
+      rangeFrom = customFromDate ? new Date(customFromDate + 'T00:00:00Z') : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       break;
     }
     default: { // last7 and any unknown
@@ -6749,6 +6774,8 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
     rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
   } else if (preset === 'last_year') {
     rangeTo = new Date(Date.UTC(now.getUTCFullYear() - 1, 11, 31, 23, 59, 59));
+  } else if (preset === 'custom' && customToDate) {
+    rangeTo = new Date(customToDate + 'T23:59:59Z');
   }
 
   const monthPresetMatch = /^month_(\d{4})_(\d{2})$/.exec(preset);

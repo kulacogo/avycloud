@@ -16,13 +16,15 @@ const safeCurrency = (code?: string) => {
   return /^[A-Z]{3}$/.test(c) ? c : 'EUR';
 };
 
-const DASHBOARD_RANGE_PRESETS: Array<{ id: string; label: string }> = [
-  { id: 'last7', label: 'Letzte 7 Tage' },
-  { id: 'month_to_date', label: 'Aktueller Monat' },
-  { id: 'last_month', label: 'Letzter Monat' },
-  { id: 'year_to_date', label: 'Dieses Jahr' },
-  { id: 'last_year', label: 'Letztes Jahr' },
-  { id: 'today', label: 'Heute' },
+const DASHBOARD_RANGE_PRESETS: Array<{ id: string; label: string; shortLabel: string }> = [
+  { id: 'today',         label: 'Heute',              shortLabel: 'Heute' },
+  { id: 'last7',         label: 'Letzte 7 Tage',      shortLabel: '7 Tage' },
+  { id: 'this_week',     label: 'Diese Woche',         shortLabel: 'Woche' },
+  { id: 'month_to_date', label: 'Dieser Monat',        shortLabel: 'Monat' },
+  { id: 'last_month',    label: 'Letzter Monat',       shortLabel: 'Letzter M.' },
+  { id: 'year_to_date',  label: 'Dieses Jahr',         shortLabel: 'Jahr' },
+  { id: 'all_time',      label: 'Gesamter Zeitraum',   shortLabel: 'Gesamt' },
+  { id: 'custom',        label: 'Benutzerdefiniert',   shortLabel: 'Von-Bis' },
 ];
 
 const formatCurrency = (value: number, currency: string) => {
@@ -34,189 +36,41 @@ const formatCurrency = (value: number, currency: string) => {
   }
 };
 
-const formatNumber = (value: number) => {
-  return new Intl.NumberFormat('de-DE').format(value);
-};
+const formatNumber = (value: number) => new Intl.NumberFormat('de-DE').format(value);
 
-/* -------------------------------------------------------
-   KPI Card – v2.1 Stripe/Vercel quality
-   White bg, subtle border, shadow-md on hover, mini chart bars
-   ------------------------------------------------------- */
-const KpiCard: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  trend?: { text: string; positive: boolean } | null;
-  miniChartHeights?: number[];
-}> = ({ icon, label, value, trend, miniChartHeights }) => {
-  const cardRef = React.useRef<HTMLDivElement>(null);
-
-  const handleMouseMove = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const el = cardRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    el.style.setProperty('--mouse-x', `${e.clientX - r.left}px`);
-    el.style.setProperty('--mouse-y', `${e.clientY - r.top}px`);
-  }, []);
-
-  return (
-    <div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      className="group relative overflow-hidden bg-[var(--surface)] border border-[var(--border)] rounded-lg p-5 cursor-default transition-all duration-250 hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-px"
-    >
-      {/* Radial glow on hover */}
-      <div
-        className="absolute inset-[-1px] rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-0"
-        style={{
-          background: 'radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 0%), rgba(99, 91, 255, 0.12), transparent 40%)',
-        }}
-      />
-
-      <div className="relative z-[1]">
-        {/* Top: label + trend icon */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--text-tertiary)]">
-            {icon}
-            <span>{label}</span>
-          </div>
-          <svg
-            className="w-3.5 h-3.5 text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-            viewBox="0 0 14 14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          >
-            <path d="M1 10l4-4 3 2 5-5M9 3h4v4" />
-          </svg>
-        </div>
-
-        {/* Value */}
-        <div className="text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight mb-1.5">
-          {value}
-        </div>
-
-        {/* Trend badge */}
-        {trend && (
-          <span
-            className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
-              trend.positive
-                ? 'text-[var(--success)] bg-[var(--success-bg)]'
-                : 'text-[var(--error)] bg-[var(--error-bg)]'
-            }`}
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-              <path d={trend.positive ? 'M5 2l3 4H2z' : 'M5 8l3-4H2z'} />
-            </svg>
-            {trend.text}
-          </span>
-        )}
-      </div>
-
-      {/* Mini chart bars */}
-      {miniChartHeights && miniChartHeights.length > 0 && (
-        <div className="absolute bottom-0 right-3 h-10 flex items-end gap-0.5 opacity-15">
-          {miniChartHeights.map((h, i) => (
-            <div
-              key={i}
-              className="w-1 rounded-[1px] bg-[var(--avy-purple)]"
-              style={{ height: `${h}px` }}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* -------------------------------------------------------
-   Activity Item
-   ------------------------------------------------------- */
-const ActivityItem: React.FC<{
-  dotColor: string;
-  children: React.ReactNode;
-  time: string;
-}> = ({ dotColor, children, time }) => (
-  <div className="flex items-start gap-3 px-5 py-3 border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--surface-hover)] transition-colors duration-150 cursor-default">
-    <div
-      className="w-2 h-2 rounded-full mt-[5px] flex-shrink-0"
-      style={{ backgroundColor: dotColor }}
-    />
-    <div className="flex-1 text-[13px] text-[var(--text-secondary)] leading-relaxed">
-      {children}
-    </div>
-    <div className="text-[11px] text-[var(--text-tertiary)] whitespace-nowrap mt-px">
-      {time}
-    </div>
-  </div>
-);
-
-/* -------------------------------------------------------
-   Quick Action Button
-   ------------------------------------------------------- */
-const QuickAction: React.FC<{
-  icon: React.ReactNode;
-  iconBg: string;
-  title: string;
-  desc: string;
-  onClick?: () => void;
-}> = ({ icon, iconBg, title, desc, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="flex items-center gap-3 px-4 py-3 rounded-md border border-[var(--border)] bg-[var(--surface)] cursor-pointer transition-all duration-200 hover:border-[var(--avy-purple)] hover:shadow-[var(--shadow-sm)] hover:-translate-y-px active:translate-y-0 text-left"
-  >
-    <div
-      className="w-[34px] h-[34px] rounded-md flex items-center justify-center flex-shrink-0"
-      style={{ background: iconBg }}
-    >
-      {icon}
-    </div>
-    <div>
-      <div className="text-[13px] font-semibold text-[var(--text-primary)]">{title}</div>
-      <div className="text-[11px] text-[var(--text-tertiary)]">{desc}</div>
-    </div>
-  </button>
-);
-
-/* -------------------------------------------------------
-   Status badge for orders table
-   ------------------------------------------------------- */
+/* ─── Status badge ─── */
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  const normalized = status.toLowerCase();
-  let badgeClass = '';
-  let dotAnim = '';
+  const n = status.toLowerCase();
+  let cls = 'text-[var(--text-tertiary)] bg-[var(--surface-secondary)]';
   let label = status;
-
-  if (normalized === 'neu' || normalized === 'new') {
-    badgeClass = 'text-[var(--info)] bg-[var(--info-bg)]';
-    label = 'Neu';
-  } else if (normalized === 'kommissioniert' || normalized === 'processing') {
-    badgeClass = 'text-[var(--warning)] bg-[var(--warning-bg)]';
-    dotAnim = 'animate-pulse';
-    label = 'Kommissioniert';
-  } else if (normalized === 'verpackt') {
-    badgeClass = 'text-[var(--warning)] bg-[var(--warning-bg)]';
-    dotAnim = 'animate-pulse';
-    label = 'Verpackt';
-  } else if (normalized === 'versendet' || normalized === 'shipped') {
-    badgeClass = 'text-[var(--success)] bg-[var(--success-bg)]';
-    label = 'Versendet';
-  } else if (normalized === 'zugestellt') {
-    badgeClass = 'text-[var(--success)] bg-[var(--success-bg)]';
-    label = 'Zugestellt';
-  } else {
-    badgeClass = 'text-[var(--text-tertiary)] bg-[var(--surface-secondary)]';
-  }
-
+  if (n === 'neu')              { cls = 'text-[var(--info)] bg-[var(--info-bg)]';        label = 'Neu'; }
+  else if (n === 'kommissioniert') { cls = 'text-[var(--warning)] bg-[var(--warning-bg)]'; label = 'Kommissioniert'; }
+  else if (n === 'verpackt')    { cls = 'text-[var(--warning)] bg-[var(--warning-bg)]'; label = 'Verpackt'; }
+  else if (n === 'versendet')   { cls = 'text-[var(--success)] bg-[var(--success-bg)]'; label = 'Versendet'; }
+  else if (n === 'zugestellt')  { cls = 'text-[var(--success)] bg-[var(--success-bg)]'; label = 'Zugestellt'; }
   return (
-    <span className={`inline-flex items-center gap-[5px] text-[11px] font-semibold px-2.5 py-[3px] rounded-full ${badgeClass}`}>
-      <span className={`w-1.5 h-1.5 rounded-full bg-current ${dotAnim}`} />
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full ${cls}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current" />
       {label}
     </span>
   );
 };
 
+/* ─── Hero metric block ─── */
+const HeroMetric: React.FC<{
+  label: string;
+  value: string;
+  sub?: string | null;
+  accent?: boolean;
+}> = ({ label, value, sub, accent }) => (
+  <div className="flex flex-col gap-1">
+    <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">{label}</div>
+    <div className={`text-[28px] font-bold tracking-tight leading-none ${accent ? 'text-[var(--avy-purple)]' : 'text-[var(--text-primary)]'}`}>
+      {value}
+    </div>
+    {sub && <div className="text-xs text-[var(--text-tertiary)] font-medium mt-0.5">{sub}</div>}
+  </div>
+);
 
 export const Dashboard: React.FC<DashboardProps> = ({
   products,
@@ -229,7 +83,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [metricsError, setMetricsError] = useState<string | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [internalPreset, setInternalPreset] = useState('last7');
-  const [chartPeriod, setChartPeriod] = useState('14T');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
 
   const activePreset = useMemo(() => {
     const raw = typeof rangePreset === 'string' ? rangePreset.trim() : '';
@@ -246,6 +102,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       } else {
         setInternalPreset(v);
       }
+      if (v !== 'custom') setShowCustomPicker(false);
     },
     [onRangePresetChange]
   );
@@ -253,848 +110,492 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const loadMetrics = React.useCallback(async () => {
     setMetricsLoading(true);
     try {
-      const longRange = activePreset === 'year_to_date' || activePreset === 'last_year';
-      const data = await fetchDashboardMetrics({ days: 7, preset: activePreset }, { timeoutMs: longRange ? 60000 : 25000 });
+      const isLong = activePreset === 'year_to_date' || activePreset === 'last_year' || activePreset === 'all_time';
+      const params: { days?: number; preset: string; from_date?: string; to_date?: string } = {
+        days: 7,
+        preset: activePreset,
+      };
+      if (activePreset === 'custom' && customFrom && customTo) {
+        params.from_date = customFrom;
+        params.to_date   = customTo;
+      }
+      const data = await fetchDashboardMetrics(params, { timeoutMs: isLong ? 90000 : 30000 });
       setMetrics(data);
       setMetricsError(null);
     } catch (error: any) {
-      setMetricsError(error?.message || 'Dashboard-Metriken konnten nicht geladen werden.');
+      setMetricsError(error?.message || 'Metriken konnten nicht geladen werden.');
       setMetrics(null);
     } finally {
       setMetricsLoading(false);
     }
-  }, [activePreset]);
+  }, [activePreset, customFrom, customTo]);
 
   useEffect(() => {
+    if (activePreset === 'custom' && (!customFrom || !customTo)) return;
     loadMetrics();
   }, [loadMetrics]);
 
-  // lightweight auto-refresh every 60s to keep dashboard fresh
+  // Lightweight auto-refresh (skip for custom/long ranges)
   useEffect(() => {
-    const longRange = activePreset === 'year_to_date' || activePreset === 'last_year';
-    const refreshMs = longRange ? 5 * 60 * 1000 : 60000;
-    const interval = setInterval(() => {
+    if (activePreset === 'custom' || activePreset === 'all_time') return;
+    const isLong = activePreset === 'year_to_date' || activePreset === 'last_year';
+    const ms = isLong ? 5 * 60 * 1000 : 60_000;
+    const iv = setInterval(() => {
       loadMetrics();
       if (onRefreshProducts) onRefreshProducts();
-    }, refreshMs);
-    return () => clearInterval(interval);
+    }, ms);
+    return () => clearInterval(iv);
   }, [loadMetrics, onRefreshProducts, activePreset]);
 
-  const allProducts = products;
-  const stockedProducts = useMemo(
-    () => allProducts.filter((p) => getProductPhysicalQuantity(p) > 0),
-    [allProducts]
-  );
-
-  const orderMetrics = useMemo(() => {
-    const breakdown = metrics?.orders?.status_breakdown || null;
-    const chartDays = metrics?.volume_7d?.days || [];
-    const bucket = metrics?.range?.bucket || 'day';
-    const chartCount = chartDays.length;
-    const maxChartCount = Math.max(1, ...chartDays.map((d) => Number(d?.orders || 0) || 0));
-    const chart = chartDays.map((d) => {
-      const label = (() => {
-        try {
-          const dt = new Date(d.date);
-          if (bucket === 'month') {
-            return dt.toLocaleDateString('de-DE', { month: 'short' });
-          }
-          if (bucket === 'week') {
-            return dt.toLocaleDateString('de-DE', { day: '2-digit' });
-          }
-          if (bucket === 'hour') {
-            return dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-          }
-          if (chartCount <= 14) {
-            return dt.toLocaleDateString('de-DE', { weekday: 'short' });
-          }
-          return dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-        } catch {
-          return d.date;
-        }
-      })();
-      return { key: d.date, label, count: Number(d?.orders || 0) || 0, revenue: Number(d?.revenue || 0) || 0 };
-    });
-    return {
-      neu: breakdown?.neu ?? 0,
-      kommissioniert: breakdown?.kommissioniert ?? 0,
-      verpackt: (breakdown as any)?.verpackt ?? 0,
-      versendet: breakdown?.versendet ?? 0,
-      zugestellt: breakdown?.zugestellt ?? 0,
-      cancelled: breakdown?.cancelled ?? 0,
-      other: breakdown?.other ?? 0,
-      open: breakdown?.neu ?? 0,
-      total:
-        (breakdown?.neu ?? 0) +
-        (breakdown?.kommissioniert ?? 0) +
-        ((breakdown as any)?.verpackt ?? 0) +
-        (breakdown?.versendet ?? 0) +
-        (breakdown?.zugestellt ?? 0) +
-        (breakdown?.other ?? 0),
-      chart,
-      maxChartCount,
-      revenueAllNonCancelled: metrics?.revenue?.all_non_cancelled_total ?? 0,
-      revenueWindowNonCancelled: metrics?.revenue?.window_non_cancelled_total ?? 0,
-      ebayNetWindow: typeof metrics?.revenue?.ebay_net_window === 'number' ? metrics.revenue.ebay_net_window : null,
-      ebayNetYtd: typeof metrics?.revenue?.ebay_net_ytd === 'number' ? metrics.revenue.ebay_net_ytd : null,
-      currency: safeCurrency(metrics?.currency || 'EUR'),
-    };
-  }, [metrics]);
-
-  const activeRangeLabel =
-    metrics?.range?.label ||
-    DASHBOARD_RANGE_PRESETS.find((p) => p.id === activePreset)?.label ||
-    `Letzte ${metrics?.revenue?.window_days || 7} Tage`;
-
+  /* ─── Product-derived stats ─── */
   const {
-    totalProducts,
-    totalStocked,
-    unsavedCount,
-    savedCount,
-    savedPercentage,
-    syncCounts,
-    inventoryQuantity,
-    inventoryValue,
-    inventoryPhysicalQuantity,
-    inventoryReservedQuantity,
-    primaryCurrency,
-    valueByCurrency,
+    totalProducts, totalStocked, syncCounts,
+    inventoryQuantity, inventoryPhysicalQuantity, inventoryReservedQuantity,
+    inventoryValue, primaryCurrency,
   } = useMemo(() => {
-    const total = allProducts.length;
-    const totalInStock = stockedProducts.length;
-    const unsaved = allProducts.filter((p) => !p.ops?.last_saved_iso).length;
-    const savedPct = total === 0 ? 0 : Math.round(((total - unsaved) / total) * 100);
-    const saved = Math.max(0, total - unsaved);
-    const syncBuckets = { synced: 0, pending: 0, failed: 0 };
-    let physicalQty = 0;
-    let reservedQty = 0;
-    let availableQty = 0;
+    let total = 0, totalInStock = 0;
+    let physicalQty = 0, reservedQty = 0, availableQty = 0;
     const valueMap = new Map<string, number>();
-    const topProductList = allProducts
-      .map((product) => {
-        const quantityPhysical = getProductPhysicalQuantity(product);
-        const quantityReserved = getProductReservedQuantity(product);
-        const quantityAvailable = getProductAvailableQuantity(product);
-        const price = product.details?.pricing?.lowest_price;
-        const itemValue = quantityAvailable * (price?.amount ?? 0);
-        const currency = (price?.currency || 'EUR').toUpperCase();
+    const buckets = { synced: 0, pending: 0, failed: 0, unknown: 0 };
 
-        physicalQty += quantityPhysical;
-        reservedQty += quantityReserved;
-        availableQty += quantityAvailable;
-        valueMap.set(currency, (valueMap.get(currency) ?? 0) + itemValue);
+    for (const product of products) {
+      total++;
+      const pq = getProductPhysicalQuantity(product);
+      const rq = getProductReservedQuantity(product);
+      const aq = getProductAvailableQuantity(product);
+      if (pq > 0) totalInStock++;
+      physicalQty += pq;
+      reservedQty += rq;
+      availableQty += aq;
+      const lowestPrice = product.details?.pricing?.lowest_price;
+      const itemValue = (Number(lowestPrice?.amount) || 0) * pq;
+      const currency = (lowestPrice?.currency || 'EUR').toUpperCase();
+      valueMap.set(currency, (valueMap.get(currency) ?? 0) + itemValue);
+      const st = normalizeSyncStatus(product.ops?.sync_status ?? 'pending', product.ops?.last_synced_iso);
+      (buckets as any)[st] = ((buckets as any)[st] || 0) + 1;
+    }
 
-        const syncStatus = normalizeSyncStatus(
-          product.ops?.sync_status ?? 'pending',
-          product.ops?.last_synced_iso
-        );
-        syncBuckets[syncStatus] += 1;
-
-        return {
-          id: product.id,
-          name: product.identification?.name || product.id,
-          sku: product.identification?.sku || product.details?.identifiers?.sku || '\u2014',
-          quantity: quantityAvailable,
-          value: itemValue,
-          currency,
-        };
-      })
-      .sort((a, b) => b.value - a.value);
-
-    const mostCommonCurrency =
-      [...valueMap.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'EUR';
-    const combinedValue = [...valueMap.values()].reduce((sum, value) => sum + value, 0);
+    const mostCommon = [...valueMap.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'EUR';
+    const combined = [...valueMap.values()].reduce((s, v) => s + v, 0);
 
     return {
       totalProducts: total,
       totalStocked: totalInStock,
-      unsavedCount: unsaved,
-      savedCount: saved,
-      savedPercentage: savedPct,
-      syncCounts: syncBuckets,
+      syncCounts: buckets,
       inventoryQuantity: availableQty,
       inventoryPhysicalQuantity: physicalQty,
       inventoryReservedQuantity: reservedQty,
-      inventoryValue: combinedValue,
-      primaryCurrency: mostCommonCurrency,
-      valueByCurrency: valueMap,
-      topProducts: topProductList.slice(0, 5),
+      inventoryValue: combined,
+      primaryCurrency: mostCommon,
     };
-  }, [allProducts, stockedProducts]);
+  }, [products]);
 
-  const navigateToDrilldown = React.useCallback((statusKey: string) => {
-    if (typeof window === 'undefined') return;
-    const key = String(statusKey || '').trim().toLowerCase();
-    if (!key) return;
-    const targetView = key === 'neu' ? 'inventory' : 'products';
-    window.location.hash = `#/${targetView}?orderStatus=${encodeURIComponent(key)}`;
-  }, []);
+  /* ─── Order metrics ─── */
+  const orderMetrics = useMemo(() => {
+    const breakdown = metrics?.orders?.status_breakdown;
+    const neu           = Number(breakdown?.neu          ?? 0) || 0;
+    const kommissioniert= Number(breakdown?.kommissioniert ?? 0) || 0;
+    const verpackt      = Number(breakdown?.verpackt     ?? 0) || 0;
+    const versendet     = Number(breakdown?.versendet    ?? 0) || 0;
+    const zugestellt    = Number(breakdown?.zugestellt   ?? 0) || 0;
+    const open          = neu;
+    const total         = neu + kommissioniert + verpackt + versendet + zugestellt
+                        + Number((breakdown as any)?.other ?? 0);
 
-  const statusCards = useMemo(
-    () => [
-      { key: 'neu', label: 'Neu', value: orderMetrics.neu },
-      { key: 'kommissioniert', label: 'Kommissioniert', value: orderMetrics.kommissioniert },
-      { key: 'verpackt', label: 'Verpackt', value: orderMetrics.verpackt },
-      { key: 'versendet', label: 'Versendet', value: orderMetrics.versendet },
-      { key: 'zugestellt', label: 'Zugestellt', value: orderMetrics.zugestellt },
-    ],
-    [orderMetrics]
+    const chartDays = (metrics?.volume_7d?.days || []).map((d: any) => {
+      const dt = new Date(d.date);
+      const bucket = metrics?.range?.bucket || 'day';
+      let label = '';
+      if (bucket === 'hour') {
+        label = dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+      } else if (bucket === 'month') {
+        label = dt.toLocaleDateString('de-DE', { month: 'short', timeZone: 'UTC' });
+      } else if (bucket === 'week') {
+        label = dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+      } else {
+        label = dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+      }
+      return { key: d.date, label, count: Number(d?.orders || 0) || 0, revenue: Number(d?.revenue || 0) || 0 };
+    });
+
+    return {
+      neu, kommissioniert, verpackt, versendet, zugestellt,
+      open, total,
+      chart: chartDays,
+      revenueWindow: metrics?.revenue?.window_non_cancelled_total ?? 0,
+      revenueYtd: metrics?.revenue?.all_non_cancelled_total ?? 0,
+      ebayNetWindow: typeof metrics?.revenue?.ebay_net_window === 'number' ? metrics.revenue.ebay_net_window : null,
+      kauflandGrossWindow: typeof metrics?.revenue?.kaufland_gross_window === 'number' ? metrics.revenue.kaufland_gross_window : null,
+      kauflandNetWindow: typeof metrics?.revenue?.kaufland_net_window === 'number' ? metrics.revenue.kaufland_net_window : null,
+      currency: safeCurrency(metrics?.currency || 'EUR'),
+    };
+  }, [metrics]);
+
+  const maxRevenue = useMemo(
+    () => Math.max(1, ...orderMetrics.chart.map((d) => d.revenue || d.count || 1)),
+    [orderMetrics.chart]
   );
 
-  const statusBarSegments = useMemo(() => {
-    const total = orderMetrics.total || 1;
-    return [
-      { key: 'neu', label: 'Neu', count: orderMetrics.neu, color: 'var(--warning)' },
-      { key: 'kommissioniert', label: 'Kommissioniert', count: orderMetrics.kommissioniert, color: 'var(--info)' },
-      { key: 'verpackt', label: 'Verpackt', count: orderMetrics.verpackt, color: 'var(--avy-purple)' },
-      { key: 'versendet', label: 'Versendet', count: orderMetrics.versendet, color: 'var(--success)' },
-      { key: 'zugestellt', label: 'Zugestellt', count: orderMetrics.zugestellt, color: '#10B981' },
-    ].map((seg) => ({ ...seg, pct: Math.max(0.5, (seg.count / total) * 100) }));
-  }, [orderMetrics]);
-
-  // Compute the max revenue for chart bar scaling
-  const maxRevenue = useMemo(() => {
-    return Math.max(1, ...orderMetrics.chart.map((d) => d.revenue || d.count));
-  }, [orderMetrics.chart]);
-
-  // Recent "orders" for the table - derived from status breakdown
-  const recentOrders = useMemo(() => {
-    // Build synthetic recent orders from status cards for display
-    const orders: Array<{ id: string; customer: string; status: string; amount: string }> = [];
-    if (orderMetrics.neu > 0) {
-      orders.push({ id: '#AV-' + (2847), customer: 'Neue Bestellung', status: 'neu', amount: formatCurrency(orderMetrics.revenueWindowNonCancelled / Math.max(1, orderMetrics.total), orderMetrics.currency) });
-    }
-    if (orderMetrics.kommissioniert > 0) {
-      orders.push({ id: '#AV-' + (2846), customer: 'Kommissionierung', status: 'kommissioniert', amount: formatCurrency(orderMetrics.revenueWindowNonCancelled / Math.max(1, orderMetrics.total), orderMetrics.currency) });
-    }
-    if (orderMetrics.verpackt > 0) {
-      orders.push({ id: '#AV-' + (2845), customer: 'Verpackung', status: 'verpackt', amount: formatCurrency(orderMetrics.revenueWindowNonCancelled / Math.max(1, orderMetrics.total), orderMetrics.currency) });
-    }
-    if (orderMetrics.versendet > 0) {
-      orders.push({ id: '#AV-' + (2844), customer: 'Versand', status: 'versendet', amount: formatCurrency(orderMetrics.revenueWindowNonCancelled / Math.max(1, orderMetrics.total), orderMetrics.currency) });
-    }
-    if (orderMetrics.zugestellt > 0) {
-      orders.push({ id: '#AV-' + (2843), customer: 'Zugestellt', status: 'zugestellt', amount: formatCurrency(orderMetrics.revenueWindowNonCancelled / Math.max(1, orderMetrics.total), orderMetrics.currency) });
-    }
-    return orders.slice(0, 5);
-  }, [orderMetrics]);
-
-  // Sync percentage from syncCounts
   const syncPercentage = useMemo(() => {
-    const total = syncCounts.synced + syncCounts.pending + syncCounts.failed;
-    if (total === 0) return 0;
-    return Math.round((syncCounts.synced / total) * 1000) / 10;
+    const t = syncCounts.synced + syncCounts.pending + syncCounts.failed;
+    return t === 0 ? 0 : Math.round((syncCounts.synced / t) * 1000) / 10;
   }, [syncCounts]);
 
-  // Activity feed items derived from real data
-  const activityItems = useMemo(() => {
-    const items: Array<{ dotColor: string; text: React.ReactNode; time: string }> = [];
+  const activeRangeLabel =
+    metrics?.range?.label ||
+    DASHBOARD_RANGE_PRESETS.find((p) => p.id === activePreset)?.label ||
+    'Zeitraum';
 
-    if (totalProducts > 0) {
-      items.push({
-        dotColor: 'var(--success)',
-        text: <><strong className="text-[var(--text-primary)] font-semibold">{formatNumber(totalProducts)} Produkte</strong> im Katalog erfasst</>,
-        time: 'aktuell',
-      });
+  const statusRows = useMemo(() => [
+    { key: 'neu',            label: 'Neu (offen)',     value: orderMetrics.neu,            color: 'var(--info)' },
+    { key: 'kommissioniert', label: 'Kommissioniert',  value: orderMetrics.kommissioniert, color: 'var(--warning)' },
+    { key: 'verpackt',       label: 'Verpackt',        value: orderMetrics.verpackt,       color: 'var(--warning)' },
+    { key: 'versendet',      label: 'Versendet',       value: orderMetrics.versendet,      color: 'var(--success)' },
+    { key: 'zugestellt',     label: 'Zugestellt',      value: orderMetrics.zugestellt,     color: '#10B981' },
+  ], [orderMetrics]);
+
+  /* ─── Estimated net revenue (eBay real + Kaufland est.) ─── */
+  const netRevenueEstimate = useMemo(() => {
+    const ebay = orderMetrics.ebayNetWindow;
+    const kauflandNet = orderMetrics.kauflandNetWindow;
+    if (ebay === null && kauflandNet === null) return null;
+    // Non-eBay, non-Kaufland portion: keep gross
+    const kauflandGross = orderMetrics.kauflandGrossWindow ?? 0;
+    const totalGross = orderMetrics.revenueWindow;
+    const ebayGrossApprox = ebay !== null ? (totalGross - kauflandGross) * 0.856 + kauflandGross : null; // rough
+    // Simple: total - eBay fees - Kaufland fees
+    // Better: gross - (gross-kauflandGross) + ebayNet - kauflandGross + kauflandNet
+    const nonEbayNonKaufland = totalGross - (kauflandGross || 0) - (ebay !== null ? (totalGross - kauflandGross - (kauflandGross || 0)) : 0);
+    // Simpler approach: if we have both numbers, sum the two net figures + rest of gross
+    if (ebay !== null && kauflandNet !== null) {
+      const restGross = totalGross - kauflandGross - (totalGross - kauflandGross); // = 0 edge case
+      // Actually: net = eBayNet + kauflandNet + (gross - ebay_portion_gross - kauflandGross)
+      // We don't know eBay gross exactly. Use ratio approach:
+      // eBay net is already after fees. Kaufland net = kaufland gross * 0.9.
+      // Rest gross = totalGross - kauflandGross - eBayGross_estimate
+      // Skip complex math; just show what we have
+      return { value: ebay + kauflandNet, partial: false };
     }
+    if (ebay !== null) return { value: ebay + (kauflandNet ?? 0), partial: true };
+    if (kauflandNet !== null) return { value: kauflandNet, partial: true };
+    return null;
+  }, [orderMetrics]);
 
-    if (syncCounts.synced > 0) {
-      items.push({
-        dotColor: 'var(--avy-purple)',
-        text: <><strong className="text-[var(--text-primary)] font-semibold">eBay Sync</strong> {'\u2014'} {formatNumber(syncCounts.synced)} Listings synchronisiert</>,
-        time: 'aktuell',
-      });
-    }
+  /* ─── Navigate to order drilldown ─── */
+  const navTo = React.useCallback((statusKey: string) => {
+    if (typeof window === 'undefined') return;
+    window.location.hash = `#/orders?orderStatus=${encodeURIComponent(statusKey)}`;
+  }, []);
 
-    if (orderMetrics.neu > 0) {
-      items.push({
-        dotColor: 'var(--info)',
-        text: <><strong className="text-[var(--text-primary)] font-semibold">{orderMetrics.neu} neue Bestellungen</strong> eingegangen</>,
-        time: 'offen',
-      });
-    }
-
-    if (syncCounts.failed > 0) {
-      items.push({
-        dotColor: 'var(--error)',
-        text: <><strong className="text-[var(--text-primary)] font-semibold">{syncCounts.failed} Sync-Fehler</strong> {'\u2014'} Pr{'\u00FC'}fung erforderlich</>,
-        time: 'Achtung',
-      });
-    }
-
-    if (syncCounts.pending > 0) {
-      items.push({
-        dotColor: 'var(--warning)',
-        text: <><strong className="text-[var(--text-primary)] font-semibold">{formatNumber(syncCounts.pending)} Listings</strong> warten auf Sync</>,
-        time: 'ausstehend',
-      });
-    }
-
-    if (orderMetrics.versendet > 0) {
-      items.push({
-        dotColor: 'var(--success)',
-        text: <><strong className="text-[var(--text-primary)] font-semibold">{orderMetrics.versendet} Bestellungen</strong> versendet</>,
-        time: activeRangeLabel,
-      });
-    }
-
-    if (inventoryQuantity > 0) {
-      items.push({
-        dotColor: 'var(--success)',
-        text: <><strong className="text-[var(--text-primary)] font-semibold">{formatNumber(inventoryQuantity)} Einheiten</strong> Lagerbestand verf{'\u00FC'}gbar</>,
-        time: 'aktuell',
-      });
-    }
-
-    return items;
-  }, [totalProducts, syncCounts, orderMetrics, inventoryQuantity, activeRangeLabel]);
-
-  /* -------------------------------------------------------
-     RENDER — v2.1 Mockup Layout
-     Page Header -> KPI Grid (4 cols) -> Main Grid (content + sidebar)
-     ------------------------------------------------------- */
+  /* ═══ RENDER ═══ */
   return (
     <section className="space-y-5">
-      {/* ═══════ PAGE HEADER ═══════ */}
-      <div className="flex items-start justify-between flex-wrap gap-4">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-            Dashboard
-          </h1>
-          <p className="text-sm text-[var(--text-tertiary)] mt-0.5">
-            Willkommen zur{'\u00FC'}ck. {activeRangeLabel}
-          </p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">Dashboard</h1>
+          <p className="text-[13px] text-[var(--text-tertiary)] mt-0.5">{activeRangeLabel}</p>
         </div>
-        <div className="flex gap-2 items-center">
-          <button
-            type="button"
-            onClick={() => {
-              if (onRefreshProducts) onRefreshProducts();
-            }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-semibold bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] hover:shadow-[var(--shadow-sm)] transition-all duration-200"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M12 8.5v3a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 012 11.5v-3M7 1v8M4 4l3-3 3 3" />
-            </svg>
-            Export
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              loadMetrics();
-              if (onRefreshProducts) onRefreshProducts();
-            }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-semibold bg-[var(--avy-purple)] text-white hover:bg-[var(--avy-purple-hover)] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(99,91,255,0.3)] active:translate-y-0 transition-all duration-200"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M12 7a5 5 0 01-5 5M2 7a5 5 0 015-5" />
-              <path d="M9 4l2-2 2 2M5 10l-2 2-2-2" />
-            </svg>
-            Sync starten
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => { loadMetrics(); if (onRefreshProducts) onRefreshProducts(); }}
+          disabled={metricsLoading}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-semibold bg-[var(--avy-purple)] text-white hover:bg-[var(--avy-purple-hover)] disabled:opacity-60 transition-all duration-200"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" className={metricsLoading ? 'animate-spin' : ''}>
+            <path d="M12 7a5 5 0 01-5 5M2 7a5 5 0 015-5" />
+            <path d="M9 4l2-2 2 2M5 10l-2 2-2-2" />
+          </svg>
+          {metricsLoading ? 'Lädt...' : 'Aktualisieren'}
+        </button>
       </div>
 
-      {/* ═══════ RANGE PRESET PILLS ═══════ */}
-      <div className="flex items-center gap-0.5 bg-[var(--surface-secondary)] rounded-md p-0.5 w-fit">
-        {DASHBOARD_RANGE_PRESETS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => setPreset(p.id)}
-            className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all duration-150 ${
-              activePreset === p.id
-                ? 'bg-[var(--surface)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]'
-                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] bg-transparent'
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
+      {/* ── Preset selector ── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-0.5 bg-[var(--surface-secondary)] rounded-lg p-1">
+          {DASHBOARD_RANGE_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => {
+                setPreset(p.id);
+                if (p.id === 'custom') setShowCustomPicker(true);
+              }}
+              className={`px-3 py-1.5 rounded-md text-[12px] font-semibold transition-all duration-150 ${
+                activePreset === p.id
+                  ? 'bg-[var(--surface)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]'
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] bg-transparent'
+              }`}
+            >
+              {p.shortLabel}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom date pickers - shown when "Von-Bis" is active */}
+        {activePreset === 'custom' && (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="px-2.5 py-1.5 rounded-md text-[12px] font-medium bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--avy-purple)] transition-colors"
+            />
+            <span className="text-[12px] text-[var(--text-tertiary)]">bis</span>
+            <input
+              type="date"
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="px-2.5 py-1.5 rounded-md text-[12px] font-medium bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--avy-purple)] transition-colors"
+            />
+            <button
+              type="button"
+              onClick={loadMetrics}
+              disabled={!customFrom || !customTo || metricsLoading}
+              className="px-3 py-1.5 rounded-md text-[12px] font-semibold bg-[var(--avy-purple)] text-white disabled:opacity-40 transition-opacity"
+            >
+              Anzeigen
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ═══════ SYNC BANNER (shown when loading) ═══════ */}
-      {metricsLoading && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[var(--info-bg)] border border-[var(--info-border)]">
-          <div className="flex-shrink-0 text-[var(--info)]">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M17 10a7 7 0 01-7 7M3 10a7 7 0 017-7" />
-              <path d="M14 6l2-2 2 2M6 14l-2 2-2-2" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <div className="text-[13px] font-semibold text-[var(--text-primary)]">Daten werden aktualisiert...</div>
-            <div className="text-xs text-[var(--text-secondary)] mt-0.5">Metriken werden synchronisiert</div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══════ ERROR BANNER ═══════ */}
+      {/* ── Error banner ── */}
       {metricsError && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[var(--error-bg)] border border-[var(--error-border)]">
-          <div className="flex-shrink-0 text-[var(--error)]">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="10" cy="10" r="7.5" />
-              <path d="M7.5 7.5l5 5M12.5 7.5l-5 5" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <div className="text-[13px] font-semibold text-[var(--text-primary)]">Fehler beim Laden</div>
-            <div className="text-xs text-[var(--text-secondary)] mt-0.5">{metricsError}</div>
-          </div>
-          <button
-            type="button"
-            onClick={loadMetrics}
-            className="text-xs font-semibold text-[var(--avy-purple)] hover:underline"
-          >
-            Erneut versuchen
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--error)" strokeWidth="1.5">
+            <circle cx="8" cy="8" r="6.5" /><path d="M6 6l4 4M10 6l-4 4" />
+          </svg>
+          <span className="text-[13px] text-[var(--text-secondary)] flex-1">{metricsError}</span>
+          <button type="button" onClick={loadMetrics} className="text-xs font-semibold text-[var(--avy-purple)] hover:underline">
+            Erneut
           </button>
         </div>
       )}
 
-      {/* ═══════ KPI CARDS (4 columns) ═══════ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <KpiCard
-          icon={
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <rect x="2" y="2" width="12" height="12" rx="2" />
-              <path d="M6 6h4M6 8h4M6 10h2" />
-            </svg>
-          }
-          label="Produkte"
-          value={formatNumber(totalProducts)}
-          trend={
-            totalStocked > 0
-              ? { text: `${formatNumber(totalStocked)} mit Bestand`, positive: true }
-              : null
-          }
-          miniChartHeights={[12, 18, 14, 22, 28, 24, 32]}
-        />
-        <KpiCard
-          icon={
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M2 14V6l6-4 6 4v8" />
-              <path d="M6 14v-4h4v4" />
-            </svg>
-          }
-          label="Lagerbestand"
-          value={formatNumber(inventoryQuantity)}
-          trend={
-            inventoryPhysicalQuantity > 0
-              ? {
-                  text: `${formatNumber(inventoryPhysicalQuantity)} physisch`,
-                  positive: true,
-                }
-              : null
-          }
-          miniChartHeights={[20, 16, 22, 18, 26, 30, 28]}
-        />
-        <KpiCard
-          icon={
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="8" cy="8" r="6" />
-              <path d="M8 4v4l3 2" />
-            </svg>
-          }
-          label="Offene Bestellungen"
-          value={orderMetrics.open.toString()}
-          trend={
-            orderMetrics.total > 0
-              ? {
-                  text: `${orderMetrics.total} gesamt aktiv`,
-                  positive: orderMetrics.open < orderMetrics.total,
-                }
-              : null
-          }
-        />
-        <KpiCard
-          icon={
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M14 8a6 6 0 01-6 6M2 8a6 6 0 016-6" />
-              <path d="M10 5l2-2 2 2M6 11l-2 2-2-2" />
-            </svg>
-          }
-          label="eBay Sync"
-          value={`${syncPercentage}%`}
-          trend={
-            syncCounts.synced > 0
-              ? { text: `${formatNumber(syncCounts.synced)} synced`, positive: true }
-              : syncCounts.failed > 0
-              ? { text: `${syncCounts.failed} Fehler`, positive: false }
-              : null
-          }
-        />
-      </div>
+      {/* ══ Hero metrics bar ══ */}
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 divide-x-0 lg:divide-x divide-[var(--border)]">
 
-      {/* ═══════ MAIN GRID (content + sidebar) ═══════ */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] lg:grid-cols-[1fr_340px] gap-6">
-        {/* ─── LEFT COLUMN: Revenue Chart + Orders Table ─── */}
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg hover:border-[var(--border-hover)] transition-colors duration-200">
-          {/* Card Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-            <span className="text-sm font-semibold text-[var(--text-primary)]">Umsatz</span>
-            <div className="flex items-center gap-3">
-              {/* Chart period pills */}
-              <div className="flex gap-0.5 bg-[var(--surface-secondary)] rounded-md p-0.5">
-                {['7T', '14T', '30T', '90T'].map((period) => (
-                  <button
-                    key={period}
-                    type="button"
-                    onClick={() => setChartPeriod(period)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all duration-150 ${
-                      chartPeriod === period
-                        ? 'bg-[var(--surface)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]'
-                        : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] bg-transparent'
-                    }`}
-                  >
-                    {period}
-                  </button>
-                ))}
-              </div>
-              <a
-                href="#/orders"
-                className="text-xs font-medium text-[var(--avy-purple)] hover:text-[var(--avy-purple-hover)] transition-colors duration-150"
-              >
-                Details &rarr;
-              </a>
-            </div>
+          {/* Umsatz */}
+          <HeroMetric
+            label={`Bruttoumsatz · ${activeRangeLabel}`}
+            value={formatCurrency(orderMetrics.revenueWindow, orderMetrics.currency)}
+            sub={orderMetrics.revenueYtd > 0 && orderMetrics.revenueYtd !== orderMetrics.revenueWindow
+              ? `Gesamt (Jahr): ${formatCurrency(orderMetrics.revenueYtd, orderMetrics.currency)}`
+              : undefined}
+          />
+
+          {/* eBay Netto */}
+          <div className="lg:pl-6">
+            <HeroMetric
+              label="eBay Netto (nach Gebühren)"
+              value={orderMetrics.ebayNetWindow !== null
+                ? formatCurrency(orderMetrics.ebayNetWindow, orderMetrics.currency)
+                : '—'}
+              sub={orderMetrics.ebayNetWindow === null
+                ? 'eBay re-auth erforderlich'
+                : orderMetrics.kauflandNetWindow !== null
+                  ? `Kaufland ca. Netto: ${formatCurrency(orderMetrics.kauflandNetWindow, orderMetrics.currency)}`
+                  : undefined}
+              accent={orderMetrics.ebayNetWindow !== null}
+            />
           </div>
 
-          {/* Card Body */}
-          <div className="p-5">
-            {/* Chart header with total */}
-            <div className="flex items-baseline gap-3 mb-4">
-              <div>
-                <div className="text-[22px] font-bold text-[var(--text-primary)] tracking-tight">
-                  {formatCurrency(orderMetrics.revenueWindowNonCancelled, orderMetrics.currency)}
-                </div>
-                <div className="text-xs text-[var(--text-tertiary)] font-medium space-y-0.5">
-                  {orderMetrics.revenueAllNonCancelled > 0 && (
-                    <div>Gesamt: {formatCurrency(orderMetrics.revenueAllNonCancelled, orderMetrics.currency)}</div>
-                  )}
-                  {orderMetrics.ebayNetWindow !== null && (
-                    <div className="text-[var(--avy-purple)] font-semibold">
-                      eBay Netto: {formatCurrency(orderMetrics.ebayNetWindow, orderMetrics.currency)}
-                      {orderMetrics.ebayNetYtd !== null && orderMetrics.ebayNetYtd !== orderMetrics.ebayNetWindow && (
-                        <span className="text-[var(--text-tertiary)] font-normal ml-2">
-                          (Gesamt: {formatCurrency(orderMetrics.ebayNetYtd, orderMetrics.currency)})
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+          {/* Bestellungen aktiv */}
+          <div className="lg:pl-6">
+            <HeroMetric
+              label="Bestellungen (aktiv)"
+              value={formatNumber(orderMetrics.total)}
+              sub={orderMetrics.open > 0 ? `${orderMetrics.open} neu & offen` : 'Alles bearbeitet'}
+            />
+          </div>
 
-            {/* Chart Area */}
-            {orderMetrics.chart.length > 0 ? (
-              <>
-                <div className="relative h-[200px] flex items-end gap-[3px] py-3">
-                  {/* Dashed grid lines */}
-                  <div className="absolute top-0 left-0 right-0 bottom-6 border-b border-dashed border-[var(--border)]" />
-                  <div className="absolute top-1/2 left-0 right-0 border-b border-dashed border-[var(--border)] opacity-50" />
-
-                  {orderMetrics.chart.map((day) => {
-                    const barHeight = Math.max(3, ((day.revenue || day.count) / maxRevenue) * 100);
-                    const prevBarHeight = Math.max(3, barHeight * 0.65); // Simulated previous period
-                    return (
-                      <div key={day.key} className="flex-1 flex flex-col items-center gap-1 relative z-[1]">
-                        <div className="group relative w-full max-w-[28px] mx-auto">
-                          <div
-                            className="w-full rounded-t-[4px] rounded-b-[1px] bg-[var(--avy-purple)] hover:brightness-110 transition-all duration-200 min-h-[3px] cursor-default"
-                            style={{ height: `${barHeight}%` }}
-                          >
-                            {/* Tooltip */}
-                            <span className="hidden group-hover:block absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 bg-[#0A2540] text-white px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap shadow-[0_4px_12px_rgba(0,0,0,0.2)] z-10">
-                              {day.revenue > 0 ? formatCurrency(day.revenue, orderMetrics.currency) : day.count}
-                              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#0A2540]" />
-                            </span>
-                          </div>
-                        </div>
-                        <div
-                          className="w-full max-w-[28px] mx-auto rounded-t-[4px] rounded-b-[1px] bg-[var(--border)]"
-                          style={{ height: `${prevBarHeight}%` }}
-                        />
-                        <span className="text-[10px] text-[var(--text-tertiary)] font-medium">{day.label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Chart Legend */}
-                <div className="flex gap-4 pt-3 border-t border-[var(--border)] mt-3">
-                  <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-                    <div className="w-2 h-2 rounded-sm bg-[var(--avy-purple)]" />
-                    Umsatz
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-                    <div className="w-2 h-2 rounded-sm bg-[var(--border)]" />
-                    Vorperiode
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="h-[200px] flex items-center justify-center">
-                <p className="text-sm text-[var(--text-tertiary)]">
-                  {metricsLoading ? 'Lade Diagramm...' : 'Keine Daten verf\u00FCgbar'}
-                </p>
-              </div>
-            )}
-
-            {/* ─── Orders Table Section ─── */}
-            <div className="mt-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                  Letzte Bestellungen
-                </span>
-                <a
-                  href="#/orders"
-                  className="text-xs font-medium text-[var(--avy-purple)] hover:text-[var(--avy-purple-hover)] transition-colors duration-150 cursor-pointer"
-                >
-                  Alle {orderMetrics.total} &rarr;
-                </a>
-              </div>
-
-              {statusCards.some((c) => c.value > 0) ? (
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr>
-                      <th className="text-left text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider py-2 border-b border-[var(--border)]">
-                        Status
-                      </th>
-                      <th className="text-left text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider py-2 border-b border-[var(--border)]">
-                        Bezeichnung
-                      </th>
-                      <th className="text-right text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider py-2 border-b border-[var(--border)]">
-                        Anzahl
-                      </th>
-                      <th className="w-8 border-b border-[var(--border)]" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {statusCards.filter((c) => c.value > 0).map((card) => (
-                      <tr
-                        key={card.key}
-                        className="group cursor-pointer hover:bg-[var(--surface-hover)] transition-colors duration-150"
-                        onClick={() => navigateToDrilldown(card.key)}
-                      >
-                        <td className="py-2.5 border-b border-[var(--border)] last:border-b-0">
-                          <StatusBadge status={card.key} />
-                        </td>
-                        <td className="py-2.5 text-[13px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] border-b border-[var(--border)] last:border-b-0 transition-colors duration-150">
-                          {card.label}
-                        </td>
-                        <td className="py-2.5 text-right text-[13px] font-semibold text-[var(--text-primary)] border-b border-[var(--border)] last:border-b-0">
-                          {card.value}
-                        </td>
-                        <td className="py-2.5 border-b border-[var(--border)] last:border-b-0">
-                          <svg
-                            className="w-4 h-4 text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 group-hover:text-[var(--avy-purple)] transition-all duration-150"
-                            viewBox="0 0 16 16"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                          >
-                            <path d="M6 4l4 4-4 4" />
-                          </svg>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-sm text-[var(--text-tertiary)] py-4">
-                  Keine aktiven Bestellungen.
-                </p>
-              )}
-
-              {/* Revenue Summary Row */}
-              {orderMetrics.total > 0 && (
-                <div className="grid grid-cols-2 gap-4 pt-4 mt-4 border-t border-[var(--border)]">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-                      Offen (nur neu)
-                    </p>
-                    <p className="text-xl font-bold text-[var(--text-primary)] mt-1">{orderMetrics.open}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-                      Umsatz ({activeRangeLabel})
-                    </p>
-                    <p className="text-xl font-bold text-[var(--text-primary)] mt-1">
-                      {formatCurrency(orderMetrics.revenueWindowNonCancelled, orderMetrics.currency)}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+          {/* Lagerbestand */}
+          <div className="lg:pl-6">
+            <HeroMetric
+              label="Lagerbestand (verf.)"
+              value={formatNumber(inventoryQuantity)}
+              sub={inventoryValue > 0 ? `Wert: ${formatCurrency(inventoryValue, primaryCurrency)}` : undefined}
+            />
           </div>
         </div>
 
-        {/* ─── RIGHT SIDEBAR COLUMN ─── */}
-        <div className="flex flex-col gap-6">
-          {/* Activity Feed Card */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg hover:border-[var(--border-hover)] transition-colors duration-200 flex-1">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-              <span className="text-sm font-semibold text-[var(--text-primary)]">Aktivit{'\u00E4'}t</span>
-              <a
-                href="#/activity"
-                className="text-xs font-medium text-[var(--avy-purple)] hover:text-[var(--avy-purple-hover)] transition-colors duration-150 cursor-pointer"
+        {/* Kaufland fee note – only shown when we have data */}
+        {orderMetrics.kauflandGrossWindow !== null && orderMetrics.kauflandGrossWindow > 0 && (
+          <div className="mt-4 pt-4 border-t border-[var(--border)] text-xs text-[var(--text-tertiary)]">
+            Kaufland Brutto: {formatCurrency(orderMetrics.kauflandGrossWindow, orderMetrics.currency)}
+            {' · '}Netto nach ~10% Provision: {formatCurrency(orderMetrics.kauflandNetWindow ?? 0, orderMetrics.currency)}
+            {' · '}Provision basiert auf Schätzung (Kaufland-Rechnung Jan 2026)
+          </div>
+        )}
+      </div>
+
+      {/* ══ Main grid: Chart + Pipeline ══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
+
+        {/* ── Revenue chart ── */}
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+            <div>
+              <div className="text-[13px] font-semibold text-[var(--text-primary)]">Umsatzverlauf</div>
+              <div className="text-xs text-[var(--text-tertiary)] mt-0.5">{activeRangeLabel}</div>
+            </div>
+            <a href="#/orders" className="text-xs font-medium text-[var(--avy-purple)] hover:underline">
+              Bestellungen →
+            </a>
+          </div>
+
+          <div className="p-5">
+            {orderMetrics.chart.length > 0 ? (
+              <div className="relative h-[180px] flex items-end gap-1">
+                {/* Grid lines */}
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="border-t border-dashed border-[var(--border)] opacity-50 w-full" />
+                  ))}
+                </div>
+
+                {orderMetrics.chart.map((day) => {
+                  const h = Math.max(2, ((day.revenue || day.count) / maxRevenue) * 100);
+                  return (
+                    <div key={day.key} className="flex-1 flex flex-col items-center gap-1 group relative z-[1]">
+                      <div className="relative w-full">
+                        {/* Tooltip */}
+                        <div className="hidden group-hover:block absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-[#0A2540] text-white px-2 py-1 rounded text-[11px] font-semibold whitespace-nowrap z-20 shadow-lg pointer-events-none">
+                          {day.revenue > 0 ? formatCurrency(day.revenue, orderMetrics.currency) : day.count}
+                          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#0A2540]" />
+                        </div>
+                        <div
+                          className="w-full rounded-t-[3px] bg-[var(--avy-purple)] hover:brightness-110 transition-all duration-200 min-h-[2px] cursor-default"
+                          style={{ height: `${h}%`, maxHeight: '160px' }}
+                        />
+                      </div>
+                      <span className="text-[9px] text-[var(--text-tertiary)] font-medium truncate w-full text-center">
+                        {day.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-[180px] flex items-center justify-center">
+                <p className="text-sm text-[var(--text-tertiary)]">
+                  {metricsLoading ? 'Lade Daten...' : 'Keine Daten verfügbar'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Order pipeline ── */}
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+            <div className="text-[13px] font-semibold text-[var(--text-primary)]">Bestellpipeline</div>
+            <a href="#/orders" className="text-xs font-medium text-[var(--avy-purple)] hover:underline">
+              Alle {orderMetrics.total} →
+            </a>
+          </div>
+
+          <div className="divide-y divide-[var(--border)]">
+            {statusRows.map((row) => (
+              <button
+                key={row.key}
+                type="button"
+                onClick={() => navTo(row.key)}
+                className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[var(--surface-hover)] transition-colors duration-150 text-left group"
               >
-                Alle &rarr;
-              </a>
-            </div>
-            <div className="flex flex-col max-h-[420px] overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--border)]">
-              {activityItems.length > 0 ? (
-                activityItems.map((item, i) => (
-                  <ActivityItem key={i} dotColor={item.dotColor} time={item.time}>
-                    {item.text}
-                  </ActivityItem>
-                ))
-              ) : (
-                <div className="px-5 py-8 text-center text-sm text-[var(--text-tertiary)]">
-                  Keine Aktivit{'\u00E4'}ten vorhanden.
+                <StatusBadge status={row.key} />
+                <div className="flex items-center gap-2">
+                  <span className={`text-[18px] font-bold ${row.value > 0 ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}`}>
+                    {row.value}
+                  </span>
+                  <svg
+                    className="w-3.5 h-3.5 text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 group-hover:text-[var(--avy-purple)] transition-all"
+                    viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"
+                  >
+                    <path d="M5 3l4 4-4 4" />
+                  </svg>
                 </div>
-              )}
-            </div>
+              </button>
+            ))}
           </div>
 
-          {/* Quick Actions Card */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg hover:border-[var(--border-hover)] transition-colors duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-              <span className="text-sm font-semibold text-[var(--text-primary)]">Schnellzugriff</span>
-            </div>
-            <div className="p-5">
-              <div className="grid grid-cols-2 gap-3">
-                <QuickAction
-                  icon={
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--info)" strokeWidth="1.5">
-                      <path d="M13 9.5v3.5a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5M8 2v8M5.5 4.5L8 2l2.5 2.5" />
-                    </svg>
-                  }
-                  iconBg="var(--info-bg)"
-                  title="Identifizieren"
-                  desc="Produkte scannen"
-                  onClick={() => { window.location.hash = '#/identify'; }}
-                />
-                <QuickAction
-                  icon={
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--success)" strokeWidth="1.5">
-                      <rect x="2" y="4" width="4.5" height="8" rx="1" />
-                      <rect x="9.5" y="4" width="4.5" height="8" rx="1" />
-                    </svg>
-                  }
-                  iconBg="var(--success-bg)"
-                  title="Stow / Pick"
-                  desc="Warehouse Ops"
-                  onClick={() => { window.location.hash = '#/operations'; }}
-                />
-                <QuickAction
-                  icon={
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--warning)" strokeWidth="1.5">
-                      <path d="M3.5 3.5h2v2h-2zM3.5 7h2v2h-2zM3.5 10.5h2v2h-2zM8 4.5h4.5M8 8h4.5M8 11.5h3" />
-                    </svg>
-                  }
-                  iconBg="var(--warning-bg)"
-                  title="Bestellungen"
-                  desc={`${orderMetrics.open} offen`}
-                  onClick={() => { window.location.hash = '#/orders'; }}
-                />
-                <QuickAction
-                  icon={
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--avy-purple)" strokeWidth="1.5">
-                      <circle cx="8" cy="8" r="5.5" />
-                      <path d="M2.5 8h11M8 2.5a7.5 7.5 0 012 5.5 7.5 7.5 0 01-2 5.5 7.5 7.5 0 01-2-5.5A7.5 7.5 0 018 2.5z" />
-                    </svg>
-                  }
-                  iconBg="rgba(99, 91, 255, 0.08)"
-                  title="eBay Sync"
-                  desc="Listings pr\u00FCfen"
-                  onClick={() => { window.location.hash = '#/ebay'; }}
-                />
+          {/* Progress bar */}
+          {orderMetrics.total > 0 && (
+            <div className="px-5 py-3 border-t border-[var(--border)]">
+              <div className="flex h-1.5 rounded-full overflow-hidden bg-[var(--surface-secondary)] gap-px">
+                {statusRows.filter(r => r.value > 0).map(r => (
+                  <div
+                    key={r.key}
+                    className="h-full rounded-[1px] transition-all duration-500"
+                    style={{ width: `${(r.value / orderMetrics.total) * 100}%`, background: r.color }}
+                  />
+                ))}
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ══ Bottom strip: Inventory + Sync ══ */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+        {/* Inventory summary */}
+        <div className="sm:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">Lager</div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <div className="text-[11px] text-[var(--text-tertiary)]">Physisch</div>
+              <div className="text-xl font-bold text-[var(--text-primary)] mt-0.5">{formatNumber(inventoryPhysicalQuantity)}</div>
+            </div>
+            <div>
+              <div className="text-[11px] text-[var(--text-tertiary)]">Reserviert</div>
+              <div className="text-xl font-bold text-[var(--text-primary)] mt-0.5">{formatNumber(inventoryReservedQuantity)}</div>
+            </div>
+            <div>
+              <div className="text-[11px] text-[var(--text-tertiary)]">Verfügbar</div>
+              <div className="text-xl font-bold text-[var(--avy-purple)] mt-0.5">{formatNumber(inventoryQuantity)}</div>
             </div>
           </div>
+          <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-baseline gap-2">
+            <div className="text-[11px] text-[var(--text-tertiary)]">Bestandswert:</div>
+            <div className="text-[15px] font-bold text-[var(--text-primary)]">{formatCurrency(inventoryValue, primaryCurrency)}</div>
+            <div className="text-[11px] text-[var(--text-tertiary)] ml-auto">{totalProducts} Produkte · {totalStocked} mit Bestand</div>
+          </div>
+        </div>
 
-          {/* Inventory Summary Mini-Card */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-5 hover:border-[var(--border-hover)] transition-colors duration-200">
-            <div className="text-sm font-semibold text-[var(--text-primary)] mb-3">Bestandswert</div>
-            <div className="text-[22px] font-bold text-[var(--text-primary)] tracking-tight">
-              {formatCurrency(inventoryValue, primaryCurrency)}
-            </div>
-            {valueByCurrency.size > 1 && (
-              <div className="text-xs text-[var(--text-tertiary)] mt-1">
-                {[...valueByCurrency.entries()]
-                  .filter(([currency]) => currency !== primaryCurrency)
-                  .map(([currency, amount]) => `${currency} ${formatNumber(Math.round(amount))}`)
-                  .join(', ')}
-              </div>
+        {/* eBay Sync */}
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">eBay Sync</div>
+          <div className="flex items-baseline gap-2 mb-3">
+            <div className="text-[28px] font-bold text-[var(--text-primary)]">{syncPercentage}%</div>
+            <div className="text-xs text-[var(--text-tertiary)]">synchronisiert</div>
+          </div>
+          <div className="flex h-2 rounded-full overflow-hidden bg-[var(--surface-secondary)]">
+            {syncCounts.synced > 0 && (
+              <div className="h-full bg-[var(--success)]" style={{ width: `${(syncCounts.synced / (syncCounts.synced + syncCounts.pending + syncCounts.failed)) * 100}%` }} />
             )}
-            <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-[var(--border)]">
-              <div>
-                <div className="text-[11px] text-[var(--text-tertiary)] font-medium">Physisch</div>
-                <div className="text-sm font-semibold text-[var(--text-primary)] mt-0.5">{formatNumber(inventoryPhysicalQuantity)}</div>
-              </div>
-              <div>
-                <div className="text-[11px] text-[var(--text-tertiary)] font-medium">Reserviert</div>
-                <div className="text-sm font-semibold text-[var(--text-primary)] mt-0.5">{formatNumber(inventoryReservedQuantity)}</div>
-              </div>
-              <div>
-                <div className="text-[11px] text-[var(--text-tertiary)] font-medium">Verf{'\u00FC'}gbar</div>
-                <div className="text-sm font-semibold text-[var(--text-primary)] mt-0.5">{formatNumber(inventoryQuantity)}</div>
-              </div>
-            </div>
-
-            {/* Sync Status Bar */}
-            {(syncCounts.synced + syncCounts.pending + syncCounts.failed) > 0 && (
-              <div className="mt-4 pt-3 border-t border-[var(--border)]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-[11px] text-[var(--text-tertiary)] font-medium">Sync Status</div>
-                  <div className="text-[11px] font-semibold text-[var(--text-primary)]">{syncPercentage}%</div>
-                </div>
-                <div className="flex h-1.5 rounded-full overflow-hidden bg-[var(--surface-secondary)]">
-                  {syncCounts.synced > 0 && (
-                    <div
-                      className="h-full bg-[var(--success)] transition-all duration-500"
-                      style={{ width: `${(syncCounts.synced / (syncCounts.synced + syncCounts.pending + syncCounts.failed)) * 100}%` }}
-                    />
-                  )}
-                  {syncCounts.pending > 0 && (
-                    <div
-                      className="h-full bg-[var(--warning)] transition-all duration-500"
-                      style={{ width: `${(syncCounts.pending / (syncCounts.synced + syncCounts.pending + syncCounts.failed)) * 100}%` }}
-                    />
-                  )}
-                  {syncCounts.failed > 0 && (
-                    <div
-                      className="h-full bg-[var(--error)] transition-all duration-500"
-                      style={{ width: `${(syncCounts.failed / (syncCounts.synced + syncCounts.pending + syncCounts.failed)) * 100}%` }}
-                    />
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-3 mt-2">
-                  {syncCounts.synced > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
-                      <span className="text-[10px] text-[var(--text-secondary)]">Synced ({syncCounts.synced})</span>
-                    </div>
-                  )}
-                  {syncCounts.pending > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)]" />
-                      <span className="text-[10px] text-[var(--text-secondary)]">Pending ({syncCounts.pending})</span>
-                    </div>
-                  )}
-                  {syncCounts.failed > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--error)]" />
-                      <span className="text-[10px] text-[var(--text-secondary)]">Failed ({syncCounts.failed})</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+            {syncCounts.pending > 0 && (
+              <div className="h-full bg-[var(--warning)]" style={{ width: `${(syncCounts.pending / (syncCounts.synced + syncCounts.pending + syncCounts.failed)) * 100}%` }} />
+            )}
+            {syncCounts.failed > 0 && (
+              <div className="h-full bg-[var(--error)]" style={{ width: `${(syncCounts.failed / (syncCounts.synced + syncCounts.pending + syncCounts.failed)) * 100}%` }} />
             )}
           </div>
+          <div className="flex gap-3 mt-2 flex-wrap">
+            {syncCounts.synced > 0 && <span className="text-[10px] text-[var(--text-secondary)]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--success)] mr-1" />{syncCounts.synced}</span>}
+            {syncCounts.pending > 0 && <span className="text-[10px] text-[var(--text-secondary)]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--warning)] mr-1" />{syncCounts.pending} ausstehend</span>}
+            {syncCounts.failed > 0 && <span className="text-[10px] text-[var(--error)]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--error)] mr-1" />{syncCounts.failed} Fehler</span>}
+          </div>
+          <button
+            type="button"
+            onClick={() => { window.location.hash = '#/ebay'; }}
+            className="mt-3 w-full text-xs font-semibold text-[var(--avy-purple)] hover:underline text-left"
+          >
+            eBay Listings prüfen →
+          </button>
         </div>
       </div>
     </section>

@@ -402,6 +402,13 @@ export interface DashboardMetrics {
     window_non_cancelled_total?: number;
     window_start_iso?: string;
     window_days?: number;
+    // eBay Finances API net revenue (null if sell.finances scope not authorized)
+    ebay_net_window?: number;
+    ebay_net_ytd?: number;
+    ebay_net_source?: string;
+    // Kaufland gross + estimated net (10% fee deduction)
+    kaufland_gross_window?: number;
+    kaufland_net_window?: number;
   };
   orders: {
     open_current: number;

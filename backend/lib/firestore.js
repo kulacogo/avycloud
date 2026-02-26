@@ -3092,7 +3092,7 @@ async function getOrderSummary() {
  * - Returns are detected by statusLabel/status text containing "retour/return/rücksend".
  * - Revenue is derived from totalAmount (best-effort, assumes a single currency).
  */
-async function getDashboardMetrics({ days = 7, preset = null } = {}) {
+async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, toDate = null } = {}) {
   const defaultDays = Number.isFinite(Number(days)) ? Math.max(1, Math.min(60, Number(days))) : 7;
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
@@ -3108,10 +3108,13 @@ async function getDashboardMetrics({ days = 7, preset = null } = {}) {
     if (!v) return null;
     if (v === 'today' || v === 'heute') return 'today';
     if (v === 'last7' || v === 'last_7_days' || v === 'last-7-days' || v === '7d' || v === '7_days') return 'last7';
+    if (v === 'this_week' || v === 'week' || v === 'diese_woche') return 'this_week';
     if (v === 'month' || v === 'this_month' || v === 'current_month' || v === 'mtd' || v === 'month_to_date') return 'month_to_date';
     if (v === 'last_month' || v === 'previous_month') return 'last_month';
     if (v === 'year' || v === 'this_year' || v === 'current_year' || v === 'ytd' || v === 'year_to_date') return 'year_to_date';
     if (v === 'last_year' || v === 'previous_year') return 'last_year';
+    if (v === 'all_time' || v === 'all' || v === 'gesamt' || v === 'gesamter_zeitraum') return 'all_time';
+    if (v === 'custom' || v === 'benutzerdefiniert') return 'custom';
     if (/^month_\d{4}_\d{2}$/.test(v)) return v; // e.g. month_2025_11
     return null;
   };
@@ -3130,6 +3133,24 @@ async function getDashboardMetrics({ days = 7, preset = null } = {}) {
     rangeStart = utcDayStart(now);
     rangeStart.setUTCDate(rangeStart.getUTCDate() - 6);
     rangeLabel = 'Letzte 7 Tage';
+  } else if (canonicalPreset === 'this_week') {
+    // Monday of current week
+    const dow = now.getUTCDay() || 7; // 1=Mon … 7=Sun
+    rangeStart = utcDayStart(now);
+    rangeStart.setUTCDate(rangeStart.getUTCDate() - (dow - 1));
+    rangeEndExclusive = now;
+    rangeLabel = 'Diese Woche';
+  } else if (canonicalPreset === 'all_time') {
+    rangeStart = new Date(Date.UTC(2020, 0, 1, 0, 0, 0)); // platform start
+    rangeEndExclusive = now;
+    rangeLabel = 'Gesamter Zeitraum';
+  } else if (canonicalPreset === 'custom') {
+    const from = fromDate ? new Date(fromDate + 'T00:00:00Z') : null;
+    const to   = toDate   ? new Date(toDate   + 'T23:59:59Z') : null;
+    rangeStart = from && !isNaN(from.getTime()) ? from : utcDayStart(now);
+    rangeEndExclusive = to && !isNaN(to.getTime()) ? to : now;
+    const fmt = (d) => d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+    rangeLabel = `${fmt(rangeStart)} – ${fmt(new Date(rangeEndExclusive.getTime() - 1))}`;
   } else if (canonicalPreset === 'month_to_date') {
     rangeStart = monthStart;
     rangeEndExclusive = now;

@@ -2408,11 +2408,13 @@ export const fetchOrders = async (limit = 200, options?: { timeoutMs?: number })
 };
 
 export const fetchDashboardMetrics = async (
-  input: number | { days?: number; preset?: string | null } = 7,
+  input: number | { days?: number; preset?: string | null; from_date?: string | null; to_date?: string | null } = 7,
   options?: { timeoutMs?: number }
 ): Promise<DashboardMetrics> => {
   const rawDays = typeof input === 'number' ? input : input?.days ?? 7;
   const rawPreset = typeof input === 'number' ? null : input?.preset ?? null;
+  const rawFromDate = typeof input === 'object' ? input?.from_date ?? null : null;
+  const rawToDate   = typeof input === 'object' ? input?.to_date   ?? null : null;
 
   const d = Math.min(Math.max(parseInt(String(rawDays), 10) || 7, 1), 60);
   const url = new URL(`${BACKEND_URL}/api/dashboard/metrics`);
@@ -2420,8 +2422,11 @@ export const fetchDashboardMetrics = async (
   if (rawPreset != null && String(rawPreset).trim()) {
     url.searchParams.set('preset', String(rawPreset).trim());
   }
+  if (rawFromDate) url.searchParams.set('from_date', rawFromDate);
+  if (rawToDate)   url.searchParams.set('to_date',   rawToDate);
 
-  const response = await fetchWithTimeout(url.toString(), undefined, options?.timeoutMs || 25000);
+  const isLongRange = rawPreset === 'year_to_date' || rawPreset === 'last_year' || rawPreset === 'all_time';
+  const response = await fetchWithTimeout(url.toString(), undefined, options?.timeoutMs || (isLongRange ? 90000 : 25000));
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Dashboard-Metriken konnten nicht geladen werden.');
