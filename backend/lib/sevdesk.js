@@ -119,65 +119,69 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
   const startTs = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
   const endTs   = Math.floor(new Date(toDate   + 'T23:59:59Z').getTime() / 1000);
 
-  // Fetch incoming vouchers (Eingangsrechnungen) in date range.
-  // status=1000 (Bezahlt) + 1200 (Teilbezahlt); voucherType=VOU = Eingangsbeleg
+  // Fetch bank account transactions (Kontoauszug-Buchungen) — this matches what the user
+  // sees in SevDesk under "Bezahldatum". The /Voucher endpoint (Eingangsrechnungen) uses
+  // voucher dates which can differ from actual payment dates and may be incomplete.
   const params = new URLSearchParams({
-    startDate:   String(startTs),
-    endDate:     String(endTs),
-    voucherType: 'VOU',
-    embed:       'contact',
-    limit:       '500',
+    startDate: String(startTs),
+    endDate:   String(endTs),
+    limit:     '500',
   });
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  let vouchers = [];
+  let transactions = [];
   try {
-    const response = await fetch(`${SEVDESK_BASE_URL}/Voucher?${params}`, {
+    const response = await fetch(`${SEVDESK_BASE_URL}/CheckAccountTransaction?${params}`, {
       headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
       signal: controller.signal,
     });
     if (!response.ok) {
       const body = await response.text().catch(() => '');
-      throw new Error(`SevDesk Voucher API ${response.status}: ${body.slice(0, 200)}`);
+      throw new Error(`SevDesk CheckAccountTransaction API ${response.status}: ${body.slice(0, 200)}`);
     }
     const data = await response.json();
-    vouchers = Array.isArray(data?.objects) ? data.objects : [];
+    transactions = Array.isArray(data?.objects) ? data.objects : [];
   } finally {
     clearTimeout(timer);
   }
 
-  // Filter to shipping carrier invoices by contact name or description
-  const isShipping = (v) => {
-    const name = (v?.contact?.name || v?.supplierName || '').toLowerCase();
-    const desc = (v?.description || '').toLowerCase();
-    return SHIPPING_SUPPLIER_KEYWORDS.some(kw => name.includes(kw) || desc.includes(kw));
+  // Filter to outgoing shipping carrier payments by payee name or description.
+  // "payee" maps to the "Name" column in SevDesk's Kontoauszug view.
+  const isShipping = (t) => {
+    const payee = (t?.payee || t?.name || t?.entryText || '').toLowerCase();
+    const desc  = (t?.paymtPurpose || t?.description || t?.comment || '').toLowerCase();
+    return SHIPPING_SUPPLIER_KEYWORDS.some(kw => payee.includes(kw) || desc.includes(kw));
   };
 
   let totalCost = 0;
-  let voucherCount = 0;
+  let txCount = 0;
   const matched = [];
 
-  for (const v of vouchers) {
-    if (!isShipping(v)) continue;
-    // sumGross is the brutto total of the voucher
-    const gross = parseFloat(String(v?.sumGross ?? v?.sumTotal ?? 0).replace(',', '.')) || 0;
-    totalCost += gross;
-    voucherCount++;
-    matched.push({ contact: v?.contact?.name || '?', gross, date: v?.voucherDate });
+  for (const t of transactions) {
+    if (!isShipping(t)) continue;
+    // Outgoing payments have a negative amount; take absolute value.
+    const raw = parseFloat(String(t?.amount || '0').replace(',', '.')) || 0;
+    const amount = Math.abs(raw);
+    if (amount <= 0) continue;
+    totalCost += amount;
+    txCount++;
+    const payee = t?.payee || t?.name || t?.entryText || '?';
+    const date  = t?.valueDate || t?.entryDate || '';
+    matched.push({ payee, amount, date });
   }
 
   if (matched.length > 0) {
-    console.log(`[sevdesk-shipping] ${fromDate}–${toDate}: ${voucherCount} Rechnungen, ${totalCost.toFixed(2)}€ brutto`);
-    matched.forEach(m => console.log(`  ${m.date}: ${m.contact} → ${m.gross.toFixed(2)}€`));
+    console.log(`[sevdesk-shipping] ${fromDate}–${toDate}: ${txCount} Zahlungen, ${totalCost.toFixed(2)}€`);
+    matched.forEach(m => console.log(`  ${m.date}: ${m.payee} → ${m.amount.toFixed(2)}€`));
   } else {
-    console.log(`[sevdesk-shipping] ${fromDate}–${toDate}: keine Versandlieferanten-Rechnungen gefunden (${vouchers.length} Belege total)`);
+    console.log(`[sevdesk-shipping] ${fromDate}–${toDate}: keine Versandlieferanten-Buchungen (${transactions.length} Buchungen total)`);
   }
 
   const result = {
     total_cost: Math.round(totalCost * 100) / 100,
-    voucher_count: voucherCount,
+    voucher_count: txCount,
     currency: 'EUR',
     source: 'sevdesk',
   };
