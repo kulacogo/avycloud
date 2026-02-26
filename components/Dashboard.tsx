@@ -381,6 +381,114 @@ const Delta: React.FC<{ value: number; suffix?: string }> = ({ value, suffix = '
   );
 };
 
+// ─── Date Range Dropdown ──────────────────────────────────────────────────────
+const DateRangePicker: React.FC<{
+  activePreset: string;
+  presetLabel: string;
+  monthOptions: { id: string; label: string }[];
+  onSelect: (id: string) => void;
+  onRefresh: () => void;
+}> = ({ activePreset, presetLabel, monthOptions, onSelect, onRefresh }) => {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleSelect = (id: string) => { onSelect(id); setOpen(false); };
+
+  return (
+    <div ref={ref} className="relative flex items-center gap-2">
+      {/* Dropdown trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-slate-700/80 transition-all text-sm text-slate-200 font-medium"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="w-4 h-4 text-slate-400 flex-shrink-0">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+        <span className="max-w-[11rem] truncate">{presetLabel}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-3.5 h-3.5 text-slate-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`}>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {/* Refresh button */}
+      <button
+        type="button"
+        onClick={onRefresh}
+        title="Aktualisieren"
+        className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800/80 border border-white/[0.08] text-slate-500 hover:text-slate-200 hover:bg-slate-700/80 transition-all"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+          <path d="M1 4v6h6M23 20v-6h-6" />
+          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15" />
+        </svg>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-2 z-50 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden"
+          style={{ minWidth: '15rem' }}
+        >
+          {/* Quick presets */}
+          <div className="p-2">
+            <p className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold px-2 pt-1 pb-1.5">Zeitraum</p>
+            {PRESETS.map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => handleSelect(p.id)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all text-left ${
+                  activePreset === p.id
+                    ? 'bg-sky-600/20 text-sky-300 font-medium'
+                    : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                {activePreset === p.id ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-sky-400 flex-shrink-0">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                ) : <span className="w-3.5 inline-block" />}
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Month picker */}
+          <div className="border-t border-white/[0.06] p-2">
+            <p className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold px-2 pt-1 pb-1.5">Einzelner Monat</p>
+            <div className="grid grid-cols-2 gap-1">
+              {monthOptions.map(m => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleSelect(m.id)}
+                  className={`px-3 py-1.5 rounded-lg text-sm text-left transition-all ${
+                    activePreset === m.id
+                      ? 'bg-violet-600/20 text-violet-300 font-medium'
+                      : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const Dashboard: React.FC<DashboardProps> = ({
   products,
@@ -552,55 +660,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <span className="text-slate-600">Aufträge via BaseLinker</span>
             </p>
           </div>
-          <div className="flex flex-col gap-1.5 items-start sm:items-end">
-            {/* Quick presets */}
-            <div className="flex flex-wrap items-center gap-1">
-              {PRESETS.map(p => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setPreset(p.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activePreset === p.id
-                      ? 'bg-sky-600 text-white shadow-sm shadow-sky-900/50'
-                      : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={loadAll}
-                title="Aktualisieren"
-                className="ml-1 p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                </svg>
-              </button>
-            </div>
-            {/* Month picker */}
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="text-[10px] uppercase tracking-widest text-slate-600 mr-0.5">Monat</span>
-              {monthOptions.map(m => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setPreset(m.id)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                    activePreset === m.id
-                      ? 'bg-violet-600 text-white shadow-sm shadow-violet-900/50'
-                      : 'text-slate-600 hover:text-slate-200 hover:bg-white/5'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <DateRangePicker
+            activePreset={activePreset}
+            presetLabel={presetLabel}
+            monthOptions={monthOptions}
+            onSelect={setPreset}
+            onRefresh={loadAll}
+          />
         </div>
       </div>
 
