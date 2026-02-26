@@ -185,6 +185,7 @@ const DualChart: React.FC<{
   loading?: boolean;
 }> = ({ data, currency, loading }) => {
   const [hovered, setHovered] = useState<number | null>(null);
+  const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const W = 560, H = 160;
   const PAD = { top: 14, right: 52, bottom: 26, left: 40 };
@@ -244,6 +245,18 @@ const DualChart: React.FC<{
     );
   }
 
+  const handleTouchStart = (e: React.TouchEvent<SVGSVGElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touch = e.touches[0];
+    const svgX = ((touch.clientX - rect.left) / rect.width) * W;
+    const slotIdx = Math.floor((svgX - PAD.left) / slotW);
+    if (slotIdx >= 0 && slotIdx < n) {
+      if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+      setHovered(slotIdx);
+      touchTimerRef.current = setTimeout(() => setHovered(null), 2000);
+    }
+  };
+
   return (
     <div className="relative w-full select-none">
       <svg
@@ -251,6 +264,7 @@ const DualChart: React.FC<{
         className="w-full"
         style={{ height: '160px' }}
         onMouseLeave={() => setHovered(null)}
+        onTouchStart={handleTouchStart}
       >
         <defs>
           <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
@@ -272,7 +286,7 @@ const DualChart: React.FC<{
         {data.map((d, i) => (
           <g key={d.key}
             onMouseEnter={() => setHovered(i)}
-            style={{ cursor: 'default' }}
+            style={{ cursor: 'pointer' }}
           >
             {/* Hover highlight */}
             {hovered === i && (
@@ -688,19 +702,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </p>
             )}
             {financeLoading ? <Skel w="w-24" h="h-3" className="mt-1" /> : (
-              <p className="text-xs text-slate-500 mt-0.5">
-                {finance?.accounts?.length
-                  ? `${finance.accounts.length} Konto${finance.accounts.length > 1 ? 'en' : ''} · SevDesk`
-                  : finance?.errors?.length ? 'SevDesk nicht erreichbar' : 'SevDesk'}
-              </p>
+              <p className="text-xs text-slate-500 mt-0.5">SevDesk</p>
             )}
           </div>
 
           {/* Umsatz period */}
           <Card
-            label={`Umsatz · ${presetLabel}`}
+            label="Umsatz"
             value={fmtCur(ord.revenueWindow, ord.currency, true)}
-            sub={`inkl. MwSt · ${fmtNum(totalOrders)} Aufträge · nach Retouren`}
             color="green"
             loading={metricsLoading}
             size="hero"
@@ -746,40 +755,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <Section title={`Kennzahlen · ${presetLabel}`}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <Card
-            label="Umsatz Brutto"
+            label="Umsatz"
             value={fmtCur(ord.revenueWindow, ord.currency, true)}
-            sub="inkl. MwSt · BaseLinker"
             color="green"
             loading={metricsLoading}
           />
           <Card
-            label="Versandkosten"
+            label="Versand"
             value={shippingWindow !== null ? fmtCur(shippingWindow, 'EUR', true) : '—'}
-            sub={
-              financeLoading && shippingWindow === null
-                ? 'Wird geladen…'
-                : finance?.errors?.some(e => e.startsWith('SendCloud'))
-                  ? 'SendCloud Fehler'
-                  : `${fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen · DHL/DPD`
-            }
             color="amber"
             loading={financeLoading && shippingWindow === null}
           />
           <Card
-            label="Umsatz nach Versand"
+            label="Netto"
             value={revAfterShipping !== null ? fmtCur(revAfterShipping, ord.currency, true) : '—'}
-            sub="Brutto − Versandkosten"
             color={revAfterShipping !== null && revAfterShipping < 0 ? 'red' : 'green'}
             loading={metricsLoading || (financeLoading && shippingWindow === null)}
           />
           <Card
             label="Retouren"
             value={fmtNum(ord.returnsTotal)}
-            sub={
-              ord.returnsWindowValue > 0
-                ? `Wert: ${fmtCur(ord.returnsWindowValue, ord.currency)} · bereits abgezogen`
-                : 'Im Umsatz bereits abgezogen'
-            }
             color={ord.returnsTotal > 0 ? 'red' : 'neutral'}
             loading={metricsLoading}
           />
@@ -811,27 +806,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <Section title="Jahresüberblick">
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           <Card
-            label="Umsatz Dieses Jahr"
+            label="Jahresumsatz"
             value={fmtCur(ord.revenueYtd, ord.currency, true)}
-            sub="Jan–Dez · nach Retouren · BaseLinker"
             color="green"
             loading={metricsLoading}
           />
           <Card
-            label="Versandkosten Dieses Jahr"
+            label="Versand (Jahr)"
             value={shippingYtd !== null ? fmtCur(shippingYtd, 'EUR', true) : '—'}
-            sub={finance?.shipping_ytd?.parcel_count
-              ? `${fmtNum(finance.shipping_ytd.parcel_count)} Sendungen`
-              : finance?.shipping_ytd?.order_count
-                ? `${fmtNum((finance.shipping_ytd as any).order_count)} Aufträge (Schätzung)`
-                : 'DHL/DPD'}
             color="amber"
             loading={financeLoading && shippingYtd === null}
           />
           <Card
             label="Kontostand"
             value={totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '—'}
-            sub="Sichteinlagen + BusinessCard · SevDesk"
             color={totalBalance !== null && totalBalance < 0 ? 'red' : 'violet'}
             loading={financeLoading}
           />
@@ -851,33 +839,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <Section title="Bestand">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Card
-            label="Produkte im Bestand"
+            label="Im Bestand"
             value={fmtNum(inv.inStock)}
-            sub={`von ${fmtNum(inv.total)} gesamt`}
             color="blue"
           />
           <Card
-            label="Verfügbare Einheiten"
+            label="Einheiten"
             value={fmtNum(inv.available)}
-            sub={`${fmtNum(inv.physical)} physisch · ${fmtNum(inv.reserved)} reserviert`}
             color="blue"
           />
           <Card
             label="Bestandswert"
             value={fmtCur(inv.totalValue, inv.primaryCur, true)}
-            sub="Verfügbar · Verkaufspreis"
             color="green"
           />
           <Card
             label="Synchronisierung"
             value={`${fmtNum(inv.sync.synced)} / ${fmtNum(inv.total)}`}
-            sub={
-              inv.sync.failed > 0
-                ? `${inv.sync.failed} Fehler · ${inv.sync.pending} ausstehend`
-                : inv.sync.pending > 0
-                  ? `${inv.sync.pending} ausstehend`
-                  : 'Vollständig synchronisiert'
-            }
             color={inv.sync.failed > 0 ? 'red' : inv.sync.pending > 0 ? 'amber' : 'green'}
           />
         </div>
