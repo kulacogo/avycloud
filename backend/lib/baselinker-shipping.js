@@ -30,9 +30,11 @@ const DPD_PRICES = [
 
 // Reguläre Zuschläge pro Paket (netto)
 // DHL: Maut/CO2 0,19 € + GoGreen Plus 0,15 € + Energiezuschlag 1,25% auf Basispreis
-// DPD: Maut/CO2 0,35 € + Sicherheitsgebühr 0,15 €
+// DPD: Maut/CO2 0,35 € + Sicherheitsgebühr 0,15 € + Energiezuschlag Straße 25,78% auf Basispreis
+//      → Energiezuschlag verifiziert aus DPD-Rechnung Feb 2026: 136,27€ / 528,50€ Basisfrache = 25,78%
+//        DPD ändert den Satz monatlich (variabel); dieser Wert gilt für Feb 2026.
 const DHL_EXTRA_NETTO  = { maut: 0.19, gogreen: 0.15, energyPct: 0.0125 };
-const DPD_EXTRA_NETTO  = { maut: 0.35, sicherheit: 0.15 };
+const DPD_EXTRA_NETTO  = { maut: 0.35, sicherheit: 0.15, energyPct: 0.2578 };
 
 // Monatspauschalen (netto)
 const DHL_MONTHLY_FEE_NETTO = 69.95;   // Stufe 4
@@ -70,8 +72,9 @@ function dhlLabelBrutto(weightKg) {
  * Brutto-Kosten pro DPD-Label inkl. Zuschläge (ohne Monatspauschale).
  */
 function dpdLabelBrutto(weightKg) {
-  const base  = lookupBaseNetto(DPD_PRICES, weightKg);
-  const netto = base + DPD_EXTRA_NETTO.maut + DPD_EXTRA_NETTO.sicherheit;
+  const base   = lookupBaseNetto(DPD_PRICES, weightKg);
+  const energy = base * DPD_EXTRA_NETTO.energyPct;
+  const netto  = base + energy + DPD_EXTRA_NETTO.maut + DPD_EXTRA_NETTO.sicherheit;
   return netto * VAT;
 }
 
