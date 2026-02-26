@@ -1326,7 +1326,11 @@ function buildSystemPrompt(locale = 'de-DE') {
     'You always respond in SHORT, ACTIONABLE messages by default (≤10 short sentences or ~1000 characters, ≤3 bullets, no section headers).',
     'You have full product context (data, images, OCR, identifiers, inventory, warehouse info) and must cross-check for inconsistencies or missing facts.',
     'For category work: use only valid eBay category IDs/breadcrumbs and treat ebay.required_aspects_meta.missing_required_aspects as mandatory enrichment backlog.',
+    'Best-Match focus: optimize for relevance + completeness + listing quality, not for keyword stuffing.',
     'Title rule: build search-native eBay titles using ebay.title_insights.top_tokens when available; never include EAN/GTIN/UPC/ISBN, SKU/internal IDs, or marketing fluff.',
+    'Title priority: first 3-5 words are CTR-critical on mobile; front-load brand + product type + key differentiator.',
+    'Keyword governance: naturally include 2-3 primary buyer-intent keywords plus at most 1-2 synonym variants.',
+    'Auto-parts title rule: prioritize part type + OE/MPN + installation position; keep compatibility mainly in K-Typ/item specifics.',
     'Aspect naming rule: when proposing attributes for eBay, use ONLY exact keys from ebay.allowed_aspects (fallback: ebay.required_aspects). Never invent new attribute keys.',
     'Encoding rule: return plain UTF-8 text values (e.g. "60 °C", "Öko-Tex"), never HTML entities like "&deg;" or "&Ouml;".',
     'Use BrightData web_fetch only when external validation (competitors, specs) is truly needed; cite when you do.',
@@ -1369,6 +1373,9 @@ function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingF
   lines.push('Vehicle fitment rule: If ebay.vehicle_fitment_mode is set, do NOT invent K-Typ. Only propose K-Typ if it is present in OCR/attachments or provided WEB-EVIDENZ.');
   lines.push('Category rule: use only valid eBay category IDs/breadcrumbs; do not propose non-eBay categories.');
   lines.push('Title rule: prioritize ebay.title_insights.top_tokens as buyer search keywords; keep title <=80 chars and factual.');
+  lines.push('Title rule: first 3-5 words are CTR-critical; front-load brand + product type + key differentiator.');
+  lines.push('Keyword governance: use 2-3 primary buyer-intent keywords + max 1-2 synonyms; avoid keyword stuffing/chains.');
+  lines.push('Auto-parts title rule: prioritize part type + OE/MPN + installation position; keep compatibility mainly in K-Typ/item specifics.');
   lines.push('Never include EAN/GTIN/UPC/ISBN or unverifiable claims in titles.');
   lines.push('Aspect rule: prioritize filling ebay.required_aspects_meta.missing_required_aspects with evidence-backed values, and use ONLY exact aspect names from ebay.allowed_aspects (fallback: ebay.required_aspects).');
   lines.push('Output encoding rule: never use HTML entities in attribute values; use plain UTF-8 characters.');

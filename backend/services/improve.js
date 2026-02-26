@@ -307,6 +307,12 @@ function buildImproveContext(product, ebayListing = null, { titleInsights = null
       `eBay Titel-Keyword-Hinweise (Kategorie ${titleInsights?.categoryId || 'n/a'}): ${titleInsights.topTokens.join(', ')}`
     );
   }
+  lines.push(
+    'Best-Match Ziel: Relevanz + Vollständigkeit + Qualitätsdarstellung verbessern (kein Keyword-Stuffing).'
+  );
+  lines.push(
+    'Titel-Fokus: erste 3-5 Wörter CTR-kritisch (Marke + Produkttyp + Kernmerkmal), harte Grenze 80 Zeichen.'
+  );
 
   // eBay listing snapshot (imported via MIP CSV or synced via API)
   if (ebayListing && typeof ebayListing === 'object') {

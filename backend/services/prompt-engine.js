@@ -46,12 +46,13 @@ function buildDefaultPromptSet(identity, studioBackground) {
   const baseRules =
     [
       'IMAGE EDITING TASK (do not invent): Use the provided reference image as strict visual ground truth.',
+      'eBay listing compliance: hero image must show the complete product clearly, with no crop of critical parts.',
       'Keep the exact product identity and perspective. Do NOT change shape, proportions, materials, color, labels, logos, screws, cables, attachments, or included parts.',
       `Allowed edits ONLY: replace background with ${studioBackground}, neutralize lighting to soft even studio light, and do minimal cleanup (dust/noise).`,
-      'Forbidden: adding/removing parts, changing viewpoint/perspective, adding props/packaging (unless already visible), adding environment/lifestyle, people/hands, text/watermarks/icons/stickers/overlays.',
+      'Forbidden: adding/removing parts, changing viewpoint/perspective, adding props/packaging (unless already visible), adding environment/lifestyle, people/hands, frames, text/watermarks/icons/stickers/overlays.',
       'If unsure, preserve the reference image details exactly.',
     ].join(' ');
-  const studioFront = `Edit the provided reference image into a photorealistic studio packshot of ${subject} on ${studioBackground}. Centered, clean edges, soft even studio lighting. ${baseRules}`;
+  const studioFront = `Edit the provided reference image into a photorealistic studio packshot of ${subject} on ${studioBackground}. Main/hero shot: full front view of the complete product, centered, clean edges, no decorative elements, soft even studio lighting. ${baseRules}`;
   return {
     studio: {
       front: studioFront,

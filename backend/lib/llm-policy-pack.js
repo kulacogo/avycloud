@@ -39,6 +39,17 @@ function buildTitleSchemaGuideText() {
   return buildTitleSchemaLines().join('\n');
 }
 
+function buildBestMatchSignalsText() {
+  return [
+    'BEST MATCH / CASSINI (operative Signale):',
+    '- Relevanz: Titel + Artikelmerkmale müssen klar zur Käufer-Suchintention passen.',
+    '- Vollständigkeit: Pflicht-Item-Specifics vollständig und nicht leer; empfohlene Merkmale ergänzen.',
+    '- Qualität: klare Titel, strukturierte Beschreibung, hochwertige Produktbilder mit mehreren Perspektiven.',
+    '- Preisfähigkeit: Preisangaben nur mit belastbarer Evidence; keine erfundenen Preisclaims.',
+    '- Vertrauen: keine irreführenden Keywords, keine manipulativen Taktiken, keine unklaren Mehrfachartikel im Einzel-Listing.',
+  ].join('\n');
+}
+
 function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = {}) {
   const policyEnabled = (process.env.LLM_POLICY_ENABLED || '').toString().trim().toLowerCase();
   const enabled = policyEnabled === '1' || policyEnabled === 'true' || policyEnabled === 'yes';
@@ -50,10 +61,14 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
       'PRINZIPIEN:',
       '- Nutze Web-Daten nur, wenn sie dir durch das System bereitgestellt werden (Tools / WEB-EVIDENZ).',
       '- Erfinde keine Fakten. Wenn etwas nicht belegbar ist: leer lassen und als Unsicherheit markieren.',
+      '- eBay Best-Match Fokus: Relevanz + Vollständigkeit + Bild-/Content-Qualität + plausibler Preis.',
+      '- Titel: erste 3-5 Wörter müssen die kaufrelevantesten Begriffe tragen (Marke + Produkttyp + Kernmerkmal).',
+      '- Keyword-Governance: 2-3 primäre Suchbegriffe natürlich verwenden; kein Keyword-Stuffing oder Keyword-Ketten.',
       '- Titel/Highlights/Beschreibung sollen faktenbasiert und suchstark sein; keine Platzhaltertexte.',
       '- Titel (Sport/Haushalt/Home/Beauty/Toys/Büro): priorisiere Maße/Größe/Material vor kryptischen Herstellercodes.',
       '- Titel-Schreibweise: keine komplett kleingeschriebenen Keyword-Ketten; relevante Nomen normal schreiben.',
       '- eBay Attribute-Governance: Wenn dir pro Kategorie Aspects geliefert werden (ebay.allowed_aspects oder ebay.required_aspects), verwende NUR diese Keys (exakte Schreibweise). Erfinde keine neuen Attribut-Keys.',
+      '- Item Specifics: Pflichtmerkmale zuerst füllen; danach zusätzliche relevante Merkmale für Filter-/Mobil-Sichtbarkeit ergänzen.',
       '- Attribute/Parameter: Werte pro Feld maximal 60 Zeichen. AUSNAHME: Titel und K-Typ.',
     ].join('\n');
   }
@@ -62,11 +77,15 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     '',
     'HARD RULES (immer):',
     '- Dieses Regelwerk ist ZWINGEND und identisch für alle AvyCloud LLMs (Identify/Improve/Chat) – keine Eigenlogik, kein Best-Effort. Verstöße werden serverseitig verworfen und dürfen NICHT gespeichert oder synchronisiert werden.',
+    buildBestMatchSignalsText(),
     '- Titel: Reihenfolge ist schema-/kategorieabhängig (siehe "TITLE-SCHEMA GUIDELINES"). NIE frei umsortieren.',
+    '- Titel: die ersten 3-5 Wörter sind mobile CTR-kritisch; platziere dort Marke + Produkttyp + wichtigstes Suchmerkmal.',
     '- Titel: Priorität A muss in den ersten 60 Zeichen sein (kategorieabhängig; siehe "TITLE-SCHEMA GUIDELINES").',
     '- Titel: eBay search-native: priorisiere die Keywords, nach denen Käufer dieses Produkt am häufigsten suchen (Marke + Produkttyp + Modell/MPN + relevante, belegbare Specs).',
+    '- Titel: Keyword-Governance: 2-3 Kernbegriffe plus maximal 1-2 Synonym-Varianten natürlich einweben; kein Keyword-Stuffing, keine Wortketten ohne Informationsgewinn.',
     '- Titel (Sport/Haushalt/Home/Beauty/Toys/Büro): priorisiere Maße/Größe/Material; kryptische Hersteller-/Modellcodes nur wenn klar suchrelevant.',
     '- Titel-Schreibweise: keine komplett kleingeschriebenen Keyword-Ketten; relevante Nomen normal schreiben.',
+    '- Titel: dekorative Sonderzeichen vermeiden (z.B. !!!, @@, ####). Funktionale Trennzeichen nur sparsam einsetzen.',
     '- Titel: Länge: 70–80 Zeichen (bevorzugt), Hard-Max eBay: 80 Zeichen (nie > 80). Wenn zu lang: zuerst low-prio Tokens streichen.',
     '- Titel: Keine Marketingfloskeln, keine Emojis, keine Wiederholungen, keine Sonderzeichen am Anfang.',
     '- Keine Preise/Preisorientierung/€ oder EUR in Titel, Beschreibung oder Highlights.',
@@ -87,6 +106,8 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     '',
     'DATASHEET FORMAT (wenn du Datenblattfelder erzeugst/änderst):',
     '- Beschreibung: SEO-stark und klar strukturiert. HTML ist erlaubt (nur einfache Tags: <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität. Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',
+    '- Beschreibung: wenn Beleglage ausreichend, Zielumfang ca. 180–240 Wörter mit natürlicher Keyword-Verteilung (kein Stuffing).',
+    '- Beschreibung: ergänze relevante Synonyme/Long-Tail-Varianten nur, wenn sie zum konkreten Produkt belegbar passen.',
     '- Highlights: Kategorieabhängig 3–6 Bulletpoints (siehe CSV Regeln). Jede Bullet ist im Stil: "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash), faktenbasiert, keine Verpackung, keine Dubletten.',
     '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme) und keine redundanten Keys mit identischem Wert.',
     '- Pflicht-Item-Specifics (required aspects): wenn Kategorie gesetzt ist, alle Pflicht-Aspekte vollständig ausfüllen (nur mit Belegen; sonst "Unbekannt" + Warning).',

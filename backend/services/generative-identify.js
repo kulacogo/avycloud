@@ -94,13 +94,15 @@ Aufgabe:
    - Du lieferst dafür die Bausteine: brand, internalCategory (Produkttyp), model/mpn/teilenummer, sowie technische Kerndaten als item_specifics/attributes.
    - Falls du title_ebay / title_kaufland ausfüllst, dann nur als ENTWURF und strikt nach Regeln:
      - Reihenfolge ist schema-/kategorieabhängig (siehe "TITLE-SCHEMA GUIDELINES" im Policy-Block unten). NICHT frei umsortieren.
+     - Erste 3-5 Wörter sind CTR-kritisch (Marke + Produkttyp + Kernmerkmal).
      - Priorität A muss in den ersten 60 Zeichen sein (schemaabhängig):
        - Auto/Tech: Marke + Produkttyp + Modell/MPN/OE/Teilenummer.
        - Kleidung/Schuhe/Sneaker: Marke + Produkttyp + Größe (keine kryptischen Modellcodes).
        - Haus, Bau & Ausstattung: Marke + Modell/Serie + Produkttyp.
+     - Keyword-Governance: 2-3 Kernbegriffe + max. 1-2 Synonym-Varianten, kein Keyword-Stuffing.
      - Keine Marketingfloskeln, keine Emojis, keine Dubletten.
      - eBay-Titel: 70–80 Zeichen (bevorzugt), Hard-Max 80.
-4. Beschreibungen: kurzer Absatz mit Features / Nutzen (faktenbasiert, keine Wiederholungen).
+4. Beschreibungen: strukturiert, faktenbasiert, keine Wiederholungen. Bei ausreichender Beleglage ca. 180–240 Wörter, natürlich lesbar (kein Keyword-Stuffing).
 5. Priorisiere Barcodes: EAN = exakt 13 Ziffern, GTIN = exakt 14 Ziffern. Verwende nur Codes mit korrekter Checkdigit. Wenn keiner sicher ist, lasse EAN/GTIN/UPC leer.
 6. Bestimme eine passende Kategoriebezeichnung (interner Kategorie-String), z. B. "Schuhe > Sandalen".
 7. Erstelle Attribute/Item-Specifics als Liste aus { key, value } mit deutschen Schlüsseln (z. B. "Farbe": "Marineblau"). WICHTIG: technische Daten aus OCR/Label (Spannung/Leistung/Größe/Volumen/Modell/Herstellernummer) explizit als Attribute aufnehmen, wenn vorhanden.

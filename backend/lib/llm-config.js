@@ -93,10 +93,13 @@ async function ensureDefaultLlmScopeVersions() {
       note: 'Default v1 (bootstrapped) – Identify-first quality rules.',
       promptText: [
         'IDENTIFY-FIRST: Liefere maximal vollständige, belegbare Produktdaten. Identify ist die primäre Datenquelle; Improve/Chat sind nur Fallback.',
+        'Best-Match Fokus: Relevanz, Vollständigkeit und Qualität im Datenblatt priorisieren (Titel, Item Specifics, Bilder, Beschreibung).',
         'Wenn Daten fehlen (MPN/EAN/GPSR/K-Typ): Nutze WEB-EVIDENZ/Marktplatz-Suchergebnisse. Erfinde nichts; lass Felder leer, wenn nicht belegbar.',
       ].join('\n'),
       rulesText: [
         'Pflichtfelder (wenn belegbar): identifiers.mpn (Herstellernummer), GPSR Herstellerdaten (Name, Adresse, Ort, PLZ, Land, E-Mail, Telefon).',
+        'Titel-Logik: erste 3–5 Wörter CTR-kritisch (Marke + Produkttyp + Kernmerkmal), 70–80 Zeichen bevorzugt, max. 80.',
+        'Keyword-Governance: 2-3 Kernbegriffe + max. 1-2 Synonyme; kein Keyword-Stuffing und keine artikelfremden Keywords.',
         'Bei Fahrzeugteilen: wenn Kategorie Fahrzeugverwendungsliste erlaubt, K-Typ als Attribut "K-Typ" pflegen (nur aus Evidence).',
         'Keine Fake-Antworten: Wenn du keine Belege findest, schreibe eine Warnung statt zu behaupten, dass Daten existieren.',
       ].join('\n'),
@@ -106,9 +109,12 @@ async function ensureDefaultLlmScopeVersions() {
       rulesMode: 'append',
       note: 'Default v1 (bootstrapped) – Improve fallback rules.',
       promptText:
-        'IMPROVE: Verbessere vorhandene Daten, aber erfinde keine Spezifikationen. Nutze Web/Marketplace Evidence für Plausibilitätschecks.',
-      rulesText:
+        'IMPROVE: Verbessere vorhandene Daten, aber erfinde keine Spezifikationen. Nutze Web/Marketplace Evidence für Plausibilitätschecks und Best-Match-Relevanz.',
+      rulesText: [
         'Wenn Pflicht-Aspekte fehlen, ergänze sie nur wenn belegbar. Falls nicht belegbar: Warnung setzen; keine Halluzinationen.',
+        'Titel-Logik: erste 3–5 Wörter CTR-kritisch (Marke + Produkttyp + Kernmerkmal), 70–80 Zeichen bevorzugt, max. 80.',
+        'Keyword-Governance: 2-3 Kernbegriffe + max. 1-2 Synonyme; kein Keyword-Stuffing und keine artikelfremden Keywords.',
+      ].join('\n'),
     },
     'chat.product': {
       promptMode: 'append',
@@ -120,9 +126,36 @@ async function ensureDefaultLlmScopeVersions() {
         'Ehrlichkeit: Behaupte niemals, du hättest Daten gefunden, wenn keine Tool-Calls/Belege vorhanden sind.',
         'Wenn du suchst: nutze mehrere Quellen (mindestens Google + eBay + Amazon; optional Shopping/weitere).',
         'Jede neue Faktenbehauptung (EAN/MPN/GPSR etc.) muss aus Evidence stammen; sonst als "unbelegt" markieren oder leer lassen.',
+        'Best-Match Fokus: Relevanz + Vollständigkeit + Qualität. Priorisiere fehlende Pflichtmerkmale und klare Suchintention.',
+        'Titel-Logik: erste 3–5 Wörter CTR-kritisch (Marke + Produkttyp + Kernmerkmal), 70–80 Zeichen bevorzugt, max. 80.',
+        'Keyword-Governance: 2-3 Kernbegriffe + max. 1-2 Synonyme; kein Keyword-Stuffing und keine artikelfremden Keywords.',
         'eBay-Ready (DE): Titel ≤ 80 Zeichen, keine artikelfremden Keywords; gültige eBay Kategorie + kategorieabhängige Pflicht-Artikelmerkmale (required aspects) müssen befüllt und nicht leer sein.',
         'Preis: nur setzen, wenn amount ≥ 1 EUR UND Evidence-URLs vorhanden sind (z.B. eBay itemWebUrl). Ohne Evidence: Preis leer lassen und Warning setzen.',
         'Beschreibung: keine Kontaktinfos/URLs zum Wegleiten, kein aktiver Inhalt (Skripte/Formulare).',
+      ].join('\n'),
+    },
+    'quality.gate': {
+      promptMode: 'append',
+      rulesMode: 'append',
+      note: 'Default v1 (bootstrapped) – Quality gate Best-Match compliance checks.',
+      promptText:
+        'QUALITY-GATE: Prüfe Datenblatt auf eBay-Relevanz, Vollständigkeit und Qualitätsmängel mit evidenzbasierter Begründung.',
+      rulesText: [
+        'Melde Titelprobleme (fehlende Kernbegriffe, Keyword-Stuffing, artikelfremde Keywords, >80 Zeichen).',
+        'Melde fehlende/leer gelassene Pflicht-Item-Specifics und kritische Bildmängel (Wasserzeichen/Overlays/Hauptbild unklar).',
+        'Unsicheres nur als WARN mit niedriger confidence; keine Halluzinationen.',
+      ].join('\n'),
+    },
+    'image.generation': {
+      promptMode: 'append',
+      rulesMode: 'append',
+      note: 'Default v1 (bootstrapped) – eBay-ready image generation constraints.',
+      promptText:
+        'IMAGE-GENERATION: Erzeuge realistische, eBay-taugliche Produktbilder auf Basis realer Referenzen, ohne Fantasieelemente.',
+      rulesText: [
+        'Hauptbild-Logik: Produkt vollständig sichtbar, neutraler Hintergrund, keine Overlays/Wasserzeichen/Badges.',
+        'Keine Halluzinationen: keine neuen Teile, keine Perspektiv-Erfindungen, keine Lifestyle-Szenen, wenn nicht explizit gefordert.',
+        'Bevorzuge mehrere klare Perspektiven und konsistente Produktidentität.',
       ].join('\n'),
     },
   };

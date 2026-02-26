@@ -369,10 +369,10 @@ function isSkuLikeToken(token = '') {
 }
 
 function isPureBarcodeToken(token = '') {
-  const digits = safeString(token).replace(/[^\d]/g, '');
-  if (!digits) return false;
-  if (!/^\d+$/.test(digits)) return false;
-  return digits.length === 8 || digits.length === 12 || digits.length === 13 || digits.length === 14;
+  const normalized = safeString(token).replace(/[\s\-_.]/g, '');
+  if (!normalized) return false;
+  if (!/^\d+$/.test(normalized)) return false;
+  return normalized.length === 8 || normalized.length === 12 || normalized.length === 13 || normalized.length === 14;
 }
 
 function extractModelCandidatesFromText(text = '') {
@@ -434,8 +434,13 @@ function isLikelyOpaqueModelCode(token = '') {
   const hasLetters = /[a-z]/i.test(compact);
   const hasDigits = /\d/.test(compact);
   if (!hasLetters || !hasDigits) return false;
+  // Classic opaque seller/manufacturer code pattern: all-caps alnum token with digits, no separators.
+  if (/^[A-Z0-9]+$/.test(compact) && !/[._\-\/]/.test(compact) && compact.length >= 6) {
+    if (hasDigits) return true;
+  }
   const vowels = (compact.match(/[aeiouäöü]/gi) || []).length;
   const digits = (compact.match(/\d/g) || []).length;
+  if (compact.length >= 6 && vowels <= 2 && digits >= 1 && !/[._\-\/]/.test(compact)) return true;
   if (compact.length >= 8 && vowels <= 2 && digits >= 2) return true;
   if (compact.length >= 10 && digits >= 3) return true;
   return false;
@@ -1414,6 +1419,8 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
       pushA(productType);
       pushB(measure);
       pushB(normSize);
+      pushB(material);
+      pushB(function1);
       if (modelOrMpn && shouldKeepModelTokenForSchema(schemaId, modelOrMpn)) {
         pushB(modelOrMpn);
       }
