@@ -10,8 +10,8 @@
 }
 
 :root {
-  /* Globale Textgröße: 12px (4px kleiner als Browser-Default 16px) */
-  font-size: 12px;
+  /* Globale Textgröße: 14px — bessere Lesbarkeit */
+  font-size: 14px;
   color-scheme: dark;
   --page-bg: #0f172a;
   --surface-primary: #1e293b;
@@ -24,7 +24,7 @@
 @media (max-width: 768px) {
   :root {
     /* Better readability + touch UX on handheld scanners / phones */
-    font-size: 14px;
+    font-size: 15px;
   }
 }
 
