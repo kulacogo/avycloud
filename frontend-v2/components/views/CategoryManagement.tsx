@@ -258,14 +258,14 @@ export const CategoryManagement: React.FC = () => {
      ═══════════════════════════════════════════════════════════ */
 
   return (
-    <div className="flex flex-col min-h-0 flex-1">
+    <section className="space-y-5">
       {/* ── Page Header ── */}
-      <div className="px-8 pt-7 pb-0 flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
             {t('categories.title')}
           </h1>
-          <p className="text-sm text-[var(--text-tertiary)] mt-0.5">
+          <p className="text-[13px] text-[var(--text-tertiary)] mt-0.5">
             {t('categories.subtitle')}
           </p>
         </div>
@@ -286,7 +286,7 @@ export const CategoryManagement: React.FC = () => {
 
       {/* ── Error Banner ── */}
       {error && (
-        <div className="mx-8 mt-4 rounded-lg bg-[var(--error-bg)] border border-[var(--error)]/20 px-4 py-3 text-sm text-[var(--error)]">
+        <div className="rounded-lg bg-[var(--error-bg)] border border-[var(--error-border)] px-4 py-3 text-sm text-[var(--error)]">
           {error}
         </div>
       )}

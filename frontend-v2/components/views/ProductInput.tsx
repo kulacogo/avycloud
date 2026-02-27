@@ -376,7 +376,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
           {/* ----------------------------------------------------------- */}
           {/*  CARD 1: Camera / Image Upload                              */}
           {/* ----------------------------------------------------------- */}
-          <div className="lg:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 transition-all duration-300 hover:border-[var(--border-hover)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)]">
+          <div className="lg:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 transition-all duration-200 hover:border-[var(--border-hover)]">
             {/* Card header */}
             <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[rgba(99,91,255,0.12)] text-[var(--avy-purple)]">
@@ -568,7 +568,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
           {/* ----------------------------------------------------------- */}
           {/*  CARD 2: Barcode / EAN Input                                */}
           {/* ----------------------------------------------------------- */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 transition-all duration-300 hover:border-[var(--border-hover)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)]">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 transition-all duration-200 hover:border-[var(--border-hover)]">
             {/* Card header */}
             <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[var(--info-bg,#EFF6FF)] text-[var(--info,#0070F3)]">

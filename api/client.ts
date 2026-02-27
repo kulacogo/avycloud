@@ -630,6 +630,24 @@ export async function syncEbayLiveListings(payload?: {
   return data?.data;
 }
 
+export async function lightSyncEbayLiveListings(payload?: {
+  maxPages?: number;
+  entriesPerPage?: number;
+  timeoutMs?: number;
+  runId?: string;
+}): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listings/light-sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to light-sync eBay listings');
+  }
+  return data?.data;
+}
+
 export async function fetchEbayLiveListings(params?: {
   limit?: number;
   search?: string;

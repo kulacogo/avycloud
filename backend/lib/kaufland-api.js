@@ -62,7 +62,7 @@ function signRequest({ method, absoluteUrl, rawBody, timestamp, secretKey }) {
   return crypto
     .createHmac('sha256', String(secretKey || ''))
     .update(payload, 'utf8')
-    .digest('base64');
+    .digest('hex');
 }
 
 async function getConfig() {

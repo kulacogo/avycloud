@@ -121,22 +121,6 @@ const NAV_ICONS: NavIconConfig[] = [
     ),
   },
   {
-    view: 'ebay-listings',
-    label: 'nav.ebay',
-    iconNode: (
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        {/* Storefront with awning waves */}
-        <path d="M3 9.5h18L18.5 5a1.5 1.5 0 0 0-1.4-1H6.9A1.5 1.5 0 0 0 5.5 5L3 9.5Z"
-          stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-        <path d="M3 9.5C3 10.88 4.12 12 5.5 12S8 10.88 8 9.5M8 9.5C8 10.88 9.12 12 10.5 12S13 10.88 13 9.5M13 9.5c0 1.38 1.12 2.5 2.5 2.5S18 10.88 18 9.5M18 9.5c0 1.38 1.12 2.5 2.5 2.5"
-          stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"
-          stroke="currentColor" strokeWidth="1.6" />
-        <rect x="9" y="14" width="6" height="6" rx="0.5" stroke="currentColor" strokeWidth="1.4" />
-      </svg>
-    ),
-  },
-  {
     view: 'warehouse',
     label: 'nav.warehouse',
     iconNode: (
@@ -204,7 +188,6 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
       if (view === 'dashboard') return true;
       if (view === 'inventory') return hasPermission('products', 'read');
       if (view === 'products') return hasPermission('products', 'read');
-      if (view === 'ebay-listings') return hasPermission('products', 'read') || hasPermission('products', 'write');
       if (view === 'input') return hasPermission('identify', 'run');
       if (view === 'categories') return hasPermission('categories', 'read') || hasPermission('categories', 'write');
       if (view === 'warehouse') return hasPermission('warehouse', 'read') || hasPermission('warehouse', 'write');
