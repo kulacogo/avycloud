@@ -1507,6 +1507,117 @@ function sanitizeImageSuggestions(entry) {
     }));
 }
 
+function parseScopeSet(scope = null) {
+  const raw = safeString(scope).toLowerCase();
+  if (!raw) return new Set();
+  const out = new Set();
+  raw
+    .split(/[,\s|;]+/g)
+    .map((token) => safeString(token))
+    .filter(Boolean)
+    .forEach((tokenRaw) => {
+      const token = tokenRaw.toLowerCase();
+      if (token === 'all' || token === 'full') {
+        out.add('datasheet');
+        return;
+      }
+      if (token === 'ean' || token === 'barcode' || token === 'barcodes') {
+        out.add('gtin');
+        return;
+      }
+      if (token === 'attr' || token === 'attrs') {
+        out.add('attributes');
+        return;
+      }
+      out.add(token);
+    });
+  return out;
+}
+
+function mergeUniqueStringList(...lists) {
+  const out = [];
+  const seen = new Set();
+  lists.forEach((list) => {
+    (Array.isArray(list) ? list : []).forEach((value) => {
+      const item = safeString(value);
+      if (!item) return;
+      const key = item.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(item);
+    });
+  });
+  return out;
+}
+
+function consolidateDatasheetChanges(changes = []) {
+  const list = Array.isArray(changes) ? changes : [];
+  if (!list.length) return null;
+
+  const merged = {};
+  let summary = '';
+
+  list.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') return;
+    if (typeof entry.summary === 'string' && safeString(entry.summary)) {
+      summary = safeString(entry.summary);
+    }
+    if (typeof entry.title === 'string' && safeString(entry.title)) {
+      merged.title = safeString(entry.title);
+    }
+    if (typeof entry.short_description === 'string' && safeString(entry.short_description)) {
+      merged.short_description = entry.short_description;
+    }
+    if (Array.isArray(entry.key_features) && entry.key_features.length) {
+      merged.key_features = entry.key_features.filter((x) => safeString(x));
+    }
+    if (entry.attributes && typeof entry.attributes === 'object' && !Array.isArray(entry.attributes)) {
+      merged.attributes = { ...(merged.attributes || {}), ...entry.attributes };
+    }
+    if (entry.pricing && typeof entry.pricing === 'object' && !Array.isArray(entry.pricing)) {
+      merged.pricing = entry.pricing;
+    }
+    if (entry.gpsr && typeof entry.gpsr === 'object' && !Array.isArray(entry.gpsr)) {
+      merged.gpsr = { ...(merged.gpsr || {}), ...entry.gpsr };
+    }
+    if (typeof entry.baselinkerCategoryPath === 'string' && safeString(entry.baselinkerCategoryPath)) {
+      merged.baselinkerCategoryPath = safeString(entry.baselinkerCategoryPath);
+    }
+    if (typeof entry.baselinkerCategoryId === 'string' && safeString(entry.baselinkerCategoryId)) {
+      merged.baselinkerCategoryId = safeString(entry.baselinkerCategoryId);
+    }
+    if (entry.notes && typeof entry.notes === 'object' && !Array.isArray(entry.notes)) {
+      merged.notes = {
+        unsure: mergeUniqueStringList(merged?.notes?.unsure, entry?.notes?.unsure),
+        warnings: mergeUniqueStringList(merged?.notes?.warnings, entry?.notes?.warnings),
+      };
+    }
+    if (entry.identity && typeof entry.identity === 'object' && !Array.isArray(entry.identity)) {
+      const nextIdentity = { ...(merged.identity || {}), ...entry.identity };
+      nextIdentity.barcodes = mergeUniqueStringList(merged?.identity?.barcodes, entry?.identity?.barcodes);
+      if (!nextIdentity.barcodes.length) {
+        delete nextIdentity.barcodes;
+      }
+      merged.identity = nextIdentity;
+    }
+  });
+
+  if (merged.title && (!merged.identity || !safeString(merged.identity.name))) {
+    merged.identity = { ...(merged.identity || {}), name: merged.title };
+  }
+  if (!merged.title && merged.identity && typeof merged.identity.name === 'string' && safeString(merged.identity.name)) {
+    merged.title = safeString(merged.identity.name);
+  }
+  if (merged.attributes && !Object.keys(merged.attributes).length) delete merged.attributes;
+  if (merged.gpsr && !Object.keys(merged.gpsr).length) delete merged.gpsr;
+  if (merged.notes && !merged.notes.unsure?.length && !merged.notes.warnings?.length) delete merged.notes;
+
+  const meaningfulKeys = Object.keys(merged).filter((key) => key !== 'summary');
+  if (!meaningfulKeys.length) return null;
+  merged.summary = summary || 'Änderung aus Chat';
+  return merged;
+}
+
 function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens = [] } = {}) {
   const result = {};
   const policyIssues = [];
@@ -1519,18 +1630,21 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
     return /^[A-Za-z0-9._\\-\\/]+$/.test(trimmed);
   };
 
-  const normalizedScope = scope == null ? '' : String(scope).trim().toLowerCase();
+  const scopeSet = parseScopeSet(scope);
+  const unrestrictedScope = scopeSet.size === 0 || scopeSet.has('datasheet');
+  const scopeAllows = (...tokens) =>
+    unrestrictedScope || tokens.some((token) => scopeSet.has(String(token || '').toLowerCase()));
   const allow = {
-    title: !normalizedScope || normalizedScope === 'title' || normalizedScope === 'datasheet',
-    brand: !normalizedScope || normalizedScope === 'datasheet',
-    category: !normalizedScope || normalizedScope === 'datasheet' || normalizedScope === 'category',
-    sku: !normalizedScope || normalizedScope === 'datasheet',
-    barcodes: !normalizedScope || normalizedScope === 'gtin' || normalizedScope === 'datasheet',
-    pricing: !normalizedScope || normalizedScope === 'pricing' || normalizedScope === 'datasheet',
-    description: !normalizedScope || normalizedScope === 'description' || normalizedScope === 'datasheet',
-    highlights: !normalizedScope || normalizedScope === 'highlights' || normalizedScope === 'datasheet',
-    attributes: !normalizedScope || normalizedScope === 'attributes' || normalizedScope === 'datasheet',
-    gpsr: !normalizedScope || normalizedScope === 'gpsr' || normalizedScope === 'datasheet',
+    title: scopeAllows('title'),
+    brand: scopeAllows('datasheet'),
+    category: scopeAllows('category'),
+    sku: scopeAllows('datasheet'),
+    barcodes: scopeAllows('gtin'),
+    pricing: scopeAllows('pricing'),
+    description: scopeAllows('description'),
+    highlights: scopeAllows('highlights'),
+    attributes: scopeAllows('attributes'),
+    gpsr: scopeAllows('gpsr'),
     notes: true,
   };
 
@@ -1810,8 +1924,7 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
   }
 
   // Now coerce title using a draft product with merged patches (so brand/model/category/attributes are considered).
-  const scopeKey = safeString(scope).toLowerCase();
-  const shouldForceTitleCoercion = allow.title && (scopeKey === 'title' || scopeKey === 'datasheet');
+  const shouldForceTitleCoercion = allow.title;
   if (!rawTitleCandidate && shouldForceTitleCoercion) {
     rawTitleCandidate = safeString(product?.identification?.name || '');
   }
@@ -2321,8 +2434,9 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     const finalTitleRaw =
       (lastTitleChange && (lastTitleChange.title || lastTitleChange.identity?.name)) || '';
     let finalTitle = typeof finalTitleRaw === 'string' ? finalTitleRaw.trim() : '';
-    const scopeKey = safeString(scope).toLowerCase();
-    if (!finalTitle && scopeKey === 'title') {
+    const scopeSet = parseScopeSet(scope);
+    const titleOnlyScope = scopeSet.size === 1 && scopeSet.has('title');
+    if (!finalTitle && titleOnlyScope) {
       const rawCandidate =
         extractTitleCandidateFromAssistantMessage(responseText) ||
         safeString(product?.identification?.name) ||
@@ -2335,16 +2449,30 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
         forcePolicy: true,
       });
       if (coerced) {
-        finalTitle = coerced;
+        const normalizedTitle = normalizeGermanTitleLanguage(coerced, product);
+        finalTitle = normalizedTitle || coerced;
         datasheetChanges.push({
           summary: 'Titel-Vorschlag (normalisiert)',
-          title: coerced,
-          identity: { name: coerced },
+          title: finalTitle,
+          identity: { name: finalTitle },
         });
       }
     }
-    if (finalTitle && scopeKey === 'title') {
+    if (finalTitle && titleOnlyScope) {
       responseText = `Titel-Vorschlag (${finalTitle.length}/80): ${finalTitle}`;
+    }
+
+    const consolidatedChange = consolidateDatasheetChanges(datasheetChanges);
+    const finalDatasheetChanges = consolidatedChange ? [consolidatedChange] : [];
+    const imageOnlyScope = scopeSet.size > 0 && Array.from(scopeSet).every((token) => token === 'images');
+    if (!finalDatasheetChanges.length && !imageOnlyScope) {
+      finalDatasheetChanges.push({
+        summary: 'Keine sicheren Änderungen',
+        notes: {
+          unsure: ['Keine sicheren, scope-konformen Änderungen erkannt. Bitte Anfrage präzisieren oder Scope anpassen.'],
+          warnings: [],
+        },
+      });
     }
 
     let ebayReadiness = null;
@@ -2352,7 +2480,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       const { evaluateEbayReady } = require('../lib/datasheet-quality');
       const before = evaluateEbayReady(product, { force: true });
       const preview = JSON.parse(JSON.stringify(product));
-      (datasheetChanges || []).forEach((c) => applyDatasheetChangeToProductPreview(preview, c));
+      finalDatasheetChanges.forEach((c) => applyDatasheetChangeToProductPreview(preview, c));
       const after = evaluateEbayReady(preview, { force: true });
       ebayReadiness = {
         before: {
@@ -2374,7 +2502,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
 
     return {
       message: responseText || 'Antwort generiert.',
-      datasheetChanges,
+      datasheetChanges: finalDatasheetChanges,
       imageSuggestions,
       serpTrace,
       ebayReadiness,

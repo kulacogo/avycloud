@@ -384,18 +384,28 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       'category',
     ];
     const selected = keys.filter((k) => Boolean((promptConfig as any)[k]));
-    if (selected.length !== 1) return 'datasheet';
-    const only = selected[0];
-    if (only === 'title') return 'title';
-    if (only === 'pricing') return 'pricing';
-    if (only === 'gtin') return 'gtin';
-    if (only === 'description') return 'description';
-    if (only === 'highlights') return 'highlights';
-    if (only === 'attributes') return 'attributes';
-    if (only === 'gpsr') return 'gpsr';
-    if (only === 'images') return 'images';
-    if (only === 'category') return 'category';
-    return 'datasheet';
+    if (!selected.length) return 'datasheet';
+    const mapped = Array.from(
+      new Set(
+        selected
+          .map((only) => {
+            if (only === 'title') return 'title';
+            if (only === 'pricing') return 'pricing';
+            if (only === 'gtin') return 'gtin';
+            if (only === 'description') return 'description';
+            if (only === 'highlights') return 'highlights';
+            if (only === 'attributes') return 'attributes';
+            if (only === 'gpsr') return 'gpsr';
+            if (only === 'images') return 'images';
+            if (only === 'category') return 'category';
+            return '';
+          })
+          .filter(Boolean)
+      )
+    );
+    if (!mapped.length) return 'datasheet';
+    if (mapped.length === 1) return mapped[0];
+    return mapped.join(',');
   }, [promptConfig]);
 
   const normalizeImageKey = (value?: string | null) => {
