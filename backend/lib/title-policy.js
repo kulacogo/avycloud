@@ -554,6 +554,148 @@ function sanitizeProductTypeForSchema(productType = '', schemaId = '', { audienc
   return t;
 }
 
+const PRODUCT_TYPE_BREAK_WORDS = new Set([
+  'mit',
+  'ohne',
+  'fuer',
+  'für',
+  'und',
+  'oder',
+  'inkl',
+  'inklusive',
+  'set',
+  'anthrazit',
+  'schwarz',
+  'weiss',
+  'weiß',
+  'grau',
+  'blau',
+  'rot',
+  'gruen',
+  'grün',
+  'beige',
+  'silber',
+  'gold',
+  'aluminium',
+  'kunststoff',
+  'leder',
+  'edelstahl',
+  'stahl',
+  'metall',
+  'holz',
+  'vintage',
+  'retro',
+  'neu',
+]);
+
+const HOME_GARDEN_EVIDENCE_RE =
+  /\b(sonnenliege|gartenliege|campingliege|liegestuhl|liege|gartenstuhl|campingstuhl|regal|werkbank|esstisch|couchtisch|schrank|kommode|leuchte|lampe|garten|terrasse|balkon)\b/i;
+const FASHION_EVIDENCE_RE =
+  /\b(krawatte|krawatten|schal|schals|fliege|fliegen|kleid|kleidung|hoodie|t-?shirt|jeans|bluse|jacke|sneaker|schuh|schuhe|stiefel)\b/i;
+
+function buildContentEvidenceText(product, attrs = null) {
+  const at =
+    attrs && typeof attrs === 'object'
+      ? attrs
+      : product?.details?.attributes && typeof product.details.attributes === 'object'
+        ? product.details.attributes
+        : {};
+  const identifiers =
+    product?.details?.identifiers && typeof product.details.identifiers === 'object'
+      ? product.details.identifiers
+      : {};
+  const parts = [
+    product?.identification?.name,
+    product?.details?.short_description,
+    identifiers?.mpn,
+    identifiers?.sku,
+    ...Object.keys(at || {}),
+    ...Object.values(at || {}).map((v) => (typeof v === 'string' ? v : '')),
+  ];
+  return normalizeForSearch(parts.filter(Boolean).join(' '));
+}
+
+function hasHomeGardenContentEvidence(evidenceText = '') {
+  return HOME_GARDEN_EVIDENCE_RE.test(evidenceText || '');
+}
+
+function hasFashionContentEvidence(evidenceText = '') {
+  return FASHION_EVIDENCE_RE.test(evidenceText || '');
+}
+
+function isCategoryLeafSupportedByEvidence(categoryLeaf = '', evidenceText = '') {
+  const leaf = safeString(categoryLeaf);
+  const evidence = normalizeForSearch(evidenceText);
+  if (!leaf || !evidence) return false;
+  const words = leaf
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
+    .split(/\s+/g)
+    .map((w) => safeString(w))
+    .filter((w) => w.length >= 4 && !STOP_WORDS.has(w));
+  if (!words.length) return false;
+  return words.some((w) => evidence.includes(normalizeForSearch(w)));
+}
+
+function inferProductTypeFromEvidenceText(text = '', { brand = '' } = {}) {
+  let raw = normalizeSpaces(text);
+  if (!raw) return '';
+  raw = stripEmojis(raw);
+  raw = stripMarketingWords(raw);
+  raw = stripSkuNoise(raw);
+  raw = stripBarcodeNoise(raw);
+  raw = normalizeSpaces(raw.replace(/[|,;]+/g, ' '));
+  if (!raw) return '';
+
+  let tokens = raw.split(/\s+/g).filter(Boolean);
+  const brandTokens = safeString(brand)
+    .split(/\s+/g)
+    .map((t) => normalizeMatch(t))
+    .filter(Boolean);
+  if (brandTokens.length && tokens.length >= brandTokens.length) {
+    let match = true;
+    for (let i = 0; i < brandTokens.length; i += 1) {
+      if (normalizeMatch(tokens[i]) !== brandTokens[i]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      tokens = tokens.slice(brandTokens.length);
+    }
+  }
+
+  const out = [];
+  for (const part of tokens) {
+    const token = normalizeTitleToken(part);
+    if (!token) continue;
+    const lower = token.toLowerCase();
+
+    if (PRODUCT_TYPE_BREAK_WORDS.has(lower)) {
+      if (out.length) break;
+      continue;
+    }
+    if (/^\d/.test(lower) || /^\d{1,4}x\d{1,4}(?:x\d{1,4})?(?:mm|cm|m)?$/i.test(lower)) {
+      if (out.length) break;
+      continue;
+    }
+    if (TITLE_UNIT_WORDS.has(lower) || /^(eu|us|uk|gr\.?|größe)$/i.test(lower)) {
+      if (out.length) break;
+      continue;
+    }
+    if (isSkuLikeToken(token) || isPureBarcodeToken(token) || isLikelyOpaqueModelCode(token)) {
+      if (out.length) break;
+      continue;
+    }
+    if (/^[a-zäöüß]{1,2}$/i.test(token)) continue;
+
+    out.push(token);
+    if (out.length >= 3) break;
+  }
+
+  return normalizeSpaces(out.join(' '));
+}
+
 function extractSpecTokensFromText(text = '') {
   const raw = safeString(text);
   if (!raw) return [];
@@ -972,6 +1114,14 @@ function inferSchemaId(product) {
       ? product.details.attributes
       : {};
   const leaf = normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '').toLowerCase();
+  const contentEvidence = buildContentEvidenceText(product, attrs);
+  const contentLooksHomeGarden = hasHomeGardenContentEvidence(contentEvidence);
+  const contentLooksFashion = hasFashionContentEvidence(contentEvidence);
+  const categoryLooksFashion =
+    category.includes('mode') ||
+    category.includes('kleidung') ||
+    category.includes('bekleidung') ||
+    /\b(krawatte|krawatten|schal|schals|fliege|fliegen|accessoire|accessoires)\b/i.test(categoryNorm);
 
   // 2) Auto & Motorrad (Teile) — must win early.
   // Reason: some automotive category paths contain words like "Pflege" ("Öl, Pflege- & Schmiermittel")
@@ -1007,6 +1157,11 @@ function inferSchemaId(product) {
     /\b(ps5|ps4|ps3|xbox|switch|nintendo)\b/.test(categoryNorm)
   ) {
     return 'videogames';
+  }
+  // Category-drift guard: if category says fashion/accessories but content clearly describes home/garden items,
+  // trust product content to avoid catastrophic title corruption.
+  if (categoryLooksFashion && contentLooksHomeGarden && !contentLooksFashion) {
+    return 'home_garden';
   }
   // 4) Schuhe
   if (pickAttr(attrs, 'EU-Schuhgröße', 'US-Schuhgröße', 'UK-Schuhgröße') || category.includes('schuhe') || /sneaker|schuh/.test(leaf)) {
@@ -1137,22 +1292,44 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
     normalizeTitleToken(pickAttr(attrs, 'Marke', 'Brand')) ||
     '';
 
+  const hintText = [proposedTitle, product?.identification?.name, product?.details?.short_description]
+    .map((x) => safeString(x))
+    .filter(Boolean)
+    .join(' ');
+  const explicitProductType = pickAttr(
+    attrs,
+    'Produktart',
+    'Produkttyp',
+    'Produkttyp (Produktart)',
+    // Common real-world variants across categories (Beauty/Tech/Tools/Auto)
+    'Gerätetyp',
+    'Artikeltyp',
+    'Artikel-Typ',
+    'Bauteil',
+    'Komponente',
+    'Werkzeugart',
+    'Schuhart'
+  );
+  const categoryLeafRaw = normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '');
+  const evidenceCorpus = [
+    product?.identification?.name,
+    proposedTitle,
+    product?.details?.short_description,
+    ...Object.values(attrs || {}).map((v) => (typeof v === 'string' ? v : '')),
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const evidenceProductType =
+    inferProductTypeFromEvidenceText(product?.identification?.name, { brand }) ||
+    inferProductTypeFromEvidenceText(proposedTitle, { brand }) ||
+    inferProductTypeFromEvidenceText(product?.details?.short_description, { brand }) ||
+    inferProductTypeFromEvidenceText(evidenceCorpus, { brand });
+  const categoryLeafTrusted = isCategoryLeafSupportedByEvidence(categoryLeafRaw, evidenceCorpus);
   const productTypeRaw =
-    pickAttr(
-      attrs,
-      'Produktart',
-      'Produkttyp',
-      'Produkttyp (Produktart)',
-      // Common real-world variants across categories (Beauty/Tech/Tools/Auto)
-      'Gerätetyp',
-      'Artikeltyp',
-      'Artikel-Typ',
-      'Bauteil',
-      'Komponente',
-      'Werkzeugart',
-      'Schuhart'
-    ) ||
-    normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '');
+    explicitProductType ||
+    (categoryLeafTrusted ? categoryLeafRaw : '') ||
+    evidenceProductType ||
+    categoryLeafRaw;
   const productTypeBase = normalizeTitleToken(productTypeRaw);
 
   const mpn =
@@ -1167,10 +1344,6 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
     pickAttr(attrs, 'OE/OEM Referenznummer(n)', 'Referenznummer(n) OEM', 'Referenznummer', 'OEM-Referenznummer')
   );
 
-  const hintText = [proposedTitle, product?.identification?.name, product?.details?.short_description]
-    .map((x) => safeString(x))
-    .filter(Boolean)
-    .join(' ');
   const extractedCodes = extractModelCandidatesFromText(hintText);
   const extractedCode = normalizeTitleToken(extractedCodes[0] || '');
   let modelOrMpn = '';
@@ -1940,7 +2113,8 @@ function inferAudienceProfile(product) {
       : {};
   const raw = [
     pickAttr(attrs, 'Abteilung', 'Zielgruppe', 'Geschlecht'),
-    product?.identification?.category,
+    product?.identification?.name,
+    product?.details?.short_description,
   ]
     .filter(Boolean)
     .join(' ');
@@ -1984,11 +2158,9 @@ function buildTitleHintEvidence(product) {
   const identifiers = product?.details?.identifiers && typeof product.details.identifiers === 'object'
     ? product.details.identifiers
     : {};
-  const categoryLeaf = normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '');
   const parts = [
     product?.identification?.brand,
-    product?.identification?.category,
-    categoryLeaf,
+    product?.identification?.name,
     product?.details?.short_description,
     identifiers?.mpn,
     identifiers?.sku,
