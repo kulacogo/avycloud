@@ -9,6 +9,7 @@ import {
   getProductQuantity,
   getProductDisplayCategory,
 } from '../utils/product';
+import { isValidGtin, normalizeBarcode } from '../utils/gtin';
 import { useI18n } from '../i18n';
 import { Spinner } from './Spinner';
 import { addMediaQueryListener } from '../utils/mediaQuery';
@@ -491,6 +492,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
     const ids = product.details?.identifiers || {};
     return codes[0] || ids.ean || ids.gtin || ids.upc || '—';
   };
+  const isValidMarketplaceEan = (value?: string | null) => {
+    const digits = normalizeBarcode(value || '');
+    if (!digits) return false;
+    if (digits.length !== 13 && digits.length !== 14) return false;
+    return isValidGtin(digits);
+  };
   const primaryBin = (product: Product) => {
     if (product.storage?.binCode) return product.storage.binCode;
     if (Array.isArray(product.storageBins) && product.storageBins.length) {
@@ -646,9 +653,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
         label: t('table.barcode'),
         sortKey: 'details.identifiers.ean',
         defaultVisible: true,
-        render: ({ product }) => (
-          <div className="text-slate-300 text-sm font-mono leading-tight">{primaryBarcode(product)}</div>
-        ),
+        render: ({ product }) => {
+          const barcode = primaryBarcode(product);
+          const isMissing = barcode === '—';
+          const isValid = !isMissing && isValidMarketplaceEan(barcode);
+          return (
+            <div
+              className={`text-sm font-mono leading-tight ${
+                isMissing ? 'text-slate-300' : isValid ? 'text-emerald-300' : 'text-rose-300'
+              }`}
+            >
+              {barcode}
+            </div>
+          );
+        },
       },
       {
         id: 'price',
