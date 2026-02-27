@@ -2153,7 +2153,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   const isAllSelected = selectedCount === allKeys.length && allKeys.length > 0;
                   const isIndeterminate = selectedCount > 0 && selectedCount < allKeys.length;
                   return (
-                    <div key={node.top} className="rounded-md border border-white/10 bg-slate-800/40">
+                    <div key={node.top} className="rounded-xl border border-white/10 bg-slate-800/40">
                       <label className="flex items-center gap-2 px-2 py-2 text-sm text-slate-100">
                         <input
                           type="checkbox"
@@ -2331,21 +2331,21 @@ const AdminTable: React.FC<AdminTableProps> = ({
           <button
             type="button"
             onClick={() => setIsColumnPanelOpen((prev) => !prev)}
-            className="rounded-md border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20"
+            className="rounded-xl border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20"
           >
             {t('table.columns.edit')}
           </button>
           <button
             type="button"
             onClick={resetColumns}
-            className="rounded-md border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20"
+            className="rounded-xl border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20"
           >
             {t('table.columns.reset')}
           </button>
         </div>
 
         <details className="relative">
-          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-md border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20">
+          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-xl border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20">
             Tools
           </summary>
           <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1 shadow-xl shadow-black/40 z-30">
@@ -2700,7 +2700,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           ) : null}
 
           <details className="relative">
-            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-md bg-slate-800/40 border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20">
+            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-xl bg-slate-800/40 border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20">
               Mehr
             </summary>
             <div className="absolute right-0 mt-2 w-[320px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1 shadow-xl shadow-black/40 z-30">

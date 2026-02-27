@@ -587,8 +587,8 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <button
               key={zone.id}
               onClick={() => setSelectedZone(zone)}
-              className={`text-left p-3 rounded border ${
-                selectedZone?.id === zone.id ? 'border-sky-500 bg-slate-700' : 'border-white/10 hover:border-sky-600'
+              className={`text-left p-3 rounded-xl border transition ${
+                selectedZone?.id === zone.id ? 'border-sky-500 bg-sky-500/10' : 'border-white/10 hover:border-sky-600/50'
               }`}
             >
               <div className="text-lg font-semibold text-white">
@@ -634,8 +634,8 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                     setSelectedBin(null);
                     setBinDetail(null);
                   }}
-                  className={`px-3 py-1 rounded ${
-                    selectedGang === gang ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-200'
+                  className={`px-3 py-1 rounded-lg transition ${
+                    selectedGang === gang ? 'bg-sky-600/20 text-sky-300' : 'bg-slate-800/60 text-slate-200 hover:bg-slate-700/60'
                   }`}
                 >
                   Gang {gang}
@@ -648,7 +648,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               type="button"
               disabled={!selectedZone || selectedGang == null || deletingStructure}
               onClick={handleDeleteGang}
-              className="px-3 py-1.5 rounded-lg bg-rose-700 text-sm text-white disabled:opacity-40 hover:bg-rose-600"
+              className="px-3 py-1.5 rounded-xl bg-rose-600/20 text-sm text-rose-300 disabled:opacity-40 hover:bg-rose-600/30 transition"
               title="Löscht alle leeren Bins in diesem Gang."
             >
               Gang löschen
@@ -657,7 +657,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               type="button"
               disabled={!selectedZone || selectedGang == null || selectedRegal == null || deletingStructure}
               onClick={handleDeleteRegal}
-              className="px-3 py-1.5 rounded-lg bg-rose-700 text-sm text-white disabled:opacity-40 hover:bg-rose-600"
+              className="px-3 py-1.5 rounded-xl bg-rose-600/20 text-sm text-rose-300 disabled:opacity-40 hover:bg-rose-600/30 transition"
               title="Löscht alle leeren Bins in diesem Regal (innerhalb des gewählten Gangs)."
             >
               Regal löschen
@@ -666,7 +666,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               type="button"
               disabled={!selectedZone || !selectedBin || deletingStructure}
               onClick={handleDeleteEbene}
-              className="px-3 py-1.5 rounded-lg bg-rose-700 text-sm text-white disabled:opacity-40 hover:bg-rose-600"
+              className="px-3 py-1.5 rounded-xl bg-rose-600/20 text-sm text-rose-300 disabled:opacity-40 hover:bg-rose-600/30 transition"
               title="Löscht den aktuell ausgewählten BIN (Ebene)."
             >
               Ebene löschen
@@ -684,9 +684,9 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                 <h4 className="text-lg text-white mb-2">Regale & Ebenen</h4>
                 <div className="space-y-3 max-h-[480px] overflow-y-auto pr-2">
                   {regaleForSelectedGang.map(({ regal, bins: binList }) => (
-                    <div key={regal} className="border border-white/10 rounded">
+                    <div key={regal} className="border border-white/10 rounded-xl overflow-hidden">
                       <button
-                        className="w-full text-left px-3 py-2 bg-slate-700 text-white"
+                        className="w-full text-left px-3 py-2 bg-slate-800/60 text-white"
                         onClick={() => {
                           setSelectedRegal(regal);
                           setSelectedBin(null);
@@ -703,8 +703,8 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                             <div key={bin.code} className="relative">
                               <button
                                 onClick={() => handleSelectBin(bin)}
-                                className={`w-full px-2 py-2 rounded text-xs transition ${
-                                  isActive ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-200'
+                                className={`w-full px-2 py-2 rounded-lg text-xs transition ${
+                                  isActive ? 'bg-sky-600/20 text-sky-300' : 'bg-slate-800/60 text-slate-200 hover:bg-slate-700/60'
                                 } ${isMarked ? 'ring-2 ring-emerald-400' : ''}`}
                               >
                                 <div className="font-semibold">{bin.ebene}</div>
@@ -735,7 +735,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               <div>
                 <h4 className="text-lg text-white mb-2">BIN Detail</h4>
                 {binDetail ? (
-                  <div className="bg-slate-700 rounded p-4 space-y-3">
+                  <div className="bg-slate-800/40 rounded-2xl border border-white/10 p-5 space-y-3">
                     <div className="text-2xl font-semibold">{binDetail.code}</div>
                     <div className="text-slate-300 text-sm">
                       Gang {binDetail.gang} · Regal {binDetail.regal} · Ebene {binDetail.ebene}
@@ -749,7 +749,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                         type="button"
                         disabled={!selectedBin || deletingStructure}
                         onClick={handleDeleteEbene}
-                        className="px-3 py-1.5 rounded bg-rose-700 text-white text-sm disabled:opacity-40 hover:bg-rose-600"
+                        className="px-3 py-1.5 rounded-xl bg-rose-600/20 text-rose-300 text-sm disabled:opacity-40 hover:bg-rose-600/30 transition"
                         title="Löscht diesen BIN (nur wenn leer)"
                       >
                         Ebene löschen
@@ -762,7 +762,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                       {binDetail.products?.length ? (
                         <ul className="space-y-2 max-h-48 overflow-y-auto">
                           {binDetail.products.map((item: any) => (
-                            <li key={item.productId} className="flex justify-between items-center bg-slate-800 px-3 py-2 rounded">
+                            <li key={item.productId} className="flex justify-between items-center bg-slate-800/60 px-3 py-2 rounded-lg">
                               <div>
                                 <div className="text-white text-sm">{item.name}</div>
                                 <div className="text-xs text-slate-400">

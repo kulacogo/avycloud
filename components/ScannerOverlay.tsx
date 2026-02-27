@@ -110,7 +110,7 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center px-4">
-      <div className="bg-slate-900 rounded-2xl shadow-lg border border-white/10 w-full max-w-lg">
+      <div className="bg-slate-900 rounded-2xl border border-white/10 w-full max-w-lg">
         <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
           <h3 className="text-white font-semibold">{title}</h3>
           <button

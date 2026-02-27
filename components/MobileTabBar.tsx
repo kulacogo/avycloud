@@ -59,7 +59,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate, th
             type="button"
             onClick={() => onNavigate(tab.id)}
             className={`flex flex-col items-center justify-center flex-1 rounded-[8px] px-3 py-2 text-xs font-semibold transition ${
-              active ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40' : 'text-slate-200 bg-slate-800/80'
+              active ? 'bg-sky-600/20 text-sky-300' : 'text-slate-200 bg-slate-800/40'
             }`}
             aria-current={active ? 'page' : undefined}
             aria-label={t(tab.labelKey)}

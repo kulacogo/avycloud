@@ -46,7 +46,7 @@ const StatusBadge: React.FC<{ label: string; tone?: 'neutral' | 'success' | 'war
       ? 'bg-emerald-900/60 text-emerald-200 border-emerald-700/60'
       : tone === 'warn'
         ? 'bg-amber-900/60 text-amber-100 border-amber-700/60'
-        : 'bg-slate-800 text-slate-200 border-white/10';
+        : 'bg-slate-800/60 text-slate-200 border-white/10';
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border ${toneClasses}`}>
       {label}
@@ -57,8 +57,8 @@ const StatusBadge: React.FC<{ label: string; tone?: 'neutral' | 'success' | 'war
 const ProductCard: React.FC<{ product: Product; footer?: React.ReactNode }> = ({ product, footer }) => {
   const { t } = useI18n();
   return (
-  <div className="w-full text-left rounded-2xl bg-slate-800 border border-white/5 p-3 flex gap-3 shadow-sm shadow-black/20">
-    <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden flex items-center justify-center">
+  <div className="w-full text-left rounded-2xl bg-slate-800/40 border border-white/10 p-3 flex gap-3">
+    <div className="w-12 h-12 rounded-xl bg-slate-800/60 overflow-hidden flex items-center justify-center">
       {product.details?.images?.[0]?.url_or_base64 ? (
         <img src={product.details.images[0].url_or_base64} alt="" className="w-full h-full object-cover" />
       ) : (
@@ -988,7 +988,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 </button>
                 <button
                   type="button"
-                  className="rounded-2xl bg-slate-800 text-slate-100 font-semibold py-3 border border-white/10"
+                  className="rounded-2xl bg-slate-800/40 text-slate-100 font-semibold py-3 border border-white/10"
                   onClick={() => triggerIdentifyInput(slot, 'upload')}
                 >
                   {t('common.upload')}
@@ -1095,11 +1095,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   pattern="[0-9]*"
                   readOnly
                   value={stowQty}
-                  className="flex-1 rounded-lg bg-slate-800 text-white text-xl font-semibold px-3 py-2 border border-white/10"
+                  className="flex-1 rounded-xl bg-slate-800/40 text-white border border-white/10 text-xl font-semibold px-3 py-2 border border-white/10"
                 />
                 <button
                   type="button"
-                  className="rounded-lg px-3 py-2 bg-slate-700 text-white text-sm font-semibold"
+                  className="rounded-xl px-3 py-2 bg-slate-800/60 text-white text-sm font-semibold border border-white/10"
                   onClick={() => setStowQty(0)}
                 >
                   {t('common.clear')}
@@ -1110,7 +1110,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   <button
                     key={n}
                     type="button"
-                    className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
+                    className="rounded-xl bg-slate-800/40 text-white border border-white/10 text-xl font-semibold py-3"
                     onClick={() => setStowQty((prev) => Number(`${prev}${n}`))}
                   >
                     {n}
@@ -1118,21 +1118,21 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 ))}
                 <button
                   type="button"
-                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
+                  className="rounded-xl bg-slate-800/40 text-white border border-white/10 text-lg font-semibold py-3"
                   onClick={() => setStowQty((prev) => Math.max(0, Math.floor(prev / 10)))}
                 >
                   ⌫
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-slate-800 text-white text-xl font-semibold py-3"
+                  className="rounded-xl bg-slate-800/40 text-white border border-white/10 text-xl font-semibold py-3"
                   onClick={() => setStowQty((prev) => Number(`${prev}0`))}
                 >
                   0
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-slate-800 text-white text-lg font-semibold py-3"
+                  className="rounded-xl bg-slate-800/40 text-white border border-white/10 text-lg font-semibold py-3"
                   onClick={() => setStowQty(0)}
                 >
                   C
@@ -1145,7 +1145,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               type="button"
               disabled={!stowSku || !stowBin || stowQty <= 0}
               onClick={handleSubmitStow}
-              className="rounded-lg bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
+              className="rounded-xl bg-emerald-600/20 text-emerald-300 font-semibold py-3 disabled:opacity-40"
             >
               {t('ops.stow.submit')}
             </button>
@@ -1156,7 +1156,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 setStowBin('');
                 setStowQty(1);
               }}
-              className="rounded-lg bg-slate-700 text-white font-semibold py-3"
+              className="rounded-xl bg-slate-800/60 text-white font-semibold py-3 border border-white/10"
             >
               {t('common.reset')}
             </button>
@@ -1573,14 +1573,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                className="h-14 rounded-2xl bg-emerald-600 text-white font-extrabold text-lg"
+                className="h-14 rounded-2xl bg-emerald-600/20 text-emerald-300 font-extrabold text-lg"
                 onClick={submitPack}
               >
                 Verpackt
               </button>
               <button
                 type="button"
-                className="h-14 rounded-2xl bg-slate-700 text-white font-semibold text-lg"
+                className="h-14 rounded-2xl bg-slate-800/60 text-white font-semibold text-lg border border-white/10"
                 onClick={() => cycleSelection(1)}
               >
                 Nächstes
@@ -1592,7 +1592,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             <p className="text-sm text-slate-300">Scan Auftrag oder SKU, um zu starten.</p>
             <button
               type="button"
-              className="h-14 rounded-2xl bg-slate-700 text-white font-semibold text-lg"
+              className="h-14 rounded-2xl bg-slate-800/60 text-white font-semibold text-lg border border-white/10"
               onClick={() => cycleSelection(1)}
             >
               Produkte durchgehen
@@ -1626,28 +1626,28 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       <div className="flex flex-col gap-3">
         <button
           type="button"
-          className="w-full rounded-2xl bg-sky-600 text-white font-semibold py-4 text-lg"
+          className="w-full rounded-2xl bg-sky-600/20 text-sky-300 font-semibold py-4 text-lg border border-sky-500/20"
           onClick={() => onNavigate('operations-identify')}
         >
           {t('ops.mode.identify')}
         </button>
         <button
           type="button"
-          className="w-full rounded-2xl bg-emerald-600 text-white font-semibold py-4 text-lg"
+          className="w-full rounded-2xl bg-emerald-600/20 text-emerald-300 font-semibold py-4 text-lg border border-emerald-500/20"
           onClick={() => onNavigate('operations-stow')}
         >
           {t('ops.mode.stow')}
         </button>
         <button
           type="button"
-          className="w-full rounded-2xl bg-amber-600 text-white font-semibold py-4 text-lg"
+          className="w-full rounded-2xl bg-amber-600/20 text-amber-300 font-semibold py-4 text-lg border border-amber-500/20"
           onClick={() => onNavigate('operations-pick')}
         >
           {t('ops.mode.pick')}
         </button>
         <button
           type="button"
-          className="w-full rounded-2xl bg-slate-700 text-white font-semibold py-4 text-lg"
+          className="w-full rounded-2xl bg-slate-800/40 text-white font-semibold py-4 text-lg border border-white/10"
           onClick={() => onNavigate('operations-pack')}
         >
           {t('ops.mode.pack')}

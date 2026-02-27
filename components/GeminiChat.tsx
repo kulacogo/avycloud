@@ -913,7 +913,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   const smart = buildSmartPrompt();
                   setInput(smart);
                 }}
-                className="rounded-full bg-slate-800 px-3 py-1 text-[12px] text-slate-200 hover:bg-slate-700"
+                className="rounded-full bg-slate-800/60 px-3 py-1 text-[12px] text-slate-200 hover:bg-slate-700/60"
                 title="Schreibt den smarten Prompt in die Eingabe."
               >
                 Vorschau in Eingabe
@@ -952,7 +952,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                 <select
                   value={promptConfig.maxPagesToFetch}
                   onChange={(e) => setPromptConfig((prev) => ({ ...prev, maxPagesToFetch: Number(e.target.value) }))}
-                  className="rounded-md bg-slate-800 px-2 py-1 text-slate-200"
+                  className="rounded-lg bg-slate-800/60 px-2 py-1 text-slate-200"
                 >
                   <option value={1}>1</option>
                   <option value={2}>2</option>

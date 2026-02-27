@@ -288,7 +288,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   if (!images || images.length === 0) {
     return (
-      <div className="flex items-center justify-center w-full h-48 sm:h-56 bg-slate-700 rounded-lg text-slate-400 text-sm">
+      <div className="flex items-center justify-center w-full h-48 sm:h-56 bg-slate-800/40 rounded-2xl border border-white/10 text-slate-400 text-sm">
         {t('sheet.gallery.empty')}
       </div>
     );
@@ -494,7 +494,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     if (!isEditing || !isActiveReal || typeof onUpdateImage !== 'function') return null;
     const elapsedSeconds = improving ? Math.max(0, Math.round((Date.now() - improveStartedAtRef.current) / 1000)) : 0;
     return (
-      <div className="mt-3 rounded-lg border border-white/10 bg-slate-900/60 p-3">
+      <div className="mt-3 rounded-xl border border-white/10 bg-slate-800/40 p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs font-semibold text-slate-200">{t('sheet.gallery.improve.title')}</div>
           {improving ? (
@@ -517,7 +517,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             type="button"
             onClick={handleRemoveBackground}
             disabled={improving}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800/60 text-slate-100 hover:bg-slate-700/60 disabled:opacity-50"
             title={t('sheet.gallery.improve.removeBg')}
           >
             {t('sheet.gallery.improve.removeBg')}
@@ -526,7 +526,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             type="button"
             onClick={handleAutoAdjust}
             disabled={improving}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800/60 text-slate-100 hover:bg-slate-700/60 disabled:opacity-50"
             title={t('sheet.gallery.improve.auto')}
           >
             {t('sheet.gallery.improve.auto')}
@@ -535,7 +535,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             type="button"
             onClick={handleRotate90}
             disabled={improving}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800/60 text-slate-100 hover:bg-slate-700/60 disabled:opacity-50"
             title={t('sheet.gallery.improve.rotate90')}
           >
             {t('sheet.gallery.improve.rotate90')}
@@ -544,7 +544,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             type="button"
             onClick={handleRotate180}
             disabled={improving}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800/60 text-slate-100 hover:bg-slate-700/60 disabled:opacity-50"
             title={t('sheet.gallery.improve.rotate180')}
           >
             {t('sheet.gallery.improve.rotate180')}
@@ -553,7 +553,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             type="button"
             onClick={handleBrighten}
             disabled={improving}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800/60 text-slate-100 hover:bg-slate-700/60 disabled:opacity-50"
             title={t('sheet.gallery.improve.brighten')}
           >
             {t('sheet.gallery.improve.brighten')}
@@ -588,7 +588,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   return (
     <div>
-      <div className="relative w-full aspect-[4/3] max-h-[420px] md:max-h-[360px] bg-slate-700 rounded-lg overflow-hidden group">
+      <div className="relative w-full aspect-[4/3] max-h-[420px] md:max-h-[360px] bg-slate-800/40 rounded-2xl border border-white/10 overflow-hidden group">
         <img
           src={resolveSrc(activeImage) || placeholder}
           alt={`Product image ${activeIndex + 1}`}

@@ -128,7 +128,7 @@ const IdentifyQueueView: React.FC = () => {
             className={`px-4 py-2 rounded-xl border text-sm transition ${
               autoRefresh
                 ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100'
-                : 'border-white/10 bg-slate-800 text-slate-200'
+                : 'border-white/10 bg-slate-800/60 text-slate-200'
             }`}
           >
             {autoRefresh ? t('identifyQueue.autoRefreshOn') : t('identifyQueue.autoRefreshOff')}
@@ -166,7 +166,7 @@ const IdentifyQueueView: React.FC = () => {
               type="button"
               onClick={() => toggleStatus(option.key)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                isActive ? meta.color : 'bg-slate-800 text-slate-300 border border-white/10'
+                isActive ? meta.color : 'bg-slate-800/60 text-slate-300 border border-white/10'
               }`}
             >
               {option.label}
@@ -256,7 +256,7 @@ const IdentifyQueueView: React.FC = () => {
                           type="button"
                           onClick={() => handleRetry(job.id)}
                           disabled={isRetrying}
-                          className="px-3 py-1.5 rounded-lg text-xs font-medium border border-white/15 text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                          className="px-3 py-1.5 rounded-xl text-xs font-medium border border-white/15 text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition"
                         >
                           {isRetrying ? t('identifyQueue.retrying') : t('identifyQueue.actions.retry')}
                         </button>

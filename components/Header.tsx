@@ -222,7 +222,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
     <>
       <header className="safe-area-header bg-slate-900/90 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/50 border-b border-white/[0.06]">
         <div className="w-full px-3 sm:px-5 lg:px-8 py-1.5">
-          <div className="flex items-center gap-4 w-full">
+          <div className="flex items-center gap-4 w-full h-[50px]">
 
             {/* Logo */}
             <div className="flex-shrink-0 sm:ml-2 lg:ml-4">
@@ -231,7 +231,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 alt="avycloud"
                 draggable={false}
                 style={{
-                  height: '100px',
+                  height: '70px',
                   width: '100px',
                   objectFit: 'contain',
                 }}
@@ -252,8 +252,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={onToggleTheme}
-                className="flex items-center justify-center rounded-lg bg-slate-800/40 border border-white/[0.08] text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
-                style={{ width: '2.25rem', height: '2.25rem' }}
+                className="flex items-center justify-center rounded-lg bg-[var(--page-bg)] border-0 border-transparent text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                style={{ width: '2.25rem', height: '2.25rem', borderImage: 'none' }}
                 aria-label={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
                 title={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
               >

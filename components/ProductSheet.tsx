@@ -1867,7 +1867,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </div>
 
         {false && (
-        <section className="p-4 bg-slate-800 rounded-lg shadow-lg space-y-3">
+        <section className="p-5 bg-slate-800/40 rounded-2xl border border-white/10 space-y-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <h3 className="text-xl font-semibold text-white">{t('sheet.inventory.title')}</h3>
@@ -1936,7 +1936,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </section>
         )}
 
-        <section className="p-4 bg-slate-800 rounded-lg shadow-lg">
+        <section className="p-5 bg-slate-800/40 rounded-2xl border border-white/10">
           <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.actions.title')}</h3>
           <div className="actions flex flex-wrap gap-4 items-center">
             {/* Fixed BaseLinker inventory (78659), no selector */}
@@ -1944,7 +1944,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               id="btn-sync"
               onClick={handleSync}
               disabled={isSyncing}
-              className="flex items-center justify-center px-4 py-2 bg-slate-700 text-slate-200 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait"
+              className="flex items-center justify-center px-4 py-2 bg-slate-800/60 text-slate-200 font-semibold rounded-xl hover:bg-slate-700/60 transition-colors disabled:opacity-40 disabled:cursor-wait border border-white/10"
             >
               {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}
               <span className="ml-2">{t('sheet.actions.sync')}</span>
@@ -1953,7 +1953,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               id="btn-publish-ebay"
               onClick={handlePublishToEbay}
               disabled={isPublishingEbay}
-              className="flex items-center justify-center px-4 py-2 bg-sky-700 text-white font-semibold rounded-lg hover:bg-sky-600 transition-colors disabled:bg-sky-900 disabled:cursor-wait"
+              className="flex items-center justify-center px-4 py-2 bg-sky-600/20 text-sky-300 font-semibold rounded-xl hover:bg-sky-600/30 transition-colors disabled:opacity-40 disabled:cursor-wait"
             >
               {isPublishingEbay ? (
                 <Spinner className="w-5 h-5" />

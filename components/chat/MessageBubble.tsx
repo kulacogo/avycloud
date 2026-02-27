@@ -118,7 +118,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     type="button"
                     aria-label="Code kopieren"
                     onClick={() => navigator.clipboard?.writeText(segment.value)}
-                    className="absolute right-2 top-2 rounded-md bg-slate-800/80 px-2 py-1 text-[10px] text-slate-200 hover:bg-slate-700"
+                    className="absolute right-2 top-2 rounded-lg bg-slate-800/60 px-2 py-1 text-[10px] text-slate-200 hover:bg-slate-700/60"
                   >
                     Copy
                   </button>
