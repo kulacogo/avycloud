@@ -393,7 +393,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         {financeLoading ? <Skel w="w-24" h="h-3" className="mt-2" /> : (
           <p className="text-xs text-violet-400/70 mt-1">
             {finance?.accounts?.length
-              ? `${finance.accounts.length} Konto${finance.accounts.length > 1 ? 'en' : ''} · SevDesk`
+              ? `${finance.accounts.length} ${finance.accounts.length > 1 ? 'Konten' : 'Konto'} · SevDesk`
               : finance?.errors?.length ? 'SevDesk nicht verfügbar' : 'SevDesk'}
           </p>
         )}

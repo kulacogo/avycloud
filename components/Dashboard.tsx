@@ -659,7 +659,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-7 pb-10">
+    <div className="space-y-5 pb-8">
 
       {/* ══ Header ══════════════════════════════════════════════════════ */}
       <div className="flex items-center justify-between">
@@ -683,58 +683,83 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-      {/* ══ HERO — 3 key numbers ══════════════════════════════════════════ */}
-      <Section title="Auf einen Blick">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* Gesamtsaldo */}
-          <div className={`rounded-2xl border p-5 flex flex-col gap-1 ${colorBg.violet} ${colorBorder.violet}`}>
-            <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">Gesamtsaldo</p>
-            {financeLoading ? <Skel w="w-32" h="h-10" /> : (
-              <p className={`text-4xl font-bold tabular-nums leading-none ${totalBalance !== null && totalBalance < 0 ? 'text-rose-400' : 'text-violet-400'}`}>
-                {totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '—'}
-              </p>
-            )}
-            {financeLoading ? <Skel w="w-24" h="h-3" className="mt-1" /> : (
-              <p className="text-xs text-slate-500 mt-0.5">SevDesk</p>
-            )}
-          </div>
-
-          {/* Umsatz period */}
+      {/* ══ 1. JAHRESÜBERBLICK ═══════════════════════════════════════════ */}
+      <Section title="Jahresüberblick">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Card
-            label="Umsatz"
-            value={fmtCur(ord.revenueWindow, ord.currency, true)}
+            label="Kontostand"
+            value={totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '—'}
+            sub="SevDesk"
+            color={totalBalance !== null && totalBalance < 0 ? 'red' : 'violet'}
+            loading={financeLoading}
+            size="hero"
+          />
+          <Card
+            label="Jahresumsatz"
+            value={fmtCur(ord.revenueYtd, ord.currency, true)}
+            sub="Brutto · nach Retouren"
             color="green"
             loading={metricsLoading}
             size="hero"
           />
-
-          {/* Open orders */}
-          <div className={`rounded-2xl border p-5 flex flex-col gap-2 ${colorBg.amber} ${colorBorder.amber}`}>
-            <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">Offene Aufträge</p>
-            {metricsLoading ? <Skel w="w-20" h="h-10" /> : (
-              <p className="text-4xl font-bold text-amber-400 tabular-nums leading-none">
-                {fmtNum(ord.neu)}
-              </p>
-            )}
-            {!metricsLoading && (
-              <div className="flex gap-3 mt-1">
-                <span className="text-xs text-slate-500">
-                  Komm. <span className="text-slate-300">{ord.kommissioniert}</span>
-                </span>
-                <span className="text-xs text-slate-500">
-                  Verpackt <span className="text-slate-300">{ord.verpackt}</span>
-                </span>
-                <span className="text-xs text-slate-500">
-                  Versendet <span className="text-slate-300">{ord.versendet}</span>
-                </span>
-              </div>
-            )}
+          <Card
+            label="Versand (Jahr)"
+            value={shippingYtd !== null ? fmtCur(shippingYtd, 'EUR', true) : '—'}
+            sub={shippingYtd !== null ? `${fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen` : undefined}
+            color="amber"
+            loading={financeLoading && shippingYtd === null}
+            size="hero"
+          />
+          <Card
+            label="Retouren (gesamt)"
+            value={fmtNum(ord.returnsTotal)}
+            color={ord.returnsTotal > 0 ? 'red' : 'neutral'}
+            loading={metricsLoading}
+            size="hero"
+          />
+        </div>
+        {finance?.errors && finance.errors.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {finance.errors.map((e, i) => (
+              <span key={i} className="text-[11px] text-amber-600 bg-amber-950/40 border border-amber-700/20 px-2 py-0.5 rounded">
+                {e}
+              </span>
+            ))}
           </div>
+        )}
+      </Section>
+
+      {/* ══ 2. BESTAND ════════════════════════════════════════════════════ */}
+      <Section title="Bestand">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Card
+            label="Im Bestand"
+            value={fmtNum(inv.inStock)}
+            sub={`von ${fmtNum(inv.total)} Produkten`}
+            color="blue"
+          />
+          <Card
+            label="Einheiten"
+            value={fmtNum(inv.available)}
+            sub={`${fmtNum(inv.reserved)} reserviert`}
+            color="blue"
+          />
+          <Card
+            label="Bestandswert"
+            value={fmtCur(inv.totalValue, inv.primaryCur, true)}
+            color="green"
+          />
+          <Card
+            label="Synchronisierung"
+            value={`${fmtNum(inv.sync.synced)} / ${fmtNum(inv.total)}`}
+            sub={inv.sync.failed > 0 ? `${inv.sync.failed} Fehler` : inv.sync.pending > 0 ? `${inv.sync.pending} ausstehend` : undefined}
+            color={inv.sync.failed > 0 ? 'red' : inv.sync.pending > 0 ? 'amber' : 'green'}
+          />
         </div>
       </Section>
 
-      {/* ══ PIPELINE ════════════════════════════════════════════════════ */}
-      <Section title="Auftragsfluss">
+      {/* ══ 3. AUFTRAGSFLUSS ═══════════════════════════════════════════ */}
+      <Section title="Auftragsfluss" badge={!metricsLoading && ord.neu > 0 ? `${ord.neu} offen` : undefined}>
         <div className="rounded-2xl border border-white/5 bg-slate-800/40 p-5">
           <Pipeline
             bd={{ neu: ord.neu, kommissioniert: ord.kommissioniert, verpackt: ord.verpackt, versendet: ord.versendet, zugestellt: ord.zugestellt }}
@@ -744,24 +769,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </Section>
 
-      {/* ══ ZEITRAUM KPIs + CHART ════════════════════════════════════════ */}
+      {/* ══ 4. KENNZAHLEN · ZEITRAUM + CHART ══════════════════════════ */}
       <Section title={`Kennzahlen · ${presetLabel}`}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <Card
             label="Umsatz"
             value={fmtCur(ord.revenueWindow, ord.currency, true)}
+            sub={`${fmtNum((ord.neu + ord.kommissioniert + ord.verpackt + ord.versendet + ord.zugestellt))} Aufträge`}
             color="green"
             loading={metricsLoading}
           />
           <Card
             label="Versand"
             value={shippingWindow !== null ? fmtCur(shippingWindow, 'EUR', true) : '—'}
+            sub={shippingWindow !== null ? `${fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen` : undefined}
             color="amber"
             loading={financeLoading && shippingWindow === null}
           />
           <Card
             label="Netto"
             value={revAfterShipping !== null ? fmtCur(revAfterShipping, ord.currency, true) : '—'}
+            sub="Umsatz − Versand"
             color={revAfterShipping !== null && revAfterShipping < 0 ? 'red' : 'green'}
             loading={metricsLoading || (financeLoading && shippingWindow === null)}
           />
@@ -792,65 +820,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
           <DualChart data={ord.chart} currency={ord.currency} loading={metricsLoading} />
-        </div>
-      </Section>
-
-      {/* ══ JAHRESÜBERBLICK ══════════════════════════════════════════════ */}
-      <Section title="Jahresüberblick">
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-          <Card
-            label="Jahresumsatz"
-            value={fmtCur(ord.revenueYtd, ord.currency, true)}
-            color="green"
-            loading={metricsLoading}
-          />
-          <Card
-            label="Versand (Jahr)"
-            value={shippingYtd !== null ? fmtCur(shippingYtd, 'EUR', true) : '—'}
-            color="amber"
-            loading={financeLoading && shippingYtd === null}
-          />
-          <Card
-            label="Kontostand"
-            value={totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '—'}
-            color={totalBalance !== null && totalBalance < 0 ? 'red' : 'violet'}
-            loading={financeLoading}
-          />
-        </div>
-        {finance?.errors && finance.errors.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {finance.errors.map((e, i) => (
-              <span key={i} className="text-[11px] text-amber-600 bg-amber-950/40 border border-amber-700/20 px-2 py-0.5 rounded">
-                {e}
-              </span>
-            ))}
-          </div>
-        )}
-      </Section>
-
-      {/* ══ BESTAND ══════════════════════════════════════════════════════ */}
-      <Section title="Bestand">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Card
-            label="Im Bestand"
-            value={fmtNum(inv.inStock)}
-            color="blue"
-          />
-          <Card
-            label="Einheiten"
-            value={fmtNum(inv.available)}
-            color="blue"
-          />
-          <Card
-            label="Bestandswert"
-            value={fmtCur(inv.totalValue, inv.primaryCur, true)}
-            color="green"
-          />
-          <Card
-            label="Synchronisierung"
-            value={`${fmtNum(inv.sync.synced)} / ${fmtNum(inv.total)}`}
-            color={inv.sync.failed > 0 ? 'red' : inv.sync.pending > 0 ? 'amber' : 'green'}
-          />
         </div>
       </Section>
 
