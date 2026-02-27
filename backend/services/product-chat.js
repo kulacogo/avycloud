@@ -68,6 +68,52 @@ function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
 }
 
+function normalizeSpaces(value = '') {
+  return safeString(value).replace(/\s+/g, ' ').trim();
+}
+
+const WEDDING_TERM_RE = /\b(hochzeit|braut|bräutigam|braeutigam|wedding|bride|groom)\b/gi;
+const WEDDING_TERM_TEST_RE = /\b(hochzeit|braut|bräutigam|braeutigam|wedding|bride|groom)\b/i;
+const UMLAUT_TITLE_REPLACEMENTS = [
+  [/\bBraeutigam\b/gi, 'Bräutigam'],
+  [/\bBraeute\b/gi, 'Bräute'],
+  [/\bBrautigam\b/gi, 'Bräutigam'],
+  [/\bBräeutigam\b/gi, 'Bräutigam'],
+  [/\bGroesse\b/gi, 'Größe'],
+  [/\bHoehe\b/gi, 'Höhe'],
+  [/\bFuer\b/gi, 'Für'],
+  [/\bfuer\b/gi, 'für'],
+];
+
+function hasWeddingEvidenceInProduct(product) {
+  const attrs = product?.details?.attributes && typeof product.details.attributes === 'object'
+    ? product.details.attributes
+    : {};
+  const corpus = [
+    product?.identification?.name,
+    product?.identification?.category,
+    product?.details?.short_description,
+    ...Object.keys(attrs || {}),
+    ...Object.values(attrs || {}).map((v) => (typeof v === 'string' ? v : '')),
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return WEDDING_TERM_TEST_RE.test(corpus);
+}
+
+function normalizeGermanTitleLanguage(rawTitle = '', product = null) {
+  let title = normalizeSpaces(rawTitle);
+  if (!title) return '';
+  for (const [pattern, replacement] of UMLAUT_TITLE_REPLACEMENTS) {
+    title = title.replace(pattern, replacement);
+  }
+  if (!hasWeddingEvidenceInProduct(product)) {
+    title = normalizeSpaces(title.replace(WEDDING_TERM_RE, ' '));
+  }
+  title = title.replace(/\s+([,.;:!?])/g, '$1').replace(/[,\-–—:;]+$/g, '').trim();
+  return normalizeSpaces(title);
+}
+
 const TITLE_INSIGHT_TOKEN_RE = /^[0-9a-zA-ZäöüÄÖÜß+\-_/().]{2,24}$/;
 
 function normalizeTitleInsightToken(raw) {
@@ -1334,6 +1380,8 @@ function buildSystemPrompt(locale = 'de-DE') {
     'Auto-parts title rule: prioritize part type + OE/MPN + installation position; keep compatibility mainly in K-Typ/item specifics.',
     'Aspect naming rule: when proposing attributes for eBay, use ONLY exact keys from ebay.allowed_aspects (fallback: ebay.required_aspects). Never invent new attribute keys.',
     'Encoding rule: return plain UTF-8 text values (e.g. "60 °C", "Öko-Tex"), never HTML entities like "&deg;" or "&Ouml;".',
+    'German spelling rule: use real umlauts (ä, ö, ü, ß) in German words; avoid transliterations like ae/oe/ue unless the source explicitly uses them as a brand token.',
+    'Relevance rule: do not add wedding terms (e.g. Hochzeit, Bräutigam) unless they are explicitly evidenced by the product data or fetched source.',
     'Use BrightData web_fetch only when external validation (competitors, specs) is truly needed; cite when you do.',
     'Interpret every supplied image (product gallery + user attachments) in concise wording; if imagery is weak, state what to shoot next.',
     'When the user explicitly asks for "mehr Details", "ausführlich", "voller Report", "lange Analyse" or similar, switch to DEEP MODE with structured sections and long explanations. Otherwise stay in SHORT MODE.',
@@ -1381,6 +1429,8 @@ function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingF
   lines.push('Never include EAN/GTIN/UPC/ISBN or unverifiable claims in titles.');
   lines.push('Aspect rule: prioritize filling ebay.required_aspects_meta.missing_required_aspects with evidence-backed values, and use ONLY exact aspect names from ebay.allowed_aspects (fallback: ebay.required_aspects).');
   lines.push('Output encoding rule: never use HTML entities in attribute values; use plain UTF-8 characters.');
+  lines.push('German spelling rule: use real umlauts (ä, ö, ü, ß); avoid ae/oe/ue transliterations unless they are part of an official brand token.');
+  lines.push('Relevance rule: do not inject wedding terms like "Hochzeit/Bräutigam" unless product context or web evidence explicitly supports them.');
   lines.push('If you propose edits, remember the {"edit": {...}} JSON rule.');
   return lines.join('\n\n');
 }
@@ -1807,9 +1857,10 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
       // for other pipelines. This avoids persistently short titles from chat suggestions.
       forcePolicy: true,
     });
-    identityPatch.name = coerced;
+    const normalizedTitle = normalizeGermanTitleLanguage(coerced, draftProduct);
+    identityPatch.name = normalizedTitle || coerced;
     // Keep an explicit title field so the frontend can display/apply it directly.
-    result.title = coerced;
+    result.title = normalizedTitle || coerced;
   }
 
   if (Object.keys(identityPatch).length) {
