@@ -292,7 +292,7 @@ export const CategoryManagement: React.FC = () => {
       )}
 
       {/* ── Content Area ── */}
-      <div className="flex-1 px-8 py-6 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
 
         {/* Split Panels */}
         <div
@@ -400,7 +400,7 @@ export const CategoryManagement: React.FC = () => {
               ) : (
                 <>
                   {/* ── Section: Profile Settings ── */}
-                  <div className="text-[15px] font-bold text-[var(--text-primary)] mb-4 pb-2 border-b border-[var(--border)] flex items-center gap-2">
+                  <div className="text-[13px] font-semibold text-[var(--text-primary)] mb-4 pb-2 border-b border-[var(--border)] flex items-center gap-2">
                     <IconSettings className="w-4 h-4 text-[var(--avy-purple)]" />
                     {t('categories.selected')}
                   </div>
@@ -463,7 +463,7 @@ export const CategoryManagement: React.FC = () => {
                   </div>
 
                   {/* ── Section: Canonical Attributes ── */}
-                  <div className="text-[15px] font-bold text-[var(--text-primary)] mb-4 pb-2 border-b border-[var(--border)] flex items-center gap-2 mt-2">
+                  <div className="text-[13px] font-semibold text-[var(--text-primary)] mb-4 pb-2 border-b border-[var(--border)] flex items-center gap-2 mt-2">
                     <IconMapping className="w-4 h-4 text-[var(--avy-purple)]" />
                     {t('categories.canonicalAttributes')}
                   </div>
@@ -492,7 +492,7 @@ export const CategoryManagement: React.FC = () => {
                   </div>
 
                   {/* ── Section: Attribute Aliases ── */}
-                  <div className="text-[15px] font-bold text-[var(--text-primary)] mb-4 pb-2 border-b border-[var(--border)] flex items-center gap-2 mt-2">
+                  <div className="text-[13px] font-semibold text-[var(--text-primary)] mb-4 pb-2 border-b border-[var(--border)] flex items-center gap-2 mt-2">
                     <IconTemplate className="w-4 h-4 text-[var(--avy-purple)]" />
                     {t('categories.attributeAliases')}
                   </div>
@@ -523,7 +523,7 @@ export const CategoryManagement: React.FC = () => {
                   </div>
 
                   {/* ── Section: Notes ── */}
-                  <div className="text-[15px] font-bold text-[var(--text-primary)] mb-4 pb-2 border-b border-[var(--border)] flex items-center gap-2 mt-2">
+                  <div className="text-[13px] font-semibold text-[var(--text-primary)] mb-4 pb-2 border-b border-[var(--border)] flex items-center gap-2 mt-2">
                     <IconNotes className="w-4 h-4 text-[var(--avy-purple)]" />
                     {t('categories.notes')}
                   </div>
@@ -580,6 +580,6 @@ export const CategoryManagement: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 };

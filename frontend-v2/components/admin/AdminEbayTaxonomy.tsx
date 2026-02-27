@@ -266,7 +266,7 @@ export const AdminEbayTaxonomy: React.FC = () => {
   const allCount = catalog?.allAspects?.length ?? 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <PageHeader
         title="eBay: Kategorien & Parameter"
         subtitle="Links: Kategoriebaum. Rechts: Taxonomie-Aspects (Pflicht/Empfohlen/Optional) f\u00FCr die selektierte Kategorie."
@@ -306,7 +306,7 @@ export const AdminEbayTaxonomy: React.FC = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-[520px_minmax(0,1fr)] gap-4">
         {/* ---- Left panel: Category tree ---- */}
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-3">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-sm font-semibold text-[var(--text-primary)]">Kategoriebaum</p>
@@ -344,7 +344,7 @@ export const AdminEbayTaxonomy: React.FC = () => {
         </div>
 
         {/* ---- Right panel: Aspects ---- */}
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-4">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-[var(--text-primary)]">Parameter (Aspects)</p>

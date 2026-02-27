@@ -138,9 +138,9 @@ export const AdminGroupManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] tracking-[-0.02em]">Admin: Groups</h2>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">Gruppen</h2>
         <p className="text-sm text-[var(--text-tertiary)]">
           Best practice: Rechte werden primaer ueber Rollen vergeben. Gruppen buendeln Rollen; User koennen zusaetzlich direkte
           Overrides bekommen (sparsam nutzen).

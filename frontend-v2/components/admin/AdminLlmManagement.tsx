@@ -113,9 +113,9 @@ export const AdminLlmManagement: React.FC = () => {
   const versions = Array.isArray(detail?.versions) ? detail.versions : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] tracking-[-0.02em]">Admin: LLM Management</h2>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">LLM-Konfiguration</h2>
         <p className="text-sm text-[var(--text-tertiary)]">
           Listet die vorhandenen LLM-Einsatzbereiche (Scopes) und erlaubt Prompt/Rules Edits mit Versionierung.
         </p>

@@ -1162,7 +1162,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           </div>
 
           {/* Right: Stow Queue (Orders) */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg transition-[border-color] hover:border-[var(--border-hover)]">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl transition-[border-color] hover:border-[var(--border-hover)]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
               <span className="text-[14px] font-semibold text-[var(--text-primary)]">{t('ops.orders.section')}</span>
               <div className="flex items-center gap-3">
@@ -1243,7 +1243,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       {workflow === 'pick' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left: Active Pick List */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg transition-[border-color] hover:border-[var(--border-hover)]">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl transition-[border-color] hover:border-[var(--border-hover)]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
               <span className="text-[14px] font-semibold text-[var(--text-primary)]">{t('ops.mode.pick')}</span>
               <span className="text-[12px] font-medium text-[var(--text-tertiary)]">
@@ -1531,7 +1531,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           {/* Right: Next Orders + Scanner */}
           <div className="space-y-5">
             {/* Next Orders Queue */}
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg transition-[border-color] hover:border-[var(--border-hover)]">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl transition-[border-color] hover:border-[var(--border-hover)]">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
                 <span className="text-[14px] font-semibold text-[var(--text-primary)]">{t('ops.orders.section')}</span>
                 <span className="text-[12px] text-[var(--text-tertiary)] font-medium">{openOrders.length} {t('ops.orders.open')}</span>
@@ -1577,7 +1577,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             </div>
 
             {/* Pick Scanner Card */}
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg transition-[border-color] hover:border-[var(--border-hover)]">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl transition-[border-color] hover:border-[var(--border-hover)]">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
                 <span className="text-[14px] font-semibold text-[var(--text-primary)]">Artikel scannen</span>
               </div>
@@ -1618,15 +1618,15 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
             {/* Stats Row */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 transition-all hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-px cursor-default">
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 transition-all hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-px cursor-default">
                 <p className="text-[12px] font-medium text-[var(--text-tertiary)] mb-1">{t('ops.orders.open')}</p>
                 <p className="text-[28px] font-bold tracking-tight text-[var(--text-primary)]">{orderSummary.open}</p>
               </div>
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 transition-all hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-px cursor-default">
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 transition-all hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-px cursor-default">
                 <p className="text-[12px] font-medium text-[var(--text-tertiary)] mb-1">{t('ops.orders.total')}</p>
                 <p className="text-[28px] font-bold tracking-tight text-[var(--text-primary)]">{orderSummary.total}</p>
               </div>
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 transition-all hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-px cursor-default">
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 transition-all hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-px cursor-default">
                 <p className="text-[12px] font-medium text-[var(--text-tertiary)] mb-1">{t('ops.orders.today')}</p>
                 <p className="text-[28px] font-bold tracking-tight text-[var(--text-primary)]">{orderSummary.pickedToday}</p>
               </div>

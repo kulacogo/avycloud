@@ -63,8 +63,8 @@ export const AdminBulkActions: React.FC = () => {
   }, [jobId, refreshJob]);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+    <div className="space-y-5">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-[var(--text-primary)]">Bulk Actions</h3>
@@ -162,7 +162,7 @@ export const AdminBulkActions: React.FC = () => {
       </div>
 
       {jobId ? (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-3">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-[var(--text-primary)]">Job</p>

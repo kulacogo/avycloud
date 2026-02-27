@@ -108,12 +108,12 @@ const IdentifyQueueView: React.FC = () => {
   };
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-[var(--text-primary)]">{t('identifyQueue.title')}</h1>
-          <p className="text-[var(--text-secondary)]">{t('identifyQueue.description')}</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">{t('identifyQueue.title')}</h1>
+          <p className="text-[13px] text-[var(--text-tertiary)]">{t('identifyQueue.description')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -149,7 +149,7 @@ const IdentifyQueueView: React.FC = () => {
         {statusOptions.map((option) => (
           <div
             key={option.key}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow"
+            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
           >
             <p className="text-xs uppercase tracking-widest text-[var(--text-tertiary)]">{option.label}</p>
             <p className="text-3xl font-semibold text-[var(--text-primary)] mt-1">

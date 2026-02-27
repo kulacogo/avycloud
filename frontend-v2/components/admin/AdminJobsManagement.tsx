@@ -63,8 +63,8 @@ export const AdminJobsManagement: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+    <div className="space-y-5">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-[var(--text-primary)]">Jobs</h3>
@@ -108,7 +108,7 @@ export const AdminJobsManagement: React.FC = () => {
         ) : null}
       </div>
 
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-4">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h4 className="text-base font-semibold text-[var(--text-primary)]">GPSR Web Enrichment (initial)</h4>

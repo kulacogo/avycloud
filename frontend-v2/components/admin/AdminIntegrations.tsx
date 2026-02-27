@@ -120,7 +120,7 @@ export const AdminIntegrations: React.FC = () => {
   }, [testSku]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">

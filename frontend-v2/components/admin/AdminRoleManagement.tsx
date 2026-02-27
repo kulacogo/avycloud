@@ -92,10 +92,10 @@ export const AdminRoleManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] tracking-[-0.02em]">Admin: Roles & Rechte</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">Rollen & Rechte</h2>
           <p className="text-sm text-[var(--text-tertiary)]">Rechte pro Role definieren (Backend ist Source of Truth).</p>
         </div>
         <button

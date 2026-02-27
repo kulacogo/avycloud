@@ -127,7 +127,7 @@ export const ConfirmDialog: React.FC<{
       >
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-3">
-            <h3 id={titleId} className="text-lg font-semibold text-[var(--text-primary)] tracking-[-0.02em]">
+            <h3 id={titleId} className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">
               {title}
             </h3>
             <button

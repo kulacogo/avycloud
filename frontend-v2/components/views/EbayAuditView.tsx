@@ -177,12 +177,12 @@ export const EbayAuditView: React.FC = () => {
   const suggestions = Array.isArray(audit?.suggestions) ? audit.suggestions : [];
 
   return (
-    <div className="w-full max-w-[1800px] mx-auto px-2 lg:px-4 space-y-5">
+    <section className="space-y-5">
       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-[var(--text-primary)]">eBay Listing Audit</h1>
-            <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+            <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">eBay Listing Audit</h1>
+            <p className="text-[13px] text-[var(--text-tertiary)] mt-0.5">
               Ganzheitliche Pruefung (Titel/Keywords, Merkmale, Bilder, Beschreibung) mit konkreten Verbesserungsvorschlaegen.
             </p>
           </div>
@@ -453,7 +453,7 @@ export const EbayAuditView: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 

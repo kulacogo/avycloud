@@ -27,11 +27,11 @@ export const AdminPanel: React.FC = () => {
       {/* ═══════ PAGE HEADER ═══════ */}
       <div className="flex flex-wrap items-start justify-between gap-4 pb-1">
         <div>
-          <h1 className="text-2xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
             Administration
           </h1>
-          <p className="mt-0.5 text-sm text-[var(--text-tertiary)]">
-            System & user management
+          <p className="mt-0.5 text-[13px] text-[var(--text-tertiary)]">
+            System- & Benutzerverwaltung
           </p>
         </div>
         <div className="flex items-center gap-2">

@@ -67,10 +67,10 @@ export const AdminUserManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] tracking-[-0.02em]">Admin: User Management</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">Benutzerverwaltung</h2>
           <p className="text-sm text-[var(--text-tertiary)]">User anlegen, Rollen zuweisen, Zugang aktivieren via Mail-Links.</p>
         </div>
         <button

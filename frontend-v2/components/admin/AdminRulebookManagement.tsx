@@ -227,7 +227,7 @@ export const AdminRulebookManagement: React.FC = () => {
     'w-full rounded-lg bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--avy-purple)] focus:shadow-[var(--shadow-focus)] transition-colors duration-150';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {notice ? (
         <Notice tone={notice.tone} title={notice.title} details={notice.details} onDismiss={() => setNotice(null)} />
       ) : null}
@@ -235,7 +235,7 @@ export const AdminRulebookManagement: React.FC = () => {
       {/* ---- Header row ---- */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-[var(--text-primary)] tracking-[-0.02em]">Admin: Regelverwaltung (Rulebook)</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">Regelverwaltung (Rulebook)</h2>
           <p className="text-sm text-[var(--text-tertiary)]">
             Zentraler, zwingender Rulebook-Config f\u00FCr Titel/Highlights/Attribute (wirkt auf Identify/Improve/Chat + Delta-Sync).
           </p>
@@ -282,7 +282,7 @@ export const AdminRulebookManagement: React.FC = () => {
       {loading && <div className="text-sm text-[var(--text-secondary)]">Loading\u2026</div>}
 
       {/* ---- Title rules ---- */}
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-3">
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">Titel Regeln (L\u00E4ngen + Marketing W\u00F6rter)</h3>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {(['minLen', 'softMaxLen', 'maxLen', 'mobileMaxLen'] as const).map((k) => (
@@ -318,7 +318,7 @@ export const AdminRulebookManagement: React.FC = () => {
       </section>
 
       {/* ---- Title categories per schema ---- */}
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-3">
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">Titel Kategorien (pro Titel-Kategorie)</h3>
           <button
@@ -392,7 +392,7 @@ export const AdminRulebookManagement: React.FC = () => {
       </section>
 
       {/* ---- Highlights rules ---- */}
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-3">
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">Highlights Regeln (pro Schema)</h3>
           <button
@@ -461,7 +461,7 @@ export const AdminRulebookManagement: React.FC = () => {
       </section>
 
       {/* ---- Canonical map ---- */}
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-3">
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">Attribute Canonical Map (Synonyme \u2192 Canonical Key)</h3>
           <button
@@ -522,7 +522,7 @@ export const AdminRulebookManagement: React.FC = () => {
       </section>
 
       {/* ---- Version note ---- */}
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-3">
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">Version Note</h3>
         <textarea
           rows={2}
@@ -534,7 +534,7 @@ export const AdminRulebookManagement: React.FC = () => {
       </section>
 
       {/* ---- Apply / run section ---- */}
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-3">
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">Pflicht: Initial Run + Delta Sync</h3>
