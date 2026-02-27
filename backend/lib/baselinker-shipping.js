@@ -133,8 +133,17 @@ async function getShippingCostsSummaryFromBaseLinker(fromDate, toDate, { timeout
     return cached.data;
   }
 
-  const fromUnix = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
-  const toUnix   = Math.floor(new Date(toDate   + 'T23:59:59Z').getTime() / 1000);
+  // Use Europe/Berlin timezone so "today" matches the user's local day, not UTC.
+  const fromUnix = Math.floor(new Date(fromDate + 'T00:00:00+01:00').getTime() / 1000);
+  const toUnix   = Math.floor(new Date(toDate   + 'T23:59:59+01:00').getTime() / 1000);
+
+  // Broaden the fetch window: go back at least 14 days before fromDate so we also
+  // catch orders that were confirmed earlier but had their label created within [from, to].
+  // BaseLinker has no "label created date" field — only date_confirmed — so this lookback
+  // ensures we don't miss recently-labeled orders that were confirmed before fromDate.
+  const LOOKBACK_DAYS = 14;
+  const fetchFromUnix = Math.min(fromUnix, fromUnix - LOOKBACK_DAYS * 86400);
+
   const deadline = Date.now() + timeoutMs;
 
   let perLabelCost = 0;
@@ -145,7 +154,7 @@ async function getShippingCostsSummaryFromBaseLinker(fromDate, toDate, { timeout
   let dpdMonths = new Set(); // calendar months with ≥1 DPD label
   // DPD <100/month → track per-month DPD counts for flat fee threshold
   const dpdCountPerMonth = new Map();
-  let cursor = fromUnix;
+  let cursor = fetchFromUnix;
 
   for (let page = 0; page < 200; page++) {
     if (Date.now() > deadline) {
@@ -180,7 +189,11 @@ async function getShippingCostsSummaryFromBaseLinker(fromDate, toDate, { timeout
       const confirmedUnix = Number(o?.date_confirmed || 0) || 0;
       if (confirmedUnix > lastConfirmed) lastConfirmed = confirmedUnix;
 
-      if (!confirmedUnix || confirmedUnix < fromUnix || confirmedUnix > toUnix) continue;
+      // Skip orders past the end of the requested range.
+      // We intentionally do NOT filter on confirmedUnix < fromUnix here because we
+      // use a broader lookback window (fetchFromUnix) to catch orders confirmed before
+      // fromDate that received their shipping label within [fromDate, toDate].
+      if (!confirmedUnix || confirmedUnix > toUnix) continue;
 
       // Skip returns and cancelled orders
       const orderSource = (o?.order_source || '').toString().trim().toLowerCase();
@@ -234,7 +247,7 @@ async function getShippingCostsSummaryFromBaseLinker(fromDate, toDate, { timeout
   const totalCost = perLabelCost + dhlFlatFees + dpdFlatFees;
 
   console.log(
-    `[bl-shipping] ${fromDate}–${toDate}: labels=${labelCount}, noLabel=${noLabelCount}, unknownCarrier=${unknownCarrierCount}, ` +
+    `[bl-shipping] ${fromDate}–${toDate} (lookback=${LOOKBACK_DAYS}d): labels=${labelCount}, noLabel=${noLabelCount}, unknownCarrier=${unknownCarrierCount}, ` +
     `perLabel=${perLabelCost.toFixed(2)}€ + dhlFlat=${dhlFlatFees.toFixed(2)}€ + dpdFlat=${dpdFlatFees.toFixed(2)}€ = total=${totalCost.toFixed(2)}€ (brutto)`
   );
 
