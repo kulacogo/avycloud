@@ -753,6 +753,37 @@ export async function fetchEbaySkuIndex(): Promise<{ sku: string | null; itemId:
   return Array.isArray(data?.data) ? data.data : [];
 }
 
+export async function syncKauflandListings(storefront = 'de'): Promise<{ storefront: string; fetched: number; active: number }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/kaufland/listings/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ storefront }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to sync Kaufland listings');
+  }
+  return data?.data || { storefront, fetched: 0, active: 0 };
+}
+
+export async function fetchKauflandSkuIndex(storefront = 'de'): Promise<{
+  idUnit: string;
+  sku: string | null;
+  skuNormalized: string | null;
+  ean: string | null;
+  eans: string[];
+  status: string | null;
+}[]> {
+  const url = new URL(`${BACKEND_URL}/api/kaufland/sku-index`);
+  url.searchParams.set('storefront', storefront);
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load Kaufland SKU index');
+  }
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
 
 export async function bulkUpdateEbayListings(params: {
   itemIds?: string[];

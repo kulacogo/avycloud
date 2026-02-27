@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../../types';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, type ProductBulkActionName } from '../../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, type ProductBulkActionName } from '../../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from '../icons/Icons';
 import {
   normalizeSyncStatus,
@@ -261,6 +261,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [ebayProductIdMap, setEbayProductIdMap] = useState<Map<string, string>>(new Map()); // productId → itemId
   const [ebayActiveItemIds, setEbayActiveItemIds] = useState<Set<string>>(new Set());
   const [ebayUpdateInProgress, setEbayUpdateInProgress] = useState(false);
+  const [kauflandSkuSet, setKauflandSkuSet] = useState<Set<string>>(new Set());
+  const [kauflandEanSet, setKauflandEanSet] = useState<Set<string>>(new Set());
+  const [kauflandSyncInProgress, setKauflandSyncInProgress] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [improveInProgress, setImproveInProgress] = useState(false);
   const [improveMessage, setImproveMessage] = useState<string | null>(null);
@@ -417,6 +420,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, []);
 
   useEffect(() => {
+    loadKauflandIndex().catch(() => {/* ignore – bis zum ersten Sync bleibt Spalte neutral */});
+  }, []);
+
+  useEffect(() => {
     if (!isMobile) {
       setMobileFiltersOpen(false);
     }
@@ -426,6 +433,29 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const normalizeSku = (value?: string | null) => {
     if (!value) return '';
     return value.toString().trim().replace(/\s+/g, '').toUpperCase();
+  };
+
+  const normalizeEan = (value?: string | null) => {
+    if (!value) return '';
+    return value.toString().replace(/\D+/g, '').trim();
+  };
+
+  const loadKauflandIndex = async () => {
+    const entries = await fetchKauflandSkuIndex('de');
+    const skuSet = new Set<string>();
+    const eanSet = new Set<string>();
+    entries.forEach((entry) => {
+      const sku = normalizeSku(entry.skuNormalized || entry.sku || '');
+      if (sku) skuSet.add(sku);
+      const ean = normalizeEan(entry.ean || '');
+      if (ean) eanSet.add(ean);
+      (Array.isArray(entry.eans) ? entry.eans : []).forEach((v) => {
+        const n = normalizeEan(v);
+        if (n) eanSet.add(n);
+      });
+    });
+    setKauflandSkuSet(skuSet);
+    setKauflandEanSet(eanSet);
   };
 
   // On load: check BaseLinker existence by SKU/EAN and update products with found product_id
@@ -846,7 +876,26 @@ const AdminTable: React.FC<AdminTableProps> = ({
           const lastStatus = String(kp?.last_sync_status || '').toLowerCase();
           const unitId = Number(kp?.id_unit || 0);
           const hasUnitId = Number.isFinite(unitId) && unitId > 0;
-          const listed = hasUnitId || lastStatus === 'ok';
+          const sku = normalizeSku(
+            (product as any)?.identification?.sku ||
+            product?.details?.identifiers?.sku ||
+            (product as any)?.id ||
+            ''
+          );
+          const eanCandidates = Array.from(
+            new Set(
+              [
+                product?.details?.identifiers?.ean,
+                product?.details?.identifiers?.gtin,
+                product?.details?.identifiers?.upc,
+                ...((product as any)?.identification?.barcodes || []),
+              ]
+                .map((v) => normalizeEan(String(v || '')))
+                .filter(Boolean)
+            )
+          );
+          const listedByIndex = (sku && kauflandSkuSet.has(sku)) || eanCandidates.some((ean) => kauflandEanSet.has(ean));
+          const listed = listedByIndex || hasUnitId || lastStatus === 'ok';
           const failed = lastStatus === 'failed';
           return (
             <span
@@ -1601,6 +1650,33 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return enqueueBulkForIds(action, ids, opts);
   };
 
+  const handleSyncKauflandListings = async () => {
+    if (!window.confirm('Kaufland-Listings jetzt synchronisieren?\nDadurch wird der Status-Indikator in der Inventory-Tabelle aktualisiert.')) return;
+    setKauflandSyncInProgress(true);
+    setNotice({
+      tone: 'info',
+      title: 'Kaufland Sync',
+      message: 'Lade aktuelle Kaufland-Listings...',
+    });
+    try {
+      const result = await syncKauflandListings('de');
+      await loadKauflandIndex();
+      setNotice({
+        tone: 'success',
+        title: 'Kaufland Sync abgeschlossen',
+        message: `Aktive Listings: ${result.active} (geladen: ${result.fetched}).`,
+      });
+    } catch (err: any) {
+      setNotice({
+        tone: 'error',
+        title: 'Kaufland Sync fehlgeschlagen',
+        details: err?.message || String(err),
+      });
+    } finally {
+      setKauflandSyncInProgress(false);
+    }
+  };
+
   const enqueueBulkForAllInCurrentMode = async (action: ProductBulkActionName, opts?: { apply?: boolean }) => {
     const scoped =
       scopeProductIds && scopeProductIds.size ? products.filter((p) => scopeProductIds.has(p.id)) : products;
@@ -1640,6 +1716,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
               }
             } catch {
               // ignore
+            }
+            if (bulkJobAction === 'kaufland_create' || bulkJobAction === 'kaufland_update') {
+              loadKauflandIndex().catch(() => {});
             }
           }
           setNotice({
@@ -2637,6 +2716,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 className={menuItemClass}
               >
                 {ebayUpdateInProgress ? 'eBay Update läuft...' : `Alle eBay-Listings aktualisieren (${ebayLinkedMap.size})`}
+              </button>
+              <button
+                type="button"
+                onClick={handleSyncKauflandListings}
+                disabled={kauflandSyncInProgress}
+                className={menuItemClass}
+              >
+                {kauflandSyncInProgress ? 'Kaufland Sync läuft...' : 'Kaufland: Listings synchronisieren'}
               </button>
 
               <div className="my-1 border-t border-[var(--border)]" />

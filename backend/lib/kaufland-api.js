@@ -233,6 +233,30 @@ async function findUnit({ storefront = 'de', idOffer, ean }) {
   return list[0] || null;
 }
 
+async function listUnits({ storefront = 'de', limit = 100, maxPages = 200 } = {}) {
+  const pageSize = Math.max(1, Math.min(100, Number(limit) || 100));
+  const pages = Math.max(1, Number(maxPages) || 200);
+  const items = [];
+  let offset = 0;
+
+  for (let page = 0; page < pages; page += 1) {
+    const res = await kauflandRequest('GET', '/units', {
+      query: {
+        storefront,
+        limit: pageSize,
+        offset,
+      },
+    });
+    const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
+    if (!rows.length) break;
+    items.push(...rows);
+    if (rows.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return items;
+}
+
 async function createUnit(product, { storefront = 'de' } = {}) {
   const picked = pickUnitData(product, { mode: 'create', storefront });
   const res = await kauflandRequest('POST', '/units', {
@@ -254,6 +278,7 @@ async function updateUnit(unitId, product, { storefront = 'de' } = {}) {
 module.exports = {
   kauflandRequest,
   findUnit,
+  listUnits,
   createUnit,
   updateUnit,
   pickUnitData,

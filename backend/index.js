@@ -2765,6 +2765,136 @@ app.get('/api/ebay/sku-index', requirePermission('products', 'read'), async (req
   }
 });
 
+function normalizeMarketplaceSku(value) {
+  return String(value || '').trim().replace(/\s+/g, '').toUpperCase();
+}
+
+function normalizeMarketplaceEan(value) {
+  return String(value || '').replace(/\D+/g, '').trim();
+}
+
+// Pull latest Kaufland units and cache them in Firestore for fast Inventory UI indicators.
+app.post('/api/kaufland/listings/sync', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const storefront = String(req.body?.storefront || req.query?.storefront || 'de').trim().toLowerCase();
+    const { listUnits } = require('./lib/kaufland-api');
+    const { Timestamp } = require('@google-cloud/firestore');
+
+    const units = await listUnits({ storefront, limit: 100, maxPages: 300 });
+    const now = Timestamp.now();
+    const collection = firestore.collection('kauflandUnitsLive');
+    const seenIds = new Set();
+
+    let batch = firestore.batch();
+    let batchCount = 0;
+    const commitBatch = async () => {
+      if (!batchCount) return;
+      await batch.commit();
+      batch = firestore.batch();
+      batchCount = 0;
+    };
+
+    for (const unit of units) {
+      const idUnit = Number(unit?.id_unit || 0);
+      if (!Number.isFinite(idUnit) || idUnit <= 0) continue;
+      const docId = String(idUnit);
+      seenIds.add(docId);
+
+      const product = unit?.product && typeof unit.product === 'object' ? unit.product : {};
+      const productEans = Array.isArray(product?.eans) ? product.eans : [];
+      const normalizedEans = Array.from(
+        new Set(
+          productEans
+            .map((v) => normalizeMarketplaceEan(v))
+            .filter(Boolean)
+        )
+      );
+
+      const payload = {
+        id_unit: idUnit,
+        id_offer: String(unit?.id_offer || '').trim() || null,
+        id_offer_normalized: normalizeMarketplaceSku(unit?.id_offer),
+        ean: normalizeMarketplaceEan(unit?.ean),
+        eans: normalizedEans,
+        amount: Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null,
+        status: String(unit?.status || '').trim() || null,
+        storefront: String(unit?.storefront || storefront || 'de').trim().toLowerCase(),
+        active: true,
+        updatedAt: now,
+        source: 'kaufland-sync',
+      };
+
+      batch.set(collection.doc(docId), payload, { merge: true });
+      batchCount += 1;
+      if (batchCount >= 400) await commitBatch();
+    }
+    await commitBatch();
+
+    // Mark stale cached rows inactive (units no longer returned by API).
+    const existingSnap = await collection.where('storefront', '==', storefront).where('active', '==', true).get();
+    if (!existingSnap.empty) {
+      batch = firestore.batch();
+      batchCount = 0;
+      existingSnap.docs.forEach((doc) => {
+        if (seenIds.has(doc.id)) return;
+        batch.set(
+          collection.doc(doc.id),
+          { active: false, updatedAt: now, source: 'kaufland-sync' },
+          { merge: true }
+        );
+        batchCount += 1;
+      });
+      await commitBatch();
+    }
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        storefront,
+        fetched: units.length,
+        active: seenIds.size,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to sync Kaufland listings:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to sync Kaufland listings' },
+    });
+  }
+});
+
+// Cached index used by Inventory table for Kaufland listed/not-listed badges.
+app.get('/api/kaufland/sku-index', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const storefront = String(req.query?.storefront || 'de').trim().toLowerCase();
+    const snap = await firestore
+      .collection('kauflandUnitsLive')
+      .where('storefront', '==', storefront)
+      .where('active', '==', true)
+      .get();
+    const rows = [];
+    snap.docs.forEach((doc) => {
+      const d = doc.data() || {};
+      rows.push({
+        idUnit: doc.id,
+        sku: d.id_offer || null,
+        skuNormalized: d.id_offer_normalized || null,
+        ean: d.ean || null,
+        eans: Array.isArray(d.eans) ? d.eans : [],
+        status: d.status || null,
+      });
+    });
+    return res.status(200).json({ ok: true, data: rows });
+  } catch (error) {
+    console.error('Failed to build Kaufland SKU index:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to build Kaufland SKU index' },
+    });
+  }
+});
+
 app.post('/api/ebay/gaps/rebuild', requirePermission('products', 'write'), async (req, res) => {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
