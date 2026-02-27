@@ -1204,7 +1204,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       className="grid grid-cols-1 gap-6 w-full relative items-start lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]"
     >
       {notification && (
-        <div className={`fixed top-20 right-8 p-4 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white`}>
+        <div className={`fixed top-20 right-8 p-4 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} text-white`}>
           {notification.message}
         </div>
       )}
@@ -1490,7 +1490,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   type="button"
                   onClick={() => onImprove(localProduct.id)}
                   disabled={Boolean(isImproving)}
-                  className="flex items-center justify-center px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-500 transition-colors disabled:opacity-60 w-full sm:w-auto"
+                  className="flex items-center justify-center px-4 py-2 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-500 transition-colors disabled:opacity-60 w-full sm:w-auto"
                 >
                   {isImproving ? t('common.improving') : t('common.improve')}
                 </button>
@@ -1614,7 +1614,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 <button
                   onClick={handleGenerateImages}
                   disabled={isGeneratingImages || !selectedReferenceImage}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-violet-500 hover:to-indigo-500 transition-all disabled:opacity-40 shadow-lg shadow-indigo-900/20"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-violet-500 text-white font-semibold rounded-xl hover:from-violet-500 hover:to-violet-400 transition-all disabled:opacity-40 shadow-lg shadow-violet-900/20"
                 >
                   {isGeneratingImages ? <Spinner className="w-5 h-5 text-white" /> : <MagicIcon className="w-5 h-5" />}
                   <span>{isGeneratingImages ? t('sheet.ai.running') : t('sheet.ai.cta')}</span>

@@ -123,7 +123,7 @@ const Card: React.FC<CardProps> = ({
 const STEPS = [
   { key: 'neu', label: 'Offen', dot: 'bg-amber-400', text: 'text-amber-400' },
   { key: 'kommissioniert', label: 'Komm.', dot: 'bg-blue-400', text: 'text-blue-400' },
-  { key: 'verpackt', label: 'Verpackt', dot: 'bg-indigo-400', text: 'text-indigo-400' },
+  { key: 'verpackt', label: 'Verpackt', dot: 'bg-violet-400', text: 'text-violet-400' },
   { key: 'versendet', label: 'Versendet', dot: 'bg-violet-400', text: 'text-violet-400' },
   { key: 'zugestellt', label: 'Zugestellt', dot: 'bg-emerald-400', text: 'text-emerald-400' },
 ];

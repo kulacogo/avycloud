@@ -169,7 +169,7 @@ const NAV_ICONS: NavIconConfig[] = [
 ] as const;
 
 export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onToggleTheme }) => {
-  const { t, locale, setLocale } = useI18n();
+  const { t } = useI18n();
   const { logout, hasPermission, isAdmin } = useAuth();
 
   const DesktopNavButton = ({ nav }: { nav: NavIconConfig }) => {
@@ -241,18 +241,16 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
         <div className="w-full px-3 sm:px-5 lg:px-8 py-2">
           <div className="flex items-center gap-4 w-full">
 
-            {/* Logo — slightly inset from left edge, scales at larger viewports */}
-            <div className="flex-shrink-0 ml-2 sm:ml-6 lg:ml-10">
+            {/* Logo */}
+            <div className="flex-shrink-0 sm:ml-2 lg:ml-4">
               <img
                 src="/avy_logo.png"
                 alt="avycloud"
                 draggable={false}
                 style={{
-                  height: '80px',
-                  width: '80px',
+                  height: '100px',
+                  width: '100px',
                   objectFit: 'contain',
-                  marginLeft: '5px',
-                  marginRight: '5px',
                 }}
               />
             </div>
@@ -267,47 +265,22 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
             {/* Right controls */}
             <div className="flex items-center gap-2 ml-auto">
 
-              {/* Language selector with globe icon */}
-              <div className="relative flex items-center">
-                <svg
-                  className="absolute left-3 pointer-events-none text-slate-400"
-                  style={{ width: '1.25rem', height: '1.25rem' }}
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M3.6 9h16.8M3.6 15h16.8" strokeLinecap="round" />
-                  <path d="M12 3c-2.5 3-4 6-4 9s1.5 6 4 9M12 3c2.5 3 4 6 4 9s-1.5 6-4 9" strokeLinecap="round" />
-                </svg>
-                <select
-                  value={locale}
-                  onChange={(e) => setLocale(e.target.value as any)}
-                  className="bg-slate-800/70 text-slate-200 font-medium pl-10 pr-4 rounded-xl border border-white/[0.08] focus:outline-none focus:border-sky-500/50 cursor-pointer appearance-none"
-                  style={{ height: '3.5rem', fontSize: '0.9rem' }}
-                  aria-label={t('lang.label')}
-                >
-                  <option value="de">DE</option>
-                  <option value="en">EN</option>
-                  <option value="tr">TR</option>
-                </select>
-              </div>
-
               {/* Theme toggle */}
               <button
                 type="button"
                 onClick={onToggleTheme}
-                className="flex items-center justify-center rounded-xl bg-slate-800/70 border border-white/[0.08] text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
-                style={{ width: '3.5rem', height: '3.5rem' }}
+                className="flex items-center justify-center rounded-lg bg-slate-800/70 border border-white/[0.08] text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                style={{ width: '2.25rem', height: '2.25rem' }}
                 aria-label={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
                 title={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
               >
                 {theme === 'dark' ? (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1.1rem', height: '1.1rem' }} aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem' }} aria-hidden="true">
                     <circle cx="12" cy="12" r="4" />
                     <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
                   </svg>
                 ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1.1rem', height: '1.1rem' }} aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem' }} aria-hidden="true">
                     <path d="M21 12.8A8 8 0 1 1 11.2 3a6 6 0 0 0 9.8 9.8Z" />
                   </svg>
                 )}

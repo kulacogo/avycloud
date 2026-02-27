@@ -94,32 +94,53 @@ const RowLabel: React.FC<{ label: string }> = ({ label }) => (
   </div>
 );
 
-// ─── Mini bar chart ───────────────────────────────────────────────────────────
+// ─── Mini bar chart (touch-interactive) ──────────────────────────────────────
 const MiniChart: React.FC<{
   days: Array<{ date: string; orders: number; revenue: number }>;
   currency: string;
 }> = ({ days, currency }) => {
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const max = Math.max(1, ...days.map(d => Number(d.orders || 0)));
   const maxRev = Math.max(1, ...days.map(d => Number(d.revenue || 0)));
   const total = days.reduce((s, d) => s + Number(d.orders || 0), 0);
   const totalRev = days.reduce((s, d) => s + Number(d.revenue || 0), 0);
+  const sel = selectedIdx !== null ? days[selectedIdx] : null;
   return (
     <div>
-      <div className="flex items-end gap-1 h-16">
-        {days.map(d => {
+      {/* Selected bar detail */}
+      {sel && (
+        <div className="mb-2 flex items-center justify-between rounded-lg bg-sky-900/60 border border-sky-500/20 px-3 py-2 text-[11px] font-semibold text-sky-200">
+          <span>{sel.date}</span>
+          <span>{Number(sel.orders || 0)} Aufträge · {fmtCur(Number(sel.revenue || 0), currency)}</span>
+        </div>
+      )}
+      <div
+        className="flex items-end"
+        style={{
+          gap: days.length > 14 ? '2px' : '4px',
+          height: `${Math.min(120, Math.max(72, days.length <= 7 ? 100 : 80))}px`,
+        }}
+      >
+        {days.map((d, idx) => {
           const c = Number(d.orders || 0);
           const r = Number(d.revenue || 0);
           const bh = Math.max(4, Math.round((c / max) * 100));
           const rh = Math.max(2, Math.round((r / maxRev) * 100));
+          const isSelected = selectedIdx === idx;
           return (
             <div key={d.date}
-              className="relative flex-1 flex flex-col items-center justify-end h-full"
-              title={`${d.date}: ${c} Aufträge · ${fmtCur(r, currency)}`}
+              className="relative flex-1 flex flex-col items-center justify-end h-full cursor-pointer"
+              onClick={() => setSelectedIdx(isSelected ? null : idx)}
+              onTouchEnd={(e) => { e.preventDefault(); setSelectedIdx(isSelected ? null : idx); }}
             >
-              <div className="absolute bottom-0 w-full bg-emerald-500/15 rounded-t"
-                style={{ height: `${rh}%` }} />
-              <div className="relative w-full bg-sky-500/80 rounded-t"
-                style={{ height: `${bh}%` }} />
+              <div className="absolute bottom-0 w-full bg-emerald-500/15 rounded-t transition-opacity duration-200"
+                style={{ height: `${rh}%`, opacity: selectedIdx !== null && !isSelected ? 0.3 : 1 }} />
+              <div className="relative w-full rounded-t transition-all duration-200"
+                style={{
+                  height: `${bh}%`,
+                  backgroundColor: isSelected ? 'rgb(56 189 248)' : 'rgba(56, 189, 248, 0.8)',
+                  opacity: selectedIdx !== null && !isSelected ? 0.3 : 1,
+                }} />
             </div>
           );
         })}

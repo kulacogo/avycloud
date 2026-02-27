@@ -78,8 +78,8 @@ interface AdminTableProps {
 const SyncStatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
   const baseClasses = 'px-2 py-1 text-xs font-bold rounded-full';
   const statusMap = {
-    synced: 'bg-green-500/20 text-green-300',
-    pending: 'bg-yellow-500/20 text-yellow-300',
+    synced: 'bg-emerald-500/20 text-emerald-300',
+    pending: 'bg-amber-500/20 text-amber-300',
     failed: 'bg-red-500/20 text-red-300',
   };
   return <span className={`${baseClasses} ${statusMap[status]}`}>{status}</span>;
@@ -106,8 +106,8 @@ const ActionButton: React.FC<{
   const toneClasses = {
     primary: 'bg-sky-600 text-white hover:bg-sky-500',
     secondary: 'bg-slate-700 text-slate-100 hover:bg-slate-600',
-    danger: 'bg-red-600 text-white hover:bg-red-500',
-    accent: 'bg-purple-600 text-white hover:bg-purple-500',
+    danger: 'bg-rose-600 text-white hover:bg-rose-500',
+    accent: 'bg-violet-600 text-white hover:bg-violet-500',
   };
   return (
     <button
