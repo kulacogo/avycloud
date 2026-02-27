@@ -113,7 +113,7 @@ export const AdminLlmManagement: React.FC = () => {
   const versions = Array.isArray(detail?.versions) ? detail.versions : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
         <h2 className="text-xl font-bold">Admin: LLM Management</h2>
         <p className="text-sm text-slate-400">
@@ -122,7 +122,7 @@ export const AdminLlmManagement: React.FC = () => {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+        <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 px-4 py-3 text-sm text-rose-400">
           {error}
         </div>
       )}
@@ -131,14 +131,14 @@ export const AdminLlmManagement: React.FC = () => {
       ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="rounded-2xl border border-white/10 bg-slate-800/60 p-5 space-y-3">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Scopes</h3>
             <button
               type="button"
               onClick={loadScopes}
               disabled={loading}
-              className="rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-60 px-3 py-2 text-sm font-semibold text-white"
+              className="rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-3 py-2 text-sm font-semibold text-white"
             >
               Refresh
             </button>
@@ -161,7 +161,7 @@ export const AdminLlmManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-slate-800/60 p-5 space-y-4">
+        <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
           <div className="space-y-1">
             <div className="text-sm font-semibold">{scope?.name || scope?.id || '—'}</div>
             <div className="text-xs text-slate-400">{scope?.purpose || ''}</div>
@@ -189,7 +189,7 @@ export const AdminLlmManagement: React.FC = () => {
               <label className="text-xs text-slate-300">
                 Prompt Mode
                 <select
-                  className="ml-2 bg-slate-900/60 border border-white/10 rounded-lg px-2 py-1 text-slate-100"
+                  className="ml-2 bg-slate-900/60 border border-white/10 rounded-xl px-2 py-1 text-slate-100"
                   value={promptMode}
                   onChange={(e) => setPromptMode(e.target.value as any)}
                 >
@@ -200,7 +200,7 @@ export const AdminLlmManagement: React.FC = () => {
               <label className="text-xs text-slate-300">
                 Rules Mode
                 <select
-                  className="ml-2 bg-slate-900/60 border border-white/10 rounded-lg px-2 py-1 text-slate-100"
+                  className="ml-2 bg-slate-900/60 border border-white/10 rounded-xl px-2 py-1 text-slate-100"
                   value={rulesMode}
                   onChange={(e) => setRulesMode(e.target.value as any)}
                 >
@@ -261,7 +261,7 @@ export const AdminLlmManagement: React.FC = () => {
                       type="button"
                       onClick={() => activate(v.id)}
                       disabled={saving || scope?.activeVersionId === v.id}
-                      className="rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-60 px-3 py-1.5 text-xs font-semibold text-white"
+                      className="rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-3 py-1.5 text-xs font-semibold text-white"
                     >
                       Activate
                     </button>

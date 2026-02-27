@@ -63,8 +63,8 @@ export const AdminBulkActions: React.FC = () => {
   }, [jobId, refreshJob]);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-white">Bulk Actions</h3>
@@ -89,7 +89,7 @@ export const AdminBulkActions: React.FC = () => {
             <select
               value={action}
               onChange={(e) => setAction(e.target.value as Action)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100"
             >
               <option value="price">Preis refresh (NEW-only)</option>
               <option value="title">Titel normalisieren (Policy)</option>
@@ -112,7 +112,7 @@ export const AdminBulkActions: React.FC = () => {
               max={20000}
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value) || 1)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100"
             />
           </label>
 
@@ -123,7 +123,7 @@ export const AdminBulkActions: React.FC = () => {
               min={0}
               value={offset}
               onChange={(e) => setOffset(Math.max(0, Number(e.target.value) || 0))}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100"
             />
           </label>
 
@@ -143,7 +143,7 @@ export const AdminBulkActions: React.FC = () => {
                 max={365}
                 value={maxAgeDays}
                 onChange={(e) => setMaxAgeDays(Math.max(0, Number(e.target.value) || 0))}
-                className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100"
               />
             </label>
           </div>
@@ -162,7 +162,7 @@ export const AdminBulkActions: React.FC = () => {
       </div>
 
       {jobId ? (
-        <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4 space-y-3">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-white">Job</p>
@@ -177,7 +177,7 @@ export const AdminBulkActions: React.FC = () => {
             </button>
           </div>
           {job ? (
-            <pre className="overflow-auto whitespace-pre-wrap rounded-lg border border-slate-700/60 bg-slate-950/40 p-3 text-xs text-slate-200">
+            <pre className="overflow-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-slate-950/40 p-3 text-xs text-slate-200">
               {JSON.stringify(job, null, 2)}
             </pre>
           ) : (

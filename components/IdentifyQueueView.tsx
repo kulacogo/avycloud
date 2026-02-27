@@ -108,11 +108,11 @@ const IdentifyQueueView: React.FC = () => {
   };
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-white">{t('identifyQueue.title')}</h1>
-          <p className="text-slate-400">{t('identifyQueue.description')}</p>
+          <h1 className="text-2xl font-bold text-white">{t('identifyQueue.title')}</h1>
+          <p className="text-sm text-slate-400">{t('identifyQueue.description')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -137,7 +137,7 @@ const IdentifyQueueView: React.FC = () => {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-rose-500/40 bg-rose-500/15 text-rose-50 px-4 py-3 text-sm">
+        <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 text-rose-400 px-4 py-3 text-sm">
           {error}
         </div>
       )}
@@ -146,10 +146,10 @@ const IdentifyQueueView: React.FC = () => {
         {statusOptions.map((option) => (
           <div
             key={option.key}
-            className="rounded-2xl border border-white/5 bg-slate-900/60 p-4 shadow-inner shadow-black/30"
+            className="rounded-2xl border border-white/10 bg-slate-800/40 p-4"
           >
-            <p className="text-xs uppercase tracking-widest text-slate-400">{option.label}</p>
-            <p className="text-3xl font-semibold text-white mt-1">
+            <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">{option.label}</p>
+            <p className="text-2xl font-bold text-white mt-1">
               {stats[option.key] ?? 0}
             </p>
           </div>

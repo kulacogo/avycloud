@@ -223,7 +223,7 @@ export const AdminRulebookManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {notice ? (
         <Notice tone={notice.tone} title={notice.title} details={notice.details} onDismiss={() => setNotice(null)} />
       ) : null}
@@ -248,7 +248,7 @@ export const AdminRulebookManagement: React.FC = () => {
             type="button"
             disabled={loading || saving}
             onClick={load}
-            className="rounded-xl bg-slate-800/70 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+            className="rounded-xl bg-slate-800/40 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
           >
             Refresh
           </button>
@@ -263,10 +263,10 @@ export const AdminRulebookManagement: React.FC = () => {
         </div>
       </div>
 
-      {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {error && <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 px-4 py-3 text-sm text-rose-400">{error}</div>}
       {loading && <div className="text-sm text-slate-300">Loading…</div>}
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
         <h3 className="text-sm font-semibold text-slate-200">Titel Regeln (Längen + Marketing Wörter)</h3>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {(['minLen', 'softMaxLen', 'maxLen', 'mobileMaxLen'] as const).map((k) => (
@@ -301,12 +301,12 @@ export const AdminRulebookManagement: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-200">Titel Kategorien (pro Titel-Kategorie)</h3>
           <button
             type="button"
-            className="rounded-xl bg-slate-800/70 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            className="rounded-xl bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
             onClick={() =>
               setTitleRows((prev) => [
                 ...prev,
@@ -374,12 +374,12 @@ export const AdminRulebookManagement: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-200">Highlights Regeln (pro Schema)</h3>
           <button
             type="button"
-            className="rounded-xl bg-slate-800/70 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            className="rounded-xl bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
             onClick={() => setHighlightRows((p) => [...p, { schemaId: 'generic', min: 4, max: 6, minLen: 70, maxLen: 110 }])}
           >
             + Add row
@@ -441,12 +441,12 @@ export const AdminRulebookManagement: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-200">Attribute Canonical Map (Synonyme → Canonical Key)</h3>
           <button
             type="button"
-            className="rounded-xl bg-slate-800/70 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            className="rounded-xl bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
             onClick={() => setCanonRows((p) => [...p, { from: '', to: '' }])}
           >
             + Add row
@@ -501,7 +501,7 @@ export const AdminRulebookManagement: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
         <h3 className="text-sm font-semibold text-slate-200">Version Note</h3>
         <textarea
           rows={2}
@@ -512,7 +512,7 @@ export const AdminRulebookManagement: React.FC = () => {
         />
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-slate-200">Pflicht: Initial Run + Delta Sync</h3>
@@ -533,7 +533,7 @@ export const AdminRulebookManagement: React.FC = () => {
               type="button"
               disabled={saving || !applyJobId}
               onClick={refreshApplyJob}
-              className="rounded-xl bg-slate-800/70 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+              className="rounded-xl bg-slate-800/40 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
             >
               Refresh status
             </button>
@@ -549,7 +549,7 @@ export const AdminRulebookManagement: React.FC = () => {
               max={9999}
               value={applyMinQty}
               onChange={(e) => setApplyMinQty(Number(e.target.value) || 1)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100"
             />
           </label>
 

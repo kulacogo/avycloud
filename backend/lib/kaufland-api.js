@@ -4,8 +4,28 @@ const { getSecretValue } = require('./secret-values');
 
 const DEFAULT_BASE_URL = 'https://sellerapi.kaufland.com/v2';
 const DEFAULT_USER_AGENT = process.env.KAUFLAND_USER_AGENT || 'Inhouse_development';
-const DEFAULT_TIMEOUT_MS = Math.max(1_000, parseInt(process.env.KAUFLAND_API_TIMEOUT_MS || '25_000', 10) || 25_000);
+const DEFAULT_TIMEOUT_MS = Math.max(1_000, parseInt(process.env.KAUFLAND_API_TIMEOUT_MS || '25000', 10) || 25_000);
 const MAX_RETRIES = Math.max(0, parseInt(process.env.KAUFLAND_API_MAX_RETRIES || '4', 10) || 4);
+
+const CONDITION_CODE_MAP = {
+  100: 'NEW',
+  110: 'REFURBISHED___AS_NEW',
+  120: 'REFURBISHED___VERY_GOOD',
+  130: 'REFURBISHED___GOOD',
+  140: 'REFURBISHED___ACCEPTABLE',
+  200: 'USED___AS_NEW',
+  300: 'USED___VERY_GOOD',
+  400: 'USED___GOOD',
+  500: 'USED___ACCEPTABLE',
+};
+const CONDITION_VALUES = new Set(Object.values(CONDITION_CODE_MAP));
+const VAT_INDICATORS = new Set([
+  'standard_rate',
+  'reduced_rate_1',
+  'reduced_rate_2',
+  'super_reduced_rate',
+  'zero_rate',
+]);
 
 let cachedConfig = null;
 
@@ -18,6 +38,15 @@ function toInteger(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
   return Math.trunc(n);
+}
+
+function normalizeCondition(value) {
+  const raw = safeString(value).toUpperCase();
+  if (!raw) return 'NEW';
+  if (CONDITION_VALUES.has(raw)) return raw;
+  const asInt = toInteger(raw);
+  if (asInt != null && CONDITION_CODE_MAP[asInt]) return CONDITION_CODE_MAP[asInt];
+  return 'NEW';
 }
 
 function toPriceCents(value) {
@@ -36,6 +65,16 @@ function backoffDelay(attempt) {
   const cap = 8_000;
   const raw = Math.min(base * 2 ** attempt, cap);
   return raw + Math.floor(Math.random() * 250);
+}
+
+function extractUnitIdFromLocation(locationHeader) {
+  const raw = safeString(locationHeader);
+  if (!raw) return null;
+  const match = raw.match(/\/units\/(\d+)\/?$/i);
+  if (!match) return null;
+  const unitId = Number(match[1]);
+  if (!Number.isFinite(unitId) || unitId <= 0) return null;
+  return unitId;
 }
 
 function buildAbsoluteUrl(baseUrl, requestPath, query = null) {
@@ -181,6 +220,12 @@ function pickUnitData(product, { mode = 'create', storefront = 'de' } = {}) {
     product?.details?.pricing?.amount ??
     null;
   const listingPrice = toPriceCents(rawPrice);
+  const rawMinimumPrice =
+    product?.details?.pricing?.minimum_price?.amount ??
+    product?.details?.pricing?.minimum_price ??
+    product?.details?.pricing?.minimumPrice ??
+    null;
+  const minimumPrice = toPriceCents(rawMinimumPrice);
 
   const quantityRaw =
     product?.inventory?.availableQuantity ??
@@ -189,6 +234,35 @@ function pickUnitData(product, { mode = 'create', storefront = 'de' } = {}) {
     0;
   const amount = Math.max(0, toInteger(quantityRaw) || 0);
   const handlingTime = Math.max(1, toInteger(product?.details?.handling_time) || 1);
+  const condition = normalizeCondition(product?.details?.condition);
+  const note = safeString(
+    product?.details?.kaufland?.note ||
+      product?.details?.marketplaces?.kaufland?.note ||
+      product?.details?.kaufland_note
+  )
+    .replace(/\s+/g, ' ')
+    .slice(0, 250);
+  const idShippingGroup = toInteger(
+    product?.details?.kaufland?.id_shipping_group ??
+      product?.details?.marketplaces?.kaufland?.id_shipping_group ??
+      product?.details?.kaufland_shipping_group ??
+      null
+  );
+  const idWarehouse = toInteger(
+    product?.details?.kaufland?.id_warehouse ??
+      product?.details?.marketplaces?.kaufland?.id_warehouse ??
+      product?.details?.kaufland_warehouse ??
+      null
+  );
+  const vatIndicatorRaw = safeString(
+    product?.details?.kaufland?.vat_indicator ||
+      product?.details?.marketplaces?.kaufland?.vat_indicator ||
+      product?.details?.kaufland_vat_indicator
+  ).toLowerCase();
+  const vatIndicator = VAT_INDICATORS.has(vatIndicatorRaw) ? vatIndicatorRaw : '';
+  const safeMinimumPrice = minimumPrice && minimumPrice > 0 ? minimumPrice : undefined;
+  const optionalShippingGroup = idShippingGroup != null && idShippingGroup > 0 ? idShippingGroup : undefined;
+  const optionalWarehouse = idWarehouse != null && idWarehouse > 0 ? idWarehouse : undefined;
 
   if (!idOffer) {
     const err = new Error(`Missing SKU/id_offer for product ${safeString(product?.id) || 'n/a'}`);
@@ -208,14 +282,32 @@ function pickUnitData(product, { mode = 'create', storefront = 'de' } = {}) {
 
   return {
     storefront: storefront || 'de',
+    idOffer,
+    ean,
     unitData: {
       id_offer: idOffer,
       ean: ean || undefined,
+      condition,
       amount,
       handling_time: handlingTime,
       listing_price: listingPrice,
+      minimum_price: safeMinimumPrice,
+      note: note || undefined,
+      id_shipping_group: optionalShippingGroup,
+      id_warehouse: optionalWarehouse,
+      vat_indicator: vatIndicator || undefined,
+    },
+    patchData: {
       status: amount > 0 ? 'AVAILABLE' : 'ONHOLD',
-      note: safeString(product?.details?.condition) || undefined,
+      amount,
+      handling_time: handlingTime,
+      listing_price: listingPrice,
+      minimum_price: safeMinimumPrice,
+      status: amount > 0 ? 'AVAILABLE' : 'ONHOLD',
+      note: note || undefined,
+      id_shipping_group: optionalShippingGroup,
+      id_warehouse: optionalWarehouse,
+      vat_indicator: vatIndicator || undefined,
     },
   };
 }
@@ -263,16 +355,30 @@ async function createUnit(product, { storefront = 'de' } = {}) {
     query: { storefront: picked.storefront },
     body: picked.unitData,
   });
-  return { created: true, data: res.data };
+  const location = typeof res?.headers?.get === 'function' ? res.headers.get('location') : null;
+  const bodyUnitId = Number(res?.data?.data?.id_unit || 0);
+  const idFromBody = Number.isFinite(bodyUnitId) && bodyUnitId > 0 ? bodyUnitId : null;
+  const idFromLocation = extractUnitIdFromLocation(location);
+  return {
+    created: true,
+    data: res.data,
+    location: location || null,
+    id_unit: idFromBody || idFromLocation || null,
+  };
 }
 
 async function updateUnit(unitId, product, { storefront = 'de' } = {}) {
   const picked = pickUnitData(product, { mode: 'update', storefront });
   const res = await kauflandRequest('PATCH', `/units/${encodeURIComponent(String(unitId))}`, {
     query: { storefront: picked.storefront },
-    body: picked.unitData,
+    body: picked.patchData,
   });
-  return { updated: true, data: res.data };
+  const parsedUnitId = Number(unitId);
+  return {
+    updated: true,
+    data: res.data,
+    id_unit: Number.isFinite(parsedUnitId) && parsedUnitId > 0 ? parsedUnitId : null,
+  };
 }
 
 module.exports = {

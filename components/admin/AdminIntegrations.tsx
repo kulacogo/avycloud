@@ -117,7 +117,7 @@ export const AdminIntegrations: React.FC = () => {
   }, [testSku]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
@@ -161,7 +161,7 @@ export const AdminIntegrations: React.FC = () => {
         </HelpDisclosure>
 
         {error && (
-          <div className="rounded-xl border border-rose-800 bg-rose-900/40 p-3 text-sm text-rose-100">
+          <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 p-3 text-sm text-rose-400">
             {error}
           </div>
         )}
@@ -220,7 +220,7 @@ export const AdminIntegrations: React.FC = () => {
               </button>
             </div>
             {offersError && (
-              <div className="rounded-xl border border-rose-800 bg-rose-900/40 p-3 text-sm text-rose-100">
+              <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 p-3 text-sm text-rose-400">
                 {offersError}
               </div>
             )}

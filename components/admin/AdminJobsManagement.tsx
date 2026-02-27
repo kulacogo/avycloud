@@ -63,8 +63,8 @@ export const AdminJobsManagement: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-white">Jobs</h3>
@@ -108,7 +108,7 @@ export const AdminJobsManagement: React.FC = () => {
         ) : null}
       </div>
 
-      <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4 space-y-4">
+      <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h4 className="text-base font-semibold text-white">GPSR Web Enrichment (initial)</h4>
@@ -141,7 +141,7 @@ export const AdminJobsManagement: React.FC = () => {
               max={20000}
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value) || 1)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100"
             />
           </label>
 
@@ -153,7 +153,7 @@ export const AdminJobsManagement: React.FC = () => {
               max={10}
               value={concurrency}
               onChange={(e) => setConcurrency(Number(e.target.value) || 1)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100"
             />
           </label>
 
@@ -165,7 +165,7 @@ export const AdminJobsManagement: React.FC = () => {
               max={9999}
               value={minQty}
               onChange={(e) => setMinQty(Number(e.target.value) || 1)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100"
             />
           </label>
 
@@ -183,7 +183,7 @@ export const AdminJobsManagement: React.FC = () => {
         {error ? <Notice tone="error" title="Fehler" details={error} /> : null}
 
         {lastResult ? (
-          <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-3">
+          <div className="rounded-xl border border-white/10 bg-slate-950/40 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Result</p>
             <pre className="mt-2 overflow-auto whitespace-pre-wrap text-xs text-slate-200">
               {JSON.stringify(lastResult, null, 2)}

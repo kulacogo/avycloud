@@ -92,7 +92,7 @@ export const AdminRoleManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold">Admin: Roles & Rechte</h2>
@@ -102,14 +102,14 @@ export const AdminRoleManagement: React.FC = () => {
           type="button"
           onClick={load}
           disabled={loading}
-          className="rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white"
+          className="rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white"
         >
           Refresh
         </button>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+        <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 px-4 py-3 text-sm text-rose-400">
           {error}
         </div>
       )}
@@ -121,7 +121,7 @@ export const AdminRoleManagement: React.FC = () => {
           {roles.map((role) => {
             const matrix = (role.permissions || {}) as PermissionMatrix;
             return (
-              <div key={role.id} className="rounded-2xl border border-white/10 bg-slate-800/60 p-5 space-y-4">
+              <div key={role.id} className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h3 className="font-semibold">{role.id}</h3>

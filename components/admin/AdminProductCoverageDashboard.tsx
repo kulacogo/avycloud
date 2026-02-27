@@ -81,7 +81,7 @@ export const AdminProductCoverageDashboard: React.FC<{
   };
 
   return (
-    <div className="rounded-2xl bg-slate-900/60 p-4 ring-1 ring-slate-700/60">
+    <div className="rounded-2xl bg-slate-800/40 p-5 border border-white/10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-slate-100">Data coverage</div>
@@ -105,7 +105,7 @@ export const AdminProductCoverageDashboard: React.FC<{
       ) : null}
 
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-        <div className="rounded-xl bg-slate-800/60 p-3 ring-1 ring-slate-700/50">
+        <div className="rounded-xl bg-slate-900/40 p-3 border border-white/10">
           <div className="text-xs text-slate-400">Products</div>
           <div className="mt-1 text-2xl font-bold text-slate-100">{total}</div>
           <div className="mt-1 text-xs text-slate-400">
@@ -138,7 +138,7 @@ export const AdminProductCoverageDashboard: React.FC<{
           </div>
         </div>
 
-        <div className="rounded-xl bg-slate-800/60 p-3 ring-1 ring-slate-700/50">
+        <div className="rounded-xl bg-slate-900/40 p-3 border border-white/10">
           <div className="text-xs text-slate-400">K‑Typ</div>
           <div className="mt-1 text-2xl font-bold text-slate-100">
             <button
@@ -170,7 +170,7 @@ export const AdminProductCoverageDashboard: React.FC<{
           </div>
         </div>
 
-        <div className="rounded-xl bg-slate-800/60 p-3 ring-1 ring-slate-700/50">
+        <div className="rounded-xl bg-slate-900/40 p-3 border border-white/10">
           <div className="text-xs text-slate-400">GPSR</div>
           <div className="mt-1 text-2xl font-bold text-slate-100">
             <button
@@ -215,7 +215,7 @@ export const AdminProductCoverageDashboard: React.FC<{
       </div>
 
       <div className="mt-3 flex flex-wrap items-end gap-3">
-        <div className="rounded-xl bg-slate-800/40 p-3 ring-1 ring-slate-700/40">
+        <div className="rounded-xl bg-slate-800/40 p-3 border border-white/10">
           <div className="text-xs font-semibold text-slate-200">Price sanity (configurable)</div>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-300">
             <label className="inline-flex items-center gap-2">
@@ -230,7 +230,7 @@ export const AdminProductCoverageDashboard: React.FC<{
                   } catch {}
                 }}
                 placeholder="(off)"
-                className="w-20 rounded-lg bg-slate-900/40 px-2 py-1 text-slate-100 ring-1 ring-slate-700/50"
+                className="w-20 rounded-xl bg-slate-900/40 px-2 py-1 text-slate-100 border border-white/10"
               />
             </label>
             <label className="inline-flex items-center gap-2">
@@ -245,13 +245,13 @@ export const AdminProductCoverageDashboard: React.FC<{
                   } catch {}
                 }}
                 placeholder="(off)"
-                className="w-20 rounded-lg bg-slate-900/40 px-2 py-1 text-slate-100 ring-1 ring-slate-700/50"
+                className="w-20 rounded-xl bg-slate-900/40 px-2 py-1 text-slate-100 border border-white/10"
               />
             </label>
             <button
               type="button"
               onClick={() => load()}
-              className="rounded-lg bg-slate-700 px-2.5 py-1 font-semibold text-slate-100 hover:bg-slate-600"
+              className="rounded-xl bg-slate-800/80 border border-white/[0.08] px-2.5 py-1 font-semibold text-slate-100 hover:bg-white/10"
             >
               Apply
             </button>
@@ -260,7 +260,7 @@ export const AdminProductCoverageDashboard: React.FC<{
             <button
               type="button"
               onClick={() => open('Price missing (<= 0 or invalid)', data?.buckets?.priceMissingIds)}
-              className="rounded-lg bg-slate-900/40 p-2 text-left ring-1 ring-slate-700/40 hover:bg-slate-900/60"
+              className="rounded-xl bg-slate-900/40 p-2 text-left border border-white/10 hover:bg-slate-900/60"
             >
               <div className="text-[11px] text-slate-400">Missing</div>
               <div className="text-sm font-bold text-slate-100">{data?.price?.missingCount ?? 0}</div>
@@ -268,7 +268,7 @@ export const AdminProductCoverageDashboard: React.FC<{
             <button
               type="button"
               onClick={() => open('Price ok', data?.buckets?.priceOkIds)}
-              className="rounded-lg bg-slate-900/40 p-2 text-left ring-1 ring-slate-700/40 hover:bg-slate-900/60"
+              className="rounded-xl bg-slate-900/40 p-2 text-left border border-white/10 hover:bg-slate-900/60"
             >
               <div className="text-[11px] text-slate-400">OK</div>
               <div className="text-sm font-bold text-slate-100">{data?.price?.okCount ?? 0}</div>
@@ -276,7 +276,7 @@ export const AdminProductCoverageDashboard: React.FC<{
             <button
               type="button"
               onClick={() => open('Price out of range', data?.buckets?.priceOutOfRangeIds)}
-              className="rounded-lg bg-slate-900/40 p-2 text-left ring-1 ring-slate-700/40 hover:bg-slate-900/60"
+              className="rounded-xl bg-slate-900/40 p-2 text-left border border-white/10 hover:bg-slate-900/60"
             >
               <div className="text-[11px] text-slate-400">Out of range</div>
               <div className="text-sm font-bold text-slate-100">{data?.price?.outOfRangeCount ?? 0}</div>
@@ -284,7 +284,7 @@ export const AdminProductCoverageDashboard: React.FC<{
           </div>
         </div>
 
-        <div className="flex-1 rounded-xl bg-slate-800/40 p-3 ring-1 ring-slate-700/40">
+        <div className="flex-1 rounded-xl bg-slate-800/40 p-3 border border-white/10">
           <div className="text-xs font-semibold text-slate-200">Main categories</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {Object.entries(data?.categories?.mainCategoryCounts || {})
@@ -295,7 +295,7 @@ export const AdminProductCoverageDashboard: React.FC<{
                   key={cat}
                   type="button"
                   onClick={() => open(`Category: ${cat}`, data?.buckets?.mainCategoryIds?.[cat])}
-                  className="rounded-full bg-slate-900/40 px-3 py-1 text-xs font-semibold text-slate-200 ring-1 ring-slate-700/40 hover:bg-slate-900/60"
+                  className="rounded-full bg-slate-900/40 px-3 py-1 text-xs font-semibold text-slate-200 border border-white/10 hover:bg-slate-900/60"
                 >
                   {cat} <span className="text-slate-400">({count})</span>
                 </button>
@@ -305,7 +305,7 @@ export const AdminProductCoverageDashboard: React.FC<{
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl bg-slate-800/40 p-3 ring-1 ring-slate-700/40">
+      <div className="mt-4 rounded-xl bg-slate-800/40 p-3 border border-white/10">
         <div className="text-xs font-semibold text-slate-200">GPSR required fields filled (per product, no placeholders)</div>
         <div className="mt-2 grid grid-cols-4 gap-2 md:grid-cols-9">
           {Array.from({ length: 9 }).map((_, i) => {
@@ -316,7 +316,7 @@ export const AdminProductCoverageDashboard: React.FC<{
                 key={key}
                 type="button"
                 onClick={() => open(`GPSR ${i}/8 filled (no placeholders)`, data?.buckets?.gpsrFilledCountIds?.[key])}
-                className="rounded-lg bg-slate-900/40 p-2 text-left ring-1 ring-slate-700/40 hover:bg-slate-900/60"
+                className="rounded-xl bg-slate-900/40 p-2 text-left border border-white/10 hover:bg-slate-900/60"
               >
                 <div className="text-[11px] text-slate-400">{i}/8</div>
                 <div className="text-sm font-bold text-slate-100">{count}</div>

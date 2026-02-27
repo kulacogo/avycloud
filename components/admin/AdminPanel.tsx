@@ -14,7 +14,7 @@ export const AdminPanel: React.FC = () => {
   const [tab, setTab] = React.useState<Tab>('users');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader title="Admin" />
 
       <div className="flex flex-wrap items-center gap-2">
@@ -22,7 +22,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('users')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'users' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'users' ? 'bg-sky-600 text-white' : 'bg-slate-800/40 text-slate-200 hover:bg-white/10'
           }`}
         >
           Users
@@ -31,7 +31,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('groups')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'groups' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'groups' ? 'bg-sky-600 text-white' : 'bg-slate-800/40 text-slate-200 hover:bg-white/10'
           }`}
         >
           Groups
@@ -40,7 +40,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('roles')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'roles' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'roles' ? 'bg-sky-600 text-white' : 'bg-slate-800/40 text-slate-200 hover:bg-white/10'
           }`}
         >
           Roles
@@ -49,7 +49,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('llm')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'llm' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'llm' ? 'bg-sky-600 text-white' : 'bg-slate-800/40 text-slate-200 hover:bg-white/10'
           }`}
         >
           LLM
@@ -58,7 +58,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('bulk')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'bulk' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'bulk' ? 'bg-sky-600 text-white' : 'bg-slate-800/40 text-slate-200 hover:bg-white/10'
           }`}
         >
           Bulk
@@ -67,7 +67,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('integrations')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'integrations' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'integrations' ? 'bg-sky-600 text-white' : 'bg-slate-800/40 text-slate-200 hover:bg-white/10'
           }`}
         >
           Integrations
@@ -76,7 +76,7 @@ export const AdminPanel: React.FC = () => {
           type="button"
           onClick={() => setTab('ebay')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-            tab === 'ebay' ? 'bg-sky-600 text-white' : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+            tab === 'ebay' ? 'bg-sky-600 text-white' : 'bg-slate-800/40 text-slate-200 hover:bg-white/10'
           }`}
         >
           eBay

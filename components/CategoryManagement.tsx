@@ -100,15 +100,15 @@ export const CategoryManagement: React.FC = () => {
   }, [profile, selected]);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="max-w-6xl mx-auto space-y-5">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-white">{t('categories.title')}</h1>
+          <h1 className="text-2xl font-bold text-white">{t('categories.title')}</h1>
           <p className="text-sm text-slate-400">{t('categories.subtitle')}</p>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-4 space-y-3">
+      <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
         <label className="text-xs uppercase tracking-widest text-slate-400">{t('categories.searchLabel')}</label>
         <input
           value={query}
@@ -122,13 +122,13 @@ export const CategoryManagement: React.FC = () => {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+        <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 px-4 py-3 text-sm text-rose-400">
           {error}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-4">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold text-slate-100">{t('categories.results')}</p>
             {loading && <p className="text-xs text-slate-400">{t('common.loading') || 'Loading…'}</p>}
@@ -157,7 +157,7 @@ export const CategoryManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-4 space-y-4">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
           <p className="text-sm font-semibold text-slate-100">{t('categories.profile')}</p>
           {!selected || !profile ? (
             <p className="text-sm text-slate-400">{t('categories.selectHint')}</p>

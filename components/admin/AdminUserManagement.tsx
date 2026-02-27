@@ -67,7 +67,7 @@ export const AdminUserManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold">Admin: User Management</h2>
@@ -76,14 +76,14 @@ export const AdminUserManagement: React.FC = () => {
         <button
           type="button"
           onClick={() => logout()}
-          className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2 text-sm font-semibold text-white"
+          className="rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-white/10 px-4 py-2 text-sm font-semibold text-white"
         >
           Logout
         </button>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+        <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 px-4 py-3 text-sm text-rose-400">
           {error}
         </div>
       )}
@@ -92,7 +92,7 @@ export const AdminUserManagement: React.FC = () => {
         <Notice tone={notice.tone} title={notice.title} onDismiss={() => setNotice(null)} details={notice.details} />
       ) : null}
 
-      <div className="rounded-2xl border border-white/10 bg-slate-800/60 p-5 space-y-4">
+      <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
         <h3 className="font-semibold">User einladen</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <input
@@ -128,14 +128,14 @@ export const AdminUserManagement: React.FC = () => {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-slate-800/60 p-5 space-y-3">
+      <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">Users</h3>
           <button
             type="button"
             onClick={load}
             disabled={loading}
-            className="rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-60 px-3 py-2 text-sm font-semibold text-white"
+            className="rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-3 py-2 text-sm font-semibold text-white"
           >
             Refresh
           </button>
@@ -184,7 +184,7 @@ export const AdminUserManagement: React.FC = () => {
                       <td className="py-2 pr-3">
                         <button
                           type="button"
-                          className="rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white"
+                          className="rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
                           onClick={() => {
                             navigator.clipboard?.writeText(String(u.email || '')).catch(() => {});
                           }}

@@ -413,7 +413,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
   const selectedGangBins = selectedGang != null ? binsByGang.get(selectedGang) || [] : [];
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-5">
       <PageHeader
         title="Warehouse"
         subtitle="Lagerstruktur (Zonen/BINs) ansehen, Labels drucken und BIN-Inhalte verwalten."
@@ -463,7 +463,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
 
       {/* Header moved to PageHeader above */}
 
-      <div className="bg-slate-800 rounded-lg p-4 shadow border border-slate-700 space-y-3">
+      <div className="bg-slate-800/40 rounded-2xl p-5 border border-white/10 space-y-3">
         <h3 className="text-lg font-semibold text-white">BIN-Auswahl & Druck</h3>
         <div className="text-xs text-slate-400">
           Bereich: {selectedZone ? `${selectedZone.zone}/${selectedZone.etage}` : '—'}
@@ -474,7 +474,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           <button
             type="button"
             onClick={selectAllInZone}
-            className="px-3 py-1.5 rounded-lg bg-slate-700 text-sm text-white hover:bg-slate-600"
+            className="px-3 py-1.5 rounded-xl bg-slate-800/80 text-sm text-white hover:bg-slate-700"
           >
             Zone markieren
           </button>
@@ -482,7 +482,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             type="button"
             onClick={selectCurrentGang}
             disabled={selectedGang == null}
-            className="px-3 py-1.5 rounded-lg text-sm text-white disabled:opacity-40 bg-slate-700 hover:bg-slate-600"
+            className="px-3 py-1.5 rounded-xl text-sm text-white disabled:opacity-40 bg-slate-800/80 hover:bg-slate-700"
           >
             Gang markieren
           </button>
@@ -490,14 +490,14 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             type="button"
             onClick={selectCurrentRegal}
             disabled={selectedGang == null || selectedRegal == null}
-            className="px-3 py-1.5 rounded-lg text-sm text-white disabled:opacity-40 bg-slate-700 hover:bg-slate-600"
+            className="px-3 py-1.5 rounded-xl text-sm text-white disabled:opacity-40 bg-slate-800/80 hover:bg-slate-700"
           >
             Regal markieren
           </button>
           <button
             type="button"
             onClick={clearSelection}
-            className="px-3 py-1.5 rounded-lg bg-slate-700 text-sm text-white hover:bg-slate-600"
+            className="px-3 py-1.5 rounded-xl bg-slate-800/80 text-sm text-white hover:bg-slate-700"
           >
             Auswahl leeren
           </button>
@@ -516,7 +516,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
         </div>
       </div>
 
-      <div className="bg-slate-800 rounded-lg p-4 shadow">
+      <div className="bg-slate-800/40 rounded-2xl p-5 border border-white/10">
         <h3 className="text-xl font-semibold text-white mb-3">Neue Lagerstruktur anlegen</h3>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div>
@@ -580,7 +580,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
         </button>
       </div>
 
-      <div className="bg-slate-800 rounded-lg p-4 shadow">
+      <div className="bg-slate-800/40 rounded-2xl p-5 border border-white/10">
         <h3 className="text-xl font-semibold text-white mb-3">Zonenübersicht</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {zones.map((zone) => (
@@ -604,7 +604,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
       </div>
 
       {selectedZone && (
-        <div className="bg-slate-800 rounded-lg p-4 shadow">
+        <div className="bg-slate-800/40 rounded-2xl p-5 border border-white/10">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-xl font-semibold text-white">

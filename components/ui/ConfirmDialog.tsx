@@ -123,7 +123,7 @@ export const ConfirmDialog: React.FC<{
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
-        className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-xl"
+        className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-5"
       >
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-3">
@@ -147,7 +147,7 @@ export const ConfirmDialog: React.FC<{
           ) : null}
 
           {details ? (
-            <details className="rounded-xl border border-slate-700 bg-slate-950/40 p-3 text-xs text-slate-200">
+            <details className="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-xs text-slate-200">
               <summary className="cursor-pointer select-none text-slate-200">{t('common.showDetails')}</summary>
               <div className="mt-2 whitespace-pre-wrap break-words">{details}</div>
             </details>
@@ -158,7 +158,7 @@ export const ConfirmDialog: React.FC<{
               ref={cancelRef}
               type="button"
               onClick={onCancel}
-              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700"
+              className="rounded-xl border border-white/10 bg-slate-800/80 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-white/10"
             >
               {cancelText}
             </button>
@@ -167,7 +167,7 @@ export const ConfirmDialog: React.FC<{
               type="button"
               onClick={onConfirm}
               disabled={Boolean(confirmDisabled) || Boolean(confirmBusy)}
-              className={`rounded-lg px-4 py-1.5 text-sm font-semibold ${confirmClasses} disabled:opacity-60`}
+              className={`rounded-xl px-4 py-1.5 text-sm font-semibold ${confirmClasses} disabled:opacity-60`}
             >
               {confirmBusy ? t('common.loading') : confirmLabel}
             </button>

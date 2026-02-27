@@ -264,7 +264,7 @@ export const AdminEbayTaxonomy: React.FC = () => {
   const allCount = catalog?.allAspects?.length ?? 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <PageHeader
         title="eBay: Kategorien & Parameter"
         subtitle="Links: Kategoriebaum. Rechts: Taxonomie-Aspects (Pflicht/Empfohlen/Optional) für die selektierte Kategorie."
@@ -303,7 +303,7 @@ export const AdminEbayTaxonomy: React.FC = () => {
       {categoriesError ? <Notice tone="error" title="Kategorien konnten nicht geladen werden" details={categoriesError} /> : null}
 
       <div className="grid grid-cols-1 xl:grid-cols-[520px_minmax(0,1fr)] gap-4">
-        <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-sm font-semibold text-slate-100">Kategoriebaum</p>
@@ -339,7 +339,7 @@ export const AdminEbayTaxonomy: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-4">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-slate-100">Parameter (Aspects)</p>

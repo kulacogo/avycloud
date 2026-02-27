@@ -1188,11 +1188,11 @@ export const EbayListingsView: React.FC = () => {
   }, [listings]);
 
   return (
-    <div className="w-full max-w-[1800px] mx-auto px-2 lg:px-4 space-y-4">
-      <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-4 space-y-3">
+    <div className="w-full max-w-[1800px] mx-auto px-2 lg:px-4 space-y-5">
+      <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-white">eBay Listings</h1>
+            <h1 className="text-2xl font-bold text-white">eBay Listings</h1>
             <p className="text-sm text-slate-400">
               Audit fuer Kategorie, Item Specifics und Content. Gap-Workflow mit kontrolliertem Sync zu eBay.
             </p>
@@ -1472,7 +1472,7 @@ export const EbayListingsView: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-4 space-y-4">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
           {!selectedItemId ? (
             <p className="text-sm text-slate-400">Bitte ein Listing auswaehlen.</p>
           ) : loadingDetail ? (
@@ -1860,7 +1860,7 @@ export const EbayListingsView: React.FC = () => {
       </div>
 
       {(dryRunResult || applyResult) && (
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-4 space-y-3">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
           {dryRunResult && (
             <div className="space-y-2">
               <p className="text-sm font-semibold text-slate-100">Dry-Run Ergebnis</p>
