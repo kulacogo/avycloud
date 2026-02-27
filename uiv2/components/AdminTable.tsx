@@ -32,6 +32,7 @@ type ColumnId =
   | 'pendingIntake'
   | 'storage'
   | 'baselinker'
+  | 'kaufland'
   | 'lastSold'
   | 'syncStatus'
   | 'saveStatus'
@@ -41,10 +42,10 @@ type ColumnId =
 
 type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'syncStatus', 'lastSaved'],
-  warehouse: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'syncStatus', 'saveStatus'],
-  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'qualityGate', 'pendingIntake', 'baselinker', 'syncStatus', 'lastSynced'],
-  minimal: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'baselinker', 'syncStatus'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'kaufland', 'syncStatus', 'lastSaved'],
+  warehouse: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'kaufland', 'syncStatus', 'saveStatus'],
+  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'qualityGate', 'pendingIntake', 'baselinker', 'kaufland', 'syncStatus', 'lastSynced'],
+  minimal: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'baselinker', 'kaufland', 'syncStatus'],
 };
 
 interface ColumnDefinition {
@@ -653,6 +654,34 @@ const AdminTable: React.FC<AdminTableProps> = ({
         },
       },
       {
+        id: 'kaufland',
+        label: 'Kaufland',
+        sortKey: 'ops.kaufland.last_sync_iso',
+        defaultVisible: true,
+        render: ({ product }) => {
+          const kp = (product as any)?.ops?.kaufland || {};
+          const lastStatus = String(kp?.last_sync_status || '').toLowerCase();
+          const unitId = Number(kp?.id_unit || 0);
+          const hasUnitId = Number.isFinite(unitId) && unitId > 0;
+          const listed = hasUnitId || lastStatus === 'ok';
+          const failed = lastStatus === 'failed';
+          return (
+            <span
+              className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                failed
+                  ? 'bg-[var(--error)]/20 text-[color:var(--error)]'
+                  : listed
+                    ? 'bg-[var(--success)]/20 text-[color:var(--success)]'
+                    : 'bg-[var(--surface)] text-[color:var(--text-primary)]'
+              }`}
+              title={hasUnitId ? `Unit ID: ${unitId}` : ''}
+            >
+              {failed ? 'Fehler' : listed ? 'gelistet' : 'nicht gelistet'}
+            </span>
+          );
+        },
+      },
+      {
         id: 'lastSold',
         label: t('table.lastSold'),
         sortKey: 'details.attributes.lastSoldAt',
@@ -734,6 +763,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
           const parsed = JSON.parse(stored) as ColumnId[];
           const valid = parsed.filter((id) => columnDefinitions.some((col) => col.id === id));
           if (valid.length > 0) {
+            // Migration: keep existing user layout but ensure new Kaufland indicator column appears.
+            if (!valid.includes('kaufland')) valid.push('kaufland');
             return valid;
           }
         }
