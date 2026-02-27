@@ -521,6 +521,13 @@ function enforceEbayAspects(product) {
       'oem reference number': 'Referenznummer(n) OEM',
       'oem reference number(s)': 'Referenznummer(n) OEM',
       'referenznummer(n) oem': 'Referenznummer(n) OEM',
+      'isbn': 'ISBN',
+      'isbn-10': 'ISBN',
+      'isbn 10': 'ISBN',
+      'isbn10': 'ISBN',
+      'isbn-13': 'ISBN',
+      'isbn 13': 'ISBN',
+      'isbn13': 'ISBN',
 
       // Weight (kg) aliases
       // We store a normalized numeric weight under the internal key `weight` (kg).
@@ -1183,7 +1190,22 @@ function enforceEbayAspects(product) {
   // AvyCloud-internal keys that are explicitly allowed even if not present in eBay taxonomy aspects.
   // These are *not* "invented" keys; they are stable system fields used by downstream flows.
   const ALWAYS_ALLOWED_KEYS_LOWER = new Set(
-    ['k-typ', 'ktyp', 'k typ', 'weight', 'gewicht (kg)', 'gewicht(kg)'].map((k) => normalizeLower(k))
+    [
+      'k-typ',
+      'ktyp',
+      'k typ',
+      'weight',
+      'gewicht (kg)',
+      'gewicht(kg)',
+      // Some eBay category metadata snapshots omit ISBN for books, but sellers still need it.
+      'isbn',
+      'isbn-10',
+      'isbn 10',
+      'isbn10',
+      'isbn-13',
+      'isbn 13',
+      'isbn13',
+    ].map((k) => normalizeLower(k))
   );
 
   // Vehicle fitment (K-Typ) enforcement for categories where eBay supports vehicle fitment lists.

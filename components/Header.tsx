@@ -221,7 +221,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   return (
     <>
       <header className="safe-area-header bg-slate-900/90 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/50 border-b border-white/[0.06]">
-        <div className="w-full px-3 sm:px-5 lg:px-8 py-2">
+        <div className="w-full px-3 sm:px-5 lg:px-8 py-1.5">
           <div className="flex items-center gap-4 w-full">
 
             {/* Logo */}

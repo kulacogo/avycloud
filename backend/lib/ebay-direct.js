@@ -3592,6 +3592,9 @@ function mapProductToEbayItem(product, overrides = {}) {
   const details = product?.details || {};
   const identifiers = details?.identifiers || {};
   const pricing = details?.pricing?.lowest_price || {};
+  const attrs = details?.attributes && typeof details.attributes === 'object' ? details.attributes : {};
+  const attrsExtra =
+    details?.attributes_extra && typeof details.attributes_extra === 'object' ? details.attributes_extra : {};
 
   const title = safeString(overrides.title) || safeString(deriveProductTitle(product));
   if (!title) throw Object.assign(new Error('Produkt hat keinen Titel'), { code: 'EBAY_PUBLISH_NO_TITLE' });
@@ -3643,7 +3646,27 @@ function mapProductToEbayItem(product, overrides = {}) {
       photoOverride: heroPhoto,
     });
 
+  const pickAttributeValue = (...candidates) => {
+    const pools = [attrs, attrsExtra];
+    for (const candidate of candidates) {
+      const needle = safeString(candidate).toLowerCase();
+      if (!needle) continue;
+      for (const pool of pools) {
+        const key = Object.keys(pool).find((k) => safeString(k).toLowerCase() === needle);
+        if (!key) continue;
+        const value = safeString(pool[key]);
+        if (value) return value;
+      }
+    }
+    return '';
+  };
+
   const ean = safeString(overrides.ean) || safeString(identifiers?.ean) || safeString(identifiers?.gtin) || undefined;
+  const isbn =
+    safeString(overrides.isbn) ||
+    safeString(identifiers?.isbn) ||
+    pickAttributeValue('ISBN', 'ISBN-13', 'ISBN 13', 'ISBN13', 'ISBN-10', 'ISBN 10', 'ISBN10') ||
+    undefined;
   const mpn = safeString(overrides.mpn) || safeString(identifiers?.mpn) || undefined;
   const brand =
     safeString(overrides.brand) ||
@@ -3665,6 +3688,10 @@ function mapProductToEbayItem(product, overrides = {}) {
   }
   if (brand && !itemSpecifics['Marke'] && !itemSpecifics['Brand']) {
     itemSpecifics['Marke'] = [brand];
+  }
+  const hasIsbnSpecific = Object.keys(itemSpecifics).some((key) => normalizeSpecificToken(key) === 'isbn');
+  if (isbn && !hasIsbnSpecific) {
+    itemSpecifics.ISBN = [isbn];
   }
 
   // Extract K-Typ fitment numbers before filtering. K-Typ must not be sent as
@@ -3698,6 +3725,7 @@ function mapProductToEbayItem(product, overrides = {}) {
     sku,
     pictureUrls,
     ean,
+    isbn,
     mpn,
     brand,
     itemSpecifics: filteredSpecifics.itemSpecifics,
@@ -3719,6 +3747,9 @@ function validatePublishReadiness(product, overrides = {}) {
   const details = product?.details || {};
   const identifiers = details?.identifiers || {};
   const pricing = details?.pricing?.lowest_price || {};
+  const attrs = details?.attributes && typeof details.attributes === 'object' ? details.attributes : {};
+  const attrsExtra =
+    details?.attributes_extra && typeof details.attributes_extra === 'object' ? details.attributes_extra : {};
 
   const title = safeString(overrides.title) || safeString(deriveProductTitle(product));
   if (!title) blockers.push('Kein Titel vorhanden.');
@@ -3745,8 +3776,26 @@ function validatePublishReadiness(product, overrides = {}) {
   });
   if (!pictureUrls.length) blockers.push('Keine Bilder mit gültiger URL – Template benötigt mindestens 1 Bild.');
 
+  const pickAttributeValue = (...candidates) => {
+    const pools = [attrs, attrsExtra];
+    for (const candidate of candidates) {
+      const needle = safeString(candidate).toLowerCase();
+      if (!needle) continue;
+      for (const pool of pools) {
+        const key = Object.keys(pool).find((k) => safeString(k).toLowerCase() === needle);
+        if (!key) continue;
+        const value = safeString(pool[key]);
+        if (value) return value;
+      }
+    }
+    return '';
+  };
   const ean = safeString(overrides.ean) || safeString(identifiers?.ean) || safeString(identifiers?.gtin);
-  if (!ean) warnings.push('Keine EAN/GTIN vorhanden.');
+  const isbn =
+    safeString(overrides.isbn) ||
+    safeString(identifiers?.isbn) ||
+    pickAttributeValue('ISBN', 'ISBN-13', 'ISBN 13', 'ISBN13', 'ISBN-10', 'ISBN 10', 'ISBN10');
+  if (!ean && !isbn) warnings.push('Keine EAN/GTIN/ISBN vorhanden.');
 
   const highlights = deriveProductHighlights(product);
   if (!highlights.length) warnings.push('Keine Produkt-Highlights vorhanden – Template-Sektion wird leer.');

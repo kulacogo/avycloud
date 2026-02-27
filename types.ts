@@ -81,6 +81,7 @@ export interface Identifiers {
   ean?: string;
   gtin?: string;
   upc?: string;
+  isbn?: string;
   mpn?: string;
   sku?: string;
 }
@@ -712,6 +713,7 @@ export interface EbayPublishOverrides {
   sku?: string;
   pictureUrls?: string[];
   ean?: string;
+  isbn?: string;
   mpn?: string;
   brand?: string;
   itemSpecifics?: Record<string, string[]>;
