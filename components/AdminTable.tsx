@@ -38,6 +38,7 @@ type ColumnId =
   | 'storage'
   | 'baselinker'
   | 'ebay'
+  | 'kaufland'
   | 'lastSold'
   | 'syncStatus'
   | 'saveStatus'
@@ -47,10 +48,10 @@ type ColumnId =
 
 type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'syncStatus', 'lastSaved'],
-  warehouse: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'syncStatus', 'saveStatus'],
-  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'qualityGate', 'pendingIntake', 'baselinker', 'syncStatus', 'lastSynced'],
-  minimal: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'baselinker', 'syncStatus'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'lastSaved'],
+  warehouse: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'saveStatus'],
+  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'qualityGate', 'pendingIntake', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'lastSynced'],
+  minimal: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'baselinker', 'ebay', 'kaufland', 'syncStatus'],
 };
 
 interface ColumnDefinition {
@@ -738,6 +739,34 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 —
               </span>
             )
+          );
+        },
+      },
+      {
+        id: 'kaufland',
+        label: 'Kaufland',
+        sortKey: 'ops.kaufland.last_sync_iso',
+        defaultVisible: true,
+        render: ({ product }) => {
+          const kp = (product as any)?.ops?.kaufland || {};
+          const lastStatus = String(kp?.last_sync_status || '').toLowerCase();
+          const unitId = Number(kp?.id_unit || 0);
+          const hasUnitId = Number.isFinite(unitId) && unitId > 0;
+          const listed = hasUnitId || lastStatus === 'ok';
+          const failed = lastStatus === 'failed';
+          return (
+            <span
+              className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                failed
+                  ? 'bg-rose-500/20 text-rose-200'
+                  : listed
+                    ? 'bg-emerald-500/20 text-emerald-200'
+                    : 'bg-slate-700 text-slate-300'
+              }`}
+              title={hasUnitId ? `Kaufland Unit ID: ${unitId}` : 'Kaufland Listing Status'}
+            >
+              {failed ? 'Fehler' : listed ? 'gelistet' : 'nicht gelistet'}
+            </span>
           );
         },
       },
@@ -2514,6 +2543,22 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 className={menuItemClass}
               >
                 {ebayUpdateInProgress ? 'eBay Update läuft...' : `Alle eBay-Listings aktualisieren (${ebayLinkedMap.size})`}
+              </button>
+              <button
+                type="button"
+                onClick={() => enqueueBulkForSelection('kaufland_create', { apply: true })}
+                disabled={bulkJobLoading || selectedIds.size === 0}
+                className={menuItemClass}
+              >
+                Kaufland: Listings erstellen
+              </button>
+              <button
+                type="button"
+                onClick={() => enqueueBulkForSelection('kaufland_update', { apply: true })}
+                disabled={bulkJobLoading || selectedIds.size === 0}
+                className={menuItemClass}
+              >
+                Kaufland: Listings aktualisieren
               </button>
 
               <div className="my-1 border-t border-slate-800" />

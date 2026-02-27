@@ -2206,6 +2206,7 @@ app.post('/api/admin/bulk/run', requirePermission('admin', 'jobs.run'), async (r
       force: Boolean(body.force),
       includeUi: Boolean(body.includeUi),
       inventoryId: typeof body.inventoryId === 'string' ? body.inventoryId : undefined,
+      storefront: typeof body.storefront === 'string' ? body.storefront : undefined,
       marketplaceId: typeof body.marketplaceId === 'string' ? body.marketplaceId : undefined,
       syncToBaseLinker: body.syncToBaseLinker === undefined ? undefined : Boolean(body.syncToBaseLinker),
       titleInsights: body.titleInsights === undefined ? undefined : Boolean(body.titleInsights),
