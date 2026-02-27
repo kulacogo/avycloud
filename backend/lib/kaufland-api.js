@@ -303,7 +303,6 @@ function pickUnitData(product, { mode = 'create', storefront = 'de' } = {}) {
       handling_time: handlingTime,
       listing_price: listingPrice,
       minimum_price: safeMinimumPrice,
-      status: amount > 0 ? 'AVAILABLE' : 'ONHOLD',
       note: note || undefined,
       id_shipping_group: optionalShippingGroup,
       id_warehouse: optionalWarehouse,
@@ -349,11 +348,49 @@ async function listUnits({ storefront = 'de', limit = 100, maxPages = 200 } = {}
   return items;
 }
 
+async function getProductByEan(ean, { storefront = 'de' } = {}) {
+  const normalizedEan = String(ean || '').replace(/\D+/g, '').trim();
+  if (!normalizedEan) return null;
+  const res = await kauflandRequest('GET', `/products/ean/${encodeURIComponent(normalizedEan)}`, {
+    query: { storefront: storefront || 'de' },
+  });
+  return res?.data?.data || null;
+}
+
 async function createUnit(product, { storefront = 'de' } = {}) {
   const picked = pickUnitData(product, { mode: 'create', storefront });
+  const createData = { ...(picked.unitData || {}) };
+  if (picked.ean) {
+    try {
+      const productData = await getProductByEan(picked.ean, { storefront: picked.storefront });
+      const idProduct = Number(productData?.id_product || 0);
+      if (Number.isFinite(idProduct) && idProduct > 0) {
+        createData.id_product = idProduct;
+      } else {
+        const err = new Error(
+          `Kaufland-Produkt fuer EAN ${picked.ean} nicht gefunden. Produktdaten zuerst via /product-data bereitstellen.`
+        );
+        err.code = 'KAUFLAND_PRODUCT_NOT_FOUND';
+        throw err;
+      }
+    } catch (error) {
+      if (error?.code === 'KAUFLAND_PRODUCT_NOT_FOUND') throw error;
+      const message = safeString(error?.message).toLowerCase();
+      const invalidEan = message.includes('invalid ean');
+      const err = new Error(
+        invalidEan
+          ? `EAN ${picked.ean} ist bei Kaufland ungueltig oder unbekannt. Produktdaten zuerst via /product-data bereitstellen.`
+          : `Kaufland-Produktlookup fuer EAN ${picked.ean} fehlgeschlagen: ${error?.message || 'unknown error'}`
+      );
+      err.code = invalidEan ? 'KAUFLAND_EAN_UNKNOWN' : 'KAUFLAND_PRODUCT_LOOKUP_FAILED';
+      err.status = error?.status;
+      err.payload = error?.payload || null;
+      throw err;
+    }
+  }
   const res = await kauflandRequest('POST', '/units', {
     query: { storefront: picked.storefront },
-    body: picked.unitData,
+    body: createData,
   });
   const location = typeof res?.headers?.get === 'function' ? res.headers.get('location') : null;
   const bodyUnitId = Number(res?.data?.data?.id_unit || 0);
@@ -385,6 +422,7 @@ module.exports = {
   kauflandRequest,
   findUnit,
   listUnits,
+  getProductByEan,
   createUnit,
   updateUnit,
   pickUnitData,

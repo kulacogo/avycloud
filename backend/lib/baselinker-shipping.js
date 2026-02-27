@@ -106,7 +106,7 @@ function computeOrderWeightKg(products) {
 // ─── Cache ───────────────────────────────────────────────────────────────────
 
 const BL_SHIPPING_CACHE = new Map();
-const BL_SHIPPING_TTL_MS = 15 * 60 * 1000;
+const BL_SHIPPING_TTL_MS = 5 * 60 * 1000;
 
 // ─── Main function ──────────────────────────────────────────────────────────
 

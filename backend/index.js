@@ -6925,16 +6925,17 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
   // Run external API calls in parallel, failing gracefully.
   // Shipping cost: SevDesk (actual paid invoices) + BaseLinker (label count only).
   // If SevDesk returns no shipping vouchers, fall back to BaseLinker CSV estimate.
+  const forceRefresh = req.query?.refresh === '1' || req.query?.refresh === 'true';
   const [balanceResult, sevdeskShippingResult, blShippingResult, sevdeskShippingYtdResult, blShippingYtdResult] = await Promise.allSettled([
     getCheckAccountBalances({ timeoutMs: 15000 }),
     getShippingCostsFromSevDesk(fromDateStr, toDateStr2, { timeoutMs: 20000 }),
-    getShippingCostsSummaryFromBaseLinker(fromDateStr, toDateStr2, { timeoutMs: 25000 }),
+    getShippingCostsSummaryFromBaseLinker(fromDateStr, toDateStr2, { timeoutMs: 25000, forceRefresh }),
     // Only fetch YTD separately if not already YTD
     (preset !== 'year_to_date' && !(preset === 'last_year'))
       ? getShippingCostsFromSevDesk(ytdFromStr, ytdToStr, { timeoutMs: 20000 })
       : Promise.resolve(null),
     (preset !== 'year_to_date' && !(preset === 'last_year'))
-      ? getShippingCostsSummaryFromBaseLinker(ytdFromStr, ytdToStr, { timeoutMs: 25000 })
+      ? getShippingCostsSummaryFromBaseLinker(ytdFromStr, ytdToStr, { timeoutMs: 25000, forceRefresh })
       : Promise.resolve(null),
   ]);
 

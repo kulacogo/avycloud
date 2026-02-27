@@ -1498,6 +1498,24 @@ async function runBulkKType({ apply = false, limit = 500, offset = 0, debug = fa
   return { summary, samples };
 }
 
+function formatKauflandApiError(error) {
+  const base = safeString(error?.message) || String(error || 'Unknown Kaufland error');
+  const status = Number(error?.status);
+  const payloadErrors = Array.isArray(error?.payload?.errors) ? error.payload.errors : [];
+  const fieldErrors = payloadErrors
+    .slice(0, 5)
+    .map((entry) => {
+      const field = safeString(entry?.field);
+      const message = safeString(entry?.message);
+      if (!field && !message) return '';
+      return field ? `${field}: ${message || 'invalid'}` : message;
+    })
+    .filter(Boolean);
+  const prefix = Number.isFinite(status) && status > 0 ? `[HTTP ${status}] ` : '';
+  if (!fieldErrors.length) return `${prefix}${base}`;
+  return `${prefix}${base} (${fieldErrors.join('; ')})`;
+}
+
 async function runBulkKauflandSync({
   apply = false,
   limit = 500,
@@ -1534,8 +1552,8 @@ async function runBulkKauflandSync({
         mode: opMode === 'create_only' ? 'create' : 'update',
         storefront: summary.storefront,
       });
-      const idOffer = safeString(picked?.unitData?.id_offer);
-      const ean = safeString(picked?.unitData?.ean);
+      const idOffer = safeString(picked?.idOffer || picked?.unitData?.id_offer);
+      const ean = safeString(picked?.ean || picked?.unitData?.ean);
 
       const existingUnit = await findUnit({
         storefront: summary.storefront,
@@ -1586,6 +1604,9 @@ async function runBulkKauflandSync({
         result = await createUnit(cur, { storefront: summary.storefront });
         summary.created += 1;
       }
+      const resolvedUnitId = existingUnit
+        ? Number(existingUnit.id_unit || 0) || null
+        : Number(result?.id_unit || result?.data?.data?.id_unit || 0) || null;
 
       cur.ops = cur.ops || {};
       cur.ops.kaufland = {
@@ -1595,7 +1616,7 @@ async function runBulkKauflandSync({
         last_sync_status: 'ok',
         last_action: existingUnit ? 'update' : 'create',
         id_offer: idOffer || null,
-        id_unit: existingUnit ? Number(existingUnit.id_unit) || null : null,
+        id_unit: resolvedUnitId,
       };
       await saveProduct(cur, { source: 'admin-bulk-kaufland' });
 
@@ -1605,14 +1626,18 @@ async function runBulkKauflandSync({
           sku,
           status: existingUnit ? 'updated' : 'created',
           id_offer: idOffer,
-          id_unit: existingUnit ? Number(existingUnit.id_unit || 0) || null : null,
+          id_unit: resolvedUnitId,
           response: result?.data || null,
         });
       }
     } catch (e) {
       summary.failed += 1;
+      const formattedError = formatKauflandApiError(e);
       if (samples.length < 60) {
-        samples.push({ id, sku, status: 'error', message: e?.message || String(e) });
+        const sample = { id, sku, status: 'error', message: formattedError };
+        const apiErrors = Array.isArray(e?.payload?.errors) ? e.payload.errors.slice(0, 5) : null;
+        if (apiErrors && apiErrors.length) sample.errors = apiErrors;
+        samples.push(sample);
       }
       try {
         const cur = await getProduct(String(id));
@@ -1623,7 +1648,7 @@ async function runBulkKauflandSync({
             storefront: summary.storefront,
             last_sync_iso: nowIso(),
             last_sync_status: 'failed',
-            last_error: e?.message || String(e),
+            last_error: formattedError,
           };
           await saveProduct(cur, { source: 'admin-bulk-kaufland' });
         }

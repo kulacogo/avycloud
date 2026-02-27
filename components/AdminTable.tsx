@@ -1623,6 +1623,21 @@ const AdminTable: React.FC<AdminTableProps> = ({
         const status = String(job?.status || '');
         if (status === 'done') {
           const files = Array.isArray(job?.result?.files) ? job.result.files : [];
+          const summary = job?.result?.summary && typeof job.result.summary === 'object' ? job.result.summary : {};
+          const samples = Array.isArray(job?.result?.samples) ? job.result.samples : [];
+          const failedSamples = samples
+            .filter((sample: any) => String(sample?.status || '').toLowerCase() === 'error')
+            .slice(0, 8)
+            .map((sample: any) => ({
+              id: sample?.id || null,
+              sku: sample?.sku || null,
+              message: sample?.message || null,
+              errors: Array.isArray(sample?.errors) ? sample.errors : undefined,
+            }));
+          const failedCount = Math.max(
+            Number.isFinite(Number((summary as any)?.failed)) ? Number((summary as any).failed) : 0,
+            failedSamples.length
+          );
           const csvUrl = files.find((f: any) => String(f?.mimeType || '').includes('text/csv'))?.url || files[0]?.url;
           if (bulkJobAction === 'export_marketplace' && csvUrl) {
             try {
@@ -1644,11 +1659,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
               loadKauflandIndex().catch(() => {});
             }
           }
+          const detailsPayload = failedSamples.length
+            ? { summary, failedSamples }
+            : summary || job?.result || {};
           setNotice({
-            tone: 'success',
-            title: 'Bulk Job abgeschlossen',
-            message: 'Aktion abgeschlossen. Bitte Produkte neu laden, um Änderungen zu sehen.',
-            details: JSON.stringify(job?.result?.summary || job?.result || {}, null, 2),
+            tone: failedCount > 0 ? 'error' : 'success',
+            title: failedCount > 0 ? 'Bulk Job mit Fehlern abgeschlossen' : 'Bulk Job abgeschlossen',
+            message:
+              failedCount > 0
+                ? `Aktion abgeschlossen, aber ${failedCount} Eintrag${failedCount === 1 ? '' : 'e'} fehlgeschlagen.`
+                : 'Aktion abgeschlossen. Bitte Produkte neu laden, um Änderungen zu sehen.',
+            details: JSON.stringify(detailsPayload, null, 2),
           });
           setSelectedIds(new Set());
           setBulkJobId(null);
