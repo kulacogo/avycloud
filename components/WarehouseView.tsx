@@ -474,7 +474,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           <button
             type="button"
             onClick={selectAllInZone}
-            className="px-3 py-1.5 rounded-xl bg-slate-800/80 text-sm text-white hover:bg-slate-700"
+            className="px-3 py-1.5 rounded-xl bg-slate-800/40 text-sm text-white hover:bg-slate-700/60"
           >
             Zone markieren
           </button>
@@ -497,7 +497,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           <button
             type="button"
             onClick={clearSelection}
-            className="px-3 py-1.5 rounded-xl bg-slate-800/80 text-sm text-white hover:bg-slate-700"
+            className="px-3 py-1.5 rounded-xl bg-slate-800/40 text-sm text-white hover:bg-slate-700/60"
           >
             Auswahl leeren
           </button>
@@ -508,7 +508,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             type="button"
             onClick={handlePrintSelectedBins}
             disabled={!selectedCount && !selectedZone}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-40"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/20 text-emerald-300 disabled:opacity-40 hover:bg-emerald-600/30 transition"
           >
             <PrintIcon className="w-4 h-4" />
             BIN Labels drucken
@@ -524,7 +524,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <select
               value={layoutForm.zone}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, zone: e.target.value }))}
-              className="w-full bg-slate-700 border border-white/10 rounded px-3 py-2"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2"
             >
               {ZONE_OPTIONS.map((z) => (
                 <option key={z} value={z}>
@@ -538,7 +538,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <select
               value={layoutForm.etage}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, etage: e.target.value }))}
-              className="w-full bg-slate-700 border border-white/10 rounded px-3 py-2"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2"
             >
               {ETAGE_OPTIONS.map((e) => (
                 <option key={e} value={e}>
@@ -552,7 +552,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <input
               value={layoutForm.gangs}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, gangs: e.target.value }))}
-              className="w-full bg-slate-700 border border-white/10 rounded px-3 py-2"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2"
             />
           </div>
           <div>
@@ -560,7 +560,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <input
               value={layoutForm.regale}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, regale: e.target.value }))}
-              className="w-full bg-slate-700 border border-white/10 rounded px-3 py-2"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2"
             />
           </div>
           <div>
@@ -568,13 +568,13 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <input
               value={layoutForm.ebenen}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, ebenen: e.target.value }))}
-              className="w-full bg-slate-700 border border-white/10 rounded px-3 py-2"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2"
             />
           </div>
         </div>
         <button
           onClick={handleCreateLayout}
-          className="mt-4 px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-500"
+          className="mt-4 px-4 py-2 bg-sky-600/20 text-sky-300 rounded-xl hover:bg-sky-600/30 transition"
         >
           Bins generieren
         </button>
@@ -615,7 +615,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             {selectedBin && (
               <button
                 onClick={() => openBinLabelWindow(selectedBin.code)}
-                className="flex items-center px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-md"
+                className="flex items-center px-3 py-1.5 text-sm bg-emerald-600/20 text-emerald-300 rounded-xl hover:bg-emerald-600/30 transition"
               >
                 <PrintIcon className="w-4 h-4 mr-1.5" /> BIN Label
               </button>

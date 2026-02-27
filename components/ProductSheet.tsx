@@ -1204,13 +1204,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       className="grid grid-cols-1 gap-6 w-full relative items-start lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]"
     >
       {notification && (
-        <div className={`fixed top-20 right-8 p-4 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} text-white`}>
+        <div className={`fixed top-20 right-8 p-4 rounded-xl z-50 ${notification.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} text-white`}>
           {notification.message}
         </div>
       )}
 
       <div className="space-y-5">
-        <header className="p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
+        <header className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1 min-w-0">
               {isEditing ? (
@@ -1472,7 +1472,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               <button
                 id="btn-edit"
                 onClick={() => setIsEditing(v => !v)}
-                className={`flex items-center justify-center px-4 py-2 font-medium rounded-lg transition-colors w-full sm:w-auto ${isEditing ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-sky-600 text-white hover:bg-sky-500'
+                className={`flex items-center justify-center px-4 py-2 font-medium rounded-xl transition-colors w-full sm:w-auto ${isEditing ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-sky-600/20 text-sky-300 hover:bg-sky-600/30'
                   }`}
               >
                 <EditIcon /><span className="ml-2">{isEditing ? t('common.editing') : t('common.edit')}</span>
@@ -1481,7 +1481,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 id="btn-save"
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex items-center justify-center px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-500 transition-colors disabled:bg-emerald-900 disabled:cursor-not-allowed w-full sm:w-auto"
+                className="flex items-center justify-center px-4 py-2 bg-emerald-600/20 text-emerald-300 font-medium rounded-xl hover:bg-emerald-600/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 <SaveIcon /><span className="ml-2">{isSaving ? t('common.saving') : t('common.save')}</span>
               </button>
@@ -1490,7 +1490,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   type="button"
                   onClick={() => onImprove(localProduct.id)}
                   disabled={Boolean(isImproving)}
-                  className="flex items-center justify-center px-4 py-2 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-500 transition-colors disabled:opacity-60 w-full sm:w-auto"
+                  className="flex items-center justify-center px-4 py-2 bg-violet-600/20 text-violet-300 font-medium rounded-xl hover:bg-violet-600/30 transition-colors disabled:opacity-40 w-full sm:w-auto"
                 >
                   {isImproving ? t('common.improving') : t('common.improve')}
                 </button>
@@ -1499,7 +1499,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 type="button"
                 onClick={handlePublishToEbay}
                 disabled={isPublishingEbay}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-sky-700 text-white font-medium rounded-lg hover:bg-sky-600 transition-colors disabled:bg-sky-900 disabled:cursor-wait w-full sm:w-auto"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-sky-600/20 text-sky-300 font-medium rounded-xl hover:bg-sky-600/30 transition-colors disabled:opacity-40 disabled:cursor-wait w-full sm:w-auto"
               >
                 {isPublishingEbay ? (
                   <Spinner className="w-4 h-4" />
@@ -1535,7 +1535,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <input
                     type="text"
                     placeholder={t('sheet.upload.urlPlaceholder')}
-                    className="flex-1 bg-slate-700 border border-white/10 rounded-lg p-2 text-slate-200"
+                    className="flex-1 bg-slate-800 border border-white/10 rounded-lg p-2 text-slate-200"
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
                     onKeyDown={(e) => {
@@ -1548,7 +1548,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <button
                     type="button"
                     onClick={handleAddImageFromUrl}
-                    className="px-4 py-2 bg-slate-600 rounded-lg text-white font-semibold hover:bg-slate-500 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-slate-700 rounded-xl text-white font-semibold hover:bg-slate-600 transition-colors disabled:opacity-50"
                     disabled={!newImageUrl.trim()}
                   >
                     {t('sheet.upload.urlButton')}
@@ -1623,7 +1623,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               </div>
             )}
           </div>
-          <section id="highlights" className="md:col-span-3 p-4 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg">
+          <section id="highlights" className="md:col-span-3 p-5 bg-slate-800/40 border border-white/10 rounded-2xl">
             <h3 className="text-lg font-semibold mb-2 text-white">{t('sheet.highlights')}</h3>
             {isEditing ? (
               <textarea
@@ -1652,20 +1652,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <section id="description" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
+          <section id="description" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
             <h3 className="text-xl font-semibold mb-3 text-white">{t('sheet.description')}</h3>
             {isEditing ? (
               <textarea
                 defaultValue={localProduct.details.short_description}
                 onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
-                className="w-full min-h-[120px] bg-slate-700 border border-white/10 rounded-lg p-3 text-slate-200"
+                className="w-full min-h-[120px] bg-slate-800 border border-white/10 rounded-lg p-3 text-slate-200"
               />
             ) : (
               <p className="text-slate-300 leading-relaxed text-sm sm:text-base">{descriptionText}</p>
             )}
           </section>
 
-          <section id="gpsr" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
+          <section id="gpsr" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-xl font-semibold mb-3 text-white">GPSR</h3>
               {!hasAnyGpsr && !isEditing ? (
@@ -1700,7 +1700,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       <input
                         value={value}
                         onChange={(e) => updateGpsrField(String(key), e.target.value)}
-                        className="w-full bg-slate-700 border border-white/10 rounded-lg px-3 py-2 text-slate-200 text-sm"
+                        className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-slate-200 text-sm"
                         placeholder="—"
                       />
                     ) : (
@@ -1714,7 +1714,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             </div>
           </section>
 
-          <section id="attributes" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
+          <section id="attributes" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.attributes')}</h3>
 
             <div className="mb-4 rounded-lg border border-white/10 bg-slate-900/60 p-3">
@@ -1790,7 +1790,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <section id="pricing" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
+          <section id="pricing" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.pricing')}</h3>
             <PricingInfo
               pricing={localProduct.details?.pricing}
@@ -1802,7 +1802,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             />
           </section>
 
-          <section id="storage" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
+          <section id="storage" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.storage')}</h3>
             {binsLoading ? (
               <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.loading')}</p>
@@ -1832,7 +1832,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   value={binCodeInput}
                   onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
                   placeholder={t('sheet.storage.binPlaceholder')}
-                  className="w-full bg-slate-900 border border-white/10 rounded px-3 py-2 text-sm"
+                  className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
               <div>
@@ -1842,7 +1842,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   min={1}
                   value={binQuantity}
                   onChange={(e) => setBinQuantity(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-white/10 rounded px-3 py-2 text-sm"
+                  className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
             </div>
@@ -1850,14 +1850,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               <button
                 onClick={handleAssignBin}
                 disabled={isAssigningBin}
-                className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-500 disabled:opacity-40"
+                className="px-4 py-2 bg-sky-600/20 text-sky-300 rounded-xl hover:bg-sky-600/30 disabled:opacity-40"
               >
                 {isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}
               </button>
               {binCodeInput && (
                 <button
                   onClick={handleRemoveBin}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
+                  className="px-4 py-2 bg-rose-600/20 text-rose-300 rounded-xl hover:bg-rose-600/30"
                 >
                   {t('sheet.storage.remove')}
                 </button>

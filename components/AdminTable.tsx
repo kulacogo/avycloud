@@ -2080,11 +2080,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   }, [sortConfig]);
 
-  const filterControlClass = 'p-2 text-sm bg-slate-800/40 border border-white/10 rounded-lg text-slate-100';
+  const filterControlClass = 'p-2 text-sm bg-slate-800/40 border border-white/10 rounded-xl text-slate-100';
   const filterButtonClass =
-    'w-full p-2 text-sm bg-slate-800/40 border border-white/10 rounded-lg text-slate-100 text-left';
+    'w-full p-2 text-sm bg-slate-800/40 border border-white/10 rounded-xl text-slate-100 text-left';
   const menuItemClass =
-    'w-full text-left px-3 py-2 text-sm text-slate-100 hover:bg-slate-800 rounded-lg transition';
+    'w-full text-left px-3 py-2 text-sm text-slate-100 hover:bg-slate-800/60 rounded-xl transition';
 
   const renderFilterControls = () => (
     <>
@@ -2153,7 +2153,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   const isAllSelected = selectedCount === allKeys.length && allKeys.length > 0;
                   const isIndeterminate = selectedCount > 0 && selectedCount < allKeys.length;
                   return (
-                    <div key={node.top} className="rounded-md border border-slate-800 bg-slate-900/40">
+                    <div key={node.top} className="rounded-md border border-white/10 bg-slate-800/40">
                       <label className="flex items-center gap-2 px-2 py-2 text-sm text-slate-100">
                         <input
                           type="checkbox"
@@ -2207,7 +2207,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </select>
       </div>
 
-      <details className="rounded-lg border border-white/10 bg-slate-900/40">
+      <details className="rounded-xl border border-white/10 bg-slate-800/40">
         <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-200">
           Mehr Filter
         </summary>
@@ -2348,7 +2348,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-md border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20">
             Tools
           </summary>
-          <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1 shadow-lg z-30">
+          <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1 shadow-xl shadow-black/40 z-30">
             <button type="button" onClick={handleExportCsv} className={menuItemClass}>
               Export CSV
             </button>
@@ -2476,7 +2476,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       </div>
 
       {isColumnPanelOpen && (
-        <div className="rounded-lg border border-white/10 bg-slate-900 p-4 space-y-2">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-white">{t('table.columns.visible')}</p>
             <button type="button" className="text-xs text-sky-400 hover:underline" onClick={resetColumns}>
@@ -2703,7 +2703,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-md bg-slate-800/40 border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20">
               Mehr
             </summary>
-            <div className="absolute right-0 mt-2 w-[320px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1 shadow-lg z-30">
+            <div className="absolute right-0 mt-2 w-[320px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1 shadow-xl shadow-black/40 z-30">
               <button
                 type="button"
                 onClick={() => enqueueBulkForSelection('price')}
@@ -2837,7 +2837,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           />
         ) : null}
 
-        <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[220px]">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -2860,7 +2860,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </div>
           </div>
           {isMobile ? (
-            <div className="rounded-2xl border border-white/10 bg-slate-900/40">
+            <div className="rounded-2xl border border-white/10 bg-slate-800/40">
               <button
                 type="button"
                 onClick={() => setMobileFiltersOpen((prev) => !prev)}
@@ -2903,7 +2903,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </div>
 
         {filteredAndSortedProducts.length === 0 ? (
-          <div className="rounded-xl bg-slate-900/40 p-4 text-sm text-slate-300 border border-white/10">
+          <div className="rounded-2xl bg-slate-800/40 p-5 text-sm text-slate-300 border border-white/10">
             {mode === 'inventory' ? (
               <>
                 <b>Keine Inventory-Artikel gefunden.</b>
@@ -2924,7 +2924,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
         <div className="overflow-x-auto">
           <table id="grid" className="w-full text-left min-w-[1000px]">
-            <thead className="bg-slate-700/50">
+            <thead className="bg-slate-800/60">
               <tr>
                 <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-slate-300">
                   <input
@@ -2984,7 +2984,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                     <div className="flex flex-col gap-2">
 
                       <button
-                        className="px-2 py-1 text-xs bg-red-600 text-white rounded-md"
+                        className="px-2 py-1 text-xs bg-rose-600/20 text-rose-300 rounded-lg hover:bg-rose-600/30 transition"
                         onClick={async () => {
                           setConfirmDialog({
                             title: 'Produkt löschen?',
@@ -3115,7 +3115,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   setInventoryModalOpen(false);
                   setInventoryAssignMessage(null);
                 }}
-                className="px-3 py-1.5 rounded-lg border border-white/10 text-sm text-slate-200"
+                className="px-3 py-1.5 rounded-xl border border-white/10 text-sm text-slate-200"
               >
                 {t('table.inventory.cancel')}
               </button>
@@ -3123,7 +3123,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 type="button"
                 onClick={handleAssignInventory}
                 disabled={inventoryAssigning}
-                className="px-4 py-1.5 rounded-lg bg-sky-600 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
+                className="px-4 py-1.5 rounded-xl bg-sky-600/20 text-sm font-semibold text-sky-300 hover:bg-sky-600/30 disabled:opacity-60"
               >
                 {inventoryAssigning ? t('table.inventory.assigning') : t('table.inventory.assign')}
               </button>
@@ -3186,7 +3186,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 type="button"
                 onClick={() => runKTypeUpload(true)}
                 disabled={ktypeBusy || !ktypeFile}
-                className="px-3 py-1.5 rounded-lg border border-white/10 text-sm text-slate-200 disabled:opacity-60"
+                className="px-3 py-1.5 rounded-xl border border-white/10 text-sm text-slate-200 disabled:opacity-60"
               >
                 Dry-Run
               </button>
@@ -3194,7 +3194,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 type="button"
                 onClick={() => runKTypeUpload(false)}
                 disabled={ktypeBusy || !ktypeFile}
-                className="px-4 py-1.5 rounded-lg bg-sky-600 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
+                className="px-4 py-1.5 rounded-xl bg-sky-600/20 text-sm font-semibold text-sky-300 hover:bg-sky-600/30 disabled:opacity-60"
               >
                 {ktypeBusy ? 'Läuft …' : 'Übernehmen'}
               </button>

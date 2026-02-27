@@ -1093,7 +1093,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 type="button"
                 onClick={() => handleStow(false)}
                 disabled={isSubmitting || !stowSku || !stowBin || !stowQuantity}
-                className="w-full py-4 rounded-xl bg-sky-600 text-white font-semibold shadow-lg shadow-sky-900/20 hover:bg-sky-500 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                className="w-full py-4 rounded-xl bg-sky-600/20 text-sky-300 font-semibold hover:bg-sky-600/30 active:scale-[0.99] transition-all disabled:opacity-50 disabled:active:scale-100"
               >
                 {t('ops.stow.submit')}
               </button>
@@ -1310,7 +1310,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     {pickBinDetail.products.map((item) => (
                       <li
                         key={item.productId}
-                        className={`flex items-center justify-between px-3 py-2 rounded ${pickSku && item.sku?.toLowerCase() === pickSku.toLowerCase() ? 'bg-sky-600/30' : 'bg-slate-800'
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg ${pickSku && item.sku?.toLowerCase() === pickSku.toLowerCase() ? 'bg-sky-600/30' : 'bg-slate-800/60'
                           }`}
                       >
                         <div>
