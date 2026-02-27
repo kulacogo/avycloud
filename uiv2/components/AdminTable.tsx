@@ -2144,6 +2144,23 @@ const AdminTable: React.FC<AdminTableProps> = ({
               >
                 K‑Typ enrich
               </button>
+              <div className="my-1 border-t border-[var(--border)]" />
+              <button
+                type="button"
+                onClick={() => enqueueBulkForSelection('kaufland_create')}
+                disabled={bulkJobLoading}
+                className={menuItemClass}
+              >
+                Kaufland: Listings erstellen
+              </button>
+              <button
+                type="button"
+                onClick={() => enqueueBulkForSelection('kaufland_update')}
+                disabled={bulkJobLoading}
+                className={menuItemClass}
+              >
+                Kaufland: Listings aktualisieren
+              </button>
 
               <div className="my-1 border-t border-[var(--border)]" />
 

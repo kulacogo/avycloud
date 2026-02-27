@@ -8,6 +8,7 @@ const fs = require('fs');
 const { uploadJobFile } = require('../lib/storage');
 const { createJob: createBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('../lib/baselinker-sync-jobs');
 const { enqueueBaseLinkerSyncJob } = require('./baselinker-sync-runner');
+const { findUnit, createUnit, updateUnit, pickUnitData } = require('../lib/kaufland-api');
 
 const EXPORT_BUCKET = 'prodsandjobs';
 
@@ -1294,6 +1295,144 @@ async function runBulkKType({ apply = false, limit = 500, offset = 0, debug = fa
   return { summary, samples };
 }
 
+async function runBulkKauflandSync({
+  apply = false,
+  limit = 500,
+  offset = 0,
+  debug = false,
+  productIds = null,
+  storefront = 'de',
+  mode = 'upsert',
+} = {}) {
+  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const opMode = String(mode || 'upsert').toLowerCase();
+
+  const summary = {
+    action: opMode === 'update_only' ? 'kaufland_update' : 'kaufland_create',
+    apply: Boolean(apply),
+    mode: opMode,
+    storefront: safeString(storefront) || 'de',
+    selected: selected.length,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    failed: 0,
+  };
+  const samples = [];
+
+  for (const p of selected) {
+    const id = p.id;
+    const sku = pickSku(p);
+    try {
+      const cur = await getProduct(String(id));
+      if (!cur) continue;
+
+      const picked = pickUnitData(cur, {
+        mode: opMode === 'create_only' ? 'create' : 'update',
+        storefront: summary.storefront,
+      });
+      const idOffer = safeString(picked?.unitData?.id_offer);
+      const ean = safeString(picked?.unitData?.ean);
+
+      const existingUnit = await findUnit({
+        storefront: summary.storefront,
+        idOffer: idOffer || undefined,
+        ean: ean || undefined,
+      });
+
+      if (!apply) {
+        if (debug && samples.length < 40) {
+          samples.push({
+            id,
+            sku,
+            id_offer: idOffer,
+            ean,
+            found_unit: existingUnit ? Number(existingUnit.id_unit || 0) || null : null,
+            action:
+              existingUnit && opMode !== 'create_only'
+                ? 'would_update'
+                : !existingUnit && opMode !== 'update_only'
+                  ? 'would_create'
+                  : 'would_skip',
+          });
+        }
+        continue;
+      }
+
+      if (existingUnit && opMode === 'create_only') {
+        summary.skipped += 1;
+        if (samples.length < 40) {
+          samples.push({ id, sku, status: 'skipped', message: `Unit already exists (${existingUnit.id_unit})` });
+        }
+        continue;
+      }
+
+      if (!existingUnit && opMode === 'update_only') {
+        summary.skipped += 1;
+        if (samples.length < 40) {
+          samples.push({ id, sku, status: 'skipped', message: 'Unit not found for update' });
+        }
+        continue;
+      }
+
+      let result = null;
+      if (existingUnit) {
+        result = await updateUnit(existingUnit.id_unit, cur, { storefront: summary.storefront });
+        summary.updated += 1;
+      } else {
+        result = await createUnit(cur, { storefront: summary.storefront });
+        summary.created += 1;
+      }
+
+      cur.ops = cur.ops || {};
+      cur.ops.kaufland = {
+        ...(cur.ops.kaufland || {}),
+        storefront: summary.storefront,
+        last_sync_iso: nowIso(),
+        last_sync_status: 'ok',
+        last_action: existingUnit ? 'update' : 'create',
+        id_offer: idOffer || null,
+        id_unit: existingUnit ? Number(existingUnit.id_unit) || null : null,
+      };
+      await saveProduct(cur, { source: 'admin-bulk-kaufland' });
+
+      if (debug && samples.length < 40) {
+        samples.push({
+          id,
+          sku,
+          status: existingUnit ? 'updated' : 'created',
+          id_offer: idOffer,
+          id_unit: existingUnit ? Number(existingUnit.id_unit || 0) || null : null,
+          response: result?.data || null,
+        });
+      }
+    } catch (e) {
+      summary.failed += 1;
+      if (samples.length < 60) {
+        samples.push({ id, sku, status: 'error', message: e?.message || String(e) });
+      }
+      try {
+        const cur = await getProduct(String(id));
+        if (cur) {
+          cur.ops = cur.ops || {};
+          cur.ops.kaufland = {
+            ...(cur.ops.kaufland || {}),
+            storefront: summary.storefront,
+            last_sync_iso: nowIso(),
+            last_sync_status: 'failed',
+            last_error: e?.message || String(e),
+          };
+          await saveProduct(cur, { source: 'admin-bulk-kaufland' });
+        }
+      } catch {
+        // ignore secondary save errors
+      }
+    }
+  }
+
+  return { summary, samples };
+}
+
 async function runBulkAction(action, payload = {}) {
   const a = String(action || '').trim().toLowerCase();
   const apply = parseBool(payload.apply, false);
@@ -1330,6 +1469,28 @@ async function runBulkAction(action, payload = {}) {
   }
   if (a === 'ktype' || a === 'k-typ') {
     return runBulkKType({ apply, limit, offset, debug, productIds });
+  }
+  if (a === 'kaufland_create' || a === 'kaufland-create') {
+    return runBulkKauflandSync({
+      apply,
+      limit,
+      offset,
+      debug,
+      productIds,
+      storefront: safeString(payload.storefront) || 'de',
+      mode: 'create_only',
+    });
+  }
+  if (a === 'kaufland_update' || a === 'kaufland-update') {
+    return runBulkKauflandSync({
+      apply,
+      limit,
+      offset,
+      debug,
+      productIds,
+      storefront: safeString(payload.storefront) || 'de',
+      mode: 'update_only',
+    });
   }
   if (a === 'export_marketplace' || a === 'export' || a === 'export-marketplace') {
     return runExportMarketplace({ jobId, productIds, limit, offset, debug });

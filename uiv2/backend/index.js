@@ -2035,6 +2035,8 @@ app.post('/api/products/bulk/run', requirePermission('products', 'write'), async
       maxAgeDays: Number.isFinite(Number(body.maxAgeDays)) ? Number(body.maxAgeDays) : undefined,
       force: Boolean(body.force),
       includeUi: Boolean(body.includeUi),
+      inventoryId: typeof body.inventoryId === 'string' ? body.inventoryId : undefined,
+      storefront: typeof body.storefront === 'string' ? body.storefront : undefined,
       requestedBy: req.user?.email || req.user?.uid || 'user',
     };
     const job = await createAdminBulkJob({ payload, requestedBy: payload.requestedBy, action });

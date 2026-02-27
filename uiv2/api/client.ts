@@ -886,6 +886,8 @@ export type ProductBulkActionName =
   | 'price'
   | 'category'
   | 'ktype'
+  | 'kaufland_create'
+  | 'kaufland_update'
   | 'export_marketplace';
 
 export const runProductBulkAction = async (params: {
@@ -897,6 +899,7 @@ export const runProductBulkAction = async (params: {
   force?: boolean; // price
   includeUi?: boolean; // title
   inventoryId?: string; // optional override for BaseLinker text-only sync jobs
+  storefront?: string; // optional storefront selector for marketplace actions (default: de)
 }): Promise<{ jobId: string }> => {
   const res = await fetchApi(`${BACKEND_URL}/api/products/bulk/run`, {
     method: 'POST',
