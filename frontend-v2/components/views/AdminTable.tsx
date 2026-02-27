@@ -261,6 +261,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [ebayProductIdMap, setEbayProductIdMap] = useState<Map<string, string>>(new Map()); // productId → itemId
   const [ebayActiveItemIds, setEbayActiveItemIds] = useState<Set<string>>(new Set());
   const [ebayUpdateInProgress, setEbayUpdateInProgress] = useState(false);
+  const [ebaySyncInProgress, setEbaySyncInProgress] = useState(false);
   const [kauflandSkuSet, setKauflandSkuSet] = useState<Set<string>>(new Set());
   const [kauflandEanSet, setKauflandEanSet] = useState<Set<string>>(new Set());
   const [kauflandSyncInProgress, setKauflandSyncInProgress] = useState(false);
@@ -1521,6 +1522,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           setEbayItemIdMap(itemIdMap);
           setEbayProductIdMap(pidMap);
         }).catch(() => {});
+        loadKauflandIndex().catch(() => {});
       }
       setSelectedIds(new Set());
     } catch (err: any) {
@@ -1579,27 +1581,42 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   };
 
-  const handleUpdateAllEbay = async () => {
-    const total = ebayLinkedMap.size;
-    if (!window.confirm(
-      `Alle ${total} aktiven eBay-Listings aktualisieren?\nNur geänderte Felder werden übertragen.\nDies kann mehrere Minuten dauern.\n\nFortfahren?`
-    )) return;
-
-    setEbayUpdateInProgress(true);
-    setNotice({ tone: 'info', title: 'eBay Update', message: `Aktualisiere alle ${total} aktiven Listings...` });
-
+  const handleSyncEbayListings = async () => {
+    if (!window.confirm('eBay-Listings jetzt synchronisieren?\nDadurch wird nur der Listing-Status im Inventory aktualisiert.')) return;
+    setEbaySyncInProgress(true);
+    setNotice({ tone: 'info', title: 'eBay Sync', message: 'Synchronisiere eBay-Listings...' });
     try {
-      const result = await bulkUpdateEbayListings({ applyAll: true });
-      const { success, failed, skipped } = result.summary;
+      await lightSyncEbayLiveListings({});
+      const entries = await fetchEbaySkuIndex();
+      const urlMap = new Map<string, string>();
+      const itemIdMap = new Map<string, string>();
+      const pidMap = new Map<string, string>();
+      const activeItemIds = new Set<string>();
+      (Array.isArray(entries) ? entries : []).forEach((entry) => {
+        const url = entry.viewItemUrl || `https://www.ebay.de/itm/${encodeURIComponent(entry.itemId)}`;
+        if (entry.itemId) activeItemIds.add(String(entry.itemId).trim());
+        const key = normalizeSku(entry.sku);
+        if (key) {
+          urlMap.set(key, url);
+          itemIdMap.set(key, entry.itemId);
+        }
+        if (entry.productId) {
+          pidMap.set(entry.productId, entry.itemId);
+        }
+      });
+      setEbayLinkedMap(urlMap);
+      setEbayItemIdMap(itemIdMap);
+      setEbayProductIdMap(pidMap);
+      setEbayActiveItemIds(activeItemIds);
       setNotice({
-        tone: failed === 0 ? 'success' : 'warning',
-        title: 'eBay Update abgeschlossen',
-        message: `Aktualisiert: ${success}${failed > 0 ? `, Fehlgeschlagen: ${failed}` : ''}${skipped > 0 ? `, Übersprungen: ${skipped}` : ''}`,
+        tone: 'success',
+        title: 'eBay Sync abgeschlossen',
+        message: `Aktive Listings: ${activeItemIds.size}.`,
       });
     } catch (err: any) {
-      setNotice({ tone: 'error', title: 'eBay Update fehlgeschlagen', details: err?.message || String(err) });
+      setNotice({ tone: 'error', title: 'eBay Sync fehlgeschlagen', details: err?.message || String(err) });
     } finally {
-      setEbayUpdateInProgress(false);
+      setEbaySyncInProgress(false);
     }
   };
 
@@ -2711,11 +2728,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
               </button>
               <button
                 type="button"
-                onClick={handleUpdateAllEbay}
-                disabled={ebayUpdateInProgress || ebayLinkedMap.size === 0}
+                onClick={handleSyncEbayListings}
+                disabled={ebaySyncInProgress}
                 className={menuItemClass}
               >
-                {ebayUpdateInProgress ? 'eBay Update läuft...' : `Alle eBay-Listings aktualisieren (${ebayLinkedMap.size})`}
+                {ebaySyncInProgress ? 'eBay Sync läuft...' : 'eBay: Listings synchronisieren'}
               </button>
               <button
                 type="button"
