@@ -166,6 +166,8 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
   let totalCost = 0;
   let csvFallbackCount = 0;
   let parcelCount = 0;
+  let dhlCount = 0;
+  let dpdCount = 0;
   let page = 1;
   const limit = 100;
   let consecutivePagesWithNoMatch = 0;
@@ -255,6 +257,11 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
 
       totalCost += cost;
       parcelCount++;
+
+      // Track carrier breakdown
+      const carrierCode = String(parcel.carrier?.code || '').toLowerCase();
+      if (carrierCode.includes('dhl')) dhlCount++;
+      else if (carrierCode.includes('dpd')) dpdCount++;
     }
 
     if (parcels.length < limit) break;
@@ -285,6 +292,8 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
   const result = {
     total_cost: Math.round(totalCost * 100) / 100,
     parcel_count: parcelCount,
+    dhl_count: dhlCount,
+    dpd_count: dpdCount,
     currency: 'EUR',
     csv_fallback_count: csvFallbackCount,
   };

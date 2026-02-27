@@ -155,12 +155,42 @@ const TECHNICAL_SPECIFIC_TOKENS = new Set([
 ]);
 
 // K-Typ (TecDoc kType) keys as they appear in product attributes (Baselinker format).
-// Values are pipe-separated numbers and must NOT be sent as ItemSpecifics —
+// Values can be canonical pipe-separated entries ("12345|67890" or "12345,note|67890")
+// or legacy plain numeric lists ("12345,67890"). They must NOT be sent as ItemSpecifics —
 // they belong in ItemCompatibilityList instead.
 const KTYPE_SPECIFIC_KEYS = new Set(['k-typ', 'ktyp', 'k typ', 'ktyp id', 'ktypids', 'k-typ id']);
 
 function extractKTypeNumbers(itemSpecifics) {
   const kTypeNumbers = [];
+  const seen = new Set();
+  const pushUnique = (value) => {
+    const n = safeString(value).trim();
+    if (!n || !/^\d+$/.test(n)) return;
+    if (seen.has(n)) return;
+    seen.add(n);
+    kTypeNumbers.push(n);
+  };
+  const parseEntry = (entryRaw) => {
+    const entry = safeString(entryRaw).trim();
+    if (!entry) return;
+
+    // Legacy fallback: plain numeric comma/semicolon list (without notes).
+    if (/^\d+(?:\s*[,;]\s*\d+)+$/.test(entry)) {
+      entry
+        .split(/[,;]/)
+        .map((part) => part.trim())
+        .forEach((part) => pushUnique(part));
+      return;
+    }
+
+    // Canonical K-Typ with optional note: "<id>" or "<id>,<note>".
+    const withOptionalNote = entry.match(/^(\d+)(?:\s*,.*)?$/);
+    if (withOptionalNote) {
+      pushUnique(withOptionalNote[1]);
+      return;
+    }
+  };
+
   let foundKey = null;
   for (const [key] of Object.entries(itemSpecifics)) {
     if (KTYPE_SPECIFIC_KEYS.has(safeString(key).toLowerCase())) {
@@ -170,10 +200,17 @@ function extractKTypeNumbers(itemSpecifics) {
   }
   if (!foundKey) return { kTypeNumbers, foundKey };
   asArray(itemSpecifics[foundKey]).forEach((raw) => {
-    safeString(raw).split('|').forEach((part) => {
-      const n = part.trim();
-      if (n && /^\d+$/.test(n)) kTypeNumbers.push(n);
-    });
+    const value = safeString(raw);
+    if (!value) return;
+    if (value.includes('|')) {
+      value.split('|').forEach((part) => parseEntry(part));
+      return;
+    }
+    if (/[\r\n]/.test(value)) {
+      value.split(/\r?\n/).forEach((part) => parseEntry(part));
+      return;
+    }
+    parseEntry(value);
   });
   return { kTypeNumbers, foundKey };
 }

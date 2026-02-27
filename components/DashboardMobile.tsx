@@ -418,7 +418,16 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         <Tile
           label="Versandkosten"
           value={financeLoading && shippingWindow === null ? '…' : shippingWindow !== null ? fmtCur(shippingWindow, 'EUR') : '—'}
-          sub={`${fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen · DHL/DPD`}
+          sub={<span className="flex flex-col gap-0.5">
+            <span>{fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen</span>
+            {((finance?.shipping?.dhl_count ?? 0) > 0 || (finance?.shipping?.dpd_count ?? 0) > 0) && (
+              <span className="text-[10px] text-slate-500">
+                {(finance?.shipping?.dhl_count ?? 0) > 0 && `DHL ${finance.shipping.dhl_count}`}
+                {(finance?.shipping?.dhl_count ?? 0) > 0 && (finance?.shipping?.dpd_count ?? 0) > 0 && ' · '}
+                {(finance?.shipping?.dpd_count ?? 0) > 0 && `DPD ${finance.shipping.dpd_count}`}
+              </span>
+            )}
+          </span>}
           loading={financeLoading && shippingWindow === null}
         />
         <Tile
@@ -452,7 +461,16 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         <Tile
           label="Versandkosten Dieses Jahr"
           value={shippingYtd !== null ? fmtCur(shippingYtd, 'EUR') : '—'}
-          sub={`${fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen`}
+          sub={<span className="flex flex-col gap-0.5">
+            <span>{fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen</span>
+            {((finance?.shipping_ytd?.dhl_count ?? 0) > 0 || (finance?.shipping_ytd?.dpd_count ?? 0) > 0) && (
+              <span className="text-[10px] text-slate-500">
+                {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && `DHL ${fmtNum(finance.shipping_ytd.dhl_count)}`}
+                {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && (finance?.shipping_ytd?.dpd_count ?? 0) > 0 && ' · '}
+                {(finance?.shipping_ytd?.dpd_count ?? 0) > 0 && `DPD ${fmtNum(finance.shipping_ytd.dpd_count)}`}
+              </span>
+            )}
+          </span>}
           loading={financeLoading && shippingYtd === null}
         />
       </div>

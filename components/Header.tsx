@@ -246,7 +246,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
             </nav>
 
             {/* Right controls */}
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center justify-start box-content text-left gap-px ml-auto">
 
               {/* Theme toggle */}
               <button
@@ -273,12 +273,12 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={() => logout()}
-                className="hidden sm:inline-flex items-center justify-center rounded-xl bg-slate-800/40 border border-white/[0.08] text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
-                style={{ width: '3.5rem', height: '3.5rem' }}
+                className="hidden sm:inline-flex items-center justify-center rounded-xl bg-transparent border-0 border-transparent text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                style={{ width: '3.5rem', height: '3.5rem', borderImage: 'none' }}
                 aria-label={t('common.logout')}
                 title={t('common.logout')}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1.3rem', height: '1.3rem' }} aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }} aria-hidden="true">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
                 </svg>
               </button>

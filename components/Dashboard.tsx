@@ -705,7 +705,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Card
             label="Versand (Jahr)"
             value={shippingYtd !== null ? fmtCur(shippingYtd, 'EUR', true) : '—'}
-            sub={shippingYtd !== null ? `${fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen` : undefined}
+            sub={shippingYtd !== null ? (
+              <span className="flex flex-col gap-0.5">
+                <span>{fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen</span>
+                {((finance?.shipping_ytd?.dhl_count ?? 0) > 0 || (finance?.shipping_ytd?.dpd_count ?? 0) > 0) && (
+                  <span className="text-[10px] text-slate-500">
+                    {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && `DHL ${fmtNum(finance.shipping_ytd.dhl_count)}`}
+                    {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && (finance?.shipping_ytd?.dpd_count ?? 0) > 0 && ' · '}
+                    {(finance?.shipping_ytd?.dpd_count ?? 0) > 0 && `DPD ${fmtNum(finance.shipping_ytd.dpd_count)}`}
+                  </span>
+                )}
+              </span>
+            ) : undefined}
             color="amber"
             loading={financeLoading && shippingYtd === null}
             size="hero"
@@ -782,7 +793,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Card
             label="Versand"
             value={shippingWindow !== null ? fmtCur(shippingWindow, 'EUR', true) : '—'}
-            sub={shippingWindow !== null ? `${fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen` : undefined}
+            sub={shippingWindow !== null ? (
+              <span className="flex flex-col gap-0.5">
+                <span>{fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen</span>
+                {((finance?.shipping?.dhl_count ?? 0) > 0 || (finance?.shipping?.dpd_count ?? 0) > 0) && (
+                  <span className="text-[10px] text-slate-500">
+                    {(finance?.shipping?.dhl_count ?? 0) > 0 && `DHL ${finance.shipping.dhl_count}`}
+                    {(finance?.shipping?.dhl_count ?? 0) > 0 && (finance?.shipping?.dpd_count ?? 0) > 0 && ' · '}
+                    {(finance?.shipping?.dpd_count ?? 0) > 0 && `DPD ${finance.shipping.dpd_count}`}
+                  </span>
+                )}
+              </span>
+            ) : undefined}
             color="amber"
             loading={financeLoading && shippingWindow === null}
           />

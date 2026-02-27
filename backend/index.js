@@ -98,6 +98,7 @@ const { scanToBuffer } = require('./services/scanner');
 const { syncNewOrders, markOrderAsPicked, markOrderAsPacked } = require('./services/order-sync');
 const { getCheckAccountBalances, getShippingCostsFromSevDesk } = require('./lib/sevdesk');
 const { getShippingCostsSummaryFromBaseLinker } = require('./lib/baselinker-shipping');
+const { getShippingCostsSummary: getSendCloudShippingSummary } = require('./lib/sendcloud');
 const { getEbayNetRevenueSummary } = require('./lib/ebay-finances');
 const { requireAuth } = require('./lib/auth');
 const { ensureDefaultRoles, requirePermission, resolvePermissionsForUser } = require('./lib/rbac');
@@ -6935,7 +6936,7 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
   // Shipping cost: SevDesk (actual paid invoices) + BaseLinker (label count only).
   // If SevDesk returns no shipping vouchers, fall back to BaseLinker CSV estimate.
   const forceRefresh = req.query?.refresh === '1' || req.query?.refresh === 'true';
-  const [balanceResult, sevdeskShippingResult, blShippingResult, sevdeskShippingYtdResult, blShippingYtdResult] = await Promise.allSettled([
+  const [balanceResult, sevdeskShippingResult, blShippingResult, sevdeskShippingYtdResult, blShippingYtdResult, scShippingResult, scShippingYtdResult] = await Promise.allSettled([
     getCheckAccountBalances({ timeoutMs: 15000 }),
     getShippingCostsFromSevDesk(fromDateStr, toDateStr2, { timeoutMs: 20000 }),
     getShippingCostsSummaryFromBaseLinker(fromDateStr, toDateStr2, { timeoutMs: 25000, forceRefresh }),
@@ -6946,27 +6947,45 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
     (preset !== 'year_to_date' && !(preset === 'last_year'))
       ? getShippingCostsSummaryFromBaseLinker(ytdFromStr, ytdToStr, { timeoutMs: 25000, forceRefresh })
       : Promise.resolve(null),
+    // SendCloud: primary source for parcel count + carrier breakdown
+    getSendCloudShippingSummary(fromDateStr, toDateStr2, { timeoutMs: 20000, forceRefresh }),
+    (preset !== 'year_to_date' && !(preset === 'last_year'))
+      ? getSendCloudShippingSummary(ytdFromStr, ytdToStr, { timeoutMs: 20000, forceRefresh })
+      : Promise.resolve(null),
   ]);
 
-  // Merge: use SevDesk total_cost (real invoices) + BaseLinker parcel_count
-  function mergeShipping(svResult, blResult) {
+  // Merge shipping data: SendCloud (primary for count + carrier split) + SevDesk (cost from real invoices)
+  function mergeShipping(svResult, blResult, scResult) {
     const sv = svResult?.status === 'fulfilled' ? (svResult.value || {}) : null;
     const bl = blResult?.status  === 'fulfilled' ? (blResult.value  || {}) : null;
+    const sc = scResult?.status  === 'fulfilled' ? (scResult.value  || {}) : null;
+
+    // SendCloud is preferred source for parcel count, carrier breakdown, and cost
+    if (sc && sc.parcel_count > 0) {
+      return {
+        total_cost: sc.total_cost,
+        parcel_count: sc.parcel_count,
+        dhl_count: sc.dhl_count || 0,
+        dpd_count: sc.dpd_count || 0,
+        currency: 'EUR',
+        source: 'sendcloud',
+      };
+    }
+
+    // Fallback: SevDesk cost + BaseLinker count
     if (!sv && !bl) return null;
     const parcelCount = bl?.parcel_count ?? 0;
-    // Prefer SevDesk cost if it has real vouchers; fall back to BaseLinker estimate
     if (sv && sv.voucher_count > 0) {
       return { total_cost: sv.total_cost, parcel_count: parcelCount, currency: 'EUR', source: 'sevdesk+baselinker' };
     }
-    // SevDesk found nothing → use BaseLinker estimate
     if (bl && bl.parcel_count > 0) {
       return { ...bl };
     }
     return null;
   }
 
-  const shippingMerged    = mergeShipping(sevdeskShippingResult,    blShippingResult);
-  const shippingYtdMerged = mergeShipping(sevdeskShippingYtdResult, blShippingYtdResult);
+  const shippingMerged    = mergeShipping(sevdeskShippingResult,    blShippingResult,    scShippingResult);
+  const shippingYtdMerged = mergeShipping(sevdeskShippingYtdResult, blShippingYtdResult, scShippingYtdResult);
 
   // Shim into the existing shippingResult / shippingYtdResult shape
   const shippingResult    = { status: shippingMerged    ? 'fulfilled' : 'rejected', value: shippingMerged,    reason: new Error('Keine Versanddaten') };
