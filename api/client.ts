@@ -730,6 +730,8 @@ export async function fetchKauflandSkuIndex(storefront = 'de'): Promise<{
   ean: string | null;
   eans: string[];
   status: string | null;
+  idProduct: number | null;
+  viewItemUrl: string | null;
 }[]> {
   const url = new URL(`${BACKEND_URL}/api/kaufland/sku-index`);
   url.searchParams.set('storefront', storefront);

@@ -2816,6 +2816,8 @@ app.post('/api/kaufland/listings/sync', requirePermission('products', 'write'), 
         id_offer_normalized: normalizeMarketplaceSku(unit?.id_offer),
         ean: normalizeMarketplaceEan(unit?.ean),
         eans: normalizedEans,
+        id_product: Number.isFinite(Number(product?.id_product)) ? Number(product.id_product) : null,
+        view_item_url: String(product?.url || '').trim() || null,
         amount: Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null,
         status: String(unit?.status || '').trim() || null,
         storefront: String(unit?.storefront || storefront || 'de').trim().toLowerCase(),
@@ -2883,6 +2885,8 @@ app.get('/api/kaufland/sku-index', requirePermission('products', 'read'), async 
         ean: d.ean || null,
         eans: Array.isArray(d.eans) ? d.eans : [],
         status: d.status || null,
+        idProduct: Number.isFinite(Number(d.id_product)) ? Number(d.id_product) : null,
+        viewItemUrl: d.view_item_url || null,
       });
     });
     return res.status(200).json({ ok: true, data: rows });

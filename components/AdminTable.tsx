@@ -55,6 +55,18 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
   minimal: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'baselinker', 'ebay', 'kaufland', 'syncStatus'],
 };
 
+const normalizeMarketplaceColumnOrder = (columns: ColumnId[]): ColumnId[] => {
+  const unique = Array.from(new Set(columns));
+  const hasEbay = unique.includes('ebay');
+  const hasKaufland = unique.includes('kaufland');
+  if (!hasEbay || !hasKaufland) return unique;
+  const firstMarketplaceIndex = unique.findIndex((id) => id === 'ebay' || id === 'kaufland');
+  const base: ColumnId[] = unique.filter((id) => id !== 'ebay' && id !== 'kaufland');
+  const insertAt = firstMarketplaceIndex >= 0 ? Math.min(firstMarketplaceIndex, base.length) : base.length;
+  base.splice(insertAt, 0, 'ebay', 'kaufland');
+  return base;
+};
+
 interface ColumnDefinition {
   id: ColumnId;
   label: string;
@@ -265,6 +277,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [ebaySyncInProgress, setEbaySyncInProgress] = useState(false);
   const [kauflandSkuSet, setKauflandSkuSet] = useState<Set<string>>(new Set());
   const [kauflandEanSet, setKauflandEanSet] = useState<Set<string>>(new Set());
+  const [kauflandSkuUrlMap, setKauflandSkuUrlMap] = useState<Map<string, string>>(new Map());
+  const [kauflandEanUrlMap, setKauflandEanUrlMap] = useState<Map<string, string>>(new Map());
   const [kauflandSyncInProgress, setKauflandSyncInProgress] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [improveInProgress, setImproveInProgress] = useState(false);
@@ -352,18 +366,26 @@ const AdminTable: React.FC<AdminTableProps> = ({
     const entries = await fetchKauflandSkuIndex('de');
     const skuSet = new Set<string>();
     const eanSet = new Set<string>();
+    const skuUrlMap = new Map<string, string>();
+    const eanUrlMap = new Map<string, string>();
     entries.forEach((entry) => {
       const sku = normalizeSku(entry.skuNormalized || entry.sku || '');
+      const viewItemUrl = String(entry.viewItemUrl || '').trim();
       if (sku) skuSet.add(sku);
+      if (sku && viewItemUrl && !skuUrlMap.has(sku)) skuUrlMap.set(sku, viewItemUrl);
       const ean = normalizeEan(entry.ean || '');
       if (ean) eanSet.add(ean);
+      if (ean && viewItemUrl && !eanUrlMap.has(ean)) eanUrlMap.set(ean, viewItemUrl);
       (Array.isArray(entry.eans) ? entry.eans : []).forEach((v) => {
         const n = normalizeEan(v);
         if (n) eanSet.add(n);
+        if (n && viewItemUrl && !eanUrlMap.has(n)) eanUrlMap.set(n, viewItemUrl);
       });
     });
     setKauflandSkuSet(skuSet);
     setKauflandEanSet(eanSet);
+    setKauflandSkuUrlMap(skuUrlMap);
+    setKauflandEanUrlMap(eanUrlMap);
   };
 
   // On load: check BaseLinker existence by SKU/EAN and update products with found product_id
@@ -799,8 +821,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
         render: ({ product }) => {
           const kp = (product as any)?.ops?.kaufland || {};
           const lastStatus = String(kp?.last_sync_status || '').toLowerCase();
-          const unitId = Number(kp?.id_unit || 0);
-          const hasUnitId = Number.isFinite(unitId) && unitId > 0;
           const sku = normalizeSku(
             (product as any)?.identification?.sku ||
             product?.details?.identifiers?.sku ||
@@ -820,21 +840,37 @@ const AdminTable: React.FC<AdminTableProps> = ({
             )
           );
           const listedByIndex = (sku && kauflandSkuSet.has(sku)) || eanCandidates.some((ean) => kauflandEanSet.has(ean));
-          const listed = listedByIndex || hasUnitId || lastStatus === 'ok';
           const failed = lastStatus === 'failed';
+          const skuUrl = sku ? kauflandSkuUrlMap.get(sku) : null;
+          const eanUrl = eanCandidates.map((ean) => kauflandEanUrlMap.get(ean)).find(Boolean) || null;
+          const viewItemUrl = skuUrl || eanUrl || null;
           return (
-            <span
-              className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                failed
-                  ? 'bg-rose-500/20 text-rose-200'
-                  : listed
-                    ? 'bg-emerald-500/20 text-emerald-200'
-                    : 'bg-slate-700 text-slate-300'
-              }`}
-              title={hasUnitId ? `Kaufland Unit ID: ${unitId}` : 'Kaufland Listing Status'}
-            >
-              {failed ? 'Fehler' : listed ? 'gelistet' : 'nicht gelistet'}
-            </span>
+            failed ? (
+              <span
+                title="Kaufland-Sync fehlgeschlagen"
+                className="inline-flex items-center justify-center rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-semibold text-rose-200"
+              >
+                Fehler
+              </span>
+            ) : listedByIndex && viewItemUrl ? (
+              <a
+                href={viewItemUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="Kaufland-Listing öffnen"
+                className="inline-flex items-center justify-center rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-200 hover:bg-sky-500/30 hover:text-sky-100"
+              >
+                gelistet
+              </a>
+            ) : (
+              <span
+                title="Nicht auf Kaufland gelistet"
+                className="inline-flex items-center justify-center rounded-full bg-slate-700 px-2 py-0.5 text-xs font-semibold text-slate-500"
+              >
+                —
+              </span>
+            )
           );
         },
       },
@@ -903,7 +939,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       },
     ];
     return baseRenderers;
-  }, [onSelectProduct, t]);
+  }, [onSelectProduct, t, ebayLinkedMap, ebayProductIdMap, ebayActiveItemIds, kauflandSkuSet, kauflandEanSet, kauflandSkuUrlMap, kauflandEanUrlMap]);
 
   const statusFilters: Array<{ value: SyncStatus | 'all'; label: string }> = [
     { value: 'all', label: t('table.status.all') },
@@ -924,7 +960,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             const newDefaults = COLUMN_PRESETS.standard.filter(
               (id) => !valid.includes(id) && columnDefinitions.some((col) => col.id === id && col.defaultVisible)
             );
-            return newDefaults.length > 0 ? [...valid, ...newDefaults] : valid;
+            return normalizeMarketplaceColumnOrder(newDefaults.length > 0 ? [...valid, ...newDefaults] : valid);
           }
         }
       } catch (error) {
@@ -932,7 +968,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       }
     }
     const mobileDefault = typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)').matches : false;
-    return mobileDefault ? COLUMN_PRESETS.minimal : COLUMN_PRESETS.standard;
+    return normalizeMarketplaceColumnOrder(mobileDefault ? COLUMN_PRESETS.minimal : COLUMN_PRESETS.standard);
   };
 
   const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(() => resolveInitialColumns());
@@ -961,14 +997,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setVisibleColumns((prev) => {
       if (prev.includes(id)) {
         if (prev.length === 1) return prev; // mindestens eine Spalte
-        return prev.filter((columnId) => columnId !== id);
+        return normalizeMarketplaceColumnOrder(prev.filter((columnId) => columnId !== id));
       }
-      return [...prev, id];
+      return normalizeMarketplaceColumnOrder([...prev, id]);
     });
   };
 
   const resetColumns = () => {
-    setVisibleColumns(COLUMN_PRESETS.standard);
+    setVisibleColumns(normalizeMarketplaceColumnOrder(COLUMN_PRESETS.standard));
     setColumnPreset('standard');
   };
 
@@ -2242,7 +2278,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             value={columnPreset}
             onChange={(e) => {
               const preset = e.target.value as ColumnPreset;
-              setVisibleColumns(COLUMN_PRESETS[preset]);
+              setVisibleColumns(normalizeMarketplaceColumnOrder(COLUMN_PRESETS[preset]));
               setColumnPreset(preset);
             }}
             className={filterControlClass}
