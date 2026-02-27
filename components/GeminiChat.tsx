@@ -730,7 +730,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           onClick={() => {
             setInput(buildSmartPrompt());
           }}
-          className="rounded-full border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:border-sky-500 hover:text-white"
+          className="rounded-full border border-white/10 px-3 py-1 text-[11px] text-slate-200 hover:border-sky-500 hover:text-white"
           title="Erzeugt einen smarten Prompt aus den Optionen."
         >
           Prompt bauen
@@ -764,14 +764,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
           <div className="space-y-4 border-t border-slate-800 pt-3 text-xs text-slate-200">
             {pendingChanges.length > 0 && (
-              <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
+              <details className="rounded-xl border border-white/10 bg-slate-900/60">
                 <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
                   <span>{t('chat.ui.pendingChanges')}</span>
                   <span>{pendingChanges.length}</span>
                 </summary>
                 <div className="space-y-2 p-3">
                   {pendingChanges.map((item) => (
-                    <div key={item.id} className="rounded-xl border border-slate-700/70 bg-slate-900/70 p-3">
+                    <div key={item.id} className="rounded-xl border border-white/10 bg-slate-900/70 p-3">
                       <p className="text-sm font-semibold text-white">
                         {item.change.summary || t('chat.ui.changeFallback')}
                       </p>
@@ -790,7 +790,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             )}
 
             {pendingImages.length > 0 && (
-              <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
+              <details className="rounded-xl border border-white/10 bg-slate-900/60">
                 <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
                   <span>{t('chat.ui.imageSuggestions')}</span>
                   <span>{pendingImages.length}</span>
@@ -812,7 +812,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   {pendingImages.map((item) => (
                     <div
                       key={item.id}
-                      className="flex min-w-[160px] max-w-[160px] flex-col gap-2 rounded-xl border border-slate-700/60 bg-slate-900/70 p-2"
+                      className="flex min-w-[160px] max-w-[160px] flex-col gap-2 rounded-xl border border-white/10 bg-slate-900/70 p-2"
                     >
                       <img
                         src={resolveImageSrc(item.image.url_or_base64)}
@@ -842,14 +842,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             )}
 
             {serpInsights.length > 0 && (
-              <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
+              <details className="rounded-xl border border-white/10 bg-slate-900/60">
                 <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
                   <span>{t('chat.ui.serpInsights')}</span>
                   <span>{serpInsights.length}</span>
                 </summary>
                 <div className="space-y-2 p-3 text-[11px] text-slate-200">
                   {serpInsights.map((entry, index) => (
-                    <div key={`${entry.engine}-${index}`} className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
+                    <div key={`${entry.engine}-${index}`} className="rounded-xl border border-white/10 bg-slate-900/70 p-3">
                       <div className="flex items-center justify-between text-slate-100">
                         <span className="font-semibold">{entry.engine}</span>
                         <span className="text-slate-400">{entry.query}</span>
@@ -900,7 +900,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                     key={key}
                     type="button"
                     onClick={() => applyPromptScene(String(key))}
-                    className="rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500 hover:text-white"
+                    className="rounded-full border border-white/10 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500 hover:text-white"
                     title="Setzt nur die Optionen (kein starrer Prompt)."
                   >
                     {label}
@@ -934,7 +934,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               ].map(([key, label]) => (
                 <label
                   key={key}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500"
                 >
                   <input
                     type="checkbox"
@@ -947,7 +947,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             </div>
 
             <div className="flex flex-wrap gap-2 text-[12px]">
-              <label className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
+              <label className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
                 Fetch-Seiten
                 <select
                   value={promptConfig.maxPagesToFetch}

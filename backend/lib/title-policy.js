@@ -1933,6 +1933,143 @@ function appendTokens(title, tokens, { minLen, maxLen }) {
   return out;
 }
 
+function inferAudienceProfile(product) {
+  const attrs =
+    product?.details?.attributes && typeof product.details.attributes === 'object'
+      ? product.details.attributes
+      : {};
+  const raw = [
+    pickAttr(attrs, 'Abteilung', 'Zielgruppe', 'Geschlecht'),
+    product?.identification?.category,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const n = normalizeForSearch(raw);
+  const profile = {
+    women: /\b(damen|women|woman|female|ladies)\b/i.test(n),
+    men: /\b(herren|men|man|male|gentlemen)\b/i.test(n),
+    unisex: /\bunisex\b/i.test(n),
+    kids: /\b(kinder|kids|kind|baby|jungen|maedchen|mädchen)\b/i.test(n),
+  };
+  if (profile.women && profile.men) profile.unisex = true;
+  return profile;
+}
+
+function audienceGroupForToken(token = '') {
+  const t = normalizeForSearch(token);
+  if (!t) return '';
+  if (/\bunisex\b/i.test(t)) return 'unisex';
+  if (/\b(damen|women|woman|female|ladies)\b/i.test(t)) return 'women';
+  if (/\b(herren|men|man|male|gentlemen)\b/i.test(t)) return 'men';
+  if (/\b(kinder|kids|kind|baby|jungen|maedchen|mädchen)\b/i.test(t)) return 'kids';
+  return '';
+}
+
+function isAudienceConflictToken(token = '', profile = null) {
+  const group = audienceGroupForToken(token);
+  if (!group || !profile || typeof profile !== 'object') return false;
+  if (profile.unisex) return false;
+  if (group === 'women' && profile.men && !profile.women) return true;
+  if (group === 'men' && profile.women && !profile.men) return true;
+  if (group === 'kids' && (profile.women || profile.men) && !profile.kids) return true;
+  if ((group === 'women' || group === 'men') && profile.kids && !profile.women && !profile.men) return true;
+  return false;
+}
+
+function buildTitleHintEvidence(product) {
+  const attrs =
+    product?.details?.attributes && typeof product.details.attributes === 'object'
+      ? product.details.attributes
+      : {};
+  const identifiers = product?.details?.identifiers && typeof product.details.identifiers === 'object'
+    ? product.details.identifiers
+    : {};
+  const categoryLeaf = normalizeSpaces(String(product?.identification?.category || '').split('>').pop() || '');
+  const parts = [
+    product?.identification?.brand,
+    product?.identification?.category,
+    categoryLeaf,
+    product?.details?.short_description,
+    identifiers?.mpn,
+    identifiers?.sku,
+    identifiers?.ean,
+    identifiers?.gtin,
+    identifiers?.upc,
+    ...Object.keys(attrs || {}),
+    ...Object.values(attrs || {}).map((v) => (typeof v === 'string' ? v : '')),
+  ];
+  return normalizeForSearch(parts.filter(Boolean).join(' '));
+}
+
+function isAlwaysAllowedHintToken(token = '') {
+  const t = safeString(token).toLowerCase();
+  if (!t) return false;
+  if (/\d/.test(t)) return true;
+  if (TITLE_UNIT_WORDS.has(t.replace(/\./g, ''))) return true;
+  if (/^\d{1,4}x\d{1,4}(?:x\d{1,4})?(?:mm|cm|m)?$/i.test(t)) return true;
+  if (/^(eu|us|uk|gr\.?|set|va|ha|li|re|oe|mpn|ovp|xs|s|m|l|xl|xxl|xxxl)$/i.test(t)) return true;
+  return false;
+}
+
+function isEvidenceBackedHintToken(token = '', evidenceText = '') {
+  const cleaned = normalizeTitleToken(token);
+  if (!cleaned) return false;
+  if (isAlwaysAllowedHintToken(cleaned)) return true;
+  const normalized = normalizeForSearch(cleaned);
+  if (!normalized || normalized.length < 3) return false;
+  if (!evidenceText) return false;
+  return evidenceText.includes(normalized);
+}
+
+function filterHintTokensForProduct(tokens = [], product) {
+  const list = Array.isArray(tokens) ? tokens : [];
+  if (!list.length) return [];
+  const profile = inferAudienceProfile(product);
+  const evidenceText = buildTitleHintEvidence(product);
+  const out = [];
+  const seen = new Set();
+  for (const raw of list) {
+    const token = normalizeTitleToken(raw);
+    if (!token) continue;
+    if (isAudienceConflictToken(token, profile)) continue;
+    if (!isEvidenceBackedHintToken(token, evidenceText)) continue;
+    const key = normalizeMatch(token);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(token);
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+
+function sanitizeHintTitleForProduct(rawTitle = '', product) {
+  const base = normalizeSpaces(rawTitle);
+  if (!base) return '';
+  const profile = inferAudienceProfile(product);
+  const evidenceText = buildTitleHintEvidence(product);
+  const kept = [];
+  for (const chunk of base.split(/\s+/g)) {
+    const token = normalizeTitleToken(chunk);
+    if (!token) continue;
+    if (isAudienceConflictToken(token, profile)) continue;
+    if (!isEvidenceBackedHintToken(token, evidenceText)) continue;
+    kept.push(token);
+  }
+  return normalizeSpaces(kept.join(' '));
+}
+
+function stripAudienceConflictsFromTitle(title = '', product) {
+  const text = normalizeSpaces(title);
+  if (!text) return '';
+  const profile = inferAudienceProfile(product);
+  if (!profile || profile.unisex) return text;
+  const kept = text
+    .split(/\s+/g)
+    .filter(Boolean)
+    .filter((token) => !isAudienceConflictToken(token, profile));
+  return normalizeSpaces(kept.join(' '));
+}
+
 function coerceTitleToPolicy(
   product,
   proposedTitle,
@@ -1949,6 +2086,7 @@ function coerceTitleToPolicy(
     let t = stripEmojis(proposedTitle || '');
     t = stripMarkdownDecorations(t);
     t = stripSkuNoise(t);
+    t = stripAudienceConflictsFromTitle(t, product);
     t = normalizeSpaces(t);
     t = stripLeadingNonAlnum(t);
     t = normalizeSpaces(t);
@@ -1965,9 +2103,8 @@ function coerceTitleToPolicy(
   if (!conditionLocked) {
     hintTitle = stripUsedCondition(hintTitle);
   }
-  const injectedHints = Array.isArray(extraHintTokens)
-    ? extraHintTokens.map((v) => normalizeTitleToken(v)).filter(Boolean).slice(0, 12)
-    : [];
+  hintTitle = sanitizeHintTitleForProduct(hintTitle, product);
+  const injectedHints = filterHintTokensForProduct(extraHintTokens, product);
   if (injectedHints.length) {
     hintTitle = normalizeSpaces([hintTitle, ...injectedHints].join(' '));
   }
@@ -1997,6 +2134,7 @@ function coerceTitleToPolicy(
     title = stripUsedCondition(title);
     title = normalizeSpaces(title);
   }
+  title = stripAudienceConflictsFromTitle(title, product);
   title = stripLeadingNonAlnum(title);
   title = normalizeSpaces(title);
   if (title.length > maxLen) title = truncateToMax(title, maxLen);

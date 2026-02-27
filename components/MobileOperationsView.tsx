@@ -46,7 +46,7 @@ const StatusBadge: React.FC<{ label: string; tone?: 'neutral' | 'success' | 'war
       ? 'bg-emerald-900/60 text-emerald-200 border-emerald-700/60'
       : tone === 'warn'
         ? 'bg-amber-900/60 text-amber-100 border-amber-700/60'
-        : 'bg-slate-800 text-slate-200 border-slate-700/60';
+        : 'bg-slate-800 text-slate-200 border-white/10';
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border ${toneClasses}`}>
       {label}
@@ -955,7 +955,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         <div className="flex items-center justify-end gap-2">
           <button
             type="button"
-            className="h-11 rounded-xl bg-slate-800/70 text-white px-3 text-sm font-semibold border border-slate-700"
+            className="h-11 rounded-xl bg-slate-800/40 text-white px-3 text-sm font-semibold border border-white/10"
             onClick={addIdentifySlot}
           >
             + {t('common.add')}
@@ -964,14 +964,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         <SectionTitle title={t('ops.mode.identify')} />
         <div className="grid grid-cols-1 gap-3">
           {identifySlots.map((slot) => (
-            <div key={slot} className="rounded-2xl border border-dashed border-white/15 bg-slate-800/70 p-4 space-y-3">
+            <div key={slot} className="rounded-2xl border border-dashed border-white/15 bg-slate-800/40 p-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-slate-100">
                   {t('input.groups.defaultName', { index: identifySlots.indexOf(slot) + 1 })}
                 </p>
                 <button
                   type="button"
-                  className="rounded-full bg-slate-900/60 border border-slate-700 text-slate-100 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                  className="rounded-full bg-slate-900/60 border border-white/10 text-slate-100 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
                   onClick={() => clearIdentifySlot(slot)}
                   disabled={!identifyImagesBySlot[slot]?.length}
                 >
@@ -988,7 +988,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 </button>
                 <button
                   type="button"
-                  className="rounded-2xl bg-slate-800 text-slate-100 font-semibold py-3 border border-slate-700"
+                  className="rounded-2xl bg-slate-800 text-slate-100 font-semibold py-3 border border-white/10"
                   onClick={() => triggerIdentifyInput(slot, 'upload')}
                 >
                   {t('common.upload')}
@@ -1003,7 +1003,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                         key={img.id}
                         src={img.previewUrl}
                         alt=""
-                        className="w-full aspect-square object-cover rounded-lg border border-slate-700"
+                        className="w-full aspect-square object-cover rounded-lg border border-white/10"
                         loading="lazy"
                       />
                     ))}
@@ -1072,7 +1072,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     return (
       <div className="space-y-3 max-w-xl mx-auto">
         <SectionTitle title={t('ops.mode.stow')} />
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-3 space-y-2">
           {stowMessage && <p className="text-xs text-emerald-300">{stowMessage}</p>}
           {stowProduct ? <ProductCard product={stowProduct} /> : null}
           <div className="grid grid-cols-2 gap-2 text-sm text-slate-200">
@@ -1095,7 +1095,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   pattern="[0-9]*"
                   readOnly
                   value={stowQty}
-                  className="flex-1 rounded-lg bg-slate-800 text-white text-xl font-semibold px-3 py-2 border border-slate-700"
+                  className="flex-1 rounded-lg bg-slate-800 text-white text-xl font-semibold px-3 py-2 border border-white/10"
                 />
                 <button
                   type="button"
@@ -1164,7 +1164,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         </div>
 
         {stowEntries.length > 0 ? (
-          <details className="rounded-2xl border border-white/10 bg-slate-800/70 p-3">
+          <details className="rounded-2xl border border-white/10 bg-slate-800/40 p-3">
             <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-sm font-semibold text-slate-100 flex items-center justify-between">
               <span>
                 {t('ops.mobile.stow.sessionTitle')} ({stowEntries.length})
@@ -1237,7 +1237,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div className={scanBoxClass('bin')}>
               <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.bin')}</p>
@@ -1500,7 +1500,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-3 text-sm text-slate-200">{packMessage}</div>
         ) : null}
 
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3 space-y-2">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-3">
               <p className="text-[11px] uppercase tracking-widest text-slate-400">{t('common.order')}</p>

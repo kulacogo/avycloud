@@ -24,7 +24,7 @@ const AttachmentMessage: React.FC<AttachmentMessageProps> = ({
 }) => {
   if (isImage && url) {
     return (
-      <figure className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900/70">
+      <figure className="overflow-hidden rounded-lg border border-white/10 bg-slate-900/70">
         <img
           src={url}
           alt={name}
@@ -54,7 +54,7 @@ const AttachmentMessage: React.FC<AttachmentMessageProps> = ({
   }
 
   return (
-    <div className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-200">
+    <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-xs text-slate-200">
       <div className="flex items-center justify-between">
         <div>
           <p className="font-semibold truncate">{name}</p>

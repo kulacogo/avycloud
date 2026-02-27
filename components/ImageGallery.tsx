@@ -494,7 +494,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     if (!isEditing || !isActiveReal || typeof onUpdateImage !== 'function') return null;
     const elapsedSeconds = improving ? Math.max(0, Math.round((Date.now() - improveStartedAtRef.current) / 1000)) : 0;
     return (
-      <div className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
+      <div className="mt-3 rounded-lg border border-white/10 bg-slate-900/60 p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs font-semibold text-slate-200">{t('sheet.gallery.improve.title')}</div>
           {improving ? (

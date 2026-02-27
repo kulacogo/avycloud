@@ -110,13 +110,13 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center px-4">
-      <div className="bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-lg">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700">
+      <div className="bg-slate-900 rounded-2xl shadow-lg border border-white/10 w-full max-w-lg">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
           <h3 className="text-white font-semibold">{title}</h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-300 hover:text-white text-sm px-3 py-1 border border-slate-600 rounded-full"
+            className="text-slate-300 hover:text-white text-sm px-3 py-1 border border-white/10 rounded-full"
           >
             Schließen
           </button>

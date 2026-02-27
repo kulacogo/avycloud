@@ -252,7 +252,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={onToggleTheme}
-                className="flex items-center justify-center rounded-lg bg-slate-800/70 border border-white/[0.08] text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                className="flex items-center justify-center rounded-lg bg-slate-800/40 border border-white/[0.08] text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
                 style={{ width: '2.25rem', height: '2.25rem' }}
                 aria-label={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
                 title={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
@@ -273,7 +273,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={() => logout()}
-                className="hidden sm:inline-flex items-center justify-center rounded-xl bg-slate-800/70 border border-white/[0.08] text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                className="hidden sm:inline-flex items-center justify-center rounded-xl bg-slate-800/40 border border-white/[0.08] text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
                 style={{ width: '3.5rem', height: '3.5rem' }}
                 aria-label={t('common.logout')}
                 title={t('common.logout')}

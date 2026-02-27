@@ -1201,7 +1201,7 @@ export const EbayListingsView: React.FC = () => {
             <span className={`rounded-lg border px-2 py-1 text-xs ${statusBadgeClass(tradingStatus?.connected ? 'synced' : 'failed')}`}>
               Trading API: {tradingStatus?.connected ? 'verbunden' : 'offline'}
             </span>
-            <span className="rounded-lg border border-slate-600 px-2 py-1 text-xs text-slate-300">
+            <span className="rounded-lg border border-white/10 px-2 py-1 text-xs text-slate-300">
               Mode: {safeString(tradingStatus?.mode) || '-'}
             </span>
           </div>
@@ -1213,14 +1213,14 @@ export const EbayListingsView: React.FC = () => {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Suche nach Item ID, SKU oder Titel"
-              className="w-full rounded-xl bg-slate-950 border border-slate-700 px-4 py-3 text-white"
+              className="w-full rounded-xl bg-slate-950 border border-white/10 px-4 py-3 text-white"
             />
           </div>
           <div className="lg:col-span-2">
             <select
               value={matchStatus}
               onChange={(event) => setMatchStatus(event.target.value as any)}
-              className="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-3 text-white"
+              className="w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-3 text-white"
             >
               <option value="all">Match: Alle</option>
               <option value="matched">Matched</option>
@@ -1295,12 +1295,12 @@ export const EbayListingsView: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/35 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-slate-900/35 px-3 py-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Weitere Aktionen</span>
           <select
             value={advancedAction}
             onChange={(event) => setAdvancedAction(event.target.value as AdvancedActionKey)}
-            className="rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-xs text-white min-w-[220px]"
+            className="rounded-lg bg-slate-950 border border-white/10 px-2 py-1.5 text-xs text-white min-w-[220px]"
           >
             {ADVANCED_ACTION_OPTIONS.map((option) => (
               <option key={option.id} value={option.id}>
@@ -1312,7 +1312,7 @@ export const EbayListingsView: React.FC = () => {
             type="button"
             onClick={() => void runAction(`advanced:${advancedAction}`, executeAdvancedAction)}
             disabled={Boolean(busyAction && busyAction.startsWith('advanced:'))}
-            className="rounded-lg border border-slate-600 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
+            className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
           >
             Ausfuehren
           </button>
@@ -1331,7 +1331,7 @@ export const EbayListingsView: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-4">
-        <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-3">
+        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-3">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-semibold text-slate-100">
               Listings ({filteredSortedListings.length}/{listings.length})
@@ -1343,13 +1343,13 @@ export const EbayListingsView: React.FC = () => {
               value={listingListSearch}
               onChange={(event) => setListingListSearch(event.target.value)}
               placeholder="In Liste filtern (Item ID, SKU, Titel)"
-              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white"
+              className="w-full rounded-lg bg-slate-950 border border-white/10 px-3 py-2 text-xs text-white"
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <select
                 value={listingListFilter}
                 onChange={(event) => setListingListFilter(event.target.value as ListingListFilter)}
-                className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-xs text-white"
+                className="w-full rounded-lg bg-slate-950 border border-white/10 px-2 py-2 text-xs text-white"
               >
                 {LISTING_FILTER_OPTIONS.map((option) => (
                   <option key={option.id} value={option.id}>
@@ -1360,7 +1360,7 @@ export const EbayListingsView: React.FC = () => {
               <select
                 value={listingSortBy}
                 onChange={(event) => setListingSortBy(event.target.value as ListingSortBy)}
-                className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-xs text-white"
+                className="w-full rounded-lg bg-slate-950 border border-white/10 px-2 py-2 text-xs text-white"
               >
                 {LISTING_SORT_OPTIONS.map((option) => (
                   <option key={option.id} value={option.id}>
@@ -1389,7 +1389,7 @@ export const EbayListingsView: React.FC = () => {
                   })
                 }
                 disabled={visibleListingIds.length === 0}
-                className="rounded border border-slate-600 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
+                className="rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
               >
                 {allVisibleListingsSelected ? 'Sichtbare abwaehlen' : 'Sichtbare markieren'}
               </button>
@@ -1397,7 +1397,7 @@ export const EbayListingsView: React.FC = () => {
                 type="button"
                 onClick={() => setSelectedListingIds({})}
                 disabled={selectedListingIdList.length === 0}
-                className="rounded border border-slate-600 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
+                className="rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
               >
                 Auswahl leeren
               </button>
@@ -1414,7 +1414,7 @@ export const EbayListingsView: React.FC = () => {
                 <div
                   key={row.itemId}
                   className={`w-full rounded-xl border px-3 py-2 text-left transition ${
-                    active ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700 bg-slate-900/40 hover:border-slate-500'
+                    active ? 'border-sky-500 bg-sky-500/10' : 'border-white/10 bg-slate-900/40 hover:border-slate-500'
                   }`}
                 >
                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -1435,7 +1435,7 @@ export const EbayListingsView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setSelectedItemId(row.itemId)}
-                      className="rounded border border-slate-600 bg-slate-900/60 px-2 py-0.5 text-[10px] text-slate-100 hover:bg-slate-800/70"
+                      className="rounded border border-white/10 bg-slate-900/60 px-2 py-0.5 text-[10px] text-slate-100 hover:bg-slate-800/40"
                     >
                       Details
                     </button>
@@ -1451,7 +1451,7 @@ export const EbayListingsView: React.FC = () => {
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    <span className="rounded border border-slate-600 px-1.5 py-0.5 text-[10px] text-slate-300">
+                    <span className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-slate-300">
                       Gaps: {row.gapCount ?? 0}
                     </span>
                     <span className="rounded border border-rose-700/70 px-1.5 py-0.5 text-[10px] text-rose-200">
@@ -1465,7 +1465,7 @@ export const EbayListingsView: React.FC = () => {
               );
             })}
             {!loadingListings && filteredSortedListings.length === 0 && (
-              <p className="rounded-xl border border-slate-700 bg-slate-900/40 px-3 py-3 text-sm text-slate-400">
+              <p className="rounded-xl border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-400">
                 Keine Listings fuer die aktuellen Filter gefunden.
               </p>
             )}
@@ -1482,7 +1482,7 @@ export const EbayListingsView: React.FC = () => {
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 space-y-1">
+                <div className="rounded-xl border border-white/10 bg-slate-900/50 p-3 space-y-1">
                   <p className="text-xs uppercase tracking-wider text-slate-400">Listing</p>
                   <p className="text-sm text-white font-semibold">{ebayTitle || '-'}</p>
                   <p className="text-xs text-slate-300">Item ID: {safeString(detail.listing?.itemId) || '-'}</p>
@@ -1500,7 +1500,7 @@ export const EbayListingsView: React.FC = () => {
                     </a>
                   )}
                 </div>
-                <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 space-y-1">
+                <div className="rounded-xl border border-white/10 bg-slate-900/50 p-3 space-y-1">
                   <p className="text-xs uppercase tracking-wider text-slate-400">Linking</p>
                   <div className="flex items-center gap-2">
                     <span className={`rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-wide ${statusBadgeClass(detail.link?.status)}`}>
@@ -1513,7 +1513,7 @@ export const EbayListingsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3 space-y-2">
+              <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-slate-100">Direktvergleich (eBay vs AvyCloud)</p>
                   <p className="text-xs text-slate-400">Kernaussagen auf einen Blick</p>
@@ -1541,11 +1541,11 @@ export const EbayListingsView: React.FC = () => {
                         </span>
                       </div>
                       <div className="grid grid-cols-1 gap-1 text-[11px]">
-                        <div className="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-slate-200">
+                        <div className="rounded border border-white/10 bg-slate-950/60 px-2 py-1 text-slate-200">
                           <span className="text-slate-400">eBay: </span>
                           {row.ebayValue}
                         </div>
-                        <div className="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-slate-200">
+                        <div className="rounded border border-white/10 bg-slate-950/60 px-2 py-1 text-slate-200">
                           <span className="text-slate-400">AvyCloud: </span>
                           {row.avyValue}
                         </div>
@@ -1555,7 +1555,7 @@ export const EbayListingsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3 space-y-2">
+              <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-slate-100">Item Specifics Vergleich ({specificsComparisonRows.length})</p>
                   <div className="flex flex-wrap gap-1.5 text-[10px]">
@@ -1571,7 +1571,7 @@ export const EbayListingsView: React.FC = () => {
                     <span className="rounded border border-violet-700/70 px-1.5 py-0.5 text-violet-200">
                       Nicht eBay-Attribut: {specificsStats.not_applicable}
                     </span>
-                    <span className="rounded border border-slate-600 px-1.5 py-0.5 text-slate-200">
+                    <span className="rounded border border-white/10 px-1.5 py-0.5 text-slate-200">
                       Nur eBay: {specificsStats.missing_avy}
                     </span>
                     <span className="rounded border border-emerald-700/70 px-1.5 py-0.5 text-emerald-200">
@@ -1580,7 +1580,7 @@ export const EbayListingsView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/45 px-2.5 py-2">
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-slate-950/45 px-2.5 py-2">
                   <span className="text-[11px] font-semibold text-slate-300">Direktaktion:</span>
                   <button
                     type="button"
@@ -1608,14 +1608,14 @@ export const EbayListingsView: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="max-h-[34vh] overflow-auto rounded-lg border border-slate-700">
+                <div className="max-h-[34vh] overflow-auto rounded-lg border border-white/10">
                   <table className="w-full border-collapse text-[11px]">
                     <thead className="sticky top-0 z-10 bg-slate-900/95 text-slate-300">
                       <tr>
-                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Attribut</th>
-                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Status</th>
-                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">eBay</th>
-                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">AvyCloud</th>
+                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Attribut</th>
+                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Status</th>
+                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">eBay</th>
+                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">AvyCloud</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1667,7 +1667,7 @@ export const EbayListingsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3 space-y-2">
+              <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-slate-100">
                     Gaps ({filteredGapList.length}/{gapList.length})
@@ -1684,7 +1684,7 @@ export const EbayListingsView: React.FC = () => {
                       setGapStatusFilter(event.target.value as GapStatusFilter);
                       setGapVisibleCount(25);
                     }}
-                    className="rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-xs text-slate-100"
+                    className="rounded-lg bg-slate-950 border border-white/10 px-2 py-2 text-xs text-slate-100"
                   >
                     {GAP_STATUS_FILTER_OPTIONS.map((option) => (
                       <option key={option.id} value={option.id}>
@@ -1698,7 +1698,7 @@ export const EbayListingsView: React.FC = () => {
                       setGapSeverityFilter(event.target.value as GapSeverityFilter);
                       setGapVisibleCount(25);
                     }}
-                    className="rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-xs text-slate-100"
+                    className="rounded-lg bg-slate-950 border border-white/10 px-2 py-2 text-xs text-slate-100"
                   >
                     {GAP_SEVERITY_FILTER_OPTIONS.map((option) => (
                       <option key={option.id} value={option.id}>
@@ -1713,11 +1713,11 @@ export const EbayListingsView: React.FC = () => {
                       setGapVisibleCount(25);
                     }}
                     placeholder="Gap suchen (Feld, Text, Wert)"
-                    className="rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-slate-100"
+                    className="rounded-lg bg-slate-950 border border-white/10 px-3 py-2 text-xs text-slate-100"
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/45 px-2.5 py-2">
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-slate-950/45 px-2.5 py-2">
                   <button
                     type="button"
                     onClick={() =>
@@ -1737,7 +1737,7 @@ export const EbayListingsView: React.FC = () => {
                       })
                     }
                     disabled={selectableGapCount === 0}
-                    className="rounded border border-slate-600 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
+                    className="rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
                   >
                     {allVisibleSelected ? 'Sichtbare abwaehlen' : 'Sichtbare markieren'}
                   </button>
@@ -1747,7 +1747,7 @@ export const EbayListingsView: React.FC = () => {
                   <select
                     value={gapBulkAction}
                     onChange={(event) => setGapBulkAction(event.target.value as GapBulkAction)}
-                    className="rounded border border-slate-600 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                    className="rounded border border-white/10 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
                   >
                     {GAP_BULK_ACTION_OPTIONS.map((option) => (
                       <option key={option.id} value={option.id}>
@@ -1767,23 +1767,23 @@ export const EbayListingsView: React.FC = () => {
                     type="button"
                     onClick={() => setSelectedGapIds({})}
                     disabled={!selectedVisibleGapIds.length}
-                    className="rounded border border-slate-600 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/70 disabled:opacity-50"
+                    className="rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
                   >
                     Auswahl leeren
                   </button>
                 </div>
 
-                <div className="max-h-[42vh] overflow-auto rounded-lg border border-slate-700">
+                <div className="max-h-[42vh] overflow-auto rounded-lg border border-white/10">
                   <table className="w-full border-collapse text-[11px]">
                     <thead className="sticky top-0 z-10 bg-slate-900/95 text-slate-300">
                       <tr>
-                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium w-8">#</th>
-                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Feld</th>
-                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Status</th>
-                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Severity</th>
-                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">Typ</th>
-                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">eBay</th>
-                        <th className="border-b border-slate-700 px-2 py-1.5 text-left font-medium">AvyCloud</th>
+                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium w-8">#</th>
+                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Feld</th>
+                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Status</th>
+                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Severity</th>
+                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Typ</th>
+                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">eBay</th>
+                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">AvyCloud</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1848,7 +1848,7 @@ export const EbayListingsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setGapVisibleCount((prev) => prev + 25)}
-                    className="w-full rounded border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/70"
+                    className="w-full rounded border border-white/10 bg-slate-900/50 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/40"
                   >
                     Mehr laden ({hiddenGapCount} weitere Gaps)
                   </button>
@@ -1870,7 +1870,7 @@ export const EbayListingsView: React.FC = () => {
               </p>
               <div className="max-h-48 overflow-auto space-y-1">
                 {dryRunResult.items.map((item) => (
-                  <div key={item.itemId} className="rounded border border-slate-700 bg-slate-900/60 px-2 py-1 text-xs text-slate-200">
+                  <div key={item.itemId} className="rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-xs text-slate-200">
                     {item.itemId} | {item.canApply ? 'ready' : 'blocked'} | {item.blockers.join('; ') || '-'}
                   </div>
                 ))}
@@ -1886,7 +1886,7 @@ export const EbayListingsView: React.FC = () => {
               </p>
               <div className="max-h-48 overflow-auto space-y-1">
                 {applyResult.results.map((item) => (
-                  <div key={item.itemId} className="rounded border border-slate-700 bg-slate-900/60 px-2 py-1 text-xs text-slate-200">
+                  <div key={item.itemId} className="rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-xs text-slate-200">
                     {item.itemId} | {item.ok ? 'ok' : item.skipped ? 'skipped' : 'failed'} | {safeString(item.message) || '-'}
                   </div>
                 ))}

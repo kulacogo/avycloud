@@ -205,7 +205,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
                       }
                       renameKey(key, nextKey);
                     }}
-                    className={`w-full bg-slate-700 border rounded px-2 py-1 text-slate-200 ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-slate-600'
+                    className={`w-full bg-slate-700 border rounded px-2 py-1 text-slate-200 ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-white/10'
                       }`}
                   />
                 ) : formatKeyLabel(key)}
@@ -215,7 +215,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
                   <input
                     defaultValue={formatValue(value)}
                     onBlur={(e) => updateAttr(key, e.target.value)}
-                    className={`w-full bg-slate-700 border rounded px-2 py-1 text-slate-200 ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-slate-600'
+                    className={`w-full bg-slate-700 border rounded px-2 py-1 text-slate-200 ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-white/10'
                       }`}
                   />
                 ) : formatValue(value)}

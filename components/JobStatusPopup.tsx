@@ -19,7 +19,7 @@ const JobStatusPopup: React.FC<JobStatusPopupProps> = ({ jobs, onCancel, onDismi
 
   return (
     <div className="fixed bottom-6 right-6 z-50 w-full max-w-sm">
-      <div className="rounded-2xl border border-slate-700 bg-slate-900/95 shadow-2xl shadow-black/40 p-4 space-y-3">
+      <div className="rounded-2xl border border-white/10 bg-slate-900/95 shadow-lg shadow-black/40 p-4 space-y-3">
         <p className="text-sm font-semibold text-slate-200">Produkt-Uploads</p>
         <div className="flex flex-col gap-3 max-h-96 overflow-y-auto pr-2">
           {jobs.map((job) => {
@@ -36,7 +36,7 @@ const JobStatusPopup: React.FC<JobStatusPopupProps> = ({ jobs, onCancel, onDismi
             return (
               <div
                 key={job.localId}
-                className="rounded-xl border border-slate-700 bg-slate-800/80 p-3 flex flex-col gap-2"
+                className="rounded-xl border border-white/10 bg-slate-800/80 p-3 flex flex-col gap-2"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>

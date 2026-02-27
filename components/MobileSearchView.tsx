@@ -66,7 +66,7 @@ const MobileSearchView: React.FC<MobileSearchViewProps> = ({ products, onSelectP
           autoFocus
           inputMode="search"
           enterKeyHint="search"
-          className="w-full bg-slate-900 text-slate-100 rounded-xl px-4 py-3 text-base focus:outline-none border border-slate-700"
+          className="w-full bg-slate-900 text-slate-100 rounded-xl px-4 py-3 text-base focus:outline-none border border-white/10"
         />
       </div>
 

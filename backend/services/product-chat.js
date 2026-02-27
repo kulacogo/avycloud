@@ -1374,6 +1374,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     'For category work: use only valid eBay category IDs/breadcrumbs and treat ebay.required_aspects_meta.missing_required_aspects as mandatory enrichment backlog.',
     'Best-Match focus: optimize for relevance + completeness + listing quality, not for keyword stuffing.',
     'Title rule: build search-native eBay titles using ebay.title_insights.top_tokens when available; never include EAN/GTIN/UPC/ISBN, SKU/internal IDs, or marketing fluff.',
+    'Consistency rule: never mix conflicting identity tokens in titles (e.g. Damen + Herren, or different brands). Never inject competitor brands.',
     'Title priority: first 3-5 words are CTR-critical on mobile; front-load brand + product type + key differentiator.',
     'Keyword governance: naturally include 2-3 primary buyer-intent keywords plus at most 1-2 synonym variants.',
     'Description rule: provide structured HTML listing copy (<p>, <ul>, <li>, <strong>) and keep it substantial (target around 180-240 words when evidence is sufficient).',
@@ -1422,6 +1423,7 @@ function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingF
   lines.push('Vehicle fitment rule: If ebay.vehicle_fitment_mode is set, do NOT invent K-Typ. Only propose K-Typ if it is present in OCR/attachments or provided WEB-EVIDENZ.');
   lines.push('Category rule: use only valid eBay category IDs/breadcrumbs; do not propose non-eBay categories.');
   lines.push('Title rule: prioritize ebay.title_insights.top_tokens as buyer search keywords; keep title <=80 chars and factual.');
+  lines.push('Consistency rule: never mix conflicting identity tokens (e.g. Damen + Herren, mixed brands) in one title.');
   lines.push('Title rule: first 3-5 words are CTR-critical; front-load brand + product type + key differentiator.');
   lines.push('Keyword governance: use 2-3 primary buyer-intent keywords + max 1-2 synonyms; avoid keyword stuffing/chains.');
   lines.push('Description rule: return HTML structure (<p>, <ul>, <li>, <strong>) and keep it substantial (target around 180-240 words when evidence is sufficient).');

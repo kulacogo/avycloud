@@ -113,7 +113,7 @@ export const CategoryManagement: React.FC = () => {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded-xl bg-slate-950 border border-slate-700 px-4 py-3 text-white"
+          className="w-full rounded-xl bg-slate-950 border border-white/10 px-4 py-3 text-white"
           placeholder={t('categories.searchPlaceholder')}
         />
         <div className="text-xs text-slate-400">
@@ -142,7 +142,7 @@ export const CategoryManagement: React.FC = () => {
                   type="button"
                   onClick={() => void selectCategory(cat)}
                   className={`w-full text-left rounded-xl border px-3 py-2 transition ${
-                    active ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700 bg-slate-900/40 hover:border-slate-500'
+                    active ? 'border-sky-500 bg-sky-500/10' : 'border-white/10 bg-slate-900/40 hover:border-slate-500'
                   }`}
                 >
                   <p className="text-sm font-semibold text-white">{cat.name}</p>
@@ -191,7 +191,7 @@ export const CategoryManagement: React.FC = () => {
                     setProfile((prev) => (prev ? { ...prev, canonicalAttributes: lines } : prev));
                   }}
                   rows={8}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-700 px-4 py-3 text-white font-mono text-sm"
+                  className="w-full rounded-xl bg-slate-950 border border-white/10 px-4 py-3 text-white font-mono text-sm"
                 />
               </div>
 
@@ -210,7 +210,7 @@ export const CategoryManagement: React.FC = () => {
                     }
                   }}
                   rows={10}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-700 px-4 py-3 text-white font-mono text-sm"
+                  className="w-full rounded-xl bg-slate-950 border border-white/10 px-4 py-3 text-white font-mono text-sm"
                 />
                 <p className="text-xs text-slate-400">{t('categories.attributeAliasesHint')}</p>
               </div>
@@ -221,7 +221,7 @@ export const CategoryManagement: React.FC = () => {
                   value={profile.notes || ''}
                   onChange={(e) => setProfile((prev) => (prev ? { ...prev, notes: e.target.value } : prev))}
                   rows={3}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-700 px-4 py-3 text-white text-sm"
+                  className="w-full rounded-xl bg-slate-950 border border-white/10 px-4 py-3 text-white text-sm"
                 />
               </div>
 

@@ -816,7 +816,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
   return (
     <section className="space-y-6">
-      <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg space-y-4">
+      <div className="bg-slate-800/40 rounded-2xl p-5 border border-white/10 space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-widest text-slate-400">BaseLinker</p>
@@ -844,7 +844,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               <button
                 type="button"
                 onClick={() => setShowOrdersPanel((prev) => !prev)}
-                className="inline-flex items-center rounded-full border border-slate-600 px-3 py-2 text-sm text-slate-100 hover:border-slate-400"
+                className="inline-flex items-center rounded-full border border-white/10 px-3 py-2 text-sm text-slate-100 hover:border-slate-400"
               >
                 {showOrdersPanel ? t('ops.orders.hide') : t('ops.orders.show')}
               </button>
@@ -858,20 +858,20 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         {showOrdersPanel && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
+              <div className="bg-slate-900/40 rounded-xl p-4 border border-white/10">
                 <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.open')}</p>
                 <p className="text-2xl font-semibold text-white mt-1">{orderSummary.open}</p>
               </div>
-              <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
+              <div className="bg-slate-900/40 rounded-xl p-4 border border-white/10">
                 <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.total')}</p>
                 <p className="text-2xl font-semibold text-white mt-1">{orderSummary.total}</p>
               </div>
-              <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-700">
+              <div className="bg-slate-900/40 rounded-xl p-4 border border-white/10">
                 <p className="text-xs uppercase tracking-widest text-slate-400">{t('ops.orders.today')}</p>
                 <p className="text-2xl font-semibold text-white mt-1">{orderSummary.pickedToday}</p>
               </div>
             </div>
-            <div className="bg-slate-900/40 rounded-2xl p-4 border border-slate-700">
+            <div className="bg-slate-900/40 rounded-2xl p-4 border border-white/10">
               {ordersLoading ? (
                 <p className="text-slate-400 text-sm">{t('ops.orders.loading')}</p>
               ) : openOrders.length === 0 ? (
@@ -880,7 +880,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 <div className="space-y-3">
                   <ul className="space-y-3">
                     {visibleOrders.map((order) => (
-                      <li key={order.id} className="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+                      <li key={order.id} className="bg-slate-900/60 border border-white/10 rounded-xl p-3">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div>
                             <p className="text-sm font-semibold text-white">
@@ -937,7 +937,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         )}
       </div>
 
-      <header className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg">
+      <header className="bg-slate-800/40 rounded-2xl p-5 border border-white/10">
         <h1 className="text-2xl font-semibold text-white mb-4">{t('ops.title')}</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {WORKFLOW_CARDS.map((card) => {
@@ -947,7 +947,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 key={card.mode}
                 type="button"
                 onClick={() => setWorkflow(card.mode)}
-                className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition ${active ? 'border-sky-500 bg-sky-500/20 text-white shadow-lg shadow-sky-900/30' : 'border-slate-700 bg-slate-900/40 text-slate-300 hover:border-slate-500'
+                className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition ${active ? 'border-sky-500 bg-sky-500/20 text-white shadow-lg shadow-sky-900/30' : 'border-white/10 bg-slate-900/40 text-slate-300 hover:border-slate-500'
                   }`}
               >
                 <span className={`p-3 rounded-2xl ${active ? 'bg-sky-600/30 text-white' : 'bg-slate-800 text-slate-200'}`}>{card.icon}</span>
@@ -963,28 +963,28 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           <button
             type="button"
             onClick={() => onSwitchView?.('input')}
-            className="rounded-full border border-slate-600 px-4 py-2 text-sm text-slate-100 hover:border-slate-400"
+            className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-100 hover:border-slate-400"
           >
             {t('ops.mode.identify')}
           </button>
           <button
             type="button"
             onClick={() => setWorkflow('stow')}
-            className={`rounded-full px-4 py-2 text-sm ${workflow === 'stow' ? 'bg-emerald-600 text-white' : 'border border-slate-600 text-slate-100 hover:border-slate-400'}`}
+            className={`rounded-full px-4 py-2 text-sm ${workflow === 'stow' ? 'bg-emerald-600 text-white' : 'border border-white/10 text-slate-100 hover:border-slate-400'}`}
           >
             {t('ops.mode.stow')}
           </button>
           <button
             type="button"
             onClick={() => setWorkflow('pick')}
-            className={`rounded-full px-4 py-2 text-sm ${workflow === 'pick' ? 'bg-amber-600 text-white' : 'border border-slate-600 text-slate-100 hover:border-slate-400'}`}
+            className={`rounded-full px-4 py-2 text-sm ${workflow === 'pick' ? 'bg-amber-600 text-white' : 'border border-white/10 text-slate-100 hover:border-slate-400'}`}
           >
             {t('ops.mode.pick')}
           </button>
         </div>
       </header>
 
-      <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg space-y-4">
+      <div className="bg-slate-800/40 rounded-2xl p-5 border border-white/10 space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm uppercase tracking-widest text-slate-400">{t('ops.labels.activeWorkflow')}</p>
@@ -992,7 +992,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           </div>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:border-slate-400"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 hover:border-slate-400"
             onClick={() => setScannerTarget(workflow === 'stow' ? 'stowSku' : 'pickBin')}
           >
             <CameraIcon className="w-4 h-4" />
@@ -1014,14 +1014,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             }}
           >
             {/* Produkt */}
-            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+            <div className="bg-slate-900/50 p-4 rounded-xl border border-white/10">
               <label className="text-xs text-slate-400 uppercase tracking-wide block mb-2">{t('ops.stow.product')}</label>
               <div className="flex gap-3">
                 <input
                   value={stowSku}
                   ref={stowSkuRef}
                   onChange={(e) => setStowSku(e.target.value)}
-                  className="flex-1 bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-base text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-base text-white focus:ring-2 focus:ring-sky-500 outline-none"
                   placeholder={t('ops.stow.product')}
                 />
                 <button
@@ -1033,7 +1033,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 </button>
               </div>
               {matchedStowProduct ? (
-                <div className="mt-3 bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                <div className="mt-3 bg-slate-800/50 p-3 rounded-lg border border-white/10">
                   <p className="text-sm font-medium text-white">{matchedStowProduct.identification?.name}</p>
                   {matchedStowProduct.storage?.binCode && (
                     <p className="text-xs text-emerald-400 mt-1">
@@ -1048,14 +1048,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
             {/* Bin & Menge */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+              <div className="bg-slate-900/50 p-4 rounded-xl border border-white/10">
                 <label className="text-xs text-slate-400 uppercase tracking-wide block mb-2">{t('ops.stow.bin')}</label>
                 <div className="flex gap-3">
                   <input
                     value={stowBin}
                     ref={stowBinRef}
                     onChange={(e) => setStowBin(e.target.value.toUpperCase())}
-                    className="flex-1 bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-base text-white uppercase font-mono focus:ring-2 focus:ring-sky-500 outline-none"
+                    className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-base text-white uppercase font-mono focus:ring-2 focus:ring-sky-500 outline-none"
                     placeholder="BIN..."
                   />
                   <button
@@ -1068,7 +1068,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 </div>
               </div>
 
-              <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+              <div className="bg-slate-900/50 p-4 rounded-xl border border-white/10">
                 <label className="text-xs text-slate-400 uppercase tracking-wide block mb-2">{t('ops.stow.quantity')}</label>
                 <input
                   type="number"
@@ -1082,7 +1082,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       setStowQuantity(Math.max(1, Number(val)));
                     }
                   }}
-                  className="w-full bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-base text-white font-mono focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-base text-white font-mono focus:ring-2 focus:ring-sky-500 outline-none"
                 />
               </div>
             </div>
@@ -1101,7 +1101,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 type="button"
                 onClick={() => handleStow(true)}
                 disabled={isSubmitting || !stowSku || !stowBin || !stowQuantity}
-                className="w-full py-4 rounded-xl bg-slate-700 text-white font-semibold border border-slate-600 hover:bg-slate-600 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                className="w-full py-4 rounded-xl bg-slate-700 text-white font-semibold border border-white/10 hover:bg-slate-600 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
               >
                 {t('ops.stow.submit.next')}
               </button>
@@ -1136,7 +1136,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       <img
                         src={resolveImageSrc(nextPickTask.image)}
                         alt={nextPickTask.itemName}
-                        className="h-16 w-16 rounded-lg border border-slate-700 object-cover"
+                        className="h-16 w-16 rounded-lg border border-white/10 object-cover"
                         loading="lazy"
                       />
                       <div className="text-xs text-slate-300">
@@ -1146,17 +1146,17 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     </div>
                   )}
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-3 text-sm">
-                    <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
+                    <div className="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2">
                       <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.labels.stepBin')}</p>
                       <p className={`text-xl font-semibold ${nextPickTask.binCode ? 'text-amber-300' : 'text-rose-400'}`}>
                         {nextPickTask.binCode || 'Kein Platz'}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
+                    <div className="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2">
                       <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.labels.stepSku')}</p>
                       <p className="text-base font-semibold text-white break-all">{nextPickTask.sku || '—'}</p>
                     </div>
-                    <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">
+                    <div className="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2">
                       <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.labels.quantity')}</p>
                       <p className="text-xl font-semibold text-white">{nextPickTask.quantity}</p>
                       {typeof nextPickTask.available === 'number' && (
@@ -1177,14 +1177,14 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       type="button"
                       onClick={() => nextPickTask.binCode && loadBinDetail(nextPickTask.binCode)}
                       disabled={!nextPickTask.binCode}
-                      className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400 disabled:opacity-50"
+                      className="rounded-full border border-white/10 px-3 py-1.5 text-slate-100 hover:border-slate-400 disabled:opacity-50"
                     >
                       {t('ops.actions.reloadBin')}
                     </button>
                     <button
                       type="button"
                       onClick={() => markPickTaskCompleted(nextPickTask.itemId)}
-                      className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400"
+                      className="rounded-full border border-white/10 px-3 py-1.5 text-slate-100 hover:border-slate-400"
                     >
                       {t('ops.actions.skipOrder')}
                     </button>
@@ -1192,7 +1192,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       <button
                         type="button"
                         onClick={() => setSkippedPickItemIds([])}
-                        className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-100 hover:border-slate-400"
+                        className="rounded-full border border-white/10 px-3 py-1.5 text-slate-100 hover:border-slate-400"
                       >
                         {t('ops.actions.resetRoute')}
                       </button>
@@ -1204,7 +1204,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               )}
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.pick.steps.bin')}</p>
@@ -1226,7 +1226,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   <button
                     type="button"
                     onClick={() => setScannerTarget('pickBin')}
-                    className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
+                    className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
                   >
                     {t('ops.pick.steps.cta')}
                   </button>
@@ -1236,13 +1236,13 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       const code = pickBin || nextPickTask?.binCode || '';
                       loadBinDetail(code);
                     }}
-                    className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
+                    className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
                   >
                     {t('ops.actions.reloadBin')}
                   </button>
                 </div>
               </div>
-              <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('ops.pick.steps.sku')}</p>
@@ -1262,7 +1262,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   <button
                     type="button"
                     onClick={() => setScannerTarget('pickSku')}
-                    className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
+                    className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
                   >
                     {t('ops.pick.steps.cta')}
                   </button>
@@ -1285,7 +1285,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       setPickQuantity(Math.max(1, Number(val)));
                     }
                   }}
-                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white"
                 />
                 <p className="mt-1 text-xs text-slate-400">
                   {t('ops.pick.quantityHint', { value: nextPickTask?.quantity || 1 })}
@@ -1295,7 +1295,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 <button
                   type="button"
                   onClick={handleResetPickScans}
-                  className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
+                  className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
                 >
                   {t('ops.pick.reset')}
                 </button>
@@ -1303,7 +1303,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             </div>
 
             {pickBinDetail && (
-              <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-4">
+              <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4">
                 <h4 className="text-white font-semibold mb-2">BIN {pickBinDetail.code}</h4>
                 {pickBinDetail.products?.length ? (
                   <ul className="space-y-2 max-h-52 overflow-y-auto text-sm">
@@ -1323,7 +1323,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                           <img
                             src={resolveImageSrc(item.image)}
                             alt={item.name}
-                            className="w-12 h-12 object-cover rounded border border-slate-700"
+                            className="w-12 h-12 object-cover rounded border border-white/10"
                           />
                         )}
                       </li>

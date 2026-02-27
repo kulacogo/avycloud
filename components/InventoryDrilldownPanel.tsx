@@ -70,7 +70,7 @@ export const InventoryDrilldownPanel: React.FC<{
   }, [products, idSet, q]);
 
   return (
-    <div className="rounded-2xl bg-slate-900/60 p-4 ring-1 ring-slate-700/60">
+    <div className="rounded-2xl bg-slate-900/60 p-4 border border-white/10">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-slate-100">{title}</div>
@@ -84,7 +84,7 @@ export const InventoryDrilldownPanel: React.FC<{
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Suchen (Name, Marke, SKU, Kategorie)…"
-            className="w-56 rounded-xl bg-slate-800/70 px-3 py-2 text-xs text-slate-100 ring-1 ring-slate-700/60 placeholder:text-slate-500"
+            className="w-56 rounded-xl bg-slate-800/40 px-3 py-2 text-xs text-slate-100 border border-white/10 placeholder:text-slate-500"
           />
           <button
             type="button"
@@ -97,7 +97,7 @@ export const InventoryDrilldownPanel: React.FC<{
         </div>
       </div>
 
-      <div className="mt-3 overflow-auto rounded-xl ring-1 ring-slate-700/50">
+      <div className="mt-3 overflow-auto rounded-xl border border-white/10">
         <table className="min-w-full text-left text-xs">
           <thead className="bg-slate-900/60 text-slate-300">
             <tr>

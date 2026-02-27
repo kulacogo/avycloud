@@ -1273,7 +1273,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         ''
                       }
                       onChange={(e) => handleCategorySelect(e.target.value)}
-                      className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200"
+                      className="bg-slate-800 border border-white/10 rounded-md px-2 py-1 text-xs text-slate-200"
                     >
                       <option value="">eBay Kategorie auswählen...</option>
                       {categorySelectOptions.map((option) => (
@@ -1324,7 +1324,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     }}
                     rows={Math.min(4, Math.max(2, barcodeInput.split('\n').length || 2))}
                     className={`w-full bg-slate-800 border rounded-lg p-2 text-xs text-slate-200 ${
-                      hasQualityIssue('identification.barcodes') || hasQualityIssue('details.identifiers') ? 'border-red-500/60' : 'border-slate-700'
+                      hasQualityIssue('identification.barcodes') || hasQualityIssue('details.identifiers') ? 'border-red-500/60' : 'border-white/10'
                     }`}
                     placeholder={t('input.barcodes.placeholder')}
                   />
@@ -1423,7 +1423,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                               ? 'bg-red-500/15 text-red-200 border-red-500/30'
                               : issue?.severity === 'warn'
                                 ? 'bg-amber-500/15 text-amber-200 border-amber-500/30'
-                                : 'bg-slate-600/20 text-slate-200 border-slate-600/30'
+                                : 'bg-slate-600/20 text-slate-200 border-white/10'
                           }`}
                         >
                           {issue?.severity || 'info'}
@@ -1535,7 +1535,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <input
                     type="text"
                     placeholder={t('sheet.upload.urlPlaceholder')}
-                    className="flex-1 bg-slate-700 border border-slate-600 rounded-lg p-2 text-slate-200"
+                    className="flex-1 bg-slate-700 border border-white/10 rounded-lg p-2 text-slate-200"
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
                     onKeyDown={(e) => {
@@ -1555,7 +1555,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </button>
                 </div>
                 <div
-                  className={`rounded-xl border-2 border-dashed p-4 text-center text-xs sm:text-sm transition-colors ${isUploadDragActive ? 'border-sky-500 bg-slate-800/60' : 'border-slate-600 bg-slate-900/40'}`}
+                  className={`rounded-xl border-2 border-dashed p-4 text-center text-xs sm:text-sm transition-colors ${isUploadDragActive ? 'border-sky-500 bg-slate-800/60' : 'border-white/10 bg-slate-900/40'}`}
                   onDragOver={handleUploadDragOver}
                   onDragEnter={handleUploadDragOver}
                   onDragLeave={handleUploadDragLeave}
@@ -1565,7 +1565,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <p className="text-slate-400 mt-1">{t('sheet.upload.dragHint')}</p>
                   <div className="mt-3 flex items-center justify-center gap-2 text-slate-400 text-xs uppercase tracking-wide">
                     <span>{t('sheet.upload.or')}</span>
-                    <label className="cursor-pointer rounded-full border border-slate-600 px-3 py-1 text-white">
+                    <label className="cursor-pointer rounded-full border border-white/10 px-3 py-1 text-white">
                       {t('sheet.upload.fileBtn')}
                       <input
                         type="file"
@@ -1587,14 +1587,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               </div>
             )}
             {isEditing && (
-              <div className="mt-4 pt-4 border-t border-slate-700 space-y-3">
+              <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     {t('sheet.ai.referenceLabel')}
                   </label>
                   {referenceImages.length ? (
                     <select
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-100"
                       value={selectedReferenceIndex >= 0 ? selectedReferenceIndex : ''}
                       onChange={(e) => setSelectedReferenceIndex(Number(e.target.value))}
                     >
@@ -1637,7 +1637,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   setIsDirty(true);
                 }}
                 placeholder={t('sheet.highlights.placeholder')}
-                className="w-full min-h-[110px] bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-200"
+                className="w-full min-h-[110px] bg-slate-800 border border-white/10 rounded-lg p-3 text-slate-200"
               />
             ) : highlightList.length ? (
               <ul className="space-y-2 list-disc list-inside text-slate-300 text-sm">
@@ -1658,7 +1658,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               <textarea
                 defaultValue={localProduct.details.short_description}
                 onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
-                className="w-full min-h-[120px] bg-slate-700 border border-slate-600 rounded-lg p-3 text-slate-200"
+                className="w-full min-h-[120px] bg-slate-700 border border-white/10 rounded-lg p-3 text-slate-200"
               />
             ) : (
               <p className="text-slate-300 leading-relaxed text-sm sm:text-base">{descriptionText}</p>
@@ -1669,7 +1669,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-xl font-semibold mb-3 text-white">GPSR</h3>
               {!hasAnyGpsr && !isEditing ? (
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300 border border-slate-600/40">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300 border border-white/10">
                   leer
                 </span>
               ) : null}
@@ -1700,7 +1700,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       <input
                         value={value}
                         onChange={(e) => updateGpsrField(String(key), e.target.value)}
-                        className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-200 text-sm"
+                        className="w-full bg-slate-700 border border-white/10 rounded-lg px-3 py-2 text-slate-200 text-sm"
                         placeholder="—"
                       />
                     ) : (
@@ -1717,7 +1717,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           <section id="attributes" className="p-4 bg-slate-800 rounded-lg shadow-lg h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.attributes')}</h3>
 
-            <div className="mb-4 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
+            <div className="mb-4 rounded-lg border border-white/10 bg-slate-900/60 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -1756,7 +1756,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     });
                     setIsDirty(true);
                   }}
-                  className="mt-3 w-full min-h-[70px] bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200"
+                  className="mt-3 w-full min-h-[70px] bg-slate-800 border border-white/10 rounded-lg p-2 text-slate-200"
                 />
               ) : (
                 <div className="mt-3 text-sm text-slate-200 whitespace-pre-wrap break-words">
@@ -1766,7 +1766,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             </div>
 
             {localProduct?.ops?.data_quality?.ktype_enrich_v1 ? (
-              <details className="mb-4 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
+              <details className="mb-4 rounded-lg border border-white/10 bg-slate-900/60 p-3">
                 <summary className="cursor-pointer text-sm font-semibold text-slate-200">
                   K-Typ Trace (ops.data_quality.ktype_enrich_v1)
                 </summary>
@@ -1811,7 +1811,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             ) : productBins.length ? (
               <div className="mb-4 space-y-2 max-h-56 overflow-auto pr-1">
                 {productBins.map((bin) => (
-                  <div key={bin.code} className="rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
+                  <div key={bin.code} className="rounded border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="font-semibold text-white">{bin.code}</div>
                       <div className="text-xs text-slate-400">
@@ -1832,7 +1832,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   value={binCodeInput}
                   onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
                   placeholder={t('sheet.storage.binPlaceholder')}
-                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+                  className="w-full bg-slate-900 border border-white/10 rounded px-3 py-2 text-sm"
                 />
               </div>
               <div>
@@ -1842,7 +1842,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   min={1}
                   value={binQuantity}
                   onChange={(e) => setBinQuantity(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+                  className="w-full bg-slate-900 border border-white/10 rounded px-3 py-2 text-sm"
                 />
               </div>
             </div>
@@ -1883,7 +1883,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 type="button"
                 onClick={handleInventoryLabel}
                 disabled={!localProduct.inventory?.inventoryId}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
               >
                 <PrintIcon className="w-4 h-4" />
                 {t('sheet.inventory.printLabel')}
@@ -1892,7 +1892,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 type="button"
                 onClick={() => syncInventoryList()}
                 disabled={inventorySyncing}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-60"
               >
                 {inventorySyncing ? <Spinner className="w-4 h-4" /> : <RefreshIcon className="w-4 h-4" />}
                 {inventorySyncing ? t('sheet.inventory.syncing') : t('sheet.inventory.sync')}
@@ -1907,7 +1907,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               value={localProduct.inventory?.inventoryId || ''}
               onChange={(event) => handleInventoryAssign(event.target.value)}
               disabled={assigningInventory}
-              className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 disabled:opacity-50"
+              className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-100 disabled:opacity-50"
             >
               <option value="">{t('sheet.inventory.selectPlaceholder')}</option>
               {inventories.map((inv) => (
@@ -1926,7 +1926,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   : null
               }
               disabled={!localProduct.inventory?.inventoryId}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
               <BarcodeIcon className="w-4 h-4" />
               {t('sheet.inventory.setActive')}

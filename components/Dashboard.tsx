@@ -84,7 +84,7 @@ const colorBg: Record<NonNullable<CardProps['color']>, string> = {
   amber: 'bg-amber-500/5',
   violet: 'bg-violet-500/5',
   red: 'bg-rose-500/5',
-  neutral: 'bg-slate-800/70',
+  neutral: 'bg-slate-800/40',
 };
 
 const Card: React.FC<CardProps> = ({

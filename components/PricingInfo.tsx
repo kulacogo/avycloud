@@ -66,8 +66,8 @@ const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, o
         <strong>Selling price:</strong>
         {isEditing ? (
           <div className="flex items-center gap-2">
-            <input type="number" step="0.01" defaultValue={lowest_price.amount} onBlur={e => setAmount(e.target.value)} className="w-28 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-slate-200" />
-            <input type="text" defaultValue={lowest_price.currency} onBlur={e => setCurrency(e.target.value.toUpperCase())} className="w-20 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-slate-200 uppercase" />
+            <input type="number" step="0.01" defaultValue={lowest_price.amount} onBlur={e => setAmount(e.target.value)} className="w-28 bg-slate-700 border border-white/10 rounded px-2 py-1 text-slate-200" />
+            <input type="text" defaultValue={lowest_price.currency} onBlur={e => setCurrency(e.target.value.toUpperCase())} className="w-20 bg-slate-700 border border-white/10 rounded px-2 py-1 text-slate-200 uppercase" />
           </div>
         ) : (
           <span id="price-value" className="text-3xl font-bold text-sky-400">
@@ -80,7 +80,7 @@ const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, o
       <div className="mt-1">
         <span className="text-sm text-slate-400">Confidence: </span>
         {isEditing ? (
-          <input type="number" step="0.01" min="0" max="1" defaultValue={price_confidence} onBlur={e => setConfidence(e.target.value)} className="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-slate-200" />
+          <input type="number" step="0.01" min="0" max="1" defaultValue={price_confidence} onBlur={e => setConfidence(e.target.value)} className="w-24 bg-slate-700 border border-white/10 rounded px-2 py-1 text-slate-200" />
         ) : (
           <span className="text-sm font-medium text-white">{ (price_confidence * 100).toFixed(0) }%</span>
         )}

@@ -101,7 +101,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const bubbleClasses =
     role === 'user'
       ? 'bg-sky-600/90 text-white'
-      : 'bg-slate-800/90 text-slate-100 border border-slate-700/60';
+      : 'bg-slate-800/90 text-slate-100 border border-white/10';
 
   return (
     <div className={`flex ${role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -150,7 +150,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           })}
 
           {role === 'assistant' && datasheetChanges.length > 0 && (
-            <div className="space-y-2 rounded-xl border border-slate-700/60 bg-slate-900/60 p-3">
+            <div className="space-y-2 rounded-xl border border-white/10 bg-slate-900/60 p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300">Übernehmbare Daten</p>
               {datasheetChanges.map((entry) => {
                 const fieldKeys = describeChangeFields(entry.change);
@@ -204,7 +204,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
 
           {attachments.length > 0 && (
-            <details className="rounded-xl border border-slate-700/60 bg-slate-900/60">
+            <details className="rounded-xl border border-white/10 bg-slate-900/60">
               <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
                 Anhänge ({attachments.length})
               </summary>

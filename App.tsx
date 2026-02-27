@@ -894,7 +894,7 @@ const AppInner: React.FC = () => {
     if (productsLoading && products.length === 0) {
       return (
         <div className="flex items-center justify-center h-[calc(100vh-10rem)] text-slate-200">
-          <div className="bg-slate-800/80 border border-slate-700 rounded-2xl px-6 py-5 shadow-xl text-center space-y-2">
+          <div className="bg-slate-800/80 border border-white/10 rounded-2xl px-6 py-5 shadow-xl text-center space-y-2">
             <p className="text-lg font-semibold">{t('status.loading.products')}</p>
             <p className="text-sm text-slate-400">{t('status.loading.hint')}</p>
           </div>
@@ -950,7 +950,7 @@ const AppInner: React.FC = () => {
       {(jobsRunning || jobStatuses.length > 0 || improveJobStatuses.length > 0) && (
         <>
           {jobsRunning && (
-            <div className="fixed bottom-6 left-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
+            <div className="fixed bottom-6 left-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-white/10 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
               <Spinner className="w-6 h-6 text-sky-300" />
               <div className="text-sm text-slate-100">
                 <p className="font-semibold">{t('status.backgroundUploads.title')}</p>

@@ -31,7 +31,7 @@ export const ProcessStatusBar: React.FC<ProcessStatusBarProps> = ({ status, onCa
 
   return (
     <div className="mb-4">
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-700 bg-slate-800/80 px-4 py-3 shadow-lg shadow-black/10 backdrop-blur">
+      <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-3 shadow-lg shadow-black/10 backdrop-blur">
         <div className="flex items-center gap-3">
           {ACTIVE_PHASES.has(status.phase) && <Spinner className="w-4 h-4 text-sky-400" />}
           <div>

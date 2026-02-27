@@ -27,7 +27,7 @@ const FileAttachmentPreview: React.FC<FileAttachmentPreviewProps> = ({
   onRemove,
 }) => {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200">
+    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-xs text-slate-200">
       {isImage ? (
         <img
           src={previewUrl}

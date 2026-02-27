@@ -524,7 +524,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <select
               value={layoutForm.zone}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, zone: e.target.value }))}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2"
+              className="w-full bg-slate-700 border border-white/10 rounded px-3 py-2"
             >
               {ZONE_OPTIONS.map((z) => (
                 <option key={z} value={z}>
@@ -538,7 +538,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <select
               value={layoutForm.etage}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, etage: e.target.value }))}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2"
+              className="w-full bg-slate-700 border border-white/10 rounded px-3 py-2"
             >
               {ETAGE_OPTIONS.map((e) => (
                 <option key={e} value={e}>
@@ -552,7 +552,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <input
               value={layoutForm.gangs}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, gangs: e.target.value }))}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2"
+              className="w-full bg-slate-700 border border-white/10 rounded px-3 py-2"
             />
           </div>
           <div>
@@ -560,7 +560,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <input
               value={layoutForm.regale}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, regale: e.target.value }))}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2"
+              className="w-full bg-slate-700 border border-white/10 rounded px-3 py-2"
             />
           </div>
           <div>
@@ -568,7 +568,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             <input
               value={layoutForm.ebenen}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, ebenen: e.target.value }))}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2"
+              className="w-full bg-slate-700 border border-white/10 rounded px-3 py-2"
             />
           </div>
         </div>
@@ -588,7 +588,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               key={zone.id}
               onClick={() => setSelectedZone(zone)}
               className={`text-left p-3 rounded border ${
-                selectedZone?.id === zone.id ? 'border-sky-500 bg-slate-700' : 'border-slate-700 hover:border-sky-600'
+                selectedZone?.id === zone.id ? 'border-sky-500 bg-slate-700' : 'border-white/10 hover:border-sky-600'
               }`}
             >
               <div className="text-lg font-semibold text-white">
@@ -684,7 +684,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                 <h4 className="text-lg text-white mb-2">Regale & Ebenen</h4>
                 <div className="space-y-3 max-h-[480px] overflow-y-auto pr-2">
                   {regaleForSelectedGang.map(({ regal, bins: binList }) => (
-                    <div key={regal} className="border border-slate-700 rounded">
+                    <div key={regal} className="border border-white/10 rounded">
                       <button
                         className="w-full text-left px-3 py-2 bg-slate-700 text-white"
                         onClick={() => {
@@ -757,7 +757,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                       <span className="text-xs text-slate-300">Nur möglich, wenn der BIN leer ist.</span>
                     </div>
 
-                    <div className="border-t border-slate-600 pt-3">
+                    <div className="border-t border-white/10 pt-3">
                       <h5 className="text-white font-semibold mb-2">Produkte</h5>
                       {binDetail.products?.length ? (
                         <ul className="space-y-2 max-h-48 overflow-y-auto">

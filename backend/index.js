@@ -2810,14 +2810,19 @@ app.post('/api/kaufland/listings/sync', requirePermission('products', 'write'), 
         )
       );
 
+      const idProduct = Number(unit?.id_product || product?.id_product || 0);
+      const normalizedIdProduct = Number.isFinite(idProduct) && idProduct > 0 ? idProduct : null;
+      const productUrl = String(product?.url || '').trim();
+      const viewItemUrl = productUrl || (normalizedIdProduct ? `https://www.kaufland.de/product/${normalizedIdProduct}/` : null);
+
       const payload = {
         id_unit: idUnit,
         id_offer: String(unit?.id_offer || '').trim() || null,
         id_offer_normalized: normalizeMarketplaceSku(unit?.id_offer),
         ean: normalizeMarketplaceEan(unit?.ean),
         eans: normalizedEans,
-        id_product: Number.isFinite(Number(product?.id_product)) ? Number(product.id_product) : null,
-        view_item_url: String(product?.url || '').trim() || null,
+        id_product: normalizedIdProduct,
+        view_item_url: viewItemUrl,
         amount: Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null,
         status: String(unit?.status || '').trim() || null,
         storefront: String(unit?.storefront || storefront || 'de').trim().toLowerCase(),

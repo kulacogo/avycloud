@@ -128,7 +128,7 @@ const IdentifyQueueView: React.FC = () => {
             className={`px-4 py-2 rounded-xl border text-sm transition ${
               autoRefresh
                 ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100'
-                : 'border-slate-600 bg-slate-800 text-slate-200'
+                : 'border-white/10 bg-slate-800 text-slate-200'
             }`}
           >
             {autoRefresh ? t('identifyQueue.autoRefreshOn') : t('identifyQueue.autoRefreshOff')}

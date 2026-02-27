@@ -279,6 +279,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [kauflandEanSet, setKauflandEanSet] = useState<Set<string>>(new Set());
   const [kauflandSkuUrlMap, setKauflandSkuUrlMap] = useState<Map<string, string>>(new Map());
   const [kauflandEanUrlMap, setKauflandEanUrlMap] = useState<Map<string, string>>(new Map());
+  const [kauflandSkuProductIdMap, setKauflandSkuProductIdMap] = useState<Map<string, number>>(new Map());
+  const [kauflandEanProductIdMap, setKauflandEanProductIdMap] = useState<Map<string, number>>(new Map());
   const [kauflandSyncInProgress, setKauflandSyncInProgress] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [improveInProgress, setImproveInProgress] = useState(false);
@@ -362,30 +364,46 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return value.toString().replace(/\D+/g, '').trim();
   };
 
+  const buildKauflandProductUrl = (idProduct?: number | null) => {
+    const n = Number(idProduct || 0);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    return `https://www.kaufland.de/product/${Math.trunc(n)}/`;
+  };
+
   const loadKauflandIndex = async () => {
     const entries = await fetchKauflandSkuIndex('de');
     const skuSet = new Set<string>();
     const eanSet = new Set<string>();
     const skuUrlMap = new Map<string, string>();
     const eanUrlMap = new Map<string, string>();
+    const skuProductIdMap = new Map<string, number>();
+    const eanProductIdMap = new Map<string, number>();
     entries.forEach((entry) => {
       const sku = normalizeSku(entry.skuNormalized || entry.sku || '');
-      const viewItemUrl = String(entry.viewItemUrl || '').trim();
+      const idProduct = Number(entry.idProduct || 0);
+      const hasIdProduct = Number.isFinite(idProduct) && idProduct > 0;
+      const fallbackUrl = hasIdProduct ? buildKauflandProductUrl(idProduct) : '';
+      const viewItemUrl = String(entry.viewItemUrl || '').trim() || fallbackUrl;
       if (sku) skuSet.add(sku);
       if (sku && viewItemUrl && !skuUrlMap.has(sku)) skuUrlMap.set(sku, viewItemUrl);
+      if (sku && hasIdProduct && !skuProductIdMap.has(sku)) skuProductIdMap.set(sku, idProduct);
       const ean = normalizeEan(entry.ean || '');
       if (ean) eanSet.add(ean);
       if (ean && viewItemUrl && !eanUrlMap.has(ean)) eanUrlMap.set(ean, viewItemUrl);
+      if (ean && hasIdProduct && !eanProductIdMap.has(ean)) eanProductIdMap.set(ean, idProduct);
       (Array.isArray(entry.eans) ? entry.eans : []).forEach((v) => {
         const n = normalizeEan(v);
         if (n) eanSet.add(n);
         if (n && viewItemUrl && !eanUrlMap.has(n)) eanUrlMap.set(n, viewItemUrl);
+        if (n && hasIdProduct && !eanProductIdMap.has(n)) eanProductIdMap.set(n, idProduct);
       });
     });
     setKauflandSkuSet(skuSet);
     setKauflandEanSet(eanSet);
     setKauflandSkuUrlMap(skuUrlMap);
     setKauflandEanUrlMap(eanUrlMap);
+    setKauflandSkuProductIdMap(skuProductIdMap);
+    setKauflandEanProductIdMap(eanProductIdMap);
   };
 
   // On load: check BaseLinker existence by SKU/EAN and update products with found product_id
@@ -843,7 +861,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
           const failed = lastStatus === 'failed';
           const skuUrl = sku ? kauflandSkuUrlMap.get(sku) : null;
           const eanUrl = eanCandidates.map((ean) => kauflandEanUrlMap.get(ean)).find(Boolean) || null;
-          const viewItemUrl = skuUrl || eanUrl || null;
+          const skuProductId = sku ? kauflandSkuProductIdMap.get(sku) : null;
+          const eanProductId = eanCandidates.map((ean) => kauflandEanProductIdMap.get(ean)).find((v) => Number(v) > 0) || null;
+          const viewItemUrl = skuUrl || eanUrl || buildKauflandProductUrl(skuProductId || eanProductId || null) || null;
+          const listed = listedByIndex || lastStatus === 'ok';
           return (
             failed ? (
               <span
@@ -863,6 +884,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
               >
                 gelistet
               </a>
+            ) : listed ? (
+              <span
+                title="Auf Kaufland gelistet (kein Link verfügbar)"
+                className="inline-flex items-center justify-center rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-200"
+              >
+                gelistet
+              </span>
             ) : (
               <span
                 title="Nicht auf Kaufland gelistet"
@@ -939,7 +967,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
       },
     ];
     return baseRenderers;
-  }, [onSelectProduct, t, ebayLinkedMap, ebayProductIdMap, ebayActiveItemIds, kauflandSkuSet, kauflandEanSet, kauflandSkuUrlMap, kauflandEanUrlMap]);
+  }, [
+    onSelectProduct,
+    t,
+    ebayLinkedMap,
+    ebayProductIdMap,
+    ebayActiveItemIds,
+    kauflandSkuSet,
+    kauflandEanSet,
+    kauflandSkuUrlMap,
+    kauflandEanUrlMap,
+    kauflandSkuProductIdMap,
+    kauflandEanProductIdMap,
+  ]);
 
   const statusFilters: Array<{ value: SyncStatus | 'all'; label: string }> = [
     { value: 'all', label: t('table.status.all') },
@@ -2040,9 +2080,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   }, [sortConfig]);
 
-  const filterControlClass = 'p-2 text-sm bg-slate-800/70 border border-slate-700 rounded-lg text-slate-100';
+  const filterControlClass = 'p-2 text-sm bg-slate-800/40 border border-white/10 rounded-lg text-slate-100';
   const filterButtonClass =
-    'w-full p-2 text-sm bg-slate-800/70 border border-slate-700 rounded-lg text-slate-100 text-left';
+    'w-full p-2 text-sm bg-slate-800/40 border border-white/10 rounded-lg text-slate-100 text-left';
   const menuItemClass =
     'w-full text-left px-3 py-2 text-sm text-slate-100 hover:bg-slate-800 rounded-lg transition';
 
@@ -2084,7 +2124,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               : `Kategorie: ${filterCategorySelection.length} ausgewählt`}
           </button>
           {categoryFilterOpen && (
-            <div className="absolute z-30 mt-2 w-[360px] max-w-[90vw] rounded-xl border border-slate-700 bg-slate-950 p-3 shadow-xl">
+            <div className="absolute z-30 mt-2 w-[360px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-3 shadow-lg">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-200">Kategorien</p>
                 <div className="flex items-center gap-2">
@@ -2167,7 +2207,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </select>
       </div>
 
-      <details className="rounded-lg border border-slate-700 bg-slate-900/40">
+      <details className="rounded-lg border border-white/10 bg-slate-900/40">
         <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-200">
           Mehr Filter
         </summary>
@@ -2291,24 +2331,24 @@ const AdminTable: React.FC<AdminTableProps> = ({
           <button
             type="button"
             onClick={() => setIsColumnPanelOpen((prev) => !prev)}
-            className="rounded-md border border-slate-700 bg-slate-800/70 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-600"
+            className="rounded-md border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20"
           >
             {t('table.columns.edit')}
           </button>
           <button
             type="button"
             onClick={resetColumns}
-            className="rounded-md border border-slate-700 bg-slate-800/70 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-600"
+            className="rounded-md border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20"
           >
             {t('table.columns.reset')}
           </button>
         </div>
 
         <details className="relative">
-          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-md border border-slate-700 bg-slate-800/70 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-600">
+          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-md border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20">
             Tools
           </summary>
-          <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-slate-700 bg-slate-950 p-1 shadow-xl z-30">
+          <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1 shadow-lg z-30">
             <button type="button" onClick={handleExportCsv} className={menuItemClass}>
               Export CSV
             </button>
@@ -2436,7 +2476,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       </div>
 
       {isColumnPanelOpen && (
-        <div className="rounded-lg border border-slate-600 bg-slate-900 p-4 space-y-2">
+        <div className="rounded-lg border border-white/10 bg-slate-900 p-4 space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-white">{t('table.columns.visible')}</p>
             <button type="button" className="text-xs text-sky-400 hover:underline" onClick={resetColumns}>
@@ -2598,7 +2638,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const renderSelectionBar = () => {
     return (
-      <div className="rounded-xl border border-slate-700 bg-slate-950/30 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="rounded-xl border border-white/10 bg-slate-950/30 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="text-xs text-slate-200">
           <b>{selectedIds.size}</b> ausgewählt
         </div>
@@ -2660,10 +2700,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
           ) : null}
 
           <details className="relative">
-            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-md bg-slate-800/70 border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-600">
+            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-md bg-slate-800/40 border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20">
               Mehr
             </summary>
-            <div className="absolute right-0 mt-2 w-[320px] max-w-[90vw] rounded-xl border border-slate-700 bg-slate-950 p-1 shadow-xl z-30">
+            <div className="absolute right-0 mt-2 w-[320px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1 shadow-lg z-30">
               <button
                 type="button"
                 onClick={() => enqueueBulkForSelection('price')}
@@ -2807,7 +2847,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 placeholder={t('table.search')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-slate-800/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-sky-500 text-sm"
+                className="w-full pl-9 pr-3 py-2 bg-slate-800/40 border border-white/10 rounded-lg focus:ring-2 focus:ring-sky-500 text-sm"
               />
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -2820,7 +2860,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </div>
           </div>
           {isMobile ? (
-            <div className="rounded-2xl border border-slate-700 bg-slate-900/40">
+            <div className="rounded-2xl border border-white/10 bg-slate-900/40">
               <button
                 type="button"
                 onClick={() => setMobileFiltersOpen((prev) => !prev)}
@@ -2842,7 +2882,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   key={chip.key}
                   type="button"
                   onClick={chip.onClear}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/30 px-3 py-1 text-xs text-slate-200 hover:border-slate-600"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/30 px-3 py-1 text-xs text-slate-200 hover:border-white/20"
                   title="Filter entfernen"
                 >
                   <span className="whitespace-nowrap">{chip.label}</span>
@@ -2863,7 +2903,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </div>
 
         {filteredAndSortedProducts.length === 0 ? (
-          <div className="rounded-xl bg-slate-900/40 p-4 text-sm text-slate-300 ring-1 ring-slate-700/50">
+          <div className="rounded-xl bg-slate-900/40 p-4 text-sm text-slate-300 border border-white/10">
             {mode === 'inventory' ? (
               <>
                 <b>Keine Inventory-Artikel gefunden.</b>
@@ -2920,7 +2960,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                     rowRefs.current[p.id] = el;
                   }}
                   data-product-row={p.id}
-                  className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors"
+                  className="border-b border-white/10 hover:bg-slate-700/50 transition-colors"
                 >
                   <td className="p-3">
                     <input
@@ -2998,7 +3038,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   window.sessionStorage.setItem('avystock:admin-table:pageSize', e.target.value);
                 }
               }}
-              className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-slate-200 focus:ring-2 focus:ring-sky-500 outline-none"
+              className="bg-slate-700 border border-white/10 rounded px-2 py-1 text-slate-200 focus:ring-2 focus:ring-sky-500 outline-none"
             >
               <option value={50}>50</option>
               <option value={100}>100</option>
@@ -3034,7 +3074,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       </section >
       {inventoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-4">
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-white/10 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-white">{t('table.inventory.assignTitle')}</h3>
               <button
@@ -3055,7 +3095,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               <select
                 value={inventorySelection}
                 onChange={(event) => setInventorySelection(event.target.value)}
-                className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+                className="w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-100"
               >
                 <option value="">{t('table.inventory.selectPlaceholder')}</option>
                 {inventories.map((inv) => (
@@ -3075,7 +3115,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   setInventoryModalOpen(false);
                   setInventoryAssignMessage(null);
                 }}
-                className="px-3 py-1.5 rounded-lg border border-slate-600 text-sm text-slate-200"
+                className="px-3 py-1.5 rounded-lg border border-white/10 text-sm text-slate-200"
               >
                 {t('table.inventory.cancel')}
               </button>
@@ -3094,7 +3134,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       }
       {ktypeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-slate-900 border border-white/10 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-white">K‑Typ Import (CSV)</h3>
               <button
@@ -3128,7 +3168,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   setKtypeReport(null);
                   setKtypeMessage(null);
                 }}
-                className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+                className="w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-100"
               />
               {ktypeFile && (
                 <div className="text-xs text-slate-300">
@@ -3146,7 +3186,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 type="button"
                 onClick={() => runKTypeUpload(true)}
                 disabled={ktypeBusy || !ktypeFile}
-                className="px-3 py-1.5 rounded-lg border border-slate-600 text-sm text-slate-200 disabled:opacity-60"
+                className="px-3 py-1.5 rounded-lg border border-white/10 text-sm text-slate-200 disabled:opacity-60"
               >
                 Dry-Run
               </button>
@@ -3161,7 +3201,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </div>
 
             {ktypeReport && (
-              <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-3 space-y-2">
+              <div className="rounded-xl border border-white/10 bg-slate-950/40 p-3 space-y-2">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div className="text-slate-300">
                     <div className="text-slate-500">SKUs</div>
@@ -3195,7 +3235,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </div>
       )}
       {syncInProgress && (
-        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
+        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-white/10 px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
           <Spinner className="w-6 h-6 text-sky-300" />
           <div className="text-sm text-slate-100">
             <p className="font-semibold">Sync läuft …</p>
@@ -3204,7 +3244,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </div>
       )}
       {improveInProgress && (
-        <div className="fixed bottom-20 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-slate-700 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
+        <div className="fixed bottom-20 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-white/10 px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
           <Spinner className="w-6 h-6 text-purple-300" />
           <div className="text-sm text-slate-100">
             <p className="font-semibold">Improve läuft …</p>
