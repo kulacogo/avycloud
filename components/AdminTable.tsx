@@ -257,9 +257,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 640px)').matches : false
   );
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
   const { inventories } = useInventoryContext();
   const [inventoryModalOpen, setInventoryModalOpen] = useState(false);
   const [inventorySelection, setInventorySelection] = useState('');
@@ -355,7 +353,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   useEffect(() => {
     if (!isMobile) {
-      setMobileFiltersOpen(false);
+      setFilterPanelOpen(false);
     }
   }, [isMobile]);
 
