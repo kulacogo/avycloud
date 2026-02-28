@@ -32,8 +32,6 @@ type ColumnId =
   | 'sku'
   | 'barcode'
   | 'price'
-  | 'completeness'
-  | 'qualityGate'
   | 'inventory'
   | 'pendingIntake'
   | 'storage'
@@ -49,10 +47,10 @@ type ColumnId =
 
 type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'completeness', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'lastSaved'],
-  warehouse: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'saveStatus'],
-  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'qualityGate', 'pendingIntake', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'lastSynced'],
-  minimal: ['nameBrand', 'sku', 'barcode', 'qualityGate', 'inventory', 'pendingIntake', 'baselinker', 'ebay', 'kaufland', 'syncStatus'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'lastSaved'],
+  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'saveStatus'],
+  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'lastSynced'],
+  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'baselinker', 'ebay', 'kaufland', 'syncStatus'],
 };
 
 const normalizeMarketplaceColumnOrder = (columns: ColumnId[]): ColumnId[] => {
@@ -175,10 +173,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
       return [];
     }
   });
-  const [filterStock, setFilterStock] = useState<'all' | 'inStock' | 'outOfStock'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterStock') as 'all' | 'inStock' | 'outOfStock') || 'all';
-  });
   const [filterBin, setFilterBin] = useState<'all' | 'withBin' | 'withoutBin'>(() => {
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterBin') as 'all' | 'withBin' | 'withoutBin') || 'all';
@@ -187,13 +181,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterBinSplit') as any) || 'all';
   });
-  const [filterImage, setFilterImage] = useState<'all' | 'withImages' | 'noImages'>(() => {
+  const [filterEanValid, setFilterEanValid] = useState<'all' | 'valid' | 'invalid' | 'missing'>(() => {
     if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterImage') as 'all' | 'withImages' | 'noImages') || 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterEanValid') as any) || 'all';
   });
-  const [filterCompleteness, setFilterCompleteness] = useState<'all' | 'complete' | 'incomplete' | 'lt80' | 'lt50'>(() => {
+  const [filterGpsr, setFilterGpsr] = useState<'all' | 'complete' | 'incomplete'>(() => {
     if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterCompleteness') as any) || 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterGpsr') as any) || 'all';
   });
   const [filterBaselinkerLink, setFilterBaselinkerLink] = useState<'all' | 'linked' | 'unlinked'>(() => {
     if (typeof window === 'undefined') return 'all';
@@ -206,16 +200,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [filterReserved, setFilterReserved] = useState<'all' | 'reserved' | 'notReserved'>(() => {
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterReserved') as any) || 'all';
-  });
-  const [filterAvailable, setFilterAvailable] = useState<'all' | 'available' | 'notAvailable'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterAvailable') as any) || 'all';
-  });
-  const [filterQuality, setFilterQuality] = useState<
-    'all' | 'notChecked' | 'ok' | 'warn' | 'error' | 'issues'
-  >(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterQuality') as any) || 'all';
   });
   const [filterEbay, setFilterEbay] = useState<'all' | 'listed' | 'notListed'>(() => {
     if (typeof window === 'undefined') return 'all';
@@ -233,7 +217,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       const parsed = JSON.parse(raw);
       if (parsed?.key && parsed?.direction) {
         const migratedKey =
-          parsed.key === 'ops.data_quality.last_quality_gate_iso' ? 'qualityGate.sort_score' : parsed.key;
+          parsed.key === 'ops.data_quality.last_quality_gate_iso' ? 'ops.last_saved_iso' : parsed.key;
         return { key: migratedKey, direction: parsed.direction };
       }
       return { key: 'ops.last_saved_iso', direction: 'desc' };
@@ -575,80 +559,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
             )}
           </div>
         ),
-      },
-      {
-        id: 'completeness',
-        label: 'Vollständig',
-        sortKey: 'completeness.percent',
-        defaultVisible: true,
-        widthClass: 'w-32',
-        render: ({ product }) => {
-          const percent = product.completeness?.percent ?? 0;
-          const missing = product.completeness?.missing || [];
-          const barWidth = Math.min(Math.max(percent, 0), 100);
-          return (
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-xs text-slate-200">
-                <span>{percent}%</span>
-                {missing.length > 0 && (
-                  <span className="text-[11px] text-amber-300">
-                    fehlend: {missing.length}
-                  </span>
-                )}
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-700 overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500"
-                  style={{ width: `${barWidth}%` }}
-                  title={missing.length ? `Fehlt: ${missing.join(', ')}` : 'Vollständig'}
-                />
-              </div>
-            </div>
-          );
-        },
-      },
-      {
-        id: 'qualityGate',
-        label: 'Quality',
-        sortKey: 'qualityGate.sort_score',
-        defaultVisible: true,
-        widthClass: 'w-28',
-        render: ({ product }) => {
-          const gate: any = (product as any)?.ops?.data_quality?.quality_gate_v1;
-          if (!gate) {
-            return <span className="text-[11px] text-slate-500">—</span>;
-          }
-          const issues = Array.isArray(gate.issues) ? gate.issues : [];
-          const errors = issues.filter((i: any) => i?.severity === 'error').length;
-          const warns = issues.filter((i: any) => i?.severity === 'warn').length;
-          const ok = errors === 0 && warns === 0 && issues.length === 0;
-          const title = gate.summary || (issues.length ? `Issues: ${issues.map((i: any) => i?.code).filter(Boolean).slice(0, 6).join(', ')}` : 'OK');
-          if (ok) {
-            return (
-              <span title={title} className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                OK
-              </span>
-            );
-          }
-          if (errors === 0 && warns > 0) {
-            return (
-              <span
-                title={title}
-                className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/15 text-amber-200 border border-amber-500/30"
-              >
-                W{warns}
-              </span>
-            );
-          }
-          return (
-            <span
-              title={title}
-              className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-500/15 text-red-200 border border-red-500/30"
-            >
-              {errors ? `E${errors}` : ''}{warns ? ` W${warns}` : issues.length ? ` ${issues.length}` : ''}
-            </span>
-          );
-        },
       },
       {
         id: 'nameBrand',
@@ -1126,11 +1036,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
         const subKey = sub ? `${top} > ${sub}` : '';
         return categorySelectionSet.has(topKey) || (subKey && categorySelectionSet.has(subKey));
       })();
-      const quantity = getProductQuantity(p) || 0;
-      const matchesStock =
-        filterStock === 'all' ||
-        (filterStock === 'inStock' && quantity > 0) ||
-        (filterStock === 'outOfStock' && quantity <= 0);
       const hasBin = Boolean(p.storage?.binCode) || (Array.isArray(p.storageBins) && p.storageBins.length > 0);
       const matchesBin =
         filterBin === 'all' || (filterBin === 'withBin' && hasBin) || (filterBin === 'withoutBin' && !hasBin);
@@ -1155,12 +1060,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterBinSplit === 'singleBin' && binCount <= 1) ||
         (filterBinSplit === 'multiBin' && binCount >= 2);
 
-      const hasImages = Array.isArray(p.details?.images) && p.details.images.length > 0;
-      const matchesImages =
-        filterImage === 'all' ||
-        (filterImage === 'withImages' && hasImages) ||
-        (filterImage === 'noImages' && !hasImages);
-
       const baselinkerProductId = (p as any)?.ops?.baselinker?.product_id;
       const hasBaselinkerLink = Boolean(baselinkerProductId);
       const matchesBaselinkerLink =
@@ -1176,42 +1075,33 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterWeight === 'noWeight' && !hasWeight);
 
       const reservedQuantity = Number(p.inventory?.reservedQuantity || 0) || 0;
-      const availableQuantity =
-        typeof p.inventory?.availableQuantity === 'number'
-          ? Math.max(0, p.inventory.availableQuantity)
-          : Math.max(0, quantity - reservedQuantity);
       const matchesReserved =
         filterReserved === 'all' ||
         (filterReserved === 'reserved' && reservedQuantity > 0) ||
         (filterReserved === 'notReserved' && reservedQuantity <= 0);
-      const matchesAvailable =
-        filterAvailable === 'all' ||
-        (filterAvailable === 'available' && availableQuantity > 0) ||
-        (filterAvailable === 'notAvailable' && availableQuantity <= 0);
+      // EAN/GTIN validity filter
+      const pBarcode = primaryBarcode(p);
+      const pBarcodePresent = pBarcode !== '—';
+      const pBarcodeValid = pBarcodePresent && isValidMarketplaceEan(pBarcode);
+      const matchesEanValid =
+        filterEanValid === 'all' ||
+        (filterEanValid === 'valid' && pBarcodeValid) ||
+        (filterEanValid === 'invalid' && pBarcodePresent && !pBarcodeValid) ||
+        (filterEanValid === 'missing' && !pBarcodePresent);
 
-      const percent = p.completeness?.percent ?? 0;
-      const isComplete = p.completeness?.complete === true;
-      const matchesCompleteness =
-        filterCompleteness === 'all' ||
-        (filterCompleteness === 'complete' && isComplete) ||
-        (filterCompleteness === 'incomplete' && !isComplete) ||
-        (filterCompleteness === 'lt80' && percent < 80) ||
-        (filterCompleteness === 'lt50' && percent < 50);
-
-      const gate: any = (p as any)?.ops?.data_quality?.quality_gate_v1;
-      const gateIssues = Array.isArray(gate?.issues) ? gate.issues : [];
-      const gateErrors = gateIssues.filter((i: any) => i?.severity === 'error').length;
-      const gateWarns = gateIssues.filter((i: any) => i?.severity === 'warn').length;
-      const gateHas = Boolean(gate);
-      const gateOk = gateHas && gateErrors === 0 && gateWarns === 0 && gateIssues.length === 0;
-      const gateHasIssues = gateHas && gateIssues.length > 0;
-      const matchesQuality =
-        filterQuality === 'all' ||
-        (filterQuality === 'notChecked' && !gateHas) ||
-        (filterQuality === 'ok' && gateOk) ||
-        (filterQuality === 'warn' && gateHas && gateErrors === 0 && gateWarns > 0) ||
-        (filterQuality === 'error' && gateHas && gateErrors > 0) ||
-        (filterQuality === 'issues' && gateHasIssues);
+      // GPSR completeness filter
+      const gpsr = p.details?.gpsr;
+      const gpsrHasName = Boolean(gpsr?.manufacturer_name?.trim());
+      const gpsrHasAddress = Boolean(gpsr?.manufacturer_address?.trim());
+      const gpsrHasCity = Boolean(gpsr?.manufacturer_city?.trim());
+      const gpsrHasPostal = Boolean(gpsr?.manufacturer_postalcode?.trim());
+      const gpsrHasCountry = Boolean(gpsr?.entity_country?.trim() || gpsr?.country_code?.trim());
+      const gpsrHasContact = Boolean(gpsr?.email?.trim() || gpsr?.manufacturer_phone?.trim());
+      const gpsrComplete = gpsrHasName && gpsrHasAddress && gpsrHasCity && gpsrHasPostal && gpsrHasCountry && gpsrHasContact;
+      const matchesGpsr =
+        filterGpsr === 'all' ||
+        (filterGpsr === 'complete' && gpsrComplete) ||
+        (filterGpsr === 'incomplete' && !gpsrComplete);
 
       const pSkuCandidates = Array.from(
         new Set(
@@ -1262,16 +1152,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
         matchesSearch &&
         matchesStatus &&
         matchesCategory &&
-        matchesStock &&
         matchesBin &&
         matchesBinSplit &&
-        matchesImages &&
         matchesBaselinkerLink &&
         matchesWeight &&
         matchesReserved &&
-        matchesAvailable &&
-        matchesCompleteness &&
-        matchesQuality &&
+        matchesEanValid &&
+        matchesGpsr &&
         matchesEbay &&
         matchesKaufland
       );
@@ -1283,15 +1170,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
         switch (key) {
           case 'category.display':
             return getProductDisplayCategory(product).toLowerCase();
-          case 'qualityGate.sort_score': {
-            const gate: any = (product as any)?.ops?.data_quality?.quality_gate_v1;
-            if (!gate) return 100000; // "nicht geprüft" → last in asc, first in desc
-            const issues = Array.isArray(gate.issues) ? gate.issues : [];
-            const errors = issues.filter((i: any) => i?.severity === 'error').length;
-            const warns = issues.filter((i: any) => i?.severity === 'warn').length;
-            // Higher = worse. errors dominate, then warns.
-            return errors * 1000 + warns * 10 + (issues.length ? 1 : 0);
-          }
           case 'details.pricing.lowest_price.amount':
             return Number(product.details?.pricing?.lowest_price?.amount || 0);
           case 'inventory.quantity':
@@ -1372,16 +1250,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
     searchTerm,
     filterStatus,
     filterCategorySelection,
-    filterStock,
     filterBin,
     filterBinSplit,
-    filterImage,
     filterBaselinkerLink,
     filterWeight,
     filterReserved,
-    filterAvailable,
-    filterCompleteness,
-    filterQuality,
+    filterEanValid,
+    filterGpsr,
     filterEbay,
     filterKaufland,
     ebayLinkedMap,
@@ -2069,16 +1944,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setSearchTerm('');
     setFilterStatus('all');
     setFilterCategorySelection([]);
-    setFilterStock('all');
     setFilterBin('all');
     setFilterBinSplit('all');
-    setFilterImage('all');
-    setFilterCompleteness('all');
     setFilterBaselinkerLink('all');
     setFilterWeight('all');
     setFilterReserved('all');
-    setFilterAvailable('all');
-    setFilterQuality('all');
+    setFilterEanValid('all');
+    setFilterGpsr('all');
     setFilterEbay('all');
     setFilterKaufland('all');
     setPageSize(50);
@@ -2107,14 +1979,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, [filterCategorySelection]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterQuality', filterQuality);
-  }, [filterQuality]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterStock', filterStock);
-  }, [filterStock]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterBin', filterBin);
   }, [filterBin]);
   useEffect(() => {
@@ -2123,12 +1987,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, [filterBinSplit]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterImage', filterImage);
-  }, [filterImage]);
+    window.sessionStorage.setItem('avystock:admin-table:filterEanValid', filterEanValid);
+  }, [filterEanValid]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterCompleteness', filterCompleteness);
-  }, [filterCompleteness]);
+    window.sessionStorage.setItem('avystock:admin-table:filterGpsr', filterGpsr);
+  }, [filterGpsr]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterBaselinkerLink', filterBaselinkerLink);
@@ -2141,10 +2005,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterReserved', filterReserved);
   }, [filterReserved]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterAvailable', filterAvailable);
-  }, [filterAvailable]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterEbay', filterEbay);
@@ -2170,21 +2030,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filterStatus !== 'all') count++;
-    if (filterStock !== 'all') count++;
     if (filterCategorySelection.length > 0) count++;
     if (filterBin !== 'all') count++;
-    if (filterImage !== 'all') count++;
-    if (filterCompleteness !== 'all') count++;
-    if (filterQuality !== 'all') count++;
     if (filterBaselinkerLink !== 'all') count++;
     if (filterEbay !== 'all') count++;
     if (filterKaufland !== 'all') count++;
     if (filterWeight !== 'all') count++;
     if (filterReserved !== 'all') count++;
-    if (filterAvailable !== 'all') count++;
     if (filterBinSplit !== 'all') count++;
+    if (filterEanValid !== 'all') count++;
+    if (filterGpsr !== 'all') count++;
     return count;
-  }, [filterStatus, filterStock, filterCategorySelection, filterBin, filterImage, filterCompleteness, filterQuality, filterBaselinkerLink, filterEbay, filterKaufland, filterWeight, filterReserved, filterAvailable, filterBinSplit]);
+  }, [filterStatus, filterCategorySelection, filterBin, filterBaselinkerLink, filterEbay, filterKaufland, filterWeight, filterReserved, filterBinSplit, filterEanValid, filterGpsr]);
 
   const filterControlClass = 'p-2 text-sm bg-slate-800/40 border border-white/10 rounded-xl text-slate-100';
   const filterButtonClass =
@@ -2206,17 +2063,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
               {option.label}
             </option>
           ))}
-        </select>
-
-        <select
-          id="table-filter-stock"
-          value={filterStock}
-          onChange={(e) => setFilterStock(e.target.value as 'all' | 'inStock' | 'outOfStock')}
-          className={filterControlClass}
-        >
-          <option value="all">{t('table.stockFilter.all')}</option>
-          <option value="inStock">{t('table.stockFilter.inStock')}</option>
-          <option value="outOfStock">{t('table.stockFilter.outOfStock')}</option>
         </select>
 
         <div className="relative">
@@ -2317,41 +2163,25 @@ const AdminTable: React.FC<AdminTableProps> = ({
         <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Erweiterte Filter</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           <select
-            id="table-filter-images"
-            value={filterImage}
-            onChange={(e) => setFilterImage(e.target.value as 'all' | 'withImages' | 'noImages')}
+            id="table-filter-ean-valid"
+            value={filterEanValid}
+            onChange={(e) => setFilterEanValid(e.target.value as any)}
             className={filterControlClass}
           >
-            <option value="all">Bilder: Alle</option>
-            <option value="withImages">Mit Bildern</option>
-            <option value="noImages">Keine Bilder</option>
+            <option value="all">EAN/GTIN: Alle</option>
+            <option value="valid">Gültige EAN/GTIN</option>
+            <option value="invalid">Ungültige EAN/GTIN</option>
+            <option value="missing">Keine EAN/GTIN</option>
           </select>
           <select
-            id="table-filter-completeness"
-            value={filterCompleteness}
-            onChange={(e) =>
-              setFilterCompleteness(e.target.value as 'all' | 'complete' | 'incomplete' | 'lt80' | 'lt50')
-            }
+            id="table-filter-gpsr"
+            value={filterGpsr}
+            onChange={(e) => setFilterGpsr(e.target.value as any)}
             className={filterControlClass}
           >
-            <option value="all">Vollständig: Alle</option>
-            <option value="complete">Nur vollständig</option>
-            <option value="incomplete">Unvollständig</option>
-            <option value="lt80">&lt; 80%</option>
-            <option value="lt50">&lt; 50%</option>
-          </select>
-          <select
-            id="table-filter-quality"
-            value={filterQuality}
-            onChange={(e) => setFilterQuality(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">Quality: Alle</option>
-            <option value="notChecked">Quality: nicht geprüft</option>
-            <option value="ok">Quality: OK</option>
-            <option value="warn">Quality: WARN</option>
-            <option value="error">Quality: ERROR</option>
-            <option value="issues">Quality: Issues</option>
+            <option value="all">GPSR: Alle</option>
+            <option value="complete">GPSR: Vollständig</option>
+            <option value="incomplete">GPSR: Unvollständig</option>
           </select>
           <select
             id="table-filter-baselinker-link"
@@ -2402,26 +2232,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <option value="all">Reserviert: Alle</option>
             <option value="reserved">Reserviert: &gt; 0</option>
             <option value="notReserved">Reserviert: 0</option>
-          </select>
-          <select
-            id="table-filter-available"
-            value={filterAvailable}
-            onChange={(e) => setFilterAvailable(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">Verfügbar: Alle</option>
-            <option value="available">Verfügbar: &gt; 0</option>
-            <option value="notAvailable">Verfügbar: 0</option>
-          </select>
-          <select
-            id="table-filter-bin-split"
-            value={filterBinSplit}
-            onChange={(e) => setFilterBinSplit(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">Bins: Alle</option>
-            <option value="singleBin">Bins: 1 BIN</option>
-            <option value="multiBin">Bins: mehrere BINs</option>
           </select>
         </div>
       </div>
@@ -2649,45 +2459,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
       });
     }
 
-    if (filterStock !== 'all') {
-      const label = filterStock === 'inStock' ? t('table.stockFilter.inStock') : t('table.stockFilter.outOfStock');
-      chips.push({ key: 'stock', label, onClear: () => setFilterStock('all') });
-    }
-
     if (filterBin !== 'all') {
       const label = filterBin === 'withBin' ? t('table.binFilter.withBin') : t('table.binFilter.withoutBin');
       chips.push({ key: 'bin', label, onClear: () => setFilterBin('all') });
     }
 
-    if (filterImage !== 'all') {
-      const label = filterImage === 'withImages' ? 'Mit Bildern' : 'Keine Bilder';
-      chips.push({ key: 'images', label, onClear: () => setFilterImage('all') });
+    if (filterEanValid !== 'all') {
+      const label = filterEanValid === 'valid' ? 'EAN/GTIN: Gültig' : filterEanValid === 'invalid' ? 'EAN/GTIN: Ungültig' : 'EAN/GTIN: Fehlt';
+      chips.push({ key: 'eanValid', label, onClear: () => setFilterEanValid('all') });
     }
 
-    if (filterCompleteness !== 'all') {
-      const label =
-        filterCompleteness === 'complete'
-          ? 'Vollständig'
-          : filterCompleteness === 'incomplete'
-            ? 'Unvollständig'
-            : filterCompleteness === 'lt80'
-              ? 'Vollständigkeit < 80%'
-              : 'Vollständigkeit < 50%';
-      chips.push({ key: 'completeness', label, onClear: () => setFilterCompleteness('all') });
-    }
-
-    if (filterQuality !== 'all') {
-      const label =
-        filterQuality === 'notChecked'
-          ? 'Quality: nicht geprüft'
-          : filterQuality === 'ok'
-            ? 'Quality: OK'
-            : filterQuality === 'warn'
-              ? 'Quality: WARN'
-              : filterQuality === 'error'
-                ? 'Quality: ERROR'
-                : 'Quality: Issues';
-      chips.push({ key: 'quality', label, onClear: () => setFilterQuality('all') });
+    if (filterGpsr !== 'all') {
+      const label = filterGpsr === 'complete' ? 'GPSR: Vollständig' : 'GPSR: Unvollständig';
+      chips.push({ key: 'gpsr', label, onClear: () => setFilterGpsr('all') });
     }
 
     if (filterBaselinkerLink !== 'all') {
@@ -2730,14 +2514,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
       });
     }
 
-    if (filterAvailable !== 'all') {
-      chips.push({
-        key: 'available',
-        label: filterAvailable === 'available' ? 'Verfügbar > 0' : 'Verfügbar = 0',
-        onClear: () => setFilterAvailable('all'),
-      });
-    }
-
     if (filterBinSplit !== 'all') {
       chips.push({
         key: 'binSplit',
@@ -2748,19 +2524,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
     return chips;
   }, [
-    filterAvailable,
     filterBaselinkerLink,
     filterBin,
     filterBinSplit,
     filterCategorySelection,
-    filterCompleteness,
+    filterEanValid,
     filterEbay,
-    filterImage,
+    filterGpsr,
     filterKaufland,
-    filterQuality,
     filterReserved,
     filterStatus,
-    filterStock,
     filterWeight,
     searchTerm,
     statusFilters,
