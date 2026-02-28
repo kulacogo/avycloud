@@ -218,6 +218,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterEbay') as any) || 'all';
   });
+  const [filterKaufland, setFilterKaufland] = useState<'all' | 'listed' | 'notListed'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterKaufland') as any) || 'all';
+  });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(() => {
     if (typeof window === 'undefined') return { key: 'ops.last_saved_iso', direction: 'desc' };
     try {
@@ -834,7 +838,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       {
         id: 'kaufland',
         label: 'Kaufland',
-        sortKey: 'ops.kaufland.last_sync_iso',
+        sortKey: 'kaufland.listed',
         defaultVisible: true,
         render: ({ product }) => {
           const kp = (product as any)?.ops?.kaufland || {};
@@ -1203,6 +1207,34 @@ const AdminTable: React.FC<AdminTableProps> = ({
         filterEbay === 'all' ||
         (filterEbay === 'listed' && isEbayListed) ||
         (filterEbay === 'notListed' && !isEbayListed);
+      const pKp = (p as any)?.ops?.kaufland || {};
+      const pLastStatus = String(pKp?.last_sync_status || '').toLowerCase();
+      const pSku = normalizeSku(
+        (p as any)?.identification?.sku ||
+        p?.details?.identifiers?.sku ||
+        (p as any)?.id ||
+        ''
+      );
+      const pEanCandidates = Array.from(
+        new Set(
+          [
+            p?.details?.identifiers?.ean,
+            p?.details?.identifiers?.gtin,
+            p?.details?.identifiers?.upc,
+            ...((p as any)?.identification?.barcodes || []),
+          ]
+            .map((v) => normalizeEan(String(v || '')))
+            .filter(Boolean)
+        )
+      );
+      const isKauflandListed =
+        (pSku && kauflandSkuSet.has(pSku)) ||
+        pEanCandidates.some((ean) => kauflandEanSet.has(ean)) ||
+        pLastStatus === 'ok';
+      const matchesKaufland =
+        filterKaufland === 'all' ||
+        (filterKaufland === 'listed' && isKauflandListed) ||
+        (filterKaufland === 'notListed' && !isKauflandListed);
 
       return (
         matchesSearch &&
@@ -1218,7 +1250,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         matchesAvailable &&
         matchesCompleteness &&
         matchesQuality &&
-        matchesEbay
+        matchesEbay &&
+        matchesKaufland
       );
     });
 
@@ -1263,6 +1296,30 @@ const AdminTable: React.FC<AdminTableProps> = ({
               (marketplaceItemId && ebayActiveItemIds.has(marketplaceItemId))
             ) ? 1 : 0;
           }
+          case 'kaufland.listed': {
+            const kp = (product as any)?.ops?.kaufland || {};
+            const lastStatus = String(kp?.last_sync_status || '').toLowerCase();
+            const sku = normalizeSku(
+              (product as any)?.identification?.sku ||
+              product?.details?.identifiers?.sku ||
+              (product as any)?.id ||
+              ''
+            );
+            const eanCandidates = Array.from(
+              new Set(
+                [
+                  product?.details?.identifiers?.ean,
+                  product?.details?.identifiers?.gtin,
+                  product?.details?.identifiers?.upc,
+                  ...((product as any)?.identification?.barcodes || []),
+                ]
+                  .map((v) => normalizeEan(String(v || '')))
+                  .filter(Boolean)
+              )
+            );
+            const listedByIndex = (sku && kauflandSkuSet.has(sku)) || eanCandidates.some((ean) => kauflandEanSet.has(ean));
+            return listedByIndex || lastStatus === 'ok' ? 1 : 0;
+          }
           default:
             return getNestedValue(product, key);
         }
@@ -1306,8 +1363,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
     filterCompleteness,
     filterQuality,
     filterEbay,
+    filterKaufland,
     ebayLinkedMap,
     ebayProductIdMap,
+    ebayActiveItemIds,
+    kauflandSkuSet,
+    kauflandEanSet,
     sortConfig,
   ]);
 
@@ -1998,6 +2059,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterReserved('all');
     setFilterAvailable('all');
     setFilterQuality('all');
+    setFilterEbay('all');
+    setFilterKaufland('all');
     setPageSize(50);
     setCurrentPage(1);
   };
@@ -2066,6 +2129,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterEbay', filterEbay);
   }, [filterEbay]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterKaufland', filterKaufland);
+  }, [filterKaufland]);
   // Note: legacy filters (inventoryId, eBay category) removed to reduce UI clutter.
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -2268,6 +2335,16 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <option value="all">eBay: Alle</option>
             <option value="listed">eBay: gelistet</option>
             <option value="notListed">eBay: nicht gelistet</option>
+          </select>
+          <select
+            id="table-filter-kaufland"
+            value={filterKaufland}
+            onChange={(e) => setFilterKaufland(e.target.value as any)}
+            className={filterControlClass}
+          >
+            <option value="all">Kaufland: Alle</option>
+            <option value="listed">Kaufland: gelistet</option>
+            <option value="notListed">Kaufland: nicht gelistet</option>
           </select>
           <select
             id="table-filter-weight"
@@ -2569,6 +2646,22 @@ const AdminTable: React.FC<AdminTableProps> = ({
       });
     }
 
+    if (filterEbay !== 'all') {
+      chips.push({
+        key: 'ebay',
+        label: filterEbay === 'listed' ? 'eBay: gelistet' : 'eBay: nicht gelistet',
+        onClear: () => setFilterEbay('all'),
+      });
+    }
+
+    if (filterKaufland !== 'all') {
+      chips.push({
+        key: 'kaufland',
+        label: filterKaufland === 'listed' ? 'Kaufland: gelistet' : 'Kaufland: nicht gelistet',
+        onClear: () => setFilterKaufland('all'),
+      });
+    }
+
     if (filterWeight !== 'all') {
       chips.push({
         key: 'weight',
@@ -2609,7 +2702,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
     filterBinSplit,
     filterCategorySelection,
     filterCompleteness,
+    filterEbay,
     filterImage,
+    filterKaufland,
     filterQuality,
     filterReserved,
     filterStatus,
@@ -2635,6 +2730,34 @@ const AdminTable: React.FC<AdminTableProps> = ({
       );
     });
   }, [selectedIds, products, ebayItemIdMap, ebayProductIdMap, ebayActiveItemIds]);
+
+  const hasSelectedKauflandListings = useMemo(() => {
+    return Array.from(selectedIds).some((pid) => {
+      const product = products.find((p) => p.id === pid);
+      if (!product) return false;
+      const kp = (product as any)?.ops?.kaufland || {};
+      const lastStatus = String(kp?.last_sync_status || '').toLowerCase();
+      const sku = normalizeSku(
+        (product as any)?.identification?.sku ||
+        product?.details?.identifiers?.sku ||
+        (product as any)?.id ||
+        ''
+      );
+      const eanCandidates = Array.from(
+        new Set(
+          [
+            product?.details?.identifiers?.ean,
+            product?.details?.identifiers?.gtin,
+            product?.details?.identifiers?.upc,
+            ...((product as any)?.identification?.barcodes || []),
+          ]
+            .map((v) => normalizeEan(String(v || '')))
+            .filter(Boolean)
+        )
+      );
+      return (sku && kauflandSkuSet.has(sku)) || eanCandidates.some((ean) => kauflandEanSet.has(ean)) || lastStatus === 'ok';
+    });
+  }, [selectedIds, products, kauflandSkuSet, kauflandEanSet]);
 
   const renderSelectionBar = () => {
     return (
@@ -2662,6 +2785,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
             disabled={selectedIds.size === 0 || ebayPublishInProgress}
             tone="primary"
           />
+          <ActionButton
+            icon={
+              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="10" cy="10" r="7" />
+                <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
+              </svg>
+            }
+            label={bulkJobLoading ? 'Kaufland Job läuft...' : 'Auf Kaufland listen'}
+            onClick={() => enqueueBulkForSelection('kaufland_create', { apply: true })}
+            disabled={selectedIds.size === 0 || bulkJobLoading}
+            tone="primary"
+          />
           {hasSelectedEbayListings && (
             <ActionButton
               icon={
@@ -2673,6 +2808,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
               label={ebayUpdateInProgress ? 'Wird aktualisiert...' : 'eBay aktualisieren'}
               onClick={handleBatchUpdateEbay}
               disabled={ebayUpdateInProgress || ebayPublishInProgress}
+              tone="primary"
+            />
+          )}
+          {hasSelectedKauflandListings && (
+            <ActionButton
+              icon={
+                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M4 4v5h5M16 16v-5h-5" />
+                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m18 0 4.36 4.36A9 9 0 0 1 3.51 15" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              }
+              label={bulkJobLoading ? 'Kaufland Job läuft...' : 'Kaufland aktualisieren'}
+              onClick={() => enqueueBulkForSelection('kaufland_update', { apply: true })}
+              disabled={bulkJobLoading}
               tone="primary"
             />
           )}
