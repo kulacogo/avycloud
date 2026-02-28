@@ -623,12 +623,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
       })();
       return { key: d.date, label, count: Number(d.orders || 0), revenue: Number(d.revenue || 0) };
     });
+    // Derive order count from chart data (date-filtered from BaseLinker), NOT from
+    // status_breakdown which counts ALL orders globally regardless of time window.
+    const totalOrdersInWindow = chart.reduce((s, d) => s + d.count, 0);
     return {
       neu: bd?.neu ?? 0,
       kommissioniert: bd?.kommissioniert ?? 0,
       verpackt: (bd as any)?.verpackt ?? 0,
       versendet: bd?.versendet ?? 0,
       zugestellt: bd?.zugestellt ?? 0,
+      totalOrdersInWindow,
       revenueYtd: metrics?.revenue?.payout_brutto_ytd ?? metrics?.revenue?.all_non_cancelled_total ?? 0,
       revenueWindow: metrics?.revenue?.payout_brutto_window ?? metrics?.revenue?.window_non_cancelled_total ?? 0,
       returnsTotal: metrics?.orders?.returns_total ?? 0,
@@ -787,7 +791,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Card
             label="Umsatz"
             value={fmtCur(ord.revenueWindow, ord.currency, true)}
-            sub={`${fmtNum((ord.neu + ord.kommissioniert + ord.verpackt + ord.versendet + ord.zugestellt))} Aufträge`}
+            sub={`${fmtNum(ord.totalOrdersInWindow)} Aufträge`}
             color="green"
             loading={metricsLoading}
           />

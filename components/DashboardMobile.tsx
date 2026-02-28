@@ -145,9 +145,8 @@ const MiniChart: React.FC<{
           );
         })}
       </div>
-      <div className="flex justify-between mt-1.5">
+      <div className="mt-1.5">
         <span className="text-[10px] text-slate-600">{total} Aufträge</span>
-        <span className="text-[10px] text-emerald-600">{fmtCur(totalRev, currency)}</span>
       </div>
     </div>
   );
@@ -306,9 +305,8 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
   const shippingWindow = shippingWindowNetto !== null ? Math.round(shippingWindowNetto * 1.19 * 100) / 100 : null;
   const shippingYtd = shippingYtdNetto !== null ? Math.round(shippingYtdNetto * 1.19 * 100) / 100 : null;
   const totalBalance = finance?.total_balance ?? null;
-  const bd = metrics?.orders?.status_breakdown;
-  const totalOrders = (bd?.neu ?? 0) + (bd?.kommissioniert ?? 0) + ((bd as any)?.verpackt ?? 0)
-    + (bd?.versendet ?? 0) + (bd?.zugestellt ?? 0);
+  // Use chart data sum for order count (date-filtered), not global status_breakdown
+  const totalOrders = (chartDays as any[]).reduce((s: number, d: any) => s + (Number(d?.orders) || 0), 0);
   const presetLabel = metrics?.range?.label ?? PRESETS.find(p => p.id === activePreset)?.label ?? activePreset;
 
   // ─── Render ───────────────────────────────────────────────────────────────────
