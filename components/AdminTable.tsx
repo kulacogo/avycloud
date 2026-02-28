@@ -258,6 +258,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 640px)').matches : false
   );
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
   const { inventories } = useInventoryContext();
   const [inventoryModalOpen, setInventoryModalOpen] = useState(false);
   const [inventorySelection, setInventorySelection] = useState('');
@@ -2147,6 +2149,25 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   }, [sortConfig]);
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filterStatus !== 'all') count++;
+    if (filterStock !== 'all') count++;
+    if (filterCategorySelection.length > 0) count++;
+    if (filterBin !== 'all') count++;
+    if (filterImage !== 'all') count++;
+    if (filterCompleteness !== 'all') count++;
+    if (filterQuality !== 'all') count++;
+    if (filterBaselinkerLink !== 'all') count++;
+    if (filterEbay !== 'all') count++;
+    if (filterKaufland !== 'all') count++;
+    if (filterWeight !== 'all') count++;
+    if (filterReserved !== 'all') count++;
+    if (filterAvailable !== 'all') count++;
+    if (filterBinSplit !== 'all') count++;
+    return count;
+  }, [filterStatus, filterStock, filterCategorySelection, filterBin, filterImage, filterCompleteness, filterQuality, filterBaselinkerLink, filterEbay, filterKaufland, filterWeight, filterReserved, filterAvailable, filterBinSplit]);
+
   const filterControlClass = 'p-2 text-sm bg-slate-800/40 border border-white/10 rounded-xl text-slate-100';
   const filterButtonClass =
     'w-full p-2 text-sm bg-slate-800/40 border border-white/10 rounded-xl text-slate-100 text-left';
@@ -2987,8 +3008,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         ) : null}
 
         <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[220px]">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[180px]">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 id="table-search"
@@ -2999,29 +3020,40 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 className="w-full pl-9 pr-3 py-2 bg-slate-800/40 border border-white/10 rounded-lg focus:ring-2 focus:ring-sky-500 text-sm"
               />
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span>
-                {filteredAndSortedProducts.length} / {products.length} Produkte
-              </span>
-              <button type="button" onClick={resetFilters} className="text-sky-400 hover:underline">
-                Filter zurücksetzen
+            <button
+              type="button"
+              onClick={() => setFilterPanelOpen((v) => !v)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                filterPanelOpen
+                  ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-300'
+                  : activeFilterCount > 0
+                    ? 'border-indigo-500/30 bg-slate-800/40 text-indigo-300 hover:border-indigo-500/50'
+                    : 'border-white/10 bg-slate-800/40 text-slate-200 hover:border-white/20'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              Filter
+              {activeFilterCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-indigo-500 text-white text-[11px] font-bold px-1">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            <span className="text-xs text-slate-400 whitespace-nowrap">
+              {filteredAndSortedProducts.length} / {products.length}
+            </span>
+            {activeFilterCount > 0 && (
+              <button type="button" onClick={resetFilters} className="text-xs text-sky-400 hover:underline whitespace-nowrap">
+                Zurücksetzen
               </button>
-            </div>
+            )}
           </div>
-          {isMobile ? (
-            <div className="rounded-2xl border border-white/10 bg-slate-800/40">
-              <button
-                type="button"
-                onClick={() => setMobileFiltersOpen((prev) => !prev)}
-                className="w-full px-4 py-2 text-sm font-semibold text-slate-100 flex items-center justify-between"
-              >
-                <span>{mobileFiltersOpen ? 'Filter schließen' : 'Filter öffnen'}</span>
-                <span>{mobileFiltersOpen ? '−' : '+'}</span>
-              </button>
-              {mobileFiltersOpen && <div className="p-3 space-y-3">{renderFilterControls()}</div>}
+          {filterPanelOpen && (
+            <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              {renderFilterControls()}
             </div>
-          ) : (
-            <div className="space-y-3">{renderFilterControls()}</div>
           )}
 
           {activeFilterChips.length > 0 ? (
@@ -3048,7 +3080,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </div>
           ) : null}
 
-          {renderSelectionBar()}
+          {selectedIds.size > 0 && renderSelectionBar()}
         </div>
 
         {filteredAndSortedProducts.length === 0 ? (
