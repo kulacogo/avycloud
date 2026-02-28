@@ -2451,6 +2451,24 @@ app.get('/api/ebay/category-specifics/:categoryId', requirePermission('products'
   }
 });
 
+// ---------------------------------------------------------------------------
+// Competitor Prices (eBay + Kaufland) — on-demand lookup by EAN
+// ---------------------------------------------------------------------------
+app.get('/api/competitor-prices', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const ean = typeof req.query?.ean === 'string' ? req.query.ean.replace(/\D+/g, '').trim() : '';
+    if (!ean || ean.length < 8) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing or invalid EAN/GTIN' } });
+    }
+    const { getCompetitorPrices } = require('./lib/competitor-prices');
+    const data = await getCompetitorPrices(ean);
+    return res.status(200).json({ ok: true, data });
+  } catch (error) {
+    console.error('Failed to fetch competitor prices:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: error?.message || 'Failed to fetch competitor prices' } });
+  }
+});
+
 app.get('/api/ebay/offers', requirePermission('products', 'read'), async (req, res) => {
   try {
     const sku = typeof req.query?.sku === 'string' ? req.query.sku : '';

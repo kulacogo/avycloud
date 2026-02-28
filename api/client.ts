@@ -29,6 +29,7 @@ import {
   EbayPublishResult,
   EbayBulkPublishVerifyResult,
   EbayBulkPublishResult,
+  CompetitorPricesResponse,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -1941,6 +1942,17 @@ export const fetchProductById = async (productId: string): Promise<Product> => {
     throw new Error('Produkt konnte nicht geladen werden (empty payload).');
   }
   return normalizeProduct(raw);
+};
+
+export const fetchCompetitorPrices = async (ean: string): Promise<CompetitorPricesResponse> => {
+  const response = await fetchApi(
+    `${BACKEND_URL}/api/competitor-prices?ean=${encodeURIComponent(ean)}`
+  );
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Konkurrenzpreise konnten nicht geladen werden.');
+  }
+  return result?.data || { ebay: [], kaufland: [], cached: false, fetched_at: new Date().toISOString() };
 };
 
 export const fetchEbayCategories = async (params: {

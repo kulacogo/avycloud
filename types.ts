@@ -67,6 +67,23 @@ export interface Pricing {
   price_confidence: number; // 0.0 to 1.0
 }
 
+export interface CompetitorListing {
+  marketplace: 'ebay' | 'kaufland';
+  seller?: string;
+  title: string;
+  price: number;
+  currency: string;
+  shippingCost?: number;
+  url?: string;
+}
+
+export interface CompetitorPricesResponse {
+  ebay: CompetitorListing[];
+  kaufland: CompetitorListing[];
+  cached: boolean;
+  fetched_at: string;
+}
+
 export interface ProductImage {
   source: ImageSource;
   variant?: ImageVariant | null;

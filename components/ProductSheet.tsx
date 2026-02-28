@@ -24,6 +24,7 @@ import { Spinner } from './Spinner';
 import ImageGallery from './ImageGallery';
 import AttributeTable from './AttributeTable';
 import PricingInfo from './PricingInfo';
+import CompetitorPrices from './CompetitorPrices';
 import AssistantChat from './GeminiChat';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, summarizeBarcodes, isValidGtin } from '../utils/gtin';
@@ -1800,6 +1801,15 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 setIsDirty(true);
               }}
             />
+            {/* Competitor prices — only show when a valid EAN/GTIN exists */}
+            {(currentBarcodeSummary.ean || currentBarcodeSummary.gtin) && (
+              <div className="mt-5 pt-5 border-t border-white/10">
+                <CompetitorPrices
+                  ean={currentBarcodeSummary.ean || currentBarcodeSummary.gtin || ''}
+                  ownPrice={localProduct.details?.pricing?.lowest_price?.amount}
+                />
+              </div>
+            )}
           </section>
 
           <section id="storage" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
