@@ -115,20 +115,22 @@ const ActionButton: React.FC<{
   label: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
-  tone?: 'primary' | 'secondary' | 'danger' | 'accent';
+  tone?: 'primary' | 'secondary' | 'danger' | 'accent' | 'ebay' | 'kaufland';
 }> = ({ icon, label, onClick, disabled, tone = 'secondary' }) => {
   const toneClasses = {
-    primary: 'bg-sky-600 text-white hover:bg-sky-500',
-    secondary: 'bg-slate-700 text-slate-100 hover:bg-slate-600',
-    danger: 'bg-rose-600 text-white hover:bg-rose-500',
-    accent: 'bg-violet-600 text-white hover:bg-violet-500',
+    primary: 'bg-sky-600/90 text-white hover:bg-sky-500 border border-sky-500/30',
+    secondary: 'bg-slate-700/80 text-slate-100 hover:bg-slate-600 border border-slate-600/40',
+    danger: 'bg-rose-600/90 text-white hover:bg-rose-500 border border-rose-500/30',
+    accent: 'bg-violet-600/90 text-white hover:bg-violet-500 border border-violet-500/30',
+    ebay: 'bg-amber-600/90 text-white hover:bg-amber-500 border border-amber-500/30',
+    kaufland: 'bg-rose-600/90 text-white hover:bg-rose-500 border border-rose-500/30',
   };
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition ${toneClasses[tone]
+      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition shadow-sm ${toneClasses[tone]
         } ${disabled ? 'opacity-40 cursor-not-allowed hover:none' : ''}`}
     >
       {icon}
@@ -820,9 +822,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 title="eBay-Listing öffnen"
-                className="inline-flex items-center justify-center rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-200 hover:bg-sky-500/30 hover:text-sky-100"
+                className="inline-flex items-center justify-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/30 hover:text-amber-100"
               >
-                gelistet
+                Gelistet
               </a>
             ) : (
               <span
@@ -868,7 +870,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
           const skuProductId = sku ? kauflandSkuProductIdMap.get(sku) : null;
           const eanProductId = eanCandidates.map((ean) => kauflandEanProductIdMap.get(ean)).find((v) => Number(v) > 0) || null;
           const viewItemUrl = skuUrl || eanUrl || buildKauflandProductUrl(skuProductId || eanProductId || null) || null;
-          const listed = listedByIndex || lastStatus === 'ok';
           return (
             failed ? (
               <span
@@ -884,16 +885,23 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 title="Kaufland-Listing öffnen"
-                className="inline-flex items-center justify-center rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-200 hover:bg-sky-500/30 hover:text-sky-100"
+                className="inline-flex items-center justify-center rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/30 hover:text-rose-100"
               >
-                gelistet
+                Gelistet
               </a>
-            ) : listed ? (
+            ) : listedByIndex ? (
               <span
                 title="Auf Kaufland gelistet (kein Link verfügbar)"
-                className="inline-flex items-center justify-center rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-200"
+                className="inline-flex items-center justify-center rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-semibold text-rose-200"
               >
-                gelistet
+                Gelistet
+              </span>
+            ) : lastStatus === 'ok' ? (
+              <span
+                title="Kaufland-Sync OK, aber nicht im Index"
+                className="inline-flex items-center justify-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-200"
+              >
+                Sync OK
               </span>
             ) : (
               <span
@@ -1207,8 +1215,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
         filterEbay === 'all' ||
         (filterEbay === 'listed' && isEbayListed) ||
         (filterEbay === 'notListed' && !isEbayListed);
-      const pKp = (p as any)?.ops?.kaufland || {};
-      const pLastStatus = String(pKp?.last_sync_status || '').toLowerCase();
       const pSku = normalizeSku(
         (p as any)?.identification?.sku ||
         p?.details?.identifiers?.sku ||
@@ -1229,8 +1235,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       );
       const isKauflandListed =
         (pSku && kauflandSkuSet.has(pSku)) ||
-        pEanCandidates.some((ean) => kauflandEanSet.has(ean)) ||
-        pLastStatus === 'ok';
+        pEanCandidates.some((ean) => kauflandEanSet.has(ean));
       const matchesKaufland =
         filterKaufland === 'all' ||
         (filterKaufland === 'listed' && isKauflandListed) ||
@@ -1297,8 +1302,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
             ) ? 1 : 0;
           }
           case 'kaufland.listed': {
-            const kp = (product as any)?.ops?.kaufland || {};
-            const lastStatus = String(kp?.last_sync_status || '').toLowerCase();
             const sku = normalizeSku(
               (product as any)?.identification?.sku ||
               product?.details?.identifiers?.sku ||
@@ -1318,7 +1321,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               )
             );
             const listedByIndex = (sku && kauflandSkuSet.has(sku)) || eanCandidates.some((ean) => kauflandEanSet.has(ean));
-            return listedByIndex || lastStatus === 'ok' ? 1 : 0;
+            return listedByIndex ? 1 : 0;
           }
           default:
             return getNestedValue(product, key);
@@ -2754,8 +2757,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return Array.from(selectedIds).some((pid) => {
       const product = products.find((p) => p.id === pid);
       if (!product) return false;
-      const kp = (product as any)?.ops?.kaufland || {};
-      const lastStatus = String(kp?.last_sync_status || '').toLowerCase();
       const sku = normalizeSku(
         (product as any)?.identification?.sku ||
         product?.details?.identifiers?.sku ||
@@ -2774,196 +2775,154 @@ const AdminTable: React.FC<AdminTableProps> = ({
             .filter(Boolean)
         )
       );
-      return (sku && kauflandSkuSet.has(sku)) || eanCandidates.some((ean) => kauflandEanSet.has(ean)) || lastStatus === 'ok';
+      return (sku && kauflandSkuSet.has(sku)) || eanCandidates.some((ean) => kauflandEanSet.has(ean));
     });
   }, [selectedIds, products, kauflandSkuSet, kauflandEanSet]);
 
   const renderSelectionBar = () => {
+    const globeIcon = (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <circle cx="10" cy="10" r="7" />
+        <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
+      </svg>
+    );
+    const refreshIcon = (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M4 4v5h5M16 16v-5h-5" />
+        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m18 0 4.36 4.36A9 9 0 0 1 3.51 15" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    );
     return (
-      <div className="rounded-xl border border-white/10 bg-slate-950/30 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div className="text-xs text-slate-200">
-          <b>{selectedIds.size}</b> ausgewählt
+      <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-100">
+            <span className="inline-flex items-center justify-center min-w-[24px] h-6 rounded-md bg-indigo-500/20 px-1.5 text-xs font-bold text-indigo-300">{selectedIds.size}</span>
+            ausgewählt
+          </div>
+          <button type="button" onClick={() => setSelectedIds(new Set())} className="text-xs text-slate-400 hover:text-slate-200 transition">
+            Auswahl aufheben
+          </button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* BaseLinker */}
           <ActionButton
-            icon={<SyncIcon className="w-4 h-4" />}
-            label={t('table.actions.syncSelected')}
+            icon={<SyncIcon className="w-3.5 h-3.5" />}
+            label={syncInProgress ? 'Sync läuft...' : 'BL Sync'}
             onClick={handleBatchSync}
             disabled={selectedIds.size === 0 || syncInProgress}
             tone="primary"
           />
+          <div className="w-px h-5 bg-slate-700 mx-1" />
+          {/* eBay */}
           <ActionButton
-            icon={
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <circle cx="10" cy="10" r="7" />
-                <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
-              </svg>
-            }
-            label={ebayPublishInProgress ? 'Wird gelistet...' : 'Auf eBay listen'}
+            icon={globeIcon}
+            label={ebayPublishInProgress ? 'Wird gelistet...' : 'eBay Listen'}
             onClick={handleBatchPublishEbay}
             disabled={selectedIds.size === 0 || ebayPublishInProgress}
-            tone="primary"
-          />
-          <ActionButton
-            icon={
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <circle cx="10" cy="10" r="7" />
-                <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
-              </svg>
-            }
-            label={bulkJobLoading ? 'Kaufland Job läuft...' : 'Auf Kaufland listen'}
-            onClick={() => enqueueBulkForSelection('kaufland_create', { apply: true })}
-            disabled={selectedIds.size === 0 || bulkJobLoading}
-            tone="primary"
+            tone="ebay"
           />
           {hasSelectedEbayListings && (
             <ActionButton
-              icon={
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M4 4v5h5M16 16v-5h-5" />
-                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m18 0 4.36 4.36A9 9 0 0 1 3.51 15" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              }
-              label={ebayUpdateInProgress ? 'Wird aktualisiert...' : 'eBay aktualisieren'}
+              icon={refreshIcon}
+              label={ebayUpdateInProgress ? 'Aktualisiert...' : 'eBay Update'}
               onClick={handleBatchUpdateEbay}
               disabled={ebayUpdateInProgress || ebayPublishInProgress}
-              tone="primary"
+              tone="ebay"
             />
           )}
+          <div className="w-px h-5 bg-slate-700 mx-1" />
+          {/* Kaufland */}
+          <ActionButton
+            icon={globeIcon}
+            label={bulkJobLoading ? 'Job läuft...' : 'Kaufland Listen'}
+            onClick={() => enqueueBulkForSelection('kaufland_create', { apply: true })}
+            disabled={selectedIds.size === 0 || bulkJobLoading}
+            tone="kaufland"
+          />
           {hasSelectedKauflandListings && (
             <ActionButton
-              icon={
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M4 4v5h5M16 16v-5h-5" />
-                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m18 0 4.36 4.36A9 9 0 0 1 3.51 15" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              }
-              label={bulkJobLoading ? 'Kaufland Job läuft...' : 'Kaufland aktualisieren'}
+              icon={refreshIcon}
+              label={bulkJobLoading ? 'Job läuft...' : 'Kaufland Update'}
               onClick={() => enqueueBulkForSelection('kaufland_update', { apply: true })}
               disabled={bulkJobLoading}
-              tone="primary"
+              tone="kaufland"
             />
           )}
           {onImproveSelected ? (
-            <ActionButton
-              icon={<OperationsIcon className="w-4 h-4" />}
-              label="Verbessern"
-              onClick={() => {
-                const ids = Array.from(selectedIds);
-                if (!ids.length) return;
-                setImproveInProgress(true);
-                setImproveMessage(`Verbessern gestartet (${ids.length}) …`);
-                try {
-                  onImproveSelected(ids);
-                } catch (err: any) {
-                  console.error('Improve Selected failed', err?.message || err);
-                  setImproveMessage('Fehler beim Verbessern');
-                } finally {
-                  setTimeout(() => setImproveInProgress(false), 3000);
-                }
-              }}
-              disabled={selectedIds.size === 0 || improveInProgress}
-              tone="accent"
-            />
+            <>
+              <div className="w-px h-5 bg-slate-700 mx-1" />
+              <ActionButton
+                icon={<OperationsIcon className="w-3.5 h-3.5" />}
+                label="KI Verbessern"
+                onClick={() => {
+                  const ids = Array.from(selectedIds);
+                  if (!ids.length) return;
+                  setImproveInProgress(true);
+                  setImproveMessage(`Verbessern gestartet (${ids.length}) …`);
+                  try {
+                    onImproveSelected(ids);
+                  } catch (err: any) {
+                    console.error('Improve Selected failed', err?.message || err);
+                    setImproveMessage('Fehler beim Verbessern');
+                  } finally {
+                    setTimeout(() => setImproveInProgress(false), 3000);
+                  }
+                }}
+                disabled={selectedIds.size === 0 || improveInProgress}
+                tone="accent"
+              />
+            </>
           ) : null}
 
+          <div className="w-px h-5 bg-slate-700 mx-1" />
+
           <details className="relative">
-            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-xl bg-slate-800/40 border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20">
+            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1 rounded-lg bg-slate-700/80 border border-slate-600/40 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-600 transition shadow-sm">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
               Mehr
             </summary>
-            <div className="absolute right-0 mt-2 w-[320px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1 shadow-xl shadow-black/40 z-30">
-              <button
-                type="button"
-                onClick={() => enqueueBulkForSelection('price')}
-                disabled={bulkJobLoading}
-                className={menuItemClass}
-              >
+            <div className="absolute right-0 mt-2 w-[300px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1.5 shadow-xl shadow-black/40 z-30">
+              <div className="px-2.5 pt-1.5 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Daten-Fix</div>
+              <button type="button" onClick={() => enqueueBulkForSelection('price')} disabled={bulkJobLoading} className={menuItemClass}>
                 Price Refresh
               </button>
-              <button
-                type="button"
-                onClick={() => enqueueBulkForSelection('title')}
-                disabled={bulkJobLoading}
-                className={menuItemClass}
-              >
+              <button type="button" onClick={() => enqueueBulkForSelection('title')} disabled={bulkJobLoading} className={menuItemClass}>
                 Titel fix
               </button>
-              <button
-                type="button"
-                onClick={() => enqueueBulkForSelection('category')}
-                disabled={bulkJobLoading}
-                className={menuItemClass}
-              >
+              <button type="button" onClick={() => enqueueBulkForSelection('category')} disabled={bulkJobLoading} className={menuItemClass}>
                 Kategorie fix
               </button>
-              <button
-                type="button"
-                onClick={() => enqueueBulkForSelection('ktype')}
-                disabled={bulkJobLoading}
-                className={menuItemClass}
-              >
+              <button type="button" onClick={() => enqueueBulkForSelection('ktype')} disabled={bulkJobLoading} className={menuItemClass}>
                 K‑Typ enrich
               </button>
 
-              <div className="my-1 border-t border-slate-800" />
-
-              <button
-                type="button"
-                onClick={handleBatchPublishEbay}
-                disabled={selectedIds.size === 0 || ebayPublishInProgress}
-                className={menuItemClass}
-              >
-                {ebayPublishInProgress ? 'eBay Publish läuft...' : 'Auf eBay listen'}
+              <div className="my-1.5 border-t border-slate-800/60" />
+              <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-amber-500/80">eBay</div>
+              <button type="button" onClick={handleBatchPublishEbay} disabled={selectedIds.size === 0 || ebayPublishInProgress} className={menuItemClass}>
+                {ebayPublishInProgress ? 'eBay Publish läuft...' : 'Listings erstellen'}
               </button>
-              <button
-                type="button"
-                onClick={handleSyncEbayListings}
-                disabled={ebaySyncInProgress}
-                className={menuItemClass}
-              >
-                {ebaySyncInProgress ? 'eBay Sync läuft...' : 'eBay: Listings synchronisieren'}
-              </button>
-              <button
-                type="button"
-                onClick={handleSyncKauflandListings}
-                disabled={kauflandSyncInProgress}
-                className={menuItemClass}
-              >
-                {kauflandSyncInProgress ? 'Kaufland Sync läuft...' : 'Kaufland: Listings synchronisieren'}
-              </button>
-              <button
-                type="button"
-                onClick={() => enqueueBulkForSelection('kaufland_create', { apply: true })}
-                disabled={bulkJobLoading || selectedIds.size === 0}
-                className={menuItemClass}
-              >
-                Kaufland: Listings erstellen
-              </button>
-              <button
-                type="button"
-                onClick={() => enqueueBulkForSelection('kaufland_update', { apply: true })}
-                disabled={bulkJobLoading || selectedIds.size === 0}
-                className={menuItemClass}
-              >
-                Kaufland: Listings aktualisieren
+              <button type="button" onClick={handleSyncEbayListings} disabled={ebaySyncInProgress} className={menuItemClass}>
+                {ebaySyncInProgress ? 'Sync läuft...' : 'Listings synchronisieren'}
               </button>
 
-              <div className="my-1 border-t border-slate-800" />
+              <div className="my-1.5 border-t border-slate-800/60" />
+              <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-rose-400/80">Kaufland</div>
+              <button type="button" onClick={handleSyncKauflandListings} disabled={kauflandSyncInProgress} className={menuItemClass}>
+                {kauflandSyncInProgress ? 'Sync läuft...' : 'Listings synchronisieren'}
+              </button>
+              <button type="button" onClick={() => enqueueBulkForSelection('kaufland_create', { apply: true })} disabled={bulkJobLoading || selectedIds.size === 0} className={menuItemClass}>
+                Listings erstellen
+              </button>
+              <button type="button" onClick={() => enqueueBulkForSelection('kaufland_update', { apply: true })} disabled={bulkJobLoading || selectedIds.size === 0} className={menuItemClass}>
+                Listings aktualisieren
+              </button>
 
-              <button
-                type="button"
-                onClick={handleBatchLabelPrint}
-                disabled={selectedIds.size === 0}
-                className={menuItemClass}
-              >
+              <div className="my-1.5 border-t border-slate-800/60" />
+              <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Sonstiges</div>
+              <button type="button" onClick={handleBatchLabelPrint} disabled={selectedIds.size === 0} className={menuItemClass}>
                 Label drucken
               </button>
-              <button
-                type="button"
-                onClick={handleBatchDelete}
-                disabled={selectedIds.size === 0}
-                className={`${menuItemClass} text-rose-200 hover:bg-rose-900/30`}
-              >
+              <button type="button" onClick={handleBatchDelete} disabled={selectedIds.size === 0} className={`${menuItemClass} text-rose-300 hover:bg-rose-900/30`}>
                 Auswahl löschen
               </button>
             </div>
@@ -3055,25 +3014,25 @@ const AdminTable: React.FC<AdminTableProps> = ({
           )}
 
           {activeFilterChips.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               {activeFilterChips.map((chip) => (
                 <button
                   key={chip.key}
                   type="button"
                   onClick={chip.onClear}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/30 px-3 py-1 text-xs text-slate-200 hover:border-white/20"
+                  className="group inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-200 hover:bg-indigo-500/20 hover:border-indigo-500/30 transition"
                   title="Filter entfernen"
                 >
                   <span className="whitespace-nowrap">{chip.label}</span>
-                  <span className="text-slate-400">×</span>
+                  <span className="text-indigo-400 group-hover:text-indigo-200 text-sm leading-none">×</span>
                 </button>
               ))}
               <button
                 type="button"
                 onClick={resetFilters}
-                className="text-xs text-sky-400 hover:underline"
+                className="text-xs text-slate-400 hover:text-slate-200 ml-1 transition"
               >
-                Alles löschen
+                Alle entfernen
               </button>
             </div>
           ) : null}

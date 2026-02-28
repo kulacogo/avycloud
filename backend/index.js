@@ -2827,7 +2827,7 @@ app.post('/api/kaufland/listings/sync', requirePermission('products', 'write'), 
         amount: Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null,
         status: String(unit?.status || '').trim() || null,
         storefront: String(unit?.storefront || storefront || 'de').trim().toLowerCase(),
-        active: true,
+        active: String(unit?.status || '').trim().toUpperCase() === 'AVAILABLE',
         updatedAt: now,
         source: 'kaufland-sync',
       };
