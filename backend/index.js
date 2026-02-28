@@ -7008,31 +7008,47 @@ app.get('/api/dashboard/finance', requirePermission('dashboard', 'read'), async 
   ]);
 
   // Merge shipping data: SendCloud (primary for count + carrier split) + SevDesk (cost from real invoices)
+  // IMPORTANT: All returned total_cost values are NETTO — the frontend multiplies by 1.19 for brutto.
+  // - SendCloud API returns netto prices → use as-is
+  // - SevDesk bank transactions are brutto → divide by 1.19 to get netto
+  // - BaseLinker calculated costs are already brutto → divide by 1.19 to get netto
   function mergeShipping(svResult, blResult, scResult) {
     const sv = svResult?.status === 'fulfilled' ? (svResult.value || {}) : null;
     const bl = blResult?.status  === 'fulfilled' ? (blResult.value  || {}) : null;
     const sc = scResult?.status  === 'fulfilled' ? (scResult.value  || {}) : null;
 
+    // SevDesk may have "direct" shipping costs (DHL/DPD paid without SendCloud,
+    // e.g. pre-February 2026 when DHL was used directly). These are brutto bank
+    // transactions and need to be included even when SendCloud is the primary source.
+    const svDirectNetto = sv && sv.direct_shipping_cost > 0
+      ? Math.round((sv.direct_shipping_cost / 1.19) * 100) / 100
+      : 0;
+
     // SendCloud is preferred source for parcel count, carrier breakdown, and cost
     if (sc && sc.parcel_count > 0) {
       return {
-        total_cost: sc.total_cost,
+        total_cost: Math.round((sc.total_cost + svDirectNetto) * 100) / 100,
         parcel_count: sc.parcel_count,
         dhl_count: sc.dhl_count || 0,
         dpd_count: sc.dpd_count || 0,
+        direct_dhl_cost_netto: svDirectNetto,
         currency: 'EUR',
-        source: 'sendcloud',
+        source: svDirectNetto > 0 ? 'sendcloud+sevdesk' : 'sendcloud',
       };
     }
 
-    // Fallback: SevDesk cost + BaseLinker count
+    // Fallback: SevDesk cost (brutto → convert to netto) + BaseLinker count
     if (!sv && !bl) return null;
     const parcelCount = bl?.parcel_count ?? 0;
     if (sv && sv.voucher_count > 0) {
-      return { total_cost: sv.total_cost, parcel_count: parcelCount, currency: 'EUR', source: 'sevdesk+baselinker' };
+      // SevDesk total_cost is brutto → convert to netto so frontend × 1.19 = correct brutto
+      const svTotalNetto = Math.round((sv.total_cost / 1.19) * 100) / 100;
+      return { total_cost: svTotalNetto, parcel_count: parcelCount, currency: 'EUR', source: 'sevdesk+baselinker' };
     }
     if (bl && bl.parcel_count > 0) {
-      return { ...bl };
+      // BaseLinker calculated costs are brutto → convert to netto
+      const blNetto = Math.round((bl.total_cost / 1.19) * 100) / 100;
+      return { ...bl, total_cost: blNetto, source: 'baselinker' };
     }
     return null;
   }

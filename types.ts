@@ -439,6 +439,10 @@ export interface FinanceAccountBalance {
 export interface FinanceShipping {
   total_cost: number;
   parcel_count: number;
+  dhl_count?: number;
+  dpd_count?: number;
+  direct_dhl_cost_netto?: number;
+  source?: string;
   currency: string;
   from_date: string;
   to_date: string;

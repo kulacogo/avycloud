@@ -150,35 +150,46 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
   // Filter to outgoing shipping carrier payments.
   // Correct SevDesk field: "payeePayerName" (= "Name" column in Kontoauszug view).
   // Only negative amounts (Ausgaben) are counted — positive = incoming/refunds.
-  const isShipping = (t) => {
+  // Categorise: "sendcloud" vs "direct" (DHL/DPD/GLS paid without SendCloud)
+  const categorizeShipping = (t) => {
     const payee = (t?.payeePayerName || '').toLowerCase();
     const desc  = (t?.paymtPurpose  || '').toLowerCase();
-    return SHIPPING_SUPPLIER_KEYWORDS.some(kw => payee.includes(kw) || desc.includes(kw));
+    const text = payee + ' ' + desc;
+    if (text.includes('sendcloud')) return 'sendcloud';
+    if (SHIPPING_SUPPLIER_KEYWORDS.some(kw => payee.includes(kw) || desc.includes(kw))) return 'direct';
+    return null;
   };
 
   let totalCost = 0;
+  let directCost = 0;   // DHL/DPD direct (pre-SendCloud era), brutto
+  let sendcloudCost = 0; // SendCloud payments, brutto
   let txCount = 0;
   const matched = [];
 
   for (const t of transactions) {
     const raw = parseFloat(String(t?.amount || '0').replace(',', '.')) || 0;
     if (raw >= 0) continue; // skip incoming payments and zero entries
-    if (!isShipping(t)) continue;
+    const category = categorizeShipping(t);
+    if (!category) continue;
     const amount = Math.abs(raw);
     totalCost += amount;
+    if (category === 'sendcloud') sendcloudCost += amount;
+    else directCost += amount;
     txCount++;
-    matched.push({ payee: t?.payeePayerName || '?', amount, date: t?.valueDate || '' });
+    matched.push({ payee: t?.payeePayerName || '?', amount, date: t?.valueDate || '', category });
   }
 
   if (matched.length > 0) {
-    console.log(`[sevdesk-shipping] ${fromDate}–${toDate}: ${txCount} Zahlungen, ${totalCost.toFixed(2)}€`);
-    matched.forEach(m => console.log(`  ${m.date}: ${m.payee} → ${m.amount.toFixed(2)}€`));
+    console.log(`[sevdesk-shipping] ${fromDate}–${toDate}: ${txCount} Zahlungen, ${totalCost.toFixed(2)}€ (direct: ${directCost.toFixed(2)}€, sendcloud: ${sendcloudCost.toFixed(2)}€)`);
+    matched.forEach(m => console.log(`  ${m.date}: [${m.category}] ${m.payee} → ${m.amount.toFixed(2)}€`));
   } else {
     console.log(`[sevdesk-shipping] ${fromDate}–${toDate}: keine Versandlieferanten-Buchungen (${transactions.length} Buchungen total)`);
   }
 
   const result = {
     total_cost: Math.round(totalCost * 100) / 100,
+    direct_shipping_cost: Math.round(directCost * 100) / 100,   // brutto, DHL/DPD direct
+    sendcloud_cost: Math.round(sendcloudCost * 100) / 100,      // brutto, via SendCloud
     voucher_count: txCount,
     currency: 'EUR',
     source: 'sevdesk',
