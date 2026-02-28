@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, SyncStatus } from '../types';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProduct, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, type ProductBulkActionName } from '../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, type ProductBulkActionName } from '../api/client';
 import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
 import {
   normalizeSyncStatus,
@@ -96,7 +96,8 @@ const SyncStatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
     pending: 'bg-amber-500/20 text-amber-300',
     failed: 'bg-red-500/20 text-red-300',
   };
-  return <span className={`${baseClasses} ${statusMap[status]}`}>{status}</span>;
+  const labelMap: Record<SyncStatus, string> = { synced: 'Synced', pending: 'Pending', failed: 'Failed' };
+  return <span className={`${baseClasses} ${statusMap[status]}`}>{labelMap[status]}</span>;
 };
 
 const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
@@ -685,7 +686,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       },
       {
         id: 'sku',
-        label: t('table.sku'),
+        label: 'SKU',
         sortKey: 'details.identifiers.sku',
         defaultVisible: true,
         render: ({ product }) => (
@@ -696,7 +697,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       },
       {
         id: 'barcode',
-        label: t('table.barcode'),
+        label: 'EAN/GTIN',
         sortKey: 'details.identifiers.ean',
         defaultVisible: true,
         render: ({ product }) => {
@@ -784,7 +785,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   : 'bg-slate-700 text-slate-200'
                 }`}
             >
-              {linked ? 'verknüpft' : 'nicht in BL'}
+              {linked ? 'Verknüpft' : 'Nicht in BL'}
             </span>
           );
         },
@@ -1049,9 +1050,25 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setVisibleColumns((prev) => {
       if (prev.includes(id)) {
         if (prev.length === 1) return prev; // mindestens eine Spalte
-        return normalizeMarketplaceColumnOrder(prev.filter((columnId) => columnId !== id));
+        return prev.filter((columnId) => columnId !== id);
       }
-      return normalizeMarketplaceColumnOrder([...prev, id]);
+      // Insert at canonical position from columnDefinitions
+      const canonicalOrder = columnDefinitions.map((c) => c.id);
+      const next = [...prev, id];
+      next.sort((a, b) => canonicalOrder.indexOf(a) - canonicalOrder.indexOf(b));
+      return next;
+    });
+  };
+
+  const moveColumn = (id: ColumnId, direction: 'up' | 'down') => {
+    setVisibleColumns((prev) => {
+      const idx = prev.indexOf(id);
+      if (idx < 0) return prev;
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      return next;
     });
   };
 
@@ -2296,11 +2313,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </select>
       </div>
 
-      <details className="rounded-xl border border-white/10 bg-slate-800/40">
-        <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-200">
-          Mehr Filter
-        </summary>
-        <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="rounded-xl border border-white/10 bg-slate-800/40 p-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Erweiterte Filter</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           <select
             id="table-filter-images"
             value={filterImage}
@@ -2345,8 +2360,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
             className={filterControlClass}
           >
             <option value="all">BaseLinker: Alle</option>
-            <option value="linked">BaseLinker: verknüpft</option>
-            <option value="unlinked">BaseLinker: nicht verknüpft</option>
+            <option value="linked">BaseLinker: Verknüpft</option>
+            <option value="unlinked">BaseLinker: Nicht verknüpft</option>
           </select>
           <select
             id="table-filter-ebay"
@@ -2355,8 +2370,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
             className={filterControlClass}
           >
             <option value="all">eBay: Alle</option>
-            <option value="listed">eBay: gelistet</option>
-            <option value="notListed">eBay: nicht gelistet</option>
+            <option value="listed">eBay: Gelistet</option>
+            <option value="notListed">eBay: Nicht gelistet</option>
           </select>
           <select
             id="table-filter-kaufland"
@@ -2365,8 +2380,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
             className={filterControlClass}
           >
             <option value="all">Kaufland: Alle</option>
-            <option value="listed">Kaufland: gelistet</option>
-            <option value="notListed">Kaufland: nicht gelistet</option>
+            <option value="listed">Kaufland: Gelistet</option>
+            <option value="notListed">Kaufland: Nicht gelistet</option>
           </select>
           <select
             id="table-filter-weight"
@@ -2409,7 +2424,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <option value="multiBin">Bins: mehrere BINs</option>
           </select>
         </div>
-      </details>
+      </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap">
@@ -2430,24 +2445,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
           <button
             type="button"
             onClick={() => setIsColumnPanelOpen((prev) => !prev)}
-            className="rounded-xl border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20"
+            className={`inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition ${isColumnPanelOpen ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300' : 'border-white/10 bg-slate-800/40 text-slate-100 hover:border-white/20'}`}
           >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" /></svg>
             {t('table.columns.edit')}
-          </button>
-          <button
-            type="button"
-            onClick={resetColumns}
-            className="rounded-xl border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20"
-          >
-            {t('table.columns.reset')}
           </button>
         </div>
 
         <details className="relative">
-          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded-xl border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20">
+          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1 rounded-xl border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20 transition">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z" /><circle cx="12" cy="12" r="3" /></svg>
             Tools
           </summary>
-          <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1 shadow-xl shadow-black/40 z-30">
+          <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1.5 shadow-xl shadow-black/40 z-30">
+            <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Export &amp; Import</div>
             <button type="button" onClick={handleExportCsv} className={menuItemClass}>
               Export CSV
             </button>
@@ -2465,31 +2476,35 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </button>
 
             {onBulkImprove ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmDialog({
-                    title: 'Alle Produkte verbessern?',
-                    tone: 'default',
-                    description:
-                      'Startet KI/Improve-Jobs für alle Produkte. Das kann viele Jobs erzeugen und je nach Menge dauern.',
-                    confirmLabel: 'Verbessern (alle) starten',
-                    onConfirm: () => {
-                      setConfirmDialog(null);
-                      onBulkImprove();
-                    },
-                  });
-                }}
-                className={menuItemClass}
-              >
-                Verbessern (alle)
-              </button>
+              <>
+                <div className="my-1.5 border-t border-slate-800/60" />
+                <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-violet-400/80">KI</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDialog({
+                      title: 'Alle Produkte verbessern?',
+                      tone: 'default',
+                      description:
+                        'Startet KI/Improve-Jobs für alle Produkte. Das kann viele Jobs erzeugen und je nach Menge dauern.',
+                      confirmLabel: 'Verbessern (alle) starten',
+                      onConfirm: () => {
+                        setConfirmDialog(null);
+                        onBulkImprove();
+                      },
+                    });
+                  }}
+                  className={menuItemClass}
+                >
+                  Verbessern (alle)
+                </button>
+              </>
             ) : null}
 
             {mode === 'inventory' ? (
               <>
-                <div className="my-1 border-t border-slate-800" />
-                <div className="px-3 py-1 text-[11px] uppercase tracking-wide text-slate-400">
+                <div className="my-1.5 border-t border-slate-800/60" />
+                <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">
                   Inventory Fix + Sync
                 </div>
                 <button
@@ -2582,20 +2597,35 @@ const AdminTable: React.FC<AdminTableProps> = ({
               {t('table.columns.reset')}
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-            {columnDefinitions.map((column) => (
-              <label key={column.id} className="flex items-center gap-2 text-sm text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={visibleColumns.includes(column.id)}
-                  onChange={() => toggleColumnVisibility(column.id)}
-                  disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
-                  className="bg-slate-600 border-slate-500"
-                />
-                {column.label}
-              </label>
-            ))}
+          <div className="space-y-1 max-h-64 overflow-y-auto">
+            {visibleColumns.map((colId, idx) => {
+              const col = columnDefinitions.find((c) => c.id === colId);
+              if (!col) return null;
+              return (
+                <div key={col.id} className="flex items-center gap-2 rounded-lg bg-slate-700/40 px-2 py-1.5 text-sm text-slate-100">
+                  <input type="checkbox" checked onChange={() => toggleColumnVisibility(col.id)} disabled={visibleColumns.length === 1} className="bg-slate-600 border-slate-500 shrink-0" />
+                  <span className="flex-1 truncate">{col.label}</span>
+                  <button type="button" onClick={() => moveColumn(col.id, 'up')} disabled={idx === 0} className="p-0.5 text-slate-400 hover:text-white disabled:opacity-20" title="Nach oben">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M5 15l7-7 7 7"/></svg>
+                  </button>
+                  <button type="button" onClick={() => moveColumn(col.id, 'down')} disabled={idx === visibleColumns.length - 1} className="p-0.5 text-slate-400 hover:text-white disabled:opacity-20" title="Nach unten">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+                </div>
+              );
+            })}
           </div>
+          {columnDefinitions.some((c) => !visibleColumns.includes(c.id)) && (
+            <div className="space-y-1 border-t border-white/10 pt-3">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Ausgeblendet</p>
+              {columnDefinitions.filter((c) => !visibleColumns.includes(c.id)).map((col) => (
+                <label key={col.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:text-slate-200 cursor-pointer">
+                  <input type="checkbox" checked={false} onChange={() => toggleColumnVisibility(col.id)} className="bg-slate-600 border-slate-500 shrink-0" />
+                  <span className="truncate">{col.label}</span>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>
@@ -2663,7 +2693,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (filterBaselinkerLink !== 'all') {
       chips.push({
         key: 'baselinker',
-        label: filterBaselinkerLink === 'linked' ? 'BaseLinker: verknüpft' : 'BaseLinker: nicht verknüpft',
+        label: filterBaselinkerLink === 'linked' ? 'BaseLinker: Verknüpft' : 'BaseLinker: Nicht verknüpft',
         onClear: () => setFilterBaselinkerLink('all'),
       });
     }
@@ -2671,7 +2701,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (filterEbay !== 'all') {
       chips.push({
         key: 'ebay',
-        label: filterEbay === 'listed' ? 'eBay: gelistet' : 'eBay: nicht gelistet',
+        label: filterEbay === 'listed' ? 'eBay: Gelistet' : 'eBay: Nicht gelistet',
         onClear: () => setFilterEbay('all'),
       });
     }
@@ -2679,7 +2709,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (filterKaufland !== 'all') {
       chips.push({
         key: 'kaufland',
-        label: filterKaufland === 'listed' ? 'Kaufland: gelistet' : 'Kaufland: nicht gelistet',
+        label: filterKaufland === 'listed' ? 'Kaufland: Gelistet' : 'Kaufland: Nicht gelistet',
         onClear: () => setFilterKaufland('all'),
       });
     }
@@ -2873,6 +2903,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
               />
             </>
           ) : null}
+
+          <div className="w-px h-5 bg-slate-700 mx-1" />
+          <ActionButton
+            icon={<TrashIcon className="w-3.5 h-3.5" />}
+            label="Löschen"
+            onClick={handleBatchDelete}
+            disabled={selectedIds.size === 0}
+            tone="danger"
+          />
 
           <div className="w-px h-5 bg-slate-700 mx-1" />
 
@@ -3085,9 +3124,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
                     </SortableHeader>
                   );
                 })}
-                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap">
-                  {t('table.actions.label')}
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -3118,46 +3154,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
                       {column.render({ product: p, onSelectProduct })}
                     </td>
                   ))}
-                  <td className="p-3">
-                    <div className="flex flex-col gap-2">
-
-                      <button
-                        className="px-2 py-1 text-xs bg-rose-600/20 text-rose-300 rounded-lg hover:bg-rose-600/30 transition"
-                        onClick={async () => {
-                          setConfirmDialog({
-                            title: 'Produkt löschen?',
-                            tone: 'danger',
-                            description: (
-                              <span>
-                                <b>{p.identification?.name || p.id}</b> wird dauerhaft gelöscht.
-                              </span>
-                            ),
-                            confirmLabel: 'Löschen',
-                            onConfirm: async () => {
-                              setConfirmDialog((prev) => (prev ? { ...prev, confirmBusy: true } : prev));
-                              try {
-                                const res = await deleteProduct(p.id);
-                                if (res.ok) {
-                                  onUpdateProducts(products.filter((x) => x.id !== p.id));
-                                  setNotice({ tone: 'success', title: 'Produkt gelöscht', message: p.identification?.name || p.id });
-                                } else {
-                                  setNotice({
-                                    tone: 'error',
-                                    title: 'Löschen fehlgeschlagen',
-                                    details: res.error?.message || 'Unknown error',
-                                  });
-                                }
-                              } finally {
-                                setConfirmDialog(null);
-                              }
-                            },
-                          });
-                        }}
-                      >
-                        {t('table.actions.delete')}
-                      </button>
-                    </div>
-                  </td>
                 </tr>
               ))}
             </tbody>
