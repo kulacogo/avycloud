@@ -233,6 +233,13 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
       }
       matchedOnPage++;
 
+      // Skip cancelled and failed parcels — they don't incur shipping costs.
+      // SendCloud status IDs: 2000 = Cancelled, 1002 = Announcement failed
+      const statusId = Number(parcel.status?.id || 0);
+      if (statusId === 2000 || statusId === 1002) {
+        continue;
+      }
+
       // Try the API-provided price first
       const apiPriceRaw =
         parcel.price ??
