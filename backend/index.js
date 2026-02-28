@@ -6615,7 +6615,10 @@ async function computeDashboardBaseLinkerOrdersAggregate({
     cursor = lastConfirmed + 1;
   }
 
-  const KAUFLAND_FEE_PCT = 0.10; // ~10% Verkaufsprovision estimate based on invoices
+  // Kaufland: 14% Netto-Provision on Bruttoverkaufspreis + 19% MwSt on provision
+  // = 14% × 1.19 = 16.66% effective deduction from brutto
+  const KAUFLAND_PROVISION_RATE = 0.14;
+  const KAUFLAND_EFFECTIVE_RATE = KAUFLAND_PROVISION_RATE * 1.19; // ~0.1666
   const data = {
     series: series.map((d) => ({
       date: d.date,
@@ -6626,7 +6629,7 @@ async function computeDashboardBaseLinkerOrdersAggregate({
       Array.from(revenueByCurrency.entries()).map(([k, v]) => [k, Number((Number(v || 0) || 0).toFixed(2))])
     ),
     kaufland_gross: Math.round(kauflandGross * 100) / 100,
-    kaufland_net: Math.round(kauflandGross * (1 - KAUFLAND_FEE_PCT) * 100) / 100,
+    kaufland_payout: Math.round(kauflandGross * (1 - KAUFLAND_EFFECTIVE_RATE) * 100) / 100,
   };
 
   DASHBOARD_ORDERS_AGG_CACHE.set(cacheKey, { atMs: now, data });
@@ -6652,6 +6655,7 @@ async function computeDashboardBaseLinkerRevenueTotal({
 
   const statusNameById = await ensureDashboardOrderStatusNameMap({ timeoutMs: Math.min(20_000, timeoutMs) });
   const revenueByCurrency = new Map();
+  let kauflandGross = 0;
   let cursor = f;
   let processed = 0;
 
@@ -6686,6 +6690,9 @@ async function computeDashboardBaseLinkerRevenueTotal({
 
       const { currency, value } = computeBaseLinkerOrderValueBrutto(o);
       revenueByCurrency.set(currency, (revenueByCurrency.get(currency) || 0) + value);
+      if (orderSource.includes('kaufland') && currency === 'EUR') {
+        kauflandGross += value;
+      }
       processed += 1;
       if (processed >= DASHBOARD_ORDERS_MAX_ITEMS) break;
     }
@@ -6696,10 +6703,14 @@ async function computeDashboardBaseLinkerRevenueTotal({
     cursor = lastConfirmed + 1;
   }
 
+  const KAUFLAND_PROVISION_RATE = 0.14;
+  const KAUFLAND_EFFECTIVE_RATE = KAUFLAND_PROVISION_RATE * 1.19;
   const data = {
     revenue_by_currency: Object.fromEntries(
       Array.from(revenueByCurrency.entries()).map(([k, v]) => [k, Number((Number(v || 0) || 0).toFixed(2))])
     ),
+    kaufland_gross: Math.round(kauflandGross * 100) / 100,
+    kaufland_payout: Math.round(kauflandGross * (1 - KAUFLAND_EFFECTIVE_RATE) * 100) / 100,
   };
   DASHBOARD_ORDERS_AGG_CACHE.set(cacheKey, { atMs: now, data });
   return data;
@@ -6742,9 +6753,9 @@ app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async 
           const windowRevenue = Number(agg?.revenue_by_currency?.[cur] || 0) || 0;
           if (metrics?.revenue) {
             metrics.revenue.window_non_cancelled_total = windowRevenue;
-            // Kaufland gross + estimated net (10% fee deduction)
+            // Kaufland gross + payout (14% provision + 19% MwSt on provision = 16.66% effective)
             metrics.revenue.kaufland_gross_window = agg.kaufland_gross ?? 0;
-            metrics.revenue.kaufland_net_window = agg.kaufland_net ?? 0;
+            metrics.revenue.kaufland_payout_window = agg.kaufland_payout ?? 0;
           }
         }
 
@@ -6760,6 +6771,8 @@ app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async 
         if (total?.revenue_by_currency && metrics?.revenue) {
           const cur = (metrics?.currency || 'EUR').toString().trim().toUpperCase() || 'EUR';
           metrics.revenue.all_non_cancelled_total = Number(total.revenue_by_currency?.[cur] || 0) || 0;
+          metrics.revenue.kaufland_gross_ytd = total.kaufland_gross ?? 0;
+          metrics.revenue.kaufland_payout_ytd = total.kaufland_payout ?? 0;
         }
       }
     } catch (err) {
@@ -6836,6 +6849,46 @@ app.get('/api/dashboard/metrics', requirePermission('dashboard', 'read'), async 
       }
     } catch (err) {
       console.warn('Dashboard eBay net revenue enrichment failed:', err?.message || err);
+    }
+
+    // ── Compute marketplace payout-based revenue ──────────────────────────────
+    // "Brutto" on Dashboard = what eBay + Kaufland actually pay out to bank account.
+    // eBay: prefer Finances API (exact payout), fall back to gross × (1 - 0.25) estimate.
+    // Kaufland: gross × (1 - 0.14 * 1.19) = gross × 0.8334 (14% provision + MwSt on provision).
+    try {
+      const rev = metrics?.revenue || {};
+      const EBAY_FALLBACK_FEE_PCT = 0.25; // ~14% Transaktionsgebühren + ~11% Anzeigengebühr
+
+      // --- Window (selected period) ---
+      const ebayPayoutWindow = rev.ebay_net_window != null
+        ? rev.ebay_net_window
+        : (() => {
+            const totalGross = rev.window_non_cancelled_total ?? 0;
+            const kGross = rev.kaufland_gross_window ?? 0;
+            const ebayGross = Math.max(0, totalGross - kGross);
+            console.log(`[dashboard] eBay Finances API not available; estimating eBay payout from BL gross ${ebayGross.toFixed(2)} × ${(1 - EBAY_FALLBACK_FEE_PCT).toFixed(2)}`);
+            return Math.round(ebayGross * (1 - EBAY_FALLBACK_FEE_PCT) * 100) / 100;
+          })();
+      const kauflandPayoutWindow = rev.kaufland_payout_window ?? 0;
+      const payoutBruttoWindow = Math.round((ebayPayoutWindow + kauflandPayoutWindow) * 100) / 100;
+
+      // --- YTD ---
+      const ebayPayoutYtd = rev.ebay_net_ytd != null
+        ? rev.ebay_net_ytd
+        : (() => {
+            const totalGross = rev.all_non_cancelled_total ?? 0;
+            const kGross = rev.kaufland_gross_ytd ?? 0;
+            const ebayGross = Math.max(0, totalGross - kGross);
+            return Math.round(ebayGross * (1 - EBAY_FALLBACK_FEE_PCT) * 100) / 100;
+          })();
+      const kauflandPayoutYtd = rev.kaufland_payout_ytd ?? 0;
+      const payoutBruttoYtd = Math.round((ebayPayoutYtd + kauflandPayoutYtd) * 100) / 100;
+
+      metrics.revenue.payout_brutto_window = payoutBruttoWindow;
+      metrics.revenue.payout_brutto_ytd = payoutBruttoYtd;
+      metrics.revenue.payout_source = rev.ebay_net_window != null ? 'ebay_finances' : 'estimated';
+    } catch (err) {
+      console.warn('Dashboard payout computation failed:', err?.message || err);
     }
 
     res.setHeader('Cache-Control', 'no-store');

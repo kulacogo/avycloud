@@ -629,8 +629,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       verpackt: (bd as any)?.verpackt ?? 0,
       versendet: bd?.versendet ?? 0,
       zugestellt: bd?.zugestellt ?? 0,
-      revenueYtd: metrics?.revenue?.all_non_cancelled_total ?? 0,
-      revenueWindow: metrics?.revenue?.window_non_cancelled_total ?? 0,
+      revenueYtd: metrics?.revenue?.payout_brutto_ytd ?? metrics?.revenue?.all_non_cancelled_total ?? 0,
+      revenueWindow: metrics?.revenue?.payout_brutto_window ?? metrics?.revenue?.window_non_cancelled_total ?? 0,
       returnsTotal: metrics?.orders?.returns_total ?? 0,
       returnsMonth: metrics?.orders?.returns_month ?? 0,
       returnsWindowValue: (metrics as any)?.returns?.window?.value_by_currency?.EUR ?? 0,
@@ -641,10 +641,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const presetLabel = metrics?.range?.label ?? PRESETS.find(p => p.id === activePreset)?.label ?? activePreset;
 
-  // Finance derived
-  const shippingWindow = finance?.shipping?.total_cost ?? null;
-  const shippingYtd = finance?.shipping_ytd?.total_cost ?? null;
-  const revAfterShipping = shippingWindow !== null ? ord.revenueWindow - shippingWindow : null;
+  // Finance derived — shipping costs are netto from SendCloud, multiply by 1.19 for brutto
+  const shippingWindowNetto = finance?.shipping?.total_cost ?? null;
+  const shippingYtdNetto = finance?.shipping_ytd?.total_cost ?? null;
+  const shippingWindow = shippingWindowNetto !== null ? Math.round(shippingWindowNetto * 1.19 * 100) / 100 : null;
+  const shippingYtd = shippingYtdNetto !== null ? Math.round(shippingYtdNetto * 1.19 * 100) / 100 : null;
 
   // Total balance (Gesamtsaldo) — combined Sichteinlagen + BusinessCard
   const totalBalance = finance?.total_balance ?? null;
@@ -697,7 +698,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Card
             label="Jahresumsatz"
             value={fmtCur(ord.revenueYtd, ord.currency, true)}
-            sub="Brutto · nach Retouren"
+            sub="Brutto"
             color="green"
             loading={metricsLoading}
             size="hero"
@@ -782,7 +783,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* ══ 4. KENNZAHLEN · ZEITRAUM + CHART ══════════════════════════ */}
       <Section title={`Kennzahlen · ${presetLabel}`}>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-3 gap-3 mb-4">
           <Card
             label="Umsatz"
             value={fmtCur(ord.revenueWindow, ord.currency, true)}
@@ -807,13 +808,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             ) : undefined}
             color="amber"
             loading={financeLoading && shippingWindow === null}
-          />
-          <Card
-            label="Netto"
-            value={revAfterShipping !== null ? fmtCur(revAfterShipping, ord.currency, true) : '—'}
-            sub="Umsatz − Versand"
-            color={revAfterShipping !== null && revAfterShipping < 0 ? 'red' : 'green'}
-            loading={metricsLoading || (financeLoading && shippingWindow === null)}
           />
           <Card
             label="Retouren"

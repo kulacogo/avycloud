@@ -403,6 +403,9 @@ export interface DashboardMetrics {
     window_non_cancelled_total?: number;
     window_start_iso?: string;
     window_days?: number;
+    payout_brutto_window?: number;
+    payout_brutto_ytd?: number;
+    payout_source?: string;
   };
   orders: {
     open_current: number;

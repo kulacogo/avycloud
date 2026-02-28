@@ -10,7 +10,15 @@ const fs = require('fs');
 const { uploadJobFile } = require('../lib/storage');
 const { createJob: createBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('../lib/baselinker-sync-jobs');
 const { enqueueBaseLinkerSyncJob } = require('./baselinker-sync-runner');
-const { findUnit, createUnit, updateUnit, pickUnitData } = require('../lib/kaufland-api');
+const {
+  findUnit,
+  createUnit,
+  updateUnit,
+  pickUnitData,
+  getUnit,
+  getProductDataStatus,
+  patchProductData,
+} = require('../lib/kaufland-api');
 
 const normalizeBucketName = (raw) => {
   const s = raw == null ? '' : String(raw).trim();
@@ -1516,6 +1524,326 @@ function formatKauflandApiError(error) {
   return `${prefix}${base} (${fieldErrors.join('; ')})`;
 }
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+
+function stripHtmlToPlainText(input) {
+  const raw = safeString(input);
+  if (!raw) return '';
+  return raw
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<li>/gi, '- ')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeKauflandAttributeToken(value) {
+  return safeString(value)
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\s._:;,\-/\\()[\]{}]+/g, '');
+}
+
+function normalizeKauflandAttributeValues(value) {
+  const list = Array.isArray(value) ? value : [value];
+  return list
+    .flatMap((entry) => {
+      if (entry == null) return [];
+      if (typeof entry === 'object' && !Array.isArray(entry)) return [];
+      const text = safeString(entry);
+      if (!text) return [];
+      if (typeof entry === 'string' && text.includes('|')) {
+        return text
+          .split('|')
+          .map((part) => safeString(part))
+          .filter(Boolean);
+      }
+      return [text];
+    })
+    .filter(Boolean)
+    .slice(0, 25);
+}
+
+function pickImageUrl(entry) {
+  if (typeof entry === 'string') return safeString(entry);
+  if (!entry || typeof entry !== 'object') return '';
+  return safeString(entry?.url_or_base64 || entry?.url || entry?.src || entry?.link);
+}
+
+function buildKauflandProductDataAttributes(product, { missingAttributes = [], minOneMissingAttributes = [] } = {}) {
+  const attributes = {};
+
+  const title = safeString(product?.identification?.name).replace(/\s+/g, ' ').trim();
+  if (title) attributes.title = [title.slice(0, 250)];
+
+  const descriptionRaw = safeString(product?.details?.short_description || product?.details?.description);
+  const description = stripHtmlToPlainText(descriptionRaw);
+  if (description) attributes.description = [description.slice(0, 4000)];
+
+  const pictureUrls = Array.from(
+    new Set(
+      (Array.isArray(product?.details?.images) ? product.details.images : [])
+        .map((entry) => pickImageUrl(entry))
+        .filter((url) => /^https?:\/\//i.test(url))
+    )
+  );
+  if (pictureUrls.length) attributes.picture = pictureUrls.slice(0, 20);
+
+  const attrsPrimary =
+    product?.details?.attributes && typeof product.details.attributes === 'object' && !Array.isArray(product.details.attributes)
+      ? product.details.attributes
+      : {};
+  const attrsExtra =
+    product?.details?.attributes_extra && typeof product.details.attributes_extra === 'object' && !Array.isArray(product.details.attributes_extra)
+      ? product.details.attributes_extra
+      : {};
+  const pickFromAttrsByNeedle = (...needles) => {
+    const wanted = new Set(needles.map((n) => normalizeKauflandAttributeToken(n)).filter(Boolean));
+    const pools = [attrsPrimary, attrsExtra];
+    for (const pool of pools) {
+      for (const [key, raw] of Object.entries(pool)) {
+        const token = normalizeKauflandAttributeToken(key);
+        if (!wanted.has(token)) continue;
+        const values = normalizeKauflandAttributeValues(raw);
+        if (values.length) return values[0];
+      }
+    }
+    return '';
+  };
+
+  const brand = safeString(
+    product?.identification?.brand ||
+      product?.details?.identifiers?.brand ||
+      pickFromAttrsByNeedle('marke', 'brand', 'hersteller')
+  );
+  const gpsrManufacturer = safeString(product?.details?.gpsr?.manufacturer_name);
+  const euResponsibleName = gpsrManufacturer || brand;
+
+  const missing = Array.from(
+    new Set(
+      [...(Array.isArray(missingAttributes) ? missingAttributes : []), ...(Array.isArray(minOneMissingAttributes) ? minOneMissingAttributes : [])]
+        .map((x) => safeString(x))
+        .filter(Boolean)
+    )
+  );
+  if (!missing.length) return attributes;
+
+  const sourceMaps = [
+    product?.details?.attributes && typeof product.details.attributes === 'object' && !Array.isArray(product.details.attributes)
+      ? product.details.attributes
+      : {},
+    product?.details?.attributes_extra && typeof product.details.attributes_extra === 'object' && !Array.isArray(product.details.attributes_extra)
+      ? product.details.attributes_extra
+      : {},
+  ];
+  const sourceByToken = new Map();
+  sourceMaps.forEach((source) => {
+    Object.entries(source).forEach(([rawKey, rawValue]) => {
+      const token = normalizeKauflandAttributeToken(rawKey);
+      if (!token || sourceByToken.has(token)) return;
+      sourceByToken.set(token, rawValue);
+    });
+  });
+
+  missing.forEach((requiredName) => {
+    const requiredToken = normalizeKauflandAttributeToken(requiredName);
+    if (!requiredToken) return;
+    const alreadyPresent = Object.keys(attributes).some(
+      (key) => normalizeKauflandAttributeToken(key) === requiredToken
+    );
+    if (alreadyPresent) return;
+
+    if (requiredToken.includes('titel') && title) {
+      attributes[requiredName] = [title.slice(0, 250)];
+      return;
+    }
+    if (requiredToken.includes('beschreibung') && description) {
+      attributes[requiredName] = [description.slice(0, 4000)];
+      return;
+    }
+    if ((requiredToken.includes('bild') || requiredToken.includes('picture')) && pictureUrls.length) {
+      attributes[requiredName] = pictureUrls.slice(0, 20);
+      return;
+    }
+    if (requiredToken === 'hersteller' && brand) {
+      attributes[requiredName] = [brand];
+      return;
+    }
+    if (
+      (requiredToken.includes('herstellername') || requiredToken.includes('verantwortlicheperson')) &&
+      euResponsibleName
+    ) {
+      attributes[requiredName] = [euResponsibleName];
+      return;
+    }
+
+    const rawValue = sourceByToken.get(requiredToken);
+    const values = normalizeKauflandAttributeValues(rawValue);
+    if (values.length) attributes[requiredName] = values;
+  });
+
+  return attributes;
+}
+
+async function tryRepairKauflandProductData({
+  product,
+  ean,
+  locale = 'de-DE',
+} = {}) {
+  const normalizedEan = safeString(ean).replace(/\D+/g, '');
+  if (!normalizedEan) {
+    return { attempted: false, patchedKeys: [], message: 'EAN fehlt – Product-Data-Reparatur übersprungen.' };
+  }
+
+  const normalizedLocale = safeString(locale) || 'de-DE';
+  let statusBefore = null;
+  let statusBeforeError = '';
+  try {
+    statusBefore = await getProductDataStatus(normalizedEan, { locale: normalizedLocale });
+  } catch (error) {
+    statusBeforeError = Number(error?.status) === 404 ? 'product-data/status=404 (noch kein Datensatz)' : safeString(error?.message);
+  }
+
+  const attributes = buildKauflandProductDataAttributes(product, {
+    missingAttributes: statusBefore?.missing_attributes || [],
+    minOneMissingAttributes: statusBefore?.min_one_missing_attributes || [],
+  });
+  const patchedKeys = Object.keys(attributes);
+  if (!patchedKeys.length) {
+    return {
+      attempted: false,
+      patchedKeys,
+      message: 'Keine geeigneten Product-Data-Felder aus dem Datensatz ableitbar.',
+    };
+  }
+
+  await patchProductData({
+    ean: [normalizedEan],
+    locale: normalizedLocale,
+    attributes,
+  });
+
+  // Product-data processing may be async. Poll once shortly for a fresher status snapshot.
+  await wait(900);
+  let statusAfter = null;
+  let statusAfterError = '';
+  try {
+    statusAfter = await getProductDataStatus(normalizedEan, { locale: normalizedLocale });
+  } catch (error) {
+    statusAfterError = Number(error?.status) === 404 ? 'product-data/status=404' : safeString(error?.message);
+  }
+
+  const beforeSummary = statusBefore
+    ? `vorher: ready=${String(statusBefore?.product_ready)}, update=${safeString(statusBefore?.update_status) || 'unknown'}`
+    : statusBeforeError
+      ? `vorher: ${statusBeforeError}`
+      : 'vorher: unbekannt';
+  const afterSummary = statusAfter
+    ? `nachher: ready=${String(statusAfter?.product_ready)}, update=${safeString(statusAfter?.update_status) || 'unknown'}`
+    : statusAfterError
+      ? `nachher: ${statusAfterError}`
+      : 'nachher: unbekannt';
+
+  return {
+    attempted: true,
+    patchedKeys,
+    message: `Product-Data gepatcht (${patchedKeys.join(', ')}). ${beforeSummary}; ${afterSummary}`,
+  };
+}
+
+async function buildKauflandPostSyncValidationError({ unitId, storefront = 'de', ean = '', locale = 'de-DE' } = {}) {
+  const numericUnitId = Number(unitId);
+  if (!Number.isFinite(numericUnitId) || numericUnitId <= 0) return '';
+
+  let unit = null;
+  try {
+    unit = await getUnit(numericUnitId, { storefront: safeString(storefront) || 'de', embedded: ['products'] });
+  } catch {
+    // Best-effort: if this probe fails, do not block a successful create/update call.
+    return '';
+  }
+
+  const unitStatus = safeString(unit?.status).toUpperCase();
+  const product = unit?.product && typeof unit.product === 'object' ? unit.product : {};
+  const productIsValid =
+    typeof product?.is_valid === 'boolean'
+      ? product.is_valid
+      : typeof unit?.is_valid === 'boolean'
+        ? unit.is_valid
+        : null;
+
+  const invalidByUnit = unitStatus === 'INCOMPLETE';
+  const invalidByProduct = productIsValid === false;
+  if (!invalidByUnit && !invalidByProduct) return '';
+
+  const reasons = [];
+  reasons.push(
+    `Kaufland meldet das Produkt als unvollständig/ungültig (unit.status=${unitStatus || 'unknown'}, product.is_valid=${
+      productIsValid == null ? 'unknown' : String(productIsValid)
+    })`
+  );
+
+  const idProduct = Number(unit?.id_product || product?.id_product || 0);
+  if (Number.isFinite(idProduct) && idProduct > 0) {
+    reasons.push(`id_product=${idProduct}`);
+  }
+
+  const productTitle = safeString(product?.title);
+  if (!productTitle) {
+    reasons.push('Produkttitel fehlt auf Kaufland');
+  }
+
+  const normalizedEan = safeString(ean).replace(/\D+/g, '');
+  if (normalizedEan) {
+    try {
+      const status = await getProductDataStatus(normalizedEan, { locale: safeString(locale) || 'de-DE' });
+      const productReady = typeof status?.product_ready === 'boolean' ? status.product_ready : null;
+      const notReadyReason = safeString(status?.product_not_ready_reason);
+      const updateFailReason = safeString(status?.update_fail_reason);
+      const missing = Array.isArray(status?.missing_attributes)
+        ? status.missing_attributes.map((x) => safeString(x)).filter(Boolean)
+        : [];
+      const minOneMissing = Array.isArray(status?.min_one_missing_attributes)
+        ? status.min_one_missing_attributes.map((x) => safeString(x)).filter(Boolean)
+        : [];
+
+      reasons.push(
+        `product-data/status: product_ready=${productReady == null ? 'unknown' : String(productReady)}${
+          notReadyReason ? `, reason=${notReadyReason}` : ''
+        }${updateFailReason ? `, update_fail_reason=${updateFailReason}` : ''}`
+      );
+      if (missing.length) {
+        reasons.push(
+          `missing_attributes: ${missing.slice(0, 10).join(', ')}${missing.length > 10 ? ` (+${missing.length - 10} weitere)` : ''}`
+        );
+      }
+      if (minOneMissing.length) {
+        reasons.push(
+          `min_one_missing_attributes: ${minOneMissing.slice(0, 10).join(', ')}${
+            minOneMissing.length > 10 ? ` (+${minOneMissing.length - 10} weitere)` : ''
+          }`
+        );
+      }
+    } catch (error) {
+      if (Number(error?.status) === 404) {
+        reasons.push(`Für EAN ${normalizedEan} ist bei Kaufland kein Product-Data-Datensatz vorhanden (GET /product-data/status -> 404).`);
+      } else {
+        reasons.push(`Product-Data-Status konnte nicht gelesen werden: ${safeString(error?.message) || String(error)}`);
+      }
+    }
+  }
+
+  return reasons.join(' | ');
+}
+
 async function runBulkKauflandSync({
   apply = false,
   limit = 500,
@@ -1599,14 +1927,50 @@ async function runBulkKauflandSync({
       let result = null;
       if (existingUnit) {
         result = await updateUnit(existingUnit.id_unit, cur, { storefront: summary.storefront });
-        summary.updated += 1;
       } else {
         result = await createUnit(cur, { storefront: summary.storefront });
-        summary.created += 1;
       }
       const resolvedUnitId = existingUnit
         ? Number(existingUnit.id_unit || 0) || null
         : Number(result?.id_unit || result?.data?.data?.id_unit || 0) || null;
+
+      let postSyncValidationError = await buildKauflandPostSyncValidationError({
+        unitId: resolvedUnitId,
+        storefront: summary.storefront,
+        ean,
+      });
+      if (postSyncValidationError) {
+        const repair = await tryRepairKauflandProductData({
+          product: cur,
+          ean,
+          locale: 'de-DE',
+        });
+        postSyncValidationError = await buildKauflandPostSyncValidationError({
+          unitId: resolvedUnitId,
+          storefront: summary.storefront,
+          ean,
+        });
+        if (postSyncValidationError) {
+          const repairNote = repair?.message ? ` | Reparaturversuch: ${repair.message}` : '';
+          const err = new Error(`${postSyncValidationError}${repairNote}`);
+          err.code = 'KAUFLAND_PRODUCT_INVALID_AFTER_SYNC';
+          throw err;
+        }
+        if (repair?.attempted && debug && samples.length < 40) {
+          samples.push({
+            id,
+            sku,
+            status: 'repaired',
+            id_offer: idOffer,
+            id_unit: resolvedUnitId,
+            message: repair.message,
+            patched_keys: repair.patchedKeys,
+          });
+        }
+      }
+
+      if (existingUnit) summary.updated += 1;
+      else summary.created += 1;
 
       cur.ops = cur.ops || {};
       cur.ops.kaufland = {

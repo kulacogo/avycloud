@@ -297,11 +297,14 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
 
   const currency = safeCur(metrics?.currency);
   const chartDays = metrics?.volume_7d?.days ?? [];
-  const revenueWindow = metrics?.revenue?.window_non_cancelled_total ?? 0;
-  const revenueYtd = metrics?.revenue?.all_non_cancelled_total ?? 0;
+  const revenueWindow = metrics?.revenue?.payout_brutto_window ?? metrics?.revenue?.window_non_cancelled_total ?? 0;
+  const revenueYtd = metrics?.revenue?.payout_brutto_ytd ?? metrics?.revenue?.all_non_cancelled_total ?? 0;
   const returnsTotal = metrics?.orders?.returns_total ?? 0;
-  const shippingWindow = finance?.shipping?.total_cost ?? null;
-  const shippingYtd = finance?.shipping_ytd?.total_cost ?? null;
+  // Shipping: SendCloud returns netto, multiply by 1.19 for brutto
+  const shippingWindowNetto = finance?.shipping?.total_cost ?? null;
+  const shippingYtdNetto = finance?.shipping_ytd?.total_cost ?? null;
+  const shippingWindow = shippingWindowNetto !== null ? Math.round(shippingWindowNetto * 1.19 * 100) / 100 : null;
+  const shippingYtd = shippingYtdNetto !== null ? Math.round(shippingYtdNetto * 1.19 * 100) / 100 : null;
   const totalBalance = finance?.total_balance ?? null;
   const bd = metrics?.orders?.status_breakdown;
   const totalOrders = (bd?.neu ?? 0) + (bd?.kommissioniert ?? 0) + ((bd as any)?.verpackt ?? 0)
@@ -430,16 +433,6 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
           </span>}
           loading={financeLoading && shippingWindow === null}
         />
-        <Tile
-          label="Umsatz nach Versand"
-          value={
-            shippingWindow !== null && !metricsLoading
-              ? fmtCur(revenueWindow - shippingWindow, currency)
-              : '—'
-          }
-          sub="Brutto − Versandkosten"
-          loading={metricsLoading || (financeLoading && shippingWindow === null)}
-        />
       </div>
 
       {/* Mini chart */}
@@ -455,7 +448,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         <Tile
           label="Umsatz Dieses Jahr"
           value={metricsLoading ? '…' : fmtCur(revenueYtd, currency)}
-          sub="Jan–Dez · nach Retouren"
+          sub="Brutto"
           loading={metricsLoading}
         />
         <Tile

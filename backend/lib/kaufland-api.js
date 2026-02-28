@@ -357,6 +357,99 @@ async function getProductByEan(ean, { storefront = 'de' } = {}) {
   return res?.data?.data || null;
 }
 
+async function getUnit(unitId, { storefront = 'de', embedded = [] } = {}) {
+  const normalizedUnitId = toInteger(unitId);
+  if (!normalizedUnitId || normalizedUnitId <= 0) {
+    const err = new Error('unitId is required');
+    err.code = 'KAUFLAND_UNIT_ID_REQUIRED';
+    throw err;
+  }
+  const embeddedList = Array.isArray(embedded)
+    ? embedded.map((value) => safeString(value)).filter(Boolean)
+    : [safeString(embedded)].filter(Boolean);
+  const query = {
+    storefront: storefront || 'de',
+    embedded: embeddedList.length ? embeddedList.join(',') : undefined,
+  };
+  const res = await kauflandRequest('GET', `/units/${encodeURIComponent(String(normalizedUnitId))}`, { query });
+  return res?.data?.data || null;
+}
+
+async function getProductDataStatus(ean, { locale = 'de-DE' } = {}) {
+  const normalizedEan = String(ean || '').replace(/\D+/g, '').trim();
+  if (!normalizedEan) {
+    const err = new Error('ean is required');
+    err.code = 'KAUFLAND_EAN_REQUIRED';
+    throw err;
+  }
+  const normalizedLocale = safeString(locale) || 'de-DE';
+  const res = await kauflandRequest('GET', `/product-data/status/${encodeURIComponent(normalizedEan)}`, {
+    query: { locale: normalizedLocale },
+  });
+  return res?.data?.data || null;
+}
+
+function normalizeProductDataAttributeValues(value) {
+  if (value == null) return [];
+  const values = Array.isArray(value) ? value : [value];
+  return values
+    .map((entry) => safeString(entry))
+    .filter(Boolean);
+}
+
+function normalizeProductDataAttributes(attributes = {}) {
+  if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes)) return {};
+  const out = {};
+  Object.entries(attributes).forEach(([rawKey, rawValue]) => {
+    const key = safeString(rawKey);
+    if (!key || rawValue == null) return;
+
+    if (key === 'product_safety_contact' && rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+      const contact = {
+        name: safeString(rawValue?.name),
+        email_address: safeString(rawValue?.email_address),
+        address: safeString(rawValue?.address),
+        phone_number: safeString(rawValue?.phone_number),
+        url: safeString(rawValue?.url),
+      };
+      if (contact.name && contact.address) out[key] = contact;
+      return;
+    }
+
+    const values = normalizeProductDataAttributeValues(rawValue);
+    if (values.length) out[key] = values;
+  });
+  return out;
+}
+
+async function patchProductData({ ean, attributes = {}, locale = 'de-DE' } = {}) {
+  const eans = (Array.isArray(ean) ? ean : [ean])
+    .map((value) => String(value || '').replace(/\D+/g, '').trim())
+    .filter((value) => value.length >= 13 && value.length <= 15);
+  if (!eans.length) {
+    const err = new Error('ean is required for product-data patch');
+    err.code = 'KAUFLAND_PRODUCT_DATA_EAN_REQUIRED';
+    throw err;
+  }
+
+  const normalizedAttributes = normalizeProductDataAttributes(attributes);
+  if (!Object.keys(normalizedAttributes).length) {
+    const err = new Error('No product-data attributes provided');
+    err.code = 'KAUFLAND_PRODUCT_DATA_ATTRIBUTES_REQUIRED';
+    throw err;
+  }
+
+  const normalizedLocale = safeString(locale) || 'de-DE';
+  const res = await kauflandRequest('PATCH', '/product-data', {
+    query: { locale: normalizedLocale },
+    body: {
+      ean: eans,
+      attributes: normalizedAttributes,
+    },
+  });
+  return res?.data?.data || res?.data || null;
+}
+
 async function createUnit(product, { storefront = 'de' } = {}) {
   const picked = pickUnitData(product, { mode: 'create', storefront });
   const createData = { ...(picked.unitData || {}) };
@@ -422,7 +515,10 @@ module.exports = {
   kauflandRequest,
   findUnit,
   listUnits,
+  getUnit,
   getProductByEan,
+  getProductDataStatus,
+  patchProductData,
   createUnit,
   updateUnit,
   pickUnitData,
