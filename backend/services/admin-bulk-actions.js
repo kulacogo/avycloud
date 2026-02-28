@@ -16,7 +16,9 @@ const {
   updateUnit,
   pickUnitData,
   getUnit,
+  getProductData,
   getProductDataStatus,
+  putProductData,
   patchProductData,
 } = require('../lib/kaufland-api');
 
@@ -1552,6 +1554,38 @@ function normalizeKauflandAttributeToken(value) {
     .replace(/[\s._:;,\-/\\()[\]{}]+/g, '');
 }
 
+const KAUFLAND_COUNTRY_CODE_FALLBACK = {
+  germany: 'DE',
+  deutschland: 'DE',
+  austria: 'AT',
+  osterreich: 'AT',
+  'österreich': 'AT',
+  poland: 'PL',
+  polen: 'PL',
+  france: 'FR',
+  frankreich: 'FR',
+  italy: 'IT',
+  italien: 'IT',
+  czechia: 'CZ',
+  'czech republic': 'CZ',
+  tschechien: 'CZ',
+  slovakia: 'SK',
+  slowakei: 'SK',
+};
+
+function normalizeKauflandCountryCode(value) {
+  const raw = safeString(value);
+  if (!raw) return '';
+  const compact = raw.replace(/[^a-zA-Z]/g, '').toUpperCase();
+  if (/^[A-Z]{2}$/.test(compact)) return compact;
+  const token = raw
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  return KAUFLAND_COUNTRY_CODE_FALLBACK[token] || '';
+}
+
 function normalizeKauflandAttributeValues(value) {
   const list = Array.isArray(value) ? value : [value];
   return list
@@ -1576,6 +1610,29 @@ function pickImageUrl(entry) {
   if (typeof entry === 'string') return safeString(entry);
   if (!entry || typeof entry !== 'object') return '';
   return safeString(entry?.url_or_base64 || entry?.url || entry?.src || entry?.link);
+}
+
+function buildKauflandComplianceContact(product, fallbackName = '') {
+  const gpsr = product?.details?.gpsr && typeof product.details.gpsr === 'object' ? product.details.gpsr : {};
+  const name = safeString(gpsr?.manufacturer_name || fallbackName).replace(/\s+/g, ' ').trim();
+  const countryCode = normalizeKauflandCountryCode(gpsr?.country_code || gpsr?.entity_country);
+  const addressParts = [
+    safeString(gpsr?.manufacturer_address),
+    safeString(gpsr?.manufacturer_city),
+    safeString(gpsr?.manufacturer_postalcode),
+    countryCode,
+  ].filter(Boolean);
+  const address = addressParts.join(', ');
+  if (!name || !address) return null;
+
+  const contact = { name, address };
+  const email = safeString(gpsr?.email);
+  const url = safeString(gpsr?.url);
+  const phone = safeString(gpsr?.manufacturer_phone);
+  if (email) contact.email_address = email;
+  if (url) contact.url = url;
+  if (phone) contact.phone_number = phone;
+  return contact;
 }
 
 function buildKauflandProductDataAttributes(product, { missingAttributes = [], minOneMissingAttributes = [] } = {}) {
@@ -1624,8 +1681,9 @@ function buildKauflandProductDataAttributes(product, { missingAttributes = [], m
       product?.details?.identifiers?.brand ||
       pickFromAttrsByNeedle('marke', 'brand', 'hersteller')
   );
-  const gpsrManufacturer = safeString(product?.details?.gpsr?.manufacturer_name);
-  const euResponsibleName = gpsrManufacturer || brand;
+  if (brand) attributes.manufacturer = [brand];
+  const complianceContact = buildKauflandComplianceContact(product, brand);
+  if (complianceContact) attributes.product_safety_contact = complianceContact;
 
   const missing = Array.from(
     new Set(
@@ -1661,11 +1719,28 @@ function buildKauflandProductDataAttributes(product, { missingAttributes = [], m
     );
     if (alreadyPresent) return;
 
-    if (requiredToken.includes('titel') && title) {
+    const isComplianceContactToken =
+      requiredToken.includes('productsafetycontact') ||
+      requiredToken.includes('compliancecontact') ||
+      (requiredToken.includes('herstellername') && requiredToken.includes('verantwortlicheperson')) ||
+      (requiredToken.includes('manufacturername') && requiredToken.includes('responsibleperson'));
+    if (isComplianceContactToken) {
+      if (complianceContact) {
+        attributes[requiredName] = complianceContact;
+        return;
+      }
+      const fallbackName = safeString(product?.details?.gpsr?.manufacturer_name || brand);
+      if (fallbackName) {
+        attributes[requiredName] = [fallbackName];
+        return;
+      }
+    }
+
+    if ((requiredToken.includes('titel') || requiredToken.includes('title')) && title) {
       attributes[requiredName] = [title.slice(0, 250)];
       return;
     }
-    if (requiredToken.includes('beschreibung') && description) {
+    if ((requiredToken.includes('beschreibung') || requiredToken.includes('description')) && description) {
       attributes[requiredName] = [description.slice(0, 4000)];
       return;
     }
@@ -1673,19 +1748,29 @@ function buildKauflandProductDataAttributes(product, { missingAttributes = [], m
       attributes[requiredName] = pictureUrls.slice(0, 20);
       return;
     }
-    if (requiredToken === 'hersteller' && brand) {
+    if ((requiredToken === 'hersteller' || requiredToken.includes('manufacturer')) && brand) {
       attributes[requiredName] = [brand];
-      return;
-    }
-    if (
-      (requiredToken.includes('herstellername') || requiredToken.includes('verantwortlicheperson')) &&
-      euResponsibleName
-    ) {
-      attributes[requiredName] = [euResponsibleName];
       return;
     }
 
     const rawValue = sourceByToken.get(requiredToken);
+    if (isComplianceContactToken && rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+      const fromSource = {
+        name: safeString(rawValue?.name || rawValue?.manufacturer_name || rawValue?.herstellername),
+        address: safeString(rawValue?.address || rawValue?.manufacturer_address || rawValue?.anschrift),
+        email_address: safeString(rawValue?.email_address || rawValue?.email || rawValue?.e_mail),
+        url: safeString(rawValue?.url || rawValue?.website || rawValue?.kontaktseite),
+        phone_number: safeString(rawValue?.phone_number || rawValue?.phone || rawValue?.telefon),
+      };
+      if (fromSource.name && fromSource.address) {
+        if (!fromSource.email_address) delete fromSource.email_address;
+        if (!fromSource.url) delete fromSource.url;
+        if (!fromSource.phone_number) delete fromSource.phone_number;
+        attributes[requiredName] = fromSource;
+        return;
+      }
+    }
+
     const values = normalizeKauflandAttributeValues(rawValue);
     if (values.length) attributes[requiredName] = values;
   });
@@ -1711,6 +1796,13 @@ async function tryRepairKauflandProductData({
   } catch (error) {
     statusBeforeError = Number(error?.status) === 404 ? 'product-data/status=404 (noch kein Datensatz)' : safeString(error?.message);
   }
+  let productDataBefore = null;
+  let productDataBeforeError = '';
+  try {
+    productDataBefore = await getProductData(normalizedEan, { locale: normalizedLocale });
+  } catch (error) {
+    productDataBeforeError = Number(error?.status) === 404 ? 'product-data=404' : safeString(error?.message);
+  }
 
   const attributes = buildKauflandProductDataAttributes(product, {
     missingAttributes: statusBefore?.missing_attributes || [],
@@ -1725,11 +1817,26 @@ async function tryRepairKauflandProductData({
     };
   }
 
-  await patchProductData({
-    ean: [normalizedEan],
-    locale: normalizedLocale,
-    attributes,
-  });
+  let writeMode = 'patch';
+  await patchProductData({ ean: [normalizedEan], locale: normalizedLocale, attributes });
+
+  let storedProductData = null;
+  let storedProductDataError = '';
+  try {
+    storedProductData = await getProductData(normalizedEan, { locale: normalizedLocale });
+  } catch (error) {
+    storedProductDataError = Number(error?.status) === 404 ? 'product-data=404 nach PATCH' : safeString(error?.message);
+  }
+  if (!storedProductData) {
+    writeMode = 'patch+put';
+    await putProductData({ ean: [normalizedEan], locale: normalizedLocale, attributes });
+    try {
+      storedProductData = await getProductData(normalizedEan, { locale: normalizedLocale });
+      storedProductDataError = '';
+    } catch (error) {
+      storedProductDataError = Number(error?.status) === 404 ? 'product-data=404 nach PUT' : safeString(error?.message);
+    }
+  }
 
   // Product-data processing may be async. Poll once shortly for a fresher status snapshot.
   await wait(900);
@@ -1746,6 +1853,16 @@ async function tryRepairKauflandProductData({
     : statusBeforeError
       ? `vorher: ${statusBeforeError}`
       : 'vorher: unbekannt';
+  const beforeStorageSummary = productDataBefore
+    ? `speicher vorher: keys=${Object.keys(productDataBefore?.attributes || {}).join(', ') || 'keine'}`
+    : productDataBeforeError
+      ? `speicher vorher: ${productDataBeforeError}`
+      : 'speicher vorher: unbekannt';
+  const storageSummary = storedProductData
+    ? `speicher nachher: keys=${Object.keys(storedProductData?.attributes || {}).join(', ') || 'keine'}`
+    : storedProductDataError
+      ? `speicher nachher: ${storedProductDataError}`
+      : 'speicher nachher: unbekannt';
   const afterSummary = statusAfter
     ? `nachher: ready=${String(statusAfter?.product_ready)}, update=${safeString(statusAfter?.update_status) || 'unknown'}`
     : statusAfterError
@@ -1755,7 +1872,7 @@ async function tryRepairKauflandProductData({
   return {
     attempted: true,
     patchedKeys,
-    message: `Product-Data gepatcht (${patchedKeys.join(', ')}). ${beforeSummary}; ${afterSummary}`,
+    message: `Product-Data via ${writeMode} aktualisiert (${patchedKeys.join(', ')}). ${beforeStorageSummary}; ${storageSummary}; ${beforeSummary}; ${afterSummary}`,
   };
 }
 

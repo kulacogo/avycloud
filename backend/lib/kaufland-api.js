@@ -33,6 +33,46 @@ function safeString(value) {
   return value == null ? '' : String(value).trim();
 }
 
+function normalizeProductDataAttributeToken(value) {
+  return safeString(value)
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\s._:;,\-/\\()[\]{}]+/g, '');
+}
+
+function normalizeProductDataEans(ean) {
+  return (Array.isArray(ean) ? ean : [ean])
+    .map((value) => String(value || '').replace(/\D+/g, '').trim())
+    .filter((value) => value.length >= 13 && value.length <= 15);
+}
+
+function normalizeProductDataComplianceContact(rawValue) {
+  if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) return null;
+  const contact = {
+    name: safeString(rawValue?.name),
+    email_address: safeString(rawValue?.email_address),
+    address: safeString(rawValue?.address),
+    phone_number: safeString(rawValue?.phone_number),
+    url: safeString(rawValue?.url),
+  };
+  if (!contact.name || !contact.address) return null;
+  if (!contact.email_address) delete contact.email_address;
+  if (!contact.phone_number) delete contact.phone_number;
+  if (!contact.url) delete contact.url;
+  return contact;
+}
+
+function isComplianceContactAttributeKey(key) {
+  const token = normalizeProductDataAttributeToken(key);
+  if (!token) return false;
+  if (token === 'productsafetycontact') return true;
+  if (token.includes('productsafety')) return true;
+  if (token.includes('compliancecontact')) return true;
+  if (token.includes('herstellername') && token.includes('verantwortlicheperson')) return true;
+  if (token.includes('manufacturername') && token.includes('responsibleperson')) return true;
+  return false;
+}
+
 function toInteger(value) {
   if (value == null || value === '') return null;
   const n = Number(value);
@@ -404,15 +444,14 @@ function normalizeProductDataAttributes(attributes = {}) {
     const key = safeString(rawKey);
     if (!key || rawValue == null) return;
 
-    if (key === 'product_safety_contact' && rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
-      const contact = {
-        name: safeString(rawValue?.name),
-        email_address: safeString(rawValue?.email_address),
-        address: safeString(rawValue?.address),
-        phone_number: safeString(rawValue?.phone_number),
-        url: safeString(rawValue?.url),
-      };
-      if (contact.name && contact.address) out[key] = contact;
+    if (isComplianceContactAttributeKey(key)) {
+      const contact = normalizeProductDataComplianceContact(rawValue);
+      if (contact) {
+        out[key] = contact;
+        if (key !== 'product_safety_contact' && !out.product_safety_contact) {
+          out.product_safety_contact = contact;
+        }
+      }
       return;
     }
 
@@ -422,10 +461,48 @@ function normalizeProductDataAttributes(attributes = {}) {
   return out;
 }
 
+async function getProductData(ean, { locale = 'de-DE' } = {}) {
+  const normalizedEan = normalizeProductDataEans(ean)[0] || '';
+  if (!normalizedEan) {
+    const err = new Error('ean is required');
+    err.code = 'KAUFLAND_EAN_REQUIRED';
+    throw err;
+  }
+  const normalizedLocale = safeString(locale) || 'de-DE';
+  const res = await kauflandRequest('GET', `/product-data/${encodeURIComponent(normalizedEan)}`, {
+    query: { locale: normalizedLocale },
+  });
+  return res?.data?.data || null;
+}
+
+async function putProductData({ ean, attributes = {}, locale = 'de-DE' } = {}) {
+  const eans = normalizeProductDataEans(ean);
+  if (!eans.length) {
+    const err = new Error('ean is required for product-data put');
+    err.code = 'KAUFLAND_PRODUCT_DATA_EAN_REQUIRED';
+    throw err;
+  }
+
+  const normalizedAttributes = normalizeProductDataAttributes(attributes);
+  if (!Object.keys(normalizedAttributes).length) {
+    const err = new Error('No product-data attributes provided');
+    err.code = 'KAUFLAND_PRODUCT_DATA_ATTRIBUTES_REQUIRED';
+    throw err;
+  }
+
+  const normalizedLocale = safeString(locale) || 'de-DE';
+  const res = await kauflandRequest('PUT', '/product-data', {
+    query: { locale: normalizedLocale },
+    body: {
+      ean: eans,
+      attributes: normalizedAttributes,
+    },
+  });
+  return res?.data?.data || res?.data || null;
+}
+
 async function patchProductData({ ean, attributes = {}, locale = 'de-DE' } = {}) {
-  const eans = (Array.isArray(ean) ? ean : [ean])
-    .map((value) => String(value || '').replace(/\D+/g, '').trim())
-    .filter((value) => value.length >= 13 && value.length <= 15);
+  const eans = normalizeProductDataEans(ean);
   if (!eans.length) {
     const err = new Error('ean is required for product-data patch');
     err.code = 'KAUFLAND_PRODUCT_DATA_EAN_REQUIRED';
@@ -517,7 +594,9 @@ module.exports = {
   listUnits,
   getUnit,
   getProductByEan,
+  getProductData,
   getProductDataStatus,
+  putProductData,
   patchProductData,
   createUnit,
   updateUnit,
