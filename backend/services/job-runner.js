@@ -3,7 +3,6 @@ const { Timestamp, claimJob, updateJob, listJobsByStatus } = require('../lib/job
 const { downloadFile } = require('../lib/storage');
 const { runProductIdentification } = require('./enrichment');
 const {
-  saveProduct,
   getProduct,
   findProductByIdentityKey,
   findProductByIdentityAliases,
@@ -15,6 +14,7 @@ const {
   getInventoryRecord,
   setProductInventory,
 } = require('../lib/firestore');
+const { saveProductV2 } = require('../lib/product-store');
 // SKU is allocated/validated centrally in saveProduct() (firestore) to guarantee uniqueness & format.
 const { computeProductIdentityKey, buildIdentityAliasSet } = require('../lib/product-identity');
 const { createJob: createQualityJob } = require('../lib/quality-jobs');
@@ -308,7 +308,7 @@ async function processJob(jobId) {
             );
           }
 
-          await saveProduct(product);
+          await saveProductV2(product);
 
           // Auto-trigger Quality Gate for newly identified products.
           try {

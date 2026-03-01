@@ -1705,7 +1705,7 @@ const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit = {}
   }
 };
 
-const fetchJobStatus = async (jobId: string, signal?: AbortSignal) => {
+export const fetchJobStatus = async (jobId: string, signal?: AbortSignal) => {
   const response = await fetchApi(`${BACKEND_URL}/api/jobs/${jobId}`, {
     method: 'GET',
     signal,

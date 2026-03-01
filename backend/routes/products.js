@@ -1,0 +1,2261 @@
+const router = require('express').Router();
+const crypto = require('crypto');
+const path = require('path');
+const {
+  saveProduct,
+  getProduct,
+  getAllProducts,
+  deleteProduct,
+  updateProductSyncStatus,
+  findProductIdsByAliases,
+  findProductByStrictIdentifier,
+  adjustPendingIntakeQuantity,
+  deleteProductsByIdentityAlias,
+  listInventories,
+  getInventoryRecord,
+  setProductInventory,
+  assignInventoryToProducts,
+  setSkuIndexEntry,
+  firestore,
+} = require('../lib/firestore');
+const { saveProductV2 } = require('../lib/product-store');
+const { buildIdentityAliasSet, computeProductIdentityKey } = require('../lib/product-identity');
+const {
+  createJob: createImproveJob,
+  getJob: getImproveJob,
+  updateJob,
+  Timestamp,
+} = require('../lib/improve-jobs');
+const { uploadBase64Image, deleteProductImages } = require('../lib/storage');
+const { recordManualProductImage } = require('../lib/product-images');
+const { requirePermission, resolvePermissionsForUser } = require('../lib/rbac');
+const { fetchWithUnlocker } = require('../lib/web-unlocker');
+const { isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
+const { getCategoryAspectCatalog, findEbayCategory } = require('../lib/ebay-taxonomy');
+const { improveExistingProduct } = require('../services/improve');
+const { enrichPriceForProductBestEffort } = require('../lib/price-enrichment');
+const { FieldValue } = require('../lib/jobs');
+const {
+  listBinsForProduct,
+  getProductBinSummaryMap,
+} = require('../lib/warehouse');
+const {
+  buildProductLabelsHtml,
+  buildBinLabelHtml,
+  buildBinLabelsHtml,
+  buildBinLabelsPdf,
+  buildInventoryLabelPdf,
+} = require('../services/label-printer');
+const { scanToBuffer } = require('../services/scanner');
+const { syncInventoriesFromBaseLinker } = require('../services/inventory-sync');
+const { createJob: createAdminBulkJob, getJob: getAdminBulkJob } = require('../lib/admin-bulk-jobs');
+const { enqueueAdminBulkJob } = require('../services/admin-bulk-runner');
+const { createJob: createQualityJob, getJob: getQualityJob, Timestamp: QualityTimestamp, updateJob: updateQualityJob } = require('../lib/quality-jobs');
+const { enqueueQualityJob } = require('../services/quality-runner');
+const { enqueueImproveJob } = require('../services/improve-runner');
+const { getSecretValue } = require('../lib/secret-values');
+const { buildBaselinkerCategoryDetails } = require('../lib/baselinker-category-resolver');
+const { findProductsBySkus, getInventoryProductLinksSummary } = require('../lib/baselinker');
+const { generateImagesForProduct } = require('../services/image-generation');
+const { calculateOptimalPrice, savePricingRule, listPricingRules, runRepricingJob } = require('../services/pricing-engine');
+const { calculateSalesVelocity, predictStockOut, generateReorderAlerts } = require('../services/inventory-forecast');
+const { createWebhook, listWebhooks, deleteWebhook } = require('../services/webhooks');
+const { findDuplicates, suggestMerge, executeMerge } = require('../services/deduplication');
+
+// ── Constants ────────────────────────────────────────────────────────
+const IMAGE_PROXY_TIMEOUT_MS = parseInt(process.env.IMAGE_PROXY_TIMEOUT_MS || '10000', 10);
+const IMAGE_PROXY_MAX_BYTES = parseInt(process.env.IMAGE_PROXY_MAX_BYTES || `${5 * 1024 * 1024}`, 10); // 5 MB by default
+const MAX_IMPROVE_BATCH = parseInt(process.env.MAX_IMPROVE_BATCH || '100', 10);
+// IMPORTANT: Inline-Improve causes request timeouts for anything but tiny batches (Cloud Run / reverse proxies).
+// Therefore it is OFF by default and must be explicitly enabled via IMPROVE_INLINE=true.
+const IMPROVE_INLINE = (process.env.IMPROVE_INLINE ?? 'false') === 'true';
+const MAX_QUALITY_BATCH = parseInt(process.env.MAX_QUALITY_BATCH || '50', 10);
+const GENERATED_IMAGE_SIGNATURE = /\b(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)\b/i;
+
+// ── Dependency Injection ─────────────────────────────────────────────
+let _backgroundSyncProductStockToBaseLinker = () => {};
+function setBackgroundSyncProductStock(fn) {
+  _backgroundSyncProductStockToBaseLinker = fn;
+}
+
+// ── Helper Functions ─────────────────────────────────────────────────
+
+const normalizeIdentifyToken = (value) => String(value || '').trim();
+const extractDigitBarcode = (value) =>
+  String(value || '')
+    .replace(/\D+/g, '')
+    .trim();
+
+const parseBarcodeListFromText = (barcodesText) => {
+  const raw = normalizeIdentifyToken(barcodesText);
+  if (!raw) return [];
+  const tokens = raw
+    .split(/[\n,;|]+/)
+    .map((t) => normalizeIdentifyToken(t))
+    .filter(Boolean);
+  const digitCodes = tokens.map(extractDigitBarcode).filter(Boolean);
+  return Array.from(new Set(digitCodes));
+};
+
+const parseSkuCandidateFromText = (barcodesText) => {
+  const raw = normalizeIdentifyToken(barcodesText);
+  if (!raw) return null;
+  const tokens = raw
+    .split(/[\n,;|]+/)
+    .map((t) => normalizeIdentifyToken(t))
+    .filter(Boolean);
+  // SKU tokens are often like "SKU-123" or other non-digit identifiers.
+  const skuToken =
+    tokens.find((t) => /[a-z]/i.test(t) && !/^\d+$/.test(t)) ||
+    null;
+  return skuToken ? skuToken : null;
+};
+
+const normalizeIdentityKey = (value) => {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  if (!normalized) return null;
+  return normalized.toLowerCase();
+};
+
+const buildSkuToProductIdMap = (products = []) => {
+  const map = new Map();
+  products.forEach((product) => {
+    if (!product || !product.id) return;
+    const productId = String(product.id);
+    const addKey = (value) => {
+      const key = normalizeIdentityKey(value);
+      if (key) {
+        map.set(key, productId);
+        // Zusätzlich SKU-Präfix entfernen, um BIN-Einträge mit/ohne SKU- vorzureifizieren
+        const trimmed = key.replace(/^sku[-_\\s]*/, '');
+        if (trimmed && !map.has(trimmed)) {
+          map.set(trimmed, productId);
+        }
+      }
+    };
+    addKey(productId);
+    addKey(product.identification?.sku);
+    addKey(product.details?.identifiers?.sku);
+    addKey(product.details?.identifiers?.ean);
+    addKey(product.details?.identifiers?.gtin);
+    addKey(product.details?.identifiers?.upc);
+  });
+  return map;
+};
+
+const enrichProductsWithBinSummaries = async (products = []) => {
+  if (!Array.isArray(products) || products.length === 0) return products;
+  const productIds = products
+    .map((product) => (product?.id ? String(product.id) : null))
+    .filter(Boolean);
+  if (!productIds.length) return products;
+
+  const skuMap = buildSkuToProductIdMap(products);
+  const summaryMap = await getProductBinSummaryMap(productIds, skuMap);
+
+  return products.map((product) => {
+    const key = product?.id ? String(product.id) : null;
+    if (!key || !summaryMap.has(key)) {
+      return product;
+    }
+    const summary = summaryMap.get(key);
+    const mergedInventory = {
+      ...(product.inventory || {}),
+      quantity: summary.totalQuantity,
+      physicalQuantity: summary.totalQuantity,
+    };
+    return {
+      ...product,
+      inventory: mergedInventory,
+      storageBins: summary.bins,
+    };
+  });
+};
+
+const normalizeSkuKey = (val) =>
+  (val || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/^sku[-_\s]*/i, '')
+    .replace(/\s+/g, '');
+
+async function buildReservedOpenOrderMap() {
+  const map = new Map(); // normalizeSkuKey -> qty
+  try {
+    const snap = await firestore.collection('orders').where('status', '==', 'new').get();
+    snap.forEach((doc) => {
+      const order = doc.data() || {};
+      const items = Array.isArray(order.items) ? order.items : [];
+      for (const item of items) {
+        const key = normalizeSkuKey(item?.sku || item?.productId || '');
+        const qty = Number(item?.quantity || 0);
+        if (!key || qty <= 0) continue;
+        map.set(key, (map.get(key) || 0) + qty);
+      }
+    });
+  } catch (error) {
+    console.warn('buildReservedOpenOrderMap failed:', error.message);
+  }
+  return map;
+}
+
+function attachReservedAvailability(products = [], reservedMap) {
+  if (!Array.isArray(products) || !products.length) return products;
+  const map = reservedMap instanceof Map ? reservedMap : new Map();
+  return products.map((product) => {
+    const skuCandidate =
+      product?.details?.identifiers?.sku || product?.identification?.sku || product?.id;
+    const key = normalizeSkuKey(skuCandidate);
+    const reservedQuantity = key ? Number(map.get(key) || 0) : 0;
+    const physicalQuantity = Number(product?.inventory?.quantity || 0);
+    const availableQuantity = Math.max(0, physicalQuantity - reservedQuantity);
+    return {
+      ...product,
+      inventory: {
+        ...(product.inventory || {}),
+        physicalQuantity,
+        reservedQuantity,
+        availableQuantity,
+      },
+    };
+  });
+}
+
+function looksGeneratedImageMeta(image = {}) {
+  if (!image || typeof image !== 'object') {
+    return false;
+  }
+  const source = (image.source || '').toString().toLowerCase();
+  const notes = (image.notes || '').toString().toLowerCase();
+  return GENERATED_IMAGE_SIGNATURE.test(source) || GENERATED_IMAGE_SIGNATURE.test(notes);
+}
+
+function isVertexAiImage(image = {}) {
+  if (!image || typeof image !== 'object') {
+    return false;
+  }
+  const source = (image.source || '').toString().toLowerCase();
+  const notes = (image.notes || '').toString().toLowerCase();
+  return (
+    source.includes('ai-derived') ||
+    source.includes('vertex') ||
+    /gemini/.test(source) ||
+    /gemini/.test(notes) ||
+    /vertex/.test(notes)
+  );
+}
+
+// Produkt-Vollständigkeit bewerten
+function computeCompleteness(product = {}) {
+  const missing = [];
+  const details = product.details || {};
+  const attrs = details.attributes || {};
+
+  const hasSku =
+    !!product.identification?.sku || !!details.identifiers?.sku;
+  const hasName = !!product.identification?.name;
+  const hasBrand = !!product.identification?.brand;
+  const hasBarcode =
+    !!details.identifiers?.ean ||
+    !!details.identifiers?.gtin ||
+    (Array.isArray(product.identification?.barcodes) && product.identification.barcodes.length > 0);
+  const hasImages = Array.isArray(details.images) && details.images.length > 0;
+  const hasDescription = !!(details.description || details.short_description);
+  const lowest = details.pricing?.lowest_price;
+  const priceCandidate =
+    product.pricing?.price ??
+    details.price ??
+    (lowest && typeof lowest.amount === 'number' ? lowest.amount : null) ??
+    product.inventory?.price ??
+    null;
+  const hasPrice = priceCandidate !== null && priceCandidate !== undefined && Number(priceCandidate) > 0;
+  const categoryId =
+    details.categoryId ||
+    details.ebayCategoryId ||
+    attrs.ebay_category_id ||
+    attrs.ebayCategoryId ||
+    attrs['ebay.category_id'];
+  const hasCategory = !!categoryId;
+
+  if (!hasSku) missing.push('sku');
+  if (!hasName) missing.push('name');
+  if (!hasBrand) missing.push('brand');
+  if (!hasBarcode) missing.push('barcode');
+  if (!hasImages) missing.push('images');
+  if (!hasDescription) missing.push('description');
+  if (!hasPrice) missing.push('price');
+  if (!hasCategory) missing.push('category');
+
+  const total = 8;
+  const filled = total - missing.length;
+  const percent = Math.round((filled / total) * 100);
+
+  return {
+    percent,
+    missing,
+    total,
+    filled,
+    complete: missing.length === 0,
+  };
+}
+
+function isGhostProduct(product = {}) {
+  const identification = product?.identification || {};
+  const details = product?.details || {};
+  const identifiers = details?.identifiers || {};
+  const ops = product?.ops || {};
+
+  const hasName = typeof identification?.name === 'string' && identification.name.trim().length > 0;
+  const hasSku =
+    (typeof identification?.sku === 'string' && identification.sku.trim().length > 0) ||
+    (typeof identifiers?.sku === 'string' && identifiers.sku.trim().length > 0);
+  const hasBarcode =
+    Boolean(identifiers?.ean || identifiers?.gtin || identifiers?.upc) ||
+    (Array.isArray(identification?.barcodes) && identification.barcodes.length > 0);
+  const hasImages = Array.isArray(details?.images) && details.images.length > 0;
+  const hasAttrs = details?.attributes && typeof details.attributes === 'object' && Object.keys(details.attributes).length > 0;
+  const hasPricing = Boolean(details?.pricing?.lowest_price?.amount);
+  const hasPendingIntake = Number(ops?.pending_intake_quantity || 0) > 0;
+  const hasOpsLink = Boolean(ops?.base_product_id || ops?.baselinker?.product_id || ops?.sync_status);
+
+  const invQty = Number(product?.inventory?.quantity || 0);
+  const hasStock =
+    (Number.isFinite(invQty) && invQty > 0) ||
+    Boolean(product?.storage?.binCode) ||
+    (Array.isArray(product?.storageBins) && product.storageBins.some((b) => Number(b?.quantity || 0) > 0));
+
+  return !(
+    hasName ||
+    hasSku ||
+    hasBarcode ||
+    hasImages ||
+    hasAttrs ||
+    hasPricing ||
+    hasPendingIntake ||
+    hasOpsLink ||
+    hasStock
+  );
+}
+
+// ── eBay Category Helpers (needed by normalizeProductForApi) ─────────
+let EBAY_CATEGORY_ENTRIES = null;
+let EBAY_CATEGORY_BY_ID = null;
+
+const normalizeCategoryText = (value = '') =>
+  value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/ä/g, 'a')
+    .replace(/ö/g, 'o')
+    .replace(/ü/g, 'u')
+    .replace(/ß/g, 'ss')
+    .replace(/[\u2010-\u2015-]/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const normalizeBreadcrumbKey = (value = '') =>
+  value
+    .toString()
+    .split('>')
+    .map((segment) => segment.toString().trim())
+    .filter(Boolean)
+    .join(' > ');
+
+const getEbayCategoryEntries = () => {
+  if (EBAY_CATEGORY_ENTRIES && EBAY_CATEGORY_BY_ID) {
+    return { entries: EBAY_CATEGORY_ENTRIES, byId: EBAY_CATEGORY_BY_ID };
+  }
+  const filePath = path.join(__dirname, '..', 'ebay-data', 'categories.json');
+  // eslint-disable-next-line import/no-dynamic-require, global-require
+  const raw = require(filePath);
+  const entries = [];
+  const byId = new Map();
+  Object.keys(raw || {}).forEach((key) => {
+    const cat = raw[key];
+    if (!cat) return;
+    const id = cat.id ?? cat.categoryId ?? key;
+    const breadcrumb = cat.breadcrumb || cat.path || cat.name || '';
+    if (!id || !breadcrumb) return;
+    const entry = {
+      id: String(id),
+      name: cat.name ? String(cat.name) : '',
+      breadcrumb: normalizeBreadcrumbKey(breadcrumb),
+      leaf: false,
+    };
+    entry.search = normalizeCategoryText(`${entry.breadcrumb} ${entry.name}`);
+    entry.root = String(entry.breadcrumb || '').split('>').map((s) => s.trim()).filter(Boolean)[0] || '';
+    entry.banned = Boolean(isBannedEbayBreadcrumb(entry.breadcrumb));
+    entries.push(entry);
+    byId.set(entry.id, entry);
+  });
+
+  // Mark leaf nodes once so callers can enforce listing-safe category selection.
+  const parentBreadcrumbs = new Set();
+  entries.forEach((entry) => {
+    const parts = entry.breadcrumb.split('>').map((s) => s.trim()).filter(Boolean);
+    for (let i = 1; i < parts.length; i += 1) {
+      parentBreadcrumbs.add(parts.slice(0, i).join(' > ').toLowerCase());
+    }
+  });
+  entries.forEach((entry) => {
+    const key = normalizeBreadcrumbKey(entry.breadcrumb).toLowerCase();
+    entry.leaf = !parentBreadcrumbs.has(key);
+  });
+
+  EBAY_CATEGORY_ENTRIES = entries;
+  EBAY_CATEGORY_BY_ID = byId;
+  return { entries, byId };
+};
+
+const getEbayCategoryById = (id) => {
+  if (!id) return null;
+  const { byId } = getEbayCategoryEntries();
+  const entry = byId.get(String(id));
+  if (!entry) return null;
+  if (entry.banned) return null;
+  return {
+    id: entry.id,
+    name: entry.name,
+    breadcrumb: entry.breadcrumb,
+    leaf: Boolean(entry.leaf),
+  };
+};
+
+// Ensure API responses always have the minimum nested structure expected by the frontend.
+// This prevents UI crashes when Firestore contains partial/stub documents.
+function normalizeProductForApi(product = {}) {
+  const p = product && typeof product === 'object' ? product : {};
+  const identification =
+    p.identification && typeof p.identification === 'object' ? p.identification : {};
+  const rawDetails = p.details && typeof p.details === 'object' ? p.details : {};
+  const details = buildBaselinkerCategoryDetails(rawDetails).details;
+  const identifiers =
+    details.identifiers && typeof details.identifiers === 'object' ? details.identifiers : {};
+  const pricing = details.pricing && typeof details.pricing === 'object' ? details.pricing : {};
+  const lowest =
+    pricing.lowest_price && typeof pricing.lowest_price === 'object' ? pricing.lowest_price : {};
+  const ops = p.ops && typeof p.ops === 'object' ? p.ops : {};
+
+  const rawCategoryId =
+    details.categoryId || details.ebayCategoryId || details.ebay_category_id || null;
+  const normalizedCategoryId = rawCategoryId
+    ? String(rawCategoryId).replace(/\D+/g, '').trim()
+    : '';
+  const ebayCategory = normalizedCategoryId ? getEbayCategoryById(normalizedCategoryId) : null;
+  const categoryIdForApi = ebayCategory?.id || normalizedCategoryId || '';
+  const categoryPathForApi = ebayCategory?.breadcrumb || '';
+
+  const images = Array.isArray(details.images) ? details.images.filter(Boolean) : [];
+  const barcodes = Array.isArray(identification.barcodes)
+    ? identification.barcodes.filter(Boolean)
+    : [];
+
+  return {
+    ...p,
+    identification: {
+      ...identification,
+      method: identification.method || 'image',
+      name: identification.name || '',
+      brand: identification.brand || '',
+      category: categoryPathForApi,
+      confidence: typeof identification.confidence === 'number' ? identification.confidence : 0,
+      barcodes,
+    },
+    details: {
+      ...details,
+      short_description: details.short_description || '',
+      key_features: Array.isArray(details.key_features) ? details.key_features.filter(Boolean) : [],
+      attributes:
+        details.attributes && typeof details.attributes === 'object' && !Array.isArray(details.attributes)
+          ? details.attributes
+          : {},
+      identifiers: {
+        ...identifiers,
+      },
+      images,
+      pricing: {
+        ...pricing,
+        price_confidence: typeof pricing.price_confidence === 'number' ? pricing.price_confidence : 0,
+        lowest_price: {
+          ...lowest,
+          amount: typeof lowest.amount === 'number' ? lowest.amount : 0,
+          currency: lowest.currency || 'EUR',
+          sources: Array.isArray(lowest.sources) ? lowest.sources : [],
+        },
+      },
+      categoryId: categoryIdForApi || undefined,
+    },
+    ops: {
+      ...ops,
+      sync_status: ops.sync_status || 'pending',
+      revision: typeof ops.revision === 'number' ? ops.revision : 0,
+    },
+    storageBins: Array.isArray(p.storageBins) ? p.storageBins : [],
+  };
+}
+
+// ── Category Profile Helpers ─────────────────────────────────────────
+const CATEGORY_PROFILES_COLLECTION = 'categoryProfiles';
+
+function parseCommaList(value) {
+  const raw = value == null ? '' : String(value);
+  return raw
+    .split(',')
+    .map((x) => String(x || '').trim())
+    .filter(Boolean);
+}
+
+function sanitizeStringArray(value, { max = 250 } = {}) {
+  const arr = Array.isArray(value) ? value : [];
+  const out = [];
+  const seen = new Set();
+  for (const v of arr) {
+    const s = v == null ? '' : String(v).trim();
+    if (!s) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+function sanitizeAliasMap(value, { max = 500 } = {}) {
+  const obj = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const out = {};
+  const keys = Object.keys(obj);
+  for (const k of keys) {
+    const alias = k == null ? '' : String(k).trim();
+    const canonical = obj[k] == null ? '' : String(obj[k]).trim();
+    if (!alias || !canonical) continue;
+    out[alias] = canonical;
+    if (Object.keys(out).length >= max) break;
+  }
+  return out;
+}
+
+// ── Improve Job Inline Helper ────────────────────────────────────────
+async function runImproveJobInline(jobId, productId) {
+  // Fallback: verarbeitet den Improve-Job synchron im Request, wenn IMPROVE_INLINE=true
+  try {
+    await updateJob(jobId, { status: 'processing', stage: 'inline', startedAt: Timestamp.now() });
+    const improvedProduct = await improveExistingProduct(productId, async (stage) => {
+      try {
+        await updateJob(jobId, { stage });
+      } catch (err) {
+        console.warn(`Inline updateJob stage failed for ${jobId}:`, err.message);
+      }
+    });
+    await updateJob(jobId, {
+      status: 'done',
+      stage: 'complete',
+      finishedAt: Timestamp.now(),
+      result: { product: improvedProduct },
+      error: null,
+    });
+  } catch (error) {
+    console.error(`Inline improve job ${jobId} failed:`, error);
+    await updateJob(jobId, {
+      status: 'failed',
+      stage: 'error',
+      finishedAt: Timestamp.now(),
+      error: { message: error.message, stack: error.stack?.slice(0, 500) },
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ── Routes ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+
+// --- Product-bins route delegated to warehouse domain ---
+router.get('/products/:id/bins', requirePermission('warehouse', 'read'), async (req, res) => {
+  try {
+    const bins = await listBinsForProduct(req.params.id);
+    res.json({ ok: true, data: bins });
+  } catch (error) {
+    console.error('Failed to load product bins:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Laden der BINs für dieses Produkt.', details: error.message },
+    });
+  }
+});
+
+// --- Product Bulk Actions (selected products from Inventory table) ---
+// Same engine as AdminBulk, but permission is products.write (so Catalog/Admin can use it from inventory UI).
+router.post('/products/bulk/run', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const action = String(body.action || '').trim().toLowerCase();
+    const productIds = Array.isArray(body.productIds) ? body.productIds : [];
+    if (!action) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing action' } });
+    }
+    if (!productIds.length) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing productIds' } });
+    }
+    const payload = {
+      action,
+      productIds,
+      apply: body.apply !== false, // default true
+      debug: Boolean(body.debug),
+      maxAgeDays: Number.isFinite(Number(body.maxAgeDays)) ? Number(body.maxAgeDays) : undefined,
+      force: Boolean(body.force),
+      includeUi: Boolean(body.includeUi),
+      inventoryId: typeof body.inventoryId === 'string' ? body.inventoryId : undefined,
+      marketplaceId: typeof body.marketplaceId === 'string' ? body.marketplaceId : undefined,
+      syncToBaseLinker: body.syncToBaseLinker === undefined ? undefined : Boolean(body.syncToBaseLinker),
+      titleInsights: body.titleInsights === undefined ? undefined : Boolean(body.titleInsights),
+      titleInsightsQuery: typeof body.titleInsightsQuery === 'string' ? body.titleInsightsQuery : undefined,
+      titleInsightsForceRefresh:
+        body.titleInsightsForceRefresh === undefined ? undefined : Boolean(body.titleInsightsForceRefresh),
+      titleInsightsLimit: Number.isFinite(Number(body.titleInsightsLimit)) ? Number(body.titleInsightsLimit) : undefined,
+      titleInsightsMaxHints:
+        Number.isFinite(Number(body.titleInsightsMaxHints)) ? Number(body.titleInsightsMaxHints) : undefined,
+      requestedBy: req.user?.email || req.user?.uid || 'user',
+    };
+    const job = await createAdminBulkJob({ payload, requestedBy: payload.requestedBy, action });
+    enqueueAdminBulkJob(job.id, true);
+    return res.status(202).json({ ok: true, data: { jobId: job.id } });
+  } catch (error) {
+    console.error('Failed to enqueue product bulk job:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Failed to enqueue bulk job', details: error.message },
+    });
+  }
+});
+
+router.get('/products/bulk/jobs/:id', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const job = await getAdminBulkJob(String(req.params.id));
+    if (!job) return res.status(404).json({ ok: false, error: { code: 404, message: 'Job not found' } });
+    return res.status(200).json({ ok: true, data: job });
+  } catch (error) {
+    console.error('Failed to load product bulk job:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to load job', details: error.message } });
+  }
+});
+
+// --- Inventories ---
+router.get('/inventories', requirePermission('inventories', 'read'), async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 500, 1), 1000);
+    const vendorCode =
+      typeof req.query?.vendor === 'string' && req.query.vendor ? req.query.vendor : null;
+    const search = typeof req.query?.search === 'string' ? req.query.search : '';
+    const inventories = await listInventories({ limit, vendorCode, search });
+    res.json({
+      ok: true,
+      data: inventories,
+      meta: {
+        limit,
+        vendor: vendorCode,
+        search,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to list inventories:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Inventories konnten nicht geladen werden.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+router.get('/inventories/:id', requirePermission('inventories', 'read'), async (req, res) => {
+  try {
+    const inventoryId = req.params?.id;
+    const inventory = await getInventoryRecord(inventoryId);
+    if (!inventory) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 404,
+          message: 'Inventory wurde nicht gefunden.',
+        },
+      });
+    }
+    return res.json({ ok: true, data: inventory });
+  } catch (error) {
+    console.error('Failed to fetch inventory:', error);
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Inventory konnte nicht geladen werden.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+router.get('/inventories/:id/label.pdf', requirePermission('inventories', 'read'), async (req, res) => {
+  try {
+    const inventoryId = req.params?.id;
+    const inventory = await getInventoryRecord(inventoryId);
+    if (!inventory) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: 404, message: 'Inventory wurde nicht gefunden.' },
+      });
+    }
+    const pdfBuffer = await buildInventoryLabelPdf(inventory);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="inventory-${inventoryId}.pdf"`);
+    return res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Failed to build inventory label:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Inventory-Label konnte nicht erstellt werden.', details: error.message },
+    });
+  }
+});
+
+// Inventory sync pulls from BaseLinker; protect it like other integration sync operations.
+router.post('/inventories/sync', requirePermission('baselinker', 'sync'), async (req, res) => {
+  try {
+    const result = await syncInventoriesFromBaseLinker();
+    res.json({
+      ok: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error('Inventory sync failed:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Inventory-Sync fehlgeschlagen.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+router.post('/inventories/assign', async (req, res) => {
+  try {
+    return res.status(410).json({
+        ok: false,
+      error: { code: 410, message: 'Inventory-Zuordnung wird nicht mehr unterstützt.' },
+      });
+  } catch (error) {
+    console.error('Failed to assign inventory:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Inventory konnte nicht zugewiesen werden.', details: error.message },
+    });
+  }
+});
+
+router.post('/products/:productId/inventory', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const productId = req.params?.productId;
+    const inventoryId = req.body?.inventoryId;
+    if (!productId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Produkt-ID ist erforderlich.' },
+      });
+    }
+    if (!inventoryId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Inventory ID ist erforderlich.' },
+      });
+    }
+    const inventory = await getInventoryRecord(inventoryId);
+    if (!inventory) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: 404, message: 'Inventory wurde nicht gefunden.' },
+      });
+    }
+    await setProductInventory(productId, inventory);
+    res.json({ ok: true, data: { productId, inventoryId } });
+  } catch (error) {
+    console.error('Failed to set product inventory:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Inventory konnte nicht gesetzt werden.', details: error.message },
+    });
+  }
+});
+
+// --- Current user RBAC snapshot (for UI gating) ---
+router.get('/me/permissions', async (req, res) => {
+  try {
+    const uid = req.user?.uid;
+    if (!uid) {
+      return res.status(401).json({ ok: false, error: { code: 401, message: 'Unauthorized' } });
+    }
+    const { profile, permissions, roles } = await resolvePermissionsForUser(uid);
+    return res.json({
+      ok: true,
+      data: {
+        roles: Array.isArray(roles) ? roles : [],
+        permissions: permissions && typeof permissions === 'object' ? permissions : {},
+        profile: profile
+          ? {
+              uid: profile.uid || null,
+              email: profile.email || null,
+              roles: Array.isArray(profile.roles) ? profile.roles : [],
+              groupIds: Array.isArray(profile.groupIds) ? profile.groupIds : [],
+            }
+          : null,
+      },
+    });
+  } catch (error) {
+    // For UI purposes, don't fail hard; return empty permission set.
+    console.warn('Failed to resolve /api/me/permissions:', error?.message || error);
+    return res.json({ ok: true, data: { roles: [], permissions: {}, profile: null } });
+  }
+});
+
+// --- Image Proxy ---
+router.get('/image-proxy', async (req, res) => {
+  const sourceUrl = req.query?.url;
+  if (!sourceUrl || typeof sourceUrl !== 'string') {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: 400,
+        message: 'Missing url query parameter.',
+      },
+    });
+  }
+
+  let target;
+  try {
+    target = new URL(sourceUrl);
+  } catch (error) {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: 400,
+        message: 'Invalid image URL.',
+      },
+    });
+  }
+
+  if (!['http:', 'https:'].includes(target.protocol)) {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: 400,
+        message: 'Only http/https protocols are supported.',
+      },
+    });
+  }
+
+  try {
+    const upstream = await fetchWithUnlocker({
+      url: target.toString(),
+      method: 'GET',
+      format: 'raw',
+      timeoutMs: IMAGE_PROXY_TIMEOUT_MS,
+      headers: {
+        'User-Agent': 'avystock-image-proxy/1.0',
+        Accept: 'image/*,*/*;q=0.8',
+        Referer: '',
+      },
+    });
+
+    if (!upstream.success) {
+      return res.status(502).json({
+        ok: false,
+        error: {
+          code: 502,
+          message: `Upstream image request failed: ${upstream.error || 'Unknown error'}`,
+        },
+      });
+    }
+
+    if (upstream.bytes && upstream.bytes > IMAGE_PROXY_MAX_BYTES) {
+      return res.status(413).json({
+        ok: false,
+        error: {
+          code: 413,
+          message: 'Remote image exceeds proxy size limit.',
+        },
+      });
+    }
+
+    const body = upstream.body_base64
+      ? Buffer.from(upstream.body_base64, 'base64')
+      : Buffer.from(upstream.body || '', 'binary');
+    if (body.length > IMAGE_PROXY_MAX_BYTES) {
+      return res.status(413).json({
+        ok: false,
+        error: {
+          code: 413,
+          message: 'Remote image exceeds proxy size limit.',
+        },
+      });
+    }
+
+    const contentType = upstream.contentType || 'application/octet-stream';
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400, immutable');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    return res.status(200).send(body);
+  } catch (error) {
+    console.error('Image proxy failed:', error);
+    return res.status(502).json({
+      ok: false,
+      error: {
+        code: 502,
+        message: 'Failed to fetch upstream image.',
+      },
+    });
+  }
+});
+
+// --- Intake Resolver ---
+// If a product already exists (strict EAN/GTIN/SKU match), we must NOT create/overwrite a new datasheet.
+// Instead, we only bump pending intake quantity (and optionally inventory) and return the canonical product.
+router.post('/intake/resolve', async (req, res) => {
+  try {
+    const barcodesText = req.body?.barcodes || '';
+    const sku = req.body?.sku || null;
+    const inventoryId = req.body?.inventoryId || null;
+
+    const barcodes = parseBarcodeListFromText(barcodesText);
+    const skuCandidate = normalizeIdentifyToken(sku) || parseSkuCandidateFromText(barcodesText) || null;
+
+    const match = await findProductByStrictIdentifier({ barcodes, sku: skuCandidate });
+    if (!match?.id) {
+      return res.status(200).json({
+        ok: true,
+        data: { matched: false },
+      });
+    }
+
+    let inventoryRecord = null;
+    if (inventoryId) {
+      inventoryRecord = await getInventoryRecord(String(inventoryId));
+    }
+
+    const pendingQuantity =
+      (await adjustPendingIntakeQuantity(match.id, 1)) ??
+      ((match.ops?.pending_intake_quantity || 0) + 1);
+
+    if (inventoryRecord && match.inventory?.inventoryId !== inventoryRecord.inventoryId) {
+      // Best-effort; never fail intake resolve.
+      setProductInventory(match.id, inventoryRecord).catch((err) => {
+        console.warn(`Failed to update inventory for ${match.id}:`, err?.message || err);
+      });
+    }
+
+    const canonical = (await getProduct(match.id)) || match;
+    const resolvedProduct = {
+      ...canonical,
+      id: canonical?.id || match.id,
+      ops: {
+        ...(canonical.ops || {}),
+        pending_intake_quantity: pendingQuantity,
+      },
+    };
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        matched: true,
+        product: resolvedProduct,
+        pendingIntakeQuantity: pendingQuantity,
+      },
+    });
+  } catch (error) {
+    console.error('Error in /api/intake/resolve:', error);
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Intake resolve failed.',
+        details: error?.message || 'Unknown error',
+      },
+    });
+  }
+});
+
+// --- Image Generation Endpoint ---
+router.post('/generate-images', async (req, res) => {
+  try {
+    const { productId, product, referenceImage } = req.body || {};
+
+    let targetProduct = product;
+    if (!targetProduct && productId) {
+      targetProduct = await getProduct(productId);
+    }
+
+    if (!targetProduct) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Product ID or object required' }
+      });
+    }
+
+    if (!referenceImage?.url_or_base64) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'referenceImage with url_or_base64 is required' }
+      });
+    }
+
+    const matchExists = Array.isArray(targetProduct.details?.images)
+      ? targetProduct.details.images.some((img) => img.url_or_base64 === referenceImage.url_or_base64)
+      : false;
+
+    if (!matchExists) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Reference image must belong to the target product' }
+      });
+    }
+
+    const { images, prompts } = await generateImagesForProduct(targetProduct, {
+      referenceImage,
+    });
+
+    res.json({
+      ok: true,
+      data: {
+        images,
+        prompts,
+      }
+    });
+
+  } catch (error) {
+    console.error('Image generation failed:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to generate images',
+        details: error.message
+      }
+    });
+  }
+});
+
+// --- Scanner ---
+router.post('/scanner/capture', requirePermission('identify', 'run'), async (req, res) => {
+  try {
+    const buffer = await scanToBuffer();
+    const mimeType = process.env.SCAN_MIME_TYPE || 'image/png';
+    res.json({
+      ok: true,
+      data: {
+        mimeType,
+        base64: buffer.toString('base64'),
+        capturedAt: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Scanner capture failed:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Scanner konnte nicht gestartet werden.', details: error.message },
+    });
+  }
+});
+
+// --- Category Profiles ---
+router.get('/categories/profiles', requirePermission('categories', 'read'), async (req, res) => {
+  try {
+    const ids = parseCommaList(req.query?.ids);
+    const enabledOnly =
+      String(req.query?.enabledOnly || req.query?.enabled_only || '')
+        .trim()
+        .toLowerCase() === 'true';
+
+    // If ids are provided, fetch those docs only.
+    if (ids.length) {
+      const unique = Array.from(new Set(ids)).slice(0, 200);
+      const refs = unique.map((id) => firestore.collection(CATEGORY_PROFILES_COLLECTION).doc(String(id)));
+      const snaps = await firestore.getAll(...refs);
+      const items = [];
+      snaps.forEach((snap) => {
+        if (!snap.exists) return;
+        const data = snap.data() || {};
+        items.push({ id: snap.id, ...data });
+      });
+      return res.status(200).json({ ok: true, items });
+    }
+
+    // Otherwise: list enabled profiles (or a small default sample) for future use.
+    let query = firestore.collection(CATEGORY_PROFILES_COLLECTION);
+    if (enabledOnly) {
+      query = query.where('enabled', '==', true);
+    }
+    const snap = await query.limit(300).get();
+    const items = [];
+    snap.forEach((doc) => items.push({ id: doc.id, ...(doc.data() || {}) }));
+    return res.status(200).json({ ok: true, items });
+  } catch (error) {
+    console.error('Failed to load category profiles:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to load category profiles.' } });
+  }
+});
+
+router.put('/categories/profiles/:id', requirePermission('categories', 'write'), async (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'Category id is required' } });
+    }
+
+    const ebay = getEbayCategoryById(id);
+    if (!ebay) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Unknown eBay category id (not found in taxonomy)', details: id },
+      });
+    }
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const enabled = Boolean(body.enabled);
+    const canonicalAttributes = sanitizeStringArray(body.canonicalAttributes, { max: 300 });
+    const attributeAliases = sanitizeAliasMap(body.attributeAliases, { max: 800 });
+    const notesRaw = body.notes == null ? '' : String(body.notes);
+    const notes = notesRaw.trim().slice(0, 5000);
+
+    const payload = {
+      id,
+      name: ebay.name || '',
+      breadcrumb: ebay.breadcrumb || '',
+      enabled,
+      canonicalAttributes,
+      attributeAliases,
+      notes,
+      updatedAtIso: new Date().toISOString(),
+    };
+
+    await firestore
+      .collection(CATEGORY_PROFILES_COLLECTION)
+      .doc(id)
+      .set(payload, { merge: true });
+
+    return res.status(200).json({ ok: true, data: payload });
+  } catch (error) {
+    console.error('Failed to save category profile:', error);
+    return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to save category profile.' } });
+  }
+});
+
+// --- Product Labels (batch — must be before /:id routes) ---
+router.get('/products/labels', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const idsParam = req.query.ids;
+    if (!idsParam) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Es wurden keine Produkt-IDs angegeben.' },
+      });
+    }
+    const ids = Array.isArray(idsParam)
+      ? idsParam
+      : String(idsParam)
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+    if (!ids.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Es wurden keine gültigen Produkt-IDs angegeben.' },
+      });
+    }
+
+    const labels = [];
+    const missing = [];
+    for (const id of ids) {
+      const product = await getProduct(id);
+      if (!product) {
+        missing.push(`Produkt ${id} wurde nicht gefunden`);
+        continue;
+      }
+      const sku =
+        product.identification?.sku || product.details?.identifiers?.sku || product.details?.identifiers?.ean;
+      if (!sku) {
+        missing.push(`${product.identification?.name || id} (keine SKU)`);
+        continue;
+      }
+      const skuLine = sku.startsWith('SKU-') ? sku : `SKU-${sku}`;
+      const name = (product.identification?.name || '').trim() || skuLine;
+      labels.push({
+        code: skuLine,
+        skuLine,
+        description: name,
+      });
+    }
+
+    if (!labels.length) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: missing.length ? missing.join(', ') : 'Keine druckbaren Labels vorhanden.',
+        },
+      });
+    }
+
+    const html = await buildProductLabelsHtml(labels);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(html);
+  } catch (error) {
+    console.error('Failed to build product labels:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Labeldruck fehlgeschlagen', details: error.message },
+    });
+  }
+});
+
+// --- Bulk Delete (must be before /:id routes) ---
+router.post('/products/bulk-delete', requirePermission('products', 'delete'), async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map((x) => String(x || '').trim()).filter(Boolean) : [];
+    if (!ids.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'ids[] is required' },
+      });
+    }
+    // Safety: default false (do not delete extra docs unless explicitly requested)
+    const purgeDuplicates = Boolean(req.body?.purgeDuplicates);
+
+    const deleted = [];
+    const notFound = [];
+    const failed = [];
+    const purgedDuplicatesById = {};
+
+    for (const id of ids) {
+      try {
+        const product = await getProduct(id);
+        if (!product) {
+          notFound.push(id);
+          continue;
+        }
+        await deleteProductImages(id);
+        await deleteProduct(id);
+        deleted.push(id);
+
+        if (purgeDuplicates) {
+          const aliasSeeds = [
+            ...(product.ops?.identity_aliases || []),
+            ...(product.identification?.barcodes || []),
+            product.identification?.sku,
+            product.details?.identifiers?.ean,
+            product.details?.identifiers?.gtin,
+            product.details?.identifiers?.upc,
+            product.details?.identifiers?.mpn,
+            product.details?.identifiers?.sku,
+            product.id,
+          ];
+          const aliasCandidates = Array.from(
+            new Set(aliasSeeds.filter((token) => typeof token === 'string' && token.trim()))
+          );
+          if (aliasCandidates.length) {
+            const duplicateIds = await findProductIdsByAliases(aliasCandidates, { excludeProductId: id });
+            if (duplicateIds.length) {
+              await Promise.all(
+                duplicateIds.map(async (dupId) => {
+                  await deleteProductImages(dupId);
+                  await deleteProduct(dupId);
+                })
+              );
+              purgedDuplicatesById[id] = duplicateIds;
+            }
+          }
+        }
+      } catch (e) {
+        failed.push({ id, error: e?.message || String(e) });
+      }
+    }
+
+    return res.json({
+      ok: true,
+      deleted,
+      notFound,
+      failed,
+      purgedDuplicatesById,
+    });
+  } catch (error) {
+    console.error('Error bulk deleting products:', error);
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to bulk delete products',
+        details: error.message,
+      },
+    });
+  }
+});
+
+// --- Cleanup by Alias (must be before /:id routes) ---
+router.delete('/products/cleanup-by-alias/:alias', async (req, res) => {
+  try {
+    const { alias } = req.params;
+    if (!alias || !alias.trim()) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Alias parameter is required',
+        },
+      });
+    }
+    const requestedLimit = req.query?.limit ? parseInt(req.query.limit, 10) : undefined;
+    const options = Number.isFinite(requestedLimit) ? { limit: requestedLimit } : undefined;
+    const result = await deleteProductsByIdentityAlias(alias, options || {});
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error('Error deleting products by alias:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to delete products by alias',
+        details: error.message,
+      },
+    });
+  }
+});
+
+// --- Bulk Improve (must be before /:id routes) ---
+router.post('/products/bulk-improve', requirePermission('ai', 'improve'), async (req, res) => {
+  try {
+    const products = await getAllProducts();
+    const queuedJobs = [];
+
+    console.log(`[bulk-improve] Starting bulk improvement for ${products.length} products...`);
+
+    for (const product of products) {
+      if (!product.id) continue;
+
+      const jobId = crypto.randomUUID();
+      await createImproveJob(
+        {
+          payload: {
+            productId: product.id,
+            triggeredBy: 'bulk-api',
+          },
+          productId: product.id,
+          productName: product.identification?.name || 'Bulk Update',
+        },
+        jobId
+      );
+      enqueueImproveJob(jobId);
+      queuedJobs.push({
+        jobId,
+        productId: product.id,
+      });
+    }
+
+    console.log(`[bulk-improve] Enqueued ${queuedJobs.length} jobs.`);
+
+    res.json({
+      ok: true,
+      data: {
+        enqueuedParams: queuedJobs.length,
+        jobs: queuedJobs,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to start bulk improvement:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Bulk improvement failed.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+// --- Get all products ---
+router.get('/products', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const products = await getAllProducts();
+    const filteredProducts = Array.isArray(products)
+      ? products.filter((p) => !isGhostProduct(p))
+      : [];
+    const reservedMap = await buildReservedOpenOrderMap();
+    // NOTE: Filter ghost/stub docs early to avoid showing meaningless rows in the AdminTable.
+    // Rebuild enriched pipeline using the filtered set to keep counts consistent.
+    const enrichedFiltered = await enrichProductsWithBinSummaries(filteredProducts);
+    const withReservedFiltered = attachReservedAvailability(enrichedFiltered, reservedMap);
+    const withCompletenessFiltered = withReservedFiltered.map((p) => {
+      const normalized = normalizeProductForApi(p);
+      return {
+        ...normalized,
+        completeness: computeCompleteness(normalized),
+      };
+    });
+
+    // Optional: Resolve BaseLinker product_id for items that are not yet linked in Firestore.
+    // WARNING: This can be very slow (one BaseLinker request per SKU/EAN). Disabled by default to keep /api/products fast.
+    const toBool = (v) => ['1', 'true', 'yes', 'on'].includes(String(v || '').toLowerCase());
+    const resolveBaselinkerIdsEnabled =
+      toBool(process.env.PRODUCTS_RESOLVE_BASELINKER_IDS) || toBool(req.query?.resolveBaselinkerIds);
+    const resolveBaselinkerLimit = Math.max(
+      0,
+      parseInt(process.env.PRODUCTS_RESOLVE_BASELINKER_IDS_LIMIT || '10', 10)
+    );
+
+    let withBaselinkerIdsFiltered = withCompletenessFiltered;
+    if (resolveBaselinkerIdsEnabled) {
+      const normalizeSkuKeyLocal = (raw) =>
+        String(raw || '')
+          .trim()
+          .toLowerCase()
+          .replace(/^sku[-\s]*/i, '')
+          .replace(/\s+/g, '');
+      const normalizeEanKey = (raw) => String(raw || '').replace(/\D+/g, '').trim();
+
+      const resolveCandidateSkus = withCompletenessFiltered
+        .filter((p) => !(p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id))
+        .map(
+          (p) => p?.identification?.sku || p?.details?.identifiers?.sku || p?.details?.identifiers?.ean || null
+        )
+        .filter(Boolean);
+
+      const cappedResolveCandidateSkus =
+        resolveBaselinkerLimit > 0 ? resolveCandidateSkus.slice(0, resolveBaselinkerLimit) : [];
+
+      let resolvedBySku = {};
+      try {
+        resolvedBySku = cappedResolveCandidateSkus.length
+          ? await findProductsBySkus(null, cappedResolveCandidateSkus)
+          : {};
+      } catch (error) {
+        console.warn('[products] findProductsBySkus failed:', error?.message || error);
+        resolvedBySku = {};
+      }
+
+      if (resolvedBySku && Object.keys(resolvedBySku).length) {
+        withBaselinkerIdsFiltered = withCompletenessFiltered.map((p) => {
+          const already = p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null;
+          if (already) return p;
+          const key =
+            p?.identification?.sku || p?.details?.identifiers?.sku || p?.details?.identifiers?.ean || null;
+          const skuKey = normalizeSkuKeyLocal(key);
+          const eanKey = normalizeEanKey(key);
+          // findProductsBySkus returns normalized keys (skuKey OR eanKey)
+          const match = (skuKey && resolvedBySku[skuKey]) || (eanKey && resolvedBySku[eanKey]) || null;
+          if (!match?.product_id) return p;
+          return {
+            ...p,
+            ops: {
+              ...(p.ops || {}),
+              baselinker: {
+                ...((p.ops && p.ops.baselinker) || {}),
+                product_id: match.product_id,
+                synced_inventory: match.inventoryId || (p?.ops?.baselinker?.synced_inventory ?? null),
+                matched_sku: match.sku || null,
+                matched_ean: match.ean || null,
+              },
+            },
+          };
+        });
+      }
+    }
+
+    // BaseLinker marketplace links ("listed on at least one marketplace") enrichment.
+    // This is cached + chunked in baselinker.js to keep /api/products responsive.
+    const baseProductIds = withBaselinkerIdsFiltered
+      .map((p) => p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null)
+      .filter(Boolean);
+    const linksSummary = await getInventoryProductLinksSummary(null, baseProductIds);
+    const withLinksFiltered = withBaselinkerIdsFiltered.map((p) => {
+      const pidRaw = p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null;
+      const pid = pidRaw != null ? String(Number(pidRaw) || '') : '';
+      const summary = pid ? linksSummary[pid] : null;
+      if (!summary) return p;
+      return {
+        ...p,
+        ops: {
+          ...(p.ops || {}),
+          baselinker: {
+            ...((p.ops && p.ops.baselinker) || {}),
+            links_count: Number(summary.linksCount) || 0,
+            has_links: Boolean(summary.hasLinks),
+          },
+        },
+      };
+    });
+
+    res.json({ ok: true, products: withLinksFiltered });
+  } catch (error) {
+    console.error('Error getting products:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to load products',
+        details: error.message
+      }
+    });
+  }
+});
+
+// --- Get single product ---
+router.get('/products/:id', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const product = await getProduct(req.params.id);
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 404,
+          message: 'Product not found'
+        }
+      });
+    }
+    const [enriched] = await enrichProductsWithBinSummaries([product]);
+    const hydrated = normalizeProductForApi(enriched || product);
+    res.json({
+      ok: true,
+      product: {
+        ...hydrated,
+        completeness: computeCompleteness(hydrated),
+      },
+    });
+  } catch (error) {
+    console.error('Error getting product:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to load product',
+        details: error.message
+      }
+    });
+  }
+});
+
+// --- Product Label (single) ---
+router.get('/products/:id/label', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const product = await getProduct(req.params.id);
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 404,
+          message: 'Product not found',
+        },
+      });
+    }
+
+    const sku =
+      product.identification?.sku ||
+      product.details?.identifiers?.sku ||
+      product.details?.identifiers?.ean ||
+      null;
+
+    if (!sku) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Product has no SKU assigned yet.',
+        },
+      });
+    }
+
+    const skuLine = sku.startsWith('SKU-') ? sku : `SKU-${sku}`;
+
+    const html = await buildProductLabelsHtml([
+      {
+        code: skuLine,
+        skuLine,
+        description: product.identification?.name || skuLine,
+      },
+    ]);
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(html);
+  } catch (error) {
+    console.error('Failed to generate label:', error);
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to generate SKU label',
+        details: error.message,
+      },
+    });
+  }
+});
+
+// --- Save product ---
+router.post('/save', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const product = req.body;
+
+    // Hard guard: block saving incomplete identify/enrichment results
+    const skuCandidate =
+      product?.identification?.sku ||
+      product?.details?.identifiers?.sku ||
+      product?.id;
+    const nameCandidate =
+      product?.identification?.name ||
+      product?.details?.name ||
+      product?.details?.title;
+    const descCandidate =
+      product?.details?.short_description ||
+      product?.details?.description;
+    const hasImages =
+      Array.isArray(product?.details?.images) &&
+      product.details.images.some(
+        (img) => img && (img.url_or_base64 || img.url || img.href)
+      );
+    const categoryId = String(product?.details?.categoryId || '').trim();
+    const resolvedCategory = categoryId ? findEbayCategory(categoryId) : null;
+    const breadcrumb = resolvedCategory?.breadcrumb ? String(resolvedCategory.breadcrumb) : '';
+    const hasValidCategory = Boolean(
+      categoryId &&
+      resolvedCategory &&
+      breadcrumb &&
+      breadcrumb.includes('>') &&
+      !isBannedEbayBreadcrumb(breadcrumb)
+    );
+
+    if (
+      !skuCandidate ||
+      !nameCandidate ||
+      !descCandidate ||
+      !hasImages ||
+      !hasValidCategory
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message:
+            'Produkt unvollständig: SKU, Name, Beschreibung, Kategorie oder Bilder fehlen/ungültig.',
+        },
+      });
+    }
+
+
+    if (!product || !product.id) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Invalid product data'
+        }
+      });
+    }
+
+    // SKU is allocated/validated in saveProduct(); do not generate here to avoid diverging behavior.
+
+    // Process and upload images to Cloud Storage
+    if (product.details && product.details.images) {
+      const processedImages = [];
+
+      for (let i = 0; i < product.details.images.length; i++) {
+        const image = product.details.images[i];
+
+        // Only process base64 images
+        if (image.url_or_base64 && image.url_or_base64.startsWith('data:')) {
+          try {
+            const variant = image.variant || `image_${i}`;
+            const uploadResult = await uploadBase64Image(image.url_or_base64, product.id, variant);
+            const manualUpload = !image.source || image.source === 'upload' || image.source === 'uploaded';
+            if (manualUpload) {
+              await recordManualProductImage({
+                productId: product.id,
+                publicUrl: uploadResult.url,
+                source: image.source || 'upload',
+                variant,
+                notes: image.notes || null,
+                width: uploadResult.width,
+                height: uploadResult.height,
+              });
+            }
+
+            processedImages.push({
+              ...image,
+              url_or_base64: uploadResult.url,
+              source: image.source || 'uploaded',
+              width: uploadResult.width ?? image.width ?? null,
+              height: uploadResult.height ?? image.height ?? null,
+              mimeType: uploadResult.mimeType || image.mimeType || null,
+            });
+          } catch (error) {
+            console.error('Failed to upload image:', error);
+            // Keep original image if upload fails
+            processedImages.push(image);
+          }
+        } else {
+          // Keep URLs as-is
+          processedImages.push(image);
+        }
+      }
+
+      const filteredImages = processedImages.filter((img) => {
+        if (looksGeneratedImageMeta(img) && !isVertexAiImage(img)) {
+          console.warn('Rejecting generated image metadata during save:', img?.url_or_base64 || img?.url || '');
+          return false;
+        }
+        return true;
+      });
+
+      product.details.images = filteredImages;
+    }
+
+    // Save to Firestore
+    // Manual UI saves:
+    // - allowed to change category
+    // - allowed to overwrite descriptions
+    // - allowed to delete/replace attributes
+    // - should sync identifiers (ean/gtin) from edited barcodes
+    const result = await saveProductV2(product, {
+      allowCategoryChange: true,
+      mode: 'manual',
+      source: 'ui',
+      overwriteTextFields: true,
+      replaceAttributes: true,
+      syncIdentifiersFromBarcodes: true,
+    });
+
+    // Auto-trigger Quality Gate after every UI save (async via runner).
+    try {
+      const jobId = crypto.randomUUID();
+      await createQualityJob(
+        {
+          payload: { productId: product.id },
+          productId: product.id,
+          productName: product.identification?.name || '',
+          locale: product.locale || 'de-DE',
+          reason: 'auto_after_save',
+          requestedBy: 'ui',
+          force: false,
+        },
+        jobId
+      );
+      enqueueQualityJob(jobId, true);
+    } catch (qErr) {
+      console.warn('Failed to enqueue quality job after save:', qErr?.message || qErr);
+    }
+
+    res.json({
+      ok: true,
+      data: {
+        ...result,
+        sku: product.identification?.sku || null,
+      },
+    });
+  } catch (error) {
+    console.error('Error saving product:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to save product',
+        details: error.message
+      }
+    });
+  }
+});
+
+// --- Delete product ---
+router.delete('/products/:id', requirePermission('products', 'delete'), async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const product = await getProduct(productId);
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 404,
+          message: 'Product not found',
+        },
+      });
+    }
+
+    await deleteProductImages(productId);
+    await deleteProduct(productId);
+
+    // Safety: by default, delete ONLY the requested product.
+    // Optional: allow operators to also purge duplicate docs that share identity aliases.
+    const purgeDuplicates = String(req.query?.purgeDuplicates || '').toLowerCase() === 'true';
+    let purgedDuplicates = [];
+    if (purgeDuplicates) {
+      const aliasSeeds = [
+        ...(product.ops?.identity_aliases || []),
+        ...(product.identification?.barcodes || []),
+        product.identification?.sku,
+        product.details?.identifiers?.ean,
+        product.details?.identifiers?.gtin,
+        product.details?.identifiers?.upc,
+        product.details?.identifiers?.mpn,
+        product.details?.identifiers?.sku,
+        product.id,
+      ];
+      const aliasCandidates = Array.from(
+        new Set(aliasSeeds.filter((token) => typeof token === 'string' && token.trim()))
+      );
+      if (aliasCandidates.length) {
+        const duplicateIds = await findProductIdsByAliases(aliasCandidates, { excludeProductId: productId });
+        if (duplicateIds.length) {
+          await Promise.all(
+            duplicateIds.map(async (dupId) => {
+              await deleteProductImages(dupId);
+              await deleteProduct(dupId);
+            })
+          );
+          purgedDuplicates = duplicateIds;
+        }
+      }
+    }
+
+    res.json({ ok: true, purgedDuplicates });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to delete product',
+        details: error.message
+      }
+    });
+  }
+});
+
+// --- Price Refresh ---
+router.post('/price-refresh', async (req, res) => {
+  try {
+    const { productId } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Product ID is required'
+        }
+      });
+    }
+
+    // Load product from Firestore
+    const product = await getProduct(productId);
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 404,
+          message: 'Product not found'
+        }
+      });
+    }
+
+    const force = Boolean(req.body?.force);
+    const result = await enrichPriceForProductBestEffort(product, { force, reason: 'api/price-refresh' });
+    if (!result.ok) {
+      return res.json({
+        ok: false,
+        error: { code: 404, message: 'No reliable price candidates found (min €1, evidence required).' },
+        serpTrace: result.serpTrace || [],
+      });
+    }
+
+    if (result.updated) {
+      await saveProductV2(product, { source: 'script' });
+    }
+
+    return res.json({
+      ok: true,
+      data: result.data,
+      serpTrace: result.serpTrace || [],
+    });
+
+  } catch (error) {
+    console.error('Error in price refresh:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Failed to refresh price',
+        details: error.message
+      }
+    });
+  }
+});
+
+// --- AI Improve ---
+router.post('/products/:id/improve', requirePermission('ai', 'improve'), async (req, res) => {
+  try {
+    const productId = req.params.id;
+    if (!productId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Product ID is required' },
+      });
+    }
+    const improved = await improveExistingProduct(productId);
+    res.json({ ok: true, data: improved });
+  } catch (error) {
+    const status = error.code === 404 ? 404 : 500;
+    res.status(status).json({
+      ok: false,
+      error: { code: status, message: error.message || 'Failed to improve product' },
+    });
+  }
+});
+
+// --- Improve Jobs ---
+router.post('/improve/jobs', requirePermission('ai', 'improve'), async (req, res) => {
+  try {
+    const rawIds = Array.isArray(req.body?.productIds) ? req.body.productIds : [];
+    const uniqueIds = [...new Set(rawIds.map((id) => String(id || '').trim()))].filter(Boolean);
+    if (!uniqueIds.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Es wurden keine gültigen Produkt-IDs übermittelt.' },
+      });
+    }
+    if (uniqueIds.length > MAX_IMPROVE_BATCH) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: `Maximal ${MAX_IMPROVE_BATCH} Produkte können gleichzeitig verbessert werden.`,
+        },
+      });
+    }
+
+    const jobs = [];
+    const missing = [];
+
+    for (const productId of uniqueIds) {
+      const product = await getProduct(productId);
+      if (!product) {
+        missing.push(productId);
+        continue;
+      }
+      const jobId = crypto.randomUUID();
+      await createImproveJob(
+        {
+          payload: { productId },
+          productId,
+          productName: product.identification?.name || '',
+        },
+        jobId
+      );
+      enqueueImproveJob(jobId);
+      jobs.push({ jobId, productId });
+    }
+
+    if (!jobs.length) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'Keine Improve-Jobs konnten erstellt werden (Produkte nicht gefunden).',
+          missing,
+        },
+      });
+    }
+
+    // Inline-Modus: nur für sehr kleine Batches (sonst HTTP-Timeouts)
+    const inlineAllowed = IMPROVE_INLINE && jobs.length <= 3;
+    if (inlineAllowed) {
+      for (const job of jobs) {
+        await runImproveJobInline(job.jobId, job.productId);
+      }
+    }
+
+    res.json({
+      ok: true,
+      data: {
+        jobs,
+        missing,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to create improve jobs:', error);
+    res.status(500).json({
+      ok: false,
+      error: {
+        code: 500,
+        message: 'Improve-Jobs konnten nicht angelegt werden.',
+        details: error.message,
+      },
+    });
+  }
+});
+
+router.get('/improve/jobs/:id', requirePermission('ai', 'improve'), async (req, res) => {
+  try {
+    const job = await getImproveJob(req.params.id);
+    if (!job) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: 404, message: 'Improve-Job wurde nicht gefunden.' },
+      });
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true, data: job });
+  } catch (error) {
+    console.error('Failed to load improve job:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Improve-Job konnte nicht geladen werden.', details: error.message },
+    });
+  }
+});
+
+// --- Quality Gate Jobs ---
+router.post('/quality/jobs', requirePermission('jobs', 'read'), async (req, res) => {
+  try {
+    const rawIds = Array.isArray(req.body?.productIds) ? req.body.productIds : [];
+    const uniqueIds = [...new Set(rawIds.map((id) => String(id || '').trim()))].filter(Boolean);
+    if (!uniqueIds.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Es wurden keine gültigen Produkt-IDs übermittelt.' },
+      });
+    }
+    if (uniqueIds.length > MAX_QUALITY_BATCH) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: `Maximal ${MAX_QUALITY_BATCH} Produkte können gleichzeitig geprüft werden.` },
+      });
+    }
+
+    const jobs = [];
+    const missing = [];
+    for (const productId of uniqueIds) {
+      const product = await getProduct(productId);
+      if (!product) {
+        missing.push(productId);
+        continue;
+      }
+      const jobId = crypto.randomUUID();
+      await createQualityJob(
+        {
+          payload: { productId },
+          productId,
+          productName: product.identification?.name || '',
+          locale: product.locale || 'de-DE',
+          reason: req.body?.reason || 'manual',
+          requestedBy: req.body?.requestedBy || 'ui',
+          force: Boolean(req.body?.force),
+        },
+        jobId
+      );
+      enqueueQualityJob(jobId);
+      jobs.push({ jobId, productId });
+    }
+
+    if (!jobs.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Keine Quality-Jobs konnten erstellt werden (Produkte nicht gefunden).', missing },
+      });
+    }
+
+    res.json({ ok: true, data: { jobs, missing } });
+  } catch (error) {
+    console.error('Failed to create quality jobs:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Quality-Jobs konnten nicht angelegt werden.', details: error.message },
+    });
+  }
+});
+
+router.get('/quality/jobs/:id', requirePermission('jobs', 'read'), async (req, res) => {
+  try {
+    const job = await getQualityJob(req.params.id);
+    if (!job) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: 404, message: 'Quality-Job wurde nicht gefunden.' },
+      });
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true, data: job });
+  } catch (error) {
+    console.error('Failed to load quality job:', error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Quality-Job konnte nicht geladen werden.', details: error.message },
+    });
+  }
+});
+
+// --- Pricing Engine (v1) ---
+router.post('/v1/pricing/suggest/:productId', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const analysis = await calculateOptimalPrice(req.params.productId);
+    res.json({ ok: true, data: analysis });
+  } catch (error) {
+    console.error('[POST /api/v1/pricing/suggest] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+router.post('/v1/pricing/rules', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const rule = await savePricingRule(req.body);
+    res.json({ ok: true, data: rule });
+  } catch (error) {
+    console.error('[POST /api/v1/pricing/rules] Error:', error.message);
+    res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: error.message } });
+  }
+});
+
+router.get('/v1/pricing/rules', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const rules = await listPricingRules();
+    res.json({ ok: true, data: rules });
+  } catch (error) {
+    console.error('[GET /api/v1/pricing/rules] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+router.post('/v1/pricing/reprice-batch', requirePermission('admin', 'jobs.run'), async (req, res) => {
+  try {
+    const results = await runRepricingJob();
+    res.json({ ok: true, data: results });
+  } catch (error) {
+    console.error('[POST /api/v1/pricing/reprice-batch] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+// --- Inventory Forecasting (v1) ---
+router.get('/v1/forecast/:productId', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const velocity = await calculateSalesVelocity(req.params.productId, days);
+    const stockOut = await predictStockOut(req.params.productId);
+    res.json({ ok: true, data: { ...velocity, ...stockOut } });
+  } catch (error) {
+    console.error('[GET /api/v1/forecast] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+router.get('/v1/forecast/alerts', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const alerts = await generateReorderAlerts();
+    res.json({ ok: true, data: alerts });
+  } catch (error) {
+    console.error('[GET /api/v1/forecast/alerts] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+// --- Webhook System (v1) ---
+router.post('/v1/webhooks', requirePermission('admin', 'webhooks.write'), async (req, res) => {
+  try {
+    const webhook = await createWebhook({ ...req.body, createdBy: req.user?.uid });
+    res.json({ ok: true, data: webhook });
+  } catch (error) {
+    console.error('[POST /api/v1/webhooks] Error:', error.message);
+    res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: error.message } });
+  }
+});
+
+router.get('/v1/webhooks', requirePermission('admin', 'webhooks.read'), async (req, res) => {
+  try {
+    const webhooks = await listWebhooks();
+    res.json({ ok: true, data: webhooks });
+  } catch (error) {
+    console.error('[GET /api/v1/webhooks] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+router.delete('/v1/webhooks/:id', requirePermission('admin', 'webhooks.write'), async (req, res) => {
+  try {
+    await deleteWebhook(req.params.id);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('[DELETE /api/v1/webhooks] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+// --- Produkt-Deduplizierung (v1) ---
+router.get('/v1/products/duplicates', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const duplicates = await findDuplicates();
+    res.json({ ok: true, data: duplicates });
+  } catch (error) {
+    console.error('[GET /api/v1/products/duplicates] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+router.post('/v1/products/merge', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { keepId, removeId } = req.body;
+    if (!keepId || !removeId) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'keepId and removeId required' } });
+    }
+    const result = await executeMerge(keepId, removeId);
+    res.json({ ok: true, data: result });
+  } catch (error) {
+    console.error('[POST /api/v1/products/merge] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+// --- Competitor Intelligence (v1) ---
+router.get('/v1/competitors/:productId/history', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const snap = await firestore.collection('priceHistory')
+      .where('productId', '==', req.params.productId)
+      .where('timestamp', '>=', since)
+      .orderBy('timestamp', 'desc')
+      .limit(500)
+      .get();
+    const history = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ ok: true, data: history });
+  } catch (error) {
+    console.error('[GET /api/v1/competitors/history] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+router.get('/v1/competitors/overview', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const snap = await firestore.collection('priceHistory')
+      .orderBy('timestamp', 'desc')
+      .limit(100)
+      .get();
+    const history = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ ok: true, data: history });
+  } catch (error) {
+    console.error('[GET /api/v1/competitors/overview] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+module.exports = { router, setBackgroundSyncProductStock };

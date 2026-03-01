@@ -1,4 +1,5 @@
-const { getProduct, saveProduct } = require('../lib/firestore');
+const { getProduct } = require('../lib/firestore');
+const { saveProductV2 } = require('../lib/product-store');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { sanitizeDescriptionToHtml, PRICE_SENTENCE_RE } = require('../lib/listing-sanitize');
 const {
@@ -1193,7 +1194,7 @@ async function improveExistingProduct(productId, onProgress) {
     // best-effort
   }
 
-  await saveProduct(mergedProduct, { source: 'job-improve', overwriteTextFields: true });
+  await saveProductV2(mergedProduct, { source: 'job-improve', overwriteTextFields: true });
 
   // Auto-trigger Quality Gate after improve save (optional).
   // Default: OFF to keep bulk improve+sync fast and deterministic.
