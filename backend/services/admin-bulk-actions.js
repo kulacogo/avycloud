@@ -1,6 +1,7 @@
 const path = require('path');
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
-const { firestore, getAllProducts, getProduct, saveProduct } = require('../lib/firestore');
+const { firestore, getAllProducts, getProduct } = require('../lib/firestore');
+const { saveProductV2 } = require('../lib/product-store');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { ensurePriceCoverage } = require('./enrichment');
 const { coerceTitleToPolicy, validateTitleToPolicy, inferTitleCategory } = require('../lib/title-policy');
@@ -437,7 +438,7 @@ async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays
           at_iso: nowIso(),
           maxAgeDays: Number(maxAgeDays) || 0,
         };
-        await saveProduct(cur, { source: 'admin-bulk', skipTitlePolicy: true, skipKeyFeaturesNormalize: true });
+        await saveProductV2(cur, { source: 'admin-bulk', skipTitlePolicy: true, skipKeyFeaturesNormalize: true });
       }
       if (changed) summary.updated += 1;
 
@@ -633,7 +634,7 @@ async function runBulkTitle({
           insight_tokens: insightTokens,
           insights_enabled: useTitleInsights,
         };
-        await saveProduct(cur, { source: 'admin-bulk', skipKeyFeaturesNormalize: true });
+        await saveProductV2(cur, { source: 'admin-bulk', skipKeyFeaturesNormalize: true });
         changedIds.push(String(id));
       }
       summary.updated += 1;
@@ -731,7 +732,7 @@ async function runBulkTitleTrailingDashFix({
           before: currentTitle,
           after: nextTitle,
         };
-        await saveProduct(cur, { source: 'admin-bulk', skipTitlePolicy: true, skipKeyFeaturesNormalize: true, overwriteTextFields: true });
+        await saveProductV2(cur, { source: 'admin-bulk', skipTitlePolicy: true, skipKeyFeaturesNormalize: true, overwriteTextFields: true });
       }
 
       summary.updated += 1;
@@ -852,7 +853,7 @@ async function runBulkHighlightsHtml({
         cur.ops = cur.ops || {};
         cur.ops.data_quality = cur.ops.data_quality || {};
         cur.ops.data_quality.highlights_html_v1 = { at_iso: nowIso(), itemCount: built.itemCount };
-        await saveProduct(cur, { source: 'admin-bulk', skipTitlePolicy: true, skipKeyFeaturesNormalize: true, overwriteTextFields: true });
+        await saveProductV2(cur, { source: 'admin-bulk', skipTitlePolicy: true, skipKeyFeaturesNormalize: true, overwriteTextFields: true });
       }
 
       summary.updated += 1;
@@ -1011,7 +1012,7 @@ async function runBulkDescriptionHtml({
         cur.ops = cur.ops || {};
         cur.ops.data_quality = cur.ops.data_quality || {};
         cur.ops.data_quality.description_html_v1 = { at_iso: nowIso() };
-        await saveProduct(cur, { source: 'admin-bulk', overwriteTextFields: true, skipTitlePolicy: true, skipKeyFeaturesNormalize: true });
+        await saveProductV2(cur, { source: 'admin-bulk', overwriteTextFields: true, skipTitlePolicy: true, skipKeyFeaturesNormalize: true });
       }
 
       summary.updated += 1;
@@ -1205,7 +1206,7 @@ async function runBulkListingReadiness({
         cur.ops.data_quality.listing_readiness_v1 = { at_iso: nowIso() };
         cur.ops.last_saved_source = 'admin-bulk-listing-readiness-v1';
         cur.ops.last_saved_iso = nowIso();
-        await saveProduct(cur, {
+        await saveProductV2(cur, {
           source: 'admin-bulk',
           overwriteTextFields: true,
           replaceAttributes: true,
@@ -1383,7 +1384,7 @@ async function runBulkCategory({ apply = false, limit = 500, offset = 0, debug =
         if (next.details.kauflandCategoryId) delete next.details.kauflandCategoryId;
         if (next.details.kauflandCategoryPath) delete next.details.kauflandCategoryPath;
 
-        await saveProduct(next, {
+        await saveProductV2(next, {
           source: 'admin-bulk-category-v2',
           allowCategoryChange: true,
         });
@@ -1493,7 +1494,7 @@ async function runBulkKType({ apply = false, limit = 500, offset = 0, debug = fa
         cur.ops = cur.ops || {};
         cur.ops.data_quality = cur.ops.data_quality || {};
         cur.ops.data_quality.ktype_bulk_v1 = { at_iso: nowIso(), source: 'mvl_hsn_tsn', hsn_tsn: candidates[0] };
-        await saveProduct(cur, { source: 'admin-bulk', skipTitlePolicy: true, skipKeyFeaturesNormalize: true });
+        await saveProductV2(cur, { source: 'admin-bulk', skipTitlePolicy: true, skipKeyFeaturesNormalize: true });
       }
       summary.updated += 1;
       if (debug && samples.length < 15) {
@@ -2099,7 +2100,7 @@ async function runBulkKauflandSync({
         id_offer: idOffer || null,
         id_unit: resolvedUnitId,
       };
-      await saveProduct(cur, { source: 'admin-bulk-kaufland' });
+      await saveProductV2(cur, { source: 'admin-bulk-kaufland' });
 
       if (debug && samples.length < 40) {
         samples.push({
@@ -2131,7 +2132,7 @@ async function runBulkKauflandSync({
             last_sync_status: 'failed',
             last_error: formattedError,
           };
-          await saveProduct(cur, { source: 'admin-bulk-kaufland' });
+          await saveProductV2(cur, { source: 'admin-bulk-kaufland' });
         }
       } catch {
         // ignore secondary save errors

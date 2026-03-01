@@ -6,7 +6,8 @@ const {
   listJobsByStatus,
   Timestamp,
 } = require('../lib/rulebook-apply-jobs');
-const { getProduct, getAllProducts, saveProduct } = require('../lib/firestore');
+const { getProduct, getAllProducts } = require('../lib/firestore');
+const { saveProductV2 } = require('../lib/product-store');
 const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
 const { getProductBinSummaryMap } = require('../lib/warehouse');
 const { createJob: createBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('../lib/baselinker-sync-jobs');
@@ -207,7 +208,7 @@ async function processRulebookJob(jobId) {
       if (before !== after) {
         changed += 1;
         changedIds.push(String(current.id));
-        await saveProduct(next, { source: 'rulebook-apply', overwriteTextFields: true });
+        await saveProductV2(next, { source: 'rulebook-apply', overwriteTextFields: true });
       }
 
       if (processed % flushEvery === 0 || processed === selected.length) {

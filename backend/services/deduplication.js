@@ -4,7 +4,8 @@
  * Erkennt Duplikate anhand von EAN/MPN/Brand+Model Kombination.
  * NIEMALS automatisch löschen — immer Vorschlag + manuelle Bestätigung.
  */
-const { firestore, getProduct, saveProduct } = require('../lib/firestore');
+const { firestore, getProduct } = require('../lib/firestore');
+const { saveProductV2 } = require('../lib/product-store');
 
 /**
  * Findet potenzielle Duplikate über alle Produkte.
@@ -128,7 +129,7 @@ async function executeMerge(keepId, removeId) {
   ])].filter(Boolean);
 
   // Update keepId mit zusammengeführten Daten
-  await saveProduct({
+  await saveProductV2({
     ...keep,
     identification: {
       ...keep.identification,
