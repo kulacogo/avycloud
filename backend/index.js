@@ -226,9 +226,6 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 app.get('/ready', (req, res) => res.json({ status: 'ready' }));
 
-// --- Extracted Routers ---
-app.use('/api/warehouse', warehouseRouter);
-
 // --- Public Auth API (extracted router, no auth required) ---
 app.use('/api/auth', authRouter);
 
@@ -241,6 +238,7 @@ app.use('/api', (req, res, next) => {
 });
 
 // --- Extracted Routers (authenticated) ---
+app.use('/api/warehouse', warehouseRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api', ordersRouter);
 app.use('/api', identifyRouter);
