@@ -84,6 +84,19 @@ export interface CompetitorPricesResponse {
   fetched_at: string;
 }
 
+export interface PriceHistoryEntry {
+  id: string;
+  productId: string;
+  competitor: string;
+  marketplace: string;
+  price: number;
+  currency: string;
+  source: string;
+  title?: string | null;
+  url?: string | null;
+  timestamp: string;
+}
+
 export interface ProductImage {
   source: ImageSource;
   variant?: ImageVariant | null;

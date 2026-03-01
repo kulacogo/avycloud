@@ -124,9 +124,11 @@ async function runRepricingJob() {
 
         // Update suggestedPrice in Produkt (additiv, überschreibt nicht sellPrice)
         await firestore.collection('products').doc(rule.productId).set({
-          pricing: {
-            suggestedPrice: analysis.suggestedPrice,
-            lastPriceCheck: new Date().toISOString(),
+          details: {
+            pricing: {
+              suggestedPrice: analysis.suggestedPrice,
+              lastPriceCheck: new Date().toISOString(),
+            },
           },
         }, { merge: true });
 

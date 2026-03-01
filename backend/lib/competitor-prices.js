@@ -215,4 +215,40 @@ async function getCompetitorPrices(ean) {
   return data;
 }
 
-module.exports = { getCompetitorPrices, fetchEbayCompetitorListings, fetchKauflandCompetitorListings };
+/**
+ * Log competitor prices to priceHistory collection for trend analysis.
+ * Best-effort — never blocks or throws.
+ */
+async function logPriceHistory(productId, competitorData) {
+  if (!productId) return;
+  try {
+    const { firestore } = require('./firestore');
+    const allListings = [
+      ...(competitorData.ebay || []).map(l => ({ ...l, source: 'ebay' })),
+      ...(competitorData.kaufland || []).map(l => ({ ...l, source: 'kaufland' })),
+    ];
+    if (!allListings.length) return;
+
+    const batch = firestore.batch();
+    const now = new Date().toISOString();
+    for (const listing of allListings) {
+      const ref = firestore.collection('priceHistory').doc();
+      batch.set(ref, {
+        productId,
+        competitor: listing.seller || listing.marketplace,
+        marketplace: listing.marketplace,
+        price: listing.price,
+        currency: listing.currency || 'EUR',
+        source: listing.source,
+        title: listing.title || null,
+        url: listing.url || null,
+        timestamp: now,
+      });
+    }
+    await batch.commit();
+  } catch (err) {
+    console.warn('[competitor-prices] priceHistory logging failed:', err?.message || err);
+  }
+}
+
+module.exports = { getCompetitorPrices, fetchEbayCompetitorListings, fetchKauflandCompetitorListings, logPriceHistory };

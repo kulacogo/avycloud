@@ -30,6 +30,7 @@ import {
   EbayBulkPublishVerifyResult,
   EbayBulkPublishResult,
   CompetitorPricesResponse,
+  PriceHistoryEntry,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -1944,15 +1945,37 @@ export const fetchProductById = async (productId: string): Promise<Product> => {
   return normalizeProduct(raw);
 };
 
-export const fetchCompetitorPrices = async (ean: string): Promise<CompetitorPricesResponse> => {
+export const fetchCompetitorPrices = async (ean: string, productId?: string): Promise<CompetitorPricesResponse> => {
+  const params = new URLSearchParams({ ean });
+  if (productId) params.set('productId', productId);
   const response = await fetchApi(
-    `${BACKEND_URL}/api/competitor-prices?ean=${encodeURIComponent(ean)}`
+    `${BACKEND_URL}/api/competitor-prices?${params.toString()}`
   );
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Konkurrenzpreise konnten nicht geladen werden.');
   }
   return result?.data || { ebay: [], kaufland: [], cached: false, fetched_at: new Date().toISOString() };
+};
+
+export const fetchCompetitorHistory = async (productId: string, days = 30): Promise<PriceHistoryEntry[]> => {
+  const response = await fetchApi(
+    `${BACKEND_URL}/api/v1/competitors/${encodeURIComponent(productId)}/history?days=${days}`
+  );
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Preisverlauf konnte nicht geladen werden.');
+  }
+  return result?.data || [];
+};
+
+export const fetchCompetitorOverview = async (): Promise<PriceHistoryEntry[]> => {
+  const response = await fetchApi(`${BACKEND_URL}/api/v1/competitors/overview`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Konkurrenz-Übersicht konnte nicht geladen werden.');
+  }
+  return result?.data || [];
 };
 
 export const fetchEbayCategories = async (params: {

@@ -375,8 +375,13 @@ router.get('/competitor-prices', requirePermission('products', 'read'), async (r
     if (!ean || ean.length < 8) {
       return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing or invalid EAN/GTIN' } });
     }
-    const { getCompetitorPrices } = require('../lib/competitor-prices');
+    const { getCompetitorPrices, logPriceHistory } = require('../lib/competitor-prices');
     const data = await getCompetitorPrices(ean);
+    // If productId is provided, log to priceHistory for trend analysis (best-effort)
+    const productId = typeof req.query?.productId === 'string' ? req.query.productId.trim() : '';
+    if (productId && !data.cached) {
+      logPriceHistory(productId, data).catch(() => {});
+    }
     return res.status(200).json({ ok: true, data });
   } catch (error) {
     console.error('Failed to fetch competitor prices:', error);
