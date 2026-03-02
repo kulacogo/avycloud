@@ -1290,16 +1290,12 @@ function enforceEbayAspects(product) {
     const canonicalName = canonicalByLower.get(lower) || finalKey;
     const canonicalLower = normalizeLower(canonicalName);
 
-    // Governance: if we have a taxonomy allowlist for this category, do not keep invented / non-taxonomy keys
-    // in the main datasheet (details.attributes). Preserve them in attributes_extra for forensics.
+    // Governance: marketplace-specific keys (ebay_*, kaufland_*) are always removed.
+    // Non-taxonomy product attributes are kept in details.attributes so user data is never silently lost.
+    // eBay taxonomy enforcement happens at listing time, not at product save time.
     if (enforceAllowlist) {
-      const allowed = allowedLowerSet.has(canonicalLower) || ALWAYS_ALLOWED_KEYS_LOWER.has(canonicalLower);
-      if (!allowed) {
-        // Never keep marketplace-specific keys anywhere (including attributes_extra).
-        const originalLower = normalizeLower(originalKey);
-        if (!(originalLower.includes('ebay') || originalLower.includes('kaufland'))) {
-          nextExtra[originalKey] = val;
-        }
+      const originalLower = normalizeLower(originalKey);
+      if (originalLower.includes('ebay') || originalLower.includes('kaufland')) {
         return;
       }
     }
