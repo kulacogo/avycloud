@@ -1,12 +1,12 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Product, DatasheetChange, ProductImage, SerpInsight } from '../types';
-import { chatWithAssistant, buildImageProxyUrl } from '../api/client';
+import { buildImageProxyUrl, getChatSession, clearChatSession } from '../api/client';
+import { useChatStream, StreamEvent } from '../hooks/useChatStream';
 import ChatContainer from './chat/ChatContainer';
 import ChatInput, { ChatInputAttachment } from './chat/ChatInput';
 import MessageBubble from './chat/MessageBubble';
 import { SparklesIcon } from './icons/Icons';
-import { Spinner } from './Spinner';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, isValidGtin } from '../utils/gtin';
 
@@ -258,11 +258,52 @@ const mapSuggestionsToAttachments = (
   return attachments;
 };
 
+const TOOL_LABELS: Record<string, string> = {
+  brightdata_web_search: 'Websuche',
+  serpapi_web_search: 'Websuche',
+  web_fetch: 'Seite lesen',
+  baselinker_category_search: 'Kategorie suchen',
+  update_product_datasheet: 'Änderung erstellen',
+};
+
+const StreamProgressLine: React.FC<{ event: StreamEvent }> = ({ event }) => {
+  if (event.type === 'start') {
+    return (
+      <div className="flex items-center gap-2 text-slate-400">
+        <span className="inline-block h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
+        <span>{event.text || 'Starte…'}</span>
+      </div>
+    );
+  }
+  if (event.type === 'tool_start') {
+    const label = TOOL_LABELS[event.tool] || event.tool;
+    const detail = event.query || event.url || '';
+    return (
+      <div className="flex items-center gap-2 text-slate-300">
+        <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+        <span>{label}{detail ? <span className="ml-1 text-slate-500 truncate max-w-[180px] inline-block align-bottom">"{detail}"</span> : null}</span>
+      </div>
+    );
+  }
+  if (event.type === 'tool_done') {
+    const label = TOOL_LABELS[event.tool] || event.tool;
+    const detail = event.count != null ? `${event.count} Ergebnisse` : event.fields != null ? `${event.fields} Felder` : '';
+    return (
+      <div className="flex items-center gap-2 text-slate-500">
+        <span className="text-emerald-500">✓</span>
+        <span>{label}{detail ? <span className="ml-1">({detail})</span> : null}</span>
+      </div>
+    );
+  }
+  return null;
+};
+
 const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheetChange, onAddImages }) => {
   const { t } = useI18n();
+  const { send: chatSend, isStreaming, events: streamEvents, reset: resetStream } = useChatStream();
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [attachmentDrafts, setAttachmentDrafts] = useState<AttachmentDraft[]>([]);
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
@@ -446,7 +487,34 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     if (stickToBottom && chatBodyRef.current) {
       chatBodyRef.current.scrollTo({ top: chatBodyRef.current.scrollHeight, behavior: 'smooth' });
     }
-  }, [messages, pendingChanges, pendingImages, serpInsights, stickToBottom]);
+  }, [messages, pendingChanges, pendingImages, serpInsights, stickToBottom, streamEvents]);
+
+  // Load existing conversation history from Firestore on mount
+  useEffect(() => {
+    if (!product?.id) return;
+    getChatSession(product.id).then((res) => {
+      if (!res.ok || !res.session) return;
+      const session = res.session;
+      setSessionId(session.id);
+      if (!session.messages?.length) return;
+      // Convert stored messages to display format (only show last 10 pairs = 20 messages)
+      const loadedMessages: ChatMessage[] = session.messages
+        .slice(-20)
+        .filter((m) => m.role === 'user' || m.role === 'model')
+        .map((m) => ({
+          id: uid(),
+          role: m.role === 'model' ? 'assistant' : 'user',
+          text: m.text,
+          timestamp: m.ts,
+        }));
+      if (loadedMessages.length > 0) {
+        setMessages(loadedMessages);
+      }
+    }).catch(() => {
+      // Session load is best-effort — don't block the chat
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   useEffect(
     () => () => {
@@ -508,6 +576,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     setPendingImages([]);
     setSerpInsights([]);
     setAttachmentDrafts([]);
+    setSessionId(null);
+    resetStream();
+    // Clear backend session history (best-effort)
+    if (product?.id) {
+      clearChatSession(product.id).catch(() => {});
+    }
   };
 
   const handleInsertContext = () => {
@@ -642,7 +716,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
 
   const handleSend = useCallback(
     async (predefinedMessage?: string, scopeOverride?: string | null) => {
-      if (isLoading) return;
+      if (isStreaming) return;
       const trimmedInput = (predefinedMessage ?? input).trim();
       if (!trimmedInput && attachmentDrafts.length === 0) return;
 
@@ -670,23 +744,27 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       ]);
       setInput('');
       setAttachmentDrafts([]);
-      setIsLoading(true);
 
       const payloadMessage = trimmedInput || 'Bitte analysiere die angehängten Dateien.';
+      const scope = scopeOverride ?? derivedScope;
 
       try {
-        // Scope is derived from options (not from prompt text), so it remains stable even if the user edits the prompt.
-        const scope = scopeOverride ?? derivedScope;
-        const result = await chatWithAssistant(product.id, payloadMessage, outgoingFiles, scope);
-        if (!result.ok || !result.data) {
-          throw new Error(result.error?.message || 'Unbekannter Fehler');
+        const data = await chatSend({
+          productId: product.id,
+          message: payloadMessage,
+          attachments: outgoingFiles,
+          scope,
+        });
+
+        if (!data) {
+          throw new Error('Keine Antwort erhalten');
         }
 
-        const assistantAttachments = mapSuggestionsToAttachments(result.data.imageSuggestions, t('chat.ui.imageAlt'));
-        const linkedChanges = appendPendingChanges(result.data.datasheetChanges);
-        const structuredEdits = extractStructuredEdits(result.data.message);
+        const assistantAttachments = mapSuggestionsToAttachments(data.imageSuggestions, t('chat.ui.imageAlt'));
+        const linkedChanges = appendPendingChanges(data.datasheetChanges);
+        const structuredEdits = extractStructuredEdits(data.message);
         const structuredLinked = appendPendingChanges(structuredEdits);
-        const cleanedMessage = cleanAssistantMessage(result.data.message);
+        const cleanedMessage = cleanAssistantMessage(data.message);
         const assistantMessage: ChatMessage = {
           id: uid(),
           role: 'assistant',
@@ -697,8 +775,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         };
         setMessages((prev) => [...prev, assistantMessage]);
 
-        appendPendingImages(result.data.imageSuggestions);
-        setSerpInsights(result.data.serpTrace || []);
+        appendPendingImages(data.imageSuggestions);
+        setSerpInsights(data.serpTrace || []);
       } catch (error: any) {
         setMessages((prev) => [
           ...prev,
@@ -710,11 +788,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           },
         ]);
         setAttachmentDrafts(outgoingDrafts);
-      } finally {
-        setIsLoading(false);
       }
     },
-    [attachmentDrafts, derivedScope, input, isLoading, product.id, t]
+    [attachmentDrafts, chatSend, derivedScope, input, isStreaming, product.id, t]
   );
 
   return (
@@ -751,11 +827,19 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               applyingChangeIds={applyingChangeIds}
             />
           ))}
-          {isLoading && (
+          {isStreaming && (
             <div className="flex justify-start">
-              <div className="flex items-center gap-2 rounded-2xl bg-slate-800/80 px-4 py-3 text-sm text-slate-200">
-                <Spinner className="h-4 w-4" />
-                {t('chat.ui.thinking')}
+              <div className="rounded-2xl bg-slate-800/80 px-4 py-3 text-sm text-slate-200 space-y-1 min-w-[200px]">
+                {streamEvents.length === 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
+                    {t('chat.ui.thinking')}
+                  </div>
+                ) : (
+                  streamEvents.slice(-4).map((event, idx) => (
+                    <StreamProgressLine key={idx} event={event} />
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -967,7 +1051,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   const smart = buildSmartPrompt();
                   void handleSend(smart, derivedScope);
                 }}
-                className="rounded-full bg-sky-600 px-3 py-1 text-[12px] font-semibold text-white hover:bg-sky-500"
+                disabled={isStreaming}
+                className="rounded-full bg-sky-600 px-3 py-1 text-[12px] font-semibold text-white hover:bg-sky-500 disabled:opacity-50 disabled:cursor-wait"
               >
                 Jetzt ausführen
               </button>
@@ -981,7 +1066,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             setInput(v);
           }}
           onSend={() => void handleSend()}
-          disabled={isLoading}
+          disabled={isStreaming}
           attachments={attachmentDrafts}
           onFilesSelected={handleFilesAdded}
           onRemoveAttachment={handleRemoveAttachment}

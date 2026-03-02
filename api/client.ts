@@ -2884,7 +2884,52 @@ export interface ChatAssistantPayload {
   datasheetChanges: DatasheetChange[];
   imageSuggestions: ImageSuggestionGroup[];
   serpTrace: SerpInsight[];
+  intent?: 'change' | 'info' | 'analysis';
 }
+
+export interface ChatSessionMessage {
+  role: 'user' | 'model';
+  text: string;
+  ts: string;
+}
+
+export interface ChatSession {
+  id: string;
+  productId: string;
+  userId: string;
+  messages: ChatSessionMessage[];
+}
+
+export const getChatSession = async (
+  productId: string
+): Promise<{ ok: boolean; session?: ChatSession | null; error?: { code: number; message: string } }> => {
+  try {
+    const response = await fetchApi(`${BACKEND_URL}/api/chat/session/${encodeURIComponent(productId)}`, {
+      method: 'GET',
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Failed to load session' } };
+    }
+    return { ok: true, session: result?.session ?? null };
+  } catch (error) {
+    return { ok: false, error: { code: 500, message: 'Failed to load chat session' } };
+  }
+};
+
+export const clearChatSession = async (
+  productId: string
+): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
+  try {
+    const response = await fetchApi(`${BACKEND_URL}/api/chat/session/${encodeURIComponent(productId)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) return { ok: false, error: { code: response.status, message: 'Failed to clear session' } };
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: { code: 500, message: 'Failed to clear chat session' } };
+  }
+};
 
 export const chatWithAssistant = async (
   productId: string | undefined,
@@ -2947,6 +2992,38 @@ export const chatWithAssistant = async (
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };
   }
+};
+
+/**
+ * Opens a streaming chat connection. Returns the raw Response object so the caller
+ * can read response.body as a ReadableStream for SSE events.
+ * Used by useChatStream.ts hook.
+ */
+export const startChatStream = async (
+  productId: string,
+  message: string,
+  attachments: File[] = [],
+  scope?: string | null
+): Promise<Response> => {
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+  let requestInit: RequestInit;
+
+  if (hasAttachments) {
+    const formData = new FormData();
+    formData.append('productId', productId);
+    formData.append('message', message);
+    if (scope) formData.append('scope', scope);
+    attachments.forEach((file) => formData.append('attachments', file));
+    requestInit = { method: 'POST', body: formData };
+  } else {
+    requestInit = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId, message, scope }),
+    };
+  }
+
+  return fetchApi(`${BACKEND_URL}/api/chat?stream=true`, requestInit);
 };
 
 export const runSerpapiFreeEnrichment = async (

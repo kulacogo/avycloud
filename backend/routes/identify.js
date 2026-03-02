@@ -14,6 +14,7 @@ const { ensureCategories, runDatasheetReview, prefetchWebEvidenceForIdentify, ap
 const { runSerpapiFreePipeline } = require('../services/enrichment-v2');
 const { buildProductFromV2Record } = require('../lib/v2-product-builder');
 const { runProductChat } = require('../services/product-chat');
+const { buildSessionId, getSession, appendMessages, clearSession, getGeminiHistory } = require('../lib/chat-sessions');
 const { isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { enrichPriceForProductBestEffort } = require('../lib/price-enrichment');
@@ -644,8 +645,43 @@ router.post('/identify', upload.array('images'), async (req, res) => {
   });
 });
 
+// GET /api/chat/session/:productId — Load existing chat session history
+router.get('/chat/session/:productId', requirePermission('ai', 'chat'), async (req, res) => {
+  try {
+    const userId = req.user?.uid;
+    const { productId } = req.params;
+    if (!userId || !productId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'userId and productId required' } });
+    }
+    const session = await getSession(userId, productId);
+    res.json({ ok: true, session });
+  } catch (error) {
+    console.error('[GET /api/chat/session] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+// DELETE /api/chat/session/:productId — Clear chat session history
+router.delete('/chat/session/:productId', requirePermission('ai', 'chat'), async (req, res) => {
+  try {
+    const userId = req.user?.uid;
+    const { productId } = req.params;
+    if (!userId || !productId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'userId and productId required' } });
+    }
+    await clearSession(userId, productId);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('[DELETE /api/chat/session] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
 // POST /api/chat — Product chat via Gemini
+// Supports ?stream=true for SSE streaming (progress events + final result)
 router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploadMiddleware, async (req, res) => {
+  const streamMode = req.query.stream === 'true';
+
   try {
     const { productId, message, model: bodyModel, scope } = req.body;
     const modelOverride = req.query?.model || bodyModel || null;
@@ -662,50 +698,118 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
     const normalizedMessage = typeof message === 'string' ? message.trim() : '';
 
     if (!productId || (!normalizedMessage && !hasAttachments)) {
+      if (streamMode) {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+        res.write(`data: ${JSON.stringify({ type: 'error', message: 'Product ID und entweder eine Nachricht oder Dateianhänge sind erforderlich.' })}\n\n`);
+        return res.end();
+      }
       return res.status(400).json({
         ok: false,
-        error: {
-          code: 400,
-          message: 'Product ID und entweder eine Nachricht oder Dateianhänge sind erforderlich.',
-        },
+        error: { code: 400, message: 'Product ID und entweder eine Nachricht oder Dateianhänge sind erforderlich.' },
       });
     }
 
     const product = await getProduct(productId);
     if (!product) {
-      return res.status(404).json({
-        ok: false,
-        error: {
-          code: 404,
-          message: 'Product not found',
-        },
-      });
+      if (streamMode) {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+        res.write(`data: ${JSON.stringify({ type: 'error', message: 'Product not found' })}\n\n`);
+        return res.end();
+      }
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'Product not found' } });
     }
 
-    const chatResult = await runProductChat(product, normalizedMessage || 'Bitte analysiere die angehängten Dateien.', {
+    // Load conversation history for this user+product session
+    const userId = req.user?.uid;
+    const sessionId = buildSessionId(userId, productId);
+    let session = null;
+    let conversationHistory = [];
+    try {
+      session = await getSession(userId, productId);
+      conversationHistory = getGeminiHistory(session);
+    } catch (e) {
+      console.warn('[chat] Could not load session history:', e.message);
+    }
+
+    const payloadMessage = normalizedMessage || 'Bitte analysiere die angehängten Dateien.';
+    const normalizedScope = typeof scope === 'string' ? scope.trim() : null;
+
+    if (streamMode) {
+      // SSE streaming mode: write progress events as they happen
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      });
+
+      const writeEvent = (event) => {
+        try {
+          res.write(`data: ${JSON.stringify(event)}\n\n`);
+        } catch {
+          // Client disconnected
+        }
+      };
+
+      const onProgress = (event) => writeEvent(event);
+
+      try {
+        const chatResult = await runProductChat(product, payloadMessage, {
+          modelOverride,
+          attachments,
+          scope: normalizedScope,
+          history: conversationHistory,
+          onProgress,
+        });
+
+        // Save messages to session (best-effort, non-blocking)
+        appendMessages(sessionId, userId, productId, payloadMessage, chatResult.message || '').catch((e) => {
+          console.warn('[chat] Failed to save session:', e.message);
+        });
+
+        writeEvent({ type: 'result', data: chatResult, model: chatResult.modelUsed });
+        writeEvent({ type: 'done' });
+      } catch (error) {
+        console.error('[chat stream] Error:', error.message);
+        writeEvent({ type: 'error', message: String(error?.message || 'Unknown error').slice(0, 500) });
+      }
+      return res.end();
+    }
+
+    // Sync mode (default): await full result, respond with JSON
+    const chatResult = await runProductChat(product, payloadMessage, {
       modelOverride,
       attachments,
-      scope: typeof scope === 'string' ? scope.trim() : null,
+      scope: normalizedScope,
+      history: conversationHistory,
     });
 
-    res.json({
-      ok: true,
-      model: chatResult.modelUsed,
-      data: chatResult,
+    // Save messages to session (best-effort, non-blocking)
+    appendMessages(sessionId, userId, productId, payloadMessage, chatResult.message || '').catch((e) => {
+      console.warn('[chat] Failed to save session:', e.message);
     });
+
+    res.json({ ok: true, model: chatResult.modelUsed, data: chatResult });
+
   } catch (error) {
     console.error('Error in chat endpoint:', error);
     const detailsRaw = error?.message || 'Unknown error';
     const details = String(detailsRaw).replace(/\s+/g, ' ').trim().slice(0, 500);
-    res.status(500).json({
-      ok: false,
-      model: error.modelUsed,
-      error: {
-        code: 500,
-        message: details ? `Failed to process chat request (${details})` : 'Failed to process chat request',
-        details: details || 'Unknown error',
-      },
-    });
+    if (streamMode && !res.headersSent) {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+      res.write(`data: ${JSON.stringify({ type: 'error', message: details })}\n\n`);
+      return res.end();
+    }
+    if (!res.headersSent) {
+      res.status(500).json({
+        ok: false,
+        model: error.modelUsed,
+        error: {
+          code: 500,
+          message: details ? `Failed to process chat request (${details})` : 'Failed to process chat request',
+          details: details || 'Unknown error',
+        },
+      });
+    }
   }
 });
 

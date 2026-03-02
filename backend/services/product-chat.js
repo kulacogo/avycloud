@@ -53,6 +53,32 @@ const MARKETING_MIN_RESULTS = 3;
 const MARKETING_MAX_RESULTS = 6;
 const BARCODE_INTENT_REGEX = /\b(ean|gtin|upc)\b/i;
 
+/**
+ * Classifies user intent before running the full agentic loop.
+ * 'change'   → User wants product data updated (default, runs all fallbacks)
+ * 'info'     → User wants an answer/information (skips forced change fallbacks)
+ * 'analysis' → User wants a quality report/evaluation (skips forced change fallbacks)
+ */
+function detectIntent(message) {
+  const msg = String(message || '');
+  const INFO_PATTERNS = [
+    /\b(was ist|was sind|was bedeutet|wie ist|wie viel|wie viele|wie teuer|wann|wo|warum|welche|welcher|welches)\b/i,
+    /\b(erkläre|erklär|beschreib|vergleiche|vergleich|unterschied|info|information)\b/i,
+    /\b(preis|preise|kosten|marktpreis|wettbewerb|konkurrenz|markt|angebot)\b/i,
+    /\b(gibt es|kann man|ist das|hat das|besitzt|enthält|beinhaltet)\b/i,
+    /\b(what is|explain|how much|compare|difference|price|cost)\b/i,
+  ];
+  const ANALYSIS_PATTERNS = [
+    /\b(analysiere|analyse|analysier|prüfe|prüf|bewerte|bewertet|überprüfe|überprüf)\b/i,
+    /\b(qualität|datenqualität|vollständigkeit|check|checke|checklist|audit)\b/i,
+    /\b(was fehlt|was ist falsch|was stimmt nicht|fehler|problem|probleme)\b/i,
+    /\b(bericht|report|zusammenfassung|übersicht|wie gut|wie vollständig)\b/i,
+  ];
+  if (INFO_PATTERNS.some((p) => p.test(msg))) return 'info';
+  if (ANALYSIS_PATTERNS.some((p) => p.test(msg))) return 'analysis';
+  return 'change';
+}
+
 function strictRulesEnabled() {
   // Default is "no rules" per user request. Opt-in only.
   const b = (v) => {
@@ -1387,7 +1413,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     'Interpret every supplied image (product gallery + user attachments) in concise wording; if imagery is weak, state what to shoot next.',
     'When the user explicitly asks for "mehr Details", "ausführlich", "voller Report", "lange Analyse" or similar, switch to DEEP MODE with structured sections and long explanations. Otherwise stay in SHORT MODE.',
     'Marketing-image requests must return exactly: one short sentence + a list of 3–6 concrete image URLs with 3–5 word labels (hero, lifestyle, detail, packshot, etc.). No long strategy unless explicitly asked.',
-    'Never recycle the customer’s existing gallery URLs for marketing-image answers; prefer fresh web sources. Do NOT call generate_ai_images unless the user EXPLICITLY asks for AI-generated/rendered images.',
+    "Never recycle the customer's existing gallery URLs for marketing-image answers; prefer fresh web sources. Do NOT call generate_ai_images unless the user EXPLICITLY asks for AI-generated/rendered images.",
     'When the user asks for "Web-Produktbilder", "Produktbilder", or "Bilder suchen", ALWAYS use web search (brightdata_web_search) to find REAL product photos from shops/marketplaces. Never substitute with AI-generated images.',
     'When proposing product updates, explain briefly (1–2 sentences) and include a minimal JSON snippet called "edit" that only contains the changed fields.',
     ...(rulesOn
@@ -1991,11 +2017,18 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
 
 // --- Main Chat Function (Gemini) ---
 
-async function runProductChat(product, userMessage, { modelOverride = null, attachments = [], scope = null } = {}) {
+async function runProductChat(product, userMessage, {
+  modelOverride = null,
+  attachments = [],
+  scope = null,
+  history = [],      // Conversation history: [{role, parts}] from chat-sessions.getGeminiHistory()
+  onProgress = null, // Progress callback for SSE streaming: (event) => void
+} = {}) {
   const client = await getGeminiClient();
   const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-2.5-flash');
 
   const locale = 'de-DE';
+  const intent = detectIntent(userMessage || '');
   const conversationMode = detectConversationMode(userMessage || '');
   const marketingFocus = isMarketingImageRequest(userMessage || '');
   const webOnlyImages = marketingFocus && WEB_ONLY_IMAGE_REGEX.test(userMessage || '');
@@ -2121,28 +2154,33 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     systemInstruction: systemPromptText,
   });
 
-  const chat = model.startChat({
-    history: [
-      {
-        role: 'user',
-        parts: [{ text: `System Context:\n${serializedContext}` }],
-      },
-      {
-        role: 'model',
-        parts: [{ text: 'Acknowledged. I have the product context and am ready to act autonomously.' }],
-      },
-      ...(attachmentPayload.imageParts.length ? [{
-        role: 'user',
-        parts: [
-          { text: 'Referenzbilder des Produkts:' },
-          ...attachmentPayload.imageParts
-        ]
-      }, {
-        role: 'model',
-        parts: [{ text: 'Bilder empfangen.' }]
-      }] : [])
-    ],
-  });
+  // Build Gemini history: product context first, then conversation history, then image turns.
+  // The product context is always rebuilt fresh (user may have applied changes between messages).
+  const geminiHistory = [
+    {
+      role: 'user',
+      parts: [{ text: `System Context:\n${serializedContext}` }],
+    },
+    {
+      role: 'model',
+      parts: [{ text: 'Acknowledged. I have the product context and am ready to act autonomously.' }],
+    },
+    // Inject previous conversation turns (last N pairs from Firestore)
+    ...(Array.isArray(history) ? history : []),
+    // Image attachments for the current request
+    ...(attachmentPayload.imageParts.length ? [{
+      role: 'user',
+      parts: [
+        { text: 'Referenzbilder des Produkts:' },
+        ...attachmentPayload.imageParts
+      ]
+    }, {
+      role: 'model',
+      parts: [{ text: 'Bilder empfangen.' }]
+    }] : [])
+  ];
+
+  const chat = model.startChat({ history: geminiHistory });
 
   let currentMessageParts = [
     {
@@ -2180,6 +2218,8 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
 
 
   try {
+    onProgress?.({ type: 'start', text: 'Starte Analyse…' });
+
     let response = await chat.sendMessage(currentMessageParts);
     let responseText = response.response.text();
     let functionCalls = response.response.functionCalls();
@@ -2197,7 +2237,9 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
           // Chat policy: always use unrestricted web search (ignore site-limits).
           const cleanedArgs = args && typeof args === 'object' ? { ...args } : {};
           delete cleanedArgs.sites;
+          onProgress?.({ type: 'tool_start', tool: 'brightdata_web_search', query: cleanedArgs.query || '' });
           const result = await executeBrightdataSearchToolCall({ arguments: JSON.stringify(cleanedArgs) });
+          onProgress?.({ type: 'tool_done', tool: 'brightdata_web_search', count: (result.results || []).length });
           serpTrace.push({
             type: 'brightdata',
             engine: result.engine,
@@ -2221,7 +2263,9 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
           if (engineLower === 'ebay' || engineLower === 'ebay_product' || engineLower === 'amazon') {
             cleanedArgs.engine = 'google';
           }
+          onProgress?.({ type: 'tool_start', tool: 'serpapi_web_search', query: cleanedArgs.query || '' });
           const result = await executeSerpapiToolCall({ arguments: JSON.stringify(cleanedArgs) });
+          onProgress?.({ type: 'tool_done', tool: 'serpapi_web_search', count: (result.summary || []).length });
           serpTrace.push({
             type: 'serpapi',
             engine: result.engine,
@@ -2232,7 +2276,9 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
           toolResult = { summary: result.summary, error: result.error };
         }
         else if (name === 'web_fetch') {
+          onProgress?.({ type: 'tool_start', tool: 'web_fetch', url: args?.url || '' });
           const result = await executeWebFetchToolCall({ arguments: JSON.stringify(args) });
+          onProgress?.({ type: 'tool_done', tool: 'web_fetch', status: result.status || 0 });
           serpTrace.push({
             type: 'web_fetch',
             url: result.url,
@@ -2242,7 +2288,9 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
           toolResult = result;
         }
         else if (name === 'baselinker_category_search') {
+          onProgress?.({ type: 'tool_start', tool: 'baselinker_category_search', query: args?.query || '' });
           const result = await executeBaselinkerCategorySearchToolCall({ arguments: JSON.stringify(args) });
+          onProgress?.({ type: 'tool_done', tool: 'baselinker_category_search' });
           toolResult = result;
         }
         else if (name === 'update_product_datasheet') {
@@ -2255,6 +2303,7 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
           }
           if (Object.keys(nextChange).length) {
             datasheetChanges.push(nextChange);
+            onProgress?.({ type: 'tool_done', tool: 'update_product_datasheet', fields: Object.keys(nextChange).length });
           }
           toolResult = { acknowledged: true, applied_fields: Object.keys(nextChange), policy_issues: issues.slice(0, 20) };
         }
@@ -2313,8 +2362,10 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
 
     // Fallback: Sometimes Gemini answers without calling update_product_datasheet.
     // This makes "Übernahme" in the UI feel sporadic because no structured change exists to apply.
-    // We run a deterministic 2nd pass that converts the assistant message into ONE tool call.
-    if ((!datasheetChanges || datasheetChanges.length === 0) && responseText) {
+    // For info/analysis intent, skip forced fallbacks — the text response IS the answer.
+    if (intent !== 'change') {
+      // No forced change card for info/analysis intent — just return the text.
+    } else if ((!datasheetChanges || datasheetChanges.length === 0) && responseText) {
       try {
         const updateOnlyTools = [
           {
@@ -2390,8 +2441,8 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     }
 
     // Hard guarantee: if we STILL have no datasheetChanges, run one forced BrightData search+fetch+update pass.
-    // This ensures the UI always gets an actionable "Übernehmen" card (’at least notes’).
-    if (!datasheetChanges || datasheetChanges.length === 0) {
+    // Only for 'change' intent — info/analysis responses don't need a forced change card.
+    if (intent === 'change' && (!datasheetChanges || datasheetChanges.length === 0)) {
       try {
         const forced = await forceOneEvidencePass(product, userMessage, { scope, titleHintTokens });
         if (forced?.traces?.length) serpTrace.push(...forced.traces);
@@ -2467,7 +2518,8 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
     const consolidatedChange = consolidateDatasheetChanges(datasheetChanges);
     const finalDatasheetChanges = consolidatedChange ? [consolidatedChange] : [];
     const imageOnlyScope = scopeSet.size > 0 && Array.from(scopeSet).every((token) => token === 'images');
-    if (!finalDatasheetChanges.length && !imageOnlyScope) {
+    // Only push the "no changes" placeholder for 'change' intent — info/analysis responses just return text.
+    if (!finalDatasheetChanges.length && !imageOnlyScope && intent === 'change') {
       finalDatasheetChanges.push({
         summary: 'Keine sicheren Änderungen',
         notes: {
@@ -2508,7 +2560,8 @@ async function runProductChat(product, userMessage, { modelOverride = null, atta
       imageSuggestions,
       serpTrace,
       ebayReadiness,
-      modelUsed: modelName
+      modelUsed: modelName,
+      intent,
     };
 
   } catch (error) {
