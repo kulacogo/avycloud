@@ -13,6 +13,7 @@ const { startRulebookRunner } = require('./services/rulebook-runner');
 const { startAdminBulkRunner } = require('./services/admin-bulk-runner');
 const { startPricingRunner } = require('./services/pricing-runner');
 const { startListingSyncRunner } = require('./services/listing-sync-runner');
+const { startCompetitorRefreshRunner } = require('./services/competitor-refresh-runner');
 const { router: warehouseRouter, setBackgroundSync: setWarehouseBackgroundSync } = require('./routes/warehouse');
 const authRouter = require('./routes/auth');
 const adminRouter = require('./routes/admin');
@@ -147,6 +148,11 @@ try {
   startListingSyncRunner();
 } catch (e) {
   console.warn('[ListingSyncRunner] failed to start (non-blocking):', e?.message || e);
+}
+try {
+  startCompetitorRefreshRunner();
+} catch (e) {
+  console.warn('[CompetitorRefreshRunner] failed to start (non-blocking):', e?.message || e);
 }
 ensureDefaultRoles()
   .then(() => console.log('RBAC default roles ensured.'))

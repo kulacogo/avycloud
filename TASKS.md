@@ -40,6 +40,36 @@
   - ✅ `types.ts` Pricing-Interface erweitert: `sellPrice`, `suggestedPrice`, `pricingTier`, `pricingConfidence`, `pricingMatchBasis`
   - ℹ️ Frontend-Badge für `ops.listingStatus` noch nicht implementiert (ProductSheet zeigt noch manuellen Status)
 
+- [x] **P0: Konkurrenzpreise-System umbauen** — ✅ DONE (2026-03-03)
+  - `PRICE_MARKETPLACE_SITES` erweitert: amazon.de, idealo.de, zalando.de hinzugefügt
+  - `competitor-refresh-runner.js` neu erstellt (72h-Intervall, COMPETITOR_REFRESH_ENABLED flag, 2s Throttle)
+  - `storeCompetitorPricesToProduct()` in `competitor-prices.js` ergänzt — speichert Daten in `details.pricing.competitorPrices[]` + `lastPriceCheck`
+  - Pricing Engine Tier 1 liest jetzt aus `details.pricing.competitorPrices` (statt veraltetes `details.competitorPrices`)
+  - `CompetitorPrices.tsx` zeigt stored Daten sofort ohne API-Call — Refresh-Button für manuelle Aktualisierung
+  - `types.ts` `Pricing` Interface um `competitorPrices?: CompetitorListing[]` erweitert
+  - Runner in `index.js` registriert
+  - **Problem:** `competitor-prices.js` nutzt nur eBay Browse API (GTIN-only) + Kaufland Seller API. Kein Keyword-Fallback, keine breite Suche. Ergebnis: die meisten Produkte bekommen 0 Konkurrenzpreise angezeigt.
+  - **Lösung:** Bestehende `price-enrichment.js`-Infrastruktur nutzen (SerpAPI → BrightData SERP → Web Unlocker). Die Logik existiert bereits, ist aber nur an Identify-Flow und manuelles Script angebunden — nicht an das Frontend-Widget.
+  - **Marketplace-Abdeckung erweitern:** Aktuell nur `ebay.de`, `kaufland.de`, `hood.de`. Hinzufügen:
+    - `amazon.de` — größter DE-Marktplatz, Pflicht für Preisvergleich
+    - `idealo.de` — Preisvergleichsportal, aggregiert viele Shops
+    - `google shopping` (shopping.google.de) — breiter Preisvergleich
+    - `zalando.de` — relevant für Fashion/Lifestyle-Kategorien
+  - **Intervall-basiert statt live** — BrightData-Kosten kontrollieren:
+    - NICHT bei jedem ProductSheet-Öffnen live scrapen
+    - Neuer Runner: `competitor-refresh-runner.js` — alle 72 Stunden pro Produkt
+    - Ergebnisse in `details.pricing.competitorPrices[]` speichern (mit `condition`, `marketplace`, `price`, `url`, `fetchedAt`)
+    - Frontend zeigt gespeicherte Daten + Alter (`Zuletzt geprüft: vor X Stunden`)
+    - Manueller Refresh-Button als Fallback (rate-limitiert: max 1x pro Produkt pro Stunde)
+  - **Gebraucht-Filter:** Bestehender `PRICE_USED_HINT` Regex aus `price-enrichment.js` wiederverwenden — filtert `gebraucht`, `used`, `refurbished`, `b-ware`, `renewed`, `open box`
+  - **`competitorPrices[]` befüllen:** Damit Pricing Engine Tier 1 (`_tier1EanMatch`) auch Daten hat für `calculateOptimalPrice()`
+  - **Dateien:**
+    - `backend/lib/competitor-prices.js` → Umbauen: BrightData statt eBay Browse API, alle 7 Marketplaces
+    - `backend/services/competitor-refresh-runner.js` → Neu: 72h-Intervall-Runner
+    - `backend/lib/price-enrichment.js` → Bestehende Logik als Basis, Marketplace-Liste erweitern
+    - `components/CompetitorPrices.tsx` → Anpassen: gespeicherte Daten anzeigen statt live-fetch
+  - **Reihenfolge:** Marketplace-Liste erweitern → Runner bauen → competitorPrices[] in Firestore schreiben → Frontend anpassen → Pricing Engine Tier 1 anbinden
+
 - [ ] **P1: Monitoring & Error-Tracking einrichten** — Wenn ein Runner hängt merkt das aktuell niemand
   - Sentry-Integration für Error-Tracking
   - Uptime-Monitoring für /health Endpoint
@@ -52,11 +82,10 @@
   - Retry-Logik mit exponential backoff
   - Admin-UI zum Anzeigen/Retrying von failed Jobs
 
-- [ ] **P1: CLAUDE.md aktualisieren** — Erledigte Tasks als DONE markieren, neue Prioritäten setzen
-  - Phase 1 Tasks als erledigt markieren
-  - Phase 2-3 Services-Status dokumentieren (pricing, forecast, dedup, webhooks existieren)
-  - Neue offene Tasks aus dieser TASKS.md referenzieren
-  - Token-in-Query-Parameter Issue dokumentieren
+- [x] ~~**P1: CLAUDE.md aktualisieren**~~ (2026-03) — Von ~850 auf 179 Zeilen gekürzt
+  - ✅ Erledigte Phasen auf 6 Bullet-Points komprimiert (keine Code-Snippets mehr)
+  - ✅ Aktive Services dokumentiert, offene Issues aktualisiert
+  - ✅ Testing-Sektion aktualisiert (require.cache-Patching, 119 Tests)
 
 - [ ] **P1: UI/UX — Accessibility (WCAG 2.1 AA)** — Aktuell ~30% ARIA-Abdeckung, braucht ~150+ Attribute
   - Alle interaktiven Elemente (Buttons, Links, Inputs) brauchen `aria-label` wo kein sichtbarer Text vorhanden

@@ -19,7 +19,10 @@ async function _tier1EanMatch(product, filterCondition) {
   const pricing = product.details?.pricing || {};
   const buyPrice = parseFloat(pricing.buyPrice) || 0;
   const currentSellPrice = parseFloat(pricing.sellPrice) || 0;
-  const competitors = product.details?.competitorPrices || [];
+  // Prefer runner-stored prices (details.pricing.competitorPrices) over legacy field
+  const competitors = product.details?.pricing?.competitorPrices
+    || product.details?.competitorPrices
+    || [];
 
   const filteredCompetitors = filterCondition === 'new'
     ? competitors.filter(c => {

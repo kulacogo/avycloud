@@ -72,6 +72,7 @@ export interface Pricing {
   pricingConfidence?: number; // 0.0-1.0
   pricingMatchBasis?: string; // Human-readable explanation
   lastPriceCheck?: string;    // ISO-8601 timestamp
+  competitorPrices?: CompetitorListing[]; // Stored by background refresh runner
 }
 
 export interface CompetitorListing {

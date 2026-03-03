@@ -19,7 +19,7 @@ const { ensurePriceCoverage } = require('../services/enrichment');
 
 // --- Constants ---
 const PRICE_REFRESH_TIMEOUT_MS = parseInt(process.env.PRICE_REFRESH_TIMEOUT_MS || '20000', 10);
-const PRICE_MARKETPLACE_SITES = ['ebay.de', 'kaufland.de', 'hood.de'];
+const PRICE_MARKETPLACE_SITES = ['ebay.de', 'kaufland.de', 'hood.de', 'amazon.de', 'idealo.de', 'zalando.de'];
 const PRICE_USED_HINT = /\b(gebraucht|used|refurb|refurbished|renewed|b-ware|pre-owned|second hand|open box)\b/i;
 
 // --- Pure helpers ---

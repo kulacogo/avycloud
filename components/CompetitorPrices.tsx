@@ -5,6 +5,10 @@ import { fetchCompetitorPrices } from '../api/client';
 interface CompetitorPricesProps {
   ean: string;
   ownPrice?: number;
+  /** Pre-loaded competitor prices from Firestore (set by background runner) */
+  storedPrices?: CompetitorListing[];
+  /** ISO timestamp of when stored prices were last fetched */
+  lastPriceCheck?: string;
 }
 
 const fmt = (amount: number) =>
@@ -90,8 +94,19 @@ const ListingRow: React.FC<{ listing: CompetitorListing; ownPrice?: number }> = 
   </div>
 );
 
-const CompetitorPrices: React.FC<CompetitorPricesProps> = ({ ean, ownPrice }) => {
-  const [data, setData] = useState<CompetitorPricesResponse | null>(null);
+const CompetitorPrices: React.FC<CompetitorPricesProps> = ({ ean, ownPrice, storedPrices, lastPriceCheck }) => {
+  // Build initial data from Firestore-stored prices if available (avoids API call on mount)
+  const storedData: CompetitorPricesResponse | null =
+    storedPrices && storedPrices.length > 0
+      ? {
+          ebay: storedPrices.filter((p) => p.marketplace === 'ebay'),
+          kaufland: storedPrices.filter((p) => p.marketplace === 'kaufland'),
+          cached: true,
+          fetched_at: lastPriceCheck || new Date().toISOString(),
+        }
+      : null;
+
+  const [data, setData] = useState<CompetitorPricesResponse | null>(storedData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,9 +124,13 @@ const CompetitorPrices: React.FC<CompetitorPricesProps> = ({ ean, ownPrice }) =>
     }
   }, [ean]);
 
+  // Only auto-fetch on mount if no stored data available
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!storedData) {
+      load();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const totalListings = (data?.ebay?.length || 0) + (data?.kaufland?.length || 0);
   const allListings = [
@@ -250,9 +269,10 @@ const CompetitorPrices: React.FC<CompetitorPricesProps> = ({ ean, ownPrice }) =>
       )}
 
       {/* Timestamp */}
-      {data?.fetched_at && !loading && (
+      {(data?.fetched_at || lastPriceCheck) && !loading && (
         <p className="text-right text-[11px] text-slate-600">
-          Zuletzt geprüft: {timeAgo(data.fetched_at)}
+          Zuletzt geprüft: {timeAgo(data?.fetched_at || lastPriceCheck || '')}
+          {data?.cached && !loading && <span className="ml-1 text-slate-700">· gespeichert</span>}
         </p>
       )}
     </div>

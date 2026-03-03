@@ -251,4 +251,37 @@ async function logPriceHistory(productId, competitorData) {
   }
 }
 
-module.exports = { getCompetitorPrices, fetchEbayCompetitorListings, fetchKauflandCompetitorListings, logPriceHistory };
+/**
+ * Store competitor prices in the product document (details.pricing.competitorPrices).
+ * Called by the competitor refresh runner after each live fetch.
+ * Best-effort — never blocks or throws.
+ *
+ * @param {string} productId
+ * @param {string} collection - Firestore collection name
+ * @param {{ ebay: object[], kaufland: object[], fetched_at: string }} data
+ */
+async function storeCompetitorPricesToProduct(productId, collection, data) {
+  if (!productId || !collection) return;
+  try {
+    const { firestore } = require('./firestore');
+    const allListings = [
+      ...(data.ebay || []).map(l => ({ ...l, condition: 'new', fetchedAt: data.fetched_at })),
+      ...(data.kaufland || []).map(l => ({ ...l, condition: 'new', fetchedAt: data.fetched_at })),
+    ];
+    await firestore.collection(collection).doc(productId).set(
+      {
+        details: {
+          pricing: {
+            competitorPrices: allListings,
+            lastPriceCheck: data.fetched_at,
+          },
+        },
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn('[competitor-prices] storeCompetitorPricesToProduct failed:', err?.message || err);
+  }
+}
+
+module.exports = { getCompetitorPrices, fetchEbayCompetitorListings, fetchKauflandCompetitorListings, logPriceHistory, storeCompetitorPricesToProduct };

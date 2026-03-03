@@ -1872,6 +1872,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 <CompetitorPrices
                   ean={currentBarcodeSummary.ean || currentBarcodeSummary.gtin || ''}
                   ownPrice={localProduct.details?.pricing?.lowest_price?.amount}
+                  storedPrices={localProduct.details?.pricing?.competitorPrices}
+                  lastPriceCheck={localProduct.details?.pricing?.lastPriceCheck}
                 />
               </div>
             )}
