@@ -39,6 +39,60 @@
   - Neue offene Tasks aus dieser TASKS.md referenzieren
   - Token-in-Query-Parameter Issue dokumentieren
 
+- [ ] **P1: UI/UX — Accessibility (WCAG 2.1 AA)** — Aktuell ~30% ARIA-Abdeckung, braucht ~150+ Attribute
+  - Alle interaktiven Elemente (Buttons, Links, Inputs) brauchen `aria-label` wo kein sichtbarer Text vorhanden
+  - Sort-Buttons in AdminTable: `aria-sort` Attribut hinzufügen
+  - Expandable Sections: `aria-expanded` + `aria-controls` hinzufügen
+  - Status-Badges: semantische `role="status"` hinzufügen
+  - Bilder: alle `<img>` Tags brauchen `alt` Attribut (prüfen + ergänzen)
+  - Formulare: alle Inputs brauchen zugeordnete `<label>` oder `aria-label`
+  - Keyboard-Navigation: Tab-Reihenfolge prüfen in AdminTable, ProductSheet, EbayListingsView
+  - **Dateien:** AdminTable.tsx (3.166 Z.), ProductSheet.tsx (2.001 Z.), EbayListingsView.tsx (1.900 Z.), MobileOperationsView.tsx (1.660 Z.), OperationsView.tsx (1.374 Z.), GeminiChat.tsx (1.082 Z.)
+  - **NICHT** bestehende Funktionalität ändern — nur ARIA-Attribute und Labels ergänzen
+
+- [ ] **P1: UI/UX — Code-Splitting mit React.lazy** — Alle 49 Komponenten in einem Bundle = langsamer Initial Load
+  - `React.lazy()` + `<Suspense>` für Route-basiertes Splitting in App.tsx
+  - Lazy-laden: Dashboard, AdminTable, ProductSheet, EbayListingsView, WarehouseView, GeminiChat, CategoryManagement
+  - Fallback-Komponente: `<Spinner />` (existiert bereits in components/Spinner.tsx)
+  - **Datei:** App.tsx (1.078 Zeilen) — dort die Imports auf `React.lazy(() => import(...))` umstellen
+  - **NICHT** die Komponenten selbst ändern, nur die Import-Methode in App.tsx
+
+- [ ] **P1: UI/UX — AdminTable aufteilen** — 3.166 Zeilen in einer Komponente = schwer wartbar
+  - Extrahiere: `AdminTableHeader.tsx` (Spalten-Konfiguration, Presets, Visibility-Toggle)
+  - Extrahiere: `AdminTableRow.tsx` (Einzelne Zeile mit Status-Badges, Inline-Edit)
+  - Extrahiere: `AdminTableBulkActions.tsx` (Bulk-Action-Bar mit allen Buttons)
+  - Extrahiere: `AdminTableFilters.tsx` (Such-/Filter-Logik)
+  - AdminTable.tsx bleibt als Container-Komponente die die Teile zusammensetzt
+  - **WICHTIG:** Alle Props und Callbacks müssen identisch bleiben — kein Breaking Change an der Schnittstelle zu App.tsx
+
+- [ ] **P2: UI/UX — Formular-Validierung mit React Hook Form** — Aktuell native React-Forms, manuelle Validierung, fehleranfällig
+  - `npm install react-hook-form` im Root (Frontend)
+  - Starten mit: LoginScreen.tsx (144 Z.), ResetPasswordScreen.tsx (231 Z.), ProductInput.tsx (479 Z.)
+  - Validierungsregeln: Required-Felder, Email-Format, Passwort-Mindestlänge
+  - Fehleranzeige: Inline unter dem Feld, rote Border, i18n-kompatible Fehlermeldungen
+  - **NICHT** alle Formulare auf einmal umstellen — schrittweise, ein Formular pro PR
+
+- [ ] **P2: UI/UX — Error Boundary** — Kein Error Boundary vorhanden, ein JS-Fehler crasht die ganze App
+  - Neue Komponente: `components/ErrorBoundary.tsx` (React Class Component mit componentDidCatch)
+  - Fallback-UI: Fehlermeldung + "Seite neu laden" Button + optional Error-Details
+  - In App.tsx um die Haupt-Render-Logik wrappen
+  - Optional: Sentry-Integration im componentDidCatch (wenn Sentry eingerichtet ist)
+  - **Datei:** Neue Datei `components/ErrorBoundary.tsx` + Edit in App.tsx
+
+- [ ] **P2: UI/UX — State Management aufräumen** — 18 State-Variablen in App.tsx, viel Prop-Drilling
+  - Prüfen ob Zustand oder ein zweiter React Context sinnvoll ist für Product-State
+  - Kandidaten für Extraktion: `products`, `productsLoading`, `productsError`, `currentProduct`, `jobStatuses`, `improveJobStatuses`
+  - Neuer Context: `ProductContext` mit useProducts() Hook
+  - **NICHT** AuthContext oder InventoryContext ändern — die bleiben
+  - **NICHT** alles auf einmal umbauen — erst ProductContext, dann evaluieren
+
+- [ ] **P2: UI/UX — Polling durch SSE/Realtime ersetzen** — 60s-Polling für Produktliste ist ineffizient
+  - useJobStream.ts Hook existiert bereits für Jobs — gleichen Ansatz auf Products erweitern
+  - Neuer Hook: `useProductStream.ts` der Firestore onSnapshot oder SSE nutzt
+  - Produkt-Liste soll sich automatisch aktualisieren wenn ein Identify/Improve-Job fertig ist
+  - **NICHT** den Polling-Mechanismus entfernen — als Fallback behalten
+  - **NICHT** Firestore Client-SDK einführen — SSE über Backend-Endpoint bevorzugen
+
 ## Waiting On
 
 - [ ] **Multi-Tenancy (P3-002)** — Blocker für SaaS. Nur mit expliziter Anweisung starten. since 2026-03-01
