@@ -4,21 +4,30 @@ import { Product, WarehouseBin } from './types';
 import { useIdentification, UploadGroupPayload } from './hooks/useIdentification';
 import { useImproveQueue } from './hooks/useImproveQueue';
 import ProductInput from './components/ProductInput';
-import ProductSheet from './components/ProductSheet';
-import AdminTable from './components/AdminTable';
-import WarehouseView from './components/WarehouseView';
 import { Header } from './components/Header';
 import { Spinner } from './components/Spinner';
 import JobStatusPopup from './components/JobStatusPopup';
 import StatusDock from './components/StatusDock';
-import Dashboard from './components/Dashboard';
-import DashboardMobile from './components/DashboardMobile';
-import OperationsView from './components/OperationsView';
 import MobileSearchView from './components/MobileSearchView';
-import MobileOperationsView from './components/MobileOperationsView';
 import MobileTabBar from './components/MobileTabBar';
-import { CategoryManagement } from './components/CategoryManagement';
-import { EbayListingsView } from './components/EbayListingsView';
+
+// ─── Lazy-loaded view components (route-based code splitting) ─────────────────
+const ProductSheet = React.lazy(() => import('./components/ProductSheet'));
+const AdminTable = React.lazy(() => import('./components/AdminTable'));
+const WarehouseView = React.lazy(() => import('./components/WarehouseView'));
+const Dashboard = React.lazy(() => import('./components/Dashboard'));
+const DashboardMobile = React.lazy(() => import('./components/DashboardMobile'));
+const OperationsView = React.lazy(() => import('./components/OperationsView'));
+const MobileOperationsView = React.lazy(() => import('./components/MobileOperationsView'));
+const CategoryManagement = React.lazy(() =>
+  import('./components/CategoryManagement').then(m => ({ default: m.CategoryManagement }))
+);
+const EbayListingsView = React.lazy(() =>
+  import('./components/EbayListingsView').then(m => ({ default: m.EbayListingsView }))
+);
+const AdminPanel = React.lazy(() =>
+  import('./components/admin/AdminPanel').then(m => ({ default: m.AdminPanel }))
+);
 import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
@@ -26,8 +35,8 @@ import { isInventoryItem, isProductBacklogItem } from './utils/inventorySplit';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { InventoryProvider } from './context/InventoryContext';
 import { LoginScreen } from './components/LoginScreen';
-import { AdminPanel } from './components/admin/AdminPanel';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 type View =
   | 'dashboard'
@@ -901,7 +910,11 @@ const AppInner: React.FC = () => {
         </div>
       );
     }
-    return renderView();
+    return (
+      <React.Suspense fallback={<div className="flex justify-center py-16"><Spinner className="w-8 h-8" /></div>}>
+        {renderView()}
+      </React.Suspense>
+    );
   };
 
   return (
@@ -1068,11 +1081,13 @@ const AuthGate: React.FC = () => {
 };
 
 const App: React.FC = () => (
-  <AuthProvider>
-    <InventoryProvider>
-      <AuthGate />
-    </InventoryProvider>
-  </AuthProvider>
+  <ErrorBoundary>
+    <AuthProvider>
+      <InventoryProvider>
+        <AuthGate />
+      </InventoryProvider>
+    </AuthProvider>
+  </ErrorBoundary>
 );
 
 export default App;

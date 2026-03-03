@@ -37,10 +37,12 @@ Auth:      Firebase Authentication
 ├── App.tsx              → Haupt-Routing & State
 │
 ├── backend/             → Backend (Node.js/Express)
-│   ├── index.js         → Express-Server, 149 Routen (7.571 Zeilen)
-│   ├── lib/             → 81 Utility-Module
-│   ├── services/        → 29 Service-Module
+│   ├── index.js         → Express-Server Entry (~280 Zeilen, Middleware + Router-Mounts)
+│   ├── routes/          → 7 Router-Module (products, orders, warehouse, identify, marketplace, admin, auth)
+│   ├── lib/             → 81+ Utility-Module (firestore, rbac, auth, product-store, product-canonical, …)
+│   ├── services/        → 29+ Service-Module (pricing-engine, inventory-forecast, deduplication, webhooks, …)
 │   ├── scripts/         → Utility/Migrations-Scripts
+│   ├── __tests__/       → Vitest-Tests (119 Tests, 7 Suiten)
 │   ├── package.json     → Backend-Dependencies
 │   └── cloudbuild.yaml  → Cloud Build Deployment
 │
@@ -55,17 +57,41 @@ Auth:      Firebase Authentication
 - **Backend:** Push to `main` → Cloud Build → Docker Build → Cloud Run Deploy
 - **Beides läuft automatisch bei Push auf main.**
 
+### Aktiver Task-Stand
+
+**Aktive Tasks stehen in [`TASKS.md`](./TASKS.md)** — dort immer zuerst nachsehen.
+
+Erledigte Phase 1–3 Foundations (Stand 2026-03):
+- ✅ P0: Security Headers, Rate-Limiting, Firestore-Normalisierung (products_v2 live), LLM-Policy aktiv
+- ✅ P1: Structured Logging (Pino), Health-Check, Graceful Shutdown, Vitest-Infrastruktur (119 Tests), Error Responses
+- ✅ P1: Express Router Splitting (7 Router-Module), API Versioning
+- ✅ P2: SSE Job-Status, Pricing Engine, Inventory Forecasting, Webhook-System, Produkt-Deduplizierung
+- ✅ P3: Competitor Intelligence (priceHistory Collection)
+- ✅ Alle Schreibpfade auf `saveProductV2()` umgestellt (product-store.js Abstraktionsschicht)
+
+Aktive Phase 2 Services (alle in `backend/services/` und `backend/lib/`):
+- `pricing-engine.js` — Preisvorschläge, pricingRules Collection, Repricing
+- `inventory-forecast.js` — salesVelocity, predictedStockOut, Reorder-Alerts
+- `deduplication.js` — EAN/MPN/Brand+Model Duplikat-Erkennung, Merge-Logik
+- `webhooks.js` — HMAC-SHA256 Signierung, dispatchWebhook(), createWebhook/listWebhooks/deleteWebhook
+- `product-store.js` — Dual-Write Abstraktionsschicht (products → products_v2)
+- `product-canonical.js` — Normalisierung und Validierung für products_v2
+
+### Bekannte offene Issues
+
+- **Token-in-Query-Parameter (SSE):** JWT wird als `?token=` URL-Parameter übergeben für SSE-Streams (`/api/jobs/:id/stream`, `/api/chat`). Das leakt in Server-Logs und Browser-History. Korrekte Lösung: Cookie-basierte Auth oder eigener SSE-Auth-Header. Dokumentiert in TASKS.md (Someday-Liste).
+
 ---
 
 ## Regeln für alle Änderungen
 
 ### 🛡️ Production Safety (NICHT VERHANDELBAR)
 
-1. **Keine bestehende Route ändern** ohne explizite Anweisung. Alle 149 Routen in `backend/index.js` sind live.
+1. **Keine bestehende Route ändern** ohne explizite Anweisung. Alle Routen in `backend/routes/` sind live (products, orders, warehouse, identify, marketplace, admin, auth).
 2. **Keine Firestore-Collection-Struktur ändern.** Bestehende Dokument-Felder dürfen nicht umbenannt oder entfernt werden. Neue Felder sind erlaubt (additive changes only).
 3. **Keine Dependencies entfernen** aus `backend/package.json` oder root `package.json`.
 4. **Keine Environment-Variable umbenennen** die in `backend/cloudbuild.yaml` oder `.github/workflows/` referenziert wird.
-5. **Kein `require()`-Pfad in `backend/index.js` ändern** — alle 117 Imports am Dateianfang sind in Produktion aktiv.
+5. **Kein `require()`-Pfad in `backend/index.js` oder `backend/routes/*.js` ändern** — alle Router-Imports sind in Produktion aktiv.
 6. **Keine Änderung an `Dockerfile`, `firebase.json`, `.firebaserc`, `cloudbuild.yaml`** ohne explizite Anweisung.
 7. **Keine Änderung an Auth-Middleware** (`backend/lib/auth.js`, `backend/lib/rbac.js`) ohne explizite Anweisung.
 
@@ -107,9 +133,11 @@ Auth:      Firebase Authentication
 
 ---
 
-### PHASE 1: Foundation Fix (Stabilität & Sicherheit)
+### PHASE 1: Foundation Fix ✅ ABGESCHLOSSEN (2026-02/03)
 
-#### P0-001 — Security Headers mit Helmet.js
+> Alle Phase 1 Tasks sind erledigt. Die detaillierten Anweisungen unten dienen als Referenz für die Implementierungsentscheidungen.
+
+#### P0-001 — Security Headers mit Helmet.js ✅ DONE
 
 **Problem:** Keine Content-Security-Policy, kein HSTS, kein X-Frame-Options.
 **Impact:** Produktions-Sicherheitslücke.
@@ -131,7 +159,7 @@ Auth:      Firebase Authentication
 
 ---
 
-#### P0-002 — Rate-Limiting auf kostenintensive Endpoints
+#### P0-002 — Rate-Limiting auf kostenintensive Endpoints ✅ DONE
 
 **Problem:** Kein Rate-Limit. Jeder `/api/identify`-Call kostet Gemini-API-Credits. Missbrauchspotenzial.
 **Impact:** Unkontrollierte API-Kosten.
@@ -182,7 +210,7 @@ Auth:      Firebase Authentication
 
 ---
 
-#### P0-003 — .env.local aus Git-Historie entfernen
+#### P0-003 — .env.local aus Git-Historie entfernen ✅ DONE
 
 **Problem:** `.env.local` ist in `.gitignore` (gut), aber war möglicherweise historisch committed. Enthält Firebase API Keys.
 **Impact:** Credential Exposure falls Repo jemals public war/wird.
@@ -203,7 +231,7 @@ Auth:      Firebase Authentication
 
 ---
 
-#### P0-004 — Firestore Daten-Normalisierung (Parallele Collection + Write-Schutz)
+#### P0-004 — Firestore Daten-Normalisierung ✅ DONE (products_v2 live, USE_PRODUCTS_V2=true)
 
 **Problem:** Produktdaten in Firestore sind inkonsistent. Gleiche logische Daten existieren in verschiedenen physischen Formaten. Das betrifft nicht einzelne Felder, sondern systemischen Schema-Drift über die gesamte `products`-Collection.
 
@@ -690,7 +718,7 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-#### P1-001 — Structured Logging einführen
+#### P1-001 — Structured Logging einführen ✅ DONE (Pino + pino-http)
 
 **Problem:** Nur `console.log`/`console.error`. Kein Request-Tracing, keine strukturierten Logs für Cloud Run.
 **Impact:** Debugging in Produktion extrem schwierig.
@@ -741,7 +769,7 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-#### P1-002 — Health-Check & Graceful Shutdown
+#### P1-002 — Health-Check & Graceful Shutdown ✅ DONE
 
 **Problem:** Kein Health-Endpoint. Kein Graceful Shutdown für Cloud Run.
 **Impact:** Cloud Run kann Container-Gesundheit nicht prüfen. Laufende Requests werden bei Deployments abgebrochen.
@@ -775,7 +803,7 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-#### P1-003 — Vitest Infrastruktur aufsetzen
+#### P1-003 — Vitest Infrastruktur aufsetzen ✅ DONE (119 Tests, 7 Suiten)
 
 **Problem:** Keine Test-Infrastruktur. 2 existierende Test-Dateien, kein Framework konfiguriert.
 **Impact:** Keine automatische Regression-Erkennung.
@@ -815,7 +843,7 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-#### P1-004 — Error Response Standardisierung
+#### P1-004 — Error Response Standardisierung ✅ DONE (AppError + errorHandler)
 
 **Problem:** Inkonsistente Fehlerantworten. Manche Endpoints geben `{ ok: false, error: {...} }`, andere raw Status-Codes.
 **Impact:** Frontend muss verschiedene Fehlerformate handeln.
@@ -857,9 +885,9 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-### PHASE 2: Code-Qualität & DX
+### PHASE 2: Code-Qualität & DX ✅ ABGESCHLOSSEN (2026-02/03)
 
-#### P1-005 — Express Router Splitting (index.js aufteilen)
+#### P1-005 — Express Router Splitting ✅ DONE (7 Router-Module in backend/routes/)
 
 **Problem:** 7.571 Zeilen, 149 Routen in einer Datei.
 **Impact:** Schwer wartbar, Merge-Konflikte, langsames Onboarding.
@@ -893,7 +921,7 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-#### P1-006 — API Versioning Strategie
+#### P1-006 — API Versioning Strategie ✅ DONE
 
 **Problem:** Nur 2 von 149 Routen haben Versionierung (`/api/v2/enrich`, `/api/v2/identify`).
 **Impact:** Breaking Changes können nicht graceful eingeführt werden.
@@ -917,7 +945,7 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-#### P2-001 — WebSocket/SSE für Job-Status
+#### P2-001 — SSE für Job-Status ✅ DONE (useJobStream.ts Hook im Frontend)
 
 **Problem:** Frontend pollt alle paar Sekunden den Job-Status. Ineffizient bei vielen Nutzern.
 **Impact:** Unnötige API-Last, verzögerte Status-Updates.
@@ -953,9 +981,9 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-### PHASE 3: Feature Development
+### PHASE 3: Feature Development ✅ ABGESCHLOSSEN (2026-02/03)
 
-#### P2-002 — Smart Pricing Engine
+#### P2-002 — Smart Pricing Engine ✅ DONE (services/pricing-engine.js)
 
 **Problem:** Preisfindung ist manuell. Nur punktuelle Konkurrenzabfragen.
 **Impact:** Verpasste Margen-Optimierung. Höchster Hebel für Umsatzsteigerung.
@@ -982,7 +1010,7 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-#### P2-003 — Inventory Forecasting
+#### P2-003 — Inventory Forecasting ✅ DONE (services/inventory-forecast.js)
 
 **Problem:** Keine Vorhersage von Stock-Outs.
 **Impact:** Verpasste Verkäufe durch unerwarteten Leerbestand.
@@ -1004,7 +1032,7 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-#### P2-004 — Webhook-System
+#### P2-004 — Webhook-System ✅ DONE (services/webhooks.js)
 
 **Problem:** Keine Möglichkeit für externe Systeme, auf Events zu reagieren.
 **Impact:** Kein Ökosystem, keine Automatisierung mit Dritttools.
@@ -1038,7 +1066,7 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-#### P2-005 — Produkt-Deduplizierung
+#### P2-005 — Produkt-Deduplizierung ✅ DONE (services/deduplication.js)
 
 **Problem:** Keine automatische Erkennung von Duplikaten. Manuelles Löschen bei Tausenden SKUs nicht skalierbar.
 **Impact:** Datenqualität, falsche Lagerbestände, doppelte Listings.
@@ -1056,7 +1084,7 @@ Alle Stellen die Produkte schreiben müssen schrittweise auf `saveProductV2()` u
 
 ---
 
-#### P3-001 — Competitor Intelligence Dashboard
+#### P3-001 — Competitor Intelligence Dashboard ✅ DONE (priceHistory Collection)
 
 **Problem:** Nur Momentaufnahme der Konkurrenzpreise, keine Trends.
 
