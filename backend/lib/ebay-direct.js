@@ -3019,6 +3019,21 @@ function computeSyncPatch({ listing, gapDoc, product = null }) {
     }
   }
 
+  // Price sync: include sellPrice when it differs from the current listing price
+  if (product) {
+    const sellPrice = parseFloat(product?.details?.pricing?.sellPrice);
+    const listingPrice = parseFloat(
+      listing?.currentPrice?.value ?? listing?.currentPrice
+    );
+    if (Number.isFinite(sellPrice) && sellPrice > 0) {
+      const priceDiffers = !Number.isFinite(listingPrice) || Math.abs(sellPrice - listingPrice) > 0.001;
+      if (priceDiffers) {
+        patch.startPrice = sellPrice;
+        patch.currency = safeString(listing?.currency) || 'EUR';
+      }
+    }
+  }
+
   return {
     patch,
     touchedGapIds: Array.from(new Set(touchedGapIds.filter(Boolean))),
@@ -3151,7 +3166,8 @@ async function dryRunSync({ itemIds = null, actor = null } = {}) {
       Boolean(patch?.subtitle) ||
       Boolean(patch?.description) ||
       (Array.isArray(patch?.pictureUrls) && patch.pictureUrls.length > 0) ||
-      Boolean(Object.keys(patch?.itemSpecifics || {}).length);
+      Boolean(Object.keys(patch?.itemSpecifics || {}).length) ||
+      Boolean(patch?.startPrice);
 
     const { blockers, warnings } = evaluateSyncBlockers(listing, patch);
     if (!hasPatchFields) {
@@ -3318,7 +3334,8 @@ async function applySync({ itemIds = null, actor = null } = {}) {
       Boolean(patch?.subtitle) ||
       Boolean(patch?.description) ||
       (Array.isArray(patch?.pictureUrls) && patch.pictureUrls.length > 0) ||
-      Boolean(Object.keys(patch?.itemSpecifics || {}).length);
+      Boolean(Object.keys(patch?.itemSpecifics || {}).length) ||
+      Boolean(patch?.startPrice);
     const guard = evaluateSyncBlockers(listing, patch);
     const blockers = Array.isArray(guard?.blockers) ? guard.blockers.slice() : [];
     warnings.push(...(Array.isArray(guard?.warnings) ? guard.warnings : []));

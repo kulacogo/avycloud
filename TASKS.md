@@ -19,6 +19,27 @@
   - _patchGcp.js + _patchLocalModules.js + _setupMocks.js
   - products (19), orders/dashboard (8), health (5), unit tests (87)
 
+- [x] ~~**P0: Pricing Engine produktionsreif machen**~~ (2026-03) — Alle 5 Probleme gelöst
+  - ✅ Problem 5 (Collection-Fix): `getCollection()` aus `product-store.js`, schreibt auf aktive Collection
+  - ✅ Problem 2 (Neu/Gebraucht-Filter): `filterCondition='new'` in `calculateOptimalPrice()`, nur `condition: 'new'|'neu'|'new_with_tags'`
+  - ✅ Problem 3 (Fallback-Tiers): 3-stufige Strategie — Tier 1 (EAN-Match, 0.9), Tier 2 (Kategorie-Match, 0.6), Tier 3 (LLM-Stub), Cost-Plus-Fallback
+  - ✅ Problem 1 (Runner): `backend/services/pricing-runner.js` — 4h-Intervall, `PRICING_RUNNER_ENABLED=true` Flag
+  - ✅ Problem 4 (Frontend): ProductSheet zeigt `suggestedPrice` mit Tier-Badge + "Preis übernehmen" Button
+  - ℹ️ Tier 3 LLM-Fallback ist Stub (TODO: Gemini-Integration mit rate-limiting)
+  - ℹ️ Regel-Verwaltung UI + Dashboard-Widget noch nicht implementiert
+
+- [x] ~~**P0: eBay/Kaufland Update-Button synct Preis nicht zum Marktplatz**~~ (2026-03) — Preis wird jetzt gepusht
+  - ✅ eBay: `computeSyncPatch()` in `ebay-direct.js` vergleicht `product.pricing.sellPrice` mit `listing.currentPrice` → setzt `patch.startPrice`
+  - ✅ eBay: `buildReviseItemRequestXml()` in `ebay-trading-api.js` generiert `<StartPrice currencyID="EUR">` für ReviseFixedPriceItem
+  - ✅ Kaufland: `pickUnitData()` liest jetzt `pricing.sellPrice` als erste Priorität vor `lowest_price.amount`
+
+- [x] ~~**P0: Marketplace Listing-Status automatisch synchronisieren**~~ (2026-03) — Periodischer Runner implementiert
+  - ✅ `backend/services/listing-sync-runner.js` — 20min-Intervall, `LISTING_SYNC_ENABLED=true` Flag
+  - ✅ eBay: ruft `syncLiveListingsLight()` auf, propagiert Status via `ebayListingLinks` → Produkt `ops.listingStatus.ebay`
+  - ✅ Kaufland: liest `kauflandUnitsLive`, matcht via `id_offer=identification.sku`, schreibt `ops.listingStatus.kaufland`
+  - ✅ `types.ts` Pricing-Interface erweitert: `sellPrice`, `suggestedPrice`, `pricingTier`, `pricingConfidence`, `pricingMatchBasis`
+  - ℹ️ Frontend-Badge für `ops.listingStatus` noch nicht implementiert (ProductSheet zeigt noch manuellen Status)
+
 - [ ] **P1: Monitoring & Error-Tracking einrichten** — Wenn ein Runner hängt merkt das aktuell niemand
   - Sentry-Integration für Error-Tracking
   - Uptime-Monitoring für /health Endpoint

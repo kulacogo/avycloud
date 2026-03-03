@@ -1801,6 +1801,71 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 setIsDirty(true);
               }}
             />
+            {/* Pricing Engine — Preisvorschlag */}
+            {(() => {
+              const pricing = localProduct.details?.pricing;
+              const suggestedPrice = pricing?.suggestedPrice;
+              if (!suggestedPrice) return null;
+              const tier = pricing?.pricingTier;
+              const matchBasis = pricing?.pricingMatchBasis;
+              const currentAmount = pricing?.lowest_price?.amount;
+              const tierConfig: Record<number, { label: string; cls: string }> = {
+                1: { label: 'Tier 1 · Sicher', cls: 'bg-emerald-900/40 text-emerald-400' },
+                2: { label: 'Tier 2 · Ähnlich', cls: 'bg-yellow-900/40 text-yellow-400' },
+                0: { label: 'Kostenbasis', cls: 'bg-slate-700/40 text-slate-400' },
+              };
+              const cfg = tier != null ? (tierConfig[tier] ?? tierConfig[0]) : null;
+              const diff = currentAmount && currentAmount > 0
+                ? Math.round(((suggestedPrice - currentAmount) / currentAmount) * 100)
+                : null;
+              return (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-slate-400 font-medium uppercase tracking-wide">Preisvorschlag</span>
+                    {cfg && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
+                    )}
+                    {diff != null && (
+                      <span className={`text-xs font-medium ${diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+                        {diff > 0 ? `+${diff}%` : `${diff}%`} zum aktuellen Preis
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl font-bold text-white">
+                      {suggestedPrice.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                    </span>
+                    <button
+                      type="button"
+                      title="Preisvorschlag als aktuellen Preis übernehmen und speichern"
+                      onClick={() => {
+                        setLocalProduct(prev => ({
+                          ...prev,
+                          details: {
+                            ...prev.details,
+                            pricing: {
+                              ...prev.details?.pricing,
+                              sellPrice: suggestedPrice,
+                              lowest_price: {
+                                ...(prev.details?.pricing?.lowest_price || {}),
+                                amount: suggestedPrice,
+                              },
+                            },
+                          },
+                        }));
+                        setIsDirty(true);
+                      }}
+                      className="rounded-lg bg-sky-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-600 transition-colors"
+                    >
+                      Preis übernehmen
+                    </button>
+                  </div>
+                  {matchBasis && (
+                    <p className="text-xs text-slate-500 mt-1">{matchBasis}</p>
+                  )}
+                </div>
+              );
+            })()}
             {/* Competitor prices — only show when a valid EAN/GTIN exists */}
             {(currentBarcodeSummary.ean || currentBarcodeSummary.gtin) && (
               <div className="mt-5 pt-5 border-t border-white/10">

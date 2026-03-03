@@ -65,6 +65,13 @@ export interface LowestPrice {
 export interface Pricing {
   lowest_price: LowestPrice;
   price_confidence: number; // 0.0 to 1.0
+  sellPrice?: number;         // User-set sell price (used by eBay + Kaufland sync)
+  buyPrice?: number;          // Purchase price / cost basis
+  suggestedPrice?: number;    // Pricing Engine suggestion
+  pricingTier?: number;       // 1=EAN match, 2=category match, 0=cost-plus
+  pricingConfidence?: number; // 0.0-1.0
+  pricingMatchBasis?: string; // Human-readable explanation
+  lastPriceCheck?: string;    // ISO-8601 timestamp
 }
 
 export interface CompetitorListing {

@@ -546,9 +546,16 @@ function buildReviseItemRequestXml(callName, patch, cfg) {
     );
   }
 
+  // Price update — ReviseFixedPriceItem uses <StartPrice> for fixed-price listings
+  const startPrice = parseFloat(patch?.startPrice ?? patch?.price);
+  if (Number.isFinite(startPrice) && startPrice > 0) {
+    const currency = safeString(patch?.currency) || 'EUR';
+    itemFields.push(`<StartPrice currencyID="${escapeXml(currency)}">${startPrice.toFixed(2)}</StartPrice>`);
+  }
+
   if (itemFields.length <= 1) {
     const error = new Error(
-      'No revisable fields provided. Expected category/title/subtitle/description/itemSpecifics/pictureUrls.'
+      'No revisable fields provided. Expected category/title/subtitle/description/itemSpecifics/pictureUrls/startPrice.'
     );
     error.code = 'EBAY_REVISE_FIELDS_MISSING';
     throw error;

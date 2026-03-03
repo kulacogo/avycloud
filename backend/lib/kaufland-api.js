@@ -256,6 +256,7 @@ function pickUnitData(product, { mode = 'create', storefront = 'de' } = {}) {
   const ean = eanFromIdentifiers || eanFromBarcodes;
 
   const rawPrice =
+    product?.details?.pricing?.sellPrice ??
     product?.details?.pricing?.lowest_price?.amount ??
     product?.details?.pricing?.amount ??
     null;
