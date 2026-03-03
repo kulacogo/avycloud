@@ -20,10 +20,9 @@ const { canonicalizeAttributesStrict } = require('./attribute-policy');
 const { getRulebookConfigCached } = require('./rulebook-config');
 
 function isRulebookDisabled() {
-  // Default: disabled (user request: "keine Regeln").
-  // Opt-in only via RULEBOOK_ENABLED=true
-  const enabled = (process.env.RULEBOOK_ENABLED || '').toString().trim().toLowerCase();
-  return !(enabled === '1' || enabled === 'true' || enabled === 'yes');
+  // Default: enabled. Opt-out via RULEBOOK_ENABLED=false
+  const val = (process.env.RULEBOOK_ENABLED || 'true').toString().trim().toLowerCase();
+  return val === '0' || val === 'false' || val === 'no';
 }
 
 function safeString(v) {

@@ -70,6 +70,86 @@
     - `components/CompetitorPrices.tsx` → Anpassen: gespeicherte Daten anzeigen statt live-fetch
   - **Reihenfolge:** Marketplace-Liste erweitern → Runner bauen → competitorPrices[] in Firestore schreiben → Frontend anpassen → Pricing Engine Tier 1 anbinden
 
+- [x] **P0: LLM Titel-Generierung grundlegend verbessern** — ✅ DONE (2026-03-03)
+  - ✅ `LLM_POLICY_ENABLED` default ON in `llm-policy-pack.js` (war: default OFF)
+  - ✅ `RULEBOOK_ENABLED` default ON in `llm-rulebook.js` (war: default OFF)
+  - ✅ Bugfix in `enrichment.js` `loadTitleInsightsForProduct()`: `insights.sampleTitles` → `insights.titles` (field name mismatch → few-shot titles waren immer leer)
+  - ✅ `buildUserPrompt()`: eBay Titel-Beispiele als Few-Shot injiziert (bis zu 5 Stilvorbilder)
+  - ✅ `buildReviewPrompt()`: eBay Titel-Beispiele auch im Improve-Pfad injiziert
+  - ✅ `fetchTopTitlesForCategory(categoryId, limit=5)` in `ebay-browse-title-insights.js` hinzugefügt
+  - **Problem:** `llm-policy-pack.js` enthält 20 abstrakte Kategorie-Schemas (Zeile 14-35), aber keine echten Beispiele. LLM generiert generische Titel ohne Marktplatz-Optimierung.
+  - **Problem:** LLM_POLICY_ENABLED ist default OFF → die ohnehin schwachen Titel-Regeln greifen nicht mal
+  - **Problem:** `title-policy.js` strippt Marketing-Wörter nachträglich, aber das LLM generiert sie trotzdem erstmal
+  - **Lösung 1 — Few-Shot aus echten eBay-Top-Titeln:**
+    - Beim Identify: eBay Browse API → Top-5-Titel der gleichen Kategorie als Few-Shot-Beispiele in den Prompt injizieren
+    - Existierende Infrastruktur: `ebay-browse-title-insights.js` liefert bereits `topTokens` — das reicht nicht, wir brauchen vollständige Top-Titel als Muster
+    - Neue Funktion: `fetchTopTitlesForCategory(categoryId, limit=5)` → gibt echte Titel zurück
+  - **Lösung 2 — Strategischer eBay Leitfaden als Prompt-Wissen:**
+    - 9 kategoriesspezifische Titel-Muster aus `Strategischer eBay Leitfaden.md` in den System-Prompt einbauen:
+      - Fashion: `[Marke] [Produkttyp] [Material] [Größe] [Farbe] [Zustand] [Stil]`
+      - Elektronik: `[Marke] [Modell] [Spezifikation] [Zustand] [Besonderheit] [Zubehör]`
+      - Haus & Garten: `[Marke] [Produkttyp] [Material] [Maße] [Farbe] [Einsatzbereich]`
+      - usw. (alle 9 Kategorien)
+    - Cassini-Regeln: Erste 3-5 Wörter CTR-kritisch, 80 Zeichen voll nutzen, keine Füllwörter
+  - **Lösung 3 — LLM_POLICY_ENABLED default ON:**
+    - Env-Variable auf `true` setzen oder Gate komplett entfernen
+    - Alle Titel-Regeln MÜSSEN immer aktiv sein
+  - **Dateien:**
+    - `backend/lib/llm-policy-pack.js` → Abstrakte Schemas durch echte Kategorie-Muster ersetzen, Few-Shot-Slot einbauen
+    - `backend/services/enrichment.js` → Top-Titel als Few-Shot in Prompt injizieren (Zeile 632-757)
+    - `backend/lib/ebay-browse-title-insights.js` → `fetchTopTitlesForCategory()` Funktion hinzufügen
+    - `backend/lib/title-policy.js` → Cassini-Regeln für Post-Processing verschärfen
+    - `backend/lib/llm-rulebook.js` → RULEBOOK_ENABLED default ON, Titel-Validierung verschärfen
+
+- [ ] **P0: Identify-Modul stärken — alle verfügbaren APIs voll nutzen** — Identify liefert kaum Preise, nutzt APIs nicht effizient
+  - ✅ **Problem 1 gelöst — Preisanreicherung doppelt gegated** (2026-03-03):
+    - `ensurePriceCoverage()` in `enrichment.js` erforderte SOWOHL `SERPAPI_ENABLED=true` ALS AUCH `PRICE_ENRICHMENT_ENABLED=true`
+    - Fix: Doppel-Gate aufgetrennt — `PRICE_ENRICHMENT_ENABLED` wird zuerst geprüft, dann `SERPAPI_ENABLED` separat
+  - ✅ **Problem 3 gelöst — eBay Title Insights nur bei bekannter Kategorie** (2026-03-03):
+    - `loadTitleInsightsForProduct()` hat jetzt Keyword-Fallback: wenn `categoryId` leer, wird `brand + name` als Query genutzt
+    - `fetchCategoryTitleInsights()` erlaubt jetzt Query-only-Anfragen (kein frühes Return wenn `cat` leer aber `query` gesetzt)
+    - `fetchBrowseTitles()` setzt `category_ids` jetzt nur noch wenn nicht leer (war: immer gesetzt → eBay-API-Fehler)
+  - **Problem 2 — Web Image Search liefert nie Ergebnisse:** (noch offen)
+  - **Problem 2 — Web Image Search liefert nie Ergebnisse:**
+    - `forceOneEvidencePass()` in `product-chat.js` und `enrichment.js` nutzen BrightData für Websuche
+    - Image-Suche scheitert weil: (a) falsche Query-Konstruktion, (b) Ergebnis-Parsing für Bilder fehlt, (c) kein dedizierter Image-Search-Endpoint
+    - **Fix:** Dedizierte Image-Search-Funktion bauen:
+      - Google Images via BrightData SERP: `site:google.com/search?tbm=isch&q={query}`
+      - Oder: Google Lens-ähnliche Reverse Image Search via BrightData
+      - Ergebnis: Array von `{ url, width, height, source }` → in `details.images.additional[]` speichern
+    - Sowohl Chat als auch Identify sollen Web Image Search aktiv nutzen
+  - **Problem 3 — eBay Title Insights nur bei bekannter Kategorie:**
+    - `topTokens` (meistgenutzte Wörter in eBay-Kategorie) werden nur geladen wenn `categoryId` bereits bekannt
+    - Für neue/unbekannte Produkte → keine Title Insights → schlechte Titel
+    - **Fix:** Kategorie-Erkennung VOR Title-Generierung: erst Gemini fragen "Was ist das?" → Kategorie mappen → dann Title Insights laden
+  - **Problem 4 — API-Nutzung nicht koordiniert:**
+    - SerpAPI, BrightData SERP, BrightData Web Unlocker, eBay Browse API, Kaufland API — alle existieren aber werden isoliert und unvollständig genutzt
+    - **Fix:** Orchestrierte Enrichment-Pipeline:
+      1. Bild-Analyse (Gemini Vision) → Produkt-Hypothese
+      2. Barcode/EAN-Lookup (eBay Browse, Kaufland) → Verifizierung
+      3. Web-Recherche (BrightData SERP) → Zusatzinfos, Preise, Bilder
+      4. Title Insights (eBay) → Titel-Optimierung
+      5. Finale LLM-Synthese mit ALLEN gesammelten Daten
+  - **Dateien:**
+    - `backend/services/enrichment.js` → Enrichment-Pipeline orchestrieren, Doppel-Gate entfernen
+    - `backend/lib/price-enrichment.js` → BrightData als primäre Preisquelle
+    - `backend/lib/brightdata-serp.js` → Image-Search-Funktion hinzufügen
+    - `backend/services/product-chat.js` → Web Image Search integrieren
+    - Neues Modul: `backend/lib/image-search.js` → Dedizierte Bildsuche (Google Images via BrightData)
+
+- [ ] **P1: Chat-Qualität verbessern** — Chat liefert oft Blödsinn, Regeln sind non-binding
+  - **Problem 1:** Chat-Regeln in `product-chat.js` (Zeile 1421) als "(non-binding)" markiert → LLM ignoriert sie
+    - **Fix:** "(non-binding)" entfernen, Regeln als HARD RULES formulieren
+  - **Problem 2:** `CHAT_STRICT_RULES_ENABLED` default OFF → strenge Regeln nie aktiv
+    - **Fix:** Default auf ON setzen oder Gate entfernen
+  - **Problem 3:** Intent-Detection ist Regex-basiert (Zeile 62-80) → leicht zu fooling
+    - **Fix:** Intent per LLM klassifizieren statt per Regex (Gemini-Flash für Speed)
+  - **Problem 4:** Web-Evidence auf 8KB truncated → zu wenig Kontext für gute Antworten
+    - **Fix:** Limit auf 16-24KB erhöhen oder intelligentes Chunking (relevanteste Abschnitte extrahieren)
+  - **Dateien:**
+    - `backend/services/product-chat.js` → Regeln binding machen, Intent per LLM, Evidence-Limit erhöhen
+    - `backend/lib/llm-policy-pack.js` → Chat-spezifische Regeln verschärfen
+
 - [ ] **P1: Monitoring & Error-Tracking einrichten** — Wenn ein Runner hängt merkt das aktuell niemand
   - Sentry-Integration für Error-Tracking
   - Uptime-Monitoring für /health Endpoint

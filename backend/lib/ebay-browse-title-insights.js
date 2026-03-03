@@ -219,7 +219,9 @@ async function fetchBrowseTitles({
   const q = safeString(query).slice(0, 100);
 
   const params = new URLSearchParams();
-  params.set('category_ids', safeString(categoryId));
+  // Only set category_ids when non-empty — allows keyword-only queries
+  const catStr = safeString(categoryId).replace(/\D+/g, '');
+  if (catStr) params.set('category_ids', catStr);
   params.set('limit', String(cappedLimit));
   params.set('offset', '0');
   if (q) params.set('q', q);
@@ -333,15 +335,17 @@ async function fetchCategoryTitleInsights({
   forceRefresh = false,
 } = {}) {
   const cat = safeString(categoryId).replace(/\D+/g, '');
-  if (!cat) {
+  const q = safeString(query).slice(0, 100);
+  // Allow query-only requests (no category_ids) — eBay Browse API supports keyword-only search
+  if (!cat && !q) {
     return {
       ok: false,
       categoryId: '',
-      query: safeString(query),
+      query: '',
       marketplaceId: safeString(marketplaceId).toUpperCase(),
       titles: [],
       topTokens: [],
-      error: 'missing_category_id',
+      error: 'missing_category_id_and_query',
       fromCache: false,
     };
   }
@@ -372,7 +376,8 @@ async function fetchCategoryTitleInsights({
     });
 
     let titles = Array.isArray(primary?.titles) ? primary.titles : [];
-    if (!titles.length && safeString(query)) {
+    // Only fall back to category-only if we have a categoryId — query-only searches have no useful fallback
+    if (!titles.length && q && cat) {
       const fallback = await fetchBrowseTitles({
         categoryId: cat,
         marketplaceId,
@@ -413,8 +418,26 @@ async function fetchCategoryTitleInsights({
   }
 }
 
+/**
+ * Convenience wrapper: returns up to `limit` real eBay listing titles for a category.
+ * Used for few-shot injection into LLM prompts.
+ *
+ * @param {string} categoryId - eBay category ID
+ * @param {number} [limit=5] - Max titles to return
+ * @returns {Promise<string[]>} Array of title strings, empty on error
+ */
+async function fetchTopTitlesForCategory(categoryId, limit = 5) {
+  try {
+    const result = await fetchCategoryTitleInsights({ categoryId, limit: Math.max(20, limit * 4) });
+    return Array.isArray(result?.titles) ? result.titles.slice(0, limit) : [];
+  } catch {
+    return [];
+  }
+}
+
 module.exports = {
   fetchCategoryTitleInsights,
   fetchBrowsePriceSamples,
+  fetchTopTitlesForCategory,
   tokenizeTitle,
 };

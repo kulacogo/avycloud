@@ -51,8 +51,9 @@ function buildBestMatchSignalsText() {
 }
 
 function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = {}) {
-  const policyEnabled = (process.env.LLM_POLICY_ENABLED || '').toString().trim().toLowerCase();
-  const enabled = policyEnabled === '1' || policyEnabled === 'true' || policyEnabled === 'yes';
+  // Default ON — opt-out via LLM_POLICY_ENABLED=false
+  const policyEnabled = (process.env.LLM_POLICY_ENABLED || 'true').toString().trim().toLowerCase();
+  const enabled = policyEnabled !== '0' && policyEnabled !== 'false' && policyEnabled !== 'no';
   if (!enabled) {
     // User request: no rigid rules. Keep only the essentials: evidence-first and no hallucinations.
     return [

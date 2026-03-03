@@ -75,16 +75,30 @@ function resolveEbayCategoryIdForProduct(product) {
   );
 }
 
+function buildKeywordQueryForProduct(product) {
+  const id = product?.identification || {};
+  const parts = [safeString(id.brand), safeString(id.name || id.title)].filter(
+    (p) => p && p.length >= 2 && p.toLowerCase() !== 'unknown' && p.toLowerCase() !== 'unbekannt'
+  );
+  return parts.slice(0, 2).join(' ').slice(0, 100).trim();
+}
+
 async function loadTitleInsightsForProduct(product, { cache = null, limit = 80, maxTokens = 8 } = {}) {
   const categoryId = resolveEbayCategoryIdForProduct(product);
   const normalizedLimit = Math.max(10, Math.min(200, Number(limit) || 80));
   const normalizedMaxTokens = Math.max(1, Math.min(20, Number(maxTokens) || 8));
-  const cacheKey = `${categoryId}|${normalizedLimit}|${normalizedMaxTokens}`;
+  // Keyword fallback: when no category, use brand + product name as query
+  const keywordQuery = categoryId ? '' : buildKeywordQueryForProduct(product);
+  const cacheKey = `${categoryId}|${keywordQuery}|${normalizedLimit}|${normalizedMaxTokens}`;
   const fallback = { categoryId: categoryId || null, topTokens: [], sampleTitles: [], error: null };
-  if (!categoryId) return fallback;
+  if (!categoryId && !keywordQuery) return fallback;
   if (cache && cache.has(cacheKey)) return cache.get(cacheKey);
   try {
-    const insights = await fetchCategoryTitleInsights({ categoryId, limit: normalizedLimit });
+    const insights = await fetchCategoryTitleInsights({
+      categoryId: categoryId || '',
+      query: keywordQuery,
+      limit: normalizedLimit,
+    });
     const raw = Array.isArray(insights?.topTokens) ? insights.topTokens : [];
     const topTokens = [];
     const seen = new Set();
@@ -106,8 +120,8 @@ async function loadTitleInsightsForProduct(product, { cache = null, limit = 80, 
     const loaded = {
       categoryId,
       topTokens,
-      sampleTitles: Array.isArray(insights?.sampleTitles)
-        ? insights.sampleTitles.map((t) => safeString(t)).filter(Boolean).slice(0, 5)
+      sampleTitles: Array.isArray(insights?.titles)
+        ? insights.titles.map((t) => safeString(t)).filter(Boolean).slice(0, 5)
         : [],
       error: null,
     };
@@ -708,9 +722,11 @@ function buildUserPrompt({
     );
   }
   if (Array.isArray(titleInsights?.topTokens) && titleInsights.topTokens.length) {
-    parts.push(
-      `eBay Titel-Keyword-Hinweise (Kategorie ${titleInsights?.categoryId || 'n/a'}): ${titleInsights.topTokens.join(', ')}`
-    );
+    const tokenLine = `eBay Titel-Keywords (Kategorie ${titleInsights?.categoryId || 'n/a'}): ${titleInsights.topTokens.join(', ')}`;
+    const exampleLines = Array.isArray(titleInsights?.sampleTitles) && titleInsights.sampleTitles.length
+      ? `\neBay Titel-Beispiele (Few-Shot — Stil-Vorbilder für deinen Titel, nicht kopieren):\n${titleInsights.sampleTitles.slice(0, 5).map((t, i) => `${i + 1}. ${t}`).join('\n')}`
+      : '';
+    parts.push(tokenLine + exampleLines);
   }
 
   if (webEvidence) {
@@ -1558,8 +1574,15 @@ function buildReviewPrompt(
     'GPSR/Compliance: Wenn WEB-EVIDENZ Hersteller/Verantwortlicher enthält, extrahiere und liefere gpsr.* (Adresse/Ort/PLZ/Land/E-Mail/Telefon/Name). Wenn nicht belegbar: Felder leer lassen (nicht raten).';
   const idsLine =
     'Identifiers: Wenn WEB-EVIDENZ/OCR MPN/Herstellernummer/EAN/GTIN/UPC enthält, liefere identifiers.* und zusätzlich als Attribute (z.B. "Herstellernummer"). Keine IDs erfinden.';
-  const titleInsightLine = Array.isArray(titleInsights?.topTokens) && titleInsights.topTokens.length
-    ? `Titel-Keyword-Hinweise aus eBay Kategorie ${titleInsights?.categoryId || catIdRaw || 'n/a'}: ${titleInsights.topTokens.join(', ')}`
+  const hasTitleTokens = Array.isArray(titleInsights?.topTokens) && titleInsights.topTokens.length > 0;
+  const hasTitleExamples = Array.isArray(titleInsights?.sampleTitles) && titleInsights.sampleTitles.length > 0;
+  const titleInsightLine = hasTitleTokens
+    ? [
+        `Titel-Keyword-Hinweise aus eBay Kategorie ${titleInsights?.categoryId || catIdRaw || 'n/a'}: ${titleInsights.topTokens.join(', ')}`,
+        hasTitleExamples
+          ? `\neBay Titel-Beispiele (Few-Shot — Stil-Vorbilder, nicht kopieren):\n${titleInsights.sampleTitles.slice(0, 5).map((t, i) => `${i + 1}. ${t}`).join('\n')}`
+          : '',
+      ].join('')
     : 'Titel-Keyword-Hinweise: nicht verfügbar. Nutze nur belegbare Suchbegriffe aus Kategorie + Produktdaten.';
 
   const promptMode = llmOverrides?.promptMode === 'replace' ? 'replace' : 'append';
@@ -2638,12 +2661,14 @@ async function fetchPriceTrace(product, keywords) {
 }
 
 async function ensurePriceCoverage(products = [], serpTrace = [], options = {}) {
-  // Price enrichment requires SerpAPI in this codebase.
-  // Make it opt-in and skip entirely when SerpAPI is disabled (default in BrightData-only setups).
-  const SERPAPI_ENABLED = (process.env.SERPAPI_ENABLED || '').toString().trim().toLowerCase() === 'true';
+  // SerpAPI enrichment step — opt-in via PRICE_ENRICHMENT_ENABLED=true.
+  // SERPAPI_ENABLED is a secondary guard for deployments that don't have SerpAPI credentials.
+  // BrightData/eBay Browse fallbacks in enrichPriceForProductBestEffort run regardless.
   const PRICE_ENRICH =
     (process.env.PRICE_ENRICHMENT_ENABLED || '').toString().trim().toLowerCase() === 'true';
-  if (!SERPAPI_ENABLED || !PRICE_ENRICH) return;
+  if (!PRICE_ENRICH) return;
+  const SERPAPI_ENABLED = (process.env.SERPAPI_ENABLED || '').toString().trim().toLowerCase() === 'true';
+  if (!SERPAPI_ENABLED) return;
   if (!Array.isArray(products) || !products.length) return;
 
   const force = Boolean(options?.force);
