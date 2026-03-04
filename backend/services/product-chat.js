@@ -54,12 +54,9 @@ const MARKETING_MAX_RESULTS = 6;
 const BARCODE_INTENT_REGEX = /\b(ean|gtin|upc)\b/i;
 
 /**
- * Classifies user intent before running the full agentic loop.
- * 'change'   → User wants product data updated (default, runs all fallbacks)
- * 'info'     → User wants an answer/information (skips forced change fallbacks)
- * 'analysis' → User wants a quality report/evaluation (skips forced change fallbacks)
+ * Regex-based intent detection (fast fallback).
  */
-function detectIntent(message) {
+function detectIntentRegex(message) {
   const msg = String(message || '');
   const INFO_PATTERNS = [
     /\b(was ist|was sind|was bedeutet|wie ist|wie viel|wie viele|wie teuer|wann|wo|warum|welche|welcher|welches)\b/i,
@@ -79,15 +76,58 @@ function detectIntent(message) {
   return 'change';
 }
 
+/**
+ * LLM-based intent detection with regex fallback.
+ * Uses a fast model to classify user intent into change/info/analysis.
+ * Falls back to regex if LLM call fails or takes too long.
+ */
+async function detectIntent(message) {
+  const msg = String(message || '').trim();
+  if (!msg) return 'change';
+
+  try {
+    const genAI = getGeminiClient();
+    const model = genAI.getGenerativeModel({
+      model: resolveModel(null, 'CHAT_INTENT_MODEL', 'gemini-2.0-flash-lite'),
+      generationConfig: { temperature: 0, maxOutputTokens: 10 },
+    });
+
+    const result = await Promise.race([
+      model.generateContent(
+        `Classify the user message intent for a product data assistant. Reply ONLY with one word: change, info, or analysis.
+
+- "change": User wants to modify/update/improve product data (title, description, attributes, images, etc.)
+- "info": User wants information, explanation, comparison, or pricing details
+- "analysis": User wants a quality check, audit, or evaluation of the product data
+
+User message: "${msg.slice(0, 500)}"
+
+Intent:`
+      ),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Intent detection timeout')), 3000)),
+    ]);
+
+    const text = (result?.response?.text?.() || '').trim().toLowerCase();
+    if (text === 'info' || text === 'analysis' || text === 'change') return text;
+    // If LLM returned something unexpected, fall through to regex
+  } catch (err) {
+    // Silently fall back to regex on any error (timeout, API failure, etc.)
+  }
+
+  return detectIntentRegex(msg);
+}
+
 function strictRulesEnabled() {
   // Default is "no rules" per user request. Opt-in only.
   const b = (v) => {
     const s = (v || '').toString().trim().toLowerCase();
     return s === '1' || s === 'true' || s === 'yes';
   };
-  // Chat-specific switch. We intentionally do NOT couple chat strictness to generic backend flags
-  // like LLM_POLICY_ENABLED/RULEBOOK_ENABLED, because the user wants chat to be rule-free by default.
-  return b(process.env.CHAT_STRICT_RULES_ENABLED) || b(process.env.STRICT_RULES_ENABLED);
+  // Chat-specific switch. Defaults to ON for consistent quality.
+  // Can be disabled via CHAT_STRICT_RULES_ENABLED=false if needed.
+  const v = process.env.CHAT_STRICT_RULES_ENABLED;
+  if (v !== undefined) return b(v);
+  return b(process.env.STRICT_RULES_ENABLED) || true;
 }
 
 function safeString(v) {
@@ -351,7 +391,7 @@ async function forceOneEvidencePass(product, userMessage, { scope = null, notesO
   });
 
   const html = typeof fetched?.body === 'string' ? fetched.body : '';
-  const text = html ? htmlToText(html).slice(0, 8000) : '';
+  const text = html ? htmlToText(html).slice(0, 20000) : '';
 
   // 4) Deterministic: force ONE update_product_datasheet tool call using evidence
   const client = await getGeminiClient();
@@ -1418,12 +1458,12 @@ function buildSystemPrompt(locale = 'de-DE') {
     'When proposing product updates, explain briefly (1–2 sentences) and include a minimal JSON snippet called "edit" that only contains the changed fields.',
     ...(rulesOn
       ? [
-          'QUALITY GOALS (non-binding):',
+          'QUALITY RULES:',
           '- Title: search-native & searchable, preferably 70–80 chars, never exceed 80.',
           '- No marketing fluff, no emojis, no duplicates, no leading symbols, no SKU/internal IDs.',
         ]
       : [
-          'QUALITY GOALS (non-binding):',
+          'QUALITY RULES:',
           '- Prefer evidence-backed, search-native titles; keep them searchable and ≤80 chars.',
         ]),
     'Only call generate_ai_images when the user EXPLICITLY requests AI-rendered images (e.g. "erstelle KI-Bilder", "generiere Bilder"). For "Web-Produktbilder" or "Produktbilder suchen", always use web search tools instead.',
@@ -2028,7 +2068,7 @@ async function runProductChat(product, userMessage, {
   const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-2.5-flash');
 
   const locale = 'de-DE';
-  const intent = detectIntent(userMessage || '');
+  const intent = await detectIntent(userMessage || '');
   const conversationMode = detectConversationMode(userMessage || '');
   const marketingFocus = isMarketingImageRequest(userMessage || '');
   const webOnlyImages = marketingFocus && WEB_ONLY_IMAGE_REGEX.test(userMessage || '');
@@ -2143,9 +2183,9 @@ async function runProductChat(product, userMessage, {
   10. SCOPE COMPLIANCE: Read the user's request carefully. If they ask for specific things (e.g. only images, only price, only title), do EXACTLY that. Do not add unrequested changes or commentary.
   11. ATTRIBUTE LENGTH: Attribute/item-specific values must be ≤60 characters (EXCEPTION: K-Typ). Titles are governed separately (≤80 chars).
 
-  QUALITY BAR (non-binding):
-  - Titles should be searchable and ≤80 chars.
-  - Key features should be non-duplicative and factual.
+  QUALITY RULES:
+  - Titles MUST be searchable and ≤80 chars.
+  - Key features MUST be non-duplicative and factual.
   `;
 
   const model = client.getGenerativeModel({

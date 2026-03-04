@@ -1513,6 +1513,45 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
   }
 });
 
+// --- SSE Product Stream — real-time product updates via Firestore onSnapshot ---
+router.get('/products/stream', requirePermission('products', 'read'), (req, res) => {
+  const COLLECTION = process.env.PRODUCT_COLLECTION || 'products';
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.write(':ok\n\n');
+
+  let isFirst = true;
+  const unsubscribe = firestore.collection(COLLECTION).onSnapshot((snapshot) => {
+    if (isFirst) {
+      // Skip initial full snapshot — client already has data from initial GET
+      isFirst = false;
+      res.write(`event: connected\ndata: ${JSON.stringify({ ts: new Date().toISOString() })}\n\n`);
+      return;
+    }
+    const changes = snapshot.docChanges().map((change) => ({
+      type: change.type,
+      id: change.doc.id,
+      data: change.type !== 'removed' ? change.doc.data() : undefined,
+    }));
+    if (changes.length > 0) {
+      res.write(`event: update\ndata: ${JSON.stringify({ changes, ts: new Date().toISOString() })}\n\n`);
+    }
+  }, (err) => {
+    console.error(`[SSE] Product stream error: ${err.message}`);
+    res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
+  });
+
+  req.on('close', () => {
+    unsubscribe();
+  });
+});
+
 // --- Get single product ---
 router.get('/products/:id', requirePermission('products', 'read'), async (req, res) => {
   try {

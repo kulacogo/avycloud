@@ -1205,7 +1205,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       className="grid grid-cols-1 gap-6 w-full relative items-start lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]"
     >
       {notification && (
-        <div className={`fixed top-20 right-8 p-4 rounded-xl z-50 ${notification.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} text-white`}>
+        <div
+          role="alert"
+          aria-live="assertive"
+          className={`fixed top-20 right-8 p-4 rounded-xl z-50 ${notification.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} text-white`}
+        >
           {notification.message}
         </div>
       )}
@@ -1218,6 +1222,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 <>
                   <textarea
                     id="p-name"
+                    aria-label={t('common.productName') || 'Produktname'}
                     value={localProduct.identification.name}
                     onChange={(e) => handleFieldChange('identification.name', e.target.value)}
                     className={`w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none border-b resize-y min-h-[3.5rem] leading-tight ${
@@ -1250,6 +1255,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               )}
               <p id="p-brand-cat" className="text-slate-400 mt-1">
                 <input
+                  aria-label="Marke"
                   value={localProduct.identification.brand}
                   onChange={(e) => handleFieldChange('identification.brand', e.target.value)}
                   readOnly={!isEditing}
@@ -1261,6 +1267,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 {isEditing ? (
                   <span className="inline-flex flex-col gap-1 text-xs text-slate-200">
                     <input
+                      aria-label="eBay Kategorie suchen"
                       value={categoryQuery}
                       onChange={(e) => setCategoryQuery(e.target.value)}
                       className={`bg-transparent border-b outline-none ${
@@ -1269,6 +1276,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       placeholder="eBay Kategorie suchen..."
                     />
                     <select
+                      aria-label="eBay Kategorie auswählen"
                       value={
                         getProductEbayCategoryId(localProduct) ||
                         ''
@@ -1283,7 +1291,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         </option>
                       ))}
                     </select>
-                    {categoryLoading && <span className="text-[10px] text-slate-500">Lade Kategorien…</span>}
+                    {categoryLoading && <span role="status" aria-live="polite" className="text-[10px] text-slate-500">Lade Kategorien…</span>}
                     {categoryError && <span className="text-[10px] text-red-400">{categoryError}</span>}
                   </span>
                 ) : (
@@ -1307,6 +1315,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   disabled={!localProduct.identification.sku || isPrintingLabel}
                   className="flex items-center px-3 py-1.5 bg-slate-700 text-white rounded-full hover:bg-slate-600 disabled:opacity-40"
                   title={t('sheet.buttons.printLabelTitle')}
+                  aria-label={t('sheet.buttons.printLabelTitle') || 'SKU-Label drucken'}
                 >
                   <PrintIcon />
                   <span className="ml-1">{t('common.printLabel')}</span>
@@ -1318,6 +1327,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     {t('common.barcodeLabel')}
                   </label>
                   <textarea
+                    aria-label={t('common.barcodeLabel') || 'Barcodes (EAN/GTIN)'}
                     value={barcodeInput}
                     onChange={(e) => {
                       setBarcodeInput(e.target.value);
@@ -1407,12 +1417,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                           : 'bg-slate-700 text-slate-100 hover:bg-slate-600'
                     } ${qualityBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
                     title="Quality Gate manuell ausführen"
+                    aria-label="Quality Gate manuell ausführen"
                   >
                     {qualityBusy ? 'Prüfe…' : 'Prüfen'}
                   </button>
                 </div>
 
-                {qualityMessage && <div className="text-[11px] text-slate-400 mt-2">{qualityMessage}</div>}
+                {qualityMessage && <div role="status" aria-live="polite" className="text-[11px] text-slate-400 mt-2">{qualityMessage}</div>}
 
                 {qualityIssues.length > 0 && (
                   <div className="mt-2 space-y-1">
@@ -1473,6 +1484,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               <button
                 id="btn-edit"
                 onClick={() => setIsEditing(v => !v)}
+                aria-label={isEditing ? t('common.editing') || 'Bearbeitung aktiv' : t('common.edit') || 'Produkt bearbeiten'}
+                aria-pressed={isEditing}
                 className={`flex items-center justify-center px-4 py-2 font-medium rounded-xl transition-colors w-full sm:w-auto ${isEditing ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-sky-600/20 text-sky-300 hover:bg-sky-600/30'
                   }`}
               >
@@ -1482,6 +1495,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 id="btn-save"
                 onClick={handleSave}
                 disabled={isSaving}
+                aria-label={isSaving ? t('common.saving') || 'Wird gespeichert' : t('common.save') || 'Produkt speichern'}
                 className="flex items-center justify-center px-4 py-2 bg-emerald-600/20 text-emerald-300 font-medium rounded-xl hover:bg-emerald-600/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 <SaveIcon /><span className="ml-2">{isSaving ? t('common.saving') : t('common.save')}</span>
@@ -1491,6 +1505,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   type="button"
                   onClick={() => onImprove(localProduct.id)}
                   disabled={Boolean(isImproving)}
+                  aria-label={isImproving ? t('common.improving') || 'Wird verbessert' : t('common.improve') || 'Produkt mit KI verbessern'}
                   className="flex items-center justify-center px-4 py-2 bg-violet-600/20 text-violet-300 font-medium rounded-xl hover:bg-violet-600/30 transition-colors disabled:opacity-40 w-full sm:w-auto"
                 >
                   {isImproving ? t('common.improving') : t('common.improve')}
@@ -1500,12 +1515,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 type="button"
                 onClick={handlePublishToEbay}
                 disabled={isPublishingEbay}
+                aria-label="Produkt auf eBay veröffentlichen"
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-sky-600/20 text-sky-300 font-medium rounded-xl hover:bg-sky-600/30 transition-colors disabled:opacity-40 disabled:cursor-wait w-full sm:w-auto"
               >
                 {isPublishingEbay ? (
                   <Spinner className="w-4 h-4" />
                 ) : (
-                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                     <circle cx="10" cy="10" r="7" />
                     <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
                   </svg>
@@ -1535,6 +1551,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
+                    aria-label={t('sheet.upload.urlPlaceholder') || 'Bild-URL eingeben'}
                     placeholder={t('sheet.upload.urlPlaceholder')}
                     className="flex-1 bg-slate-800 border border-white/10 rounded-lg p-2 text-slate-200"
                     value={newImageUrl}
@@ -1549,6 +1566,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <button
                     type="button"
                     onClick={handleAddImageFromUrl}
+                    aria-label={t('sheet.upload.urlButton') || 'Bild von URL hinzufügen'}
                     className="px-4 py-2 bg-slate-700 rounded-xl text-white font-semibold hover:bg-slate-600 transition-colors disabled:opacity-50"
                     disabled={!newImageUrl.trim()}
                   >
@@ -1556,6 +1574,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </button>
                 </div>
                 <div
+                  role="region"
+                  aria-label="Bilder per Drag-and-Drop hochladen"
                   className={`rounded-xl border-2 border-dashed p-4 text-center text-xs sm:text-sm transition-colors ${isUploadDragActive ? 'border-sky-500 bg-slate-800/60' : 'border-white/10 bg-slate-900/40'}`}
                   onDragOver={handleUploadDragOver}
                   onDragEnter={handleUploadDragOver}
@@ -1572,6 +1592,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         type="file"
                         accept="image/*"
                         multiple
+                        aria-label="Bilddateien auswählen"
                         className="hidden"
                         onChange={(e) => {
                           const { files } = e.target;
@@ -1595,6 +1616,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </label>
                   {referenceImages.length ? (
                     <select
+                      aria-label="Referenzbild für KI-Generierung auswählen"
                       className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-100"
                       value={selectedReferenceIndex >= 0 ? selectedReferenceIndex : ''}
                       onChange={(e) => setSelectedReferenceIndex(Number(e.target.value))}
@@ -1615,6 +1637,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 <button
                   onClick={handleGenerateImages}
                   disabled={isGeneratingImages || !selectedReferenceImage}
+                  aria-label={isGeneratingImages ? t('sheet.ai.running') || 'Bilder werden generiert' : t('sheet.ai.cta') || 'KI-Bilder generieren'}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-violet-500 text-white font-semibold rounded-xl hover:from-violet-500 hover:to-violet-400 transition-all disabled:opacity-40 shadow-lg shadow-violet-900/20"
                 >
                   {isGeneratingImages ? <Spinner className="w-5 h-5 text-white" /> : <MagicIcon className="w-5 h-5" />}
@@ -1628,6 +1651,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             <h3 className="text-lg font-semibold mb-2 text-white">{t('sheet.highlights')}</h3>
             {isEditing ? (
               <textarea
+                aria-label={t('sheet.highlights') || 'Highlights bearbeiten'}
                 defaultValue={(localProduct.details.key_features || []).join('\n')}
                 onBlur={(e) => {
                   const lines = e.target.value.split('\n').map((line) => line.trim()).filter(Boolean);
@@ -1657,6 +1681,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             <h3 className="text-xl font-semibold mb-3 text-white">{t('sheet.description')}</h3>
             {isEditing ? (
               <textarea
+                aria-label={t('sheet.description') || 'Produktbeschreibung bearbeiten'}
                 defaultValue={localProduct.details.short_description}
                 onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
                 className="w-full min-h-[120px] bg-slate-800 border border-white/10 rounded-lg p-3 text-slate-200"
@@ -1699,6 +1724,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     <div className="text-xs font-semibold text-slate-300">{label}</div>
                     {isEditing ? (
                       <input
+                        aria-label={`GPSR ${label}`}
                         value={value}
                         onChange={(e) => updateGpsrField(String(key), e.target.value)}
                         className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-slate-200 text-sm"
@@ -1737,6 +1763,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
               {isEditing ? (
                 <textarea
+                  aria-label="K-Typ Nummern bearbeiten"
                   defaultValue={ktypValue}
                   placeholder="19974|57446|57448"
                   onBlur={(e) => {
@@ -1838,6 +1865,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     <button
                       type="button"
                       title="Preisvorschlag als aktuellen Preis übernehmen und speichern"
+                      aria-label="Preisvorschlag als aktuellen Preis übernehmen"
                       onClick={() => {
                         setLocalProduct(prev => ({
                           ...prev,
@@ -1882,9 +1910,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           <section id="storage" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
             <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.storage')}</h3>
             {binsLoading ? (
-              <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.loading')}</p>
+              <p role="status" aria-live="polite" className="text-slate-400 text-sm mb-3">{t('sheet.storage.loading')}</p>
             ) : binsError ? (
-              <p className="text-rose-300 text-sm mb-3">{binsError}</p>
+              <p role="alert" className="text-rose-300 text-sm mb-3">{binsError}</p>
             ) : productBins.length ? (
               <div className="mb-4 space-y-2 max-h-56 overflow-auto pr-1">
                 {productBins.map((bin) => (
@@ -1927,6 +1955,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               <button
                 onClick={handleAssignBin}
                 disabled={isAssigningBin}
+                aria-label={t('sheet.storage.assign') || 'Lagerplatz zuweisen (Stock-In)'}
                 className="px-4 py-2 bg-sky-600/20 text-sky-300 rounded-xl hover:bg-sky-600/30 disabled:opacity-40"
               >
                 {isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}
@@ -1934,6 +1963,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               {binCodeInput && (
                 <button
                   onClick={handleRemoveBin}
+                  aria-label={t('sheet.storage.remove') || 'Lagerplatz entfernen (Stock-Out)'}
                   className="px-4 py-2 bg-rose-600/20 text-rose-300 rounded-xl hover:bg-rose-600/30"
                 >
                   {t('sheet.storage.remove')}
@@ -1960,6 +1990,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 type="button"
                 onClick={handleInventoryLabel}
                 disabled={!localProduct.inventory?.inventoryId}
+                aria-label={t('sheet.inventory.printLabel') || 'Inventar-Label drucken'}
                 className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
               >
                 <PrintIcon className="w-4 h-4" />
@@ -1969,6 +2000,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 type="button"
                 onClick={() => syncInventoryList()}
                 disabled={inventorySyncing}
+                aria-label={t('sheet.inventory.sync') || 'Inventar synchronisieren'}
                 className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-60"
               >
                 {inventorySyncing ? <Spinner className="w-4 h-4" /> : <RefreshIcon className="w-4 h-4" />}
@@ -1981,6 +2013,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               {t('sheet.inventory.selectLabel')}
             </label>
             <select
+              aria-label={t('sheet.inventory.selectLabel') || 'Inventar auswählen'}
               value={localProduct.inventory?.inventoryId || ''}
               onChange={(event) => handleInventoryAssign(event.target.value)}
               disabled={assigningInventory}
@@ -2003,24 +2036,56 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   : null
               }
               disabled={!localProduct.inventory?.inventoryId}
+              aria-label={t('sheet.inventory.setActive') || 'Inventar als aktiv setzen'}
               className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
               <BarcodeIcon className="w-4 h-4" />
               {t('sheet.inventory.setActive')}
             </button>
           </div>
-          {inventoryMessage && <p className="text-xs text-slate-400">{inventoryMessage}</p>}
+          {inventoryMessage && <p role="status" aria-live="polite" className="text-xs text-slate-400">{inventoryMessage}</p>}
         </section>
         )}
 
         <section className="p-5 bg-slate-800/40 rounded-2xl border border-white/10">
           <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.actions.title')}</h3>
+          {/* Listing Status Badges */}
+          {((localProduct as any)?.ops?.listingStatus?.ebay || (localProduct as any)?.ops?.listingStatus?.kaufland) && (
+            <div className="flex flex-wrap gap-2 mb-4" role="status" aria-label="Listing-Status">
+              {(localProduct as any)?.ops?.listingStatus?.ebay === 'active' && (
+                <span className="inline-flex items-center rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-200">
+                  eBay: Gelistet
+                </span>
+              )}
+              {(localProduct as any)?.ops?.listingStatus?.ebay === 'inactive' && (
+                <span className="inline-flex items-center rounded-full bg-amber-800/30 px-3 py-1 text-xs font-semibold text-amber-400">
+                  eBay: Inaktiv
+                </span>
+              )}
+              {(localProduct as any)?.ops?.listingStatus?.kaufland === 'active' && (
+                <span className="inline-flex items-center rounded-full bg-rose-500/20 px-3 py-1 text-xs font-semibold text-rose-200">
+                  Kaufland: Gelistet
+                </span>
+              )}
+              {(localProduct as any)?.ops?.listingStatus?.kaufland === 'inactive' && (
+                <span className="inline-flex items-center rounded-full bg-rose-800/30 px-3 py-1 text-xs font-semibold text-rose-400">
+                  Kaufland: Inaktiv
+                </span>
+              )}
+              {(localProduct as any)?.ops?.listingStatus?.lastSyncAt && (
+                <span className="text-xs text-slate-500">
+                  Sync: {new Date((localProduct as any).ops.listingStatus.lastSyncAt).toLocaleString('de-DE')}
+                </span>
+              )}
+            </div>
+          )}
           <div className="actions flex flex-wrap gap-4 items-center">
             {/* Fixed BaseLinker inventory (78659), no selector */}
             <button
               id="btn-sync"
               onClick={handleSync}
               disabled={isSyncing}
+              aria-label={t('sheet.actions.sync') || 'Mit BaseLinker synchronisieren'}
               className="flex items-center justify-center px-4 py-2 bg-slate-800/60 text-slate-200 font-semibold rounded-xl hover:bg-slate-700/60 transition-colors disabled:opacity-40 disabled:cursor-wait border border-white/10"
             >
               {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}
@@ -2030,12 +2095,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               id="btn-publish-ebay"
               onClick={handlePublishToEbay}
               disabled={isPublishingEbay}
+              aria-label="Auf eBay listen"
               className="flex items-center justify-center px-4 py-2 bg-sky-600/20 text-sky-300 font-semibold rounded-xl hover:bg-sky-600/30 transition-colors disabled:opacity-40 disabled:cursor-wait"
             >
               {isPublishingEbay ? (
                 <Spinner className="w-5 h-5" />
               ) : (
-                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                   <circle cx="10" cy="10" r="7" />
                   <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
                 </svg>
@@ -2052,7 +2118,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </section>
       </div>
 
-      <aside id="gemini-chat" className="lg:sticky lg:top-24">
+      <aside id="gemini-chat" aria-label="KI-Assistent Chat" className="lg:sticky lg:top-24">
         <div className="h-[60vh] min-h-[420px] lg:h-[75vh]">
           <AssistantChat
             product={localProduct}

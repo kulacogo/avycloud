@@ -135,6 +135,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <textarea
           ref={textareaRef}
           rows={1}
+          aria-label="Chatnachricht eingeben"
           placeholder={t('chat.input.placeholder')}
           value={value}
           onChange={(event) => onChange(event.target.value.slice(0, charLimit))}
@@ -153,7 +154,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </button>
           <button
             type="button"
-            aria-label={t('chat.input.send')}
+            aria-label="Nachricht senden"
             onClick={onSend}
             disabled={disabled || (!value.trim() && attachments.length === 0)}
             className="flex items-center justify-center rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-600"
@@ -167,6 +168,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         ref={fileInputRef}
         type="file"
         accept={ACCEPTED_TYPES}
+        aria-label="Dateien zum Chat hinzufügen"
         className="hidden"
         multiple
         onChange={handleFileChange}

@@ -3137,38 +3137,32 @@ async function runProductIdentification({
   };
 }
 
-// Helper for Smart Image Recovery
+// Helper for Smart Image Recovery — uses dedicated image-search module
 async function runSmartImageRecovery(products = []) {
-  // This helper uses SerpAPI (google_images). Keep it hard opt-in.
-  const SERPAPI_ENABLED = (process.env.SERPAPI_ENABLED || '').toString().trim().toLowerCase() === 'true';
-  if (!SERPAPI_ENABLED) return;
+  const { searchProductImages } = require('../lib/image-search');
   for (const product of products) {
     const features = product.details?.key_features || [];
     const isPackaging = features.some(f => containsPackagingReference(f));
     const hasImages = product.details?.images?.length > 0;
 
     if (!hasImages || isPackaging) {
-      // Search for high-res images via SerpApi
-      const query = `${product.identification?.brand || ''} ${product.identification?.name || ''} ${product.identification?.barcodes?.[0] || ''}`.trim();
-      if (!query) continue;
-
       try {
-        const images = await callSerpApi('google_images', { q: query, tbs: 'isz:l' }); // Large images
-        const validImages = summarizeSerpEntries('google_images', images, 5);
+        const results = await searchProductImages(product, { limit: 5, minWidth: 600, minHeight: 600 });
+        if (!results.length) continue;
 
-        const recoveryImages = validImages.map((img, idx) => ({
+        const recoveryImages = results.map((img, idx) => ({
           source: 'web_recovery',
           variant: 'gallery',
           url_or_base64: img.url,
-          notes: `recovery_${idx}`,
-          width: img.image_meta?.width,
-          height: img.image_meta?.height
+          notes: `recovery_${idx}: ${img.title || ''}`.trim(),
+          width: img.width,
+          height: img.height,
         }));
 
         product.details = product.details || {};
         product.details.images = [...(product.details.images || []), ...recoveryImages];
       } catch (e) {
-        console.warn("Smart Image Recovery failed:", e.message);
+        console.warn('Smart Image Recovery failed:', e.message);
       }
     }
   }

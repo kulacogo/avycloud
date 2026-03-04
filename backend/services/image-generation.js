@@ -3,6 +3,7 @@ const { generateProductImages } = require('../lib/vertex-ai');
 const { uploadBase64Image } = require('../lib/storage');
 const { generateVisualDescriptions } = require('./prompt-engine');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
+const { compositeOnGradient } = require('../lib/background-removal');
 
 const GENERATED_IMAGE_PATTERN = /(generated|gpt|gemini|vertex|ai[-\s]?image|ai[-\s]?render)/i;
 const MAX_REFERENCE_BYTES = parseInt(process.env.VERTEX_REFERENCE_MAX_BYTES || '12000000', 10);
@@ -103,11 +104,11 @@ async function fetchImageAsDataUrl(image) {
 }
 
 const VARIANT_SPECS = [
-  // Exactly 4 studio packshots (no lifestyle images)
+  // 4 studio packshots: hero 3/4, side angle, detail close-up, rear view
   { group: 'studio', key: 'front', type: 'studio_front' },
   { group: 'studio', key: 'angle', type: 'studio_angle' },
-  { group: 'studio', key: 'topdown', type: 'studio_topdown' },
   { group: 'studio', key: 'detail', type: 'studio_detail' },
+  { group: 'studio', key: 'back', type: 'studio_back' },
 ];
 
 function normalizeImageKey(value = '') {
@@ -156,26 +157,65 @@ function shouldIncludeVariant(mode, spec) {
   return true;
 }
 
+/**
+ * Detects gradient style based on product color (matches prompt-engine logic).
+ */
+function detectGradientStyle(product) {
+  const attrs = product?.details?.attributes || {};
+  const colorKeys = ['Color', 'Farbe', 'Colour', 'Primary Color', 'Hauptfarbe'];
+  let color = '';
+  for (const key of colorKeys) {
+    if (attrs[key]) { color = String(attrs[key]).toLowerCase(); break; }
+  }
+  if (!color) {
+    const fallback = Object.keys(attrs).find((k) => k.toLowerCase().includes('color') || k.toLowerCase().includes('farbe'));
+    if (fallback) color = String(attrs[fallback]).toLowerCase();
+  }
+  const darkTokens = ['black', 'dark', 'anthracite', 'charcoal', 'graphite', 'navy', 'schwarz', 'dunkel'];
+  return darkTokens.some((t) => color.includes(t)) ? 'white' : 'white';
+}
+
+/**
+ * Primary method: Remove background from real photo → composite on studio gradient.
+ * Returns a single hero image (studio_front variant).
+ */
+async function tryBackgroundRemoval(imageBuffer, product) {
+  const gradientStyle = detectGradientStyle(product);
+  const result = await compositeOnGradient(imageBuffer, {
+    gradientStyle,
+    outputWidth: 1024,
+    outputHeight: 1024,
+    padding: 0.08,
+  });
+  return result;
+}
+
 async function generateImagesForProduct(product, options = {}) {
   if (!product?.id) {
-        throw new Error('Product ID is required');
-    }
+    throw new Error('Product ID is required');
+  }
 
-  const { referenceImage } = options;
+  const { referenceImage, skipBackgroundRemoval = false } = options;
   const referenceCandidates = collectReferenceCandidates(product, referenceImage).slice(0, 4);
   if (!referenceCandidates.length) {
     throw new Error('At least one real reference image is required');
   }
 
-  // 1) Prompts
+  // 1) Prompts (needed for Gemini fallback)
   const prompts = await generateVisualDescriptions(product);
 
   // 2) References → data URLs (PNG/JPEG, size-checked)
   const referenceDataUrls = [];
+  const referenceBuffers = [];
   for (const img of referenceCandidates) {
     try {
       const dataUrl = await fetchImageAsDataUrl(img);
-      if (dataUrl) referenceDataUrls.push(dataUrl);
+      if (dataUrl) {
+        referenceDataUrls.push(dataUrl);
+        // Extract buffer for background removal
+        const match = dataUrl.match(/^data:[^;]+;base64,(.+)$/);
+        if (match) referenceBuffers.push(Buffer.from(match[1], 'base64'));
+      }
     } catch (e) {
       // best-effort: skip broken URLs
     }
@@ -184,43 +224,69 @@ async function generateImagesForProduct(product, options = {}) {
     throw new Error('Reference images could not be downloaded');
   }
 
-  // 3) Generate variants
-  const variants = VARIANT_SPECS;
   const generated = [];
+
+  // 3a) PRIMARY: Background removal on hero image (studio_front)
+  if (!skipBackgroundRemoval && referenceBuffers.length > 0) {
+    try {
+      const bgResult = await tryBackgroundRemoval(referenceBuffers[0], product);
+      const base64DataUrl = `data:image/png;base64,${bgResult.buffer.toString('base64')}`;
+      const uploaded = await uploadBase64Image(base64DataUrl, product.id, 'studio_front');
+      generated.push({
+        url_or_base64: uploaded.url,
+        variant: 'studio_front',
+        source: 'background_removal',
+        notes: 'Background removed and composited on studio gradient',
+        width: uploaded.width || bgResult.width,
+        height: uploaded.height || bgResult.height,
+        mimeType: 'image/png',
+      });
+      console.log(`Background removal succeeded for product ${product.id}`);
+    } catch (bgErr) {
+      console.warn(`Background removal failed for ${product.id}, falling back to Gemini:`, bgErr.message);
+    }
+  }
+
+  // 3b) FALLBACK: Gemini generation for remaining variants (or all if BG removal failed)
+  const primaryReferenceDataUrl = referenceDataUrls[0];
+  const variants = VARIANT_SPECS;
 
   for (let i = 0; i < variants.length; i += 1) {
     const spec = variants[i];
-    const referenceDataUrl = referenceDataUrls[i] || referenceDataUrls[0];
-    if (!referenceDataUrl) continue;
+    // Skip variants already generated by background removal
+    if (generated.some((g) => g.variant === spec.type)) continue;
+
     const prompt =
       prompts?.[spec.group]?.[spec.key] ||
       prompts?.[spec.group]?.front ||
-      prompts?.studio?.front ||
-      prompts?.lifestyle?.front;
+      prompts?.studio?.front;
     if (!prompt) continue;
 
-    const images = await generateProductImages({
-      prompt,
-      // Always generate exactly one image per variant (total: 4 studio images).
-      count: 1,
-      aspectRatio: '1:1',
-      referenceImageBase64: referenceDataUrl,
-    });
-
-    for (const img of images) {
-      if (!img?.base64) continue;
-      const mimeType = img.mimeType || 'image/png';
-      const base64DataUrl = `data:${mimeType};base64,${img.base64}`;
-      const uploaded = await uploadBase64Image(base64DataUrl, product.id, spec.type);
-      generated.push({
-        url_or_base64: uploaded.url,
-        variant: spec.type,
-        source: 'generated',
-        notes: 'Generated by Gemini image model',
-        width: uploaded.width || null,
-        height: uploaded.height || null,
-        mimeType: uploaded.mimeType || mimeType,
+    try {
+      const images = await generateProductImages({
+        prompt,
+        count: 1,
+        aspectRatio: '1:1',
+        referenceImageBase64: primaryReferenceDataUrl,
       });
+
+      for (const img of images) {
+        if (!img?.base64) continue;
+        const mimeType = img.mimeType || 'image/png';
+        const base64DataUrl = `data:${mimeType};base64,${img.base64}`;
+        const uploaded = await uploadBase64Image(base64DataUrl, product.id, spec.type);
+        generated.push({
+          url_or_base64: uploaded.url,
+          variant: spec.type,
+          source: 'generated',
+          notes: 'Generated by Gemini image model',
+          width: uploaded.width || null,
+          height: uploaded.height || null,
+          mimeType: uploaded.mimeType || mimeType,
+        });
+      }
+    } catch (genErr) {
+      console.warn(`Gemini generation failed for ${product.id} variant ${spec.type}:`, genErr.message);
     }
   }
 

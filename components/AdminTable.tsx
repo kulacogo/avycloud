@@ -1,8 +1,8 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Product, SyncStatus } from '../types';
 import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, type ProductBulkActionName } from '../api/client';
-import { RefreshIcon, SyncIcon, ExportIcon, SearchIcon, PrintIcon, OperationsIcon, SheetIcon, TrashIcon, BarcodeIcon } from './icons/Icons';
+import { SearchIcon } from './icons/Icons';
 import {
   normalizeSyncStatus,
   getStableNumericId,
@@ -18,6 +18,8 @@ import { isInventoryItem, isProductBacklogItem } from '../utils/inventorySplit';
 import { PageHeader } from './ui/PageHeader';
 import { Notice } from './ui/Notice';
 import { ConfirmDialog } from './ui/ConfirmDialog';
+import { AdminTableHeader, AdminTableRow, AdminTableFilters, BulkActions } from './admin-table';
+import type { ColumnId, ColumnPreset, ColumnDefinition, SortConfig } from './admin-table';
 
 const safeCurrency = (code?: string) => {
   const c = (code || '').toString().trim().toUpperCase();
@@ -25,27 +27,6 @@ const safeCurrency = (code?: string) => {
 };
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
-type ColumnId =
-  | 'thumbnail'
-  | 'nameBrand'
-  | 'category'
-  | 'sku'
-  | 'barcode'
-  | 'price'
-  | 'inventory'
-  | 'pendingIntake'
-  | 'storage'
-  | 'baselinker'
-  | 'ebay'
-  | 'kaufland'
-  | 'lastSold'
-  | 'syncStatus'
-  | 'saveStatus'
-  | 'lastSaved'
-  | 'lastSynced'
-  | 'revision';
-
-type ColumnPreset = 'standard' | 'warehouse' | 'pricing' | 'minimal';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
   standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'lastSaved'],
   warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'saveStatus'],
@@ -64,15 +45,6 @@ const normalizeMarketplaceColumnOrder = (columns: ColumnId[]): ColumnId[] => {
   base.splice(insertAt, 0, 'ebay', 'kaufland');
   return base;
 };
-
-interface ColumnDefinition {
-  id: ColumnId;
-  label: string;
-  sortKey?: string;
-  defaultVisible?: boolean;
-  widthClass?: string;
-  render: (args: { product: Product; onSelectProduct: (id: string) => void }) => React.ReactNode;
-}
 
 interface AdminTableProps {
   products: Product[];
@@ -106,35 +78,6 @@ const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
     >
       {saved ? 'Gespeichert' : 'Nicht gespeichert'}
     </span>
-  );
-};
-
-const ActionButton: React.FC<{
-  icon: React.ReactNode;
-  label: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  tone?: 'primary' | 'secondary' | 'danger' | 'accent' | 'ebay' | 'kaufland';
-}> = ({ icon, label, onClick, disabled, tone = 'secondary' }) => {
-  const toneClasses = {
-    primary: 'bg-sky-600/90 text-white hover:bg-sky-500 border border-sky-500/30',
-    secondary: 'bg-slate-700/80 text-slate-100 hover:bg-slate-600 border border-slate-600/40',
-    danger: 'bg-rose-600/90 text-white hover:bg-rose-500 border border-rose-500/30',
-    accent: 'bg-violet-600/90 text-white hover:bg-violet-500 border border-violet-500/30',
-    ebay: 'bg-amber-600/90 text-white hover:bg-amber-500 border border-amber-500/30',
-    kaufland: 'bg-rose-600/90 text-white hover:bg-rose-500 border border-rose-500/30',
-  };
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition shadow-sm ${toneClasses[tone]
-        } ${disabled ? 'opacity-40 cursor-not-allowed hover:none' : ''}`}
-    >
-      {icon}
-      <span className="whitespace-nowrap">{label}</span>
-    </button>
   );
 };
 
@@ -551,7 +494,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             {primaryImage(product) ? (
               <img
                 src={primaryImage(product)!.url_or_base64}
-                alt={product.identification?.name || ''}
+                alt={product.identification?.name || 'Produktbild'}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -706,8 +649,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
         sortKey: 'ebay.listed',
         defaultVisible: true,
         render: ({ product }) => {
-          // SKU-Match aus Trading-API-Sync (ebayListingsLive), productId-Match aus ebayListingLinks,
-          // Fallback auf marketplace.ebay.itemId
+          // Primary: ops.listingStatus.ebay from listing-sync-runner
+          const ebayStatus = (product as any)?.ops?.listingStatus?.ebay;
+          // Fallback link resolution: SKU match, productId match, marketplace.ebay.itemId
           const skuCandidates = Array.from(
             new Set(
               [
@@ -725,8 +669,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
             (marketplaceItemId && ebayActiveItemIds.has(marketplaceItemId)
               ? `https://www.ebay.de/itm/${encodeURIComponent(marketplaceItemId)}`
               : null);
+          // Determine listed state: ops.listingStatus is authoritative, viewItemUrl as fallback
+          const isActive = ebayStatus === 'active' || (!ebayStatus && viewItemUrl);
+          const isInactive = ebayStatus === 'inactive';
           return (
-            viewItemUrl ? (
+            isActive && viewItemUrl ? (
               <a
                 href={viewItemUrl}
                 target="_blank"
@@ -737,6 +684,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
               >
                 Gelistet
               </a>
+            ) : isActive ? (
+              <span
+                title="Auf eBay gelistet"
+                className="inline-flex items-center justify-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-200"
+              >
+                Gelistet
+              </span>
+            ) : isInactive ? (
+              <span
+                title="eBay-Listing inaktiv"
+                className="inline-flex items-center justify-center rounded-full bg-amber-800/30 px-2 py-0.5 text-xs font-semibold text-amber-400"
+              >
+                Inaktiv
+              </span>
             ) : (
               <span
                 title="Nicht auf eBay gelistet"
@@ -754,6 +715,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         sortKey: 'kaufland.listed',
         defaultVisible: true,
         render: ({ product }) => {
+          // Primary: ops.listingStatus.kaufland from listing-sync-runner
+          const kauflandStatus = (product as any)?.ops?.listingStatus?.kaufland;
           const kp = (product as any)?.ops?.kaufland || {};
           const lastStatus = String(kp?.last_sync_status || '').toLowerCase();
           const sku = normalizeSku(
@@ -774,6 +737,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 .filter(Boolean)
             )
           );
+          // Fallback: cross-reference kauflandUnitsLive index
           const listedByIndex = (sku && kauflandSkuSet.has(sku)) || eanCandidates.some((ean) => kauflandEanSet.has(ean));
           const failed = lastStatus === 'failed';
           const skuUrl = sku ? kauflandSkuUrlMap.get(sku) : null;
@@ -781,6 +745,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
           const skuProductId = sku ? kauflandSkuProductIdMap.get(sku) : null;
           const eanProductId = eanCandidates.map((ean) => kauflandEanProductIdMap.get(ean)).find((v) => Number(v) > 0) || null;
           const viewItemUrl = skuUrl || eanUrl || buildKauflandProductUrl(skuProductId || eanProductId || null) || null;
+          // Determine listed state: ops.listingStatus is authoritative, listedByIndex as fallback
+          const isActive = kauflandStatus === 'active' || (!kauflandStatus && listedByIndex);
+          const isInactive = kauflandStatus === 'inactive';
           return (
             failed ? (
               <span
@@ -789,7 +756,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               >
                 Fehler
               </span>
-            ) : listedByIndex && viewItemUrl ? (
+            ) : isActive && viewItemUrl ? (
               <a
                 href={viewItemUrl}
                 target="_blank"
@@ -800,12 +767,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
               >
                 Gelistet
               </a>
-            ) : listedByIndex ? (
+            ) : isActive ? (
               <span
                 title="Auf Kaufland gelistet (kein Link verfügbar)"
                 className="inline-flex items-center justify-center rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-semibold text-rose-200"
               >
                 Gelistet
+              </span>
+            ) : isInactive ? (
+              <span
+                title="Kaufland-Listing inaktiv"
+                className="inline-flex items-center justify-center rounded-full bg-rose-800/30 px-2 py-0.5 text-xs font-semibold text-rose-400"
+              >
+                Inaktiv
               </span>
             ) : lastStatus === 'ok' ? (
               <span
@@ -1103,6 +1077,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterGpsr === 'complete' && gpsrComplete) ||
         (filterGpsr === 'incomplete' && !gpsrComplete);
 
+      // eBay listing filter: ops.listingStatus.ebay is authoritative, fallback to cross-reference
+      const pEbayStatus = (p as any)?.ops?.listingStatus?.ebay;
       const pSkuCandidates = Array.from(
         new Set(
           [
@@ -1113,15 +1089,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
       );
       const hasSkuMatch = pSkuCandidates.some((sku) => Boolean(ebayLinkedMap.get(sku)));
       const marketplaceItemId = String((p as any)?.marketplace?.ebay?.itemId || '').trim();
-      const isEbayListed = Boolean(
+      const isEbayListed = pEbayStatus === 'active' || (!pEbayStatus && Boolean(
         hasSkuMatch ||
         ebayProductIdMap.get(p.id) ||
         (marketplaceItemId && ebayActiveItemIds.has(marketplaceItemId))
-      );
+      ));
       const matchesEbay =
         filterEbay === 'all' ||
         (filterEbay === 'listed' && isEbayListed) ||
         (filterEbay === 'notListed' && !isEbayListed);
+      // Kaufland listing filter: ops.listingStatus.kaufland is authoritative, fallback to cross-reference
+      const pKauflandStatus = (p as any)?.ops?.listingStatus?.kaufland;
       const pSku = normalizeSku(
         (p as any)?.identification?.sku ||
         p?.details?.identifiers?.sku ||
@@ -1140,9 +1118,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
             .filter(Boolean)
         )
       );
-      const isKauflandListed =
+      const isKauflandListed = pKauflandStatus === 'active' || (!pKauflandStatus && (
         (pSku && kauflandSkuSet.has(pSku)) ||
-        pEanCandidates.some((ean) => kauflandEanSet.has(ean));
+        pEanCandidates.some((ean) => kauflandEanSet.has(ean))
+      ));
       const matchesKaufland =
         filterKaufland === 'all' ||
         (filterKaufland === 'listed' && isKauflandListed) ||
@@ -1180,6 +1159,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
           case 'identification.name':
             return (product.identification?.name || '').toString().toLowerCase();
           case 'ebay.listed': {
+            const sortEbayStatus = (product as any)?.ops?.listingStatus?.ebay;
+            if (sortEbayStatus) return sortEbayStatus === 'active' ? 1 : 0;
+            // Fallback to cross-reference
             const sortSkuCandidates = Array.from(
               new Set(
                 [
@@ -1197,6 +1179,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
             ) ? 1 : 0;
           }
           case 'kaufland.listed': {
+            const sortKauflandStatus = (product as any)?.ops?.listingStatus?.kaufland;
+            if (sortKauflandStatus) return sortKauflandStatus === 'active' ? 1 : 0;
+            // Fallback to cross-reference
             const sku = normalizeSku(
               (product as any)?.identification?.sku ||
               product?.details?.identifiers?.sku ||
@@ -1917,29 +1902,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     };
   }, [focusProductId, filteredAndSortedProducts]);
 
-  const SortableHeader: React.FC<{ sortKey?: string; children: React.ReactNode; widthClass?: string }> = ({
-    sortKey,
-    children,
-    widthClass,
-  }) => {
-    if (!sortKey) {
-      return (
-        <th className={`p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap ${widthClass || ''}`}>
-          {children}
-        </th>
-      );
-    }
-    return (
-      <th
-        className={`p-3 cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap ${widthClass || ''}`}
-        onClick={() => requestSort(sortKey)}
-      >
-        {children}
-        {sortConfig?.key === sortKey && (sortConfig.direction === 'asc' ? ' ▲' : ' ▼')}
-      </th>
-    );
-  };
-
   const resetFilters = () => {
     setSearchTerm('');
     setFilterStatus('all');
@@ -2042,404 +2004,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (filterGpsr !== 'all') count++;
     return count;
   }, [filterStatus, filterCategorySelection, filterBin, filterBaselinkerLink, filterEbay, filterKaufland, filterWeight, filterReserved, filterBinSplit, filterEanValid, filterGpsr]);
-
-  const filterControlClass = 'p-2 text-sm bg-slate-800/40 border border-white/10 rounded-xl text-slate-100';
-  const filterButtonClass =
-    'w-full p-2 text-sm bg-slate-800/40 border border-white/10 rounded-xl text-slate-100 text-left';
-  const menuItemClass =
-    'w-full text-left px-3 py-2 text-sm text-slate-100 hover:bg-slate-800/60 rounded-xl transition';
-
-  const renderFilterControls = () => (
-    <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-        <select
-          id="table-filter-status"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value as SyncStatus | 'all')}
-          className={filterControlClass}
-        >
-          {statusFilters.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setCategoryFilterOpen((v) => !v)}
-            className={filterButtonClass}
-          >
-            {filterCategorySelection.length === 0
-              ? 'Kategorie: Alle'
-              : `Kategorie: ${filterCategorySelection.length} ausgewählt`}
-          </button>
-          {categoryFilterOpen && (
-            <div className="absolute z-30 mt-2 w-[360px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-3 shadow-lg">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-200">Kategorien</p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFilterCategorySelection([])}
-                    className="text-xs text-sky-400 hover:underline"
-                  >
-                    Alle
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCategoryFilterOpen(false)}
-                    className="text-xs text-slate-300 hover:underline"
-                  >
-                    Schließen
-                  </button>
-                </div>
-              </div>
-              <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-                {categoryTree.map((node) => {
-                  const topKey = node.top;
-                  const childKeys = node.children.map((c) => `${node.top} > ${c.sub}`);
-                  const allKeys = [topKey, ...childKeys];
-                  const selectedCount = allKeys.filter((k) => categorySelectionSet.has(k)).length;
-                  const isAllSelected = selectedCount === allKeys.length && allKeys.length > 0;
-                  const isIndeterminate = selectedCount > 0 && selectedCount < allKeys.length;
-                  return (
-                    <div key={node.top} className="rounded-xl border border-white/10 bg-slate-800/40">
-                      <label className="flex items-center gap-2 px-2 py-2 text-sm text-slate-100">
-                        <input
-                          type="checkbox"
-                          checked={isAllSelected}
-                          ref={(el) => {
-                            if (el) el.indeterminate = isIndeterminate;
-                          }}
-                          onChange={() => toggleTopCategory(node.top)}
-                        />
-                        <span className="flex-1">{node.top}</span>
-                        <span className="text-xs text-slate-400">({node.count})</span>
-                      </label>
-                      {node.children.length > 0 && (
-                        <div className="border-t border-slate-800 px-2 py-2 space-y-1">
-                          {node.children.map((c) => {
-                            const key = `${node.top} > ${c.sub}`;
-                            return (
-                              <label
-                                key={key}
-                                className="flex items-center gap-2 pl-5 pr-2 py-1 text-sm text-slate-200"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isCategorySelected(key)}
-                                  onChange={() => toggleCategoryKey(key)}
-                                />
-                                <span className="flex-1">{c.sub}</span>
-                                <span className="text-xs text-slate-500">({c.count})</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <select
-          id="table-filter-bin"
-          value={filterBin}
-          onChange={(e) => setFilterBin(e.target.value as 'all' | 'withBin' | 'withoutBin')}
-          className={filterControlClass}
-        >
-          <option value="all">{t('table.binFilter.all')}</option>
-          <option value="withBin">{t('table.binFilter.withBin')}</option>
-          <option value="withoutBin">{t('table.binFilter.withoutBin')}</option>
-        </select>
-      </div>
-
-      <div className="rounded-xl border border-white/10 bg-slate-800/40 p-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Erweiterte Filter</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          <select
-            id="table-filter-ean-valid"
-            value={filterEanValid}
-            onChange={(e) => setFilterEanValid(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">EAN/GTIN: Alle</option>
-            <option value="valid">Gültige EAN/GTIN</option>
-            <option value="invalid">Ungültige EAN/GTIN</option>
-            <option value="missing">Keine EAN/GTIN</option>
-          </select>
-          <select
-            id="table-filter-gpsr"
-            value={filterGpsr}
-            onChange={(e) => setFilterGpsr(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">GPSR: Alle</option>
-            <option value="complete">GPSR: Vollständig</option>
-            <option value="incomplete">GPSR: Unvollständig</option>
-          </select>
-          <select
-            id="table-filter-baselinker-link"
-            value={filterBaselinkerLink}
-            onChange={(e) => setFilterBaselinkerLink(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">BaseLinker: Alle</option>
-            <option value="linked">BaseLinker: Verknüpft</option>
-            <option value="unlinked">BaseLinker: Nicht verknüpft</option>
-          </select>
-          <select
-            id="table-filter-ebay"
-            value={filterEbay}
-            onChange={(e) => setFilterEbay(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">eBay: Alle</option>
-            <option value="listed">eBay: Gelistet</option>
-            <option value="notListed">eBay: Nicht gelistet</option>
-          </select>
-          <select
-            id="table-filter-kaufland"
-            value={filterKaufland}
-            onChange={(e) => setFilterKaufland(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">Kaufland: Alle</option>
-            <option value="listed">Kaufland: Gelistet</option>
-            <option value="notListed">Kaufland: Nicht gelistet</option>
-          </select>
-          <select
-            id="table-filter-weight"
-            value={filterWeight}
-            onChange={(e) => setFilterWeight(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">Gewicht: Alle</option>
-            <option value="withWeight">Gewicht: vorhanden</option>
-            <option value="noWeight">Gewicht: fehlt</option>
-          </select>
-          <select
-            id="table-filter-reserved"
-            value={filterReserved}
-            onChange={(e) => setFilterReserved(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">Reserviert: Alle</option>
-            <option value="reserved">Reserviert: &gt; 0</option>
-            <option value="notReserved">Reserviert: 0</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <select
-            value={columnPreset}
-            onChange={(e) => {
-              const preset = e.target.value as ColumnPreset;
-              setVisibleColumns(normalizeMarketplaceColumnOrder(COLUMN_PRESETS[preset]));
-              setColumnPreset(preset);
-            }}
-            className={filterControlClass}
-          >
-            <option value="standard">{t('table.presets.standard')}</option>
-            <option value="warehouse">{t('table.presets.warehouse')}</option>
-            <option value="pricing">{t('table.presets.pricing')}</option>
-            <option value="minimal">{t('table.presets.minimal')}</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => setIsColumnPanelOpen((prev) => !prev)}
-            className={`inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition ${isColumnPanelOpen ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300' : 'border-white/10 bg-slate-800/40 text-slate-100 hover:border-white/20'}`}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" /></svg>
-            {t('table.columns.edit')}
-          </button>
-        </div>
-
-        <details className="relative">
-          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1 rounded-xl border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20 transition">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z" /><circle cx="12" cy="12" r="3" /></svg>
-            Tools
-          </summary>
-          <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1.5 shadow-xl shadow-black/40 z-30">
-            <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Export &amp; Import</div>
-            <button type="button" onClick={handleExportCsv} className={menuItemClass}>
-              Export CSV
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setKtypeModalOpen(true);
-                setKtypeFile(null);
-                setKtypeReport(null);
-                setKtypeMessage(null);
-              }}
-              className={menuItemClass}
-            >
-              K‑Typ importieren
-            </button>
-
-            {onBulkImprove ? (
-              <>
-                <div className="my-1.5 border-t border-slate-800/60" />
-                <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-violet-400/80">KI</div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDialog({
-                      title: 'Alle Produkte verbessern?',
-                      tone: 'default',
-                      description:
-                        'Startet KI/Improve-Jobs für alle Produkte. Das kann viele Jobs erzeugen und je nach Menge dauern.',
-                      confirmLabel: 'Verbessern (alle) starten',
-                      onConfirm: () => {
-                        setConfirmDialog(null);
-                        onBulkImprove();
-                      },
-                    });
-                  }}
-                  className={menuItemClass}
-                >
-                  Verbessern (alle)
-                </button>
-              </>
-            ) : null}
-
-            {mode === 'inventory' ? (
-              <>
-                <div className="my-1.5 border-t border-slate-800/60" />
-                <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">
-                  Inventory Fix + Sync
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDialog({
-                      title: 'Titel-Fix für alle Inventory-Produkte?',
-                      tone: 'default',
-                      description:
-                        "Entfernt einen Bindestrich am Ende (inkl. Leerzeichen) und stößt anschließend einen BaseLinker Text-Sync an.",
-                      confirmLabel: 'Starten',
-                      onConfirm: async () => {
-                        setConfirmDialog(null);
-                        await enqueueBulkForAllInCurrentMode('title_cleanup');
-                      },
-                    });
-                  }}
-                  className={menuItemClass}
-                >
-                  Titel Cleanup + Sync
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDialog({
-                      title: 'Highlights als HTML formatieren?',
-                      tone: 'default',
-                      description:
-                        'Speichert Highlights als <ul><li>…</li></ul> (kein „•“) und synchronisiert sie per Text-Only Sync nach BaseLinker.',
-                      confirmLabel: 'Starten',
-                      onConfirm: async () => {
-                        setConfirmDialog(null);
-                        await enqueueBulkForAllInCurrentMode('highlights_html');
-                      },
-                    });
-                  }}
-                  className={menuItemClass}
-                >
-                  Highlights → HTML + Sync
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDialog({
-                      title: 'Beschreibung als HTML formatieren?',
-                      tone: 'default',
-                      description:
-                        'Formatiert Absätze zu <p>…</p> und Label wie „Zustand:“ zu <strong>…</strong>. Danach Text-Only Sync nach BaseLinker.',
-                      confirmLabel: 'Starten',
-                      onConfirm: async () => {
-                        setConfirmDialog(null);
-                        await enqueueBulkForAllInCurrentMode('description_html');
-                      },
-                    });
-                  }}
-                  className={menuItemClass}
-                >
-                  Beschreibung → HTML + Sync
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDialog({
-                      title: 'Listing-Readiness Audit ausführen?',
-                      tone: 'default',
-                      description:
-                        'Korrigiert/vereinheitlicht Titel/Highlights/Beschreibung/Attribute und stößt anschließend Text-Only Sync nach BaseLinker an.',
-                      confirmLabel: 'Starten',
-                      onConfirm: async () => {
-                        setConfirmDialog(null);
-                        await enqueueBulkForAllInCurrentMode('listing_readiness');
-                      },
-                    });
-                  }}
-                  className={menuItemClass}
-                >
-                  Listing-Readiness Audit + Fix + Sync
-                </button>
-              </>
-            ) : null}
-          </div>
-        </details>
-      </div>
-
-      {isColumnPanelOpen && (
-        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-white">{t('table.columns.visible')}</p>
-            <button type="button" className="text-xs text-sky-400 hover:underline" onClick={resetColumns}>
-              {t('table.columns.reset')}
-            </button>
-          </div>
-          <div className="space-y-1 max-h-64 overflow-y-auto">
-            {visibleColumns.map((colId, idx) => {
-              const col = columnDefinitions.find((c) => c.id === colId);
-              if (!col) return null;
-              return (
-                <div key={col.id} className="flex items-center gap-2 rounded-lg bg-slate-700/40 px-2 py-1.5 text-sm text-slate-100">
-                  <input type="checkbox" checked onChange={() => toggleColumnVisibility(col.id)} disabled={visibleColumns.length === 1} className="bg-slate-600 border-slate-500 shrink-0" />
-                  <span className="flex-1 truncate">{col.label}</span>
-                  <button type="button" onClick={() => moveColumn(col.id, 'up')} disabled={idx === 0} className="p-0.5 text-slate-400 hover:text-white disabled:opacity-20" title="Nach oben">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M5 15l7-7 7 7"/></svg>
-                  </button>
-                  <button type="button" onClick={() => moveColumn(col.id, 'down')} disabled={idx === visibleColumns.length - 1} className="p-0.5 text-slate-400 hover:text-white disabled:opacity-20" title="Nach unten">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          {columnDefinitions.some((c) => !visibleColumns.includes(c.id)) && (
-            <div className="space-y-1 border-t border-white/10 pt-3">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Ausgeblendet</p>
-              {columnDefinitions.filter((c) => !visibleColumns.includes(c.id)).map((col) => (
-                <label key={col.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:text-slate-200 cursor-pointer">
-                  <input type="checkbox" checked={false} onChange={() => toggleColumnVisibility(col.id)} className="bg-slate-600 border-slate-500 shrink-0" />
-                  <span className="truncate">{col.label}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  );
 
   const activeFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
@@ -2582,168 +2146,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     });
   }, [selectedIds, products, kauflandSkuSet, kauflandEanSet]);
 
-  const renderSelectionBar = () => {
-    const globeIcon = (
-      <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="10" cy="10" r="7" />
-        <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
-      </svg>
-    );
-    const refreshIcon = (
-      <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M4 4v5h5M16 16v-5h-5" />
-        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m18 0 4.36 4.36A9 9 0 0 1 3.51 15" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    );
-    return (
-      <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-100">
-            <span className="inline-flex items-center justify-center min-w-[24px] h-6 rounded-md bg-indigo-500/20 px-1.5 text-xs font-bold text-indigo-300">{selectedIds.size}</span>
-            ausgewählt
-          </div>
-          <button type="button" onClick={() => setSelectedIds(new Set())} className="text-xs text-slate-400 hover:text-slate-200 transition">
-            Auswahl aufheben
-          </button>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {/* BaseLinker */}
-          <ActionButton
-            icon={<SyncIcon className="w-3.5 h-3.5" />}
-            label={syncInProgress ? 'Sync läuft...' : 'BL Sync'}
-            onClick={handleBatchSync}
-            disabled={selectedIds.size === 0 || syncInProgress}
-            tone="primary"
-          />
-          <div className="w-px h-5 bg-slate-700 mx-1" />
-          {/* eBay */}
-          <ActionButton
-            icon={globeIcon}
-            label={ebayPublishInProgress ? 'Wird gelistet...' : 'eBay Listen'}
-            onClick={handleBatchPublishEbay}
-            disabled={selectedIds.size === 0 || ebayPublishInProgress}
-            tone="ebay"
-          />
-          {hasSelectedEbayListings && (
-            <ActionButton
-              icon={refreshIcon}
-              label={ebayUpdateInProgress ? 'Aktualisiert...' : 'eBay Update'}
-              onClick={handleBatchUpdateEbay}
-              disabled={ebayUpdateInProgress || ebayPublishInProgress}
-              tone="ebay"
-            />
-          )}
-          <div className="w-px h-5 bg-slate-700 mx-1" />
-          {/* Kaufland */}
-          <ActionButton
-            icon={globeIcon}
-            label={bulkJobLoading ? 'Job läuft...' : 'Kaufland Listen'}
-            onClick={() => enqueueBulkForSelection('kaufland_create', { apply: true })}
-            disabled={selectedIds.size === 0 || bulkJobLoading}
-            tone="kaufland"
-          />
-          {hasSelectedKauflandListings && (
-            <ActionButton
-              icon={refreshIcon}
-              label={bulkJobLoading ? 'Job läuft...' : 'Kaufland Update'}
-              onClick={() => enqueueBulkForSelection('kaufland_update', { apply: true })}
-              disabled={bulkJobLoading}
-              tone="kaufland"
-            />
-          )}
-          {onImproveSelected ? (
-            <>
-              <div className="w-px h-5 bg-slate-700 mx-1" />
-              <ActionButton
-                icon={<OperationsIcon className="w-3.5 h-3.5" />}
-                label="KI Verbessern"
-                onClick={() => {
-                  const ids = Array.from(selectedIds);
-                  if (!ids.length) return;
-                  setImproveInProgress(true);
-                  setImproveMessage(`Verbessern gestartet (${ids.length}) …`);
-                  try {
-                    onImproveSelected(ids);
-                  } catch (err: any) {
-                    console.error('Improve Selected failed', err?.message || err);
-                    setImproveMessage('Fehler beim Verbessern');
-                  } finally {
-                    setTimeout(() => setImproveInProgress(false), 3000);
-                  }
-                }}
-                disabled={selectedIds.size === 0 || improveInProgress}
-                tone="accent"
-              />
-            </>
-          ) : null}
-
-          <div className="w-px h-5 bg-slate-700 mx-1" />
-          <ActionButton
-            icon={<TrashIcon className="w-3.5 h-3.5" />}
-            label="Löschen"
-            onClick={handleBatchDelete}
-            disabled={selectedIds.size === 0}
-            tone="danger"
-          />
-
-          <div className="w-px h-5 bg-slate-700 mx-1" />
-
-          <details className="relative">
-            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1 rounded-lg bg-slate-700/80 border border-slate-600/40 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-600 transition shadow-sm">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-              Mehr
-            </summary>
-            <div className="absolute right-0 mt-2 w-[300px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1.5 shadow-xl shadow-black/40 z-30">
-              <div className="px-2.5 pt-1.5 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Daten-Fix</div>
-              <button type="button" onClick={() => enqueueBulkForSelection('price')} disabled={bulkJobLoading} className={menuItemClass}>
-                Price Refresh
-              </button>
-              <button type="button" onClick={() => enqueueBulkForSelection('title')} disabled={bulkJobLoading} className={menuItemClass}>
-                Titel fix
-              </button>
-              <button type="button" onClick={() => enqueueBulkForSelection('category')} disabled={bulkJobLoading} className={menuItemClass}>
-                Kategorie fix
-              </button>
-              <button type="button" onClick={() => enqueueBulkForSelection('ktype')} disabled={bulkJobLoading} className={menuItemClass}>
-                K‑Typ enrich
-              </button>
-
-              <div className="my-1.5 border-t border-slate-800/60" />
-              <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-amber-500/80">eBay</div>
-              <button type="button" onClick={handleBatchPublishEbay} disabled={selectedIds.size === 0 || ebayPublishInProgress} className={menuItemClass}>
-                {ebayPublishInProgress ? 'eBay Publish läuft...' : 'Listings erstellen'}
-              </button>
-              <button type="button" onClick={handleSyncEbayListings} disabled={ebaySyncInProgress} className={menuItemClass}>
-                {ebaySyncInProgress ? 'Sync läuft...' : 'Listings synchronisieren'}
-              </button>
-
-              <div className="my-1.5 border-t border-slate-800/60" />
-              <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-rose-400/80">Kaufland</div>
-              <button type="button" onClick={handleSyncKauflandListings} disabled={kauflandSyncInProgress} className={menuItemClass}>
-                {kauflandSyncInProgress ? 'Sync läuft...' : 'Listings synchronisieren'}
-              </button>
-              <button type="button" onClick={() => enqueueBulkForSelection('kaufland_create', { apply: true })} disabled={bulkJobLoading || selectedIds.size === 0} className={menuItemClass}>
-                Listings erstellen
-              </button>
-              <button type="button" onClick={() => enqueueBulkForSelection('kaufland_update', { apply: true })} disabled={bulkJobLoading || selectedIds.size === 0} className={menuItemClass}>
-                Listings aktualisieren
-              </button>
-
-              <div className="my-1.5 border-t border-slate-800/60" />
-              <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Sonstiges</div>
-              <button type="button" onClick={handleBatchLabelPrint} disabled={selectedIds.size === 0} className={menuItemClass}>
-                Label drucken
-              </button>
-              <button type="button" onClick={handleBatchDelete} disabled={selectedIds.size === 0} className={`${menuItemClass} text-rose-300 hover:bg-rose-900/30`}>
-                Auswahl löschen
-              </button>
-            </div>
-          </details>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <>
       <section id="admin-table" className="space-y-4">
@@ -2784,6 +2186,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 id="table-search"
                 type="text"
                 placeholder={t('table.search')}
+                aria-label="Produkte durchsuchen"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 bg-slate-800/40 border border-white/10 rounded-lg focus:ring-2 focus:ring-sky-500 text-sm"
@@ -2792,6 +2195,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <button
               type="button"
               onClick={() => setFilterPanelOpen((v) => !v)}
+              aria-expanded={filterPanelOpen}
+              aria-label="Filter ein-/ausblenden"
               className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
                 filterPanelOpen
                   ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-300'
@@ -2821,7 +2226,57 @@ const AdminTable: React.FC<AdminTableProps> = ({
           </div>
           {filterPanelOpen && (
             <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              {renderFilterControls()}
+              <AdminTableFilters
+                filterStatus={filterStatus}
+                setFilterStatus={setFilterStatus}
+                statusFilters={statusFilters}
+                filterCategorySelection={filterCategorySelection}
+                setFilterCategorySelection={setFilterCategorySelection}
+                categoryTree={categoryTree}
+                categorySelectionSet={categorySelectionSet}
+                categoryFilterOpen={categoryFilterOpen}
+                setCategoryFilterOpen={setCategoryFilterOpen}
+                isCategorySelected={isCategorySelected}
+                toggleCategoryKey={toggleCategoryKey}
+                toggleTopCategory={toggleTopCategory}
+                filterBin={filterBin}
+                setFilterBin={setFilterBin}
+                filterEanValid={filterEanValid}
+                setFilterEanValid={setFilterEanValid}
+                filterGpsr={filterGpsr}
+                setFilterGpsr={setFilterGpsr}
+                filterBaselinkerLink={filterBaselinkerLink}
+                setFilterBaselinkerLink={setFilterBaselinkerLink}
+                filterEbay={filterEbay}
+                setFilterEbay={setFilterEbay}
+                filterKaufland={filterKaufland}
+                setFilterKaufland={setFilterKaufland}
+                filterWeight={filterWeight}
+                setFilterWeight={setFilterWeight}
+                filterReserved={filterReserved}
+                setFilterReserved={setFilterReserved}
+                columnPreset={columnPreset}
+                setColumnPreset={setColumnPreset}
+                visibleColumns={visibleColumns}
+                setVisibleColumns={setVisibleColumns}
+                columnDefinitions={columnDefinitions}
+                isColumnPanelOpen={isColumnPanelOpen}
+                setIsColumnPanelOpen={setIsColumnPanelOpen}
+                toggleColumnVisibility={toggleColumnVisibility}
+                moveColumn={moveColumn}
+                resetColumns={resetColumns}
+                normalizeMarketplaceColumnOrder={normalizeMarketplaceColumnOrder}
+                mode={mode}
+                handleExportCsv={handleExportCsv}
+                onBulkImprove={onBulkImprove}
+                enqueueBulkForAllInCurrentMode={enqueueBulkForAllInCurrentMode}
+                setKtypeModalOpen={setKtypeModalOpen}
+                setKtypeFile={setKtypeFile}
+                setKtypeReport={setKtypeReport}
+                setKtypeMessage={setKtypeMessage}
+                setConfirmDialog={setConfirmDialog}
+                t={t}
+              />
             </div>
           )}
 
@@ -2849,7 +2304,32 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </div>
           ) : null}
 
-          {selectedIds.size > 0 && renderSelectionBar()}
+          {selectedIds.size > 0 && (
+            <BulkActions
+              selectedIds={selectedIds}
+              setSelectedIds={setSelectedIds}
+              syncInProgress={syncInProgress}
+              handleBatchSync={handleBatchSync}
+              ebayPublishInProgress={ebayPublishInProgress}
+              handleBatchPublishEbay={handleBatchPublishEbay}
+              ebayUpdateInProgress={ebayUpdateInProgress}
+              handleBatchUpdateEbay={handleBatchUpdateEbay}
+              hasSelectedEbayListings={hasSelectedEbayListings}
+              ebaySyncInProgress={ebaySyncInProgress}
+              handleSyncEbayListings={handleSyncEbayListings}
+              bulkJobLoading={bulkJobLoading}
+              enqueueBulkForSelection={enqueueBulkForSelection}
+              hasSelectedKauflandListings={hasSelectedKauflandListings}
+              kauflandSyncInProgress={kauflandSyncInProgress}
+              handleSyncKauflandListings={handleSyncKauflandListings}
+              onImproveSelected={onImproveSelected}
+              improveInProgress={improveInProgress}
+              setImproveInProgress={setImproveInProgress}
+              setImproveMessage={setImproveMessage}
+              handleBatchDelete={handleBatchDelete}
+              handleBatchLabelPrint={handleBatchLabelPrint}
+            />
+          )}
         </div>
 
         {filteredAndSortedProducts.length === 0 ? (
@@ -2873,61 +2353,28 @@ const AdminTable: React.FC<AdminTableProps> = ({
         ) : null}
 
         <div className="overflow-x-auto">
-          <table id="grid" className="w-full text-left min-w-[1000px]">
-            <thead className="bg-slate-800/60">
-              <tr>
-                <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-slate-300">
-                  <input
-                    type="checkbox"
-                    name="select-all-products"
-                    onChange={handleSelectAll}
-                    checked={
-                      selectedIds.size > 0 &&
-                      selectedIds.size === pageProducts.length &&
-                      pageProducts.length > 0
-                    }
-                    className="bg-slate-600 border-slate-500"
-                  />
-                </th>
-                {visibleColumnDefinitions.map((column) => {
-                  const isThumbnail = column.id === 'thumbnail';
-                  return (
-                    <SortableHeader key={column.id} sortKey={column.sortKey} widthClass={column.widthClass}>
-                      {column.label}
-                    </SortableHeader>
-                  );
-                })}
-              </tr>
-            </thead>
+          <table id="grid" className="w-full text-left min-w-[1000px]" aria-label="Produkttabelle">
+            <AdminTableHeader
+              visibleColumnDefinitions={visibleColumnDefinitions}
+              sortConfig={sortConfig}
+              onSort={requestSort}
+              selectedIds={selectedIds}
+              pageProducts={pageProducts}
+              onSelectAll={handleSelectAll}
+            />
             <tbody>
               {pageProducts.map(p => (
-                <tr
+                <AdminTableRow
                   key={p.id}
-                  ref={(el) => {
+                  product={p}
+                  visibleColumnDefinitions={visibleColumnDefinitions}
+                  isSelected={selectedIds.has(p.id)}
+                  onSelect={handleSelectOne}
+                  onSelectProduct={onSelectProduct}
+                  rowRef={(el) => {
                     rowRefs.current[p.id] = el;
                   }}
-                  data-product-row={p.id}
-                  className="border-b border-white/10 hover:bg-slate-700/50 transition-colors"
-                >
-                  <td className="p-3">
-                    <input
-                      type="checkbox"
-                      name={`select-product-${p.id}`}
-                      checked={selectedIds.has(p.id)}
-                      onChange={() => handleSelectOne(p.id)}
-                      className="bg-slate-600 border-slate-500"
-                    />
-                  </td>
-                  {visibleColumnDefinitions.map((column) => (
-                    <td
-                      key={`${p.id}-${column.id}`}
-                      className="p-3 align-top"
-                      style={column.id === 'thumbnail' ? { width: '80px' } : undefined}
-                    >
-                      {column.render({ product: p, onSelectProduct })}
-                    </td>
-                  ))}
-                </tr>
+                />
               ))}
             </tbody>
           </table>
@@ -2963,6 +2410,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
+                aria-label="Vorherige Seite"
                 className="px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-200"
               >
                 Zurück
@@ -2971,6 +2419,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
+                aria-label="Nächste Seite"
                 className="px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-200"
               >
                 Weiter
@@ -3142,7 +2591,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </div>
       )}
       {syncInProgress && (
-        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-white/10 px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
+        <div role="status" aria-live="polite" aria-busy="true" className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-white/10 px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
           <Spinner className="w-6 h-6 text-sky-300" />
           <div className="text-sm text-slate-100">
             <p className="font-semibold">Sync läuft …</p>
@@ -3151,7 +2600,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </div>
       )}
       {improveInProgress && (
-        <div className="fixed bottom-20 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-white/10 px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
+        <div role="status" aria-live="polite" aria-busy="true" className="fixed bottom-20 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-white/10 px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
           <Spinner className="w-6 h-6 text-purple-300" />
           <div className="text-sm text-slate-100">
             <p className="font-semibold">Improve läuft …</p>

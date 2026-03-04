@@ -1,5 +1,5 @@
 const PQueue = require('p-queue').default || require('p-queue');
-const { Timestamp, claimJob, updateJob, listJobsByStatus } = require('../lib/jobs');
+const { Timestamp, claimJob, updateJob, listJobsByStatus, moveToDeadLetter } = require('../lib/jobs');
 const { downloadFile } = require('../lib/storage');
 const { runProductIdentification } = require('./enrichment');
 const {
@@ -24,10 +24,21 @@ const { evaluateEbayReady } = require('../lib/datasheet-quality');
 const CONCURRENCY = parseInt(process.env.ID_QUEUE_CONCURRENCY || '3', 10);
 const MAX_ATTEMPTS = parseInt(process.env.ID_JOB_MAX_ATTEMPTS || '3', 10);
 const JOB_SWEEP_INTERVAL_MS = parseInt(process.env.ID_JOB_SWEEP_MS || '30000', 10);
+const JOB_TIMEOUT_MS = parseInt(process.env.ID_JOB_TIMEOUT_MS || '300000', 10); // 5 min
+const RETRY_BASE_DELAY_MS = parseInt(process.env.ID_JOB_RETRY_BASE_MS || '5000', 10);
+const STALE_JOB_THRESHOLD_MS = parseInt(process.env.ID_JOB_STALE_MS || '600000', 10); // 10 min
 const ALIAS_QUERY_LIMIT = parseInt(process.env.IDENTITY_ALIAS_QUERY_LIMIT || '10', 10);
 const queue = new PQueue({ concurrency: CONCURRENCY });
 let sweepTimer = null;
 let sweepInFlight = false;
+
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Job timeout after ${ms}ms: ${label}`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 const normalizeBarcodeValue = (value) =>
   (value || '')
@@ -100,12 +111,16 @@ async function processJob(jobId) {
       })
     );
 
-    const result = await runProductIdentification({
-      files,
-      barcodes: jobSnapshot.payload?.barcodes || '',
-      locale: jobSnapshot.payload?.locale || 'de-DE',
-      modelOverride: jobSnapshot.payload?.model || null,
-    });
+    const result = await withTimeout(
+      runProductIdentification({
+        files,
+        barcodes: jobSnapshot.payload?.barcodes || '',
+        locale: jobSnapshot.payload?.locale || 'de-DE',
+        modelOverride: jobSnapshot.payload?.model || null,
+      }),
+      JOB_TIMEOUT_MS,
+      jobId
+    );
 
     // Auto-Save identifizierte Produkte
     if (result?.bundle?.products?.length) {
@@ -356,16 +371,29 @@ async function processJob(jobId) {
     console.error(`Job ${jobId} failed:`, error);
     const attempts = jobSnapshot.attempts || 1;
     const shouldRetry = attempts < MAX_ATTEMPTS;
+    const isTimeout = error.message?.startsWith('Job timeout');
+
     await updateJob(jobId, {
       status: shouldRetry ? 'pending' : 'failed',
       error: {
         message: error.message,
         stack: error.stack?.slice(0, 1000),
+        isTimeout,
       },
     });
 
     if (shouldRetry) {
-      enqueueJob(jobId, true);
+      // Exponential backoff: 5s, 10s, 20s, ...
+      const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempts - 1);
+      setTimeout(() => enqueueJob(jobId, true), delay);
+    } else {
+      // Move permanently failed jobs to dead-letter collection
+      try {
+        await moveToDeadLetter(jobId);
+        console.warn(`Job ${jobId} moved to dead-letter queue after ${attempts} attempts`);
+      } catch (dlErr) {
+        console.error(`Failed to move job ${jobId} to dead-letter:`, dlErr);
+      }
     }
   }
 }
@@ -390,13 +418,24 @@ async function resumePendingJobs() {
     if (!jobs.length) {
       return;
     }
+    let resumed = 0;
     for (const job of jobs) {
       if (job.status === 'processing') {
+        // Only reset processing jobs that are older than the stale threshold
+        const startedAt = job.startedAt ? new Date(job.startedAt).getTime() : 0;
+        const age = Date.now() - startedAt;
+        if (age < STALE_JOB_THRESHOLD_MS) {
+          continue; // Still within timeout window, skip
+        }
+        console.warn(`Stale job detected: ${job.id} (processing for ${Math.round(age / 1000)}s)`);
         await updateJob(job.id, { status: 'pending' });
       }
       enqueueJob(job.id, true);
+      resumed++;
     }
-    console.log(`Job runner resumed ${jobs.length} pending jobs`);
+    if (resumed > 0) {
+      console.log(`Job runner resumed ${resumed} pending/stale jobs`);
+    }
   } catch (error) {
     console.error('Failed to resume pending jobs:', error);
   } finally {

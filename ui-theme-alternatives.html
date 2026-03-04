@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvyCloud — Dark Theme Alternativen</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    padding: 32px;
+    line-height: 1.5;
+  }
+
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .subtitle { color: #888; margin-bottom: 40px; font-size: 15px; }
+
+  .themes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
+    gap: 32px;
+  }
+
+  .theme-card {
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+  }
+  .theme-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+
+  .theme-label {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 10;
+  }
+  .theme-label.current {
+    background: rgba(248, 81, 73, 0.8);
+  }
+
+  .theme-desc {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 20px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.85));
+    z-index: 10;
+  }
+  .theme-desc h3 { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .theme-desc p { font-size: 13px; color: #bbb; }
+
+  /* ===== Mini Preview Layout ===== */
+  .preview {
+    display: flex;
+    height: 360px;
+    font-size: 12px;
+  }
+
+  .preview .sidebar {
+    width: 180px;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .preview .sidebar .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px;
+    margin-bottom: 12px;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .preview .sidebar .logo .icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .preview .sidebar .nav-item {
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+  }
+  .preview .sidebar .section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 12px 10px 4px;
+    font-weight: 600;
+  }
+
+  .preview .main {
+    flex: 1;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: hidden;
+  }
+
+  .preview .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .preview .topbar h2 { font-size: 16px; font-weight: 600; }
+  .preview .topbar .actions { display: flex; gap: 8px; }
+  .preview .topbar .btn {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+  }
+
+  .preview .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .preview .kpi {
+    padding: 12px;
+    border-radius: 8px;
+  }
+  .preview .kpi-label { font-size: 10px; font-weight: 500; margin-bottom: 4px; }
+  .preview .kpi-value { font-size: 18px; font-weight: 700; }
+
+  .preview .table-area {
+    flex: 1;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .preview .table-row {
+    display: grid;
+    grid-template-columns: 32px 1fr 80px 60px 80px;
+    align-items: center;
+    padding: 8px 12px;
+    gap: 10px;
+    font-size: 11px;
+  }
+  .preview .table-row.header { font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .preview .thumb {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+  .preview .badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 500;
+    display: inline-block;
+  }
+  .preview .stock-bar {
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+    width: 100%;
+  }
+  .preview .stock-fill { height: 100%; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<h1>AvyCloud Dark Theme Alternativen</h1>
+<p class="subtitle">Klicke auf ein Theme um die Details zu sehen. Aktuelles Theme (Deep Navy) zum Vergleich links oben.</p>
+
+<div class="themes-grid">
+
+  <!-- ===== 1. CURRENT: Deep Navy ===== -->
+  <div class="theme-card" id="theme-current">
+    <div class="theme-label current">Aktuell — Deep Navy</div>
+    <div class="theme-desc">
+      <h3>Deep Navy</h3>
+      <p>Dunkles Blau, GitHub-inspiriert. Kühl, technisch, aber sehr dunkel.</p>
+    </div>
+    <div class="preview" style="background: #0c1222;">
+      <div class="sidebar" style="background: #0e1629; border-right: 1px solid #1e2d45;">
+        <div class="logo" style="color: #e6edf5;">
+          <div class="icon" style="background: linear-gradient(135deg, #388bfd, #a371f7);">☁</div>
+          AvyCloud
+        </div>
+        <div class="nav-item" style="background: rgba(56,139,253,0.12); color: #388bfd;">📊 Übersicht</div>
+        <div class="nav-item" style="color: #8b9ab8;">📦 Produkte</div>
+        <div class="section-label" style="color: #5d6f8a;">Marktplätze</div>
+        <div class="nav-item" style="color: #8b9ab8;">🏷 eBay</div>
+        <div class="nav-item" style="color: #8b9ab8;">🛒 Kaufland</div>
+        <div class="section-label" style="color: #5d6f8a;">KI-Tools</div>
+        <div class="nav-item" style="color: #8b9ab8;">🔍 Identify</div>
+        <div class="nav-item" style="color: #8b9ab8;">💬 Chat</div>
+      </div>
+      <div class="main" style="background: #0c1222;">
+        <div class="topbar">
+          <h2 style="color: #e6edf5;">Dashboard</h2>
+          <div class="actions">
+            <div class="btn" style="background: #388bfd; color: #fff;">+ Produkt</div>
+            <div class="btn" style="background: #1f2d4a; color: #8b9ab8;">Export</div>
+          </div>
+        </div>
+        <div class="kpis">
+          <div class="kpi" style="background: #131c2e; border: 1px solid #1e2d45;">
+            <div class="kpi-label" style="color: #5d6f8a;">Produkte</div>
+            <div class="kpi-value" style="color: #e6edf5;">1.247</div>
+          </div>
+          <div class="kpi" style="background: #131c2e; border: 1px solid #1e2d45;">
+            <div class="kpi-label" style="color: #5d6f8a;">Listings</div>
+            <div class="kpi-value" style="color: #3fb950;">892</div>
+          </div>
+          <div class="kpi" style="background: #131c2e; border: 1px solid #1e2d45;">
+            <div class="kpi-label" style="color: #5d6f8a;">Umsatz</div>
+            <div class="kpi-value" style="color: #e6edf5;">€34.2k</div>
+          </div>
+          <div class="kpi" style="background: #131c2e; border: 1px solid #1e2d45;">
+            <div class="kpi-label" style="color: #5d6f8a;">Aufträge</div>
+            <div class="kpi-value" style="color: #d29922;">23</div>
+          </div>
+        </div>
+        <div class="table-area" style="background: #131c2e; border: 1px solid #1e2d45;">
+          <div class="table-row header" style="color: #5d6f8a; border-bottom: 1px solid #1e2d45;">
+            <span></span><span>Produkt</span><span>Status</span><span>Preis</span><span>Lager</span>
+          </div>
+          <div class="table-row" style="color: #e6edf5; border-bottom: 1px solid #162038;">
+            <div class="thumb" style="background: #1f2d4a;"></div>
+            <span>Gaming Chair Pro X</span>
+            <span class="badge" style="background: rgba(63,185,80,0.12); color: #3fb950;">Aktiv</span>
+            <span>€249</span>
+            <div><div class="stock-bar" style="background: #1e2d45;"><div class="stock-fill" style="width: 75%; background: #3fb950;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #e6edf5; border-bottom: 1px solid #162038;">
+            <div class="thumb" style="background: #1f2d4a;"></div>
+            <span>LED Ring Light 18"</span>
+            <span class="badge" style="background: rgba(210,153,34,0.12); color: #d29922;">Draft</span>
+            <span>€79</span>
+            <div><div class="stock-bar" style="background: #1e2d45;"><div class="stock-fill" style="width: 30%; background: #d29922;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #e6edf5;">
+            <div class="thumb" style="background: #1f2d4a;"></div>
+            <span>Wireless Keyboard</span>
+            <span class="badge" style="background: rgba(248,81,73,0.12); color: #f85149;">Fehlt</span>
+            <span>€45</span>
+            <div><div class="stock-bar" style="background: #1e2d45;"><div class="stock-fill" style="width: 8%; background: #f85149;"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 2. Neutral Charcoal (Linear/Vercel-Stil) ===== -->
+  <div class="theme-card" id="theme-charcoal">
+    <div class="theme-label">A — Neutral Charcoal</div>
+    <div class="theme-desc">
+      <h3>Neutral Charcoal</h3>
+      <p>Linear/Vercel-Stil. Warmes Grau, subtile Borders, elegant-minimal. Sehr modern.</p>
+    </div>
+    <div class="preview" style="background: #111111;">
+      <div class="sidebar" style="background: #0a0a0a; border-right: 1px solid #222;">
+        <div class="logo" style="color: #fafafa;">
+          <div class="icon" style="background: linear-gradient(135deg, #7c5cfc, #c084fc);">☁</div>
+          AvyCloud
+        </div>
+        <div class="nav-item" style="background: rgba(124,92,252,0.12); color: #a78bfa;">📊 Übersicht</div>
+        <div class="nav-item" style="color: #777;">📦 Produkte</div>
+        <div class="section-label" style="color: #555;">Marktplätze</div>
+        <div class="nav-item" style="color: #777;">🏷 eBay</div>
+        <div class="nav-item" style="color: #777;">🛒 Kaufland</div>
+        <div class="section-label" style="color: #555;">KI-Tools</div>
+        <div class="nav-item" style="color: #777;">🔍 Identify</div>
+        <div class="nav-item" style="color: #777;">💬 Chat</div>
+      </div>
+      <div class="main" style="background: #111111;">
+        <div class="topbar">
+          <h2 style="color: #fafafa;">Dashboard</h2>
+          <div class="actions">
+            <div class="btn" style="background: #fafafa; color: #111;">+ Produkt</div>
+            <div class="btn" style="background: #1a1a1a; color: #888; border: 1px solid #333;">Export</div>
+          </div>
+        </div>
+        <div class="kpis">
+          <div class="kpi" style="background: #1a1a1a; border: 1px solid #262626;">
+            <div class="kpi-label" style="color: #666;">Produkte</div>
+            <div class="kpi-value" style="color: #fafafa;">1.247</div>
+          </div>
+          <div class="kpi" style="background: #1a1a1a; border: 1px solid #262626;">
+            <div class="kpi-label" style="color: #666;">Listings</div>
+            <div class="kpi-value" style="color: #22c55e;">892</div>
+          </div>
+          <div class="kpi" style="background: #1a1a1a; border: 1px solid #262626;">
+            <div class="kpi-label" style="color: #666;">Umsatz</div>
+            <div class="kpi-value" style="color: #fafafa;">€34.2k</div>
+          </div>
+          <div class="kpi" style="background: #1a1a1a; border: 1px solid #262626;">
+            <div class="kpi-label" style="color: #666;">Aufträge</div>
+            <div class="kpi-value" style="color: #eab308;">23</div>
+          </div>
+        </div>
+        <div class="table-area" style="background: #1a1a1a; border: 1px solid #262626;">
+          <div class="table-row header" style="color: #555; border-bottom: 1px solid #262626;">
+            <span></span><span>Produkt</span><span>Status</span><span>Preis</span><span>Lager</span>
+          </div>
+          <div class="table-row" style="color: #e5e5e5; border-bottom: 1px solid #222;">
+            <div class="thumb" style="background: #262626;"></div>
+            <span>Gaming Chair Pro X</span>
+            <span class="badge" style="background: rgba(34,197,94,0.12); color: #22c55e;">Aktiv</span>
+            <span>€249</span>
+            <div><div class="stock-bar" style="background: #262626;"><div class="stock-fill" style="width: 75%; background: #22c55e;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #e5e5e5; border-bottom: 1px solid #222;">
+            <div class="thumb" style="background: #262626;"></div>
+            <span>LED Ring Light 18"</span>
+            <span class="badge" style="background: rgba(234,179,8,0.12); color: #eab308;">Draft</span>
+            <span>€79</span>
+            <div><div class="stock-bar" style="background: #262626;"><div class="stock-fill" style="width: 30%; background: #eab308;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #e5e5e5;">
+            <div class="thumb" style="background: #262626;"></div>
+            <span>Wireless Keyboard</span>
+            <span class="badge" style="background: rgba(239,68,68,0.12); color: #ef4444;">Fehlt</span>
+            <span>€45</span>
+            <div><div class="stock-bar" style="background: #262626;"><div class="stock-fill" style="width: 8%; background: #ef4444;"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 3. Slate (Stripe-inspired) ===== -->
+  <div class="theme-card" id="theme-slate">
+    <div class="theme-label">B — Soft Slate</div>
+    <div class="theme-desc">
+      <h3>Soft Slate</h3>
+      <p>Stripe/Notion-inspiriert. Weiches Schiefergrau mit warmem Unterton. Augenfreundlich.</p>
+    </div>
+    <div class="preview" style="background: #1a1d23;">
+      <div class="sidebar" style="background: #15171c; border-right: 1px solid #2a2d35;">
+        <div class="logo" style="color: #ebeef5;">
+          <div class="icon" style="background: linear-gradient(135deg, #635bff, #a78bfa);">☁</div>
+          AvyCloud
+        </div>
+        <div class="nav-item" style="background: rgba(99,91,255,0.12); color: #818cf8;">📊 Übersicht</div>
+        <div class="nav-item" style="color: #8a8f9e;">📦 Produkte</div>
+        <div class="section-label" style="color: #5c6070;">Marktplätze</div>
+        <div class="nav-item" style="color: #8a8f9e;">🏷 eBay</div>
+        <div class="nav-item" style="color: #8a8f9e;">🛒 Kaufland</div>
+        <div class="section-label" style="color: #5c6070;">KI-Tools</div>
+        <div class="nav-item" style="color: #8a8f9e;">🔍 Identify</div>
+        <div class="nav-item" style="color: #8a8f9e;">💬 Chat</div>
+      </div>
+      <div class="main" style="background: #1a1d23;">
+        <div class="topbar">
+          <h2 style="color: #ebeef5;">Dashboard</h2>
+          <div class="actions">
+            <div class="btn" style="background: #635bff; color: #fff;">+ Produkt</div>
+            <div class="btn" style="background: #252830; color: #8a8f9e; border: 1px solid #2a2d35;">Export</div>
+          </div>
+        </div>
+        <div class="kpis">
+          <div class="kpi" style="background: #21242b; border: 1px solid #2a2d35;">
+            <div class="kpi-label" style="color: #6b7083;">Produkte</div>
+            <div class="kpi-value" style="color: #ebeef5;">1.247</div>
+          </div>
+          <div class="kpi" style="background: #21242b; border: 1px solid #2a2d35;">
+            <div class="kpi-label" style="color: #6b7083;">Listings</div>
+            <div class="kpi-value" style="color: #34d399;">892</div>
+          </div>
+          <div class="kpi" style="background: #21242b; border: 1px solid #2a2d35;">
+            <div class="kpi-label" style="color: #6b7083;">Umsatz</div>
+            <div class="kpi-value" style="color: #ebeef5;">€34.2k</div>
+          </div>
+          <div class="kpi" style="background: #21242b; border: 1px solid #2a2d35;">
+            <div class="kpi-label" style="color: #6b7083;">Aufträge</div>
+            <div class="kpi-value" style="color: #fbbf24;">23</div>
+          </div>
+        </div>
+        <div class="table-area" style="background: #21242b; border: 1px solid #2a2d35;">
+          <div class="table-row header" style="color: #5c6070; border-bottom: 1px solid #2a2d35;">
+            <span></span><span>Produkt</span><span>Status</span><span>Preis</span><span>Lager</span>
+          </div>
+          <div class="table-row" style="color: #d4d8e3; border-bottom: 1px solid #262930;">
+            <div class="thumb" style="background: #2a2d35;"></div>
+            <span>Gaming Chair Pro X</span>
+            <span class="badge" style="background: rgba(52,211,153,0.12); color: #34d399;">Aktiv</span>
+            <span>€249</span>
+            <div><div class="stock-bar" style="background: #2a2d35;"><div class="stock-fill" style="width: 75%; background: #34d399;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #d4d8e3; border-bottom: 1px solid #262930;">
+            <div class="thumb" style="background: #2a2d35;"></div>
+            <span>LED Ring Light 18"</span>
+            <span class="badge" style="background: rgba(251,191,36,0.12); color: #fbbf24;">Draft</span>
+            <span>€79</span>
+            <div><div class="stock-bar" style="background: #2a2d35;"><div class="stock-fill" style="width: 30%; background: #fbbf24;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #d4d8e3;">
+            <div class="thumb" style="background: #2a2d35;"></div>
+            <span>Wireless Keyboard</span>
+            <span class="badge" style="background: rgba(248,113,113,0.12); color: #f87171;">Fehlt</span>
+            <span>€45</span>
+            <div><div class="stock-bar" style="background: #2a2d35;"><div class="stock-fill" style="width: 8%; background: #f87171;"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 4. Midnight Green ===== -->
+  <div class="theme-card" id="theme-green">
+    <div class="theme-label">C — Midnight Emerald</div>
+    <div class="theme-desc">
+      <h3>Midnight Emerald</h3>
+      <p>Dunkles Grün-Schwarz, Supabase/Vercel-Vibe. E-Commerce-optimiert, Umsatzfarbe dominant.</p>
+    </div>
+    <div class="preview" style="background: #0c1210;">
+      <div class="sidebar" style="background: #080e0c; border-right: 1px solid #1a2e26;">
+        <div class="logo" style="color: #e8f0ec;">
+          <div class="icon" style="background: linear-gradient(135deg, #10b981, #34d399);">☁</div>
+          AvyCloud
+        </div>
+        <div class="nav-item" style="background: rgba(16,185,129,0.12); color: #34d399;">📊 Übersicht</div>
+        <div class="nav-item" style="color: #6b8a7e;">📦 Produkte</div>
+        <div class="section-label" style="color: #4a6b5e;">Marktplätze</div>
+        <div class="nav-item" style="color: #6b8a7e;">🏷 eBay</div>
+        <div class="nav-item" style="color: #6b8a7e;">🛒 Kaufland</div>
+        <div class="section-label" style="color: #4a6b5e;">KI-Tools</div>
+        <div class="nav-item" style="color: #6b8a7e;">🔍 Identify</div>
+        <div class="nav-item" style="color: #6b8a7e;">💬 Chat</div>
+      </div>
+      <div class="main" style="background: #0c1210;">
+        <div class="topbar">
+          <h2 style="color: #e8f0ec;">Dashboard</h2>
+          <div class="actions">
+            <div class="btn" style="background: #10b981; color: #fff;">+ Produkt</div>
+            <div class="btn" style="background: #14201b; color: #6b8a7e; border: 1px solid #1a2e26;">Export</div>
+          </div>
+        </div>
+        <div class="kpis">
+          <div class="kpi" style="background: #101815; border: 1px solid #1a2e26;">
+            <div class="kpi-label" style="color: #4a6b5e;">Produkte</div>
+            <div class="kpi-value" style="color: #e8f0ec;">1.247</div>
+          </div>
+          <div class="kpi" style="background: #101815; border: 1px solid #1a2e26;">
+            <div class="kpi-label" style="color: #4a6b5e;">Listings</div>
+            <div class="kpi-value" style="color: #34d399;">892</div>
+          </div>
+          <div class="kpi" style="background: #101815; border: 1px solid #1a2e26;">
+            <div class="kpi-label" style="color: #4a6b5e;">Umsatz</div>
+            <div class="kpi-value" style="color: #e8f0ec;">€34.2k</div>
+          </div>
+          <div class="kpi" style="background: #101815; border: 1px solid #1a2e26;">
+            <div class="kpi-label" style="color: #4a6b5e;">Aufträge</div>
+            <div class="kpi-value" style="color: #fbbf24;">23</div>
+          </div>
+        </div>
+        <div class="table-area" style="background: #101815; border: 1px solid #1a2e26;">
+          <div class="table-row header" style="color: #4a6b5e; border-bottom: 1px solid #1a2e26;">
+            <span></span><span>Produkt</span><span>Status</span><span>Preis</span><span>Lager</span>
+          </div>
+          <div class="table-row" style="color: #c8ddd3; border-bottom: 1px solid #162620;">
+            <div class="thumb" style="background: #1a2e26;"></div>
+            <span>Gaming Chair Pro X</span>
+            <span class="badge" style="background: rgba(52,211,153,0.12); color: #34d399;">Aktiv</span>
+            <span>€249</span>
+            <div><div class="stock-bar" style="background: #1a2e26;"><div class="stock-fill" style="width: 75%; background: #34d399;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #c8ddd3; border-bottom: 1px solid #162620;">
+            <div class="thumb" style="background: #1a2e26;"></div>
+            <span>LED Ring Light 18"</span>
+            <span class="badge" style="background: rgba(251,191,36,0.12); color: #fbbf24;">Draft</span>
+            <span>€79</span>
+            <div><div class="stock-bar" style="background: #1a2e26;"><div class="stock-fill" style="width: 30%; background: #fbbf24;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #c8ddd3;">
+            <div class="thumb" style="background: #1a2e26;"></div>
+            <span>Wireless Keyboard</span>
+            <span class="badge" style="background: rgba(248,113,113,0.12); color: #f87171;">Fehlt</span>
+            <span>€45</span>
+            <div><div class="stock-bar" style="background: #1a2e26;"><div class="stock-fill" style="width: 8%; background: #f87171;"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 5. Warm Graphite ===== -->
+  <div class="theme-card" id="theme-graphite">
+    <div class="theme-label">D — Warm Graphite</div>
+    <div class="theme-desc">
+      <h3>Warm Graphite</h3>
+      <p>Warmes Dunkelgrau mit Bernstein-Akzenten. Premium-Feel, Apple-Ästhetik. Sehr angenehm für die Augen.</p>
+    </div>
+    <div class="preview" style="background: #1c1b1a;">
+      <div class="sidebar" style="background: #141312; border-right: 1px solid #2e2c28;">
+        <div class="logo" style="color: #f0ece4;">
+          <div class="icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24);">☁</div>
+          AvyCloud
+        </div>
+        <div class="nav-item" style="background: rgba(245,158,11,0.10); color: #fbbf24;">📊 Übersicht</div>
+        <div class="nav-item" style="color: #8a8680;">📦 Produkte</div>
+        <div class="section-label" style="color: #5c5955;">Marktplätze</div>
+        <div class="nav-item" style="color: #8a8680;">🏷 eBay</div>
+        <div class="nav-item" style="color: #8a8680;">🛒 Kaufland</div>
+        <div class="section-label" style="color: #5c5955;">KI-Tools</div>
+        <div class="nav-item" style="color: #8a8680;">🔍 Identify</div>
+        <div class="nav-item" style="color: #8a8680;">💬 Chat</div>
+      </div>
+      <div class="main" style="background: #1c1b1a;">
+        <div class="topbar">
+          <h2 style="color: #f0ece4;">Dashboard</h2>
+          <div class="actions">
+            <div class="btn" style="background: #f59e0b; color: #1c1b1a; font-weight: 600;">+ Produkt</div>
+            <div class="btn" style="background: #252320; color: #8a8680; border: 1px solid #2e2c28;">Export</div>
+          </div>
+        </div>
+        <div class="kpis">
+          <div class="kpi" style="background: #222120; border: 1px solid #2e2c28;">
+            <div class="kpi-label" style="color: #6b6762;">Produkte</div>
+            <div class="kpi-value" style="color: #f0ece4;">1.247</div>
+          </div>
+          <div class="kpi" style="background: #222120; border: 1px solid #2e2c28;">
+            <div class="kpi-label" style="color: #6b6762;">Listings</div>
+            <div class="kpi-value" style="color: #34d399;">892</div>
+          </div>
+          <div class="kpi" style="background: #222120; border: 1px solid #2e2c28;">
+            <div class="kpi-label" style="color: #6b6762;">Umsatz</div>
+            <div class="kpi-value" style="color: #f0ece4;">€34.2k</div>
+          </div>
+          <div class="kpi" style="background: #222120; border: 1px solid #2e2c28;">
+            <div class="kpi-label" style="color: #6b6762;">Aufträge</div>
+            <div class="kpi-value" style="color: #fbbf24;">23</div>
+          </div>
+        </div>
+        <div class="table-area" style="background: #222120; border: 1px solid #2e2c28;">
+          <div class="table-row header" style="color: #5c5955; border-bottom: 1px solid #2e2c28;">
+            <span></span><span>Produkt</span><span>Status</span><span>Preis</span><span>Lager</span>
+          </div>
+          <div class="table-row" style="color: #d8d2c8; border-bottom: 1px solid #2a2826;">
+            <div class="thumb" style="background: #2e2c28;"></div>
+            <span>Gaming Chair Pro X</span>
+            <span class="badge" style="background: rgba(52,211,153,0.12); color: #34d399;">Aktiv</span>
+            <span>€249</span>
+            <div><div class="stock-bar" style="background: #2e2c28;"><div class="stock-fill" style="width: 75%; background: #34d399;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #d8d2c8; border-bottom: 1px solid #2a2826;">
+            <div class="thumb" style="background: #2e2c28;"></div>
+            <span>LED Ring Light 18"</span>
+            <span class="badge" style="background: rgba(251,191,36,0.12); color: #fbbf24;">Draft</span>
+            <span>€79</span>
+            <div><div class="stock-bar" style="background: #2e2c28;"><div class="stock-fill" style="width: 30%; background: #fbbf24;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #d8d2c8;">
+            <div class="thumb" style="background: #2e2c28;"></div>
+            <span>Wireless Keyboard</span>
+            <span class="badge" style="background: rgba(248,113,113,0.12); color: #f87171;">Fehlt</span>
+            <span>€45</span>
+            <div><div class="stock-bar" style="background: #2e2c28;"><div class="stock-fill" style="width: 8%; background: #f87171;"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 6. Obsidian (True Black OLED) ===== -->
+  <div class="theme-card" id="theme-obsidian">
+    <div class="theme-label">E — Obsidian OLED</div>
+    <div class="theme-desc">
+      <h3>Obsidian OLED</h3>
+      <p>Echtes Schwarz mit feinen Borders. Maximaler Kontrast, batterieschonend. Twitter/X Dark Mode Stil.</p>
+    </div>
+    <div class="preview" style="background: #000000;">
+      <div class="sidebar" style="background: #000000; border-right: 1px solid #2f3336;">
+        <div class="logo" style="color: #e7e9ea;">
+          <div class="icon" style="background: linear-gradient(135deg, #1d9bf0, #7856ff);">☁</div>
+          AvyCloud
+        </div>
+        <div class="nav-item" style="background: rgba(29,155,240,0.12); color: #1d9bf0;">📊 Übersicht</div>
+        <div class="nav-item" style="color: #71767b;">📦 Produkte</div>
+        <div class="section-label" style="color: #536471;">Marktplätze</div>
+        <div class="nav-item" style="color: #71767b;">🏷 eBay</div>
+        <div class="nav-item" style="color: #71767b;">🛒 Kaufland</div>
+        <div class="section-label" style="color: #536471;">KI-Tools</div>
+        <div class="nav-item" style="color: #71767b;">🔍 Identify</div>
+        <div class="nav-item" style="color: #71767b;">💬 Chat</div>
+      </div>
+      <div class="main" style="background: #000000;">
+        <div class="topbar">
+          <h2 style="color: #e7e9ea;">Dashboard</h2>
+          <div class="actions">
+            <div class="btn" style="background: #e7e9ea; color: #0f1419; font-weight: 600;">+ Produkt</div>
+            <div class="btn" style="background: #181818; color: #71767b; border: 1px solid #2f3336;">Export</div>
+          </div>
+        </div>
+        <div class="kpis">
+          <div class="kpi" style="background: #0a0a0a; border: 1px solid #2f3336;">
+            <div class="kpi-label" style="color: #536471;">Produkte</div>
+            <div class="kpi-value" style="color: #e7e9ea;">1.247</div>
+          </div>
+          <div class="kpi" style="background: #0a0a0a; border: 1px solid #2f3336;">
+            <div class="kpi-label" style="color: #536471;">Listings</div>
+            <div class="kpi-value" style="color: #00ba7c;">892</div>
+          </div>
+          <div class="kpi" style="background: #0a0a0a; border: 1px solid #2f3336;">
+            <div class="kpi-label" style="color: #536471;">Umsatz</div>
+            <div class="kpi-value" style="color: #e7e9ea;">€34.2k</div>
+          </div>
+          <div class="kpi" style="background: #0a0a0a; border: 1px solid #2f3336;">
+            <div class="kpi-label" style="color: #536471;">Aufträge</div>
+            <div class="kpi-value" style="color: #f7b928;">23</div>
+          </div>
+        </div>
+        <div class="table-area" style="background: #0a0a0a; border: 1px solid #2f3336;">
+          <div class="table-row header" style="color: #536471; border-bottom: 1px solid #2f3336;">
+            <span></span><span>Produkt</span><span>Status</span><span>Preis</span><span>Lager</span>
+          </div>
+          <div class="table-row" style="color: #e7e9ea; border-bottom: 1px solid #1e1e1e;">
+            <div class="thumb" style="background: #1a1a1a;"></div>
+            <span>Gaming Chair Pro X</span>
+            <span class="badge" style="background: rgba(0,186,124,0.12); color: #00ba7c;">Aktiv</span>
+            <span>€249</span>
+            <div><div class="stock-bar" style="background: #2f3336;"><div class="stock-fill" style="width: 75%; background: #00ba7c;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #e7e9ea; border-bottom: 1px solid #1e1e1e;">
+            <div class="thumb" style="background: #1a1a1a;"></div>
+            <span>LED Ring Light 18"</span>
+            <span class="badge" style="background: rgba(247,185,40,0.12); color: #f7b928;">Draft</span>
+            <span>€79</span>
+            <div><div class="stock-bar" style="background: #2f3336;"><div class="stock-fill" style="width: 30%; background: #f7b928;"></div></div></div>
+          </div>
+          <div class="table-row" style="color: #e7e9ea;">
+            <div class="thumb" style="background: #1a1a1a;"></div>
+            <span>Wireless Keyboard</span>
+            <span class="badge" style="background: rgba(244,33,46,0.12); color: #f4212e;">Fehlt</span>
+            <span>€45</span>
+            <div><div class="stock-bar" style="background: #2f3336;"><div class="stock-fill" style="width: 8%; background: #f4212e;"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

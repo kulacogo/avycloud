@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvyCloud UI Redesign — Soft Slate Theme</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Design Tokens — Dark Theme (Soft Slate) */
+    --bg-page: #1a1d23;
+    --bg-surface: #21242b;
+    --bg-surface-raised: #282c34;
+    --bg-surface-hover: #2e323b;
+    --bg-sidebar: #15171c;
+    --bg-sidebar-active: rgba(99, 91, 255, 0.10);
+    --bg-input: #1e2128;
+
+    --border-default: #2a2d35;
+    --border-subtle: #24272e;
+
+    --text-primary: #ebeef5;
+    --text-secondary: #8a8f9e;
+    --text-tertiary: #5c6070;
+    --text-link: #818cf8;
+
+    --accent-primary: #635bff;
+    --accent-primary-hover: #7c75ff;
+    --accent-success: #34d399;
+    --accent-warning: #fbbf24;
+    --accent-danger: #f87171;
+    --accent-info: #818cf8;
+    --accent-purple: #a78bfa;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.18);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.22);
+
+    --sidebar-width: 240px;
+    --sidebar-collapsed: 64px;
+    --header-height: 0px;
+
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  [data-theme="light"] {
+    --bg-page: #f6f7f9;
+    --bg-surface: #ffffff;
+    --bg-surface-raised: #ffffff;
+    --bg-surface-hover: #f0f1f4;
+    --bg-sidebar: #fafafa;
+    --bg-sidebar-active: rgba(99, 91, 255, 0.06);
+    --bg-input: #f0f1f4;
+
+    --border-default: #dcdee3;
+    --border-subtle: #e8eaee;
+
+    --text-primary: #1a1d23;
+    --text-secondary: #5c6070;
+    --text-tertiary: #8a8f9e;
+    --text-link: #635bff;
+
+    --accent-primary: #635bff;
+    --accent-primary-hover: #4f46e5;
+    --accent-success: #16a34a;
+    --accent-warning: #ca8a04;
+    --accent-danger: #dc2626;
+    --accent-info: #635bff;
+    --accent-purple: #7c3aed;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.07);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.10);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* === APP LAYOUT === */
+  .app {
+    display: flex;
+    height: 100vh;
+  }
+
+  /* === SIDEBAR === */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border-default);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: width 0.2s ease;
+    overflow: hidden;
+    z-index: 50;
+  }
+
+  .sidebar-header {
+    padding: 16px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .sidebar-logo {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #fff;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-brand {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 8px;
+    overflow-y: auto;
+  }
+
+  .nav-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 16px 12px 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 13.5px;
+    font-weight: 500;
+    position: relative;
+  }
+
+  .nav-item:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+  }
+
+  .nav-item.active {
+    background: var(--bg-sidebar-active);
+    color: var(--accent-primary);
+  }
+
+  .nav-item .nav-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .nav-item.active .nav-icon { opacity: 1; }
+
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent-danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  .nav-badge.info {
+    background: var(--accent-primary);
+  }
+
+  .sidebar-footer {
+    padding: 12px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .user-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .user-card:hover { background: var(--bg-surface-hover); }
+
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #34d399, #635bff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #fff;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .user-info { flex: 1; min-width: 0; }
+  .user-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .user-role { font-size: 11px; color: var(--text-tertiary); }
+
+  /* === MAIN CONTENT === */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  /* === TOP BAR === */
+  .topbar {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-surface);
+    flex-shrink: 0;
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-tertiary);
+  }
+
+  .breadcrumb a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: var(--text-primary); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+
+  .topbar-spacer { flex: 1; }
+
+  .cmd-palette-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    color: var(--text-tertiary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 220px;
+  }
+
+  .cmd-palette-trigger:hover {
+    border-color: var(--text-tertiary);
+    color: var(--text-secondary);
+  }
+
+  .cmd-kbd {
+    margin-left: auto;
+    font-size: 11px;
+    background: var(--bg-surface-raised);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-default);
+    font-family: var(--font-sans);
+  }
+
+  .topbar-btn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    border: none;
+    background: transparent;
+  }
+
+  .topbar-btn:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+  }
+
+  /* === CONTENT AREA === */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+
+  /* === PAGE HEADER === */
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .page-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .page-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+
+  /* === BUTTONS === */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    font-family: var(--font-sans);
+  }
+
+  .btn-primary {
+    background: var(--accent-primary);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--accent-primary-hover); }
+
+  .btn-secondary {
+    background: transparent;
+    border-color: var(--border-default);
+    color: var(--text-secondary);
+  }
+  .btn-secondary:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+    border-color: var(--text-tertiary);
+  }
+
+  /* === KPI CARDS === */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .kpi-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    transition: all 0.15s;
+  }
+
+  .kpi-card:hover {
+    border-color: var(--text-tertiary);
+    box-shadow: var(--shadow-md);
+  }
+
+  .kpi-label {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 8px;
+  }
+
+  .kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+
+  .kpi-change {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-top: 8px;
+    padding: 2px 8px;
+    border-radius: 12px;
+  }
+
+  .kpi-change.positive {
+    color: var(--accent-success);
+    background: rgba(52, 211, 153, 0.1);
+  }
+
+  .kpi-change.negative {
+    color: var(--accent-danger);
+    background: rgba(248, 113, 113, 0.1);
+  }
+
+  /* === TABLE === */
+  .table-container {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .table-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .table-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 7px 12px;
+    min-width: 280px;
+    transition: border-color 0.15s;
+  }
+
+  .table-search:focus-within {
+    border-color: var(--accent-primary);
+  }
+
+  .table-search input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font-sans);
+    width: 100%;
+  }
+
+  .table-search input::placeholder { color: var(--text-tertiary); }
+
+  .filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    background: transparent;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font-sans);
+  }
+
+  .filter-btn:hover {
+    background: var(--bg-surface-hover);
+    border-color: var(--text-tertiary);
+  }
+
+  .filter-btn.active {
+    background: var(--bg-sidebar-active);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border-bottom: 1px solid var(--border-default);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+  }
+
+  thead th:hover { color: var(--text-secondary); }
+
+  tbody tr {
+    transition: background 0.1s;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+
+  tbody tr:hover { background: var(--bg-surface-hover); }
+
+  tbody td {
+    padding: 12px 16px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .product-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .product-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    font-size: 16px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .product-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .product-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .product-sku {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 1px;
+  }
+
+  /* === BADGES === */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11.5px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .badge-success { background: rgba(52,211,153,0.12); color: var(--accent-success); }
+  .badge-success .badge-dot { background: var(--accent-success); }
+
+  .badge-warning { background: rgba(251,191,36,0.12); color: var(--accent-warning); }
+  .badge-warning .badge-dot { background: var(--accent-warning); }
+
+  .badge-danger { background: rgba(248,113,113,0.12); color: var(--accent-danger); }
+  .badge-danger .badge-dot { background: var(--accent-danger); }
+
+  .badge-info { background: rgba(129,140,248,0.12); color: var(--accent-info); }
+  .badge-info .badge-dot { background: var(--accent-info); }
+
+  .badge-neutral { background: rgba(139,154,184,0.12); color: var(--text-secondary); }
+  .badge-neutral .badge-dot { background: var(--text-tertiary); }
+
+  /* === MARKETPLACE BADGES === */
+  .mp-badges {
+    display: flex;
+    gap: 4px;
+  }
+
+  .mp-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .mp-ebay { background: rgba(129,140,248,0.15); color: var(--accent-info); }
+  .mp-kaufland { background: rgba(248,113,113,0.15); color: var(--accent-danger); }
+  .mp-amazon { background: rgba(251,191,36,0.15); color: var(--accent-warning); }
+
+  /* === PRICE COLUMN === */
+  .price-cell {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .price-suggested {
+    font-size: 11px;
+    color: var(--accent-success);
+    font-weight: 400;
+  }
+
+  /* === STOCK INDICATOR === */
+  .stock-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .stock-bar-track {
+    width: 48px;
+    height: 4px;
+    background: var(--bg-input);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .stock-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+
+  .stock-bar-fill.high { background: var(--accent-success); }
+  .stock-bar-fill.medium { background: var(--accent-warning); }
+  .stock-bar-fill.low { background: var(--accent-danger); }
+
+  /* === CHARTS AREA === */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .chart-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+  }
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .chart-title {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .chart-placeholder {
+    height: 180px;
+    background: var(--bg-input);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    font-size: 13px;
+  }
+
+  /* === ACTIVITY LIST === */
+  .activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .activity-item:last-child { border-bottom: none; }
+
+  .activity-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .activity-icon.sync { background: rgba(129,140,248,0.15); color: var(--accent-info); }
+  .activity-icon.price { background: rgba(52,211,153,0.15); color: var(--accent-success); }
+  .activity-icon.warn { background: rgba(251,191,36,0.15); color: var(--accent-warning); }
+
+  .activity-text { font-size: 13px; color: var(--text-secondary); line-height: 1.4; }
+  .activity-text strong { color: var(--text-primary); font-weight: 500; }
+  .activity-time { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+  /* === THEME TOGGLE === */
+  .theme-switch {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-input);
+    border-radius: var(--radius-md);
+    padding: 3px;
+  }
+
+  .theme-option {
+    padding: 4px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.15s;
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+  }
+
+  .theme-option.active {
+    background: var(--bg-surface-raised);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* === VIEW TABS (for demonstrating different screens) === */
+  .view-tabs {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 4px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-xl);
+    padding: 4px;
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+  }
+
+  .view-tab {
+    padding: 8px 16px;
+    border-radius: var(--radius-lg);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    border: none;
+    background: transparent;
+    font-family: var(--font-sans);
+  }
+
+  .view-tab:hover { color: var(--text-primary); }
+  .view-tab.active { background: var(--accent-primary); color: #fff; }
+
+  /* === SCROLLBAR === */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--text-tertiary);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+  /* === TABLE PAGINATION === */
+  .table-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-subtle);
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+
+  .pagination-btns {
+    display: flex;
+    gap: 4px;
+  }
+
+  .pagination-btns button {
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-default);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: all 0.15s;
+  }
+
+  .pagination-btns button:hover {
+    background: var(--bg-surface-hover);
+  }
+
+  .pagination-btns button.active {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
+  }
+
+  /* === RUNNER STATUS (bottom-right) === */
+  .runner-dock {
+    position: fixed;
+    bottom: 70px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 90;
+  }
+
+  .runner-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .runner-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  .runner-dot.active { background: var(--accent-success); }
+  .runner-dot.pending { background: var(--accent-warning); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* === CHECKBOX === */
+  .checkbox {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--border-default);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .checkbox:hover { border-color: var(--accent-primary); }
+
+  .checkbox.checked {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+  }
+
+  .checkbox.checked::after {
+    content: '✓';
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  /* === ROW ACTIONS === */
+  .row-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  tbody tr:hover .row-actions { opacity: 1; }
+
+  .row-action-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--text-tertiary);
+    transition: all 0.15s;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+  }
+
+  .row-action-btn:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">A</div>
+      <span class="sidebar-brand">AvyCloud</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Übersicht</div>
+      <div class="nav-item active">
+        <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="7" height="7" rx="1.5"/><rect x="10" y="1" width="7" height="4" rx="1.5"/><rect x="1" y="10" width="7" height="4" rx="1.5"/><rect x="10" y="7" width="7" height="7" rx="1.5"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="14" height="12" rx="2"/><line x1="2" y1="7" x2="16" y2="7"/><line x1="6" y1="7" x2="6" y2="15"/></svg>
+        Produkte
+        <span class="nav-badge info">784</span>
+      </div>
+
+      <div class="nav-section-label">Marktplätze</div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M5 7c0 4 4 7 4 7s4-3 4-7"/></svg>
+        eBay
+        <span class="nav-badge" style="background: var(--accent-success);">892</span>
+      </div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="14" height="10" rx="2"/><path d="M2 8h14"/></svg>
+        Kaufland
+      </div>
+
+      <div class="nav-section-label">Betrieb</div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 15V7l6-5 6 5v8a1 1 0 01-1 1H4a1 1 0 01-1-1z"/><path d="M7 15v-5h4v5"/></svg>
+        Lager
+      </div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="14" height="14" rx="2"/><path d="M6 6h6M6 9h4M6 12h5"/></svg>
+        Aufträge
+        <span class="nav-badge">3</span>
+      </div>
+
+      <div class="nav-section-label">KI-Tools</div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 2l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z"/></svg>
+        Identify
+      </div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 9a6 6 0 01-6 6M3 9a6 6 0 016-6"/><path d="M12 6l3 3-3 3M6 12l-3-3 3-3"/></svg>
+        Chat
+      </div>
+
+      <div class="nav-section-label">System</div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 2a2 2 0 012 2v1a5 5 0 013 3h1a2 2 0 010 4h-1a5 5 0 01-3 3v1a2 2 0 01-4 0v-1a5 5 0 01-3-3H3a2 2 0 010-4h1a5 5 0 013-3V4a2 2 0 012-2z"/><circle cx="9" cy="9" r="2"/></svg>
+        Einstellungen
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar">OK</div>
+        <div class="user-info">
+          <div class="user-name">Oguzhan K.</div>
+          <div class="user-role">Administrator</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a href="#">AvyCloud</a>
+        <span>›</span>
+        <span class="current" id="breadcrumb-page">Dashboard</span>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="cmd-palette-trigger" onclick="alert('⌘K Command Palette — Suche Produkte, Views, Aktionen...')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="4.5"/><line x1="9.5" y1="9.5" x2="13" y2="13"/></svg>
+        Suchen...
+        <span class="cmd-kbd">⌘K</span>
+      </div>
+      <div class="theme-switch">
+        <button class="theme-option" onclick="setTheme('light')" title="Light">☀</button>
+        <button class="theme-option active" onclick="setTheme('dark')" title="Dark">☾</button>
+      </div>
+      <button class="topbar-btn" title="Benachrichtigungen">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6.5a4.5 4.5 0 00-9 0c0 5-2 6.5-2 6.5h13s-2-1.5-2-6.5M10.3 15a1.5 1.5 0 01-2.6 0"/></svg>
+      </button>
+    </header>
+
+    <!-- CONTENT: Dashboard -->
+    <div class="content" id="view-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dashboard</div>
+          <div class="page-subtitle">Letztes Update: vor 2 Minuten</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-secondary">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M7 1v12"/></svg>
+            Produkt hinzufügen
+          </button>
+          <button class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L5 13l-3-4"/></svg>
+            Sync starten
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Produkte gesamt</div>
+          <div class="kpi-value">784</div>
+          <div class="kpi-change positive">↑ 12 diese Woche</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Aktive Listings</div>
+          <div class="kpi-value" style="color: var(--accent-success)">892</div>
+          <div class="kpi-change positive">↑ 94% Sync-Rate</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Umsatz (30 Tage)</div>
+          <div class="kpi-value">€12.847</div>
+          <div class="kpi-change positive">↑ 8,3% vs. Vormonat</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Offene Aufträge</div>
+          <div class="kpi-value" style="color: var(--accent-warning)">23</div>
+          <div class="kpi-change negative">↑ 3 seit gestern</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Umsatz & Bestellungen</div>
+            <div style="display:flex;gap:6px;">
+              <button class="filter-btn active" style="padding:4px 10px;font-size:11px;">7T</button>
+              <button class="filter-btn" style="padding:4px 10px;font-size:11px;">30T</button>
+              <button class="filter-btn" style="padding:4px 10px;font-size:11px;">90T</button>
+            </div>
+          </div>
+          <div class="chart-placeholder">
+            <svg width="100%" height="140" viewBox="0 0 500 140">
+              <polyline fill="none" stroke="var(--accent-primary)" stroke-width="2" points="0,120 50,100 100,90 150,60 200,70 250,40 300,50 350,30 400,45 450,20 500,25"/>
+              <polyline fill="none" stroke="var(--accent-success)" stroke-width="2" stroke-dasharray="4" points="0,130 50,125 100,110 150,100 200,105 250,85 300,90 350,75 400,80 450,60 500,65"/>
+            </svg>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Letzte Aktivitäten</div>
+          </div>
+          <div class="activity-item">
+            <div class="activity-icon sync">↻</div>
+            <div>
+              <div class="activity-text"><strong>eBay Sync</strong> — 892 Listings aktualisiert</div>
+              <div class="activity-time">vor 2 Minuten</div>
+            </div>
+          </div>
+          <div class="activity-item">
+            <div class="activity-icon price">€</div>
+            <div>
+              <div class="activity-text"><strong>Preisanpassung</strong> — 47 Produkte repriced</div>
+              <div class="activity-time">vor 15 Minuten</div>
+            </div>
+          </div>
+          <div class="activity-item">
+            <div class="activity-icon warn">!</div>
+            <div>
+              <div class="activity-text"><strong>Lagerwarnung</strong> — 5 Artikel unter Mindestbestand</div>
+              <div class="activity-time">vor 1 Stunde</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product Table -->
+      <div class="table-container">
+        <div class="table-toolbar">
+          <div class="table-search">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="4.5"/><line x1="9.5" y1="9.5" x2="13" y2="13"/></svg>
+            <input type="text" placeholder="Produkte suchen... (SKU, Titel, EAN)">
+          </div>
+          <button class="filter-btn">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 2h12l-4.5 5.5V12l-3-1.5V7.5z"/></svg>
+            Filter
+          </button>
+          <button class="filter-btn">Spalten</button>
+          <div style="flex:1"></div>
+          <span style="font-size:12px;color:var(--text-tertiary);">784 Produkte</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:36px;"><div class="checkbox"></div></th>
+              <th>Produkt</th>
+              <th>Status</th>
+              <th>Preis</th>
+              <th>Bestand</th>
+              <th>Marktplätze</th>
+              <th style="width:80px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><div class="checkbox"></div></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb">📦</div>
+                  <div>
+                    <div class="product-name">Samsung Galaxy S24 Ultra 256GB Titanium Black Smartphone</div>
+                    <div class="product-sku">SKU-20834 · EAN 8806095373249</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge badge-success"><span class="badge-dot"></span>Optimiert</span></td>
+              <td>
+                <div class="price-cell">€1.149,00</div>
+                <div class="price-suggested">→ €1.129,00</div>
+              </td>
+              <td>
+                <div class="stock-bar">
+                  <div class="stock-bar-track"><div class="stock-bar-fill high" style="width:85%"></div></div>
+                  <span>17</span>
+                </div>
+              </td>
+              <td>
+                <div class="mp-badges">
+                  <span class="mp-badge mp-ebay">eBay</span>
+                  <span class="mp-badge mp-kaufland">KL</span>
+                </div>
+              </td>
+              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten">✎</button><button class="row-action-btn" title="Mehr">⋯</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="checkbox"></div></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb">👟</div>
+                  <div>
+                    <div class="product-name">Nike Air Max 90 Essential White/Black Gr. 43</div>
+                    <div class="product-sku">SKU-10472 · EAN 0194956623198</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge badge-info"><span class="badge-dot"></span>Gelistet</span></td>
+              <td>
+                <div class="price-cell">€139,95</div>
+              </td>
+              <td>
+                <div class="stock-bar">
+                  <div class="stock-bar-track"><div class="stock-bar-fill medium" style="width:35%"></div></div>
+                  <span>4</span>
+                </div>
+              </td>
+              <td>
+                <div class="mp-badges">
+                  <span class="mp-badge mp-ebay">eBay</span>
+                </div>
+              </td>
+              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten">✎</button><button class="row-action-btn" title="Mehr">⋯</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="checkbox"></div></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb">🛋</div>
+                  <div>
+                    <div class="product-name">HUKLA Relaxsessel Premium Leder Grau mit Aufstehhilfe</div>
+                    <div class="product-sku">SKU-30291 · MPN RS-4500-GR</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge badge-warning"><span class="badge-dot"></span>Identify</span></td>
+              <td>
+                <div class="price-cell">€849,00</div>
+                <div class="price-suggested">→ €799,00</div>
+              </td>
+              <td>
+                <div class="stock-bar">
+                  <div class="stock-bar-track"><div class="stock-bar-fill low" style="width:10%"></div></div>
+                  <span>1</span>
+                </div>
+              </td>
+              <td>
+                <div class="mp-badges">
+                  <span class="mp-badge mp-ebay">eBay</span>
+                  <span class="mp-badge mp-kaufland">KL</span>
+                  <span class="mp-badge mp-amazon">AMZ</span>
+                </div>
+              </td>
+              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten">✎</button><button class="row-action-btn" title="Mehr">⋯</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="checkbox"></div></td>
+              <td>
+                <div class="product-cell">
+                  <div class="product-thumb">🔧</div>
+                  <div>
+                    <div class="product-name">Bosch Professional GSR 18V-60 C Akku-Bohrschrauber</div>
+                    <div class="product-sku">SKU-50123 · EAN 3165140928724</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge badge-neutral"><span class="badge-dot"></span>Entwurf</span></td>
+              <td>
+                <div class="price-cell">€219,99</div>
+              </td>
+              <td>
+                <div class="stock-bar">
+                  <div class="stock-bar-track"><div class="stock-bar-fill high" style="width:60%"></div></div>
+                  <span>8</span>
+                </div>
+              </td>
+              <td>
+                <div class="mp-badges">
+                  <span class="mp-badge" style="background:rgba(139,154,184,0.12);color:var(--text-tertiary);">—</span>
+                </div>
+              </td>
+              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten">✎</button><button class="row-action-btn" title="Mehr">⋯</button></div></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="table-pagination">
+          <span>Zeige 1–25 von 784 Produkten</span>
+          <div class="pagination-btns">
+            <button>‹</button>
+            <button class="active">1</button>
+            <button>2</button>
+            <button>3</button>
+            <button>…</button>
+            <button>32</button>
+            <button>›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Runner Status Dock -->
+<div class="runner-dock">
+  <div class="runner-pill">
+    <span class="runner-dot active"></span>
+    Listing-Sync aktiv
+  </div>
+  <div class="runner-pill">
+    <span class="runner-dot active"></span>
+    Pricing-Runner
+  </div>
+</div>
+
+<!-- View Tabs (Demo Navigation) -->
+<div class="view-tabs">
+  <button class="view-tab active" onclick="setTheme('dark')">Dark Mode</button>
+  <button class="view-tab" onclick="setTheme('light')">Light Mode</button>
+</div>
+
+<script>
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  document.querySelectorAll('.theme-option').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.view-tab').forEach(el => el.classList.remove('active'));
+  if (theme === 'dark') {
+    document.querySelectorAll('.theme-option')[1].classList.add('active');
+    document.querySelectorAll('.view-tab')[0].classList.add('active');
+  } else {
+    document.querySelectorAll('.theme-option')[0].classList.add('active');
+    document.querySelectorAll('.view-tab')[1].classList.add('active');
+  }
+}
+
+// Sidebar click handler
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function() {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById('breadcrumb-page').textContent = this.textContent.trim();
+  });
+});
+
+// Checkbox toggle
+document.querySelectorAll('.checkbox').forEach(cb => {
+  cb.addEventListener('click', function() {
+    this.classList.toggle('checked');
+  });
+});
+</script>
+
+</body>
+</html>

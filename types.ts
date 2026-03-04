@@ -196,6 +196,11 @@ export interface Ops {
   revision: number;
   data_quality?: DataQualityOps;
   condition_locked?: boolean;
+  listingStatus?: {
+    ebay?: 'active' | 'inactive' | 'not_listed';
+    kaufland?: 'active' | 'inactive' | 'not_listed';
+    lastSyncAt?: string | null;
+  };
 }
 
 export interface Notes {

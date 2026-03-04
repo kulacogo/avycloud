@@ -2,289 +2,81 @@
 
 ## Active
 
-- [x] ~~**P0: Schreibpfade auf saveProductV2() umstellen**~~ (2026-03) — Alle aktiven Schreibpfade migriert.
-  - ✅ Enrichment (job-runner.js) → saveProductV2 (war bereits umgestellt)
-  - ✅ Improve Runner (improve.js) → saveProductV2 (war bereits umgestellt)
-  - ✅ Manuelles Speichern (routes/products.js) → saveProductV2 (war bereits umgestellt)
-  - ✅ Identify Route (routes/identify.js) → saveProductV2 (war bereits umgestellt)
-  - ✅ Bulk Actions (admin-bulk-actions.js) → 10× saveProductV2 (2026-03-01)
-  - ✅ Deduplizierung (deduplication.js) → 1× saveProductV2 (2026-03-01)
-  - ✅ Rulebook Runner (rulebook-runner.js) → 1× saveProductV2 (2026-03-01)
-  - ℹ️ Product Chat — kein saveProduct()-Aufruf vorhanden
-  - ℹ️ Quality Gate — kein saveProduct()-Aufruf vorhanden
-  - **Verbleibend:** Nur Scripts in `backend/scripts/` nutzen noch saveProduct() — einmalige Migrations-Scripts, keine aktiven Produktions-Pfade
+- [ ] **P0: Identify-Modul stärken — API-Nutzung koordinieren**
+  - ✅ Preisanreicherung Doppel-Gate aufgetrennt (2026-03-03)
+  - ✅ eBay Title Insights: Keyword-Fallback wenn keine Kategorie bekannt (2026-03-03)
+  - ✅ Dedizierte `image-search.js` erstellt (2026-03-04) — SerpAPI google_images + bing_images Fallback
+  - ✅ `enrichment.js::runSmartImageRecovery()` nutzt jetzt `image-search.js` (2026-03-04)
+  - **Offen — API-Nutzung nicht koordiniert:**
+    - Orchestrierte Enrichment-Pipeline: Vision → Barcode → Web-Recherche → Title Insights → LLM-Synthese
+  - **Dateien:** `enrichment.js`, `image-search.js`
 
-- [x] ~~**P1: Integration-Tests für Top 20 API-Endpoints**~~ (2026-03) — 119 Tests, 7 Test-Suiten
-  - require.cache-Patching-Strategie (kein vi.mock für lokale CJS-Module)
-  - _patchGcp.js + _patchLocalModules.js + _setupMocks.js
-  - products (19), orders/dashboard (8), health (5), unit tests (87)
+- [ ] **P1: Monitoring & Error-Tracking** — Wenn ein Runner hängt merkt das niemand
+  - Sentry, Uptime-Monitoring, Job-Health-Dashboard, Alerts
 
-- [x] ~~**P0: Pricing Engine produktionsreif machen**~~ (2026-03) — Alle 5 Probleme gelöst
-  - ✅ Problem 5 (Collection-Fix): `getCollection()` aus `product-store.js`, schreibt auf aktive Collection
-  - ✅ Problem 2 (Neu/Gebraucht-Filter): `filterCondition='new'` in `calculateOptimalPrice()`, nur `condition: 'new'|'neu'|'new_with_tags'`
-  - ✅ Problem 3 (Fallback-Tiers): 3-stufige Strategie — Tier 1 (EAN-Match, 0.9), Tier 2 (Kategorie-Match, 0.6), Tier 3 (LLM-Stub), Cost-Plus-Fallback
-  - ✅ Problem 1 (Runner): `backend/services/pricing-runner.js` — 4h-Intervall, `PRICING_RUNNER_ENABLED=true` Flag
-  - ✅ Problem 4 (Frontend): ProductSheet zeigt `suggestedPrice` mit Tier-Badge + "Preis übernehmen" Button
-  - ℹ️ Tier 3 LLM-Fallback ist Stub (TODO: Gemini-Integration mit rate-limiting)
-  - ℹ️ Regel-Verwaltung UI + Dashboard-Widget noch nicht implementiert
+- [ ] **P1: UI/UX — Accessibility (WCAG 2.1 AA)** — In Arbeit
+  - ✅ AdminTable: aria-label, aria-sort, Checkbox-Labels (2026-03-04)
+  - ✅ GeminiChat: role=log, aria-live, aria-label (2026-03-04)
+  - ✅ ProductSheet: role=alert, aria-label auf Inputs/Buttons (2026-03-04)
+  - ✅ EbayListingsView, MobileOperationsView, OperationsView (2026-03-04)
+  - **Offen:** Keyboard-Navigation
 
-- [x] ~~**P0: eBay/Kaufland Update-Button synct Preis nicht zum Marktplatz**~~ (2026-03) — Preis wird jetzt gepusht
-  - ✅ eBay: `computeSyncPatch()` in `ebay-direct.js` vergleicht `product.pricing.sellPrice` mit `listing.currentPrice` → setzt `patch.startPrice`
-  - ✅ eBay: `buildReviseItemRequestXml()` in `ebay-trading-api.js` generiert `<StartPrice currencyID="EUR">` für ReviseFixedPriceItem
-  - ✅ Kaufland: `pickUnitData()` liest jetzt `pricing.sellPrice` als erste Priorität vor `lowest_price.amount`
-
-- [x] ~~**P0: Marketplace Listing-Status automatisch synchronisieren**~~ (2026-03) — Periodischer Runner implementiert
-  - ✅ `backend/services/listing-sync-runner.js` — 20min-Intervall, `LISTING_SYNC_ENABLED=true` Flag
-  - ✅ eBay: ruft `syncLiveListingsLight()` auf, propagiert Status via `ebayListingLinks` → Produkt `ops.listingStatus.ebay`
-  - ✅ Kaufland: liest `kauflandUnitsLive`, matcht via `id_offer=identification.sku`, schreibt `ops.listingStatus.kaufland`
-  - ✅ `types.ts` Pricing-Interface erweitert: `sellPrice`, `suggestedPrice`, `pricingTier`, `pricingConfidence`, `pricingMatchBasis`
-  - ℹ️ Frontend-Badge für `ops.listingStatus` noch nicht implementiert (ProductSheet zeigt noch manuellen Status)
-
-- [x] **P0: Konkurrenzpreise-System umbauen** — ✅ DONE (2026-03-03)
-  - `PRICE_MARKETPLACE_SITES` erweitert: amazon.de, idealo.de, zalando.de hinzugefügt
-  - `competitor-refresh-runner.js` neu erstellt (72h-Intervall, COMPETITOR_REFRESH_ENABLED flag, 2s Throttle)
-  - `storeCompetitorPricesToProduct()` in `competitor-prices.js` ergänzt — speichert Daten in `details.pricing.competitorPrices[]` + `lastPriceCheck`
-  - Pricing Engine Tier 1 liest jetzt aus `details.pricing.competitorPrices` (statt veraltetes `details.competitorPrices`)
-  - `CompetitorPrices.tsx` zeigt stored Daten sofort ohne API-Call — Refresh-Button für manuelle Aktualisierung
-  - `types.ts` `Pricing` Interface um `competitorPrices?: CompetitorListing[]` erweitert
-  - Runner in `index.js` registriert
-  - **Problem:** `competitor-prices.js` nutzt nur eBay Browse API (GTIN-only) + Kaufland Seller API. Kein Keyword-Fallback, keine breite Suche. Ergebnis: die meisten Produkte bekommen 0 Konkurrenzpreise angezeigt.
-  - **Lösung:** Bestehende `price-enrichment.js`-Infrastruktur nutzen (SerpAPI → BrightData SERP → Web Unlocker). Die Logik existiert bereits, ist aber nur an Identify-Flow und manuelles Script angebunden — nicht an das Frontend-Widget.
-  - **Marketplace-Abdeckung erweitern:** Aktuell nur `ebay.de`, `kaufland.de`, `hood.de`. Hinzufügen:
-    - `amazon.de` — größter DE-Marktplatz, Pflicht für Preisvergleich
-    - `idealo.de` — Preisvergleichsportal, aggregiert viele Shops
-    - `google shopping` (shopping.google.de) — breiter Preisvergleich
-    - `zalando.de` — relevant für Fashion/Lifestyle-Kategorien
-  - **Intervall-basiert statt live** — BrightData-Kosten kontrollieren:
-    - NICHT bei jedem ProductSheet-Öffnen live scrapen
-    - Neuer Runner: `competitor-refresh-runner.js` — alle 72 Stunden pro Produkt
-    - Ergebnisse in `details.pricing.competitorPrices[]` speichern (mit `condition`, `marketplace`, `price`, `url`, `fetchedAt`)
-    - Frontend zeigt gespeicherte Daten + Alter (`Zuletzt geprüft: vor X Stunden`)
-    - Manueller Refresh-Button als Fallback (rate-limitiert: max 1x pro Produkt pro Stunde)
-  - **Gebraucht-Filter:** Bestehender `PRICE_USED_HINT` Regex aus `price-enrichment.js` wiederverwenden — filtert `gebraucht`, `used`, `refurbished`, `b-ware`, `renewed`, `open box`
-  - **`competitorPrices[]` befüllen:** Damit Pricing Engine Tier 1 (`_tier1EanMatch`) auch Daten hat für `calculateOptimalPrice()`
-  - **Dateien:**
-    - `backend/lib/competitor-prices.js` → Umbauen: BrightData statt eBay Browse API, alle 7 Marketplaces
-    - `backend/services/competitor-refresh-runner.js` → Neu: 72h-Intervall-Runner
-    - `backend/lib/price-enrichment.js` → Bestehende Logik als Basis, Marketplace-Liste erweitern
-    - `components/CompetitorPrices.tsx` → Anpassen: gespeicherte Daten anzeigen statt live-fetch
-  - **Reihenfolge:** Marketplace-Liste erweitern → Runner bauen → competitorPrices[] in Firestore schreiben → Frontend anpassen → Pricing Engine Tier 1 anbinden
-
-- [x] **P0: LLM Titel-Generierung grundlegend verbessern** — ✅ DONE (2026-03-03)
-  - ✅ `LLM_POLICY_ENABLED` default ON in `llm-policy-pack.js` (war: default OFF)
-  - ✅ `RULEBOOK_ENABLED` default ON in `llm-rulebook.js` (war: default OFF)
-  - ✅ Bugfix in `enrichment.js` `loadTitleInsightsForProduct()`: `insights.sampleTitles` → `insights.titles` (field name mismatch → few-shot titles waren immer leer)
-  - ✅ `buildUserPrompt()`: eBay Titel-Beispiele als Few-Shot injiziert (bis zu 5 Stilvorbilder)
-  - ✅ `buildReviewPrompt()`: eBay Titel-Beispiele auch im Improve-Pfad injiziert
-  - ✅ `fetchTopTitlesForCategory(categoryId, limit=5)` in `ebay-browse-title-insights.js` hinzugefügt
-  - **Problem:** `llm-policy-pack.js` enthält 20 abstrakte Kategorie-Schemas (Zeile 14-35), aber keine echten Beispiele. LLM generiert generische Titel ohne Marktplatz-Optimierung.
-  - **Problem:** LLM_POLICY_ENABLED ist default OFF → die ohnehin schwachen Titel-Regeln greifen nicht mal
-  - **Problem:** `title-policy.js` strippt Marketing-Wörter nachträglich, aber das LLM generiert sie trotzdem erstmal
-  - **Lösung 1 — Few-Shot aus echten eBay-Top-Titeln:**
-    - Beim Identify: eBay Browse API → Top-5-Titel der gleichen Kategorie als Few-Shot-Beispiele in den Prompt injizieren
-    - Existierende Infrastruktur: `ebay-browse-title-insights.js` liefert bereits `topTokens` — das reicht nicht, wir brauchen vollständige Top-Titel als Muster
-    - Neue Funktion: `fetchTopTitlesForCategory(categoryId, limit=5)` → gibt echte Titel zurück
-  - **Lösung 2 — Strategischer eBay Leitfaden als Prompt-Wissen:**
-    - 9 kategoriesspezifische Titel-Muster aus `Strategischer eBay Leitfaden.md` in den System-Prompt einbauen:
-      - Fashion: `[Marke] [Produkttyp] [Material] [Größe] [Farbe] [Zustand] [Stil]`
-      - Elektronik: `[Marke] [Modell] [Spezifikation] [Zustand] [Besonderheit] [Zubehör]`
-      - Haus & Garten: `[Marke] [Produkttyp] [Material] [Maße] [Farbe] [Einsatzbereich]`
-      - usw. (alle 9 Kategorien)
-    - Cassini-Regeln: Erste 3-5 Wörter CTR-kritisch, 80 Zeichen voll nutzen, keine Füllwörter
-  - **Lösung 3 — LLM_POLICY_ENABLED default ON:**
-    - Env-Variable auf `true` setzen oder Gate komplett entfernen
-    - Alle Titel-Regeln MÜSSEN immer aktiv sein
-  - **Dateien:**
-    - `backend/lib/llm-policy-pack.js` → Abstrakte Schemas durch echte Kategorie-Muster ersetzen, Few-Shot-Slot einbauen
-    - `backend/services/enrichment.js` → Top-Titel als Few-Shot in Prompt injizieren (Zeile 632-757)
-    - `backend/lib/ebay-browse-title-insights.js` → `fetchTopTitlesForCategory()` Funktion hinzufügen
-    - `backend/lib/title-policy.js` → Cassini-Regeln für Post-Processing verschärfen
-    - `backend/lib/llm-rulebook.js` → RULEBOOK_ENABLED default ON, Titel-Validierung verschärfen
-
-- [ ] **P0: Identify-Modul stärken — alle verfügbaren APIs voll nutzen** — Identify liefert kaum Preise, nutzt APIs nicht effizient
-  - ✅ **Problem 1 gelöst — Preisanreicherung doppelt gegated** (2026-03-03):
-    - `ensurePriceCoverage()` in `enrichment.js` erforderte SOWOHL `SERPAPI_ENABLED=true` ALS AUCH `PRICE_ENRICHMENT_ENABLED=true`
-    - Fix: Doppel-Gate aufgetrennt — `PRICE_ENRICHMENT_ENABLED` wird zuerst geprüft, dann `SERPAPI_ENABLED` separat
-  - ✅ **Problem 3 gelöst — eBay Title Insights nur bei bekannter Kategorie** (2026-03-03):
-    - `loadTitleInsightsForProduct()` hat jetzt Keyword-Fallback: wenn `categoryId` leer, wird `brand + name` als Query genutzt
-    - `fetchCategoryTitleInsights()` erlaubt jetzt Query-only-Anfragen (kein frühes Return wenn `cat` leer aber `query` gesetzt)
-    - `fetchBrowseTitles()` setzt `category_ids` jetzt nur noch wenn nicht leer (war: immer gesetzt → eBay-API-Fehler)
-  - **Problem 2 — Web Image Search liefert nie Ergebnisse:** (noch offen)
-  - **Problem 2 — Web Image Search liefert nie Ergebnisse:**
-    - `forceOneEvidencePass()` in `product-chat.js` und `enrichment.js` nutzen BrightData für Websuche
-    - Image-Suche scheitert weil: (a) falsche Query-Konstruktion, (b) Ergebnis-Parsing für Bilder fehlt, (c) kein dedizierter Image-Search-Endpoint
-    - **Fix:** Dedizierte Image-Search-Funktion bauen:
-      - Google Images via BrightData SERP: `site:google.com/search?tbm=isch&q={query}`
-      - Oder: Google Lens-ähnliche Reverse Image Search via BrightData
-      - Ergebnis: Array von `{ url, width, height, source }` → in `details.images.additional[]` speichern
-    - Sowohl Chat als auch Identify sollen Web Image Search aktiv nutzen
-  - **Problem 3 — eBay Title Insights nur bei bekannter Kategorie:**
-    - `topTokens` (meistgenutzte Wörter in eBay-Kategorie) werden nur geladen wenn `categoryId` bereits bekannt
-    - Für neue/unbekannte Produkte → keine Title Insights → schlechte Titel
-    - **Fix:** Kategorie-Erkennung VOR Title-Generierung: erst Gemini fragen "Was ist das?" → Kategorie mappen → dann Title Insights laden
-  - **Problem 4 — API-Nutzung nicht koordiniert:**
-    - SerpAPI, BrightData SERP, BrightData Web Unlocker, eBay Browse API, Kaufland API — alle existieren aber werden isoliert und unvollständig genutzt
-    - **Fix:** Orchestrierte Enrichment-Pipeline:
-      1. Bild-Analyse (Gemini Vision) → Produkt-Hypothese
-      2. Barcode/EAN-Lookup (eBay Browse, Kaufland) → Verifizierung
-      3. Web-Recherche (BrightData SERP) → Zusatzinfos, Preise, Bilder
-      4. Title Insights (eBay) → Titel-Optimierung
-      5. Finale LLM-Synthese mit ALLEN gesammelten Daten
-  - **Dateien:**
-    - `backend/services/enrichment.js` → Enrichment-Pipeline orchestrieren, Doppel-Gate entfernen
-    - `backend/lib/price-enrichment.js` → BrightData als primäre Preisquelle
-    - `backend/lib/brightdata-serp.js` → Image-Search-Funktion hinzufügen
-    - `backend/services/product-chat.js` → Web Image Search integrieren
-    - Neues Modul: `backend/lib/image-search.js` → Dedizierte Bildsuche (Google Images via BrightData)
-
-- [ ] **P1: Chat-Qualität verbessern** — Chat liefert oft Blödsinn, Regeln sind non-binding
-  - **Problem 1:** Chat-Regeln in `product-chat.js` (Zeile 1421) als "(non-binding)" markiert → LLM ignoriert sie
-    - **Fix:** "(non-binding)" entfernen, Regeln als HARD RULES formulieren
-  - **Problem 2:** `CHAT_STRICT_RULES_ENABLED` default OFF → strenge Regeln nie aktiv
-    - **Fix:** Default auf ON setzen oder Gate entfernen
-  - **Problem 3:** Intent-Detection ist Regex-basiert (Zeile 62-80) → leicht zu fooling
-    - **Fix:** Intent per LLM klassifizieren statt per Regex (Gemini-Flash für Speed)
-  - **Problem 4:** Web-Evidence auf 8KB truncated → zu wenig Kontext für gute Antworten
-    - **Fix:** Limit auf 16-24KB erhöhen oder intelligentes Chunking (relevanteste Abschnitte extrahieren)
-  - **Dateien:**
-    - `backend/services/product-chat.js` → Regeln binding machen, Intent per LLM, Evidence-Limit erhöhen
-    - `backend/lib/llm-policy-pack.js` → Chat-spezifische Regeln verschärfen
-
-- [ ] **P1: Monitoring & Error-Tracking einrichten** — Wenn ein Runner hängt merkt das aktuell niemand
-  - Sentry-Integration für Error-Tracking
-  - Uptime-Monitoring für /health Endpoint
-  - Job-Health-Dashboard (Runner-Status, Queue-Längen)
-  - Alert-Regeln: Failed Jobs > 5/Stunde, Response Time > 5s
-
-- [ ] **P1: Job-Timeout + Dead-Letter-Queue** — Hängender Gemini-Call blockiert Worker für immer
-  - Timeout (5 Min) für alle Job-Runner implementieren
-  - Dead-Letter-Collection für failed Jobs
-  - Retry-Logik mit exponential backoff
-  - Admin-UI zum Anzeigen/Retrying von failed Jobs
-
-- [x] ~~**P1: CLAUDE.md aktualisieren**~~ (2026-03) — Von ~850 auf 179 Zeilen gekürzt
-  - ✅ Erledigte Phasen auf 6 Bullet-Points komprimiert (keine Code-Snippets mehr)
-  - ✅ Aktive Services dokumentiert, offene Issues aktualisiert
-  - ✅ Testing-Sektion aktualisiert (require.cache-Patching, 119 Tests)
-
-- [ ] **P1: UI/UX — Accessibility (WCAG 2.1 AA)** — Aktuell ~30% ARIA-Abdeckung, braucht ~150+ Attribute
-  - Alle interaktiven Elemente (Buttons, Links, Inputs) brauchen `aria-label` wo kein sichtbarer Text vorhanden
-  - Sort-Buttons in AdminTable: `aria-sort` Attribut hinzufügen
-  - Expandable Sections: `aria-expanded` + `aria-controls` hinzufügen
-  - Status-Badges: semantische `role="status"` hinzufügen
-  - Bilder: alle `<img>` Tags brauchen `alt` Attribut (prüfen + ergänzen)
-  - Formulare: alle Inputs brauchen zugeordnete `<label>` oder `aria-label`
-  - Keyboard-Navigation: Tab-Reihenfolge prüfen in AdminTable, ProductSheet, EbayListingsView
-  - **Dateien:** AdminTable.tsx (3.166 Z.), ProductSheet.tsx (2.001 Z.), EbayListingsView.tsx (1.900 Z.), MobileOperationsView.tsx (1.660 Z.), OperationsView.tsx (1.374 Z.), GeminiChat.tsx (1.082 Z.)
-  - **NICHT** bestehende Funktionalität ändern — nur ARIA-Attribute und Labels ergänzen
-
-- [ ] **P1: UI/UX — Code-Splitting mit React.lazy** — Alle 49 Komponenten in einem Bundle = langsamer Initial Load
-  - `React.lazy()` + `<Suspense>` für Route-basiertes Splitting in App.tsx
-  - Lazy-laden: Dashboard, AdminTable, ProductSheet, EbayListingsView, WarehouseView, GeminiChat, CategoryManagement
-  - Fallback-Komponente: `<Spinner />` (existiert bereits in components/Spinner.tsx)
-  - **Datei:** App.tsx (1.078 Zeilen) — dort die Imports auf `React.lazy(() => import(...))` umstellen
-  - **NICHT** die Komponenten selbst ändern, nur die Import-Methode in App.tsx
-
-- [ ] **P1: UI/UX — AdminTable aufteilen** — 3.166 Zeilen in einer Komponente = schwer wartbar
-  - Extrahiere: `AdminTableHeader.tsx` (Spalten-Konfiguration, Presets, Visibility-Toggle)
-  - Extrahiere: `AdminTableRow.tsx` (Einzelne Zeile mit Status-Badges, Inline-Edit)
-  - Extrahiere: `AdminTableBulkActions.tsx` (Bulk-Action-Bar mit allen Buttons)
-  - Extrahiere: `AdminTableFilters.tsx` (Such-/Filter-Logik)
-  - AdminTable.tsx bleibt als Container-Komponente die die Teile zusammensetzt
-  - **WICHTIG:** Alle Props und Callbacks müssen identisch bleiben — kein Breaking Change an der Schnittstelle zu App.tsx
-
-- [ ] **P2: UI/UX — Formular-Validierung mit React Hook Form** — Aktuell native React-Forms, manuelle Validierung, fehleranfällig
-  - `npm install react-hook-form` im Root (Frontend)
-  - Starten mit: LoginScreen.tsx (144 Z.), ResetPasswordScreen.tsx (231 Z.), ProductInput.tsx (479 Z.)
-  - Validierungsregeln: Required-Felder, Email-Format, Passwort-Mindestlänge
-  - Fehleranzeige: Inline unter dem Feld, rote Border, i18n-kompatible Fehlermeldungen
-  - **NICHT** alle Formulare auf einmal umstellen — schrittweise, ein Formular pro PR
-
-- [ ] **P2: UI/UX — Error Boundary** — Kein Error Boundary vorhanden, ein JS-Fehler crasht die ganze App
-  - Neue Komponente: `components/ErrorBoundary.tsx` (React Class Component mit componentDidCatch)
-  - Fallback-UI: Fehlermeldung + "Seite neu laden" Button + optional Error-Details
-  - In App.tsx um die Haupt-Render-Logik wrappen
-  - Optional: Sentry-Integration im componentDidCatch (wenn Sentry eingerichtet ist)
-  - **Datei:** Neue Datei `components/ErrorBoundary.tsx` + Edit in App.tsx
-
-- [ ] **P2: UI/UX — State Management aufräumen** — 18 State-Variablen in App.tsx, viel Prop-Drilling
-  - Prüfen ob Zustand oder ein zweiter React Context sinnvoll ist für Product-State
-  - Kandidaten für Extraktion: `products`, `productsLoading`, `productsError`, `currentProduct`, `jobStatuses`, `improveJobStatuses`
-  - Neuer Context: `ProductContext` mit useProducts() Hook
-  - **NICHT** AuthContext oder InventoryContext ändern — die bleiben
-  - **NICHT** alles auf einmal umbauen — erst ProductContext, dann evaluieren
-
-- [ ] **P2: UI/UX — Polling durch SSE/Realtime ersetzen** — 60s-Polling für Produktliste ist ineffizient
-  - useJobStream.ts Hook existiert bereits für Jobs — gleichen Ansatz auf Products erweitern
-  - Neuer Hook: `useProductStream.ts` der Firestore onSnapshot oder SSE nutzt
-  - Produkt-Liste soll sich automatisch aktualisieren wenn ein Identify/Improve-Job fertig ist
-  - **NICHT** den Polling-Mechanismus entfernen — als Fallback behalten
-  - **NICHT** Firestore Client-SDK einführen — SSE über Backend-Endpoint bevorzugen
+- [ ] **P1: UI/UX — AdminTable aufteilen** — In Arbeit
+  - Extrahieren: Header, Row, BulkActions, Filters → AdminTable als Container
 
 ## Waiting On
 
-- [ ] **Multi-Tenancy (P3-002)** — Blocker für SaaS. Nur mit expliziter Anweisung starten. since 2026-03-01
-  - orgId auf jedem Firestore-Dokument
-  - Alle Queries um orgId-Filter erweitern
-  - Super-Admin vs. Tenant-Admin Rollen
-  - Geschätzt: 6-8 Wochen
-
-- [ ] **Stripe Billing (P3-003)** — Blocker für SaaS. Nur mit expliziter Anweisung starten. since 2026-03-01
-  - 3 Tiers: Starter (50 Produkte), Pro (500), Enterprise (unlimited)
-  - Usage-Tracking: Identify-Calls, Storage, Active Listings
-  - Geschätzt: 2-3 Wochen
-
-- [ ] **Amazon SP-API Integration** — Größter Marktplatz DE fehlt. since 2026-03-01
-  - Bestehende Multi-Marketplace-Architektur als Grundlage
-  - Amazon SP-API ist komplex (Auth, Throttling, Reports)
-  - Geschätzt: 4-6 Wochen für MVP
+- [ ] **Multi-Tenancy (P3)** — Blocker für SaaS. Nur mit expliziter Anweisung. since 2026-03-01
+- [ ] **Stripe Billing (P3)** — Blocker für SaaS. Nur mit expliziter Anweisung. since 2026-03-01
+- [ ] **Amazon SP-API Integration** — Größter DE-Marktplatz fehlt. since 2026-03-01
 
 ## Someday
 
-- [ ] **GDPR-Compliance** — Data Export (Art. 15), Data Deletion (Art. 17), Privacy Policy, DPA-Template
-- [ ] **API-Dokumentation (OpenAPI/Swagger)** — Für externe Entwickler und SaaS-Kunden
-- [ ] **Zapier/Make.com Integration** — Webhook-Grundlage existiert, Marketplace-Listing fehlt
-- [ ] **E2E-Tests mit Playwright** — Playwright ist als Dependency vorhanden, kein Test existiert
-- [ ] **Token-in-Query-Parameter fixen** — JWT als URL-Param für SSE leakt in Logs/History
-- [ ] **Request Body Limit reduzieren** — 50MB → 10MB, separater Upload-Endpoint für Bilder
-- [ ] **CI-Integration für Tests** — Tests laufen nicht in GitHub Actions / Cloud Build
-- [ ] **Mobile App (React Native)** — Native Scanner-Workflows für Lager-Mitarbeiter
-- [ ] **White-Label-Option** — Agenturen/3PLs eigene Instanz ermöglichen
-- [ ] **KI-Bildoptimierung ausbauen** — Background Removal, Lifestyle-Bilder, A/B-Testing
+- [ ] GDPR-Compliance — Data Export, Deletion, Privacy Policy, DPA-Template
+- [ ] API-Dokumentation (OpenAPI/Swagger)
+- [ ] Zapier/Make.com Integration
+- [ ] E2E-Tests mit Playwright
+- [ ] Token-in-Query-Parameter fixen — JWT als URL-Param leakt in Logs
+- [ ] Request Body Limit 50MB → 10MB
+- [ ] CI-Integration für Tests
+- [ ] Mobile App (React Native)
+- [ ] White-Label-Option
+- [ ] KI-Bildoptimierung ausbauen
 
 ## Done
 
-- [x] ~~**P0-001: Security Headers mit Helmet.js**~~ (2026-02)
-- [x] ~~**P0-002: Rate-Limiting auf kostenintensive Endpoints**~~ (2026-02)
-  - identifyLimiter: 30 Requests / 15 Min
-  - generalLimiter: 120 Requests / Min
-- [x] ~~**P0-003: .env.local aus Git-Historie prüfen**~~ (2026-02)
-- [x] ~~**P0-004: Firestore Daten-Normalisierung**~~ (2026-02)
-  - Schritt 0: LLM-Validierung aktiviert (LLM_POLICY_ENABLED + RULEBOOK_ENABLED)
-  - Schritt 1: product-canonical.js (normalizeProduct, validateCanonical, _pickCanonicalId)
-  - Schritt 2: product-store.js (Dual-Write saveProductV2)
-  - Schritt 3: Migration erfolgreich (786 → 784 Produkte, 364 IDs kanonisiert, 2 Duplikate gemerged)
-  - Schritt 4: Cutover auf products_v2 live (USE_PRODUCTS_V2=true)
-  - Schritt 5: Schreibpfade umstellen → ✅ DONE (2026-03-01, alle aktiven Services/Routes migriert)
-- [x] ~~**P1-001: Structured Logging (Pino)**~~ (2026-02)
-- [x] ~~**P1-002: Health-Check & Graceful Shutdown**~~ (2026-02)
-- [x] ~~**P1-003: Vitest Infrastruktur**~~ (2026-02)
-  - 4 Test-Suiten: gtin, product-identity, brand-normalize, product-canonical
-- [x] ~~**P1-004: Error Response Standardisierung**~~ (2026-02)
-  - AppError-Klasse + errorHandler Middleware
-- [x] ~~**P1-005: Express Router Splitting**~~ (2026-02)
-  - index.js: 7.571 → 280 Zeilen
-  - 7 Router-Module: products, orders, warehouse, identify, marketplace, admin, auth
-- [x] ~~**P1-006: API Versioning Strategie**~~ (2026-02)
-- [x] ~~**P2-001: SSE für Job-Status**~~ (2026-02)
-  - useJobStream.ts Hook im Frontend
-- [x] ~~**P2-002: Pricing Engine**~~ (2026-02)
-  - pricing-engine.js (156 Zeilen), priceHistory Collection
-- [x] ~~**P2-003: Inventory Forecasting**~~ (2026-02)
-  - inventory-forecast.js (119 Zeilen), salesVelocity + predictedStockOut
-- [x] ~~**P2-004: Webhook-System**~~ (2026-02)
-  - webhooks.js (88 Zeilen), HMAC-SHA256 Signierung
-- [x] ~~**P2-005: Produkt-Deduplizierung**~~ (2026-02)
-  - deduplication.js (172 Zeilen), EAN/MPN/Brand-Matching
-- [x] ~~**P3-001: Competitor Intelligence**~~ (2026-02)
-  - priceHistory Collection, Trend-Analyse
+- [x] ~~P0: Listing-Status Frontend-Badge~~ (2026-03-04) — AdminTable + ProductSheet nutzen ops.listingStatus.ebay/kaufland, Inaktiv-Badge, Sync-Timestamp
+- [x] ~~P1: Chat Intent-Detection per LLM~~ (2026-03-04) — Gemini-basiert mit 3s Timeout, Regex-Fallback
+- [x] ~~P2: Formular-Validierung~~ (2026-03-04) — React Hook Form für LoginScreen + ResetPasswordScreen, Domain-/Passwort-Validierung
+- [x] ~~P2: Polling durch SSE ersetzen~~ (2026-03-04) — SSE Endpoint (Firestore onSnapshot), useProductStream.ts, ProductContext mit SSE + Polling-Fallback
+- [x] ~~P0: Image-Generator Background Removal~~ (2026-03-04) — Sharp-basiertes BG-Removal + Gradient-Composite als Primärmethode, Gemini als Fallback
+- [x] ~~P1: Job-Timeout + Dead-Letter-Queue~~ (2026-03-04) — 5min Timeout, Dead-Letter-Collection, Exponential Backoff, Stale-Job-Erkennung
+- [x] ~~P1: Code-Splitting~~ (2026-03-04) — React.lazy() + Suspense für 7 View-Komponenten
+- [x] ~~P1: Chat-Qualität verbessern~~ (2026-03-04) — QUALITY RULES, CHAT_STRICT_RULES_ENABLED=ON, Web-Evidence 20KB, LLM Intent-Detection
+- [x] ~~P2: Error Boundary~~ (2026-03-04) — ErrorBoundary.tsx mit Reload-Button + Sentry-ready
+- [x] ~~P2: State Management~~ (2026-03-04) — ProductContext + useProducts() Hook erstellt (`context/ProductContext.tsx`)
+- [x] ~~P0: Listing-Status Realtime-Sync~~ (2026-03-04) — Runner mit Kaufland API, LISTING_SYNC_ENABLED=ON, 10min Intervall
+- [x] ~~P0: Schreibpfade auf saveProductV2()~~ (2026-03) — Alle aktiven Pfade migriert
+- [x] ~~P0: Pricing Engine produktionsreif~~ (2026-03) — Runner, Neu/Gebraucht-Filter, 3-Tier-Fallback, Frontend
+- [x] ~~P0: eBay/Kaufland Update synct Preis~~ (2026-03) — Preis wird jetzt zum Marktplatz gepusht
+- [x] ~~P0: Marketplace Listing-Status automatisch~~ (2026-03) — 20min-Intervall Runner
+- [x] ~~P0: Konkurrenzpreise-System~~ (2026-03) — BrightData, 7 Marketplaces, 72h-Runner, Frontend
+- [x] ~~P0: LLM Titel-Generierung~~ (2026-03) — LLM_POLICY ON, RULEBOOK ON, Few-Shot Top-Titel, Bugfix sampleTitles→titles
+- [x] ~~P1: Integration-Tests~~ (2026-03) — 119 Tests, 7 Suiten, require.cache-Patching
+- [x] ~~P1: CLAUDE.md aktualisieren~~ (2026-03) — 850→179 Zeilen
+- [x] ~~P0-001: Security Headers (Helmet.js)~~ (2026-02)
+- [x] ~~P0-002: Rate-Limiting~~ (2026-02) — identify: 30/15min, general: 120/min
+- [x] ~~P0-003: .env.local aus Git-Historie~~ (2026-02)
+- [x] ~~P0-004: Firestore Normalisierung~~ (2026-02) — products_v2 live, 786 Produkte migriert
+- [x] ~~P1-001: Structured Logging (Pino)~~ (2026-02)
+- [x] ~~P1-002: Health-Check & Graceful Shutdown~~ (2026-02)
+- [x] ~~P1-003: Vitest Infrastruktur~~ (2026-02)
+- [x] ~~P1-004: Error Response Standardisierung~~ (2026-02)
+- [x] ~~P1-005: Express Router Splitting~~ (2026-02) — 7.571→280 Zeilen
+- [x] ~~P1-006: API Versioning~~ (2026-02)
+- [x] ~~P2-001: SSE für Job-Status~~ (2026-02)
+- [x] ~~P2-002: Pricing Engine~~ (2026-02)
+- [x] ~~P2-003: Inventory Forecasting~~ (2026-02)
+- [x] ~~P2-004: Webhook-System~~ (2026-02)
+- [x] ~~P2-005: Produkt-Deduplizierung~~ (2026-02)
+- [x] ~~P3-001: Competitor Intelligence~~ (2026-02)

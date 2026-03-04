@@ -955,6 +955,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         <div className="flex items-center justify-end gap-2">
           <button
             type="button"
+            aria-label="Neuen Identifizierungs-Slot hinzufuegen"
             className="h-11 rounded-xl bg-slate-800/40 text-white px-3 text-sm font-semibold border border-white/10"
             onClick={addIdentifySlot}
           >
@@ -971,6 +972,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 </p>
                 <button
                   type="button"
+                  aria-label={t('common.clear')}
                   className="rounded-full bg-slate-900/60 border border-white/10 text-slate-100 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
                   onClick={() => clearIdentifySlot(slot)}
                   disabled={!identifyImagesBySlot[slot]?.length}
@@ -981,6 +983,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
+                  aria-label={t('common.camera')}
                   className="rounded-2xl bg-sky-600 text-white font-semibold py-3"
                   onClick={() => triggerIdentifyInput(slot, 'camera')}
                 >
@@ -988,6 +991,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 </button>
                 <button
                   type="button"
+                  aria-label={t('common.upload')}
                   className="rounded-2xl bg-slate-800/40 text-slate-100 font-semibold py-3 border border-white/10"
                   onClick={() => triggerIdentifyInput(slot, 'upload')}
                 >
@@ -1018,6 +1022,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 accept="image/*"
                 capture="environment"
                 multiple
+                aria-hidden="true"
+                tabIndex={-1}
                 className="hidden"
                 onChange={(e) => {
                   handleIdentifyFilesSelected(slot, e.currentTarget.files);
@@ -1032,6 +1038,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 type="file"
                 accept="image/*"
                 multiple
+                aria-hidden="true"
+                tabIndex={-1}
                 className="hidden"
                 onChange={(e) => {
                   handleIdentifyFilesSelected(slot, e.currentTarget.files);
@@ -1040,6 +1048,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               />
               <button
                 type="button"
+                aria-label={t('ops.identify.run')}
                 className="w-full rounded-2xl bg-emerald-600 text-white font-semibold py-3 disabled:opacity-40"
                 disabled={!identifyImagesBySlot[slot]?.length}
                 onClick={() => {
@@ -1073,7 +1082,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       <div className="space-y-3 max-w-xl mx-auto">
         <SectionTitle title={t('ops.mode.stow')} />
         <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-3 space-y-2">
-          {stowMessage && <p className="text-xs text-emerald-300">{stowMessage}</p>}
+          {stowMessage && <p role="status" aria-live="polite" className="text-xs text-emerald-300">{stowMessage}</p>}
           {stowProduct ? <ProductCard product={stowProduct} /> : null}
           <div className="grid grid-cols-2 gap-2 text-sm text-slate-200">
             <div className="rounded-xl bg-slate-900/60 border border-white/10 p-2">
@@ -1095,10 +1104,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   pattern="[0-9]*"
                   readOnly
                   value={stowQty}
+                  aria-label="Einlagerungsmenge"
                   className="flex-1 rounded-xl bg-slate-800/40 text-white border border-white/10 text-xl font-semibold px-3 py-2 border border-white/10"
                 />
                 <button
                   type="button"
+                  aria-label="Menge zuruecksetzen"
                   className="rounded-xl px-3 py-2 bg-slate-800/60 text-white text-sm font-semibold border border-white/10"
                   onClick={() => setStowQty(0)}
                 >
@@ -1118,10 +1129,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 ))}
                 <button
                   type="button"
+                  aria-label="Letzte Ziffer loeschen"
                   className="rounded-xl bg-slate-800/40 text-white border border-white/10 text-lg font-semibold py-3"
                   onClick={() => setStowQty((prev) => Math.max(0, Math.floor(prev / 10)))}
                 >
-                  ⌫
+                  <span aria-hidden="true">⌫</span>
                 </button>
                 <button
                   type="button"
@@ -1132,6 +1144,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 </button>
                 <button
                   type="button"
+                  aria-label="Menge auf Null setzen"
                   className="rounded-xl bg-slate-800/40 text-white border border-white/10 text-lg font-semibold py-3"
                   onClick={() => setStowQty(0)}
                 >
@@ -1145,6 +1158,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               type="button"
               disabled={!stowSku || !stowBin || stowQty <= 0}
               onClick={handleSubmitStow}
+              aria-label={t('ops.stow.submit')}
               className="rounded-xl bg-emerald-600/20 text-emerald-300 font-semibold py-3 disabled:opacity-40"
             >
               {t('ops.stow.submit')}
@@ -1156,6 +1170,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 setStowBin('');
                 setStowQty(1);
               }}
+              aria-label={t('common.reset')}
               className="rounded-xl bg-slate-800/60 text-white font-semibold py-3 border border-white/10"
             >
               {t('common.reset')}
@@ -1231,7 +1246,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         </div>
 
         {ordersError ? (
-          <div className="rounded-2xl border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-100">
+          <div role="alert" className="rounded-2xl border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-100">
             <p className="font-semibold">{t('ops.errors.ordersLoad')}</p>
             <p className="mt-1 text-xs text-rose-200/90 break-words">{ordersError}</p>
           </div>
@@ -1257,6 +1272,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             <div />
             <button
               type="button"
+              aria-label="Scan-Eingaben zuruecksetzen"
               className="shrink-0 rounded-xl bg-slate-900/50 border border-white/10 px-3 py-2 text-xs font-semibold text-white"
               onClick={() => {
                 setActiveBin('');
@@ -1274,6 +1290,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
           {pickMessage ? (
             <p
+              role={pickMessageTone === 'error' ? 'alert' : 'status'}
+              aria-live="polite"
               className={`text-xs ${
                 pickMessageTone === 'error'
                   ? 'text-rose-300'
@@ -1285,7 +1303,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               {pickMessage}
             </p>
           ) : null}
-          {ordersLoading ? <p className="text-xs text-slate-400">{t('ops.orders.loading')}</p> : null}
+          {ordersLoading ? <p role="status" aria-live="polite" className="text-xs text-slate-400">{t('ops.orders.loading')}</p> : null}
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-slate-900/30 p-3">
@@ -1404,6 +1422,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                       setActiveSku(task.sku || '');
                       setHighlightKey(key);
                     }}
+                    aria-label={`Pick-Aufgabe: ${task.name}, BIN ${task.binCode || 'unbekannt'}, SKU ${task.sku}`}
                     className={`w-full text-left rounded-2xl border p-3 shadow-sm shadow-black/20 ${
                       isHighlighted ? 'border-sky-500 bg-sky-900/30' : 'border-white/5 bg-slate-900/50'
                     }`}
@@ -1497,7 +1516,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         </div>
 
         {packMessage ? (
-          <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-3 text-sm text-slate-200">{packMessage}</div>
+          <div role="status" aria-live="polite" className="rounded-2xl border border-white/10 bg-slate-900/40 p-3 text-sm text-slate-200">{packMessage}</div>
         ) : null}
 
         <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-3 space-y-2">
@@ -1520,6 +1539,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           <div className="flex items-start justify-end gap-3">
             <button
               type="button"
+              aria-label="Verpackungs-Auswahl zuruecksetzen"
               className="shrink-0 rounded-xl bg-slate-900/50 border border-white/10 px-3 py-2 text-xs font-semibold text-white"
               onClick={() => {
                 setPackMessage(null);
@@ -1531,7 +1551,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             </button>
           </div>
 
-          {ordersLoading ? <p className="text-xs text-slate-400">{t('ops.orders.loading')}</p> : null}
+          {ordersLoading ? <p role="status" aria-live="polite" className="text-xs text-slate-400">{t('ops.orders.loading')}</p> : null}
         </div>
 
         {packItems.length === 0 && !ordersLoading ? (
@@ -1573,6 +1593,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
+                aria-label="Als verpackt markieren"
                 className="h-14 rounded-2xl bg-emerald-600/20 text-emerald-300 font-extrabold text-lg"
                 onClick={submitPack}
               >
@@ -1580,6 +1601,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               </button>
               <button
                 type="button"
+                aria-label="Naechstes Produkt anzeigen"
                 className="h-14 rounded-2xl bg-slate-800/60 text-white font-semibold text-lg border border-white/10"
                 onClick={() => cycleSelection(1)}
               >
@@ -1592,6 +1614,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             <p className="text-sm text-slate-300">Scan Auftrag oder SKU, um zu starten.</p>
             <button
               type="button"
+              aria-label="Produkte durchgehen"
               className="h-14 rounded-2xl bg-slate-800/60 text-white font-semibold text-lg border border-white/10"
               onClick={() => cycleSelection(1)}
             >
@@ -1626,6 +1649,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       <div className="flex flex-col gap-3">
         <button
           type="button"
+          aria-label={t('ops.mode.identify')}
           className="w-full rounded-2xl bg-sky-600/20 text-sky-300 font-semibold py-4 text-lg border border-sky-500/20"
           onClick={() => onNavigate('operations-identify')}
         >
@@ -1633,6 +1657,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         </button>
         <button
           type="button"
+          aria-label={t('ops.mode.stow')}
           className="w-full rounded-2xl bg-emerald-600/20 text-emerald-300 font-semibold py-4 text-lg border border-emerald-500/20"
           onClick={() => onNavigate('operations-stow')}
         >
@@ -1640,6 +1665,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         </button>
         <button
           type="button"
+          aria-label={t('ops.mode.pick')}
           className="w-full rounded-2xl bg-amber-600/20 text-amber-300 font-semibold py-4 text-lg border border-amber-500/20"
           onClick={() => onNavigate('operations-pick')}
         >
@@ -1647,6 +1673,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         </button>
         <button
           type="button"
+          aria-label={t('ops.mode.pack')}
           className="w-full rounded-2xl bg-slate-800/40 text-white font-semibold py-4 text-lg border border-white/10"
           onClick={() => onNavigate('operations-pack')}
         >

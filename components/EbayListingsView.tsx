@@ -1213,6 +1213,7 @@ export const EbayListingsView: React.FC = () => {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Suche nach Item ID, SKU oder Titel"
+              aria-label="Suche nach Item ID, SKU oder Titel"
               className="w-full rounded-xl bg-slate-950 border border-white/10 px-4 py-3 text-white"
             />
           </div>
@@ -1220,6 +1221,7 @@ export const EbayListingsView: React.FC = () => {
             <select
               value={matchStatus}
               onChange={(event) => setMatchStatus(event.target.value as any)}
+              aria-label="Match-Status filtern"
               className="w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-3 text-white"
             >
               <option value="all">Match: Alle</option>
@@ -1249,6 +1251,7 @@ export const EbayListingsView: React.FC = () => {
                 })
               }
               disabled={busyAction === 'sync:listings'}
+              aria-label="Live Sync und Audit starten"
               className="rounded-xl bg-sky-600/20 hover:bg-sky-600/30 px-3 py-2 text-sm font-semibold text-sky-300 disabled:opacity-50 transition"
             >
               Live Sync + Audit
@@ -1270,6 +1273,7 @@ export const EbayListingsView: React.FC = () => {
                 })
               }
               disabled={busyAction === 'gaps:bulk-missing'}
+              aria-label="Bulk fehlende Parameter synchronisieren"
               className="rounded-xl border border-emerald-600/70 bg-emerald-900/25 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-800/35 disabled:opacity-50"
             >
               Bulk fehlende Parameter{' '}
@@ -1287,6 +1291,7 @@ export const EbayListingsView: React.FC = () => {
                 })
               }
               disabled={busyAction === 'sync:apply'}
+              aria-label="Sync Apply ausfuehren"
               className="rounded-xl border border-emerald-500/60 bg-emerald-900/30 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-800/40 disabled:opacity-50"
             >
               Sync Apply{' '}
@@ -1300,6 +1305,7 @@ export const EbayListingsView: React.FC = () => {
           <select
             value={advancedAction}
             onChange={(event) => setAdvancedAction(event.target.value as AdvancedActionKey)}
+            aria-label="Weitere Aktionen auswaehlen"
             className="rounded-xl bg-slate-950 border border-white/10 px-2 py-1.5 text-xs text-white min-w-[220px]"
           >
             {ADVANCED_ACTION_OPTIONS.map((option) => (
@@ -1312,6 +1318,7 @@ export const EbayListingsView: React.FC = () => {
             type="button"
             onClick={() => void runAction(`advanced:${advancedAction}`, executeAdvancedAction)}
             disabled={Boolean(busyAction && busyAction.startsWith('advanced:'))}
+            aria-label="Ausgewaehlte Aktion ausfuehren"
             className="rounded-xl border border-white/10 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
           >
             Ausfuehren
@@ -1320,12 +1327,12 @@ export const EbayListingsView: React.FC = () => {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-700 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+        <div role="alert" className="rounded-xl border border-rose-700 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
           {safeString(error)}
         </div>
       )}
       {notice && (
-        <div className="rounded-xl border border-emerald-700 bg-emerald-900/30 px-4 py-3 text-sm text-emerald-50">
+        <div role="status" aria-live="polite" className="rounded-xl border border-emerald-700 bg-emerald-900/30 px-4 py-3 text-sm text-emerald-50">
           {notice}
         </div>
       )}
@@ -1336,19 +1343,21 @@ export const EbayListingsView: React.FC = () => {
             <p className="text-sm font-semibold text-slate-100">
               Listings ({filteredSortedListings.length}/{listings.length})
             </p>
-            {loadingListings && <p className="text-xs text-slate-400">Lade...</p>}
+            {loadingListings && <p role="status" aria-live="polite" className="text-xs text-slate-400">Lade...</p>}
           </div>
           <div className="space-y-2 mb-3">
             <input
               value={listingListSearch}
               onChange={(event) => setListingListSearch(event.target.value)}
               placeholder="In Liste filtern (Item ID, SKU, Titel)"
+              aria-label="Listings in der Liste filtern"
               className="w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-2 text-xs text-white"
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <select
                 value={listingListFilter}
                 onChange={(event) => setListingListFilter(event.target.value as ListingListFilter)}
+                aria-label="Listing-Filter"
                 className="w-full rounded-xl bg-slate-950 border border-white/10 px-2 py-2 text-xs text-white"
               >
                 {LISTING_FILTER_OPTIONS.map((option) => (
@@ -1360,6 +1369,7 @@ export const EbayListingsView: React.FC = () => {
               <select
                 value={listingSortBy}
                 onChange={(event) => setListingSortBy(event.target.value as ListingSortBy)}
+                aria-label="Listing-Sortierung"
                 className="w-full rounded-xl bg-slate-950 border border-white/10 px-2 py-2 text-xs text-white"
               >
                 {LISTING_SORT_OPTIONS.map((option) => (
@@ -1389,6 +1399,7 @@ export const EbayListingsView: React.FC = () => {
                   })
                 }
                 disabled={visibleListingIds.length === 0}
+                aria-label={allVisibleListingsSelected ? 'Alle sichtbaren Listings abwaehlen' : 'Alle sichtbaren Listings markieren'}
                 className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
               >
                 {allVisibleListingsSelected ? 'Sichtbare abwaehlen' : 'Sichtbare markieren'}
@@ -1396,6 +1407,7 @@ export const EbayListingsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedListingIds({})}
+                aria-label="Listing-Auswahl leeren"
                 disabled={selectedListingIdList.length === 0}
                 className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
               >
@@ -1428,6 +1440,7 @@ export const EbayListingsView: React.FC = () => {
                             [row.itemId]: event.target.checked,
                           }))
                         }
+                        aria-label={`Listing ${safeString(row.title) || row.itemId} auswaehlen`}
                         className="accent-sky-500"
                       />
                       Auswaehlen
@@ -1435,6 +1448,7 @@ export const EbayListingsView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setSelectedItemId(row.itemId)}
+                      aria-label={`Details fuer Listing ${safeString(row.title) || row.itemId} anzeigen`}
                       className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-0.5 text-[10px] text-slate-100 hover:bg-slate-800/40"
                     >
                       Details
@@ -1476,7 +1490,7 @@ export const EbayListingsView: React.FC = () => {
           {!selectedItemId ? (
             <p className="text-sm text-slate-400">Bitte ein Listing auswaehlen.</p>
           ) : loadingDetail ? (
-            <p className="text-sm text-slate-400">Lade Listing-Details...</p>
+            <p role="status" aria-live="polite" className="text-sm text-slate-400">Lade Listing-Details...</p>
           ) : !detail ? (
             <p className="text-sm text-slate-400">Keine Detaildaten verfuegbar.</p>
           ) : (
@@ -1494,6 +1508,7 @@ export const EbayListingsView: React.FC = () => {
                       href={ebayViewItemUrl}
                       target="_blank"
                       rel="noreferrer"
+                      aria-label="Listing auf eBay oeffnen (neues Fenster)"
                       className="inline-flex items-center rounded-md border border-sky-700/70 bg-sky-900/20 px-2 py-1 text-[11px] text-sky-100 hover:bg-sky-800/30"
                     >
                       Auf eBay oeffnen
@@ -1586,6 +1601,7 @@ export const EbayListingsView: React.FC = () => {
                     type="button"
                     onClick={() => void runItemSpecificSyncFlow('missing_ebay', 'Fehlende Item Specifics')}
                     disabled={itemSpecificGapModes.missing_ebay.length === 0 || Boolean(busyAction)}
+                    aria-label={`Fehlende Item Specifics auf eBay syncen (${itemSpecificGapModes.missing_ebay.length})`}
                     className="rounded border border-rose-600/70 bg-rose-900/20 px-2 py-1 text-[11px] text-rose-100 hover:bg-rose-800/30 disabled:opacity-50"
                   >
                     Fehlende auf eBay syncen ({itemSpecificGapModes.missing_ebay.length})
@@ -1594,6 +1610,7 @@ export const EbayListingsView: React.FC = () => {
                     type="button"
                     onClick={() => void runItemSpecificSyncFlow('different', 'Abweichende Item Specifics')}
                     disabled={itemSpecificGapModes.different.length === 0 || Boolean(busyAction)}
+                    aria-label={`Abweichende Item Specifics syncen (${itemSpecificGapModes.different.length})`}
                     className="rounded border border-amber-600/70 bg-amber-900/20 px-2 py-1 text-[11px] text-amber-100 hover:bg-amber-800/30 disabled:opacity-50"
                   >
                     Abweichungen syncen ({itemSpecificGapModes.different.length})
@@ -1602,6 +1619,7 @@ export const EbayListingsView: React.FC = () => {
                     type="button"
                     onClick={() => void runItemSpecificSyncFlow('all', 'Alle Item Specifics')}
                     disabled={itemSpecificGapModes.all.length === 0 || Boolean(busyAction)}
+                    aria-label={`Alle Item Specifics syncen (${itemSpecificGapModes.all.length})`}
                     className="rounded border border-emerald-600/70 bg-emerald-900/20 px-2 py-1 text-[11px] text-emerald-100 hover:bg-emerald-800/30 disabled:opacity-50"
                   >
                     Alle Item Specifics syncen ({itemSpecificGapModes.all.length})
@@ -1609,13 +1627,13 @@ export const EbayListingsView: React.FC = () => {
                 </div>
 
                 <div className="max-h-[34vh] overflow-auto rounded-xl border border-white/10">
-                  <table className="w-full border-collapse text-[11px]">
+                  <table aria-label="Item Specifics Vergleich zwischen eBay und AvyCloud" className="w-full border-collapse text-[11px]">
                     <thead className="sticky top-0 z-10 bg-slate-900/95 text-slate-300">
                       <tr>
-                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Attribut</th>
-                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Status</th>
-                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">eBay</th>
-                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">AvyCloud</th>
+                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Attribut</th>
+                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Status</th>
+                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">eBay</th>
+                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">AvyCloud</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1684,6 +1702,7 @@ export const EbayListingsView: React.FC = () => {
                       setGapStatusFilter(event.target.value as GapStatusFilter);
                       setGapVisibleCount(25);
                     }}
+                    aria-label="Gap-Status filtern"
                     className="rounded-xl bg-slate-950 border border-white/10 px-2 py-2 text-xs text-slate-100"
                   >
                     {GAP_STATUS_FILTER_OPTIONS.map((option) => (
@@ -1698,6 +1717,7 @@ export const EbayListingsView: React.FC = () => {
                       setGapSeverityFilter(event.target.value as GapSeverityFilter);
                       setGapVisibleCount(25);
                     }}
+                    aria-label="Gap-Schweregrad filtern"
                     className="rounded-xl bg-slate-950 border border-white/10 px-2 py-2 text-xs text-slate-100"
                   >
                     {GAP_SEVERITY_FILTER_OPTIONS.map((option) => (
@@ -1713,6 +1733,7 @@ export const EbayListingsView: React.FC = () => {
                       setGapVisibleCount(25);
                     }}
                     placeholder="Gap suchen (Feld, Text, Wert)"
+                    aria-label="Gaps durchsuchen"
                     className="rounded-xl bg-slate-950 border border-white/10 px-3 py-2 text-xs text-slate-100"
                   />
                 </div>
@@ -1737,6 +1758,7 @@ export const EbayListingsView: React.FC = () => {
                       })
                     }
                     disabled={selectableGapCount === 0}
+                    aria-label={allVisibleSelected ? 'Alle sichtbaren Gaps abwaehlen' : 'Alle sichtbaren Gaps markieren'}
                     className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
                   >
                     {allVisibleSelected ? 'Sichtbare abwaehlen' : 'Sichtbare markieren'}
@@ -1747,6 +1769,7 @@ export const EbayListingsView: React.FC = () => {
                   <select
                     value={gapBulkAction}
                     onChange={(event) => setGapBulkAction(event.target.value as GapBulkAction)}
+                    aria-label="Gap-Massenaktion auswaehlen"
                     className="rounded-lg border border-white/10 bg-slate-800/40px-2 py-1 text-[11px] text-slate-100"
                   >
                     {GAP_BULK_ACTION_OPTIONS.map((option) => (
@@ -1759,6 +1782,7 @@ export const EbayListingsView: React.FC = () => {
                     type="button"
                     onClick={() => void executeSelectedGapBulkAction(selectedVisibleGapIds, gapBulkAction)}
                     disabled={!selectedVisibleGapIds.length || Boolean(busyAction)}
+                    aria-label="Massenaktion auf ausgewaehlte Gaps ausfuehren"
                     className="rounded border border-sky-600/70 bg-sky-900/25 px-2 py-1 text-[11px] text-sky-100 hover:bg-sky-800/35 disabled:opacity-50"
                   >
                     Aktion auf Auswahl ausfuehren
@@ -1767,6 +1791,7 @@ export const EbayListingsView: React.FC = () => {
                     type="button"
                     onClick={() => setSelectedGapIds({})}
                     disabled={!selectedVisibleGapIds.length}
+                    aria-label="Gap-Auswahl leeren"
                     className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
                   >
                     Auswahl leeren
@@ -1774,16 +1799,16 @@ export const EbayListingsView: React.FC = () => {
                 </div>
 
                 <div className="max-h-[42vh] overflow-auto rounded-xl border border-white/10">
-                  <table className="w-full border-collapse text-[11px]">
+                  <table aria-label="Gap-Liste fuer das ausgewaehlte Listing" className="w-full border-collapse text-[11px]">
                     <thead className="sticky top-0 z-10 bg-slate-900/95 text-slate-300">
                       <tr>
-                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium w-8">#</th>
-                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Feld</th>
-                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Status</th>
-                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Severity</th>
-                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Typ</th>
-                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">eBay</th>
-                        <th className="border-b border-white/10 px-2 py-1.5 text-left font-medium">AvyCloud</th>
+                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium w-8">#</th>
+                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Feld</th>
+                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Status</th>
+                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Severity</th>
+                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Typ</th>
+                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">eBay</th>
+                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">AvyCloud</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1803,6 +1828,7 @@ export const EbayListingsView: React.FC = () => {
                                       [gapId]: event.target.checked,
                                     }))
                                   }
+                                  aria-label={`Gap ${safeString(gap.field) || gapId} auswaehlen`}
                                   className="accent-sky-500"
                                 />
                               ) : (
@@ -1848,6 +1874,7 @@ export const EbayListingsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setGapVisibleCount((prev) => prev + 25)}
+                    aria-label={`${hiddenGapCount} weitere Gaps laden`}
                     className="w-full rounded-lg border border-white/10 bg-slate-800/40 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/40"
                   >
                     Mehr laden ({hiddenGapCount} weitere Gaps)

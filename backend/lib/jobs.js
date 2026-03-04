@@ -158,6 +158,51 @@ async function listJobsByStatus(statuses = ['pending']) {
   return snapshot.docs.map(serializeJob).filter(Boolean);
 }
 
+const DEAD_LETTER_COLLECTION = 'deadLetterJobs';
+
+function deadLetterCollection() {
+  return firestore.collection(DEAD_LETTER_COLLECTION);
+}
+
+async function moveToDeadLetter(jobId) {
+  const docRef = collection().doc(jobId);
+  const snapshot = await docRef.get();
+  if (!snapshot.exists) return null;
+
+  const data = snapshot.data();
+  const dlRef = deadLetterCollection().doc(jobId);
+  await dlRef.set({
+    ...data,
+    originalCollection: JOBS_COLLECTION,
+    movedAt: Timestamp.now(),
+  });
+  await docRef.delete();
+  return jobId;
+}
+
+async function listDeadLetterJobs(options = {}) {
+  const { limit = 50, cursor = null } = options || {};
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
+  let query = deadLetterCollection()
+    .orderBy('movedAt', 'desc')
+    .limit(safeLimit);
+
+  if (cursor) {
+    const cursorSnapshot = await deadLetterCollection().doc(cursor).get();
+    if (cursorSnapshot.exists) {
+      query = query.startAfter(cursorSnapshot);
+    }
+  }
+
+  const snapshot = await query.get();
+  const jobs = snapshot.docs.map(serializeJob).filter(Boolean);
+  const nextCursor =
+    snapshot.docs.length === safeLimit
+      ? snapshot.docs[snapshot.docs.length - 1].id
+      : null;
+  return { jobs, nextCursor };
+}
+
 module.exports = {
   createJob,
   getJob,
@@ -165,6 +210,8 @@ module.exports = {
   claimJob,
   listJobsByStatus,
   listJobs,
+  moveToDeadLetter,
+  listDeadLetterJobs,
   Timestamp,
   FieldValue,
 };

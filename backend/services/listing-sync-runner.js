@@ -13,9 +13,9 @@
 const { firestore } = require('../lib/firestore');
 const { syncLiveListingsLight } = require('../lib/ebay-direct');
 
-const LISTING_SYNC_ENABLED = process.env.LISTING_SYNC_ENABLED === 'true';
+const LISTING_SYNC_ENABLED = process.env.LISTING_SYNC_ENABLED !== 'false'; // Default ON
 const LISTING_SYNC_INTERVAL_MS = parseInt(
-  process.env.LISTING_SYNC_INTERVAL_MS || String(20 * 60 * 1000),
+  process.env.LISTING_SYNC_INTERVAL_MS || String(10 * 60 * 1000), // 10 minutes
   10
 );
 const LISTING_SYNC_INITIAL_DELAY_MS = parseInt(
@@ -144,6 +144,71 @@ async function propagateKauflandStatusToProducts() {
   return { units: offerIds.length, updated };
 }
 
+// ─── Kaufland API Sync ────────────────────────────────────────────────────────
+
+async function syncKauflandUnitsToCache() {
+  const { listUnits } = require('../lib/kaufland-api');
+  const { Timestamp } = require('@google-cloud/firestore');
+
+  const units = await listUnits({ storefront: 'de', limit: 100, maxPages: 300 });
+  if (!units.length) return { fetched: 0 };
+
+  const now = Timestamp.now();
+  const collection = firestore.collection('kauflandUnitsLive');
+  const seenIds = new Set();
+
+  let batch = firestore.batch();
+  let batchCount = 0;
+  const commitBatch = async () => {
+    if (!batchCount) return;
+    await batch.commit();
+    batch = firestore.batch();
+    batchCount = 0;
+  };
+
+  for (const unit of units) {
+    const idUnit = Number(unit?.id_unit || 0);
+    if (!Number.isFinite(idUnit) || idUnit <= 0) continue;
+    const docId = String(idUnit);
+    seenIds.add(docId);
+
+    const payload = {
+      id_unit: idUnit,
+      id_offer: String(unit?.id_offer || '').trim() || null,
+      ean: String(unit?.ean || '').replace(/\D+/g, '').trim() || null,
+      id_product: Number.isFinite(Number(unit?.id_product)) && Number(unit.id_product) > 0
+        ? Number(unit.id_product) : null,
+      amount: Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null,
+      status: String(unit?.status || '').trim() || null,
+      storefront: 'de',
+      active: String(unit?.status || '').trim().toUpperCase() === 'AVAILABLE',
+      updatedAt: now,
+      source: 'listing-sync-runner',
+    };
+
+    batch.set(collection.doc(docId), payload, { merge: true });
+    batchCount += 1;
+    if (batchCount >= 400) await commitBatch();
+  }
+  await commitBatch();
+
+  // Mark stale rows inactive
+  const existingSnap = await collection.where('storefront', '==', 'de').where('active', '==', true).get();
+  if (!existingSnap.empty) {
+    batch = firestore.batch();
+    batchCount = 0;
+    for (const doc of existingSnap.docs) {
+      if (seenIds.has(doc.id)) continue;
+      batch.set(doc.ref, { active: false, updatedAt: now, source: 'listing-sync-runner' }, { merge: true });
+      batchCount += 1;
+      if (batchCount >= 400) await commitBatch();
+    }
+    await commitBatch();
+  }
+
+  return { fetched: units.length, active: seenIds.size };
+}
+
 // ─── Sync Cycle ───────────────────────────────────────────────────────────────
 
 async function runListingSyncCycle() {
@@ -177,7 +242,14 @@ async function runListingSyncCycle() {
       console.log(`[ListingSyncRunner] eBay: updated ${ebayProp.updated} products`);
     }
 
-    // Kaufland: propagate from cached kauflandUnitsLive (full sync is triggered manually)
+    // Kaufland: fetch units from API, update cache, then propagate
+    const kauflandSync = await syncKauflandUnitsToCache().catch(err => ({ error: err.message }));
+    if (kauflandSync?.error) {
+      console.warn(`[ListingSyncRunner] Kaufland API sync failed: ${kauflandSync.error}`);
+    } else if (kauflandSync?.fetched !== undefined) {
+      console.log(`[ListingSyncRunner] Kaufland: fetched ${kauflandSync.fetched} units from API`);
+    }
+
     const kauflandProp = await propagateKauflandStatusToProducts().catch(err => ({ error: err.message, updated: 0 }));
     if (kauflandProp.error) {
       console.warn(`[ListingSyncRunner] Kaufland propagation failed: ${kauflandProp.error}`);

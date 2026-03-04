@@ -1,7 +1,10 @@
 /**
  * Generates strict, photorealistic studio packshot prompts.
+ * Uses the reference image as EXACT product identity — Gemini must reproduce
+ * the same product, not generate a similar one.
+ *
  * @param {Object} product - The product object
- * @returns {Promise<{studio: {front: string, angle: string, topdown: string, detail: string}}>}
+ * @returns {Promise<{studio: {front: string, angle: string, detail: string, back: string}}>}
  */
 function detectPrimaryColor(attributes = {}) {
   if (!attributes || typeof attributes !== 'object') return null;
@@ -24,64 +27,88 @@ function pickStudioBackground(colorDescriptor) {
   const lightTokens = ['white', 'light', 'silver', 'ivory', 'cream', 'beige', 'weiß', 'hell', 'silber'];
 
   if (darkTokens.some((token) => value.includes(token))) {
-    return {
-      background: 'a pure white seamless background (#FFFFFF)',
-      directive: 'Detected a dark-toned product; use pure white (#FFFFFF) for maximum contrast.',
-    };
+    return 'premium white e-commerce gradient background';
   }
   if (lightTokens.some((token) => value.includes(token))) {
-    return {
-      background: 'a very light neutral gray seamless background (#F4F4F4)',
-      directive: 'Detected a light-toned product; use light neutral gray (#F4F4F4) to avoid blending with white.',
-    };
+    return 'premium light neutral gray e-commerce gradient background';
   }
-  return {
-    background: 'a very light neutral gray seamless background (#F4F4F4)',
-    directive: 'Product color is unspecified or mid-tone; default to neutral light gray (#F4F4F4).',
-  };
+  return 'premium white e-commerce gradient background';
 }
 
-function buildDefaultPromptSet(identity, studioBackground) {
-  const subject = identity ? `the exact product (${identity})` : 'the exact product';
-  const baseRules =
-    [
-      'IMAGE EDITING TASK (do not invent): Use the provided reference image as strict visual ground truth.',
-      'eBay listing compliance: hero image must show the complete product clearly, with no crop of critical parts.',
-      'Keep the exact product identity and perspective. Do NOT change shape, proportions, materials, color, labels, logos, screws, cables, attachments, or included parts.',
-      `Allowed edits ONLY: replace background with ${studioBackground}, neutralize lighting to soft even studio light, and do minimal cleanup (dust/noise).`,
-      'Forbidden: adding/removing parts, changing viewpoint/perspective, adding props/packaging (unless already visible), adding environment/lifestyle, people/hands, frames, text/watermarks/icons/stickers/overlays.',
-      'If unsure, preserve the reference image details exactly.',
-    ].join(' ');
-  const studioFront = `Edit the provided reference image into a photorealistic studio packshot of ${subject} on ${studioBackground}. Main/hero shot: full front view of the complete product, centered, clean edges, no decorative elements, soft even studio lighting. ${baseRules}`;
+/**
+ * Builds a concise product descriptor from identification fields.
+ */
+function buildProductDescriptor(product) {
+  const parts = [
+    product.identification?.brand,
+    product.identification?.name,
+    product.identification?.category,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' ').trim() : 'the product shown in the reference image';
+}
+
+/**
+ * Collects key visual attributes to anchor the prompt to the real product.
+ */
+function buildVisualAnchors(product) {
+  const attrs = product?.details?.attributes || {};
+  const anchors = [];
+  const keys = ['Material', 'Farbe', 'Color', 'Größe', 'Size', 'Maße', 'Dimensions', 'Stil', 'Style'];
+  for (const key of keys) {
+    if (attrs[key]) {
+      anchors.push(`${key}: ${attrs[key]}`);
+    }
+  }
+  return anchors.length ? anchors.join(', ') : '';
+}
+
+/**
+ * Core identity anchor — instructs Gemini to treat the reference image as
+ * the EXACT product, not as inspiration.
+ */
+function buildIdentityAnchor(productDescriptor, visualAnchors) {
+  const lines = [
+    'CRITICAL: The attached reference image shows the EXACT product to photograph.',
+    'You MUST reproduce this IDENTICAL product — same shape, same proportions, same materials, same color, same design details, same labels, same hardware.',
+    'Do NOT generate a similar or generic product. Do NOT change ANY physical detail of the product.',
+  ];
+  if (visualAnchors) {
+    lines.push(`Known product attributes: ${visualAnchors}.`);
+  }
+  return lines.join(' ');
+}
+
+function buildDefaultPromptSet(productDescriptor, background, visualAnchors) {
+  const anchor = buildIdentityAnchor(productDescriptor, visualAnchors);
+
+  const basePrompt = (perspective) =>
+    `High-end ${perspective} product photo of a ${productDescriptor}. ` +
+    `Shot on a ${background} (eBay-style), ` +
+    'with soft directional studio lighting that produces clean, natural shadows and perfect color accuracy. ' +
+    'Ultra-sharp edges, high resolution, glossy-matte material rendering, no reflections, no props, no text. ' +
+    'Fully marketplace-ready composition with strong visual depth and premium retail aesthetic. ' +
+    anchor;
+
   return {
     studio: {
-      front: studioFront,
-      angle: `Edit the provided reference image into a photorealistic studio packshot of ${subject} on ${studioBackground}. Keep the original camera perspective (do not invent angles). Soft even studio lighting. ${baseRules}`,
-      topdown: `Edit the provided reference image into a photorealistic studio packshot of ${subject} on ${studioBackground}. Keep the original camera perspective (do not invent angles). Soft even studio lighting. ${baseRules}`,
-      detail: `Edit the provided reference image into a photorealistic studio packshot detail shot of ${subject} on ${studioBackground}. Tight crop on a key functional area that is visible in the reference image. Do not invent hidden details. Soft even studio lighting. ${baseRules}`,
+      front: basePrompt('close-up 3/4'),
+      angle: basePrompt('45-degree side angle'),
+      detail: basePrompt('macro detail close-up of the key functional area of'),
+      back: basePrompt('rear/back view'),
     },
   };
 }
 
 async function generateVisualDescriptions(product) {
-  const identity = [
-    product.identification?.brand,
-    product.identification?.name,
-    product.identification?.category,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .trim() || 'the product';
-
+  const productDescriptor = buildProductDescriptor(product);
   const attributes = product.details?.attributes || {};
   const colorDescriptor = detectPrimaryColor(attributes) || 'unknown';
-  const { background: studioBackground } = pickStudioBackground(colorDescriptor);
+  const background = pickStudioBackground(colorDescriptor);
+  const visualAnchors = buildVisualAnchors(product);
 
-  // Deterministic (non-LLM) prompt generation to avoid hallucinated scenes/props.
-  // Background selection is still data-driven via color heuristics.
-  return buildDefaultPromptSet(identity, studioBackground);
+  return buildDefaultPromptSet(productDescriptor, background, visualAnchors);
 }
 
 module.exports = {
-    generateVisualDescriptions,
+  generateVisualDescriptions,
 };

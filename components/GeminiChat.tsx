@@ -807,6 +807,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             setInput(buildSmartPrompt());
           }}
           className="rounded-full border border-white/10 px-3 py-1 text-[11px] text-slate-200 hover:border-sky-500 hover:text-white"
+          aria-label="Smarten Prompt aus Optionen erzeugen"
           title="Erzeugt einen smarten Prompt aus den Optionen."
         >
           Prompt bauen
@@ -814,7 +815,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       </header>
 
       <div className="flex flex-1 min-h-0 flex-col gap-3 px-4 py-3">
-        <div ref={chatBodyRef} className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1">
+        <div ref={chatBodyRef} role="log" aria-live="polite" aria-label="Chatverlauf" className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1">
           {messages.map((msg) => (
             <MessageBubble
               key={msg.id}
@@ -828,7 +829,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             />
           ))}
           {isStreaming && (
-            <div className="flex justify-start">
+            <div className="flex justify-start" role="status" aria-live="polite" aria-label="Verarbeitungsstatus">
               <div className="rounded-2xl bg-slate-800/80 px-4 py-3 text-sm text-slate-200 space-y-1 min-w-[200px]">
                 {streamEvents.length === 0 ? (
                   <div className="flex items-center gap-2">
@@ -886,6 +887,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                     </p>
                     <button
                       type="button"
+                      aria-label="Alle Bildvorschläge hinzufügen"
                       onClick={handleApplyAllImages}
                       className="rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
                     >

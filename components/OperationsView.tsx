@@ -57,13 +57,13 @@ const WORKFLOW_CARDS: Array<{
       mode: 'stow',
       titleKey: 'ops.mode.stow',
       subtitleKey: 'ops.mode.stow.subtitle',
-      icon: <WarehouseIcon className="w-8 h-8" />,
+      icon: <WarehouseIcon className="w-8 h-8" aria-hidden="true" />,
     },
     {
       mode: 'pick',
       titleKey: 'ops.mode.pick',
       subtitleKey: 'ops.mode.pick.subtitle',
-      icon: <SyncIcon className="w-8 h-8" />,
+      icon: <SyncIcon className="w-8 h-8" aria-hidden="true" />,
     },
   ];
 
@@ -829,6 +829,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 className="h-4 w-4 rounded border-slate-500 bg-slate-900 text-sky-500 focus:ring-sky-500"
                 checked={autoOrderSync}
                 onChange={handleAutoSyncToggle}
+                aria-label={t('ops.orders.auto')}
               />
               {t('ops.orders.auto')}
             </label>
@@ -836,6 +837,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               type="button"
               onClick={() => handleSyncOrders(true)}
               disabled={isSyncingOrders}
+              aria-label={isSyncingOrders ? t('ops.orders.syncing') : t('ops.orders.sync')}
               className="inline-flex items-center gap-2 rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
               {isSyncingOrders ? t('ops.orders.syncing') : t('ops.orders.sync')}
@@ -844,6 +846,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               <button
                 type="button"
                 onClick={() => setShowOrdersPanel((prev) => !prev)}
+                aria-label={showOrdersPanel ? t('ops.orders.hide') : t('ops.orders.show')}
+                aria-expanded={showOrdersPanel}
                 className="inline-flex items-center rounded-full border border-white/10 px-3 py-2 text-sm text-slate-100 hover:border-slate-400"
               >
                 {showOrdersPanel ? t('ops.orders.hide') : t('ops.orders.show')}
@@ -851,9 +855,9 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             )}
           </div>
         </div>
-        {orderStatusMessage && <div className="text-sm text-emerald-300 bg-emerald-900/30 px-3 py-2 rounded">{orderStatusMessage}</div>}
+        {orderStatusMessage && <div role="status" aria-live="polite" className="text-sm text-emerald-300 bg-emerald-900/30 px-3 py-2 rounded">{orderStatusMessage}</div>}
         {(ordersError || orderErrorMessage) && (
-          <div className="text-sm text-rose-300 bg-rose-900/30 px-3 py-2 rounded">{ordersError || orderErrorMessage}</div>
+          <div role="alert" className="text-sm text-rose-300 bg-rose-900/30 px-3 py-2 rounded">{ordersError || orderErrorMessage}</div>
         )}
         {showOrdersPanel && (
           <>
@@ -873,7 +877,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             </div>
             <div className="bg-slate-900/40 rounded-2xl p-4 border border-white/10">
               {ordersLoading ? (
-                <p className="text-slate-400 text-sm">{t('ops.orders.loading')}</p>
+                <p role="status" aria-live="polite" className="text-slate-400 text-sm">{t('ops.orders.loading')}</p>
               ) : openOrders.length === 0 ? (
                 <p className="text-slate-400 text-sm">{t('ops.orders.none')}</p>
               ) : (
@@ -924,6 +928,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       <button
                         type="button"
                         onClick={() => setShowAllOpenOrders((prev) => !prev)}
+                        aria-label={showAllOpenOrders ? t('ops.orders.less') : `${t('ops.orders.more')} (${openOrders.length})`}
+                        aria-expanded={showAllOpenOrders}
                         className="text-sm text-sky-300 hover:text-sky-200 underline-offset-4 underline"
                       >
                         {showAllOpenOrders ? t('ops.orders.less') : `${t('ops.orders.more')} (${openOrders.length})`}
@@ -947,6 +953,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 key={card.mode}
                 type="button"
                 onClick={() => setWorkflow(card.mode)}
+                aria-label={t(card.titleKey)}
+                aria-pressed={active}
                 className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition ${active ? 'border-sky-500 bg-sky-500/20 text-white shadow-lg shadow-sky-900/30' : 'border-white/10 bg-slate-900/40 text-slate-300 hover:border-slate-500'
                   }`}
               >
@@ -963,6 +971,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           <button
             type="button"
             onClick={() => onSwitchView?.('input')}
+            aria-label={t('ops.mode.identify')}
             className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-100 hover:border-slate-400"
           >
             {t('ops.mode.identify')}
@@ -970,6 +979,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           <button
             type="button"
             onClick={() => setWorkflow('stow')}
+            aria-label={t('ops.mode.stow')}
+            aria-pressed={workflow === 'stow'}
             className={`rounded-full px-4 py-2 text-sm ${workflow === 'stow' ? 'bg-emerald-600 text-white' : 'border border-white/10 text-slate-100 hover:border-slate-400'}`}
           >
             {t('ops.mode.stow')}
@@ -977,6 +988,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           <button
             type="button"
             onClick={() => setWorkflow('pick')}
+            aria-label={t('ops.mode.pick')}
+            aria-pressed={workflow === 'pick'}
             className={`rounded-full px-4 py-2 text-sm ${workflow === 'pick' ? 'bg-amber-600 text-white' : 'border border-white/10 text-slate-100 hover:border-slate-400'}`}
           >
             {t('ops.mode.pick')}
@@ -992,16 +1005,17 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
           </div>
           <button
             type="button"
+            aria-label={workflow === 'stow' ? t('ops.actions.scan.product') : t('ops.actions.scan.bin')}
             className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 hover:border-slate-400"
             onClick={() => setScannerTarget(workflow === 'stow' ? 'stowSku' : 'pickBin')}
           >
-            <CameraIcon className="w-4 h-4" />
+            <CameraIcon className="w-4 h-4" aria-hidden="true" />
             {workflow === 'stow' ? t('ops.actions.scan.product') : t('ops.actions.scan.bin')}
           </button>
         </div>
 
-        {statusMessage && <div className="text-sm text-emerald-300 bg-emerald-900/30 px-3 py-2 rounded">{statusMessage}</div>}
-        {errorMessage && <div className="text-sm text-rose-300 bg-rose-900/30 px-3 py-2 rounded">{errorMessage}</div>}
+        {statusMessage && <div role="status" aria-live="polite" className="text-sm text-emerald-300 bg-emerald-900/30 px-3 py-2 rounded">{statusMessage}</div>}
+        {errorMessage && <div role="alert" className="text-sm text-rose-300 bg-rose-900/30 px-3 py-2 rounded">{errorMessage}</div>}
 
         {workflow === 'stow' ? (
           <div
@@ -1027,9 +1041,10 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 <button
                   type="button"
                   onClick={() => setScannerTarget('stowSku')}
+                  aria-label="Produkt-Barcode scannen"
                   className="px-4 py-3 rounded-xl bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform"
                 >
-                  <CameraIcon className="w-6 h-6" />
+                  <CameraIcon className="w-6 h-6" aria-hidden="true" />
                 </button>
               </div>
               {matchedStowProduct ? (
@@ -1061,9 +1076,10 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   <button
                     type="button"
                     onClick={() => setScannerTarget('stowBin')}
+                    aria-label="Lagerplatz-Barcode scannen"
                     className="px-4 py-3 rounded-xl bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform"
                   >
-                    <CameraIcon className="w-6 h-6" />
+                    <CameraIcon className="w-6 h-6" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -1093,6 +1109,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 type="button"
                 onClick={() => handleStow(false)}
                 disabled={isSubmitting || !stowSku || !stowBin || !stowQuantity}
+                aria-label={t('ops.stow.submit')}
                 className="w-full py-4 rounded-xl bg-sky-600/20 text-sky-300 font-semibold hover:bg-sky-600/30 active:scale-[0.99] transition-all disabled:opacity-50 disabled:active:scale-100"
               >
                 {t('ops.stow.submit')}
@@ -1101,6 +1118,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 type="button"
                 onClick={() => handleStow(true)}
                 disabled={isSubmitting || !stowSku || !stowBin || !stowQuantity}
+                aria-label={t('ops.stow.submit.next')}
                 className="w-full py-4 rounded-xl bg-slate-700 text-white font-semibold border border-white/10 hover:bg-slate-600 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
               >
                 {t('ops.stow.submit.next')}
@@ -1177,6 +1195,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       type="button"
                       onClick={() => nextPickTask.binCode && loadBinDetail(nextPickTask.binCode)}
                       disabled={!nextPickTask.binCode}
+                      aria-label={t('ops.actions.reloadBin')}
                       className="rounded-full border border-white/10 px-3 py-1.5 text-slate-100 hover:border-slate-400 disabled:opacity-50"
                     >
                       {t('ops.actions.reloadBin')}
@@ -1184,6 +1203,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     <button
                       type="button"
                       onClick={() => markPickTaskCompleted(nextPickTask.itemId)}
+                      aria-label={t('ops.actions.skipOrder')}
                       className="rounded-full border border-white/10 px-3 py-1.5 text-slate-100 hover:border-slate-400"
                     >
                       {t('ops.actions.skipOrder')}
@@ -1192,6 +1212,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       <button
                         type="button"
                         onClick={() => setSkippedPickItemIds([])}
+                        aria-label={t('ops.actions.resetRoute')}
                         className="rounded-full border border-white/10 px-3 py-1.5 text-slate-100 hover:border-slate-400"
                       >
                         {t('ops.actions.resetRoute')}
@@ -1226,6 +1247,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   <button
                     type="button"
                     onClick={() => setScannerTarget('pickBin')}
+                    aria-label="BIN-Code scannen"
                     className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
                   >
                     {t('ops.pick.steps.cta')}
@@ -1236,6 +1258,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                       const code = pickBin || nextPickTask?.binCode || '';
                       loadBinDetail(code);
                     }}
+                    aria-label={t('ops.actions.reloadBin')}
                     className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
                   >
                     {t('ops.actions.reloadBin')}
@@ -1262,6 +1285,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                   <button
                     type="button"
                     onClick={() => setScannerTarget('pickSku')}
+                    aria-label="SKU-Barcode scannen"
                     className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
                   >
                     {t('ops.pick.steps.cta')}
@@ -1295,6 +1319,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 <button
                   type="button"
                   onClick={handleResetPickScans}
+                  aria-label={t('ops.pick.reset')}
                   className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:border-slate-400"
                 >
                   {t('ops.pick.reset')}
@@ -1340,6 +1365,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 type="button"
                 onClick={handlePick}
                 disabled={!pickConfirmReady || isSubmitting}
+                aria-label={isSubmitting ? t('ops.pick.submitting') : t('ops.pick.submit')}
                 className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-600"
               >
                 {isSubmitting ? t('ops.pick.submitting') : t('ops.pick.submit')}
@@ -1363,6 +1389,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         type="file"
         accept="image/*"
         capture="environment"
+        aria-hidden="true"
+        tabIndex={-1}
         className="hidden"
         onChange={handleFallbackFileChange}
       />

@@ -2382,7 +2382,7 @@ export const generateProductImages = async (
   ok: boolean;
   data?: ProductImage[];
   prompts?: {
-    studio?: { front?: string; detail?: string; topdown?: string };
+    studio?: { front?: string; angle?: string; detail?: string; back?: string };
     lifestyle?: { front?: string; closeup?: string; inuse?: string };
   };
   error?: { code: number; message: string };
