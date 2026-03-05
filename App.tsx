@@ -12,6 +12,7 @@ import JobStatusPopup from './components/JobStatusPopup';
 import StatusDock from './components/StatusDock';
 import MobileSearchView from './components/MobileSearchView';
 import MobileTabBar from './components/MobileTabBar';
+import ProductsPageHeader from './components/ProductsPageHeader';
 
 // ─── Lazy-loaded view components (route-based code splitting) ─────────────────
 const ProductSheet = React.lazy(() => import('./components/ProductSheet'));
@@ -58,7 +59,20 @@ type View =
   | 'inventory'
   | 'products'
   | 'orders'
-  | 'warehouse';
+  | 'orders-returns'
+  | 'orders-shipping'
+  | 'orders-invoices'
+  | 'orders-settings'
+  | 'warehouse'
+  | 'warehouse-settings'
+  | 'marketplace-ebay'
+  | 'marketplace-kaufland'
+  | 'integrations'
+  | 'settings'
+  | 'settings-profile'
+  | 'settings-team'
+  | 'settings-api'
+  | 'settings-billing';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const VIEW_PRODUCT_KEY = 'avystock:view:productId';
 const THEME_STORAGE_KEY = 'avystock:theme';
@@ -80,7 +94,20 @@ const ALLOWED_VIEWS: View[] = [
   'inventory',
   'products',
   'orders',
+  'orders-returns',
+  'orders-shipping',
+  'orders-invoices',
+  'orders-settings',
   'warehouse',
+  'warehouse-settings',
+  'marketplace-ebay',
+  'marketplace-kaufland',
+  'integrations',
+  'settings',
+  'settings-profile',
+  'settings-team',
+  'settings-api',
+  'settings-billing',
 ];
 type Theme = 'light' | 'dark';
 
@@ -113,8 +140,54 @@ const parseHash = (): { view: View; productId: string | null } => {
     return { view: mapped, productId: null };
   }
 
+  // Legacy route redirect
   if (first === 'ebay') {
-    return { view: 'ebay-listings', productId: null };
+    return { view: 'marketplace-ebay', productId: null };
+  }
+
+  // Nested routes: #/orders/returns, #/orders/shipping, etc.
+  if (first === 'orders' && second) {
+    const ordersMap: Record<string, View> = {
+      returns: 'orders-returns',
+      shipping: 'orders-shipping',
+      invoices: 'orders-invoices',
+      settings: 'orders-settings',
+    };
+    if (ordersMap[second]) return { view: ordersMap[second], productId: null };
+  }
+
+  // Nested routes: #/warehouse/settings
+  if (first === 'warehouse' && second === 'settings') {
+    return { view: 'warehouse-settings', productId: null };
+  }
+
+  // Nested routes: #/marketplace/ebay, #/marketplace/kaufland
+  if (first === 'marketplace' && second) {
+    const mpMap: Record<string, View> = {
+      ebay: 'marketplace-ebay',
+      kaufland: 'marketplace-kaufland',
+    };
+    if (mpMap[second]) return { view: mpMap[second], productId: null };
+  }
+
+  // Nested routes: #/settings/profile, #/settings/team, etc.
+  if (first === 'settings' && second) {
+    const settingsMap: Record<string, View> = {
+      profile: 'settings-profile',
+      team: 'settings-team',
+      api: 'settings-api',
+      billing: 'settings-billing',
+    };
+    if (settingsMap[second]) return { view: settingsMap[second], productId: null };
+  }
+
+  // Nested routes: #/products/inventory, #/products/identify
+  if (first === 'products' && second) {
+    const productsMap: Record<string, View> = {
+      inventory: 'inventory',
+      identify: 'input',
+    };
+    if (productsMap[second]) return { view: productsMap[second], productId: null };
   }
 
   if (first && ALLOWED_VIEWS.includes(first as View)) {
@@ -132,30 +205,32 @@ const parseHashQuery = (): URLSearchParams => {
 };
 
 const viewToHashPath = (view: View, productId?: string | null) => {
-  switch (view) {
-    case 'home':
-      return '/home';
-    case 'search':
-      return '/search';
-    case 'admin':
-      return '/admin';
-    case 'operations-identify':
-      return '/operations/identify';
-    case 'operations-stow':
-      return '/operations/stow';
-    case 'operations-pick':
-      return '/operations/pick';
-    case 'operations-pack':
-      return '/operations/pack';
-    case 'operations':
-      return '/operations';
-    case 'ebay-listings':
-      return '/ebay';
-    case 'sheet':
-      return productId ? `/sheet/${productId}` : '/sheet';
-    default:
-      return `/${view}`;
-  }
+  const map: Partial<Record<View, string>> = {
+    home: '/home',
+    search: '/search',
+    admin: '/admin',
+    'operations-identify': '/operations/identify',
+    'operations-stow': '/operations/stow',
+    'operations-pick': '/operations/pick',
+    'operations-pack': '/operations/pack',
+    operations: '/operations',
+    'ebay-listings': '/marketplace/ebay',
+    'orders-returns': '/orders/returns',
+    'orders-shipping': '/orders/shipping',
+    'orders-invoices': '/orders/invoices',
+    'orders-settings': '/orders/settings',
+    'warehouse-settings': '/warehouse/settings',
+    'marketplace-ebay': '/marketplace/ebay',
+    'marketplace-kaufland': '/marketplace/kaufland',
+    integrations: '/integrations',
+    settings: '/settings',
+    'settings-profile': '/settings/profile',
+    'settings-team': '/settings/team',
+    'settings-api': '/settings/api',
+    'settings-billing': '/settings/billing',
+  };
+  if (view === 'sheet') return productId ? `/sheet/${productId}` : '/sheet';
+  return map[view] || `/${view}`;
 };
 
 const collectIdentityKeys = (product?: Product | null) => {
@@ -287,7 +362,8 @@ const VIEW_MIGRATIONS: Partial<Record<string, View>> = {
   inventory: 'products',
   home: 'home',
   search: 'search',
-  ebay: 'ebay-listings',
+  ebay: 'marketplace-ebay',
+  'ebay-listings': 'marketplace-ebay',
 };
 
 const readInitialView = (): { view: View; productId: string | null } => {
@@ -760,6 +836,20 @@ const AppInner: React.FC = () => {
     setInventoryFocusId(updated.id);
   }, [products, currentProduct?.id]);
 
+  const PlaceholderView: React.FC<{ title: string; description?: string }> = ({ title, description }) => (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="text-center space-y-3 max-w-md px-6">
+        <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 6v6l4 2" /><circle cx="12" cy="12" r="10" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-txt-primary">{title}</h2>
+        <p className="text-sm text-txt-muted">{description || "Dieses Modul wird in einer zukünftigen Version verfügbar sein."}</p>
+      </div>
+    </div>
+  );
+
   const renderView = () => {
     switch (view) {
       case 'home':
@@ -837,18 +927,29 @@ const AppInner: React.FC = () => {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return (
-          <AdminTable
-            products={products}
-            onSelectProduct={handleSelectProduct}
-            onUpdateProducts={setProducts}
-            focusProductId={inventoryFocusId}
-            onImproveProduct={handleImproveProduct}
-            onImproveSelected={handleImproveSelected}
-            onBulkImprove={handleBulkImprove}
-            improvingProductIds={activeProductIds}
-            mode={view}
-            scopeProductIds={drilldownProductIds}
-          />
+          <>
+            <ProductsPageHeader
+              totalCount={products.length}
+              filteredCount={products.length}
+              mode={view === 'inventory' ? 'inventory' : 'products'}
+              onCreateProduct={() => {
+                window.location.hash = '#/input';
+                setView('input');
+              }}
+            />
+            <AdminTable
+              products={products}
+              onSelectProduct={handleSelectProduct}
+              onUpdateProducts={setProducts}
+              focusProductId={inventoryFocusId}
+              onImproveProduct={handleImproveProduct}
+              onImproveSelected={handleImproveSelected}
+              onBulkImprove={handleBulkImprove}
+              improvingProductIds={activeProductIds}
+              mode={view}
+              scopeProductIds={drilldownProductIds}
+            />
+          </>
         );
       case 'categories':
         if (!(hasPermission('categories', 'read') || hasPermission('categories', 'write'))) {
@@ -856,6 +957,7 @@ const AppInner: React.FC = () => {
         }
         return <CategoryManagement />;
       case 'ebay-listings':
+      case 'marketplace-ebay':
         if (!(hasPermission('products', 'read') || hasPermission('products', 'write'))) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
@@ -883,6 +985,37 @@ const AppInner: React.FC = () => {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
+      case 'orders-returns':
+        return <PlaceholderView title="Retouren" description="Retouren-Management mit automatischer Verarbeitung, Zustandsprüfung und Erstattung." />;
+      case 'orders-shipping':
+        return <PlaceholderView title="Versand & Labels" description="Multi-Carrier Versand-Management mit Label-Druck und Tracking." />;
+      case 'orders-invoices':
+        return <PlaceholderView title="Rechnungen" description="Rechnungserstellung, PDF-Export und automatische Nummernkreise." />;
+      case 'orders-settings':
+        return <PlaceholderView title="Auftrags-Einstellungen" description="Automatisierung, Status-Konfiguration, Nummernkreise und Dokumenten-Templates." />;
+      case 'warehouse-settings':
+        return <PlaceholderView title="Lager-Einstellungen" description="Lagerzonen, Bin-Konfiguration und Bestandsregeln." />;
+      case 'marketplace-kaufland':
+        return <PlaceholderView title="Kaufland Listings" description="Kaufland Marketplace-Integration mit Listing-Verwaltung und Sync." />;
+      case 'integrations':
+        return <PlaceholderView title="Integrationen" description="Self-Service Integration Hub — Marktplätze, Versand und Services verbinden." />;
+      case 'settings':
+        return <PlaceholderView title="Unternehmensdaten" description="Firmenprofil, Logo, Adresse und USt-IdNr. verwalten." />;
+      case 'settings-profile':
+        return <PlaceholderView title="Persönliche Daten" description="Dein Profil, E-Mail-Adresse und Passwort verwalten." />;
+      case 'settings-team':
+        if (!(
+          hasPermission('admin', 'users.read') ||
+          hasPermission('admin', 'roles.read') ||
+          hasPermission('admin', 'groups.read')
+        )) {
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
+        }
+        return <AdminPanel />;
+      case 'settings-api':
+        return <PlaceholderView title="API" description="API-Schlüssel verwalten, Webhooks konfigurieren und Dokumentation." />;
+      case 'settings-billing':
+        return <PlaceholderView title="Plan & Abrechnung" description="Aktueller Plan, Rechnungshistorie und Zahlungsmethoden." />;
       case 'dashboard':
         return isMobile ? (
           <DashboardMobile
@@ -972,7 +1105,7 @@ const AppInner: React.FC = () => {
         </main>
 
         {/* ProductSheet overlay — slides in from right, independent of route */}
-        {currentProduct && (view === 'inventory' || view === 'products') && (
+        {currentProduct && (view === 'inventory' || view === 'products' || view === 'marketplace-ebay' || view === 'marketplace-kaufland') && (
           <div className="fixed inset-0 z-50 flex justify-end">
             {/* Backdrop */}
             <div

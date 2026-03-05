@@ -48,56 +48,115 @@
 
 ### Modul 2: Navigation & Layout
 
-- [ ] **M2: Sidebar, Topbar & Routing komplett überarbeiten** since 2026-03-05
-  - **Sidebar — Neue Struktur:**
-    - **ÜBERSICHT**
-      - [ ] Dashboard (Icon: LayoutDashboard)
-    - **KATALOG**
-      - [ ] Produkte (Icon: Package) — Produktstammdaten, Enrichment, KI
-      - [ ] Bestand (Icon: Warehouse) — Lagerbestand, Bins, Mengen, NUR Marketplace-Indikatoren (Badges)
-      - [ ] Kategorien (Icon: FolderTree)
-    - **MARKTPLÄTZE** (dynamisch — nur verbundene Marktplätze anzeigen)
-      - [ ] eBay (Icon: ShoppingBag) — NUR wenn eBay-Integration aktiv. Listing-Management, Sync, Performance
-      - [ ] Kaufland (Icon: Store) — NUR wenn Kaufland-Integration aktiv
-      - [ ] (Amazon, Otto, Zalando — erscheinen automatisch wenn Integration verbunden)
-      - [ ] ⚠️ **"eBay (Gap Analysis)" Link ENTFERNEN** — wird nicht mehr benötigt, Gap-Infos in die jeweilige Listing-View integrieren
-    - **AUFTRÄGE**
-      - [ ] Aufträge (Icon: ClipboardList) — Multi-Channel Order Management
-      - [ ] Retouren (Icon: RotateCcw) — Return Management
-      - [ ] Versand (Icon: Truck) — Carrier-Management, Labels, Tracking
-    - **LAGER**
-      - [ ] Lager (Icon: MapPin) — Zonen, Bins, Auslastung
-      - [ ] Erfassen (Icon: ScanLine) — KI-Produkterkennung
-      - [ ] Operationen (Icon: PackageCheck) — Einlagern, Kommissionieren, Verpacken
-    - **SYSTEM**
-      - [ ] Integrationen (Icon: Plug) — Marketplace-/Shipping-/Accounting-Verbindungen
-      - [ ] Einstellungen (Icon: Settings) — Admin, User, Rollen, Regeln
-  - **Sidebar — UI/UX Details:**
-    - [ ] Breite: 240px (expanded), 64px (collapsed, Icon-Only)
-    - [ ] Collapse-Toggle: Button oben (Hamburger oder Chevron)
-    - [ ] Aktiver Nav-Punkt: Accent-Left-Border (3px) + leichter Background (--accent mit 10% opacity)
-    - [ ] Gruppen-Labels: 11px, Uppercase, Letter-Spacing 0.05em, --text-muted, 24px Margin-Top
-    - [ ] Nav-Items: 14px, 400 weight, 40px Höhe, 12px Padding-Left, Lucide-Icons (20px, 1.5 Stroke)
-    - [ ] Hover: Background --surface, Transition 150ms
-    - [ ] Footer: User-Avatar (32px) + Name + Logout-Button, fixed am unteren Rand
-    - [ ] Scroll: Wenn Nav-Items Viewport überschreiten → Scroll innerhalb Sidebar, Footer bleibt fixed
+- [x] **M2: Sidebar, Topbar & Routing komplett überarbeiten** ~~since 2026-03-05~~ (2026-03-05)
+  - ✅ Sidebar komplett neu: Collapsible Sections (AUFTRÄGE, PRODUKTE, LAGER, MARKTPLÄTZE, EINSTELLUNGEN), 240px/64px Collapse-Mode, localStorage-Persistenz, Accent-Left-Border Active-Indicator, Permission-basierte Sichtbarkeit
+  - ✅ Topbar bereinigt: Breadcrumbs für verschachtelte Views, Ctrl+K Shortcut für Suche, Notification-Bell Placeholder, Settings-Gear entfernt (jetzt via Sidebar)
+  - ✅ Routing komplett neu: 15+ neue Routes (#/orders/returns, #/orders/shipping, #/marketplace/ebay, #/settings/*, etc.), parseHash mit verschachtelten Pfaden, viewToHashPath aktualisiert, Legacy-Route-Redirects (#/ebay → #/marketplace/ebay)
+  - ✅ Placeholder-Views für noch nicht implementierte Module (M3-M10): Retouren, Versand, Rechnungen, Kaufland, Integrationen, Settings-Unterseiten
+  - ✅ View-Type-Union erweitert auf 30 Views, ALLOWED_VIEWS aktualisiert, VIEW_MIGRATIONS für Legacy-Kompatibilität
+  - **Offen (für spätere Module): EbayListingsView.tsx löschen (wenn MarketplaceListingsView.tsx in M5 fertig), Mobile-Navigation anpassen**
+  - **Sidebar — FINALE Navigationsstruktur (bestätigt 2026-03-05):**
+    ```
+    Dashboard                          (Icon: LayoutDashboard)
+    ──────────────────────────────
+    AUFTRÄGE
+      ├── Bestellungen                 (Icon: ClipboardList)
+      ├── Retouren                     (Icon: RotateCcw)
+      ├── Versand & Labels             (Icon: Truck)
+      ├── Rechnungen                   (Icon: FileText)
+      └── Einstellungen                (Icon: SlidersHorizontal)
+           ├── Automatisierung
+           ├── Status-Konfiguration
+           ├── Nummernkreise
+           └── Dokumenten-Templates
+    ──────────────────────────────
+    PRODUKTE
+      ├── Produktdaten                 (Icon: Package)
+      ├── Inventar                     (Icon: Warehouse)
+      └── Erfassen                     (Icon: ScanLine)
+    ──────────────────────────────
+    LAGER
+      ├── Verwaltung                   (Icon: MapPin)
+      └── Einstellungen                (Icon: SlidersHorizontal)
+    ──────────────────────────────
+    MARKTPLÄTZE (dynamisch — NUR verbundene)
+      ├── eBay                         (Icon: ShoppingBag oder eBay-Logo)
+      ├── Kaufland                     (Icon: Store oder Kaufland-Logo)
+      └── (weitere erscheinen automatisch wenn Integration verbunden)
+    ──────────────────────────────
+    Integrationen                      (Icon: Plug)
+    ──────────────────────────────
+    EINSTELLUNGEN (ganz unten, über User-Footer)
+      ├── Unternehmensdaten            (Icon: Building2)
+      ├── Persönliche Daten            (Icon: User)
+      ├── Mitarbeiter & Rollen         (Icon: Users)
+      ├── API                          (Icon: Code)
+      └── Plan & Abrechnung            (Icon: CreditCard)
+    ```
+  - **Navigations-Regeln:**
+    - [ ] **MARKTPLÄTZE-Gruppe ist dynamisch:** Nur verbundene Marktplätze anzeigen. Keine Marktplatz-Links wenn keine Integration aktiv. Reihenfolge: Alphabetisch oder nach Umsatz
+    - [ ] **⚠️ "eBay (Gap Analysis)" View KOMPLETT ENTFERNEN** — `EbayListingsView.tsx` löschen, Route `#/ebay` entfernen. Gap-Infos werden in die jeweilige Marktplatz-Listing-View integriert
+    - [ ] **Aufträge > Versand & Labels** ist hochgezogen (nicht versteckt) — tägliche Nutzung für Label-Druck, Tracking
+    - [ ] **Aufträge > Rechnungen** ist hochgezogen — tägliche Nutzung, nicht unter Sub-Sub-Einstellungen verstecken
+    - [ ] **Aufträge > Einstellungen** enthält NUR Konfiguration: Automatisierungs-Regeln, Status-Workflows, Nummernkreise (Rechnungs-/Auftrags-Nummern), Dokumenten-Templates (Rechnung/Lieferschein-Layout)
+    - [ ] **Stow/Pick/Pack sind NUR in der Mobile-UI** verfügbar (unter "Operationen" in MobileTabBar/MobileOperationsView). Desktop-Sidebar hat KEINE Operationen/Stow/Pick/Pack Links — dort läuft alles über die Auftrags-Tabelle
+    - [ ] **Erfassen (KI-Identify)** bleibt unter PRODUKTE — konzeptionell "neues Produkt in Katalog aufnehmen"
+    - [ ] **Expandable Sections:** AUFTRÄGE, PRODUKTE, LAGER, MARKTPLÄTZE sind collapsible (Chevron-Icon, State in localStorage persistiert)
+  - **Sidebar — UI/UX Spezifikation:**
+    - [ ] Breite: 240px (expanded), 64px (collapsed, Icon-Only Mode)
+    - [ ] Collapse-Toggle: Chevron-Button oben rechts in der Sidebar-Header-Leiste
+    - [ ] Aktiver Nav-Punkt: Accent-Left-Border (3px, --accent) + leichter Background (--accent mit 8% opacity) + Font-Weight 500
+    - [ ] Gruppen-Labels (AUFTRÄGE, PRODUKTE, etc.): 11px, Uppercase, Letter-Spacing 0.05em, --text-muted, 24px Margin-Top, 8px Margin-Bottom. Klickbar zum Auf-/Zuklappen (Chevron-Icon rechts)
+    - [ ] Nav-Items: 14px, 400 weight, 40px Höhe, 12px Padding-Left (16px bei Sub-Items), Lucide-Icons (18px, 1.5 Stroke-Width, --text-muted, Active: --accent)
+    - [ ] Sub-Items (unter Aufträge > Einstellungen): 13px, 32px Höhe, 32px Padding-Left, kein Icon
+    - [ ] Hover: Background --surface, Transition 150ms ease
+    - [ ] Sidebar-Footer: User-Avatar (32px) + Name + Role-Badge (Admin/User) + Logout-Icon. Fixed am unteren Rand, Border-Top 1px --border, 12px Padding
+    - [ ] Scroll: Wenn Nav-Items Viewport überschreiten → Scroll innerhalb Sidebar (overflow-y: auto), Footer bleibt fixed (position: sticky)
+    - [ ] Responsive: Sidebar verschwindet unter 768px → Mobile-Navigation übernimmt
   - **Topbar — Bereinigung:**
-    - [ ] Links: Page-Title (h2) oder Breadcrumb (Dashboard > Produkte > iPhone 13)
-    - [ ] Mitte: Such-Input (max-width 480px, `ui/Input` mit Search-Icon, Cmd+K Shortcut)
-    - [ ] Rechts: NUR Theme-Toggle (1x!) + Notification-Bell + User-Avatar mit Dropdown (Profil, Einstellungen, Logout)
-    - [ ] Kein Sprach-Selector. Keine doppelten Elemente.
-    - [ ] Höhe: 56px, Border-Bottom: 1px --border
-  - **Routing anpassen:**
-    - [ ] Neue Routes: `#/inventory`, `#/orders`, `#/returns`, `#/shipping`, `#/integrations`
-    - [ ] Marketplace-Routes dynamisch: `#/marketplace/ebay`, `#/marketplace/kaufland`, etc.
-    - [ ] Route `#/ebay` (alte Gap Analysis) → Redirect zu `#/marketplace/ebay` oder entfernen
-  - **Dateien:** `components/Sidebar.tsx`, `components/Topbar.tsx`, `App.tsx` (Routing), `i18n.tsx`
+    - [ ] Links: Page-Title (h2, 18px, 600 weight) oder Breadcrumb (`ui/Breadcrumb` — z.B. "Aufträge > Bestellungen > #ORD-2024-001")
+    - [ ] Mitte: Such-Input (max-width 480px, `ui/Input` mit Search-Icon Prefix, Placeholder "Suche... (Ctrl+K)", Cmd+K/Ctrl+K Shortcut öffnet fokussiert). Globale Suche: Produkte, Aufträge, Kunden durchsuchbar
+    - [ ] Rechts: NUR Theme-Toggle (1x, Sun/Moon Icon) + Notification-Bell (mit Badge-Counter für ungelesene) + User-Avatar (32px, Klick → Dropdown: Persönliche Daten, Einstellungen, Logout)
+    - [ ] Kein Sprach-Selector. Keine doppelten Elemente. Keine unnötigen Icons
+    - [ ] Höhe: 56px, Background: --bg, Border-Bottom: 1px --border, Padding: 0 24px
+  - **Routing — Neue Route-Struktur:**
+    - [ ] `#/dashboard` — Dashboard
+    - [ ] `#/orders` — Bestellungen (Default für AUFTRÄGE-Gruppe)
+    - [ ] `#/orders/returns` — Retouren
+    - [ ] `#/orders/shipping` — Versand & Labels
+    - [ ] `#/orders/invoices` — Rechnungen
+    - [ ] `#/orders/settings` — Auftrags-Einstellungen (Automatisierung, Status, Nummernkreise, Templates)
+    - [ ] `#/products` — Produktdaten (Default für PRODUKTE-Gruppe)
+    - [ ] `#/products/inventory` — Inventar/Bestand
+    - [ ] `#/products/identify` — Erfassen (KI-Identify)
+    - [ ] `#/warehouse` — Lagerverwaltung
+    - [ ] `#/warehouse/settings` — Lager-Einstellungen
+    - [ ] `#/marketplace/ebay` — eBay Listings (dynamisch)
+    - [ ] `#/marketplace/kaufland` — Kaufland Listings (dynamisch)
+    - [ ] `#/marketplace/:slug` — Generisch für zukünftige Marktplätze
+    - [ ] `#/integrations` — Integrations-Hub
+    - [ ] `#/settings` — Einstellungen (Unternehmensdaten)
+    - [ ] `#/settings/profile` — Persönliche Daten
+    - [ ] `#/settings/team` — Mitarbeiter & Rollen
+    - [ ] `#/settings/api` — API-Verwaltung
+    - [ ] `#/settings/billing` — Plan & Abrechnung
+    - [ ] **ENTFERNEN:** Route `#/ebay` (alte Gap Analysis), Route `#/sheet`, Route `#/search` (in Topbar-Suche integriert)
+  - **Mobile Navigation (< 768px):**
+    - [ ] Bottom-TabBar: 3 Items — Dashboard (Icon: LayoutDashboard), Suche (Icon: Search), Operationen (Icon: PackageCheck)
+    - [ ] Operationen-Page: 4 Cards — Erfassen, Einlagern (Stow), Kommissionieren (Pick), Verpacken (Pack)
+    - [ ] Hamburger-Menu (oben links) für Zugang zu allen anderen Bereichen (Aufträge, Produkte, etc.)
+    - [ ] Stow/Pick/Pack sind AUSSCHLIESSLICH hier verfügbar — NICHT in der Desktop-Sidebar
+  - **Dateien:** `components/Sidebar.tsx` (komplett neu), `components/Topbar.tsx` (bereinigen), `App.tsx` (Routing komplett neu), `components/MobileTabBar.tsx` (beibehalten), `components/MobileOperationsView.tsx` (beibehalten), `i18n.tsx` (neue Nav-Labels auf Deutsch)
 
 ---
 
 ### Modul 3: Produkte (Katalog)
 
-- [ ] **M3: Produkte-View Enterprise-tauglich** since 2026-03-05
+- [ ] **M3: Produkte-View Enterprise-tauglich** since 2026-03-05 (⚡ Teilweise implementiert)
+  - ✅ ProductsPageHeader-Component: Titel + Counter + "Produkt anlegen" (Primary) / Import / Export (Secondary) Buttons
+  - ✅ AdminTable bereits production-grade: 18 Spaltentypen, 4 Presets, Spalten-Konfiguration, Sortierung, Pagination (50/100/200), Filter (12+ Filter), Bulk-Actions
+  - ✅ BulkActions immer sichtbar (BUG-005 fix), ProductSheet als Overlay (BUG-004 fix)
+  - **Offen:**
   - **Page-Header:**
     - [ ] Titel "Produkte" (h1) + Counter "{gefiltert} von {gesamt} Produkte"
     - [ ] Action-Buttons rechts: "Produkt anlegen" (Primary), "Import" (Secondary), "Export" (Secondary)
@@ -169,6 +228,7 @@
 ### Modul 4: Bestand (Inventar)
 
 - [ ] **M4: Bestand-View — Lager-fokussiert, OHNE Marketplace-Listing-Features** since 2026-03-05
+  - ✅ Route `#/products/inventory` aktiv, Placeholder-View vorhanden, ProductsPageHeader mit "Inventar"-Modus
   - **Konzept:** Bestand = physischer Lagerbestand. KEIN Listing-Management hier. Nur Indikatoren welche Marktplätze aktiv sind (als Badges). Listings werden in den jeweiligen Marktplatz-Views verwaltet.
   - **Page-Header:**
     - [ ] Titel "Bestand" + Counter "{n} Artikel im Lager"
@@ -191,6 +251,8 @@
 ### Modul 5: Marktplatz-Listings (pro Marktplatz)
 
 - [ ] **M5: Dynamische Marktplatz-Views** since 2026-03-05
+  - ✅ Routes `#/marketplace/ebay` + `#/marketplace/kaufland` aktiv, Sidebar dynamische MARKTPLÄTZE-Gruppe, Legacy `#/ebay` Redirect
+  - ✅ marketplace-ebay rendert bestehende EbayListingsView, marketplace-kaufland hat Placeholder
   - **Konzept:** Pro verbundenem Marktplatz ein eigener Nav-Link und eine eigene View. Wenn eBay verbunden → "eBay" in Sidebar unter MARKTPLÄTZE. Wenn Kaufland verbunden → "Kaufland" erscheint. Nicht verbundene Marktplätze erscheinen NICHT in der Sidebar (nur im Integrations-Hub).
   - **eBay Listings View (`#/marketplace/ebay`):**
     - [ ] Page-Header: "eBay Listings" + eBay-Logo + Connection-Status (Grüner Dot + "Verbunden")
@@ -220,6 +282,8 @@
 ### Modul 6: Aufträge (Order Management)
 
 - [ ] **M6: Multi-Channel Order Management** since 2026-03-05
+  - ✅ Routes für alle Sub-Views aktiv: `#/orders`, `#/orders/returns`, `#/orders/shipping`, `#/orders/invoices`, `#/orders/settings`
+  - ✅ Bestehende OrdersView unter `#/orders`, Placeholder-Views für Returns/Shipping/Invoices/Settings
   - **Konzept:** Zentrale Auftragsansicht über ALLE Marktplätze. Jeder Auftrag hat eine Fulfillment-Pipeline: Neu → Bestätigt → Kommissioniert → Verpackt → Versendet → Zugestellt.
   - **Page-Header:**
     - [ ] Titel "Aufträge" + Counter "{offen} offen, {heute} heute"
@@ -242,17 +306,41 @@
     - [ ] Versandinfo: Carrier, Tracking-Nummer (klickbar), Status, Versandkosten
     - [ ] Timeline: Auftragshistorie (Bestellt → Bezahlt → Kommissioniert → Verpackt → Versendet → Zugestellt)
     - [ ] Aktionen: "Rechnung generieren", "Lieferschein drucken", "Versandlabel drucken", "Nachricht an Kunden"
+  - **Rechnungen-View (`#/orders/invoices`) — NEU:**
+    - [ ] Tab-Bar: Alle | Entwürfe | Gesendet | Bezahlt | Überfällig | Storniert
+    - [ ] Tabelle: Rechnungs-Nr., Datum, Kunde, Auftrag-ID, Betrag (Netto/Brutto), Status (Badge), Fälligkeitsdatum, Aktionen
+    - [ ] Aktionen: "PDF generieren", "Per E-Mail senden", "Als bezahlt markieren", "Stornieren"
+    - [ ] Bulk: "Alle offenen drucken", "Mahnlauf starten"
+    - [ ] Auto-Generierung: Rechnung automatisch erstellen wenn Auftrag Status = "Versendet" (konfigurierbar in Einstellungen)
+    - [ ] PDF-Template: Firmenlogo, Adresse, USt-IdNr., Bankverbindung, Positionen, MwSt-Ausweis
+    - [ ] Lieferschein-Generierung analog (gleicher Flow, anderes Template — ohne Preise)
+    - [ ] Integration: SevDesk/lexoffice-Export wenn Buchhaltungs-Integration aktiv
+  - **Auftrags-Einstellungen (`#/orders/settings`) — NEU:**
+    - [ ] **Automatisierung:** Rule-Engine für automatische Status-Übergänge
+      - "Wenn Zahlung eingegangen → Status 'Bestätigt'"
+      - "Wenn alle Items gepickt → Status 'Kommissioniert'"
+      - "Wenn Versandlabel erstellt → Status 'Versendet'"
+      - "Wenn Tracking 'Zugestellt' → Status 'Abgeschlossen'"
+    - [ ] **Status-Konfiguration:** Benutzerdefinierte Status-Namen und Reihenfolge, Farben pro Status
+    - [ ] **Nummernkreise:** Rechnungs-Nummernkreis (Prefix, Start, Format z.B. "RE-2026-{0001}"), Auftrags-Nummernkreis, Lieferschein-Nummernkreis
+    - [ ] **Dokumenten-Templates:** WYSIWYG-Editor oder Template-Upload für Rechnung, Lieferschein, Auftragsbestätigung. Platzhalter: {firmenname}, {kundenname}, {positionen}, {gesamt}, {datum}, etc.
+    - [ ] **E-Mail-Templates:** Auftragsbestätigung, Versandbenachrichtigung, Rechnungsversand — Text editierbar, Platzhalter
   - **Backend:**
     - [ ] Existiert: `routes/orders.js`, `lib/firestore.js::listOrders()`
     - [ ] Erweitern: Fulfillment-Status-Updates (PATCH `/api/orders/:id/status`), Multi-Channel-Aggregation
+    - [ ] NEU: `routes/invoices.js` — CRUD für Rechnungen, PDF-Generierung (pdfkit oder puppeteer)
+    - [ ] NEU: `services/invoice-generator.js` — Template-Rendering, Nummernkreis-Logik, PDF-Export
+    - [ ] NEU: `services/order-automation.js` — Rule-Engine für automatische Status-Übergänge
+    - [ ] Firestore Collections: `invoices` — {invoiceId, orderId, number, customer, items, total, tax, status, pdfUrl, ...}
     - [ ] Webhook: Bei Status-Änderung → Marketplace-API (eBay: Mark as Shipped, Kaufland: Confirm Shipment)
-  - **Dateien:** `components/OrdersView.tsx` (überarbeiten), `components/OrderDetail.tsx` (neu), `backend/routes/orders.js`
+  - **Dateien:** `components/OrdersView.tsx` (überarbeiten), `components/OrderDetail.tsx` (neu), `components/InvoicesView.tsx` (neu), `components/OrderSettingsView.tsx` (neu), `backend/routes/orders.js`, `backend/routes/invoices.js` (neu), `backend/services/invoice-generator.js` (neu), `backend/services/order-automation.js` (neu)
 
 ---
 
 ### Modul 7: Versand (Courier Integration)
 
 - [ ] **M7: Multi-Carrier Versand-Management** since 2026-03-05
+  - ✅ Route `#/orders/shipping` aktiv mit Placeholder-View
   - **Konzept:** Zentrale Versandverwaltung. Mehrere Carrier (DHL, DPD, GLS, Hermes, UPS, Deutsche Post), Label-Druck, Tracking, automatische Carrier-Wahl basierend auf Regeln.
   - **Versand-View (`#/shipping`):**
     - [ ] KPI-Cards: Heute versendet, Pakete in Zustellung, Zustellquote, Ø Versandkosten
@@ -282,6 +370,7 @@
 ### Modul 8: Retouren (Returns Management)
 
 - [ ] **M8: Retouren-Management** since 2026-03-05
+  - ✅ Route `#/orders/returns` aktiv mit Placeholder-View
   - **Konzept:** Return-Requests entgegennehmen, Grund kategorisieren, Rückerstattung auslösen, Ware prüfen, wieder einlagern oder entsorgen.
   - **Retouren-View (`#/returns`):**
     - [ ] KPI-Cards: Offene Retouren, Retourenquote (%), Erstattungen diese Woche, Ø Bearbeitungszeit
@@ -308,28 +397,52 @@
 ### Modul 9: Integrationen
 
 - [ ] **M9: Integrations-Hub — User kann selbst Marktplätze & Services verbinden** since 2026-03-05
+  - ✅ Route `#/integrations` aktiv mit Placeholder-View, Sidebar-Link vorhanden
   - ⚠️ **KRITISCHSTER GAP:** Ohne Self-Service-Integrationen ist AvyCloud nicht als Produkt nutzbar. Aktuell alles hardcoded via ENV-Variablen.
   - **Integrations-Hub View (`#/integrations`):**
     - [ ] Page-Header: "Integrationen" + "Verbundene Services: {n}"
     - [ ] Tab-Bar: Marktplätze | Versand | Buchhaltung | Sonstiges
     - [ ] **Marktplätze-Tab:**
-      - [ ] Grid von Marketplace-Cards (3 pro Reihe):
-        - eBay (Logo, "Verbunden ✓" oder "Nicht verbunden", Letzer Sync, "Konfigurieren" / "Verbinden" Button)
+      - [ ] Grid von Integration-Cards (3 pro Reihe, responsive 2 auf Tablet, 1 auf Mobile):
+        - eBay (Logo, "Verbunden ✓" oder "Nicht verbunden", Letzter Sync, "Konfigurieren" / "Verbinden" Button)
         - Kaufland (analog)
         - Amazon (Coming Soon Badge)
-        - Otto (Coming Soon Badge)
+        - Otto Market (Coming Soon Badge)
         - Zalando (Coming Soon Badge)
         - Kleinanzeigen (Coming Soon Badge)
-      - [ ] Verbundene Cards: Grüner Border-Top, Connection-Info, "Konfigurieren" → Settings-Modal
-      - [ ] Nicht verbundene Cards: Muted, "Verbinden" Button → Wizard
-      - [ ] Coming Soon Cards: Disabled, Muted, "Benachrichtigen" Button (E-Mail-Interesse)
-    - [ ] **Versand-Tab:**
-      - [ ] DHL, DPD, GLS, Hermes, UPS, Deutsche Post, SendCloud
-      - [ ] Gleiche Card-Struktur: Verbunden/Nicht verbunden
-    - [ ] **Buchhaltung-Tab:**
-      - [ ] SevDesk, lexoffice, DATEV
-    - [ ] **Sonstiges-Tab:**
-      - [ ] BaseLinker, Zapier, Make.com (Webhook)
+        - Hood.de (Coming Soon Badge)
+        - Avocadostore (Coming Soon Badge)
+        - Etsy DE (Coming Soon Badge)
+      - [ ] Card-Design:
+        - Verbunden: Grüner Border-Top (2px --success), Service-Logo (40px), Name, Status "Verbunden" (grüner Dot), Letzter Sync Timestamp, Buttons: "Konfigurieren" (Primary) + "Trennen" (Ghost Danger)
+        - Nicht verbunden: Default Border, Service-Logo (40px, leicht muted), Name, Status "Nicht verbunden" (grauer Dot), Button: "Verbinden" (Primary)
+        - Coming Soon: Grauer Border, Logo (muted, 40% opacity), Name, "Demnächst verfügbar" Badge, Button: "Benachrichtigen" (Ghost) → E-Mail-Interesse speichern
+    - [ ] **Versanddienstleister-Tab:**
+      - [ ] DHL (Geschäftskundenportal API), DPD, GLS, Hermes, UPS, Deutsche Post (Warenpost), SendCloud (Aggregator)
+      - [ ] Pro Carrier: Logo, Name, Beschreibung ("Pakete bis 31.5kg, DE + International"), Status, API-Key-Felder
+      - [ ] Gleiche Card-Struktur wie Marktplätze (Verbunden/Nicht verbunden)
+    - [ ] **Finanzen & Steuern-Tab:**
+      - [ ] SevDesk (Buchhaltung + Rechnungen)
+      - [ ] lexoffice (Buchhaltung)
+      - [ ] DATEV (Steuerberater-Export)
+      - [ ] Xero (International)
+      - [ ] invoiceFetcher / GetMyInvoices (Belegerfassung)
+      - [ ] Stripe (Payment Processing — für eigenen Webshop)
+    - [ ] **Shops-Tab (NEU):**
+      - [ ] Shopify (API, Produkt-Sync, Order-Import)
+      - [ ] WooCommerce (REST API, bidirektionaler Sync)
+      - [ ] Wix (eCommerce API)
+      - [ ] Shopware (REST API)
+      - [ ] PrestaShop
+      - [ ] Alle Coming Soon außer die bereits integrierten
+    - [ ] **Andere-Tab (NEU):**
+      - [ ] BaseLinker (Middleware, bereits integriert)
+      - [ ] Make.com / Zapier (Webhook-basierte Automation)
+      - [ ] Slack (Benachrichtigungen: Neuer Auftrag, Niedrig-Bestand, Sync-Fehler)
+      - [ ] Zendesk (Kunden-Support-Tickets aus Aufträgen erstellen)
+      - [ ] Stripe (Payment Gateway)
+      - [ ] Google Sheets (Export/Import)
+      - [ ] Webhook (Generisch — eigene Endpoints konfigurieren)
   - **Integration-Wizard (pro Integration):**
     - [ ] Step 1: Marktplatz/Service Übersicht (Was kann diese Integration? Feature-Liste)
     - [ ] Step 2: Authentifizierung (OAuth-Flow mit Redirect ODER API-Key/Secret-Eingabe — je nach Service)
@@ -357,6 +470,7 @@
 ### Modul 10: Analytics & Reporting
 
 - [ ] **M10: Dashboard & Reporting Enterprise-Grade** since 2026-03-05
+  - ✅ Bestehendes Dashboard funktional (Revenue KPIs, Orders, Shipping-Kosten)
   - **Dashboard überarbeiten:**
     - [ ] Revenue-KPIs: Umsatz heute, Umsatz Monat, Umsatz YTD — mit Trend-Pfeil (↑ +12% vs. Vormonat)
     - [ ] Order-KPIs: Aufträge heute, Offene Aufträge, Ø Bestellwert, Retourenquote
@@ -384,6 +498,7 @@
 ### Modul Bonus: Automatisierung & Bulk-Operationen
 
 - [ ] **M-AUTO: Workflow-Automatisierung & Bulk-Import/Export** since 2026-03-05
+  - ✅ Pricing Engine existiert backend-only (`services/pricing-engine.js`), AdminTable hat bereits Bulk-Actions (Sync, Improve, Delete, Label, eBay/Kaufland)
   - **Bulk-Import/Export:**
     - [ ] Import: CSV/Excel Upload → Produkte, Preise oder Bestände aktualisieren
     - [ ] Template-Download: Leere Excel-Vorlage mit korrekten Spalten
@@ -403,6 +518,53 @@
 
 ---
 
+### Modul 11: Einstellungen (Settings)
+
+- [ ] **M11: Einstellungen-Bereich komplett neu** since 2026-03-05
+  - ✅ Routes `#/settings`, `#/settings/profile`, `#/settings/team`, `#/settings/api`, `#/settings/billing` aktiv
+  - ✅ Sidebar EINSTELLUNGEN-Gruppe mit allen Sub-Items, Placeholder-Views für alle Settings-Pages
+  - ✅ `#/settings/team` rendert bestehendes AdminPanel (User/Role-Management)
+  - **Konzept:** Zentraler Bereich für Unternehmens-, User- und System-Konfiguration. Ersetzt den bisherigen "Admin"-Bereich mit einer klareren Struktur.
+  - **Unternehmensdaten (`#/settings`):**
+    - [ ] Firmenname, Rechtsform, USt-IdNr., Steuernummer
+    - [ ] Adresse (Straße, PLZ, Ort, Land)
+    - [ ] Logo-Upload (für Rechnungen, Lieferscheine, E-Mails)
+    - [ ] Bankverbindung (IBAN, BIC, Bank — für Rechnungs-Templates)
+    - [ ] Kontakt-E-Mail, Telefon, Website
+    - [ ] Impressum-Daten (für Marketplace-Listings)
+  - **Persönliche Daten (`#/settings/profile`):**
+    - [ ] Name, E-Mail, Telefon
+    - [ ] Passwort ändern
+    - [ ] Profilbild/Avatar
+    - [ ] Benachrichtigungs-Präferenzen (E-Mail bei: Neuer Auftrag, Niedrig-Bestand, Sync-Fehler, Retoure)
+    - [ ] Theme-Präferenz (Dark/Light/System)
+  - **Mitarbeiter & Rollen (`#/settings/team`):**
+    - [ ] Mitarbeiter-Liste: Name, E-Mail, Rolle, Status (Aktiv/Deaktiviert), Letzter Login
+    - [ ] "Mitarbeiter einladen" Button → E-Mail-Einladung
+    - [ ] Rollen-Management: Admin, Manager, Lagermitarbeiter, Viewer (oder Custom)
+    - [ ] Berechtigungen pro Rolle: Welche Module sichtbar (Aufträge ✓, Produkte ✓, Einstellungen ✕), welche Aktionen erlaubt (Lesen/Schreiben/Löschen)
+    - [ ] Existiert teilweise: `AdminRoleManagement.tsx`, `AdminUserManagement.tsx` — in neues UI migrieren
+  - **API-Verwaltung (`#/settings/api`):**
+    - [ ] API-Keys generieren / widerrufen
+    - [ ] Webhook-Konfiguration: Endpoints, Events (order.created, product.updated, etc.), Secret
+    - [ ] API-Usage-Stats: Requests/Tag, Rate-Limit-Status
+    - [ ] API-Dokumentation Link (→ Swagger/OpenAPI, wenn verfügbar)
+  - **Plan & Abrechnung (`#/settings/billing`):**
+    - [ ] Aktueller Plan: Name, Preis, Features, Limits
+    - [ ] Usage-Anzeige: Produkte (342 / 1.000), Aufträge/Monat (89 / 500), Integrationen (2 / 5), API-Calls
+    - [ ] Plan upgraden / downgraden
+    - [ ] Zahlungsmethode verwalten (Stripe-Integration → "Waiting On")
+    - [ ] Rechnungshistorie: Datum, Betrag, PDF-Download
+    - [ ] ⚠️ Stripe-Integration ist in "Waiting On" — UI kann vorbereitet werden mit Placeholder-Daten
+  - **Backend:**
+    - [ ] Existiert teilweise: `routes/admin.js`, `lib/rbac.js`
+    - [ ] NEU: `routes/settings.js` — Unternehmens-, Profil-, Team-CRUD
+    - [ ] NEU: Firestore Collection `company_settings` — {companyName, address, logo, taxId, bankDetails, ...}
+    - [ ] Erweiterung `routes/auth.js` — Profil-Update, Passwort-Change
+  - **Dateien:** `components/SettingsView.tsx` (neu, Tab-basiert), `components/settings/CompanySettings.tsx`, `components/settings/ProfileSettings.tsx`, `components/settings/TeamSettings.tsx`, `components/settings/ApiSettings.tsx`, `components/settings/BillingSettings.tsx`, `backend/routes/settings.js` (neu)
+
+---
+
 ### Bestehende Tasks (beibehalten)
 
 - [ ] **P0: Identify-Modul stärken — API-Nutzung koordinieren**
@@ -416,10 +578,10 @@
 - [ ] **P1: Monitoring & Error-Tracking** — Wenn ein Runner hängt merkt das niemand
   - Sentry, Uptime-Monitoring, Job-Health-Dashboard, Alerts
 
-- [ ] **P1: UI/UX — Accessibility (WCAG 2.1 AA)** — In Arbeit
+- [x] **P1: UI/UX — Accessibility (WCAG 2.1 AA)** ~~In Arbeit~~ (2026-03-05)
   - ✅ AdminTable, GeminiChat, ProductSheet, EbayListingsView, MobileOperationsView (2026-03-04)
   - ✅ Keyboard-Navigation, Sidebar Arrow-Keys (2026-03-05)
-  - **Offen:** MobileTabBar tablist-Pattern
+  - ✅ MobileTabBar: `role="tablist"` + `role="tab"` + `aria-selected` Pattern (2026-03-05)
 
 ---
 
