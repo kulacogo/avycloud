@@ -264,9 +264,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
     <aside className="hidden md:flex flex-col w-sidebar min-w-sidebar bg-app-sidebar border-r border-app-border h-screen sticky top-0 z-50">
       {/* Logo */}
       <div className="px-4 pt-5 pb-3 flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-md bg-accent flex items-center justify-center font-bold text-white text-sm">
-          A
-        </div>
+        <img src="/avy_logo.png" alt="AvyCloud" className="w-8 h-8 rounded-md object-contain" />
         <div>
           <div className="text-lg font-bold text-txt-primary leading-tight">AvyCloud</div>
           <div className="text-[10px] text-txt-muted leading-none">Product Intelligence</div>
