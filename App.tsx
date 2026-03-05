@@ -938,7 +938,7 @@ const AppInner: React.FC = () => {
         {isMobile ? (
           <Header currentView={view} setView={setView} theme={theme} onToggleTheme={toggleTheme} />
         ) : (
-          <Topbar currentView={view} theme={theme} onToggleTheme={toggleTheme} />
+          <Topbar currentView={view} theme={theme} onToggleTheme={toggleTheme} onNavigate={(v) => setView(v as View)} />
         )}
 
         <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 safe-area-content">

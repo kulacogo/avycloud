@@ -104,6 +104,18 @@ const NAV_SECTIONS: NavSection[] = [
         ),
       },
       {
+        view: "inventory",
+        labelKey: "nav.inventory",
+        icon: (
+          <Icon>
+            <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z" />
+            <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+            <path d="M12 12v4" />
+            <path d="M2 12h20" />
+          </Icon>
+        ),
+      },
+      {
         view: "categories",
         labelKey: "nav.categories",
         icon: (
@@ -232,7 +244,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
   const isActive = (view: View) => {
     if (view === "dashboard" && (currentView === "dashboard" || currentView === "home")) return true;
     if (view === "operations" && currentView.startsWith("operations")) return true;
-    if (view === "products" && (currentView === "products" || currentView === "inventory" || currentView === "search" || currentView === "sheet")) return true;
+    if (view === "inventory" && currentView === "inventory") return true;
+    if (view === "products" && (currentView === "products" || currentView === "search" || currentView === "sheet")) return true;
     return currentView === view;
   };
 
@@ -261,7 +274,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 py-1">
+      <nav
+        className="flex-1 overflow-y-auto px-2 py-1"
+        onKeyDown={(e) => {
+          if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
+          e.preventDefault();
+          const links = Array.from(e.currentTarget.querySelectorAll<HTMLElement>("a[href]"));
+          if (!links.length) return;
+          const idx = links.indexOf(document.activeElement as HTMLElement);
+          let next = idx;
+          if (e.key === "ArrowDown") next = idx < links.length - 1 ? idx + 1 : 0;
+          else if (e.key === "ArrowUp") next = idx > 0 ? idx - 1 : links.length - 1;
+          else if (e.key === "Home") next = 0;
+          else if (e.key === "End") next = links.length - 1;
+          links[next]?.focus();
+        }}
+      >
         {NAV_SECTIONS.map((section) => {
           const visibleItems = section.items.filter((item) => isNavAllowed(item.view));
           if (visibleItems.length === 0) return null;

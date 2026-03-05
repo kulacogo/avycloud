@@ -23,7 +23,8 @@
     - [x] AdminTableHeader: tabIndex + Enter/Space onKeyDown für sortierbare Spalten
     - [x] ImageGallery Lightbox: Escape schließt, Pfeiltasten navigieren, role=dialog, aria-modal, Backdrop-Click
     - [x] ScannerOverlay: Escape schließt, role=dialog, aria-modal, aria-label
-  - **Offen:** Sidebar Arrow-Key-Navigation, MobileTabBar tablist-Pattern
+  - ✅ Sidebar Arrow-Key-Navigation (ArrowUp/Down/Home/End, wrap-around) (2026-03-05)
+  - **Offen:** MobileTabBar tablist-Pattern (niedrige Prio — mobile-first)
 
 - [x] **P1: UI/UX — AdminTable aufteilen** — ✅ (2026-03-05)
   - [x] Extrahiert: AdminTableHeader, AdminTableRow, BulkActions, AdminTableFilters → `components/admin-table/`
@@ -104,6 +105,26 @@
     - [x] Theme-Toggle (Dark/Light) in Topbar
     - [x] Sprach-Umschaltung (DE/EN/TR) in Topbar
   - **Dateien Referenz:** `prototype.html` (interaktiver Mockup mit allen 14 Seiten)
+  - **Schritt 13 — Gaps aus Live-App Cross-Check (2026-03-05):** ✅ (2026-03-05)
+    - **Sidebar-Struktur:**
+      - [x] **"Bestand/Inventory" Nav-Punkt** unter KATALOG eingefügt (Sidebar.tsx, zwischen Produkte und Kategorien)
+      - [x] **"Erkennen" → "Erfassen"** — Naming vereinheitlicht (i18n DE/EN/TR)
+      - [x] **Kategorien unter KATALOG** — war bereits korrekt in Live-App
+      - [x] **Operationen in Desktop-Sidebar** — bleibt unter LAGER (bewusste Entscheidung, Desktop braucht Zugang zu Pick/Pack)
+      - [x] **Sidebar User-Bereich** — Avatar + Logout-Icon war bereits vorhanden
+    - **Produkte-Tabelle:** Alle Spalten bereits in AdminTable vorhanden ✅
+      - [x] `pendingIntake` — Offene Einlagerungen Spalte existiert
+      - [x] `kaufland` — eigene Spalte existiert (mit Listing-Status + URL)
+      - [x] `lastSaved` — Zuletzt gespeichert Spalte existiert
+      - [x] `baselinker` — BaseLinker Verknüpfungs-Status existiert
+      - [x] `thumbnail` — Echte Produktbilder als Thumbnails existieren
+      - [x] `category` — Breadcrumb via `getProductDisplayCategory()` existiert
+      - [x] Produkt-Counter `{filtered} / {total}` existiert (Zeile 2219)
+      - [x] Filter-Button mit Counter existiert
+    - **Topbar:** ✅
+      - [x] **Suchfeld** in Topbar-Mitte eingefügt (max-w-md, navigiert zu #/products mit sessionStorage-Term)
+      - [x] **Zahnrad-Icon** für Admin-Navigation eingefügt
+    - **Hinweis:** GAPs bezogen sich auf Prototype vs. Live-App-Vergleich — die meisten Features waren in der Live-App bereits vorhanden, nur der Prototype hatte sie nicht abgebildet.
 
 ## Waiting On
 
